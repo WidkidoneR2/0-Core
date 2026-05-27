@@ -1366,6 +1366,22 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
+                    // INT-279 FQL: friday where/show/explain/recall direct queries
+                    if line.starts_with("friday where ")
+                        || line.starts_with("friday show ")
+                        || line.starts_with("friday explain ")
+                        || line.starts_with("friday trace ")
+                        || line.starts_with("friday recall ") {
+                        let query = line[7..].trim().to_string(); // strip "friday "
+                        if let Ok(out) = std::process::Command::new("friday-chat")
+                            .args(["chat", &query]).output() {
+                            let result = String::from_utf8_lossy(&out.stdout).to_string();
+                            if !result.trim().is_empty() {
+                                println!("{}", result.trim());
+                            }
+                        }
+                        continue 'segments;
+                    }
                     // INT-278 -- friday chat: launch Friday Chat TUI (intercept first)
                     if line.starts_with("friday chat") {
                         let rest = line[11..].trim().to_string();

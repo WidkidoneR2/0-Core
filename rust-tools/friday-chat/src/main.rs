@@ -111,7 +111,7 @@ fn log_conversation(db: &Connection, message: &str) {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default().as_secs() as i64;
     let _ = db.execute(
-        "INSERT INTO events (timestamp, domain, kind, detail, source)
+        "INSERT INTO events (timestamp, domain, action, payload, source_tool)
          VALUES (?1, 'friday', 'chat_message', ?2, 'friday-chat')",
         rusqlite::params![now, &message[..message.len().min(200)]],
     );
@@ -214,7 +214,7 @@ fn friday_intent(db: &Connection) -> String {
 
 fn friday_events(db: &Connection) -> String {
     let mut stmt = db.prepare(
-        "SELECT domain, kind, detail FROM events ORDER BY timestamp DESC LIMIT 8"
+        "SELECT domain, action, payload FROM events ORDER BY timestamp DESC LIMIT 8"
     ).unwrap();
     let rows: Vec<String> = stmt.query_map([], |r| {
         Ok(format!("  [{}:{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?,
@@ -259,7 +259,7 @@ fn friday_why(db: &Connection, term: &str) -> String {
     let pattern = format!("%{}%", term);
     let events: Vec<String> = {
         let mut stmt = db.prepare(
-            "SELECT domain, kind, detail, timestamp FROM events WHERE detail LIKE ?1 ORDER BY timestamp DESC LIMIT 5"
+            "SELECT domain, action, payload, timestamp FROM events WHERE payload LIKE ?1 ORDER BY timestamp DESC LIMIT 5"
         ).unwrap();
         stmt.query_map(rusqlite::params![pattern], |r| {
             let ts: i64 = r.get(3)?;
@@ -316,7 +316,7 @@ fn friday_trace(db: &Connection, term: &str) -> String {
     let pattern = format!("%{}%", term);
     let signals: Vec<String> = {
         let mut stmt = db.prepare(
-            "SELECT timestamp, domain, kind, detail FROM events WHERE kind LIKE ?1 OR detail LIKE ?1 ORDER BY timestamp DESC LIMIT 5"
+            "SELECT timestamp, domain, action, payload FROM events WHERE action LIKE ?1 OR payload LIKE ?1 ORDER BY timestamp DESC LIMIT 5"
         ).unwrap();
         stmt.query_map(rusqlite::params![pattern], |r| {
             let ts: i64 = r.get(0)?;
@@ -413,7 +413,28 @@ fn friday_where(db: &Connection, condition: &str) -> String {
             if rows.is_empty() { format!("No health events matching where health {} {}", op, threshold) }
             else { format!("Health events where health {} {}:\n{}", op, threshold, rows.join("\n")) }
         }
-        _ => format!("Unknown field: {}\nSupported: confidence, domain, health, source", field)
+        "risk" => {
+            // Map risk levels: low=0.3, medium=0.5, high=0.7, critical=0.9
+            let threshold = match value.to_lowercase().as_str() {
+                "low" => 0.3f64,
+                "medium" => 0.5,
+                "high" => 0.7,
+                "critical" => 0.9,
+                v => v.parse().unwrap_or(0.5),
+            };
+            let mut stmt = db.prepare(
+                "SELECT event_type, attention_score, event_detail FROM friday_attention WHERE risk > ?1 ORDER BY timestamp DESC LIMIT 8"
+            ).unwrap();
+            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
+                Ok(format!("  risk={:.2} [{}] {}", r.get::<_,f64>(1)?, r.get::<_,String>(0)?, r.get::<_,String>(2)?))
+            }).unwrap().flatten().collect();
+            if rows.is_empty() {
+                format!("No attention events where risk > {} ({})", value, threshold)
+            } else {
+                format!("Attention events where risk > {}:\n{}", value, rows.join("\n"))
+            }
+        }
+        _ => format!("Unknown field: {}\nSupported: confidence, domain, health, risk, source", field)
     }
 }
 
