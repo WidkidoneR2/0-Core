@@ -586,3 +586,122 @@ fn write_audit_scores(ctx: &AppContext, scores: &[ToolScore]) {
         ).ok();
     }
 }
+
+/// INT-341: Deferral Ledger -- scan all intent files for ⏸ deferrals
+pub fn deferral_list(ctx: &AppContext, flag_old: bool) -> CoreResult<()> {
+    use colored::Colorize;
+    use std::fs;
+
+    let core_root = &ctx.core_root;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let thirty_days_ago = now - (30 * 24 * 3600);
+
+    let dirs = ["complete", "in-progress", "future"];
+    let mut all_deferrals: Vec<(String, String, String, String, String, i64)> = Vec::new();
+    // (intent_id, intent_title, gate, reason, date, date_ts)
+
+    for dir in &dirs {
+        let path = format!("{}/intents/{}", core_root, dir);
+        let entries = match fs::read_dir(&path) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if !fname.ends_with(".md") { continue; }
+            let intent_id = fname.split('-').next().unwrap_or("???").to_string();
+            let content = match fs::read_to_string(entry.path()) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            // Get intent title from frontmatter
+            let title = content.lines()
+                .find(|l| l.starts_with("title:"))
+                .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                .unwrap_or_else(|| fname.clone());
+            // Find ⏸ lines
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("⏸") || trimmed.starts_with("- [x] ⏸") || trimmed.starts_with("[x] ⏸") {
+                    // Parse: ⏸ gate -- deferred: reason -- approved by: christian date
+                    let clean = trimmed
+                        .trim_start_matches("- [x] ")
+                        .trim_start_matches("[x] ")
+                        .trim_start_matches("⏸ ");
+                    let parts: Vec<&str> = clean.splitn(3, " -- ").collect();
+                    let gate = parts.first().copied().unwrap_or(clean).trim().to_string();
+                    let reason = parts.get(1).copied()
+                        .unwrap_or("deferred")
+                        .trim_start_matches("deferred: ")
+                        .to_string();
+                    let approved_part = parts.get(2).copied().unwrap_or("");
+                    let date = approved_part
+                        .split_whitespace()
+                        .last()
+                        .unwrap_or("unknown")
+                        .to_string();
+                    // Parse date to timestamp
+                    let date_ts: i64 = if date.contains('-') {
+                        let p: Vec<&str> = date.split('-').collect();
+                        if p.len() == 3 {
+                            let y: i64 = p[0].parse().unwrap_or(2026);
+                            let m: i64 = p[1].parse().unwrap_or(5);
+                            let d: i64 = p[2].parse().unwrap_or(1);
+                            (y - 1970) * 365 * 86400 + m * 30 * 86400 + d * 86400
+                        } else { 0 }
+                    } else { 0 };
+                    all_deferrals.push((intent_id.clone(), title.clone(), gate, reason, date, date_ts));
+                }
+            }
+        }
+    }
+
+    // Sort by intent ID
+    all_deferrals.sort_by(|a, b| {
+        let ai: i64 = a.0.parse().unwrap_or(0);
+        let bi: i64 = b.0.parse().unwrap_or(0);
+        ai.cmp(&bi)
+    });
+
+    println!();
+    println!("  {} {}", "⏸ Deferral Ledger".bright_yellow().bold(), format!("({} total)", all_deferrals.len()).dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+
+    let mut old_count = 0;
+    let mut current_intent = String::new();
+    for (id, title, gate, reason, date, date_ts) in &all_deferrals {
+        if *id != current_intent {
+            println!();
+            let short_title = title.split(" -- ").next().unwrap_or(title);
+            println!("  {} INT-{}: {}", "▶".bright_cyan(), id.bright_white(), short_title.dimmed());
+            current_intent = id.clone();
+        }
+        let is_old = *date_ts > 0 && *date_ts < thirty_days_ago;
+        if is_old { old_count += 1; }
+        let age_marker = if is_old { " ⚠️  >30 days".bright_red().to_string() } else { String::new() };
+        let gate_display = if gate.len() > 60 { format!("{}...", &gate[..57]) } else { gate.clone() };
+        println!("    {} {} ({}){}", "⏸".yellow(), gate_display.bright_white(), date.dimmed(), age_marker);
+        println!("      {} {}", "→".dimmed(), reason.dimmed());
+    }
+
+    println!();
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("  {} {} deferrals across {} intents",
+        "📊".normal(),
+        all_deferrals.len().to_string().bright_white(),
+        {
+            let mut ids: Vec<&str> = all_deferrals.iter().map(|d| d.0.as_str()).collect();
+            ids.dedup();
+            ids.len()
+        }
+    );
+    if old_count > 0 {
+        println!("  {} {} deferrals older than 30 days -- review before NixOS migration",
+            "⚠️".normal(), old_count.to_string().bright_red());
+    }
+    println!();
+    Ok(())
+}

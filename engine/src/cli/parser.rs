@@ -1292,6 +1292,11 @@ pub enum AuditCommands {
     Stale,
     /// Tools missing documentation
     Coverage,
+    /// Show deferral ledger (INT-341)
+    Deferral {
+        #[arg(long, default_value = "false")]
+        flag_old: bool,
+    },
 }
 
 #[derive(Subcommand)]

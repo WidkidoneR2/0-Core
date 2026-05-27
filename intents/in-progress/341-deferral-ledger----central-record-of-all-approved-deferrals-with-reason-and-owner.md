@@ -1,7 +1,7 @@
 ---
 id: 341
 title: "Deferral Ledger -- central record of all approved deferrals with reason and owner"
-status: planned
+status: in-progress
 date: 2026-05-25
 tags: [deferral, ledger, accountability, gates, christian, approval, audit]
 ---

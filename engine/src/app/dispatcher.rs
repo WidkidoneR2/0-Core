@@ -758,6 +758,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AuditCommand::Show { tool } => crate::domains::audit::show(ctx, &tool),
             AuditCommand::Stale => crate::domains::audit::stale(ctx),
             AuditCommand::Coverage => crate::domains::audit::coverage(ctx),
+            AuditCommand::Deferral { flag_old } => crate::domains::audit::deferral_list(ctx, flag_old),
         },
         Command::Goals(c) => match c {
             GoalsCommand::List => crate::domains::goals::list(ctx),

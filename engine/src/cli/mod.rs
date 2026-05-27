@@ -737,6 +737,7 @@ pub fn parse() -> Command {
             AuditCommands::Show { tool } => AuditCommand::Show { tool },
             AuditCommands::Stale => AuditCommand::Stale,
             AuditCommands::Coverage => AuditCommand::Coverage,
+            AuditCommands::Deferral { flag_old } => AuditCommand::Deferral { flag_old },
         }),
         Commands::Lessons => Command::Decision(DecisionCommand::Lessons),
         Commands::Story => Command::Decision(DecisionCommand::Story),

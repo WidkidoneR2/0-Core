@@ -639,6 +639,7 @@ pub enum AuditCommand {
     Show { tool: String },
     Stale,
     Coverage,
+    Deferral { flag_old: bool },
 }
 
 #[derive(Debug)]
