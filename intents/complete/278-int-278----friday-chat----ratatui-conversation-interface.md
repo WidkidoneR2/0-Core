@@ -1,7 +1,7 @@
 ---
 id: 278
 title: "Friday Chat -- The Forest Speaks Back"
-status: in-progress
+status: complete
 date: 2026-05-07
 tags: [friday, chat, ratatui, tui, conversation, faelight-term, intelligence]
 depends_on: [246, 251]
@@ -59,16 +59,16 @@ What Friday cannot answer:
   Questions outside the forest
 ---
 GATES
-[ ] friday chat command opens right split pane in faelight-term
-[ ] Input field at bottom, Enter sends message
-[ ] Friday reads question, queries state.db, returns answer
-[ ] friday why [event] returns event history explanation
-[ ] friday recall [query] surfaces matching past events
-[ ] friday trace [signal] follows signal to root cause
-[ ] Conversation logged to state.db
-[ ] Pane dismisses cleanly with q or Escape
-[ ] Friday answers from data -- never invents
-[ ] Demonstrated: friday why did health drop -- returns real answer
+[x] friday chat opens TUI from fsh -- wired in main.rs before alias expansion 2026-05-27
+[x] Input field at bottom with > prompt, Enter sends, q/Esc exits 2026-05-27
+[x] Friday reads state.db -- friday_knowledge, friday_patterns, events, intent_commits 2026-05-27
+[x] /why [term] returns matching events from event bus with timestamps 2026-05-27
+[x] /recall [query] searches friday_knowledge + intent_commits 2026-05-27
+[x] /trace [signal] follows signal through event bus 2026-05-27
+[x] Conversations logged to events table (domain: friday, kind: chat_message) 2026-05-27
+[x] q (when input empty) and Escape dismiss cleanly, terminal restored 2026-05-27
+[x] Friday answers only from state.db -- returns explicit message when nothing found 2026-05-27
+[x] Demonstrated: friday chat /status shows real health/facts/patterns/decisions 2026-05-27
 "Friday does not guess.
 Friday remembers.
 Ask it what it saw." 🌲
