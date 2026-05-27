@@ -33,3 +33,14 @@ version: TBD
 ---
 
 *\"The forest grows with intention.\"* 🌲
+
+## Migration Strategy (2026-05-26)
+faelight-login dual-session approach:
+1. Build Pinnacle in R&D VM (INT-328) -- validate before touching daily system
+2. Update faelight-login to show both: [Niri] and [Pinnacle] as session choices
+3. Run side by side -- Niri as fallback, Pinnacle as primary
+4. Once Pinnacle is daily-driver stable -- remove Niri from login options
+5. NixOS migration with Pinnacle as the only compositor
+
+This prevents any hard cutover. Gradual confidence building.
+The forest never bets everything on one session.
