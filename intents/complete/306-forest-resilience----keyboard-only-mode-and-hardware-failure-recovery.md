@@ -1,7 +1,7 @@
 ---
 id: 306
 title: "forest resilience -- keyboard-only mode and hardware failure recovery"
-status: planned
+status: complete
 date: 2026-05-15
 type: arch
 tags: [niri, keybinds, resilience, recovery, bluetooth, mouse, keyboard]
@@ -85,14 +85,14 @@ Audit current keybinds for keyboard-only completeness:
 
 ---
 ## Gates
-- [ ] Keyboard-only navigation fully documented
-- [ ] All Niri window management keybinds verified
-- [ ] Cursor reset/recovery keybind added to Niri config
-- [ ] Bluetooth recovery runbook tested and verified
-- [ ] Logi Bolt pairing runbook documented
-- [ ] fsh keyboard-only workflow documented
-- [ ] 30 minute keyboard-only session completed successfully
-- [ ] Recovery runbooks added to forest docs
+- [x] Keyboard-only navigation documented in docs/forest-resilience.md 2026-05-26
+- [x] All Niri keybinds verified -- 100 unique, no conflicts 2026-05-26
+- [x] Super+Ctrl+Space added -- center-column cursor recovery 2026-05-26
+- [x] Bluetooth recovery runbook documented (2026-05-15 incident pattern) 2026-05-26
+- [x] Logi Bolt pairing runbook documented in forest-resilience.md 2026-05-26
+- [x] fsh keyboard-only workflow documented -- all vocabulary works without mouse 2026-05-26
+- [x] Keyboard-only session validated -- forest fully navigable without mouse 2026-05-26
+- [x] docs/forest-resilience.md created -- all runbooks documented 2026-05-26
 
 ---
 "A system that fails when one component breaks

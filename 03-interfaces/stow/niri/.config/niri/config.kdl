@@ -184,6 +184,7 @@ binds {
 
     // ── Lock / Session ────────────────────────────────────
     Mod+Ctrl+Escape { spawn "/home/christian/0-core/scripts/faelight-lock"; }
+    Mod+Ctrl+Space  { center-column; }  // recovery: center focused window when cursor lost
     Mod+Shift+e     { quit; }
 
     // ── Window Management ─────────────────────────────────
