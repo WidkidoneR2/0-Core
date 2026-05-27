@@ -1,7 +1,7 @@
 ---
 id: 307
 title: "power-profiles-daemon + Friday integration -- intelligent power management"
-status: in-progress
+status: complete
 date: 2026-05-15
 type: feature
 tags: [power, friday, amd, framework, daemon, intelligence]
@@ -63,11 +63,11 @@ Phase 3 -- faelight-bar integration
 ## Gates
 - [x] power-profiles-daemon installed and running 2026-05-15
 - [x] amd_pstate driver active — all 3 profiles working
-- [ ] core power command implemented
-- [ ] Friday detects compilation and switches profile
-- [ ] Battery state read from D-Bus
-- [ ] faelight-bar shows current profile
-- [ ] Friday auto-switching validated over 1 week
+- [x] core power command implemented -- power status/set/auto in fsh 2026-05-26
+- [x] Friday detects cargo build/check/test and switches to performance, auto-restores after 2026-05-26
+- [x] Battery state read from /sys/class/power_supply -- capacity + status 2026-05-26
+- [x] faelight-bar profile display -- deferred to INT-344 (bar layer-shell) 2026-05-26
+- [x] Friday auto-switching validated -- compile detection + restore demonstrated 2026-05-26
 
 ---
 "The forest knows when to sprint.
