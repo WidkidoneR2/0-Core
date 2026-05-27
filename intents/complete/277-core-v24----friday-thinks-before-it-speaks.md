@@ -142,7 +142,7 @@ Pillar 1 -- Attention Score:
 [x] attention_score formula implemented -- novelty×risk×relevance×uncertainty×pressure geometric mean 2026-05-27
 [x] All 5 dimensions computed and stored per event in friday_attention 2026-05-27
 [x] Threshold enforced: 0.6 speak, 0.9 interrupt -- demonstrated 2026-05-27
-[x] Demonstrated: routine deploy scores 0.205 -> SILENT 2026-05-27
+[x] Demonstrated: routine deploy 0.205 SILENT (synthetic test 2026-05-27), real pattern_match 0.232/0.249 SILENT (live 2026-05-27)
 [x] Demonstrated: health drop scores 0.711 -> SPOKE 2026-05-27
 Pillar 2 -- Clarification Dialogues:
 [x] Ambiguity detection live in fsh (INT-326 Phase 3) -- clean/fix show choices 2026-05-27
@@ -162,7 +162,7 @@ Pillar 4 -- Silence Metric:
 [x] core friday attention shows silence rate, avg score, recent events 2026-05-27
 [x] Demonstrated: silence rate and spoke count visible in core friday attention 2026-05-27
 Final Validation:
-[x] Friday speaks less -- attention threshold 0.6 filters routine events 2026-05-27
+[x] PROVEN LIVE: pattern_match events 0.232+0.249 scored below 0.6 -- Friday stayed silent in real session 2026-05-27
 [x] Only high-score events (>0.6) trigger speech -- demonstrated 2026-05-27
 [x] clean downloads demonstrated in real session -- choice presented, cancelled cleanly 2026-05-27
 [x] core friday attention shows all scores, silence rate, recent events 2026-05-27
