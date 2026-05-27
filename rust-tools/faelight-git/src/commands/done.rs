@@ -8,7 +8,7 @@ use colored::*;
 fn get_active_intent() -> Option<(String, String)> {
     // Scan intents/future/ for in-progress intents -- same as fsh prompt
     let home = std::env::var("HOME").ok()?;
-    let future_dir = format!("{}/0-core/intents/future", home);
+    let future_dir = format!("{}/0-core/intents/in-progress", home);
     let mut entries: Vec<_> = std::fs::read_dir(&future_dir).ok()?.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
