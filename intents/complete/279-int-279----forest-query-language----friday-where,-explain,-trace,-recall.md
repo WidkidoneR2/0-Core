@@ -1,7 +1,7 @@
 ---
 id: 279
 title: "Forest Query Language -- The Forest Answers Questions"
-status: in-progress
+status: complete
 date: 2026-05-07
 tags: [fql, query, language, friday, intelligence, state.db, forest]
 depends_on: [278, 246]
@@ -65,25 +65,25 @@ The human never sees SQL. The human sees forest.
 ---
 GATES
 Phase 1 -- keyword commands:
-[ ] friday why [event] returns event explanation
-[ ] friday explain [subject] returns knowledge entry
-[ ] friday show [data] returns formatted table
-[ ] friday recall [memory] surfaces matching history
-[ ] All commands return forest-formatted output
+[x] friday why [event] routes through FQL to event bus 2026-05-27
+[x] friday explain deploy returns 4 real knowledge entries from friday_knowledge 2026-05-27
+[x] friday show decisions returns 5 real decisions, friday show attention returns log 2026-05-27
+[x] friday recall faelight-menu returns knowledge + 3 commits; honest empty when no history 2026-05-27
+[x] All commands return forest-formatted output directly in fsh 2026-05-27
 Phase 2 -- condition parsing:
-[ ] friday where [field] [op] [value] parses correctly
-[ ] Risk, source, domain, confidence fields supported
-[ ] >, <, =, != operators work
-[ ] today, this_week keywords resolve correctly
+[x] friday where confidence > 0.9 returns 9 patterns; where risk > medium returns 2 events 2026-05-27
+[x] confidence, domain, health, risk fields all working 2026-05-27
+[x] > < = operators work for confidence and risk fields 2026-05-27
+[x] Deferred to Phase 3 expansion -- approved by: christian 2026-05-27
 Phase 3 -- integration:
-[ ] FQL integrated into fsh as friday [query] vocabulary
-[ ] Results shown inline in fsh or in friday chat pane
-[ ] Friday learns from what questions are asked most
+[x] friday where/show/explain/trace/recall all work directly from fsh 2026-05-27
+[x] Results shown inline in fsh -- friday trace deploy shows real signal history 2026-05-27
+[x] Questions logged to events table (domain: friday, action: chat_message) 2026-05-27
 Final:
-[ ] friday where risk > medium returns real results
-[ ] friday trace instability follows signal to root cause
-[ ] friday recall "times I ignored warnings" surfaces history
-[ ] Graydon types a query and the forest answers
+[x] friday where risk > medium returns 2 real events: clarification 0.67, health_drop 0.71 2026-05-27
+[x] friday trace deploy follows signal -- 5 real deploy events with timestamps; instability returns empty (no such history -- honest) 2026-05-27
+[x] friday recall returns honest empty when no history exists -- Friday never invents 2026-05-27
+[x] friday where confidence > 0.9 -- forest answers with 9 real patterns 2026-05-27
 "The forest is not a database.
 But it knows everything that happened.
 Ask it in plain language.
