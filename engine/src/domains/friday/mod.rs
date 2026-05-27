@@ -1,5 +1,6 @@
 //! INT-203 -- Friday: The Living Intelligence
 //! Phase 0: Observation engine, tables, friday status, friday ask
+pub mod attention;
 pub mod events;
 pub mod reasoning;
 pub mod types;

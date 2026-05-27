@@ -92,6 +92,9 @@ pub enum FridayCommand {
     DocsAnalyze,
     DocsApprove { id: i64 },
     DocsDismiss { id: i64 },
+    // INT-277 Core v24 -- Attention Engine
+    Attention,
+    AttentionDebug,
 }
 
 pub enum Command {

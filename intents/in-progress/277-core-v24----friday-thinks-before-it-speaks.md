@@ -1,7 +1,7 @@
 ---
 id: 277
 title: "Core v24 -- Friday Thinks Before It Speaks"
-status: planned
+status: in-progress
 date: 2026-05-06
 tags: [core, friday, attention, intelligence, clarification, v24, architecture]
 depends_on: [246, 251]

@@ -683,6 +683,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::DocsDismiss { id } => {
                 crate::domains::friday::doc_steward::resolve_proposal(ctx, id, false)
             }
+            FridayCommand::Attention | FridayCommand::AttentionDebug => {
+                let home = dirs::home_dir().unwrap_or_default();
+                let db_path = home.join("0-core/runtime/state.db");
+                if let Ok(db) = rusqlite::Connection::open(&db_path) {
+                    crate::domains::friday::attention::show_debug(&db);
+                }
+                Ok(())
+            }
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),

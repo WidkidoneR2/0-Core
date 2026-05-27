@@ -93,6 +93,8 @@ pub fn parse() -> Command {
             FridayCommands::DocsAnalyze => FridayCommand::DocsAnalyze,
             FridayCommands::DocsApprove { id } => FridayCommand::DocsApprove { id },
             FridayCommands::DocsDismiss { id } => FridayCommand::DocsDismiss { id },
+            FridayCommands::Attention => FridayCommand::Attention,
+            FridayCommands::AttentionDebug => FridayCommand::AttentionDebug,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

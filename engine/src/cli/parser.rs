@@ -549,6 +549,10 @@ pub enum FridayCommands {
         /// Proposal ID to dismiss
         id: i64,
     },
+    /// Show Friday attention debug (INT-277)
+    Attention,
+    /// Show attention stats (INT-277)
+    AttentionDebug,
 }
 
 #[derive(Subcommand)]
