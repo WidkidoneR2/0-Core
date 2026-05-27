@@ -15,15 +15,18 @@ use ratatui::{
     Terminal,
 };
 use std::{io, process::Command};
+extern crate rusqlite;
 
-// ── Faelight Forest palette ──────────────────────────────────────────────────
-const BG: Color = Color::Rgb(17, 20, 15);
-const FG: Color = Color::Rgb(218, 224, 215);
-const GREEN: Color = Color::Rgb(163, 227, 107);
-const DIM: Color = Color::Rgb(90, 100, 80);
-const ACCENT: Color = Color::Rgb(120, 190, 80);
-const WARNING: Color = Color::Rgb(230, 180, 60);
-const RED: Color = Color::Rgb(220, 80, 80);
+// ── Faelight Forest palette (design-system.md) ───────────────────────────────
+const BG: Color = Color::Rgb(10, 15, 10);       // Deep Forest Black #0a0f0a
+const FG: Color = Color::Rgb(168, 197, 176);     // Soft Moss #a8c5b0
+const GREEN: Color = Color::Rgb(42, 255, 213);   // Aqua Mint #2affd5
+const DIM: Color = Color::Rgb(74, 107, 82);      // Deep Moss #4a6b52
+const ACCENT: Color = Color::Rgb(0, 191, 255);   // Neon Azure #00bfff
+const WARNING: Color = Color::Rgb(255, 212, 59); // Soft Amber #ffd43b
+const RED: Color = Color::Rgb(255, 107, 107);    // Coral #ff6b6b
+#[allow(dead_code)]
+const SURFACE: Color = Color::Rgb(26, 36, 25);   // Surface 2 #1a2419
 
 #[derive(Debug, Clone, PartialEq)]
 enum MenuItem {
@@ -83,7 +86,14 @@ impl MenuItem {
                 let _ = Command::new("faelight-lock").spawn();
             }
             MenuItem::Logout => {
-                let _ = Command::new("niri").args(["msg", "action", "quit"]).spawn();
+                // Compositor-agnostic: detect Niri or Pinnacle
+                if std::env::var("NIRI_SOCKET").is_ok() {
+                    let _ = Command::new("niri").args(["msg", "action", "quit"]).spawn();
+                } else if std::env::var("PINNACLE_SOCKET").is_ok() {
+                    let _ = Command::new("pinnacle").args(["quit"]).spawn();
+                } else {
+                    let _ = Command::new("niri").args(["msg", "action", "quit"]).spawn();
+                }
             }
             MenuItem::Suspend => {
                 let _ = Command::new("systemctl").arg("suspend").status();
@@ -106,10 +116,24 @@ const ITEMS: &[MenuItem] = &[
     MenuItem::Shutdown,
 ];
 
+fn get_friday_hint() -> Option<String> {
+    let real_db = "/home/christian/0-core/runtime/state.db";
+    let conn = rusqlite::Connection::open_with_flags(
+        real_db,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    ).ok()?;
+    conn.query_row(
+        "SELECT action FROM friday_patterns WHERE confidence >= 0.7 ORDER BY confidence DESC LIMIT 1",
+        [],
+        |r| r.get::<_, String>(0),
+    ).ok()
+}
+
 struct App {
     selected: usize,
     confirm: Option<usize>, // index awaiting confirmation
     should_quit: bool,
+    friday_hint: Option<String>,
 }
 
 impl App {
@@ -118,6 +142,7 @@ impl App {
             selected: 0,
             confirm: None,
             should_quit: false,
+            friday_hint: get_friday_hint(),
         }
     }
 
@@ -245,11 +270,26 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
     let inner = outer.inner(area);
     f.render_widget(outer, area);
 
-    // Layout: items + footer
+    // Layout: Friday hint + items + footer
+    let friday_height = if app.friday_hint.is_some() { 2 } else { 0 };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(friday_height),
+            Constraint::Min(0),
+            Constraint::Length(2),
+        ])
         .split(inner);
+    // Friday hint
+    if let Some(ref hint) = app.friday_hint {
+        let hint_text = Paragraph::new(Line::from(vec![
+            Span::styled(" 🌲 ", Style::default().fg(GREEN)),
+            Span::styled("Friday: ", Style::default().fg(DIM)),
+            Span::styled(hint.as_str(), Style::default().fg(GREEN).add_modifier(Modifier::ITALIC)),
+        ]))
+        .style(Style::default().bg(BG));
+        f.render_widget(hint_text, chunks[0]);
+    }
 
     // Items
     let items: Vec<ListItem> = ITEMS
@@ -305,7 +345,7 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
 
     let list = List::new(items).style(Style::default().bg(BG));
 
-    f.render_widget(list, chunks[0]);
+    f.render_widget(list, chunks[1]);
 
     // Footer
     let footer = Paragraph::new(Line::from(vec![
@@ -325,5 +365,5 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
     ]))
     .alignment(Alignment::Center);
 
-    f.render_widget(footer, chunks[1]);
+    f.render_widget(footer, chunks[2]);
 }

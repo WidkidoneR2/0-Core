@@ -1,6 +1,6 @@
 [package]
 name = "faelight-menu"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
 authors = ["Christian <christian@faelight.forest>"]
 license = "MIT"
@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 crossterm = "0.28"
 ratatui = "0.28"
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 [[bin]]
 name = "faelight-menu"

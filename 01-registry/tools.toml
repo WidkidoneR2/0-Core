@@ -141,7 +141,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-menu"
-version = "3.0.0"
+version = "4.0.0"
 category = "ui"
 description = "Power management and system menu"
 expected_usage = "medium"

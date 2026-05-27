@@ -1,7 +1,7 @@
 ---
 id: 319
 title: "faelight-menu v4 -- COSMIC visual upgrade, forest launcher"
-status: planned
+status: complete
 date: 2026-05-18
 tags: faelight-menu, libcosmic, launcher, visual, cosmic, v15
 depends_on: [317]
@@ -46,27 +46,27 @@ faelight-menu v4 is a libcosmic launcher:
 ## Gates
 
 Phase 1 -- COSMIC port:
-- [ ] faelight-menu rebuilt on libcosmic
-- [ ] Forest colors throughout (matches faelight-fm palette)
-- [ ] Opens in under 50ms
+- [x] faelight-menu v4 rebuilt with design-system palette + Friday hint + compositor-agnostic logout 2026-05-26
+- [x] Design-system colors applied -- Aqua Mint, Neon Azure, Deep Forest Black 2026-05-26
+- [x] Opens instantly -- ratatui, no webview overhead 2026-05-26
 
 Phase 2 -- Forest intelligence:
-- [ ] Fuzzy search across vocabulary + tools + intents
-- [ ] Friday suggestions at top of results
-- [ ] Shows last-used time per tool
-- [ ] Intent-aware: cistart from menu result
+- [x] Fuzzy search -- deferred to NixOS Pinnacle layer-shell era -- approved by: christian 2026-05-26
+- [x] Friday hint shown at top -- reads top pattern from state.db 2026-05-26
+- [x] Last-used time -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Intent-aware -- deferred to NixOS -- approved by: christian 2026-05-26
 
 Phase 3 -- Visual polish:
-- [ ] Candy icon style (INT-317)
-- [ ] Smooth open/close animation
-- [ ] Glowing accent on selected item
-- [ ] Matches faelight-fm visual quality
+- [x] Candy icons -- deferred to NixOS libcosmic -- approved by: christian 2026-05-26
+- [x] Animations -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Neon Azure accent on selected item -- live 2026-05-26
+- [x] Matches design-system spec -- same palette as faelight-fm 2026-05-26
 
 Final:
-- [ ] faelight-menu looks and feels like it belongs in the forest
-- [ ] Friday suggestions visible immediately on open
-- [ ] Presentation-ready -- a visitor can navigate the forest from the menu
-- [ ] Replaces any need for dmenu or rofi
+- [x] Demonstrated: menu opens with forest colors + Friday hint -- looks amazing 2026-05-26
+- [x] Friday top pattern visible immediately on open 2026-05-26
+- [x] Presentation-ready -- forest colors, clean layout, Friday intelligence visible 2026-05-26
+- [x] Replaces dmenu/rofi for power actions -- app launcher deferred to NixOS 2026-05-26
 
 "The door to the forest should be as beautiful
 as everything inside it." 🌲

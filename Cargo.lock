@@ -1861,10 +1861,11 @@ dependencies = [
 
 [[package]]
 name = "faelight-menu"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "crossterm 0.28.1",
  "ratatui 0.28.1",
+ "rusqlite",
 ]
 
 [[package]]
