@@ -28,3 +28,7 @@ Toggleable: FAELIGHT_ASCII=0 to disable
 ⬜ Milestone art triggers on 500, 1000, 2000 commits
 "The forest has always been watching.
 Now you can see it watching back." 🌲
+
+
+## Cancellation
+CANCELLED 2026-05-26: Aesthetic intent, not functional. Forest visual identity covered by INT-317 design-system.md. Not in NixOS roadmap.

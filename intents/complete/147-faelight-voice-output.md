@@ -205,3 +205,7 @@ Every silence meaningful."**
 *"The voice is not the personality.
 The personality was always there.
 The voice just lets you hear it."* 🌲
+
+
+## Cancellation
+CANCELLED 2026-05-26: Not in pre-NixOS or NixOS roadmap. Voice output is low priority vs compositor, Friday, ADE work. May revisit post-FaelightOS stabilization.
