@@ -94,6 +94,71 @@ fn cmd_command_guide(dry_run: bool) {
         println!("  {} Written: docs/COMMAND-GUIDE.md ({} domains)", "✅".green(), domains.len());
     }
 }
+/// INT-315 Phase 3: generate public docs set -- curated, no internal content
+fn cmd_public(dry_run: bool) {
+    use std::fs;
+    let root = core_root();
+    let docs_dir = root.join("docs");
+    let public_dir = docs_dir.join("public");
+
+    // Public docs -- curated set, no internal language
+    let public_files = [
+        ("COMMAND-GUIDE.md", "Command Reference"),
+        ("ARCHITECTURE.md",  "Architecture"),
+        ("PHILOSOPHY.md",    "Philosophy"),
+        ("FSH-PHILOSOPHY.md","Shell Philosophy"),
+        ("design-system.md", "Design System"),
+        ("forest-resilience.md", "Resilience Guide"),
+        ("FAELIGHT-SHELL.md", "Shell Reference"),
+    ];
+
+    if dry_run {
+        println!("  -> public/ would contain {} docs:", public_files.len());
+        for (file, title) in &public_files {
+            let src = docs_dir.join(file);
+            let exists = if src.exists() { "✅" } else { "❌ missing" };
+            println!("     {} {} ({})", exists, title, file);
+        }
+        return;
+    }
+
+    if !public_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&public_dir) {
+            eprintln!("  ❌ Could not create docs/public/: {}", e);
+            return;
+        }
+    }
+
+    // Generate index.md
+    let version = std::fs::read_to_string(root.join("00-meta/VERSION"))
+        .unwrap_or_default().trim().to_string();
+    let mut index = format!(
+        "# Faelight Forest Documentation\n\n> {}\n\n## Contents\n\n",
+        version
+    );
+
+    let mut copied = 0usize;
+    for (file, title) in &public_files {
+        let src = docs_dir.join(file);
+        let dst = public_dir.join(file);
+        if src.exists() {
+            if let Ok(src_content) = fs::read_to_string(&src) {
+                // Strip any lines containing internal markers
+                let clean: String = src_content.lines()
+                    .filter(|l| !l.contains("INT-") || l.contains("INT-") && l.starts_with('#'))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let _ = fs::write(&dst, clean);
+                index.push_str(&format!("- [{}]({})\n", title, file));
+                copied += 1;
+            }
+        }
+    }
+
+    let _ = fs::write(public_dir.join("index.md"), index);
+    println!("  {} docs/public/ -- {} docs generated", "✅".normal(), copied);
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
@@ -106,7 +171,12 @@ fn main() {
             cmd_welcome(false);
             cmd_readme(false);
             verify_links(false);
+            cmd_public(false);
             println!("  {} All docs synced", "✅".normal());
+        }
+        "public" => {
+            let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
+            cmd_public(dry);
         }
         "check" => {
             cmd_welcome(true);
