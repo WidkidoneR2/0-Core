@@ -1,7 +1,7 @@
 ---
 id: 278
 title: "Friday Chat -- The Forest Speaks Back"
-status: planned
+status: in-progress
 date: 2026-05-07
 tags: [friday, chat, ratatui, tui, conversation, faelight-term, intelligence]
 depends_on: [246, 251]
