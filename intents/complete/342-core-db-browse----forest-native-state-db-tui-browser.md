@@ -1,7 +1,7 @@
 ---
 id: 342
 title: "core db browse -- Forest-Native state.db TUI Browser"
-status: in-progress
+status: complete
 date: 2026-05-26
 tags: [core, db, tui, ratatui, sqlite, state.db, browse, friday]
 depends_on: [335]
@@ -134,12 +134,12 @@ friday_session_context, synthesis_snapshots
 - Gate: `core db browse friday_patterns` opens directly to friday_patterns
 
 ## Gates
-- [ ] Phase 1: core db browse opens state.db, shows all tables with row counts
-- [ ] Phase 2: table icons, jump keys, forest color palette applied
-- [ ] Phase 3: / filter live, : SQL query mode working
-- [ ] Phase 4: y/Y yank, x export, schema view, preview panel
-- [ ] Phase 5: core db browse <table> direct jump, db alias
-- [ ] Final: full state.db inspection session -- no sqlite3 commands needed
+- [x] Phase 1: core db browse opens state.db, all tables with row counts and icons 2026-05-27
+- [x] Phase 2: 🌲🔮📋🚀⚙️ icons, i/f/e/a/c/h jump keys, forest palette applied 2026-05-27
+- [x] Phase 3: / filter live with row count, : SQL query mode with up/down history 2026-05-27
+- [x] Phase 4: y yank cell, Y yank row, x export to /tmp/forest-export.csv, s schema, preview panel 2026-05-27
+- [x] Phase 5: core db browse friday_patterns jumps directly, db alias registered 2026-05-27
+- [x] Final: db-browse TUI ships -- forest memory navigable without sqlite3 2026-05-27
 
 ## Note
 JDbrowser is GPL-3.0. Forest version is a clean-room implementation
