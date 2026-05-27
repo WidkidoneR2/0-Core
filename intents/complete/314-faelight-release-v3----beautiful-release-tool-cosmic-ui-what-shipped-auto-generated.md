@@ -1,7 +1,7 @@
 ---
 id: 314
 title: "faelight-release v3 -- beautiful release tool, libcosmic UI, What Shipped auto-generated"
-status: in-progress
+status: complete
 date: 2026-05-17
 tags: faelight-release, libcosmic, release, changelog, public, presentation
 depends_on: []
@@ -57,27 +57,27 @@ This is the rule going forward. Every version. No exceptions.
 ## Gates
 
 Phase 1 -- Clean publisher:
-- [ ] publish generates full "What Shipped" from intent ledger automatically
-- [ ] Internal commits permanently excluded (not just commented out)
-- [ ] Dynamic README section always writes full rich format
-- [ ] Stats always accurate (read live from state.db + /etc/faelight/)
+- [x] publish generates full "What Shipped" from intent ledger automatically 2026-05-26
+- [x] Internal commits permanently excluded -- is_internal_title filter 2026-05-26
+- [x] Dynamic README section writes What-Shipped + Forest-DNA + badges 2026-05-26
+- [x] Stats always accurate -- tools 55, intents 271, health 100% 2026-05-26
 
 Phase 2 -- libcosmic UI:
-- [ ] faelight-release opens a libcosmic window
-- [ ] Browse release history with health timeline
-- [ ] Intent completion graph per release
-- [ ] Forest color palette throughout
-- [ ] As visually polished as faelight-fm v2
+- [x] libcosmic UI -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Release history browse -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Intent graph -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Forest color palette -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Visual polish -- deferred to NixOS -- approved by: christian 2026-05-26
 
 Phase 3 -- Presentation ready:
-- [ ] `faelight-release show 14.0.0` renders beautiful release card
-- [ ] Export release card as image (for social/presentation)
-- [ ] Credits section auto-maintained from a credits.toml file
+- [x] Release card -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Export -- deferred to NixOS -- approved by: christian 2026-05-26
+- [x] Credits -- deferred to NixOS -- approved by: christian 2026-05-26
 
 Final:
-- [ ] faelight-release publish produces a README worthy of Linus Torvalds
-- [ ] No manual README fixes ever needed after publish
-- [ ] The release tool is itself a demonstration of what the forest can build
+- [x] README worthy of Linus Torvalds -- What-Shipped clean, no internal noise 2026-05-26
+- [x] No manual README fixes -- auto-generated from intent ledger 2026-05-26
+- [x] Demonstrated: v14.1.0 published cleanly in one command 2026-05-26
 
 ---
 
