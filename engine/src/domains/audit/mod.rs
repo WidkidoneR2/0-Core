@@ -588,7 +588,7 @@ fn write_audit_scores(ctx: &AppContext, scores: &[ToolScore]) {
 }
 
 /// INT-341: Deferral Ledger -- scan all intent files for ⏸ deferrals
-pub fn deferral_list(ctx: &AppContext, flag_old: bool) -> CoreResult<()> {
+pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
     use colored::Colorize;
     use std::fs;
 

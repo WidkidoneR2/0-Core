@@ -564,6 +564,7 @@ pub fn parse() -> Command {
             DbCommands::Verify => DbCommand::Verify,
             DbCommands::Status => DbCommand::Status,
             DbCommands::Compact => DbCommand::Compact,
+            DbCommands::Browse { table } => DbCommand::Browse { table },
         }),
         Commands::Genealogy { command } => Command::Genealogy(match command {
             GenealogyCommands::Show { id } => GenealogyCommand::Show { id },

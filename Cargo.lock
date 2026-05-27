@@ -1289,6 +1289,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "db-browse"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "crossterm 0.28.1",
+ "dirs",
+ "ratatui 0.28.1",
+ "rusqlite",
+]
+
+[[package]]
 name = "dialoguer"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

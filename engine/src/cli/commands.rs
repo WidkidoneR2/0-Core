@@ -884,4 +884,6 @@ pub enum DbCommand {
     Verify,
     Status,
     Compact,
+    // INT-342: Forest-Native state.db TUI Browser
+    Browse { table: Option<String> },
 }

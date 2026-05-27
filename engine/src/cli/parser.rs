@@ -1778,4 +1778,9 @@ pub enum DbCommands {
     Status,
     /// VACUUM to reclaim space
     Compact,
+    /// Open state.db in Forest TUI browser (INT-342)
+    Browse {
+        /// Jump directly to this table
+        table: Option<String>,
+    },
 }

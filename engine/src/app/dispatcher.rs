@@ -828,6 +828,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DbCommand::Verify => crate::domains::db::verify(ctx),
             DbCommand::Status => crate::domains::db::status(ctx),
             DbCommand::Compact => crate::domains::db::compact(ctx),
+            DbCommand::Browse { table } => {
+                let mut cmd = std::process::Command::new("db-browse");
+                if let Some(t) = table { cmd.arg(t); }
+                let _ = cmd.status();
+                Ok(())
+            }
         },
         Command::Genealogy(c) => match c {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),

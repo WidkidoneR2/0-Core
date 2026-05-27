@@ -1,7 +1,7 @@
 ---
 id: 342
 title: "core db browse -- Forest-Native state.db TUI Browser"
-status: planned
+status: in-progress
 date: 2026-05-26
 tags: [core, db, tui, ratatui, sqlite, state.db, browse, friday]
 depends_on: [335]

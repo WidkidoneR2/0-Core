@@ -1366,6 +1366,14 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
+                    // INT-342: db-browse -- launch state.db TUI browser
+                    if line == "db-browse" || line.starts_with("db-browse ") {
+                        let table_arg = if line.len() > 10 { line[10..].trim().to_string() } else { String::new() };
+                        let mut cmd = std::process::Command::new("db-browse");
+                        if !table_arg.is_empty() { cmd.arg(&table_arg); }
+                        let _ = cmd.status();
+                        continue 'segments;
+                    }
                     // INT-279 FQL: friday where/show/explain/recall direct queries
                     if line.starts_with("friday where ")
                         || line.starts_with("friday show ")
