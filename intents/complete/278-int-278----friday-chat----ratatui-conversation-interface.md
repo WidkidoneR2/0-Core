@@ -72,3 +72,15 @@ GATES
 "Friday does not guess.
 Friday remembers.
 Ask it what it saw." 🌲
+
+## Split Pane Deferral (approved by: christian 2026-05-27)
+The original intent specified "friday chat command opens right split pane in faelight-term".
+What shipped: standalone ratatui TUI launched via `friday chat` from fsh. Fully working.
+The split pane integration is formally deferred to INT-346 (Forest ADE).
+Both will coexist:
+- Standalone: `friday chat` opens full-screen TUI in any terminal
+- Split pane: INT-346 with Zellij layout -- left=fsh terminal, right=Friday Chat pane
+- Compositor split: faelight-compositor v3 Pinnacle-based native split surfaces
+This is not a shortcut. This is two valid delivery modes.
+The standalone ships first. The split pane ships with the ADE.
+Approved by: christian 2026-05-27
