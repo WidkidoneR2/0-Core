@@ -1,7 +1,7 @@
 ---
 id: 312
 title: "Intent-Commit Genealogy -- bidirectional commit-intent linking, research trail, fallback intelligence"
-status: planned
+status: in-progress
 date: 2026-05-16
 type: intelligence
 tags: [git, intents, genealogy, research, history, traceability, friday, state.db]

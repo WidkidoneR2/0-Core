@@ -3,6 +3,7 @@
 use crate::git::GitRepo;
 use crate::is_locked;
 use anyhow::{bail, Result};
+use rusqlite;
 use colored::*;
 fn get_active_intent() -> Option<(String, String)> {
     // Scan intents/future/ for in-progress intents -- same as fsh prompt
@@ -72,6 +73,46 @@ pub fn run(extra: Option<&str>) -> Result<()> {
         hash[..8.min(hash.len())].yellow().bold(),
         message.white()
     );
+    // INT-312: write to intent_commits genealogy table
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let db_path = format!("{}/0-core/runtime/state.db", home);
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let intent_id: Option<i64> = if let Some((ref id, _)) = get_active_intent() {
+                id.parse().ok()
+            } else { None };
+            let health: Option<i64> = conn.query_row(
+                "SELECT CAST(value AS INTEGER) FROM shell_state WHERE key = 'last_health'",
+                [], |r| r.get(0)).ok();
+            let friday_facts: Option<i64> = conn.query_row(
+                "SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).ok();
+            let friday_patterns: Option<i64> = conn.query_row(
+                "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).ok();
+            let session_id: Option<String> = conn.query_row(
+                "SELECT value FROM shell_state WHERE key = 'current_session'",
+                [], |r| r.get(0)).ok();
+            // Parse phase hint from message
+            let phase_hint = message.split_whitespace()
+                .zip(message.split_whitespace().skip(1))
+                .find_map(|(a, b)| if a.to_lowercase() == "phase" {
+                    Some(format!("Phase {}", b.trim_end_matches(':').trim_end_matches(',')))
+                } else { None });
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default().as_secs() as i64;
+            let _ = conn.execute(
+                "INSERT OR IGNORE INTO intent_commits
+                 (commit_hash, intent_id, intent_status, phase_hint, health_at,
+                  friday_facts, friday_patterns, session_id, committed_at, message)
+                 VALUES (?1,?2,'in-progress',?3,?4,?5,?6,?7,?8,?9)",
+                rusqlite::params![
+                    &hash[..12.min(hash.len())],
+                    intent_id, phase_hint, health,
+                    friday_facts, friday_patterns, session_id, now, &message
+                ],
+            );
+        }
+    }
     // Push
     println!("  {} Pushing...", "→".cyan());
     let push = std::process::Command::new("git").arg("push").status()?;
