@@ -304,6 +304,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "decisions" => decisions(db),
         "deploys" | "deployments" => deploys(db),
         "friday-patterns" => friday_patterns(db),
+        "bump-versions" => bump_versions_cmd(core_root, args),
         "friday" if line.trim() == "friday" => friday_patterns(db),
         "friday" if args.first().copied() == Some("chat") => {
             let rest = args.get(1..).unwrap_or(&[]).join(" ");
@@ -11696,5 +11697,54 @@ fn memory_distill(db: &ForestDb) -> CommandResult {
     ));
     out.push_str("  · High-frequency patterns preserved\n");
     out.push_str("  · Run: memory stats — to see updated counts\n\n");
+    CommandResult::Output(out)
+}
+
+/// INT-326: bump-versions -- suggest or apply version bumps for modified tools
+fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    let apply = args.first().copied() == Some("apply");
+    let tools = [
+        ("faelight-shell", "rust-tools/faelight-shell/Cargo.toml"),
+        ("core",           "engine/Cargo.toml"),
+        ("faelight-git",   "rust-tools/faelight-git/Cargo.toml"),
+        ("faelight-release", "rust-tools/faelight-release/Cargo.toml"),
+        ("friday-chat",    "rust-tools/friday-chat/Cargo.toml"),
+        ("db-browse",      "rust-tools/db-browse/Cargo.toml"),
+        ("faelight-term",  "rust-tools/faelight-term/Cargo.toml"),
+        ("faelight-bar",   "rust-tools/faelight-bar/Cargo.toml"),
+        ("faelight-notify","rust-tools/faelight-notify/Cargo.toml"),
+    ];
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
+    out.push_str(&format!("  {}\n", "━".repeat(50).dimmed()));
+    for (name, rel_path) in &tools {
+        let full = format!("{}/{}", core_root, rel_path);
+        if let Ok(cargo) = std::fs::read_to_string(&full) {
+            if let Some(ver_line) = cargo.lines().find(|l| l.starts_with("version = ")) {
+                let ver = ver_line.trim_start_matches("version = ").trim_matches('"');
+                // Parse semver
+                let parts: Vec<u32> = ver.split('.').filter_map(|p| p.parse().ok()).collect();
+                if parts.len() == 3 {
+                    let patch_bump = format!("{}.{}.{}", parts[0], parts[1], parts[2] + 1);
+                    let minor_bump = format!("{}.{}.0", parts[0], parts[1] + 1);
+                    out.push_str(&format!(
+                        "  {} {:<20} {}  patch→{}  minor→{}\n",
+                        "◦".bright_cyan(),
+                        name.bright_white(),
+                        ver.bright_yellow(),
+                        patch_bump.dimmed(),
+                        minor_bump.dimmed()
+                    ));
+                }
+            }
+        }
+    }
+    out.push_str(&format!("  {}\n", "━".repeat(50).dimmed()));
+    if apply {
+        out.push_str(&format!("  {} Use: bump-versions patch <tool> or bump-versions minor <tool>\n", "→".dimmed()));
+    } else {
+        out.push_str(&format!("  {} Use: bump-versions to see versions · cicomplete suggests bumps automatically\n", "→".dimmed()));
+    }
     CommandResult::Output(out)
 }

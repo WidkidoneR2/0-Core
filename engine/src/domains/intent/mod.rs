@@ -926,6 +926,43 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         }
         println!("    {} Run: core intent next", "◦".dimmed());
     }
+    // INT-326: version bump suggestions after cicomplete
+    {
+        use colored::Colorize;
+        // Find which Rust tools were touched in this intent's commits
+        let touched = std::process::Command::new("git")
+            .args(["-C", &ctx.core_root, "log", "--name-only", "--format=",
+                   &format!("--grep=INT-{}", id), "--since=60 days ago"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+
+        let mut tools: Vec<(&str, &str)> = vec![];
+        if touched.contains("faelight-shell") { tools.push(("faelight-shell", "rust-tools/faelight-shell/Cargo.toml")); }
+        if touched.contains("engine/src") || touched.contains("engine/Cargo") { tools.push(("core (engine)", "engine/Cargo.toml")); }
+        if touched.contains("faelight-git") { tools.push(("faelight-git", "rust-tools/faelight-git/Cargo.toml")); }
+        if touched.contains("faelight-release") { tools.push(("faelight-release", "rust-tools/faelight-release/Cargo.toml")); }
+        if touched.contains("friday-chat") { tools.push(("friday-chat", "rust-tools/friday-chat/Cargo.toml")); }
+        if touched.contains("db-browse") { tools.push(("db-browse", "rust-tools/db-browse/Cargo.toml")); }
+        if touched.contains("faelight-term") { tools.push(("faelight-term", "rust-tools/faelight-term/Cargo.toml")); }
+        if touched.contains("faelight-bar") { tools.push(("faelight-bar", "rust-tools/faelight-bar/Cargo.toml")); }
+
+        if !tools.is_empty() {
+            println!();
+            println!("  {} Version bumps suggested:", "📦".normal());
+            for (name, cargo_path) in &tools {
+                let full_path = format!("{}/{}", ctx.core_root, cargo_path);
+                if let Ok(cargo) = std::fs::read_to_string(&full_path) {
+                    if let Some(ver_line) = cargo.lines().find(|l| l.starts_with("version = ")) {
+                        let ver = ver_line.trim_start_matches("version = ").trim_matches('"');
+                        println!("    {} {}  {} (patch or minor bump)",
+                            "◦".bright_yellow(), name.bright_white(), ver.dimmed());
+                    }
+                }
+            }
+            println!("    {} Run: bump-versions to apply", "→".dimmed());
+        }
+    }
     // INT-217 -- Friday speaks on cicomplete
     let _ = crate::domains::friday::speak_on_complete(ctx, &intent.title);
     Ok(())
