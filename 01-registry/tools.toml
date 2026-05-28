@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "3.0.0"
+version = "3.1.0"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -105,7 +105,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-git"
-version = "4.0.0"
+version = "4.1.0"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
@@ -177,7 +177,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-shell"
-version = "2.1.0"
+version = "2.2.0"
 category = "shell"
 description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
@@ -304,7 +304,7 @@ deployable = true
 retired = true
 [[tool]]
 name = "faelight-release"
-version = "2.0.0"
+version = "2.1.0"
 category = "release"
 description = "Intelligent release and generation manager — the forest publishes itself"
 expected_usage = "medium"
