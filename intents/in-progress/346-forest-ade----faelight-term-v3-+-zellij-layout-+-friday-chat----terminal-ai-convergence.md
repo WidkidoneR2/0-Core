@@ -91,14 +91,25 @@ When Friday suggests a command:
 - destructive verb → always confirm + reason
 - confidence < 0.5 → don't suggest execution
 
+## Architecture Decision (2026-05-29)
+Zellij approach abandoned -- Zellij uses its own terminal renderer, not faelight-term.
+Alacritty selected as primary terminal (better rendering than foot and faelight-term v3).
+faelight-ade v1 will be built as a single Rust binary:
+  ratatui -- layout (left PTY pane + right Friday Chat pane)
+  portable-pty -- real shell embedding with PTY
+  crossterm -- terminal input/event handling
+  tokio -- async streaming (PTY output + Friday state.db)
+  friday-chat -- right pane already exists, reuse directly
+
 ## Gates
-- [ ] Phase 1: Zellij installed, layout file created, ADE opens with Super+Enter
-- [ ] Phase 2: faelight-term v3 in left pane, Friday Chat (INT-345) in right pane
-- [ ] Phase 3: Flush coalescing adopted in faelight-term v3
-- [ ] Phase 4: FAELIGHT_TERMINAL env var set, Friday Chat detects it
-- [ ] Phase 5: Agent approval gating (INT-186 patterns) wired to Friday Chat
+- [ ] Phase 1: faelight-ade crate scaffolded, compiles, opens with Alacritty
+- [ ] Phase 2: left pane runs fsh via portable-pty, full PTY (resize, ANSI, scrollback)
+- [ ] Phase 3: right pane is friday-chat TUI, reads state.db
+- [ ] Phase 4: FAELIGHT_ADE env var set, Friday detects shell context
+- [ ] Phase 5: PTY output streamed to Friday -- Friday sees commands in real time
 - [ ] Phase 6: faelight-bar shows ADE mode indicator when active
-- [ ] Final: Forest ADE is daily driver on NixOS
+- [ ] Phase 7: Alacritty launches faelight-ade via Mod+Alt+Return
+- [ ] Final: Forest ADE is daily driver -- fsh left, Friday right, one binary
 
 ## Note
 This does NOT require building faelight-term v4 from scratch.
