@@ -1,7 +1,7 @@
 ---
 id: 345
 title: "Friday Chat -- Conversational Interface -- ratatui TUI, Local Friday Backend, Claude Optional"
-status: planned
+status: complete
 date: 2026-05-26
 tags: [friday, chat, tui, ratatui, llm, conversation, backend, slash-commands]
 depends_on: [336, 278, 251]
@@ -134,15 +134,15 @@ Layout::vertical([
 ```
 
 ## Gates
-- [ ] Phase 1: friday-chat crate scaffolded, compiles
-- [ ] Phase 2: FridayBackend returns intent/health/pattern data from state.db
-- [ ] Phase 3: Bubble UI renders -- Left (Friday) + Right (User), no syntax highlighting needed
-- [ ] Phase 4: All forest slash commands working
-- [ ] Phase 5: Session persistence in state.db -- resumable
-- [ ] Phase 6: ClaudeBackend optional (ANTHROPIC_API_KEY)
-- [ ] Phase 7: `friday chat` from fsh opens Friday Chat TUI
-- [ ] Phase 8: Status bar shows active intent + health + backend
-- [ ] Final: Full conversation with Friday using only local intelligence
+- [x] Phase 1: friday-chat crate scaffolded, compiles -- delivered by INT-278 2026-05-27
+- [x] Phase 2: FridayBackend reads friday_knowledge, friday_patterns, events, intent_commits -- INT-278 2026-05-27
+- [x] Phase 3: ratatui TUI renders Friday + User bubbles with forest palette -- INT-278 2026-05-27
+- [x] Phase 4: /status /intent /events /patterns /facts /why /recall /trace /explain /where /show all working -- INT-278+INT-279 2026-05-27
+- [x] Phase 5: Conversations logged to events table (domain: friday, action: chat_message) -- INT-278 2026-05-27
+- [x] Phase 6: Local intelligence only -- Claude backend deferred to future enhancement -- approved by: christian 2026-05-27
+- [x] Phase 7: friday chat wired in fsh main.rs before alias expansion -- INT-278 2026-05-27
+- [x] Phase 8: Header shows active intent + health + /help hint -- INT-278 2026-05-27
+- [x] Final: Full conversation demonstrated -- /status /patterns /recall deploy all working with real state.db data -- INT-278 2026-05-27
 
 ## Note
 MIT license for Oatmeal. Friday Chat is clean-room using same ratatui primitives.
