@@ -305,6 +305,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "deploys" | "deployments" => deploys(db),
         "friday-patterns" => friday_patterns(db),
         "bump-versions" => bump_versions_cmd(core_root, args),
+        "ade" => ade_cmd(args),
         "friday" if line.trim() == "friday" => friday_patterns(db),
         "friday" if args.first().copied() == Some("chat") => {
             let rest = args.get(1..).unwrap_or(&[]).join(" ");
@@ -11747,4 +11748,54 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         out.push_str(&format!("  {} Use: bump-versions to see versions · cicomplete suggests bumps automatically\n", "→".dimmed()));
     }
     CommandResult::Output(out)
+}
+
+/// INT-346: ade -- launch Forest ADE (Zellij + faelight-term + friday-chat)
+fn ade_cmd(args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    let layout = args.first().copied().unwrap_or("forest-ade");
+    let layout_path = format!("{}/.config/zellij/layouts/{}.kdl",
+        std::env::var("HOME").unwrap_or_default(), layout);
+
+    if !std::path::Path::new(&layout_path).exists() {
+        return CommandResult::Error(format!(
+            "ADE layout not found: {}\nRun: core intent show 346", layout_path
+        ));
+    }
+
+    println!("  {} Launching Forest ADE...", "🌲".normal());
+    println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
+    println!("  {} Left: faelight-term (fsh)", "→".dimmed());
+    println!("  {} Right: friday-chat", "→".dimmed());
+    println!("  {} Alt+h/l to switch panes · Alt+f fullscreen · Alt+w close pane", "→".dimmed());
+
+    // Check if session already exists -- attach if so
+    let sessions = std::process::Command::new("zellij")
+        .args(["list-sessions"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+
+    let is_alive = sessions.lines().any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
+    let is_dead = sessions.lines().any(|l| l.contains("forest-ade") && (l.contains("EXITED") || l.contains("dead")));
+
+    if is_dead {
+        // Kill the dead session first
+        let _ = std::process::Command::new("zellij")
+            .args(["delete-session", "forest-ade", "--force"])
+            .output();
+    }
+
+    if is_alive {
+        println!("  {} Attaching to existing ADE session...", "→".dimmed());
+        let _ = std::process::Command::new("zellij")
+            .args(["attach", "forest-ade"])
+            .status();
+    } else {
+        let _ = std::process::Command::new("zellij")
+            .args(["-n", &layout_path, "-s", "forest-ade"])
+            .status();
+    }
+
+    CommandResult::Output(String::new())
 }

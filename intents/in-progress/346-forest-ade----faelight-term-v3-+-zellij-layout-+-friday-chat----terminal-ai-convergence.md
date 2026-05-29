@@ -1,7 +1,7 @@
 ---
 id: 346
 title: "Forest ADE -- faelight-term v3 + Zellij Layout + Friday Chat -- Terminal-AI Convergence"
-status: planned
+status: in-progress
 date: 2026-05-26
 tags: [ade, faelight-term, zellij, friday-chat, terminal, convergence, layout]
 depends_on: [338, 345]

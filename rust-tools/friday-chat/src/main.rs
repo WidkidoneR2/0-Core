@@ -58,7 +58,7 @@ impl App {
         let health_hint = get_health(&db);
 
         let welcome = format!(
-            "Friday is listening. Active: {}  Health: {}\nType a question or /help for commands.",
+            "INT-{} | {}% | /help",
             intent_hint, health_hint
         );
 

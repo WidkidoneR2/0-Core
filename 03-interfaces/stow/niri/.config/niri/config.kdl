@@ -135,6 +135,7 @@ window-rule {
 binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Return      { spawn "faelight-term"; }
+    Mod+Shift+Return { spawn "sh" "-c" "faelight-term -e zellij --layout ~/.config/zellij/layouts/forest-ade.kdl"; }  // INT-346: Forest ADE
     Mod+Alt+Return  { spawn "foot"; }
     Mod+b           { spawn "brave"; }
     Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }

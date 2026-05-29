@@ -51,10 +51,12 @@ use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
 use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
-const CELL_W: f32 = 10.0; // INT-286: stable cell width -- derive from font metrics in future
-const CELL_H: f32 = 20.0;
-const FONT_SIZE: f32 = 16.0;
-const LINE_HEIGHT: f32 = 20.0;
+// INT-324: forest typography -- JetBrainsMono Nerd Font, matching foot config
+const FONT_SIZE: f32 = 14.0;      // INT-324: forest size
+const LINE_HEIGHT: f32 = 18.0;    // 1.286x font size
+const CELL_W: f32 = 8.4;          // JetBrainsMono at 14px
+const CELL_H: f32 = 18.0;         // matches LINE_HEIGHT
+const FONT_NAME: &str = "JetBrainsMono Nerd Font";
 const PADDING: f32 = 4.0;
 
 fn main() {
@@ -263,6 +265,8 @@ struct GpuState {
     dirty: bool,
     cursor_col: usize,
     cursor_row: usize,
+    font_size: f32,       // INT-324: runtime font size
+    line_height: f32,     // INT-324: runtime line height
 }
 
 impl GpuState {
@@ -307,13 +311,13 @@ impl GpuState {
         );
         let mut text_buffer = Buffer::new(&mut font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
         text_buffer.set_size(&mut font_system, Some(width as f32), Some(height as f32));
-        text_buffer.set_text(&mut font_system, "starting...", Attrs::new().family(Family::Monospace), Shaping::Advanced);
+        text_buffer.set_text(&mut font_system, "starting...", Attrs::new().family(Family::Name(FONT_NAME)), Shaping::Advanced);
         text_buffer.shape_until_scroll(&mut font_system, false);
         // INT-286: measure actual glyph advance width from font metrics
         let cell_w = {
             let mut m = Buffer::new(&mut font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
             m.set_size(&mut font_system, None, None);
-            m.set_text(&mut font_system, "M", Attrs::new().family(Family::Monospace), Shaping::Advanced);
+            m.set_text(&mut font_system, "M", Attrs::new().family(Family::Name(FONT_NAME)), Shaping::Advanced);
             m.shape_until_scroll(&mut font_system, false);
             m.layout_runs().next()
                 .and_then(|r| r.glyphs.first())
@@ -365,7 +369,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, pty_resp_rx, needs_render, cell_w, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
+            term, notifier, pty_resp_rx, needs_render, cell_w, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0, font_size: FONT_SIZE, line_height: LINE_HEIGHT,
         }
     }
 
@@ -489,7 +493,7 @@ impl GpuState {
                 let fg = Self::ansi_to_glyphon(cell.fg, cell.flags.contains(Flags::BOLD));
                 let bold = cell.flags.contains(Flags::BOLD);
                 let attrs = Attrs::new()
-                    .family(Family::Monospace)
+                    .family(Family::Name(FONT_NAME))
                     .color(fg)
                     .weight(if bold { glyphon::fontdb::Weight::BOLD } else { glyphon::fontdb::Weight::NORMAL });
                 spans.push((ch.to_string(), attrs));
@@ -498,7 +502,7 @@ impl GpuState {
             if let Some(last) = spans.last_mut() {
                 last.0.push('\n');
             } else {
-                spans.push(("\n".to_string(), Attrs::new().family(Family::Monospace)));
+                spans.push(("\n".to_string(), Attrs::new().family(Family::Name(FONT_NAME))));
             }
         }
                 // Capture cursor position before drop
@@ -517,7 +521,7 @@ impl GpuState {
                 spans[cursor_idx].0 = "█".to_string(); // full block
             }
             spans[cursor_idx].1 = Attrs::new()
-                .family(Family::Monospace)
+                .family(Family::Name(FONT_NAME))
                 .color(glyphon::Color::rgb(0x5a, 0xb0, 0x6e));
         }
 
@@ -539,13 +543,13 @@ impl GpuState {
                     let sel_idx = viewport_row * self.cols + col;
                     if sel_idx < spans.len() && sel_idx != cursor_idx {
                         spans[sel_idx].1 = Attrs::new()
-                            .family(Family::Monospace)
+                            .family(Family::Name(FONT_NAME))
                             .color(glyphon::Color::rgb(0x11, 0x14, 0x0f)) // dark text on highlight
                             ;
                         // We can't set background via glyphon spans directly
                         // Use a bright color to indicate selection
                         spans[sel_idx].1 = Attrs::new()
-                            .family(Family::Monospace)
+                            .family(Family::Name(FONT_NAME))
                             .color(glyphon::Color::rgb(0xff, 0xd7, 0x00)); // gold selection
                     }
                 }
@@ -558,7 +562,7 @@ impl GpuState {
         self.text_buffer.set_rich_text(
             &mut self.font_system,
             span_refs.into_iter(),
-            Attrs::new().family(Family::Monospace),
+            Attrs::new().family(Family::Name(FONT_NAME)),
             Shaping::Advanced,
         );
         self.text_buffer.shape_until_scroll(&mut self.font_system, false);
@@ -682,6 +686,33 @@ impl KeyboardHandler for AppState {
                 return;
             }
             let ctrl = mods.ctrl;
+            // INT-324: Ctrl+= increase font size, Ctrl+- decrease, Ctrl+0 reset
+            let font_changed = if ctrl && (event.keysym == Keysym::equal || event.keysym == Keysym::plus) {
+                gpu.font_size = (gpu.font_size + 1.0).min(32.0); true
+            } else if ctrl && event.keysym == Keysym::minus {
+                gpu.font_size = (gpu.font_size - 1.0).max(8.0); true
+            } else if ctrl && (event.keysym == Keysym::_0 || event.keysym == Keysym::KP_0) {
+                gpu.font_size = FONT_SIZE; true
+            } else { false };
+
+            if font_changed {
+                // Recalculate all metrics together
+                gpu.line_height = gpu.font_size * 1.286;
+                // cell_w scales proportionally with font size
+                gpu.cell_w = gpu.font_size * 0.6;
+                let cell_h = gpu.line_height;
+                gpu.text_buffer.set_metrics(&mut gpu.font_system,
+                    glyphon::Metrics::new(gpu.font_size, gpu.line_height));
+                // Recalculate cols/rows from window size
+                let w = gpu.config.width as f32;
+                let h = gpu.config.height as f32;
+                let new_cols = ((w - PADDING * 2.0) / gpu.cell_w) as usize;
+                let new_rows = ((h - PADDING * 2.0) / cell_h) as usize;
+                gpu.cols = new_cols.max(1);
+                gpu.rows = new_rows.max(1);
+                gpu.dirty = true;
+                return;
+            }
 
             // INT-286: enhanced key handler — F1-F12, Ctrl/Alt/Shift modifiers
             let alt  = mods.alt;

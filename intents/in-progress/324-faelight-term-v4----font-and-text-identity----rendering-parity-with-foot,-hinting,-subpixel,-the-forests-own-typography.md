@@ -1,7 +1,7 @@
 ---
 id: 324
 title: "faelight-term v4 -- Font and Text Identity"
-status: planned
+status: in-progress
 date: 2026-05-20
 tags: [terminal, font, typography, rendering, hinting, subpixel, foot, cosmic-text, glyphon, wgpu]
 ---
