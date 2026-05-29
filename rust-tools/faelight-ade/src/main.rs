@@ -3,7 +3,7 @@
 // Left pane: real fsh PTY | Right pane: Friday Chat TUI
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+    event::{self, Event, KeyCode, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -74,8 +74,11 @@ impl App {
         // Launch fsh in PTY
         let mut cmd = CommandBuilder::new("fsh");
         cmd.env("FAELIGHT_ADE", "1");
-        cmd.env("TERM", "xterm-256color");
+        cmd.env("TERM", "vt100");  // vt100 prevents mouse tracking
+        cmd.env("COLORTERM", "truecolor");
         let _child = pair.slave.spawn_command(cmd)?;
+        // Small delay then disable mouse tracking
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
         // PTY reader thread
         let pty_output = Arc::new(Mutex::new(Vec::<u8>::new()));
@@ -192,25 +195,43 @@ fn parse_ansi(s: &str) -> Vec<Vec<(String, Style)>> {
 
     while let Some(c) = chars.next() {
         if c == '\x1b' {
-            if chars.peek() == Some(&'[') {
-                chars.next(); // consume [
-                let mut params = String::new();
-                while let Some(&p) = chars.peek() {
-                    if p.is_ascii_digit() || p == ';' {
-                        params.push(p);
-                        chars.next();
-                    } else {
-                        break;
+            match chars.peek() {
+                Some(&'[') => {
+                    chars.next(); // consume [
+                    let mut params = String::new();
+                    while let Some(&p) = chars.peek() {
+                        if p.is_ascii_digit() || p == ';' || p == '?' {
+                            params.push(p);
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+                    if let Some(&final_ch) = chars.peek() {
+                        chars.next(); // consume final letter
+                        if final_ch == 'm' {
+                            current_style = parse_sgr(&params, current_style);
+                        }
+                        // M = mouse events, H/J/K = cursor -- all silently dropped
                     }
                 }
-                chars.next(); // consume final letter (m, A, B, etc.)
-                // Parse SGR color codes
-                current_style = parse_sgr(&params, current_style);
-            } else {
-                // skip other escape sequences
-                while let Some(&n) = chars.peek() {
+                Some(&']') => {
+                    // OSC sequence -- skip until ST (ESC \ or BEL)
                     chars.next();
-                    if n.is_ascii_alphabetic() { break; }
+                    while let Some(n) = chars.next() {
+                        if n == '\x07' { break; } // BEL
+                        if n == '\x1b' {
+                            if chars.peek() == Some(&'\\') { chars.next(); }
+                            break;
+                        }
+                    }
+                }
+                Some(&'(') | Some(&')') | Some(&'*') | Some(&'+') => {
+                    chars.next(); chars.next(); // skip charset sequences
+                }
+                _ => {
+                    // skip single char escape sequences
+                    chars.next();
                 }
             }
         } else if c == '\n' {
@@ -471,14 +492,14 @@ async fn main() -> anyhow::Result<()> {
 
     enable_raw_mode()?;
     let mut stderr = io::stderr();
-    execute!(stderr, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stderr, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stderr);
     let mut terminal = Terminal::new(backend)?;
 
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let _ = disable_raw_mode();
-        let _ = execute!(io::stderr(), LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(io::stderr(), LeaveAlternateScreen);
         panic_hook(info);
     }));
 
@@ -522,7 +543,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
     Ok(())
 }
