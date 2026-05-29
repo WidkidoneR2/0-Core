@@ -1603,6 +1603,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-ade"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "crossterm 0.28.1",
+ "dirs",
+ "portable-pty",
+ "ratatui 0.28.1",
+ "rusqlite",
+ "tokio",
+]
+
+[[package]]
 name = "faelight-bar"
 version = "3.0.0"
 dependencies = [

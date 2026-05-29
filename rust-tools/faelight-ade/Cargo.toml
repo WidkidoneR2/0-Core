@@ -1,0 +1,16 @@
+[package]
+name = "faelight-ade"
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["Christian <christian@faelight.forest>"]
+
+[dependencies]
+ratatui = "0.28"
+crossterm = "0.28"
+portable-pty = "0.8"
+rusqlite = { version = "0.31", features = ["bundled"] }
+dirs = "5"
+anyhow = "1"
+chrono = "0.4"
+tokio = { version = "1", features = ["full"] }
