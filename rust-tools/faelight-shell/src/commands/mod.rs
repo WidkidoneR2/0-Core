@@ -11765,7 +11765,7 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
 
     println!("  {} Launching Forest ADE...", "🌲".normal());
     println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
-    println!("  {} Left: faelight-term (fsh)", "→".dimmed());
+    println!("  {} Left: fsh (Alacritty)", "→".dimmed());
     println!("  {} Right: friday-chat", "→".dimmed());
     println!("  {} Alt+h/l to switch panes · Alt+f fullscreen · Alt+w close pane", "→".dimmed());
 
@@ -11788,13 +11788,13 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
 
     if is_alive {
         println!("  {} Attaching to existing ADE session...", "→".dimmed());
-        let _ = std::process::Command::new("zellij")
-            .args(["attach", "forest-ade"])
-            .status();
+        let _ = std::process::Command::new("alacritty")
+            .args(["-e", "zellij", "attach", "forest-ade"])
+            .spawn();
     } else {
-        let _ = std::process::Command::new("zellij")
-            .args(["-n", &layout_path, "-s", "forest-ade"])
-            .status();
+        let _ = std::process::Command::new("alacritty")
+            .args(["-e", "zellij", "-n", &layout_path, "-s", "forest-ade"])
+            .spawn();
     }
 
     CommandResult::Output(String::new())
