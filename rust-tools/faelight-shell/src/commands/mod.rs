@@ -11786,16 +11786,7 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
             .output();
     }
 
-    if is_alive {
-        println!("  {} Attaching to existing ADE session...", "→".dimmed());
-        let _ = std::process::Command::new("alacritty")
-            .args(["-e", "zellij", "attach", "forest-ade"])
-            .spawn();
-    } else {
-        let _ = std::process::Command::new("alacritty")
-            .args(["-e", "zellij", "-n", &layout_path, "-s", "forest-ade"])
-            .spawn();
-    }
-
+    // INT-346: launch faelight-ade directly
+    let _ = std::process::Command::new("faelight-ade").spawn();
     CommandResult::Output(String::new())
 }
