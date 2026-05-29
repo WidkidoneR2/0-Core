@@ -146,6 +146,9 @@ binds {
 
     // ── Faelight Tools ────────────────────────────────────
     Mod+Space       { spawn "alacritty" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Shift+Return { spawn "faelight-ade"; }  // INT-346: Forest ADE
+    Mod+b           { spawn "brave"; }
+    Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -W 80x24 -e fzf | cliphist decode | wl-copy"; }
     Mod+Escape      { spawn "alacritty" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
@@ -168,7 +171,6 @@ binds {
     Mod+Ctrl+g      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
     // ── Clipboard ─────────────────────────────────────────
-    Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -e fzf | cliphist decode | wl-copy"; }
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
 
     // ── Notifications ─────────────────────────────────────
