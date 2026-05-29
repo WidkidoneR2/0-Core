@@ -145,11 +145,11 @@ binds {
     Mod+Shift+f     { spawn "/home/christian/0-core/scripts/faelight-fm"; }
 
     // ── Faelight Tools ────────────────────────────────────
-    Mod+Space       { spawn "alacritty" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Space       { spawn "alacritty" "--class" "faelight-palette-float" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
     Mod+Shift+Return { spawn "faelight-ade"; }  // INT-346: Forest ADE
     Mod+b           { spawn "brave"; }
-    Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -W 80x24 -e fzf | cliphist decode | wl-copy"; }
-    Mod+Escape      { spawn "alacritty" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
+    Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -e fzf | cliphist decode | wl-copy"; }
+    Mod+Escape      { spawn "alacritty" "--class" "faelight-menu-float" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
     Mod+Alt+n       { spawn "notesnook"; }
