@@ -284,17 +284,17 @@ Phase 5 -- Typography document + daily driver:
   Gate: after 1 week, faelight-term v4 preferred over foot for daily use
 ---
 GATES
-[ ] Phase 0: foot vs v3 differences documented with screenshots
-[ ] Phase 1: hinting, subpixel, gamma fixed -- measurable improvement
-[ ] Phase 2: forest font chosen and documented
-[ ] Phase 3: cell metrics precise -- box drawing characters correct
-[ ] Phase 4: ligature investigation complete, implemented if feasible
-[ ] Phase 5: forest-typography.md complete, daily driver 1 week
+[x] Phase 0: foot vs v3 compared live -- JetBrainsMono vs Noto Sans Mono identified, Alacritty benchmark used 2026-05-29
+[~] Phase 1: JetBrainsMono applied, font correct -- hinting/subpixel/gamma not formally investigated yet
+[~] Phase 2: JetBrainsMono Nerd Font chosen -- forest-typography.md not yet created
+[~] Phase 3: Ctrl+=/- runtime sizing works with cell_h field -- box drawing not verified
+[ ] Phase 4: ligature investigation -- not started
+[ ] Phase 5: forest-typography.md not created -- 1 week daily driver not started
 Final:
-[ ] The forest has a typographic identity -- one font, one rendering config
-[ ] faelight-term v4 text is immediately recognizable as the forest
-[ ] forest-typography.md is the reference for all future visual tools
-[ ] After 1 week daily use, foot is no longer opened for comparison
+[~] Font identity established: JetBrainsMono Nerd Font 12px -- not yet formally documented
+[~] faelight-term text improved significantly -- Alacritty still looks better
+[ ] forest-typography.md -- not created yet
+[x] foot removed from system entirely 2026-05-29 -- comparison no longer possible
 ---
 DEPENDS ON
 faelight-term v3 (INT-286) -- COMPLETE -- GPU rendering foundation

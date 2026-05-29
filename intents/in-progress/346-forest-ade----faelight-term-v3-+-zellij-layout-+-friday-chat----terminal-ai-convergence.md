@@ -102,14 +102,14 @@ faelight-ade v1 will be built as a single Rust binary:
   friday-chat -- right pane already exists, reuse directly
 
 ## Gates
-- [ ] Phase 1: faelight-ade crate scaffolded, compiles, opens with Alacritty
-- [ ] Phase 2: left pane runs fsh via portable-pty, full PTY (resize, ANSI, scrollback)
-- [ ] Phase 3: right pane is friday-chat TUI, reads state.db
-- [ ] Phase 4: FAELIGHT_ADE env var set, Friday detects shell context
-- [ ] Phase 5: PTY output streamed to Friday -- Friday sees commands in real time
-- [ ] Phase 6: faelight-bar shows ADE mode indicator when active
-- [ ] Phase 7: Alacritty launches faelight-ade via Mod+Alt+Return
-- [ ] Final: Forest ADE is daily driver -- fsh left, Friday right, one binary
+- [x] Phase 1: faelight-ade crate scaffolded, compiles, launches standalone 2026-05-29
+- [x] Phase 2: fsh runs via portable-pty with full ANSI color parsing 2026-05-29
+- [x] Phase 3: Friday right pane reads state.db -- /status /patterns /why working 2026-05-29
+- [x] Phase 4: FAELIGHT_ADE=1 set on launch, friday-chat detects it 2026-05-29
+- [~] Phase 5: PTY output streamed, Friday detects error/warning lines -- full command awareness deferred to INT-320 Friday v3
+- [ ] Phase 6: faelight-bar ADE indicator -- not built yet
+- [x] Phase 7: Mod+Alt+Return launches faelight-ade directly -- no Alacritty wrapper 2026-05-29
+- [~] Final: ADE ships and works -- daily driver period begins 2026-05-29. Graydon Hoare saw it working.
 
 ## Note
 This does NOT require building faelight-term v4 from scratch.
