@@ -52,7 +52,8 @@ use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
 use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
 // INT-324: forest typography -- JetBrainsMono Nerd Font, matching foot config
-const FONT_SIZE: f32 = 14.0;      // INT-324: forest size
+const FONT_SIZE: f32 = 12.0;      // INT-324: forest size -- Ctrl+= to increase
+const FONT_SIZE_ADE: f32 = 12.0;  // INT-346: ADE size
 const LINE_HEIGHT: f32 = 18.0;    // 1.286x font size
 const CELL_W: f32 = 8.4;          // JetBrainsMono at 14px
 const CELL_H: f32 = 18.0;         // matches LINE_HEIGHT
@@ -131,6 +132,21 @@ fn main() {
         // Render if dirty
         if let Some(ref mut gpu) = state.gpu {
             if gpu.dirty {
+                // INT-324: apply font metrics change safely
+                let expected_lh = gpu.font_size * 1.286;
+                if (gpu.line_height - expected_lh).abs() > 0.1 {
+                    gpu.line_height = expected_lh;
+                    gpu.cell_h = expected_lh;
+                    gpu.cell_w = gpu.font_size * 0.6;
+                    gpu.text_buffer.set_metrics(
+                        &mut gpu.font_system,
+                        glyphon::Metrics::new(gpu.font_size, gpu.line_height),
+                    );
+                    // Trigger resize to recalculate cols/rows with new cell dimensions
+                    let w = gpu.config.width;
+                    let h = gpu.config.height;
+                    gpu.resize(w, h);
+                }
                 gpu.sync_terminal(state.selection_start, state.selection_end);
                 gpu.render();
                 gpu.dirty = false;
@@ -260,6 +276,7 @@ struct GpuState {
     pty_resp_rx: std::sync::mpsc::Receiver<String>,
     needs_render: std::sync::Arc<std::sync::atomic::AtomicBool>,
     cell_w: f32,
+    cell_h: f32,
     cols: usize,
     rows: usize,
     dirty: bool,
@@ -369,7 +386,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, pty_resp_rx, needs_render, cell_w, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0, font_size: FONT_SIZE, line_height: LINE_HEIGHT,
+            term, notifier, pty_resp_rx, needs_render, cell_w, cell_h: CELL_H, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0, font_size: FONT_SIZE, line_height: LINE_HEIGHT,
         }
     }
 
@@ -381,7 +398,7 @@ impl GpuState {
 
     fn resize(&mut self, width: u32, height: u32) {
         let cols = ((width as f32 - PADDING * 2.0) / self.cell_w) as usize;
-        let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
+        let rows = ((height as f32 - PADDING * 2.0) / self.cell_h) as usize;
         let cols = cols.max(10);
         let rows = rows.max(3);
         if cols == self.cols && rows == self.rows { return; }
@@ -404,7 +421,7 @@ impl GpuState {
                 num_cols: cols as u16,
                 num_lines: rows as u16,
                 cell_width: self.cell_w as u16,
-                cell_height: CELL_H as u16,
+                cell_height: self.cell_h as u16,
             };
             let _ = self.notifier.0.send(Msg::Resize(window_size));
         }
@@ -696,20 +713,7 @@ impl KeyboardHandler for AppState {
             } else { false };
 
             if font_changed {
-                // Recalculate all metrics together
-                gpu.line_height = gpu.font_size * 1.286;
-                // cell_w scales proportionally with font size
-                gpu.cell_w = gpu.font_size * 0.6;
-                let cell_h = gpu.line_height;
-                gpu.text_buffer.set_metrics(&mut gpu.font_system,
-                    glyphon::Metrics::new(gpu.font_size, gpu.line_height));
-                // Recalculate cols/rows from window size
-                let w = gpu.config.width as f32;
-                let h = gpu.config.height as f32;
-                let new_cols = ((w - PADDING * 2.0) / gpu.cell_w) as usize;
-                let new_rows = ((h - PADDING * 2.0) / cell_h) as usize;
-                gpu.cols = new_cols.max(1);
-                gpu.rows = new_rows.max(1);
+                // Mark dirty -- render loop applies new metrics safely
                 gpu.dirty = true;
                 return;
             }
@@ -857,7 +861,7 @@ impl PointerHandler for AppState {
                         );
                         if mouse_enabled {
                             let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
-                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / gpu.cell_h) as usize + 1;
                             let seq = format!("\x1b[<0;{};{}M", col, row);
                             gpu.write_to_pty(seq.as_bytes());
                             return; // skip selection when app handles mouse
@@ -865,7 +869,7 @@ impl PointerHandler for AppState {
                     }
                     if let Some(ref gpu) = self.gpu {
                         let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize;
-                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / gpu.cell_h) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
                         let display_offset = gpu.term.lock().grid().display_offset() as i32;
@@ -884,7 +888,7 @@ impl PointerHandler for AppState {
                         );
                         if mouse_enabled {
                             let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
-                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / gpu.cell_h) as usize + 1;
                             let seq = format!("\x1b[<0;{};{}m", col, row);
                             gpu.write_to_pty(seq.as_bytes());
                         }
@@ -937,7 +941,7 @@ impl PointerHandler for AppState {
                 PointerEventKind::Motion { .. } if self.selecting => {
                     if let Some(ref gpu) = self.gpu {
                         let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize;
-                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / gpu.cell_h) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
                         let display_offset = gpu.term.lock().grid().display_offset() as i32;
@@ -962,7 +966,7 @@ impl PointerHandler for AppState {
                                 TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
                             );
                             let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
-                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / gpu.cell_h) as usize + 1;
                             if mouse_enabled {
                                 let btn = if direction < 0.0 { 64 } else { 65 };
                                 let seq = format!("\x1b[<{};{};{}M", btn, col, row);
