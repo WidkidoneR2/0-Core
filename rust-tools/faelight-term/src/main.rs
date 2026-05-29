@@ -53,6 +53,7 @@ use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, So
 
 // INT-324: forest typography -- JetBrainsMono Nerd Font, matching foot config
 const FONT_SIZE: f32 = 12.0;      // INT-324: forest size -- Ctrl+= to increase
+#[allow(dead_code)]
 const FONT_SIZE_ADE: f32 = 12.0;  // INT-346: ADE size
 const LINE_HEIGHT: f32 = 18.0;    // 1.286x font size
 const CELL_W: f32 = 8.4;          // JetBrainsMono at 14px

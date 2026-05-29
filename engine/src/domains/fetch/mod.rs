@@ -66,7 +66,7 @@ fn get_wm() -> String {
 }
 
 fn get_term() -> String {
-    std::env::var("TERM").unwrap_or_else(|_| "foot".to_string())
+    std::env::var("TERM").unwrap_or_else(|_| "alacritty".to_string())
 }
 
 fn get_version(ctx: &AppContext) -> String {

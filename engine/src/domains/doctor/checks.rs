@@ -179,7 +179,7 @@ pub fn check_yazi_plugins(home: &str) -> CheckResult {
 pub fn check_binaries() -> CheckResult {
     let bins = [
         "niri",
-        "foot",
+        "alacritty",
         "faelight-palette",
         "yazi",
         "nvim",

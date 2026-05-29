@@ -181,7 +181,7 @@ impl FaelightFm {
                 self.preview = load_preview(&self.entries, Some(0), &self.current_path);
             } else {
                 let file_path = self.current_path.join(&entry.name);
-                let _ = std::process::Command::new("foot")
+                let _ = std::process::Command::new("alacritty")
                     .args(["-e", "helix", &file_path.to_string_lossy().to_string()])
                     .spawn();
             }

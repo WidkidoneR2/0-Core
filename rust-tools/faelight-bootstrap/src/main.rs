@@ -101,7 +101,7 @@ fn dry_run() {
     println!();
     println!("  🔗 Phase 4: Stow Packages (12 packages)");
     println!("     ✓ wm-sway, shell-zsh, shell-nushell");
-    println!("     ✓ prompt-starship, term-foot, editor-nvim");
+    println!("     ✓ prompt-starship, term-alacritty, editor-nvim");
     println!("     ✓ fm-yazi, vcs-git, config-faelight");
     println!("     ✓ browser-qutebrowser, browser-brave");
     println!("     ✓ tools-topgrade");
@@ -356,7 +356,7 @@ fn install_dependencies() {
         "slurp",
         "xdg-desktop-portal-wlr",
         // Terminal & shell
-        "foot",
+        "alacritty",
         "zsh",
         "starship",
         "nushell",
@@ -490,7 +490,7 @@ fn stow_packages(core_path: &str) {
         "shell-zsh",
         "shell-nushell",
         "prompt-starship",
-        "term-foot",
+        "term-alacritty",
         "editor-nvim",
         "fm-yazi",
         "vcs-git",

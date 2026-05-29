@@ -135,42 +135,43 @@ window-rule {
 binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Return      { spawn "faelight-term"; }
+    Mod+Alt+Return  { spawn "alacritty"; }  // INT-346: Alacritty ADE terminal
     Mod+Shift+Return { spawn "sh" "-c" "faelight-term -e zellij --layout ~/.config/zellij/layouts/forest-ade.kdl"; }  // INT-346: Forest ADE
-    Mod+Alt+Return  { spawn "foot"; }
+    Mod+Alt+Return  { spawn "alacritty"; }
     Mod+b           { spawn "brave"; }
     Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
     Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; } // faelight-fm v2 (libcosmic)
-    Mod+n           { spawn "foot" "-e" "nvim"; }
-    Mod+Shift+y     { spawn "foot" "-e" "yazi"; }
-    Mod+Shift+t     { spawn "foot" "-e" "btop"; }
-    Mod+Shift+n     { spawn "foot" "-e" "nvim"; }
+    Mod+n           { spawn "alacritty" "-e" "nvim"; }
+    Mod+Shift+y     { spawn "alacritty" "-e" "yazi"; }
+    Mod+Shift+t     { spawn "alacritty" "-e" "btop"; }
+    Mod+Shift+n     { spawn "alacritty" "-e" "nvim"; }
     Mod+Shift+f     { spawn "/home/christian/0-core/scripts/faelight-fm"; }
 
     // ── Faelight Tools ────────────────────────────────────
-    Mod+Space       { spawn "foot" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
-    Mod+Escape      { spawn "foot" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
+    Mod+Space       { spawn "alacritty" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Escape      { spawn "alacritty" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
     Mod+Alt+n       { spawn "notesnook"; }
     Mod+Alt+d       { spawn "discord"; }
     Mod+Alt+c       { spawn "filen-desktop"; }
-    Mod+Alt+h       { spawn "foot" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
+    Mod+Alt+h       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
     Mod+Alt+m       { spawn "/home/christian/0-core/scripts/faelight-dashboard"; }
-    Mod+Alt+g       { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-git"; }
-    Mod+Alt+i       { spawn "foot" "-e" "/home/christian/0-core/scripts/intent"; }
+    Mod+Alt+g       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-git"; }
+    Mod+Alt+i       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/intent"; }
     Mod+Alt+z       { spawn "/home/christian/0-core/scripts/faelight-snapshot"; }
-    Mod+Alt+u       { spawn "foot" "-e" "/home/christian/0-core/scripts/safe-update"; }
-    Mod+Alt+p       { spawn "foot" "-e" "/home/christian/0-core/scripts/core-protect"; }
-    Mod+Alt+f       { spawn "foot" "-e" "/home/christian/0-core/scripts/profile"; }
+    Mod+Alt+u       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/safe-update"; }
+    Mod+Alt+p       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/core-protect"; }
+    Mod+Alt+f       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/profile"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
-    Mod+Alt+l       { spawn "foot" "-e" "/home/christian/0-core/scripts/latest-update"; }
-    Mod+Alt+w       { spawn "foot" "-e" "/home/christian/0-core/scripts/dotctl"; }
-    Mod+Ctrl+d      { spawn "foot" "-e" "/home/christian/0-core/scripts/core-diff"; }
-    Mod+Ctrl+c      { spawn "foot" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
-    Mod+Ctrl+g      { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
+    Mod+Alt+l       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/latest-update"; }
+    Mod+Alt+w       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dotctl"; }
+    Mod+Ctrl+d      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/core-diff"; }
+    Mod+Ctrl+c      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
+    Mod+Ctrl+g      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
     // ── Clipboard ─────────────────────────────────────────
-    Mod+p           { spawn "sh" "-c" "cliphist list | foot --app-id=faelight-palette-float -W 80x24 -e fzf | cliphist decode | wl-copy"; }
+    Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -e fzf | cliphist decode | wl-copy"; }
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
 
     // ── Notifications ─────────────────────────────────────
@@ -290,7 +291,7 @@ window-rule {
 // ── Per-app window rules — INT-136 Phase 2 ───────────────
 // Foot terminal — slightly more transparent, structured corners
 window-rule {
-    match app-id="foot"
+    match app-id="alacritty"
     opacity 0.95
     geometry-corner-radius 6
 }

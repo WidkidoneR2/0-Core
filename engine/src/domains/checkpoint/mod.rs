@@ -120,7 +120,7 @@ fn read_config_hashes() -> HashMap<String, String> {
     let configs = vec![
         // INT-180: sway removed
         ("zshrc", home.join(".zshrc")),
-        ("foot", home.join(".config/foot/foot.ini")),
+        ("alacritty", home.join(".config/alacritty/alacritty.toml")),
         ("aliases", home.join(".config/zsh/aliases.zsh")),
     ];
     for (name, path) in configs {
@@ -511,7 +511,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
             home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc"),
         ),
         // INT-180: sway removed
-        ("foot", home.join(".config/foot/foot.ini")),
+        ("alacritty", home.join(".config/alacritty/alacritty.toml")),
     ];
 
     let current_hashes = read_config_hashes();
