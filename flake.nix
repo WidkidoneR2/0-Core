@@ -28,5 +28,34 @@
         cargoBuildFlags = [ "-p" "get-version" ];
         doCheck = false;
       };
+
+      packages.${system}.faelight-compositor = pkgs.rustPlatform.buildRustPackage {
+        pname = "faelight-compositor";
+        version = "0.1.0";
+        src = ./.;
+
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+          outputHashes = {
+            "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
+            "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
+          };
+        };
+
+        nativeBuildInputs = [ pkgs.pkg-config ];
+        buildInputs = [
+          pkgs.wayland
+          pkgs.libxkbcommon
+          pkgs.libinput
+          pkgs.seatd
+          pkgs.udev
+          pkgs.libdrm
+          pkgs.libgbm
+          pkgs.libGL
+        ];
+
+        cargoBuildFlags = [ "-p" "faelight-compositor" ];
+        doCheck = false;
+      };
     };
 }
