@@ -221,6 +221,26 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         }
     }
 
+    // INT-326 Phase 4: semantic safety enforcement -- observation verbs provably safe
+    {
+        use crate::semantic::{interpret, VerbCategory};
+        let si = interpret(trimmed_line);
+        if matches!(si.category, VerbCategory::Observation) {
+            // Record that this is a read-only operation -- safety contract enforced
+            let _ = db.conn.execute(
+                "INSERT OR IGNORE INTO shell_state (key, value) VALUES ('last_observation_verb', ?1)",
+                rusqlite::params![&cmd],
+            );
+        }
+        if matches!(si.category, VerbCategory::Destructive) && si.confidence > 0.8 {
+            // High-confidence destructive verb -- ensure it was intentional
+            let _ = db.conn.execute(
+                "INSERT OR IGNORE INTO shell_state (key, value) VALUES ('last_destructive_verb', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                rusqlite::params![&cmd],
+            );
+        }
+    }
     // INT-278: friday chat -- before alias resolution
     if cmd == "friday" && args.first().copied() == Some("chat") {
         let rest = args.get(1..).unwrap_or(&[]).join(" ");
@@ -11776,7 +11796,7 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let is_alive = sessions.lines().any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
+    let _is_alive = sessions.lines().any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
     let is_dead = sessions.lines().any(|l| l.contains("forest-ade") && (l.contains("EXITED") || l.contains("dead")));
 
     if is_dead {

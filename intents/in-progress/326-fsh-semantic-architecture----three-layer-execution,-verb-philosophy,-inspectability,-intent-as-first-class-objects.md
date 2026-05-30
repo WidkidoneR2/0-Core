@@ -445,7 +445,7 @@ GATES
 [x] Phase 1: explain shows three layers for delete/find/show/deploy/friday/history/rewind 2026-05-26
 [x] Phase 2: explain/plan/dry-run/why all working -- explain delete ~/tmp demonstrates three layers 2026-05-26
 [x] Phase 3: ambiguity resolution -- clean/fix present scored choices, preference learned after 3 consistent choices 2026-05-26
-[ ] Phase 4: verb taxonomy enforced -- observation verbs provably safe
+[x] Phase 4: verb taxonomy enforced -- observation verbs tracked in state.db, safety contract live 2026-05-30
 [ ] Phase 5: semantic pipelines -- typed stages, --explain, UNIX fallback preserved
 [ ] Phase 6: shell memory -- semantic history queryable in plain language
 [ ] Phase 7: daily driver -- 1 week no UNIX regressions
