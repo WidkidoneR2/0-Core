@@ -10,6 +10,7 @@
     in {
       nixosConfigurations.faelight-vm = nixpkgs.lib.nixosSystem {
         inherit system;
+        specialArgs = { inherit self system; };
         modules = [ ./hosts/vm/configuration.nix ];
       };
 

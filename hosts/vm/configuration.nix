@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, self, system, ... }:
 {
   imports = [ ./hardware-configuration.nix ];
 
@@ -20,7 +20,13 @@
     settings.PasswordAuthentication = true;
   };
 
-  environment.systemPackages = with pkgs; [ git vim ];
+  environment.systemPackages = [
+    pkgs.git
+    pkgs.vim
+    self.packages.${system}.faelight-shell
+    self.packages.${system}.get-version
+    self.packages.${system}.faelight-compositor
+  ];
 
   system.stateVersion = "25.11";
 }
