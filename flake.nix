@@ -21,7 +21,7 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-            "smithay-0.7.0" = nixpkgs.lib.fakeHash;
+            "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
           };
         };
 
