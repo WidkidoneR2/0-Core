@@ -63,7 +63,7 @@ rules = [
     # ──────────────────────────────────────────────
     { url = "shell-zsh/", fg = "#00ffff", bold = true },
     { url = "editor-nvim/", fg = "#00ffff", bold = true },
-    { url = "term-foot/", fg = "#00ffff", bold = true },
+    { url = "term-alacritty/", fg = "#00ffff", bold = true },
     { url = "fm-yazi/", fg = "#00ffff", bold = true },
     { url = "browser-qutebrowser/", fg = "#00ffff", bold = true },
     { url = "shell-nushell/", fg = "#00ffff", bold = true },
@@ -152,7 +152,7 @@ rules = [
     # ──────────────────────────────────────────────
     { url = "shell-zsh/", text = "🐚" },
     { url = "editor-nvim/", text = "📝" },
-    { url = "term-foot/", text = "💻" },
+    { url = "term-alacritty/", text = "💻" },
     { url = "fm-yazi/", text = "📁" },
     { url = "browser-qutebrowser/", text = "🌐" },
     { url = "config-faelight/", text = "⚙️" },
