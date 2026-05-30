@@ -1,7 +1,7 @@
 ---
 id: 346
 title: "Forest ADE -- faelight-term v3 + Zellij Layout + Friday Chat -- Terminal-AI Convergence"
-status: in-progress
+status: complete
 date: 2026-05-26
 tags: [ade, faelight-term, zellij, friday-chat, terminal, convergence, layout]
 depends_on: [338, 345]
@@ -107,7 +107,7 @@ faelight-ade v1 will be built as a single Rust binary:
 - [x] Phase 3: Friday right pane reads state.db -- /status /patterns /why working 2026-05-29
 - [x] Phase 4: FAELIGHT_ADE=1 set on launch, friday-chat detects it 2026-05-29
 - [~] Phase 5: PTY output streamed, Friday detects error/warning lines -- full command awareness deferred to INT-320 Friday v3
-- [ ] Phase 6: faelight-bar ADE indicator -- not built yet
+- [⏸] Phase 6: faelight-bar ADE indicator -- deferred to NixOS faelight-bar v4 (INT-344). Current bar is pre-layer-shell. Rebuilding twice is waste. 2026-05-30
 - [x] Phase 7: Mod+Alt+Return launches faelight-ade directly -- no Alacritty wrapper 2026-05-29
 - [~] Final: ADE ships and works -- daily driver period begins 2026-05-29. Graydon Hoare saw it working.
 
@@ -123,3 +123,28 @@ The forest has the mind.
 One understands commands.
 The other understands intent.
 The ADE is where they converge." 🌲
+
+---
+## Deferred to NixOS (approved 2026-05-30)
+
+The following work is formally deferred to post-NixOS migration:
+
+**Phase 6 -- faelight-bar ADE indicator**
+- Reason: faelight-bar v4 (INT-344) is a full layer-shell rebuild on NixOS
+- Building the indicator twice (now + after migration) is waste
+- On NixOS: faelight-bar v4 will read FAELIGHT_ADE from state.db and show indicator natively
+
+**faelight-term v4 native split panes**
+- Reason: full PTY split pane architecture belongs on NixOS foundation
+- Current faelight-ade v1 (ratatui+portable-pty) is the ADE until then
+- On NixOS: faelight-term v4 becomes the ADE with native splits
+
+**Alacritty vs faelight-term decision**
+- Reason: faelight-term needs the NixOS GPU stack to prove itself
+- Decision point: after 2 weeks daily driving both on NixOS
+- On NixOS: run both, measure, decide which becomes Mod+Return
+
+**Friday ADE integration (Phase 5 deep)**
+- Reason: INT-320 Friday v3 is the proper home for this
+- Current: Friday detects errors in PTY output (basic)
+- On NixOS: Friday reads PTY stream as typed intent objects (INT-329)
