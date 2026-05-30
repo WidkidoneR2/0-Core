@@ -23,10 +23,7 @@
   environment.systemPackages = [
     pkgs.git
     pkgs.vim
-    self.packages.${system}.faelight-shell
-    self.packages.${system}.get-version
-    self.packages.${system}.faelight-compositor
-    self.packages.${system}.core
+    self.packages.${system}.faelight-forest
   ];
 
   system.stateVersion = "25.11";

@@ -15,23 +15,9 @@
       };
 
       packages.${system} = {
-        get-version = pkgs.rustPlatform.buildRustPackage {
-          pname = "get-version";
-          version = "4.0.0";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            outputHashes = {
-              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-            };
-          };
-          cargoBuildFlags = [ "-p" "get-version" ];
-          doCheck = false;
-        };
-
-        faelight-compositor = pkgs.rustPlatform.buildRustPackage {
-          pname = "faelight-compositor";
-          version = "0.1.0";
+        faelight-forest = pkgs.rustPlatform.buildRustPackage {
+          pname = "faelight-forest";
+          version = "9.1.0";
           src = ./.;
           cargoLock = {
             lockFile = ./Cargo.lock;
@@ -51,40 +37,13 @@
             pkgs.libdrm
             pkgs.libgbm
             pkgs.libGL
+            pkgs.openssl
+            pkgs.zlib
+            pkgs.fontconfig
+            pkgs.freetype
+            pkgs.vulkan-loader
           ];
-          cargoBuildFlags = [ "-p" "faelight-compositor" ];
-          doCheck = false;
-        };
-
-        faelight-shell = pkgs.rustPlatform.buildRustPackage {
-          pname = "faelight-shell";
-          version = "2.3.0";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            outputHashes = {
-              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-              "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-            };
-          };
-          nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [ pkgs.openssl pkgs.zlib ];
-          cargoBuildFlags = [ "-p" "faelight-shell" ];
-          doCheck = false;
-        };
-
-        core = pkgs.rustPlatform.buildRustPackage {
-          pname = "core";
-          version = "3.1.0";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            outputHashes = {
-              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-              "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-            };
-          };
-          cargoBuildFlags = [ "-p" "core" ];
+          cargoBuildFlags = [ "--workspace" ];
           doCheck = false;
         };
       };
