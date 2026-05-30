@@ -26,6 +26,7 @@
     self.packages.${system}.faelight-shell
     self.packages.${system}.get-version
     self.packages.${system}.faelight-compositor
+    self.packages.${system}.core
   ];
 
   system.stateVersion = "25.11";
