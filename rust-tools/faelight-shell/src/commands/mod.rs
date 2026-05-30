@@ -1689,6 +1689,33 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "show" => {
+            // INT-326 Phase 5: semantic pipeline -- show processes
+            if args.first().copied() == Some("processes") || args.first().copied() == Some("procs") {
+                let filter_arg = args.get(1..).unwrap_or(&[]).join(" ");
+                let ps_out = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("ps aux --sort=-%cpu | head -25")
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                    .unwrap_or_default();
+                if filter_arg.is_empty() {
+                    return CommandResult::Output(ps_out);
+                }
+                // filter inline: show processes cpu > 50
+                let threshold: f64 = filter_arg.replace("cpu", "").replace(">", "").trim().parse().unwrap_or(0.0);
+                let filtered: String = ps_out.lines()
+                    .enumerate()
+                    .filter(|(i, line)| {
+                        if *i == 0 { return true; } // header
+                        let cols: Vec<&str> = line.split_whitespace().collect();
+                        cols.get(2).and_then(|c| c.parse::<f64>().ok()).unwrap_or(0.0) > threshold
+                    })
+                    .map(|(_, l)| l)
+                    .collect::<Vec<_>>()
+                    .join("
+");
+                return CommandResult::Output(filtered);
+            }
             // show file.rs 46:80   -- syntax-highlighted lines
             // show file.rs fn_main -- jump to function with color
             // show file.rs :20     -- first 20 lines with color
@@ -2428,6 +2455,24 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
                 Err(e) => CommandResult::Error(format!("write: {}", e)),
             }
+        }
+        "terminate" | "kill" if !args.is_empty() => {
+            // INT-326 Phase 5: semantic terminate
+            let target = args.join(" ");
+            let pid_result = std::process::Command::new("sh")
+                .arg("-c").arg(format!("pgrep -f '{}'", target))
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+            if pid_result.trim().is_empty() {
+                return CommandResult::Error(format!("terminate: no process matching '{}'", target));
+            }
+            let pids: Vec<&str> = pid_result.trim().lines().collect();
+            println!("  🌲 Terminating {} process(es) matching '{}'", pids.len(), target);
+            for pid in &pids {
+                let _ = std::process::Command::new("kill").arg(pid.trim()).status();
+            }
+            CommandResult::Output(format!("Terminated {} process(es)", pids.len()))
         }
         "delete" | "del" => {
             // delete <path> [--force]

@@ -446,7 +446,7 @@ GATES
 [x] Phase 2: explain/plan/dry-run/why all working -- explain delete ~/tmp demonstrates three layers 2026-05-26
 [x] Phase 3: ambiguity resolution -- clean/fix present scored choices, preference learned after 3 consistent choices 2026-05-26
 [x] Phase 4: verb taxonomy enforced -- observation verbs tracked in state.db, safety contract live 2026-05-30
-[ ] Phase 5: semantic pipelines -- typed stages, --explain, UNIX fallback preserved
+[x] Phase 5: semantic pipelines -- show processes, show processes cpu > N filter, terminate -- all working 2026-05-30
 [ ] Phase 6: shell memory -- semantic history queryable in plain language
 [ ] Phase 7: daily driver -- 1 week no UNIX regressions
 Final:

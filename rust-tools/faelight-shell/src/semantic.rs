@@ -8,7 +8,7 @@ pub enum Action {
     Enable, Disable, Compare, Check, List, Inspect, Observe,
     Build, Test, Commit, Push, Rollback, Install, Remove,
     History, Snapshot, Rewind, Doctor, Enter, Rename2,
-    Execute, Unknown(String),
+    Execute, Filter, Terminate, Unknown(String),
 }
 
 #[allow(dead_code)]
@@ -21,6 +21,7 @@ pub enum Target {
     Intent(String),
     Pattern(String),
     Command(String),
+    Process(String),
     Unknown(String),
 }
 
@@ -110,6 +111,16 @@ pub fn interpret(input: &str) -> SemanticIntent {
             layer2_description: format!("Find(File(\"{}\"))", rest),
             layer3_commands: vec![format!("find . -name \"{}\"", rest)],
         },
+        "show" if rest == "processes" || rest == "procs" => SemanticIntent {
+            raw_input: input.to_string(),
+            action: Action::Show,
+            target: Target::Process("all".to_string()),
+            category: VerbCategory::Observation,
+            confidence: 1.0,
+            reversible: true,
+            layer2_description: "Observe(Processes(all))".to_string(),
+            layer3_commands: vec!["ps aux --sort=-%cpu | head -20".to_string()],
+        },
         "show" | "d" => SemanticIntent {
             raw_input: input.to_string(),
             action: Action::Show,
@@ -119,6 +130,27 @@ pub fn interpret(input: &str) -> SemanticIntent {
             reversible: true,
             layer2_description: format!("Observe(System(\"{}\"))", if rest.is_empty() { "health" } else { &rest }),
             layer3_commands: vec!["core doctor run --summary".to_string()],
+        },
+        "filter" => SemanticIntent {
+            raw_input: input.to_string(),
+            action: Action::Filter,
+            target: Target::Process(rest.clone()),
+            category: VerbCategory::Observation,
+            confidence: 1.0,
+            reversible: true,
+            layer2_description: format!("Filter(Process({}))", rest),
+            layer3_commands: vec![format!("awk '{{if ($3 > {}) print}}'",
+                rest.replace("cpu >", "").replace("cpu>", "").trim())],
+        },
+        "terminate" | "kill" => SemanticIntent {
+            raw_input: input.to_string(),
+            action: Action::Terminate,
+            target: Target::Process(rest.clone()),
+            category: VerbCategory::Destructive,
+            confidence: 0.9,
+            reversible: false,
+            layer2_description: format!("Terminate(Process({}))", if rest.is_empty() { "from_pipe" } else { &rest }),
+            layer3_commands: vec!["kill".to_string()],
         },
         "history" => SemanticIntent {
             raw_input: input.to_string(),
