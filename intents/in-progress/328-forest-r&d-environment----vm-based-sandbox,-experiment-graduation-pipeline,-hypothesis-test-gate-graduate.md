@@ -258,3 +258,88 @@ Not recklessly -- deliberately.
 The VM is not a sandbox.
 It is a laboratory.
 And the laboratory has rules." 🌲
+
+═══════════════════════════════════════════════════
+NIXOS MIGRATION TESTBED -- INT-328 charter extension
+added: 2026-05-30 (branch: nixos)
+═══════════════════════════════════════════════════
+
+WHY THIS LIVES IN 328
+The lab exists so dangerous ideas have a safe place to be wrong.
+Replacing the forest's own foundation -- Arch to NixOS -- is the most
+dangerous idea the forest has ever had. It is the textbook case for the
+laboratory. So the migration gets no ad-hoc process; it follows the same
+discipline: hypothesis -> VM -> gate -> graduate.
+
+This extends 328. It does not replace it.
+The Arch experiments (INT-325, 308, 327, 329, 330) remain valid and keep
+their VM. The NixOS migration gets a second, separate VM node.
+Two laboratories, one discipline.
+
+WHAT IS DIFFERENT FOR THIS EXPERIMENT
+  The testbed VM runs NixOS, not Arch.
+  Graduation is not "apply a patch to the Arch machine."
+  Graduation is "reinstall the Framework as NixOS from the proven flake."
+  It happens once. It must be right.
+  The Arch forest on `main` stays the live system until that moment.
+
+NIXOS VM SPECIFICATIONS
+  New disk:  ~/vms/nixos-test.qcow2 (separate from arch-test.qcow2)
+  ISO:       NixOS minimal (not the graphical installer)
+  Same QEMU/KVM host and snapshot discipline as the Arch lab.
+  Snapshots: nixos-clean, nixos-flake-applied, nixos-forest-built, before-INT-NNN
+
+INPUTS ALREADY IN HAND
+  r-and-d/dependency-manifest.md -- 121 packages mapped to NixOS targets
+  nixos branch -- migration work isolated from production main
+  committed Cargo.lock -- deterministic builds of the 49 forest tools
+  AUR surface cleared -- 9 of 10 in nixpkgs, paru drops
+
+PHASES
+Phase N0 -- Readiness  [DONE]
+  Repo audited (source-first, lockfile committed).
+  Dependency manifest built (121 pkgs categorized).
+  AUR surface vetted clean. nixos branch created.
+  Gate: manifest complete, branch live.
+
+Phase N1 -- NixOS minimal VM
+  Install NixOS minimal into nixos-test.qcow2 (no GUI).
+  Gate: NixOS VM boots to a console.
+
+Phase N2 -- flake.nix scaffold
+  Write flake.nix + hosts/framework16 from the manifest:
+  systemPackages, services.*, fonts.packages, devShell.
+  De-absolutize the ~8 live configs in 03-interfaces (no /home/christian paths).
+  Gate: nixos-rebuild applies the flake in the VM; declared packages present.
+
+Phase N3 -- Forest tools as derivations
+  Package the 49 rust-tools + engine + fsh under pkgs/faelight/,
+  built from the committed Cargo.lock.
+  Register fsh in /etc/shells and as the login shell.
+  (Watch: faelight-compositor's smithay git-dep needs cargoLock.outputHashes.)
+  Gate: fsh, core, and daemon build and run in the NixOS VM; fsh is login shell.
+
+Phase N4 -- Health inside NixOS
+  Get the forest healthy in the NixOS VM.
+  Gate: `d` shows forest health 100% inside the NixOS VM.   <- the proof
+
+Phase N5 -- Graduate to the Framework
+  Only after N4 passes. Fresh NixOS install on the Framework:
+  disko + LUKS2 declarative partitioning, nixos-install --flake .#framework16.
+  state.db carried forward intact. Fresh intent ledger from INT-001.
+  Pull in the nixos-hardware Framework 16 module for AMD/firmware/quirks.
+  Photos at every milestone.
+  Gate: forest runs on the Framework from the flake; rollback (Arch on main) intact.
+
+GATES (NixOS testbed)
+[x] dependency manifest complete, AUR surface cleared, nixos branch live
+[ ] NixOS minimal VM boots
+[ ] flake.nix applies in VM; declared packages present
+[ ] live configs de-absolutized (no hardcoded /home/christian)
+[ ] forest tools build as derivations in VM; fsh is login shell
+[ ] d shows 100% inside the NixOS VM
+[ ] Framework reinstalled from flake; state.db carried; INT-001 ledger begins
+
+"The forest's last Arch experiment is learning how to stop being Arch.
+ It will be wrong in the VM many times.
+ It will be right on the Framework once." 🌲
