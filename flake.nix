@@ -48,6 +48,7 @@
             pkgs.wayland
             pkgs.libxkbcommon
             pkgs.libinput
+            pkgs.libdisplay-info
             pkgs.seatd
             pkgs.udev
             pkgs.libdrm
