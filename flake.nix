@@ -57,7 +57,7 @@
             pkgs.libsodium
           ];
 
-          cargoBuildFlags = [ "--workspace" "--exclude" "faelight-lock" ];
+          cargoBuildFlags = [ "--workspace" ];
           doCheck = false;
         };
       };

@@ -15,7 +15,7 @@ pub const TEXT_APP: [u8; 4] = [0x55, 0x60, 0x50, 0xff]; // dim
 pub const TEXT_SUMMARY: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xff]; // bright green
 pub const TEXT_BODY: [u8; 4] = [0xda, 0xe0, 0xd7, 0xff]; // light
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf");
 
 static FONT: OnceLock<Font> = OnceLock::new();
 

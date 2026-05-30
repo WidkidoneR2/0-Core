@@ -13,7 +13,7 @@ pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, col
     let mut cache_guard = get_cache().lock().unwrap();
 
     if cache_guard.is_none() {
-        let font_data = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+        let font_data = include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf");
         *cache_guard = Some(GlyphCache::new(font_data).expect("Failed to load font"));
     }
 
