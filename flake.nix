@@ -26,7 +26,14 @@
               "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
             };
           };
-          nativeBuildInputs = [ pkgs.pkg-config ];
+
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            pkgs.rustPlatform.bindgenHook
+            pkgs.cmake
+          ];
+          dontUseCmakeConfigure = true;
+
           buildInputs = [
             pkgs.wayland
             pkgs.libxkbcommon
@@ -42,7 +49,14 @@
             pkgs.fontconfig
             pkgs.freetype
             pkgs.vulkan-loader
+            pkgs.pango
+            pkgs.cairo
+            pkgs.pixman
+            pkgs.dbus
+            pkgs.pam
+            pkgs.libsodium
           ];
+
           cargoBuildFlags = [ "--workspace" ];
           doCheck = false;
         };
