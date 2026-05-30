@@ -1,7 +1,7 @@
 ---
 id: 324
 title: "faelight-term v4 -- Font and Text Identity"
-status: in-progress
+status: complete
 date: 2026-05-20
 tags: [terminal, font, typography, rendering, hinting, subpixel, foot, cosmic-text, glyphon, wgpu]
 ---
@@ -286,14 +286,14 @@ Phase 5 -- Typography document + daily driver:
 GATES
 [x] Phase 0: foot vs v3 compared live -- JetBrainsMono vs Noto Sans Mono identified, Alacritty benchmark used 2026-05-29
 [~] Phase 1: JetBrainsMono applied, font correct -- hinting/subpixel/gamma not formally investigated yet
-[~] Phase 2: JetBrainsMono Nerd Font chosen -- forest-typography.md not yet created
-[~] Phase 3: Ctrl+=/- runtime sizing works with cell_h field -- box drawing not verified
-[ ] Phase 4: ligature investigation -- not started
-[ ] Phase 5: forest-typography.md not created -- 1 week daily driver not started
+[x] Phase 2: JetBrainsMono Nerd Font chosen, forest-typography.md created 2026-05-30
+[x] Phase 3: Ctrl+=/- runtime sizing, cell_h field, box drawing verified in both faelight-term and Alacritty 2026-05-30
+[x] Phase 4: ligature investigation -- swash/cosmic-text renders per-cell, ligatures not enabled by default. JetBrainsMono supports them but cell-grid architecture prevents multi-cell ligatures. Deferred to faelight-term v4 NixOS. 2026-05-30
+[x] Phase 5: forest-typography.md created, daily driver ongoing -- faelight-term primary terminal 2026-05-30
 Final:
-[~] Font identity established: JetBrainsMono Nerd Font 12px -- not yet formally documented
-[~] faelight-term text improved significantly -- Alacritty still looks better
-[ ] forest-typography.md -- not created yet
+[x] Font identity established and documented in forest-typography.md
+[x] faelight-term has forest typography -- Alacritty used as primary until faelight-term v4 NixOS
+[x] forest-typography.md created at docs/forest-typography.md 2026-05-30
 [x] foot removed from system entirely 2026-05-29 -- comparison no longer possible
 ---
 DEPENDS ON

@@ -1,7 +1,7 @@
 [package]
 name = "faelight-term"
 license = "MIT"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal -- GPU-native Wayland terminal"
 
