@@ -3384,6 +3384,60 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Err(e) => CommandResult::Error(format!("save: {}", e)),
             }
         }
+        "how" => {
+            // INT-326 Phase 6: shell memory -- "how did I fix X last month?"
+            let query = args.join(" ").to_lowercase();
+            let query = query.trim_start_matches("did i ").trim_start_matches("do i ").trim_start_matches("i ");
+            let pattern = format!("%{}%", query.split_whitespace().next().unwrap_or(""));
+            let time_filter = if args.iter().any(|a| *a == "today") {
+                let today = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                today - 86400
+            } else if args.iter().any(|a| *a == "week") {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                now - 604800
+            } else if args.iter().any(|a| *a == "month") {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                now - 2592000
+            } else { 0 };
+
+            let mut stmt = match db.conn.prepare(
+                "SELECT command, cwd, timestamp, exit_code FROM shell_history 
+                 WHERE command LIKE ?1 AND timestamp > ?2 
+                 ORDER BY timestamp DESC LIMIT 10"
+            ) {
+                Ok(s) => s,
+                Err(e) => return CommandResult::Error(format!("how: db error: {}", e)),
+            };
+
+            let rows: Vec<String> = match stmt.query_map(
+                rusqlite::params![pattern, time_filter as i64],
+                |r| {
+                    let cmd: String = r.get(0)?;
+                    let cwd: String = r.get::<_,String>(1).unwrap_or_default();
+                    let ts: i64 = r.get(2)?;
+                    let exit: i64 = r.get::<_,i64>(3).unwrap_or(0);
+                    let dt = chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| ts.to_string());
+                    let status = if exit == 0 { "✅" } else { "❌" };
+                    Ok(format!("  {} {} | {} | {}", status, cmd, dt, cwd))
+                }
+            ) {
+                Ok(mapped) => mapped.flatten().collect(),
+                Err(_) => vec![],
+            };
+
+            if rows.is_empty() {
+                CommandResult::Output(format!("  🌲 No history matching '{}' -- try: how deploy / how fix / how build", query))
+            } else {
+                CommandResult::Output(format!("  🌲 Shell memory for '{}':
+{}", query, rows.join("
+")))
+            }
+        }
         "recall" => {
             if args.is_empty() {
                 // List all saved slots
