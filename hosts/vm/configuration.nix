@@ -24,6 +24,25 @@
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
+
+    # Forest runtime dependencies (doctor: "Binary Dependencies")
+    pkgs.niri
+    pkgs.alacritty
+    pkgs.yazi
+    pkgs.neovim
+    pkgs.starship
+    pkgs.bat
+    pkgs.eza
+    pkgs.fd
+    pkgs.ripgrep
+    pkgs.zoxide
+    pkgs.brightnessctl
+    pkgs.wireplumber
+    pkgs.stow
+
+    # Rust toolchain (doctor: "Rust Toolchain")
+    pkgs.cargo
+    pkgs.rustc
   ];
 
   system.stateVersion = "25.11";
