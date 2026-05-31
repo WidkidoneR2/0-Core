@@ -53,6 +53,15 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
         }
     }
 
+    if std::path::Path::new("/etc/NIXOS").exists() {
+        return CheckResult {
+            id: "stow".into(),
+            name: "Stow Symlinks".into(),
+            status: Status::Pass,
+            message: "Managed by home-manager (NixOS)".into(),
+            fix: None,
+        };
+    }
     if stowed == total {
         CheckResult {
             id: "stow".into(),
@@ -910,7 +919,13 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
     let total = rust_tools.len();
     let deployed = rust_tools
         .iter()
-        .filter(|n| scripts_dir.join(n).exists())
+        .filter(|n| {
+            if std::path::Path::new("/etc/NIXOS").exists() {
+                Command::new("which").arg(n).output().map(|o| o.status.success()).unwrap_or(false)
+            } else {
+                scripts_dir.join(n).exists()
+            }
+        })
         .count();
     let pct = if total > 0 {
         (deployed * 100) / total

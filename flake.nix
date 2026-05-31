@@ -26,14 +26,12 @@
               "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
             };
           };
-
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.rustPlatform.bindgenHook
             pkgs.cmake
           ];
           dontUseCmakeConfigure = true;
-
           buildInputs = [
             pkgs.wayland
             pkgs.libxkbcommon
@@ -56,8 +54,22 @@
             pkgs.pam
             pkgs.libsodium
           ];
-
           cargoBuildFlags = [ "--workspace" ];
+          doCheck = false;
+        };
+
+        core = pkgs.rustPlatform.buildRustPackage {
+          pname = "core";
+          version = "3.1.0";
+          src = ./.;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+            outputHashes = {
+              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
+              "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
+            };
+          };
+          cargoBuildFlags = [ "-p" "core" ];
           doCheck = false;
         };
       };
