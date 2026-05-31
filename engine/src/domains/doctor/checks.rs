@@ -322,6 +322,15 @@ pub fn check_scripts(core_root: &str) -> CheckResult {
             }
         })
         .collect();
+    if std::path::Path::new("/etc/NIXOS").exists() {
+        return CheckResult {
+            id: "scripts".into(),
+            name: "Scripts".into(),
+            status: Status::Pass,
+            message: "Tools deployed as Nix binaries (NixOS)".into(),
+            fix: None,
+        };
+    }
     if issues.is_empty() {
         CheckResult {
             id: "scripts".into(),
@@ -402,7 +411,12 @@ pub fn check_profiles(core_root: &str, home: &str) -> CheckResult {
         .unwrap_or_else(|_| "default".into())
         .trim()
         .to_string();
-    if !profile_script.exists() {
+    let profile_present = if std::path::Path::new("/etc/NIXOS").exists() {
+        Command::new("which").arg("profile").output().map(|o| o.status.success()).unwrap_or(false)
+    } else {
+        profile_script.exists()
+    };
+    if !profile_present {
         CheckResult {
             id: "profiles".into(),
             name: "Profile System".into(),
