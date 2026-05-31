@@ -25,8 +25,6 @@
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
-
-    # Forest runtime dependencies (doctor: "Binary Dependencies")
     pkgs.niri
     pkgs.alacritty
     pkgs.yazi
@@ -40,11 +38,13 @@
     pkgs.brightnessctl
     pkgs.wireplumber
     pkgs.stow
-
-    # Rust toolchain (doctor: "Rust Toolchain")
     pkgs.cargo
     pkgs.rustc
   ];
+
+  home-manager.useGlobalPkgs = true;
+  home-manager.useUserPackages = true;
+  home-manager.users.christian = import ../../users/christian/home.nix;
 
   system.stateVersion = "25.11";
 }

@@ -2,8 +2,10 @@
   description = "Faelight NixOS";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+  inputs.home-manager.url = "github:nix-community/home-manager/release-25.11";
+  inputs.home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, home-manager }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -11,7 +13,10 @@
       nixosConfigurations.faelight-vm = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit self system; };
-        modules = [ ./hosts/vm/configuration.nix ];
+        modules = [
+          home-manager.nixosModules.home-manager
+          ./hosts/vm/configuration.nix
+        ];
       };
 
       packages.${system} = {
