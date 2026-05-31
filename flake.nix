@@ -4,8 +4,11 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.home-manager.url = "github:nix-community/home-manager/release-25.11";
   inputs.home-manager.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.disko.url = "github:nix-community/disko";
+  inputs.disko.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.nixos-hardware.url = "github:NixOS/nixos-hardware";
 
-  outputs = { self, nixpkgs, home-manager }:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -16,6 +19,18 @@
         modules = [
           home-manager.nixosModules.home-manager
           ./hosts/vm/configuration.nix
+        ];
+      };
+
+      nixosConfigurations.framework16 = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit self system; };
+        modules = [
+          disko.nixosModules.disko
+          ./hosts/framework16/disko.nix
+          nixos-hardware.nixosModules.framework-16-7040-amd
+          home-manager.nixosModules.home-manager
+          ./hosts/framework16/configuration.nix
         ];
       };
 
