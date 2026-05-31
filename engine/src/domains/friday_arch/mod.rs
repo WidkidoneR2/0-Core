@@ -238,14 +238,16 @@ pub fn detect_patterns(ctx: &AppContext) -> CoreResult<Vec<String>> {
         }
     }
     // Pattern 4: Check health trend from synthesis snapshots
-    let recent_health: Vec<i64> = {
-        let mut s = db
-            .prepare("SELECT health FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 5")
-            .unwrap();
-        s.query_map([], |r| r.get(0))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect()
+    // Graceful: synthesis owns this table; on a fresh DB it may not exist yet.
+    // No snapshots == no trend to report (mirrors friday::get_voice's .ok() guard).
+    let recent_health: Vec<i64> = match db
+        .prepare("SELECT health FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 5")
+    {
+        Ok(mut s) => s
+            .query_map([], |r| r.get(0))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
     };
     if recent_health.len() >= 3 {
         let trend: i64 = recent_health[0] - recent_health[recent_health.len() - 1];
