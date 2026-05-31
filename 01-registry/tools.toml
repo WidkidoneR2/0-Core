@@ -101,7 +101,8 @@ category = "tools"
 description = "Terminal file manager with daemon integration"
 expected_usage = "medium"
 type = "rust"
-deployable = true
+# Deferred: planned post-migration rebuild on NixOS (libcosmic + tokio). Not retired.
+deployable = false
 retired = false
 [[tool]]
 name = "faelight-git"
