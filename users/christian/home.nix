@@ -16,6 +16,50 @@ xdg.configFile."niri".source = ../../03-interfaces/stow/niri/.config/niri;
 home.packages = with pkgs; [
     brave
     lla
+     # CLI tools
+    bat
+    eza
+    fd
+    ripgrep
+    fzf
+    zoxide
+    dust
+    bottom
+    bandwhich
+    difftastic
+    hyperfine
+    tokei
+    ouch
+    jq
+    gum
+    tealdeer
+    onefetch
+    inotify-tools
+    usbutils
+    atuin
+    direnv
+    delta
+    gitleaks
+    lazygit
+    gocryptfs
+    # keybind helpers
+    grim
+    slurp
+    wl-clipboard
+    cliphist
+    brightnessctl
+    playerctl
+    pamixer
+    # editor + build
+    helix
+    clang
+    cmake
+    # GUI apps
+    filen-desktop
+    onlyoffice-desktopeditors
+    tutanota-desktop
+    notesnook
+    yazi
     nerd-fonts.jetbrains-mono
     ];
 

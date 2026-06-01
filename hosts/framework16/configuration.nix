@@ -1,4 +1,4 @@
-{ config, pkgs, self, system, ... }:
+{ config, pkgs, lib, self, system, ... }:
 {
   imports = [ ./hardware-configuration.nix ];
 
@@ -8,6 +8,12 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nixpkgs.config.allowUnfreePredicate = pkg:
+    builtins.elem (lib.getName pkg) [
+      "filen-desktop"
+      "onlyoffice-desktopeditors"
+      "discord"
+    ];
 
   # --- Networking (real laptop: WiFi via NetworkManager) ---
   networking.hostName = "framework16";
