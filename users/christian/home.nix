@@ -61,6 +61,10 @@ home.packages = with pkgs; [
     notesnook
     yazi
     nerd-fonts.jetbrains-mono
+    noto-fonts-color-emoji
+    noto-fonts
+    pastel
+    python3
     ];
 
 fonts.fontconfig.enable = true;
