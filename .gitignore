@@ -145,3 +145,4 @@ research/
 result
 result-*
 *.bak*
+/scripts
