@@ -14,7 +14,7 @@ set history_limit = 10000
 set prompt_style = forest
 
 # Tier 1 — Daily use
-alias d = "core doctor run"
+alias d = "/run/current-system/sw/bin/core doctor run"
 alias v = "nvim"
 alias l = "eza -lh --icons --group-directories-first"
 alias b = "bat --paging=never"
@@ -27,6 +27,9 @@ alias gaa = "git add -A"
 alias gcm = "git commit -m"
 
 # Tier 2 — Forest tools
+# Core binary -- explicit NixOS path
+alias core = "/run/current-system/sw/bin/core"
+
 alias fm = "faelight-fm"
 alias menu = "faelight-menu"
 alias bar = "faelight-bar"

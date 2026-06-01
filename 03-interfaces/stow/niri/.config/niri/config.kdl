@@ -64,9 +64,9 @@ layout {
 }
 
 // ─── Autostart ────────────────────────────────────────────
-spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
+spawn-at-startup "faelight-wallpaper"
 // faelight-clipboard watch disabled: Wayland zwlr panic on startup (2026-03-31)
-spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-idle"
+spawn-at-startup "faelight-idle"
 spawn-at-startup "faelight-bar"
 
 // ── Forest Animations ────────────────────────────────────

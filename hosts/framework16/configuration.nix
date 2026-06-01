@@ -13,6 +13,8 @@
       "filen-desktop"
       "onlyoffice-desktopeditors"
       "discord"
+      "tutanota-desktop"
+      "notesnook"
     ];
 
   # --- Networking (real laptop: WiFi via NetworkManager) ---

@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-term"
-version = "3.0.0"
+version = "3.1.0"
 dependencies = [
  "alacritty_terminal",
  "calloop 0.12.4",

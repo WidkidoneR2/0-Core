@@ -60,14 +60,16 @@ home.packages = with pkgs; [
     tutanota-desktop
     notesnook
     yazi
+    # fonts
     nerd-fonts.jetbrains-mono
     noto-fonts-color-emoji
     noto-fonts
+    # misc
     pastel
     python3
+    sqlite
     ];
 
 fonts.fontconfig.enable = true;
-home.file."0-core/scripts".source = config.lib.file.mkOutOfStoreSymlink "/run/current-system/sw/bin";
   xdg.configFile."faelight-shell/config.fsh".source = ../../03-interfaces/stow/shell-faelight/.config/faelight-shell/config.fsh;
    xdg.configFile."alacritty".source = ../../03-interfaces/stow/alacritty/.config/alacritty;}

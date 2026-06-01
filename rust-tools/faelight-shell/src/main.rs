@@ -476,15 +476,17 @@ fn repl_main() -> Result<()> {
                     .status();
             }
         }
-        // Ensure scripts/ is in PATH
+        // Ensure NixOS paths are in PATH
         if let Ok(home) = std::env::var("HOME") {
-            let scripts = format!("{}/0-core/scripts", home);
             let cargo_bin = format!("{}/.cargo/bin", home);
+            let nix_system   = "/run/current-system/sw/bin".to_string();
+            let nix_user     = format!("/etc/profiles/per-user/{}/bin",
+                                std::env::var("USER").unwrap_or_default());
             let current_path = std::env::var("PATH").unwrap_or_default();
-            if !current_path.contains(&scripts) {
+            if !current_path.contains(&nix_system) {
                 std::env::set_var(
                     "PATH",
-                    format!("{}:{}:{}", scripts, cargo_bin, current_path),
+                    format!("{}:{}:{}:{}", nix_system, nix_user, cargo_bin, current_path),
                 );
             }
         }
