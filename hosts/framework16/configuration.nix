@@ -28,6 +28,16 @@
 
   # --- GPU / Wayland (so niri can run) ---
   hardware.graphics.enable = true;
+  # Bluetooth
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
+
+  # XDG portals (file pickers / screenshots for Wayland apps)
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    config.common.default = [ "gtk" ];
+  };
 
   # --- Audio (PipeWire) ---
   security.rtkit.enable = true;

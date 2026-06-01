@@ -50,6 +50,7 @@
             pkgs.pkg-config
             pkgs.rustPlatform.bindgenHook
             pkgs.cmake
+	    pkgs.makeWrapper
           ];
           dontUseCmakeConfigure = true;
           buildInputs = [
@@ -76,6 +77,25 @@
           ];
           cargoBuildFlags = [ "--workspace" ];
           doCheck = false;
+	  postFixup = ''
+            for f in "$out"/bin/*; do
+              wrapProgram "$f" \
+                --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [
+                  pkgs.wayland
+                  pkgs.libxkbcommon
+                  pkgs.libGL
+                  pkgs.vulkan-loader
+                  pkgs.libgbm
+                  pkgs.libdrm
+                  pkgs.libinput
+                  pkgs.seatd
+                  pkgs.udev
+                  pkgs.fontconfig
+                  pkgs.freetype
+                ]}
+            done
+          '';
+
         };
 
         core = pkgs.rustPlatform.buildRustPackage {
