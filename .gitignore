@@ -144,3 +144,4 @@ research/
 # Nix build output
 result
 result-*
+*.bak*

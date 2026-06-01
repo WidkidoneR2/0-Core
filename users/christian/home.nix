@@ -12,4 +12,12 @@
 
   # Yazi config + plugins
   xdg.configFile."yazi".source = ../../03-interfaces/stow/fm-yazi/.config/yazi;
-}
+xdg.configFile."niri".source = ../../03-interfaces/stow/niri/.config/niri;
+home.packages = with pkgs; [
+    brave
+    lla
+    nerd-fonts.jetbrains-mono
+    ];
+
+fonts.fontconfig.enable = true;
+   xdg.configFile."alacritty".source = ../../03-interfaces/stow/alacritty/.config/alacritty;}
