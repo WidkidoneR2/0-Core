@@ -38,6 +38,7 @@ home.packages = with pkgs; [
     usbutils
     atuin
     direnv
+    nix-direnv
     delta
     gitleaks
     lazygit
@@ -71,5 +72,8 @@ home.packages = with pkgs; [
     ];
 
 fonts.fontconfig.enable = true;
+
+  programs.direnv.enable = true;
+  programs.direnv.nix-direnv.enable = true;
   xdg.configFile."faelight-shell/config.fsh".source = ../../03-interfaces/stow/shell-faelight/.config/faelight-shell/config.fsh;
    xdg.configFile."alacritty".source = ../../03-interfaces/stow/alacritty/.config/alacritty;}
