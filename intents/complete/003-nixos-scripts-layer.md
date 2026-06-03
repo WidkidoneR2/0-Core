@@ -3,7 +3,7 @@ id: 003
 date: 2026-06-03
 type: infrastructure
 title: "NixOS scripts layer: lock-core, unlock-core, deploy, core-protect"
-status: planned
+status: complete
 tags: [nixos, scripts, deploy, core-protect]
 priority: high
 ---
