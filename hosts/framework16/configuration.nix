@@ -66,6 +66,13 @@
     "f /sys/class/backlight/amdgpu_bl2/brightness 0644 root root - 31097"
   ];
 
+  # Security services
+  services.fail2ban.enable = true;
+
+  # Hardware services
+  services.fwupd.enable = true;
+  services.power-profiles-daemon.enable = true;
+
   services.mullvad-vpn.enable = true;
 
   services.openssh = {
