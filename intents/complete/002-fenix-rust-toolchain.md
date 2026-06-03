@@ -3,7 +3,7 @@ id: 002
 date: 2026-06-03
 type: infrastructure
 title: "Fenix: Rust 1.93+ toolchain via flake overlay"
-status: planned
+status: complete
 tags: [rust, fenix, toolchain, nixos, faelight-fm]
 priority: high
 ---

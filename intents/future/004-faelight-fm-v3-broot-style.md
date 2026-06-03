@@ -31,3 +31,13 @@ intent relationships, show context, and integrate with Friday.
 ## Gate
 
 faelight-fm launches, navigates filesystem, integrates with yazi handoff.
+
+## Why Not libcosmic (2026-06-03 finding)
+
+faelight-fm v2 uses libcosmic as a git dependency. Nix builds are hermetic
+and offline -- git dependencies cannot be fetched at build time. This is not
+a rustc version problem (26.05 ships 1.95 which satisfies all requirements).
+The architecture itself is incompatible with Nix's build model.
+
+The broot-style rework removes this dependency entirely. ratatui is available
+in nixpkgs and builds cleanly in the workspace.
