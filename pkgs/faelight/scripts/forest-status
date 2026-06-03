@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Faelight Forest status -- quick health overview
+
+core doctor quick

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Faelight Forest deploy -- NixOS-aware
+# Wraps nixos-rebuild switch with health gate
+
+set -e
+
+echo "🌲 Faelight Deploy -- NixOS"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Check we're in the forest root
+if [ ! -f "$HOME/0-core/flake.nix" ]; then
+    echo "❌ Not in forest root -- run from ~/0-core"
+    exit 1
+fi
+
+cd "$HOME/0-core"
+
+echo "→ Building and switching configuration..."
+sudo nixos-rebuild switch --flake .#framework16
+
+echo ""
+echo "→ Running health check..."
+core doctor quick
+
+echo ""
+echo "✅ Deploy complete"

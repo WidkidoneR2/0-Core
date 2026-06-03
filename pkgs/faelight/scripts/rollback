@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Faelight Forest rollback -- NixOS-aware
+
+echo "🌲 Faelight Rollback -- NixOS"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "→ Rolling back to previous generation..."
+sudo nixos-rebuild switch --rollback
+echo ""
+echo "✅ Rollback complete -- run: d to check health"
