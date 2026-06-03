@@ -1006,9 +1006,11 @@ pub fn check_core_protect(core_root: &str) -> CheckResult {
 
 pub fn check_sandbox(core_root: &str) -> CheckResult {
     // Check sandbox binary exists and policies are valid
-    let binary_exists = std::path::PathBuf::from(core_root)
-        .join("scripts/faelight-sandbox")
-        .exists();
+    // NixOS: check /run/current-system/sw/bin first, fall back to scripts/
+    let binary_exists = std::path::Path::new("/run/current-system/sw/bin/faelight-sandbox").exists()
+        || std::path::PathBuf::from(core_root)
+            .join("scripts/faelight-sandbox")
+            .exists();
 
     if !binary_exists {
         return CheckResult {
