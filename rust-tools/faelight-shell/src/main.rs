@@ -491,6 +491,25 @@ fn repl_main() -> Result<()> {
             }
         }
     }
+    // Direnv hook -- apply environment from .envrc if present
+    {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        let output = std::process::Command::new("direnv")
+            .args(["export", "bash"])
+            .current_dir(&cwd)
+            .output();
+        if let Ok(out) = output {
+            let exports = String::from_utf8_lossy(&out.stdout);
+            for line in exports.lines() {
+                if let Some(rest) = line.strip_prefix("export ") {
+                    if let Some((key, val)) = rest.split_once('=') {
+                        let val = val.trim_matches('"');
+                        std::env::set_var(key, val);
+                    }
+                }
+            }
+        }
+    }
     // Connect to state.db
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();

@@ -3,7 +3,7 @@ id: 007
 date: 2026-06-03
 type: infrastructure
 title: "friday-dev shell: nix develop environment for Friday/forest development"
-status: planned
+status: complete
 tags: [nix, devshell, friday, development, direnv]
 priority: high
 ---

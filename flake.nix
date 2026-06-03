@@ -113,5 +113,40 @@
           doCheck = false;
         };
       };
+
+      devShells.${system}.default = pkgs.mkShell {
+        name = "friday-dev";
+        buildInputs = with pkgs; [
+          # Rust toolchain
+          rustc
+          cargo
+          rust-analyzer
+          clippy
+          rustfmt
+          # Build tools
+          pkg-config
+          clang
+          cmake
+          # Forest tools
+          sqlite
+          python3
+          git
+          # Cargo tools
+          cargo-audit
+          cargo-watch
+          # Dev utilities
+          ripgrep
+          fd
+          jq
+        ];
+        shellHook = ''
+          echo "🌲 Faelight Forest -- friday-dev shell"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  rustc: $(rustc --version)"
+          echo "  cargo: $(cargo --version)"
+          echo "  Ready for forest development"
+          echo ""
+        '';
+      };
     };
 }
