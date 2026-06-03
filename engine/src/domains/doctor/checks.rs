@@ -533,8 +533,11 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
 
 pub fn check_security_hardening() -> CheckResult {
     let mut details = 0;
-    let ufw_active = fs::read_to_string("/etc/ufw/ufw.conf")
-        .map(|c| c.contains("ENABLED=yes"))
+    // NixOS: check native nftables firewall instead of UFW
+    let ufw_active = Command::new("systemctl")
+        .args(["is-active", "firewall"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active")
         .unwrap_or(false);
     if ufw_active {
         details += 1;
@@ -557,7 +560,7 @@ pub fn check_security_hardening() -> CheckResult {
     }
     let mut active = vec![];
     if ufw_active {
-        active.push("UFW ✅");
+        active.push("Firewall ✅");
     }
     if f2b_active {
         active.push("fail2ban ✅");
@@ -566,7 +569,7 @@ pub fn check_security_hardening() -> CheckResult {
         active.push("SSH hardened ✅");
     }
     if !ufw_active {
-        active.push("UFW ❌");
+        active.push("Firewall ❌");
     }
 
     CheckResult {
@@ -579,7 +582,7 @@ pub fn check_security_hardening() -> CheckResult {
         },
         message: format!("Security: {}", active.join("  ")),
         fix: if !ufw_active {
-            Some("Enable UFW: sudo ufw enable".into())
+            Some("Enable firewall: networking.firewall.enable = true in configuration.nix".into())
         } else {
             None
         },

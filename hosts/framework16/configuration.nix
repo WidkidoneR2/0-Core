@@ -61,8 +61,7 @@
   networking.firewall.allowedTCPPorts = [ 22 ];
   networking.firewall.allowedUDPPorts = [ ];
 
-  # Brightness default on boot
-  programs.light.enable = true;
+  # Brightness default on boot (use brightnessctl, programs.light removed in 26.05)
   systemd.tmpfiles.rules = [
     "f /sys/class/backlight/amdgpu_bl2/brightness 0644 root root - 31097"
   ];
