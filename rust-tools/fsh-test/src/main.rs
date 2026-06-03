@@ -205,7 +205,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("ls ~/0-core")?, "rust-tools")
     }));
     results.push(test("tilde_ls_scripts", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/scripts")?, "deploy")
+        expect_contains(&run_fsh("ls ~/0-core/pkgs/faelight/scripts")?, "deploy")
     }));
     results.push(test("tilde_ls_runtime", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/runtime")?, "state.db")
