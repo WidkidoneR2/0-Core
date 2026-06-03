@@ -333,12 +333,12 @@ Phase N5 -- Graduate to the Framework
 
 GATES (NixOS testbed)
 [x] dependency manifest complete, AUR surface cleared, nixos branch live
-[ ] NixOS minimal VM boots
-[ ] flake.nix applies in VM; declared packages present
-[ ] live configs de-absolutized (no hardcoded /home/christian)
-[ ] forest tools build as derivations in VM; fsh is login shell
-[ ] d shows 100% inside the NixOS VM
-[ ] Framework reinstalled from flake; state.db carried; INT-001 ledger begins
+[x] NixOS minimal VM boots -- Framework IS the NixOS install
+[x] flake.nix applies in VM; declared packages present
+[x] live configs de-absolutized (no hardcoded /home/christian)
+[x] forest tools build as derivations in VM; fsh is login shell
+[x] d shows 100% inside the NixOS VM -- achieved 2026-06-03
+[x] Framework reinstalled from flake; state.db carried; INT-001 ledger begins
 
 "The forest's last Arch experiment is learning how to stop being Arch.
  It will be wrong in the VM many times.

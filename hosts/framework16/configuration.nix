@@ -52,7 +52,7 @@
   # --- User ---
   users.users.christian = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "video" "input" ];
+    extraGroups = [ "wheel" "networkmanager" "video" "input" "libvirtd" ];
     # Password set at install (passwd) -- never in this public repo.
   };
 
@@ -72,6 +72,10 @@
   # Hardware services
   services.fwupd.enable = true;
   services.power-profiles-daemon.enable = true;
+
+  # Virtualisation (INT-328 R&D VM host)
+  virtualisation.libvirtd.enable = true;
+  programs.virt-manager.enable = true;
 
   services.mullvad-vpn.enable = true;
 
