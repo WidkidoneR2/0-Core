@@ -3,7 +3,7 @@ id: 349
 date: 2026-06-01
 type: future
 title: "Faelight Forest NixOS -- parity, then clean architecture"
-status: in-progress
+status: complete
 tags: [nixos, migration, architecture, parity]
 version: TBD
 ---
@@ -60,11 +60,18 @@ splitting now; recreate the scripts/ dir declaratively rather than refactor fsh.
 ## Gate Check
 
 ```
-⬜ Phase 1 -- Parity
-⬜ Phase 2 -- Structure
-⬜ Ledger reconciled
-⬜ VM test green
+✅ Phase 1 -- Parity -- demonstrated: health 90%, integrity 100%, services 2/2, NixOS 26.05
+⏸ Phase 2 -- Structure -- deferred: captured in INT-008 -- approved by: christian 2026-06-03
+✅ Ledger reconciled -- demonstrated: arch-era archived, NixOS era from INT-001
+⏸ VM test green -- deferred: tests/ stubs created, wiring in INT-003 -- approved by: christian 2026-06-03
 ```
 
 ---
 *"The forest grows with intention."* 🌲
+
+
+## Completion Note (2026-06-03)
+
+Closed at 90% health, integrity 100%, NixOS 26.05 Yarara.
+Phase 1 parity achieved. Phase 2 structure and VM tests deferred to INT-008 and INT-003.
+Forest is stable and growing.
