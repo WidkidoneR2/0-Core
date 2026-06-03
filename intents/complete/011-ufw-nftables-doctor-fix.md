@@ -3,7 +3,7 @@ id: 011
 date: 2026-06-03
 type: bugfix
 title: "UFW→nftables doctor fix: update hardcoded security check for NixOS"
-status: planned
+status: complete
 tags: [doctor, security, firewall, nftables, nixos]
 priority: medium
 ---
