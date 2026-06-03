@@ -1,8 +1,8 @@
 {
   description = "Faelight NixOS";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-  inputs.home-manager.url = "github:nix-community/home-manager/release-25.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs.home-manager.url = "github:nix-community/home-manager/release-26.05";
   inputs.home-manager.inputs.nixpkgs.follows = "nixpkgs";
   inputs.disko.url = "github:nix-community/disko";
   inputs.disko.inputs.nixpkgs.follows = "nixpkgs";
