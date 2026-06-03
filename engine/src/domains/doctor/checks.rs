@@ -90,7 +90,7 @@ pub fn check_services() -> CheckResult {
         .iter()
         .filter(|(name, _)| {
             Command::new("pgrep")
-                .arg("-x")
+                .arg("-f")
                 .arg(name)
                 .output()
                 .map(|o| o.status.success())

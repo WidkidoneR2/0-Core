@@ -675,6 +675,10 @@ pub mod checks {
                 if let Ok(entries) = std::fs::read_dir(dir_path) {
                     for entry in entries.flatten() {
                         let path = entry.path();
+                        // Skip arch-era/ -- archived Arch intents are not active NixOS intents
+                        if path.to_string_lossy().contains("arch-era") {
+                            continue;
+                        }
                         if path.extension().map(|e| e != "md").unwrap_or(true) {
                             continue;
                         }
@@ -931,7 +935,13 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let registry_path = ctx.core_root.join("01-registry/tools.toml");
-            let scripts_dir = ctx.core_root.join("scripts");
+            // On NixOS tools are deployed to /run/current-system/sw/bin, not scripts/
+            let nix_bin_dir = std::path::PathBuf::from("/run/current-system/sw/bin");
+            let scripts_dir = if nix_bin_dir.exists() {
+                nix_bin_dir
+            } else {
+                ctx.core_root.join("scripts")
+            };
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
                 Err(_) => return issues,

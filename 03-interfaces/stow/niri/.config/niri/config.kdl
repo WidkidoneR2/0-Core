@@ -68,6 +68,7 @@ spawn-at-startup "faelight-wallpaper"
 // faelight-clipboard watch disabled: Wayland zwlr panic on startup (2026-03-31)
 spawn-at-startup "faelight-idle"
 spawn-at-startup "faelight-bar"
+    spawn-at-startup "faelight-notify"
 
 // ── Forest Animations ────────────────────────────────────
 animations {

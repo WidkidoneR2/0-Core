@@ -4,7 +4,7 @@
 
   # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
   boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.configurationLimit = 20;
+  boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -55,6 +55,13 @@
     extraGroups = [ "wheel" "networkmanager" "video" "input" ];
     # Password set at install (passwd) -- never in this public repo.
   };
+
+  # Firewall (NixOS native nftables -- replaces UFW)
+  networking.firewall.enable = true;
+  networking.firewall.allowedTCPPorts = [ 22 ];
+  networking.firewall.allowedUDPPorts = [ ];
+
+  services.mullvad-vpn.enable = true;
 
   services.openssh = {
     enable = true;
