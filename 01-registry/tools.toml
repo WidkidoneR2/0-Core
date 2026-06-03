@@ -96,7 +96,7 @@ deployable = false
 retired = false
 [[tool]]
 name = "faelight-fm"
-version = "0.2.1"
+version = "3.0.0"
 category = "tools"
 description = "Terminal file manager with daemon integration"
 expected_usage = "medium"
