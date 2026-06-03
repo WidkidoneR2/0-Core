@@ -1,34 +1,33 @@
-// faelight-fm v2 -- INT-293 Phase 3
-// Keyboard navigation: j/k up/down, l enter, h go up
+// faelight-fm v3 -- INT-004
+// broot-inspired, ratatui, forest-native navigation
+// Three panels: parent | current | preview
+// Keybinds: j/k navigate, l enter, h go up, g top, G bottom
+//           y yank path, d delete (to trash), q quit
 
-use cosmic::app::{Core, Task};
-use cosmic::{Application, Element, executor};
-use cosmic::iced::Length;
-use cosmic::iced::keyboard::{Event as KeyEvent, Key, key::Named};
-use cosmic::iced::Event;
-use cosmic::widget::{self, space};
-use std::path::PathBuf;
-use std::fs;
-use std::process::Command;
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    Terminal,
+};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use std::{
+    fs,
+    io,
+    path::PathBuf,
+    process::Command,
+};
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    SelectEntry(usize),
-    GoUp,
-    KeyPressed(Key),
-    OpenFile(PathBuf),
-    DeleteSelected,
-    YankPath,
-    ConfirmDelete,
-    CancelDelete,
-}
+// ── Data structures ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
-enum DialogState {
-    None,
-    ConfirmDelete(String),
-    Yanked(String),
-}
+enum GitStatus { Clean, Modified, Untracked }
 
 #[derive(Debug, Clone)]
 struct FileEntry {
@@ -38,23 +37,35 @@ struct FileEntry {
     git_status: GitStatus,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum GitStatus {
-    Clean,
-    Modified,
-    Untracked,
+#[derive(Debug, PartialEq)]
+enum Mode {
+    Normal,
+    ConfirmDelete(String),
+    Yanked(String),
 }
+
+struct App {
+    current_path: PathBuf,
+    entries: Vec<FileEntry>,
+    list_state: ListState,
+    parent_entries: Vec<FileEntry>,
+    preview: String,
+    status_msg: String,
+    mode: Mode,
+    active_intent: String,
+}
+
+// ── Filesystem helpers ───────────────────────────────────────────────────────
 
 fn get_git_status(path: &PathBuf) -> std::collections::HashMap<String, GitStatus> {
     let mut map = std::collections::HashMap::new();
-    // Get git root first
     let git_root = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(path)
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| std::path::PathBuf::from(s.trim()));
+        .map(|s| PathBuf::from(s.trim()));
     let output = Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(path)
@@ -64,16 +75,13 @@ fn get_git_status(path: &PathBuf) -> std::collections::HashMap<String, GitStatus
             if line.len() > 3 {
                 let status = &line[..2];
                 let file_path = line[3..].to_string();
-                // Make path relative to current directory
                 let rel = if let Some(ref root) = git_root {
                     let abs = root.join(&file_path);
                     abs.strip_prefix(path)
                         .ok()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or(file_path.clone())
-                } else {
-                    file_path.clone()
-                };
+                } else { file_path.clone() };
                 let first = rel.split('/').next().unwrap_or(&rel).to_string();
                 if first.is_empty() || first.starts_with('.') { continue; }
                 let gs = if status.contains('?') { GitStatus::Untracked } else { GitStatus::Modified };
@@ -103,35 +111,14 @@ fn load_dir(path: &PathBuf) -> Vec<FileEntry> {
 }
 
 fn get_intent_context(path: &PathBuf) -> String {
-    // Check if this directory has associated intents
     let path_str = path.to_string_lossy();
-    let db = "/home/christian/0-core/runtime/state.db";
-    let output = std::process::Command::new("sqlite3")
-        .args([db,
-            &format!("SELECT COUNT(*) FROM friday_knowledge WHERE fact LIKE '%{}%' LIMIT 1",
-                path.file_name().unwrap_or_default().to_string_lossy())])
-        .output();
-    let friday_hits = output.ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default()
-        .trim()
-        .parse::<i32>()
-        .unwrap_or(0);
-
-    let mut context = String::new();
-    if path_str.contains("intents") {
-        context.push_str("📋 Intent directory\n");
-    }
-    if path_str.contains("rust-tools") {
-        context.push_str("🦀 Rust tool source\n");
-    }
-    if path_str.contains("engine") {
-        context.push_str("⚙️  Core engine\n");
-    }
-    if friday_hits > 0 {
-        context.push_str(&format!("🌲 Friday: {} knowledge entries\n", friday_hits));
-    }
-    context
+    let mut ctx = String::new();
+    if path_str.contains("intents") { ctx.push_str("📋 Intent directory\n"); }
+    if path_str.contains("rust-tools") { ctx.push_str("🦀 Rust tool source\n"); }
+    if path_str.contains("engine") { ctx.push_str("⚙️  Core engine\n"); }
+    if path_str.contains("pkgs") { ctx.push_str("📦 Nix derivations\n"); }
+    if path_str.contains("modules") { ctx.push_str("🔧 NixOS module\n"); }
+    ctx
 }
 
 fn load_preview(entries: &[FileEntry], selected: Option<usize>, path: &PathBuf) -> String {
@@ -141,13 +128,10 @@ fn load_preview(entries: &[FileEntry], selected: Option<usize>, path: &PathBuf) 
             if entry.is_dir {
                 let count = fs::read_dir(&full).map(|d| d.count()).unwrap_or(0);
                 let ctx = get_intent_context(&full);
-                let path_str = full.display().to_string();
-                let short_path = if path_str.len() > 30 { format!("...{}", &path_str[path_str.len()-27..]) } else { path_str };
-                return format!("📁 Directory\n{} items\n\n📍 {}\n\n{}", count, short_path, ctx);
+                return format!("📁 {} items\n📍 {}\n\n{}", count, full.display(), ctx);
             } else {
                 if let Ok(content) = fs::read_to_string(&full) {
-                    let lines: Vec<&str> = content.lines().take(40).collect();
-                    return lines.join("\n");
+                    return content.lines().take(50).collect::<Vec<_>>().join("\n");
                 }
                 return format!("Binary file\n{} bytes", entry.size);
             }
@@ -156,33 +140,69 @@ fn load_preview(entries: &[FileEntry], selected: Option<usize>, path: &PathBuf) 
     "Select a file to preview".to_string()
 }
 
-struct FaelightFm {
-    core: Core,
-    current_path: PathBuf,
-    entries: Vec<FileEntry>,
-    selected: usize,
-    parent_entries: Vec<FileEntry>,
-    parent_path: Option<PathBuf>,
-    preview: String,
-    dialog: DialogState,
-    status_msg: String,
+fn get_active_intent() -> String {
+    let intents_dir = "/home/christian/0-core/intents/in-progress";
+    if let Ok(entries) = fs::read_dir(intents_dir) {
+        let files: Vec<_> = entries.flatten()
+            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+            .collect();
+        if files.is_empty() { return "No active intents".to_string(); }
+        let first = &files[0];
+        if let Ok(content) = fs::read_to_string(first.path()) {
+            for line in content.lines() {
+                if let Some(t) = line.strip_prefix("title:") {
+                    let title = t.trim().trim_matches('"');
+                    let short = if title.len() > 35 { &title[..35] } else { title };
+                    let more = if files.len() > 1 { format!(" (+{})", files.len()-1) } else { String::new() };
+                    return format!("▸ {}{}", short, more);
+                }
+            }
+        }
+    }
+    "No active intents".to_string()
 }
 
-impl FaelightFm {
+// ── App implementation ───────────────────────────────────────────────────────
+
+impl App {
+    fn new() -> Self {
+        let path = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("/home/christian/0-core"));
+        let entries = load_dir(&path);
+        let parent_entries = path.parent()
+            .map(|p| load_dir(&p.to_path_buf()))
+            .unwrap_or_default();
+        let preview = load_preview(&entries, Some(0), &path);
+        let active_intent = get_active_intent();
+        let mut list_state = ListState::default();
+        list_state.select(Some(0));
+        Self {
+            current_path: path,
+            entries,
+            list_state,
+            parent_entries,
+            preview,
+            status_msg: String::new(),
+            mode: Mode::Normal,
+            active_intent,
+        }
+    }
+
+    fn selected(&self) -> usize { self.list_state.selected().unwrap_or(0) }
+
     fn navigate_into(&mut self) {
-        if let Some(entry) = self.entries.get(self.selected).cloned() {
+        if let Some(entry) = self.entries.get(self.selected()).cloned() {
             if entry.is_dir {
                 let new_path = self.current_path.join(&entry.name);
-                self.parent_path = Some(self.current_path.clone());
                 self.parent_entries = self.entries.clone();
                 self.current_path = new_path;
                 self.entries = load_dir(&self.current_path);
-                self.selected = 0;
+                self.list_state.select(Some(0));
                 self.preview = load_preview(&self.entries, Some(0), &self.current_path);
             } else {
                 let file_path = self.current_path.join(&entry.name);
-                let _ = std::process::Command::new("alacritty")
-                    .args(["-e", "helix", &file_path.to_string_lossy().to_string()])
+                let _ = Command::new("helix")
+                    .arg(&file_path)
                     .spawn();
             }
         }
@@ -190,328 +210,243 @@ impl FaelightFm {
 
     fn navigate_up(&mut self) {
         if let Some(parent) = self.current_path.parent().map(|p| p.to_path_buf()) {
-            self.entries = load_dir(&parent);
-            // find current dir in parent listing
             let cur_name = self.current_path.file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            self.selected = self.entries.iter()
-                .position(|e| e.name == cur_name)
-                .unwrap_or(0);
-            self.parent_path = parent.parent().map(|p| p.to_path_buf());
-            self.parent_entries = self.parent_path.as_ref()
-                .map(|p| load_dir(p))
+            self.entries = load_dir(&parent);
+            let idx = self.entries.iter().position(|e| e.name == cur_name).unwrap_or(0);
+            self.list_state.select(Some(idx));
+            self.parent_entries = parent.parent()
+                .map(|p| load_dir(&p.to_path_buf()))
                 .unwrap_or_default();
             self.current_path = parent;
-            self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
+            self.preview = load_preview(&self.entries, Some(idx), &self.current_path);
         }
+    }
+
+    fn move_down(&mut self) {
+        let i = (self.selected() + 1).min(self.entries.len().saturating_sub(1));
+        self.list_state.select(Some(i));
+        self.preview = load_preview(&self.entries, Some(i), &self.current_path);
+    }
+
+    fn move_up(&mut self) {
+        let i = self.selected().saturating_sub(1);
+        self.list_state.select(Some(i));
+        self.preview = load_preview(&self.entries, Some(i), &self.current_path);
+    }
+
+    fn yank_path(&mut self) {
+        if let Some(entry) = self.entries.get(self.selected()) {
+            let path = self.current_path.join(&entry.name).to_string_lossy().to_string();
+            // Copy to clipboard via wl-copy
+            let _ = Command::new("wl-copy").arg(&path).spawn();
+            self.status_msg = format!("yanked: {}", path);
+            self.mode = Mode::Yanked(path);
+        }
+    }
+
+    fn delete_selected(&mut self) {
+        if let Some(entry) = self.entries.get(self.selected()) {
+            let path = self.current_path.join(&entry.name);
+            let is_core = path.to_string_lossy().contains("0-core");
+            let msg = if is_core {
+                format!("⚠️  FOREST SAFETY: Delete {}? (in 0-core) [y/N]", entry.name)
+            } else {
+                format!("Delete {}? [y/N]", entry.name)
+            };
+            self.mode = Mode::ConfirmDelete(msg);
+        }
+    }
+
+    fn confirm_delete(&mut self) {
+        if let Some(entry) = self.entries.get(self.selected()).cloned() {
+            let path = self.current_path.join(&entry.name);
+            let trash = PathBuf::from("/home/christian/.local/share/Trash/files");
+            let _ = fs::create_dir_all(&trash);
+            let dest = trash.join(&entry.name);
+            match fs::rename(&path, &dest) {
+                Ok(_) => {
+                    self.status_msg = format!("🗑️  moved to trash: {}", entry.name);
+                    self.entries = load_dir(&self.current_path);
+                    let idx = self.selected().min(self.entries.len().saturating_sub(1));
+                    self.list_state.select(Some(idx));
+                    self.preview = load_preview(&self.entries, Some(idx), &self.current_path);
+                }
+                Err(e) => self.status_msg = format!("error: {}", e),
+            }
+        }
+        self.mode = Mode::Normal;
     }
 }
 
-impl Application for FaelightFm {
-    type Executor = executor::Default;
-    type Flags = ();
-    type Message = Message;
-    const APP_ID: &'static str = "com.faelight.fm";
+// ── Rendering ────────────────────────────────────────────────────────────────
 
-    fn core(&self) -> &Core { &self.core }
-    fn core_mut(&mut self) -> &mut Core { &mut self.core }
+fn render(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> io::Result<()> {
+    terminal.draw(|f| {
+        let size = f.area();
 
-    fn init(core: Core, _: Self::Flags) -> (Self, Task<Self::Message>) {
-        let path = PathBuf::from("/home/christian/0-core");
-        let entries = load_dir(&path);
-        let parent_path = path.parent().map(|p| p.to_path_buf());
-        let parent_entries = parent_path.as_ref().map(|p| load_dir(p)).unwrap_or_default();
-        let preview = load_preview(&entries, Some(0), &path);
-        (Self { core, current_path: path, entries, selected: 0,
-                parent_entries, parent_path, preview,
-                dialog: DialogState::None,
-                status_msg: String::new() }, Task::none())
-    }
+        // Main layout: top bar | content | status bar
+        let main_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+            ])
+            .split(size);
 
-    fn update(&mut self, msg: Message) -> Task<Message> {
-        match msg {
-            Message::SelectEntry(idx) => {
-                self.selected = idx;
-                self.preview = load_preview(&self.entries, Some(idx), &self.current_path);
-            }
-            Message::GoUp => self.navigate_up(),
-            Message::KeyPressed(key) => {
-                match key {
-                    Key::Character(c) => match c.as_str() {
-                        "j" => {
-                            if self.selected + 1 < self.entries.len() {
-                                self.selected += 1;
-                                self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
-                            }
-                        }
-                        "k" => {
-                            if self.selected > 0 {
-                                self.selected -= 1;
-                                self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
-                            }
-                        }
-                        "l" => self.navigate_into(),
-                        "h" => self.navigate_up(),
-                        "g" => {
-                            self.selected = 0;
-                            self.preview = load_preview(&self.entries, Some(0), &self.current_path);
-                        }
-                        "G" => {
-                            self.selected = self.entries.len().saturating_sub(1);
-                            self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
-                        }
-                        "d" => { return Task::perform(async { Message::DeleteSelected }, |m| cosmic::Action::App(m)); }
-                        "y" => { return Task::perform(async { Message::YankPath }, |m| cosmic::Action::App(m)); }
-                        _ => {}
-                    }
-                    Key::Named(Named::ArrowDown) => {
-                        if self.selected + 1 < self.entries.len() {
-                            self.selected += 1;
-                            self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
-                        }
-                    }
-                    Key::Named(Named::ArrowUp) => {
-                        if self.selected > 0 {
-                            self.selected -= 1;
-                            self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
-                        }
-                    }
-                    Key::Named(Named::Enter) => self.navigate_into(),
-                    _ => {}
-                }
-            }
-            Message::OpenFile(_) => {}
-            Message::YankPath => {
-                if let Some(entry) = self.entries.get(self.selected) {
-                    let path = self.current_path.join(&entry.name);
-                    let path_str = path.to_string_lossy().to_string();
-                    self.dialog = DialogState::Yanked(path_str.clone());
-                    self.status_msg = format!("yanked: {}", path_str);
-                }
-            }
-            Message::DeleteSelected => {
-                if let Some(entry) = self.entries.get(self.selected) {
-                    let path = self.current_path.join(&entry.name);
-                    let is_core = path.to_string_lossy().contains("0-core");
-                    if is_core {
-                        self.dialog = DialogState::ConfirmDelete(
-                            format!("⚠️  FOREST SAFETY: Delete {}? (this is in 0-core)", entry.name)
-                        );
-                    } else {
-                        self.dialog = DialogState::ConfirmDelete(
-                            format!("Delete {}?", entry.name)
-                        );
-                    }
-                }
-            }
-            Message::ConfirmDelete => {
-                if let Some(entry) = self.entries.get(self.selected).cloned() {
-                    let path = self.current_path.join(&entry.name);
-                    // Move to trash instead of hard delete
-                    let trash_dir = PathBuf::from("/home/christian/.local/share/Trash/files");
-                    if let Err(e) = std::fs::create_dir_all(&trash_dir) {
-                        self.status_msg = format!("trash error: {}", e);
-                    } else {
-                        let dest = trash_dir.join(&entry.name);
-                        match std::fs::rename(&path, &dest) {
-                            Ok(_) => {
-                                self.status_msg = format!("🗑️  moved to trash: {}", entry.name);
-                                self.entries = load_dir(&self.current_path);
-                                if self.selected >= self.entries.len() {
-                                    self.selected = self.entries.len().saturating_sub(1);
-                                }
-                            }
-                            Err(e) => self.status_msg = format!("delete error: {}", e),
-                        }
-                    }
-                }
-                self.dialog = DialogState::None;
-            }
-            Message::CancelDelete => {
-                self.dialog = DialogState::None;
-                self.status_msg = "cancelled".to_string();
-            }
-        }
-        Task::none()
-    }
+        // Header
+        let path_display = app.current_path.display().to_string();
+        let short_path = if path_display.len() > 60 {
+            format!("...{}", &path_display[path_display.len()-57..])
+        } else { path_display };
+        let header = Paragraph::new(format!("🌲 faelight-fm  {}", short_path))
+            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+        f.render_widget(header, main_chunks[0]);
 
-    fn subscription(&self) -> cosmic::iced::Subscription<Message> {
-        cosmic::iced::event::listen_with(|event, _status, _window| match event {
-            Event::Keyboard(KeyEvent::KeyPressed { key, .. }) => {
-                Some(Message::KeyPressed(key))
-            }
-            _ => None,
-        })
-    }
-
-    fn view(&self) -> Element<'_, Self::Message> {
-        let dir_name = self.current_path.file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or("/".to_string());
-
-        let header = widget::row::with_children(vec![
-            widget::button::text("↑").on_press(Message::GoUp).into(),
-            space::horizontal().into(),
-            widget::text("🌲 Faelight Forest Navigator").size(16).into(),
-            space::horizontal().into(),
-            widget::text(format!("{}", self.current_path.display())).size(12).into(),
-        ]).spacing(12).padding(10);
+        // Three panels
+        let panel_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(25),
+                Constraint::Percentage(35),
+                Constraint::Percentage(40),
+            ])
+            .split(main_chunks[1]);
 
         // Parent panel
-        let mut parent_col = widget::column::with_capacity(self.parent_entries.len());
-        for entry in &self.parent_entries {
-            let icon = if entry.is_dir { "📁" } else { "📄" };
-            let is_cur = entry.name == dir_name;
-            let label = if is_cur {
-                format!("▶ {} {}", icon, entry.name)
+        let cur_dir_name = app.current_path.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let parent_items: Vec<ListItem> = app.parent_entries.iter().map(|e| {
+            let icon = if e.is_dir { "📁" } else { "📄" };
+            let prefix = if e.name == cur_dir_name { "▶ " } else { "  " };
+            let style = if e.name == cur_dir_name {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
-                format!("   {} {}", icon, entry.name)
+                Style::default().fg(Color::DarkGray)
             };
-            parent_col = parent_col.push(widget::text(label).size(12));
-        }
-        let parent_panel = widget::container(
-            cosmic::iced::widget::scrollable(parent_col.spacing(8))
-                .scrollbar_width(4)
-                .scrollbar_padding(0.0)
-                .scroller_width(4)
-                .width(Length::Fill)
-        ).width(Length::FillPortion(4)).height(Length::Fill).padding([6, 0, 6, 8]);
+            ListItem::new(format!("{}{} {}", prefix, icon, e.name)).style(style)
+        }).collect();
+        let parent_list = List::new(parent_items)
+            .block(Block::default().borders(Borders::RIGHT).border_style(Style::default().fg(Color::DarkGray)));
+        f.render_widget(parent_list, panel_chunks[0]);
 
         // Current panel
-        let mut current_col = widget::column::with_capacity(self.entries.len());
-        for (idx, entry) in self.entries.iter().enumerate() {
-            let icon = if entry.is_dir { "📁" } else { "📄" };
-            let git_badge = match entry.git_status {
-                GitStatus::Modified  => "  ✎ modified",
-                GitStatus::Untracked => "  + new",
-                GitStatus::Clean     => "",
+        let current_items: Vec<ListItem> = app.entries.iter().enumerate().map(|(i, e)| {
+            let icon = if e.is_dir { "📁" } else { "📄" };
+            let git_badge = match e.git_status {
+                GitStatus::Modified  => Span::styled(" ✎", Style::default().fg(Color::Yellow)),
+                GitStatus::Untracked => Span::styled(" +", Style::default().fg(Color::Green)),
+                GitStatus::Clean     => Span::raw(""),
             };
-            let display_name = if entry.name.len() > 25 {
-                format!("{}...", &entry.name[..22])
+            let prefix = if app.selected() == i { "▶ " } else { "  " };
+            let name_style = if app.selected() == i {
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            } else if e.is_dir {
+                Style::default().fg(Color::Cyan)
             } else {
-                entry.name.clone()
+                Style::default().fg(Color::White)
             };
-            let prefix = if self.selected == idx { "▶ " } else { "   " };
-            let label = format!("{}{} {}{}", prefix, icon, display_name, git_badge);
-            let btn = widget::button::text(label)
-                .on_press(Message::SelectEntry(idx));
-            current_col = current_col.push(btn);
-        }
-        let current_panel = widget::container(
-            cosmic::iced::widget::scrollable(current_col.spacing(8))
-                .scrollbar_width(4)
-                .scrollbar_padding(0.0)
-                .scroller_width(4)
-                .width(Length::Fill)
-        ).width(Length::FillPortion(5)).height(Length::Fill).padding([6, 0, 6, 8]);
+            let short_name = if e.name.len() > 28 {
+                format!("{}…", &e.name[..27])
+            } else { e.name.clone() };
+            ListItem::new(Line::from(vec![
+                Span::raw(format!("{}{} ", prefix, icon)),
+                Span::styled(short_name, name_style),
+                git_badge,
+            ]))
+        }).collect();
+        let current_list = List::new(current_items)
+            .block(Block::default().borders(Borders::RIGHT).border_style(Style::default().fg(Color::DarkGray)));
+        f.render_stateful_widget(current_list, panel_chunks[1], &mut app.list_state);
 
         // Preview panel
-        let preview_panel = widget::container(
-            widget::scrollable(widget::text(&self.preview).size(14).width(Length::Fill))
-                .width(Length::Fill)
-        ).width(Length::FillPortion(5)).height(Length::Fill).padding(8);
-
-        let sep = || widget::container(space::horizontal())
-            .height(Length::Fill)
-            .width(cosmic::iced::Length::Fixed(2.0));
-        let columns = widget::row::with_children(vec![
-            parent_panel.into(),
-            sep().into(),
-            current_panel.into(),
-            sep().into(),
-            preview_panel.into(),
-        ]).width(Length::Fill);
+        let preview_text = match &app.mode {
+            Mode::ConfirmDelete(msg) => {
+                format!("{}\n\nPress y to confirm, n to cancel", msg)
+            }
+            Mode::Yanked(path) => format!("📋 Yanked:\n{}", path),
+            Mode::Normal => app.preview.clone(),
+        };
+        let preview = Paragraph::new(preview_text)
+            .block(Block::default().borders(Borders::NONE))
+            .wrap(Wrap { trim: false })
+            .style(Style::default().fg(Color::Gray));
+        f.render_widget(preview, panel_chunks[2]);
 
         // Status bar
-        let _selected_name = self.entries.get(self.selected)
-            .map(|e| e.name.clone())
-            .unwrap_or_default();
-        // Get active intents from filesystem
-        let intent_display = {
-            let output = std::process::Command::new("grep")
-                .args(["-rl", "status: in-progress",
-                    "/home/christian/0-core/intents/future/"])
-                .output()
-                .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .unwrap_or_default();
-            let count = output.lines().count();
-            if count == 0 {
-                "No active intents".to_string()
-            } else {
-                // Get first intent title
-                let first = output.lines().next().unwrap_or("");
-                let title = std::process::Command::new("grep")
-                    .args(["-m1", "^title:", first])
-                    .output()
-                    .ok()
-                    .and_then(|o| String::from_utf8(o.stdout).ok())
-                    .unwrap_or_default();
-                let title = title.trim().trim_start_matches("title:").trim()
-                    .trim_matches('"');
-                format!("▸ {} (+{} more)", &title[..title.len().min(40)], count - 1)
-            }
-        };
-        let status_text = if !self.status_msg.is_empty() {
-            format!("  {} ", self.status_msg)
+        let status = if !app.status_msg.is_empty() {
+            app.status_msg.clone()
         } else {
-            format!("  🌲 {}  |  {}  |  j/k l h navigate  y yank  d delete",
-                self.current_path.display(), intent_display)
+            format!("  {}  |  j/k↕  l→  h←  y yank  d delete  q quit", app.active_intent)
         };
-        let status = widget::container(
-            widget::text(status_text).size(11)
-        ).width(Length::Fill).padding(4);
-
-        // Dialog overlay
-        if let DialogState::ConfirmDelete(ref msg) = self.dialog {
-            let dialog = widget::container(
-                widget::column::with_children(vec![
-                    widget::text(msg).size(14).into(),
-                    widget::row::with_children(vec![
-                        widget::button::destructive("Delete")
-                            .on_press(Message::ConfirmDelete).into(),
-                        widget::button::text("Cancel")
-                            .on_press(Message::CancelDelete).into(),
-                    ]).spacing(8).into(),
-                ]).spacing(12).padding(20)
-            )
-            .width(Length::Fixed(500.0));
-
-            return widget::container(
-                widget::column::with_children(vec![
-                    header.into(),
-                    widget::divider::horizontal::default().into(),
-                    columns.into(),
-                    widget::divider::horizontal::default().into(),
-                    status.into(),
-                    dialog.into(),
-                ])
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
-        }
-
-        widget::container(
-            widget::column::with_children(vec![
-                header.into(),
-                widget::divider::horizontal::default().into(),
-                columns.into(),
-                widget::divider::horizontal::default().into(),
-                status.into(),
-            ]).width(Length::Fill)
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-    }
+        let status_widget = Paragraph::new(status)
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(status_widget, main_chunks[2]);
+    })?;
+    Ok(())
 }
 
-fn main() -> cosmic::iced::Result {
-    cosmic::app::run::<FaelightFm>(
-        cosmic::app::Settings::default()
-            .size(cosmic::iced::Size::new(1400.0, 900.0)),
-        ()
-    )
+// ── Event handling ───────────────────────────────────────────────────────────
+
+fn handle_key(app: &mut App, key: KeyEvent) -> bool {
+    match &app.mode {
+        Mode::ConfirmDelete(_) => {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
+                _ => { app.mode = Mode::Normal; app.status_msg = "cancelled".to_string(); }
+            }
+        }
+        Mode::Yanked(_) => { app.mode = Mode::Normal; app.status_msg.clear(); }
+        Mode::Normal => {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => return true,
+                KeyCode::Char('j') | KeyCode::Down  => app.move_down(),
+                KeyCode::Char('k') | KeyCode::Up    => app.move_up(),
+                KeyCode::Char('l') | KeyCode::Enter => app.navigate_into(),
+                KeyCode::Char('h') | KeyCode::Backspace => app.navigate_up(),
+                KeyCode::Char('g') => { app.list_state.select(Some(0)); app.preview = load_preview(&app.entries, Some(0), &app.current_path); }
+                KeyCode::Char('G') => { let i = app.entries.len().saturating_sub(1); app.list_state.select(Some(i)); app.preview = load_preview(&app.entries, Some(i), &app.current_path); }
+                KeyCode::Char('y') => app.yank_path(),
+                KeyCode::Char('d') => app.delete_selected(),
+                KeyCode::Char('.') => {
+                    // Toggle hidden files -- future enhancement
+                    app.status_msg = "hidden files: coming in v3.1".to_string();
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
+fn main() -> io::Result<()> {
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let mut app = App::new();
+
+    loop {
+        render(&mut terminal, &mut app)?;
+        if event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                if handle_key(&mut app, key) { break; }
+            }
+        }
+        // Clear one-shot status messages after a few renders
+        if app.mode == Mode::Normal && app.status_msg.starts_with("yanked:") {
+            // keep it visible
+        }
+    }
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    Ok(())
 }

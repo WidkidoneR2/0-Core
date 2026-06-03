@@ -1,5 +1,5 @@
 [workspace]
-exclude = ["rust-tools/faelight-fm"]
+# faelight-fm v3: ratatui rewrite, no git deps
 resolver = "2"
 members = [
     "rust-tools/fsh-test",

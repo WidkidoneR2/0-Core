@@ -3,7 +3,7 @@ id: 004
 date: 2026-06-03
 type: feature
 title: "faelight-fm v3: broot-inspired, ratatui, forest-native navigation"
-status: planned
+status: complete
 tags: [faelight-fm, ratatui, broot, file-manager, forest-native]
 priority: high
 ---

@@ -1,17 +1,10 @@
 [package]
 name = "faelight-fm"
-version = "0.2.1"
+version = "3.0.0"
 edition = "2021"
 license = "MIT"
-description = "Forest-native file manager -- INT-293"
-
-# Standalone -- not part of main workspace (libcosmic git deps conflict with workspace tokio)
+description = "Forest-native file manager -- broot-inspired, ratatui -- INT-004"
 
 [dependencies]
-[dependencies.libcosmic]
-git = "https://github.com/pop-os/libcosmic.git"
-features = ["wayland", "wgpu"]
-
-[features]
-default = ["wayland"]
-wayland = ["libcosmic/wayland"]
+ratatui = "0.29"
+crossterm = "0.28"
