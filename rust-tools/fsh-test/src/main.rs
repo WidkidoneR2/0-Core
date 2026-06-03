@@ -42,7 +42,7 @@ struct TestResult {
 
 fn run_fsh(input: &str) -> Result<String, String> {
     let fsh = std::env::var("FSH_BIN")
-        .unwrap_or_else(|_| "/home/christian/0-core/scripts/faelight-shell".to_string());
+        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
     let out = Command::new(&fsh)
         .arg("-c")
         .arg(input)
@@ -180,7 +180,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("N=42; echo $N")?, "42")
     }));
     results.push(test("path_not_empty", Category::Regression, || {
-        expect_contains(&run_fsh("echo $PATH")?, "/usr")
+        expect_contains(&run_fsh("echo $PATH")?, "/nix")
     }));
 
     // --- SEMICOLON / OPERATORS ---
@@ -352,10 +352,10 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("ls ~/0-core/runtime/state.db")?, "state.db")
     }));
     results.push(test("core_binary_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/scripts/core")?, "core")
+        expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
     }));
     results.push(test("fsh_binary_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/scripts/faelight-shell")?, "faelight-shell")
+        expect_contains(&run_fsh("ls /run/current-system/sw/bin/faelight-shell")?, "faelight-shell")
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/0-core/intents/future")?, ".md")
@@ -427,7 +427,7 @@ fn store_results(results: &[TestResult]) {
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
-    let fsh_version = std::process::Command::new("/home/christian/0-core/scripts/faelight-shell")
+    let fsh_version = std::process::Command::new("/run/current-system/sw/bin/faelight-shell")
         .arg("--version")
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
