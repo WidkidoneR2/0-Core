@@ -89,7 +89,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${self.packages.${system}.faelight-forest}/bin/faelight-login";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session";
       user = "greeter";
     };
   };
