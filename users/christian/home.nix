@@ -5,14 +5,14 @@
   xdg.enable = true;
 
   # Faelight config files (the doctor checks these three)
-  xdg.configFile."faelight/config.toml".source = ../../03-interfaces/stow/config-faelight/.config/faelight/config.toml;
-  xdg.configFile."faelight/profiles.toml".source = ../../03-interfaces/stow/config-faelight/.config/faelight/profiles.toml;
-  xdg.configFile."faelight/themes.toml".source = ../../03-interfaces/stow/config-faelight/.config/faelight/themes.toml;
-  xdg.configFile."faelight/term.toml".source = ../../03-interfaces/stow/config-faelight/.config/faelight/term.toml;
+  xdg.configFile."faelight/config.toml".source = ../../config/faelight/.config/faelight/config.toml;
+  xdg.configFile."faelight/profiles.toml".source = ../../config/faelight/.config/faelight/profiles.toml;
+  xdg.configFile."faelight/themes.toml".source = ../../config/faelight/.config/faelight/themes.toml;
+  xdg.configFile."faelight/term.toml".source = ../../config/faelight/.config/faelight/term.toml;
 
   # Yazi config + plugins
-  xdg.configFile."yazi".source = ../../03-interfaces/stow/fm-yazi/.config/yazi;
-xdg.configFile."niri".source = ../../03-interfaces/stow/niri/.config/niri;
+  xdg.configFile."yazi".source = ../../config/yazi/.config/yazi;
+xdg.configFile."niri".source = ../../config/niri/.config/niri;
 home.packages = with pkgs; [
     brave
     lla
@@ -75,5 +75,5 @@ fonts.fontconfig.enable = true;
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
-  xdg.configFile."faelight-shell/config.fsh".source = ../../03-interfaces/stow/shell-faelight/.config/faelight-shell/config.fsh;
-   xdg.configFile."alacritty".source = ../../03-interfaces/stow/alacritty/.config/alacritty;}
+  xdg.configFile."faelight-shell/config.fsh".source = ../../config/faelight-shell/.config/faelight-shell/config.fsh;
+   xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;}
