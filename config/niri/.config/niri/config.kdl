@@ -181,7 +181,7 @@ binds {
     Mod+Alt+s       { spawn "sh" "-c" "grim -g \"$(slurp)\" - | wl-copy && notify-send '📸 Screenshot' 'Copied to clipboard'"; }
 
     // ── Lock / Session ────────────────────────────────────
-    Mod+Ctrl+Escape { spawn "faelight-lock"; }
+    Mod+Ctrl+Escape { spawn "hyprlock" "-c" "/home/christian/.config/hyprlock/hyprlock.conf"; }
     Mod+Ctrl+Space  { center-column; }  // recovery: center focused window when cursor lost
     Mod+Shift+e     { quit; }
 

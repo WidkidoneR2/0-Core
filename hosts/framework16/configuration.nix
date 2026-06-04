@@ -94,6 +94,9 @@
     };
   };
 
+  # hyprlock PAM authentication
+  security.pam.services.hyprlock = {};
+
   services.openssh = {
     enable = true;
     settings.PasswordAuthentication = true;

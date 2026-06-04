@@ -51,6 +51,8 @@ home.packages = with pkgs; [
     mmv-go
     # Editor
     helix
+    # Lock screen
+    hyprlock
     nix-direnv
     delta
     gitleaks
@@ -90,4 +92,8 @@ fonts.fontconfig.enable = true;
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
   xdg.configFile."faelight-shell/config.fsh".source = ../../config/faelight-shell/.config/faelight-shell/config.fsh;
-   xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;}
+   xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;
+  xdg.configFile."hyprlock/hyprlock.conf" = {
+    source = ../../config/hyprlock/.config/hyprlock/hyprlock.conf;
+    force = true;
+  };}

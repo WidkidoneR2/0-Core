@@ -149,7 +149,7 @@ description = "File and directory locking"
 expected_usage = "medium"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-menu"
 version = "4.0.0"
