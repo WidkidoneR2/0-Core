@@ -38,6 +38,10 @@ home.packages = with pkgs; [
     usbutils
     atuin
     direnv
+    # Nix inspection tools
+    nix-tree
+    nvd
+    nh
     nix-direnv
     delta
     gitleaks

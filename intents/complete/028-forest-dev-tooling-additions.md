@@ -3,7 +3,7 @@ id: 028
 date: 2026-06-04
 type: infrastructure
 title: "Forest dev tooling: nix-tree, nvd, nh, bacon, cargo-nextest"
-status: planned
+status: complete
 tags: [nix, tools, bacon, cargo, development]
 priority: medium
 ---

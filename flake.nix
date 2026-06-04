@@ -134,6 +134,8 @@
           # Cargo tools
           cargo-audit
           cargo-watch
+          bacon
+          cargo-nextest
           # Dev utilities
           ripgrep
           fd
