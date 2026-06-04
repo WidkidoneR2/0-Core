@@ -83,6 +83,15 @@
 
   services.mullvad-vpn.enable = true;
 
+  # greetd -- display manager, launches faelight-login (forest greeter)
+  services.greetd = {
+    enable = true;
+    settings.default_session = {
+      command = "${self.packages.${system}.faelight-forest}/bin/faelight-login";
+      user = "greeter";
+    };
+  };
+
   services.openssh = {
     enable = true;
     settings.PasswordAuthentication = true;
