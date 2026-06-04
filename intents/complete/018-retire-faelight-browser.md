@@ -3,7 +3,7 @@ id: 018
 date: 2026-06-03
 type: housekeeping
 title: "Retire faelight-browser: brave is the forest browser"
-status: planned
+status: complete
 tags: [faelight-browser, retire, brave, nixos]
 priority: low
 ---

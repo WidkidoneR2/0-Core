@@ -71,11 +71,11 @@ retired = false
 name = "faelight-browser"
 version = "0.4.0"
 category = "tools"
-description = "TUI web browser with w3m-style navigation"
-expected_usage = "medium"
+description = "TUI web browser with w3m-style navigation -- RETIRED: Brave is the forest browser"
+expected_usage = "none"
 type = "rust"
 deployable = false
-retired = false
+retired = true
 [[tool]]
 name = "faelight-cleanup"
 version = "1.0.0"
