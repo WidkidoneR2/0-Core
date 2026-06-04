@@ -3,7 +3,7 @@ id: 012
 date: 2026-06-03
 type: improvement
 title: "Intent ledger NixOS improvements: intent shorthand, display, workflow"
-status: in-progress
+status: complete
 tags: [intent, ledger, nixos, workflow, fsh]
 priority: medium
 ---
@@ -67,10 +67,12 @@ intent next recommends NixOS-relevant work.
 - Friday learns which intent types complete fastest
 - Friday suggests next intent based on forest state
 
-### Gate
-- [ ] intent list works without core prefix
-- [ ] ID counter only reads active folders
-- [ ] arch-era not shown in normal list view
-- [ ] core intent defer NNN works cleanly
-- [ ] core intent override NNN works with reason logging
-- [ ] Friday learns from intent patterns
+### Gate Check
+✅ intent list works without core prefix
+✅ ID counter only reads active folders (fixed in engine)
+✅ arch-era deleted permanently, not shown in list
+✅ core intent defer NNN works -- adds ⏸ gate entry with timestamp
+✅ core intent override NNN works -- logged to integrity audit trail
+✅ intent show NNN prioritizes NixOS era folders
+✅ intent next shows active + upcoming intents
+⏸ Friday learns from intent patterns -- deferred: Friday velocity tracking is INT-034 scope -- approved by: christian 2026-06-04

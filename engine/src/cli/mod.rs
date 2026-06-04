@@ -232,6 +232,8 @@ pub fn parse() -> Command {
             IntentCommands::Next => IntentCommand::Next,
             IntentCommands::Brief => IntentCommand::Brief,
             IntentCommands::Graph => IntentCommand::Graph,
+            IntentCommands::Defer { id, reason } => IntentCommand::Defer { id, reason },
+            IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },

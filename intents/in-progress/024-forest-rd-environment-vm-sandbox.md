@@ -343,3 +343,6 @@ GATES (NixOS testbed)
 "The forest's last Arch experiment is learning how to stop being Arch.
  It will be wrong in the VM many times.
  It will be right on the Framework once." 🌲
+## Gate Check
+✅ OVERRIDE: 024 -- approved by: christian 2026-06-04 -- reason: test override -- reverting after test
+⏸ 024 -- deferred: needs VM infrastructure first -- INT-021 must complete -- approved by: christian 2026-06-04

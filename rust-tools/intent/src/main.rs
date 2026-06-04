@@ -73,6 +73,7 @@ fn main() {
                 .map(|s| s.as_str());
             cmd_search(term, status_filter, tag_filter);
         }
+        "next" => cmd_next(),
         "stats" => cmd_stats(),
         "timeline" => cmd_timeline(),
         "validate" => cmd_validate(),
@@ -413,12 +414,13 @@ fn cmd_show(id: &str) {
         }
     } else {
         for cat in &[
+            "in-progress",
+            "future",
+            "complete",
             "decisions",
             "experiments",
             "philosophy",
-            "future",
             "incidents",
-            "complete",
         ] {
             let cat_dir = intent_dir.join(cat);
             if let Ok(entries) = fs::read_dir(&cat_dir) {
@@ -552,6 +554,62 @@ fn draw_progress_bar(current: usize, total: usize, width: usize) -> String {
         NC,
         percentage
     )
+}
+
+fn cmd_next() {
+    let intent_dir = get_intent_dir();
+    // Show active first
+    println!("{}🎯 Next up for the forest:{}", "[0;36m", "[0m");
+    println!();
+    // Active in-progress
+    let ip_dir = intent_dir.join("in-progress");
+    let mut active = vec![];
+    if let Ok(entries) = fs::read_dir(&ip_dir) {
+        let mut files: Vec<_> = entries.flatten().collect();
+        files.sort_by_key(|e| e.file_name());
+        for entry in files {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".md") { continue; }
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                let id = name.split('-').next().unwrap_or("").to_string();
+                let title = extract_frontmatter(&content, "title")
+                    .unwrap_or_else(|| format!("INT-{}", id));
+                active.push((id, title));
+            }
+        }
+    }
+    if !active.is_empty() {
+        println!("  {}Active:{}", "[1;33m", "[0m");
+        for (id, title) in &active {
+            println!("  {} INT-{}  {}", format!("{}▶{}", GREEN, NC).as_str(), id, title);
+        }
+        println!();
+    }
+    // Next planned
+    let future_dir = intent_dir.join("future");
+    let mut planned = vec![];
+    if let Ok(entries) = fs::read_dir(&future_dir) {
+        let mut files: Vec<_> = entries.flatten().collect();
+        files.sort_by_key(|e| e.file_name());
+        for entry in files.iter().take(5) {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".md") { continue; }
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                let id = name.split('-').next().unwrap_or("").to_string();
+                let title = extract_frontmatter(&content, "title")
+                    .unwrap_or_else(|| format!("INT-{}", id));
+                planned.push((id, title));
+            }
+        }
+    }
+    if !planned.is_empty() {
+        println!("  {}Next planned:{}", "[0;90m", "[0m");
+        for (id, title) in &planned {
+            println!("  {} INT-{}  {}", format!("{}○{}", GRAY, NC).as_str(), id, title);
+        }
+    }
+    println!();
+    println!("  Run {} to start", format!("{}cistart <id>{}", CYAN, NC).as_str());
 }
 
 fn cmd_stats() {

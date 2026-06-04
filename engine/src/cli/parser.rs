@@ -728,6 +728,20 @@ pub enum IntentCommands {
     Brief,
     /// ASCII dependency graph of all intents
     Graph,
+    /// Defer a gate with reason and approval timestamp
+    Defer {
+        /// Intent ID
+        id: String,
+        /// Reason for deferral
+        reason: String,
+    },
+    /// Override a gate with reason (bypasses gate check, logs reason)
+    Override {
+        /// Intent ID  
+        id: String,
+        /// Reason for override
+        reason: String,
+    },
 }
 
 #[derive(Subcommand)]

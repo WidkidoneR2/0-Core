@@ -347,6 +347,8 @@ pub enum IntentCommand {
     Next,
     Brief,
     Graph,
+    Defer { id: String, reason: String },
+    Override { id: String, reason: String },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {

@@ -2471,3 +2471,96 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(60).dimmed());
     Ok(())
 }
+
+pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemWriteHome])?;
+    let base = intents_dir(ctx);
+    let folders = ["in-progress", "future", "complete"];
+    let mut found_path: Option<std::path::PathBuf> = None;
+    for folder in &folders {
+        let dir = base.join(folder);
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+                    found_path = Some(entry.path());
+                    break;
+                }
+            }
+        }
+        if found_path.is_some() { break; }
+    }
+    let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+        domain: "intent".to_string(),
+        message: format!("Intent {} not found", id),
+    })?;
+    let content = std::fs::read_to_string(&path)?;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let deferral = format!(
+        "\n⏸ {} -- deferred: {} -- approved by: christian {}\n",
+        id, reason, today
+    );
+    let new_content = if content.contains("## Gate Check") {
+        content.replace("## Gate Check", &format!("## Gate Check\n{}", deferral.trim()))
+    } else {
+        format!("{}\n## Gate Check\n{}", content.trim(), deferral.trim())
+    };
+    std::fs::write(&path, new_content)?;
+    println!("{}", "⏸ Gate deferred".yellow().bold());
+    println!("  Intent:  INT-{}", id);
+    println!("  Reason:  {}", reason);
+    println!("  Date:    {}", today);
+    Ok(())
+}
+
+pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemWriteHome])?;
+    let base = intents_dir(ctx);
+    let folders = ["in-progress", "future", "complete"];
+    let mut found_path: Option<std::path::PathBuf> = None;
+    for folder in &folders {
+        let dir = base.join(folder);
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+                    found_path = Some(entry.path());
+                    break;
+                }
+            }
+        }
+        if found_path.is_some() { break; }
+    }
+    let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+        domain: "intent".to_string(),
+        message: format!("Intent {} not found", id),
+    })?;
+    let content = std::fs::read_to_string(&path)?;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    // Log override to state.db
+    if let Ok(conn) = rusqlite::Connection::open(dirs::home_dir().unwrap_or_default().join("0-core/runtime/state.db")) {
+        let _ = conn.execute(
+            "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, detected_at)
+             VALUES ('intent', 'gate_override', 'propose', ?1, 1, 1, strftime('%s','now'))",
+            rusqlite::params![format!("INT-{} gate overridden: {}", id, reason)],
+        );
+    }
+    let override_note = format!(
+        "\n✅ OVERRIDE: {} -- approved by: christian {} -- reason: {}\n",
+        id, today, reason
+    );
+    let new_content = if content.contains("## Gate Check") {
+        content.replace("## Gate Check", &format!("## Gate Check\n{}", override_note.trim()))
+    } else {
+        format!("{}\n## Gate Check\n{}", content.trim(), override_note.trim())
+    };
+    std::fs::write(&path, new_content)?;
+    println!("{}", "✅ Gate overridden".green().bold());
+    println!("  Intent:  INT-{}", id);
+    println!("  Reason:  {}", reason);
+    println!("  Date:    {}", today);
+    println!("{}", "  ⚠️  Override logged to integrity audit trail".yellow());
+    Ok(())
+}

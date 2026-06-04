@@ -197,6 +197,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Next => crate::domains::intent::next_intent(ctx),
                 IntentCommand::Brief => crate::domains::intent::brief(ctx),
                 IntentCommand::Graph => crate::domains::intent::graph(ctx),
+                IntentCommand::Defer { id, reason } => crate::domains::intent::defer_intent(ctx, &id, &reason),
+                IntentCommand::Override { id, reason } => crate::domains::intent::override_intent(ctx, &id, &reason),
             }
         }
 
