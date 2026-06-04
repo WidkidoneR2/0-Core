@@ -75,6 +75,7 @@
 
   # Virtualisation (INT-328 R&D VM host)
   virtualisation.libvirtd.enable = true;
+  virtualisation.libvirtd.onBoot = "start";
   programs.virt-manager.enable = true;
 
   services.mullvad-vpn.enable = true;
