@@ -63,6 +63,7 @@ alias forest-status = "~/0-core/pkgs/faelight/scripts/forest-status"
 # Forest workflow aliases — INT-171
 alias cistart = "core intent start"
 alias cicomplete = "core intent complete"
+alias intent = "/run/current-system/sw/bin/intent"
 alias lock-core = "core protect lock"
 alias unlock-core = "core protect unlock"
 alias fg = "faelight-git"

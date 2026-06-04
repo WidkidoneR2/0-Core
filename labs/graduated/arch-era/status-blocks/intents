@@ -1,5 +1,0 @@
-#!/bin/bash
-# Intents status block - outputs just the count
-
-COUNT=$(intent list --active 2>/dev/null | grep -c "in-progress" || echo "0")
-echo "$COUNT"

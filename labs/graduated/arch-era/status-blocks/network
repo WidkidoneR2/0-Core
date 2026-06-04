@@ -1,9 +1,0 @@
-#!/bin/bash
-# Network status block
-# Outputs: WiFi icon and signal strength
-
-if iwctl station wlan0 show 2>/dev/null | grep -q "connected"; then
-    echo "📶"
-else
-    echo "📡"
-fi

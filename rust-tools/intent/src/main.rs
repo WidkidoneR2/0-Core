@@ -257,32 +257,32 @@ fn cmd_list(filter: Option<&str>) {
     let show_planned = filter == Some("--planned") || filter == Some("-p");
     let show_active = filter == Some("--active") || filter == Some("-a");
 
+    // NixOS era: default shows only active intents
+    // Use --all to see everything including archive
+    let show_all = filter == Some("--all") || filter == Some("-A");
     let categories = if show_complete {
         vec!["complete"]
-    } else if let Some(cat) = filter {
-        if !cat.starts_with("--") && !cat.starts_with("-") {
-            vec![cat]
-        } else {
-            vec![
-                "decisions",
-                "experiments",
-                "philosophy",
-                "future",
-                "cancelled",
-                "deferred",
-                "incidents",
-            ]
-        }
-    } else {
+    } else if show_all {
         vec![
+            "in-progress",
+            "future",
+            "complete",
             "decisions",
             "experiments",
             "philosophy",
-            "future",
             "cancelled",
             "deferred",
             "incidents",
         ]
+    } else if let Some(cat) = filter {
+        if !cat.starts_with("--") && !cat.starts_with("-") {
+            vec![cat]
+        } else {
+            vec!["in-progress", "future"]
+        }
+    } else {
+        // Default: NixOS era active view
+        vec!["in-progress", "future"]
     };
 
     let mut total_count = 0;

@@ -1,6 +1,0 @@
-# Faelight Forest Auto-Sync
-# Sync 0-core every 6 hours
-0 */6 * * * /home/christian/.local/bin/auto-sync
-
-# Save packages daily at 11 PM
-0 23 * * * /home/christian/.local/bin/save-packages

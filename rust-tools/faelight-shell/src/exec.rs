@@ -179,7 +179,7 @@ fn preexec(
 
     // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
     if cmd == "cp" || cmd == "mv" {
-        let core_bin = format!("{}/scripts/core", core_root);
+        let core_bin = "core".to_string();
         if raw.contains(&core_bin) && !raw.contains("deploy") {
             return Some(
                 "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string(),

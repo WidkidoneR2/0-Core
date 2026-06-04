@@ -3,7 +3,7 @@ id: 012
 date: 2026-06-03
 type: improvement
 title: "Intent ledger NixOS improvements: intent shorthand, display, workflow"
-status: planned
+status: in-progress
 tags: [intent, ledger, nixos, workflow, fsh]
 priority: medium
 ---

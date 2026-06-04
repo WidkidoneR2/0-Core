@@ -365,12 +365,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "dev" => dev_cmd(db, core_root, args),
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
-        | "capabilities" | "intent" | "genealogy" | "autonomy" => {
+        | "capabilities" | "genealogy" | "autonomy" => {
             let sub = args.join(" ");
             let full = if sub.is_empty() {
-                format!("{}/scripts/core {}", core_root, cmd)
+                format!("core {}", cmd)
             } else {
-                format!("{}/scripts/core {} {}", core_root, cmd, sub)
+                format!("core {} {}", cmd, sub)
             };
             run_external(&full, db)
         }
@@ -8406,7 +8406,7 @@ fn commits(core_root: &str) -> CommandResult {
 fn story(db: &ForestDb) -> CommandResult {
     // Delegate to core story via process
     let core_root = db.core_root();
-    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+    let output = std::process::Command::new("core".to_string())
         .args(["story"])
         .output()
         .ok()
@@ -8418,7 +8418,7 @@ fn story(db: &ForestDb) -> CommandResult {
 
 fn advise(db: &ForestDb) -> CommandResult {
     let core_root = db.core_root();
-    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+    let output = std::process::Command::new("core".to_string())
         .args(["advise"])
         .output()
         .ok()
@@ -8429,7 +8429,7 @@ fn advise(db: &ForestDb) -> CommandResult {
 }
 
 fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
-    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+    let output = std::process::Command::new("core".to_string())
         .args(["audit", "scan"])
         .output()
         .ok()
