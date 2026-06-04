@@ -4,6 +4,6 @@
 echo "🌲 Faelight Rollback -- NixOS"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "→ Rolling back to previous generation..."
-sudo nixos-rebuild switch --rollback
+sudo nixos-rebuild switch --flake ~/0-core#framework16 --rollback
 echo ""
 echo "✅ Rollback complete -- run: d to check health"

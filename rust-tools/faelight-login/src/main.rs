@@ -141,7 +141,7 @@ fn draw_login(
         let area = f.area();
         f.render_widget(Block::default().style(Style::default().bg(BG)), area);
         // Center vertically by calculating padding
-        let box_height = 22u16;
+        let box_height = 18u16;
         let top_pad = area.height.saturating_sub(box_height) / 2;
         let bot_pad = area
             .height
@@ -159,7 +159,7 @@ fn draw_login(
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(76),
+                Constraint::Length(60),
                 Constraint::Fill(1),
             ])
             .split(outer[1]);
