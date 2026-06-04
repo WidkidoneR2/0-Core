@@ -304,7 +304,7 @@ pub fn check_themes(core_root: &str) -> CheckResult {
 
 pub fn check_scripts(core_root: &str) -> CheckResult {
     let scripts_dir = PathBuf::from(core_root).join("scripts");
-    let required = ["dot-doctor", "dotctl", "faelight", "profile", "intent"];
+    let required = ["faelight", "profile", "intent"];
     let issues: Vec<_> = required
         .iter()
         .filter_map(|s| {

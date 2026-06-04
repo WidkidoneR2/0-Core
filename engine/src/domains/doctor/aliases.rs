@@ -13,7 +13,6 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     "core-protect",
     "safe-update",
     "core-diff",
-    "dotctl",
     "intent-guard",
     "faelight-snapshot",
     // Desktop Environment
@@ -36,7 +35,6 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     "faelight-daemon",
     "faelight-palette",
     // Version Management
-    "faelight-bootstrap",
     "get-version",
     "latest-update",
 ];

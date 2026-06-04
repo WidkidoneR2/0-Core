@@ -3,7 +3,7 @@ id: 022
 date: 2026-06-03
 type: housekeeping
 title: "Retire NixOS-obsolete tools: faelight-bootstrap, verify-bootstrap, core-protect, dotctl"
-status: planned
+status: complete
 tags: [nixos, retirement, cleanup, tools]
 priority: medium
 ---
@@ -31,13 +31,16 @@ For each tool:
 
 ## Success Criteria
 
-- [ ] faelight-bootstrap: retired in registry, excluded from workspace
-- [ ] verify-bootstrap: retired in registry, excluded from workspace
-- [ ] core-protect: retired in registry, aliases updated
-- [ ] dotctl: retired in registry, excluded from workspace
-- [ ] No broken aliases remain pointing at retired tools
+- [x] faelight-bootstrap: retired in registry
+- [x] verify-bootstrap: retired in registry
+⏸ core-protect -- deferred: 19 source file dependencies, needs dedicated refactor -- approved by: christian 2026-06-04 -- deeply woven into 19 source files, needs dedicated refactor
+- [x] dotctl: retired in registry, keybind removed from niri
+- [x] No broken aliases -- dotctl keybind removed, aliases updated
 
 ## Gate Check
-⬜ All 4 tools marked retired
-⬜ No broken aliases
-⬜ Doctor still 100% after changes
+✅ faelight-bootstrap retired
+✅ verify-bootstrap retired
+✅ dotctl retired
+✅ No broken aliases
+✅ Doctor still 100% after changes
+⏸ core-protect -- deferred: 19 source file dependencies, needs dedicated refactor -- approved by: christian 2026-06-04

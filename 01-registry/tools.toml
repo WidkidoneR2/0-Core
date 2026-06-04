@@ -38,7 +38,7 @@ description = "Dotfile control center — stow package management"
 expected_usage = "medium"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight"
 version = "2.1.0"
@@ -66,7 +66,7 @@ description = "System bootstrap and provisioning"
 expected_usage = "rare"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-browser"
 version = "0.4.0"
