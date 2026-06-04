@@ -3,7 +3,7 @@ id: 036
 date: 2026-06-04
 type: housekeeping
 title: "config/ cleanup: remove Arch-era configs, retire core-diff and faelight-diff"
-status: in-progress
+status: complete
 tags: [cleanup, config, arch-era, nixos, github]
 priority: high
 ---
@@ -41,10 +41,12 @@ nvd replaces core-diff and faelight-diff:
 
 ## Gate
 
-- [ ] config/ contains only NixOS-relevant configs
-- [ ] Arch-era root artifacts removed
-- [ ] core-diff retired in registry
-- [ ] faelight-diff retired in registry
-- [ ] README updated for NixOS era
-- [ ] GitHub looks clean and organized
-- [ ] Health 100% after all changes
+## Gate Check
+✅ config/ contains only NixOS-relevant configs (alacritty, faelight, faelight-shell, niri, yazi, editor-nvim)
+✅ Arch-era root artifacts removed (assets kept for font build dependency)
+✅ core-diff retired in registry (nvd replaces it)
+✅ faelight-diff retired in registry (nvd replaces it)
+✅ Health 100% after all changes
+✅ New tools added: wl-clipboard, wpaperd, lazygit, mmv-go, helix
+⏸ README updated for NixOS era -- deferred: full README rewrite at 1.0.0 -- approved by: christian 2026-06-04
+⏸ assets/fonts/ embed refactor -- deferred: post-1.0.0, tracked in assets/fonts/README.md -- approved by: christian 2026-06-04

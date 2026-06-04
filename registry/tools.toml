@@ -20,7 +20,17 @@ description = "Diff system state across versions"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
+
+[[tool]]
+name = "faelight-diff"
+version = "1.0.0"
+category = "tools"
+description = "Diff viewer -- RETIRED: nvd replaces this on NixOS"
+expected_usage = "none"
+type = "rust"
+deployable = false
+retired = true
 [[tool]]
 name = "core-protect"
 version = "2.3.0"
