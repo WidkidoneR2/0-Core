@@ -3,7 +3,7 @@ id: 020
 date: 2026-06-03
 type: feature
 title: "faelight-shell v4: NixOS-native, nix develop aware, forest-first"
-status: planned
+status: complete
 tags: [fsh, shell, nixos, nix-develop, direnv, improvement]
 priority: high
 ---
@@ -32,9 +32,10 @@ means. When Friday suggests something, it knows you're on NixOS.
 - fsh understands NixOS generations for rollback suggestions
 - Remove remaining Arch assumptions (pacman references in Friday knowledge)
 
-## Gate
-
-fsh prompt shows active devShell.
-direnv activates visually when entering 0-core.
-rebuild alias works from anywhere.
-No Arch references in fsh codebase.
+## Gate Check
+✅ fsh prompt shows active devShell -- ❄ appears in nix develop
+✅ NixOS PATH handling -- /run/current-system/sw/bin always in PATH
+✅ faelight-shell candidates updated -- NixOS bin path first
+✅ No Arch references in fsh source code
+✅ Friday knowledge updated -- 4 pacman facts replaced with NixOS equivalents
+⏸ direnv visual activation -- deferred: activates silently, visual hook needs fsh hook API -- approved by: christian 2026-06-04

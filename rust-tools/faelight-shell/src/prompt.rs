@@ -285,8 +285,16 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     } else {
         "❯".bright_green().bold()
     };
+    // NixOS devShell indicator
+    let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
+        format!("{} ", "❄".bright_cyan())
+    } else if std::env::var("DIRENV_DIR").is_ok() {
+        format!("{} ", "❄".bright_blue())
+    } else {
+        String::new()
+    };
     let raw = match theme.as_str() {
-        "minimal" => format!("  {} ", caret),
+        "minimal" => format!("  {}{} ", nix_indicator, caret),
         "classic" => {
             let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
             let host =
@@ -294,13 +302,14 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
             let host = host.trim();
             let cwd = cwd_str(30);
             format!(
-                "  {}@{} {} $ ",
+                "  {}{}@{} {} $ ",
+                nix_indicator,
                 user.dimmed(),
                 host.dimmed(),
                 cwd.bright_cyan()
             )
         }
-        _ => format!("  {} {} ", "fsh".bright_green().bold(), caret),
+        _ => format!("  {}{}{} ", nix_indicator, "fsh".bright_green().bold(), caret),
     };
     rl_wrap(&raw)
 }

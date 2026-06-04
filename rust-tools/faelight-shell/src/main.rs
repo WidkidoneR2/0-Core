@@ -802,8 +802,11 @@ fn repl_main() -> Result<()> {
                     // Try known deploy paths in order
                     let home = std::env::var("HOME").unwrap_or_default();
                     let candidates = vec![
-                        format!("{}/0-core/scripts/faelight-shell", home),
+                        "/run/current-system/sw/bin/faelight-shell".to_string(),
+                        format!("/etc/profiles/per-user/{}/bin/faelight-shell",
+                            std::env::var("USER").unwrap_or_default()),
                         format!("{}/.cargo/bin/faelight-shell", home),
+                        format!("{}/0-core/scripts/faelight-shell", home),
                     ];
                     let mut exec_err = None;
                     for path in &candidates {
