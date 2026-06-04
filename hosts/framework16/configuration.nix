@@ -4,6 +4,8 @@
 
   # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
   boot.loader.systemd-boot.enable = true;
+  boot.plymouth.enable = true;
+  boot.plymouth.theme = "bgrt";
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 

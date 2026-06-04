@@ -324,6 +324,14 @@ fn main() -> io::Result<()> {
     execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    // Force terminal size check -- greetd VT may report wrong dimensions
+    // Set minimum safe size if terminal reports too small
+    {
+        let size = terminal.size().unwrap_or(ratatui::layout::Size::new(80, 24));
+        if size.width < 40 || size.height < 10 {
+            let _ = terminal.resize(ratatui::layout::Rect::new(0, 0, 80, 24));
+        }
+    }
     let mut state = LoginState::new();
     // Override version from /etc
     state.version = read_system_version();
