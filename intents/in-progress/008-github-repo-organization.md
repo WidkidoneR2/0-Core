@@ -3,7 +3,7 @@ id: 008
 date: 2026-06-03
 type: housekeeping
 title: "Forest GitHub organization: repo structure, README, public face cleanup"
-status: planned
+status: in-progress
 tags: [github, readme, organization, public]
 priority: medium
 ---

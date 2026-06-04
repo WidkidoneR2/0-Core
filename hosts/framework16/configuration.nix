@@ -89,7 +89,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
       user = "greeter";
     };
   };
