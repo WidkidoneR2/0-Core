@@ -70,7 +70,7 @@ fn get_term() -> String {
 }
 
 fn get_version(ctx: &AppContext) -> String {
-    let version_file = std::path::PathBuf::from(&ctx.core_root).join("00-meta/VERSION");
+    let version_file = std::path::PathBuf::from(&ctx.core_root).join("meta/VERSION");
     fs::read_to_string(&version_file)
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|_| "?.?.?".to_string())

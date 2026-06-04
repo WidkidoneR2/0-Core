@@ -59,11 +59,11 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  │  {} {} → what should exist",
         "①".bright_white().bold(),
-        "01-registry/tools.toml".bright_cyan()
+        "registry/tools.toml".bright_cyan()
     );
 
     let registry =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("01-registry/tools.toml"))
+        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("registry/tools.toml"))
             .unwrap_or_default();
     let tools: Vec<&str> = registry
         .lines()
@@ -104,10 +104,10 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  │  {} {} → what the environment looks like",
         "③".bright_white().bold(),
-        "03-interfaces/stow/".bright_cyan()
+        "config/".bright_cyan()
     );
 
-    let stow_dir = std::path::PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow_dir = std::path::PathBuf::from(core_root).join("config");
     let stow_pkgs: Vec<String> = std::fs::read_dir(&stow_dir)
         .map(|d| {
             d.flatten()
@@ -129,10 +129,10 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  │  {} {} → what is valid",
         "④".bright_white().bold(),
-        "04-schema/".bright_cyan()
+        "schema/".bright_cyan()
     );
 
-    let schema_dir = std::path::PathBuf::from(core_root).join("04-schema");
+    let schema_dir = std::path::PathBuf::from(core_root).join("schema");
     let schema_count = std::fs::read_dir(&schema_dir)
         .map(|d| {
             d.flatten()
@@ -188,7 +188,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │     cp target/release/* scripts/");
     println!("  │");
     println!("  │  {}  Deploy interfaces", "④".bright_white());
-    println!("  │     cd ~/0-core/03-interfaces/stow");
+    println!("  │     cd ~/0-core/config");
     for pkg in stow_pkgs.iter().take(4) {
         println!("  │     stow {}", pkg.dimmed());
     }
@@ -244,7 +244,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let home = std::env::var("HOME").unwrap_or_default();
     let core_root = ctx.core_root.clone();
 
-    let version = fs::read_to_string(PathBuf::from(&core_root).join("00-meta/VERSION"))
+    let version = fs::read_to_string(PathBuf::from(&core_root).join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();

@@ -31,7 +31,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
 
     // Chapter 1 — Identity
-    let version = std::fs::read_to_string(PathBuf::from(core_root).join("00-meta/VERSION"))
+    let version = std::fs::read_to_string(PathBuf::from(core_root).join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string());
     let version = version.trim();
 
@@ -77,7 +77,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
 
     // Count tools from registry
     let tool_count =
-        std::fs::read_to_string(PathBuf::from(core_root).join("01-registry/tools.toml"))
+        std::fs::read_to_string(PathBuf::from(core_root).join("registry/tools.toml"))
             .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
             .unwrap_or(0);
 
@@ -169,7 +169,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
     println!("  │");
 
-    let releases_dir = PathBuf::from(core_root).join("00-meta/releases");
+    let releases_dir = PathBuf::from(core_root).join("meta/releases");
     if releases_dir.exists() {
         let mut releases: Vec<String> = std::fs::read_dir(&releases_dir)
             .map(|d| {

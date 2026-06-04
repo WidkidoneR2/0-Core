@@ -8,7 +8,7 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
-    let stow_dir = PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow_dir = PathBuf::from(core_root).join("config");
     let mut stowed = 0;
     let mut total = 0;
 
@@ -42,7 +42,7 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
                         if let Ok(target) = fs::read_link(p) {
                             return target
                                 .to_string_lossy()
-                                .contains(&format!("0-core/03-interfaces/stow/{}", name));
+                                .contains(&format!("0-core/config/{}", name));
                         }
                     }
                     false
@@ -76,7 +76,7 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
             name: "Stow Symlinks".into(),
             status: Status::Fail,
             message: format!("Only {}/{} packages stowed", stowed, total),
-            fix: Some("Run: cd ~/0-core && stow --dir=stow -R <package>".into()),
+            fix: Some("Run: rebuild to apply config changes".into()),
         }
     }
 }
@@ -271,14 +271,14 @@ pub fn check_git(core_root: &str) -> CheckResult {
 }
 
 pub fn check_themes(core_root: &str) -> CheckResult {
-    let stow = PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow = PathBuf::from(core_root).join("config");
     let count = fs::read_dir(&stow)
         .map(|entries| {
             entries
                 .flatten()
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().to_string();
-                    n.starts_with("config-faelight") || n.starts_with("theme-")
+                    n.starts_with("faelight") || n.starts_with("theme-")
                 })
                 .count()
         })
@@ -480,7 +480,7 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
             id: "keybinds".into(),
             name: "WM Keybinds".into(),
             status: Status::Warn,
-            message: "No Niri config found -- ensure wm-niri is stowed".into(),
+            message: "No Niri config found in config/niri/".into(),
             fix: Some("Run: faelight-link deploy wm-niri".into()),
         };
     };
@@ -816,7 +816,7 @@ pub fn check_disk_space() -> CheckResult {
 pub fn check_tool_installation() -> CheckResult {
     // Registry-aware: read deployable, non-retired, high-usage tools
     let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let registry_path = PathBuf::from(&core_root).join("01-registry/tools.toml");
+    let registry_path = PathBuf::from(&core_root).join("registry/tools.toml");
     let tools: Vec<String> = fs::read_to_string(&registry_path)
         .map(|content| {
             let mut tools = vec![];
@@ -895,7 +895,7 @@ pub fn check_tool_installation() -> CheckResult {
 
 pub fn check_path_resilience(core_root: &str) -> CheckResult {
     let scripts_dir = PathBuf::from(core_root).join("scripts");
-    let registry_path = PathBuf::from(core_root).join("01-registry/tools.toml");
+    let registry_path = PathBuf::from(core_root).join("registry/tools.toml");
 
     // Read deployable, non-retired tools from registry (INT-183)
     let rust_tools: Vec<String> = fs::read_to_string(&registry_path)
@@ -1024,7 +1024,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
 
     // Check policies file exists
     let policies_path =
-        std::path::PathBuf::from(core_root).join("01-registry/sandbox-policies.toml");
+        std::path::PathBuf::from(core_root).join("registry/sandbox-policies.toml");
 
     if !policies_path.exists() {
         return CheckResult {
@@ -1032,7 +1032,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
             name: "Sandbox".into(),
             status: Status::Warn,
             message: "sandbox-policies.toml not found".into(),
-            fix: Some("Create 01-registry/sandbox-policies.toml".into()),
+            fix: Some("Create registry/sandbox-policies.toml".into()),
         };
     }
 

@@ -563,7 +563,7 @@ struct LinkInfo {
 // ── internal helpers ─────────────────────────────────────────────────────────
 
 fn stow_dir(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("03-interfaces/stow")
+    PathBuf::from(&ctx.core_root).join("config")
 }
 
 fn resolve_packages(stow_dir: &Path, package: Option<&str>) -> Vec<String> {

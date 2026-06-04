@@ -3,16 +3,16 @@ use super::{CheckResult, Status};
 use std::fs;
 
 pub fn check_schema_validation(core_root: &str) -> CheckResult {
-    let schema_dir = std::path::PathBuf::from(core_root).join("04-schema");
-    let registry_dir = std::path::PathBuf::from(core_root).join("01-registry");
+    let schema_dir = std::path::PathBuf::from(core_root).join("schema");
+    let registry_dir = std::path::PathBuf::from(core_root).join("registry");
 
     if !schema_dir.exists() {
         return CheckResult {
             id: "schema_validation".into(),
             name: "Schema Validation".into(),
             status: Status::Warn,
-            message: "04-schema/ directory not found".into(),
-            fix: Some("Create 04-schema/ directory".into()),
+            message: "schema/ directory not found".into(),
+            fix: Some("Create schema/ directory".into()),
         };
     }
 

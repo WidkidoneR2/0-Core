@@ -9,34 +9,18 @@ use std::path::PathBuf;
 pub const EXPECTED_TOOLS: &[&str] = &[
     // Core Infrastructure
     "faelight-update",
-    "faelight-core",
-    "core-protect",
-    "safe-update",
-    "core-diff",
-    "intent-guard",
-    "faelight-snapshot",
     // Desktop Environment
     "faelight-bar",
     "faelight-menu",
     "faelight-notify",
     "faelight-lock",
-    "faelight-dashboard",
-    "faelight-term",
     // Development
     "intent",
     "faelight-git",
-    "faelight-hooks",
-    "profile",
-    "teach",
     "faelight",
-    "faelight-zone",
     "faelight-fm",
-    "faelight-link",
-    "faelight-daemon",
     "faelight-palette",
     // Version Management
-    "get-version",
-    "latest-update",
 ];
 
 pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
@@ -44,10 +28,14 @@ pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
     let mut aliases = HashMap::new();
     for line in content.lines() {
         let trimmed = line.trim();
+        if trimmed.starts_with('#') { continue; }
         if let Some(rest) = trimmed.strip_prefix("alias ") {
             if let Some((name, target)) = rest.split_once('=') {
-                let target = target.trim_matches('\'').trim_matches('"');
-                aliases.insert(name.to_string(), target.to_string());
+                let name = name.trim().to_string();
+                let target = target.trim().trim_matches('\'').trim_matches('"').to_string();
+                if !name.is_empty() {
+                    aliases.insert(name, target);
+                }
             }
         }
     }

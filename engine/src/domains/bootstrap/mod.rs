@@ -159,7 +159,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     // Check 2 — stow packages linked
     let stow_pkgs = read_stow_packages(core_root);
     let _home = std::env::var("HOME").unwrap_or_default();
-    let stow_src = PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow_src = PathBuf::from(core_root).join("config");
     let mut unstowed = Vec::new();
     for pkg in &stow_pkgs {
         let pkg_path = stow_src.join(pkg);
@@ -202,12 +202,12 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check 4 — schema layer present
-    let schema_dir = PathBuf::from(core_root).join("04-schema");
+    let schema_dir = PathBuf::from(core_root).join("schema");
     if schema_dir.exists() {
         println!("  │  {} Schema layer present", "✅".green());
         passed += 1;
     } else {
-        println!("  │  {} Schema layer missing (04-schema/)", "⚠".yellow());
+        println!("  │  {} Schema layer missing (schema/)", "⚠".yellow());
         issues.push("schema layer missing".to_string());
     }
 
@@ -367,7 +367,7 @@ fn get_commit_count(core_root: &str) -> usize {
 }
 
 fn read_registry_tools(core_root: &str) -> Vec<String> {
-    let path = PathBuf::from(core_root).join("01-registry/tools.toml");
+    let path = PathBuf::from(core_root).join("registry/tools.toml");
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     content
         .lines()
@@ -378,7 +378,7 @@ fn read_registry_tools(core_root: &str) -> Vec<String> {
 }
 
 fn read_stow_packages(core_root: &str) -> Vec<String> {
-    let stow_dir = PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow_dir = PathBuf::from(core_root).join("config");
     std::fs::read_dir(&stow_dir)
         .map(|d| {
             d.flatten()

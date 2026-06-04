@@ -257,7 +257,7 @@ fn detect_registry_anomalies(core_root: &str) -> Vec<Anomaly> {
             "--format=%H|%s|%ai",
             "--since=7 days ago",
             "--",
-            "01-registry/",
+            "registry/",
         ])
         .output()
         .ok()
@@ -268,7 +268,7 @@ fn detect_registry_anomalies(core_root: &str) -> Vec<Anomaly> {
     if count > 5 {
         anomalies.push(Anomaly {
             description: format!("Registry modified {} times in 7 days", count),
-            file: "01-registry/".to_string(),
+            file: "registry/".to_string(),
             commit: String::new(),
             date: String::new(),
             severity: Severity::Medium,

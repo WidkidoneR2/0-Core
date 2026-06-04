@@ -5,7 +5,7 @@ use colored::*;
 
 fn read_version(ctx: &AppContext) -> String {
     let root = &ctx.core_root;
-    std::fs::read_to_string(std::path::PathBuf::from(&root).join("00-meta/VERSION"))
+    std::fs::read_to_string(std::path::PathBuf::from(&root).join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string()
@@ -15,7 +15,7 @@ fn read_theme(ctx: &AppContext) -> String {
     let root = &ctx.core_root;
     let version = read_version(ctx);
     let changelog =
-        std::fs::read_to_string(std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md"))
+        std::fs::read_to_string(std::path::PathBuf::from(&root).join("meta/CHANGELOG.md"))
             .unwrap_or_default();
     changelog
         .lines()

@@ -86,11 +86,11 @@ pub fn security_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn interfaces_dir() -> PathBuf {
-    core_dir().join("03-interfaces")
+    core_dir().join("config")
 }
 
 pub fn stow_dir() -> PathBuf {
-    interfaces_dir().join("stow")
+    interfaces_dir()
 }
 
 pub fn profiles_dir() -> PathBuf {
@@ -290,7 +290,7 @@ pub fn cargo_toml() -> PathBuf {
 
 /// Zshrc file in stow
 pub fn zshrc_file() -> PathBuf {
-    stow_dir().join("shell-zsh/.zshrc")
+    stow_dir().join("shell-zsh/.config/zsh/.zshrc")
 }
 
 /// Changelog draft for a specific version
@@ -348,7 +348,7 @@ pub fn intents_incidents() -> PathBuf {
 
 /// ZSH aliases file
 pub fn aliases_file() -> PathBuf {
-    stow_dir().join("shell-zsh/.config/zsh/aliases.zsh")
+    stow_dir().join("faelight-shell/.config/faelight-shell/config.fsh")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -403,7 +403,7 @@ mod tests {
         assert!(meta_dir().to_string_lossy().contains("00-meta"));
         assert!(registry_dir().to_string_lossy().contains("01-registry"));
         assert!(rules_dir().to_string_lossy().contains("02-rules"));
-        assert!(interfaces_dir().to_string_lossy().contains("03-interfaces"));
+        assert!(interfaces_dir().to_string_lossy().contains("config"));
         assert!(runtime_dir().to_string_lossy().contains("04-runtime"));
     }
 }

@@ -58,7 +58,7 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     // Rule 2: new tool or deploy change -> TOOLS.md
-    if changed_files.iter().any(|f| f.contains("01-registry") || f.contains("scripts/")) {
+    if changed_files.iter().any(|f| f.contains("registry") || f.contains("scripts/")) {
         db.execute(
             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
              VALUES (?1, ?2, 'docs/TOOLS.md', ?3, 'pending')",
@@ -70,7 +70,7 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
     if subject.contains("INT-") || subject.contains("complete") || subject.contains("close") {
         db.execute(
             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
-             VALUES (?1, ?2, '00-meta/CHANGELOG.md', ?3, 'pending')",
+             VALUES (?1, ?2, 'meta/CHANGELOG.md', ?3, 'pending')",
             params![ts, hash, format!("Intent-related commit '{}' -- CHANGELOG.md entry may be needed", subject)]
         )?;
         proposals += 1;

@@ -62,7 +62,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     let now = chrono::Local::now();
 
     // Version
-    let version = std::fs::read_to_string(PathBuf::from(core_root).join("00-meta/VERSION"))
+    let version = std::fs::read_to_string(PathBuf::from(core_root).join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
@@ -77,7 +77,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .unwrap_or(0);
 
     // Tools from registry
-    let registry = std::fs::read_to_string(PathBuf::from(core_root).join("01-registry/tools.toml"))
+    let registry = std::fs::read_to_string(PathBuf::from(core_root).join("registry/tools.toml"))
         .unwrap_or_default();
 
     let tool_names: Vec<String> = registry
@@ -136,7 +136,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
 
     // Active policies
     let policies_content =
-        std::fs::read_to_string(PathBuf::from(core_root).join("01-registry/sandbox-policies.toml"))
+        std::fs::read_to_string(PathBuf::from(core_root).join("registry/sandbox-policies.toml"))
             .unwrap_or_default();
     let active_policies: Vec<String> = policies_content
         .lines()

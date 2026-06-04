@@ -43,7 +43,7 @@ impl ToolScore {
 
 fn expected_usage(core_root: &str, tool_name: &str) -> &'static str {
     let registry =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("01-registry/tools.toml"))
+        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("registry/tools.toml"))
             .unwrap_or_default();
 
     // Find the tool section and read expected_usage

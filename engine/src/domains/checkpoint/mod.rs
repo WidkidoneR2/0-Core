@@ -41,7 +41,7 @@ fn timestamp() -> String {
 fn read_version() -> String {
     let version_file = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/00-meta/VERSION");
+        .join("0-core/meta/VERSION");
     fs::read_to_string(version_file)
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
@@ -508,7 +508,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
         ("aliases", home.join(".config/zsh/aliases.zsh")),
         (
             "zshrc",
-            home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc"),
+            home.join("0-core/config/shell-zsh/.zshrc"),
         ),
         // INT-180: sway removed
         ("alacritty", home.join(".config/alacritty/alacritty.toml")),

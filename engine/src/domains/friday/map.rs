@@ -13,7 +13,7 @@ pub fn update(ctx: &AppContext) -> CoreResult<()> {
     super::ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let ts = now_ts();
-    let registry_path = std::path::PathBuf::from(&ctx.core_root).join("01-registry/tools.toml");
+    let registry_path = std::path::PathBuf::from(&ctx.core_root).join("registry/tools.toml");
     if let Ok(content) = std::fs::read_to_string(&registry_path) {
         for line in content.lines() {
             if let Some(name) = line.trim().strip_prefix("name = ") {

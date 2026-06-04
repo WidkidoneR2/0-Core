@@ -214,7 +214,7 @@ impl PipelineResult {
 fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
     match fix {
         FixAction::UpdateRegistryVersion { tool, version } => {
-            let path = ctx.core_root.join("01-registry/tools.toml");
+            let path = ctx.core_root.join("registry/tools.toml");
             if let Ok(content) = std::fs::read_to_string(&path) {
                 let old = format!("name = \"{}\"\nversion = \"", tool);
                 if let Some(idx) = content.find(&old) {
@@ -867,7 +867,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let registry_path = ctx.core_root.join("01-registry/tools.toml");
+            let registry_path = ctx.core_root.join("registry/tools.toml");
             let rust_tools_dir = ctx.core_root.join("rust-tools");
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
@@ -934,7 +934,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let registry_path = ctx.core_root.join("01-registry/tools.toml");
+            let registry_path = ctx.core_root.join("registry/tools.toml");
             // On NixOS tools are deployed to /run/current-system/sw/bin, not scripts/
             let nix_bin_dir = std::path::PathBuf::from("/run/current-system/sw/bin");
             let scripts_dir = if nix_bin_dir.exists() {
@@ -1010,7 +1010,7 @@ pub mod checks {
             let config_path = std::env::var("HOME")
                 .map(|h| PathBuf::from(h).join(".config/niri/config.kdl"))
                 .unwrap_or_default();
-            let registry_path = ctx.core_root.join("01-registry/tools.toml");
+            let registry_path = ctx.core_root.join("registry/tools.toml");
 
             let config = match std::fs::read_to_string(&config_path) {
                 Ok(c) => c,
@@ -1133,7 +1133,7 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let readme_path = ctx.core_root.join("README.md");
-            let registry_path = ctx.core_root.join("01-registry/tools.toml");
+            let registry_path = ctx.core_root.join("registry/tools.toml");
 
             // Count tools in registry
             let registry_tools: usize = std::fs::read_to_string(&registry_path)
@@ -1199,7 +1199,7 @@ pub mod checks {
                 std::env::var("HOME")
                     .map(|h| PathBuf::from(h).join(".zshrc"))
                     .unwrap_or_default(),
-                ctx.core_root.join("03-interfaces/stow/shell-zsh/.zshrc"),
+                ctx.core_root.join("config/shell-zsh/.zshrc"),
             ];
 
             for config_path in &config_files {
@@ -1404,7 +1404,7 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
         "autostart_retired_tool" => {
             // Remove retired tool from niri config
             let niri_config = std::path::PathBuf::from(&ctx.core_root)
-                .join("03-interfaces/stow/niri/.config/niri/config.kdl");
+                .join("config/niri/.config/niri/config.kdl");
             if let Ok(content) = std::fs::read_to_string(&niri_config) {
                 // Find retired tool name in description
                 let tool =
@@ -1489,7 +1489,7 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
     };
     // Only flag aliases pointing to explicitly retired tools (from registry TOML)
     let retired_tools: Vec<String> = {
-        let registry_path = std::path::PathBuf::from(&ctx.core_root).join("01-registry/tools.toml");
+        let registry_path = std::path::PathBuf::from(&ctx.core_root).join("registry/tools.toml");
         if let Ok(content) = std::fs::read_to_string(&registry_path) {
             content
                 .lines()

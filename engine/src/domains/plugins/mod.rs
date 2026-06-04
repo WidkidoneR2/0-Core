@@ -11,7 +11,7 @@ use std::path::PathBuf;
 fn registry_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/00-meta/plugins.toml")
+        .join("0-core/meta/plugins.toml")
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
