@@ -109,7 +109,6 @@
     pkgs.alacritty
     pkgs.yazi
     pkgs.neovim
-    pkgs.starship
     pkgs.bat
     pkgs.eza
     pkgs.fd
@@ -117,7 +116,6 @@
     pkgs.zoxide
     pkgs.brightnessctl
     pkgs.wireplumber
-    pkgs.stow
     pkgs.cargo
     pkgs.rustc
   ];

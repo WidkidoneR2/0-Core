@@ -42,6 +42,15 @@ home.packages = with pkgs; [
     nix-tree
     nvd
     nh
+    # Wayland essentials
+    wl-clipboard
+    wpaperd
+    # Git tools
+    lazygit
+    # File tools
+    mmv-go
+    # Editor
+    helix
     nix-direnv
     delta
     gitleaks
@@ -67,6 +76,7 @@ home.packages = with pkgs; [
     yazi
     # fonts
     nerd-fonts.jetbrains-mono
+    nerd-fonts.hack
     noto-fonts-color-emoji
     noto-fonts
     # misc

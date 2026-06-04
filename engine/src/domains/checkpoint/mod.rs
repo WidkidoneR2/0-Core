@@ -508,7 +508,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
         ("aliases", home.join(".config/zsh/aliases.zsh")),
         (
             "zshrc",
-            home.join("0-core/config/shell-zsh/.zshrc"),
+            home.join("0-core/config/faelight-shell/.config/faelight-shell/config.fsh"),
         ),
         // INT-180: sway removed
         ("alacritty", home.join(".config/alacritty/alacritty.toml")),

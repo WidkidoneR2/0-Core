@@ -191,10 +191,8 @@ pub fn check_binaries() -> CheckResult {
         "alacritty",
         "faelight-palette",
         "yazi",
-        "nvim",
+        "hx",
         "git",
-        "stow",
-        "starship",
         "bat",
         "eza",
         "fd",
@@ -202,6 +200,9 @@ pub fn check_binaries() -> CheckResult {
         "zoxide",
         "brightnessctl",
         "wpctl",
+        "wl-copy",
+        "nix-tree",
+        "nvd",
     ];
     let missing: Vec<_> = bins
         .iter()

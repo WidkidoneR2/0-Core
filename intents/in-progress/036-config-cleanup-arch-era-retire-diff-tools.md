@@ -3,7 +3,7 @@ id: 036
 date: 2026-06-04
 type: housekeeping
 title: "config/ cleanup: remove Arch-era configs, retire core-diff and faelight-diff"
-status: planned
+status: in-progress
 tags: [cleanup, config, arch-era, nixos, github]
 priority: high
 ---
