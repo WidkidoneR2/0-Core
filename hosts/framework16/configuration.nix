@@ -42,6 +42,9 @@
   };
 
   # --- Audio (PipeWire) ---
+  # PAM service for faelight-lock authentication
+  security.pam.services.faelight-lock = {};
+
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;

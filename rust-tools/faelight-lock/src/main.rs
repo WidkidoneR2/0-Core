@@ -62,7 +62,7 @@ struct LockApp {
 impl LockApp {
     fn auth_helper_path() -> String {
         let home = std::env::var("HOME").unwrap_or_default();
-        format!("{}/0-core/scripts/faelight-lock-auth", home)
+        "/run/current-system/sw/bin/faelight-lock-auth".to_string()
     }
     fn try_unlock(&mut self, _qh: &QueueHandle<Self>) {
         if self.password.is_empty() { return; }

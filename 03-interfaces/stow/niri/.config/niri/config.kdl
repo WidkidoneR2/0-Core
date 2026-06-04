@@ -138,47 +138,47 @@ binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Return      { spawn "faelight-term"; }
     Mod+Alt+Return  { spawn "alacritty"; }  // INT-346: Alacritty ADE terminal
-    Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
-    Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; } // faelight-fm v2 (libcosmic)
+    // NIXOS-TODO: Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
+    Mod+e           { spawn "faelight-fm"; } // faelight-fm v2 (libcosmic)
     Mod+n           { spawn "alacritty" "-e" "nvim"; }
     Mod+Shift+y     { spawn "alacritty" "-e" "yazi"; }
     Mod+Shift+t     { spawn "alacritty" "-e" "btop"; }
     Mod+Shift+n     { spawn "alacritty" "-e" "nvim"; }
-    Mod+Shift+f     { spawn "/home/christian/0-core/scripts/faelight-fm"; }
+    Mod+Shift+f     { spawn "faelight-fm"; }
 
     // ── Faelight Tools ────────────────────────────────────
-    Mod+Space       { spawn "alacritty" "--class" "faelight-palette-float" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Space       { spawn "alacritty" "--class" "faelight-palette-float" "-e" "faelight-palette"; }
     Mod+Shift+Return { spawn "faelight-ade"; }  // INT-346: Forest ADE
     Mod+b           { spawn "brave"; }
     Mod+p           { spawn "sh" "-c" "cliphist list | alacritty --class faelight-palette-float -e fzf | cliphist decode | wl-copy"; }
-    Mod+Escape      { spawn "alacritty" "--class" "faelight-menu-float" "--option" "window.dimensions.columns=60" "--option" "window.dimensions.lines=20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
+    Mod+Escape      { spawn "alacritty" "--class" "faelight-menu-float" "--option" "window.dimensions.columns=60" "--option" "window.dimensions.lines=20" "-e" "faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
     Mod+Alt+n       { spawn "notesnook"; }
     Mod+Alt+d       { spawn "discord"; }
     Mod+Alt+c       { spawn "filen-desktop"; }
-    Mod+Alt+h       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
-    Mod+Alt+m       { spawn "/home/christian/0-core/scripts/faelight-dashboard"; }
-    Mod+Alt+g       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-git"; }
-    Mod+Alt+i       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/intent"; }
-    Mod+Alt+z       { spawn "/home/christian/0-core/scripts/faelight-snapshot"; }
-    Mod+Alt+u       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/safe-update"; }
-    Mod+Alt+p       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/core-protect"; }
-    Mod+Alt+f       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/profile"; }
+    // NIXOS-TODO: Mod+Alt+h       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
+    // NIXOS-TODO: Mod+Alt+m       { spawn "/home/christian/0-core/scripts/faelight-dashboard"; }
+    Mod+Alt+g       { spawn "alacritty" "-e" "faelight-git"; }
+    Mod+Alt+i       { spawn "alacritty" "-e" "core" "intent" "list"; }
+    // NIXOS-TODO: Mod+Alt+z       { spawn "/home/christian/0-core/scripts/faelight-snapshot"; }
+    Mod+Alt+u       { spawn "alacritty" "-e" "safe-update"; }
+    Mod+Alt+p       { spawn "alacritty" "-e" "core" "protect" "status"; }
+    Mod+Alt+f       { spawn "alacritty" "-e" "profile"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
-    Mod+Alt+l       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/latest-update"; }
-    Mod+Alt+w       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dotctl"; }
-    Mod+Ctrl+d      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/core-diff"; }
-    Mod+Ctrl+c      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
-    Mod+Ctrl+g      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
+    Mod+Alt+l       { spawn "alacritty" "-e" "latest-update"; }
+    Mod+Alt+w       { spawn "alacritty" "-e" "dotctl"; }
+    Mod+Ctrl+d      { spawn "alacritty" "-e" "core-diff"; }
+    // NIXOS-TODO: Mod+Ctrl+c      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
+    // NIXOS-TODO: Mod+Ctrl+g      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
     // ── Clipboard ─────────────────────────────────────────
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
 
     // ── Notifications ─────────────────────────────────────
-    Mod+i           { spawn "sh" "-c" "/home/christian/0-core/scripts/faelight-notifyctl set-mode do-not-disturb"; }
-    Mod+Shift+i     { spawn "sh" "-c" "/home/christian/0-core/scripts/faelight-notifyctl set-mode default"; }
-    Mod+Ctrl+i      { spawn "sh" "-c" "/home/christian/0-core/scripts/faelight-notifyctl dismiss -a"; }
+    Mod+i           { spawn "sh" "-c" "faelight-notify" "dnd-on"; }
+    Mod+Shift+i     { spawn "sh" "-c" "faelight-notify" "dnd-off"; }
+    Mod+Ctrl+i      { spawn "sh" "-c" "faelight-notify" "dismiss-all"; }
 
     // ── Screenshots ───────────────────────────────────────
     Mod+s           { spawn "sh" "-c" "grim ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png && notify-send '📸 Screenshot' 'Full screen saved'"; }
@@ -186,7 +186,7 @@ binds {
     Mod+Alt+s       { spawn "sh" "-c" "grim -g \"$(slurp)\" - | wl-copy && notify-send '📸 Screenshot' 'Copied to clipboard'"; }
 
     // ── Lock / Session ────────────────────────────────────
-    Mod+Ctrl+Escape { spawn "/home/christian/0-core/scripts/faelight-lock"; }
+    Mod+Ctrl+Escape { spawn "faelight-lock"; }
     Mod+Ctrl+Space  { center-column; }  // recovery: center focused window when cursor lost
     Mod+Shift+e     { quit; }
 
