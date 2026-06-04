@@ -976,11 +976,19 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
         ],
     )?;
 
-    // Find next ID
-    let intents = load_all(ctx);
-    let max_id = intents
-        .iter()
-        .filter_map(|i| i.id.parse::<u32>().ok())
+    // Find next ID -- only scan active NixOS era folders, not archive/decisions
+    let base = intents_dir(ctx);
+    let active_folders = ["complete", "future", "in-progress"];
+    let max_id = active_folders.iter()
+        .flat_map(|folder| {
+            let dir = base.join(folder);
+            std::fs::read_dir(&dir).ok().into_iter().flatten()
+        })
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            name.split('-').next()?.parse::<u32>().ok()
+        })
         .max()
         .unwrap_or(0);
     let next_id = max_id + 1;
@@ -2040,10 +2048,19 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     } else {
         String::new()
     };
-    // Find next ID
-    let max_id = intents
-        .iter()
-        .filter_map(|i| i.id.parse::<u32>().ok())
+    // Find next ID -- only scan active NixOS era folders, not archive/decisions
+    let base = intents_dir(ctx);
+    let active_folders = ["complete", "future", "in-progress"];
+    let max_id = active_folders.iter()
+        .flat_map(|folder| {
+            let dir = base.join(folder);
+            std::fs::read_dir(&dir).ok().into_iter().flatten()
+        })
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            name.split('-').next()?.parse::<u32>().ok()
+        })
         .max()
         .unwrap_or(0);
     let next_id = max_id + 1;
