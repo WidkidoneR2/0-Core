@@ -119,13 +119,11 @@ window-rule {
 window-rule {
     match app-id="faelight-palette-float"
     open-floating true
-    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
     match app-id="faelight-menu-float"
     open-floating true
-    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
