@@ -94,7 +94,7 @@ description = "System cleanup and temp file management"
 expected_usage = "rare"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-daemon"
 version = "4.0.0"
@@ -267,7 +267,7 @@ description = "Latest update tracker"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "profile"
 version = "2.1.0"

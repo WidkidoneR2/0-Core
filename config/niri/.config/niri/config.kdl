@@ -164,7 +164,6 @@ binds {
     Mod+Alt+p       { spawn "alacritty" "-e" "core" "protect" "status"; }
     Mod+Alt+f       { spawn "alacritty" "-e" "profile"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
-    Mod+Alt+l       { spawn "alacritty" "-e" "latest-update"; }
     Mod+Ctrl+c      { spawn "alacritty" "-e" "core" "release" "changelog"; }
     // NIXOS-TODO: Mod+Ctrl+g -- faelight-stow retired (home-manager replaces stow on NixOS)
 
