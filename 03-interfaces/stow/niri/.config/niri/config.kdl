@@ -138,7 +138,7 @@ binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Return      { spawn "faelight-term"; }
     Mod+Alt+Return  { spawn "alacritty"; }  // INT-346: Alacritty ADE terminal
-    // NIXOS-TODO: Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
+    Mod+Alt+b       { spawn "brave"; }
     Mod+e           { spawn "faelight-fm"; } // faelight-fm v2 (libcosmic)
     Mod+n           { spawn "alacritty" "-e" "nvim"; }
     Mod+Shift+y     { spawn "alacritty" "-e" "yazi"; }
@@ -157,11 +157,11 @@ binds {
     Mod+Alt+n       { spawn "notesnook"; }
     Mod+Alt+d       { spawn "discord"; }
     Mod+Alt+c       { spawn "filen-desktop"; }
-    // NIXOS-TODO: Mod+Alt+h       { spawn "alacritty" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
-    // NIXOS-TODO: Mod+Alt+m       { spawn "/home/christian/0-core/scripts/faelight-dashboard"; }
+    Mod+Alt+h       { spawn "alacritty" "-e" "core" "doctor" "run"; }
+    // NIXOS-TODO: Mod+Alt+m -- faelight-dashboard not yet ported to NixOS
     Mod+Alt+g       { spawn "alacritty" "-e" "faelight-git"; }
     Mod+Alt+i       { spawn "alacritty" "-e" "core" "intent" "list"; }
-    // NIXOS-TODO: Mod+Alt+z       { spawn "/home/christian/0-core/scripts/faelight-snapshot"; }
+    Mod+Alt+z       { spawn "alacritty" "-e" "core" "doctor" "quick"; }
     Mod+Alt+u       { spawn "alacritty" "-e" "safe-update"; }
     Mod+Alt+p       { spawn "alacritty" "-e" "core" "protect" "status"; }
     Mod+Alt+f       { spawn "alacritty" "-e" "profile"; }
@@ -169,8 +169,8 @@ binds {
     Mod+Alt+l       { spawn "alacritty" "-e" "latest-update"; }
     Mod+Alt+w       { spawn "alacritty" "-e" "dotctl"; }
     Mod+Ctrl+d      { spawn "alacritty" "-e" "core-diff"; }
-    // NIXOS-TODO: Mod+Ctrl+c      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
-    // NIXOS-TODO: Mod+Ctrl+g      { spawn "alacritty" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
+    Mod+Ctrl+c      { spawn "alacritty" "-e" "core" "release" "changelog"; }
+    // NIXOS-TODO: Mod+Ctrl+g -- faelight-stow retired (home-manager replaces stow on NixOS)
 
     // ── Clipboard ─────────────────────────────────────────
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
