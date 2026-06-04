@@ -252,20 +252,28 @@ fn log_issue(ctx: &IntegrityContext, issue: &IntegrityIssue, fixed: bool) {
         Severity::Propose => "propose",
         Severity::Alert => "alert",
     };
-    ctx.ctx.runtime.db.execute(
-        "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, fixed_at, detected_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        rusqlite::params![
-            issue.category.as_str(),
-            issue.check,
-            severity_str,
-            issue.description,
-            issue.weight,
-            if fixed { 1 } else { 0 },
-            if fixed { Some(now_ts()) } else { None::<i64> },
-            now_ts()
-        ],
-    ).ok();
+    // Only insert if no identical unfixed record already exists
+    let existing: i64 = ctx.ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM integrity_log WHERE check_name = ?1 AND description = ?2 AND fixed = 0",
+        rusqlite::params![issue.check, issue.description],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    if existing == 0 {
+        ctx.ctx.runtime.db.execute(
+            "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, fixed_at, detected_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![
+                issue.category.as_str(),
+                issue.check,
+                severity_str,
+                issue.description,
+                issue.weight,
+                if fixed { 1 } else { 0 },
+                if fixed { Some(now_ts()) } else { None::<i64> },
+                now_ts()
+            ],
+        ).ok();
+    }
 }
 
 fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
