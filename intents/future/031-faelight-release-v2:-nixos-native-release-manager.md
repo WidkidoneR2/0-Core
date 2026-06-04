@@ -49,3 +49,23 @@ A 1.0.0 release made with broken tooling is not a real release.
 - [ ] /etc/faelight/VERSION write replaced with NixOS-appropriate mechanism
 - [ ] meta/CHANGELOG.md path correct
 - [ ] README generation NixOS-aware
+
+## Release Identity Philosophy (2026-06-04)
+
+The release triad:
+  Release version = NixOS generation number = Git commit count
+
+Example:
+  Faelight NixOS 1.0.0
+    NixOS generation: 47
+    Git commits: 2984
+    Intents complete: INT-001 through INT-025
+
+This means Friday can:
+- Trace any bug to exact generation + commit
+- Answer "which generation is stable?"
+- Cross-reference release artifacts with rollback targets
+- Warn when a generation is about to be garbage collected
+
+faelight-release v2 must record all three in state.db on every release.
+The triad survives garbage collection. Generations do not.
