@@ -21,6 +21,12 @@
     settings.PermitRootLogin = "no";
   };
 
+  # Seat management for Wayland compositors
+  services.seatd.enable = true;
+
+  # Graphics
+  hardware.graphics.enable = true;
+
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
     pkgs.git
@@ -36,7 +42,7 @@
     pkgs.zoxide
     pkgs.brightnessctl
     pkgs.wireplumber
-        pkgs.cargo
+    pkgs.cargo
     pkgs.rustc
   ];
 
@@ -46,16 +52,8 @@
 
   system.stateVersion = "26.05";
 
-  # Enable DRI for graphics
-  hardware.graphics.enable = true;
-
-  # Seat management for Wayland compositors
-  services.seatd.enable = true;
-
-  # Set fsh as default shell
   users.defaultUserShell = pkgs.bash;
 
-  # Initialize forest runtime on first login
   systemd.tmpfiles.rules = [
     "d /home/christian/0-core/runtime 0755 christian users -"
     "f /home/christian/0-core/runtime/state.db 0644 christian users -"
