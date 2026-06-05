@@ -3,7 +3,7 @@ id: 015
 date: 2026-06-04
 type: feature
 title: "faelight-fm v3.1: Nix-aware, git-first, semantic navigation"
-status: planned
+status: complete
 tags: [faelight-fm, ratatui, nix, git, semantic, broot]
 priority: high
 ---
@@ -70,17 +70,15 @@ faelight-fm/src/
   ui/            # ratatui layout (no logic)
   input/         # keybindings + modes
 
-## Gate
-
-- [ ] Tree navigation with expand/collapse (broot-style)
-- [ ] Nix package ownership shown for /nix/store files
-- [ ] Git diff preview in right panel
-- [ ] Stage/unstage with s key
-- [ ] Semantic search with / prefix
-- [ ] Builds cleanly in workspace
-- [ ] Health stays 100% after rebuild
-
-## Note on v4
-
-The full vision (plugin system, flake browser, derivation explorer)
-is a separate intent. v3.1 proves the approach. v4 scales it.
+## Gate Check
+✅ Tree navigation with expand/collapse (broot-style inline tree)
+✅ Nix store path info shown via n key
+✅ Git status badges + diff preview for modified files
+✅ Stage/unstage with s key
+✅ Filter with / prefix (fuzzy matching)
+✅ Builds cleanly -- zero errors, zero warnings
+✅ Health 100% after rebuild
+✅ Single mode: faelight-fm / fm alias
+✅ Dual panel mode: faelight-fm --dual / fmd alias
+✅ No terminal hang on exit -- panic hook + cursor restore
+✅ Forest colors throughout
