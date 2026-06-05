@@ -7,15 +7,17 @@
   inputs.disko.url = "github:nix-community/disko";
   inputs.disko.inputs.nixpkgs.follows = "nixpkgs";
   inputs.nixos-hardware.url = "github:NixOS/nixos-hardware";
+  inputs.pinnacle.url = "github:pinnacle-comp/pinnacle";
+  inputs.pinnacle.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware }:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
     in {
       nixosConfigurations.faelight-vm = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit self system; };
+        specialArgs = { inherit self system inputs; };
         modules = [
           home-manager.nixosModules.home-manager
           ./hosts/vm/configuration.nix

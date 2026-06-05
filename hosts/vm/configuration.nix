@@ -1,4 +1,4 @@
-{ config, pkgs, self, system, ... }:
+{ config, pkgs, self, system, inputs, ... }:
 {
   imports = [ ./hardware-configuration.nix ];
 
@@ -11,7 +11,7 @@
 
   users.users.christian = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "seat" "video" "input" ];
     initialPassword = "faelight";
   };
 
@@ -22,6 +22,7 @@
   };
 
   environment.systemPackages = [
+    inputs.pinnacle.packages.${system}.pinnacle
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
@@ -45,15 +46,11 @@
 
   system.stateVersion = "26.05";
 
-  # VM display -- virtio GPU for Wayland support
-  virtualisation.vmVariant.virtualisation.qemu.options = [
-    "-vga none"
-    "-device virtio-gpu-pci"
-    "-display gtk,gl=on"
-  ];
-
   # Enable DRI for graphics
   hardware.graphics.enable = true;
+
+  # Seat management for Wayland compositors
+  services.seatd.enable = true;
 
   # Set fsh as default shell
   users.defaultUserShell = pkgs.bash;
