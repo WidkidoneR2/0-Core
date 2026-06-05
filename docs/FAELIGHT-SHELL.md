@@ -2,7 +2,7 @@
 
 > *"A forest deserves a shell that knows it is a forest."*
 
-**Version:** v2.1.0 (Faelight Forest 13.1.0) | Last verified: 2026-05-08  
+**Version:** v2.5.0 (Faelight Forest 14.1.0) | Last verified: 2026-06-05  
 **Status:** Login shell since 2026-04-03. Daily driver.  
 **Last updated:** 2026-05-08
 

@@ -2,8 +2,8 @@
 
 > How the system is SUPPOSED to work, what must ALWAYS be true, and what NEVER happens automatically.
 
-**Version:** 13.1.0  
-**Last Updated:** 2026-05-08  
+**Version:** 14.1.0.1.0  
+**Last Updated:** 2026-06-0508  
 **Status:** Production - Philosophy Proven
 
 ---
@@ -143,7 +143,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 ### The Stack
 
 **Foundation:**
-- Arch Linux (vanilla, not Omarchy)
+- NixOS 26.05 (vanilla, not Omarchy)
 - Niri (Wayland compositor)
 - Btrfs filesystem (snapshots)
 
@@ -153,7 +153,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 - 114 Niri keybindings (zero conflicts)
 
 **Infrastructure:**
-- 10 core tools (health, protection, updates, diff, stow, snapshots)
+- 10 core tools (health, protection, updates, diff, home-manager, snapshots)
 - 8 workflow tools (intent, archaeology, workspace, git, profiles, teach)
 - 5 version tools (bump-system-version, bootstrap, get-version)
 
@@ -167,7 +167,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 ```
 ~/0-core/
 ├── rust-tools/     # 30 tools in workspace
-├── stow/           # 12 dotfile packages
+├── home-manager/           # 12 dotfile packages
 ├── scripts/        # Compiled binaries
 ├── INTENT/         # 78+ decisions
 └── docs/           # Theory, policies, guides
@@ -195,16 +195,16 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 
 **Structure:**
 ```
-stow/
+home-manager/
 ├── niri/        # Window manager
 ├── shell-zsh/      # Shell config
 ├── editor-nvim/    # Editor
 └── [9 more packages]
 ```
 
-**Deployment:** `cd ~/0-core/03-interfaces/stow && stow -t ~ package-name`
+**Deployment:** `cd ~/0-core/03-interfaces/home-manager && home-manager -t ~ package-name`
 
-**Health Check:** `doctor` verifies all 12/12 packages properly stowed
+**Health Check:** `doctor` verifies all 12/12 packages properly home-managered
 
 ---
 

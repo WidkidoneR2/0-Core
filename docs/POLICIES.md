@@ -2,9 +2,9 @@
 
 Self-enforcing rules learned from pain. These policies prevent future-you from repeating past-you's mistakes.
 
-**Last Updated:** 2026-05-08  
-**Version:** 13.1.0  
-**System:** Arch Linux + Niri + Faelight Forest
+**Last Updated:** 2026-06-05  
+**Version:** 14.1.0.1.0  
+**System:** NixOS 26.05 + Niri + Faelight Forest
 
 ---
 
@@ -190,7 +190,7 @@ faelight-update -v
 
 ### Safety Features
 - Pre-update health check (`doctor`)
-- Smart package detection (pacman, AUR, cargo)
+- Smart package detection (nix, AUR, cargo)
 - Impact analysis (kernel, critical packages)
 - Post-update workspace rebuild
 - .pacnew detection (coming soon)
