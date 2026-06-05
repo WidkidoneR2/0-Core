@@ -250,23 +250,75 @@ fn render_status(
     active_intent: &str,
     status_msg: &str,
 ) {
-    let text = if !status_msg.is_empty() {
-        status_msg.to_string()
-    } else {
-        match mode {
-            Mode::Filter(q) => format!("  /{} -- esc clear  enter focus", q),
-            Mode::Command(c) => format!("  :{} -- enter run  esc cancel", c),
-            Mode::ConfirmDelete(msg) => format!("  {} y/n", msg),
-            Mode::Normal => format!(
-                "  {}  │  j/k ↕  enter expand  h ←  s stage  n nix  / filter  : cmd  q quit",
-                active_intent
-            ),
-        }
+    use ratatui::text::Span;
+    let width = area.width as usize;
+
+    if !status_msg.is_empty() {
+        let truncated = if status_msg.len() > width.saturating_sub(2) {
+            format!("  {}…", &status_msg[..width.saturating_sub(4)])
+        } else {
+            format!("  {}", status_msg)
+        };
+        f.render_widget(
+            Paragraph::new(truncated).style(Style::default().fg(GREEN)),
+            area,
+        );
+        return;
+    }
+
+    let line = match mode {
+        Mode::Filter(q) => Line::from(vec![
+            Span::styled(format!("  /{}", q), Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+            Span::styled("  esc", Style::default().fg(CYAN)),
+            Span::styled(" clear  ", Style::default().fg(GRAY)),
+            Span::styled("enter", Style::default().fg(CYAN)),
+            Span::styled(" focus", Style::default().fg(GRAY)),
+        ]),
+        Mode::Command(c) => Line::from(vec![
+            Span::styled(format!("  :{}", c), Style::default().fg(YELLOW).add_modifier(Modifier::BOLD)),
+            Span::styled("  enter", Style::default().fg(CYAN)),
+            Span::styled(" run  ", Style::default().fg(GRAY)),
+            Span::styled("esc", Style::default().fg(CYAN)),
+            Span::styled(" cancel", Style::default().fg(GRAY)),
+        ]),
+        Mode::ConfirmDelete(msg) => Line::from(vec![
+            Span::styled(format!("  {}", msg), Style::default().fg(YELLOW)),
+            Span::styled("  y", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+            Span::styled("/", Style::default().fg(GRAY)),
+            Span::styled("n", Style::default().fg(Color::Rgb(248,81,73)).add_modifier(Modifier::BOLD)),
+        ]),
+        Mode::Normal => {
+            let w = area.width as usize;
+            let intent_max = w.saturating_sub(60).max(10).min(25);
+            let intent_short = if active_intent.len() > intent_max {
+                format!("{}…", &active_intent[..intent_max])
+            } else { active_intent.to_string() };
+            // Short hint set that fits most terminals
+            Line::from(vec![
+                Span::styled(format!("  {} ", intent_short), Style::default().fg(DIM_GREEN)),
+                Span::styled("│ ", Style::default().fg(DIM_GRAY)),
+                Span::styled("j/k", Style::default().fg(CYAN)),
+                Span::styled("↕ ", Style::default().fg(GRAY)),
+                Span::styled("↵", Style::default().fg(CYAN)),
+                Span::styled("expand ", Style::default().fg(GRAY)),
+                Span::styled("h", Style::default().fg(CYAN)),
+                Span::styled("← ", Style::default().fg(GRAY)),
+                Span::styled("s", Style::default().fg(CYAN)),
+                Span::styled("stage ", Style::default().fg(GRAY)),
+                Span::styled("n", Style::default().fg(CYAN)),
+                Span::styled("nix ", Style::default().fg(GRAY)),
+                Span::styled("r", Style::default().fg(CYAN)),
+                Span::styled("gc ", Style::default().fg(GRAY)),
+                Span::styled("/", Style::default().fg(CYAN)),
+                Span::styled("filter ", Style::default().fg(GRAY)),
+                Span::styled(":", Style::default().fg(CYAN)),
+                Span::styled("cmd ", Style::default().fg(GRAY)),
+                Span::styled("q", Style::default().fg(CYAN)),
+                Span::styled("quit", Style::default().fg(GRAY)),
+            ])
+        },
     };
-    f.render_widget(
-        Paragraph::new(text).style(Style::default().fg(GRAY)),
-        area,
-    );
+    f.render_widget(Paragraph::new(line), area);
 }
 
 fn render_dual_status(
@@ -276,22 +328,53 @@ fn render_dual_status(
     active_intent: &str,
     status_msg: &str,
 ) {
-    let panel_indicator = match active_panel {
-        Panel::Left  => "◀ left",
-        Panel::Right => "right ▶",
+    let (panel_color, panel_label) = match active_panel {
+        Panel::Left  => (GREEN,  "◀ left"),
+        Panel::Right => (CYAN,   "right ▶"),
     };
+    let intent_short = if active_intent.len() > 25 {
+        format!("{}…", &active_intent[..24])
+    } else { active_intent.to_string() };
+
     let line1 = if !status_msg.is_empty() {
-        status_msg.to_string()
+        Line::from(vec![
+            Span::styled(format!("  {}", status_msg), Style::default().fg(GREEN)),
+        ])
     } else {
-        format!("  {}  │  tab switch panels  enter expand  h ←  s stage  y yank  d del", active_intent)
+        Line::from(vec![
+            Span::styled(format!("  {} ", intent_short), Style::default().fg(DIM_GREEN)),
+            Span::styled("│", Style::default().fg(DIM_GRAY)),
+            Span::styled(" tab", Style::default().fg(CYAN)),
+            Span::styled(" switch  ", Style::default().fg(GRAY)),
+            Span::styled("enter", Style::default().fg(CYAN)),
+            Span::styled(" expand  ", Style::default().fg(GRAY)),
+            Span::styled("s", Style::default().fg(CYAN)),
+            Span::styled(" stage  ", Style::default().fg(GRAY)),
+            Span::styled("y", Style::default().fg(CYAN)),
+            Span::styled(" yank  ", Style::default().fg(GRAY)),
+            Span::styled(":cp :mv", Style::default().fg(YELLOW)),
+            Span::styled(" panels", Style::default().fg(GRAY)),
+        ])
     };
-    let line2 = format!(
-        "  [{}]  │  j/k ↕  / filter  : cmd  cp/mv between panels  q quit",
-        panel_indicator
-    );
-    let text = format!("{}\n{}", line1, line2);
-    f.render_widget(
-        Paragraph::new(text).style(Style::default().fg(GRAY)),
-        area,
-    );
+
+    let line2 = Line::from(vec![
+        Span::styled("  [", Style::default().fg(DIM_GRAY)),
+        Span::styled(panel_label, Style::default().fg(panel_color).add_modifier(Modifier::BOLD)),
+        Span::styled("]  ", Style::default().fg(DIM_GRAY)),
+        Span::styled("j/k", Style::default().fg(CYAN)),
+        Span::styled(" ↕  ", Style::default().fg(GRAY)),
+        Span::styled("/", Style::default().fg(CYAN)),
+        Span::styled(" filter  ", Style::default().fg(GRAY)),
+        Span::styled(":", Style::default().fg(CYAN)),
+        Span::styled(" cmd  ", Style::default().fg(GRAY)),
+        Span::styled("n", Style::default().fg(CYAN)),
+        Span::styled(" nix  ", Style::default().fg(GRAY)),
+        Span::styled("r", Style::default().fg(CYAN)),
+        Span::styled(" gc  ", Style::default().fg(GRAY)),
+        Span::styled("q", Style::default().fg(CYAN)),
+        Span::styled(" quit", Style::default().fg(GRAY)),
+    ]);
+
+    let text = ratatui::text::Text::from(vec![line1, line2]);
+    f.render_widget(Paragraph::new(text), area);
 }

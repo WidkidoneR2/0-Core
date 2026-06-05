@@ -1,0 +1,29 @@
+theme = "faelight-forest"
+
+[editor]
+line-number = "relative"
+mouse = false
+bufferline = "always"
+color-modes = true
+cursorline = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.file-picker]
+hidden = false
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "file-modification-indicator"]
+right = ["diagnostics", "selections", "position", "file-encoding", "file-line-ending", "file-type"]
+separator = "│"
+
+[editor.indent-guides]
+render = true
+character = "╎"
+
+[keys.normal]
+space.q = ":q"
+space.w = ":w"

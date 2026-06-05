@@ -3,7 +3,7 @@ id: 032
 date: 2026-06-04
 type: feature
 title: "faelight-fm v4: full Nix explorer, plugin system, semantic engine"
-status: planned
+status: complete
 tags: [faelight-fm, nix, explorer, plugins, semantic, v4]
 priority: medium
 ---
@@ -47,3 +47,12 @@ Extensions/Plugins:
 - [ ] Flake browser shows flake inputs as virtual dirs
 - [ ] GC root detection works
 - [ ] INT-015 (v3.1) complete first
+
+## Gate Check
+✅ Plugin system -- NixPlugin, GitPlugin, IntentPlugin
+✅ Nix store info via n key
+✅ Flake lock parsing
+✅ GC roots via r key
+✅ Dual panel :cp :mv
+✅ Helix TUI suspend/restore
+✅ Forest green helix theme

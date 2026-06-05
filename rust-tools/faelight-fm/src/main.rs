@@ -9,6 +9,8 @@ mod nix;
 mod search;
 mod ui;
 mod input;
+mod plugins;
+mod flake;
 
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
@@ -123,8 +125,22 @@ impl PanelData {
             return;
         }
         if !is_dir {
-            // Open file in helix
-            let _ = Command::new("hx").arg(&node_path).spawn();
+            // Open file in helix -- suspend TUI first
+            let _ = crossterm::terminal::disable_raw_mode();
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::LeaveAlternateScreen,
+                crossterm::cursor::Show,
+            );
+            let _ = Command::new("hx").arg(&node_path).status();
+            let _ = crossterm::terminal::enable_raw_mode();
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::EnterAlternateScreen,
+                crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                crossterm::cursor::Hide,
+            );
+            // terminal will redraw on next loop iteration
             return;
         }
         // Find and toggle in tree
@@ -199,8 +215,12 @@ impl PanelData {
         self.refresh_flat();
     }
 
-    fn nix_info(&self) -> String {
+    fn nix_info(&self, plugins: &plugins::PluginRegistry) -> String {
         if let Some(node) = self.selected_node() {
+            // Try plugin first
+            if let Some(preview) = plugins.preview(&node.node_path) {
+                return preview;
+            }
             if let Some(ref target) = node.symlink_target {
                 if target.starts_with("/nix/store/") {
                     return nix::describe_store_path(target);
@@ -209,6 +229,12 @@ impl PanelData {
             return nix::describe_store_path(&node.node_path.to_string_lossy());
         }
         String::new()
+    }
+
+    #[allow(dead_code)]
+    fn plugin_preview(&self, plugins: &plugins::PluginRegistry) -> Option<String> {
+        let node = self.selected_node()?;
+        plugins.preview(&node.node_path)
     }
 }
 
@@ -243,11 +269,14 @@ struct App {
     status_msg: String,
     status_timer: u8,
     nix_overlay: Option<String>,
+    plugins: plugins::PluginRegistry,
 }
 
 impl App {
     fn new(start_path: PathBuf, dual_mode: bool) -> Self {
-        let right_path = start_path.clone();
+        let right_path = start_path.parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| dirs_next::home_dir().unwrap_or_default());
         Self {
             left: PanelData::new(start_path),
             right: PanelData::new(right_path),
@@ -257,6 +286,7 @@ impl App {
             status_msg: String::new(),
             status_timer: 0,
             nix_overlay: None,
+            plugins: plugins::PluginRegistry::new(),
         }
     }
 
@@ -344,7 +374,11 @@ impl App {
                 self.set_status(format!("hidden: {}", if hidden { "shown" } else { "hidden" }));
             },
             KeyCode::Char('n') => {
-                self.nix_overlay = Some(self.active().nix_info());
+                let info = self.active().nix_info(&self.plugins);
+                self.nix_overlay = Some(info);
+            },
+            KeyCode::Char('r') => {
+                self.nix_overlay = Some(flake::format_gc_roots());
             },
             KeyCode::Char('/') => {
                 self.active_mut().mode = Mode::Filter(String::new());
