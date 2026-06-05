@@ -89,9 +89,11 @@ pub fn check_services() -> CheckResult {
     let running = services
         .iter()
         .filter(|(name, _)| {
+            // Match full path to avoid false positives
+            let full = format!("/run/current-system/sw/bin/{}", name);
             Command::new("pgrep")
                 .arg("-f")
-                .arg(name)
+                .arg(&full)
                 .output()
                 .map(|o| o.status.success())
                 .unwrap_or(false)
