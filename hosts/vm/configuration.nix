@@ -28,8 +28,6 @@
     pkgs.niri
     pkgs.alacritty
     pkgs.yazi
-    pkgs.neovim
-    pkgs.starship
     pkgs.bat
     pkgs.eza
     pkgs.fd
@@ -37,8 +35,7 @@
     pkgs.zoxide
     pkgs.brightnessctl
     pkgs.wireplumber
-    pkgs.stow
-    pkgs.cargo
+        pkgs.cargo
     pkgs.rustc
   ];
 
@@ -46,5 +43,24 @@
   home-manager.useUserPackages = true;
   home-manager.users.christian = import ../../users/christian/home.nix;
 
-  system.stateVersion = "25.11";
+  system.stateVersion = "26.05";
+
+  # VM display -- virtio GPU for Wayland support
+  virtualisation.vmVariant.virtualisation.qemu.options = [
+    "-vga none"
+    "-device virtio-gpu-pci"
+    "-display gtk,gl=on"
+  ];
+
+  # Enable DRI for graphics
+  hardware.graphics.enable = true;
+
+  # Set fsh as default shell
+  users.defaultUserShell = pkgs.bash;
+
+  # Initialize forest runtime on first login
+  systemd.tmpfiles.rules = [
+    "d /home/christian/0-core/runtime 0755 christian users -"
+    "f /home/christian/0-core/runtime/state.db 0644 christian users -"
+  ];
 }

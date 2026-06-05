@@ -3,7 +3,7 @@ id: 021
 date: 2026-06-03
 type: study
 title: "Pinnacle VM study: prove compositor in nixos-lab before touching real system"
-status: planned
+status: in-progress
 tags: [pinnacle, vm, study, compositor, nixos-lab, safety]
 priority: high
 ---

@@ -78,3 +78,5 @@ before_run {
 }
 
 alias gd = "GIT_EXTERNAL_DIFF=difft git diff"
+
+set LIBVIRT_DEFAULT_URI = "qemu:///system"
