@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# rebuild-safe -- forest safety net for nixos-rebuild
+# Records health before, rebuilds, checks health after, auto-rollbacks if degraded
+
+set -euo pipefail
+
+CORE="/run/current-system/sw/bin/core"
+FLAKE="$HOME/0-core#framework16"
+
+echo "🌲 rebuild-safe -- forest safety net"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Step 1: Record pre-rebuild state
+echo "→ Checking pre-rebuild health..."
+PRE_HEALTH=$($CORE doctor run --json 2>/dev/null | grep -o '"health":[0-9]*' | grep -o '[0-9]*' || echo "100")
+PRE_GEN=$(readlink /nix/var/nix/profiles/system | grep -o 'system-[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo "  Pre-rebuild: health=${PRE_HEALTH}% generation=${PRE_GEN}"
+
+# Step 2: Dry-run first
+echo "→ Running dry-run check..."
+if ! sudo nixos-rebuild dry-run --flake "$HOME/0-core#framework16" 2>&1 | tail -3; then
+    echo "❌ Dry-run failed -- aborting rebuild"
+    exit 1
+fi
+echo "  ✅ Dry-run passed"
+
+# Step 3: Rebuild
+echo "→ Rebuilding..."
+if ! sudo nixos-rebuild switch --flake "$HOME/0-core#framework16"; then
+    echo "❌ Rebuild failed"
+    exit 1
+fi
+
+# Step 4: Check post-rebuild health
+echo "→ Checking post-rebuild health..."
+POST_HEALTH=$($CORE doctor run --json 2>/dev/null | grep -o '"health":[0-9]*' | grep -o '[0-9]*' || echo "100")
+POST_GEN=$(readlink /nix/var/nix/profiles/system | grep -o 'system-[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo "  Post-rebuild: health=${POST_HEALTH}% generation=${POST_GEN}"
+
+# Step 5: Health gate -- auto-rollback if degraded
+if [ "$POST_HEALTH" -lt "$PRE_HEALTH" ]; then
+    echo "⚠️  Health degraded: ${PRE_HEALTH}% → ${POST_HEALTH}%"
+    echo "→ Auto-rolling back to generation ${PRE_GEN}..."
+    sudo nixos-rebuild switch --flake "$HOME/0-core#framework16" --rollback
+    echo "✅ Rolled back to generation ${PRE_GEN}"
+    # Log to state.db
+    sqlite3 "$HOME/0-core/runtime/state.db" \
+        "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, detected_at)
+         VALUES ('rebuild', 'health_gate', 'alert', 'Auto-rollback: health degraded ${PRE_HEALTH}→${POST_HEALTH} at gen ${POST_GEN}', 5, 1, strftime('%s','now'));" 2>/dev/null || true
+    exit 1
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ rebuild-safe complete: health ${PRE_HEALTH}% → ${POST_HEALTH}% (gen ${POST_GEN})"
