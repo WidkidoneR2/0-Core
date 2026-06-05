@@ -43,7 +43,7 @@ LAYER 4 — Runtime (All Mutable State)
   Rule: rm -rf runtime/ is always safe. Full reset, no data loss.
 
 LAYER 5 — Adapters (Thin Translation Only)
-  03-interfaces/stow/   ← dotfile packages (GNU Stow managed)
+  config/stow/   ← dotfile packages (GNU Stow managed)
   adapters/             ← systemd, niri config generation
   Rule: No business logic. Only translation between core and external systems.
 ```
@@ -77,7 +77,7 @@ LAYER 5 — Adapters (Thin Translation Only)
     faelight-browser/   ← TUI browser (WIP)
     faelight-core/      ← Shared library (config, paths, health)
     [51 total tools]
-  03-interfaces/
+  config/
     stow/               ← ALL dotfile packages (GNU Stow managed)
       niri/             ← Niri compositor config
       shell-zsh/        ← Zsh + 318+ aliases
@@ -91,7 +91,7 @@ LAYER 5 — Adapters (Thin Translation Only)
   scripts/              ← Compiled binaries + thin shell wrappers
   intents/              ← Intent ledger (markdown files)
   docs/                 ← Human documentation
-  00-meta/              ← Version, changelog, philosophy
+  meta/              ← Version, changelog, philosophy
   VERSION               ← 0-Core v2 engine version
   Cargo.toml            ← Workspace root
   README.md             ← GitHub readme
@@ -158,24 +158,33 @@ Run `d` (alias for `doctor`) to update health across all tools.
 
 ---
 
-## Stow Package Deployment
+## NixOS Deployment
 
-All dotfiles are managed as GNU Stow packages:
-```bash
-cd ~/0-core/03-interfaces/stow
-stow package-name          # deploy
-stow -D package-name       # undeploy
+All tools are deployed via the Nix build system -- no stow, no symlinks, no manual deployment.
+
+```nix
+# flake.nix -- packages section
+packages = {
+  faelight-forest = pkgs.rustPlatform.buildRustPackage { ... };
+};
 ```
 
-Or use the native implementation:
-```bash
-core link deploy           # deploy all packages
-core link adopt            # convert existing files to symlinks
-core link plan             # preview deployment
-core link status           # check symlink health
+Binaries land in `/run/current-system/sw/bin/` after `rebuild`.
+
+Config files are managed by home-manager via `xdg.configFile`:
+```nix
+xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;
 ```
 
----
+Deployment workflow:
+```bash
+# Edit config or source
+hx ~/0-core/users/christian/home.nix
+
+# Apply
+rebuild-safe   # with health gate + auto-rollback
+```
+
 
 ## Build System
 ```bash

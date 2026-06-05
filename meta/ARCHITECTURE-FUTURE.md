@@ -1,6 +1,6 @@
 # Faelight Forest — Architectural Future
 
-*Written 2026-03-21. For our future selves.*
+*Written 2026-03-21. Updated 2026-06-05. For our future selves.*
 
 ## The Long Arc
 
@@ -34,11 +34,11 @@ Tool → deprecated (aliased to core/shell equivalent)
 ### Current Retirement Candidates (when ready)
 | Tool | Replaced by | When |
 |------|-------------|------|
-| faelight-search | `?` NL queries (shell) | v11.2.0 |
-| bin-doctor | `core evolution tools` | v12.0.0 |
-| alias-audit | `core evolution tools` | v12.0.0 |
+| faelight-search | `?` NL queries (shell) | v14.1.0 |
+| bin-doctor | `core evolution tools` | v14.1.0 |
+| alias-audit | `core evolution tools` | v14.1.0 |
 | safe-update | `core update` domain | Core v9 |
-| workspace-view | `dashboard` (shell) | v11.2.0 |
+| workspace-view | `dashboard` (shell) | v14.1.0 |
 
 **Rule: Never retire a tool until its replacement is proven stable.**
 **Rule: Always keep the retired tool's intent document.**
@@ -75,26 +75,26 @@ v10 Reaction    → v11 (unknown) needs reflexes
 faelight-shell is becoming the primary interface.
 The path from zsh dependency to full independence:
 
-### Current State (v11.1.0)
+### Current State (v14.1.0)
 - faelight-shell is used for forest queries and exploration
 - zsh handles: external commands, git aliases, PATH, startup
 - Phase 17 (event system) ✅ — the shell now reacts
 - ~93% Rust
 
-### Phase 17-complete (v11.1.0)
+### Phase 17-complete (v14.1.0)
 The shell has events. It reacts. It is alive.
 
-### Phase 6 milestone (.fsh scripting — v11.2.0)
+### Phase 6 milestone (.fsh scripting — v14.1.0)
 When .fsh scripting lands, the shell can replace zsh scripts.
 Forest automation moves from shell scripts to .fsh files.
 The forest starts describing its own behavior.
 
-### Phase 7 milestone (full shell — v12.0.0)
+### Phase 7 milestone (full shell — v14.1.0)
 External command execution. cd works. PATH works.
 faelight-term launches faelight-shell directly.
 zsh becomes optional for forest work.
 
-### Phase 32 milestone (shell as OS layer — v13.0.0)
+### Phase 32 milestone (shell as OS layer — v14.1.0)
 Everything accessible through pipelines.
 zsh retired for forest sessions.
 The forest is its own operating environment.
@@ -173,10 +173,10 @@ something you can trust completely.
 Version names tell the story of the forest's growth:
 ```
 v11.0.0 — Where the Forest Becomes Whole
-v11.1.0 — The Forest Speaks
-v11.2.0 — The Compositor Wakes        (planned)
-v12.0.0 — The Forest Walks            (when shell replaces zsh)
-v13.0.0 — The Forest Thinks           (when Core v9 ships)
+v14.1.0 — The Forest Speaks
+v14.1.0 — The Compositor Wakes        (planned)
+v14.1.0 — The Forest Walks            (when shell replaces zsh)
+v14.1.0 — The Forest Thinks           (when Core v9 ships)
 v14.0.0 — The Forest Listens          (when voice input ships)
 v15.0.0 — The Forest and I            (when dialogue is real)
 ```

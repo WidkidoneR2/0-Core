@@ -1,92 +1,54 @@
 # 0-Core Workflows
 
-Practical usage patterns for real-world scenarios with 13.x tools.
-
-**Version:** 13.1.0
-**Philosophy:** Manual control, intentional decisions, observable changes
+**Version:** 14.1.0
+**Last Updated:** 2026-06-05
+**System:** NixOS 26.05 + Niri + Faelight Forest
 
 ---
 
 ## Daily Workflows
 
 ### Morning System Check
-**Goal:** Know your system's state before starting work
 ```bash
-# 1. Check system health (23 checks)
-d
-
-# 2. What should I work on?
-core intent next
-# 3. Check git status
-fg status
-
-# 3. Check for updates
-faelight-update --dry-run
-
-# 4. Review current profile
-profile list
+d                    # health check -- 22 checks, health + integrity
+intent list          # see active and upcoming intents
+intent next          # get recommendation on what to work on
+git log -3           # what was done last session
 ```
 
-**Why:** Sets intention, avoids surprises, confirms system integrity
-
-**Expected output:**
-- ✅ 100% health score
-- ✅ Clean git state
-- ℹ️ Available updates (if any)
-- ℹ️ Current profile (usually "default")
-
----
-
-### Configuration Change Workflow
-**Goal:** Make every config change intentional and traceable
+### Starting Work on an Intent
 ```bash
-# 1. Unlock core for editing
-unlock-core
+intent list                    # see what's available
+cistart <id>                   # start intent, auto-checkpoint
+# do the work
+cicomplete <id>                # complete intent, auto-checkpoint
+```
 
-# 2. Edit config files
-nvim ~/.config/niri/config.kdl
+### Configuration Change Workflow (NixOS)
+```bash
+# 1. Edit the right file
+hx ~/0-core/users/christian/home.nix        # user packages, programs
+hx ~/0-core/hosts/framework16/configuration.nix  # system config
+hx ~/0-core/config/<tool>/.config/<tool>/   # tool config files
 
-# 3. Test changes
-niri validate --config ~/.config/niri/config.kdl  # Validate
-niri msg action load-config-file              # Apply
+# 2. Test before applying
+rebuild-dry                    # dry-run, catch errors before rebuilding
 
-# 4. Verify health
-d
+# 3. Apply safely
+rebuild-safe                   # rebuild with health gate + auto-rollback
 
-# 5. Review changes
-cd ~/0-core
-git status
-git diff
+# 4. Verify
+d                              # health check -- must stay 100%
 
-# 6. Commit with intent
-git add stow/niri/
-git commit -m "fix(niri): Update keybinding for launcher"
-
-# 7. Push (hooks validate automatically)
+# 5. Commit
+git add -A && git commit --no-verify
 git push
-
-# 8. Lock core again
-lock-core
 ```
 
-**Why:** Deliberate, documented, reversible changes
-
-**Git hooks automatically check:**
-- 🔍 Secret scanning
-- 🔍 Merge conflicts
-- 💬 Commit message format
-- 🎣 Uncommitted changes (pre-push)
-
----
-
-### Quick Edit with Auto-Lock
-**Goal:** Fast edits with automatic protection
+### Quick File Edit
 ```bash
-# Use fg (faelight-git) for streamlined workflow
-unlock-core
-nvim ~/0-core/03-interfaces/stow/shell-zsh/.zshrc
-fg sync                    # Pulls, commits, pushes automatically
-lock-core
+fm                             # open faelight-fm tree navigator
+hx <file>                      # open in helix with forest theme
 ```
 
 ---
@@ -94,459 +56,166 @@ lock-core
 ## Weekly Workflows
 
 ### System Update Routine
-**Goal:** Keep system current with controlled updates
 ```bash
-# 1. Check what needs updating
-faelight-update --dry-run -v
+# 1. Check what changed
+nvd diff /run/booted-system /run/current-system
 
-# 2. Review impact analysis
-# Look for:
-# - Kernel updates (require reboot)
-# - Critical packages (systemd, glibc, etc.)
-# - Major version bumps
+# 2. Update flake inputs
+nix flake update
 
-# 3. Create snapshot (if using BTRFS)
-faelight-snapshot create --tag pre-update
+# 3. Review changes
+nix-tree                       # inspect dependency tree
 
-# 4. Apply updates
-faelight-update
+# 4. Rebuild safely
+rebuild-safe                   # health gate protects against regressions
 
-# 5. Verify system health
+# 5. Verify and commit
 d
-
-# 6. Check for .pacnew files
-find /etc -name "*.pacnew"
-
-# 7. Reboot if kernel updated
-# Check if reboot needed in update output
+git add -A && git commit --no-verify -m "flake: update inputs $(date +%Y-%m-%d)"
+git push
 ```
 
-**Best day:** Sunday morning (low-pressure, time to fix issues)
+### Nix Store Maintenance
+```bash
+# Garbage collect old generations
+nix-collect-garbage -d         # removes old generations + unreferenced store paths
 
----
+# Check what's keeping paths alive
+nix-store --gc --print-roots   # show GC roots
+
+# Inspect store
+nix-tree                       # browse dependency tree interactively
+```
 
 ### Intent Ledger Review
-**Goal:** Document decisions and review past choices
 ```bash
-# 1. Review recent intents
-intent list
-
-# 2. Check planned work
-intent list future
-
-# 3. Document new decision
-intent add decision "Switching to X because Y"
-
-# 4. Review specific intent
-intent show 067
-
-# 5. Search for topic
-intent search "update"
-```
-
-**Why:** Builds institutional knowledge, prevents repeated mistakes
-
----
-
-### Health & Maintenance Check
-**Goal:** Prevent technical debt accumulation
-```bash
-# 1. Run comprehensive health check
-doctor --explain
-
-# 2. Run automated test suite
-~/0-core/scripts/test-all-tools
-
-# 3. Check git repository
-fg status
-
-# 4. Review profile settings
-profile list
-
-# 5. Check for package drift
-entropy-check
-
-# 6. Update documentation if needed
-cd ~/0-core/docs
-# Edit outdated docs
+intent list                    # active + upcoming
+core intent stats              # velocity, completion rate
+core intent brief              # session brief with recommendations
 ```
 
 ---
-
-## Profile Workflows
-
-### Switching Contexts
-**Goal:** Optimize system for different use cases
-```bash
-# Morning: Start work mode
-profile switch work
-# Enables VPN, focused notifications
-
-# Lunch break: Gaming
-profile switch gaming
-# Max GPU, minimal notifications, VPN off
-
-# Evening: Battery saving
-profile switch low-power
-# CPU powersave, reduced bar refresh
-
-# Default: Balanced
-profile switch default
-# VPN on, all features enabled
-```
-
-**Current profile shown in:** faelight-bar (DEF/WRK/GAM/LOW)
-
----
-
-## Incident Response
-
-### When Something Breaks
-**Goal:** Quick diagnosis and recovery
-```bash
-# 1. Check system health
-doctor --explain
-# Identifies which check is failing
-
-# 2. Check recent git changes
-cd ~/0-core
-git log --oneline -10
-
-# 3. Review last commit
-git show HEAD
-
-# 4. If config issue, rollback
-git revert HEAD
-git push
-
-# 5. If package issue, restore snapshot
-faelight-snapshot list
-faelight-snapshot restore <name>
-
-# 6. Document incident
-cd ~/0-core/INTENT/incidents
-intent add incident "Description of what broke and fix"
-
-# 7. Update POLICIES.md if needed
-nvim ~/0-core/docs/POLICIES.md
-```
-
----
-
-### Lock Status Confusion
-**Goal:** Verify and fix lock state
-```bash
-# Check lock status
-core-protect status
-
-# Shows in:
-# - Starship prompt (🔒/🔓)
-# - faelight-bar (LCK/UNL)
-
-# If locked but need to edit:
-unlock-core
-
-# If unlocked but should be locked:
-lock-core
-```
-
----
-
-
-**Goal:** Know exactly what to work on and where the forest stands
-```bash
-d
-core intent next
-core intent blocked
-core intent graph
-cistart NNN
-```
-**Why:** The ledger knows your dependencies, velocity, and what unblocks the most. Trust it.
----
-**Goal:** Every piece of work is tracked, gated, and closed properly
-```bash
-cistart 247
-fg done "description of what shipped"
-cicomplete 247
-```
-**Expected on cicomplete:**
-- Auto-checkpoint created
-- Retrospective shown (commits, what was built)
-- Newly unblocked intents surfaced
-- core intent next suggestion
----
-**Goal:** One-glance understanding of where everything stands
-```bash
-core intent brief
-core intent blocked
-core intent graph
-core intent next
-`---
-## Intent Workflows
-
-### Starting a Session
-**Goal:** Know exactly what to work on and where the forest stands
-
-    d                    # health check
-    core intent next     # what to work on
-    core intent blocked  # what is blocked
-    cistart NNN          # start recommended intent
-
-
-### The Intent Lifecycle
-**Goal:** Every piece of work tracked, gated, and closed properly
-
-
-
-### Checking Forest State
-
-    core intent brief    # active intent, health, what is ready
-    core intent blocked  # what cannot start and why
-    core intent graph    # full dependency picture
-    core intent next     # recommendation with explanation
-
-
 
 ## Development Workflows
 
-### Adding New Rust Tool
-**Goal:** Integrate new tool into workspace
+### Adding a New Tool (Rust)
 ```bash
-# 1. Create new package
-cd ~/0-core/rust-tools
-cargo new --bin my-new-tool
+# 1. Create tool directory
+mkdir ~/0-core/rust-tools/<toolname>/src
+# 2. Add to workspace Cargo.toml
+# 3. Add to flake.nix package list
+# 4. Build and test locally
+cargo build -p <toolname>
+# 5. Rebuild to deploy
+rebuild-safe
+```
 
-# 2. Add to workspace
-# Edit ~/0-core/Cargo.toml:
-# members = [..., "rust-tools/my-new-tool"]
+### Adding System Packages
+```bash
+# System-wide (all users)
+hx ~/0-core/hosts/framework16/configuration.nix
+# Add to environment.systemPackages
 
-# 3. Develop tool
-cd rust-tools/my-new-tool
-nvim src/main.rs
+# User-level (home-manager)
+hx ~/0-core/users/christian/home.nix
+# Add to home.packages
 
-# 4. Build and test
-cd ~/0-core
-cargo build --release -p my-new-tool
+rebuild-safe
+```
 
-# 5. Copy to scripts/
-cp target/release/my-new-tool scripts/
+### Adding a New NixOS Module
+```bash
+# 1. Create module file
+hx ~/0-core/modules/<category>/<name>.nix
 
-# 6. Test
-scripts/my-new-tool --help
+# 2. Import in configuration.nix or profiles/
+# 3. Test with dry-run
+rebuild-dry
 
-# 7. Update test suite
-nvim scripts/test-all-tools
-# Add test for new tool
-
-# 8. Update documentation
-nvim docs/TOOL_REFERENCE.md
-
-# 9. Commit
-git add rust-tools/my-new-tool Cargo.toml scripts/test-all-tools docs/
-git commit -m "feat: Add my-new-tool v0.1.0"
-git push
+# 4. Apply
+rebuild-safe
 ```
 
 ---
 
-### Workspace Build & Deploy
-**Goal:** Rebuild all tools efficiently
+## Safety Workflows
+
+### Before High-Risk Changes
 ```bash
-# Full rebuild (clean build)
-cd ~/0-core
-cargo clean
-cargo build --release
+# Always use rebuild-safe for risky changes
+rebuild-safe                   # pre/post health gate, auto-rollback
 
-# Copy all binaries to scripts/
-cp target/release/faelight-* scripts/
-cp target/release/dot-doctor scripts/doctor
-cp target/release/intent scripts/
-# ... etc
+# For compositor/login changes -- VM first (INT-021)
+# Never test login/compositor on real system first
+```
 
-# Or use your deployment script
-./deploy-binaries.sh   # If you have one
+### Rollback
+```bash
+rollback                       # sudo nixos-rebuild switch --rollback
+# or pick a specific generation:
+sudo nixos-rebuild switch --flake ~/0-core#framework16 --rollback
+```
 
-# Verify
-~/0-core/scripts/test-all-tools
+### Health Gate
+```bash
+# rebuild-safe automatically:
+# 1. Records pre-rebuild health + generation
+# 2. Runs rebuild-dry first
+# 3. Rebuilds
+# 4. Checks post health
+# 5. Auto-rollbacks if health drops
 ```
 
 ---
 
-### Version Bump Workflow
-**Goal:** Release new system version
+## Git Workflows
+
+### Standard Commit
 ```bash
-# 1. Review changes since last version
-git log $(git describe --tags --abbrev=0)..HEAD --oneline
+git add -A
+gc                             # alias: git commit --no-verify
+gp                             # alias: git push
+```
 
-# 2. Verify 100% health
-d
+### Intent-Linked Commit
+```bash
+gc                             # commit message references INT-XXX
+# faelight-hooks validates intent references
+```
 
-# 3. Run full test suite
-~/0-core/scripts/test-all-tools
-
-# 4. Bump version (with pre-flight checks)
-bump-system-version 8.5.0
-
-# 5. Update CHANGELOG.md
-nvim CHANGELOG.md
-
-# 6. Commit and push
-git add CHANGELOG.md
-git commit -m "docs: Update changelog for v8.5.0"
-git push
-git push --tags
+### Emergency Recovery
+```bash
+# If something breaks during development
+rollback                       # restore previous NixOS generation
+git stash                      # stash uncommitted changes
+d                              # verify health restored
 ```
 
 ---
 
-## Integration Patterns
+## Forest Tools Quick Reference
 
-### Morning Routine (All-in-One)
-```bash
-# Single command health + git check
-doctor && fg status && faelight-update --dry-run
-```
-
-### Pre-Commit Validation
-```bash
-# Before committing
-doctor                     # Health check
-git status                 # Review changes
-git diff                   # Review diff
-git add .
-git commit                 # Hooks run automatically
-```
-
-### Post-Update Verification
-```bash
-# After system updates
-faelight-update
-doctor                     # Verify health
-~/0-core/scripts/test-all-tools  # Test tools
-reboot                     # If kernel updated
-```
+| Command | Description |
+|---------|-------------|
+| `d` | Health check (22 checks) |
+| `fm` | File manager (broot-style tree) |
+| `fmd` | File manager dual panel |
+| `rebuild` | NixOS rebuild |
+| `rebuild-safe` | Rebuild with health gate |
+| `rebuild-dry` | Dry-run rebuild |
+| `rollback` | Rollback to previous generation |
+| `intent list` | Show active intents |
+| `intent next` | Next intent recommendation |
+| `cistart <id>` | Start intent |
+| `cicomplete <id>` | Complete intent |
+| `gc` | git commit |
+| `gp` | git push |
 
 ---
 
-## Quick Reference Aliases
+## Related Documentation
 
-Add to `~/.zshrc`:
-```bash
-# Health & Status
-alias d="doctor"
-alias dx="doctor --explain"
-
-# Updates
-alias up="faelight-update --dry-run"
-alias upv="faelight-update -v"
-
-# Git
-alias gs="fg status"
-alias gsync="fg sync"
-
-# Core
-alias lock="lock-core"
-alias unlock="unlock-core"
-
-# Profiles
-alias prof="profile list"
-alias profwork="profile switch work"
-alias profdef="profile switch default"
-
-# Intents
-alias intents="intent list"
-alias intentshow="intent show"
-```
-
----
-
-## Advanced Patterns
-
-### Create Pre-Update Baseline
-```bash
-# Before major changes
-doctor > ~/backups/health-$(date +%Y%m%d).txt
-git log --oneline -20 > ~/backups/commits-$(date +%Y%m%d).txt
-```
-
-### Monitor Health Continuously
-```bash
-# Watch health status (updates every 5 seconds)
-watch -n 5 'doctor'
-
-# Or use doctor's history feature
-doctor --history
-```
-
-### Automated Daily Check (Manual Trigger)
-```bash
-# Add to ~/.zshrc
-daily-check() {
-    echo "=== Daily System Check ==="
-    echo ""
-    echo "📊 Health Status:"
-    doctor
-    echo ""
-    echo "📦 Git Status:"
-    fg status
-    echo ""
-    echo "🔄 Available Updates:"
-    faelight-update --dry-run
-}
-
-# Run manually each morning
-daily-check
-```
-
----
-
-## Common Scenarios
-
-### "What changed recently?"
-```bash
-git log --oneline -10
-git diff HEAD~5..HEAD
-```
-
-### "Did updates break anything?"
-```bash
-doctor                     # Check health
-~/0-core/scripts/test-all-tools  # Test tools
-git log -1                 # Last change
-```
-
-### "Switch to gaming mode"
-```bash
-profile switch gaming
-# Verify in faelight-bar: GAM
-```
-
-### "Quick config edit"
-```bash
-unlock-core
-nvim ~/.config/niri/config.kdl
-niri msg action load-config-file
-lock-core
-```
-
-### "Document decision"
-```bash
-intent add decision "Reason for change X"
-```
-
----
-
-## Philosophy in Practice
-
-These workflows embody 0-Core principles:
-
-- **Manual Control** - You choose when to run checks, updates, changes
-- **Intent Over Convention** - Every decision is deliberate and documented
-- **Understanding Over Convenience** - Tools explain, don't hide
-- **Recovery Over Perfection** - Focus on catching and fixing mistakes
-
-See `docs/THEORY_OF_OPERATION.md` for deeper context.
-
----
-
-*Manual control over automation. Understanding over convenience.* 🌲
+- [PHILOSOPHY.md](PHILOSOPHY.md) -- Core principles
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- System architecture
+- [FAELIGHT-SHELL.md](FAELIGHT-SHELL.md) -- fsh documentation
+- [ALIASES.md](ALIASES.md) -- All 49 aliases
