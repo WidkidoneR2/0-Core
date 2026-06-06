@@ -59,7 +59,7 @@ alias rebuild = "sudo nixos-rebuild switch --flake ~/0-core#framework16"
 alias rebuild-home = "sudo nixos-rebuild switch --flake ~/0-core#framework16"
 alias rebuild-dry = "sudo nixos-rebuild dry-run --flake ~/0-core#framework16"
 alias rebuild-check = "sudo nixos-rebuild dry-run --flake ~/0-core#framework16 && core doctor quick"
-alias update-flake = "cd ~/0-core && nix flake update && sudo nixos-rebuild switch --flake .#framework16"
+alias update-flake = "cd ~/0-core && nix flake update && bash ~/0-core/pkgs/faelight/scripts/rebuild-safe"
 alias rollback = "~/0-core/pkgs/faelight/scripts/rollback"
 alias forest-status = "~/0-core/pkgs/faelight/scripts/forest-status"
 
