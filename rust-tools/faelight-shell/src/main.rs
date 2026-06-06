@@ -3033,7 +3033,7 @@ fn repl_main() -> Result<()> {
             format!("{}m", _session_duration)
         };
         let active_intent: String =
-            std::fs::read_dir(std::path::PathBuf::from(&core_root).join("intents/future"))
+            std::fs::read_dir(std::path::PathBuf::from(&core_root).join("intents/in-progress"))
                 .map(|d| {
                     d.filter_map(|e| e.ok())
                         .filter(|e| {
@@ -3077,12 +3077,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     let root = PathBuf::from(core_root);
 
-    let version = std::fs::read_to_string(root.join("00-meta/VERSION"))
+    let version = std::fs::read_to_string(root.join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();
 
-    let changelog = std::fs::read_to_string(root.join("00-meta/CHANGELOG.md")).unwrap_or_default();
+    let changelog = std::fs::read_to_string(root.join("meta/CHANGELOG.md")).unwrap_or_default();
     let theme = changelog
         .lines()
         .find(|l| l.starts_with(&format!("## [{}]", version)))

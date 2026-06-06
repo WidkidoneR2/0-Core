@@ -129,6 +129,8 @@
           pkg-config
           clang
           cmake
+          openssl
+          openssl.dev
           # Forest tools
           sqlite
           python3

@@ -8405,7 +8405,7 @@ fn commits(core_root: &str) -> CommandResult {
 
 fn story(db: &ForestDb) -> CommandResult {
     // Delegate to core story via process
-    let core_root = db.core_root();
+    let _core_root = db.core_root();
     let output = std::process::Command::new("core".to_string())
         .args(["story"])
         .output()
@@ -8417,7 +8417,7 @@ fn story(db: &ForestDb) -> CommandResult {
 }
 
 fn advise(db: &ForestDb) -> CommandResult {
-    let core_root = db.core_root();
+    let _core_root = db.core_root();
     let output = std::process::Command::new("core".to_string())
         .args(["advise"])
         .output()
@@ -8428,7 +8428,7 @@ fn advise(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
-fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
+fn audit(_db: &ForestDb, _core_root: &str) -> CommandResult {
     let output = std::process::Command::new("core".to_string())
         .args(["audit", "scan"])
         .output()
