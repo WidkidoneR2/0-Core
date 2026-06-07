@@ -1139,6 +1139,13 @@ fn repl_main() -> Result<()> {
                             } else {
                                 let chain_result = commands::execute(lcmd_trim, &db, &core_root);
                                 last_success = !matches!(chain_result, commands::CommandResult::Error(_));
+                                // Print the result -- was silently discarded before
+                                match &chain_result {
+                                    commands::CommandResult::Output(s) if !s.is_empty() => println!("{}", s),
+                                    commands::CommandResult::Error(s) => eprintln!("{}", s),
+                                    commands::CommandResult::Value(v) => println!("{:?}", v),
+                                    _ => {}
+                                }
                                 if matches!(chain_result, commands::CommandResult::Exit) {
                                     break;
                                 }
