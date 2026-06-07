@@ -3,7 +3,7 @@ id: 030
 date: 2026-06-04
 type: feature
 title: "fsh semantic domains: project/intent/experiment as first-class shell objects"
-status: planned
+status: in-progress
 tags: [fsh, shell, domains, semantic, vocabulary]
 priority: high
 ---
