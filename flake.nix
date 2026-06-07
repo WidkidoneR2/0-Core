@@ -26,7 +26,7 @@
 
       nixosConfigurations.framework16 = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit self system; };
+        specialArgs = { inherit self system inputs; };
         modules = [
           disko.nixosModules.disko
           ./hosts/framework16/disko.nix

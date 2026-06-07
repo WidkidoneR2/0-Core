@@ -1,4 +1,4 @@
-{ config, pkgs, lib, self, system, ... }:
+{ config, pkgs, lib, self, system, inputs, ... }:
 {
   imports = [ ./hardware-configuration.nix ];
 
@@ -105,6 +105,7 @@
 
   # --- The forest + tools ---
   environment.systemPackages = [
+    inputs.pinnacle.packages.${system}.pinnacle
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
