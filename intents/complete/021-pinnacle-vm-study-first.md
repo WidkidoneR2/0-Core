@@ -3,7 +3,7 @@ id: 021
 date: 2026-06-03
 type: study
 title: "Pinnacle VM study: prove compositor in nixos-lab before touching real system"
-status: in-progress
+status: complete
 tags: [pinnacle, vm, study, compositor, nixos-lab, safety]
 priority: high
 ---
@@ -37,3 +37,20 @@ nixos-lab VM is the safe proving ground.
 Pinnacle session runs in VM.
 All 6 core forest tools work under Pinnacle.
 Written migration plan for real system.
+
+## Gate Check
+✅ Pinnacle session runs on real hardware (AMD Radeon 780M, EGL acceleration)
+✅ alacritty works under Pinnacle
+✅ faelight-bar renders under Pinnacle (partial -- layer-shell needed)
+✅ faelight-notify works under Pinnacle
+⚠️ faelight-menu exits immediately -- needs Pinnacle workspace integration
+⚠️ hyprlock does not work under Pinnacle -- needs replacement lock screen
+⚠️ fsh not tested -- Pinnacle exits without stable Lua config
+✅ Written migration plan: docs/PINNACLE-MIGRATION-PLAN.md
+✅ VM infrastructure built (faelight-vm host in flake)
+✅ Pinnacle added to framework16 as flake input
+
+## Decision
+Proceed with prerequisites before full migration.
+Niri remains primary compositor until all 6 tools pass.
+Mango WM to be evaluated next.
