@@ -343,6 +343,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "intents" => intents(core_root),
+        "project" | "projects" => project_list(core_root),
+        "experiment" | "experiments" => experiment_list(core_root),
+        "vm" | "vms" => vm_list(),
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
         "schema" => schema(args),
@@ -8294,6 +8297,164 @@ fn intents(core_root: &str) -> CommandResult {
     }
     rows.sort_by_key(|r| if let Some(crate::value::Value::Int(i)) = r.get("id") { *i } else { 0 });
     CommandResult::Value(crate::value::Value::Table(rows))
+}
+
+
+fn project_list(core_root: &str) -> CommandResult {
+    use colored::Colorize;
+    let root = std::path::PathBuf::from(core_root);
+    let mut out = String::new();
+    out.push_str(&format!("
+{}
+", "  🌲 Forest Projects".bright_green().bold()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+
+    // Read version
+    let version = std::fs::read_to_string(root.join("meta/VERSION"))
+        .unwrap_or_else(|_| "unknown".into())
+        .trim().to_string();
+
+    // Count intents
+    let count_md = |dir: &str| -> usize {
+        std::fs::read_dir(root.join(dir))
+            .map(|d| d.flatten()
+                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                .count())
+            .unwrap_or(0)
+    };
+    let complete = count_md("intents/complete");
+    let in_progress = count_md("intents/in-progress");
+    let planned = count_md("intents/future");
+
+    // Git info
+    let branch = std::process::Command::new("git")
+        .args(["-C", core_root, "rev-parse", "--abbrev-ref", "HEAD"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "unknown".into());
+    let commits = std::process::Command::new("git")
+        .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "?".into());
+
+    out.push_str(&format!(
+        "  {}  {}  {}  {} intents ({} complete, {} active, {} planned)  {} commits  branch: {}
+",
+        "0-core".bright_white().bold(),
+        version.bright_green(),
+        "100% ✅".bright_green(),
+        (complete + in_progress + planned).to_string().bright_white(),
+        complete.to_string().bright_green(),
+        in_progress.to_string().bright_yellow(),
+        planned.to_string().dimmed(),
+        commits.bright_white(),
+        branch.bright_cyan(),
+    ));
+    out.push_str(&format!("  {}
+", root.display().to_string().dimmed()));
+    CommandResult::Output(out)
+}
+
+fn experiment_list(core_root: &str) -> CommandResult {
+    use colored::Colorize;
+    let labs_dir = std::path::PathBuf::from(core_root).join("labs");
+    let mut out = String::new();
+    out.push_str(&format!("
+{}
+", "  🧪 Experiments".bright_yellow().bold()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+
+    let mut found = false;
+    if let Ok(entries) = std::fs::read_dir(&labs_dir) {
+        let mut dirs: Vec<_> = entries.flatten()
+            .filter(|e| e.path().is_dir())
+            .collect();
+        dirs.sort_by_key(|e| e.file_name());
+        for entry in &dirs {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name == "graduated" {
+                let count = std::fs::read_dir(entry.path())
+                    .map(|d| d.flatten().count()).unwrap_or(0);
+                out.push_str(&format!("  {}  {} graduated experiments
+",
+                    name.dimmed(), count.to_string().bright_green()));
+            } else {
+                out.push_str(&format!("  {}  {}
+",
+                    name.bright_yellow().bold(), "active".bright_yellow()));
+            }
+            found = true;
+        }
+    }
+    if !found {
+        out.push_str(&format!("  {}
+", "No active experiments -- use labs/ to create one".dimmed()));
+    }
+    out.push_str(&format!("  {}
+", format!("{}/labs/", core_root).dimmed()));
+    CommandResult::Output(out)
+}
+
+fn vm_list() -> CommandResult {
+    use colored::Colorize;
+    let mut out = String::new();
+    out.push_str(&format!("
+{}
+", "  🖥  Virtual Machines".bright_cyan().bold()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+
+    let result = std::process::Command::new("virsh")
+        .env("LIBVIRT_DEFAULT_URI", "qemu:///system")
+        .args(["list", "--all"])
+        .output();
+
+    match result {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut count = 0;
+            for line in stdout.lines().skip(2) {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('-') { continue; }
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let name = parts.get(1).unwrap_or(&"?");
+                    let state = if parts.len() >= 3 {
+                        &parts[2..]
+                            .iter()
+                            .copied()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    } else { "unknown" };
+                    let state = Box::leak(state.to_string().into_boxed_str()) as &str;
+                    let state = &*state;
+                    let state_colored = if state == "running" {
+                        state.bright_green().to_string()
+                    } else {
+                        state.dimmed().to_string()
+                    };
+                    out.push_str(&format!("  {}  {}
+",
+                        name.bright_white().bold(), state_colored));
+                    count += 1;
+                }
+            }
+            if count == 0 {
+                out.push_str(&format!("  {}
+", "No VMs found".dimmed()));
+            }
+        }
+        Err(_) => {
+            out.push_str(&format!("  {}
+", "virsh not available or libvirtd not running".dimmed()));
+        }
+    }
+    CommandResult::Output(out)
 }
 
 #[allow(dead_code)]
