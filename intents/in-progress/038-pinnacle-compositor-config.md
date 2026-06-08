@@ -3,7 +3,7 @@ id: 038
 date: 2026-06-07
 type: feature
 title: "Pinnacle compositor config: Lua config, layer-shell, lock screen"
-status: planned
+status: in-progress
 tags: [pinnacle, compositor, lua, layer-shell, lock-screen, config]
 priority: medium
 ---
@@ -39,6 +39,15 @@ niri remains fallback until this is complete.
 ### 4. faelight-menu
 - Fix workspace integration under Pinnacle
 - Currently exits immediately
+
+## Progress (2026-06-08)
+- modules/desktop/pinnacle.nix complete as NixOS module
+- modules/desktop/mango.nix complete as NixOS module
+- Both compositors enabled via faelight.desktop.*.enable options
+- greetd session entries owned by modules (niri.desktop removed)
+- mangowc from nixpkgs replacing broken flake input
+- Broken mango flake input removed from flake.nix
+- Next: Pinnacle Lua config, lock screen, faelight-menu fix
 
 ## Gate
 - [ ] Pinnacle stays alive with Lua config

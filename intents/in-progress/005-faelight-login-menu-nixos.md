@@ -50,3 +50,9 @@ faelight-menu opens cleanly with Mod+Escape.
 ### Next step
 INT-021 (Pinnacle VM) sets up the VM infrastructure.
 Use that VM to iterate on faelight-login sizing before rebuilding real system.
+
+### Update (2026-06-08)
+- greetd session entries now module-owned (pinnacle.nix, mango.nix)
+- niri.desktop session entry removed from system (was hardcoded, now gone)
+- Remaining gate: faelight-menu Mod+Escape under Pinnacle/Mango
+- Blocked by: Pinnacle Lua config (INT-038)
