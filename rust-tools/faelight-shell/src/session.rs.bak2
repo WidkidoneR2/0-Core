@@ -243,7 +243,6 @@ pub fn detect_mode(
 }
 
 // Faelight session truecolor helpers
-#[allow(dead_code)]
 fn sc(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
 }
@@ -275,12 +274,12 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
             if let Some(days) = mem.days_since() {
                 format!(
                     "  {} {} {}",
-                    sc_bold(50, 220, 255, "↺"),
-                    sc_bold(200, 240, 255, &format!("{} days away.", days)),
-                    sc_dim(140, 200, 255, "The forest waited patiently.")
+                    "↺".bright_cyan(),
+                    format!("{} days away.", days).bright_white(),
+                    "The forest waited patiently.".dimmed()
                 )
             } else {
-                format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
             }
         }
         ShellMode::Milestone => format!(
@@ -291,7 +290,7 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
         ShellMode::Focused => {
             if let Some(hours) = mem.hours_since() {
                 if hours == 0 {
-                    format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                    format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
                 } else if hours < 2 {
                     format!(
                         "  {} {}",
@@ -301,14 +300,14 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
                 } else if hours < 24 {
                     format!(
                         "  {} {}",
-                        sc_bold(50, 220, 255, "↺"),
-                        sc_dim(140, 200, 255, &format!("{} hours since last session.", hours))
+                        "↺".bright_cyan(),
+                        format!("{} hours since last session.", hours).dimmed()
                     )
                 } else {
-                    format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                    format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
                 }
             } else {
-                format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
             }
         }
     };
@@ -333,12 +332,12 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
     if new > 0 && mem.last_commit_count > 0 {
         lines.push(format!(
             "  {} {} {}",
-            sc_dim(120, 200, 100, "Since last session:"),
-            sc_bold(57, 255, 20, &new.to_string()),
+            "Since last session:".dimmed(),
+            new.to_string().bright_green(),
             if new == 1 {
-                sc_dim(120, 200, 100, "new commit")
+                "new commit".dimmed()
             } else {
-                sc_dim(120, 200, 100, "new commits")
+                "new commits".dimmed()
             }
         ));
     }

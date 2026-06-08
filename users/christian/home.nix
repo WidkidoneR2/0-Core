@@ -1,5 +1,11 @@
 { config, pkgs, ... }:
 {
+  imports = [
+    ./fsh.nix
+    ./alacritty.nix
+    ./git.nix
+  ];
+
   home.stateVersion = "25.11";
   home.username = "christian";
   home.homeDirectory = "/home/christian";
@@ -87,8 +93,6 @@
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
-  xdg.configFile."faelight-shell/config.fsh".source = ../../config/faelight-shell/.config/faelight-shell/config.fsh;
-   xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;
   xdg.configFile."helix" = {
     source = ../../config/helix/.config/helix;
     recursive = true;

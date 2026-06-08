@@ -3078,19 +3078,6 @@ fn repl_main() -> Result<()> {
     Ok(())
 }
 
-
-// Faelight truecolor helpers -- neon candy palette
-#[allow(dead_code)]
-fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
-    format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
-}
-fn fc_bold(r: u8, g: u8, b: u8, text: &str) -> String {
-    format!("\x1b[1m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
-}
-fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
-    format!("\x1b[2m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
-}
-
 fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     use colored::Colorize;
     use std::path::PathBuf;
@@ -3130,11 +3117,11 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     .unwrap_or(95);
 
     let health_display = if health_num >= 95 {
-        fc_bold(57, 255, 20, &format!("{}% ✅", health_num))
+        format!("{}% ✅", health_num).bright_green().to_string()
     } else if health_num >= 80 {
-        fc_bold(255, 200, 0, &format!("{}% ⚠", health_num))
+        format!("{}% ⚠", health_num).yellow().to_string()
     } else {
-        fc_bold(255, 70, 70, &format!("{}% ❌", health_num))
+        format!("{}% ❌", health_num).bright_red().to_string()
     };
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
@@ -3220,70 +3207,26 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         quotes[next_idx]
     };
     println!();
-    // ── detect current compositor from WAYLAND_DISPLAY / XDG_SESSION_DESKTOP ──
-    let compositor = std::env::var("XDG_SESSION_DESKTOP")
-        .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
-        .unwrap_or_else(|_| {
-            std::env::var("WAYLAND_DISPLAY")
-                .map(|_| "wayland".to_string())
-                .unwrap_or_else(|_| "tty".to_string())
-        });
-    // ── detect NixOS generation ──
-    let nix_gen = std::process::Command::new("nixos-rebuild")
-        .args(["list-generations", "--json"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| {
-            // find "current":true entry and get generation number
-            let v: serde_json::Value = serde_json::from_str(&s).ok()?;
-            v.as_array()?
-                .iter()
-                .find(|g| g["current"].as_bool().unwrap_or(false))
-                .and_then(|g| g["generation"].as_u64())
-                .map(|n| n.to_string())
-        })
-        .unwrap_or_else(|| "?".to_string());
-    // ── header ──
+    println!("  {}", "🌲 The forest stirs...".bright_green().dimmed());
+    println!();
+    println!("  {} — {}", version.bright_green().bold(), theme.dimmed());
     println!(
-        "  {}  {}",
-        fc_bold(57, 255, 20, "🌲 Faelight Forest"),
-        fc_dim(140, 220, 100, &format!("gen {} · {}", nix_gen, compositor))
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
+    println!(
+        "  {} intents complete  ·  {} commits",
+        complete_count.to_string().bright_white(),
+        commits.bright_white()
+    );
+    println!(
+        "  {}  ·  {} tools  ·  {} planned",
+        health_display,
+        tool_count.to_string().bright_white(),
+        planned_count.to_string().dimmed()
     );
     println!();
-    println!(
-        "  {}",
-        fc_bold(57, 255, 20, &format!("{} -- {}", version, theme))
-    );
-    // ── neon separator ──
-    println!(
-        "  {}",
-        fc(34, 200, 80, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    );
-    // ── stats row ──
-    println!(
-        "  {} {}  {} {}  {} {}  {} {}",
-        fc_bold(57, 255, 20, &complete_count.to_string()),
-        fc_dim(120, 200, 100, "done"),
-        fc_bold(255, 200, 50, &commits),
-        fc_dim(180, 160, 80, "commits"),
-        fc_bold(50, 220, 255, &tool_count.to_string()),
-        fc_dim(100, 180, 200, "tools"),
-        fc_dim(160, 140, 220, &format!("{} planned", planned_count)),
-        fc_dim(100, 100, 140, "")
-    );
-    // ── health row ──
-    println!(
-        "  {}  {}",
-        &health_display,
-        fc_dim(100, 160, 100, "system health")
-    );
-    println!();
-    // ── philosophy quote -- bold not dimmed ──
-    println!(
-        "  {}",
-        fc_bold(180, 130, 255, &format!("\"{}\"", quote))
-    );
+    println!("  {}", format!("\"{}\"", quote).dimmed());
     println!();
     // Today's Focus — lowest audit score tool
     let _focus = std::fs::read_to_string(root.join("01-registry/tools.toml"))
@@ -3329,7 +3272,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         });
 
     if let Some(ref focus) = focus_intent {
-        println!("  {}  {}", fc_dim(255, 180, 50, "Today:"), fc_bold(255, 230, 100, focus));
+        println!("  {} {}", "Today:".dimmed(), focus.bright_white());
         // Auto-persist detected intent so prompt.rs can read it
         {
             // Only write if no conscious focus already set
