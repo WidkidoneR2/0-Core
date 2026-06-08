@@ -6,9 +6,7 @@
   boot.loader.systemd-boot.enable = true;
   boot.plymouth.enable = true;
   boot.plymouth.theme = "bgrt";
-  boot.kernelParams = [ "quiet" "splash" "rd.systemd.show_status=false" "rd.udev.log_level=3" "udev.log_priority=3" ];
-  boot.consoleLogLevel = 0;
-  boot.initrd.verbose = false;
+
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
@@ -92,7 +90,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "sleep 0.5 && ${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
       user = "greeter";
     };
   };
