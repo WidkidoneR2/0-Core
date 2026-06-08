@@ -9,8 +9,10 @@
   inputs.nixos-hardware.url = "github:NixOS/nixos-hardware";
   inputs.pinnacle.url = "github:pinnacle-comp/pinnacle";
   inputs.pinnacle.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.mango.url = "github:mangowm/mango";
+  inputs.mango.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, mango, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};

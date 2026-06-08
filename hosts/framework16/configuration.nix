@@ -106,6 +106,7 @@
   # --- The forest + tools ---
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
+    inputs.mango.packages.${system}.mango
     pkgs.protobuf
     pkgs.git
     pkgs.vim
