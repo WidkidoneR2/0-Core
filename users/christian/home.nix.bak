@@ -1,8 +1,6 @@
 { config, pkgs, ... }:
 {
   home.stateVersion = "25.11";
-  home.username = "christian";
-  home.homeDirectory = "/home/christian";
 
   xdg.enable = true;
 
@@ -12,7 +10,10 @@
   xdg.configFile."faelight/themes.toml".source = ../../config/faelight/.config/faelight/themes.toml;
   xdg.configFile."faelight/term.toml".source = ../../config/faelight/.config/faelight/term.toml;
 
-  home.packages = with pkgs; [
+  # Yazi config + plugins
+  xdg.configFile."yazi".source = ../../config/yazi/.config/yazi;
+xdg.configFile."niri".source = ../../config/niri/.config/niri;
+home.packages = with pkgs; [
     brave
     lla
      # CLI tools
@@ -55,15 +56,18 @@
     nix-direnv
     delta
     gitleaks
+    lazygit
     gocryptfs
     # keybind helpers
     grim
     slurp
+    wl-clipboard
     cliphist
     brightnessctl
     playerctl
     pamixer
     # editor + build
+    helix
     clang
     cmake
     # GUI apps
@@ -71,7 +75,7 @@
     onlyoffice-desktopeditors
     tutanota-desktop
     notesnook
-    broot
+    yazi
     # fonts
     nerd-fonts.jetbrains-mono
     nerd-fonts.hack
@@ -83,7 +87,7 @@
     sqlite
     ];
 
-  fonts.fontconfig.enable = true;
+fonts.fontconfig.enable = true;
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
@@ -96,5 +100,4 @@
   xdg.configFile."hyprlock/hyprlock.conf" = {
     source = ../../config/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;
-  };
-}
+  };}

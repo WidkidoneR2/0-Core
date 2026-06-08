@@ -12,7 +12,9 @@
   xdg.configFile."faelight/themes.toml".source = ../../config/faelight/.config/faelight/themes.toml;
   xdg.configFile."faelight/term.toml".source = ../../config/faelight/.config/faelight/term.toml;
 
-  home.packages = with pkgs; [
+  # Yazi config + plugins
+  xdg.configFile."yazi".source = ../../config/yazi/.config/yazi;
+home.packages = with pkgs; [
     brave
     lla
      # CLI tools
@@ -71,7 +73,7 @@
     onlyoffice-desktopeditors
     tutanota-desktop
     notesnook
-    broot
+    yazi
     # fonts
     nerd-fonts.jetbrains-mono
     nerd-fonts.hack
@@ -83,7 +85,7 @@
     sqlite
     ];
 
-  fonts.fontconfig.enable = true;
+fonts.fontconfig.enable = true;
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
@@ -96,5 +98,4 @@
   xdg.configFile."hyprlock/hyprlock.conf" = {
     source = ../../config/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;
-  };
-}
+  };}
