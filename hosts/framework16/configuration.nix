@@ -86,14 +86,19 @@
 
   services.mullvad-vpn.enable = true;
 
-  # greetd -- display manager, launches faelight-login (forest greeter)
+  # greetd -- display manager with session picker
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd niri-session --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --sessions /etc/greetd/sessions --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
       user = "greeter";
     };
   };
+
+  # Session desktop files for compositor selection at login
+  environment.etc."greetd/sessions/niri.desktop".text = "[Desktop Entry]\nName=Niri\nExec=niri-session\nType=Application\n";
+  environment.etc."greetd/sessions/pinnacle.desktop".text = "[Desktop Entry]\nName=Pinnacle\nExec=pinnacle --session\nType=Application\n";
+  environment.etc."greetd/sessions/mango.desktop".text = "[Desktop Entry]\nName=MangoWM\nExec=mango -c /home/christian/.config/mango/config.conf\nType=Application\n";
 
   # hyprlock PAM authentication
   security.pam.services.hyprlock = {};
