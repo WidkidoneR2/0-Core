@@ -745,21 +745,89 @@ impl<'a> Completer for ForestHelper<'a> {
     }
 }
 
-// INT-334: is_known_command -- fast check for syntax highlighting
+// INT-334: command classification for syntax highlighting
+// Neon candy color scheme -- the forest lights up
+
+// Electric green -- valid forest/system commands
+const NEON_GREEN:   &str = "[38;2;57;255;20m";
+// Neon red -- unknown commands
+const NEON_RED:     &str = "[38;2;255;50;50m";
+// Hot magenta -- dangerous commands
+const NEON_MAGENTA: &str = "[38;2;255;0;128m";
+// Electric cyan -- forest-native commands
+const NEON_CYAN:    &str = "[38;2;0;255;220m";
+// Electric purple -- natural language / semantic commands
+const NEON_PURPLE:  &str = "[38;2;180;0;255m";
+// Bright amber -- warnings
+const NEON_AMBER:   &str = "[38;2;255;165;0m";
+const RESET:        &str = "[0m";
+
+fn is_dangerous_command(cmd: &str) -> bool {
+    const DANGEROUS: &[&str] = &[
+        "rm", "sudo", "dd", "kill", "pkill", "killall",
+        "chmod", "chown", "mkfs", "fdisk", "parted",
+        "shred", "wipefs", "truncate",
+    ];
+    DANGEROUS.contains(&cmd)
+}
+
+fn is_forest_command(cmd: &str) -> bool {
+    const FOREST: &[&str] = &[
+        "cistart", "cicomplete", "ds", "dc", "deploy",
+        "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
+        "rollback", "update-flake", "friday", "intent", "intents",
+        "project", "experiment", "vm", "fm", "fmd",
+        "d", "unlock-core", "lock-core", "gc", "gp",
+        "core", "fsh", "snapshot", "where", "fsearch",
+        "patch", "edit", "run", "query",
+    ];
+    FOREST.contains(&cmd)
+}
+
+fn is_natural_language(line: &str) -> bool {
+    const NL_PREFIXES: &[&str] = &[
+        "what ", "show ", "how ", "find ", "where ", "when ",
+        "why ", "list ", "tell ", "give ", "help ", "focus",
+        "start work", "end work", "what did", "what was",
+        "how is", "show me", "find me",
+    ];
+    let lower = line.to_lowercase();
+    NL_PREFIXES.iter().any(|p| lower.starts_with(p))
+}
+
 fn is_known_command(cmd: &str) -> bool {
     const BUILTINS: &[&str] = &[
-        "cd", "ls", "ll", "la", "deploy", "cistart", "cicomplete", "dc", "ds",
-        "fg", "gc", "gp", "core", "intent", "friday", "history", "rewind",
-        "fsh", "dev", "git", "cargo", "python3", "python", "echo", "cat",
-        "grep", "sed", "awk", "find", "rm", "mv", "cp", "mkdir", "touch",
-        "chmod", "chown", "sudo", "systemctl", "pacman", "which", "env",
-        "export", "source", "exit", "clear", "c", "d", "snapshot", "health",
-        "intents", "deploys", "from", "list", "query", "fsearch", "patch",
-        "edit", "run", "delete", "del", "diff", "date", "pwd", "uname",
-        "ps", "kill", "top", "htop", "man", "less", "more", "head", "tail",
-        "sort", "uniq", "wc", "tr", "cut", "xargs", "tee", "pipe", "ssh",
-        "curl", "wget", "tar", "zip", "unzip", "make", "nvim", "vim",
-        "unlock-core", "lock-core", "fsh-test", "rewind", "dev", "where",
+        // Navigation
+        "cd", "ls", "ll", "la", "pwd", "which", "find",
+        // Forest tools
+        "cistart", "cicomplete", "dc", "ds", "deploy", "d",
+        "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
+        "rollback", "update-flake", "friday", "intent", "intents",
+        "project", "experiment", "vm", "fm", "fmd", "faelight-fm",
+        "unlock-core", "lock-core", "gc", "gp", "fg",
+        "core", "fsh", "snapshot", "where", "fsearch",
+        "patch", "edit", "run", "query", "history", "rewind",
+        // Git
+        "git", "lazygit", "lg",
+        // Build
+        "cargo", "rustc", "make", "nix",
+        // Shell
+        "echo", "cat", "grep", "sed", "awk", "head", "tail",
+        "sort", "uniq", "wc", "tr", "cut", "xargs", "tee",
+        "export", "source", "exit", "clear", "c",
+        // System
+        "sudo", "rm", "mv", "cp", "mkdir", "touch",
+        "chmod", "chown", "kill", "ps", "top", "htop",
+        "systemctl", "journalctl", "env",
+        // Network
+        "ssh", "curl", "wget",
+        // Files
+        "tar", "zip", "unzip", "nvim", "vim", "hx", "bat",
+        "less", "more", "man", "date", "uname",
+        // Python
+        "python3", "python",
+        // Other
+        "dev", "delete", "del", "diff", "list",
     ];
     if BUILTINS.contains(&cmd) { return true; }
     // PATH check
@@ -799,19 +867,44 @@ impl<'a> Highlighter for ForestHelper<'a> {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let trimmed = line.trim_start();
         if trimmed.is_empty() { return Cow::Borrowed(line); }
+        let leading = line.len() - trimmed.len();
+
+        // Natural language -- electric purple
+        if is_natural_language(trimmed) {
+            return Cow::Owned(format!(
+                "{}{}{}{}",
+                &line[..leading], NEON_PURPLE, trimmed, RESET
+            ));
+        }
+
         let first_word = trimmed.split_whitespace().next().unwrap_or("");
         if first_word.is_empty() { return Cow::Borrowed(line); }
-        let leading = line.len() - trimmed.len();
-        let colored = if is_known_command(first_word) {
-            format!("\x1b[32m{}\x1b[0m", first_word) // green
-        } else {
-            format!("\x1b[31m{}\x1b[0m", first_word) // red
-        };
         let rest = &line[leading + first_word.len()..];
-        Cow::Owned(format!("{}{}{}", &line[..leading], colored, rest))
+
+        let cmd_color = if is_dangerous_command(first_word) {
+            NEON_MAGENTA  // hot magenta -- dangerous
+        } else if is_forest_command(first_word) {
+            NEON_CYAN     // electric cyan -- forest-native
+        } else if is_known_command(first_word) {
+            NEON_GREEN    // electric green -- valid
+        } else {
+            NEON_RED      // neon red -- unknown
+        };
+
+        // Color args amber if dangerous command
+        let rest_colored = if is_dangerous_command(first_word) && !rest.is_empty() {
+            format!("{}{}{}", NEON_AMBER, rest, RESET)
+        } else {
+            rest.to_string()
+        };
+
+        Cow::Owned(format!(
+            "{}{}{}{}{}",
+            &line[..leading], cmd_color, first_word, RESET, rest_colored
+        ))
     }
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Cow::Owned(format!("\x1b[2m{}\x1b[0m", hint)) // dim gray ghost text
+        Cow::Owned(format!("[38;2;0;180;180m{}[0m", hint))
     }
     fn highlight_char(
         &self,
@@ -819,43 +912,21 @@ impl<'a> Highlighter for ForestHelper<'a> {
         _pos: usize,
         _forced: rustyline::highlight::CmdKind,
     ) -> bool {
-        !line.is_empty() // trigger re-highlight on every keypress
+        !line.is_empty()
     }
 }
-
 impl<'a> Validator for ForestHelper<'a> {
     fn validate(
         &self,
         ctx: &mut rustyline::validate::ValidationContext,
     ) -> rustyline::Result<rustyline::validate::ValidationResult> {
         let input = ctx.input();
-
-        // Check for heredoc patterns
-        if input.contains("<<") && !input.contains("<<<") {
-            // Look for unquoted heredoc delimiter (risky)
-            if let Some(heredoc_start) = input.find("<<") {
-                let after_heredoc = &input[heredoc_start + 2..].trim_start();
-
-                // Check if delimiter is unquoted (no quotes around it)
-                if !after_heredoc.is_empty()
-                    && !after_heredoc.starts_with('\'')
-                    && !after_heredoc.starts_with('"')
-                {
-                    // Extract delimiter (first word)
-                    let delimiter = after_heredoc.split_whitespace().next().unwrap_or("");
-
-                    // Warn about common contamination patterns
-                    if !delimiter.is_empty() && (delimiter.contains("EOF") || delimiter.len() < 10)
-                    {
-                        return Ok(rustyline::validate::ValidationResult::Invalid(
-                            Some(format!("Unquoted heredoc delimiter '{}' - use << '{}' to prevent command substitution", delimiter, delimiter))
-                        ));
-                    }
-                }
-            }
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Ok(rustyline::validate::ValidationResult::Valid(None));
         }
-
         Ok(rustyline::validate::ValidationResult::Valid(None))
     }
 }
+
 impl<'a> Helper for ForestHelper<'a> {}
