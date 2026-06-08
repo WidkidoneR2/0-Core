@@ -106,6 +106,7 @@
   # --- The forest + tools ---
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
+    pkgs.protobuf
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
