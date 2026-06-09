@@ -11,16 +11,16 @@ use ratatui::{
 use std::{io, path::PathBuf};
 use crate::types::{FlatNode, GitStatus, Mode, Panel};
 
-// Forest color palette
-const GREEN:      Color = Color::Rgb(63, 185, 80);
-const DIM_GREEN:  Color = Color::Rgb(30, 90, 40);
-const CYAN:       Color = Color::Rgb(56, 189, 193);
-const YELLOW:     Color = Color::Rgb(210, 153, 34);
-const MAGENTA:    Color = Color::Rgb(180, 100, 200);
-const GRAY:       Color = Color::Rgb(110, 118, 129);
-const DIM_GRAY:   Color = Color::Rgb(60, 65, 70);
-const WHITE:      Color = Color::Rgb(220, 223, 228);
-const BG_SEL:     Color = Color::Rgb(22, 35, 25);
+// Forest color palette -- INT-033: neon candy semantic colors
+const GREEN:      Color = Color::Rgb(57,  255, 20);  // neon green  -- active, success
+const DIM_GREEN:  Color = Color::Rgb(100, 180, 100); // muted green -- intent display
+const CYAN:       Color = Color::Rgb(50,  220, 255); // neon cyan   -- links, keys
+const YELLOW:     Color = Color::Rgb(255, 200, 50);  // neon amber  -- warnings, dirty
+const MAGENTA:    Color = Color::Rgb(180, 130, 255); // neon purple -- active intent
+const GRAY:       Color = Color::Rgb(120, 140, 130); // muted gray  -- secondary text
+const DIM_GRAY:   Color = Color::Rgb(70,  80,  75);  // dim gray    -- borders, dim
+const WHITE:      Color = Color::Rgb(215, 224, 218); // fog white   -- primary text
+const BG_SEL:     Color = Color::Rgb(22,  35,  25);  // forest night -- selection bg
 
 pub struct PanelState<'a> {
     pub root: &'a PathBuf,
@@ -177,9 +177,25 @@ fn render_tree(
             GitStatus::Clean     => "",
         };
 
-        // Name color
+        // Name color -- INT-033: semantic colors for intent files
+        let intent_color = if !node.is_dir && node.name.ends_with(".md") {
+            let path_str = node.node_path.to_string_lossy();
+            if path_str.contains("/intents/in-progress/") {
+                Some(GREEN)    // neon green -- active intent
+            } else if path_str.contains("/intents/future/") {
+                Some(MAGENTA)  // neon purple -- planned intent
+            } else if path_str.contains("/intents/complete/") {
+                Some(DIM_GREEN) // muted green -- complete intent
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         let name_color = if selected {
             GREEN
+        } else if let Some(ic) = intent_color {
+            ic
         } else if node.is_symlink {
             MAGENTA
         } else if node.is_dir {
