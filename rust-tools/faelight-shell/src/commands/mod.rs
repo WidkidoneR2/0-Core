@@ -8268,34 +8268,45 @@ fn friday_patterns(db: &ForestDb) -> CommandResult {
 
 fn intents(core_root: &str) -> CommandResult {
     use std::collections::HashMap;
-    let future_dir = std::path::PathBuf::from(core_root).join("intents/future");
     let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&future_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") { continue; }
-            let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            let id = name.split('-').next().unwrap_or("0").to_string();
-            let title = file_content.lines()
-                .find(|l| l.trim_start().starts_with("# "))
-                .map(|l| l.trim_start_matches('#').trim().to_string())
-                .or_else(|| file_content.lines()
+    // INT-030: read all three dirs with correct status
+    let dirs = [
+        ("in-progress", "in-progress"),
+        ("complete",    "complete"),
+        ("future",      "planned"),
+    ];
+    for (dir, dir_status) in &dirs {
+        let path = std::path::PathBuf::from(core_root).join("intents").join(dir);
+        if let Ok(entries) = std::fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !name.ends_with(".md") { continue; }
+                let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                let id = name.split('-').next().unwrap_or("0").to_string();
+                let title = file_content.lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string()))
-                .unwrap_or_else(|| name.replace(".md", ""));
-            let status = file_content.lines()
-                .find(|l| l.starts_with("status:"))
-                .map(|l| l.trim_start_matches("status:").trim())
-                .map(|s| if s == "in-progress" { "active" } else { s })
-                .unwrap_or("planned");
-            let mut row = HashMap::new();
-            row.insert("id".to_string(), crate::value::Value::Int(id.parse().unwrap_or(0)));
-            row.insert("title".to_string(), crate::value::Value::Text(title));
-            row.insert("status".to_string(), crate::value::Value::Text(status.to_string()));
-            rows.push(row);
+                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                    .or_else(|| file_content.lines()
+                        .find(|l| l.trim_start().starts_with("# "))
+                        .map(|l| l.trim_start_matches('#').trim().to_string()))
+                    .unwrap_or_else(|| name.replace(".md", ""));
+                // Prefer status from frontmatter, fall back to dir_status
+                let status = file_content.lines()
+                    .find(|l| l.starts_with("status:"))
+                    .map(|l| l.trim_start_matches("status:").trim().to_string())
+                    .unwrap_or_else(|| dir_status.to_string());
+                let mut row = HashMap::new();
+                row.insert("id".to_string(), crate::value::Value::Int(id.parse().unwrap_or(0)));
+                row.insert("title".to_string(), crate::value::Value::Text(title));
+                row.insert("status".to_string(), crate::value::Value::Text(status));
+                rows.push(row);
+            }
         }
     }
     rows.sort_by_key(|r| if let Some(crate::value::Value::Int(i)) = r.get("id") { *i } else { 0 });
+    if rows.is_empty() {
+        return CommandResult::Output("  ○ No intents found".to_string());
+    }
     CommandResult::Value(crate::value::Value::Table(rows))
 }
 
@@ -8403,57 +8414,53 @@ fn experiment_list(core_root: &str) -> CommandResult {
 fn vm_list() -> CommandResult {
     use colored::Colorize;
     let mut out = String::new();
-    out.push_str(&format!("
-{}
-", "  🖥  Virtual Machines".bright_cyan().bold()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
-
-    let result = std::process::Command::new("virsh")
-        .env("LIBVIRT_DEFAULT_URI", "qemu:///system")
-        .args(["list", "--all"])
-        .output();
-
-    match result {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut count = 0;
-            for line in stdout.lines().skip(2) {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('-') { continue; }
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    let name = parts.get(1).unwrap_or(&"?");
-                    let state = if parts.len() >= 3 {
-                        &parts[2..]
-                            .iter()
-                            .copied()
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    } else { "unknown" };
-                    let state = Box::leak(state.to_string().into_boxed_str()) as &str;
-                    let state = &*state;
-                    let state_colored = if state == "running" {
-                        state.bright_green().to_string()
-                    } else {
-                        state.dimmed().to_string()
-                    };
-                    out.push_str(&format!("  {}  {}
-",
-                        name.bright_white().bold(), state_colored));
-                    count += 1;
-                }
-            }
-            if count == 0 {
-                out.push_str(&format!("  {}
-", "No VMs found".dimmed()));
-            }
-        }
-        Err(_) => {
-            out.push_str(&format!("  {}
-", "virsh not available or libvirtd not running".dimmed()));
+    out.push_str(&format!("\n{}\n", "  🖥  Virtual Machines".bright_cyan().bold()));
+    out.push_str(&format!("{}\n", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    // INT-030: scan ~/vms/*.qcow2 -- no virsh dependency
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    let vms_dir = std::path::PathBuf::from(&home).join("vms");
+    // Check which qcow2 names are currently running via qemu process list
+    let running_output = std::process::Command::new("pgrep")
+        .args(["-a", "qemu"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let mut count = 0;
+    if let Ok(entries) = std::fs::read_dir(&vms_dir) {
+        let mut disks: Vec<_> = entries
+            .flatten()
+            .filter(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
+            .collect();
+        disks.sort_by_key(|e| e.file_name());
+        for entry in &disks {
+            let fname = entry.file_name().to_string_lossy().to_string();
+            let name = fname.trim_end_matches(".qcow2").to_string();
+            let disk_path = entry.path().to_string_lossy().to_string();
+            let is_running = running_output.contains(&disk_path)
+                || running_output.contains(&name);
+            let state_str = if is_running { "running" } else { "stopped" };
+            let state_colored = if is_running {
+                state_str.bright_green().to_string()
+            } else {
+                state_str.dimmed().to_string()
+            };
+            let size = std::fs::metadata(entry.path())
+                .map(|m| {
+                    let mb = m.len() / 1_048_576;
+                    if mb >= 1024 { format!("{}G", mb / 1024) } else { format!("{}M", mb) }
+                })
+                .unwrap_or_else(|_| "?".to_string());
+            out.push_str(&format!("  {}  {}  {}\n",
+                name.bright_white().bold(),
+                state_colored,
+                size.dimmed()));
+            count += 1;
         }
     }
+    if count == 0 {
+        out.push_str(&format!("  {}\n", "No VMs found -- place .qcow2 files in ~/vms/".dimmed()));
+    }
+    out.push_str(&format!("  {}\n", format!("{}/vms/", home).dimmed()));
     CommandResult::Output(out)
 }
 
