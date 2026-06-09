@@ -156,33 +156,27 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
     }
 }
 
-pub fn check_yazi_plugins(home: &str) -> CheckResult {
-    let plugin_dir = PathBuf::from(home).join(".config/yazi/plugins");
-    let plugins = [
-        "full-border.yazi",
-        "git.yazi",
-        "jump-to-char.yazi",
-        "smart-enter.yazi",
-    ];
-    let count = plugins
-        .iter()
-        .filter(|p| plugin_dir.join(p).is_dir())
-        .count();
-    if count == 4 {
+pub fn check_yazi_plugins(_home: &str) -> CheckResult {
+    let broot_exists = std::process::Command::new("which")
+        .arg("broot")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if broot_exists {
         CheckResult {
             id: "yazi_plugins".into(),
-            name: "Yazi Plugins".into(),
+            name: "Broot".into(),
             status: Status::Pass,
-            message: "All 4 plugins installed".into(),
+            message: "broot installed".into(),
             fix: None,
         }
     } else {
         CheckResult {
             id: "yazi_plugins".into(),
-            name: "Yazi Plugins".into(),
+            name: "Broot".into(),
             status: Status::Warn,
-            message: format!("Only {}/4 plugins installed", count),
-            fix: Some("Install missing plugins via ya pack".into()),
+            message: "broot not found".into(),
+            fix: Some("Add broot to NixOS packages".into()),
         }
     }
 }
