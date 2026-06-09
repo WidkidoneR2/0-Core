@@ -89,6 +89,14 @@
 
   services.mullvad-vpn.enable = true;
 
+  # Niri safety net session
+  environment.etc."greetd/sessions/niri.desktop".text = ''
+    [Desktop Entry]
+    Name=Niri
+    Exec=niri-session
+    Type=Application
+  '';
+
   # greetd -- display manager with session picker
   services.greetd = {
     enable = true;
@@ -113,6 +121,7 @@
     pkgs.vim
     self.packages.${system}.faelight-forest
     pkgs.alacritty
+    pkgs.niri
     pkgs.yazi
     pkgs.neovim
     pkgs.bat
