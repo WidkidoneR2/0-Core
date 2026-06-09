@@ -24,3 +24,7 @@ proven working on Framework 16. Needs proper configuration as daily driver.
 - [ ] Autostart working for forest services
 - [ ] Config tracked in users/christian/mango.nix
 - [ ] Run as daily driver for 2 weeks
+
+## Notes
+- broot: needs Faelight Forest neon candy colors theme
+- bind=SUPER,e for broot
