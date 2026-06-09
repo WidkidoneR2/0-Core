@@ -3,7 +3,7 @@ id: 040
 date: 2026-06-09
 type: feature
 title: "fsh-completions: tab completion for domain objects and NixOS vocabulary"
-status: planned
+status: in-progress
 tags: [completion, fsh, domains, nixos, tab, vocabulary]
 priority: high
 ---
