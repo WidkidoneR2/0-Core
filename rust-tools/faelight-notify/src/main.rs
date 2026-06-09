@@ -317,7 +317,10 @@ fn main() {
     eprintln!("✅ faelight-notify v4.0.0 running");
 
     loop {
-        event_queue.flush().expect("Flush failed");
+        // INT-019: handle broken pipe gracefully -- compositor may have closed
+        if event_queue.flush().is_err() {
+            break;
+        }
         let _ = event_queue.dispatch_pending(&mut app);
 
         // Expire old notifications
