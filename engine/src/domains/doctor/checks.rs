@@ -183,7 +183,7 @@ pub fn check_yazi_plugins(_home: &str) -> CheckResult {
 
 pub fn check_binaries() -> CheckResult {
     let bins = [
-        "niri",
+        "mango",
         "alacritty",
         "faelight-palette",
         "broot",
