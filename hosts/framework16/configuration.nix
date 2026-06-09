@@ -93,7 +93,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions /etc/greetd/sessions --asterisks --kb-sessions 2 --greeting \"🌲 Faelight Forest\" --theme \"border=green;text=green;prompt=green;time=green;action=blue;button=green;container=black;input=green\"";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd mango";
       user = "greeter";
     };
   };
