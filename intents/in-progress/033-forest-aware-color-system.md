@@ -3,7 +3,7 @@ id: 033
 date: 2026-06-04
 type: feature
 title: "Forest-aware color system: semantic colors, context themes, git regions"
-status: planned
+status: in-progress
 tags: [colors, themes, semantic, fsh, ratatui, visual]
 priority: medium
 ---
