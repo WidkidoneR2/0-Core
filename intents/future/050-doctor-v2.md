@@ -1,78 +1,106 @@
 ---
 id: 050
-date: 2026-06-08
+date: 2026-06-09
 type: feature
 title: "doctor v2: NixOS-aware health checks"
 status: planned
-tags: [doctor, health, nixos, boot, generations, monitoring]
+tags: [doctor, health, nixos, boot, generations, monitoring, friday, compositor]
 priority: high
 ---
-
 ## Why
+The current health check (d) was built during the Arch era.
+It checks 22 things but knows nothing about NixOS specifics:
+-- generations, flake drift, store health, boot errors, VM state.
+After migrating to NixOS the doctor must be smarter.
 
-The current health check (d) was built during Arch era.
-It checks 22 things but knows nothing about NixOS specifics.
-After migrating to NixOS the doctor needs to be smarter.
-
-## Vision
-
-`d` should answer: "Is the forest in a healthy NixOS state?"
+d should answer: "Is the forest in a healthy NixOS state?"
 Not just "are files in the right place."
 
-## New Checks to Add
+## What Already Exists
+22 checks across 5 domains: System, Git, Tools, Forest, Security
+CheckResult pattern in faelight-core
+Health score calculation with weighted checks
+Advisory/Warning/Critical thresholds
 
-### Boot Health
-- Last boot clean? (journalctl -b -p err)
-- Boot time (systemd-analyze)
-- LUKS unlock succeeded cleanly
-- Plymouth/greetd handoff worked
-- Kernel errors since last boot
+## New Check Domains to Add
 
-### Generation Health
-- Current generation matches booted generation?
-- Generation drift warning (rebuilt but not rebooted)
-- How many generations exist (disk space)
-- Last rollback recorded
+### Boot Health (3 checks)
+- Last boot clean: journalctl -b -p err -- count kernel errors
+- Boot time: systemd-analyze -- warn if > 15 seconds to greetd
+- greetd handoff: did greetd start cleanly last boot
 
-### NixOS-Specific
-- flake.lock age (warn if > 30 days)
-- Nix store size and fragmentation
-- Garbage collection opportunity
-- Binary cache hit rate
+### Generation Health (4 checks)
+- Generation drift: current gen matches booted gen (warn if rebuilt but not rebooted)
+- Generation count: warn if > 10 generations (disk space)
+- flake.lock age: warn if > 30 days since last flake update
+- Last rollback: note if rollback performed in last 7 days
 
-### VM State
-- No VMs accidentally running
-- nixos-lab disk space healthy
-- VM configs match flake
+### NixOS-Specific (3 checks)
+- Nix store size: warn if > 50GB
+- GC opportunity: nix-store --gc --print-dead to count dead paths
+- Binary cache: warn if PKG_CONFIG_PATH not set in dev shell
 
-### Compositor Health
-- Which compositor running (niri/pinnacle/mango)
-- Layer shell services active
-- faelight-bar registered with compositor
+### VM State (2 checks)
+- No VMs accidentally running: pgrep qemu returns nothing
+- nixos-lab disk space: ~/vms/*.qcow2 total size healthy (< 40GB)
 
-### Friday Health
-- Friday patterns count and quality
-- Confidence scores trending up/down
-- Last learning session
-- Prediction accuracy
+### Compositor Health (2 checks)
+- Compositor running: detect mango/pinnacle/niri from process list
+- faelight-bar registered: pgrep faelight-bar
 
-### Network Health
-- Internet connectivity
-- DNS resolving correctly
-- SSH keys valid
+### Friday Health (3 checks)
+- Pattern count: warn if < 10 patterns (Friday not learning)
+- Confidence trend: warn if average confidence < 0.7
+- Last learning: warn if no new facts in > 7 days
+
+### Network Health (2 checks)
+- Internet connectivity: ping 1.1.1.1 with 1s timeout
+- DNS resolving: resolve github.com
 
 ## Implementation
+Each new check follows existing CheckResult pattern in faelight-core.
+New domains added to the doctor section of the health output.
+Keep fast: all checks must complete in parallel where possible.
+Target: d completes in under 2 seconds total (currently ~600ms).
 
-Build on top of existing doctor infrastructure.
-Add NixOS domain to doctor checks.
-Each new check follows existing CheckResult pattern.
-Keep fast -- doctor must complete in < 1 second.
+## Phases
 
-## Gate
-- [ ] Boot health check added
-- [ ] Generation drift detection working
-- [ ] flake.lock age warning
-- [ ] VM state check
-- [ ] Friday health summary
-- [ ] All existing 22 checks preserved
-- [ ] Completes in under 1 second
+Phase 1 -- Boot and generation checks
+  Add Boot Health and Generation Health domains
+  Gate: d shows boot errors and generation drift
+
+Phase 2 -- NixOS-specific checks
+  Add Nix store, GC, flake.lock checks
+  Gate: d warns when flake.lock > 30 days old
+
+Phase 3 -- VM and compositor checks
+  Add VM State and Compositor Health domains
+  Gate: d shows which compositor is running
+
+Phase 4 -- Friday and network checks
+  Add Friday Health and Network Health domains
+  Gate: d shows Friday pattern count and confidence trend
+
+Phase 5 -- Performance
+  Parallelize checks where safe
+  Gate: d completes in under 2 seconds with all new checks
+
+## Gates
+- [ ] Boot health check: kernel errors since last boot
+- [ ] Boot time check: systemd-analyze warn > 15s
+- [ ] Generation drift detection: rebuilt but not rebooted
+- [ ] flake.lock age warning: > 30 days
+- [ ] Nix store size warning: > 50GB
+- [ ] VM state check: no accidental running VMs
+- [ ] Compositor detection: shows mango/pinnacle/niri
+- [ ] Friday pattern count and confidence trend
+- [ ] Network connectivity check
+- [ ] All existing 22 checks preserved and passing
+- [ ] Total check time under 2 seconds
+
+## The Rule
+"The forest knows its own health.
+ Not just files and symlinks --
+ boot state, generation drift, VM safety,
+ compositor status, Friday learning.
+ d answers all of it." 🌲
