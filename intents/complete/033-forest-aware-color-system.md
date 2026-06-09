@@ -3,7 +3,7 @@ id: 033
 date: 2026-06-04
 type: feature
 title: "Forest-aware color system: semantic colors, context themes, git regions"
-status: in-progress
+status: complete
 tags: [colors, themes, semantic, fsh, ratatui, visual]
 priority: medium
 ---
@@ -42,7 +42,16 @@ Git-aware color regions:
 
 ## Gate
 
-- [ ] Color tokens in faelight-core
-- [ ] fsh prompt reflects active context color
-- [ ] faelight-fm uses semantic colors for intent files
-- [ ] faelight-bar reflects forest health via color
+- [x] Color tokens in faelight-core
+- [x] fsh prompt reflects active context color
+- [x] faelight-fm uses semantic colors for intent files
+- [x] faelight-bar reflects forest health via color
+
+## Completed
+date: 2026-06-09
+
+What was built:
+- theme.rs: full neon candy palette + semantic color token constants
+- prompt.rs: truecolor fc/fc_bold/fc_dim helpers, all prompt elements use semantic tokens
+- faelight-fm: palette updated, intent files colored by status (green/purple/muted)
+- faelight-bar: palette aligned to neon candy, health thresholds at 95/80, intent in purple
