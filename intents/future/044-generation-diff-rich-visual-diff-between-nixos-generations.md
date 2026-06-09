@@ -2,7 +2,7 @@
 id: 044
 date: 2026-06-08
 type: feature
-title: \"generation-diff: rich visual diff between NixOS generations\"
+title: "generation-diff: rich visual diff between NixOS generations"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

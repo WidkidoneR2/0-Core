@@ -2,7 +2,7 @@
 id: 040
 date: 2026-06-08
 type: feature
-title: \"fsh-completions: NixOS-aware tab completion for packages and flake inputs\"
+title: "fsh-completions: NixOS-aware tab completion for packages and flake inputs"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

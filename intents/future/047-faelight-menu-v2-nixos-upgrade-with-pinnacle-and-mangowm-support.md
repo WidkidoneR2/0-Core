@@ -2,7 +2,7 @@
 id: 047
 date: 2026-06-08
 type: feature
-title: \"faelight-menu v2: NixOS upgrade with Pinnacle and MangoWM support\"
+title: "faelight-menu v2: NixOS upgrade with Pinnacle and MangoWM support"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

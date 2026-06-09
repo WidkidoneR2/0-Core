@@ -2,7 +2,7 @@
 id: 039
 date: 2026-06-08
 type: feature
-title: \"friday-daemon: persistent Friday process across sessions\"
+title: "friday-daemon: persistent Friday process across sessions"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

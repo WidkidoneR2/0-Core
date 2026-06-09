@@ -461,7 +461,6 @@ fn load_intents(core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
     let dirs = vec![
         format!("{}/intents/future", core_root),
-        format!("{}/intents/in-progress", core_root),
         format!("{}/intents/complete", core_root),
     ];
     for dir in &dirs {

@@ -2,7 +2,7 @@
 id: 041
 date: 2026-06-08
 type: feature
-title: \"shell-context: Friday knows active project and intent, adjusts suggestions\"
+title: "shell-context: Friday knows active project and intent, adjusts suggestions"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

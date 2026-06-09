@@ -2,7 +2,7 @@
 id: 046
 date: 2026-06-08
 type: feature
-title: \"faelight-lock v2: NixOS-native lock screen for Pinnacle and MangoWM\"
+title: "faelight-lock v2: NixOS-native lock screen for Pinnacle and MangoWM"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

@@ -323,10 +323,8 @@ fn cmd_list(filter: Option<&str>) {
                 }
 
                 let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                let title = extract_frontmatter(&content, "title")
-                    .unwrap_or("Untitled".to_string())
-                    .trim_matches('"').trim_matches('\'')
-                    .to_string();
+                let title =
+                    extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
                 let status =
                     extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
 
@@ -377,24 +375,9 @@ fn cmd_list(filter: Option<&str>) {
         }
     }
 
-    // Always count complete intents for accurate summary
-    if !show_complete && !show_all {
-        let complete_dir = intent_dir.join("complete");
-        if complete_dir.exists() {
-            complete_count = fs::read_dir(&complete_dir)
-                .into_iter()
-                .flatten()
-                .flatten()
-                .filter(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    name.ends_with(".md") && name != "README.md"
-                })
-                .count();
-        }
-    }
     println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", GRAY, NC);
     println!(
-        "Active: {}  |  {}Complete: {}{}  |  {}Planned: {}{}  |  {}In Progress: {}{}",
+        "Total: {}  |  {}Complete: {}{}  |  {}Planned: {}{}  |  {}In Progress: {}{}",
         total_count,
         GREEN,
         complete_count,

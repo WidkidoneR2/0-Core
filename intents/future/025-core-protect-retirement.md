@@ -2,7 +2,7 @@
 id: 025
 date: 2026-06-03
 type: future
-title: \"core-protect retirement: remove 19-file dependency chain, NixOS-native replacement\"
+title: "core-protect retirement: remove 19-file dependency chain, NixOS-native replacement"
 status: planned
 tags: [faelight]
 version: TBD

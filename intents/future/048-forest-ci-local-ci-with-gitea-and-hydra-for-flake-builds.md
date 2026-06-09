@@ -2,7 +2,7 @@
 id: 048
 date: 2026-06-08
 type: feature
-title: \"forest-ci: local CI with Gitea and Hydra for flake builds\"
+title: "forest-ci: local CI with Gitea and Hydra for flake builds"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

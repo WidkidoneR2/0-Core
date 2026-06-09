@@ -2,7 +2,7 @@
 id: 043
 date: 2026-06-08
 type: feature
-title: \"binary-cache: Cachix integration for faster builds\"
+title: "binary-cache: Cachix integration for faster builds"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

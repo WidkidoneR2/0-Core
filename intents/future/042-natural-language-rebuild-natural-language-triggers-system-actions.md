@@ -2,7 +2,7 @@
 id: 042
 date: 2026-06-08
 type: feature
-title: \"natural-language-rebuild: natural language triggers system actions\"
+title: "natural-language-rebuild: natural language triggers system actions"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD

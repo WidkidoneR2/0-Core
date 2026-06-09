@@ -2,7 +2,7 @@
 id: 045
 date: 2026-06-08
 type: feature
-title: \"nix-dev-shells: per-project devShells that auto-activate on cd\"
+title: "nix-dev-shells: per-project devShells that auto-activate on cd"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD
