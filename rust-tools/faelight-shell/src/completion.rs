@@ -422,6 +422,67 @@ impl<'a> ForestHelper<'a> {
                 return (0, cands);
             }
         }
+        // ── Case 2d0: INT-040 domain object dynamic completion ──────────────────
+        // vm start/stop/snapshot/restore <TAB> -- complete with qcow2 names
+        if line.starts_with("vm start ")
+            || line.starts_with("vm stop ")
+            || line.starts_with("vm snapshot ")
+            || line.starts_with("vm restore ")
+        {
+            let partial = line.split_whitespace().last().unwrap_or("");
+            let home = std::env::var("HOME").unwrap_or_default();
+            let vms_dir = format!("{}/vms", home);
+            if let Ok(entries) = std::fs::read_dir(&vms_dir) {
+                let mut names: Vec<String> = entries
+                    .flatten()
+                    .filter(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
+                    .map(|e| {
+                        e.file_name()
+                            .to_string_lossy()
+                            .trim_end_matches(".qcow2")
+                            .to_string()
+                    })
+                    .filter(|n| partial.is_empty() || n.starts_with(partial))
+                    .collect();
+                names.sort();
+                if !names.is_empty() {
+                    let start = line.len() - partial.len();
+                    return (start, names);
+                }
+            }
+        }
+        // rebuild <TAB> -- complete with flake host names from flake.nix
+        if line.starts_with("rebuild") {
+            let partial = if line.contains(' ') {
+                line.split_whitespace().last().unwrap_or("")
+            } else { "" };
+            let home = std::env::var("HOME").unwrap_or_default();
+            let flake = format!("{}/0-core/flake.nix", home);
+            let mut hosts: Vec<String> = Vec::new();
+            if let Ok(src) = std::fs::read_to_string(&flake) {
+                let mut in_nixos = false;
+                for l in src.lines() {
+                    let t = l.trim();
+                    if t.contains("nixosConfigurations") && t.contains('{') {
+                        in_nixos = true;
+                    }
+                    if in_nixos && t.contains("= nixpkgs.lib.nixosSystem") {
+                        if let Some(name) = t.split_whitespace().next() {
+                            if partial.is_empty() || name.starts_with(partial) {
+                                hosts.push(name.to_string());
+                            }
+                        }
+                    }
+                    if in_nixos && t == "};" { in_nixos = false; }
+                }
+            }
+            hosts.sort();
+            hosts.dedup();
+            if !hosts.is_empty() {
+                let start = line.len() - partial.len();
+                return (start, hosts.iter().map(|h| format!("rebuild {}", h)).collect());
+            }
+        }
         // ── Case 2c: path completion — cd or path-like argument ─────────────────
         if line.starts_with("deploy ") {
             let partial = &line["deploy ".len()..];
