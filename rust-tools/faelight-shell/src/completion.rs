@@ -429,7 +429,13 @@ impl<'a> ForestHelper<'a> {
             || line.starts_with("vm snapshot ")
             || line.starts_with("vm restore ")
         {
-            let partial = line.split_whitespace().last().unwrap_or("");
+            // partial is everything after the second word (e.g. "vm start nixos" -> "nixos")
+            // if line ends with space, partial is empty (show all)
+            let partial = if line.ends_with(' ') {
+                ""
+            } else {
+                line.split_whitespace().last().unwrap_or("")
+            };
             let home = std::env::var("HOME").unwrap_or_default();
             let vms_dir = format!("{}/vms", home);
             if let Ok(entries) = std::fs::read_dir(&vms_dir) {
