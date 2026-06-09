@@ -39,7 +39,7 @@
       packages.${system} = {
         faelight-forest = pkgs.rustPlatform.buildRustPackage {
           pname = "faelight-forest";
-          version = "9.1.0";
+          version = "9.2.0";
           src = ./.;
           cargoLock = {
             lockFile = ./Cargo.lock;
