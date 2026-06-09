@@ -192,7 +192,7 @@ pub fn check_binaries() -> CheckResult {
         "niri",
         "alacritty",
         "faelight-palette",
-        "yazi",
+        "broot",
         "hx",
         "git",
         "bat",
