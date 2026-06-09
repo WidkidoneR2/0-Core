@@ -1,23 +1,54 @@
 #![allow(clippy::all)]
-// faelight-shell — prompt and status line
-// render_line    — single-line readline prompt (no emoji, Tab completion safe)
-// render_context — two-line forest context printed BEFORE the input line
-// status_line    — pretty status printed after clear or on welcome
+// faelight-shell -- prompt and status line
+// render_line    -- single-line readline prompt (no emoji, Tab completion safe)
+// render_context -- two-line forest context printed BEFORE the input line
+// status_line    -- pretty status printed after clear or on welcome
+// INT-033        -- neon candy truecolor semantic colors
 
 use crate::db::ForestDb;
-use colored::*;
 
 // OSC 133 shell integration sequences (INT-296)
-// These mark semantic boundaries for terminal emulators
-pub const OSC133_PROMPT_START: &str = "]133;A\\"; // prompt start
-pub const OSC133_PROMPT_END: &str   = "]133;B\\"; // command input start
-pub const OSC133_OUTPUT_START: &str = "]133;C\\"; // output start
+pub const OSC133_PROMPT_START: &str = "\x1b]133;A\x1b\\"; // prompt start
+pub const OSC133_PROMPT_END: &str   = "\x1b]133;B\x1b\\"; // command input start
+pub const OSC133_OUTPUT_START: &str = "\x1b]133;C\x1b\\"; // output start
 pub fn osc133_command_end(exit_code: i32) -> String {
-    format!("]133;D;{}\\", exit_code)
+    format!("\x1b]133;D;{}\x1b\\", exit_code)
 }
 
+// ── Truecolor helpers ───────────────────────────────────────────────────────
+fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
+    format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
+}
+fn fc_bold(r: u8, g: u8, b: u8, text: &str) -> String {
+    format!("\x1b[1m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
+}
+fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
+    format!("\x1b[2m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
+}
+fn fc_bold_rl(r: u8, g: u8, b: u8, text: &str) -> String {
+    // rl_wrap-safe bold truecolor for rustyline prompt
+    format!("\x01\x1b[1m\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02", r, g, b, text)
+}
+fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
+    // rl_wrap-safe truecolor for rustyline prompt
+    format!("\x01\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02", r, g, b, text)
+}
 
-// ── Shared helpers ─────────────────────────────────────────────────────────
+// ── Semantic color tokens (INT-033) ─────────────────────────────────────────
+// Health
+const C_HEALTH_PEAK:     (u8,u8,u8) = (57,  255, 20);
+const C_HEALTH_ADVISORY: (u8,u8,u8) = (255, 200, 50);
+const C_HEALTH_CRITICAL: (u8,u8,u8) = (255, 80,  80);
+// Prompt
+const C_CWD:             (u8,u8,u8) = (50,  220, 255);
+const C_PROMPT_OK:       (u8,u8,u8) = (57,  255, 20);
+const C_PROMPT_FAIL:     (u8,u8,u8) = (255, 80,  80);
+const C_INTENT:          (u8,u8,u8) = (180, 130, 255);
+const C_BRANCH_CLEAN:    (u8,u8,u8) = (57,  255, 20);
+const C_BRANCH_DIRTY:    (u8,u8,u8) = (255, 200, 50);
+const C_DIMMED:          (u8,u8,u8) = (120, 140, 130);
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
 
 fn cwd_str(max_len: usize) -> String {
     let cwd = std::env::current_dir()
@@ -43,18 +74,18 @@ fn cwd_str(max_len: usize) -> String {
     }
 }
 
-fn health_str(health: i64) -> colored::ColoredString {
+fn health_str(health: i64) -> String {
+    let text = format!("{}%", health);
     if health >= 95 {
-        format!("{}%", health).bright_green()
+        fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, &text)
     } else if health >= 80 {
-        format!("{}%", health).yellow()
+        fc_bold(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, &text)
     } else {
-        format!("{}%", health).bright_red()
+        fc_bold(C_HEALTH_CRITICAL.0, C_HEALTH_CRITICAL.1, C_HEALTH_CRITICAL.2, &text)
     }
 }
 
 fn git_info() -> Option<(String, bool)> {
-    // Branch — read .git/HEAD directly, no subprocess
     let cwd = std::env::current_dir().ok()?;
     let mut dir = cwd.as_path();
     let git_root = loop {
@@ -70,14 +101,11 @@ fn git_info() -> Option<(String, bool)> {
         .strip_prefix("ref: refs/heads/")
         .unwrap_or("HEAD")
         .to_string();
-
-    // Dirty check — git status --porcelain, 8ms on this repo
     let dirty = std::process::Command::new("git")
         .args(["-C", &git_root.to_string_lossy(), "status", "--porcelain"])
         .output()
         .map(|o| !o.stdout.is_empty())
         .unwrap_or(false);
-
     Some((branch, dirty))
 }
 
@@ -103,8 +131,7 @@ fn commits_today(db: &ForestDb) -> i64 {
         .unwrap_or(0)
 }
 
-// ── Phase 17 — Prompt v2 Context Lines ────────────────────────────────────
-// Printed BEFORE readline — avoids rustyline cursor issues with emoji/wide chars
+// ── Phase 17 -- Prompt v2 Context Lines ─────────────────────────────────────
 
 pub struct PromptContext {
     pub last_duration_ms: Option<u64>,
@@ -115,84 +142,81 @@ pub struct PromptContext {
 pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     let theme = db.get_theme();
     if theme == "minimal" {
-        // Minimal: just path, no health/git
         let cwd = cwd_str(40);
-        println!("  {}", cwd.bright_cyan());
+        println!("  {}", fc(C_CWD.0, C_CWD.1, C_CWD.2, &cwd));
         return;
     }
-    // All other themes use full context below
-    let _ = ctx; // suppress unused warning for now
+    let _ = ctx;
     let is_friday = theme == "friday";
     let cwd = cwd_str(35);
     let health = db.health_score().unwrap_or(95);
     let git = git_info();
 
-    // ── Line 1: System state ─────────────────────────────────────────────
-    let mut line1 = format!("  {}", cwd.bright_cyan().bold());
+    // ── Line 1: path + git + exit + jobs + time ──────────────────────────
+    let mut line1 = format!("  {}", fc_bold(C_CWD.0, C_CWD.1, C_CWD.2, &cwd));
 
     if let Some((ref b, dirty)) = git {
         let symbol = if dirty { "*" } else { "" };
+        let (r,g,bl) = if dirty { C_BRANCH_DIRTY } else { C_BRANCH_CLEAN };
         line1.push_str(&format!(
             " {} {}{}",
-            "(".dimmed().to_string(),
-            b.bright_yellow().to_string(),
-            format!("{})", symbol).dimmed().to_string()
+            fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "("),
+            fc_bold(r, g, bl, &format!("{}{}", b, symbol)),
+            fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, ")")
         ));
     }
 
-    // Exit code — only show if non-zero
     if let Some(code) = ctx.last_exit_code {
         if code != 0 {
-            line1.push_str(&format!(" {}", format!("[✗ {}]", code).bright_red()));
+            line1.push_str(&format!(
+                " {}",
+                fc_bold(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2,
+                    &format!("[✗ {}]", code))
+            ));
         }
     }
 
-    // Job count
     if ctx.job_count > 0 {
         line1.push_str(&format!(
             " {}",
-            format!(
-                "[{} job{}]",
-                ctx.job_count,
-                if ctx.job_count == 1 { "" } else { "s" }
-            )
-            .yellow()
+            fc(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2,
+                &format!("[{} job{}]", ctx.job_count,
+                    if ctx.job_count == 1 { "" } else { "s" }))
         ));
     }
 
-    // Execution time — only show if > 100ms
     if let Some(ms) = ctx.last_duration_ms {
         if ms >= 2000 {
             line1.push_str(&format!(
                 " {}",
-                format!("[{:.1}s]", ms as f64 / 1000.0).dimmed()
+                fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2,
+                    &format!("[{:.1}s]", ms as f64 / 1000.0))
             ));
         } else if ms >= 100 {
-            line1.push_str(&format!(" {}", format!("[{}ms]", ms).dimmed()));
+            line1.push_str(&format!(
+                " {}",
+                fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, &format!("[{}ms]", ms))
+            ));
         }
     }
 
-    // ── Line 2: Forest context ────────────────────────────────────────────
+    // ── Line 2: health · intent · commits ───────────────────────────────
     let h_str = health_str(health);
     let intent = active_intent(db);
     let today_commits = commits_today(db);
 
-    let mut parts: Vec<String> = vec![h_str.to_string()];
+    let mut parts: Vec<String> = vec![h_str];
 
     if let Some(ref i) = intent {
-        parts.push(i.bright_cyan().to_string());
+        parts.push(fc_bold(C_INTENT.0, C_INTENT.1, C_INTENT.2, i));
     }
 
     if today_commits > 0 {
-        parts.push(
-            format!("{} today", today_commits.to_string().bright_white())
-                .dimmed()
-                .to_string(),
-        );
+        parts.push(fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2,
+            &format!("{} today", today_commits)));
     }
-    // Jarvis theme — add prediction insight inline
+
     if is_friday {
-        // Read next predicted intent
         let home = std::env::var("HOME").unwrap_or_default();
         let next_intent = std::fs::read_dir(format!("{}/0-core/intents/future", home))
             .ok()
@@ -219,26 +243,27 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
                 in_progress.first().cloned()
             });
 
-        // Read health trend
         let trend_hint = {
-            let cache = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
+            let cache = std::fs::read_to_string(
+                format!("{}/.cache/faelight/health-status", home))
                 .unwrap_or_else(|_| "100".to_string());
             let h: u32 = cache.trim().parse().unwrap_or(100);
             if h >= 100 {
-                "peak".bright_green().to_string()
+                fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, "peak")
             } else if h >= 95 {
-                "stable".dimmed().to_string()
+                fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "stable")
             } else {
-                "advisory".yellow().to_string()
+                fc(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, "advisory")
             }
         };
 
         let friday_hint = match next_intent {
-            Some(id) => format!("▸ {} · {}", id.bright_cyan(), trend_hint),
+            Some(id) => format!("▸ {} · {}",
+                fc(C_INTENT.0, C_INTENT.1, C_INTENT.2, &id), trend_hint),
             None => format!("▸ {}", trend_hint),
         };
         parts.push(friday_hint);
-        // INT-235 Gate 3: Friday message indicator
+
         let db_path = format!("{}/0-core/runtime/state.db", home);
         let has_friday_msg = rusqlite::Connection::open_with_flags(
             &db_path,
@@ -253,43 +278,40 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             )
             .ok()
         })
-        .unwrap_or(0)
-            > 0;
+        .unwrap_or(0) > 0;
         if has_friday_msg {
             parts.push("🌲".to_string());
         }
     }
 
+    let sep = fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, " · ");
     let line2 = format!(
         "  {} {}",
-        "→".dimmed(),
-        parts.join(&" · ".dimmed().to_string())
+        fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "→"),
+        parts.join(&sep)
     );
 
     println!("{}", line1);
     println!("{}", line2);
 }
 
-// ── readline prompt — no emoji, ANSI wrapped, Tab completion safe ──────────
-// Emoji and wide chars break rustyline cursor position silently.
+// ── readline prompt -- no emoji, ANSI wrapped, Tab completion safe ───────────
 
 pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     let theme = db.get_theme();
-    // Read exit status from cache file -- written after every command
     let cache_file =
         std::env::var("HOME").unwrap_or_default() + "/.cache/faelight/last-exit-status";
     let last_status = std::fs::read_to_string(&cache_file).unwrap_or_default();
     let last_status = last_status.trim();
     let caret = if last_status == "failure" {
-        "❯".bright_red().bold()
+        fc_bold_rl(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2, "❯")
     } else {
-        "❯".bright_green().bold()
+        fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "❯")
     };
-    // NixOS devShell indicator
     let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        format!("{} ", "❄".bright_cyan())
+        format!("{} ", fc_rl(50, 220, 255, "❄"))
     } else if std::env::var("DIRENV_DIR").is_ok() {
-        format!("{} ", "❄".bright_blue())
+        format!("{} ", fc_rl(80, 140, 255, "❄"))
     } else {
         String::new()
     };
@@ -304,17 +326,20 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
             format!(
                 "  {}{}@{} {} $ ",
                 nix_indicator,
-                user.dimmed(),
-                host.dimmed(),
-                cwd.bright_cyan()
+                fc_rl(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, &user),
+                fc_rl(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, host),
+                fc_rl(C_CWD.0, C_CWD.1, C_CWD.2, &cwd)
             )
         }
-        _ => format!("  {}{}{} ", nix_indicator, "fsh".bright_green().bold(), caret),
+        _ => format!("  {}{}{}  ",
+            nix_indicator,
+            fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "fsh"),
+            caret),
     };
-    rl_wrap(&raw)
+    raw
 }
 
-// ── status line — printed after clear, shown in welcome ───────────────────
+// ── status line ─────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
 pub fn status_line(db: &ForestDb) -> String {
@@ -322,33 +347,11 @@ pub fn status_line(db: &ForestDb) -> String {
     let cwd = cwd_str(30);
     format!(
         "\n  {} {}  {}  {}\n",
-        "🌲".normal(),
-        cwd.bright_cyan().bold(),
+        "🌲",
+        fc_bold(C_CWD.0, C_CWD.1, C_CWD.2, &cwd),
         h,
-        "forest".dimmed(),
+        fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "forest"),
     )
 }
 
-// ── ANSI wrap — required for rustyline cursor accuracy ────────────────────
 
-pub fn rl_wrap(s: &str) -> String {
-    let mut out = String::new();
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            out.push('\x01');
-            out.push('\x1b');
-            while let Some(&nc) = chars.peek() {
-                out.push(nc);
-                chars.next();
-                if nc == 'm' {
-                    break;
-                }
-            }
-            out.push('\x02');
-        } else {
-            out.push(c);
-        }
-    }
-    out
-}
