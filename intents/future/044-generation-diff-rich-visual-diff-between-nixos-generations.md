@@ -1,35 +1,83 @@
 ---
 id: 044
-date: 2026-06-08
+date: 2026-06-09
 type: feature
 title: "generation-diff: rich visual diff between NixOS generations"
 status: planned
-tags: [feature, rust, faelight]
-version: TBD
+tags: [nixos, generations, diff, ratatui, forest, visual]
+priority: medium
 ---
+## Why
+Every `rebuild` creates a new NixOS generation.
+Right now you can list generations but you cannot see what changed.
+Was it a package upgrade? A service change? A config tweak?
+You have to guess or dig through git logs manually.
+
+generation-diff makes the answer instant and visual.
 
 ## Vision
+  gen-diff          -- diff current vs previous generation
+  gen-diff 105 107  -- diff any two generations
+  gen-diff --last 3 -- show last 3 generations as a timeline
 
-<!-- What is this intent trying to achieve? -->
+Output shows:
+  + added packages (neon green)
+  - removed packages (neon red)
+  ~ changed packages with version delta (neon amber)
+  config changes: services added/removed, options changed
+  forest metadata: which intents were completed, commit range
 
-## Why Now
-
-<!-- Why is this the right time for this intent? -->
+## What Already Exists
+NixOS stores generations in /nix/var/nix/profiles/system-*
+Each generation has a manifest and store paths.
+`nixos-rebuild list-generations --json` gives structured data.
+The forest already tracks commits and health per session.
 
 ## Approach
+- Parse generation manifests from /nix/var/nix/profiles/
+- Diff package sets between two generations
+- Cross-reference with git log for commit range
+- Cross-reference with state.db for intent completions in range
+- Render as ratatui TUI or plain colored output
+- fsh command: gen-diff [A] [B]
 
-<!-- How will this be implemented? -->
+## Phases
 
-## Success Criteria
+Phase 1 -- Generation metadata
+  Read and parse generation manifests
+  Extract package lists, NixOS version, date, commit hash
+  Gate: gen-diff lists all generations with dates and commit hashes
 
-- [ ] <!-- First criterion -->
-- [ ] <!-- Second criterion -->
+Phase 2 -- Package diff
+  Diff package sets between two generations
+  Color output: + added, - removed, ~ changed with version
+  Gate: gen-diff shows package changes between two generations
 
-## Gate Check
-```
-⬜ Not started
-```
+Phase 3 -- Forest context
+  Cross-reference git log for commit range between generations
+  Cross-reference state.db for intents completed in range
+  Gate: gen-diff shows "3 intents completed, 47 commits" between gens
 
----
+Phase 4 -- fsh integration
+  Register gen-diff as fsh vocabulary command
+  Tab completion for generation numbers
+  Gate: gen-diff works natively in fsh with tab completion
 
-*\"The forest grows with intention.\"* 🌲
+## Gates
+- [ ] gen-diff lists all generations with date and commit hash
+- [ ] gen-diff shows package additions in neon green
+- [ ] gen-diff shows package removals in neon red
+- [ ] gen-diff shows version changes in neon amber
+- [ ] gen-diff shows commit range between generations
+- [ ] gen-diff shows intents completed in generation range
+- [ ] gen-diff A B diffs any two specific generations
+- [ ] gen-diff --last N shows N most recent generations
+- [ ] fsh tab completion for generation numbers
+
+## Depends On
+- INT-034 (Forest release v2) -- generation + commit + intent triad
+
+## The Rule
+"Every rebuild is a checkpoint.
+ You should be able to see exactly what changed
+ and why the forest is different today than yesterday." 🌲
