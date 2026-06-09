@@ -3,10 +3,9 @@ id: 030
 date: 2026-06-04
 type: feature
 title: "fsh semantic domains: project/intent/experiment as first-class shell objects"
-status: complete
+status: in-progress
 tags: [fsh, shell, domains, semantic, vocabulary]
 priority: high
-completed: 2026-06-09
 ---
 ## Vision
 The shell understands concepts, not just filesystem paths.
