@@ -345,7 +345,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "intents" => intents(core_root),
         "project" | "projects" => project_list(core_root),
         "experiment" | "experiments" => experiment_list(core_root),
-        "vm" | "vms" => vm_list(),
+        "vm" | "vms" => match args.first().copied() {
+            Some("list") | None => vm_list(),
+            Some("start") => vm_start(args.get(1).copied().unwrap_or("")),
+            Some("stop")  => vm_stop(args.get(1).copied().unwrap_or("")),
+            Some("snapshot") => vm_snapshot(args.get(1).copied().unwrap_or("")),
+            Some("restore")  => vm_restore(args.get(1).copied().unwrap_or("")),
+            Some(sub) => CommandResult::Error(format!("vm: unknown subcommand '{}' -- try: list, start, stop, snapshot, restore", sub)),
+        },
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
         "schema" => schema(args),
@@ -8462,6 +8469,136 @@ fn vm_list() -> CommandResult {
     }
     out.push_str(&format!("  {}\n", format!("{}/vms/", home).dimmed()));
     CommandResult::Output(out)
+}
+
+fn vm_start(name: &str) -> CommandResult {
+    use colored::Colorize;
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    let vms_dir = std::path::PathBuf::from(&home).join("vms");
+    if name.is_empty() {
+        // List available VMs to start
+        let mut names: Vec<String> = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&vms_dir) {
+            let mut disks: Vec<_> = entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
+                .collect();
+            disks.sort_by_key(|e| e.file_name());
+            for entry in &disks {
+                let fname = entry.file_name().to_string_lossy().to_string();
+                names.push(fname.trim_end_matches(".qcow2").to_string());
+            }
+        }
+        if names.is_empty() {
+            return CommandResult::Output(format!("  {} No VMs found in ~/vms/", "○".dimmed()));
+        }
+        let list = names.iter().map(|n| format!("  · {}", n.bright_white())).collect::<Vec<_>>().join("\n");
+        return CommandResult::Output(format!("  {} Specify a VM to start:\n{}", "→".dimmed(), list));
+    }
+    let disk = vms_dir.join(format!("{}.qcow2", name));
+    if !disk.exists() {
+        return CommandResult::Error(format!("vm start: disk not found: {}.qcow2", name));
+    }
+    let start_script = vms_dir.join("start-vm.sh");
+    if start_script.exists() {
+        let _ = std::process::Command::new("bash")
+            .arg(&start_script)
+            .spawn();
+        CommandResult::Output(format!("  {} Starting VM: {}", "🌲".normal(), name.bright_green()))
+    } else {
+        // Launch QEMU directly
+        let disk_path = disk.to_string_lossy().to_string();
+        let _ = std::process::Command::new("qemu-system-x86_64")
+            .args([
+                "-enable-kvm",
+                "-m", "4G",
+                "-smp", "4",
+                "-drive", &format!("file={},format=qcow2", disk_path),
+                "-display", "gtk",
+                "-daemonize",
+            ])
+            .spawn();
+        CommandResult::Output(format!("  {} Launching: {}", "🌲".normal(), name.bright_green()))
+    }
+}
+
+fn vm_stop(name: &str) -> CommandResult {
+    use colored::Colorize;
+    if name.is_empty() {
+        return CommandResult::Error("vm stop: specify a VM name".to_string());
+    }
+    let result = std::process::Command::new("pkill")
+        .args(["-f", &format!("{}.qcow2", name)])
+        .output();
+    match result {
+        Ok(o) if o.status.success() => CommandResult::Output(
+            format!("  {} Stopped VM: {}", "✅".normal(), name.bright_green())
+        ),
+        _ => CommandResult::Output(
+            format!("  {} VM '{}' not running or already stopped", "○".dimmed(), name)
+        ),
+    }
+}
+
+fn vm_snapshot(name: &str) -> CommandResult {
+    use colored::Colorize;
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    if name.is_empty() {
+        return CommandResult::Error("vm snapshot: usage: vm snapshot <name>".to_string());
+    }
+    // Find the first qcow2 file
+    let vms_dir = std::path::PathBuf::from(&home).join("vms");
+    let disk = if let Ok(entries) = std::fs::read_dir(&vms_dir) {
+        entries.flatten()
+            .find(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
+            .map(|e| e.path().to_string_lossy().to_string())
+    } else { None };
+    match disk {
+        None => CommandResult::Error("vm snapshot: no qcow2 disk found in ~/vms/".to_string()),
+        Some(d) => {
+            let out = std::process::Command::new("qemu-img")
+                .args(["snapshot", "-c", name, &d])
+                .output();
+            match out {
+                Ok(o) if o.status.success() =>
+                    CommandResult::Output(format!("  {} Snapshot created: {}", "✅".normal(), name.bright_green())),
+                Ok(o) =>
+                    CommandResult::Error(format!("vm snapshot failed: {}", String::from_utf8_lossy(&o.stderr))),
+                Err(e) =>
+                    CommandResult::Error(format!("vm snapshot: {}", e)),
+            }
+        }
+    }
+}
+
+fn vm_restore(name: &str) -> CommandResult {
+    use colored::Colorize;
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    if name.is_empty() {
+        return CommandResult::Error("vm restore: usage: vm restore <snapshot-name>".to_string());
+    }
+    let vms_dir = std::path::PathBuf::from(&home).join("vms");
+    let disk = if let Ok(entries) = std::fs::read_dir(&vms_dir) {
+        entries.flatten()
+            .find(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
+            .map(|e| e.path().to_string_lossy().to_string())
+    } else { None };
+    match disk {
+        None => CommandResult::Error("vm restore: no qcow2 disk found in ~/vms/".to_string()),
+        Some(d) => {
+            let out = std::process::Command::new("qemu-img")
+                .args(["snapshot", "-a", name, &d])
+                .output();
+            match out {
+                Ok(o) if o.status.success() =>
+                    CommandResult::Output(format!("  {} Restored to snapshot: {}", "✅".normal(), name.bright_green())),
+                Ok(o) =>
+                    CommandResult::Error(format!("vm restore failed: {}", String::from_utf8_lossy(&o.stderr))),
+                Err(e) =>
+                    CommandResult::Error(format!("vm restore: {}", e)),
+            }
+        }
+    }
 }
 
 #[allow(dead_code)]
