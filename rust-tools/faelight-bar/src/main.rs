@@ -47,12 +47,14 @@ const PAD: f32 = 12.0;
 const BG: [u8; 4] = [0x18, 0x24, 0x1B, 0xFF]; // #1B2418 forest green
 
 // Text colors (RGBA for cosmic-text)
-fn dim()   -> TColor { TColor::rgba(0x88, 0x99, 0x88, 0xFF) }
-fn text()  -> TColor { TColor::rgba(0xCC, 0xCC, 0xCC, 0xFF) }
-fn cyan()  -> TColor { TColor::rgba(0x00, 0xBF, 0xFF, 0xFF) }
-fn green() -> TColor { TColor::rgba(0x00, 0xE5, 0x80, 0xFF) }
-fn amber() -> TColor { TColor::rgba(0xF0, 0xA5, 0x00, 0xFF) }
-fn red()   -> TColor { TColor::rgba(0xFF, 0x55, 0x55, 0xFF) }
+// INT-033: neon candy palette -- matches theme.rs semantic tokens
+fn dim()    -> TColor { TColor::rgba(0x78, 0x8C, 0x82, 0xFF) } // muted gray
+fn text()   -> TColor { TColor::rgba(0xD7, 0xE0, 0xDA, 0xFF) } // fog white
+fn cyan()   -> TColor { TColor::rgba(0x32, 0xDC, 0xFF, 0xFF) } // neon cyan  (50, 220, 255)
+fn green()  -> TColor { TColor::rgba(0x39, 0xFF, 0x14, 0xFF) } // neon green (57, 255, 20)
+fn amber()  -> TColor { TColor::rgba(0xFF, 0xC8, 0x32, 0xFF) } // neon amber (255, 200, 50)
+fn red()    -> TColor { TColor::rgba(0xFF, 0x50, 0x50, 0xFF) } // neon red   (255, 80, 80)
+fn purple() -> TColor { TColor::rgba(0xB4, 0x82, 0xFF, 0xFF) } // neon purple (180, 130, 255)
 
 // -- Forest State -------------------------------------------------------------
 
@@ -225,8 +227,9 @@ fn draw_frame(
     let lock_w = measure_text(font_system, lock_str, 60.0);
     draw_text(canvas, font_system, swash, lock_str, PAD as i32, y_text, 60.0, lock_color);
     let h_str = format!("H:{}%  ", forest.health);
-    let h_color = if forest.health >= 90 { green() }
-        else if forest.health >= 70 { amber() } else { red() };
+    // INT-033: semantic health thresholds -- peak>=95, advisory>=80, critical<80
+    let h_color = if forest.health >= 95 { green() }
+        else if forest.health >= 80 { amber() } else { red() };
     let h_w = measure_text(font_system, &h_str, 80.0);
     draw_text(canvas, font_system, swash, &h_str,
         (PAD + lock_w) as i32, y_text, 80.0, h_color);
@@ -240,7 +243,8 @@ fn draw_frame(
     let (center, center_color) = if let Some((ref msg, conf)) = forest.friday {
         (format!("🌲 {}  · {:.0}%", msg, conf * 100.0), cyan())
     } else if !forest.intent_title.is_empty() {
-        (forest.intent_title.clone(), text())
+        // INT-033: active intent uses neon purple
+        (forest.intent_title.clone(), purple())
     } else {
         ("Faelight Forest 14.0.0".to_string(), dim())
     };
