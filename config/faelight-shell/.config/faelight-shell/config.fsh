@@ -80,3 +80,6 @@ before_run {
 alias gd = "GIT_EXTERNAL_DIFF=difft git diff"
 
 set LIBVIRT_DEFAULT_URI = "qemu:///system"
+
+# Friday learning mode -- off = silent (learns but does not suggest)
+set friday_hints = off

@@ -2675,23 +2675,15 @@ fn repl_main() -> Result<()> {
                                     )
                                     .unwrap_or(0);
                                 if freq >= 3 {
-                                    // Check friday_hints setting -- off = silent learning
-                                    let hints_enabled = db.conn.query_row(
-                                        "SELECT value FROM shell_state WHERE key='config.friday_hints'",
-                                        [],
-                                        |r| r.get::<_, String>(0),
-                                    ).unwrap_or_else(|_| "on".to_string());
-                                    if hints_enabled != "off" {
-                                        // INT-246: deduplicate hints -- only show once per session
-                                        let hint_key = format!("hint_{}", suggestion);
-                                        if !shown_friday_suggestions.contains(&hint_key) {
-                                            shown_friday_suggestions.insert(hint_key);
-                                            println!(
-                                                "  {} you usually run {} next",
-                                                "💡".normal(),
-                                                suggestion.bright_cyan()
-                                            );
-                                        }
+                                    // INT-246: deduplicate hints -- only show once per session
+                                    let hint_key = format!("hint_{}", suggestion);
+                                    if !shown_friday_suggestions.contains(&hint_key) {
+                                        shown_friday_suggestions.insert(hint_key);
+                                        println!(
+                                            "  {} you usually run {} next",
+                                            "💡".normal(),
+                                            suggestion.bright_cyan()
+                                        );
                                     }
                                 }
                             }
