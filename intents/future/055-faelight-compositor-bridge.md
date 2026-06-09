@@ -4,66 +4,96 @@ date: 2026-06-09
 type: architecture
 title: "faelight-compositor: shared Wayland bridge for MangoWM and Pinnacle"
 status: planned
-tags: [compositor, wayland, layer-shell, mango, pinnacle, smithay, rust]
+tags: [compositor, wayland, layer-shell, mango, pinnacle, smithay, rust, ipc]
 priority: medium
 ---
 ## Why
-faelight-compositor is a custom Smithay-based Wayland compositor built
-over 6 months. Rather than retiring it, it becomes the shared protocol
-and IPC layer beneath MangoWM and Pinnacle. One implementation serves both.
+faelight-compositor is a custom Smithay-based Wayland compositor
+built over 6 months. It has deep protocol coverage:
+xdg-shell, layer-shell, wlr-foreign-toplevel, IPC.
+
+Rather than retiring it when MangoWM became daily driver,
+it becomes infrastructure: the shared Wayland bridge beneath
+MangoWM and Pinnacle.
+
+faelight-bar v2, faelight-notify v5, faelight-lock v2 all need:
+  -- layer-shell protocol (rendering overlays)
+  -- IPC (reading compositor state)
+  -- Protocol abstractions (not reimplementing per compositor)
+
+One implementation serves all tools and both compositors.
+
+## What Already Exists
+faelight-compositor: Smithay 0.7.0, working on Framework 16
+Phases 1-3 complete: XDG protocols, fsh + faelight-term inside compositor,
+auto-tiling, layer-shell handlers
+faelight-core: shared library crate for all forest tools
+MangoWM: running as daily driver, honors wlr-layer-shell
+Pinnacle: installed, honors wlr-layer-shell
 
 ## Vision
-faelight-compositor transitions from standalone compositor to a Wayland
-bridge library -- providing layer-shell, IPC, and protocol implementations
-that MangoWM and Pinnacle consume. faelight-bar v2, faelight-notify v5,
-and faelight-lock v2 all talk to this bridge instead of each compositor
-separately.
+faelight-compositor transitions from standalone compositor to bridge library:
+  faelight-core/src/wayland/ -- shared protocol implementations
+  faelight-bar v2 imports layer-shell from faelight-core
+  faelight-notify v5 imports layer-shell from faelight-core
+  faelight-lock v2 imports layer-shell from faelight-core
+  IPC socket at /run/user/1000/faelight-compositor.sock
+  MangoWM session starts bridge first, registers compositor type
+  Pinnacle session starts bridge first, registers compositor type
+  Forest tools connect to bridge -- not directly to compositor
 
-## Achievable Goals (using existing tools)
+## Pre-flight (INT-056 required)
+Any compositor change must pass INT-056 pre-flight:
+TTY2 hardened, fallback session, VM-tested first.
 
-### Phase 1 -- Audit (faelight-compositor + faelight-bar + faelight-notify)
-- Read faelight-compositor/src/handlers/ to understand current protocol coverage
-- Document which protocols are implemented: xdg-shell, layer-shell, wlr-foreign-toplevel
-- Identify what faelight-bar v1 needed vs what is available
-- Identify what faelight-notify v4 uses vs what layer-shell provides
-- Output: docs/compositor-bridge-audit.md
+## Phases
 
-### Phase 2 -- Extract layer-shell as shared crate
-- Move layer-shell implementation from faelight-compositor into faelight-core
-- faelight-bar v2 imports from faelight-core instead of reimplementing
-- faelight-notify v5 imports from faelight-core instead of reimplementing
-- Verify both MangoWM and Pinnacle honor wlr-layer-shell protocol
+Phase 1 -- Audit
+  Read faelight-compositor/src/handlers/ -- document protocol coverage
+  Identify what faelight-bar v1 needed vs what is available
+  Identify what faelight-notify v4 uses vs what layer-shell provides
+  Output: docs/compositor-bridge-audit.md
+  Gate: audit doc written, gaps identified
 
-### Phase 3 -- IPC bridge
-- faelight-compositor exposes a Unix socket for forest tool communication
-- faelight-bar v2 subscribes to workspace events via socket
-- faelight-notify v5 sends notifications via socket
-- Friday can query compositor state via socket
+Phase 2 -- Extract layer-shell to faelight-core
+  Move layer-shell implementation from faelight-compositor to faelight-core
+  faelight-bar v2 imports from faelight-core
+  faelight-notify v5 imports from faelight-core
+  Gate: both tools build using shared layer-shell from faelight-core
 
-### Phase 4 -- Compositor profiles
-- MangoWM session starts faelight-compositor bridge first
-- Pinnacle session starts faelight-compositor bridge first
-- Both compositors register with the bridge on startup
-- Forest tools connect to bridge, not directly to compositor
+Phase 3 -- IPC socket
+  faelight-compositor exposes Unix socket: /run/user/1000/faelight.sock
+  Events: compositor_type, workspace_change, window_focus, health_update
+  faelight-bar v2 subscribes to workspace events via socket
+  Gate: IPC socket working under MangoWM
 
-## Dependencies
-- faelight-compositor (existing -- Smithay 0.7.0)
-- faelight-core (existing -- shared library crate)
-- faelight-bar v2 (INT-053)
-- faelight-notify v5 (INT-019)
-- MangoWM (pkgs.mangowc -- running)
-- Pinnacle (flake input -- installed)
+Phase 4 -- Compositor profiles
+  MangoWM session: start bridge, register compositor=mango
+  Pinnacle session: start bridge, register compositor=pinnacle
+  Forest tools read compositor type from bridge
+  Gate: forest tools detect compositor type correctly
 
-## Gate
-- [ ] Audit complete -- docs/compositor-bridge-audit.md written
+Phase 5 -- Pinnacle verification
+  All phases verified under Pinnacle
+  Gate: IPC socket working under Pinnacle
+
+## Gates
+- [ ] INT-056 pre-flight complete before any compositor work
+- [ ] docs/compositor-bridge-audit.md written
 - [ ] layer-shell extracted to faelight-core
 - [ ] faelight-bar v2 uses faelight-core layer-shell
 - [ ] faelight-notify v5 uses faelight-core layer-shell
 - [ ] IPC socket working under MangoWM
 - [ ] IPC socket working under Pinnacle
+- [ ] Compositor type detectable from bridge
 - [ ] Forest tools connect via bridge not direct compositor calls
 
-## Note
-This does not require replacing MangoWM or Pinnacle.
-Both compositors remain. faelight-compositor becomes infrastructure,
-not a daily driver compositor.
+## Depends On
+- INT-056 (Forest Recovery Protocol) -- pre-flight gate
+- INT-053 (faelight-bar v2) -- first consumer of bridge
+- INT-019 (faelight-notify v5) -- second consumer of bridge
+
+## The Rule
+"faelight-compositor is not retired.
+ It becomes the forest's Wayland nervous system.
+ One implementation. Every tool benefits." 🌲
