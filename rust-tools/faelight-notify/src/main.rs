@@ -227,6 +227,12 @@ delegate_layer!(NotifyApp);
 delegate_registry!(NotifyApp);
 
 fn main() {
+    // Silence wayland-client broken pipe noise -- redirect stderr to /dev/null
+    if let Ok(devnull) = std::fs::File::open("/dev/null") {
+        use std::os::unix::io::IntoRawFd;
+        let null_fd = devnull.into_raw_fd();
+        unsafe { nix::libc::dup2(null_fd, 2); nix::libc::close(null_fd); }
+    }
     eprintln!("🌲 faelight-notify v4.0.0 starting...");
 
     let args: Vec<String> = std::env::args().collect();
