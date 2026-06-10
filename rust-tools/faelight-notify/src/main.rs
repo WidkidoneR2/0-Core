@@ -287,7 +287,7 @@ fn main() {
     let layer = layer_shell.create_layer_surface(
         &qh,
         surface,
-        Layer::Overlay,
+        Layer::Top,
         Some("faelight-notify"),
         None,
     );
