@@ -6,14 +6,14 @@ use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
 use fontdue::{Font, FontSettings};
 use std::sync::OnceLock;
 
-// Faelight Forest palette
-pub const BG: [u8; 4] = [0x11, 0x14, 0x0f, 0xf0]; // dark bg, slight transparency
-pub const BORDER_NORMAL: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xff]; // faelight green
-pub const BORDER_CRITICAL: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xff]; // red
-pub const BORDER_LOW: [u8; 4] = [0x4a, 0x6a, 0x3a, 0xff]; // muted green
-pub const TEXT_APP: [u8; 4] = [0x55, 0x60, 0x50, 0xff]; // dim
-pub const TEXT_SUMMARY: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xff]; // bright green
-pub const TEXT_BODY: [u8; 4] = [0xda, 0xe0, 0xd7, 0xff]; // light
+// Faelight Forest palette -- INT-033 neon candy semantic colors
+pub const BG: [u8; 4] = [0x0f, 0x14, 0x11, 0xf0]; // forest night, slight transparency
+pub const BORDER_NORMAL: [u8; 4] = [0x39, 0xff, 0x14, 0xff]; // neon green  (57, 255, 20)
+pub const BORDER_CRITICAL: [u8; 4] = [0xff, 0x50, 0x50, 0xff]; // neon red   (255, 80, 80)
+pub const BORDER_LOW: [u8; 4] = [0x64, 0xb4, 0x64, 0xff]; // muted green  (100, 180, 100)
+pub const TEXT_APP: [u8; 4] = [0x78, 0x8c, 0x82, 0xff]; // muted gray   (120, 140, 130)
+pub const TEXT_SUMMARY: [u8; 4] = [0x39, 0xff, 0x14, 0xff]; // neon green  (57, 255, 20)
+pub const TEXT_BODY: [u8; 4] = [0xd7, 0xe0, 0xda, 0xff]; // fog white    (215, 224, 218)
 
 const FONT_DATA: &[u8] = include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf");
 
