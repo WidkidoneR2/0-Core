@@ -323,12 +323,11 @@ fn main() {
     }
 
     loop {
-        // INT-019: handle broken pipe gracefully -- compositor may have closed
-        if event_queue.flush().is_err() {
-            break;
+        // INT-019: blocking_dispatch keeps connection alive -- no idle timeout
+        match event_queue.blocking_dispatch(&mut app) {
+            Ok(_) => {}
+            Err(_) => break,
         }
-        let _ = event_queue.dispatch_pending(&mut app);
-
         // Expire old notifications
         {
             let mut q = queue.lock().unwrap();
@@ -338,20 +337,15 @@ fn main() {
                 } else {
                     n.urgency.timeout_ms()
                 };
-                // Expire from display_start if set, else from created
                 let elapsed = n.display_start.unwrap_or(n.created).elapsed().as_millis();
                 elapsed < ms as u128
             });
         }
-
-        // Redraw at 10Hz or immediately if queue has items
+        // Redraw if queue has items
         let has_notif = !app.queue.lock().unwrap().is_empty();
         if has_notif || app.last_draw.elapsed() >= Duration::from_millis(100) {
             app.draw();
             event_queue.flush().ok();
-            let _ = event_queue.dispatch_pending(&mut app);
         }
-
-        std::thread::sleep(Duration::from_millis(100));
     }
 }
