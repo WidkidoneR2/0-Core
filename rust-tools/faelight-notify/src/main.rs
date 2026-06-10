@@ -287,7 +287,7 @@ fn main() {
     let layer = layer_shell.create_layer_surface(
         &qh,
         surface,
-        Layer::Top, // INT-019: Overlay not honored by MangoWM -- use Top like faelight-bar
+        Layer::Overlay,
         Some("faelight-notify"),
         None,
     );
