@@ -3,7 +3,7 @@ id: 019
 date: 2026-06-03
 type: feature
 title: "faelight-notify v5: NixOS-native, noti research, layer-shell ready"
-status: planned
+status: in-progress
 tags: [faelight-notify, nixos, noti, layer-shell, pinnacle, wayland]
 priority: medium
 ---
