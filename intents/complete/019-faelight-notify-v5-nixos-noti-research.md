@@ -3,7 +3,7 @@ id: 019
 date: 2026-06-03
 type: feature
 title: "faelight-notify v5: NixOS-native, noti research, layer-shell ready"
-status: in-progress
+status: complete
 tags: [faelight-notify, nixos, noti, layer-shell, pinnacle, wayland, colors]
 priority: medium
 ---
@@ -74,9 +74,9 @@ Phase 3 -- Forest-aware notifications
 - [x] Works under MangoWM (wlr-layer-shell)
 - [x] Neon candy colors match INT-033 palette
 - [x] Font path works in NixOS derivation
-- [ ] Intent complete fires desktop notification
-- [ ] Health drop below 85 fires desktop notification
-- [ ] Integrity drop below 80 fires desktop notification
+- [x] Intent complete fires desktop notification
+- [x] Health drop below 85 fires desktop notification
+- [x] Integrity drop below 80 fires desktop notification
 - [x] noti research documented (done above -- not applicable)
 
 ## The Rule
