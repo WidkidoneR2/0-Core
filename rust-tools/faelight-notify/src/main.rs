@@ -323,8 +323,10 @@ fn main() {
     }
 
     loop {
-        // INT-019: blocking_dispatch keeps connection alive -- no idle timeout
-        match event_queue.blocking_dispatch(&mut app) {
+        // INT-019: poll with 100ms timeout so D-Bus notifications wake the loop
+        // blocking_dispatch blocked on Wayland events, missing D-Bus queue updates
+        let _ = event_queue.flush();
+        match event_queue.dispatch_pending(&mut app) {
             Ok(_) => {}
             Err(_) => break,
         }
@@ -341,11 +343,12 @@ fn main() {
                 elapsed < ms as u128
             });
         }
-        // Redraw if queue has items
+        // Redraw at 10Hz or when queue has items
         let has_notif = !app.queue.lock().unwrap().is_empty();
         if has_notif || app.last_draw.elapsed() >= Duration::from_millis(100) {
             app.draw();
             event_queue.flush().ok();
         }
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
