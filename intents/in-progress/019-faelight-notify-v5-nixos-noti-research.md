@@ -72,11 +72,12 @@ Phase 3 -- Forest-aware notifications
 - [x] Broken pipe graceful exit
 - [x] Stderr silenced -- no terminal noise
 - [x] Works under MangoWM (wlr-layer-shell)
-- [ ] Neon candy colors match INT-033 palette
-- [ ] Font path works in NixOS derivation
+- [x] Neon candy colors match INT-033 palette
+- [x] Font path works in NixOS derivation
 - [ ] Intent complete fires desktop notification
-- [ ] Health drop below 90 fires desktop notification
-- [ ] noti research documented (done above -- not applicable)
+- [ ] Health drop below 85 fires desktop notification
+- [ ] Integrity drop below 80 fires desktop notification
+- [x] noti research documented (done above -- not applicable)
 
 ## The Rule
 "The forest speaks to itself through notifications.

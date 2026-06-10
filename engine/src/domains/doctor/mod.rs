@@ -336,6 +336,21 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         );
     }
 
+    // INT-019: forest-aware notifications -- health / integrity drops
+    if health < 85 {
+        crate::domains::notify::desktop(
+            "Forest health below 85%",
+            &format!("System health is {}%", health),
+            true,
+        );
+    }
+    if integrity_pct < 80 {
+        crate::domains::notify::desktop(
+            "Forest integrity below 80%",
+            &format!("Integrity is {}%", integrity_pct),
+            true,
+        );
+    }
     // Show integrity summary if issues found
     if int_fixed > 0 || int_proposed > 0 || int_alerts > 0 {
         println!();

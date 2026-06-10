@@ -965,6 +965,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
     // INT-217 -- Friday speaks on cicomplete
     let _ = crate::domains::friday::speak_on_complete(ctx, &intent.title);
+    crate::domains::notify::desktop(&format!("Intent {} complete", id), &intent.title, false);
     Ok(())
 }
 pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
