@@ -15,6 +15,8 @@ pub const TEXT_APP: [u8; 4] = [0x78, 0x8c, 0x82, 0xff]; // muted gray   (120, 14
 pub const TEXT_SUMMARY: [u8; 4] = [0x39, 0xff, 0x14, 0xff]; // neon green  (57, 255, 20)
 pub const TEXT_BODY: [u8; 4] = [0xd7, 0xe0, 0xda, 0xff]; // fog white    (215, 224, 218)
 
+pub const TEXT_HEADER: [u8; 4] = [0x5c, 0xc8, 0xff, 0xff]; // electric cyan (92, 200, 255)
+
 const FONT_DATA: &[u8] = include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf");
 
 static FONT: OnceLock<Font> = OnceLock::new();
@@ -106,42 +108,35 @@ pub fn draw_notification(
 ) {
     let stride = width * 4;
 
-    // Background
     fill_rect(canvas, stride, 0, 0, width, height, BG);
 
-    // Border — 2px all sides
-    fill_rect(canvas, stride, 0, 0, width, 2, border_color); // top
-    fill_rect(canvas, stride, 0, height - 2, width, 2, border_color); // bottom
-    fill_rect(canvas, stride, 0, 0, 2, height, border_color); // left
-    fill_rect(canvas, stride, width - 2, 0, 2, height, border_color); // right
+    // Border -- 2px all sides, urgency-colored
+    fill_rect(canvas, stride, 0, 0, width, 2, border_color);
+    fill_rect(canvas, stride, 0, height - 2, width, 2, border_color);
+    fill_rect(canvas, stride, 0, 0, 2, height, border_color);
+    fill_rect(canvas, stride, width - 2, 0, 2, height, border_color);
 
-    let pad = 12i32;
-    let font_size = 13.5f32;
+    // Thick left accent stripe (urgency-colored) -- the at-a-glance signal
+    let stripe_w: u32 = 6;
+    fill_rect(canvas, stride, 0, 0, stripe_w, height, border_color);
 
-    // App name — dim, small
-    draw_text(
-        canvas,
-        stride,
-        pad,
-        pad,
-        app_name,
-        TEXT_APP,
-        font_size - 1.0,
-    );
+    let left = (stripe_w + 12) as i32;
+    let pad_top = 8i32;
 
-    // Summary — bright green, medium
-    draw_text(
-        canvas,
-        stride,
-        pad,
-        pad + 18,
-        summary,
-        TEXT_SUMMARY,
-        font_size + 1.0,
-    );
+    // App name -- electric cyan
+    draw_text(canvas, stride, left, pad_top, app_name, TEXT_HEADER, 11.5);
 
-    // Body — light, normal
+    // Summary -- neon green, larger, underlined
+    let summary_y = pad_top + 16;
+    let summary_end = draw_text(canvas, stride, left, summary_y, summary, TEXT_SUMMARY, 15.0);
+    let underline_y = (summary_y + 18) as u32;
+    let uw = ((summary_end - left).max(0) as u32).min(width.saturating_sub(stripe_w + 14));
+    if underline_y + 2 < height {
+        fill_rect(canvas, stride, stripe_w + 12, underline_y, uw, 2, TEXT_SUMMARY);
+    }
+
+    // Body -- fog white
     if !body.is_empty() {
-        draw_text(canvas, stride, pad, pad + 38, body, TEXT_BODY, font_size);
+        draw_text(canvas, stride, left, pad_top + 40, body, TEXT_BODY, 12.5);
     }
 }
