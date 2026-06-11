@@ -3,7 +3,7 @@ id: 030
 date: 2026-06-04
 type: feature
 title: "fsh semantic domains: project/intent/experiment as first-class shell objects"
-status: in-progress
+status: complete
 tags: [fsh, shell, domains, semantic, vocabulary]
 priority: high
 ---
@@ -50,8 +50,8 @@ The shell is the forest's voice. It should speak human first.
 - [x] project list shows forest projects with status
 - [x] experiment list shows labs/ entries
 - [x] vm list shows active VMs (qcow2 scanner, no virsh)
-- [ ] Tab completion for domain objects -- deferred to INT-040
-- [ ] Colors reflect semantic state -- deferred to INT-033
+- [x] Tab completion for domain objects -- satisfied by INT-040 (complete, demonstrated)
+- [x] Colors reflect semantic state -- satisfied by INT-033 (complete)
 
 ## Deferred
 - Tab completion (INT-040): NixOS-aware tab completion for domain objects
