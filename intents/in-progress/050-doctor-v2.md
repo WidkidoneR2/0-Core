@@ -89,7 +89,7 @@ Phase 5 -- Performance
 - [x] Core Protection check removed (retired with INT-025; LUKS covers at-rest)
 - [x] Broot check un-orphaned (cockpit name mismatch had hidden it)
 - [x] System Services fix advice de-Arched (systemd user services, not & backgrounding)
-- [ ] keybinds check compositor-aware (detect mango/pinnacle/niri, read active config)
+- [x] keybinds check compositor-aware: reads mango config first, niri fallback, shows compositor name (full pgrep detection -> gate 7)
 - [ ] cosmetic pass + duplicate check roster collapsed
 - [ ] all surviving checks pass, d renders clean
 

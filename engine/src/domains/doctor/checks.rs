@@ -466,41 +466,57 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
 }
 
 pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
-    // Niri is primary compositor — check Niri config first, fall back to Sway
+    // Compositor-aware: read the active compositor's keybind config.
+    // mango (daily driver): ~/.config/mango/config.conf -- bind=MODS,key,action,...
+    // niri (retired fallback): ~/.config/niri/config.kdl
+    let mango_config = PathBuf::from(home).join(".config/mango/config.conf");
     let niri_config = PathBuf::from(home).join(".config/niri/config.kdl");
-    // INT-180: sway removed -- Niri only
-
-    let (wm_name, wm_config) = if niri_config.exists() {
-        ("Niri", niri_config)
+    let (wm_name, wm_config, is_mango) = if mango_config.exists() {
+        ("mango", mango_config, true)
+    } else if niri_config.exists() {
+        ("niri", niri_config, false)
     } else {
         return CheckResult {
             id: "keybinds".into(),
-            name: "WM Keybinds".into(),
+            name: "Compositor Keybinds".into(),
             status: Status::Warn,
-            message: "No Niri config found in config/niri/".into(),
-            fix: Some("Run: faelight-link deploy wm-niri".into()),
+            message: "No compositor keybind config found".into(),
+            fix: Some("Deploy a compositor config (mango/niri)".into()),
         };
     };
-
     let config_content = match std::fs::read_to_string(&wm_config) {
         Ok(c) => c,
         Err(_) => return CheckResult {
             id: "keybinds".into(),
-            name: format!("{} Keybinds", wm_name),
+            name: "Compositor Keybinds".into(),
             status: Status::Warn,
             message: "Could not read keybind config".into(),
             fix: None,
         },
     };
-    let keybinds: Vec<String> = config_content
-        .lines()
-        .filter(|l| {
-            let t = l.trim();
-            t.starts_with("Mod+") || t.starts_with("Ctrl+") || t.starts_with("Shift+")
-                || t.starts_with("Alt+") || t.starts_with("Super+")
-        })
-        .map(|l| l.trim().split('{').next().unwrap_or("").trim().to_string())
-        .collect();
+    let keybinds: Vec<String> = if is_mango {
+        config_content
+            .lines()
+            .map(|l| l.trim())
+            .filter_map(|l| l.strip_prefix("bind="))
+            .filter_map(|rest| {
+                let mut parts = rest.splitn(3, ',');
+                let mods = parts.next()?;
+                let key = parts.next()?;
+                Some(format!("{},{}", mods, key))
+            })
+            .collect()
+    } else {
+        config_content
+            .lines()
+            .filter(|l| {
+                let t = l.trim();
+                t.starts_with("Mod+") || t.starts_with("Ctrl+") || t.starts_with("Shift+")
+                    || t.starts_with("Alt+") || t.starts_with("Super+")
+            })
+            .map(|l| l.trim().split('{').next().unwrap_or("").trim().to_string())
+            .collect()
+    };
     let count = keybinds.len();
     let mut seen = std::collections::HashSet::new();
     let mut conflicts = 0;
@@ -512,17 +528,17 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     if conflicts == 0 {
         CheckResult {
             id: "keybinds".into(),
-            name: format!("{} Keybinds", wm_name),
+            name: "Compositor Keybinds".into(),
             status: Status::Pass,
-            message: format!("{} unique keybindings, no conflicts", count),
+            message: format!("{}: {} keybindings, no conflicts", wm_name, count),
             fix: None,
         }
     } else {
         CheckResult {
             id: "keybinds".into(),
-            name: format!("{} Keybinds", wm_name),
+            name: "Compositor Keybinds".into(),
             status: Status::Warn,
-            message: format!("{} keybind conflicts detected -- review Niri config", conflicts),
+            message: format!("{}: {} keybind conflicts detected -- review {} config", wm_name, conflicts, wm_name),
             fix: None,
         }
     }

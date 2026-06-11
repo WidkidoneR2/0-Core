@@ -106,7 +106,7 @@ pub fn render_cockpit(
         "Intent Ledger",
         "Profile System",
         "Faelight Config",
-        "Niri Keybinds",
+        "Compositor Keybinds",
         "Theme Packages",
         "Package Metadata",
         "Archaeology",
