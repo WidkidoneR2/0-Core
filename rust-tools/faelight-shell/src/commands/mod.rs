@@ -3482,6 +3482,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "cd" => cd(args),
+        "devshell" => devshell_list(args),
         "d" => {
             // forest built-in: d → core doctor run
             let output = std::process::Command::new("core")
@@ -6094,6 +6095,48 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             "  pick file [--core]   fuzzy file search".dimmed(),
         )),
     }
+}
+
+fn devshell_list(args: &[&str]) -> CommandResult {
+    if let Some(&sub) = args.first() {
+        if sub != "list" {
+            return CommandResult::Error(format!(
+                "unknown devshell subcommand '{}' (try: devshell list)",
+                sub
+            ));
+        }
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let output = std::process::Command::new("nix")
+        .args(["flake", "show", "--json"])
+        .current_dir(&cwd)
+        .output();
+    let out = match output {
+        Ok(o) if o.status.success() => o,
+        _ => {
+            return CommandResult::Error(format!(
+                "no flake found in {} (nix flake show failed)",
+                cwd.display()
+            ))
+        }
+    };
+    let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
+        Ok(v) => v,
+        Err(_) => return CommandResult::Error("could not parse nix flake output".to_string()),
+    };
+    let system = format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS);
+    let shells = json.get("devShells").and_then(|d| d.get(system.as_str()));
+    let map = match shells {
+        Some(serde_json::Value::Object(m)) if !m.is_empty() => m,
+        _ => {
+            return CommandResult::Output(format!("  no devShells for {} in this flake", system))
+        }
+    };
+    let mut lines = vec![format!("  devShells in current flake ({}):", system)];
+    for name in map.keys() {
+        lines.push(format!("    {}", name));
+    }
+    CommandResult::Output(lines.join("\n"))
 }
 
 fn cd(args: &[&str]) -> CommandResult {

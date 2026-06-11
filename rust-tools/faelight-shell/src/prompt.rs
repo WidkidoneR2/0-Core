@@ -308,10 +308,20 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     } else {
         fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "❯")
     };
+    let devshell_name = std::env::var("name")
+        .ok()
+        .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
+        .filter(|n| !n.is_empty());
     let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        format!("{} ", fc_rl(50, 220, 255, "❄"))
+        match &devshell_name {
+            Some(n) => format!("{} {} ", fc_rl(50, 220, 255, "❄"), fc_rl(50, 220, 255, n)),
+            None => format!("{} ", fc_rl(50, 220, 255, "❄")),
+        }
     } else if std::env::var("DIRENV_DIR").is_ok() {
-        format!("{} ", fc_rl(80, 140, 255, "❄"))
+        match &devshell_name {
+            Some(n) => format!("{} {} ", fc_rl(80, 140, 255, "❄"), fc_rl(80, 140, 255, n)),
+            None => format!("{} ", fc_rl(80, 140, 255, "❄")),
+        }
     } else {
         String::new()
     };

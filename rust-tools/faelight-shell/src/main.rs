@@ -406,6 +406,39 @@ fn is_core_locked(core_root: &str) -> bool {
 #[allow(dead_code)]
 
 
+// INT-045: apply direnv environment for the current directory.
+// Uses "direnv export json" -- a flat JSON object mapping env var names to
+// string values (set) or null (unset). direnv keeps its own DIRENV_DIFF and
+// DIRENV_WATCHES bookkeeping vars in that object; setting them like any other
+// key is what lets stateful unload work when leaving a direnv directory.
+fn apply_direnv() {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let output = std::process::Command::new("direnv")
+        .args(["export", "json"])
+        .current_dir(&cwd)
+        .output();
+    let out = match output {
+        Ok(o) => o,
+        Err(_) => return,
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    if let Ok(serde_json::Value::Object(map)) =
+        serde_json::from_str::<serde_json::Value>(trimmed)
+    {
+        for (key, val) in map {
+            match val {
+                serde_json::Value::Null => std::env::remove_var(&key),
+                serde_json::Value::String(s) => std::env::set_var(&key, s),
+                _ => {}
+            }
+        }
+    }
+}
+
 fn main() -> Result<()> {
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
@@ -491,25 +524,8 @@ fn repl_main() -> Result<()> {
             }
         }
     }
-    // Direnv hook -- apply environment from .envrc if present
-    {
-        let cwd = std::env::current_dir().unwrap_or_default();
-        let output = std::process::Command::new("direnv")
-            .args(["export", "bash"])
-            .current_dir(&cwd)
-            .output();
-        if let Ok(out) = output {
-            let exports = String::from_utf8_lossy(&out.stdout);
-            for line in exports.lines() {
-                if let Some(rest) = line.strip_prefix("export ") {
-                    if let Some((key, val)) = rest.split_once('=') {
-                        let val = val.trim_matches('"');
-                        std::env::set_var(key, val);
-                    }
-                }
-            }
-        }
-    }
+    // INT-045: direnv hook -- apply environment for the startup directory
+    apply_direnv();
     // Connect to state.db
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();
@@ -657,6 +673,7 @@ fn repl_main() -> Result<()> {
     #[allow(unused_assignments)]
     let mut last_duration_ms: Option<u64> = None;
     let mut last_exit_code: Option<i32> = None;
+    let mut last_dir: std::path::PathBuf = std::path::PathBuf::new();
     let mut last_history_id: Option<i64> = None;
     let mut last_command_start: Option<std::time::Instant> = None;
 
@@ -725,6 +742,13 @@ fn repl_main() -> Result<()> {
         print!("{}", prompt::OSC133_PROMPT_START);
         prompt::render_context(&db, &ctx);
 
+        // INT-045: re-evaluate direnv when the working directory changes
+        if let Ok(cur_dir) = std::env::current_dir() {
+            if cur_dir != last_dir {
+                apply_direnv();
+                last_dir = cur_dir;
+            }
+        }
         let prompt_str = prompt::render_line(&db, last_exit_code);
 
         // INT-249b: multi-line aware read - accumulates until command is complete
