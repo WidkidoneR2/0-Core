@@ -113,7 +113,7 @@ pub fn check_services() -> CheckResult {
             name: "System Services".into(),
             status: Status::Warn,
             message: format!("Only {}/2 services running", running),
-            fix: Some("Run: faelight-bar & faelight-notify &".into()),
+            fix: Some("Configure faelight-bar/faelight-notify as systemd user services".into()),
         }
     }
 }
@@ -156,7 +156,7 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
     }
 }
 
-pub fn check_yazi_plugins(_home: &str) -> CheckResult {
+pub fn check_broot(_home: &str) -> CheckResult {
     let broot_exists = std::process::Command::new("which")
         .arg("broot")
         .output()
@@ -960,44 +960,6 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
         } else {
             None
         },
-    }
-}
-
-pub fn check_core_protect(core_root: &str) -> CheckResult {
-    let installed = Command::new("which")
-        .arg("core-protect")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if !installed {
-        return CheckResult {
-            id: "core_protect".into(),
-            name: "Core Protection".into(),
-            status: Status::Fail,
-            message: "core-protect not installed".into(),
-            fix: Some("Build: cargo build --release -p core-protect".into()),
-        };
-    }
-    // INT-251: read runtime/.core-locked file (lsattr -d unreliable on top-level dir)
-    let lock_file = std::path::Path::new(core_root).join("runtime/.core-locked");
-    if lock_file.exists() {
-        let contents = std::fs::read_to_string(&lock_file).unwrap_or_default();
-        if contents.trim() == "locked" {
-            return CheckResult {
-                id: "core_protect".into(),
-                name: "Core Protection".into(),
-                status: Status::Pass,
-                message: "🔒 Core is LOCKED (immutable)".into(),
-                fix: None,
-            };
-        }
-    }
-    CheckResult {
-        id: "core_protect".into(),
-        name: "Core Protection".into(),
-        status: Status::Warn,
-        message: "🔓 Core is UNLOCKED -- remember to lock before shutdown".into(),
-        fix: Some("Run: lock-core".into()),
     }
 }
 

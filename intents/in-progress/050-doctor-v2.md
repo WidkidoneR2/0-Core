@@ -3,7 +3,7 @@ id: 050
 date: 2026-06-09
 type: feature
 title: "doctor v2: NixOS-aware health checks"
-status: planned
+status: in-progress
 tags: [doctor, health, nixos, boot, generations, monitoring, friday, compositor]
 priority: high
 ---
@@ -84,6 +84,14 @@ Phase 4 -- Friday and network checks
 Phase 5 -- Performance
   Parallelize checks where safe
   Gate: d completes in under 2 seconds with all new checks
+
+## Phase 0 Gates (cleanup -- honest existing checks, reshape 2026-06-11)
+- [x] Core Protection check removed (retired with INT-025; LUKS covers at-rest)
+- [x] Broot check un-orphaned (cockpit name mismatch had hidden it)
+- [x] System Services fix advice de-Arched (systemd user services, not & backgrounding)
+- [ ] keybinds check compositor-aware (detect mango/pinnacle/niri, read active config)
+- [ ] cosmetic pass + duplicate check roster collapsed
+- [ ] all surviving checks pass, d renders clean
 
 ## Gates
 - [ ] Boot health check: kernel errors since last boot

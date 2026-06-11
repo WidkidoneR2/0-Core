@@ -97,7 +97,7 @@ pub fn render_cockpit(
     ];
     let git_names = ["Git Repository", "Scripts", "Rust Toolchain"];
     let tools_names = [
-        "Yazi Plugins",
+        "Broot",
         "Tool Installation",
         "Path Resilience",
         "Alias Coverage",
@@ -112,7 +112,7 @@ pub fn render_cockpit(
         "Archaeology",
         "Schema Validation",
     ];
-    let security_names = ["Security Hardening", "Security Audit", "Core Protection"];
+    let security_names = ["Security Hardening", "Security Audit"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
         names

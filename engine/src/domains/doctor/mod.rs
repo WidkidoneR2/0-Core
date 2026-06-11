@@ -253,7 +253,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_stow(&core_root, &home),
         check_services(),
         check_broken_symlinks(&core_root, &home),
-        check_yazi_plugins(&home),
+        check_broot(&home),
         check_binaries(),
         check_git(&core_root),
         check_themes(&core_root),
@@ -270,7 +270,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_disk_space(),
         check_tool_installation(),
         check_path_resilience(&core_root),
-        check_core_protect(&core_root),
         check_schema_validation(&core_root),
         check_sandbox(&core_root),
     ];
@@ -794,7 +793,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         check_stow(&core_root, &home),
         check_services(),
         check_broken_symlinks(&core_root, &home),
-        check_yazi_plugins(&home),
+        check_broot(&home),
         check_binaries(),
         check_git(&core_root),
         check_themes(&core_root),
@@ -811,7 +810,6 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         check_disk_space(),
         check_tool_installation(),
         check_path_resilience(&core_root),
-        check_core_protect(&core_root),
         check_schema_validation(&core_root),
         check_sandbox(&core_root),
     ];
