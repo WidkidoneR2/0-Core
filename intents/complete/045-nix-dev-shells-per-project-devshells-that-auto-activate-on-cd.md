@@ -3,7 +3,7 @@ id: 045
 date: 2026-06-09
 type: feature
 title: "nix-dev-shells: per-project devShells that auto-activate on cd"
-status: planned
+status: complete
 tags: [nixos, devshell, direnv, fsh, nix, development]
 priority: medium
 ---
@@ -81,14 +81,14 @@ Phase 4 -- fsh vocabulary
   Gate: devshell commands work in fsh
 
 ## Gates
-- [ ] programs.direnv.enable = true in NixOS flake
-- [ ] nix-direnv configured for cached flake shells
-- [ ] .envrc present in ~/0-core with: use flake
-- [ ] cd ~/0-core auto-activates friday-dev shell
-- [ ] cd ~ deactivates the devShell cleanly
-- [ ] fsh prompt shows ❄ and devShell name on activation
-- [ ] devshell list shows available shells in current flake
-- [ ] Second cd into same dir is instant (nix-direnv cache)
+- [x] programs.direnv.enable = true in NixOS flake
+- [x] nix-direnv configured for cached flake shells
+- [x] .envrc present in ~/0-core with: use flake
+- [x] cd ~/0-core auto-activates friday-dev shell
+- [x] cd ~ deactivates the devShell cleanly
+- [x] fsh prompt shows ❄ and devShell name on activation
+- [x] devshell list shows available shells in current flake
+- [x] Second cd into same dir is instant (nix-direnv cache)
 
 ## Depends On
 - INT-040 (fsh-completions) -- devshell tab completion
