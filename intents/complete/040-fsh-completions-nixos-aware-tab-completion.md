@@ -3,7 +3,7 @@ id: 040
 date: 2026-06-09
 type: feature
 title: "fsh-completions: tab completion for domain objects and NixOS vocabulary"
-status: in-progress
+status: complete
 tags: [completion, fsh, domains, nixos, tab, vocabulary]
 priority: high
 ---
@@ -65,14 +65,14 @@ Phase 3 -- fsh vocabulary completion
   Gate: all vocabulary verbs complete with semantic description
 
 ## Gates
-- [ ] intent <TAB> completes: show, list, search, new, edit
-- [ ] vm <TAB> completes: list, start, stop, snapshot, restore
-- [ ] vm start <TAB> completes with qcow2 names from ~/vms/
-- [ ] project <TAB> completes: list, status, health
-- [ ] experiment <TAB> completes: list, new, graduate
-- [ ] rebuild <TAB> completes with flake host names
-- [ ] nix develop <TAB> completes with devShell names
-- [ ] All completions tested in live fsh session
+- [x] intent <TAB> completes: show, list, search, new, edit
+- [x] vm <TAB> completes: list, start, stop, snapshot, restore
+- [x] vm start <TAB> completes with qcow2 names from ~/vms/
+- [x] project <TAB> completes: list, status, health
+- [x] experiment <TAB> completes: list, new, graduate
+- [x] rebuild <TAB> completes with flake host names
+- [x] nix develop <TAB> completes with devShell names
+- [x] All completions tested in live fsh session
 
 ## The Rule
 "If the shell knows the object exists,

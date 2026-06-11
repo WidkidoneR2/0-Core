@@ -493,6 +493,34 @@ impl<'a> ForestHelper<'a> {
                 return (start, hosts);
             }
         }
+        // nix develop <TAB> -- complete with devShell + package names (INT-040)
+        if let Some(rest) = line.strip_prefix("nix develop ") {
+            let partial = rest.split_whitespace().last().unwrap_or("");
+            let home = std::env::var("HOME").unwrap_or_default();
+            let flake = format!("{}/0-core/flake.nix", home);
+            let mut names: Vec<String> = Vec::new();
+            if let Ok(fsrc) = std::fs::read_to_string(&flake) {
+                for l in fsrc.lines() {
+                    let t = l.trim();
+                    if let Some(after) = t.strip_prefix("devShells.${system}.") {
+                        let name = after.split(|c: char| c == ' ' || c == '=').next().unwrap_or("");
+                        if !name.is_empty() { names.push(name.to_string()); }
+                    }
+                    if t.contains("= pkgs.rustPlatform.buildRustPackage") {
+                        if let Some(name) = t.split_whitespace().next() {
+                            names.push(name.to_string());
+                        }
+                    }
+                }
+            }
+            names.retain(|n| partial.is_empty() || n.starts_with(partial));
+            names.sort();
+            names.dedup();
+            if !names.is_empty() {
+                let start = line.len() - partial.len();
+                return (start, names);
+            }
+        }
         // ── Case 2c: path completion — cd or path-like argument ─────────────────
         if line.starts_with("deploy ") {
             let partial = &line["deploy ".len()..];
