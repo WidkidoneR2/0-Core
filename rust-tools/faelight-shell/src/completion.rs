@@ -221,6 +221,11 @@ impl<'a> ForestHelper<'a> {
         {
             // All multi-word completions — prefix match from start=0
             const MULTI_CMDS: &[&str] = &[
+                // -- INT-040: bare domain verbs (shell-native) --
+                "intent list", "intent show", "intent search", "intent new", "intent edit",
+                "vm list", "vm start", "vm stop", "vm snapshot", "vm restore",
+                "project list", "project status", "project health",
+                "experiment list", "experiment new", "experiment graduate",
                 // ── core intent ──────────────────────────────────────────
                 "core intent focus",
                 "core intent unfocus",
@@ -457,11 +462,9 @@ impl<'a> ForestHelper<'a> {
                 }
             }
         }
-        // rebuild <TAB> -- complete with flake host names from flake.nix
-        if line.starts_with("rebuild") {
-            let partial = if line.contains(' ') {
-                line.split_whitespace().last().unwrap_or("")
-            } else { "" };
+        // rebuild <TAB> -- complete with flake host names (INT-040 fix: leaf name, no dup)
+        if let Some(rest) = line.strip_prefix("rebuild ") {
+            let partial = rest.split_whitespace().last().unwrap_or("");
             let home = std::env::var("HOME").unwrap_or_default();
             let flake = format!("{}/0-core/flake.nix", home);
             let mut hosts: Vec<String> = Vec::new();
@@ -473,9 +476,10 @@ impl<'a> ForestHelper<'a> {
                         in_nixos = true;
                     }
                     if in_nixos && t.contains("= nixpkgs.lib.nixosSystem") {
-                        if let Some(name) = t.split_whitespace().next() {
-                            if partial.is_empty() || name.starts_with(partial) {
-                                hosts.push(name.to_string());
+                        if let Some(tok) = t.split_whitespace().next() {
+                            let host = tok.rsplit('.').next().unwrap_or(tok);
+                            if !host.is_empty() && (partial.is_empty() || host.starts_with(partial)) {
+                                hosts.push(host.to_string());
                             }
                         }
                     }
@@ -486,7 +490,7 @@ impl<'a> ForestHelper<'a> {
             hosts.dedup();
             if !hosts.is_empty() {
                 let start = line.len() - partial.len();
-                return (start, hosts.iter().map(|h| format!("rebuild {}", h)).collect());
+                return (start, hosts);
             }
         }
         // ── Case 2c: path completion — cd or path-like argument ─────────────────
