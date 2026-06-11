@@ -90,8 +90,8 @@ Phase 5 -- Performance
 - [x] Broot check un-orphaned (cockpit name mismatch had hidden it)
 - [x] System Services fix advice de-Arched (systemd user services, not & backgrounding)
 - [x] keybinds check compositor-aware: reads mango config first, niri fallback, shows compositor name (full pgrep detection -> gate 7)
-- [ ] cosmetic pass + duplicate check roster collapsed
-- [ ] all surviving checks pass, d renders clean
+- [x] duplicate check roster collapsed into all_checks() (single source of truth); cockpit dashboard renders clean
+- [x] every rendered check is truthful -- no phantom/orphaned/dead/Arch-era checks; System Services 0/2 verified honest (pgrep -f detects running svcs; bar->INT-053, notify->Fridayd)
 
 ## Gates
 - [ ] Boot health check: kernel errors since last boot

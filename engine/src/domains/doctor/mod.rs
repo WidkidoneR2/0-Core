@@ -249,30 +249,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         .trim()
         .to_string();
 
-    let checks: Vec<CheckResult> = vec![
-        check_stow(&core_root, &home),
-        check_services(),
-        check_broken_symlinks(&core_root, &home),
-        check_broot(&home),
-        check_binaries(),
-        check_git(&core_root),
-        check_themes(&core_root),
-        check_scripts(&core_root),
-        check_dotmeta(),
-        check_intents(&core_root),
-        check_profiles(&core_root, &home),
-        check_faelight_config(&home),
-        check_keybinds(&core_root, &home),
-        check_security_hardening(),
-        check_security_audit(&home),
-        check_alias_coverage(),
-        check_rust_toolchain(),
-        check_disk_space(),
-        check_tool_installation(),
-        check_path_resilience(&core_root),
-        check_schema_validation(&core_root),
-        check_sandbox(&core_root),
-    ];
+    let checks = all_checks(&core_root, &home);
 
     // Exclude core_protection from health % — lock state is operational, not a health issue
     let scored: Vec<_> = checks.iter().filter(|r| r.id != "core_protect").collect();
@@ -789,30 +766,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
             .unwrap_or(0);
 
     // Run all checks silently
-    let checks: Vec<CheckResult> = vec![
-        check_stow(&core_root, &home),
-        check_services(),
-        check_broken_symlinks(&core_root, &home),
-        check_broot(&home),
-        check_binaries(),
-        check_git(&core_root),
-        check_themes(&core_root),
-        check_scripts(&core_root),
-        check_dotmeta(),
-        check_intents(&core_root),
-        check_profiles(&core_root, &home),
-        check_faelight_config(&home),
-        check_keybinds(&core_root, &home),
-        check_security_hardening(),
-        check_security_audit(&home),
-        check_alias_coverage(),
-        check_rust_toolchain(),
-        check_disk_space(),
-        check_tool_installation(),
-        check_path_resilience(&core_root),
-        check_schema_validation(&core_root),
-        check_sandbox(&core_root),
-    ];
+    let checks = all_checks(&core_root, &home);
 
     let total = checks.len() as u32;
     let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
@@ -1260,4 +1214,32 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
     Ok(())
+}
+
+
+fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
+    vec![
+        check_stow(core_root, home),
+        check_services(),
+        check_broken_symlinks(core_root, home),
+        check_broot(home),
+        check_binaries(),
+        check_git(core_root),
+        check_themes(core_root),
+        check_scripts(core_root),
+        check_dotmeta(),
+        check_intents(core_root),
+        check_profiles(core_root, home),
+        check_faelight_config(home),
+        check_keybinds(core_root, home),
+        check_security_hardening(),
+        check_security_audit(home),
+        check_alias_coverage(),
+        check_rust_toolchain(),
+        check_disk_space(),
+        check_tool_installation(),
+        check_path_resilience(core_root),
+        check_schema_validation(core_root),
+        check_sandbox(core_root),
+    ]
 }
