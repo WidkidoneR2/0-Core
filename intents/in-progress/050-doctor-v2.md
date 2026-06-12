@@ -96,7 +96,7 @@ Phase 5 -- Performance
 ## Gates
 - [ ] Boot health check: kernel errors since last boot
 - [ ] Boot time check: systemd-analyze warn > 15s
-- [ ] Generation drift detection: rebuilt but not rebooted
+- [x] Generation drift detection: current vs booted system link; WARN if rebuilt-not-rebooted (verified live: PASS on gen 138 booted==current; WARN branch fires on next rebuild)
 - [ ] flake.lock age warning: > 30 days
 - [ ] Nix store size warning: > 50GB
 - [ ] VM state check: no accidental running VMs

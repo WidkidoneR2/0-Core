@@ -1027,3 +1027,32 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
         fix: None,
     }
 }
+
+
+pub fn check_generation_drift() -> CheckResult {
+    let current = std::fs::read_link("/run/current-system").ok();
+    let booted = std::fs::read_link("/run/booted-system").ok();
+    match (current, booted) {
+        (Some(c), Some(b)) if c == b => CheckResult {
+            id: "generation_drift".into(),
+            name: "Generation Drift".into(),
+            status: Status::Pass,
+            message: "Booted generation is current".into(),
+            fix: None,
+        },
+        (Some(_), Some(_)) => CheckResult {
+            id: "generation_drift".into(),
+            name: "Generation Drift".into(),
+            status: Status::Warn,
+            message: "Rebuilt since boot -- reboot to apply (kernel/initrd changes need it)".into(),
+            fix: Some("Reboot to activate the current generation".into()),
+        },
+        _ => CheckResult {
+            id: "generation_drift".into(),
+            name: "Generation Drift".into(),
+            status: Status::Warn,
+            message: "Could not read current/booted system links".into(),
+            fix: None,
+        },
+    }
+}

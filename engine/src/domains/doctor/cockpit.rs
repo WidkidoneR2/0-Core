@@ -113,6 +113,7 @@ pub fn render_cockpit(
         "Schema Validation",
     ];
     let security_names = ["Security Hardening", "Security Audit"];
+    let nixos_names = ["Generation Drift"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
         names
@@ -125,6 +126,7 @@ pub fn render_cockpit(
     render_section("🌿 Git & Code", &group(&git_names));
     render_section("🛠  Tools", &group(&tools_names));
     render_section("📋 Forest", &group(&forest_names));
+    render_section("❄ NixOS", &group(&nixos_names));
     render_section("🔒 Security", &group(&security_names));
 
     // ── Stats strip ───────────────────────────────────────────────────
