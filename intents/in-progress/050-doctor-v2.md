@@ -95,7 +95,7 @@ Phase 5 -- Performance
 
 ## Gates
 - [x] Boot health check: kernel errors since last boot
-- [ ] Boot time check: systemd-analyze warn > 15s
+- [x] Boot time check: systemd-analyze warn > 15s
 - [x] Generation drift detection: current vs booted system link; WARN if rebuilt-not-rebooted (verified live: PASS on gen 138 booted==current; WARN branch fires on next rebuild)
 - [x] Generation count: age-aware -- WARN only on generations older than 14d (prunable); PASS at 138/none-old, agrees with a live nix-collect-garbage that pruned 0
 - [x] flake.lock age warning: > 30 days (stat flake.lock mtime; PASS at 2 days, fix=nix flake update)

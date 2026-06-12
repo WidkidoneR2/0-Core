@@ -1079,6 +1079,67 @@ pub fn check_boot_errors() -> CheckResult {
     }
 }
 
+pub fn check_boot_time() -> CheckResult {
+    // Measure userspace startup (time to the login/graphical target) -- the part
+    // we control. The full systemd-analyze total folds in firmware POST and the
+    // wall-clock spent waiting at the LUKS password prompt, which is not a boot-
+    // performance signal. The bar we want is time-to-greetd, i.e. userspace.
+    let output = Command::new("systemd-analyze").arg("time").output();
+    let out = match output {
+        Ok(o) if o.status.success() => o,
+        _ => {
+            return CheckResult {
+                id: "boot_time".into(),
+                name: "Boot Time".into(),
+                status: Status::Warn,
+                message: "Could not read boot time (systemd-analyze)".into(),
+                fix: None,
+            }
+        }
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    let userspace = if text.contains("(userspace)") {
+        text.split("(userspace)")
+            .next()
+            .and_then(|pre| pre.split_whitespace().last())
+            .map(|s| s.trim().to_string())
+    } else {
+        None
+    };
+    let userspace = match userspace {
+        Some(u) if !u.is_empty() => u,
+        _ => {
+            return CheckResult {
+                id: "boot_time".into(),
+                name: "Boot Time".into(),
+                status: Status::Warn,
+                message: "Could not parse userspace boot time".into(),
+                fix: None,
+            }
+        }
+    };
+    let slow = userspace.contains("min") || userspace.contains('h');
+    let secs = userspace.trim_end_matches('s').parse::<f64>().ok();
+    let over = slow || secs.map(|s| s > 15.0).unwrap_or(false);
+    if over {
+        CheckResult {
+            id: "boot_time".into(),
+            name: "Boot Time".into(),
+            status: Status::Warn,
+            message: format!("Userspace startup {} (over 15s target)", userspace),
+            fix: Some("systemd-analyze blame".into()),
+        }
+    } else {
+        CheckResult {
+            id: "boot_time".into(),
+            name: "Boot Time".into(),
+            status: Status::Pass,
+            message: format!("Login ready in {} (userspace)", userspace),
+            fix: None,
+        }
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();
