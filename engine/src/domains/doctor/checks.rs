@@ -1101,3 +1101,37 @@ pub fn check_generation_count() -> CheckResult {
         }
     }
 }
+
+
+pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
+    use std::time::SystemTime;
+    let path = std::path::Path::new(core_root).join("flake.lock");
+    let age_days = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|mtime| SystemTime::now().duration_since(mtime).ok())
+        .map(|d| d.as_secs() / 86400);
+    match age_days {
+        Some(days) if days > 30 => CheckResult {
+            id: "flake_lock_age".into(),
+            name: "Flake Lock Age".into(),
+            status: Status::Warn,
+            message: format!("flake.lock is {} days old -- deps may be stale", days),
+            fix: Some("nix flake update".into()),
+        },
+        Some(days) => CheckResult {
+            id: "flake_lock_age".into(),
+            name: "Flake Lock Age".into(),
+            status: Status::Pass,
+            message: format!("flake.lock updated {} days ago", days),
+            fix: None,
+        },
+        None => CheckResult {
+            id: "flake_lock_age".into(),
+            name: "Flake Lock Age".into(),
+            status: Status::Warn,
+            message: "Could not read flake.lock mtime".into(),
+            fix: None,
+        },
+    }
+}
