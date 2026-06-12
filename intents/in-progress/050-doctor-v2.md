@@ -92,6 +92,7 @@ Phase 5 -- Performance
 - [x] keybinds check compositor-aware: reads mango config first, niri fallback, shows compositor name (full pgrep detection -> gate 7)
 - [x] duplicate check roster collapsed into all_checks() (single source of truth); cockpit dashboard renders clean
 - [x] every rendered check is truthful -- no phantom/orphaned/dead/Arch-era checks; System Services 0/2 verified honest (pgrep -f detects running svcs; bar->INT-053, notify->Fridayd)
+- [x] System Services rescoped to notify-only -- faelight-bar removed from the service array (no business running pre-053); message surfaces "(faelight-bar pending INT-053)" so the deferral shows in the output, not just the code. FINDING: bar's unit is a hand-placed 233-byte file at ~/.config/systemd/user/faelight-bar.service, NOT in the flake -- zero Nix-managed systemd user services exist. notify's Nix-native service + graphical-session autostart deferred to INT-053/Fridayd (053 rebuilds bar ground-up; Mango owns session integration), so wiring it now is throwaway scaffolding. Honest WARN (notify down) stays a true signal until then.
 
 ## Gates
 - [x] Boot health check: kernel errors since last boot

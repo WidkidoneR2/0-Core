@@ -82,14 +82,14 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
 }
 
 pub fn check_services() -> CheckResult {
-    let services = [
-        ("faelight-bar", "Status bar"),
-        ("faelight-notify", "Notifications"),
-    ];
+    // faelight-bar is deferred to INT-053 (i3-style wlr-layer-shell bar for
+    // MangoWM/Pinnacle) and has no business running yet, so it is intentionally
+    // not checked here -- re-add it when INT-053 ships. Until then we measure the
+    // one daemon that should be up today: faelight-notify.
+    let services = [("faelight-notify", "Notifications")];
     let running = services
         .iter()
         .filter(|(name, _)| {
-            // Match full path to avoid false positives
             let full = format!("/run/current-system/sw/bin/{}", name);
             Command::new("pgrep")
                 .arg("-f")
@@ -99,12 +99,13 @@ pub fn check_services() -> CheckResult {
                 .unwrap_or(false)
         })
         .count();
-    if running == 2 {
+    let total = services.len();
+    if running == total {
         CheckResult {
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Pass,
-            message: "All 2/2 services running".into(),
+            message: format!("{}/{} services running (faelight-bar pending INT-053)", running, total),
             fix: None,
         }
     } else {
@@ -112,8 +113,8 @@ pub fn check_services() -> CheckResult {
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Warn,
-            message: format!("Only {}/2 services running", running),
-            fix: Some("Configure faelight-bar/faelight-notify as systemd user services".into()),
+            message: format!("{}/{} services running (faelight-bar pending INT-053)", running, total),
+            fix: Some("Start faelight-notify as a systemd user service".into()),
         }
     }
 }
