@@ -1135,3 +1135,45 @@ pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
         },
     }
 }
+
+
+pub fn check_update_readiness(core_root: &str) -> CheckResult {
+    // Synthesis: is the system in a safe STATE to run an update?
+    // booted == current (no pending reboot) AND no uncommitted tracked changes.
+    // Folds the drift + git signals into one go/no-go pre-update verdict.
+    let mut blockers: Vec<&str> = Vec::new();
+    let current = std::fs::read_link("/run/current-system").ok();
+    let booted = std::fs::read_link("/run/booted-system").ok();
+    if let (Some(c), Some(b)) = (current, booted) {
+        if c != b {
+            blockers.push("reboot to clear generation drift");
+        }
+    }
+    let dirty = Command::new("git")
+        .arg("-C")
+        .arg(core_root)
+        .args(["diff", "--quiet", "HEAD"])
+        .status()
+        .map(|s| !s.success())
+        .unwrap_or(false);
+    if dirty {
+        blockers.push("commit or stash tracked changes");
+    }
+    if blockers.is_empty() {
+        CheckResult {
+            id: "update_readiness".into(),
+            name: "Update Readiness".into(),
+            status: Status::Pass,
+            message: "Safe to update -- booted current, tree clean".into(),
+            fix: None,
+        }
+    } else {
+        CheckResult {
+            id: "update_readiness".into(),
+            name: "Update Readiness".into(),
+            status: Status::Warn,
+            message: format!("Hold off -- {}", blockers.join("; ")),
+            fix: Some("Resolve the above, then: nix flake update && rebuild".into()),
+        }
+    }
+}

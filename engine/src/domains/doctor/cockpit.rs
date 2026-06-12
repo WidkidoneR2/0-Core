@@ -113,7 +113,7 @@ pub fn render_cockpit(
         "Schema Validation",
     ];
     let security_names = ["Security Hardening", "Security Audit"];
-    let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age"];
+    let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age", "Update Readiness"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
         names

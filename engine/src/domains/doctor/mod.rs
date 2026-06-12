@@ -1244,5 +1244,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_generation_drift(),
         check_generation_count(),
         check_flake_lock_age(core_root),
+        check_update_readiness(core_root),
     ]
 }
