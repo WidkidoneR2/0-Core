@@ -1056,3 +1056,48 @@ pub fn check_generation_drift() -> CheckResult {
         },
     }
 }
+
+
+pub fn check_generation_count() -> CheckResult {
+    // Warn only when a GC could actually prune something: generations whose link
+    // mtime is older than 14d (approximates --delete-older-than 14d). Total shown
+    // for transparency; the warn is the actionable part.
+    use std::time::{Duration, SystemTime};
+    const PRUNE_AGE: Duration = Duration::from_secs(14 * 24 * 3600);
+    let now = SystemTime::now();
+    let mut total = 0usize;
+    let mut old = 0usize;
+    if let Ok(entries) = std::fs::read_dir("/nix/var/nix/profiles") {
+        for e in entries.filter_map(|e| e.ok()) {
+            let n = e.file_name();
+            let n = n.to_string_lossy();
+            if n.starts_with("system-") && n.ends_with("-link") {
+                total += 1;
+                if let Ok(meta) = std::fs::symlink_metadata(e.path()) {
+                    if let Ok(mtime) = meta.modified() {
+                        if now.duration_since(mtime).map(|a| a > PRUNE_AGE).unwrap_or(false) {
+                            old += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if old > 0 {
+        CheckResult {
+            id: "generation_count".into(),
+            name: "Generation Count".into(),
+            status: Status::Warn,
+            message: format!("{} generations ({} older than 14d, prunable)", total, old),
+            fix: Some("sudo nix-collect-garbage --delete-older-than 14d".into()),
+        }
+    } else {
+        CheckResult {
+            id: "generation_count".into(),
+            name: "Generation Count".into(),
+            status: Status::Pass,
+            message: format!("{} generations, none older than 14d", total),
+            fix: None,
+        }
+    }
+}

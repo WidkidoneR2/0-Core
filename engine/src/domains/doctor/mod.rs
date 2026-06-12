@@ -1242,5 +1242,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_schema_validation(core_root),
         check_sandbox(core_root),
         check_generation_drift(),
+        check_generation_count(),
     ]
 }
