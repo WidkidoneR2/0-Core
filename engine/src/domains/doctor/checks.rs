@@ -1029,6 +1029,56 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
 }
 
 
+pub fn check_boot_errors() -> CheckResult {
+    // Honest boot health: benign error-priority noise (USB-C/EC/HID init) is the
+    // baseline on this hardware, so WARN only on critical-or-worse kernel events.
+    // The error-level count is shown for transparency, not as an alarm.
+    let count = |args: &[&str]| -> Option<usize> {
+        Command::new("journalctl")
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .count()
+            })
+    };
+    let crit = count(&["-b", "-k", "-p", "crit", "--no-pager", "-q"]);
+    let errs = count(&["-b", "-k", "-p", "err", "--no-pager", "-q"]);
+    match crit {
+        Some(0) => {
+            let msg = match errs {
+                Some(0) | None => "No kernel errors since last boot".to_string(),
+                Some(n) => format!("No critical kernel errors since boot ({} low-priority notices)", n),
+            };
+            CheckResult {
+                id: "boot_errors".into(),
+                name: "Boot Errors".into(),
+                status: Status::Pass,
+                message: msg,
+                fix: None,
+            }
+        }
+        Some(n) => CheckResult {
+            id: "boot_errors".into(),
+            name: "Boot Errors".into(),
+            status: Status::Warn,
+            message: format!("{} critical kernel error(s) since last boot", n),
+            fix: Some("journalctl -b -k -p crit".into()),
+        },
+        None => CheckResult {
+            id: "boot_errors".into(),
+            name: "Boot Errors".into(),
+            status: Status::Warn,
+            message: "Could not read the kernel journal".into(),
+            fix: None,
+        },
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();
