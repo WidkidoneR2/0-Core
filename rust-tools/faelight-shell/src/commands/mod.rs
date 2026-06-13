@@ -8459,12 +8459,132 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
         Some("start") => vm_start(args.get(1).copied()),
         Some("stop") => vm_stop(args.get(1).copied()),
         Some("status") => vm_status(args.get(1).copied()),
+        Some("snapshot") => vm_snapshot(args.get(1).copied()),
+        Some("restore") => vm_restore(args.get(1).copied()),
+        Some("snapshots") => vm_snapshots(),
         Some("list") | None => vm_list(),
         Some(other) => CommandResult::Output(format!(
-            "  vm: unknown subcommand '{}'. try: vm start [name] | vm stop [name] | vm status [name] | vm list\n",
+            "  vm: unknown subcommand '{}'. try: vm start|stop|status [name] | vm snapshot|restore NAME | vm snapshots | vm list\n",
             other
         )),
     }
+}
+
+fn vm_snapshot(snap: Option<&str>) -> CommandResult {
+    use colored::Colorize;
+    let domain = "nixos-lab";
+    let name = match snap {
+        Some(n) if !n.is_empty() => n,
+        _ => return CommandResult::Output(format!(
+            "  {}\n",
+            "vm snapshot: needs a name -- e.g. vm snapshot before-greetd-test".bright_red()
+        )),
+    };
+    let result = std::process::Command::new("virsh")
+        .args(["-c", "qemu:///system", "snapshot-create-as", domain, name])
+        .output();
+    let mut out = String::new();
+    match result {
+        Ok(o) if o.status.success() => {
+            out.push_str(&format!(
+                "  {} {}  {}\n",
+                "📸 snapshot".bright_green().bold(),
+                name.bright_white(),
+                format!("(on {})", domain).dimmed()
+            ));
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            out.push_str(&format!(
+                "  {} {}\n  {}\n",
+                "vm snapshot failed:".bright_red().bold(),
+                name.bright_white(),
+                stderr.trim().dimmed()
+            ));
+        }
+        Err(e) => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "vm snapshot: could not run virsh".bright_red().bold(),
+                e.to_string().dimmed()
+            ));
+        }
+    }
+    CommandResult::Output(out)
+}
+
+fn vm_restore(snap: Option<&str>) -> CommandResult {
+    use colored::Colorize;
+    let domain = "nixos-lab";
+    let name = match snap {
+        Some(n) if !n.is_empty() => n,
+        _ => return CommandResult::Output(format!(
+            "  {}\n",
+            "vm restore: needs a name -- e.g. vm restore before-greetd-test".bright_red()
+        )),
+    };
+    let result = std::process::Command::new("virsh")
+        .args(["-c", "qemu:///system", "snapshot-revert", domain, name])
+        .output();
+    let mut out = String::new();
+    match result {
+        Ok(o) if o.status.success() => {
+            out.push_str(&format!(
+                "  {} {}  {}\n",
+                "⟲ restored".bright_green().bold(),
+                name.bright_white(),
+                format!("(on {})", domain).dimmed()
+            ));
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            out.push_str(&format!(
+                "  {} {}\n  {}\n",
+                "vm restore failed:".bright_red().bold(),
+                name.bright_white(),
+                stderr.trim().dimmed()
+            ));
+        }
+        Err(e) => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "vm restore: could not run virsh".bright_red().bold(),
+                e.to_string().dimmed()
+            ));
+        }
+    }
+    CommandResult::Output(out)
+}
+
+fn vm_snapshots() -> CommandResult {
+    use colored::Colorize;
+    let domain = "nixos-lab";
+    let result = std::process::Command::new("virsh")
+        .args(["-c", "qemu:///system", "snapshot-list", domain])
+        .output();
+    let mut out = String::new();
+    out.push_str(&format!("\n  {}\n", format!("📸 Snapshots ({})", domain).bright_cyan().bold()));
+    match result {
+        Ok(o) if o.status.success() => {
+            let listing = String::from_utf8_lossy(&o.stdout);
+            let body = listing.trim_end();
+            if body.is_empty() {
+                out.push_str(&format!("  {}\n", "(none)".dimmed()));
+            } else {
+                for line in body.lines() {
+                    out.push_str(&format!("  {}\n", line));
+                }
+            }
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            out.push_str(&format!("  {}\n", stderr.trim().dimmed()));
+        }
+        Err(e) => {
+            out.push_str(&format!("  {}\n", e.to_string().dimmed()));
+        }
+    }
+    CommandResult::Output(out)
 }
 
 fn vm_status(name: Option<&str>) -> CommandResult {
