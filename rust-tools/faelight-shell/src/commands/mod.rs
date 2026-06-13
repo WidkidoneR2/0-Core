@@ -345,7 +345,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "intents" => intents(core_root),
         "project" | "projects" => project_list(core_root),
         "experiment" | "experiments" => experiment_list(core_root),
-        "vm" | "vms" => vm_list(),
+        "vm" | "vms" => vm_dispatch(args),
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
         "schema" => schema(args),
@@ -8451,6 +8451,56 @@ fn experiment_list(core_root: &str) -> CommandResult {
     }
     out.push_str(&format!("  {}
 ", format!("{}/labs/", core_root).dimmed()));
+    CommandResult::Output(out)
+}
+
+fn vm_dispatch(args: &[&str]) -> CommandResult {
+    match args.first().copied() {
+        Some("start") => vm_start(args.get(1).copied()),
+        Some("list") | None => vm_list(),
+        Some(other) => CommandResult::Output(format!(
+            "  vm: unknown subcommand '{}'. try: vm start [name] | vm list\n",
+            other
+        )),
+    }
+}
+
+fn vm_start(name: Option<&str>) -> CommandResult {
+    use colored::Colorize;
+    let domain = name.unwrap_or("nixos-lab");
+    let result = std::process::Command::new("virsh")
+        .args(["-c", "qemu:///system", "start", domain])
+        .output();
+    let mut out = String::new();
+    match result {
+        Ok(o) if o.status.success() => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "🖥  started".bright_green().bold(),
+                domain.bright_white()
+            ));
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            if !stdout.trim().is_empty() {
+                out.push_str(&format!("  {}\n", stdout.trim().dimmed()));
+            }
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            out.push_str(&format!(
+                "  {} {}\n  {}\n",
+                "vm start failed:".bright_red().bold(),
+                domain.bright_white(),
+                stderr.trim().dimmed()
+            ));
+        }
+        Err(e) => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "vm start: could not run virsh".bright_red().bold(),
+                e.to_string().dimmed()
+            ));
+        }
+    }
     CommandResult::Output(out)
 }
 

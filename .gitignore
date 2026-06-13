@@ -4,3 +4,4 @@ result
 result-*
 runtime/
 faelight-vm.qcow2
+*.bak-*
