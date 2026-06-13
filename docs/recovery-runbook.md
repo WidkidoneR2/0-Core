@@ -1,0 +1,121 @@
+# Faelight Forest — Recovery Runbook
+
+> When the system won't let you in: stay calm, work top-down. Most problems
+> are solved at Level 0–2 without a USB. A USB is only needed when it won't boot.
+>
+> **Machine:** Framework 16 · NixOS · LUKS2 + btrfs · MangoWM via greetd
+> **Flake target:** `/home/christian/0-core#framework16`
+> **Disk:** `/dev/nvme0n1` — ESP `p1` → `/boot`, LUKS `p2` → `cryptroot` (btrfs)
+> **Subvols:** `@root`→`/`, `@home`→`/home`, `@nix`→`/nix`, `@log`→`/var/log`
+
+## Key sequences (memorize these)
+
+| Action | Keys | Works when |
+|---|---|---|
+| Escape mango → console | `Super+Ctrl+2` | mango responsive |
+| Escape mango → console | `Fn+Ctrl+Alt+F2` | always (kernel) |
+| Return console → mango | `Fn+Ctrl+Alt+F1` | always (kernel) |
+
+**Framework note:** the top row defaults to media keys, so real F-keys need `Fn`.
+Hold `Fn` *first*, then `Ctrl+Alt+F2`. If it's finicky, `Fn+Esc` toggles
+function-lock so `Ctrl+Alt+Fn` works without holding `Fn`.
+
+The VT switch (`Ctrl+Alt+Fn`) is a **kernel** function — it works even if mango
+is completely hung. `tty2`–`tty6` are available.
+
+---
+
+## Level 0 — mango frozen (system still running)
+
+1. `Fn+Ctrl+Alt+F2` → `tty2`, log in as `christian`.
+2. Look, then act:
+   - `journalctl -b -e` — recent errors this boot
+   - `sudo systemctl restart greetd` — restart the login stack (kills frozen mango, fresh login)
+3. `Fn+Ctrl+Alt+F1` back to the graphical VT.
+
+## Level 1 — can't log in (greetd/session broken) but it boots
+
+1. `Fn+Ctrl+Alt+F2` → `tty2`, log in as `christian`.
+2. Inspect: `journalctl -u greetd -b`
+3. Fix the flake, then rebuild:
+   - `cd ~/0-core`
+   - `sudo nixos-rebuild switch --flake .#framework16`
+4. If the last rebuild caused it → roll back (Level 2).
+
+## Level 2 — roll back to a working generation (it boots)
+
+The fast undo.
+
+**From a tty:**
+```
+sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+sudo nixos-rebuild switch --rollback
+```
+
+**From the boot menu (no login needed):** reboot, select a previous generation.
+- systemd-boot: listed directly.
+- GRUB: under "NixOS — All configurations".
+> Confirm which: `rg boot.loader ~/0-core/hosts/framework16/*.nix`
+
+## Level 3 — won't boot / fully locked out (USB rescue)
+
+Boot the NixOS installer USB, then:
+
+```
+sudo -i
+
+# 1. Confirm the disk is nvme0n1
+lsblk -f
+
+# 2. Unlock LUKS (prompts for your passphrase)
+cryptsetup luksOpen /dev/nvme0n1p2 cryptroot
+
+# 3. Mount: @home holds the flake, @nix the store, p1 the bootloader — all required
+mount -o subvol=@root,compress=zstd,noatime /dev/mapper/cryptroot /mnt
+mount -o subvol=@home,compress=zstd,noatime /dev/mapper/cryptroot /mnt/home
+mount -o subvol=@nix,compress=zstd,noatime  /dev/mapper/cryptroot /mnt/nix
+mount /dev/nvme0n1p1 /mnt/boot
+mount -o subvol=@log,compress=zstd,noatime  /dev/mapper/cryptroot /mnt/var/log   # optional
+
+# 4. Enter the installed system
+nixos-enter --root /mnt
+```
+
+Inside the real system — fix and rebuild, or roll back:
+```
+hx /home/christian/0-core/hosts/framework16/configuration.nix
+nixos-rebuild switch --flake /home/christian/0-core#framework16
+# or undo the last change:
+nixos-rebuild switch --rollback
+```
+
+Exit and reboot:
+```
+exit
+umount -R /mnt
+reboot
+```
+
+> Mountpoint dirs (`/mnt/home`, `/mnt/nix`, `/mnt/var/log`, `/mnt/boot`) already
+> exist inside `@root`, so no `mkdir` needed.
+
+---
+
+## Notes / gotchas
+
+- **`nixos-enter` beats a manual chroot** — it wires up `/proc`, `/sys`, `/dev`,
+  and the nix daemon env for you. Use it.
+- **Never run `disko` to "fix" anything** — `disko.nix` *formats* `/dev/nvme0n1`.
+  It is install-only.
+- **No network on the USB?** `--rollback` and booting an older generation work
+  offline from the existing `/nix` store. A fresh `--flake` rebuild that needs to
+  fetch will not.
+- This file documents the *procedure only*. Your LUKS passphrase and login
+  password are never written here — they stay in your head.
+
+## Why this exists
+
+2026-06-09: a greetd/tuigreet change locked login for ~24h. The rules that came
+out of it: every login-touching change is rehearsed in the lab VM (INT-024)
+before bare metal, and there is always a kernel-level escape (`Fn+Ctrl+Alt+F2`)
+plus a known-good generation to roll back to.
