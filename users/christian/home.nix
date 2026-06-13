@@ -101,4 +101,5 @@
     source = ../../config/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;
   };
+  home.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
 }
