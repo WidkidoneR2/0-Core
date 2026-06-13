@@ -104,3 +104,15 @@ Phase 5 -- Autostart integration
 "The bar is the forest's pulse.
  It should show the forest's health at a glance --
  not the compositor's internal state." 🌲
+
+## Pre-flight Gate -- INT-056 (Forest Recovery Protocol)
+This intent changes the login/compositor surface. Per INT-056, NOTHING
+here lands on the real machine until it has passed the pre-flight
+checklist in INT-024's VM:
+  [ ] change tested in VM via INT-024 pipeline
+  [ ] VM snapshot taken before test (before-INT-NNN)
+  [ ] TTY2 verified reachable in VM
+  [ ] greetd fallback session verified in VM
+  [ ] recovery from a broken session demonstrated in VM
+  [ ] all of the above documented before graduating
+Door is always open: docs/recovery-runbook.md · TTY2 via Ctrl+Alt+F2.

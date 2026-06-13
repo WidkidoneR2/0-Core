@@ -91,7 +91,7 @@ Phase 4 -- Recovery runbook complete
 - [ ] greetd fallback session defined and tested in VM
 - [ ] Fallback fires when primary compositor session fails
 - [x] docs/recovery-runbook.md written and committed
-- [ ] Pre-flight checklist referenced in INT-053, INT-054, INT-055
+- [x] Pre-flight checklist referenced in INT-053, INT-054, INT-055
 
 ## Depends On
 - INT-024 (VM graduation pipeline -- all Phase 2+ work goes through VM first)
