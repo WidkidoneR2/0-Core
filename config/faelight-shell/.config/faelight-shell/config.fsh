@@ -15,7 +15,7 @@ set prompt_style = forest
 
 # Tier 1 — Daily use
 alias d = "/run/current-system/sw/bin/core doctor run"
-alias v = "nvim"
+alias v = "hx"
 alias l = "eza -lh --icons --group-directories-first"
 alias b = "bat --paging=never"
 alias y = "yazi"
