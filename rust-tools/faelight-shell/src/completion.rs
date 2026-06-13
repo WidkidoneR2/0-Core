@@ -223,7 +223,7 @@ impl<'a> ForestHelper<'a> {
             const MULTI_CMDS: &[&str] = &[
                 // -- INT-040: bare domain verbs (shell-native) --
                 "intent list", "intent show", "intent search", "intent new", "intent edit",
-                "vm list", "vm start", "vm stop", "vm snapshot", "vm restore",
+                "vm list", "vm start", "vm stop", "vm status", "vm snapshot", "vm restore", "vm snapshots",
                 "project list", "project status", "project health",
                 "experiment list", "experiment new", "experiment graduate",
                 // ── core intent ──────────────────────────────────────────

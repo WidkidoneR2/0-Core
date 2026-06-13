@@ -252,7 +252,7 @@ GATES (NixOS lab -- re-scoped 2026-06-13)
 [x] vm status   -- reports domain state
 [x] vm snapshot NAME / vm restore NAME -- internal live snapshot + revert
 [x] restore proven -- running snapshot survived stop->restore back to running (RAM+disk, exact instant)
-[ ] vm verbs registered in fsh vocabulary + dispatcher
+[x] vm verbs registered in fsh vocabulary + dispatcher
 
 DEPENDS ON (re-scoped)
 INT-021 (Pinnacle VM study) -- COMPLETE 2026-06-03; satisfied the prior defer
