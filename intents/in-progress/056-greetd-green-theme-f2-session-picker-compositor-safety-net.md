@@ -3,7 +3,7 @@ id: 056
 date: 2026-06-09
 type: infrastructure
 title: "Forest Recovery Protocol: TTY rescue hardening and compositor pre-flight"
-status: planned
+status: in-progress
 tags: [recovery, tty, greetd, compositor, safety, preflight, rescue]
 priority: critical
 ---
