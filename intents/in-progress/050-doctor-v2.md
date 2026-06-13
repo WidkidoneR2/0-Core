@@ -105,7 +105,7 @@ Phase 5 -- Performance
 - [x] VM state check: no accidental running VMs (pgrep -f -c qemu-system; PASS-with-count -- VM-first dev means running VMs are normal, so reported not warned; verified PASS at 0 VMs, count path surfaces on next VM up)
 - [x] Compositor detection: shows mango/pinnacle/niri (pgrep -x; reports first running -- verified "MangoWM running"; none-detected is PASS-info for TTY/headless, not a WARN)
 - [x] Friday health: patterns + facts + avg confidence from state.db (same tables as footer; matched 13 patterns / 480 facts live). WARN on stall only (patterns < 10, or no new fact > 7d); confidence shown for trend, NOT warned (low confidence = honest uncertainty). Verified PASS: 13 patterns, 480 facts, 0.92 conf
-- [ ] Network connectivity check
+- [x] Network: TCP connect 1.1.1.1:443 (1s cap, no DNS) + DNS resolve github.com in a 1s-bounded worker thread. WARN on offline / DNS-down (offline is not the normal workstation state, so not cry-wolf). Bounded so a dead network cannot blow the 2s gate. Verified PASS: Online -- DNS resolving
 - [ ] All existing 22 checks preserved and passing
 - [ ] Total check time under 2 seconds
 

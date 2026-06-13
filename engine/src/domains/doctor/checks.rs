@@ -1333,6 +1333,54 @@ pub fn check_friday(core_root: &str) -> CheckResult {
     }
 }
 
+pub fn check_network() -> CheckResult {
+    // Bounded so a down network cannot blow the 2s budget: TCP connect to
+    // 1.1.1.1:443 (an IP, no DNS) with a 1s cap, then a DNS resolve of
+    // github.com in a worker thread capped at 1s. Offline / DNS-down are WARNs:
+    // a connected workstation losing the network is worth knowing.
+    let addr: std::net::SocketAddr = "1.1.1.1:443".parse().unwrap();
+    let online =
+        std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(1)).is_ok();
+    if !online {
+        return CheckResult {
+            id: "network".into(),
+            name: "Network".into(),
+            status: Status::Warn,
+            message: "Offline -- 1.1.1.1 unreachable".into(),
+            fix: Some("Check network connection".into()),
+        };
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        use std::net::ToSocketAddrs;
+        let ok = "github.com:443"
+            .to_socket_addrs()
+            .map(|mut a| a.next().is_some())
+            .unwrap_or(false);
+        let _ = tx.send(ok);
+    });
+    let dns_ok = rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap_or(false);
+    if dns_ok {
+        CheckResult {
+            id: "network".into(),
+            name: "Network".into(),
+            status: Status::Pass,
+            message: "Online -- DNS resolving".into(),
+            fix: None,
+        }
+    } else {
+        CheckResult {
+            id: "network".into(),
+            name: "Network".into(),
+            status: Status::Warn,
+            message: "Online but DNS not resolving".into(),
+            fix: Some("Check /etc/resolv.conf / DNS settings".into()),
+        }
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();

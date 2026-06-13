@@ -1249,6 +1249,7 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_update_readiness(core_root),
         check_nix_store(),
         check_friday(core_root),
+        check_network(),
         check_vm_state(),
         check_compositor(),
     ]
