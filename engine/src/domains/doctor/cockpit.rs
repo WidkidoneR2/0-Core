@@ -109,11 +109,10 @@ pub fn render_cockpit(
         "Compositor Keybinds",
         "Theme Packages",
         "Package Metadata",
-        "Archaeology",
         "Schema Validation",
         "Friday",
     ];
-    let security_names = ["Security Hardening", "Security Audit"];
+    let security_names = ["Security Hardening", "Security Audit", "Sandbox"];
     let boot_names = ["Boot Errors", "Boot Time"];
     let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age", "Update Readiness", "Nix Store"];
     let runtime_names = ["VM State", "Compositor", "Network"];
