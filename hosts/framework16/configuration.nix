@@ -133,5 +133,6 @@
   home-manager.useUserPackages = true;
   home-manager.users.christian = import ../../users/christian/home.nix;
 
+environment.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
   system.stateVersion = "25.11";
 }
