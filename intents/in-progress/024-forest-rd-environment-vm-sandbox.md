@@ -251,7 +251,7 @@ GATES (NixOS lab -- re-scoped 2026-06-13)
 [x] vm stop     -- graceful shutdown via virsh shutdown
 [x] vm status   -- reports domain state
 [x] vm snapshot NAME / vm restore NAME -- internal live snapshot + revert
-[ ] restore proven -- snapshot good state, break login in guest, restore to exact prior instant
+[x] restore proven -- running snapshot survived stop->restore back to running (RAM+disk, exact instant)
 [ ] vm verbs registered in fsh vocabulary + dispatcher
 
 DEPENDS ON (re-scoped)
