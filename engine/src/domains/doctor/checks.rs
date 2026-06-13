@@ -1141,6 +1141,39 @@ pub fn check_boot_time() -> CheckResult {
     }
 }
 
+pub fn check_vm_state() -> CheckResult {
+    // A running VM is NOT a fault -- VM-first development (compositor work in
+    // INT-005/006/024/038/052/056) means VMs are often up by design. We report
+    // the count so a forgotten VM gets noticed, and let the human judge intent.
+    let count = match Command::new("pgrep").arg("-f").arg("-c").arg("qemu-system").output() {
+        Ok(o) => String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse::<u32>()
+            .unwrap_or(0),
+        Err(_) => {
+            return CheckResult {
+                id: "vm_state".into(),
+                name: "VM State".into(),
+                status: Status::Warn,
+                message: "Could not check for running VMs".into(),
+                fix: Some("Verify pgrep is available".into()),
+            };
+        }
+    };
+    let message = if count == 0 {
+        "No VMs running".to_string()
+    } else {
+        format!("{} QEMU VM(s) running", count)
+    };
+    CheckResult {
+        id: "vm_state".into(),
+        name: "VM State".into(),
+        status: Status::Pass,
+        message,
+        fix: None,
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();

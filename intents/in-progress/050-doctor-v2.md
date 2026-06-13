@@ -102,7 +102,7 @@ Phase 5 -- Performance
 - [x] flake.lock age warning: > 30 days (stat flake.lock mtime; PASS at 2 days, fix=nix flake update)
 - [x] Update Readiness: synthesis go/no-go -- WARN unless booted==current AND tree clean; lists exactly what to fix (verified: held off on a live dirty tree)
 - [ ] Nix store size warning: > 50GB
-- [ ] VM state check: no accidental running VMs
+- [x] VM state check: no accidental running VMs (pgrep -f -c qemu-system; PASS-with-count -- VM-first dev means running VMs are normal, so reported not warned; verified PASS at 0 VMs, count path surfaces on next VM up)
 - [ ] Compositor detection: shows mango/pinnacle/niri
 - [ ] Friday pattern count and confidence trend
 - [ ] Network connectivity check

@@ -115,6 +115,7 @@ pub fn render_cockpit(
     let security_names = ["Security Hardening", "Security Audit"];
     let boot_names = ["Boot Errors", "Boot Time"];
     let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age", "Update Readiness"];
+    let runtime_names = ["VM State"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
         names
@@ -129,6 +130,7 @@ pub fn render_cockpit(
     render_section("📋 Forest", &group(&forest_names));
     render_section("🥾 Boot", &group(&boot_names));
     render_section("❄ NixOS", &group(&nixos_names));
+    render_section("🖥  Runtime", &group(&runtime_names));
     render_section("🔒 Security", &group(&security_names));
 
     // ── Stats strip ───────────────────────────────────────────────────
