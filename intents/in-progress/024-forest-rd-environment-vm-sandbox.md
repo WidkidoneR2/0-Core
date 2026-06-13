@@ -248,7 +248,7 @@ convention (before-INT-NNN, INT-NNN-working/-broken), not a gate.
 
 GATES (NixOS lab -- re-scoped 2026-06-13)
 [x] vm start    -- boots nixos-lab via virsh; reaches login/console
-[ ] vm stop     -- graceful shutdown via virsh shutdown
+[x] vm stop     -- graceful shutdown via virsh shutdown
 [ ] vm status   -- reports domain state; vm list -- lists snapshots
 [ ] vm snapshot NAME / vm restore NAME -- internal live snapshot + revert
 [ ] restore proven -- snapshot good state, break login in guest, restore to exact prior instant

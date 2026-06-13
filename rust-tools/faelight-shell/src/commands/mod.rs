@@ -8457,12 +8457,53 @@ fn experiment_list(core_root: &str) -> CommandResult {
 fn vm_dispatch(args: &[&str]) -> CommandResult {
     match args.first().copied() {
         Some("start") => vm_start(args.get(1).copied()),
+        Some("stop") => vm_stop(args.get(1).copied()),
         Some("list") | None => vm_list(),
         Some(other) => CommandResult::Output(format!(
-            "  vm: unknown subcommand '{}'. try: vm start [name] | vm list\n",
+            "  vm: unknown subcommand '{}'. try: vm start [name] | vm stop [name] | vm list\n",
             other
         )),
     }
+}
+
+fn vm_stop(name: Option<&str>) -> CommandResult {
+    use colored::Colorize;
+    let domain = name.unwrap_or("nixos-lab");
+    let result = std::process::Command::new("virsh")
+        .args(["-c", "qemu:///system", "shutdown", domain])
+        .output();
+    let mut out = String::new();
+    match result {
+        Ok(o) if o.status.success() => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "🖥  stopping".bright_yellow().bold(),
+                domain.bright_white()
+            ));
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            if !stdout.trim().is_empty() {
+                out.push_str(&format!("  {}\n", stdout.trim().dimmed()));
+            }
+            out.push_str(&format!("  {}\n", "(graceful shutdown -- give it a few seconds)".dimmed()));
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            out.push_str(&format!(
+                "  {} {}\n  {}\n",
+                "vm stop failed:".bright_red().bold(),
+                domain.bright_white(),
+                stderr.trim().dimmed()
+            ));
+        }
+        Err(e) => {
+            out.push_str(&format!(
+                "  {} {}\n",
+                "vm stop: could not run virsh".bright_red().bold(),
+                e.to_string().dimmed()
+            ));
+        }
+    }
+    CommandResult::Output(out)
 }
 
 fn vm_start(name: Option<&str>) -> CommandResult {
