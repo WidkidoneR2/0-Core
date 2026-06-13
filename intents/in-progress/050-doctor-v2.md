@@ -103,7 +103,7 @@ Phase 5 -- Performance
 - [x] Update Readiness: synthesis go/no-go -- WARN unless booted==current AND tree clean; lists exactly what to fix (verified: held off on a live dirty tree)
 - [ ] Nix store size warning: > 50GB
 - [x] VM state check: no accidental running VMs (pgrep -f -c qemu-system; PASS-with-count -- VM-first dev means running VMs are normal, so reported not warned; verified PASS at 0 VMs, count path surfaces on next VM up)
-- [ ] Compositor detection: shows mango/pinnacle/niri
+- [x] Compositor detection: shows mango/pinnacle/niri (pgrep -x; reports first running -- verified "MangoWM running"; none-detected is PASS-info for TTY/headless, not a WARN)
 - [ ] Friday pattern count and confidence trend
 - [ ] Network connectivity check
 - [ ] All existing 22 checks preserved and passing

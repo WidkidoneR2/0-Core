@@ -1174,6 +1174,41 @@ pub fn check_vm_state() -> CheckResult {
     }
 }
 
+pub fn check_compositor() -> CheckResult {
+    // Identify the running compositor (mango/niri/pinnacle) by process.
+    // "none" is not a fault -- d can run from a TTY or headless session --
+    // so we report it as info rather than crying wolf, same as VM State.
+    let candidates = [
+        ("mango", "MangoWM"),
+        ("niri", "Niri"),
+        ("pinnacle", "Pinnacle"),
+    ];
+    for (proc_name, label) in candidates {
+        let found = Command::new("pgrep")
+            .arg("-x")
+            .arg(proc_name)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if found {
+            return CheckResult {
+                id: "compositor".into(),
+                name: "Compositor".into(),
+                status: Status::Pass,
+                message: format!("{} running", label),
+                fix: None,
+            };
+        }
+    }
+    CheckResult {
+        id: "compositor".into(),
+        name: "Compositor".into(),
+        status: Status::Pass,
+        message: "No compositor detected (TTY or headless)".into(),
+        fix: None,
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();
