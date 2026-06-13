@@ -1270,6 +1270,69 @@ pub fn check_nix_store() -> CheckResult {
     }
 }
 
+pub fn check_friday(core_root: &str) -> CheckResult {
+    // Friday learning vital signs, read from the same state.db the footer uses
+    // (friday_patterns / friday_knowledge). PASS while learning; WARN only on a
+    // genuine stall -- too few patterns, or no new fact in a week. Confidence is
+    // shown for the trend but does NOT trigger a warn: low confidence is honest
+    // uncertainty, not ill health.
+    let db_path = std::path::PathBuf::from(core_root).join("runtime/state.db");
+    let db = match rusqlite::Connection::open(&db_path) {
+        Ok(d) => d,
+        Err(_) => {
+            return CheckResult {
+                id: "friday".into(),
+                name: "Friday".into(),
+                status: Status::Warn,
+                message: "Could not open state.db".into(),
+                fix: Some("Verify 0-core/runtime/state.db exists".into()),
+            };
+        }
+    };
+    let patterns: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let facts: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+        .unwrap_or(0);
+    let avg_conf: f64 = db
+        .query_row("SELECT COALESCE(AVG(confidence), 0.0) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0.0);
+    let last_learned: i64 = db
+        .query_row("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    let now = chrono::Utc::now().timestamp();
+    let stale = last_learned > 0 && (now - last_learned) > 604_800;
+
+    if patterns < 10 {
+        CheckResult {
+            id: "friday".into(),
+            name: "Friday".into(),
+            status: Status::Warn,
+            message: format!("Warming up -- {} patterns, {} facts", patterns, facts),
+            fix: Some("Friday learns from daily use; patterns build over time".into()),
+        }
+    } else if stale {
+        let days = (now - last_learned) / 86_400;
+        CheckResult {
+            id: "friday".into(),
+            name: "Friday".into(),
+            status: Status::Warn,
+            message: format!("Learning stalled -- no new facts in {} days ({} patterns, {} facts)", days, patterns, facts),
+            fix: Some("Check that Friday is recording from sessions".into()),
+        }
+    } else {
+        CheckResult {
+            id: "friday".into(),
+            name: "Friday".into(),
+            status: Status::Pass,
+            message: format!("{} patterns · {} facts · {:.2} avg confidence", patterns, facts, avg_conf),
+            fix: None,
+        }
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();

@@ -104,7 +104,7 @@ Phase 5 -- Performance
 - [x] Nix store size: SUM(narSize) from Nix DB in-process (rusqlite RO, ~160ms, no fs walk) + statvfs disk %. WARN > 250 GiB (50GB draft was ~2% of the 3.6TB disk -- cry-wolf; 250 is a rare actionable GC nudge). Always shows size+%. Verified PASS: 57.4 GiB (1.5% of 3.6 TiB)
 - [x] VM state check: no accidental running VMs (pgrep -f -c qemu-system; PASS-with-count -- VM-first dev means running VMs are normal, so reported not warned; verified PASS at 0 VMs, count path surfaces on next VM up)
 - [x] Compositor detection: shows mango/pinnacle/niri (pgrep -x; reports first running -- verified "MangoWM running"; none-detected is PASS-info for TTY/headless, not a WARN)
-- [ ] Friday pattern count and confidence trend
+- [x] Friday health: patterns + facts + avg confidence from state.db (same tables as footer; matched 13 patterns / 480 facts live). WARN on stall only (patterns < 10, or no new fact > 7d); confidence shown for trend, NOT warned (low confidence = honest uncertainty). Verified PASS: 13 patterns, 480 facts, 0.92 conf
 - [ ] Network connectivity check
 - [ ] All existing 22 checks preserved and passing
 - [ ] Total check time under 2 seconds
