@@ -231,21 +231,33 @@ Phase 4 -- Graduate INT-325 to real machine:
   Change applied
   Gate: boot splash works on real machine, rollback tested
 ---
-GATES
-[ ] VM launches with vm start command
-[ ] Minimal forest installed in VM (fsh, core, daemon, state.db)
-[ ] d shows health inside VM for first time
-[ ] First snapshot created and restore demonstrated
-[ ] First experiment graduated: hypothesis → VM → gate → real machine
-[ ] vm commands in fsh vocabulary
-[ ] Snapshot naming convention followed for all experiments
+RE-SCOPE -- INT-024 living purpose (added 2026-06-13, branch: nixos)
+The Arch lab and the NixOS migration testbed both graduated (migration
+gates N0-N5 complete; the Framework runs from the flake). Those sections
+stay below as history. From here 024 is narrow: the NixOS lab VM
+(nixos-lab, qemu:///system) and the vm runtime verbs that drive it --
+the sandbox where login/compositor changes are proven before bare metal.
+Canonical image: /home/christian/vms/nixos-lab.qcow2 (BIOS/SeaBIOS, qcow2,
+virtio disk). Control plane: virsh. Snapshots: internal live (memory+disk);
+restore returns to the exact running instant.
+Known follow-up (NOT a gate-zero blocker): video is QXL (no GL) -- swap to
+virtio-gpu + accel3d + spice gl before any graphical-login test.
+Boundary: 024 owns runtime verbs for this one VM; 027 owns multi-VM
+lifecycle (create/enter/rollback). Snapshot naming stays a documented
+convention (before-INT-NNN, INT-NNN-working/-broken), not a gate.
 
-DEPENDS ON
-INT-325 (faelight-boot) -- first major VM experiment
-INT-308 Phase 4 -- DRM testing in VM
-INT-327 (self-healing) -- degraded mode testing in VM
-INT-329 (typed pipes) -- prototype in VM first
-INT-261 (fsh vocabulary) -- vm commands as forest vocabulary
+GATES (NixOS lab -- re-scoped 2026-06-13)
+[ ] vm start    -- boots nixos-lab via virsh; reaches login/console
+[ ] vm stop     -- graceful shutdown via virsh shutdown
+[ ] vm status   -- reports domain state; vm list -- lists snapshots
+[ ] vm snapshot NAME / vm restore NAME -- internal live snapshot + revert
+[ ] restore proven -- snapshot good state, break login in guest, restore to exact prior instant
+[ ] vm verbs registered in fsh vocabulary + dispatcher
+
+DEPENDS ON (re-scoped)
+INT-021 (Pinnacle VM study) -- COMPLETE 2026-06-03; satisfied the prior defer
+(Arch-era deps INT-325/308/327/329/261 dropped -- do not carry to NixOS ledger)
+ENABLES: 056 (recovery pre-flight), then 038/006/005 (login-zone testing)
 
 TIMELINE
 Phase 0-1: next session (VM already installed)
@@ -344,5 +356,5 @@ GATES (NixOS testbed)
  It will be wrong in the VM many times.
  It will be right on the Framework once." 🌲
 ## Gate Check
-✅ OVERRIDE: 024 -- approved by: christian 2026-06-04 -- reason: test override -- reverting after test
-⏸ 024 -- deferred: needs VM infrastructure first -- INT-021 must complete -- approved by: christian 2026-06-04
+✅ OVERRIDE reverted -- 2026-06-13 -- test override from 2026-06-04 cleared as intended
+✅ DEFER lifted -- 2026-06-13 -- INT-021 completed 2026-06-03; VM-infrastructure dependency satisfied
