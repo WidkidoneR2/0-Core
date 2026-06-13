@@ -1,7 +1,7 @@
 ---
 id: 024
 title: "Forest R&D Environment -- VM-based sandbox, experiment graduation pipeline, hypothesis-test-gate-graduate"
-status: in-progress
+status: complete
 date: 2026-05-21
 tags: [forest, vm, sandbox, rnd, research, graduation, pipeline, qemu, experimentation]
 ---
