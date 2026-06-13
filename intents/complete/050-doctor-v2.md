@@ -3,7 +3,7 @@ id: 050
 date: 2026-06-09
 type: feature
 title: "doctor v2: NixOS-aware health checks"
-status: in-progress
+status: complete
 tags: [doctor, health, nixos, boot, generations, monitoring, friday, compositor]
 priority: high
 ---
