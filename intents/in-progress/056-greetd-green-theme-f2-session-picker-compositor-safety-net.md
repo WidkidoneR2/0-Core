@@ -85,12 +85,12 @@ Phase 4 -- Recovery runbook complete
 
 ## Gates
 - [ ] getty@tty2.service explicitly declared in NixOS flake
-- [ ] TTY2 reachable via Ctrl+Alt+F2 from MangoWM session
+- [x] TTY2 reachable via Ctrl+Alt+F2 from MangoWM session
 - [ ] TTY2 reachable via Ctrl+Alt+F2 from Pinnacle session
 - [ ] TTY2 reachable via Ctrl+Alt+F2 when greetd is the foreground process
 - [ ] greetd fallback session defined and tested in VM
 - [ ] Fallback fires when primary compositor session fails
-- [ ] docs/recovery-runbook.md written and committed
+- [x] docs/recovery-runbook.md written and committed
 - [ ] Pre-flight checklist referenced in INT-053, INT-054, INT-055
 
 ## Depends On
@@ -106,3 +106,18 @@ Phase 4 -- Recovery runbook complete
  without surviving the VM first.
  TTY2 is always the door.
  The door is always open." 🌲
+
+## Status (2026-06-13)
+
+Verified on bare metal:
+- TTY2 reachable from MangoWM. Super+Ctrl+2 when mango is responsive; Fn+Ctrl+Alt+F2 (kernel VT switch) when mango is frozen; return via Fn+Ctrl+Alt+F1. Framework caveat: the top row defaults to media keys, so the Fn modifier is required for real F-keys.
+- docs/recovery-runbook.md written, committed (7b2814e2), and pushed.
+
+Relying for now on the NixOS autovt default to provide getty@tty2. It works, but the explicit declaration named in Failure 1 is NOT yet added. That is a login-touching change, deferred to the INT-024 VM.
+
+Not yet tested (honest gaps):
+- Pinnacle session: installed, but the TTY2 escape from Pinnacle has never been verified.
+- TTY2 escape while greetd is the foreground process: not tested.
+- greetd fallback session: not defined or tested (VM-gated via INT-024).
+
+Reproducibility gap: the rescue chords live in an untracked ~/.config/mango/config.conf. A fresh install from the flake would not have them. Wiring config/mango into home-manager is pending.
