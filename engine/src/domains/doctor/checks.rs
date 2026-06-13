@@ -1209,6 +1209,67 @@ pub fn check_compositor() -> CheckResult {
     }
 }
 
+pub fn check_nix_store() -> CheckResult {
+    // Store size via the Nix path DB: SUM(narSize) over ValidPaths --
+    // milliseconds, no filesystem walk. Read-only; the DB is root-owned 0644.
+    // narSize is the logical NAR size (a hair above true on-disk due to dedup),
+    // so it errs high -- the safe direction for a "getting large" signal.
+    let bytes: i64 = match rusqlite::Connection::open_with_flags(
+        "/nix/var/nix/db/db.sqlite",
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .and_then(|db| {
+        db.query_row("SELECT SUM(narSize) FROM ValidPaths", [], |r| r.get::<_, i64>(0))
+    }) {
+        Ok(b) => b,
+        Err(_) => {
+            return CheckResult {
+                id: "nix_store".into(),
+                name: "Nix Store".into(),
+                status: Status::Warn,
+                message: "Could not read Nix store DB".into(),
+                fix: Some("Verify /nix/var/nix/db/db.sqlite is readable".into()),
+            };
+        }
+    };
+
+    let gib = bytes as f64 / 1_073_741_824.0;
+
+    let mut disk_total: u64 = 0;
+    if let Ok(p) = std::ffi::CString::new("/nix") {
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        if unsafe { libc::statvfs(p.as_ptr(), &mut stat) } == 0 {
+            disk_total = stat.f_blocks as u64 * stat.f_frsize as u64;
+        }
+    }
+
+    let message = if disk_total > 0 {
+        let pct = bytes as f64 / disk_total as f64 * 100.0;
+        let tib = disk_total as f64 / 1_099_511_627_776.0;
+        format!("{:.1} GiB ({:.1}% of {:.1} TiB)", gib, pct, tib)
+    } else {
+        format!("{:.1} GiB", gib)
+    };
+
+    if gib > 250.0 {
+        CheckResult {
+            id: "nix_store".into(),
+            name: "Nix Store".into(),
+            status: Status::Warn,
+            message: format!("{} -- consider nix-collect-garbage", message),
+            fix: Some("Run nix-collect-garbage -d to reclaim space".into()),
+        }
+    } else {
+        CheckResult {
+            id: "nix_store".into(),
+            name: "Nix Store".into(),
+            status: Status::Pass,
+            message,
+            fix: None,
+        }
+    }
+}
+
 pub fn check_generation_drift() -> CheckResult {
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();

@@ -101,7 +101,7 @@ Phase 5 -- Performance
 - [x] Generation count: age-aware -- WARN only on generations older than 14d (prunable); PASS at 138/none-old, agrees with a live nix-collect-garbage that pruned 0
 - [x] flake.lock age warning: > 30 days (stat flake.lock mtime; PASS at 2 days, fix=nix flake update)
 - [x] Update Readiness: synthesis go/no-go -- WARN unless booted==current AND tree clean; lists exactly what to fix (verified: held off on a live dirty tree)
-- [ ] Nix store size warning: > 50GB
+- [x] Nix store size: SUM(narSize) from Nix DB in-process (rusqlite RO, ~160ms, no fs walk) + statvfs disk %. WARN > 250 GiB (50GB draft was ~2% of the 3.6TB disk -- cry-wolf; 250 is a rare actionable GC nudge). Always shows size+%. Verified PASS: 57.4 GiB (1.5% of 3.6 TiB)
 - [x] VM state check: no accidental running VMs (pgrep -f -c qemu-system; PASS-with-count -- VM-first dev means running VMs are normal, so reported not warned; verified PASS at 0 VMs, count path surfaces on next VM up)
 - [x] Compositor detection: shows mango/pinnacle/niri (pgrep -x; reports first running -- verified "MangoWM running"; none-detected is PASS-info for TTY/headless, not a WARN)
 - [ ] Friday pattern count and confidence trend

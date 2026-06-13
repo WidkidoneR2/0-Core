@@ -114,7 +114,7 @@ pub fn render_cockpit(
     ];
     let security_names = ["Security Hardening", "Security Audit"];
     let boot_names = ["Boot Errors", "Boot Time"];
-    let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age", "Update Readiness"];
+    let nixos_names = ["Generation Drift", "Generation Count", "Flake Lock Age", "Update Readiness", "Nix Store"];
     let runtime_names = ["VM State", "Compositor"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
