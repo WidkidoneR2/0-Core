@@ -29,7 +29,15 @@ NixOS makes this safe -- niri stays as fallback generation.
 - xdg-desktop-portal-wlr wired
 - Next: Lua config, keybind porting, faelight-bar wiring
 
-## Gate
+## Progress (2026-06-14)
+Decision (2026-06-14): Mango = personal daily driver, Pinnacle = pure-Rust testing profile, both served via the faelight-compositor bridge (INT-055). niri retired / to be removed.
+Proof (2026-06-14): Pinnacle launches, stays alive, and manages/tiles Wayland clients nested on NixOS -- compositor confirmed working.
+- Default Pinnacle config validated; custom Lua config (INT-038) is the remaining work.
 
-Pinnacle session starts cleanly. All 102 keybinds working.
-faelight-bar renders correctly.
+## Gate (re-scoped 2026-06-14 -- pure-Rust testing profile, not daily driver)
+- [x] Pinnacle launches cleanly on NixOS
+- [x] Pinnacle manages and tiles Wayland clients (confirmed nested 2026-06-14)
+- [ ] Core keybinds drive it (full suite lives in INT-038 Lua config)
+- [ ] Forest toolchain (fsh, faelight-notify) runs under Pinnacle
+
+Dropped: "all 102 keybinds" (daily-driver overkill for a testing profile); faelight-bar rendering moved to INT-053.

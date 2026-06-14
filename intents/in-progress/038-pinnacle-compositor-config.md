@@ -49,14 +49,20 @@ niri remains fallback until this is complete.
 - Broken mango flake input removed from flake.nix
 - Next: Pinnacle Lua config, lock screen, faelight-menu fix
 
-## Gate
+## Progress (2026-06-14)
+Decision (2026-06-14): Mango = personal daily driver, Pinnacle = pure-Rust testing profile, both served via the faelight-compositor bridge (INT-055). niri retired / to be removed.
+Proof (2026-06-14): Pinnacle launches, stays alive, and manages/tiles Wayland clients nested on NixOS -- compositor confirmed working.
+- Custom Pinnacle Lua config is the remaining keystone (closes 006 keybinds + this intent).
+
+## Gate (re-scoped 2026-06-14 -- pure-Rust testing profile)
 - [ ] Pinnacle stays alive with Lua config
-- [ ] All niri keybinds ported to Pinnacle Lua
-- [ ] faelight-bar renders full width
-- [ ] Lock screen works under Pinnacle
-- [ ] faelight-menu works under Pinnacle
+- [ ] Core keybinds ported to Pinnacle Lua
 - [ ] fsh works inside Pinnacle terminal
-- [ ] Run as daily driver for 1 week nested in niri
+- [ ] Forest tools (faelight-notify, etc.) work under Pinnacle
+- [ ] (stretch, testing-profile optional) lock screen under Pinnacle
+- [ ] (stretch, testing-profile optional) faelight-menu under Pinnacle
+
+Moved out: faelight-bar layer-shell rendering -> INT-053. Dropped: "run as daily driver for 1 week nested in niri" (niri retired; Pinnacle is the testing profile, not the daily driver).
 
 ## Note
 This is a side track -- does not block INT-030 or INT-026.
