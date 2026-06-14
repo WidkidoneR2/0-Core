@@ -55,8 +55,8 @@ runtime-alias cruft.
 
 ## Gate Check
 ```
-⬜ G1  state.db located; alias-storage schema confirmed (demonstrated by inspection)
-⬜ G2  fsh alias-load model documented (config.fsh vs state.db precedence) -- demonstrated
+✅ G1  state.db located; alias-storage schema confirmed (demonstrated by inspection)
+✅ G2  fsh alias-load model documented (config.fsh vs state.db precedence) -- demonstrated
 ⬜ G3  full alias inventory diffed vs config.fsh; every entry tagged keep/migrate/purge
 ⬜ G4  keepers migrated into config.fsh; rebuild succeeds; they load from the tracked file
 ⬜ G5  stale Arch-era aliases purged from state.db
@@ -67,3 +67,24 @@ runtime-alias cruft.
 ```
 ---
 *"The forest grows with intention."* 🌲
+
+## Progress -- 2026-06-14 (G1, G2 demonstrated)
+G1 -- state.db at ~/0-core/runtime/state.db (canonical db.rs:17). Aliases in
+table shell_aliases (id, name UNIQUE, command, created). Live count: 346 vs
+~50 tracked in config.fsh -> ~296 untracked runtime aliases to sort.
+
+G2 -- alias-load model (source-demonstrated):
+- Boot: config.fsh parsed; each alias INSERT OR REPLACE'd into shell_aliases via
+  db.add_alias (config.rs:251 -> db.rs:96). No truncate/prune -- purely additive.
+- Runtime resolves aliases from the TABLE (db.rs:115), not config.fsh. Table is
+  the live source of truth. `alias` writes (db.rs:96), `unalias` deletes (db.rs:105).
+- No source/provenance column; 346 count proves boot is additive-only.
+- safety_guard.rs:40 blocks raw sqlite3 DELETE on state.db -> G5 purge must use
+  the sanctioned path (unalias / db delete).
+
+KEY FINDING (new requirement): data cleanup alone won't hold -- cruft re-grows.
+Needs a code change so config.fsh is authoritative on boot: (a) prune table
+entries not in config.fsh at startup, or (b) add a source column and drop
+runtime-only entries. Propose as a new gate.
+
+NEXT: G3 -- dump 346, diff vs config.fsh, tag each keep/migrate/purge.
