@@ -1541,6 +1541,7 @@ dependencies = [
  "dirs",
  "faelight-core",
  "futures-util",
+ "libc",
  "rusqlite",
  "smithay-client-toolkit 0.19.2",
  "tokio",

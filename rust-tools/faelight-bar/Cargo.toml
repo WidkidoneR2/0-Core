@@ -12,6 +12,7 @@ path = "src/main.rs"
 # Wayland layer shell
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
+libc = "0.2"
 wayland-protocols = { workspace = true }
 
 # Beautiful font rendering -- same library faelight-term uses internally

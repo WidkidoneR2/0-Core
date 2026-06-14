@@ -22,6 +22,7 @@ use smithay_client_toolkit::{
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use std::time::{Duration, Instant};
+use std::os::unix::io::AsRawFd;
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_shm, wl_surface},
@@ -627,6 +628,21 @@ fn main() -> anyhow::Result<()> {
             eq.flush().ok();
             let _ = eq.dispatch_pending(&mut app);
         }
-        std::thread::sleep(Duration::from_millis(100));
+        // FIX: read the Wayland socket instead of blind-sleeping. The old loop
+        // never read it, so the compositor's events piled up in the kernel
+        // socket buffer until it filled (~8 min) and the connection broke.
+        eq.flush()?;
+        let guard = match conn.prepare_read() {
+            Some(g) => g,
+            None => continue,
+        };
+        let fd = guard.connection_fd().as_raw_fd();
+        let mut pfd = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
+        let ready = unsafe { libc::poll(&mut pfd as *mut libc::pollfd, 1, 100) };
+        if ready > 0 && (pfd.revents & libc::POLLIN) != 0 {
+            let _ = guard.read();
+        } else {
+            drop(guard);
+        }
     }
 }
