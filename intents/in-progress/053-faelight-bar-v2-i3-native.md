@@ -3,7 +3,7 @@ id: 053
 date: 2026-06-09
 type: feature
 title: "faelight-bar v2: i3-style wlr-layer-shell bar for MangoWM and Pinnacle"
-status: planned
+status: in-progress
 tags: [bar, wayland, layer-shell, mango, pinnacle, rust, ratatui, cosmic-text]
 priority: high
 ---

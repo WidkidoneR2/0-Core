@@ -42,6 +42,16 @@ const FONT_SIZE: f32 = 14.0;
 const LINE_HEIGHT: f32 = 22.0;
 const UPDATE_MS: u64 = 1000;
 const PAD: f32 = 12.0;
+const FONT_FAMILY: &str = "JetBrainsMono Nerd Font";
+const IC_CPU: &str = "";
+const IC_RAM: &str = "󰍛";
+const IC_WIFI: &str = "󰖩";
+const IC_WIFI_OFF: &str = "󰖪";
+const IC_BATT: &str = "󰁹";
+const IC_CHARGE: &str = "󰂄";
+const IC_CLOCK: &str = "󰥔";
+const IC_HEART: &str = "";
+const IC_GIT: &str = "";
 
 // Background: #11140F forest green (ARGB little-endian bytes = B G R A)
 const BG: [u8; 4] = [0x18, 0x24, 0x1B, 0xFF]; // #1B2418 forest green
@@ -61,7 +71,6 @@ fn purple() -> TColor { TColor::rgba(0xB4, 0x82, 0xFF, 0xFF) } // neon purple (1
 #[derive(Default, Clone)]
 struct ForestState {
     health: u8,
-    core_locked: bool,
     intent_title: String,
     friday: Option<(String, f64)>,
     git_branch: String,
@@ -70,6 +79,8 @@ struct ForestState {
     charging: bool,
     wifi_connected: bool,
     clock: String,
+    cpu: u8,
+    ram: u8,
 }
 
 impl ForestState {
@@ -81,11 +92,6 @@ impl ForestState {
                 format!("{}/.cache/faelight/health-status", home))
                 .ok().and_then(|s| s.trim().parse().ok()))
             .unwrap_or(100);
-        let core_locked = std::process::Command::new("lsattr")
-            .args(["-d", &format!("{}/0-core/rust-tools", home)])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains("-i-"))
-            .unwrap_or(false);
         let intent_title = std::fs::read_to_string("/etc/faelight/INTENT")
             .unwrap_or_default().trim().to_string();
         let intent_title = if intent_title.len() > 55 {
@@ -117,11 +123,43 @@ impl ForestState {
                 }))
             .unwrap_or(false);
         let clock = chrono::Local::now().format("%a %d  %H:%M").to_string();
-        ForestState { health, core_locked, intent_title, friday,
-            git_branch, git_clean, battery, charging, wifi_connected, clock }
+        let cpu = read_cpu();
+        let ram = read_ram();
+        ForestState { health, intent_title, friday,
+            git_branch, git_clean, battery, charging, wifi_connected, clock, cpu, ram }
     }
 }
 
+fn read_cpu() -> u8 {
+    static PREV: std::sync::Mutex<Option<(u64, u64)>> = std::sync::Mutex::new(None);
+    let stat = match std::fs::read_to_string("/proc/stat") { Ok(s) => s, Err(_) => return 0 };
+    let line = match stat.lines().next() { Some(l) => l, None => return 0 };
+    let vals: Vec<u64> = line.split_whitespace().skip(1).filter_map(|v| v.parse().ok()).collect();
+    if vals.len() < 4 { return 0; }
+    let idle = vals[3] + vals.get(4).copied().unwrap_or(0);
+    let total: u64 = vals.iter().sum();
+    let mut prev = match PREV.lock() { Ok(p) => p, Err(_) => return 0 };
+    let pct = if let Some((pt, pi)) = *prev {
+        let dt = total.saturating_sub(pt);
+        let di = idle.saturating_sub(pi);
+        if dt > 0 { ((dt.saturating_sub(di) as f64 / dt as f64) * 100.0).round() as u8 } else { 0 }
+    } else { 0 };
+    *prev = Some((total, idle));
+    pct.min(100)
+}
+fn read_ram() -> u8 {
+    let mem = match std::fs::read_to_string("/proc/meminfo") { Ok(s) => s, Err(_) => return 0 };
+    let (mut total, mut avail) = (0u64, 0u64);
+    for line in mem.lines() {
+        if let Some(v) = line.strip_prefix("MemTotal:") {
+            total = v.split_whitespace().next().and_then(|x| x.parse().ok()).unwrap_or(0);
+        } else if let Some(v) = line.strip_prefix("MemAvailable:") {
+            avail = v.split_whitespace().next().and_then(|x| x.parse().ok()).unwrap_or(0);
+        }
+    }
+    if total == 0 { return 0; }
+    ((total.saturating_sub(avail) as f64 / total as f64) * 100.0).round() as u8
+}
 fn read_friday(db: &str) -> Option<(String, f64)> {
     let conn = Db::open(db).ok()?;
     let cutoff = chrono::Utc::now().timestamp() - 300;
@@ -185,7 +223,7 @@ fn draw_text(
     let mut buf = Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
     buf.set_size(font_system, Some(max_w), Some(LINE_HEIGHT + 4.0));
     buf.set_text(font_system, text,
-        Attrs::new().family(Family::Monospace), Shaping::Basic);
+        Attrs::new().family(Family::Name(FONT_FAMILY)), Shaping::Basic);
     buf.shape_until_scroll(font_system, false);
     buf.draw(font_system, swash, color, |x, y, w, h, c| {
         blend(canvas, x_off + x, y_off + y, w, h, c);
@@ -196,7 +234,7 @@ fn draw_text(
 fn measure_text(font_system: &mut FontSystem, text: &str, max_w: f32) -> f32 {
     let mut buf = Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
     buf.set_size(font_system, Some(max_w), Some(LINE_HEIGHT + 4.0));
-    buf.set_text(font_system, text, Attrs::new().family(Family::Monospace), Shaping::Basic);
+    buf.set_text(font_system, text, Attrs::new().family(Family::Name(FONT_FAMILY)), Shaping::Basic);
     buf.shape_until_scroll(font_system, false);
     buf.layout_runs().map(|r| r.line_w).fold(0.0f32, f32::max)
 }
@@ -222,22 +260,18 @@ fn draw_frame(
     let y_text = ((phys_h as f32 - LINE_HEIGHT) / 2.0) as i32;
 
     // -- LEFT: lock(color) · health(color) · git(white) --------------------
-    let lock_str = if forest.core_locked { "[L] " } else { "[U] " };
-    let lock_color = if forest.core_locked { green() } else { red() };
-    let lock_w = measure_text(font_system, lock_str, 60.0);
-    draw_text(canvas, font_system, swash, lock_str, PAD as i32, y_text, 60.0, lock_color);
-    let h_str = format!("H:{}%  ", forest.health);
+    let h_str = format!("{} {}%  ", IC_HEART, forest.health);
     // INT-033: semantic health thresholds -- peak>=95, advisory>=80, critical<80
     let h_color = if forest.health >= 95 { green() }
         else if forest.health >= 80 { amber() } else { red() };
     let h_w = measure_text(font_system, &h_str, 80.0);
     draw_text(canvas, font_system, swash, &h_str,
-        (PAD + lock_w) as i32, y_text, 80.0, h_color);
+        PAD as i32, y_text, 80.0, h_color);
     let git_sym = if forest.git_clean { "" } else { "*" };
-    let git_str = format!("{}{}", forest.git_branch, git_sym);
+    let git_str = format!("{} {}{}", IC_GIT, forest.git_branch, git_sym);
     draw_text(canvas, font_system, swash, &git_str,
-        (PAD + lock_w + h_w) as i32, y_text,
-        third - lock_w - h_w - PAD, text());
+        (PAD + h_w) as i32, y_text,
+        third - h_w - PAD, text());
 
     // -- CENTER: friday or intent --------------------------------------------
     let (center, center_color) = if let Some((ref msg, conf)) = forest.friday {
@@ -253,7 +287,7 @@ fn draw_frame(
         let mut cb = cosmic_text::Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
         cb.set_size(font_system, Some(third), Some(LINE_HEIGHT + 4.0));
         cb.set_text(font_system, &center,
-            Attrs::new().family(Family::Monospace), Shaping::Basic);
+            Attrs::new().family(Family::Name(FONT_FAMILY)), Shaping::Basic);
         cb.shape_until_scroll(font_system, false);
         let text_w = cb.layout_runs().map(|r| r.line_w).fold(0.0f32, f32::max);
         let x_center = (third + (third - text_w) / 2.0).max(third) as i32;
@@ -266,17 +300,18 @@ fn draw_frame(
     {
         let mut rx = phys_w as f32 - PAD;
         // Clock -- amber
-        let clock_w = measure_text(font_system, &forest.clock, third);
+        let clock_str = format!("{} {}", IC_CLOCK, forest.clock);
+        let clock_w = measure_text(font_system, &clock_str, third);
         rx -= clock_w;
-        draw_text(canvas, font_system, swash, &forest.clock,
+        draw_text(canvas, font_system, swash, &clock_str,
             rx as i32, y_text, third, amber());
         rx -= 14.0;
         // Battery -- green>=95 cyan>=50 amber>=20 red<20
         if let Some(pct) = forest.battery {
             let bat_color = if pct >= 95 { green() } else if pct >= 50 { cyan() }
                 else if pct >= 20 { amber() } else { red() };
-            let ch = if forest.charging { "+" } else { "" };
-            let bat_str = format!("{}%{}", pct, ch);
+            let bat_icon = if forest.charging { IC_CHARGE } else { IC_BATT };
+            let bat_str = format!("{} {}%", bat_icon, pct);
             let bat_w = measure_text(font_system, &bat_str, third);
             rx -= bat_w;
             draw_text(canvas, font_system, swash, &bat_str,
@@ -284,12 +319,30 @@ fn draw_frame(
             rx -= 14.0;
         }
         // WiFi -- green=up red=down
-        let wifi_str = if forest.wifi_connected { "WiFi" } else { "NoWi" };
+        let wifi_str = if forest.wifi_connected { IC_WIFI } else { IC_WIFI_OFF };
         let wifi_color = if forest.wifi_connected { green() } else { red() };
         let wifi_w = measure_text(font_system, wifi_str, 60.0);
         rx -= wifi_w;
         draw_text(canvas, font_system, swash, wifi_str,
             rx as i32, y_text, 60.0, wifi_color);
+        rx -= 14.0;
+        // RAM -- green<50 amber<80 red>=80
+        let ram_str = format!("{} {}%", IC_RAM, forest.ram);
+        let ram_color = if forest.ram < 50 { green() }
+            else if forest.ram < 80 { amber() } else { red() };
+        let ram_w = measure_text(font_system, &ram_str, 80.0);
+        rx -= ram_w;
+        draw_text(canvas, font_system, swash, &ram_str,
+            rx as i32, y_text, 80.0, ram_color);
+        rx -= 14.0;
+        // CPU -- green<50 amber<80 red>=80
+        let cpu_str = format!("{} {}%", IC_CPU, forest.cpu);
+        let cpu_color = if forest.cpu < 50 { green() }
+            else if forest.cpu < 80 { amber() } else { red() };
+        let cpu_w = measure_text(font_system, &cpu_str, 80.0);
+        rx -= cpu_w;
+        draw_text(canvas, font_system, swash, &cpu_str,
+            rx as i32, y_text, 80.0, cpu_color);
     }
 }
 
