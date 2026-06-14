@@ -116,3 +116,15 @@ checklist in INT-024's VM:
   [ ] recovery from a broken session demonstrated in VM
   [ ] all of the above documented before graduating
 Door is always open: docs/recovery-runbook.md · TTY2 via Ctrl+Alt+F2.
+
+## Known Issue -- in progress (2026-06-14)
+faelight-bar v3 exits with rc=1 "Io error: Broken pipe (os error 32)" after
+~8 min under MangoWM: the compositor closes the Wayland connection and the next
+eq.flush()? in main() propagates the IoError and exits. Confirmed NOT memory
+(RSS flat ~34 MB across deaths) and NOT a panic.
+Workaround in place: supervised auto-restart loop respawns the bar in ~2s,
+mirroring a deployed systemd service with Restart=always.
+TODO next session: run with WAYLAND_DEBUG=1, read the compositor's fatal error
+just before the broken pipe, decide bar-protocol-bug vs Mango behavior, then
+either fix the bar or have main() reconnect instead of exiting.
+Status: in-progress. Do not close until the connection drop is understood.

@@ -54,6 +54,8 @@ const IC_HEART: &str = "";
 const IC_GIT: &str = "";
 
 // Background: #11140F forest green (ARGB little-endian bytes = B G R A)
+const SEP_L: &str = "";
+const SEP_R: &str = "";
 const BG: [u8; 4] = [0x18, 0x24, 0x1B, 0xFF]; // #1B2418 forest green
 
 // Text colors (RGBA for cosmic-text)
@@ -260,18 +262,20 @@ fn draw_frame(
     let y_text = ((phys_h as f32 - LINE_HEIGHT) / 2.0) as i32;
 
     // -- LEFT: lock(color) · health(color) · git(white) --------------------
-    let h_str = format!("{} {}%  ", IC_HEART, forest.health);
+    let mut lx = PAD;
+    let h_str = format!("{} {}%", IC_HEART, forest.health);
     // INT-033: semantic health thresholds -- peak>=95, advisory>=80, critical<80
     let h_color = if forest.health >= 95 { green() }
         else if forest.health >= 80 { amber() } else { red() };
     let h_w = measure_text(font_system, &h_str, 80.0);
-    draw_text(canvas, font_system, swash, &h_str,
-        PAD as i32, y_text, 80.0, h_color);
+    draw_text(canvas, font_system, swash, &h_str, lx as i32, y_text, 80.0, h_color);
+    lx += h_w + 8.0;
+    let lsep_w = measure_text(font_system, SEP_R, 30.0);
+    draw_text(canvas, font_system, swash, SEP_R, lx as i32, y_text, 30.0, dim());
+    lx += lsep_w + 8.0;
     let git_sym = if forest.git_clean { "" } else { "*" };
     let git_str = format!("{} {}{}", IC_GIT, forest.git_branch, git_sym);
-    draw_text(canvas, font_system, swash, &git_str,
-        (PAD + h_w) as i32, y_text,
-        third - h_w - PAD, text());
+    draw_text(canvas, font_system, swash, &git_str, lx as i32, y_text, third - lx, text());
 
     // -- CENTER: friday or intent --------------------------------------------
     let (center, center_color) = if let Some((ref msg, conf)) = forest.friday {
@@ -305,7 +309,11 @@ fn draw_frame(
         rx -= clock_w;
         draw_text(canvas, font_system, swash, &clock_str,
             rx as i32, y_text, third, amber());
-        rx -= 14.0;
+        rx -= 5.0;
+        let sep_w = measure_text(font_system, SEP_L, 30.0);
+        rx -= sep_w;
+        draw_text(canvas, font_system, swash, SEP_L, rx as i32, y_text, 30.0, dim());
+        rx -= 5.0;
         // Battery -- green>=95 cyan>=50 amber>=20 red<20
         if let Some(pct) = forest.battery {
             let bat_color = if pct >= 95 { green() } else if pct >= 50 { cyan() }
@@ -316,7 +324,11 @@ fn draw_frame(
             rx -= bat_w;
             draw_text(canvas, font_system, swash, &bat_str,
                 rx as i32, y_text, third, bat_color);
-            rx -= 14.0;
+            rx -= 5.0;
+            let sep_w = measure_text(font_system, SEP_L, 30.0);
+            rx -= sep_w;
+            draw_text(canvas, font_system, swash, SEP_L, rx as i32, y_text, 30.0, dim());
+            rx -= 5.0;
         }
         // WiFi -- green=up red=down
         let wifi_str = if forest.wifi_connected { IC_WIFI } else { IC_WIFI_OFF };
@@ -325,7 +337,11 @@ fn draw_frame(
         rx -= wifi_w;
         draw_text(canvas, font_system, swash, wifi_str,
             rx as i32, y_text, 60.0, wifi_color);
-        rx -= 14.0;
+        rx -= 5.0;
+        let sep_w = measure_text(font_system, SEP_L, 30.0);
+        rx -= sep_w;
+        draw_text(canvas, font_system, swash, SEP_L, rx as i32, y_text, 30.0, dim());
+        rx -= 5.0;
         // RAM -- green<50 amber<80 red>=80
         let ram_str = format!("{} {}%", IC_RAM, forest.ram);
         let ram_color = if forest.ram < 50 { green() }
@@ -334,7 +350,11 @@ fn draw_frame(
         rx -= ram_w;
         draw_text(canvas, font_system, swash, &ram_str,
             rx as i32, y_text, 80.0, ram_color);
-        rx -= 14.0;
+        rx -= 5.0;
+        let sep_w = measure_text(font_system, SEP_L, 30.0);
+        rx -= sep_w;
+        draw_text(canvas, font_system, swash, SEP_L, rx as i32, y_text, 30.0, dim());
+        rx -= 5.0;
         // CPU -- green<50 amber<80 red>=80
         let cpu_str = format!("{} {}%", IC_CPU, forest.cpu);
         let cpu_color = if forest.cpu < 50 { green() }
