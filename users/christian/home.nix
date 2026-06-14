@@ -4,6 +4,7 @@
     ./fsh.nix
     ./alacritty.nix
     ./git.nix
+    ./faelight-bar.nix
   ];
 
   home.stateVersion = "25.11";
@@ -17,6 +18,7 @@
   xdg.configFile."faelight/profiles.toml".source = ../../config/faelight/.config/faelight/profiles.toml;
   xdg.configFile."faelight/themes.toml".source = ../../config/faelight/.config/faelight/themes.toml;
   xdg.configFile."faelight/term.toml".source = ../../config/faelight/.config/faelight/term.toml;
+  xdg.configFile."mango/config.conf".source = ../../config/mango/.config/mango/config.conf;
 
   home.packages = with pkgs; [
     brave
