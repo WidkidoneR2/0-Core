@@ -54,3 +54,34 @@ panic-on-external-command cases.
 ⬜ Not started
 ---
 *"The forest grows with intention."* 🌲
+
+## Diagnosis - 2026-06-13 (execution cleared, crash localized to interactive editor)
+
+Status: root cause LOCALIZED, not yet fixed. This is not a one-line fix.
+
+### Proven innocent (df executes correctly)
+- `env RUST_BACKTRACE=1 /run/current-system/sw/bin/faelight-shell -c 'df'` runs CLEAN: full df output, exit 0, empty panic log.
+- Therefore `execute()`, the whole `match cmd.as_str()` dispatch, and `run_external()` are all cleared.
+- `run_external` runs `sh -c <line>` with inherited stdio via `.status()` (spawn + wait). df survives it fine.
+
+### Crash is INTERACTIVE-ONLY
+- The panic lives in the REPL / line-editor layer that `-c` mode bypasses -- `main.rs` or the editor module, NOT `commands/mod.rs`.
+- A panic there kills fsh; since fsh is the login shell, the terminal closes. Likely the same root as the nested-fsh `exit`-closes-terminal symptom.
+
+### Cleared this session (commands/mod.rs)
+- `highlight_rust_line` (line 76) and `colorize_line` (line 111): both safe for "df" (slices guarded by short-circuits; "df" falls through to plain output). These color OUTPUT/Rust lines, not interactive input.
+- `reload` builtin (~line 468) and `exec_cmd` (line 9216): both use `.exec()` INTENTIONALLY to restart the shell. Not the bug -- do not touch.
+- disk-usage `df` spawn at line 11121 (inside a dashboard fn): guarded by `parts.len() >= 5`, only runs on the dashboard command. Not the bug.
+
+### Remaining suspect
+- The input line-editor wiring in `main.rs` / editor module: the `Highlighter` / `Hinter` / `Completer` impl, or the per-keystroke render path.
+- Friday interactive hinter is LOWER priority (observed firing on input without crashing).
+
+### Next-session opener (the clean kill)
+1. Launch `faelight-shell` FROM a bash login (not as the shell) so a panic drops back to bash instead of closing the terminal: `RUST_BACKTRACE=1 faelight-shell`, then type `df`.
+2. The backtrace names the exact `main.rs` line. Fix is almost certainly a bounds / None guard there.
+3. Regression baseline after the fix: `faelight-shell -c 'df'` must still run clean.
+
+### Repro facts
+- Daily-driver binary: `/run/current-system/sw/bin/faelight-shell` (NixOS system path).
+- `-c '<cmd>'` non-interactive mode works and is the safe way to test execution paths without risking the terminal.
