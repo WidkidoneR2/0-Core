@@ -3,7 +3,7 @@ id: 038
 date: 2026-06-07
 type: feature
 title: "Pinnacle compositor config: Lua config, layer-shell, lock screen"
-status: in-progress
+status: complete
 tags: [pinnacle, compositor, lua, layer-shell, lock-screen, config]
 priority: medium
 ---
@@ -55,14 +55,13 @@ Proof (2026-06-14): Pinnacle launches, stays alive, and manages/tiles Wayland cl
 - Custom Pinnacle Lua config is the remaining keystone (closes 006 keybinds + this intent).
 
 ## Gate (re-scoped 2026-06-14 -- pure-Rust testing profile)
-- [ ] Pinnacle stays alive with Lua config
-- [ ] Core keybinds ported to Pinnacle Lua
-- [ ] fsh works inside Pinnacle terminal
-- [ ] Forest tools (faelight-notify, etc.) work under Pinnacle
-- [ ] (stretch, testing-profile optional) lock screen under Pinnacle
-- [ ] (stretch, testing-profile optional) faelight-menu under Pinnacle
+- [x] Pinnacle stays alive with Lua config
+- [x] Core keybinds ported to Pinnacle Lua
+- [x] fsh works inside Pinnacle terminal
+- [x] Forest tools (faelight-notify, etc.) work under Pinnacle
+- [x] (stretch, testing-profile optional) faelight-menu under Pinnacle
 
-Moved out: faelight-bar layer-shell rendering -> INT-053. Dropped: "run as daily driver for 1 week nested in niri" (niri retired; Pinnacle is the testing profile, not the daily driver).
+Moved out: faelight-bar layer-shell rendering -> INT-053. Lock screen -> INT-046 (owns lock screen for Pinnacle + Mango). Dropped: "run as daily driver for 1 week nested in niri" (niri retired; Pinnacle is the testing profile, not the daily driver).
 
 ## Note
 This is a side track -- does not block INT-030 or INT-026.

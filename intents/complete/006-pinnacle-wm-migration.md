@@ -3,7 +3,7 @@ id: 006
 date: 2026-06-03
 type: infrastructure
 title: "Pinnacle WM: compositor migration path, i3-style ownership model"
-status: in-progress
+status: complete
 tags: [pinnacle, compositor, wayland, i3, nixos]
 priority: medium
 ---
@@ -37,7 +37,7 @@ Proof (2026-06-14): Pinnacle launches, stays alive, and manages/tiles Wayland cl
 ## Gate (re-scoped 2026-06-14 -- pure-Rust testing profile, not daily driver)
 - [x] Pinnacle launches cleanly on NixOS
 - [x] Pinnacle manages and tiles Wayland clients (confirmed nested 2026-06-14)
-- [ ] Core keybinds drive it (full suite lives in INT-038 Lua config)
-- [ ] Forest toolchain (fsh, faelight-notify) runs under Pinnacle
+- [x] Core keybinds drive it (full suite lives in INT-038 Lua config)
+- [x] Forest toolchain (fsh, faelight-notify) runs under Pinnacle
 
 Dropped: "all 102 keybinds" (daily-driver overkill for a testing profile); faelight-bar rendering moved to INT-053.
