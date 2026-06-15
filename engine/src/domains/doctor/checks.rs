@@ -82,12 +82,10 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
 }
 
 pub fn check_services() -> CheckResult {
-    // faelight-bar is deferred to INT-053 (i3-style wlr-layer-shell bar for
-    // MangoWM/Pinnacle) and has no business running yet, so it is intentionally
-    // not checked here -- re-add it when INT-053 ships. Until then we measure the
-    // one daemon that should be up today: faelight-notify.
-    let services = [("faelight-notify", "Notifications")];
-    let running = services
+    // Per-session daemons the doctor expects up. faelight-bar joined this list
+    // when INT-053 shipped it as a real systemd user service.
+    let services = [("faelight-notify", "Notifications"), ("faelight-bar", "Bar")];
+    let down: Vec<&str> = services
         .iter()
         .filter(|(name, _)| {
             let full = format!("/run/current-system/sw/bin/{}", name);
@@ -95,17 +93,19 @@ pub fn check_services() -> CheckResult {
                 .arg("-f")
                 .arg(&full)
                 .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
+                .map(|o| !o.status.success())
+                .unwrap_or(true)
         })
-        .count();
+        .map(|(name, _)| *name)
+        .collect();
     let total = services.len();
+    let running = total - down.len();
     if running == total {
         CheckResult {
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Pass,
-            message: format!("{}/{} services running (faelight-bar pending INT-053)", running, total),
+            message: format!("{}/{} services running", running, total),
             fix: None,
         }
     } else {
@@ -113,8 +113,8 @@ pub fn check_services() -> CheckResult {
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Warn,
-            message: format!("{}/{} services running (faelight-bar pending INT-053)", running, total),
-            fix: Some("Start faelight-notify as a systemd user service".into()),
+            message: format!("{}/{} running -- down: {}", running, total, down.join(", ")),
+            fix: Some(format!("Start: {}", down.join(", "))),
         }
     }
 }
