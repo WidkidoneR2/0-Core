@@ -129,6 +129,25 @@ fn flake_info() -> Option<String> {
     flake_root.file_name().map(|n| n.to_string_lossy().to_string())
 }
 
+fn system_drift() -> Option<bool> {
+    let home = std::env::var("HOME").ok()?;
+    let head = std::fs::read_to_string(format!("{}/0-core/.git/HEAD", home)).ok()?;
+    let head = head.trim();
+    let current = if let Some(r) = head.strip_prefix("ref: ") {
+        std::fs::read_to_string(format!("{}/0-core/.git/{}", home, r))
+            .ok()?
+            .trim()
+            .to_string()
+    } else {
+        head.to_string()
+    };
+    let built = std::fs::read_to_string(
+        format!("{}/.cache/faelight/last-system-rev", home),
+    )
+    .ok()?;
+    Some(current.as_str() != built.trim())
+}
+
 fn active_intent(db: &ForestDb) -> Option<String> {
     db.conn
         .query_row(
@@ -240,6 +259,10 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     if today_commits > 0 {
         parts.push(fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2,
             &format!("{} today", today_commits)));
+    }
+
+    if let Some(true) = system_drift() {
+        parts.push(fc_bold(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, "⇡ rebuild"));
     }
 
     if is_friday {
