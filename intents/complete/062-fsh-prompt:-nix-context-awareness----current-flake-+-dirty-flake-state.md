@@ -3,7 +3,7 @@ id: 062
 date: 2026-06-14
 type: feature
 title: "fsh prompt: nix-context awareness -- current flake + dirty flake state"
-status: in-progress
+status: complete
 tags: [fsh, prompt, nix, flake, git, nix-native, lane-2, ux]
 priority: medium
 ---
@@ -59,26 +59,52 @@ Phase 2 -- dirty-flake signal (cheap version)
   Gate: committing it clears the marker
   Gate: no new subprocess added (verified -- reuses git_info's porcelain call)
 
-Phase 3 -- system-vs-source drift (v2, stage later, optional)
-  Gate: live system behind source -> drift marker shows
-  Gate: rebuild clears it
+Phase 3 -- system-vs-source drift -- DONE (built this session, not deferred)
+  Gate [x]: live system behind source -> drift marker shows
+  Gate [x]: rebuild clears it (rebuild-record script writes the marker on success)
 
 ## Gates
-- [ ] flake_info() walk-up helper added (mirrors git_info)
-- [ ] prompt shows current flake name inside a flake project
-- [ ] no false flake badge outside a flake project
-- [ ] dirty-flake detection reuses existing porcelain (no new subprocess)
-- [ ] editing flake.nix/flake.lock lights the dirty-flake marker
-- [ ] committing clears the dirty-flake marker
-- [ ] colors use existing INT-033 semantic tokens (no new hardcoded rgb)
-- [ ] builds clean: cargo build in the faelight-shell crate
-- [ ] demonstrated live -- not just implemented
+- [x] flake_info() walk-up helper added (mirrors git_info)
+- [x] prompt shows current flake name inside a flake project
+- [x] no false flake badge outside a flake project
+- [x] dirty-flake detection reuses existing porcelain (no new subprocess)
+- [x] editing flake.nix/flake.lock lights the dirty-flake marker
+- [x] committing clears the dirty-flake marker
+- [x] colors use existing INT-033 semantic tokens (no new hardcoded rgb)
+- [x] builds clean: cargo build in the faelight-shell crate
+- [x] demonstrated live -- not just implemented
 
 ## Depends On
   none (self-contained prompt change)
 
 ## Lane
   fsh Evolution Roadmap -- Lane 2 (Nix-native), items 1 + 2
+
+## Progress (completed 2026-06-14)
+All three phases built, deployed, and demonstrated live across gen 152-154.
+
+- Phase 1 (current flake): flake_info() walk-up renders the nearest flake.nix
+  project name in the nix badge (flake + devshell together); nothing falsely
+  shown outside a flake project.
+- Phase 2 (dirty flake): git_info() derives flake_dirty from the same porcelain
+  call (no new subprocess); marker shows beside the git cluster when
+  flake.nix/flake.lock is uncommitted, clears when restored or committed.
+- Phase 3 (drift): system_drift() compares ~/0-core HEAD to a marker file
+  (~/.cache/faelight/last-system-rev), cwd-independent; line 2 shows the drift
+  marker when HEAD is ahead of the last build, written by the bash script
+  pkgs/faelight/scripts/rebuild-record, called by the rebuild alias.
+
+Writer took three honest passes:
+  1. inline alias compound (... && git | tee) -- fsh does NOT process && or | in
+     alias values; it passed && to nixos-rebuild as an argument and broke it.
+  2. bare 'bash <script>' -- fsh's bash builtin traps into an interactive
+     subshell and ignores the script argument.
+  3. absolute '/run/current-system/sw/bin/bash <script>' -- works; verified
+     end-to-end (rebuild cleared a fake drift on its own).
+
+fsh findings: aliases ignore &&/|; bare 'bash <script>' traps to a subshell; use
+absolute bash. rebuild-safe and update-flake share the same bare-bash trap
+(follow-up, out of scope).
 
 ## The Rule
 "The prompt should know which forest it stands in,
