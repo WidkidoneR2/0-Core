@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# rebuild-record -- nixos-rebuild switch, then record the built rev for drift detection (INT-062)
+set -euo pipefail
+sudo nixos-rebuild switch --flake "$HOME/0-core#framework16"
+git -C "$HOME/0-core" rev-parse HEAD | tee "$HOME/.cache/faelight/last-system-rev"

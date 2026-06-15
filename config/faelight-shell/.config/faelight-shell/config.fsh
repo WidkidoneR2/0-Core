@@ -52,7 +52,7 @@ alias la = "eza -la --icons"
 
 # Deploy pipeline (INT-164)
 alias deploy = "~/0-core/pkgs/faelight/scripts/deploy"
-alias rebuild = "sudo nixos-rebuild switch --flake ~/0-core#framework16 && git -C ~/0-core rev-parse HEAD | tee ~/.cache/faelight/last-system-rev"
+alias rebuild = "bash ~/0-core/pkgs/faelight/scripts/rebuild-record"
     alias rebuild-safe = "bash ~/0-core/pkgs/faelight/scripts/rebuild-safe"
     alias fm = "faelight-fm"
     alias fmd = "faelight-fm --dual"
