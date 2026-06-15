@@ -84,14 +84,14 @@ Phase 5 -- Autostart integration
 
 ## Gates
 - [ ] INT-056 pre-flight complete before any live compositor work
-- [ ] wlr-layer-shell overlay renders under MangoWM
+- [x] wlr-layer-shell overlay renders under MangoWM
 - [ ] wlr-layer-shell overlay renders under Pinnacle
 - [ ] Health shows with neon candy semantic colors
 - [ ] Active intent shows in neon purple
 - [ ] Git state shows branch and dirty indicator
 - [ ] CPU, RAM, battery, wifi, clock all rendering
 - [ ] Updates every 2 seconds without flicker
-- [ ] Autostart in MangoWM config
+- [x] Autostart in MangoWM config
 - [ ] Autostart in Pinnacle config
 - [ ] No Niri-specific code remaining
 
@@ -127,4 +127,25 @@ mirroring a deployed systemd service with Restart=always.
 TODO next session: run with WAYLAND_DEBUG=1, read the compositor's fatal error
 just before the broken pipe, decide bar-protocol-bug vs Mango behavior, then
 either fix the bar or have main() reconnect instead of exiting.
-Status: in-progress. Do not close until the connection drop is understood.
+Status: RESOLVED 2026-06-14 -- connection drop understood and fixed (see Progress below).
+
+## Progress -- 2026-06-14 (broken pipe RESOLVED; MangoWM render + autostart demonstrated)
+ROOT CAUSE (the Known Issue above, now understood): the main loop never read the Wayland
+socket after init -- only eq.flush() + eq.dispatch_pending() (local buffer) + a sleep. Mango's
+events (frame callbacks, wl_buffer.release, pings) piled in the kernel recv buffer at a fixed
+rate; at ~8:12 it filled and Mango dropped the connection -> broken pipe. Explains the flat RSS.
+FIX (commit 5235bf5e): each loop now drains the socket -- eq.flush(), conn.prepare_read(),
+libc::poll() the connection fd, guard.read() on POLLIN. Survives well past 8:12 (debug + release).
+The /tmp restart loop is retired.
+SHIPPED AS A SERVICE (commit 2bb7c21b): declarative home-manager faelight-bar.service
+(Restart=always) + a custom faelight-session.target (graphical-session.target refuses manual
+start); mango exec-once imports the Wayland env and starts the target. Verified autostarting at
+a real login after reboot -- PID under faelight-bar.service, no broken pipe.
+GATES MARKED: renders-under-MangoWM and autostart-in-MangoWM-config, both demonstrated.
+HONEST DEVIATION: the INT-056 VM pre-flight gate was NOT followed -- this landed live (dry-run
+build + recovery standby + greetd/launch untouched, no lockout), but the VM checklist (snapshot,
+TTY2, greetd fallback, recovery-in-VM) was skipped. That gate stays unchecked: an honest debt.
+STILL OPEN: Pinnacle render + autostart, content gates (health colors / intent / git / system
+stats / 2s no-flicker) not audited this session, no-Niri-code unverified, INT-056 pre-flight.
+NOT cicomplete.
+WATCH: bar RSS ~391M as a service (font loading?) -- profiling pass owed.

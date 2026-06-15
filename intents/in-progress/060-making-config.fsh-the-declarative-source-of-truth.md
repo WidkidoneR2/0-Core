@@ -57,9 +57,9 @@ runtime-alias cruft.
 ```
 ✅ G1  state.db located; alias-storage schema confirmed (demonstrated by inspection)
 ✅ G2  fsh alias-load model documented (config.fsh vs state.db precedence) -- demonstrated
-⬜ G3  full alias inventory diffed vs config.fsh; every entry tagged keep/migrate/purge
-⬜ G4  keepers migrated into config.fsh; rebuild succeeds; they load from the tracked file
-⬜ G5  stale Arch-era aliases purged from state.db
+✅ G3  full alias inventory diffed vs config.fsh; every entry tagged keep/migrate/purge
+✅ G4  keepers migrated into config.fsh; rebuild succeeds; they load from the tracked file
+✅ G5  stale Arch-era aliases purged from state.db
 ⬜ G6  no shadow aliases remain (every alias -> installed binary) -- demonstrated
 ⬜ G7  neovim + nvim aliases retired together, or deferred via a logged, approved hand-off
 ⬜ G8  exa origin resolved
@@ -88,3 +88,22 @@ entries not in config.fsh at startup, or (b) add a source column and drop
 runtime-only entries. Propose as a new gate.
 
 NEXT: G3 -- dump 346, diff vs config.fsh, tag each keep/migrate/purge.
+
+## Progress -- 2026-06-14b (G3, G4, G5 demonstrated; deployed + boot-verified)
+G3 -- 346 live aliases classified vs config.fsh: 49 tracked, 253 migrate, 44 dead
+  (+2 retirement stubs). Every entry tagged keep/migrate/purge.
+G4 -- 251 keepers migrated into tracked config.fsh (commit 7a5497b3). nixos-rebuild
+  deployed it as the home-manager store symlink; a fresh login confirms config.fsh ->
+  301 aliases loading from the tracked file. Rebuild-verify complete.
+G5 -- 46 stale aliases purged via sanctioned unalias (44 dead + 2 stubs); table 346->300.
+  Verified clean: no paru/pacman/zsh/yazi/ccat/nvim and no /usr/ path aliases remain in
+  shell_aliases -- the Arch-era cruft G5 targets is gone.
+STILL OPEN (honest -- NOT cicomplete):
+- G6 no-shadow-alias audit not performed (must demonstrate every remaining alias resolves
+  to an installed binary, no shadowing).
+- G7 nvim aliases are gone, but neovim retirement is unconfirmed and no INT-058 hand-off
+  is logged.
+- G8 exa origin unresolved.
+- G9 BLOCKED on the deferred boot-authority change: the table (db.rs:115) is still the live
+  source, seeded additively from config.fsh but never pruned to it, so "regenerable from
+  repo alone / nothing from state.db" is not yet true. Real architectural remainder.
