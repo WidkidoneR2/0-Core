@@ -85,7 +85,7 @@ fn health_str(health: i64) -> String {
     }
 }
 
-fn git_info() -> Option<(String, bool)> {
+fn git_info() -> Option<(String, bool, bool)> {
     let cwd = std::env::current_dir().ok()?;
     let mut dir = cwd.as_path();
     let git_root = loop {
@@ -101,12 +101,32 @@ fn git_info() -> Option<(String, bool)> {
         .strip_prefix("ref: refs/heads/")
         .unwrap_or("HEAD")
         .to_string();
-    let dirty = std::process::Command::new("git")
+    let porcelain = std::process::Command::new("git")
         .args(["-C", &git_root.to_string_lossy(), "status", "--porcelain"])
         .output()
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
-    Some((branch, dirty))
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
+    let dirty = !porcelain.is_empty();
+    let flake_dirty = porcelain.lines().any(|l| {
+        let path = l.get(3..).unwrap_or("");
+        path == "flake.nix"
+            || path == "flake.lock"
+            || path.ends_with("/flake.nix")
+            || path.ends_with("/flake.lock")
+    });
+    Some((branch, dirty, flake_dirty))
+}
+
+fn flake_info() -> Option<String> {
+    let cwd = std::env::current_dir().ok()?;
+    let mut dir = cwd.as_path();
+    let flake_root = loop {
+        if dir.join("flake.nix").exists() {
+            break dir;
+        }
+        dir = dir.parent()?;
+    };
+    flake_root.file_name().map(|n| n.to_string_lossy().to_string())
 }
 
 fn active_intent(db: &ForestDb) -> Option<String> {
@@ -155,7 +175,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     // ── Line 1: path + git + exit + jobs + time ──────────────────────────
     let mut line1 = format!("  {}", fc_bold(C_CWD.0, C_CWD.1, C_CWD.2, &cwd));
 
-    if let Some((ref b, dirty)) = git {
+    if let Some((ref b, dirty, flake_dirty)) = git {
         let symbol = if dirty { "*" } else { "" };
         let (r,g,bl) = if dirty { C_BRANCH_DIRTY } else { C_BRANCH_CLEAN };
         line1.push_str(&format!(
@@ -164,6 +184,12 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             fc_bold(r, g, bl, &format!("{}{}", b, symbol)),
             fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, ")")
         ));
+        if flake_dirty {
+            line1.push_str(&format!(
+                " {}",
+                fc_bold(C_BRANCH_DIRTY.0, C_BRANCH_DIRTY.1, C_BRANCH_DIRTY.2, "❄*")
+            ));
+        }
     }
 
     if let Some(code) = ctx.last_exit_code {
@@ -312,13 +338,20 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
         .ok()
         .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
         .filter(|n| !n.is_empty());
+    let flake = flake_info();
+    let label = match (&flake, &devshell_name) {
+        (Some(f), Some(d)) => Some(format!("{}·{}", f, d)),
+        (Some(f), None) => Some(f.clone()),
+        (None, Some(d)) => Some(d.clone()),
+        (None, None) => None,
+    };
     let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        match &devshell_name {
+        match &label {
             Some(n) => format!("{} {} ", fc_rl(50, 220, 255, "❄"), fc_rl(50, 220, 255, n)),
             None => format!("{} ", fc_rl(50, 220, 255, "❄")),
         }
     } else if std::env::var("DIRENV_DIR").is_ok() {
-        match &devshell_name {
+        match &label {
             Some(n) => format!("{} {} ", fc_rl(80, 140, 255, "❄"), fc_rl(80, 140, 255, n)),
             None => format!("{} ", fc_rl(80, 140, 255, "❄")),
         }
