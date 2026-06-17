@@ -36,7 +36,6 @@ MangoWM fully configured as daily driver:
 ## Keybind Map (target)
   Mod+Return       -- alacritty
   Mod+Alt+Return   -- faelight-ade
-  Mod+Space        -- faelight-menu v2 (INT-047)
   Mod+/            -- faelight-cheatsheet (Ctrl+/)
   Mod+e            -- faelight-fm
   Mod+g            -- faelight-git
@@ -99,7 +98,6 @@ Phase 5 -- Daily driver validation
 ## Depends On
 - INT-053 (faelight-bar v2) -- bar autostart
 - INT-046 (faelight-lock v2) -- lock screen keybind
-- INT-047 (faelight-menu v2) -- Mod+Space launcher
 
 ## The Rule
 "MangoWM is not a temporary measure.
