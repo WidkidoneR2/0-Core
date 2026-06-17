@@ -26,6 +26,30 @@ the logout precedent; the INT-056 VM pre-flight stays reserved for the actual
 login-surface intents (054, 005). The running cosmic-text bar stays up until
 the GTK4 bar is solid enough to swap into faelight-bar.service.
 
+## Decision -- 2026-06-17: workspace indicators via dwl-ipc (zdwl_ipc_manager_v2)
+This resolves the "mango IPC source (unresolved)" question from the Approach.
+wayland-info shows mango advertises three candidates: zdwl_ipc_manager_v2
+(dwl-ipc, v2), ext_workspace_manager_v1, and zwlr_foreign_toplevel_manager_v1.
+Chose dwl-ipc, implemented as a side Wayland client (faelight-wsd) that writes
+~/.cache/faelight/workspaces as JSON; the bar reads that file.
+Rationale:
+  -- dwl-ipc is the protocol mango drives richly: per-tag active / urgent /
+     clients / focused plus layout, delivered frame-by-frame (no polling).
+     Demonstrated live -- 9 tags, clean enum state, instant tracking on Ctrl+1..5.
+  -- ext-workspace-v1 is the more portable choice, but portability to Pinnacle
+     is speculative: Pinnacle's real-DRM/NixOS viability is UNPROVEN (only
+     nested + terminal smoke-tested). Build for the compositor that demonstrably
+     works (mango), not a hypothetical one.
+  -- faelight-wsd is tiny and self-contained: pure-Rust Wayland backend (no
+     system libwayland), ~324K RSS, write-on-change, running as a
+     faelight-session.target service alongside the bar.
+Trade-off (honest): dwl-ipc is dwl-family-specific, so this is less portable
+than ext-workspace would be. The deviation is contained by the file boundary --
+the bar is compositor-agnostic (it reads JSON, knows nothing of dwl), and the
+helper is a swappable side-component. If Pinnacle ever proves out on real
+hardware, add an ext-workspace helper writing the same JSON; the bar is unchanged.
+Safety: helper and bar are client surfaces, not login/greetd -- no lockout risk.
+
 ## Why
 faelight-bar v1 was a Niri prototype built around Niri-specific IPC.
 MangoWM is now the daily driver. Pinnacle is the compositor target.

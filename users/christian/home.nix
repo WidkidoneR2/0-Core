@@ -5,6 +5,7 @@
     ./alacritty.nix
     ./git.nix
     ./faelight-bar.nix
+    ./faelight-wsd.nix
     ./faelight-notify.nix
   ];
 

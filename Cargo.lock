@@ -1583,25 +1583,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-bar"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "cosmic-text",
- "dirs",
- "faelight-core",
- "futures-util",
- "libc",
- "rusqlite",
- "smithay-client-toolkit 0.19.2",
- "tokio",
- "wayland-client",
- "wayland-protocols 0.32.10",
- "zbus",
-]
-
-[[package]]
 name = "faelight-clipboard"
 version = "0.2.0"
 dependencies = [
@@ -1963,6 +1944,15 @@ dependencies = [
  "serde_json",
  "smithay-client-toolkit 0.19.2",
  "wayland-client",
+]
+
+[[package]]
+name = "faelight-wsd"
+version = "0.1.0"
+dependencies = [
+ "wayland-backend",
+ "wayland-client",
+ "wayland-scanner",
 ]
 
 [[package]]
