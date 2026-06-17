@@ -5,6 +5,7 @@
     ./alacritty.nix
     ./git.nix
     ./faelight-bar.nix
+    ./faelight-notify.nix
   ];
 
   home.stateVersion = "25.11";
