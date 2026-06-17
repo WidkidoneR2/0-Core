@@ -302,16 +302,6 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             replaces: None,
         },
         ToolInfo {
-            name: "faelight-bar".to_string(),
-            version: "5.0.0".to_string(),
-            description: "Wayland status bar built on smithay-client-toolkit. Shows system state, git risk, update count, core lock status. No Waybar, no deps.".to_string(),
-            commands: vec![
-                "faelight-bar    # start the bar (launched by Sway)".to_string(),
-            ],
-            philosophy: "The bar is a window into system state, not a decoration. Every pixel earns its place.".to_string(),
-            replaces: Some("Waybar".to_string()),
-        },
-        ToolInfo {
             name: "faelight-term".to_string(),
             version: "10.3.0".to_string(),
             description: "Wayland terminal emulator built from scratch. VTE-compatible, Faelight Visual Language themed. Production-ready.".to_string(),

@@ -59,7 +59,7 @@ fn binary_version(binary: &str) -> Option<String> {
     use std::time::Duration;
 
     // Known GUI/TUI tools that must not be invoked for version detection
-    const SKIP_VERSION: &[&str] = &["faelight-bar", "faelight-fm", "faelight-term"];
+    const SKIP_VERSION: &[&str] = &["faelight-fm", "faelight-term"];
     if SKIP_VERSION.contains(&binary) {
         return None;
     }
@@ -301,14 +301,6 @@ fn known_plugin(name: &str) -> Option<Plugin> {
             binary: "faelight-fm".to_string(),
             version: None,
             event_domains: vec![],
-            enabled: true,
-        }),
-        "faelight-bar" => Some(Plugin {
-            name: "faelight-bar".to_string(),
-            description: "Wayland status bar — health subscriber".to_string(),
-            binary: "faelight-bar".to_string(),
-            version: None,
-            event_domains: vec!["doctor".to_string()],
             enabled: true,
         }),
         "faelight-fetch" => Some(Plugin {

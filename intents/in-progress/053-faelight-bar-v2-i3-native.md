@@ -113,7 +113,7 @@ Phase 5 -- Pinnacle and workspaces (later)
 - [ ] Renders under Pinnacle
 - [ ] Workspace indicators (i3-style) -- pending mango IPC source, late phase
 - [x] Clean swap: GTK4 bar replaces cosmic-text bar in faelight-bar.service, verified at real login
-- [ ] cosmic-text / Niri-era bar code retired after the swap
+- [x] cosmic-text / Niri-era bar code retired after the swap
 - [x] runs live as a client surface only, no greetd/login change (logout precedent)
 
 ## Depends On

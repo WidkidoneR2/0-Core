@@ -21,11 +21,6 @@ aliases = ["doctor", "health"]
 category = "monitoring"
 
 [[alias]]
-command = "faelight-bar"
-aliases = ["bar"]
-category = "desktop"
-
-[[alias]]
 command = "faelight-bootstrap"
 aliases = ["bootstrap"]
 category = "automation"

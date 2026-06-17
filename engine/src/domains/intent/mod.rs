@@ -945,7 +945,6 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if touched.contains("friday-chat") { tools.push(("friday-chat", "rust-tools/friday-chat/Cargo.toml")); }
         if touched.contains("db-browse") { tools.push(("db-browse", "rust-tools/db-browse/Cargo.toml")); }
         if touched.contains("faelight-term") { tools.push(("faelight-term", "rust-tools/faelight-term/Cargo.toml")); }
-        if touched.contains("faelight-bar") { tools.push(("faelight-bar", "rust-tools/faelight-bar/Cargo.toml")); }
 
         if !tools.is_empty() {
             println!();

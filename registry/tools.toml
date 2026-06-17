@@ -59,16 +59,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-bar"
-version = "3.0.0"
-category = "ui"
-description = "Wayland status bar — health subscriber"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = false
-depends_on = ["faelight-notify"]
-[[tool]]
 name = "faelight-bootstrap"
 version = "2.1.0"
 category = "system"

@@ -214,7 +214,6 @@ fn show_ecosystem_versions() {
     let tools = vec![
         ("dot-doctor", "scripts/dot-doctor"),
         ("faelight-fm", "target/release/faelight-fm"),
-        ("faelight-bar", "target/release/faelight-bar"),
         ("faelight-term", "target/release/faelight-term"),
         ("faelight-hooks", "target/release/faelight-hooks"),
     ];

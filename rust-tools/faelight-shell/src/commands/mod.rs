@@ -12296,7 +12296,6 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         ("friday-chat",    "rust-tools/friday-chat/Cargo.toml"),
         ("db-browse",      "rust-tools/db-browse/Cargo.toml"),
         ("faelight-term",  "rust-tools/faelight-term/Cargo.toml"),
-        ("faelight-bar",   "rust-tools/faelight-bar/Cargo.toml"),
         ("faelight-notify","rust-tools/faelight-notify/Cargo.toml"),
     ];
     let mut out = String::new();

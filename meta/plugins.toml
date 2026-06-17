@@ -20,13 +20,6 @@ event_domains = []
 enabled = true
 
 [[plugins]]
-name = "faelight-bar"
-description = "Wayland status bar — health subscriber"
-binary = "faelight-bar"
-event_domains = ["doctor"]
-enabled = true
-
-[[plugins]]
 name = "faelight-fetch"
 description = "System information display"
 binary = "faelight-fetch"

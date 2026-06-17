@@ -10,7 +10,6 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     // Core Infrastructure
     "faelight-update",
     // Desktop Environment
-    "faelight-bar",
     "faelight-logout",
     "faelight-notify",
     "faelight-lock",
