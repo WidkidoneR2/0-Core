@@ -1,15 +1,19 @@
-import sys, os, time, sqlite3, subprocess, tomllib
+import sys, os, time, json, sqlite3, subprocess, tomllib
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
-from gi.repository import Gtk, Gtk4LayerShell as LS, GLib
+from gi.repository import Gtk, Gtk4LayerShell as LS, GLib, Gio
 
 HOME = os.environ.get("HOME", "")
 REPO = HOME + "/0-core"
 DB = REPO + "/runtime/state.db"
 FOCUS = HOME + "/.local/state/0-core/intent/focus.toml"
+WORKSPACES = HOME + "/.cache/faelight/workspaces"
+WS_DIR = HOME + "/.cache/faelight"
+WS_TAGS = 5
 BAR_HEIGHT = 30
 COLOR_CLASSES = ("green", "amber", "red", "purple", "cyan", "dim")
+WS_CLASSES = ("ws-selected", "ws-occupied", "ws-empty", "ws-urgent")
 
 CSS = """
 window { background-color: rgba(8,13,8,0.94); }
@@ -22,6 +26,10 @@ label   { color: #D7E0DA; }
 .red    { color: #FF5050; }
 .purple { color: #B482FF; font-weight: bold; }
 .cyan   { color: #32DCFF; }
+.ws-selected { color: #39FF14; font-weight: bold; }
+.ws-occupied { color: #D7E0DA; }
+.ws-empty    { color: #788C82; }
+.ws-urgent   { color: #FF5050; font-weight: bold; }
 """
 
 def read_health():
@@ -143,6 +151,30 @@ def recolor(widget, cls):
     if cls:
         widget.add_css_class(cls)
 
+def read_workspaces():
+    states = ["ws-empty"] * WS_TAGS
+    try:
+        with open(WORKSPACES) as f:
+            data = json.load(f)
+        for t in data.get("tags", []):
+            i = t.get("id")
+            if not isinstance(i, int) or i < 0 or i >= WS_TAGS:
+                continue
+            if t.get("urgent"):
+                states[i] = "ws-urgent"
+            elif t.get("selected"):
+                states[i] = "ws-selected"
+            elif t.get("occupied"):
+                states[i] = "ws-occupied"
+    except Exception:
+        pass
+    return states
+
+def recolor_ws(widget, cls):
+    for c in WS_CLASSES:
+        widget.remove_css_class(c)
+    widget.add_css_class(cls)
+
 def on_activate(app):
     win = Gtk.ApplicationWindow(application=app)
     LS.init_for_window(win)
@@ -164,9 +196,18 @@ def on_activate(app):
     bar.set_size_request(-1, BAR_HEIGHT)
 
     left = Gtk.Box(spacing=10)
+    ws_labels = []
+    ws_box = Gtk.Box(spacing=6)
+    for n in range(1, WS_TAGS + 1):
+        wlbl = Gtk.Label(label=str(n))
+        wlbl.add_css_class("ws-empty")
+        ws_box.append(wlbl)
+        ws_labels.append(wlbl)
+    ws_sep = Gtk.Label(label=chr(0xB7)); ws_sep.add_css_class("dim")
     health_lbl = Gtk.Label()
     sep = Gtk.Label(label=chr(0xB7)); sep.add_css_class("dim")
     git_lbl = Gtk.Label()
+    left.append(ws_box); left.append(ws_sep)
     left.append(health_lbl); left.append(sep); left.append(git_lbl)
 
     center_lbl = Gtk.Label()
@@ -189,7 +230,25 @@ def on_activate(app):
     bar.set_end_widget(right)
     win.set_child(bar)
 
+    os.makedirs(WS_DIR, exist_ok=True)
+
+    def refresh_ws(*_a):
+        for lbl, cls in zip(ws_labels, read_workspaces()):
+            recolor_ws(lbl, cls)
+
+    def on_ws_changed(_monitor, gfile, _other, _event):
+        try:
+            if gfile is not None and gfile.get_basename() == "workspaces":
+                refresh_ws()
+        except Exception:
+            pass
+
+    ws_dir_file = Gio.File.new_for_path(WS_DIR)
+    win._ws_monitor = ws_dir_file.monitor_directory(Gio.FileMonitorFlags.NONE, None)
+    win._ws_monitor.connect("changed", on_ws_changed)
+
     def tick():
+        refresh_ws()
         h = read_health()
         health_lbl.set_text("H:%d%%" % h)
         recolor(health_lbl, "green" if h >= 95 else "amber" if h >= 80 else "red")
@@ -232,7 +291,7 @@ def on_activate(app):
     tick()
     GLib.timeout_add_seconds(2, tick)
     win.present()
-    print("faelight-bar-gtk [phase2] up -- health/intent/git live on 2s tick; Ctrl+C to stop")
+    print("faelight-bar-gtk [phase5c] up -- workspaces + health/intent/git/system; Ctrl+C to stop")
 
 app = Gtk.Application(application_id="org.faelight.bar")
 app.connect("activate", on_activate)

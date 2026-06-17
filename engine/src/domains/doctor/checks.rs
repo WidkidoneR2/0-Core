@@ -84,7 +84,7 @@ pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
 pub fn check_services() -> CheckResult {
     // Per-session daemons the doctor expects up. faelight-bar joined this list
     // when INT-053 shipped it as a real systemd user service.
-    let services = [("faelight-notify", "Notifications"), ("faelight-bar", "Bar")];
+    let services = [("faelight-notify", "Notifications"), ("faelight-bar", "Bar"), ("faelight-wsd", "Workspaces")];
     let down: Vec<&str> = services
         .iter()
         .filter(|(name, _)| {

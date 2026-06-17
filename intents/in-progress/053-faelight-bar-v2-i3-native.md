@@ -135,7 +135,7 @@ Phase 5 -- Pinnacle and workspaces (later)
 - [x] System stats: CPU, RAM, battery, wifi, clock all rendering
 - [ ] Updates on a timer with no flicker and no memory growth
 - [ ] Renders under Pinnacle
-- [ ] Workspace indicators (i3-style) -- pending mango IPC source, late phase
+- [x] Workspace indicators (i3-style) -- live via faelight-wsd (dwl-ipc) + bar render
 - [x] Clean swap: GTK4 bar replaces cosmic-text bar in faelight-bar.service, verified at real login
 - [x] cosmic-text / Niri-era bar code retired after the swap
 - [x] runs live as a client surface only, no greetd/login change (logout precedent)
