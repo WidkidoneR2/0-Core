@@ -3,7 +3,7 @@ id: 065
 date: 2026-06-17
 type: feature
 title: "faelight-notify managed systemd user service"
-status: in-progress
+status: complete
 tags: [feature, faelight, notify, systemd, nixos, reliability, int-053]
 version: TBD
 ---
@@ -45,9 +45,9 @@ reserved a slot for notify, so the fix is small and overdue.
 
 ✅ Auto-starts on login -- systemctl --user status faelight-notify active; System Services 2/2; no manual setsid
 
-⬜ Survives reboot -- cold boot comes up with notify running, System Services 2/2
+✅ Survives reboot -- cold boot comes up with notify running, System Services 2/2
 
-⬜ Survives rebuild -- nixos-rebuild leaves notify running, no hand-restart
+✅ Survives rebuild -- nixos-rebuild leaves notify running, no hand-restart
 
 ✅ Restart seatbelt -- killing the process, systemd brings it back within seconds
 
