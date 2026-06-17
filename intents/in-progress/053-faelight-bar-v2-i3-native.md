@@ -112,9 +112,9 @@ Phase 5 -- Pinnacle and workspaces (later)
 - [ ] Updates on a timer with no flicker and no memory growth
 - [ ] Renders under Pinnacle
 - [ ] Workspace indicators (i3-style) -- pending mango IPC source, late phase
-- [ ] Clean swap: GTK4 bar replaces cosmic-text bar in faelight-bar.service, verified at real login
+- [x] Clean swap: GTK4 bar replaces cosmic-text bar in faelight-bar.service, verified at real login
 - [ ] cosmic-text / Niri-era bar code retired after the swap
-- [ ] runs live as a client surface only, no greetd/login change (logout precedent)
+- [x] runs live as a client surface only, no greetd/login change (logout precedent)
 
 ## Depends On
 - INT-056 (Forest Recovery Protocol) -- pre-flight gate
