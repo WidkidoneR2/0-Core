@@ -18,7 +18,7 @@
       After = [ "faelight-session.target" ];
     };
     Service = {
-      ExecStart = "/run/current-system/sw/bin/faelight-bar";
+      ExecStart = "/run/current-system/sw/bin/faelight-bar-gtk";
       Restart = "always";
       RestartSec = 3;
     };

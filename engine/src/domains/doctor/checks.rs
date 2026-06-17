@@ -88,12 +88,12 @@ pub fn check_services() -> CheckResult {
     let down: Vec<&str> = services
         .iter()
         .filter(|(name, _)| {
-            let full = format!("/run/current-system/sw/bin/{}", name);
-            Command::new("pgrep")
-                .arg("-f")
-                .arg(&full)
-                .output()
-                .map(|o| !o.status.success())
+            // is-active by unit name survives binary swaps (INT-053 changed
+            // faelight-bar's ExecStart to the faelight-bar-gtk binary).
+            Command::new("systemctl")
+                .args(["--user", "is-active", "--quiet", *name])
+                .status()
+                .map(|s| !s.success())
                 .unwrap_or(true)
         })
         .map(|(name, _)| *name)
