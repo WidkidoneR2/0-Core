@@ -3,7 +3,7 @@ id: 064
 date: 2026-06-16
 type: feature
 title: \"faelight-logout: candy-neon Wayland power menu\"
-status: planned
+status: in-progress
 tags: [logout, power-menu, wayland, mango, gtk4, python, neon-candy, int-033, ux]
 version: TBD
 priority: medium

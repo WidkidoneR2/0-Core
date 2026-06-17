@@ -112,6 +112,7 @@
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
+    self.packages.${system}.faelight-logout
     pkgs.alacritty
     pkgs.yazi
     pkgs.neovim

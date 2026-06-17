@@ -114,6 +114,32 @@
           cargoBuildFlags = [ "-p" "core" ];
           doCheck = false;
         };
+
+        faelight-logout = let
+          py = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
+        in pkgs.stdenv.mkDerivation {
+          pname = "faelight-logout";
+          version = "0.1.0";
+          src = ./pkgs/faelight-logout;
+          nativeBuildInputs = [ pkgs.wrapGAppsHook4 pkgs.gobject-introspection ];
+          buildInputs = [ py pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.librsvg pkgs.adwaita-icon-theme ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/bin
+            { echo '#!${py}/bin/python3'; cat main.py; } > $out/bin/faelight-logout
+            chmod +x $out/bin/faelight-logout
+            runHook postInstall
+          '';
+          preFixup = ''
+            gappsWrapperArgs+=(
+              --set GDK_BACKEND wayland
+              --set LD_PRELOAD ${pkgs.gtk4-layer-shell}/lib/libgtk4-layer-shell.so
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.systemd ]}
+            )
+          '';
+        };
       };
 
       devShells.${system}.default = pkgs.mkShell {
