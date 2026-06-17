@@ -15,7 +15,13 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - [x] File browser -- faelight-fm
 - [x] Split panes -- faelight-ade (fsh PTY + friday-chat)
 - [x] Git status in prompt + bar
-- [ ] (add anything else you spot already done)
+- [x] Nix context in prompt -- flake + devshell, dirty git / dirty flake / rebuild-drift markers (INT-062)
+- [x] Health % in prompt + live in bar (INT-033)
+- [x] Active intent in bar (focus.toml) + intent ledger (cistart / cicomplete / d)
+- [x] Friday AI inline -- knowledge + error hints, pattern/fact tracking, contradiction signals
+- [x] Workspace indicators in bar -- i3-style, dwl-ipc via faelight-wsd (INT-053)
+- [x] Notifications -- faelight-notify (INT-065)
+- [x] Power menu + lock -- faelight-logout (INT-064), faelight-lock (INT-046)
 
 ## Lane 1 -- Declarative / Reproducible  [FOUNDATION = INT-060]
 - [ ] config.fsh = single declarative source of truth (INT-060)
@@ -31,9 +37,9 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - [ ] Command allowlists / denylists
 
 ## Lane 2 -- Nix-native
-- [ ] Show current flake in prompt
-- [ ] Detect dirty git + flake state
-- [ ] Built-in nix command wrappers
+- [x] Show current flake in prompt (INT-062)
+- [x] Detect dirty git + flake state (INT-062)
+- [x] Built-in nix command wrappers -- partial (rebuild / dep / update-flake aliases)
 - [ ] Auto dev-shell activation per flake project
 - [ ] Generation rollback browser
 - [ ] Query installed packages from prompt
@@ -53,7 +59,7 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 
 ## Lane 4 -- Friday / AI  (always human-authorized)
 - [ ] Explain command before execution
-- [ ] Command error diagnosis
+- [x] Command error diagnosis -- partial (Friday knowledge hints)
 - [ ] Interactive troubleshooting mode
 - [ ] Shell script generation
 - [ ] Extend NL -> commands (the `?` prefix)
@@ -91,8 +97,8 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 ## Terminal UI  (some covered by bar / ade / fm)
 - [ ] Dashboard mode
 - [ ] Built-in process monitor
-- [ ] Resource usage widgets
-- [ ] Network monitor
+- [x] Resource usage widgets -- the bar (CPU / RAM / battery / wifi)
+- [x] Network monitor -- partial (wifi up/down in bar)
 
 ## Security
 - [ ] Command risk scoring
