@@ -69,6 +69,74 @@ def read_git():
     clean = git(["status", "--porcelain"]) == ""
     return branch, clean
 
+_cpu_prev = {"total": 0, "idle": 0}
+
+def read_cpu():
+    try:
+        with open("/proc/stat") as f:
+            parts = f.readline().split()
+        vals = [int(x) for x in parts[1:]]
+        idle = vals[3] + (vals[4] if len(vals) > 4 else 0)
+        total = sum(vals)
+        dt = total - _cpu_prev["total"]
+        di = idle - _cpu_prev["idle"]
+        _cpu_prev["total"], _cpu_prev["idle"] = total, idle
+        if dt <= 0:
+            return 0
+        return max(0, min(100, int(round(100.0 * (dt - di) / dt))))
+    except Exception:
+        return 0
+
+def read_ram():
+    try:
+        info = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                if v:
+                    info[k.strip()] = int(v.split()[0])
+        total = info.get("MemTotal", 0)
+        avail = info.get("MemAvailable", 0)
+        if total <= 0:
+            return 0
+        return max(0, min(100, int(round(100.0 * (total - avail) / total))))
+    except Exception:
+        return 0
+
+def read_battery():
+    for bat in ("/sys/class/power_supply/BAT1", "/sys/class/power_supply/BAT0"):
+        try:
+            with open(bat + "/capacity") as f:
+                pct = int(f.read().strip())
+        except Exception:
+            continue
+        charging = False
+        try:
+            with open(bat + "/status") as f:
+                charging = f.read().strip() == "Charging"
+        except Exception:
+            pass
+        return pct, charging
+    return None, False
+
+def read_wifi():
+    try:
+        net = "/sys/class/net"
+        for iface in os.listdir(net):
+            if iface.startswith("wl"):
+                try:
+                    with open(net + "/" + iface + "/operstate") as f:
+                        if f.read().strip() == "up":
+                            return True
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return False
+
+def load_pct(v):
+    return "green" if v < 60 else "amber" if v < 85 else "red"
+
 def recolor(widget, cls):
     for c in COLOR_CLASSES:
         widget.remove_css_class(c)
@@ -102,11 +170,23 @@ def on_activate(app):
     left.append(health_lbl); left.append(sep); left.append(git_lbl)
 
     center_lbl = Gtk.Label()
-    right_lbl = Gtk.Label()
+
+    right = Gtk.Box(spacing=10)
+    cpu_lbl = Gtk.Label()
+    ram_lbl = Gtk.Label()
+    bat_lbl = Gtk.Label()
+    wifi_lbl = Gtk.Label()
+    clock_lbl = Gtk.Label()
+    s1 = Gtk.Label(label=chr(0xB7)); s1.add_css_class("dim")
+    s2 = Gtk.Label(label=chr(0xB7)); s2.add_css_class("dim")
+    s3 = Gtk.Label(label=chr(0xB7)); s3.add_css_class("dim")
+    s4 = Gtk.Label(label=chr(0xB7)); s4.add_css_class("dim")
+    for w in (cpu_lbl, s1, ram_lbl, s2, bat_lbl, s3, wifi_lbl, s4, clock_lbl):
+        right.append(w)
 
     bar.set_start_widget(left)
     bar.set_center_widget(center_lbl)
-    bar.set_end_widget(right_lbl)
+    bar.set_end_widget(right)
     win.set_child(bar)
 
     def tick():
@@ -125,8 +205,28 @@ def on_activate(app):
             fr = read_friday()
             center_lbl.set_text(fr); recolor(center_lbl, "cyan" if fr else "dim")
 
-        right_lbl.set_text(time.strftime("%a %d  %H:%M"))
-        recolor(right_lbl, "dim")
+        cpu = read_cpu()
+        cpu_lbl.set_text("CPU %d%%" % cpu)
+        recolor(cpu_lbl, load_pct(cpu))
+
+        ram = read_ram()
+        ram_lbl.set_text("RAM %d%%" % ram)
+        recolor(ram_lbl, load_pct(ram))
+
+        pct, charging = read_battery()
+        if pct is None:
+            bat_lbl.set_text("")
+            recolor(bat_lbl, "dim")
+        else:
+            bat_lbl.set_text(("+%d%%" if charging else "%d%%") % pct)
+            recolor(bat_lbl, "green" if (charging or pct > 40) else "amber" if pct > 15 else "red")
+
+        wifi_up = read_wifi()
+        wifi_lbl.set_text("wifi" if wifi_up else "wifi off")
+        recolor(wifi_lbl, "cyan" if wifi_up else "dim")
+
+        clock_lbl.set_text(time.strftime("%a %d  %H:%M"))
+        recolor(clock_lbl, "dim")
         return True
 
     tick()

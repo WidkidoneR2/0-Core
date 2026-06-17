@@ -108,7 +108,7 @@ Phase 5 -- Pinnacle and workspaces (later)
 ## Gates
 - [x] GTK4 layer-shell bar renders anchored top under MangoWM, does not crash
 - [x] Forest state: health in neon candy colors, active intent in neon purple, git branch + dirty
-- [ ] System stats: CPU, RAM, battery, wifi, clock all rendering
+- [x] System stats: CPU, RAM, battery, wifi, clock all rendering
 - [ ] Updates on a timer with no flicker and no memory growth
 - [ ] Renders under Pinnacle
 - [ ] Workspace indicators (i3-style) -- pending mango IPC source, late phase
