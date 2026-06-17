@@ -31,7 +31,7 @@ alias gcm = "git commit -m"
 alias core = "/run/current-system/sw/bin/core"
 
 alias fm = "faelight-fm"
-alias menu = "faelight-menu"
+alias menu = "faelight-logout"
 alias bar = "faelight-bar"
 alias bump = "echo \"faelight-release disabled -- needs NixOS rebuild (INT-031)\""
 alias fu = "faelight-update"

@@ -158,7 +158,7 @@ description = "Power management and system menu"
 expected_usage = "medium"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-notify"
 version = "4.0.0"

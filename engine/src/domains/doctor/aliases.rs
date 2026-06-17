@@ -11,7 +11,7 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     "faelight-update",
     // Desktop Environment
     "faelight-bar",
-    "faelight-menu",
+    "faelight-logout",
     "faelight-notify",
     "faelight-lock",
     // Development

@@ -309,7 +309,7 @@ fn handle_launch(app: LaunchApp) {
             run_tool_bg(&launcher, &[]);
         }
         LaunchApp::Menu => {
-            let menu = find_tool("faelight-menu");
+            let menu = find_tool("faelight-logout");
             run_tool_bg(&menu, &[]);
         }
     }
