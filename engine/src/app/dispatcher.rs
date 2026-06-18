@@ -153,7 +153,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                     active,
                     complete,
                     all,
-                } => crate::domains::intent::list(ctx, planned, active, complete, all),
+                    cancelled,
+                } => crate::domains::intent::list(ctx, planned, active, complete, all, cancelled),
                 IntentCommand::Show { id } => crate::domains::intent::show(ctx, &id),
                 IntentCommand::Search { term } => crate::domains::intent::search(ctx, &term),
                 IntentCommand::Stats => crate::domains::intent::stats(ctx),
@@ -198,6 +199,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Brief => crate::domains::intent::brief(ctx),
                 IntentCommand::Graph => crate::domains::intent::graph(ctx),
                 IntentCommand::Defer { id, reason } => crate::domains::intent::defer_intent(ctx, &id, &reason),
+                IntentCommand::Cancel { id, reason } => crate::domains::intent::cancel_intent(ctx, &id, &reason),
                 IntentCommand::Override { id, reason } => crate::domains::intent::override_intent(ctx, &id, &reason),
             }
         }

@@ -161,7 +161,7 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     })
 }
 
-pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: bool) -> CoreResult<()> {
+pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: bool, cancelled: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -183,6 +183,9 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
             if active {
                 return i.status == "in-progress";
             }
+            if cancelled {
+                return i.status == "cancelled";
+            }
             if all { return true; }
             // default: only actionable intents
             // INT-332: in-progress/ folder must always show
@@ -197,10 +200,12 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
 
     // INT-332: ACTIVE first, then PLANNED -- no mixing by folder
     let mut active_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "in-progress").copied().collect();
-    let mut planned_items: Vec<&Intent> = filtered.iter().filter(|i| i.status != "in-progress" && i.status != "complete").copied().collect();
+    let mut planned_items: Vec<&Intent> = filtered.iter().filter(|i| i.status != "in-progress" && i.status != "complete" && i.status != "cancelled").copied().collect();
+    let mut cancelled_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "cancelled").copied().collect();
     let complete_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "complete").copied().collect();
     active_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
     planned_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
+    cancelled_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
 
     if !active_items.is_empty() {
         println!("{}:", "ACTIVE (in-progress)".bright_green().bold());
@@ -212,6 +217,13 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
     if !planned_items.is_empty() {
         println!("{}:", "PLANNED (next up)".bright_yellow().bold());
         for i in &planned_items {
+            let id_display = format!("{:>3}", i.id).bright_cyan();
+            println!("  {}  {} {}", id_display, i.status_colored(), i.title);
+        }
+    }
+    if !cancelled_items.is_empty() {
+        println!("{}:", "CANCELLED".red().bold());
+        for i in &cancelled_items {
             let id_display = format!("{:>3}", i.id).bright_cyan();
             println!("  {}  {} {}", id_display, i.status_colored(), i.title);
         }
@@ -1178,16 +1190,19 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
 
     let total = intents.len();
     let complete = intents.iter().filter(|i| i.status == "complete").count();
-    let remaining = total - complete;
+    let cancelled = intents.iter().filter(|i| i.status == "cancelled").count();
+    let remaining = total - complete - cancelled;
 
     println!("{}", "📉 Intent Burndown".bold());
     println!("{}", "━".repeat(55).dimmed());
     println!(
-        "  {} {}  {} {}  {} {}",
+        "  {} {}  {} {}  {} {}  {} {}",
         "Total:".dimmed(),
         total.to_string().bright_white(),
         "Complete:".dimmed(),
         complete.to_string().bright_green(),
+        "Cancelled:".dimmed(),
+        cancelled.to_string().dimmed(),
         "Remaining:".dimmed(),
         remaining.to_string().bright_yellow(),
     );
@@ -2469,6 +2484,93 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!("{}", "━".repeat(60).dimmed());
+    Ok(())
+}
+
+pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemWriteHome])?;
+    if reason.trim().is_empty() {
+        return Err(crate::errors::CoreError::Domain {
+            domain: "intent".to_string(),
+            message: "cancel requires a non-empty --reason: a cancelled intent must record why".to_string(),
+        });
+    }
+    let base = intents_dir(ctx);
+    // Active folders only -- you cancel work in flight, not something already done.
+    let folders = ["in-progress", "future", "planned", "deferred"];
+    let mut found_path: Option<std::path::PathBuf> = None;
+    for folder in &folders {
+        let dir = base.join(folder);
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+                    found_path = Some(entry.path());
+                    break;
+                }
+            }
+        }
+        if found_path.is_some() {
+            break;
+        }
+    }
+    let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+        domain: "intent".to_string(),
+        message: format!("Active intent {} not found (already complete or cancelled?)", id),
+    })?;
+    let content = std::fs::read_to_string(&path)?;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let updated = content
+        .replace("status: in-progress", "status: cancelled")
+        .replace("status: planned", "status: cancelled")
+        .replace("status: future", "status: cancelled")
+        .replace("status: deferred", "status: cancelled");
+    let stamp = format!(
+        "🚫 {} -- cancelled: {} -- approved by: christian {}",
+        id, reason, today
+    );
+    let stamped = if updated.contains("## Gate Check") {
+        updated.replace("## Gate Check", &format!("## Gate Check\n{}", stamp))
+    } else {
+        format!("{}\n\n## Gate Check\n{}\n", updated.trim_end(), stamp)
+    };
+    let cancelled_dir = base.join("cancelled");
+    std::fs::create_dir_all(&cancelled_dir)?;
+    let filename = path.file_name().ok_or_else(|| crate::errors::CoreError::Domain {
+        domain: "intent".to_string(),
+        message: "intent file has no name".to_string(),
+    })?;
+    let dest = cancelled_dir.join(filename);
+    std::fs::write(&dest, stamped)?;
+    if dest != path {
+        let _ = std::fs::remove_file(&path);
+    }
+    // Clear focus if the cancelled intent was the focused one.
+    if let Some(state) = read_focus() {
+        if state.id == id {
+            let _ = std::fs::remove_file(focus_file());
+        }
+    }
+    println!("{}", "🚫 Intent cancelled".red().bold());
+    println!("  Intent:  INT-{}", id);
+    println!("  Reason:  {}", reason);
+    println!("  Date:    {}", today);
+    println!("  Moved:   intents/cancelled/");
+    // INT-066 criterion 8: warn about active intents that still depend on this one.
+    let dependents: Vec<String> = load_all(ctx)
+        .iter()
+        .filter(|i| i.status != "cancelled" && i.depends_on.iter().any(|d| d.as_str() == id))
+        .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
+        .collect();
+    if !dependents.is_empty() {
+        println!();
+        println!("  {} {} intent(s) still depend on INT-{}:", "⚠".yellow().bold(), dependents.len(), id);
+        for d in &dependents {
+            println!("    {} {}", "→".yellow(), d);
+        }
+        println!("  {} Review these -- their dependency now points at a cancelled intent.", "→".dimmed());
+    }
     Ok(())
 }
 

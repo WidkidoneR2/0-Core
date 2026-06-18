@@ -319,6 +319,7 @@ pub enum IntentCommand {
         active: bool,
         complete: bool,
         all: bool,
+        cancelled: bool,
     },
     Show {
         id: String,
@@ -348,6 +349,7 @@ pub enum IntentCommand {
     Brief,
     Graph,
     Defer { id: String, reason: String },
+    Cancel { id: String, reason: String },
     Override { id: String, reason: String },
 }
 #[derive(Debug)]

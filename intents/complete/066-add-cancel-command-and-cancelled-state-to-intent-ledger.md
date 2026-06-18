@@ -3,7 +3,7 @@ id: 066
 date: 2026-06-16
 type: feature
 title: "Add cancel command and cancelled state to intent ledger"
-status: planned
+status: complete
 tags: [intent-ledger, cancel, cli, rust, faelight]
 version: TBD
 ---
@@ -50,17 +50,22 @@ next overtaken intent should close in one honest command instead.
 
 ## Success Criteria
 
-- [ ] `core intent cancel <id> --reason "..."` transitions the intent to cancelled
-- [ ] cancel refuses without --reason (the honest record is mandatory)
-- [ ] cancelled intent moves out of in-progress/ into intents/cancelled/
-- [ ] reason, timestamp, and approval are written into the intent file
-- [ ] cancelled intents are excluded from velocity and burndown
-- [ ] cancelled intents still appear in show, and list --cancelled filters them
-- [ ] doctor active-intent count excludes cancelled
-- [ ] a dangling-dependency check flags intents that depend on a cancelled one
+- [x] `core intent cancel <id> --reason "..."` transitions the intent to cancelled
+- [x] cancel refuses without --reason (the honest record is mandatory)
+- [x] cancelled intent moves out of in-progress/ into intents/cancelled/
+- [x] reason, timestamp, and approval are written into the intent file
+- [x] cancelled intents are excluded from velocity and burndown
+- [x] cancelled intents still appear in show, and list --cancelled filters them
+- [x] doctor active-intent count excludes cancelled
+- [x] a dangling-dependency check flags intents that depend on a cancelled one
 
 ## Gate Check
-⬜ Not started
+✅ All 8 criteria demonstrated 2026-06-17 (faelight-forest debug build, throwaway intents) -- approved by: christian
+- C1-C4: cancel verb + cancelled state + move into intents/cancelled/ + reason/date/approval stamp; refuses without --reason (clap) and on empty --reason (domain guard).
+- C5: burndown subtracts cancelled from remaining and shows a Cancelled column; velocity counts only complete, so cancelled never appears there.
+- C6: show renders cancelled intents; list hides them by default, list --cancelled lists them under a CANCELLED header.
+- C7: no active/in-progress count includes cancelled -- every count filters by status, and stats lists Cancelled on its own line.
+- C8: cancel scans for active intents whose depends_on names the cancelled id and warns (demonstrated INT-998 depends_on 999).
 
 ---
 

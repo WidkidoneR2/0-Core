@@ -194,11 +194,13 @@ pub fn parse() -> Command {
                 active,
                 complete,
                 all,
+                cancelled,
             } => IntentCommand::List {
                 planned,
                 active,
                 complete,
                 all,
+                cancelled,
             },
             IntentCommands::Show { id } => IntentCommand::Show { id },
             IntentCommands::Search { term } => IntentCommand::Search { term },
@@ -233,6 +235,7 @@ pub fn parse() -> Command {
             IntentCommands::Brief => IntentCommand::Brief,
             IntentCommands::Graph => IntentCommand::Graph,
             IntentCommands::Defer { id, reason } => IntentCommand::Defer { id, reason },
+            IntentCommands::Cancel { id, reason } => IntentCommand::Cancel { id, reason },
             IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {

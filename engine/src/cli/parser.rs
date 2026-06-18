@@ -688,6 +688,8 @@ pub enum IntentCommands {
         complete: bool,
         #[arg(long)]
         all: bool,
+        #[arg(long)]
+        cancelled: bool,
     },
     Show {
         id: String,
@@ -733,6 +735,14 @@ pub enum IntentCommands {
         /// Intent ID
         id: String,
         /// Reason for deferral
+        reason: String,
+    },
+    /// Cancel an intent overtaken by reality (records reason, moves to cancelled/)
+    Cancel {
+        /// Intent ID
+        id: String,
+        /// Reason for cancellation (mandatory)
+        #[arg(long)]
         reason: String,
     },
     /// Override a gate with reason (bypasses gate check, logs reason)
