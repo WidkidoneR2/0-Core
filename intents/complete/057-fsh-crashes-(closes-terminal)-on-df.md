@@ -3,7 +3,7 @@ id: 057
 date: 2026-06-12
 type: fix
 title: "fsh crashes (closes terminal) on df"
-status: planned
+status: complete
 tags: [fix, bugfix, fsh, stability, crash, int-056]
 version: TBD
 ---
@@ -44,14 +44,14 @@ Then fix the offending path and audit dispatch for sibling
 panic-on-external-command cases.
 
 ## Success Criteria
-- [ ] Root cause identified (backtrace captured)
-- [ ] Trigger narrowed (which df form crashes, and why)
-- [ ] Fix: fsh runs df without panicking
-- [ ] Regression: df, df -h, df /nix, df -h /nix all run cleanly in fsh
-- [ ] Dispatch audited for similar panic-on-external-command cases
+- [x] Root cause identified (backtrace captured)
+- [x] Trigger narrowed (which df form crashes, and why)
+- [x] Fix: fsh runs df without panicking
+- [x] Regression: df, df -h, df /nix, df -h /nix all run cleanly in fsh
+- [x] Dispatch audited for similar panic-on-external-command cases
 
 ## Gate Check
-⬜ Not started
+✅ All five success criteria met and verified (2026-06-18)
 ---
 *"The forest grows with intention."* 🌲
 
@@ -85,3 +85,36 @@ Status: root cause LOCALIZED, not yet fixed. This is not a one-line fix.
 ### Repro facts
 - Daily-driver binary: `/run/current-system/sw/bin/faelight-shell` (NixOS system path).
 - `-c '<cmd>'` non-interactive mode works and is the safe way to test execution paths without risking the terminal.
+
+
+## Resolution -- 2026-06-18 (root cause CORRECTED, fixed, verified)
+The 2026-06-13 hypothesis was wrong on two counts: not a panic, and not in the
+line-editor -- execute() was not innocent.
+
+Real cause: a STACK OVERFLOW (SIGSEGV), not a panic -- which is why RUST_BACKTRACE
+was always silent (a segfault does not unwind). Captured from the systemd core
+dump under gdb: faelight_shell::commands::execute recurses into itself ~10,283
+times, then dies. The sqlite frames at the crash tip (sqlite3RunParser via
+rusqlite::Connection::execute) were incidental -- just the call running when the
+stack finally ran out.
+
+Mechanism: alias df = df -h (config.fsh:172) is self-referential. execute()
+resolved the alias and re-called execute() on the expansion, which re-resolved df
+and appended another -h -- "df -h" -> "df -h -h" -> ... forever. The earlier
+"-c 'df' runs clean" result misled the diagnosis: -c mode almost certainly does
+not source config.fsh, so the df alias was never loaded and the loop never fired.
+df = df -h is a normal, correct alias (bash/zsh handle it fine) -- the bug was
+fsh's missing cycle guard.
+
+Fix (rust-tools/faelight-shell/src/commands/mod.rs): execute() now delegates to
+execute_impl(.., expanded_names), carrying the chain of alias/plugin names already
+expanded. A name already in the chain is NOT re-expanded -- it runs as a command
+(bash's rule). Kills direct self-reference (df = df -h) and mutual cycles
+(a -> b -> a). The identical pattern in the plugin-expansion path was audited and
+guarded with the same mechanism.
+
+Verified: df, df -h /nix, df /nix, df -h all run clean interactively (no segfault);
+bare df correctly applies -h. Plugin guard verified by symmetry + compile (no
+self-referential plugin exists to test live). Baseline faelight-shell -c 'df'
+still clean.
+

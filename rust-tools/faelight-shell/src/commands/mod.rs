@@ -171,6 +171,10 @@ pub fn colorize_line(line: &str) -> String {
     result
 }
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
+    execute_impl(line, db, core_root, &[])
+}
+
+fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&str]) -> CommandResult {
     fn tokenize_args(s: &str) -> Vec<String> {
         let mut tokens: Vec<String> = Vec::new();
         let mut current = String::new();
@@ -257,13 +261,20 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     }
     // Alias resolution — check before dispatch
     if let Some(aliased) = db.get_alias(&cmd) {
-        let expanded = if args.is_empty() {
-            aliased.clone()
-        } else {
-            format!("{} {}", aliased, args.join(" "))
-        };
-        // Recurse with expanded command
-        return execute(&expanded, db, core_root);
+        // INT-057: don't re-expand an alias already expanded in this chain.
+        // A self-referential alias (df = df -h) would otherwise recurse
+        // forever -> stack overflow -> SIGSEGV.
+        if !expanded_names.contains(&cmd.as_str()) {
+            let expanded = if args.is_empty() {
+                aliased.clone()
+            } else {
+                format!("{} {}", aliased, args.join(" "))
+            };
+            let mut next = expanded_names.to_vec();
+            next.push(cmd.as_str());
+            return execute_impl(&expanded, db, core_root, &next);
+        }
+        // already expanded in this chain -> fall through and run as a command
     }
 
     // Plugin resolution — after final cmd parse
@@ -273,12 +284,18 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             .iter()
             .find(|(name, _, _)| name.as_str() == cmd.as_str())
         {
-            let expanded = if args.is_empty() {
-                expand.clone()
-            } else {
-                format!("{} {}", expand, args.join(" "))
-            };
-            return execute(&expanded, db, core_root);
+            // INT-057: same cycle guard as aliases -- a self-referential plugin
+            // would otherwise recurse forever -> stack overflow.
+            if !expanded_names.contains(&cmd.as_str()) {
+                let expanded = if args.is_empty() {
+                    expand.clone()
+                } else {
+                    format!("{} {}", expand, args.join(" "))
+                };
+                let mut next = expanded_names.to_vec();
+                next.push(cmd.as_str());
+                return execute_impl(&expanded, db, core_root, &next);
+            }
         }
     }
 
