@@ -3,7 +3,7 @@ id: 052
 date: 2026-06-09
 type: feature
 title: "MangoWM: daily driver configuration, keybinds, and autostart"
-status: planned
+status: in-progress
 tags: [mango, compositor, wayland, keybinds, autostart, framework, dwl]
 priority: high
 ---
@@ -87,13 +87,13 @@ Phase 5 -- Daily driver validation
 ## Gates
 - [ ] All keybinds in target map working
 - [ ] Keybind cheatsheet updated (INT-260)
-- [ ] faelight-notify autostarts on login
-- [ ] Trackpad natural scroll and tap-to-click working
+- [x] faelight-notify autostarts on login
+- [x] Trackpad natural scroll and tap-to-click working
 - [ ] Framework 16 palm detection tuned
-- [ ] All config in users/christian/mango.nix
-- [ ] Fresh rebuild produces correct MangoWM config
+- [ ] mango config declaratively sourced via home.nix:23 -> config/mango/.config/mango/config.conf (charter's users/christian/mango.nix does not exist); orphan dup removed; OPEN: hardcoded /home/christian in greetd Exec, modules/desktop/mango.nix:16
+- [x] Fresh rebuild produces correct MangoWM config
 - [ ] 2 weeks daily driver with no blocking issues
-- [ ] faelight-bar autostart ready (pending INT-053)
+- [x] faelight-bar autostart ready (pending INT-053)
 
 ## Depends On
 - INT-053 (faelight-bar v2) -- bar autostart
@@ -105,3 +105,26 @@ Phase 5 -- Daily driver validation
  Configure it properly.
  Run it daily.
  Trust it completely." 🌲
+
+## Progress -- 2026-06-18 (advanced, NOT closed -- 4/9 gates demonstrated)
+Record correction: mango config does NOT live in users/christian/mango.nix (no such
+file). Canonical source is home.nix:23 -> config/mango/.config/mango/config.conf,
+compositor enabled via modules/desktop/mango.nix. config.conf is a home-manager
+xdg.configFile symlink -- declarative and reproducible.
+Cleanup: removed stale bind=SUPER,p,spawn,faelight-bar (retired binary, replaced by
+the faelight-bar service in INT-053); git-removed the unreferenced 111-line orphan
+config/mango/config.conf. Deployed via rebuild (75s).
+Gates demonstrated:
+  notify autostart -- faelight-session.target Wants faelight-notify.service; active+enabled.
+  trackpad -- tap_to_click=1, tap_and_drag=1, trackpad_natural_scrolling=1, disable_while_typing=1.
+  reproducible config -- home-manager symlink regenerates identically from tracked source.
+  bar autostart -- faelight-session.target Wants faelight-bar.service; active+enabled (INT-053).
+Open (honest):
+  keybinds -- live scheme diverges from target map: workspaces Ctrl+1-5, tags Alt+1-5
+    (not Super); forest-tool binds (ade, cheatsheet, git, d, lock) unbound.
+  cheatsheet (INT-260) -- pending keybinds finalized.
+  palm detection -- only disable_while_typing set; no explicit palm tuning yet.
+  hardcoded path -- greetd Exec uses /home/christian/.config/mango/config.conf; de-absolutize
+    or accept as necessary for root-run greetd (decision).
+  soak -- MangoWM daily-driven since 2026-06-10; 2-week gate matures ~2026-06-24.
+Health 87% ADVISORY throughout (dirty tree + gen drift), 0 failures. Stays in-progress.
