@@ -97,7 +97,6 @@ pub fn render_cockpit(
     ];
     let git_names = ["Git Repository", "Scripts", "Rust Toolchain"];
     let tools_names = [
-        "Broot",
         "Tool Installation",
         "Path Resilience",
         "Alias Coverage",

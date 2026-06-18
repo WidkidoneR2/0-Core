@@ -81,7 +81,6 @@
     onlyoffice-desktopeditors
     tutanota-desktop
     notesnook
-    broot
     # fonts
     nerd-fonts.jetbrains-mono
     nerd-fonts.hack

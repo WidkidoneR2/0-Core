@@ -3,7 +3,7 @@ id: 063
 date: 2026-06-16
 type: feature
 title: \"Faelight-FM vs Superfile vs Broot\"
-status: planned
+status: in-progress
 tags: [file-manager, tui, faelight-fm, superfile, broot, survey, decision, nixos]
 version: TBD
 priority: low

@@ -157,37 +157,11 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
     }
 }
 
-pub fn check_broot(_home: &str) -> CheckResult {
-    let broot_exists = std::process::Command::new("which")
-        .arg("broot")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if broot_exists {
-        CheckResult {
-            id: "yazi_plugins".into(),
-            name: "Broot".into(),
-            status: Status::Pass,
-            message: "broot installed".into(),
-            fix: None,
-        }
-    } else {
-        CheckResult {
-            id: "yazi_plugins".into(),
-            name: "Broot".into(),
-            status: Status::Warn,
-            message: "broot not found".into(),
-            fix: Some("Add broot to NixOS packages".into()),
-        }
-    }
-}
-
 pub fn check_binaries() -> CheckResult {
     let bins = [
         "mango",
         "alacritty",
         "faelight-palette",
-        "broot",
         "hx",
         "git",
         "bat",

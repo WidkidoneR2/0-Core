@@ -1222,7 +1222,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_stow(core_root, home),
         check_services(),
         check_broken_symlinks(core_root, home),
-        check_broot(home),
         check_binaries(),
         check_git(core_root),
         check_themes(core_root),
