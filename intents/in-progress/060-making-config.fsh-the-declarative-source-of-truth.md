@@ -63,7 +63,7 @@ runtime-alias cruft.
 ⬜ G6  no shadow aliases remain (every alias -> installed binary) -- demonstrated
 ⬜ G7  neovim + nvim aliases retired together, or deferred via a logged, approved hand-off
 ⬜ G8  exa origin resolved
-⬜ G9  reproducibility proven: fresh shell + fresh login == config.fsh, regenerable from repo
+✅ G9  reproducibility proven: fresh shell + fresh login == config.fsh, regenerable from repo
 ```
 ---
 *"The forest grows with intention."* 🌲
@@ -107,3 +107,17 @@ STILL OPEN (honest -- NOT cicomplete):
 - G9 BLOCKED on the deferred boot-authority change: the table (db.rs:115) is still the live
   source, seeded additively from config.fsh but never pruned to it, so "regenerable from
   repo alone / nothing from state.db" is not yet true. Real architectural remainder.
+
+## Progress -- 2026-06-17 (G9 demonstrated -- config.fsh authoritative on boot)
+G9 -- config.fsh reconcile shipped. config::apply (config.rs), after seeding config.fsh
+aliases, prunes any shell_aliases entry not in config.fsh via the sanctioned
+db.remove_alias, guarded so a zero-alias parse can never wipe the set.
+Writer audit first (no shortcuts): only config.rs:253 and the `alias` command
+(commands/mod.rs:5114) write shell_aliases; plugins resolve on a separate path
+(load_plugins, never table-backed), so the prune touches only runtime `alias` cruft.
+Dev-loop proof: real stale runtime alias `rebuildtest` pruned, all 300 config aliases
+survived (301->300). Live proof: planted int060test, signed off + back on (gen 168);
+fresh-login reconcile pruned it -- count 300 == config.fsh, d/gp/gc intact. Fresh login
+== config.fsh, regenerable from the repo. Behavior change (approved): runtime `alias`
+is ephemeral per-shell -- permanence lives in config.fsh.
+STILL OPEN: G6 (shadow-alias audit), G7 (neovim retire/hand-off), G8 (exa origin). NOT cicomplete.

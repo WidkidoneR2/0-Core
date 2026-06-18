@@ -253,6 +253,25 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
         db.add_alias(name, cmd);
     }
 
+    // INT-060 G9: config.fsh is the source of truth. After seeding config aliases,
+    // remove any table alias not present in config.fsh so runtime `alias` cruft
+    // cannot persist across shells. Guard: never prune when config parsed to zero
+    // aliases -- a parse failure must not wipe the live set.
+    if !cfg.aliases.is_empty() {
+        use std::collections::HashSet;
+        let keep: HashSet<&str> = cfg.aliases.iter().map(|(n, _)| n.as_str()).collect();
+        let mut pruned = 0usize;
+        for (name, _) in db.list_aliases() {
+            if !keep.contains(name.as_str()) && db.remove_alias(&name) {
+                pruned += 1;
+            }
+        }
+        if pruned > 0 {
+            println!("  {} reconciled - {} runtime alias{} pruned to config.fsh",
+                     "✓".bright_green(), pruned, if pruned == 1 { "" } else { "es" });
+        }
+    }
+
     // Store settings in shell_state
     for (key, val) in &cfg.settings {
         let full_key = format!("config.{}", key);
