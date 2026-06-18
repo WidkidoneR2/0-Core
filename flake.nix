@@ -9,11 +9,36 @@
   inputs.nixos-hardware.url = "github:NixOS/nixos-hardware";
   inputs.pinnacle.url = "github:pinnacle-comp/pinnacle";
   inputs.pinnacle.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.crane.url = "github:ipetkov/crane";
 
-  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, crane, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
+      craneLib = crane.mkLib pkgs;
+      faelightCommonArgs = {
+        src = ./.;
+        strictDeps = true;
+        cargoExtraArgs = "--workspace --locked";
+        doCheck = false;
+        dontUseCmakeConfigure = true;
+        nativeBuildInputs = [
+          pkgs.pkg-config
+          pkgs.rustPlatform.bindgenHook
+          pkgs.cmake
+          pkgs.makeWrapper
+        ];
+        buildInputs = [
+          pkgs.wayland pkgs.libxkbcommon pkgs.libinput pkgs.libdisplay-info
+          pkgs.seatd pkgs.udev pkgs.libdrm pkgs.libgbm pkgs.libGL pkgs.openssl
+          pkgs.zlib pkgs.fontconfig pkgs.freetype pkgs.vulkan-loader pkgs.pango
+          pkgs.cairo pkgs.pixman pkgs.dbus pkgs.pam pkgs.libsodium
+        ];
+      };
+      faelightDeps = craneLib.buildDepsOnly (faelightCommonArgs // {
+        pname = "faelight-forest-deps";
+        version = "9.2.0";
+      });
     in {
       nixosConfigurations.faelight-vm = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -37,49 +62,11 @@
       };
 
       packages.${system} = {
-        faelight-forest = pkgs.rustPlatform.buildRustPackage {
+        faelight-forest = craneLib.buildPackage (faelightCommonArgs // {
           pname = "faelight-forest";
           version = "9.2.0";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            outputHashes = {
-              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-              "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-            };
-          };
-          nativeBuildInputs = [
-            pkgs.pkg-config
-            pkgs.rustPlatform.bindgenHook
-            pkgs.cmake
-	    pkgs.makeWrapper
-          ];
-          dontUseCmakeConfigure = true;
-          buildInputs = [
-            pkgs.wayland
-            pkgs.libxkbcommon
-            pkgs.libinput
-            pkgs.libdisplay-info
-            pkgs.seatd
-            pkgs.udev
-            pkgs.libdrm
-            pkgs.libgbm
-            pkgs.libGL
-            pkgs.openssl
-            pkgs.zlib
-            pkgs.fontconfig
-            pkgs.freetype
-            pkgs.vulkan-loader
-            pkgs.pango
-            pkgs.cairo
-            pkgs.pixman
-            pkgs.dbus
-            pkgs.pam
-            pkgs.libsodium
-          ];
-          cargoBuildFlags = [ "--workspace" ];
-          doCheck = false;
-	  postFixup = ''
+          cargoArtifacts = faelightDeps;
+          postFixup = ''
             for f in "$out"/bin/*; do
               wrapProgram "$f" \
                 --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [
@@ -97,24 +84,13 @@
                 ]}
             done
           '';
-
-        };
-
-        core = pkgs.rustPlatform.buildRustPackage {
+        });
+        core = craneLib.buildPackage (faelightCommonArgs // {
           pname = "core";
           version = "3.1.0";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            outputHashes = {
-              "smithay-0.7.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-              "smithay-drm-extras-0.1.0" = "sha256-nZCWI3dmDVWBXpKiw3gtemYitUOzDjL12yVWYDYSM2E=";
-            };
-          };
-          cargoBuildFlags = [ "-p" "core" ];
-          doCheck = false;
-        };
-
+          cargoArtifacts = faelightDeps;
+          cargoExtraArgs = "-p core --locked";
+        });
         faelight-bar-gtk = let
           py = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
         in pkgs.stdenv.mkDerivation {

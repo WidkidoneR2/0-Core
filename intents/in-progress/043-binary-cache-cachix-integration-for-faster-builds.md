@@ -122,8 +122,8 @@ rebuild ~183s -> ~75s. crane is a real local win, not just CI/recovery.
 
 ## Gates
 - [x] deps-vs-own-code split measured: deps 109s (70%) / our code 48s (30%) of 156.8s clean (Phase 0, 2026-06-17)
-- [ ] faelight-forest converted to crane (deps-only derivation split out)
-- [ ] source-only change rebuilds our crates only; deps are a cache hit
+- [x] faelight-forest converted to crane (deps-only derivation split out): cold build 352s, full workspace built (40+ bins, makeWrapper-wrapped, postFixup intact); core also on crane sharing deps (Phase 1, 2026-06-17)
+- [x] source-only change rebuilds our crates only; deps are a cache hit: 1-line src change -> 54.3s vs 352s cold (faelightDeps cached); core -p build 66.8s confirms shared deps. NOTE: nix non-incremental on our code (full engine recompile per build); dev loop stays on cargo devshell ~5-7s, crane win is the rebuild/deploy path ~183s -> ~54-66s (Phase 1, 2026-06-17)
 - [ ] Cachix cache created: faelight-forest
 - [ ] Cachix substituter added to flake.nix
 - [ ] signing key configured in NixOS secrets
