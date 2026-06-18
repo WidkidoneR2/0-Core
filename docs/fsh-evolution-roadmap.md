@@ -9,11 +9,12 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - [x] Session save / load / replay (= command recording & replay, persistent sessions)
 - [x] Natural-language `?` prefix (NL -> command, human-confirmed)
 - [x] Run scripts: `run` (.py/.sh/.fsh)
-- [x] Aliases (reconciliation in flight = INT-060)
+- [x] Aliases (reconciled; INT-060 complete)
 - [x] Syntax highlighting -- partial (highlight_rust_line / colorize_line); verify scope
 - [x] Sandboxed execution -- faelight-sandbox (5 policies)
-- [x] File browser -- faelight-fm
+- [x] File browser -- yazi (INT-063; faelight-fm -> WIP)
 - [x] Split panes -- faelight-ade (fsh PTY + friday-chat)
+- [x] fsh as a first-class command (`fsh` -> faelight-shell; flake.nix postFixup, 2026-06-18)
 - [x] Git status in prompt + bar
 - [x] Nix context in prompt -- flake + devshell, dirty git / dirty flake / rebuild-drift markers (INT-062)
 - [x] Health % in prompt + live in bar (INT-033)
@@ -24,7 +25,7 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - [x] Power menu + lock -- faelight-logout (INT-064), faelight-lock (INT-046)
 
 ## Lane 1 -- Declarative / Reproducible  [FOUNDATION = INT-060]
-- [ ] config.fsh = single declarative source of truth (INT-060)
+- [x] config.fsh = single declarative source of truth (INT-060) -- DONE 2026-06-18
 - [ ] Reproducible shell sessions
 - [ ] Versioned shell environments
 - [ ] Rollback-able environment changes
@@ -124,5 +125,5 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - Silent auto-magic / opaque AI that runs commands without authorization
 
 ---
-Sequence: 060 (foundation) -> 057 (df-crash stability) -> Lane 2 (Nix)
+Sequence: 060 (foundation, DONE) -> 057 (df-crash stability, NEXT) -> Lane 2 (Nix)
 -> Lane 3 (Rust) -> Lane 4 (Friday). Lane 5 is a separate epic decision.
