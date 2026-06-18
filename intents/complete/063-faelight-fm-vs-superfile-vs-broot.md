@@ -2,8 +2,8 @@
 id: 063
 date: 2026-06-16
 type: feature
-title: \"Faelight-FM vs Superfile vs Broot\"
-status: in-progress
+title: Faelight-FM vs Superfile vs Broot
+status: complete
 tags: [file-manager, tui, faelight-fm, superfile, broot, survey, decision, nixos]
 version: TBD
 priority: low
@@ -24,7 +24,7 @@ means we never have to casually re-litigate the file-manager question again.
 - faelight-fm -- our own Rust TUI FM, already wired into the forest: INT-033
   neon-candy theme, fsh integration, the vocabulary/semantic model, Friday. The
   home team; the baseline everything else is measured against.
-- superfile (spf) -- Go + Bubble Tea TUI. GUI-like: multi-panel layout, a
+- superfile -- Go + Bubble Tea TUI. GUI-like: multi-panel layout, a
   sidebar (XDG folders, pinned dirs, mounted disks), file + image preview, fuzzy
   search, bulk ops, a community plugin system (e.g. git status). On nixpkgs.
   Strength: refined, modern UI. Not Rust.
@@ -86,12 +86,54 @@ Phase 4 -- decide and close
   Gate: chosen outcome actioned (winner declarative, or gaps/ideas logged) so
         the question is genuinely closed
 
+
+## Scoring Matrix
+Recorded from real daily-driving (2026-06-16 -> 06-18), not first impressions.
+Criteria locked before testing (see Approach). Marks are qualitative from use,
+not micro-benchmarks; the decision did not hinge on RSS numbers but on the one
+criterion that cleanly separated the field (editor handoff, below).
+
+| Criterion                   | faelight-fm     | superfile             | broot          | yazi                |
+|-----------------------------|-----------------|-----------------------|----------------|---------------------|
+| Declarative install (nix)   | yes (home team) | yes (nixpkgs)         | yes (nixpkgs)  | yes (nixpkgs)       |
+| Keyboard / fsh-vocab fit    | native, thin    | GUI / mouse-leaning   | command-syntax | vim-like, clean     |
+| Preview / image             | basic (WIP)     | rich                  | tree only      | richest (async)     |
+| Speed + footprint           | light (Rust)    | heavier (Go)          | light (Rust)   | light (Rust)        |
+| Integration potential       | total (ours)    | plugins, sealed       | sealed         | scriptable          |
+| Dependency / trust surface  | minimal (ours)  | Go + plugins (largest)| Rust, modest   | Rust, modest        |
+| Editor handoff (DECISIVE)   | WIP, n/a yet    | no (opens in GUI)     | no (opens GUI) | YES (file -> helix) |
+
+## Decision
+ADOPT yazi as the forest's working file manager; ELIMINATE broot and superfile;
+RETURN faelight-fm to WIP (not abandoned -- a future rebuild may match or beat
+yazi; "like superfile" means a better ratatui TUI, not a GTK rewrite).
+
+Rationale: criteria were locked before testing, but in daily-driving one
+criterion proved decisive -- a file manager must drop you straight into the
+editor (helix). yazi opens a file directly in helix and returns cleanly; broot
+and superfile both punt files to a GUI / LibreOffice handler (superfile's opener
+is likely configurable, but that was moot once yazi already met the bar). broot
+also lost on a theming clash and a confusing command-syntax model. On the locked
+criteria yazi is otherwise at least even with the field (Rust, async, richest
+previews, scriptable, modest trust surface). yazi was the 4th contender from the
+Open Question -- included, and it won.
+
+Actioned (so the question is genuinely closed):
+- yazi: retained, declarative, SUPER+e opens it (config.conf) -- the keeper.
+- broot: removed -- package, SUPER+e repoint, doctor check (commit d1197382).
+- superfile: removed -- package (commit d1197382).
+- faelight-fm: logged as WIP for future improvement. INT-058 (decommission yazi)
+  is now obsolete -- its premise (broot as sole FM) is inverted -- and is cancelled.
+
+Follow-up (optional, not a gate): add a yazi doctor check to replace the removed
+broot check, so the forest still verifies its file manager.
+
 ## Gates
-- [ ] each candidate installs declaratively and launches (Phase 1)
-- [ ] fixed task set run end-to-end in every candidate (Phase 2)
-- [ ] scoring matrix completed and recorded in this charter (Phase 3)
-- [ ] decision + rationale recorded in this charter (Phase 4)
-- [ ] chosen outcome actioned so the question is closed (Phase 4)
+- [x] each candidate installs declaratively and launches (Phase 1)
+- [x] fixed task set run end-to-end in every candidate (Phase 2)
+- [x] scoring matrix completed and recorded in this charter (Phase 3)
+- [x] decision + rationale recorded in this charter (Phase 4)
+- [x] chosen outcome actioned so the question is closed (Phase 4)
 
 ## Depends On
   none (self-contained survey; nothing else is blocked on it)

@@ -4,10 +4,19 @@ id: 058
 date: 2026-06-13
 type: fix
 title: Decommission Yazi
-status: planned
+status: cancelled
 tags: [fix, bugfix]
 version: TBD
+cancelled_date: 2026-06-18
 ---
+
+## Cancelled
+Cancelled 2026-06-18 -- superseded by INT-063 (Faelight-FM vs Superfile vs Broot).
+The premise below is inverted: that survey chose yazi as the forest's file
+manager and ELIMINATED broot -- package, SUPER+e keybind, and doctor check all
+removed in commit d1197382. With broot gone and yazi the keeper, "decommission
+yazi / make broot the sole FM" is moot. The original plan is left below as
+historical record.
 
 ## Vision
 Yazi fully retired; broot is the sole file manager across config, tooling, and docs. No dead yazi integration left behind.
