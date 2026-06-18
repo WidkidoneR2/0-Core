@@ -3,7 +3,7 @@ id: 053
 date: 2026-06-09
 type: feature
 title: "faelight-bar v2: i3-style wlr-layer-shell bar for MangoWM and Pinnacle"
-status: in-progress
+status: complete
 tags: [bar, wayland, layer-shell, gtk4, python, gtk4-layer-shell, css, mango, pinnacle]
 priority: high
 ---
@@ -49,6 +49,17 @@ the bar is compositor-agnostic (it reads JSON, knows nothing of dwl), and the
 helper is a swappable side-component. If Pinnacle ever proves out on real
 hardware, add an ext-workspace helper writing the same JSON; the bar is unchanged.
 Safety: helper and bar are client surfaces, not login/greetd -- no lockout risk.
+
+## Decision -- 2026-06-17: Pinnacle render gate split to INT-067
+The "renders under Pinnacle" gate is moved to INT-067 (faelight-bar under the
+secondary compositor). It is blocked on Pinnacle standing up as a session (INT-038)
+and on the INT-056 login-surface pre-flight -- neither is a property of the Mango
+bar this intent delivers. Pinnacle is installed and is the primary secondary target
+(Rust-native, NixOS foothold); if it will not hold on the 780M, the fallback is to
+uninstall it and stand up MiracleWM (Mir-based, v0.9 Apr 2026, i3/Sway-compatible
+IPC -- a cleaner workspace source than dwl-ipc). The bar is compositor-agnostic
+(reads ~/.cache/faelight/workspaces as JSON), so whichever wins, the bar is
+unchanged. 053 closes on the demonstrated Mango gates.
 
 ## Why
 faelight-bar v1 was a Niri prototype built around Niri-specific IPC.
@@ -133,8 +144,7 @@ Phase 5 -- Pinnacle and workspaces (later)
 - [x] GTK4 layer-shell bar renders anchored top under MangoWM, does not crash
 - [x] Forest state: health in neon candy colors, active intent in neon purple, git branch + dirty
 - [x] System stats: CPU, RAM, battery, wifi, clock all rendering
-- [ ] Updates on a timer with no flicker and no memory growth
-- [ ] Renders under Pinnacle
+- [x] Updates on a timer with no flicker and no memory growth: 2s GLib tick, no visible flicker over ~73 min live as the daily bar; RSS flat -- two samples ~16 min apart (uptime 59 -> 73 min, NRestarts=0, same PID) byte-identical at VmRSS 114440 kB / VmHWM 121528 kB (~112M / ~119M); HWM never advanced, so no growth; 2s git-subprocess tick ruled out as a leak; well under the 228M old-peak and the 391M watch-figure (2026-06-17)
 - [x] Workspace indicators (i3-style) -- live via faelight-wsd (dwl-ipc) + bar render
 - [x] Clean swap: GTK4 bar replaces cosmic-text bar in faelight-bar.service, verified at real login
 - [x] cosmic-text / Niri-era bar code retired after the swap
@@ -150,17 +160,14 @@ Phase 5 -- Pinnacle and workspaces (later)
  It should show the forest's health at a glance --
  not the compositor's internal state." 🌲
 
-## Pre-flight Gate -- INT-056 (Forest Recovery Protocol)
-This intent changes the login/compositor surface. Per INT-056, NOTHING
-here lands on the real machine until it has passed the pre-flight
-checklist in INT-024's VM:
-  [ ] change tested in VM via INT-024 pipeline
-  [ ] VM snapshot taken before test (before-INT-NNN)
-  [ ] TTY2 verified reachable in VM
-  [ ] greetd fallback session verified in VM
-  [ ] recovery from a broken session demonstrated in VM
-  [ ] all of the above documented before graduating
-Door is always open: docs/recovery-runbook.md · TTY2 via Ctrl+Alt+F2.
+## Pre-flight Gate -- INT-056 -- SUPERSEDED 2026-06-17
+SUPERSEDED by the 2026-06-17 client-surface decision above. faelight-bar is a client
+surface, not a login/greetd change -- it cannot lock you out (worst case: no bar,
+login intact), and it ships live per the faelight-logout precedent. The INT-056 VM
+pre-flight is reserved for the actual login-surface intents (054, 005) and for the
+secondary-compositor switch (INT-067). The original checklist applied to the
+cosmic-text-era framing, when the bar was conceived as compositor-touching; the GTK4
+client-surface bar is not. Recorded as resolved, not as debt.
 
 ## History -- cosmic-text lineage (v1-v3, superseded by the GTK4 pivot 2026-06-17)
 The two sections below document the superseded cosmic-text / Rust implementation.
