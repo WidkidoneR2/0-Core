@@ -3,7 +3,7 @@ id: 043
 date: 2026-06-09
 type: infrastructure
 title: "faster builds: crane dep-split + Cachix binary cache"
-status: planned
+status: in-progress
 tags: [nix, cachix, crane, rust, binary-cache, builds, performance, nixos, flake]
 priority: low
 ---
@@ -102,8 +102,26 @@ Phase 6 -- CI integration (INT-048 dependency)
   CI pushes to cache on build success.
   Gate: every successful CI build updates cache
 
+## Phase 0 Results (2026-06-17)
+Method: clean release build of the full workspace, then touch every repo .rs
+(deps stay fingerprint-clean in target/) and rebuild -- isolating deps-compile
+from our-code-compile, which is exactly the crane split.
+
+- T_total   (clean: deps + our crates):            156.8s  (2m36)
+- T_ourcode (our crates only, deps cached):         47.8s
+- T_deps    (T_total - T_ourcode, crane-cacheable): 109.0s  (~70%)
+
+Verdict: deps are ~70% of clean-build compile time. The "98% our own Rust" is by
+line volume; compile TIME is dominated by the dep tree (smithay, wayland, git2,
+tokio, serde, clap, ratatui). Because nix builds are hermetic (no incremental
+target/ reuse across rebuilds), every Rust-source change today pays the full
+~156s -- which is why this session's rebuilds were all ~183s. crane caches the
+deps derivation in /nix/store, dropping a source-change rebuild from ~156s to the
+~48s our-code floor: ~109s / ~70% off every source-change rebuild, projecting
+rebuild ~183s -> ~75s. crane is a real local win, not just CI/recovery.
+
 ## Gates
-- [ ] deps-vs-own-code split of the 180s measured and recorded (Phase 0)
+- [x] deps-vs-own-code split measured: deps 109s (70%) / our code 48s (30%) of 156.8s clean (Phase 0, 2026-06-17)
 - [ ] faelight-forest converted to crane (deps-only derivation split out)
 - [ ] source-only change rebuilds our crates only; deps are a cache hit
 - [ ] Cachix cache created: faelight-forest
