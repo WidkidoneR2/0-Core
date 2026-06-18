@@ -32,17 +32,15 @@ alias core = "/run/current-system/sw/bin/core"
 
 alias fm = "faelight-fm"
 alias menu = "faelight-logout"
-alias bar = "faelight-bar"
+alias bar = "systemctl --user status faelight-bar"
 alias bump = "echo \"faelight-release disabled -- needs NixOS rebuild (INT-031)\""
 alias fu = "faelight-update"
-alias sec = "security-audit"
 alias lock = "faelight-lock"
 alias notify = "faelight-notify"
 alias term = "faelight-term"
 alias palette = "faelight-palette"
 alias vault = "faelight-vault"
 alias forecast = "core friday health-forecast"
-alias pulse = "faelight-pulse"
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 
@@ -96,7 +94,7 @@ alias auditcov = core audit coverage
 alias auditshow = core audit show
 alias auditstale = core audit stale
 alias ban-list = sudo fail2ban-client status sshd
-alias bar-restart = /run/current-system/sw/bin/faelight-bar
+alias bar-restart = "systemctl --user restart faelight-bar"
 alias bench = hyperfine
 alias cat = bat --paging=never --color=always
 alias catp = bat --paging=always
@@ -107,7 +105,6 @@ alias cdcore = cd ~/0-core
 alias cdf = core doctor forecast
 alias cdocs = cd ~/Documents
 alias cdp = cd -
-alias cdreview = cdv && cdh
 alias cdt = core doctor trend
 alias ce = core events list
 alias cef = core events filter

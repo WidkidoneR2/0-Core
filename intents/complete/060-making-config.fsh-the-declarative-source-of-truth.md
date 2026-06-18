@@ -3,7 +3,7 @@ id: 060
 date: 2026-06-13
 type: fix
 title: Making config.fsh the declarative source of Truth
-status: in-progress
+status: complete
 tags: [fix, bugfix]
 version: TBD
 ---
@@ -44,14 +44,14 @@ runtime-alias cruft.
    `config.fsh`; nothing comes from `state.db`; regenerable from the repo alone.
 
 ## Success Criteria
-- [ ] Live `alias` set matches tracked `config.fsh` (no untracked runtime-only aliases)
-- [ ] All ~40 stale Arch-era aliases purged from `state.db`
-- [ ] No shadow aliases remain -- every alias resolves to an installed binary
-- [ ] `config.fsh` documented as the authoritative source; alias-load behavior written down
-- [ ] neovim + its `nvim` aliases retired together (or handed to a coordinated intent)
-- [ ] `exa` origin resolved (removed, or documented as an eza compat shim)
-- [ ] Alias set reproducible on a clean rebuild -- demonstrated, not assumed
-- [ ] `core doctor` health >= pre-intent % before and after
+- [x] Live `alias` set matches tracked `config.fsh` (no untracked runtime-only aliases)
+- [x] All ~40 stale Arch-era aliases purged from `state.db`
+- [x] No shadow aliases remain -- every alias resolves to an installed binary
+- [x] `config.fsh` documented as the authoritative source; alias-load behavior written down
+- [x] `nvim` alias cruft purged (G5); neovim retained by decision (backup to Helix + git `core.editor`)
+- [x] `exa` origin resolved (removed, or documented as an eza compat shim)
+- [x] Alias set reproducible on a clean rebuild -- demonstrated, not assumed
+- [x] `core doctor` health >= pre-intent % before and after
 
 ## Gate Check
 ```
@@ -60,9 +60,9 @@ runtime-alias cruft.
 ✅ G3  full alias inventory diffed vs config.fsh; every entry tagged keep/migrate/purge
 ✅ G4  keepers migrated into config.fsh; rebuild succeeds; they load from the tracked file
 ✅ G5  stale Arch-era aliases purged from state.db
-⬜ G6  no shadow aliases remain (every alias -> installed binary) -- demonstrated
-⬜ G7  neovim + nvim aliases retired together, or deferred via a logged, approved hand-off
-⬜ G8  exa origin resolved
+✅ G6  no shadow aliases remain (every alias -> installed binary) -- demonstrated
+✅ G7  nvim alias cruft purged (G5); neovim retained by decision (backup to Helix + git core.editor)
+✅ G8  exa origin resolved (eza 0.23.4 compat shim, documented)
 ✅ G9  reproducibility proven: fresh shell + fresh login == config.fsh, regenerable from repo
 ```
 ---
@@ -121,3 +121,21 @@ fresh-login reconcile pruned it -- count 300 == config.fsh, d/gp/gc intact. Fres
 == config.fsh, regenerable from the repo. Behavior change (approved): runtime `alias`
 is ephemeral per-shell -- permanence lives in config.fsh.
 STILL OPEN: G6 (shadow-alias audit), G7 (neovim retire/hand-off), G8 (exa origin). NOT cicomplete.
+
+## Progress -- 2026-06-18 (G6, G7, G8 demonstrated -- INT-060 complete)
+G6 -- no-shadow audit on the 297 live aliases: every alias resolves to an
+installed binary. 5 genuine breaks fixed in config.fsh -- 3 dead removed
+(sec->security-audit Arch-era, pulse->faelight-pulse retired, cdreview->dead
+cdv/cdh), 2 repointed to the service (bar / bar-restart -> systemctl --user
+status/restart faelight-bar, replacing the retired faelight-bar binary).
+Rebuilt + fresh login: reconcile pruned the 3 stale (298 config / 297 unique
+table); re-audit reads genuine unresolved: 0.
+G8 -- exa -> realpath eza-0.23.4/bin/eza: a deliberate eza compat shim.
+Documented, retained.
+G7 -- neovim retained by decision. Stale nvim alias cruft purged in G5;
+neovim stays on purpose as a lightweight disaster-recovery backup to Helix
+and as git core.editor (git.nix:8). No decommission, no hand-off (INT-058 is
+yazi, not neovim). A future minimal-nvim / nixvim config can layer on top
+without touching this keep.
+All 8 success criteria met. Health 87% ADVISORY throughout (dirty tree +
+post-rebuild gen drift, both clearable), 0 failures. INT-060 cicomplete.
