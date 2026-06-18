@@ -33,20 +33,39 @@ MangoWM fully configured as daily driver:
   Config fully tracked in users/christian/mango.nix
   Run as daily driver for 2 weeks without issues
 
-## Keybind Map (target)
-  Mod+Return       -- alacritty
-  Mod+Alt+Return   -- faelight-ade
-  Mod+/            -- faelight-cheatsheet (Ctrl+/)
-  Mod+e            -- faelight-fm
-  Mod+g            -- faelight-git
-  Mod+d            -- d (health check in terminal)
-  Mod+l            -- faelight-lock v2 (INT-046)
-  Mod+Shift+q      -- close window
-  Mod+Shift+e      -- exit MangoWM
-  Mod+1..9         -- switch workspace
-  Mod+Shift+1..9   -- move window to workspace
-  Mod+f            -- fullscreen
-  Mod+Shift+f      -- floating toggle
+## Keybind Map (blessed -- live scheme as of 2026-06-18)
+Window management on SUPER; workspaces on Ctrl; tags on Alt; recovery chords on
+SUPER+Ctrl (INT-056). Replaces the original all-Super target -- the live scheme
+is deliberate and daily-driven, so the charter is updated to match reality.
+
+  Window / session (SUPER)
+    SUPER+Return        -- alacritty
+    SUPER+e             -- yazi (file manager, INT-063)
+    SUPER+b             -- brave
+    SUPER+Alt+Return    -- faelight-ade
+    SUPER+l             -- faelight-lock
+    SUPER+escape        -- faelight-logout (power menu)
+    SUPER+q             -- close window
+    SUPER+m             -- exit MangoWM
+    SUPER+f             -- fullscreen
+    SUPER+space         -- floating toggle
+    SUPER+Tab           -- cycle layout
+    SUPER+arrows        -- focus direction
+    SUPER+Shift+arrows  -- move / exchange window
+    SUPER+r             -- reload config
+    SUPER+mouse L/R     -- move / resize
+
+  Workspaces / tags
+    Ctrl+1..5           -- switch workspace
+    Alt+1..5            -- move window to tag
+
+  Recovery (INT-056)
+    SUPER+Ctrl+2..6     -- chvt to TTY 2..6
+
+  Deferred / reserved (tracked elsewhere)
+    SUPER+/             -- cheatsheet (pending INT-260; 'cheat' command exists)
+    SUPER+d             -- faelight-dashboard (reserved, INT-014)
+    git                 -- no keybind by choice (use fg sync / fg done)
 
 ## Autostart Services
   faelight-notify  -- notification daemon
@@ -85,7 +104,7 @@ Phase 5 -- Daily driver validation
   Gate: 2 weeks daily driver with no blocking issues
 
 ## Gates
-- [ ] All keybinds in target map working
+- [x] All keybinds in target map working (active set verified; cheatsheet/SUPER+d carved out to INT-260/INT-014 -- see notes)
 - [ ] Keybind cheatsheet updated (INT-260)
 - [x] faelight-notify autostarts on login
 - [x] Trackpad natural scroll and tap-to-click working
@@ -128,3 +147,32 @@ Open (honest):
     or accept as necessary for root-run greetd (decision).
   soak -- MangoWM daily-driven since 2026-06-10; 2-week gate matures ~2026-06-24.
 Health 87% ADVISORY throughout (dirty tree + gen drift), 0 failures. Stays in-progress.
+
+
+## Progress -- 2026-06-18 (keybinds wired + fsh entry-point fix)
+Forest-tool keybinds added to config/mango/.config/mango/config.conf, verified
+live after a fresh mango login (reload_config does NOT reload binds -- relogin
+required):
+  SUPER+Alt+Return -- faelight-ade   (works)
+  SUPER+l          -- faelight-lock  (works)
+(SUPER+e yazi and SUPER+escape logout were already bound and working.)
+
+Unblocked en route: faelight-ade spawns a hardcoded "fsh" via portable-pty
+(main.rs:75), but NixOS shipped the binary only as "faelight-shell" -- no "fsh"
+on PATH -- so ade exited instantly. Fixed at the root by exposing faelight-shell
+as a first-class "fsh" command: `ln -s faelight-shell $out/bin/fsh` in the
+faelight-forest crane postFixup (flake.nix), placed after the wrapProgram loop so
+fsh points at the wrapped binary and is not itself double-wrapped. `which fsh` now
+resolves; ade works. Also gives fsh a typeable entry point (fsh-roadmap ergonomic)
+and fixes anything else carrying the same Arch-era assumption. Logged as a fix,
+not a new intent.
+
+Decisions:
+  git        -- no keybind by choice (fg sync / fg done in terminal).
+  cheatsheet -- SUPER+/ deferred to INT-260.
+  SUPER+d    -- reserved for faelight-dashboard (INT-014).
+Live scheme blessed as the charter target (was all-Super).
+
+Still open: cheatsheet (INT-260), palm detection, hardcoded greetd path,
+2-week soak (matures ~2026-06-24). Stays in-progress.
+

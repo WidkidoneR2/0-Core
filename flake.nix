@@ -83,6 +83,7 @@
                   pkgs.freetype
                 ]}
             done
+            ln -s faelight-shell "$out/bin/fsh"
           '';
         });
         core = craneLib.buildPackage (faelightCommonArgs // {
