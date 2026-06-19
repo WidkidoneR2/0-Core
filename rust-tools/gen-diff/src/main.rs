@@ -193,6 +193,11 @@ fn diff_generations(a: u64, b: u64, gens: &[Generation]) {
 }
 
 fn main() {
+    // Behave like a normal Unix tool when piped to head/less:
+    // exit on SIGPIPE instead of panicking on a broken-pipe write.
+    #[cfg(unix)]
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+
     let cli = Cli::parse();
     let gens = load_generations();
 

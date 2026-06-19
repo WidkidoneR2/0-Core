@@ -2331,6 +2331,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
+ "libc",
  "serde",
  "serde_json",
 ]
