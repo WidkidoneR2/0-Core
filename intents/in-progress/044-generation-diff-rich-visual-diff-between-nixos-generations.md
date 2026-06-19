@@ -64,14 +64,14 @@ Phase 4 -- fsh integration
   Gate: gen-diff works natively in fsh with tab completion
 
 ## Gates
-- [x] gen-diff lists all generations with date and commit hash -- 154 gens; commit best-effort timestamp-matched (configurationRevision Unknown; 1c flake stamp pending for exact future attribution) (Phase 1, 2026-06-18)
+- [x] gen-diff lists all generations with date and commit hash -- 154 gens; commit best-effort timestamp-matched (historical timestamp-matched; new gens exact via configurationRevision stamp -- 1c done: gen 179/180 exact) (Phase 1, 2026-06-18)
 - [x] gen-diff shows package additions in neon green -- 142 adds on gen 25->178 (Phase 2, 2026-06-18)
 - [x] gen-diff shows package removals in neon red -- niri/starship/stow on 25->178 (Phase 2, 2026-06-18)
 - [x] gen-diff shows version changes in neon amber -- 8 changes incl brave/linux/mesa on 25->178 (Phase 2, 2026-06-18)
-- [ ] gen-diff shows commit range between generations
-- [ ] gen-diff shows intents completed in generation range
+- [x] gen-diff shows commit range between generations -- 223 commits on 25->178 via git rev-list (Phase 3, 2026-06-18)
+- [x] gen-diff shows intents completed in generation range -- 39 completions on 25->178 from git intents/complete/ (state.db intent_commits stale since migration; git is source of truth) (Phase 3, 2026-06-18)
 - [x] gen-diff A B diffs any two specific generations -- `gen-diff 25 178` (Phase 2, 2026-06-18)
-- [ ] gen-diff --last N shows N most recent generations
+- [x] gen-diff --last N shows N most recent generations -- `gen-diff --last 3` shows 180/179/178 (Phase 4, 2026-06-18)
 - [ ] fsh tab completion for generation numbers
 
 ## Depends On

@@ -1,7 +1,8 @@
 //! gen-diff -- Rich visual diff between NixOS generations
-//! INT-044 Phase 1-2: list generations; diff package sets between two
+//! INT-044 Phase 1-3: list, package diff, forest context (commits + intents)
 //! "Every rebuild is a checkpoint."
 use std::process::Command;
+use std::collections::BTreeSet;
 use serde::Deserialize;
 use colored::*;
 use chrono::{NaiveDateTime, TimeZone, Local};
@@ -21,6 +22,9 @@ struct Cli {
     /// List all generations instead of diffing
     #[arg(short, long)]
     list: bool,
+    /// Show the N most recent generations (timeline)
+    #[arg(long)]
+    last: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +40,11 @@ struct Generation {
     current: bool,
 }
 
+fn repo_dir() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    format!("{}/0-core", home)
+}
+
 fn load_generations() -> Vec<Generation> {
     let out = Command::new("nixos-rebuild")
         .args(["list-generations", "--json"])
@@ -48,11 +57,9 @@ fn load_generations() -> Vec<Generation> {
 }
 
 fn load_commits() -> Vec<(String, i64)> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    let repo = format!("{}/0-core", home);
     let mut commits = Vec::new();
     if let Ok(out) = Command::new("git")
-        .args(["-C", &repo, "log", "--format=%H|%ct"])
+        .args(["-C", &repo_dir(), "log", "--format=%H|%ct"])
         .output()
     {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
@@ -78,6 +85,38 @@ fn commit_for(g: &Generation, commits: &[(String, i64)]) -> String {
     } else {
         match_commit(&g.date, commits).unwrap_or_else(|| "-".into())
     }
+}
+
+/// Commits + completed intents between two attributed commits (older..newer), from git.
+/// state.db's intent_commits went stale at the NixOS migration, so git is the source of truth.
+fn forest_context(older: &str, newer: &str) -> (usize, Vec<u32>) {
+    let repo = repo_dir();
+    let range = format!("{}..{}", older, newer);
+    let ncommits = Command::new("git")
+        .args(["-C", &repo, "rev-list", "--count", &range])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<usize>().ok())
+        .unwrap_or(0);
+
+    let mut ids = BTreeSet::new();
+    if let Ok(out) = Command::new("git")
+        .args([
+            "-C", &repo, "log", "--no-renames", "--diff-filter=A",
+            "--name-only", "--pretty=format:", &range, "--", "intents/complete/",
+        ])
+        .output()
+    {
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some(rest) = line.trim().strip_prefix("intents/complete/") {
+                let num: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(n) = num.parse::<u32>() {
+                    ids.insert(n);
+                }
+            }
+        }
+    }
+    (ncommits, ids.into_iter().collect())
 }
 
 fn list_generations(gens: &[Generation], commits: &[(String, i64)]) {
@@ -141,7 +180,7 @@ fn date_of(g: Option<&Generation>) -> &str {
     g.map(|x| x.date.as_str()).unwrap_or("?")
 }
 
-fn diff_generations(a: u64, b: u64, gens: &[Generation]) {
+fn diff_generations(a: u64, b: u64, gens: &[Generation], commits: &[(String, i64)]) {
     let find = |n: u64| gens.iter().find(|g| g.generation == n);
     let (da, db) = (find(a), find(b));
     let pa = format!("/nix/var/nix/profiles/system-{}-link", a);
@@ -190,6 +229,22 @@ fn diff_generations(a: u64, b: u64, gens: &[Generation]) {
         changed, added, removed, system, resized
     );
     println!("{}", summary.truecolor(0x78, 0x8C, 0x82));
+
+    let ca = da.map(|g| commit_for(g, commits));
+    let cb = db.map(|g| commit_for(g, commits));
+    if let (Some(ca), Some(cb)) = (ca, cb) {
+        if ca != "-" && cb != "-" {
+            let (ncommits, intents) = forest_context(&ca, &cb);
+            let mut ctx = format!("forest: {} commits", ncommits);
+            if intents.is_empty() {
+                ctx.push_str(", 0 intents completed");
+            } else {
+                let ids: Vec<String> = intents.iter().map(|i| format!("INT-{:03}", i)).collect();
+                ctx.push_str(&format!(", {} intents completed: {}", intents.len(), ids.join(", ")));
+            }
+            println!("{}", ctx.truecolor(0xB4, 0x82, 0xFF));
+        }
+    }
 }
 
 fn main() {
@@ -200,9 +255,15 @@ fn main() {
 
     let cli = Cli::parse();
     let gens = load_generations();
+    let commits = load_commits();
+
+    if let Some(n) = cli.last {
+        let n = n.min(gens.len());
+        list_generations(&gens[..n], &commits);
+        return;
+    }
 
     if cli.list {
-        let commits = load_commits();
         list_generations(&gens, &commits);
         return;
     }
@@ -214,5 +275,5 @@ fn main() {
         (Some(a), None) => (a, current.unwrap_or(a)),
         (None, _) => (previous.unwrap_or(0), current.unwrap_or(0)),
     };
-    diff_generations(a, b, &gens);
+    diff_generations(a, b, &gens, &commits);
 }

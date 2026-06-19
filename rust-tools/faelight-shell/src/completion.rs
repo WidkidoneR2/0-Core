@@ -616,6 +616,46 @@ impl<'a> ForestHelper<'a> {
             }
         }
 
+        // -- Case 2d1: gen-diff generation number completion (INT-044) --------
+        if line.starts_with("gen-diff ") {
+            let partial = if line.ends_with(' ') {
+                ""
+            } else {
+                line.rsplit(' ').next().unwrap_or("")
+            };
+            if !partial.starts_with('-') {
+                let mut gens: Vec<String> = Vec::new();
+                if let Ok(entries) = std::fs::read_dir("/nix/var/nix/profiles") {
+                    for e in entries.flatten() {
+                        if let Some(name) = e
+                            .path()
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .map(|s| s.to_string())
+                        {
+                            if let Some(rest) = name.strip_prefix("system-") {
+                                if let Some(num) = rest.strip_suffix("-link") {
+                                    if num.chars().all(|c| c.is_ascii_digit())
+                                        && (partial.is_empty() || num.starts_with(partial))
+                                    {
+                                        gens.push(num.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                gens.sort_by(|a, b| {
+                    b.parse::<u64>().unwrap_or(0).cmp(&a.parse::<u64>().unwrap_or(0))
+                });
+                gens.dedup();
+                if !gens.is_empty() {
+                    let start = line.len() - partial.len();
+                    return (start, gens);
+                }
+            }
+        }
+
         // ── Case 2d2: git branch completion ───────────────────────────────────
         if line.starts_with("git checkout ")
             || line.starts_with("git merge ")
