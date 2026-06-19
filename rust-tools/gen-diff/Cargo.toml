@@ -1,0 +1,13 @@
+[package]
+name = "gen-diff"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rich visual diff between NixOS generations -- INT-044"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+chrono = "0.4"
+colored = "2"

@@ -3,7 +3,7 @@ id: 044
 date: 2026-06-09
 type: feature
 title: "generation-diff: rich visual diff between NixOS generations"
-status: planned
+status: in-progress
 tags: [nixos, generations, diff, ratatui, forest, visual]
 priority: medium
 ---
@@ -64,13 +64,13 @@ Phase 4 -- fsh integration
   Gate: gen-diff works natively in fsh with tab completion
 
 ## Gates
-- [ ] gen-diff lists all generations with date and commit hash
-- [ ] gen-diff shows package additions in neon green
-- [ ] gen-diff shows package removals in neon red
-- [ ] gen-diff shows version changes in neon amber
+- [x] gen-diff lists all generations with date and commit hash -- 154 gens; commit best-effort timestamp-matched (configurationRevision Unknown; 1c flake stamp pending for exact future attribution) (Phase 1, 2026-06-18)
+- [x] gen-diff shows package additions in neon green -- 142 adds on gen 25->178 (Phase 2, 2026-06-18)
+- [x] gen-diff shows package removals in neon red -- niri/starship/stow on 25->178 (Phase 2, 2026-06-18)
+- [x] gen-diff shows version changes in neon amber -- 8 changes incl brave/linux/mesa on 25->178 (Phase 2, 2026-06-18)
 - [ ] gen-diff shows commit range between generations
 - [ ] gen-diff shows intents completed in generation range
-- [ ] gen-diff A B diffs any two specific generations
+- [x] gen-diff A B diffs any two specific generations -- `gen-diff 25 178` (Phase 2, 2026-06-18)
 - [ ] gen-diff --last N shows N most recent generations
 - [ ] fsh tab completion for generation numbers
 

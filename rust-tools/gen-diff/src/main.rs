@@ -1,0 +1,213 @@
+//! gen-diff -- Rich visual diff between NixOS generations
+//! INT-044 Phase 1-2: list generations; diff package sets between two
+//! "Every rebuild is a checkpoint."
+use std::process::Command;
+use serde::Deserialize;
+use colored::*;
+use chrono::{NaiveDateTime, TimeZone, Local};
+use clap::Parser;
+
+const ARROW: &str = "→";
+const EMPTY: &str = "∅";
+const EPS:   &str = "ε";
+
+#[derive(Parser)]
+#[command(name = "gen-diff", about = "Rich visual diff between NixOS generations -- INT-044")]
+struct Cli {
+    /// Older generation (default: the one before current)
+    a: Option<u64>,
+    /// Newer generation (default: current)
+    b: Option<u64>,
+    /// List all generations instead of diffing
+    #[arg(short, long)]
+    list: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct Generation {
+    generation: u64,
+    date: String,
+    #[serde(rename = "nixosVersion")]
+    nixos_version: String,
+    #[serde(rename = "kernelVersion")]
+    kernel_version: String,
+    #[serde(rename = "configurationRevision")]
+    configuration_revision: String,
+    current: bool,
+}
+
+fn load_generations() -> Vec<Generation> {
+    let out = Command::new("nixos-rebuild")
+        .args(["list-generations", "--json"])
+        .output()
+        .expect("failed to run `nixos-rebuild list-generations --json`");
+    let mut gens: Vec<Generation> =
+        serde_json::from_slice(&out.stdout).expect("failed to parse list-generations JSON");
+    gens.sort_by(|a, b| b.generation.cmp(&a.generation));
+    gens
+}
+
+fn load_commits() -> Vec<(String, i64)> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    let repo = format!("{}/0-core", home);
+    let mut commits = Vec::new();
+    if let Ok(out) = Command::new("git")
+        .args(["-C", &repo, "log", "--format=%H|%ct"])
+        .output()
+    {
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some((hash, ct)) = line.split_once('|') {
+                if let Ok(ct) = ct.trim().parse::<i64>() {
+                    commits.push((hash.chars().take(12).collect(), ct));
+                }
+            }
+        }
+    }
+    commits
+}
+
+fn match_commit(gen_date: &str, commits: &[(String, i64)]) -> Option<String> {
+    let naive = NaiveDateTime::parse_from_str(gen_date, "%Y-%m-%d %H:%M:%S").ok()?;
+    let epoch = Local.from_local_datetime(&naive).single()?.timestamp();
+    commits.iter().find(|(_, ct)| *ct <= epoch).map(|(h, _)| h.clone())
+}
+
+fn commit_for(g: &Generation, commits: &[(String, i64)]) -> String {
+    if g.configuration_revision != "Unknown" {
+        g.configuration_revision.chars().take(12).collect()
+    } else {
+        match_commit(&g.date, commits).unwrap_or_else(|| "-".into())
+    }
+}
+
+fn list_generations(gens: &[Generation], commits: &[(String, i64)]) {
+    let header = format!("{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
+        "GEN", "DATE", "NIXOS", "KERNEL", "COMMIT");
+    println!("{}", header.truecolor(0x78, 0x8C, 0x82));
+    for g in gens {
+        let commit = commit_for(g, commits);
+        let mut line = format!("{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
+            g.generation, g.date, g.nixos_version, g.kernel_version, commit);
+        if g.current {
+            line.push_str("  <- current");
+            println!("{}", line.truecolor(0x39, 0xFF, 0x14).bold());
+        } else {
+            println!("{}", line.truecolor(0xD7, 0xE0, 0xDA));
+        }
+    }
+    eprintln!("{}", format!("{} generations", gens.len()).truecolor(0x32, 0xDC, 0xFF));
+}
+
+enum Change {
+    Added { name: String, ver: String },
+    Removed { name: String, ver: String },
+    Changed { name: String, old: String, new: String },
+}
+
+fn parse_diff(raw: &str) -> (Vec<Change>, usize, usize) {
+    let mut changes = Vec::new();
+    let mut system = 0usize;
+    let mut resized = 0usize;
+    let sep = format!(" {} ", ARROW);
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+        let (name, rest) = match line.split_once(": ") {
+            Some(x) => x,
+            None => continue,
+        };
+        if let Some((before, after)) = rest.split_once(&sep) {
+            let after_ver = after.split(", ").next().unwrap_or(after).trim();
+            let before = before.trim();
+            if before == EPS || after_ver == EPS {
+                system += 1;
+                continue;
+            }
+            if before == EMPTY {
+                changes.push(Change::Added { name: name.into(), ver: after_ver.into() });
+            } else if after_ver == EMPTY {
+                changes.push(Change::Removed { name: name.into(), ver: before.into() });
+            } else {
+                changes.push(Change::Changed { name: name.into(), old: before.into(), new: after_ver.into() });
+            }
+        } else {
+            resized += 1;
+        }
+    }
+    (changes, system, resized)
+}
+
+fn date_of(g: Option<&Generation>) -> &str {
+    g.map(|x| x.date.as_str()).unwrap_or("?")
+}
+
+fn diff_generations(a: u64, b: u64, gens: &[Generation]) {
+    let find = |n: u64| gens.iter().find(|g| g.generation == n);
+    let (da, db) = (find(a), find(b));
+    let pa = format!("/nix/var/nix/profiles/system-{}-link", a);
+    let pb = format!("/nix/var/nix/profiles/system-{}-link", b);
+    let out = Command::new("nix")
+        .args(["store", "diff-closures", &pa, &pb])
+        .output()
+        .expect("failed to run `nix store diff-closures`");
+    if !out.status.success() {
+        eprintln!("{}", format!("diff-closures failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()).truecolor(0xFF, 0x50, 0x50));
+        std::process::exit(1);
+    }
+    let raw = String::from_utf8_lossy(&out.stdout);
+    let (changes, system, resized) = parse_diff(&raw);
+
+    let head = format!("gen {} ({})  {}  gen {} ({})",
+        a, date_of(da), ARROW, b, date_of(db));
+    println!("{}", head.truecolor(0x32, 0xDC, 0xFF).bold());
+    println!();
+
+    let (mut added, mut removed, mut changed) = (0usize, 0usize, 0usize);
+    for c in &changes {
+        if let Change::Changed { name, old, new } = c {
+            changed += 1;
+            println!("{}", format!("  ~ {}  {} {} {}", name, old, ARROW, new)
+                .truecolor(0xFF, 0xC8, 0x32));
+        }
+    }
+    for c in &changes {
+        if let Change::Added { name, ver } = c {
+            added += 1;
+            println!("{}", format!("  + {}  {}", name, ver).truecolor(0x39, 0xFF, 0x14));
+        }
+    }
+    for c in &changes {
+        if let Change::Removed { name, ver } = c {
+            removed += 1;
+            println!("{}", format!("  - {}  {}", name, ver).truecolor(0xFF, 0x50, 0x50));
+        }
+    }
+
+    println!();
+    let summary = format!(
+        "{} changed  {} added  {} removed   ({} system/config, {} resized)",
+        changed, added, removed, system, resized
+    );
+    println!("{}", summary.truecolor(0x78, 0x8C, 0x82));
+}
+
+fn main() {
+    let cli = Cli::parse();
+    let gens = load_generations();
+
+    if cli.list {
+        let commits = load_commits();
+        list_generations(&gens, &commits);
+        return;
+    }
+
+    let current = gens.first().map(|g| g.generation);
+    let previous = gens.get(1).map(|g| g.generation);
+    let (a, b) = match (cli.a, cli.b) {
+        (Some(a), Some(b)) => (a, b),
+        (Some(a), None) => (a, current.unwrap_or(a)),
+        (None, _) => (previous.unwrap_or(0), current.unwrap_or(0)),
+    };
+    diff_generations(a, b, &gens);
+}
