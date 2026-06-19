@@ -124,10 +124,10 @@ rebuild ~183s -> ~75s. crane is a real local win, not just CI/recovery.
 - [x] deps-vs-own-code split measured: deps 109s (70%) / our code 48s (30%) of 156.8s clean (Phase 0, 2026-06-17)
 - [x] faelight-forest converted to crane (deps-only derivation split out): cold build 352s, full workspace built (40+ bins, makeWrapper-wrapped, postFixup intact); core also on crane sharing deps (Phase 1, 2026-06-17)
 - [x] source-only change rebuilds our crates only; deps are a cache hit: 1-line src change -> 54.3s vs 352s cold (faelightDeps cached); core -p build 66.8s confirms shared deps. NOTE: nix non-incremental on our code (full engine recompile per build); dev loop stays on cargo devshell ~5-7s, crane win is the rebuild/deploy path ~183s -> ~54-66s (Phase 1, 2026-06-17)
-- [ ] Cachix cache created: faelight-forest
-- [ ] Cachix substituter added to flake.nix
-- [ ] signing key configured in NixOS secrets
-- [ ] crane deps derivation pushed to Cachix after rebuild
+- [x] Cachix cache created: faelight-forest (live at faelight-forest.cachix.org, public open-source free tier; 2026-06-18)
+- [x] Cachix substituter configured (hosts/framework16/configuration.nix: extra-substituters + extra-trusted-public-keys; verified live -- nix config show substituters lists faelight-forest.cachix.org; 2026-06-18)
+- [x] auth token configured (cachix CLI credential, NOT a NixOS secret -- Cachix-hosted cache needs only the public key for pull (done above); push uses CACHIX_AUTH_TOKEN held locally by the cachix CLI via cachix authtoken; verified -- cachix push authenticated OK, 2026-06-18)
+- [x] crane deps derivation pushed to Cachix: 614 paths (77 deduped) via cachix push (zstd, All done) -- 2026-06-18
 - [ ] clean VM rebuild pulls deps from cache (no local dep recompile)
 - [ ] cache status shows hit rate in fsh
 - [ ] cache push works manually from fsh

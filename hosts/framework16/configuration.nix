@@ -15,6 +15,12 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  # INT-043: Cachix binary cache (pull side). Additive -- keeps cache.nixos.org default.
+  nix.settings.extra-substituters = [ "https://faelight-forest.cachix.org" ];
+  nix.settings.extra-trusted-public-keys = [
+    "faelight-forest.cachix.org-1:IFKABeIAWapKtYNrjD/f3hIFBAUrsQcxA/m1pheT2yM="
+  ];
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [
       "filen-desktop"
@@ -126,6 +132,7 @@
     pkgs.wireplumber
     pkgs.cargo
     pkgs.rustc
+    pkgs.cachix
   ];
 
   faelight.desktop.pinnacle.enable = true;

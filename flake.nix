@@ -63,6 +63,8 @@
       };
 
       packages.${system} = {
+        # INT-043: crane deps-only derivation -- the cacheable unit pushed to Cachix
+        faelight-deps = faelightDeps;
         faelight-forest = craneLib.buildPackage (faelightCommonArgs // {
           pname = "faelight-forest";
           version = "9.2.0";
