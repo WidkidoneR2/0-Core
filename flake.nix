@@ -58,6 +58,7 @@
           nixos-hardware.nixosModules.framework-16-7040-amd
           home-manager.nixosModules.home-manager
           ./hosts/framework16/configuration.nix
+          { system.configurationRevision = self.rev or self.dirtyRev or "dirty"; }
         ];
       };
 
