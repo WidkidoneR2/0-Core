@@ -129,8 +129,7 @@ rebuild ~183s -> ~75s. crane is a real local win, not just CI/recovery.
 - [x] auth token configured (cachix CLI credential, NOT a NixOS secret -- Cachix-hosted cache needs only the public key for pull (done above); push uses CACHIX_AUTH_TOKEN held locally by the cachix CLI via cachix authtoken; verified -- cachix push authenticated OK, 2026-06-18)
 - [x] crane deps derivation pushed to Cachix: 614 paths (77 deduped) via cachix push (zstd, All done) -- 2026-06-18
 - [ ] clean VM rebuild pulls deps from cache (no local dep recompile)
-- [ ] cache status shows hit rate in fsh
-- [ ] cache push works manually from fsh
+(fsh cache commands -- former gates cache status / cache push -- SPLIT to INT-068; cache status honest-scoped to present/absent there. 2026-06-18)
 
 ## Depends On
 - INT-048 (forest-ci) -- CI pushes to cache on success
