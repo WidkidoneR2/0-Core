@@ -3,7 +3,7 @@ id: 044
 date: 2026-06-09
 type: feature
 title: "generation-diff: rich visual diff between NixOS generations"
-status: in-progress
+status: complete
 tags: [nixos, generations, diff, ratatui, forest, visual]
 priority: medium
 ---
@@ -72,7 +72,7 @@ Phase 4 -- fsh integration
 - [x] gen-diff shows intents completed in generation range -- 39 completions on 25->178 from git intents/complete/ (state.db intent_commits stale since migration; git is source of truth) (Phase 3, 2026-06-18)
 - [x] gen-diff A B diffs any two specific generations -- `gen-diff 25 178` (Phase 2, 2026-06-18)
 - [x] gen-diff --last N shows N most recent generations -- `gen-diff --last 3` shows 180/179/178 (Phase 4, 2026-06-18)
-- [ ] fsh tab completion for generation numbers
+- [x] fsh tab completion for generation numbers -- gen-diff <TAB> offers 157 generation numbers live (Phase 4, 2026-06-18)
 
 ## Depends On
 - INT-034 (Forest release v2) -- generation + commit + intent triad
