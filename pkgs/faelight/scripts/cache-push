@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# INT-068: cache-push -- build the crane deps derivation and push it to Cachix
+set -euo pipefail
+CACHE="faelight-forest"
+FLAKE="$HOME/0-core"
+
+echo "Building deps derivation..."
+DEPS_PATH=$(nix build "${FLAKE}#faelight-deps" --no-link --print-out-paths)
+echo "Pushing ${DEPS_PATH} -> ${CACHE} ..."
+cachix push "${CACHE}" "${DEPS_PATH}"
+echo "Done."

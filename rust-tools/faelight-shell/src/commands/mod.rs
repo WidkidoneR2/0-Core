@@ -3499,6 +3499,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             }
         }
         "cd" => cd(args),
+        "cache" => cache(args),
         "devshell" => devshell_list(args),
         "d" => {
             // forest built-in: d → core doctor run
@@ -6154,6 +6155,38 @@ fn devshell_list(args: &[&str]) -> CommandResult {
         lines.push(format!("    {}", name));
     }
     CommandResult::Output(lines.join("\n"))
+}
+
+fn cache(args: &[&str]) -> CommandResult {
+    // INT-068: cache status | cache push -- shells out to pkgs/faelight/scripts/cache-*
+    let sub = args.first().copied().unwrap_or("");
+    let home = std::env::var("HOME").unwrap_or_default();
+    let script = format!("{}/0-core/pkgs/faelight/scripts/cache-{}", home, sub);
+    match sub {
+        "status" => {
+            let output = std::process::Command::new(&script).output();
+            match output {
+                Ok(o) => {
+                    let out = String::from_utf8_lossy(&o.stdout).to_string();
+                    let err = String::from_utf8_lossy(&o.stderr).to_string();
+                    CommandResult::Output(format!("{}{}", out, err).trim_end().to_string())
+                }
+                Err(e) => CommandResult::Error(format!("cache status: {}", e)),
+            }
+        }
+        "push" => {
+            let status = std::process::Command::new(&script)
+                .stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status();
+            match status {
+                Ok(_) => CommandResult::Empty,
+                Err(e) => CommandResult::Error(format!("cache push: {}", e)),
+            }
+        }
+        _ => CommandResult::Error("usage: cache <status|push>".to_string()),
+    }
 }
 
 fn cd(args: &[&str]) -> CommandResult {

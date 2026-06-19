@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# INT-068: cache-status -- substituter config + current deps present/absent in remote cache
+set -euo pipefail
+CACHE="faelight-forest"
+CACHE_URL="https://${CACHE}.cachix.org"
+FLAKE="$HOME/0-core"
+
+echo "Cache: ${CACHE_URL}"
+
+if nix config show substituters | grep -q "${CACHE}.cachix.org"; then
+  echo "  substituter:  configured"
+else
+  echo "  substituter:  NOT configured"
+fi
+
+DEPS_PATH=$(nix build "${FLAKE}#faelight-deps" --no-link --print-out-paths 2>/dev/null)
+echo "  deps path:    ${DEPS_PATH}"
+
+HASH=$(basename "${DEPS_PATH}" | cut -c1-32)
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${CACHE_URL}/${HASH}.narinfo")
+if [ "${CODE}" = "200" ]; then
+  echo "  remote cache: PRESENT (current deps are cached)"
+else
+  echo "  remote cache: ABSENT (run: cache push)  [narinfo ${CODE}]"
+fi

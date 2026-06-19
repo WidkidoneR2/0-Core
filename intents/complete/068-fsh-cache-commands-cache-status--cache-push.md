@@ -3,7 +3,7 @@ id: 068
 date: 2026-06-18
 type: future
 title: "fsh cache commands: cache status + cache push"
-status: in-progress
+status: complete
 tags: [fsh, faelight-shell, cachix, cache, command-dispatch, rust, nixos]
 ---
 
@@ -71,10 +71,10 @@ Dispatch lives in `rust-tools/faelight-shell/src/commands/mod.rs`:
 
 ## Gates
 - [x] Phase 0: dispatch identified -- commands/mod.rs execute_impl master match (CommandResult; handlers fn(args:&[&str]); d/edit arms as templates); documented above, 2026-06-18
-- [ ] cache-status script: substituter config + current-deps present/absent in remote cache
-- [ ] cache-push script: builds .#faelight-deps and pushes to faelight-forest
-- [ ] fsh `cache status` command works
-- [ ] fsh `cache push` command works
+- [x] cache-status script: substituter config + present/absent -- live in fsh, narinfo 200 PRESENT, 2026-06-19
+- [x] cache-push script: builds .#faelight-deps + cachix push (idempotent, all paths present), 2026-06-19
+- [x] fsh `cache status` works -- commands/mod.rs cache arm, captured output, 2026-06-19
+- [x] fsh `cache push` works -- streamed via inherited stdio, 2026-06-19
 
 ## Depends On
 - INT-043 (Cachix backend): provides cache, substituter, token, faelight-deps output.
