@@ -29,6 +29,8 @@ Layout (Superfile-inspired -- clean, organized):
 - Directory rows slightly larger.
 Behavior:
 - Selecting a file opens it directly in Helix (hx).
+- Basic file ops: copy / move / delete / rename.
+- Path breadcrumb across the top showing the current location.
 North star: Superfile (spf) layout.
 
 ## Approach
@@ -71,6 +73,8 @@ Phase 4 -- open in Helix
 - [ ] "Faelight-FM" title header renders above the listing
 - [ ] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
 - [ ] selecting a file opens it in Helix (hx)
+- [ ] basic file ops: copy / move / delete / rename
+- [ ] path breadcrumb shows the current location at the top
 
 ## Notes
 - Aesthetic north star: Superfile (spf).
