@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# faelight vm -- smooth VM workflow (INT-077)
+# Subcommands: build | up | ssh | down | status
+# Console path = SSH (host 2222 -> guest 22), per INT-077 gate 2.
+set -euo pipefail
+
+REPO="${FAELIGHT_REPO:-$HOME/0-core}"
+FLAKE="$REPO#faelight-vm"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/faelight-vm"
+PORT=2222
+GUEST_USER=christian
+LOG="$STATE/vm.log"
+PIDFILE="$STATE/vm.pid"
+SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
+
+mkdir -p "$STATE"
+
+c_g=$'\e[38;2;57;255;20m'; c_c=$'\e[38;2;50;220;255m'
+c_a=$'\e[38;2;255;200;50m'; c_r=$'\e[38;2;255;80;80m'; c_o=$'\e[0m'
+info(){ printf '%s%s%s\n' "$c_c" "$*" "$c_o"; }
+ok(){   printf '%s%s%s\n' "$c_g" "$*" "$c_o"; }
+warn(){ printf '%s%s%s\n' "$c_a" "$*" "$c_o"; }
+err(){  printf '%s%s%s\n' "$c_r" "$*" "$c_o" >&2; }
+
+launcher(){ ls "$STATE"/result/bin/run-*-vm 2>/dev/null | head -1 || true; }
+port_open(){ timeout 1 bash -c ">/dev/tcp/127.0.0.1/$PORT" 2>/dev/null; }
+
+cmd_build(){
+  info "Building VM image (nixos-rebuild build-vm; dirty tree uses tracked files)..."
+  ( cd "$STATE" && nixos-rebuild build-vm --flake "$FLAKE" )
+  local L; L="$(launcher)"
+  [ -n "$L" ] && ok "VM image built (GC-rooted): $L" || { err "build done but no run-*-vm launcher in $STATE/result/bin"; exit 1; }
+}
+
+cmd_up(){
+  local L; L="$(launcher)"
+  [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
+  if port_open; then ok "VM already up (port $PORT listening)"; return 0; fi
+  info "Launching VM (headless, detached; log -> $LOG)..."
+  ( cd "$STATE" && exec setsid "$L" >"$LOG" 2>&1 </dev/null ) &
+  echo $! >"$PIDFILE"
+  local i
+  for i in $(seq 1 60); do
+    if port_open; then ok "VM up -- ssh ready on port $PORT (after ${i}s)"; return 0; fi
+    sleep 1
+  done
+  err "VM did not open port $PORT within 60s -- check $LOG"; exit 1
+}
+
+cmd_ssh(){
+  if ! port_open; then warn "VM not up; starting it..."; cmd_up; fi
+  info "ssh -> $GUEST_USER@localhost:$PORT (password: faelight)"
+  ssh "${SSH_OPTS[@]}" "$GUEST_USER@localhost" "$@"
+}
+
+cmd_down(){
+  if pkill -f "faelight-vm[^ ]*\.qcow2" 2>/dev/null; then ok "VM stopped."; else warn "No running VM found."; fi
+  rm -f "$PIDFILE"
+  info "Disk state persists at $STATE/*.qcow2 (delete for a clean boot; deeper reset -> INT-027)."
+}
+
+cmd_status(){
+  local L; L="$(launcher)"
+  printf '%sfaelight-vm%s\n' "$c_c" "$c_o"
+  [ -n "$L" ] && ok "  image:  $L" || warn "  image:  none (run: vm build)"
+  if port_open; then ok "  state:  UP (port $PORT listening)"; else warn "  state:  down"; fi
+  [ -f "$LOG" ] && info "  log:    $LOG" || true
+  for q in "$STATE"/*.qcow2; do [ -e "$q" ] && info "  disk:   $q ($(du -h "$q" | cut -f1))"; done
+}
+
+usage(){
+  cat <<EOF
+faelight vm -- smooth VM workflow (INT-077)
+  vm build    build/refresh the VM image (slow; run when hosts/vm/ changes)
+  vm up       launch headless + wait for ssh (port $PORT)
+  vm ssh [c]  ssh into the guest (optional remote command)
+  vm down     stop the VM (disk state persists)
+  vm status   image / running / disk
+Console = SSH (host $PORT -> guest 22). Guest: $GUEST_USER / pw faelight.
+EOF
+}
+
+case "${1:-}" in
+  build)  shift; cmd_build  "$@";;
+  up)     shift; cmd_up     "$@";;
+  ssh)    shift; cmd_ssh    "$@";;
+  down)   shift; cmd_down   "$@";;
+  status) shift; cmd_status "$@";;
+  ""|-h|--help|help) usage;;
+  *) err "unknown subcommand: $1"; usage; exit 2;;
+esac

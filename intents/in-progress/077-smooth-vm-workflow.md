@@ -85,10 +85,29 @@ Launch sequence to wrap into an fsh verb next (gate 3):
   setsid ./result/bin/run-faelight-vm-vm > /tmp/vm.log 2>&1 < /dev/null &  (after build-vm)
   wait for 2222 LISTENING, then ssh -p 2222.
 
+## Gate 3 (2026-06-22) -- the `vm` verb
+Wrapped the build/launch/SSH loop into one verb: pkgs/faelight/scripts/vm
+(script pattern, like cache-status/cache-push; thin fsh `vm` arm to follow).
+Subcommands: build | up | ssh | down | status.
+Design decisions baked in from the gate-1/2 hard knocks:
+- NO ./result assumption: build-vm runs in a fixed state dir
+  (~/.local/state/faelight-vm); launcher resolved by absolute path. The result
+  symlink there is also a GC-root, so the image survives a generation prune.
+- Console = SSH (gate 2 decision), not serial. up waits for port 2222 to listen
+  (60s cap) then reports ready; ssh auto-starts the VM if down.
+- Lifecycle: setsid + </dev/null detaches the VM so it survives the launcher;
+  down matches the running qemu by its qcow2 in the cmdline (pid goes stale under
+  setsid), and disk state persists between runs.
+DEMONSTRATED (2026-06-22): vm build (67s, GC-rooted image) -> vm up (ssh ready 2s)
+-> vm ssh hostname returned `faelight-vm` from inside the guest -> vm down clean.
+One command to boot, one to enter, one to stop. Headless by design (no window;
+the guest comes over SSH). This is the loop 056 drills and 043 cache tests use.
+Polish deferred (not gating): status returns non-zero when down (cosmetic);
+SSH key-auth to drop the password prompt (folds into the SSH-key-only hardening).
 ## Gates
 - [x] Phase 0: build-vm boots faelight-vm; current console/display behaviour recorded here
 - [x] console VM boots to a serial console in the terminal with copy-paste working both ways
-- [ ] console VM wrapped as a simple fsh verb (one command to boot/enter)
+- [x] console VM wrapped as a simple fsh verb (one command to boot/enter)
 - [ ] an INT-056 recovery drill driven end-to-end from the console VM
 - [ ] graphical VM: SPICE display + shared clipboard, fullscreen on a dedicated workspace
 - [ ] graphical VM confirmed able to host a compositor guest (Pinnacle render handoff to INT-067)
