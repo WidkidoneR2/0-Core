@@ -145,3 +145,4 @@ own small future intent; recorded here so the research is not lost.
 "The forest should not recompile what has not changed.
  Build once. Cache everywhere.
  Time saved is time for the work." 🌲
+<!-- INT-071 backfill (2026-06-22): 043 commit history restored to intent_commits; queryable via genealogy again. -->

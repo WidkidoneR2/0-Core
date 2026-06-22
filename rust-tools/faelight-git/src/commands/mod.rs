@@ -61,21 +61,27 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
         get_active_intent().and_then(|(id, _)| id.parse().ok())
     });
     let intent_status = if intent_id.is_some() { "in-progress" } else { "none" };
-    // INT-071 gate_hint: when an intent is actively focused, record the next open gate
-    // (first unchecked - [ ] in its in-progress charter) so genealogy knows which gate
-    // a commit was working toward. Only for active intents; left NULL for message-only attribution.
-    let gate_hint: Option<String> = get_active_intent().and_then(|(id, _)| {
+    // INT-071 gate_hint: record the next open gate (first unchecked - [ ] in the charter)
+    // for the RESOLVED intent_id -- the same intent attribution chose (message or active),
+    // not a second independent get_active_intent() call. Scans in-progress/ and future/.
+    let gate_hint: Option<String> = intent_id.and_then(|iid| {
         let home = std::env::var("HOME").unwrap_or_default();
-        let dir = format!("{}/0-core/intents/in-progress", home);
-        let entries = std::fs::read_dir(&dir).ok()?;
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !name.starts_with(&format!("{}-", id)) { continue; }
-            let content = std::fs::read_to_string(entry.path()).ok()?;
-            for line in content.lines() {
-                if let Some(rest) = line.strip_prefix("- [ ] ") {
-                    let g = rest.trim();
-                    return Some(g.chars().take(80).collect::<String>());
+        let prefix = format!("{:03}-", iid);
+        for sub in ["in-progress", "future"] {
+            let dir = format!("{}/0-core/intents/{}", home, sub);
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !name.starts_with(&prefix) { continue; }
+                if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                    for line in content.lines() {
+                        if let Some(rest) = line.strip_prefix("- [ ] ") {
+                            return Some(rest.trim().chars().take(80).collect::<String>());
+                        }
+                    }
                 }
             }
         }
