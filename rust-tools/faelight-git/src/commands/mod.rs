@@ -61,6 +61,26 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
         get_active_intent().and_then(|(id, _)| id.parse().ok())
     });
     let intent_status = if intent_id.is_some() { "in-progress" } else { "none" };
+    // INT-071 gate_hint: when an intent is actively focused, record the next open gate
+    // (first unchecked - [ ] in its in-progress charter) so genealogy knows which gate
+    // a commit was working toward. Only for active intents; left NULL for message-only attribution.
+    let gate_hint: Option<String> = get_active_intent().and_then(|(id, _)| {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let dir = format!("{}/0-core/intents/in-progress", home);
+        let entries = std::fs::read_dir(&dir).ok()?;
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with(&format!("{}-", id)) { continue; }
+            let content = std::fs::read_to_string(entry.path()).ok()?;
+            for line in content.lines() {
+                if let Some(rest) = line.strip_prefix("- [ ] ") {
+                    let g = rest.trim();
+                    return Some(g.chars().take(80).collect::<String>());
+                }
+            }
+        }
+        None
+    });
     let author: Option<String> = std::process::Command::new("git")
         .args(["config", "user.name"]).output().ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -87,11 +107,11 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
     let short_hash = &hash[..12.min(hash.len())];
     let _ = conn.execute(
         "INSERT OR IGNORE INTO intent_commits
-         (commit_hash, intent_id, intent_status, phase_hint, health_at,
+         (commit_hash, intent_id, intent_status, phase_hint, gate_hint, health_at,
           friday_facts, friday_patterns, session_id, committed_at, author, message)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
         rusqlite::params![
-            short_hash, intent_id, intent_status, phase_hint, health,
+            short_hash, intent_id, intent_status, phase_hint, gate_hint, health,
             friday_facts, friday_patterns, session_id, now, author, message
         ],
     );

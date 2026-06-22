@@ -76,11 +76,27 @@ Phase 1 uncovered THREE migration casualties, not one:
 Gate 2 closed (recording resumed AND correctly attributed). Gate 3 closed (Friday cites the
 restored commits live -- demonstrated, not wired).
 
+## Phase 3 Results (2026-06-22) -- parity cleanup
+- BACKFILL: git had every commit the table lost. One-time migration walked git log from the
+  2972 boundary across all history, attributed by leading INT-NNN (same rule as record_commit),
+  INSERT OR IGNORE. 325 rows added (2975 -> 3300); table now continuous 2025-11-20 -> today, no
+  gap. Friday-state columns + intent_status left NULL: unknowable retroactively, not invented.
+  Honest limit: commits without an INT-NNN prefix (e.g. "mango: ...") stay NULL intent_id -- we
+  attribute what we can prove, never guess (INT-052 shows 2, under-attributed by design).
+- gen-diff: comment-only (decision b). Table is whole again, but gen-diff keeps re-deriving from
+  git deliberately (always present, works on a fresh DB). Misleading "went stale" comment fixed.
+- gate_hint: record_commit now records the active intent next-open-gate; was NULL since INT-312.
+- attention.rs: compute_strategic_relevance read the stale shell_state focus_intent row -- scored
+  every event at the no-active-intent baseline during focused work. Now reads focus.toml (4th
+  migration casualty, same drift as friday-chat). Engine path, not faelight-git.
+- intent_status (new commits): left in-progress by design -- correct ~always; reading per-intent
+  status per commit is marginal value in the hot path. Noted, not over-engineered.
+
 ## Gates
 - [x] Phase 0: Friday Arch->Nix parity-gap list recorded in this charter
 - [x] commit->intent recording repaired: a new commit records an intent_commits row past the Arch-era freeze
 - [x] Friday learns from recent commits again (demonstrated, not just wired)
-- [ ] remaining Phase-0 parity gaps resolved or formally deferred
+- [x] remaining Phase-0 parity gaps resolved or formally deferred
 
 ## Notes
 - Unblocks INT-034 (triad tracking needs live commit-recording).

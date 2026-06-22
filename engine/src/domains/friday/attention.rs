@@ -83,10 +83,24 @@ pub fn compute_risk(event_type: &str, event_detail: &str) -> f64 {
 /// Compute strategic relevance -- does this relate to the active intent?
 pub fn compute_strategic_relevance(db: &Connection, event_detail: &str) -> f64 {
     // Get active intent
-    let active_intent: Option<String> = db.query_row(
-        "SELECT value FROM shell_state WHERE key = 'focus_intent'",
-        [], |r| r.get(0),
-    ).ok();
+    // INT-071: read focus.toml (written by cistart, source of truth) first; the
+    // shell_state focus_intent row went stale at the NixOS migration. Matches
+    // friday-chat and faelight-shell. Without this, every event scored at the
+    // no-active-intent baseline even during focused work.
+    let active_intent: Option<String> = {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let focus_file = std::path::PathBuf::from(&home)
+            .join(".local/state/0-core/intent/focus.toml");
+        let from_toml = std::fs::read_to_string(&focus_file).ok().and_then(|c| {
+            c.lines().find_map(|line| {
+                line.strip_prefix("id = ").map(|r| r.trim().trim_matches('"').to_string())
+            })
+        }).filter(|s| !s.is_empty());
+        from_toml.or_else(|| db.query_row(
+            "SELECT value FROM shell_state WHERE key = 'focus_intent'",
+            [], |r| r.get(0),
+        ).ok())
+    };
 
     match active_intent {
         None => 0.3, // No active intent -- lower relevance

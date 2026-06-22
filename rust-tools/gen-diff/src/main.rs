@@ -88,7 +88,9 @@ fn commit_for(g: &Generation, commits: &[(String, i64)]) -> String {
 }
 
 /// Commits + completed intents between two attributed commits (older..newer), from git.
-/// state.db's intent_commits went stale at the NixOS migration, so git is the source of truth.
+/// intent_commits is complete again (INT-071 restored recording + backfilled the migration gap),
+/// but git is retained as the source here: it is always present and needs no DB. The table is the
+/// canonical record; gen-diff intentionally re-derives from git so it works even on a fresh DB.
 fn forest_context(older: &str, newer: &str) -> (usize, Vec<u32>) {
     let repo = repo_dir();
     let range = format!("{}..{}", older, newer);
