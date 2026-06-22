@@ -90,6 +90,10 @@ restored commits live -- demonstrated, not wired).
   gate text extracted correctly). Live write through record_commit NOT yet demonstrated -- row 3301
   recorded NULL because 071 had zero open gates left when its own cicomplete-adjacent commit ran
   (timing, not a bug). First real commit with an open-gated intent focused will confirm; checked then.
+  CONFIRMED (2026-06-22): row 3303 (INT-043 commit) recorded intent_id=43 AND gate_hint="clean VM
+  rebuild pulls deps from cache..." -- 043 gate 131. Also fixed a real bug found in testing: gate_hint
+  had keyed off a second get_active_intent() call instead of the resolved intent_id, so it disagreed
+  with attribution; now keyed off intent_id, scanning in-progress/ and future/. gate_hint live + correct.
 - attention.rs: compute_strategic_relevance read the stale shell_state focus_intent row -- scored
   every event at the no-active-intent baseline during focused work. Now reads focus.toml (4th
   migration casualty, same drift as friday-chat). Engine path, not faelight-git.
