@@ -46,20 +46,8 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
         Ok(c) => c,
         Err(_) => return,
     };
-    // INT-071 attribution: the commit message is ground truth. Parse a leading
-    // INT-NNN (e.g. "INT-071 Phase 1: ...") first; fall back to the active-intent
-    // scan only when the message carries no explicit intent. Avoids mis-attributing
-    // to the lowest-numbered active intent when several are in-progress.
-    let msg_intent: Option<i64> = message
-        .trim_start()
-        .strip_prefix("INT-")
-        .and_then(|rest| {
-            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            digits.parse().ok()
-        });
-    let intent_id: Option<i64> = msg_intent.or_else(|| {
-        get_active_intent().and_then(|(id, _)| id.parse().ok())
-    });
+    let active = get_active_intent();
+    let intent_id: Option<i64> = active.as_ref().and_then(|(id, _)| id.parse().ok());
     let intent_status = if intent_id.is_some() { "in-progress" } else { "none" };
     let author: Option<String> = std::process::Command::new("git")
         .args(["config", "user.name"]).output().ok()
