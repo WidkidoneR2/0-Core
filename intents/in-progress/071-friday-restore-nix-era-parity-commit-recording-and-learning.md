@@ -59,10 +59,27 @@ Phase 3 -- close remaining parity gaps (or formally defer).
 4. committed_at is the real epoch time column (not "timestamp").
 Headline = gap #1; #2-#4 fold into Phases 1 and 3.
 
+## Phase 1 Results (2026-06-22)
+Phase 1 uncovered THREE migration casualties, not one:
+1. SEVERED WRITE (the headline): the intent_commits recorder lived only in fg done; fg sync
+   (the NixOS daily path) never called it. Fix: extracted get_active_intent + record_commit
+   into commands/mod.rs as ONE shared recorder; both fg done and fg sync call it. Recorder now
+   also fills author and an honest intent_status (none when no active intent). gate_hint -> Phase 3.
+   Proof: row 2972 (INT-328, 2026-06-01) -> row 2973 (today) -- 21-day gap closed.
+2. ATTRIBUTION: record_commit first read the lowest-numbered active intent (got 005 with five
+   in-progress). Fix: parse the leading INT-NNN from the commit message (ground truth), fall
+   back to the active scan. Proof: row 2974 recorded intent_id=71 correctly.
+3. FOCUS-READ DRIFT: friday-chat get_active_intent read the stale shell_state focus_intent row
+   instead of focus.toml (the source cistart writes, that faelight-shell trusts). Fix: read the
+   toml first, shell_state as fallback -- matching faelight-shell. Proof: /intent now shows
+   Active intent: INT-071 and lists rows 2973/2974 (Friday reading the revived table).
+Gate 2 closed (recording resumed AND correctly attributed). Gate 3 closed (Friday cites the
+restored commits live -- demonstrated, not wired).
+
 ## Gates
 - [x] Phase 0: Friday Arch->Nix parity-gap list recorded in this charter
-- [ ] commit->intent recording repaired: a new commit records an intent_commits row past the Arch-era freeze
-- [ ] Friday learns from recent commits again (demonstrated, not just wired)
+- [x] commit->intent recording repaired: a new commit records an intent_commits row past the Arch-era freeze
+- [x] Friday learns from recent commits again (demonstrated, not just wired)
 - [ ] remaining Phase-0 parity gaps resolved or formally deferred
 
 ## Notes
