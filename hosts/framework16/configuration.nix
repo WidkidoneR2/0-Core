@@ -11,7 +11,7 @@
   boot.plymouth.enable = true;
   boot.plymouth.theme = "bgrt";
 
-  boot.loader.systemd-boot.configurationLimit = 5;
+  boot.loader.systemd-boot.configurationLimit = 15;
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
