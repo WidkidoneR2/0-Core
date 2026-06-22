@@ -3,7 +3,7 @@ id: 070
 date: 2026-06-20
 type: future
 title: "Fix intent-add numbering: derive next id across all intent dirs"
-status: planned
+status: complete
 tags: [intent-ledger, tooling, bug, numbering, rust, nixos]
 ---
 
@@ -30,10 +30,23 @@ Phase 0 -- locate the next-id logic; confirm it skips complete/cancelled.
 Phase 1 -- derive next id across all dirs (or monotonic counter).
 Phase 2 -- demonstrate: a fresh add after a completion assigns a clear number.
 
+## Results (2026-06-22)
+- Gate 1 (locate): the bug was get_next_id(category) in rust-tools/intent/src/main.rs -- it
+  scanned only get_intent_dir().join(category), the single target dir. Adding a future intent
+  maxed future/ alone (067), never seeing complete/068, so it reused 068.
+- Gate 2 (fix): get_next_id now scans every subdirectory of the intents dir for the global max
+  and drops the category param (the id is global, not per-category). Two passes: the first cut
+  scanned all subdirs unguarded and read the date-stamped incident files (incidents/2026-...)
+  as id 2026, handing out 2027; fixed by counting only 3-digit numeric prefixes (NNN-), which
+  excludes date-named files. Call site updated.
+- Gate 3 (demonstrate): dropped a 900- marker in cancelled/ (the most-ignored dir), ran intent
+  add -> it assigned 901, proving the cross-dir scan AND that the 2026- incident files are
+  ignored. Old code would have given 077. Marker + throwaway removed; validate clean.
+
 ## Gates
-- [ ] Phase 0: next-id function located; complete/cancelled skip confirmed and noted here
-- [ ] next-id derives from all intent dirs (future + in-progress + complete + cancelled)
-- [ ] a fresh `intent add` after a completion assigns a non-colliding number
+- [x] Phase 0: next-id function located; complete/cancelled skip confirmed and noted here
+- [x] next-id derives from all intent dirs (future + in-progress + complete + cancelled)
+- [x] a fresh `intent add` after a completion assigns a non-colliding number
 
 ## Notes
 - Natural neighbour of INT-031 (release machinery), tracked separately at your request.

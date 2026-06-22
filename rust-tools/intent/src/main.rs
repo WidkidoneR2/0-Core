@@ -144,26 +144,31 @@ fn prompt(msg: &str) -> String {
     input.trim().to_string()
 }
 
-fn get_next_id(category: &str) -> String {
-    let dir = get_intent_dir().join(category);
-    if !dir.exists() {
-        return "001".to_string();
-    }
-
+fn get_next_id() -> String {
+    let base = get_intent_dir();
     let mut max_id = 0;
-    if let Ok(entries) = fs::read_dir(&dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if let Some(id_str) = name.split('-').next() {
-                if let Ok(id) = id_str.parse::<u32>() {
-                    if id > max_id {
-                        max_id = id;
+    if let Ok(dirs) = fs::read_dir(&base) {
+        for dir_entry in dirs.flatten() {
+            let dir = dir_entry.path();
+            if !dir.is_dir() {
+                continue;
+            }
+            if let Ok(entries) = fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if let Some(id_str) = name.split('-').next() {
+                        if id_str.len() == 3 && id_str.bytes().all(|b| b.is_ascii_digit()) {
+                            if let Ok(id) = id_str.parse::<u32>() {
+                                if id > max_id {
+                                    max_id = id;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
-
     format!("{:03}", max_id + 1)
 }
 
@@ -186,7 +191,7 @@ fn cmd_add() {
         _ => error("Invalid choice"),
     };
 
-    let id = get_next_id(category);
+    let id = get_next_id();
     let title = prompt("Title: ");
     let status = prompt("Status (planned/in-progress/complete): ");
     let tags = prompt("Tags (comma-separated, optional): ");
