@@ -3,7 +3,7 @@ id: 071
 date: 2026-06-20
 type: future
 title: "Friday: restore Nix-era parity (commit-to-intent recording, then learning)"
-status: in-progress
+status: complete
 tags: [friday, learning, commit-recording, intent-commits, parity, migration, nixos]
 ---
 
@@ -86,6 +86,10 @@ restored commits live -- demonstrated, not wired).
 - gen-diff: comment-only (decision b). Table is whole again, but gen-diff keeps re-deriving from
   git deliberately (always present, works on a fresh DB). Misleading "went stale" comment fixed.
 - gate_hint: record_commit now records the active intent next-open-gate; was NULL since INT-312.
+  gate_hint honesty (2026-06-22): parse logic verified against a live charter (043 -> first open
+  gate text extracted correctly). Live write through record_commit NOT yet demonstrated -- row 3301
+  recorded NULL because 071 had zero open gates left when its own cicomplete-adjacent commit ran
+  (timing, not a bug). First real commit with an open-gated intent focused will confirm; checked then.
 - attention.rs: compute_strategic_relevance read the stale shell_state focus_intent row -- scored
   every event at the no-active-intent baseline during focused work. Now reads focus.toml (4th
   migration casualty, same drift as friday-chat). Engine path, not faelight-git.
