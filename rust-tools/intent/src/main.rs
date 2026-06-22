@@ -147,21 +147,20 @@ fn prompt(msg: &str) -> String {
 fn get_next_id() -> String {
     let base = get_intent_dir();
     let mut max_id = 0;
-    if let Ok(dirs) = fs::read_dir(&base) {
-        for dir_entry in dirs.flatten() {
-            let dir = dir_entry.path();
-            if !dir.is_dir() {
-                continue;
-            }
-            if let Ok(entries) = fs::read_dir(&dir) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    if let Some(id_str) = name.split('-').next() {
-                        if id_str.len() == 3 && id_str.bytes().all(|b| b.is_ascii_digit()) {
-                            if let Ok(id) = id_str.parse::<u32>() {
-                                if id > max_id {
-                                    max_id = id;
-                                }
+    // INT-077: only the intent-lifecycle dirs are numbered work-intents. The record dirs
+    // (decisions/, incidents/, experiments/, philosophy/) carry their own numbering/dates
+    // (e.g. decisions/275, incidents/190, date-stamped files) and must NOT drive the counter.
+    let intent_dirs = ["future", "in-progress", "complete", "cancelled"];
+    for sub in intent_dirs {
+        let dir = base.join(sub);
+        if let Ok(entries) = fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Some(id_str) = name.split('-').next() {
+                    if id_str.len() == 3 && id_str.bytes().all(|b| b.is_ascii_digit()) {
+                        if let Ok(id) = id_str.parse::<u32>() {
+                            if id > max_id {
+                                max_id = id;
                             }
                         }
                     }
