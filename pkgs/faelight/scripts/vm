@@ -65,6 +65,19 @@ print("KILLED" if killed else "NONE", *killed)
 print("REMAIN", *find())
 PYV
 }
+kill_viewer(){
+  python3 - <<'PYV'
+import glob, os, signal
+for d in glob.glob("/proc/[0-9]*"):
+    try:
+        cmd = open(d+"/cmdline","rb").read().replace(b"\x00",b" ").decode("utf-8","replace")
+    except Exception:
+        continue
+    if "remote-viewer" in cmd and "spice" in cmd:
+        try: os.kill(int(d.split("/")[-1]), signal.SIGKILL)
+        except ProcessLookupError: pass
+PYV
+}
 
 cmd_build(){
   info "Building VM image (nixos-rebuild build-vm; dirty tree uses tracked files)..."
@@ -104,6 +117,7 @@ cmd_down(){
   local killpids; killpids="$(echo "$res" | sed -n 's/^KILLED //p')"
   if [ -n "$killpids" ]; then ok "VM stopped ($killpids)."; else warn "No running VM found."; fi
   if [ -n "$remain" ]; then err "WARNING: qemu still running: $remain (manual: /run/current-system/sw/bin/kill -9 $remain)"; fi
+  kill_viewer
   rm -f "$PIDFILE" "$SPICE_SOCK"
   info "Disk state persists at $STATE/*.qcow2 (delete for a clean boot; deeper reset -> INT-027)."
 }
@@ -116,6 +130,7 @@ cmd_gui(){
     exit 1
   fi
   command -v remote-viewer >/dev/null || { err "remote-viewer not found (pkgs.virt-viewer on host)"; exit 1; }
+  kill_viewer
   rm -f "$SPICE_SOCK"
   info "Launching VM with SPICE display (socket: $SPICE_SOCK)..."
   # SPICE on a unix socket + virtio-gpu + agent channel for shared clipboard.
