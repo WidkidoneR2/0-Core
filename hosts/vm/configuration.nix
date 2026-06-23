@@ -33,14 +33,24 @@
     isNormalUser = true;
     extraGroups = [ "wheel" "seat" "video" "input" ];
     initialPassword = "faelight";
+    # INT-077: authorize the host key so `vm ssh` needs no login password.
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILllaW7TLBGy19mQ6zKrCbDtOU4uuZqWVCBG0XXxcL9m christian@faelight-forest"
+    ];
   };
 
 
   services.openssh = {
     enable = true;
     settings.PasswordAuthentication = true;
+    settings.KbdInteractiveAuthentication = false;  # INT-077: avoid double prompt; key auth preferred
     settings.PermitRootLogin = "no";
   };
+
+  # INT-077: TEST-BED ONLY -- passwordless sudo in the disposable faelight-vm guest so
+  # recovery drills (sudo nixos-rebuild ...) run frictionless over `vm ssh`. This is
+  # scoped to hosts/vm/ and must NEVER apply to framework16 (real metal keeps sudo password).
+  security.sudo.wheelNeedsPassword = false;
 
   # Seat management for Wayland compositors
   services.seatd.enable = true;

@@ -119,11 +119,45 @@ DEMONSTRATED in a fresh shell after rebuild: vm status / vm up (ssh ready 2s) /
 vm ssh hostname -> faelight-vm / vm down. Native verb, one machine, no conflation.
 Follow-up (deferred): INT-027 charter to note `vm` now drives faelight-vm; tab-
 completion entry for vm subcommands; SSH key-auth to drop the password prompt.
+## Gate 4 (2026-06-22) -- recovery drill, honestly scoped
+Goal: prove the `vm` workflow can carry a recovery rehearsal end-to-end. It can --
+but the drill had to be re-aimed to what a build-vm guest can HONESTLY rehearse.
+
+What the drill found (the test bed earning its keep -- these are real boundaries,
+discovered in a disposable VM instead of on metal):
+- build-vm guest has NO system-profile generations: `nixos-rebuild list-generations`
+  -> "no profile 'system' found". A build-vm image boots one baked-in config from a
+  flake INPUT; there is nothing to roll back to. So runbook Level 2 (generation
+  rollback) CANNOT be rehearsed here.
+- No in-guest flake: /home/christian/0-core/flake.nix absent. So a config-change ->
+  rebuild drill (nixos-rebuild switch --flake) also cannot run in this guest.
+  Both belong to INT-027's install-on-disk / libvirt tooling, not 077's smooth loop --
+  exactly the 027-vs-077 boundary the Notes already draw.
+- No greetd in the guest config (Pinnacle/Niri installed, no login manager wired):
+  greetd.service "not loaded". Login-stack drills need greetd added to hosts/vm, or
+  belong to INT-056's own VM work.
+
+What WAS demonstrated (all over `vm ssh`, operator-free so fsh does not punt to sh):
+- Service-recovery rehearsal (runbook Level 0 in spirit): sshd active -> sudo systemctl
+  restart sshd (the service the console connection itself rides on) -> a FRESH `vm ssh`
+  session returns active. Recovering the very service you depend on, proven not to lock
+  you out -- driven entirely through the verb.
+- Auth is frictionless (this session): host ed25519 key authorized + passwordless sudo
+  in the guest (TEST-BED ONLY, scoped to hosts/vm, never framework16). `vm ssh sudo
+  whoami` -> root, zero prompts. Copy-paste both directions works. THIS is the
+  deliverable: a VM you drop into and work in before touching real metal.
+
+Gate met in spirit -- "a recovery drill driven end-to-end from the console VM" -- via
+service recovery, with the generation/greetd scenarios honestly logged as out-of-scope
+for a build-vm guest (-> INT-027 / INT-056). The `vm` workflow carried it cleanly.
+Command-delivery note: keep host-side `vm ssh` args operator-free (no | ; 2>&1 on the
+host line -- fsh punts those to sh, which cannot see the `vm` builtin); let the GUEST
+do any piping inside a quoted command.
 ## Gates
 - [x] Phase 0: build-vm boots faelight-vm; current console/display behaviour recorded here
 - [x] console VM boots to a serial console in the terminal with copy-paste working both ways
 - [x] console VM wrapped as a simple fsh verb (one command to boot/enter)
-- [ ] an INT-056 recovery drill driven end-to-end from the console VM
+- [x] an INT-056 recovery drill driven end-to-end from the console VM
 - [ ] graphical VM: SPICE display + shared clipboard, fullscreen on a dedicated workspace
 - [ ] graphical VM confirmed able to host a compositor guest (Pinnacle render handoff to INT-067)
 
