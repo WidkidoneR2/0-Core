@@ -564,9 +564,12 @@ impl App {
 fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let dual_mode = args.iter().any(|a| a == "--dual" || a == "-d");
+    // INT-069: only accept a DIRECTORY arg as the start path. fsh passes a cwd temp file
+    // (/tmp/fsh-cwd.tmp) which is NOT a directory -- ignore it and use the real cwd.
     let start_path = args.iter()
         .find(|a| !a.starts_with('-') && *a != &args[0])
         .map(PathBuf::from)
+        .filter(|p| p.is_dir())
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
     // Panic hook -- restore terminal on crash
