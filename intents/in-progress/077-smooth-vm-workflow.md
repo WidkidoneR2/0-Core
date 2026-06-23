@@ -104,6 +104,21 @@ One command to boot, one to enter, one to stop. Headless by design (no window;
 the guest comes over SSH). This is the loop 056 drills and 043 cache tests use.
 Polish deferred (not gating): status returns non-zero when down (cosmetic);
 SSH key-auth to drop the password prompt (folds into the SSH-key-only hardening).
+## Gate 3 native fsh arm (2026-06-22)
+`vm` is now a native fsh verb (no script path needed). Discovery during wiring:
+fsh ALREADY had a `vm` command -- vm_dispatch (INT-027) driving a libvirt domain
+`nixos-lab` via virsh (start/stop/snapshot/restore/snapshots/list). That is a
+DIFFERENT VM and mechanism than 077's build-vm faelight-vm. Decision (with Christian):
+`vm` = faelight-vm, the machine actually being built for intent testing. So
+vm_dispatch was repointed to the 077 script (build|up|ssh|down|status, inherited
+stdio so `vm ssh` stays interactive). nixos-lab confirmed shut off (dormant).
+INT-027's seven libvirt handlers (vm_start/stop/status/snapshot/restore/snapshots/
+list) PRESERVED in source, unwired from the verb, marked #[allow(dead_code)] with a
+note -- not deleted (027 is still planned). cargo check clean (0 warnings).
+DEMONSTRATED in a fresh shell after rebuild: vm status / vm up (ssh ready 2s) /
+vm ssh hostname -> faelight-vm / vm down. Native verb, one machine, no conflation.
+Follow-up (deferred): INT-027 charter to note `vm` now drives faelight-vm; tab-
+completion entry for vm subcommands; SSH key-auth to drop the password prompt.
 ## Gates
 - [x] Phase 0: build-vm boots faelight-vm; current console/display behaviour recorded here
 - [x] console VM boots to a serial console in the terminal with copy-paste working both ways

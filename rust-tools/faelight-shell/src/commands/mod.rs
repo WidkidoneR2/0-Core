@@ -8505,21 +8505,37 @@ fn experiment_list(core_root: &str) -> CommandResult {
 }
 
 fn vm_dispatch(args: &[&str]) -> CommandResult {
-    match args.first().copied() {
-        Some("start") => vm_start(args.get(1).copied()),
-        Some("stop") => vm_stop(args.get(1).copied()),
-        Some("status") => vm_status(args.get(1).copied()),
-        Some("snapshot") => vm_snapshot(args.get(1).copied()),
-        Some("restore") => vm_restore(args.get(1).copied()),
-        Some("snapshots") => vm_snapshots(),
-        Some("list") | None => vm_list(),
-        Some(other) => CommandResult::Output(format!(
-            "  vm: unknown subcommand '{}'. try: vm start|stop|status [name] | vm snapshot|restore NAME | vm snapshots | vm list\n",
-            other
-        )),
+    // INT-077: `vm` drives faelight-vm (build-vm + SSH loop) via
+    // pkgs/faelight/scripts/vm. Inherited stdio throughout so `vm ssh` is
+    // interactive (password + guest shell) and build/up/down stream live.
+    // INT-027's libvirt nixos-lab tooling (vm_start/stop/snapshot/restore/...)
+    // remains defined below but is intentionally unwired from this verb; the
+    // nixos-lab domain is dormant. Snapshot support for faelight-vm (qcow2) is
+    // a later decision, not wired here.
+    let sub = args.first().copied().unwrap_or("");
+    match sub {
+        "build" | "up" | "ssh" | "down" | "status" => {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let script = format!("{}/0-core/pkgs/faelight/scripts/vm", home);
+            let st = std::process::Command::new(&script)
+                .args(args)
+                .stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status();
+            match st {
+                Ok(_) => CommandResult::Empty,
+                Err(e) => CommandResult::Error(format!("vm: {}", e)),
+            }
+        }
+        _ => CommandResult::Output(
+            "  vm (faelight-vm): build | up | ssh [cmd] | down | status\n  build refreshes the image; up launches headless; ssh enters the guest; down stops it.\n".to_string()
+        ),
     }
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_snapshot(snap: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
@@ -8563,6 +8579,8 @@ fn vm_snapshot(snap: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_restore(snap: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
@@ -8606,6 +8624,8 @@ fn vm_restore(snap: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_snapshots() -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
@@ -8637,6 +8657,8 @@ fn vm_snapshots() -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_status(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8678,6 +8700,8 @@ fn vm_status(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_stop(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8718,6 +8742,8 @@ fn vm_stop(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_start(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8757,6 +8783,8 @@ fn vm_start(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
+#[allow(dead_code)] 
 fn vm_list() -> CommandResult {
     use colored::Colorize;
     let mut out = String::new();
