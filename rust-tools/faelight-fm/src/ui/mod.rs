@@ -21,6 +21,7 @@ const GRAY:       Color = Color::Rgb(120, 140, 130); // muted gray  -- secondary
 const DIM_GRAY:   Color = Color::Rgb(70,  80,  75);  // dim gray    -- borders, dim
 const WHITE:      Color = Color::Rgb(215, 224, 218); // fog white   -- primary text
 const BG_SEL:     Color = Color::Rgb(22,  35,  25);  // forest night -- selection bg
+const BG:         Color = Color::Rgb(8,   13,  8);   // deep forest black -- app bg (faelight-logout)
 
 pub struct PanelState<'a> {
     pub root: &'a PathBuf,
@@ -39,6 +40,8 @@ pub fn render_single(
 ) -> io::Result<()> {
     terminal.draw(|f| {
         let size = f.area();
+        // INT-069: deep forest-black backdrop so neon colors pop (faelight-logout feel).
+        f.render_widget(Block::default().style(Style::default().bg(BG)), size);
         // header | body | status
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -125,13 +128,18 @@ fn render_header(
         Mode::Command(c) => format!("  :{}", c),
         _ => String::new(),
     };
-    let text = format!("🌲 {}{}", short, filter_part);
-    let style = if active {
-        Style::default().fg(GREEN).add_modifier(Modifier::BOLD)
+    // INT-069: titled bar -- "Faelight-FM" identity left, current path right, on deep bg.
+    let title_style = Style::default().fg(GREEN).add_modifier(Modifier::BOLD).bg(BG);
+    let path_style = if active {
+        Style::default().fg(DIM_GREEN).bg(BG)
     } else {
-        Style::default().fg(GRAY)
+        Style::default().fg(DIM_GRAY).bg(BG)
     };
-    f.render_widget(Paragraph::new(text).style(style), area);
+    let line = Line::from(vec![
+        Span::styled(" 🌲 Faelight-FM ", title_style),
+        Span::styled(format!(" {}{} ", short, filter_part), path_style),
+    ]);
+    f.render_widget(Paragraph::new(line).style(Style::default().bg(BG)), area);
 }
 
 fn render_tree(
@@ -306,12 +314,12 @@ fn render_status(
         Mode::Normal => {
             let w = area.width as usize;
             let intent_max = w.saturating_sub(60).max(10).min(25);
-            let intent_short = if active_intent.len() > intent_max {
+            let _intent_short = if active_intent.len() > intent_max {
                 format!("{}…", &active_intent[..intent_max])
             } else { active_intent.to_string() };
             // Short hint set that fits most terminals
             Line::from(vec![
-                Span::styled(format!("  {} ", intent_short), Style::default().fg(DIM_GREEN)),
+                Span::styled("  ", Style::default().fg(DIM_GRAY)),
                 Span::styled("│ ", Style::default().fg(DIM_GRAY)),
                 Span::styled("j/k", Style::default().fg(CYAN)),
                 Span::styled("↕ ", Style::default().fg(GRAY)),
@@ -348,7 +356,7 @@ fn render_dual_status(
         Panel::Left  => (GREEN,  "◀ left"),
         Panel::Right => (CYAN,   "right ▶"),
     };
-    let intent_short = if active_intent.len() > 25 {
+    let _intent_short = if active_intent.len() > 25 {
         format!("{}…", &active_intent[..24])
     } else { active_intent.to_string() };
 
@@ -358,7 +366,7 @@ fn render_dual_status(
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("  {} ", intent_short), Style::default().fg(DIM_GREEN)),
+            Span::styled("  ", Style::default().fg(DIM_GRAY)),
             Span::styled("│", Style::default().fg(DIM_GRAY)),
             Span::styled(" tab", Style::default().fg(CYAN)),
             Span::styled(" switch  ", Style::default().fg(GRAY)),

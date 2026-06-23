@@ -89,7 +89,7 @@ explicitly rejected: it would be a different program, large unaudited C dep tree
 "every tool understood").
 ## Gates
 - [x] Phase 0: faelight-fm source located; listing-limit + stray-text causes identified
-- [ ] full listing: a 19-entry directory (intents/future) shows all 19 (scrollable)
+- [x] full listing: a 19-entry directory (intents/future) shows all 19 (scrollable)
 - [ ] stray intent-title text near the helpers removed
 - [ ] arrow-key navigation works
 - [ ] "Faelight-FM" title header renders above the listing
