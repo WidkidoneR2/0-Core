@@ -158,8 +158,12 @@ cmd_gui(){
   kill_viewer
   rm -f "$SPICE_SOCK"
   info "Launching VM with SPICE display (socket: $SPICE_SOCK)..."
-  # SPICE on a unix socket + virtio-gpu + agent channel for shared clipboard.
-  local QOPTS="-device virtio-gpu-gl -display egl-headless,rendernode=/dev/dri/renderD128 -spice unix=on,addr=$SPICE_SOCK,disable-ticketing=on -device virtio-serial-pci -chardev spicevmc,id=vdagent,name=vdagent -device virtserialport,chardev=vdagent,name=com.redhat.spice.0"
+  # SPICE on a unix socket + qxl display + agent channel for shared clipboard.
+  # INT-080: -vga qxl = ONE clean SPICE display surface for the everyday
+  # watching loop. The previous GL display combo emitted a SECOND surface
+  # (a window stuck at boot) -- that GL scaffolding was INT-077 Gate-6
+  # Pinnacle render work, which belongs to real hardware (INT-067), not here.
+  local QOPTS="-vga qxl -spice unix=on,addr=$SPICE_SOCK,disable-ticketing=on -device virtio-serial-pci -chardev spicevmc,id=vdagent,name=vdagent -device virtserialport,chardev=vdagent,name=com.redhat.spice.0"
   ( cd "$STATE" && exec setsid env QEMU_OPTS="$QOPTS" "$L" >"$LOG" 2>&1 </dev/null ) &
   echo $! >"$PIDFILE"
   local i
