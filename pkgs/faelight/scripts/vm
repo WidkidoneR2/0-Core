@@ -12,6 +12,7 @@ GUEST_USER=christian
 LOG="$STATE/vm.log"
 PIDFILE="$STATE/vm.pid"
 SPICE_SOCK="$STATE/spice.sock"
+LOCKFILE="$STATE/vm.lock"
 SSH_OPTS=(-t -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
 
 mkdir -p "$STATE"
@@ -79,6 +80,26 @@ for d in glob.glob("/proc/[0-9]*"):
 PYV
 }
 
+# INT-079 G1: atomic launch lock. Grabs an exclusive non-blocking flock on FD 9.
+# A second concurrent up/gui cannot get the lock -> refuses instantly (no TOCTOU race).
+# qemu's own qcow2 OFD lock remains the backstop underneath this.
+vm_lock(){
+  exec 9>"$LOCKFILE"
+  if ! flock -n 9; then
+    err "Another vm launch is in progress (lock: $LOCKFILE). Refusing to double-launch."
+    exit 1
+  fi
+}
+
+# INT-079 G2: stale-state janitor. Removes orphaned host-side state (spice.sock,
+# vm.pid) left when the GUEST powers itself off (qemu exits, host `vm down` never ran).
+# SAFETY: only acts when NO qemu is live -- never deletes state out from under a
+# running VM. Uses the same /proc walker (vm_pids) the rest of the script trusts.
+vm_clean_stale(){
+  if [ -n "$(vm_pids)" ]; then return 0; fi   # a VM is alive -- touch nothing
+  rm -f "$SPICE_SOCK" "$PIDFILE"
+}
+
 cmd_build(){
   info "Building VM image (nixos-rebuild build-vm; dirty tree uses tracked files)..."
   ( cd "$STATE" && nixos-rebuild build-vm --flake "$FLAKE" )
@@ -87,6 +108,8 @@ cmd_build(){
 }
 
 cmd_up(){
+  vm_lock
+  vm_clean_stale
   local L; L="$(launcher)"
   [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
   if [ -n "$(vm_pids)" ]; then err "A faelight-vm is ALREADY running (PIDs: $(vm_pids | tr '\n' ' ')). Run: vm down  first."; exit 1; fi
@@ -123,6 +146,8 @@ cmd_down(){
 }
 
 cmd_gui(){
+  vm_lock
+  vm_clean_stale
   local L; L="$(launcher)"
   [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
   if [ -n "$(vm_pids)" ] || port_open; then
@@ -145,7 +170,73 @@ cmd_gui(){
   ok "Viewer launched. SSH still available: vm ssh"
 }
 
+cmd_debug(){
+  # INT-079 G3: read-only diagnostic. Launches nothing, kills nothing, signals nothing.
+  info "faelight-vm debug (read-only)"
+  STATE="$STATE" PORT="$PORT" LOCKFILE="$LOCKFILE" SPICE_SOCK="$SPICE_SOCK" \
+  PIDFILE="$PIDFILE" python3 - <<'PYD'
+import os, glob, socket
+STATE=os.environ["STATE"]; PORT=int(os.environ["PORT"])
+LOCK=os.environ["LOCKFILE"]; SOCK=os.environ["SPICE_SOCK"]; PIDF=os.environ["PIDFILE"]
+
+# live qemu (via /proc, same approach as vm_pids)
+live=[]
+for d in glob.glob("/proc/[0-9]*"):
+    try: cmd=open(d+"/cmdline","rb").read().replace(b"\x00",b" ").decode("utf-8","replace")
+    except Exception: continue
+    if "qemu-system-x86_64" in cmd and "faelight-vm" in cmd:
+        live.append((d.split("/")[-1], cmd))
+print(f"  qemu (faelight-vm) alive : {len(live)}")
+for pid,cmd in live:
+    print(f"    PID {pid}  guard-match={'YES' if 'faelight-vm' in cmd else 'NO'}")
+
+# port 2222
+s=socket.socket(); s.settimeout(0.4)
+try: s.connect(("127.0.0.1",PORT)); print(f"  port {PORT}              : LISTENING")
+except Exception: print(f"  port {PORT}              : closed")
+finally: s.close()
+
+# lock state: non-blocking flock on FD 8; if we GET it, nothing held it -> release at once.
+import fcntl
+held=None
+try:
+    fd=os.open(LOCK, os.O_CREAT|os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        held=False                      # we acquired -> was free
+        fcntl.flock(fd, fcntl.LOCK_UN)  # release immediately
+    except BlockingIOError:
+        held=True                       # someone else holds it -> a launch is in progress
+    finally:
+        os.close(fd)
+except Exception as e:
+    held=None; print(f"  lock                   : (probe error: {e})")
+if held is not None:
+    print(f"  launch lock            : {'HELD (launch in progress)' if held else 'free'}")
+
+# stale-state view (what the janitor would act on)
+sock_exists=os.path.exists(SOCK)
+pid_txt=open(PIDF).read().strip() if os.path.isfile(PIDF) else None
+pid_alive=os.path.isdir(f"/proc/{pid_txt}") if (pid_txt and pid_txt.isdigit()) else False
+print(f"  spice.sock present     : {sock_exists}")
+print(f"  vm.pid                 : {pid_txt if pid_txt else 'none'}"
+      f"{' (stale: setsid pid, not qemu)' if pid_txt else ''}")
+if not live and (sock_exists or pid_txt):
+    print("  --> janitor would CLEAN these (no live qemu)")
+elif live and (sock_exists or pid_txt):
+    print("  --> janitor leaves them (VM is live)")
+
+# disk
+for q in sorted(glob.glob(os.path.join(STATE,"*.qcow2"))):
+    try: sz=os.path.getsize(q)/1024**2
+    except OSError: sz=-1
+    print(f"  disk                   : {q} ({sz:.0f}M)")
+print("  (read-only -- nothing launched, killed, or written)")
+PYD
+}
+
 cmd_status(){
+  vm_clean_stale
   local L; L="$(launcher)"
   printf '%sfaelight-vm%s\n' "$c_c" "$c_o"
   [ -n "$L" ] && ok "  image:  $L" || warn "  image:  none (run: vm build)"
@@ -162,6 +253,7 @@ faelight vm -- smooth VM workflow (INT-077)
   vm ssh [c]  ssh into the guest (optional remote command)
   vm down     stop the VM (disk state persists)
   vm status   image / running / disk
+  vm debug    read-only diagnostic (live state, guard, lock, stale-state)
   vm gui      launch with a SPICE window (remote-viewer) + shared clipboard
 Console = SSH (host $PORT -> guest 22). Guest: $GUEST_USER / pw faelight.
 EOF
@@ -174,6 +266,7 @@ case "${1:-}" in
   down)   shift; cmd_down   "$@";;
   gui)    shift; cmd_gui    "$@";;
   status) shift; cmd_status "$@";;
+  debug)  shift; cmd_debug  "$@";;
   ""|-h|--help|help) usage;;
   *) err "unknown subcommand: $1"; usage; exit 2;;
 esac

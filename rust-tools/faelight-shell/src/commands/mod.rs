@@ -8512,25 +8512,23 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
     // remains defined below but is intentionally unwired from this verb; the
     // nixos-lab domain is dormant. Snapshot support for faelight-vm (qcow2) is
     // a later decision, not wired here.
-    let sub = args.first().copied().unwrap_or("");
-    match sub {
-        "build" | "up" | "ssh" | "down" | "status" | "gui" => {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let script = format!("{}/0-core/pkgs/faelight/scripts/vm", home);
-            let st = std::process::Command::new(&script)
-                .args(args)
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match st {
-                Ok(_) => CommandResult::Empty,
-                Err(e) => CommandResult::Error(format!("vm: {}", e)),
-            }
-        }
-        _ => CommandResult::Output(
-            "  vm (faelight-vm): build | up | ssh [cmd] | down | status | gui\n  build refreshes the image; up launches headless; ssh enters the guest; gui opens a SPICE window; down stops it.\n".to_string()
-        ),
+    // INT-079 G3 (Option B): the script is the single source of truth for which
+    // `vm` subcommands exist. fsh forwards ALL args to it (including an empty arg,
+    // which the script's usage() handles) and no longer keeps its own verb whitelist
+    // or duplicate help string -- that drifted (it never listed `debug`). The script
+    // rejects true unknowns itself (unknown subcommand -> usage + exit 2).
+    let _ = args.first().copied().unwrap_or("");
+    let home = std::env::var("HOME").unwrap_or_default();
+    let script = format!("{}/0-core/pkgs/faelight/scripts/vm", home);
+    let st = std::process::Command::new(&script)
+        .args(args)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status();
+    match st {
+        Ok(_) => CommandResult::Empty,
+        Err(e) => CommandResult::Error(format!("vm: {}", e)),
     }
 }
 

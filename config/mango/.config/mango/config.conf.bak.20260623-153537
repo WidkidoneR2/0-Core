@@ -38,10 +38,6 @@ bordercolor=0x3d444dff
 focuscolor=0x3fb950ff
 urgentcolor=0xf85149ff
 
-# Window rules
-# INT-052: remote-viewer (SPICE) renders as a doubled surface under Mango with
-# unfocused_opacity + slide animations. Float it, full opacity, no animation.
-
 # Tags
 tagrule=id:1,layout_name:tile
 tagrule=id:2,layout_name:tile
