@@ -482,11 +482,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "exec" => exec_cmd(args),
         "realpath" | "rp" => realpath_cmd(args),
         "time" => time_cmd(line, args),
-        "reload" => {
-            let exe = std::env::current_exe().unwrap_or_default();
-            let err = std::process::Command::new(&exe).exec();
-            CommandResult::Error(format!("reload: {}", err))
-        }
+        "reload" => reload_fsh(),
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
@@ -9290,6 +9286,49 @@ fn time_cmd(line: &str, args: &[&str]) -> CommandResult {
         Err(e) => CommandResult::Error(format!("time: {}", e)),
     }
 }
+// INT-081: resolve the fsh binary the NixOS way. On Nix the running binary lives at an
+// immutable store path, so current_exe() re-execs the SAME old binary after a rebuild.
+// Resolve /run/current-system/sw/bin/faelight-shell FIRST (the freshly-deployed generation),
+// matching the proven /tmp/fsh-reload-signal handler in main.rs. current_exe() is last resort.
+fn resolve_fsh_binary() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let user = std::env::var("USER").unwrap_or_default();
+    let candidates = vec![
+        "/run/current-system/sw/bin/faelight-shell".to_string(),
+        format!("/etc/profiles/per-user/{}/bin/faelight-shell", user),
+        format!("{}/.cargo/bin/faelight-shell", home),
+        format!("{}/0-core/scripts/faelight-shell", home),
+    ];
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return path.clone();
+        }
+    }
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "faelight-shell".to_string())
+}
+
+// INT-081 G2: re-exec into the resolved (current-system-first) fsh. If that binary
+// canonicalizes to the SAME path already running, nothing new was deployed -- say so
+// instead of a pointless same-binary re-exec.
+fn reload_fsh() -> CommandResult {
+    let target = resolve_fsh_binary();
+    let target_real = std::fs::canonicalize(&target).ok();
+    let running_real = std::env::current_exe().ok().and_then(|p| std::fs::canonicalize(p).ok());
+    if let (Some(t), Some(r)) = (&target_real, &running_real) {
+        if t == r {
+            return CommandResult::Output(format!(
+                "  Already running the current fsh ({}). Nothing new to reload.\n  (Rebuild + deploy first, then reload to pick up changes.)",
+                t.display()
+            ));
+        }
+    }
+    println!("  🔄 Reloading fsh -> {}", target);
+    let err = std::process::Command::new(&target).exec();
+    CommandResult::Error(format!("reload: {}: {}", target, err))
+}
+
 fn exec_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     // Special case: exec fsh or exec faelight-shell → re-exec current binary
@@ -9299,9 +9338,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     };
     let is_self = matches!(*cmd, "fsh" | "faelight-shell" | "shell");
     let resolved = if is_self {
-        std::env::current_exe()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|_| cmd.to_string())
+        resolve_fsh_binary()  // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
         cmd.replacen("~/", &format!("{}/", home), 1)
     } else {
