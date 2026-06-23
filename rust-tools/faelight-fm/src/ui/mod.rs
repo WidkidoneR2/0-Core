@@ -240,7 +240,7 @@ fn render_tree(
             GitStatus::Clean     => GRAY,
         };
 
-        let bg = if selected && active { BG_SEL } else { Color::Reset };
+        let bg = if selected && active { BG_SEL } else { BG };  // INT-069: forest-black, not terminal grey
 
         let name_style = Style::default().fg(name_color).bg(bg)
             .add_modifier(if selected { Modifier::BOLD } else { Modifier::empty() });

@@ -96,7 +96,7 @@ explicitly rejected: it would be a different program, large unaudited C dep tree
 - [ ] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
 - [x] selecting a file opens it in Helix (hx)
 - [x] basic file ops: copy / move / delete / rename
-- [ ] path breadcrumb shows the current location at the top
+- [x] path breadcrumb shows the current location at the top
 
 ## Notes
 - Aesthetic north star: Superfile (spf).
