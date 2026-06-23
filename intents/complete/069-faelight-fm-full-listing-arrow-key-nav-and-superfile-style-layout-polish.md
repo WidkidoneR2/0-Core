@@ -3,7 +3,7 @@ id: 069
 date: 2026-06-20
 type: future
 title: "Faelight-FM: full listing, arrow-key nav, and Superfile-style layout polish"
-status: in-progress
+status: complete
 tags: [faelight-fm, file-manager, tui, ratatui, ux, navigation, layout, helix]
 ---
 
@@ -93,7 +93,7 @@ explicitly rejected: it would be a different program, large unaudited C dep tree
 - [x] stray intent-title text near the helpers removed
 - [x] arrow-key navigation works
 - [x] "Faelight-FM" title header renders above the listing
-- [ ] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
+- [x] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
 - [x] selecting a file opens it in Helix (hx)
 - [x] basic file ops: copy / move / delete / rename
 - [x] path breadcrumb shows the current location at the top
