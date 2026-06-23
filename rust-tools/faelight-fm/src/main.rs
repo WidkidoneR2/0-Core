@@ -382,6 +382,10 @@ impl App {
             KeyCode::Char('r') => {
                 self.nix_overlay = Some(flake::format_gc_roots());
             },
+            KeyCode::Char('R') => {
+                // INT-069: rename -- pre-fill command mode so user just types the new name.
+                self.active_mut().mode = Mode::Command("rename ".to_string());
+            },
             KeyCode::Char('/') => {
                 self.active_mut().mode = Mode::Filter(String::new());
             },
@@ -554,6 +558,82 @@ impl App {
                             return format!("moved to {}", dst.display());
                         },
                         Err(e) => return format!("move failed: {}", e),
+                    }
+                }
+                "nothing selected".to_string()
+            },
+            "rename" => {
+                // INT-069: rename selected in place. Refuses to overwrite an existing name.
+                if parts.len() < 2 || parts[1].trim().is_empty() {
+                    return "usage: :rename <newname>".to_string();
+                }
+                let newname = parts[1].trim();
+                if newname.contains('/') {
+                    return "rename: name cannot contain '/'".to_string();
+                }
+                if let Some(node) = self.active().selected_node() {
+                    let src = node.node_path.clone();
+                    let dst = src.parent().unwrap_or(std::path::Path::new(".")).join(newname);
+                    if dst.exists() {
+                        return format!("rename: '{}' already exists -- refusing", newname);
+                    }
+                    match std::fs::rename(&src, &dst) {
+                        Ok(_) => {
+                            let root = self.active().root.clone();
+                            let hidden = self.active().show_hidden;
+                            self.active_mut().tree = fs::load_tree(&root, 0, hidden);
+                            self.active_mut().refresh_flat();
+                            return format!("renamed to {}", newname);
+                        },
+                        Err(e) => return format!("rename failed: {}", e),
+                    }
+                }
+                "nothing selected".to_string()
+            },
+            "cp" => {
+                // INT-069: single-panel copy. :cp <dest>  (dest = dir or full path).
+                if parts.len() < 2 { return "usage: :cp <dest dir or path>".to_string(); }
+                if let Some(node) = self.active().selected_node() {
+                    let src = node.node_path.clone();
+                    let name = node.name.clone();
+                    let raw = PathBuf::from(parts[1].trim());
+                    let dst = if raw.is_dir() { raw.join(&name) } else { raw };
+                    if dst.exists() {
+                        return format!("cp: '{}' already exists -- refusing", dst.display());
+                    }
+                    match std::fs::copy(&src, &dst) {
+                        Ok(_) => {
+                            let root = self.active().root.clone();
+                            let hidden = self.active().show_hidden;
+                            self.active_mut().tree = fs::load_tree(&root, 0, hidden);
+                            self.active_mut().refresh_flat();
+                            return format!("copied to {}", dst.display());
+                        },
+                        Err(e) => return format!("cp failed: {}", e),
+                    }
+                }
+                "nothing selected".to_string()
+            },
+            "mv" => {
+                // INT-069: single-panel move. :mv <dest>  (dest = dir or full path).
+                if parts.len() < 2 { return "usage: :mv <dest dir or path>".to_string(); }
+                if let Some(node) = self.active().selected_node() {
+                    let src = node.node_path.clone();
+                    let name = node.name.clone();
+                    let raw = PathBuf::from(parts[1].trim());
+                    let dst = if raw.is_dir() { raw.join(&name) } else { raw };
+                    if dst.exists() {
+                        return format!("mv: '{}' already exists -- refusing", dst.display());
+                    }
+                    match std::fs::rename(&src, &dst) {
+                        Ok(_) => {
+                            let root = self.active().root.clone();
+                            let hidden = self.active().show_hidden;
+                            self.active_mut().tree = fs::load_tree(&root, 0, hidden);
+                            self.active_mut().refresh_flat();
+                            return format!("moved to {}", dst.display());
+                        },
+                        Err(e) => return format!("mv failed: {}", e),
                     }
                 }
                 "nothing selected".to_string()

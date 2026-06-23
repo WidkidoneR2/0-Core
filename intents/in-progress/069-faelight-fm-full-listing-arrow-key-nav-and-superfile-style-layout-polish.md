@@ -91,10 +91,10 @@ explicitly rejected: it would be a different program, large unaudited C dep tree
 - [x] Phase 0: faelight-fm source located; listing-limit + stray-text causes identified
 - [x] full listing: a 19-entry directory (intents/future) shows all 19 (scrollable)
 - [x] stray intent-title text near the helpers removed
-- [ ] arrow-key navigation works
+- [x] arrow-key navigation works
 - [x] "Faelight-FM" title header renders above the listing
 - [ ] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
-- [ ] selecting a file opens it in Helix (hx)
+- [x] selecting a file opens it in Helix (hx)
 - [ ] basic file ops: copy / move / delete / rename
 - [ ] path breadcrumb shows the current location at the top
 
