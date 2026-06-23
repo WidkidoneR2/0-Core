@@ -11,6 +11,7 @@ PORT=2222
 GUEST_USER=christian
 LOG="$STATE/vm.log"
 PIDFILE="$STATE/vm.pid"
+SPICE_SOCK="$STATE/spice.sock"
 SSH_OPTS=(-t -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
 
 mkdir -p "$STATE"
@@ -54,9 +55,37 @@ cmd_ssh(){
 }
 
 cmd_down(){
-  if pkill -f "faelight-vm[^ ]*\.qcow2" 2>/dev/null; then ok "VM stopped."; else warn "No running VM found."; fi
-  rm -f "$PIDFILE"
+  # INT-077: setsid+exec replaces the wrapper with qemu-system-x86_64 -name faelight-vm,
+  # so match BOTH the run-script and the qemu process (the old qcow2-only match missed it,
+  # which once let two VMs run on one disk -- corruption risk).
+  local killed=0
+  pkill -f "run-faelight-vm-vm" 2>/dev/null && killed=1
+  pkill -f "qemu-system-x86_64.*-name faelight-vm" 2>/dev/null && killed=1
+  if [ "$killed" = 1 ]; then ok "VM stopped."; else warn "No running VM found."; fi
+  rm -f "$PIDFILE" "$SPICE_SOCK"
   info "Disk state persists at $STATE/*.qcow2 (delete for a clean boot; deeper reset -> INT-027)."
+}
+
+cmd_gui(){
+  local L; L="$(launcher)"
+  [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
+  if port_open; then
+    warn "A VM is already running (headless?). Run: vm down  then  vm gui"
+    exit 1
+  fi
+  command -v remote-viewer >/dev/null || { err "remote-viewer not found (pkgs.virt-viewer on host)"; exit 1; }
+  rm -f "$SPICE_SOCK"
+  info "Launching VM with SPICE display (socket: $SPICE_SOCK)..."
+  # SPICE on a unix socket + virtio-gpu + agent channel for shared clipboard.
+  local QOPTS="-device virtio-gpu-gl -display egl-headless,rendernode=/dev/dri/renderD128 -spice unix=on,addr=$SPICE_SOCK,disable-ticketing=on -device virtio-serial-pci -chardev spicevmc,id=vdagent,name=vdagent -device virtserialport,chardev=vdagent,name=com.redhat.spice.0"
+  ( cd "$STATE" && exec setsid env QEMU_OPTS="$QOPTS" "$L" >"$LOG" 2>&1 </dev/null ) &
+  echo $! >"$PIDFILE"
+  local i
+  for i in $(seq 1 30); do [ -S "$SPICE_SOCK" ] && break; sleep 1; done
+  [ -S "$SPICE_SOCK" ] || { err "SPICE socket never appeared -- check $LOG"; exit 1; }
+  ok "SPICE up. Opening remote-viewer (fullscreen)..."
+  setsid remote-viewer "spice+unix://$SPICE_SOCK" >>"$LOG" 2>&1 </dev/null &  # INT-077: windowed (NOT fullscreen) -- closeable, no screen-trap
+  ok "Viewer launched. SSH still available: vm ssh"
 }
 
 cmd_status(){
@@ -76,6 +105,7 @@ faelight vm -- smooth VM workflow (INT-077)
   vm ssh [c]  ssh into the guest (optional remote command)
   vm down     stop the VM (disk state persists)
   vm status   image / running / disk
+  vm gui      launch with a SPICE window (remote-viewer) + shared clipboard
 Console = SSH (host $PORT -> guest 22). Guest: $GUEST_USER / pw faelight.
 EOF
 }
@@ -85,6 +115,7 @@ case "${1:-}" in
   up)     shift; cmd_up     "$@";;
   ssh)    shift; cmd_ssh    "$@";;
   down)   shift; cmd_down   "$@";;
+  gui)    shift; cmd_gui    "$@";;
   status) shift; cmd_status "$@";;
   ""|-h|--help|help) usage;;
   *) err "unknown subcommand: $1"; usage; exit 2;;

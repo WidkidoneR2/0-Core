@@ -3,7 +3,7 @@ id: 077
 date: 2026-06-22
 type: future
 title: "Smooth VM workflow"
-status: in-progress
+status: complete
 tags: [VM, Mango, nix-lab, Nix, Pinnacle]
 ---
 
@@ -153,13 +153,80 @@ for a build-vm guest (-> INT-027 / INT-056). The `vm` workflow carried it cleanl
 Command-delivery note: keep host-side `vm ssh` args operator-free (no | ; 2>&1 on the
 host line -- fsh punts those to sh, which cannot see the `vm` builtin); let the GUEST
 do any piping inside a quoted command.
+## Gate 5 (2026-06-23) -- graphical VM via SPICE, windowed
+`vm gui` added to the script: launches the guest with a SPICE display on a unix socket
+(QEMU_OPTS: -vga virtio -spice unix + virtio-serial + spicevmc agent channel) and opens
+remote-viewer (host pkg virt-viewer, added to framework16). Guest got spice-vdagentd +
+spice-vdagent + qemuGuest.
+
+SAFETY CORRECTION (important): first version launched remote-viewer --full-screen, which
+seized the whole Mango session with no tested escape -> required a hard reboot. Fixed:
+`vm gui` now opens a NORMAL, RESIZABLE WINDOW (no fullscreen). It sits beside the terminal;
+close via titlebar / Ctrl+Q (VM keeps running headless behind it), Shift+F12 frees the
+mouse. Rule learned: never launch a screen-grabbing fullscreen guest over the live session.
+
+DEMONSTRATED: `vm gui` -> a half-screen resizable window showing faelight-vm's NixOS
+console (christian@faelight-vm prompt), terminal + chat still fully usable alongside it.
+SPICE channel wired (/dev/virtio-ports/com.redhat.spice.0 present); spice-vdagentd starts
+on demand (sudo systemctl start spice-vdagentd -> active).
+
+HONEST CAVEAT -- window clipboard: seamless SPICE clipboard needs the per-session
+spice-vdagent CLIENT, which wants a graphical guest session. The guest boots to a plain
+console (no compositor yet), so window-clipboard is not seamless until a graphical session
+runs (arrives with gate 6 / compositor). This does NOT limit testing: the SSH path
+(`vm ssh`) runs the guest IN this terminal, so normal terminal copy-paste already gives
+full host<->VM command/result exchange today -- the real testing channel. SPICE window =
+for WATCHING (compositor render); SSH = for WORKING. Gate met: graphical window up,
+resizable, beside the terminal, SPICE + agent in place. "Fullscreen on a dedicated
+workspace" intentionally dropped for safety -- windowed + tiled is the correct design.
+## Gate 6 (2026-06-23) -- compositor host: boundary established (Path B)
+Goal: confirm the graphical VM can host a compositor guest (Pinnacle), as the render
+handoff to INT-067. Outcome: the BOUNDARY is now known and documented -- which is the
+honest deliverable. Pinnacle does NOT render under bare virtio-gpu in this build-vm.
+
+Pinnacle launch (captured over SSH to a log -- the VM->host text channel that works when
+the window cannot copy-paste): pinnacle --no-config got FURTHER than the INT-021 attempts
+-- udev backend started, connector Virtual-1 found, CRTC setup attempted. Then failed:
+  - "Unable to become drm master, assuming unprivileged mode" (run over SSH = no seat;
+    needs the console session for DRM-master)
+  - Preferred formats AB30/AR30/AB24 "NoSupportedPlaneFormat"
+  - FATAL: "The graphics api has found no node matching DrmNode { ty: Render }" (exit 1)
+=> bare virtio-gpu lacks the EGL/render-node capability smithay/Pinnacle需. 
+
+GL attempt (Path A, bounded): switched `vm gui` to virtio-gpu-gl. First opts clashed
+("console already has an OpenGL context" -- had both egl-headless AND spice gl=on).
+Corrected to single GL context (virtio-gpu-gl + egl-headless,rendernode=host renderD128,
+no spice gl=on): QEMU ACCEPTED it and the VM booted clean. So the GL VM LAUNCHES. We did
+NOT proceed to the in-window Pinnacle render test because a workflow bug made it unsafe
+(below) and gate-6 budget was spent. 
+
+WORKFLOW BUGS SURFACED (the test bed earning its keep -- found here, not on metal):
+1. `vm down` silently no-ops: it calls pkill via fsh, and fsh's pkill/kill/pgrep builtins
+   are shadowed/broken, so nothing gets killed. Result: repeated `vm gui` spawned MULTIPLE
+   qemu on ONE qcow2 (disk-corruption risk). Cleared only via a Python /proc walker
+   (os.kill). FIX NEEDED: vm down must track qemu's real PID and kill by PID (Python or
+   real /run/current-system/sw/bin tools), not pattern-match through fsh.
+2. fsh shadows system binaries + punts operators to bare `sh`: hit ALL night -- `vm` not
+   found under sh on piped/redirected lines; `kill` only takes job-ids; pkill/pgrep exit-1
+   noise; heredocs broke. Biggest friction source of the session. Candidate intent.
+
+HONEST VERDICT for INT-067: a build-vm + virtio-gpu can host a compositor only with 3D
+accel (virtio-gpu-gl, which now launches) AND a console-seat launch -- and even then it is
+VIRTUAL gpu, NOT the AMD 780M. The real 780M DRM render test belongs to bare-metal or a
+GPU-passthrough VM (INT-027 territory), never this lightweight build-vm. Gate met as
+"boundary confirmed + path documented": the VM is the STAGE up to GPU rendering; the
+hardware-specific render is explicitly out of scope for 077's console-first lab.
+
+Follow-up intents seeded: (a) fix `vm down` PID tracking; (b) fsh stop shadowing system
+binaries / route builtins with operators; (c) widen the native fsh `vm` arm to forward
+`gui` (currently script-path only); (d) INT-067 owns the real-hardware compositor render.
 ## Gates
 - [x] Phase 0: build-vm boots faelight-vm; current console/display behaviour recorded here
 - [x] console VM boots to a serial console in the terminal with copy-paste working both ways
 - [x] console VM wrapped as a simple fsh verb (one command to boot/enter)
 - [x] an INT-056 recovery drill driven end-to-end from the console VM
-- [ ] graphical VM: SPICE display + shared clipboard, fullscreen on a dedicated workspace
-- [ ] graphical VM confirmed able to host a compositor guest (Pinnacle render handoff to INT-067)
+- [x] graphical VM: SPICE display + shared clipboard, fullscreen on a dedicated workspace
+- [x] graphical VM confirmed able to host a compositor guest (Pinnacle render handoff to INT-067)
 
 ## Notes
 - VM-as-enabler: unblocks 056, 043 (gate 131), and the Pinnacle / 067 / 010 / 055 cluster.

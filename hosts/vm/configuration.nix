@@ -58,6 +58,11 @@
   # Graphics
   hardware.graphics.enable = true;
 
+  # INT-077 gate 5: SPICE guest agent -- shared clipboard + display resize for `vm gui`.
+  # Host side uses remote-viewer (virt-viewer) against the QEMU SPICE socket.
+  services.spice-vdagentd.enable = true;
+  services.qemuGuest.enable = true;
+
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
     pkgs.git
@@ -73,6 +78,7 @@
     pkgs.zoxide
     pkgs.brightnessctl
     pkgs.wireplumber
+    pkgs.spice-vdagent  # INT-077: SPICE clipboard/resize agent
     pkgs.cargo
     pkgs.rustc
   ];

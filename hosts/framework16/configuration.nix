@@ -133,6 +133,7 @@
     pkgs.cargo
     pkgs.rustc
     pkgs.cachix
+    pkgs.virt-viewer  # INT-077: SPICE client (remote-viewer) for `vm gui`
   ];
 
   faelight.desktop.pinnacle.enable = true;
