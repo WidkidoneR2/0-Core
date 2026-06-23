@@ -127,9 +127,41 @@ rebuild ~183s -> ~75s. crane is a real local win, not just CI/recovery.
 - [x] Cachix cache created: faelight-forest (live at faelight-forest.cachix.org, public open-source free tier; 2026-06-18)
 - [x] Cachix substituter configured (hosts/framework16/configuration.nix: extra-substituters + extra-trusted-public-keys; verified live -- nix config show substituters lists faelight-forest.cachix.org; 2026-06-18)
 - [x] auth token configured (cachix CLI credential, NOT a NixOS secret -- Cachix-hosted cache needs only the public key for pull (done above); push uses CACHIX_AUTH_TOKEN held locally by the cachix CLI via cachix authtoken; verified -- cachix push authenticated OK, 2026-06-18)
-- [x] crane deps derivation pushed to Cachix: 614 paths (77 deduped) via cachix push (zstd, All done) -- 2026-06-18
+- [~] crane deps derivation pushed to Cachix: 614 paths -- DOES NOT HOLD as of 2026-06-23 (see finding below: closure not retrievable from cache; 6/691 served) (77 deduped) via cachix push (zstd, All done) -- 2026-06-18
 - [ ] clean VM rebuild pulls deps from cache (no local dep recompile)
 (fsh cache commands -- former gates cache status / cache push -- SPLIT to INT-068; cache status honest-scoped to present/absent there. 2026-06-18)
+
+## CACHE-INCOMPLETE FINDING (2026-06-23) -- the cache is NOT serving the deps closure
+Re-verifying the final gate (clean machine pulls deps from cache) surfaced that the cache
+is effectively EMPTY of the current deps closure, despite the 2026-06-18 gate claiming
+614 paths pushed. Three independent read-only checks AGREE:
+- nix path-info --store https://faelight-forest.cachix.org over the full 691-path deps
+  closure: only 6/691 paths served.
+- Direct curl of a specific closure narinfo (windows-sys-0.61.2): HTTP 404 from cachix
+  (cloudflare). Genuinely absent.
+- nix cannot SUBSTITUTE that path ("path is not valid", "don't know how to build").
+- nix copy --from cachix into a scratch /tmp store FAILED on that same path.
+THE TRAP: `cachix push faelight-forest <deps>` reports "Nothing to push - all store paths
+are already on Cachix" -- but this reflects cachix's LOCAL push-record (cachix.dhall),
+NOT actual retrievability. The paths are recorded-as-pushed locally but are NOT
+publicly substitutable. So the June-18 push either failed silently, went to a different
+state, or was GC'd / not persisted cache-side. cachix's "nothing to push" is misleading
+and must NOT be trusted as proof the cache works.
+IMPACT: the recovery/clean-VM/CI resilience 043 exists to provide is currently ABSENT --
+a from-scratch machine would recompile ~685/691 deps paths, not pull them. Found calmly
+in verification, not during a real recovery.
+deps path measured: /nix/store/v6vq7rwx8dzzxsyz5sgdjd551d7mzwqi-faelight-forest-deps-deps-9.2.0
+  (691-path closure, 1.4 GiB).
+NEXT SESSION (focused "make the cache actually work"):
+1. Force a real re-upload bypassing cachix's stale skip-record -- e.g. `nix copy --to
+   'https://faelight-forest.cachix.org' <deps>` (does not consult cachix.dhall), or
+   investigate why cachix.dhall thinks it's pushed.
+2. Re-verify with nix path-info over the closure until it shows ~691/691 served.
+3. THEN the clean-pull gate: nix copy --from cachix into a scratch store succeeds end-to-end.
+4. Understand WHY the original push didn't persist, so the re-push sticks (auth scope?
+   public-vs-private visibility? cachix GC? partial-upload on a dropped connection?).
+Phase 4 host edit (hosts/vm/configuration.nix Cachix substituter, backup .bak-20260623T184125)
+is DONE and correct -- keep it; it just can't be verified until the cache actually serves.
 
 ## Depends On
 - INT-048 (forest-ci) -- CI pushes to cache on success

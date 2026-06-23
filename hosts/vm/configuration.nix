@@ -7,6 +7,14 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # INT-043 Phase 4: Cachix binary cache (pull side) in the GUEST, mirroring
+  # hosts/framework16. Additive -- keeps cache.nixos.org default. Lets a clean VM
+  # build PULL the crane faelightDeps derivation instead of recompiling it.
+  nix.settings.extra-substituters = [ "https://faelight-forest.cachix.org" ];
+  nix.settings.extra-trusted-public-keys = [
+    "faelight-forest.cachix.org-1:IFKABeIAWapKtYNrjD/f3hIFBAUrsQcxA/m1pheT2yM="
+  ];
+
   networking.hostName = "faelight-vm";
 
   # INT-077: serial console on ttyS0 so the VM can run in-terminal (QEMU -nographic).
