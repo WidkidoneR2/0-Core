@@ -22,6 +22,7 @@ use std::{io, path::PathBuf, process::Command};
 use types::{FlatNode, Mode, Panel, TreeNode};
 
 struct PanelData {
+    needs_redraw: bool,  // INT-069: force full clear after returning from Helix
     root: PathBuf,
     tree: Vec<TreeNode>,
     flat: Vec<FlatNode>,
@@ -49,6 +50,7 @@ impl PanelData {
             mode: Mode::Normal,
             show_hidden: false,
             preview,
+            needs_redraw: false,
         }
     }
 
@@ -140,7 +142,7 @@ impl PanelData {
                 crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                 crossterm::cursor::Hide,
             );
-            // terminal will redraw on next loop iteration
+            self.needs_redraw = true; // INT-069: force a full clear+redraw next loop
             return;
         }
         // Find and toggle in tree
@@ -593,6 +595,11 @@ fn main() -> io::Result<()> {
     let mut app = App::new(start_path, dual_mode);
 
     loop {
+        // INT-069: after returning from Helix the screen is stale; clear forces a full repaint.
+        if app.active().needs_redraw {
+            terminal.clear()?;
+            app.active_mut().needs_redraw = false;
+        }
         // Render
         if let Some(ref overlay) = app.nix_overlay.clone() {
             // Show nix info as preview overlay
