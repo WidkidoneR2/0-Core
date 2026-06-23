@@ -472,7 +472,29 @@ impl App {
                     let trash = dirs_next::home_dir().unwrap_or_default()
                         .join(".local/share/Trash/files");
                     let _ = std::fs::create_dir_all(&trash);
-                    match std::fs::rename(&path, trash.join(&name)) {
+                    let dest = trash.join(&name);
+                    // INT-069: rename fails cross-filesystem (EXDEV, e.g. /tmp -> ~/.local).
+                    // Fall back to copy-then-remove so trash works from any filesystem.
+                    let trashed = std::fs::rename(&path, &dest).or_else(|_| {
+                        if path.is_dir() {
+                            // recursive copy for dirs, then remove
+                            fn copy_dir(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+                                std::fs::create_dir_all(dst)?;
+                                for entry in std::fs::read_dir(src)? {
+                                    let entry = entry?;
+                                    let from = entry.path();
+                                    let to = dst.join(entry.file_name());
+                                    if from.is_dir() { copy_dir(&from, &to)?; }
+                                    else { std::fs::copy(&from, &to)?; }
+                                }
+                                Ok(())
+                            }
+                            copy_dir(&path, &dest).and_then(|_| std::fs::remove_dir_all(&path))
+                        } else {
+                            std::fs::copy(&path, &dest).and_then(|_| std::fs::remove_file(&path)).map(|_| ())
+                        }
+                    });
+                    match trashed {
                         Ok(_) => {
                             let msg = format!("🗑️  moved to trash: {}", name);
                             self.active_mut().mode = Mode::Normal;
