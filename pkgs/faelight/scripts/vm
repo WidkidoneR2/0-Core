@@ -26,6 +26,46 @@ err(){  printf '%s%s%s\n' "$c_r" "$*" "$c_o" >&2; }
 launcher(){ ls "$STATE"/result/bin/run-*-vm 2>/dev/null | head -1 || true; }
 port_open(){ timeout 1 bash -c ">/dev/tcp/127.0.0.1/$PORT" 2>/dev/null; }
 
+# INT-077: fsh shadows pkill/kill/pgrep, so we identify+kill qemu via a Python /proc
+# walker (proven reliable). vm_pids prints matching PIDs; vm_kill SIGKILLs them.
+VMMATCH='qemu-system-x86_64'
+vm_pids(){
+  python3 - "$VMMATCH" <<'PYV'
+import glob, sys
+needle = sys.argv[1]
+for d in glob.glob("/proc/[0-9]*"):
+    try:
+        cmd = open(d+"/cmdline","rb").read().replace(b"\x00",b" ").decode("utf-8","replace")
+    except Exception:
+        continue
+    if needle in cmd and "faelight-vm" in cmd:
+        print(d.split("/")[-1])
+PYV
+}
+vm_kill(){
+  python3 - "$VMMATCH" <<'PYV'
+import glob, os, signal, sys, time
+needle = sys.argv[1]
+def find():
+    out=[]
+    for d in glob.glob("/proc/[0-9]*"):
+        try:
+            cmd = open(d+"/cmdline","rb").read().replace(b"\x00",b" ").decode("utf-8","replace")
+        except Exception:
+            continue
+        if needle in cmd and "faelight-vm" in cmd:
+            out.append(int(d.split("/")[-1]))
+    return out
+killed=[]
+for pid in find():
+    try: os.kill(pid, signal.SIGKILL); killed.append(pid)
+    except ProcessLookupError: pass
+time.sleep(1)
+print("KILLED" if killed else "NONE", *killed)
+print("REMAIN", *find())
+PYV
+}
+
 cmd_build(){
   info "Building VM image (nixos-rebuild build-vm; dirty tree uses tracked files)..."
   ( cd "$STATE" && nixos-rebuild build-vm --flake "$FLAKE" )
@@ -36,6 +76,7 @@ cmd_build(){
 cmd_up(){
   local L; L="$(launcher)"
   [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
+  if [ -n "$(vm_pids)" ]; then err "A faelight-vm is ALREADY running (PIDs: $(vm_pids | tr '\n' ' ')). Run: vm down  first."; exit 1; fi
   if port_open; then ok "VM already up (port $PORT listening)"; return 0; fi
   info "Launching VM (headless, detached; log -> $LOG)..."
   ( cd "$STATE" && exec setsid "$L" >"$LOG" 2>&1 </dev/null ) &
@@ -55,13 +96,14 @@ cmd_ssh(){
 }
 
 cmd_down(){
-  # INT-077: setsid+exec replaces the wrapper with qemu-system-x86_64 -name faelight-vm,
-  # so match BOTH the run-script and the qemu process (the old qcow2-only match missed it,
-  # which once let two VMs run on one disk -- corruption risk).
-  local killed=0
-  pkill -f "run-faelight-vm-vm" 2>/dev/null && killed=1
-  pkill -f "qemu-system-x86_64.*-name faelight-vm" 2>/dev/null && killed=1
-  if [ "$killed" = 1 ]; then ok "VM stopped."; else warn "No running VM found."; fi
+  # INT-077: kill qemu by real PID via Python (/proc), NOT fsh's broken pkill.
+  local res; res="$(vm_kill)"
+  # REMAIN line lists leftover PIDs after the label; strip label, keep only real PIDs.
+  local remain; remain="$(echo "$res" | sed -n 's/^REMAIN //p' | tr -s ' ')"
+  remain="$(echo "$remain" | grep -o '[0-9][0-9]*' | tr '\n' ' ' || true)"
+  local killpids; killpids="$(echo "$res" | sed -n 's/^KILLED //p')"
+  if [ -n "$killpids" ]; then ok "VM stopped ($killpids)."; else warn "No running VM found."; fi
+  if [ -n "$remain" ]; then err "WARNING: qemu still running: $remain (manual: /run/current-system/sw/bin/kill -9 $remain)"; fi
   rm -f "$PIDFILE" "$SPICE_SOCK"
   info "Disk state persists at $STATE/*.qcow2 (delete for a clean boot; deeper reset -> INT-027)."
 }
@@ -69,8 +111,8 @@ cmd_down(){
 cmd_gui(){
   local L; L="$(launcher)"
   [ -n "$L" ] || { err "No VM image. Run: vm build"; exit 1; }
-  if port_open; then
-    warn "A VM is already running (headless?). Run: vm down  then  vm gui"
+  if [ -n "$(vm_pids)" ] || port_open; then
+    warn "A VM is already running. Run: vm down  then  vm gui"
     exit 1
   fi
   command -v remote-viewer >/dev/null || { err "remote-viewer not found (pkgs.virt-viewer on host)"; exit 1; }
@@ -83,7 +125,7 @@ cmd_gui(){
   local i
   for i in $(seq 1 30); do [ -S "$SPICE_SOCK" ] && break; sleep 1; done
   [ -S "$SPICE_SOCK" ] || { err "SPICE socket never appeared -- check $LOG"; exit 1; }
-  ok "SPICE up. Opening remote-viewer (fullscreen)..."
+  ok "SPICE up. Opening remote-viewer (windowed)..."
   setsid remote-viewer "spice+unix://$SPICE_SOCK" >>"$LOG" 2>&1 </dev/null &  # INT-077: windowed (NOT fullscreen) -- closeable, no screen-trap
   ok "Viewer launched. SSH still available: vm ssh"
 }
