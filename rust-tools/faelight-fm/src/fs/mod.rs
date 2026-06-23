@@ -3,6 +3,7 @@
 use std::{fs, path::PathBuf};
 use crate::types::{TreeNode, FlatNode, GitStatus};
 
+#[allow(dead_code)] // INT-069: cap removed; kept for reference
 const MAX_CHILDREN_SHOWN: usize = 6;
 
 pub fn load_tree(path: &PathBuf, depth: usize, show_hidden: bool) -> Vec<TreeNode> {
@@ -47,11 +48,12 @@ pub fn load_tree(path: &PathBuf, depth: usize, show_hidden: bool) -> Vec<TreeNod
 
 pub fn expand_node(node: &mut TreeNode, show_hidden: bool) {
     if !node.is_dir { return; }
+    // INT-069: show ALL children (was capped at MAX_CHILDREN_SHOWN=6 with an "N unlisted"
+    // marker -- the truncation bug). The renderer scrolls (stateful ListState), so a large
+    // directory simply scrolls instead of hiding entries.
     let children = load_tree(&node.path, node.depth + 1, show_hidden);
-    let total = children.len();
-    let shown = MAX_CHILDREN_SHOWN.min(total);
-    node.children = children.into_iter().take(shown).collect();
-    node.unlisted = total.saturating_sub(shown);
+    node.children = children;
+    node.unlisted = 0;
     node.expanded = true;
 }
 

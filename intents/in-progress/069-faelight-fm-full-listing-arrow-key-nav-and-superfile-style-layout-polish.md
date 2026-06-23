@@ -3,7 +3,7 @@ id: 069
 date: 2026-06-20
 type: future
 title: "Faelight-FM: full listing, arrow-key nav, and Superfile-style layout polish"
-status: planned
+status: in-progress
 tags: [faelight-fm, file-manager, tui, ratatui, ux, navigation, layout, helix]
 ---
 
@@ -65,8 +65,30 @@ Phase 4 -- open in Helix
   Selecting a file launches hx on it (suspend TUI, exec, restore).
   Gate: opening a file opens it in Helix
 
+## Phase 0 Findings (2026-06-23)
+Source: rust-tools/faelight-fm/ (ratatui TUI, v3.1, broot-style tree). Clean module
+split: ui/mod.rs (render), fs/mod.rs (tree load/flatten), input/mod.rs (keys),
+types.rs (state), plugins/ (intent/git/nix).
+
+TRUNCATION CAUSE -- found: fs/mod.rs:4  const MAX_CHILDREN_SHOWN: usize = 6.
+expand_node() loads all children then `.take(6)` and stuffs the remainder into
+node.unlisted, which flatten() renders as a "N unlisted" marker row. So a 19-entry dir
+shows only ~6 + an "unlisted" marker. This is a DELIBERATE broot-style cap, NOT a
+viewport/scroll bug -- the renderer (render_tree) already uses render_stateful_widget
+with full ListState scroll and builds items from ALL of `filtered` (no slice). Fix =
+remove the cap so the full directory shows and scrolls.
+
+STRAY TEXT CAUSE -- found: render_status()/render_dual_status() in ui/mod.rs take
+active_intent:&str and render it into the status bar (MAGENTA "active intent"). The
+INT-005 "faelight-login..." leak is the active-intent being drawn in the status line by
+design. Fix = remove/relocate the active-intent from the status render.
+
+DESIGN GOAL (Christian): make faelight-fm spectacular like faelight-logout (also a
+ratatui TUI) -- craft pass on layout/spacing/header/color, staying ratatui (GTK4 rewrite
+explicitly rejected: it would be a different program, large unaudited C dep tree, against
+"every tool understood").
 ## Gates
-- [ ] Phase 0: faelight-fm source located; listing-limit + stray-text causes identified
+- [x] Phase 0: faelight-fm source located; listing-limit + stray-text causes identified
 - [ ] full listing: a 19-entry directory (intents/future) shows all 19 (scrollable)
 - [ ] stray intent-title text near the helpers removed
 - [ ] arrow-key navigation works
