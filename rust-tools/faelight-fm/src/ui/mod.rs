@@ -122,24 +122,40 @@ fn render_header(
     let path_str = root.display().to_string();
     let home = dirs_next::home_dir().unwrap_or_default().to_string_lossy().to_string();
     let short = path_str.replace(&home, "~");
-    let short = if short.len() > 50 { format!("…{}", &short[short.len()-49..]) } else { short };
     let filter_part = match mode {
-        Mode::Filter(q) => format!("  /{}", q),
-        Mode::Command(c) => format!("  :{}", c),
+        Mode::Filter(q) => format!("/{}", q),
+        Mode::Command(c) => format!(":{}", c),
         _ => String::new(),
     };
-    // INT-069: titled bar -- "Faelight-FM" identity left, current path right, on deep bg.
+
+    // INT-069: title + breadcrumb. Segments joined by a separator; current dir brightest.
     let title_style = Style::default().fg(GREEN).add_modifier(Modifier::BOLD).bg(BG);
-    let path_style = if active {
-        Style::default().fg(DIM_GREEN).bg(BG)
-    } else {
-        Style::default().fg(DIM_GRAY).bg(BG)
-    };
-    let line = Line::from(vec![
+    let dim_seg = Style::default().fg(if active { DIM_GREEN } else { DIM_GRAY }).bg(BG);
+    let cur_seg = Style::default().fg(if active { CYAN } else { GRAY }).add_modifier(Modifier::BOLD).bg(BG);
+    let sep_style = Style::default().fg(DIM_GRAY).bg(BG);
+
+    let segs: Vec<&str> = short.split('/').filter(|x| !x.is_empty()).collect();
+    let mut spans: Vec<Span> = vec![
         Span::styled(" 🌲 Faelight-FM ", title_style),
-        Span::styled(format!(" {}{} ", short, filter_part), path_style),
-    ]);
-    f.render_widget(Paragraph::new(line).style(Style::default().bg(BG)), area);
+        Span::styled(" ", Style::default().bg(BG)),
+    ];
+    let start = segs.len().saturating_sub(4);
+    if start > 0 {
+        spans.push(Span::styled("… › ", sep_style));
+    }
+    for (i, seg) in segs[start..].iter().enumerate() {
+        let is_last = start + i == segs.len().saturating_sub(1);
+        spans.push(Span::styled(seg.to_string(), if is_last { cur_seg } else { dim_seg }));
+        if !is_last {
+            spans.push(Span::styled(" › ", sep_style));
+        }
+    }
+    if !filter_part.is_empty() {
+        spans.push(Span::styled(format!("   {}", filter_part),
+            Style::default().fg(GREEN).add_modifier(Modifier::BOLD).bg(BG)));
+    }
+
+    f.render_widget(Paragraph::new(Line::from(spans)).style(Style::default().bg(BG)), area);
 }
 
 fn render_tree(

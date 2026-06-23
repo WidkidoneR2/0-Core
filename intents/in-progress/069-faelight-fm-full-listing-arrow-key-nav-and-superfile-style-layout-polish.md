@@ -95,7 +95,7 @@ explicitly rejected: it would be a different program, large unaudited C dep tree
 - [x] "Faelight-FM" title header renders above the listing
 - [ ] layout polish: tighter listing/helper gap, slightly larger rows, improved helper spacing
 - [x] selecting a file opens it in Helix (hx)
-- [ ] basic file ops: copy / move / delete / rename
+- [x] basic file ops: copy / move / delete / rename
 - [ ] path breadcrumb shows the current location at the top
 
 ## Notes
