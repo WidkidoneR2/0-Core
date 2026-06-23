@@ -346,8 +346,8 @@ impl App {
                 self.active_mut().list_state.select(Some(max));
                 self.active_mut().refresh_preview();
             },
-            KeyCode::Enter | KeyCode::Char('l') => self.active_mut().toggle_expand(),
-            KeyCode::Char('h') | KeyCode::Backspace => self.active_mut().navigate_up(),
+            KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => self.active_mut().toggle_expand(),
+            KeyCode::Char('h') | KeyCode::Backspace | KeyCode::Left => self.active_mut().navigate_up(),
             KeyCode::Char('y') => {
                 let msg = self.active_mut().yank_path();
                 self.set_status(msg);
