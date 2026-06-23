@@ -4,6 +4,22 @@ Filter: a feature earns a place only if it deepens **understanding +
 authorized, reproducible control**. Opaque convenience and auto-magic are cut.
 Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 
+## Lane 0 -- Stability / Correctness  [known papercuts, evidence-dated]
+Bugs that cost real time in sessions. Fix before polishing features. Highest priority:
+builtin shadowing (caused a disk-corruption risk, 2026-06-23).
+
+- [ ] **Builtin shadowing of process tools** -- `kill` only takes job-ids (`kill %N`), not
+      PIDs; `pkill`/`pgrep` fail (exit-1, no match). Broke `vm down` -> silent no-op -> two
+      VMs on one qcow2 (corruption risk). Workaround used: Python /proc walkers. (2026-06-23)
+- [ ] **Operators punt the whole line to bare `sh`** -- `|` `>` `;` `2>&1` and heredocs hand
+      the line to `sh`, which cannot see fsh builtins (`vm` -> "command not found"). Broke
+      command capture repeatedly across the session. (2026-06-23)
+- [ ] **Bare `python3` -> interactive REPL trap** -- no script arg drops into the
+      interpreter; looks like a hang. (2026-06-23)
+- [ ] **`exec fsh` does not hot-swap** the rebuilt binary -- must close+reopen the terminal
+      to pick up a new fsh after rebuild.
+- [x] fsh crashes (closes terminal) on `df` -- FIXED (INT-057)
+
 ## Already in the shell / ecosystem (verify + keep)
 - [x] Parallel execution
 - [x] Session save / load / replay (= command recording & replay, persistent sessions)
@@ -125,5 +141,5 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 - Silent auto-magic / opaque AI that runs commands without authorization
 
 ---
-Sequence: 060 (foundation, DONE) -> 057 (df-crash stability, NEXT) -> Lane 2 (Nix)
+Sequence: 060 (foundation, DONE) -> Lane 0 (stability: builtin-shadowing first) -> 057 (df-crash, DONE) -> Lane 2 (Nix)
 -> Lane 3 (Rust) -> Lane 4 (Friday). Lane 5 is a separate epic decision.
