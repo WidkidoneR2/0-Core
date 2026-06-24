@@ -41,6 +41,7 @@ alias term = "faelight-term"
 alias palette = "faelight-palette"
 alias vault = "faelight-vault"
 alias forecast = "core friday health-forecast"
+alias inspect = "core nix inspect"
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 

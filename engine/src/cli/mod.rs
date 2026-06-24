@@ -6,6 +6,7 @@ use commands::{
     AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
     BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
     DelegateCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand, EventsCommand,
+    NixCommand,
     EvolutionCommand, GenealogyCommand, GitCommand, GoalsCommand, IntegrityCommand, IntentCommand,
   JournalCommand, LedgerCommand, LinkCommand, NotifyCommand, PartnerCommand,
     PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand,
@@ -17,6 +18,7 @@ use parser::{
     AlignCommands, AnomalyCommands, AuditCommands, AutobiographyCommands, AutonomyCommands,
     BootstrapCommands, CheckpointCommands, Cli, Commands, DaemonCommands, DbCommands,
     DecisionCommands, DelegateCommands, DepsCommands, DocsCommands, DoctorCommands,
+    NixCommands,
     EnginesCommands, EventsCommands, EvolutionCommands, GenealogyCommands, GitCommands,
   GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PartnerCommands, PlanCommands, PluginCommands,
@@ -286,6 +288,9 @@ pub fn parse() -> Command {
             SandboxCommands::Snapshots => SandboxCommand::Snapshots,
         }),
         Commands::Fetch { health_check } => Command::Fetch { health_check },
+        Commands::Nix { command } => Command::Nix(match command {
+            NixCommands::Inspect { option } => NixCommand::Inspect { option },
+        }),
         Commands::Git { command } => Command::Git(match command {
             GitCommands::Status => GitCommand::Status,
             GitCommands::Risk => GitCommand::Risk,

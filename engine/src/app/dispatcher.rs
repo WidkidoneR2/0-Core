@@ -4,6 +4,7 @@ use crate::cli::commands::{
     AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
     BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
     DelegateCommand, DeployCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand,
+    NixCommand,
     EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
     GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
   LedgerCommand, LinkCommand, NotifyCommand, PlanCommand, PluginCommand,
@@ -273,6 +274,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             )?;
             crate::domains::fetch::run(ctx, health_check)
         }
+        Command::Nix(c) => match c {
+            NixCommand::Inspect { option } => crate::domains::nix::inspect(ctx, option),
+        },
 
         Command::Git(c) => {
             ctx.capabilities.require(

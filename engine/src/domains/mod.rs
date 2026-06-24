@@ -16,6 +16,7 @@ pub mod engines;
 pub mod events;
 pub mod evolution;
 pub mod fetch;
+pub mod nix;
 pub mod friday;
 pub mod friday_arch;
 pub mod git;
