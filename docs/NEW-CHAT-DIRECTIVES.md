@@ -16,7 +16,7 @@
 - **rust-tools:** 38 tools
 
 ## Full Forest Flow (working)
-Power on → LUKS → tuigreet 🌲 forest green → niri → hyprlock 🌲 forest green
+Power on → LUKS → tuigreet 🌲 forest green → mango → faelight-lock 🌲 forest green
 
 ## Path to Faelight NixOS 1.0.0
 INT-021  Pinnacle VM study          ← next priority
@@ -43,7 +43,7 @@ Faelight NixOS 1.0.0
 | `flake.nix` | System entry point |
 | `hosts/framework16/configuration.nix` | System config |
 | `users/christian/home.nix` | User packages + config |
-| `config/niri/.config/niri/config.kdl` | Compositor config |
+| `~/.config/mango/config.conf` | Compositor config |
 | `config/faelight-shell/.config/faelight-shell/config.fsh` | Shell aliases |
 | `runtime/state.db` | Friday + integrity state |
 

@@ -42,7 +42,6 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
         "  │  Faelight Forest {} runs on vanilla Arch Linux,",
         version.bright_green()
     );
-    println!("  │  orchestrated by the Niri compositor, and built");
     println!("  │  entirely in Rust by a single developer.");
     println!("  │  Nothing runs without explicit human authorization.");
 

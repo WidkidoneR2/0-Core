@@ -37,7 +37,6 @@ def command_for(name):
     if name == "Shutdown": return ["systemctl","poweroff"], "Shutdown"
     if name == "Reboot":   return ["systemctl","reboot"], "Reboot"
     if name == "Lock":     return ["faelight-lock"], "Lock"
-    if os.environ.get("NIRI_SOCKET"):     return ["niri","msg","action","quit"], "Logout (niri)"
     if os.environ.get("PINNACLE_SOCKET"): return ["pinnacle","quit"], "Logout (pinnacle)"
     sid = os.environ.get("XDG_SESSION_ID")
     if sid: return ["loginctl","terminate-session",sid], "Logout (session "+sid+")"

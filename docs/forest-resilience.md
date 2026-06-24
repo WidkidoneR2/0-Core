@@ -6,7 +6,8 @@
 
 ## Keyboard-Only Mode (when mouse dies)
 
-### Niri window navigation
+### Compositor window navigation
+> ⚠️ NEEDS MANGO STEPS -- niri-era commands below are retired (INT-085). See INT-056 / docs/recovery-runbook.md for current mango recovery.
 | Action | Keybind |
 |--------|---------|
 | Focus left/right | `Super+h/l` |
@@ -75,7 +76,8 @@ solaar show
 
 ## Compositor Recovery
 
-### Niri crash / frozen session
+### Compositor crash / frozen session
+> ⚠️ NEEDS MANGO STEPS -- the niri commands below are retired (INT-085). Mango recovery steps pending; see docs/recovery-runbook.md (INT-056).
 From TTY (Ctrl+Alt+F2)
 systemctl --user restart niri
 Or kill and restart
@@ -93,7 +95,7 @@ systemctl --user restart niri
 ---
 
 ## Note on Pinnacle Migration
-When faelight-compositor v3 (Pinnacle-based) replaces Niri:
+When the second compositor (Miracle, INT-087) is added:
 - Keybind names will change (Pinnacle uses different action names)
 - Core philosophy stays the same: every action has a keyboard shortcut
 - BindState with layer_stack means keyboard-only mode becomes a formal MODE

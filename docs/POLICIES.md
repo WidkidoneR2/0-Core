@@ -4,7 +4,7 @@ Self-enforcing rules learned from pain. These policies prevent future-you from r
 
 **Last Updated:** 2026-06-05  
 **Version:** 14.1.0.1.0  
-**System:** NixOS 26.05 + Niri + Faelight Forest
+**System:** NixOS 26.05 + MangoWM + Faelight Forest
 
 ---
 
@@ -234,7 +234,7 @@ fg status
 
 ### Classification
 
-- 🔴 **Critical:** System unusable if broken (`niri`)
+- 🔴 **Critical:** System unusable if broken (`mango`)
 - 🟠 **High:** Major functionality lost (`shell-zsh`, `faelight-bar`)
 - 🔵 **Medium:** Important but not essential (`editor-nvim`)
 - 🟢 **Low:** Optional features (`browser-qutebrowser`)
@@ -245,10 +245,9 @@ fg status
 dotctl status
 
 # Edit with awareness
-nvim ~/.config/niri/config.kdl
+nvim ~/.config/mango/config.conf
 
 # Test changes
-niri validate --config ~/.config/niri/config.kdl
 ```
 
 ### Rationale
@@ -303,7 +302,7 @@ doctor --explain  # Shows security check
 `<category>-<application>`
 
 **Examples:**
-- ✅ `niri` (window manager)
+- ✅ `mango` (window manager)
 - ✅ `shell-zsh` (shell - zsh)
 - ✅ `editor-nvim` (editor - neovim)
 - ✅ `term-foot` (terminal - foot)

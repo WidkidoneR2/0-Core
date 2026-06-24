@@ -178,7 +178,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │  {}", "Reconstruction Steps".bright_white().bold());
     println!("  │");
     println!("  │  {}  Install Arch Linux (vanilla)", "①".bright_white());
-    println!("  │     pacman -S niri greetd rustup git stow");
     println!("  │");
     println!("  │  {}  Clone the forest", "②".bright_white());
     println!("  │     git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core");

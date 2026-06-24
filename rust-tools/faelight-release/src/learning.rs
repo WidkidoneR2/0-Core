@@ -115,7 +115,7 @@ fn suggest_theme(data: &ChangelogData) -> String {
     let has_compositor = data
         .features
         .iter()
-        .any(|c| c.scope == "niri" || c.scope == "compositor");
+        .any(|c| c.scope == "compositor");
     let has_intelligence = data.features.iter().any(|c| {
         c.message.contains("forecast")
             || c.message.contains("pulse")

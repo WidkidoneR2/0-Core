@@ -463,7 +463,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         .iter()
         .any(|w| q_lower.contains(w))
         .then_some("rust")
-        .or(["wayland", "niri", "compositor"]
+        .or(["wayland", "compositor"]
             .iter()
             .any(|w| q_lower.contains(w))
             .then_some("wayland"))
@@ -517,7 +517,6 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
                 ("borrow", "rust"),
                 ("lifetime", "rust"),
                 ("wayland", "wayland"),
-                ("niri", "wayland"),
                 ("compositor", "wayland"),
                 ("pacman", "arch"),
                 ("arch", "arch"),
@@ -962,8 +961,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         ("arch", "AUR packages are built from source. paru or yay are AUR helpers. Never run as root.", 0.90),
         ("arch", "Arch uses rolling release. Updates can break things. Always read the Arch news before updating.", 0.90),
         ("arch", "/etc/pacman.conf controls mirrors and options. reflector updates mirror list.", 0.85),
-        // Wayland/Niri
-        ("wayland", "Niri is a scrollable tiling Wayland compositor. Windows scroll horizontally, not in a tree.", 0.95),
+        // Wayland
         ("wayland", "Wayland uses wl_display, wl_surface, wl_compositor objects. No global X display connection.", 0.90),
         ("wayland", "layer-shell protocol enables desktop widgets and panels. smithay implements it in Rust.", 0.85),
         ("wayland", "WAYLAND_DISPLAY env var points to the socket. Default is wayland-0 or wayland-1.", 0.85),

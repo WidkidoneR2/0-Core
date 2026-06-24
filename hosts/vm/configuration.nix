@@ -82,7 +82,6 @@
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
-    pkgs.niri
     pkgs.alacritty
     pkgs.yazi
     pkgs.bat

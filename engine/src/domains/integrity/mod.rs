@@ -26,7 +26,6 @@ pub enum Severity {
 pub enum Category {
     Intent,
     Registry,
-    Autostart,
     Database,
     Documentation,
     Shell,
@@ -38,7 +37,6 @@ impl Category {
         match self {
             Category::Intent => "intent",
             Category::Registry => "registry",
-            Category::Autostart => "autostart",
             Category::Database => "database",
             Category::Documentation => "documentation",
             Category::Shell => "shell",
@@ -638,8 +636,6 @@ pub fn build_check_suite() -> Vec<Box<dyn IntegrityCheck>> {
         Box::new(checks::RegistryVersionDriftCheck),
         Box::new(checks::RegistryDeployableExistsCheck),
         // Phase 3: Jarvis
-        // Phase 4: Autostart
-        Box::new(checks::AutostartRetiredToolCheck),
         // Phase 5: Database
         Box::new(checks::DbWalModeCheck),
         Box::new(checks::DbIntegrityCheck),
@@ -1003,63 +999,6 @@ pub mod checks {
 
     // ── Jarvis Checks -- RETIRED: Jarvis replaced by Friday entirely
     // friday_readiness_log table no longer exists -- was causing 67% integrity drift
-    // ── Autostart Checks ──────────────────────────────────────────────────────
-
-    pub struct AutostartRetiredToolCheck;
-    impl IntegrityCheck for AutostartRetiredToolCheck {
-        fn name(&self) -> &'static str {
-            "autostart_retired_tool"
-        }
-        fn category(&self) -> Category {
-            Category::Autostart
-        }
-        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
-            let mut issues = vec![];
-            let config_path = std::env::var("HOME")
-                .map(|h| PathBuf::from(h).join(".config/niri/config.kdl"))
-                .unwrap_or_default();
-            let registry_path = ctx.core_root.join("registry/tools.toml");
-
-            let config = match std::fs::read_to_string(&config_path) {
-                Ok(c) => c,
-                Err(_) => return issues,
-            };
-            let registry = match std::fs::read_to_string(&registry_path) {
-                Ok(r) => r,
-                Err(_) => return issues,
-            };
-
-            // Find retired tools
-            let mut retired_tools: Vec<String> = vec![];
-            let mut name = String::new();
-            for line in registry.lines() {
-                let line = line.trim();
-                if let Some(v) = line.strip_prefix("name = \"") {
-                    name = v.trim_end_matches('"').to_string();
-                } else if line == "retired = true" && !name.is_empty() {
-                    retired_tools.push(name.clone());
-                }
-            }
-
-            // Check if any retired tool appears in autostart
-            for tool in &retired_tools {
-                if config.contains(tool.as_str()) {
-                    issues.push(IntegrityIssue::propose(
-                        Category::Autostart,
-                        "autostart_retired_tool",
-                        &format!("{} is retired but still in niri autostart config", tool),
-                        FixAction::UpdateFile {
-                            path: config_path.clone(),
-                            old: format!("spawn-at-startup.*{}.*", tool),
-                            new: format!("// {} removed — retired tool", tool),
-                        },
-                        3,
-                    ));
-                }
-            }
-            issues
-        }
-    }
 
     // ── Database Checks ───────────────────────────────────────────────────────
 
@@ -1408,36 +1347,6 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 }
             }
             moved
-        }
-        "autostart_retired_tool" => {
-            // Remove retired tool from niri config
-            let niri_config = std::path::PathBuf::from(&ctx.core_root)
-                .join("config/niri/.config/niri/config.kdl");
-            if let Ok(content) = std::fs::read_to_string(&niri_config) {
-                // Find retired tool name in description
-                let tool =
-                    description.split_whitespace().find(|w| {
-                        ctx.runtime.db.query_row(
-                        "SELECT COUNT(*) FROM registry_tools WHERE name = ?1 AND retired = 1",
-                        rusqlite::params![w], |r| r.get::<_, i64>(0)
-                    ).unwrap_or(0) > 0
-                    });
-                if let Some(tool_name) = tool {
-                    let new_content: String = content
-                        .lines()
-                        .filter(|l| !l.contains(tool_name))
-                        .collect::<Vec<_>>()
-                        .join(
-                            "
-",
-                        );
-                    std::fs::write(&niri_config, new_content).is_ok()
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
         }
         _ => {
             println!(

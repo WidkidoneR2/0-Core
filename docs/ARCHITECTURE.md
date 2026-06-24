@@ -9,7 +9,7 @@ This document explains the complete structure of Faelight Forest and how each co
 ## Layer Model
 ```
 LAYER 0 — Substrate (Untouched)
-  Kernel, systemd, Wayland, Niri, Network, Filesystem
+  Kernel, systemd, Wayland, MangoWM, Network, Filesystem
   Treated as external environment. Never owned. Never modified directly.
 
 LAYER 1 — Core Engine (Single Binary)
@@ -44,7 +44,7 @@ LAYER 4 — Runtime (All Mutable State)
 
 LAYER 5 — Adapters (Thin Translation Only)
   config/stow/   ← dotfile packages (GNU Stow managed)
-  adapters/             ← systemd, niri config generation
+  adapters/             ← systemd, mango config generation
   Rule: No business logic. Only translation between core and external systems.
 ```
 
@@ -78,7 +78,7 @@ LAYER 5 — Adapters (Thin Translation Only)
     [51 total tools]
   config/
     stow/               ← ALL dotfile packages (GNU Stow managed)
-      niri/             ← Niri compositor config
+      mango/            ← MangoWM compositor config
       shell-zsh/        ← Zsh + 318+ aliases
       editor-nvim/      ← Neovim + Faelight theme
       term-foot/        ← Foot terminal emulator

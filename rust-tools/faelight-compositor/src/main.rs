@@ -5,7 +5,6 @@
 //  faelight-compositor is a participant."
 //
 // Backends:
-//   --winit   Run nested inside Niri (development/testing)
 //   --drm     Run on real hardware (production)
 
 mod handlers;

@@ -210,11 +210,6 @@ category = "desktop"
 
 
 [[alias]]
-command = "faelight-niri-bridge"
-aliases = ["niri-bridge", "nb"]
-category = "compositor"
-
-[[alias]]
 command = "faelight-gen"
 primary = "gen"
 aliases = ["fg-gen", "passgen", "secretgen"]

@@ -277,15 +277,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-niri-bridge"
-version = "0.1.0"
-category = "compositor"
-description = "Niri IPC → event ledger bridge — compositor events as forest memory"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
 name = "faelight-release"
 version = "2.1.0"
 category = "release"

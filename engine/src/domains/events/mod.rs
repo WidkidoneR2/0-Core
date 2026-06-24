@@ -822,7 +822,6 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
 
     if rows.is_empty() {
         println!("  {}", "No compositor events today.".dimmed());
-        println!("  Ensure faelight-niri-bridge is running in Niri autostart.");
         return Ok(());
     }
 
@@ -1925,7 +1924,6 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
 
     if events.is_empty() {
-        println!("  No compositor events — ensure faelight-niri-bridge is in autostart");
         return Ok(());
     }
 

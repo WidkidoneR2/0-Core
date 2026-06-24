@@ -442,20 +442,16 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
 pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     // Compositor-aware: read the active compositor's keybind config.
     // mango (daily driver): ~/.config/mango/config.conf -- bind=MODS,key,action,...
-    // niri (retired fallback): ~/.config/niri/config.kdl
     let mango_config = PathBuf::from(home).join(".config/mango/config.conf");
-    let niri_config = PathBuf::from(home).join(".config/niri/config.kdl");
     let (wm_name, wm_config, is_mango) = if mango_config.exists() {
         ("mango", mango_config, true)
-    } else if niri_config.exists() {
-        ("niri", niri_config, false)
     } else {
         return CheckResult {
             id: "keybinds".into(),
             name: "Compositor Keybinds".into(),
             status: Status::Warn,
             message: "No compositor keybind config found".into(),
-            fix: Some("Deploy a compositor config (mango/niri)".into()),
+            fix: Some("Deploy a compositor config (mango)".into()),
         };
     };
     let config_content = match std::fs::read_to_string(&wm_config) {
@@ -1148,12 +1144,11 @@ pub fn check_vm_state() -> CheckResult {
 }
 
 pub fn check_compositor() -> CheckResult {
-    // Identify the running compositor (mango/niri/pinnacle) by process.
+    // Identify the running compositor (mango/pinnacle) by process.
     // "none" is not a fault -- d can run from a TTY or headless session --
     // so we report it as info rather than crying wolf, same as VM State.
     let candidates = [
         ("mango", "MangoWM"),
-        ("niri", "Niri"),
         ("pinnacle", "Pinnacle"),
     ];
     for (proc_name, label) in candidates {

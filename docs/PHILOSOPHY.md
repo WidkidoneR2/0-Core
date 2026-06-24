@@ -2,7 +2,7 @@
 
 **Version:** 14.1.0  
 **Last Updated:** 2026-06-05  
-**System:** NixOS 26.05 + Niri + Faelight Forest
+**System:** NixOS 26.05 + MangoWM + Faelight Forest
 
 *A position on how computers should behave when used by real humans.*
 

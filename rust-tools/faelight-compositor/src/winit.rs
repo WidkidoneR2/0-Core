@@ -1,4 +1,3 @@
-// winit backend — runs faelight-compositor nested inside Niri
 // This is the test/development backend.
 // Phase 2 will swap this for the DRM/udev backend (real hardware).
 

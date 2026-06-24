@@ -65,7 +65,7 @@ filterable, sortable, and composable with unix tools.
 ps                          # processes as table
 ps | sort cpu desc          # sorted by CPU
 ps | sort cpu desc | first 5 # top 5
-ps | where name contains niri # filtered
+ps | where name contains mango # filtered
 ```
 
 ### 2. The Pipeline System
