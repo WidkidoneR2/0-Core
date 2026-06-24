@@ -7,6 +7,12 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Build performance + storage (2026-06-24): parallel builds use all 16 threads;
+  # auto-optimise-store hardlinks identical store paths to reclaim disk.
+  nix.settings.auto-optimise-store = true;
+  nix.settings.max-jobs = "auto";
+  nix.settings.cores = 0;
+
   # INT-043 Phase 4: Cachix binary cache (pull side) in the GUEST, mirroring
   # hosts/framework16. Additive -- keeps cache.nixos.org default. Lets a clean VM
   # build PULL the crane faelightDeps derivation instead of recompiling it.

@@ -16,6 +16,12 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # Build performance + storage (2026-06-24): parallel builds use all 16 threads;
+  # auto-optimise-store hardlinks identical store paths to reclaim disk.
+  nix.settings.auto-optimise-store = true;
+  nix.settings.max-jobs = "auto";
+  nix.settings.cores = 0;
+
   # INT-043: Cachix binary cache (pull side). Additive -- keeps cache.nixos.org default.
   nix.settings.extra-substituters = [ "https://faelight-forest.cachix.org" ];
   nix.settings.extra-trusted-public-keys = [
