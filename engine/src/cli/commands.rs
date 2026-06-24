@@ -511,7 +511,7 @@ pub enum DocsCommand {
 }
 #[derive(Debug)]
 pub enum NixCommand {
-    Inspect { option: String },
+    Inspect { option: String, why: bool },
 }
 #[derive(Debug)]
 pub enum AlignCommand {

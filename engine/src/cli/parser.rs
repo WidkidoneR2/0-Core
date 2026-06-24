@@ -814,6 +814,9 @@ pub enum NixCommands {
     Inspect {
         /// The option path, e.g. services.openssh.enable
         option: String,
+        /// Show definition priorities and merge/override resolution (slower)
+        #[arg(long)]
+        why: bool,
     },
 }
 

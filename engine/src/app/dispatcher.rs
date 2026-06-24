@@ -275,7 +275,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             crate::domains::fetch::run(ctx, health_check)
         }
         Command::Nix(c) => match c {
-            NixCommand::Inspect { option } => crate::domains::nix::inspect(ctx, option),
+            NixCommand::Inspect { option, why } => crate::domains::nix::inspect(ctx, option, why),
         },
 
         Command::Git(c) => {

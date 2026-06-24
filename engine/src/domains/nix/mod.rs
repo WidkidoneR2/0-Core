@@ -64,7 +64,7 @@ fn parse_nixos_option(out: &str) -> OptionInfo {
     info
 }
 
-pub fn inspect(ctx: &AppContext, option: String) -> CoreResult<()> {
+pub fn inspect(ctx: &AppContext, option: String, why: bool) -> CoreResult<()> {
     let host = std::process::Command::new("hostname")
         .output().ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -139,6 +139,30 @@ pub fn inspect(ctx: &AppContext, option: String) -> CoreResult<()> {
             println!("    {} {}", "→".bright_green(), d.green());
         }
     }
+    // Phase 2: priority / merge analysis -- escalate to the slow nix eval only when
+    // there are multiple definitions (or --why forces it). Single-def options skip this.
+    if info.defined_by.len() > 1 || why {
+        if let Some(w) = query_why(&ctx.core_root, &host, &option) {
+            let merges = is_merge_type(&info.type_);
+            println!();
+            if merges {
+                println!("  {} {} sources {} into this value:",
+                    "🔀".bright_magenta(), w.defs.len().to_string().bright_white().bold(),
+                    "merge".bright_magenta());
+            } else {
+                let word = if w.defs.len() == 1 { "definition" } else { "definitions" };
+                println!("  {} {} {} -- {} won:",
+                    "⚖".bright_yellow(), w.defs.len().to_string().bright_white().bold(),
+                    word, prio_label(w.highest_prio).bright_yellow());
+            }
+            for (file, val) in &w.defs {
+                let shown = if val.len() > 60 { format!("{}...", &val[..60]) } else { val.clone() };
+                println!("    {} {} {} {}",
+                    "·".bright_black(), file.green(),
+                    "=".bright_black(), shown.cyan());
+            }
+        }
+    }
     if !info.declared_by.is_empty() {
         println!();
         println!("  {} {}", "Declared by".bright_white().bold(),
@@ -153,4 +177,86 @@ pub fn inspect(ctx: &AppContext, option: String) -> CoreResult<()> {
     }
     println!();
     Ok(())
+}
+
+// ── Phase 2: the "why won" priority analysis (INT-088) ──
+// Slow path: nix eval of definitionsWithLocations + highestPrio. Only run when an
+// option has multiple definitions (escalation from the fast nixos-option count) or --why.
+
+struct WhyInfo {
+    highest_prio: i64,
+    defs: Vec<(String, String)>, // (repo_path, value_repr)
+}
+
+/// NixOS priority numbers -> human label. Lower number wins.
+fn prio_label(n: i64) -> String {
+    match n {
+        1500 => "option default (mkOptionDefault)".to_string(),
+        1000 => "default (mkDefault)".to_string(),
+        100 => "normal".to_string(),
+        50 => "forced (mkForce)".to_string(),
+        other => format!("override (mkOverride {})", other),
+    }
+}
+
+/// Heuristic: does this option type MERGE (list/attrset/submodule) or OVERRIDE (scalar)?
+fn is_merge_type(type_: &Option<String>) -> bool {
+    match type_ {
+        Some(t) => {
+            let t = t.to_lowercase();
+            t.contains("list of") || t.contains("attribute set")
+                || t.contains("submodule") || t.contains("list or")
+        }
+        None => false,
+    }
+}
+
+/// Run the slow nix eval to get per-definition files+values and the winning priority.
+fn query_why(core_root: &str, host: &str, option: &str) -> Option<WhyInfo> {
+    // highestPrio
+    let prio_expr = format!(
+        "((builtins.getFlake \"{}\").nixosConfigurations.{}).options.{}.highestPrio",
+        core_root, host, option);
+    let prio_out = std::process::Command::new("nix")
+        .args(["eval", "--impure", "--expr", &prio_expr])
+        .output().ok()?;
+    let prio_str = String::from_utf8_lossy(&prio_out.stdout);
+    let highest_prio: i64 = prio_str.trim().parse().unwrap_or(100);
+
+    // definitionsWithLocations as a list of "file\tvalue" via toJSON for safe parsing
+    let defs_expr = format!(
+        "builtins.toJSON (map (d: {{ file = d.file; value = (let v = d.value; in if builtins.isAttrs v then \"<set>\" else if builtins.isList v then \"<list>\" else if builtins.isBool v then (if v then \"true\" else \"false\") else builtins.toString v); }}) (((builtins.getFlake \"{}\").nixosConfigurations.{}).options.{}.definitionsWithLocations))",
+        core_root, host, option);
+    let defs_out = std::process::Command::new("nix")
+        .args(["eval", "--impure", "--raw", "--expr", &defs_expr])
+        .output().ok()?;
+    let raw = String::from_utf8_lossy(&defs_out.stdout).to_string();
+
+    // raw is a JSON string (because toJSON). Minimal parse: it's [{"file":"..","value":".."},...]
+    let mut defs = Vec::new();
+    // crude but safe: split on "},{" boundaries
+    for chunk in raw.trim_start_matches('[').trim_end_matches(']').split("},{") {
+        let file = extract_json_str(chunk, "file");
+        let value = extract_json_str(chunk, "value");
+        if let Some(f) = file {
+            defs.push((repo_path(&f), value.unwrap_or_default()));
+        }
+    }
+    Some(WhyInfo { highest_prio, defs })
+}
+
+/// Extract a string field value from a JSON-ish chunk (no external json dep).
+fn extract_json_str(chunk: &str, key: &str) -> Option<String> {
+    let pat = format!("\"{}\":\"", key);
+    let start = chunk.find(&pat)? + pat.len();
+    let rest = &chunk[start..];
+    // find the closing unescaped quote
+    let mut out = String::new();
+    let mut chars = rest.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' { if let Some(n) = chars.next() { out.push(n); } continue; }
+        if c == '"' { break; }
+        out.push(c);
+    }
+    Some(out)
 }

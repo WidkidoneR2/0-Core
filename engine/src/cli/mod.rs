@@ -289,7 +289,7 @@ pub fn parse() -> Command {
         }),
         Commands::Fetch { health_check } => Command::Fetch { health_check },
         Commands::Nix { command } => Command::Nix(match command {
-            NixCommands::Inspect { option } => NixCommand::Inspect { option },
+            NixCommands::Inspect { option, why } => NixCommand::Inspect { option, why },
         }),
         Commands::Git { command } => Command::Git(match command {
             GitCommands::Status => GitCommand::Status,
