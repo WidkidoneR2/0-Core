@@ -5740,13 +5740,72 @@ fn store_cmd(args: &[&str]) -> CommandResult {
             }
             CommandResult::Output(out)
         }
+        "reclaim" => store_reclaim(),
         "help" | _ => CommandResult::Output(
-            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n".to_string()),
+            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n  store reclaim          honest GC preview: real freeable size (slow, walks store)\n".to_string()),
     }
 }
 
 // Resolve a user arg to a concrete /nix/store path. Accepts a full store path, or a
 // partial name we grep from /nix/store (unique match used; ambiguous -> list candidates).
+// INT-075 Phase 2: honest GC preview. The freeable disk = sum of each DEAD path's
+// SELF size (nix path-info -s), NOT closure size (-S double-counts shared deps massively
+// -- e.g. one path: 174 KiB self vs 1.1 GiB closure). Computing the dead set walks the
+// whole store (~30s); we say so. Read-only: NEVER runs gc, NEVER deletes.
+fn store_reclaim() -> CommandResult {
+    let mut out = String::new();
+    out.push_str("  \u{1b}[38;2;50;220;255mstore reclaim\u{1b}[0m  (honest GC preview -- read-only, deletes nothing)\n");
+    out.push_str("  computing dead set (walks the whole store, ~30s)...\n");
+
+    // 1. dead set (read-only)
+    let dead_out = std::process::Command::new("nix-store")
+        .args(["--gc", "--print-dead"])
+        .output();
+    let dead_paths: Vec<String> = match dead_out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout)
+            .lines().filter(|l| l.starts_with("/nix/store")).map(|s| s.to_string()).collect(),
+        Err(e) => return CommandResult::Error(format!("  store reclaim: nix-store failed: {}", e)),
+    };
+    let n = dead_paths.len();
+    if n == 0 {
+        out.push_str("  no dead paths -- nothing a GC would free right now.\n");
+        return CommandResult::Output(out);
+    }
+
+    // 2. batch nix path-info -s over ALL dead paths (one query), sum SELF bytes
+    let mut args: Vec<String> = vec!["path-info".into(), "-s".into()];
+    args.extend(dead_paths.iter().cloned());
+    let argref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let info = std::process::Command::new("nix").args(&argref).output();
+    let mut total: u64 = 0;
+    let mut counted = 0usize;
+    if let Ok(o) = info {
+        for line in String::from_utf8_lossy(&o.stdout).lines() {
+            // line: "<path>\t<self-bytes>"  -- last whitespace token is the byte count
+            if let Some(tok) = line.split_whitespace().last() {
+                if let Ok(b) = tok.parse::<u64>() { total += b; counted += 1; }
+            }
+        }
+    }
+
+    let human = |b: u64| -> String {
+        let (mut v, units) = (b as f64, ["B","KiB","MiB","GiB","TiB"]);
+        let mut i = 0;
+        while v >= 1024.0 && i < units.len()-1 { v /= 1024.0; i += 1; }
+        format!("{:.2} {}", v, units[i])
+    };
+
+    out.push_str(&format!("  dead paths    : {}\n", n));
+    out.push_str(&format!("  \u{1b}[38;2;57;255;20mfreeable\u{1b}[0m      : {}  (sum of SELF sizes -- the true disk a GC frees)\n", human(total)));
+    if counted < n {
+        out.push_str(&format!("  note          : sized {}/{} paths ({} had no size info)\n", counted, n, n-counted));
+    }
+    out.push_str("  method        : self-size (-s) summed, NOT closure (-S would double-count shared deps).\n");
+    out.push_str("  to actually free: run  nix-collect-garbage  (or nix-collect-garbage -d for old generations).\n");
+    out.push_str("  (this command did NOT delete anything.)\n");
+    CommandResult::Output(out)
+}
+
 // INT-075 Phase 1.5: when a name matches many store paths, summarize the reclaim
 // picture: total closure size across matches, and how many are GC-rooted (pinned) vs
 // unrooted (reclaimable). Turns "138 matches" into "here's what they cost + what's free".
