@@ -11,11 +11,6 @@ aliases = ["cdiff"]
 category = "development"
 
 [[alias]]
-command = "core-protect"
-aliases = ["protect"]
-category = "security"
-
-[[alias]]
 command = "dot-doctor"
 aliases = ["doctor", "health"]
 category = "monitoring"
@@ -190,16 +185,6 @@ category = "git"
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT-SPECIFIC
 # ═══════════════════════════════════════════════════════════
-
-[[alias]]
-command = "lock-core"
-aliases = ["lc"]
-category = "core-management"
-
-[[alias]]
-command = "unlock-core"
-aliases = ["uc"]
-category = "core-management"
 
 [[alias]]
 command = "swaymsg reload"

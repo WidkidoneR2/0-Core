@@ -2518,16 +2518,6 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             if !target.exists() {
                 return CommandResult::Error(format!("delete: path not found: {}", expanded));
             }
-            // Lock check
-            let lock_file = format!("{}/runtime/.core-locked", core_root);
-            if std::path::Path::new(&lock_file).exists() {
-                if target.starts_with(core_root) {
-                    return CommandResult::Error(format!(
-                        "delete: {} is inside a locked forest area\n  run unlock-core first",
-                        expanded
-                    ));
-                }
-            }
             // Source-tree warning
             let source_dirs = [
                 "rust-tools",
@@ -6999,7 +6989,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         let known: &[&str] = &[
             "deploy", "cistart", "cicomplete", "intent", "delete", "del",
             "fsearch", "query", "rspatch", "patch", "edit", "run", "friday",
-            "d", "gc", "gp", "unlock-core", "lock-core", "core", "fg",
+            "d", "gc", "gp", "core", "fg",
             "faelight-shell", "faelight-term",
             "git", "cargo", "python3", "python", "node", "npm", "sudo",
             "systemctl", "pacman", "ssh", "curl", "wget", "make", "vim", "nvim",
@@ -7057,8 +7047,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "d",
                             "gc",
                             "gp",
-                            "unlock-core",
-                            "lock-core",
                             "core",
                             "faelight-git",
                             "fg",
@@ -7701,7 +7689,6 @@ fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 let fix = if let Some(err) = last_err {
                     if let Some(e) = crate::error::ShellError::from_storage(&err) {
                         match e.code {
-                            "E_CORE_LOCKED" => Some(format!("unlock-core && {}", cmd)),
                             "E_NOT_GIT_REPO" => Some(format!("cd ~/0-core && {}", cmd)),
                             "E_PERMISSION" => Some(format!("sudo {}", cmd)),
                             "E_CMD_NOT_FOUND" => {
@@ -8274,12 +8261,6 @@ fn suggest_after_external(line: &str, cmd_lower: &str) {
     let suggestion: Option<&str> = match cmd_lower {
         "cicomplete" => Some("💡 Next: fg commit — record the completion"),
         "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
-        "lock-core" | "core-protect" if line.contains("lock") && !line.contains("unlock") => {
-            Some("💡 Forest is protected — remember to unlock-core before editing")
-        }
-        "unlock-core" | "core-protect" if line.contains("unlock") => {
-            Some("💡 Reminder: run lock-core before shutdown")
-        }
         "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
         "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),
         "core" if line.contains("intent complete") => {

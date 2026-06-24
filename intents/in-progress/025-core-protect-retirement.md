@@ -3,7 +3,7 @@ id: 025
 date: 2026-06-03
 type: future
 title: "core-protect retirement: remove 19-file dependency chain, NixOS-native replacement"
-status: planned
+status: in-progress
 tags: [faelight]
 version: TBD
 ---
@@ -24,6 +24,32 @@ The NixOS migration made the Nix store the real immutability boundary, the `.dot
 metadata it depends on is gone, and its health check is already sidelined. Carrying a
 dedicated crate plus references across doctor/stress/fetch and four tools is pure
 drag. Retiring it removes dead weight and one more Arch-era assumption from the forest.
+
+## Phase 0 Findings (2026-06-23) -- consumer scan COMPLETE, removal de-risked
+Fresh scan confirms the charter (no hidden live wiring, unlike INT-072's palette tangle).
+SAFETY (all green for removal):
+- Flake/Nix refs: 0 -- core-protect does NOT build into the system anymore (old bar that
+  held it is gone). Deleting the crate cannot break a build.
+- Service/boot/login invocations: NONE -- not lockout-class. No 24h-hell risk.
+- Health: core_protect already excluded (doctor/mod.rs:254-255 is just the filter comment);
+  removing core-protect needs only deleting that now-pointless exclusion.
+CODE CONSUMERS to handle (~6 sites, 4 tools + engine):
+- rust-tools/faelight/src/main.rs (umbrella: lock/unlock/status, ~main.rs:69,273-287)
+- rust-tools/faelight-palette/src/main.rs (Lock/Unlock Core menu items :358-359,480-488)
+  [INTERSECTS INT-072 -- removing this shrinks palette surface for the later launcher decision]
+- rust-tools/teach/src/main.rs (teaches core-protect :293-299)
+- rust-tools/faelight-shell/src/commands/mod.rs (lock-core/unlock-core/core-protect :8277-8280)
+- engine/src/domains/fetch/mod.rs:98 (reads core-protect state file)
+- engine/src/domains/stress/mod.rs:754-779 (test asserting core_protect excluded -- remove test)
+- engine/src/domains/doctor/mod.rs:254-255 (the exclusion filter -- remove once gone)
+DATA/REGISTRY:
+- registry/aliases.toml (alias), registry/tools.toml:35-38 (tool entry)
+DOCS (update): docs/ALIASES, THEORY_OF_OPERATION, PHILOSOPHY, POLICIES, NEW-CHAT-DIRECTIVES.
+LEAVE ALONE (history): meta/CHANGELOG.md (21), intents/* (complete/in-progress/decisions/
+  incidents, ~34 refs) -- historical record, not live.
+ORDERING: do 025 before 072 (strips core-protect from palette, shrinking 072's surface).
+Verdict: clean bounded removal -- no flake, no boot/login, health pre-handled. Safe to
+execute carefully across 4 tools + engine. Phase 0 gate met.
 
 ## Approach
 - Delete the `rust-tools/core-protect/` crate.
