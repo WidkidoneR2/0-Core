@@ -5747,6 +5747,47 @@ fn store_cmd(args: &[&str]) -> CommandResult {
 
 // Resolve a user arg to a concrete /nix/store path. Accepts a full store path, or a
 // partial name we grep from /nix/store (unique match used; ambiguous -> list candidates).
+// INT-075 Phase 1.5: when a name matches many store paths, summarize the reclaim
+// picture: total closure size across matches, and how many are GC-rooted (pinned) vs
+// unrooted (reclaimable). Turns "138 matches" into "here's what they cost + what's free".
+fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String {
+    let mut rooted = 0usize;
+    let mut unrooted = 0usize;
+    let mut total_bytes: u64 = 0;
+    for p in matches {
+        // closure size in bytes (-S = closure, default bytes when no -h)
+        if let Some(s) = nix_query(&["path-info", "-S", p]) {
+            if let Some(tok) = s.split_whitespace().last() {
+                if let Ok(b) = tok.parse::<u64>() { total_bytes += b; }
+            }
+        }
+        // pinned? (any GC root)
+        let roots = nix_query_lines(&["nix-store", "--query", "--roots", p]);
+        if roots.is_empty() { unrooted += 1; } else { rooted += 1; }
+    }
+    let human = |b: u64| -> String {
+        let (mut v, units) = (b as f64, ["B","KiB","MiB","GiB","TiB"]);
+        let mut i = 0;
+        while v >= 1024.0 && i < units.len()-1 { v /= 1024.0; i += 1; }
+        format!("{:.1} {}", v, units[i])
+    };
+    let mut msg = String::new();
+    msg.push_str(&format!(
+        "  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  '{}' matches {} store paths:\n", target, n));
+    msg.push_str(&format!("  total closure : {}\n", human(total_bytes)));
+    msg.push_str(&format!("  pinned        : {} (GC-rooted -- a generation/result holds them)\n", rooted));
+    msg.push_str(&format!(
+        "  \u{1b}[38;2;255;200;50mreclaimable\u{1b}[0m   : {} (no GC root -- would be freed by a GC)\n", unrooted));
+    msg.push_str("  (note: closure sizes overlap heavily via shared deps; total is an upper bound,\n");
+    msg.push_str("   not additive disk usage. Use `store why <full-path>` for one specific build.)\n");
+    msg.push_str("  first few matches:\n");
+    for m in matches.iter().take(6) {
+        msg.push_str(&format!("      {}\n", m.rsplit('/').next().unwrap_or(m)));
+    }
+    if n > 6 { msg.push_str(&format!("      ... and {} more\n", n-6)); }
+    msg
+}
+
 fn store_resolve(target: &str) -> Result<String, String> {
     if target.starts_with("/nix/store/") && std::path::Path::new(target).exists() {
         return Ok(target.to_string());
@@ -5765,12 +5806,8 @@ fn store_resolve(target: &str) -> Result<String, String> {
         0 => Err(format!("  no store path matches '{}'", target)),
         1 => Ok(matches.remove(0)),
         n => {
-            let mut msg = format!("  '{}' is ambiguous ({} matches) -- be more specific:\n", target, n);
-            for m in matches.iter().take(10) {
-                msg.push_str(&format!("      {}\n", m.rsplit('/').next().unwrap_or(m)));
-            }
-            if n > 10 { msg.push_str(&format!("      ... and {} more\n", n-10)); }
-            Err(msg)
+            // Phase 1.5: ambiguity is the reclaim insight. Summarize instead of just listing.
+            Err(store_summarize_matches(target, &matches, n))
         }
     }
 }

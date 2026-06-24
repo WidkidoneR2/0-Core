@@ -63,6 +63,19 @@ FOLLOW-UP (Phase 1.5, logged not done): when a name is ambiguous (138 matches),
 summarize total size + how many are dead/reclaimable -- turn the ambiguity into the
 reclaim insight. Pairs with the Phase 2 reclaimable-vs-pinned view.
 
+## Phase 1.5 Evidence (2026-06-23) -- ambiguity-as-reclaim-insight DEMONSTRATED
+store_summarize_matches(): when `store why <name>` matches many paths, summarize instead
+of listing -- total closure (upper bound), pinned (GC-rooted) vs reclaimable (unrooted).
+PROVEN: `store why faelight-forest` -> 142 matches, 84.2 GiB closure (upper bound; deps
+overlap), 129 pinned, 13 reclaimable. ~17s for 142x(size+roots) queries (Option A cost).
+KEY INSIGHT surfaced: only 13/142 forest builds are directly reclaimable; the other 129
+are PINNED BY GENERATIONS. So the real reclaim lever is generation pruning (INT-073),
+which unpins old builds -> then they become collectable. The tool makes the actual
+mechanism legible. The 84.2 GiB total is honestly flagged as an upper bound (shared deps),
+not additive disk. Exit code is Err-channel cosmetic (summary rides the ambiguous Err).
+PHASE 2 (still open): true "what a GC frees" needs --print-dead (the ~86s whole-store
+walk) + forest integration (tie to generations / INT-073 prune preview).
+
 ## Phases
 Phase 0 -- confirm the gap vs nix-tree; pin the queries (roots, reverse-deps, sizes).
 Phase 1 -- store browse + sizes + "what keeps this alive" (roots / reverse-deps).
