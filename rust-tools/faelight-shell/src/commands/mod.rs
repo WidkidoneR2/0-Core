@@ -488,6 +488,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "power" | "pwr" => power_cmd(db, args),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
+        "store" => store_cmd(args),
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "git-churn" | "gchurn" | "git.files" => git_churn(core_root, args),
@@ -5681,6 +5682,124 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
             "  pkg update".bright_cyan(),
             "update all packages".dimmed(),
         )),
+    }
+}
+
+// INT-075: nix store explorer. `store why <path|name>` answers "what keeps this
+// alive + how big is it" using fast per-path nix queries (NO --print-dead; that walks
+// the whole store and is slow). Read-only: inspects, never collects or deletes.
+fn store_cmd(args: &[&str]) -> CommandResult {
+    let sub = args.first().copied().unwrap_or("help");
+    match sub {
+        "why" => {
+            let target = match args.get(1) {
+                Some(t) => *t,
+                None => return CommandResult::Error(
+                    "  store why <path|name> -- what keeps a store path alive + its size".to_string()),
+            };
+            // Resolve target -> a concrete /nix/store path.
+            let path = match store_resolve(target) {
+                Ok(p) => p,
+                Err(msg) => return CommandResult::Error(msg),
+            };
+            let mut out = String::new();
+            out.push_str(&format!("  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  {}\n", path));
+
+            // Sizes: self + closure
+            let self_sz = nix_query(&["path-info", "-sh", &path])
+                .map(|s| size_tail(&s)).unwrap_or_else(|| "?".into());
+            let clos_sz = nix_query(&["path-info", "-Sh", &path])
+                .map(|s| size_tail(&s)).unwrap_or_else(|| "?".into());
+            out.push_str(&format!("  self size    : {}\n", self_sz));
+            out.push_str(&format!("  closure size : {}\n", clos_sz));
+
+            // GC roots: is anything pinning it?
+            let roots = nix_query_lines(&["nix-store", "--query", "--roots", &path]);
+            if roots.is_empty() {
+                out.push_str("  pinned by    : \u{1b}[38;2;255;200;50m(no GC roots -- not directly pinned)\u{1b}[0m\n");
+            } else {
+                out.push_str(&format!("  pinned by    : {} GC root(s):\n", roots.len()));
+                for r in roots.iter().take(8) {
+                    out.push_str(&format!("      {}\n", r));
+                }
+                if roots.len() > 8 { out.push_str(&format!("      ... and {} more\n", roots.len()-8)); }
+            }
+
+            // Direct referrers (reverse-deps)
+            let refs = nix_query_lines(&["nix-store", "--query", "--referrers", &path]);
+            let refs: Vec<&String> = refs.iter().filter(|r| **r != path).collect();
+            if refs.is_empty() {
+                out.push_str("  referrers    : (none -- nothing else depends on it directly)\n");
+            } else {
+                out.push_str(&format!("  referrers    : {} direct:\n", refs.len()));
+                for r in refs.iter().take(6) {
+                    let base = r.rsplit('/').next().unwrap_or(r);
+                    out.push_str(&format!("      {}\n", base));
+                }
+                if refs.len() > 6 { out.push_str(&format!("      ... and {} more\n", refs.len()-6)); }
+            }
+            CommandResult::Output(out)
+        }
+        "help" | _ => CommandResult::Output(
+            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n".to_string()),
+    }
+}
+
+// Resolve a user arg to a concrete /nix/store path. Accepts a full store path, or a
+// partial name we grep from /nix/store (unique match used; ambiguous -> list candidates).
+fn store_resolve(target: &str) -> Result<String, String> {
+    if target.starts_with("/nix/store/") && std::path::Path::new(target).exists() {
+        return Ok(target.to_string());
+    }
+    // grep store dir entries for the name
+    let entries = std::fs::read_dir("/nix/store")
+        .map_err(|e| format!("  cannot read /nix/store: {}", e))?;
+    let mut matches: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path().to_string_lossy().to_string())
+        .filter(|p| !p.ends_with(".drv") && p.contains(target))
+        .collect();
+    matches.sort();
+    matches.dedup();
+    match matches.len() {
+        0 => Err(format!("  no store path matches '{}'", target)),
+        1 => Ok(matches.remove(0)),
+        n => {
+            let mut msg = format!("  '{}' is ambiguous ({} matches) -- be more specific:\n", target, n);
+            for m in matches.iter().take(10) {
+                msg.push_str(&format!("      {}\n", m.rsplit('/').next().unwrap_or(m)));
+            }
+            if n > 10 { msg.push_str(&format!("      ... and {} more\n", n-10)); }
+            Err(msg)
+        }
+    }
+}
+
+// Extract "<num> <unit>" (the last two tokens) from a `nix path-info -sh` line
+// of the form "<path>\t<num> <unit>". Falls back to the whole trimmed string.
+fn size_tail(s: &str) -> String {
+    let toks: Vec<&str> = s.split_whitespace().collect();
+    let n = toks.len();
+    if n >= 2 { format!("{} {}", toks[n-2], toks[n-1]) }
+    else { s.trim().to_string() }
+}
+
+// Run `nix <args>` and capture trimmed stdout (single line/value).
+fn nix_query(args: &[&str]) -> Option<String> {
+    let out = std::process::Command::new("nix").args(args).output().ok()?;
+    let s = String::from_utf8(out.stdout).ok()?;
+    let t = s.trim();
+    if t.is_empty() { None } else { Some(t.to_string()) }
+}
+
+// Run a command (first arg = binary) and capture stdout lines.
+fn nix_query_lines(argv: &[&str]) -> Vec<String> {
+    if argv.is_empty() { return vec![]; }
+    let out = std::process::Command::new(argv[0]).args(&argv[1..]).output();
+    match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout)
+            .lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect(),
+        Err(_) => vec![],
     }
 }
 
