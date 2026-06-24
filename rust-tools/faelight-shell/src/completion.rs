@@ -102,8 +102,6 @@ const COMMANDS: &[&str] = &[
     "intent",
     "friday",
     "friday dismiss",
-    "lock-core",
-    "unlock-core",
     // Forest vocabulary (INT-261)
     "delete",
     "del",
@@ -842,8 +840,6 @@ fn cmd_description(cmd: &str) -> &'static str {
         "d" => "forest health check",
         "delete" | "del" => "safely delete a file",
         "find" => "search the forest",
-        "lock-core" => "lock core (immutable)",
-        "unlock-core" => "unlock core for editing",
         "fg" => "faelight-git helper",
         "patch" => "apply a patch to a file",
         "rspatch" => "anchor-based Rust patch",
@@ -916,7 +912,7 @@ fn is_forest_command(cmd: &str) -> bool {
         "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
         "rollback", "update-flake", "friday", "intent", "intents",
         "project", "experiment", "vm", "fm", "fmd",
-        "d", "unlock-core", "lock-core", "gc", "gp",
+        "d", "gc", "gp",
         "core", "fsh", "snapshot", "where", "fsearch",
         "patch", "edit", "run", "query",
     ];
@@ -943,7 +939,7 @@ fn is_known_command(cmd: &str) -> bool {
         "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
         "rollback", "update-flake", "friday", "intent", "intents",
         "project", "experiment", "vm", "fm", "fmd", "faelight-fm",
-        "unlock-core", "lock-core", "gc", "gp", "fg",
+        "gc", "gp", "fg",
         "core", "fsh", "snapshot", "where", "fsearch",
         "patch", "edit", "run", "query", "history", "rewind",
         // Git

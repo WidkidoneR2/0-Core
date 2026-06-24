@@ -214,7 +214,7 @@ Freedom without structure decays into entropy.
 **0-Core uses:**
 - Semantic naming (`faelight-shell`, not `sh`; `faelight-lock`, not `swaylock`)
 - Numbered priority (`~/0-core`, `~/1-src`, `~/2-projects`)
-- Immutable boundaries (`lock-core`, `unlock-core`)
+- Immutable boundaries (LUKS encryption, the read-only Nix store, git history)
 
 Not to restrict freedom — **but to preserve it over time.**
 
@@ -299,7 +299,7 @@ Every major decision is documented in `intents/`. Not just *what* changed, but *
 **Principle:** Recovery over perfection.
 
 ### Core Protection
-`lock-core` makes `~/0-core` immutable at the filesystem level. You must **explicitly** choose to edit.
+The forest is protected by layered, cryptographic means: LUKS encrypts the disk, the Nix store is immutable by construction, and git preserves every change. Protection is structural, not a manual toggle.
 
 **Principle:** Explicit structure over implicit freedom.
 

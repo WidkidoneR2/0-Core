@@ -41,7 +41,6 @@ Format:
     Forest state:
     Health: 100% x Commits: NNNN x Tools: 51 x Intents: NNN complete
     fg done "release: Faelight Forest 13.1.0 -- The Forest That Knows Itself"
-    lock-core
 ---
 - A release is not a deadline.
 - A release is not a promise to anyone.

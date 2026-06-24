@@ -290,18 +290,6 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             replaces: None,
         },
         ToolInfo {
-            name: "core-protect".to_string(),
-            version: "2.3.0".to_string(),
-            description: "Lock/unlock mechanism for 0-Core. Locked core blocks commits via pre-commit hook. Prevents accidental changes during system updates.".to_string(),
-            commands: vec![
-                "lock-core       # engage write protection".to_string(),
-                "unlock-core     # disengage".to_string(),
-                "core-protect --status  # check current state".to_string(),
-            ],
-            philosophy: "When you're updating the system that manages the system, you need a brake pedal.".to_string(),
-            replaces: None,
-        },
-        ToolInfo {
             name: "faelight-term".to_string(),
             version: "10.3.0".to_string(),
             description: "Wayland terminal emulator built from scratch. VTE-compatible, Faelight Visual Language themed. Production-ready.".to_string(),
@@ -1016,14 +1004,9 @@ fn lesson_workflow(snap: &SystemSnapshot) {
     println!();
     println!("  {}", "Before changes:".white().bold());
     println!(
-        "  {} lock-core                # protect the system",
-        "→".dimmed()
-    );
-    println!(
         "  {} faelight-git commit      # intent-linked commit",
         "→".dimmed()
     );
-    println!("  {} unlock-core              # restore", "→".dimmed());
     println!();
     println!("  {}", "Weekly:".white().bold());
     println!(

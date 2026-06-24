@@ -69,15 +69,14 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 **Why:** One `rm -rf` in the wrong place destroys months of work. Permissions aren't enough - we need kernel-level protection.
 
 **Implementation:**
-- `chattr +i` on critical files when locked
-- `core-protect v1.0.1` - Immutable protection system
-- Starship prompt shows lock status (🔒/🔓)
-- faelight-bar shows `LCK`/`UNL`
+- LUKS2 full-disk encryption protects data at rest
+- The Nix store is immutable by construction; the system is rebuilt, not edited in place
+- git preserves every change with full history
 - Git commits blocked when locked
 
 **Evidence:** Survived accidental `rm` attempts, package manager conflicts, and script errors.
 
-**Tools:** `lock-core`, `unlock-core`, `core-protect`
+**Mechanism:** LUKS2 + immutable Nix store + git history
 
 ---
 

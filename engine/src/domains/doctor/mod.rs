@@ -251,8 +251,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
     let checks = all_checks(&core_root, &home);
 
-    // Exclude core_protection from health % — lock state is operational, not a health issue
-    let scored: Vec<_> = checks.iter().filter(|r| r.id != "core_protect").collect();
+    let scored: Vec<_> = checks.iter().collect();
     let total = scored.len() as u32;
     let passed = scored.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = scored.iter().filter(|r| r.status == Status::Warn).count() as u32;

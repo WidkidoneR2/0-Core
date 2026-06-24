@@ -3,7 +3,7 @@ id: 025
 date: 2026-06-03
 type: future
 title: "core-protect retirement: remove 19-file dependency chain, NixOS-native replacement"
-status: in-progress
+status: complete
 tags: [faelight]
 version: TBD
 ---
@@ -63,16 +63,27 @@ execute carefully across 4 tools + engine. Phase 0 gate met.
 - Rebuild, confirm health is sane, clean up README/CHANGELOG mentions.
 
 ## Success Criteria
-- [ ] `rust-tools/core-protect/` removed; flake no longer builds or installs it
-- [ ] doctor `core_protect` check removed; health computed without the exclusion hack
-- [ ] no engine domain (doctor/stress/fetch) references core-protect
-- [ ] faelight/teach/palette/fsh references and aliases removed
-- [ ] no service or boot path invokes core-protect; login unaffected
-- [ ] clean rebuild, health at or above pre-retirement baseline
-- [ ] docs (README/CHANGELOG) updated to reflect retirement
+- [x] `rust-tools/core-protect/` removed; flake no longer builds or installs it
+- [x] doctor `core_protect` check removed; health computed without the exclusion hack
+- [x] no engine domain (doctor/stress/fetch) references core-protect
+- [x] faelight/teach/palette/fsh references and aliases removed
+- [x] no service or boot path invokes core-protect; login unaffected
+- [x] clean rebuild, health at or above pre-retirement baseline
+- [x] docs (README/CHANGELOG) updated to reflect retirement
 
 ## Gate Check
-⬜ Not started
+✅ DEMONSTRATED (2026-06-23) -- core-protect fully retired.
+Evidence:
+- 6 code consumers cleared (registry, fsh, faelight umbrella, palette, teach, engine);
+  each cargo-check clean; full release build + nixos-rebuild + deploy succeeded (gen 220).
+- config.fsh (repo) cleaned; reload reconciled db (4 aliases auto-pruned, 298->294).
+- crate rust-tools/core-protect/ deleted (not a workspace member, 0 flake refs).
+- docs updated (ALIASES, RELEASE, POLICIES, PHILOSOPHY, THEORY_OF_OPERATION,
+  NEW-CHAT-DIRECTIVES) -- principle reframed to LUKS + immutable Nix store + git.
+- VERIFIED LIVE: `where lock-core` -> not found; `where unlock-core` -> not found;
+  typo suggester no longer offers unlock-core; `core fetch` shows no lock line; `d` healthy.
+Deferred to INT-082 (faelight-git rewrite): faelight-core/paths.rs is_core_locked + the
+faelight-git callers (harmless no-ops -- lock file never created post-retirement).
 
 ---
 *"The forest grows with intention."* 🌲

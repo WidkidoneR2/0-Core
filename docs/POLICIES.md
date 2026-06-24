@@ -102,16 +102,7 @@ weekly-check() {
 - ❌ **NEVER** edit configs outside 0-core structure
 
 ### Implementation
-```bash
-# Lock core (filesystem immutable)
-lock-core    # chattr +i ~/0-core
-
-# Unlock to edit
-unlock-core  # chattr -i ~/0-core
-
-# Check status
-core-protect status
-```
+Protection is structural, not a manual toggle: LUKS2 encrypts the disk, the Nix store is immutable by construction, and git preserves every change. There is no lock/unlock step -- the forest is always protected by these layers.
 
 ### Rationale
 
@@ -253,17 +244,11 @@ fg status
 # Check current status
 dotctl status
 
-# Unlock carefully
-unlock-core
-
 # Edit with awareness
 nvim ~/.config/niri/config.kdl
 
 # Test changes
 niri validate --config ~/.config/niri/config.kdl
-
-# Lock again
-lock-core
 ```
 
 ### Rationale
@@ -388,7 +373,6 @@ Automatic checks on every commit:
 cd ~/0-core
 git status  # What changed?
 git restore <file>  # Rollback
-lock-core  # Protect again
 
 # Document
 intent add incident "Description of what broke"

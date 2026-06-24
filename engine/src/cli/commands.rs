@@ -692,7 +692,6 @@ pub enum StressCommand {
     Scenario2,
     Scenario3,
     Scenario4,
-    Scenario5,
 }
 
 #[derive(Debug, Clone)]

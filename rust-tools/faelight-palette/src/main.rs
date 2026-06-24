@@ -355,8 +355,6 @@ impl App {
             Mode::Actions => {
                 let core = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
                 let actions = vec![
-                    ("Lock Core",    format!("sudo {}/scripts/core-protect lock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1", core), true),
-                    ("Unlock Core",  format!("sudo {}/scripts/core-protect unlock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1", core), true),
                     ("Health Check", format!("{}/scripts/doctor", core), true),
                     ("Reload Bar",   "pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1".into(), false),
                     ("Reload Niri",  "niri msg action reload-config".into(), false),
@@ -473,21 +471,7 @@ impl App {
         }
     }
 
-    fn lock_core(&self) {
-        let core = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
-        let _ = Command::new("sh")
-            .arg("-c")
-            .arg(format!("sudo {}/scripts/core-protect lock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1", core))
-            .spawn();
-    }
 
-    fn unlock_core(&self) {
-        let core = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
-        let _ = Command::new("sh")
-            .arg("-c")
-            .arg(format!("sudo {}/scripts/core-protect unlock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1", core))
-            .spawn();
-    }
 }
 
 // ── main ──────────────────────────────────────────────────
@@ -525,14 +509,6 @@ fn run(mut app: App) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => break,
-                (_, KeyCode::F(1)) => {
-                    app.lock_core();
-                    break;
-                }
-                (_, KeyCode::F(2)) => {
-                    app.unlock_core();
-                    break;
-                }
                 (_, KeyCode::Enter) => {
                     if !app.filtered.is_empty() {
                         disable_raw_mode()?;

@@ -156,26 +156,6 @@ fn preexec(
         }
     }
 
-    // ── Safety Rule 2: Core lock enforcement ──────────────────────────────────
-    // Block git and fg operations when core is locked
-    let in_core = ctx.cwd.starts_with(core_root);
-    if in_core && is_core_locked(core_root) {
-        let blocked_git = cmd == "git"
-            && matches!(
-                ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
-                "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge"
-            );
-        let blocked_fg = cmd == "fg"
-            && matches!(
-                ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
-                "commit" | "push" | "sync"
-            );
-        if blocked_git || blocked_fg {
-            return Some(
-                "🔒 Core is LOCKED — run unlock-core first, then make your changes".to_string(),
-            );
-        }
-    }
 
     // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
     if cmd == "cp" || cmd == "mv" {
@@ -289,14 +269,6 @@ fn preexec(
     None
 }
 
-/// Check if core_root has the immutable flag set
-fn is_core_locked(core_root: &str) -> bool {
-    std::process::Command::new("lsattr")
-        .args(["-d", core_root])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("----i"))
-        .unwrap_or(false)
-}
 
 /// Postexec hook — runs after every command
 fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
@@ -417,7 +389,6 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                 Some("💡 Suggestion: run d — verify health after committing")
             }
             "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
-            "unlock-core" => Some("💡 Reminder: run lock-core before shutdown"),
             "cicomplete" => Some("💡 Next: fg commit — record the completion"),
             "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
             "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),

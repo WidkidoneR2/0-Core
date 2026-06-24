@@ -66,12 +66,6 @@ enum Commands {
         action: IntentAction,
     },
 
-    /// Core protection
-    Core {
-        #[command(subcommand)]
-        action: CoreAction,
-    },
-
     /// Launch applications
     Launch {
         #[command(subcommand)]
@@ -105,15 +99,6 @@ enum IntentAction {
     Show { id: String },
 }
 
-#[derive(Subcommand)]
-enum CoreAction {
-    /// Lock 0-core directory (immutable)
-    Lock,
-    /// Unlock 0-core directory
-    Unlock,
-    /// Check core status
-    Status,
-}
 
 #[derive(Subcommand)]
 enum LaunchApp {
@@ -154,7 +139,6 @@ fn main() {
         }
         Commands::Profile { action } => handle_profile(action),
         Commands::Intent { action } => handle_intent(action),
-        Commands::Core { action } => handle_core(action),
         Commands::Launch { app } => handle_launch(app),
         Commands::Config { action } => handle_config(action),
     }
@@ -269,25 +253,6 @@ fn handle_intent(action: IntentAction) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🛡️ CORE PROTECTION
-// ═══════════════════════════════════════════════════════════
-
-fn handle_core(action: CoreAction) {
-    let core_protect = find_tool("core-protect");
-
-    match action {
-        CoreAction::Lock => {
-            run_tool(&core_protect, &["lock"]);
-        }
-        CoreAction::Unlock => {
-            run_tool(&core_protect, &["unlock"]);
-        }
-        CoreAction::Status => {
-            run_tool(&core_protect, &["status"]);
-        }
-    }
-}
 
 // ═══════════════════════════════════════════════════════════
 // 🚀 LAUNCH APPLICATIONS

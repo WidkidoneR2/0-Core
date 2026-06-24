@@ -83,7 +83,6 @@ pub mod codes {
     pub const NOT_GIT_REPO: &str = "E_NOT_GIT_REPO";
     pub const PIPE_EMPTY: &str = "E_PIPE_EMPTY";
     pub const PARSE_FAILED: &str = "E_PARSE_FAILED";
-    pub const CORE_LOCKED: &str = "E_CORE_LOCKED";
     pub const EXIT_NONZERO: &str = "E_EXIT_NONZERO";
     pub const NOT_FOUND: &str = "E_NOT_FOUND";
     pub const IO_ERROR: &str = "E_IO_ERROR";

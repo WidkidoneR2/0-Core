@@ -42,7 +42,6 @@
 | `la` | `eza -la --icons` | eza list all including hidden |
 | `ll` | `eza -la --icons` |  |
 | `lock` | `faelight-lock` |  |
-| `lock-core` | `core protect lock` |  |
 | `ls` | `eza --icons` |  |
 | `menu` | `faelight-menu` |  |
 | `notify` | `faelight-notify` |  |
@@ -56,7 +55,6 @@
 | `rollback` | `~/0-core/pkgs/faelight/scripts/rollback` | Rollback to previous generation |
 | `sec` | `security-audit` |  |
 | `term` | `faelight-term` |  |
-| `unlock-core` | `core protect unlock` |  |
 | `update-flake` | `cd ~/0-core && nix flake update && sudo nixos-rebu…` |  |
 | `v` | `nvim` | nvim |
 | `vault` | `faelight-vault` |  |

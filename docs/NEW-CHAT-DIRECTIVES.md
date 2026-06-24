@@ -21,7 +21,6 @@ Power on → LUKS → tuigreet 🌲 forest green → niri → hyprlock 🌲 fore
 ## Path to Faelight NixOS 1.0.0
 INT-021  Pinnacle VM study          ← next priority
 INT-005  Login sizing in VM         ← needs INT-021
-INT-025  core-protect removal       ← 19 file dependencies
 INT-031  faelight-release v2        ← NixOS release manager
 Pinnacle on real system             ← the final gate
 ──────────────────────────────────

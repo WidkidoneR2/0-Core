@@ -784,7 +784,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StressCommand::Scenario2 => crate::domains::stress::scenario2(ctx),
             StressCommand::Scenario3 => crate::domains::stress::scenario3(ctx),
             StressCommand::Scenario4 => crate::domains::stress::scenario4(ctx),
-            StressCommand::Scenario5 => crate::domains::stress::scenario5(ctx),
         },
         Command::Predict(c) => match c {
             PredictCommand::Sessions => crate::domains::predict::sessions(ctx),

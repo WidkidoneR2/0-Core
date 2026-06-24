@@ -89,23 +89,6 @@ fn get_profile() -> String {
         .unwrap_or_else(|| "DEF".to_string())
 }
 
-fn get_core_status() -> String {
-    // Check if core is locked via immutable flag
-    let _output = Command::new("lsattr")
-        .arg("-d")
-        .arg(std::env::current_dir().unwrap_or_default())
-        .output();
-    // Simple heuristic — check core-protect state file
-    let state = dirs::home_dir()
-        .map(|h| h.join(".local/state/0-core/lock-status"))
-        .and_then(|p| fs::read_to_string(p).ok())
-        .unwrap_or_default();
-    if state.trim() == "locked" {
-        "🔒 locked".to_string()
-    } else {
-        "🔓 unlocked".to_string()
-    }
-}
 
 pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
     ctx.capabilities.require(
@@ -123,7 +106,6 @@ pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
     let version = get_version(ctx);
     let zone = get_zone(ctx);
     let profile = get_profile();
-    let core_status = get_core_status();
     let wm = get_wm();
     let term = get_term();
     let shell = get_shell();
@@ -136,7 +118,6 @@ pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
     println!("╰─────────────────────────────────╯");
     println!("{:>10}  {}", "zone".dimmed(), zone);
     println!("{:>10}  {}", "profile".dimmed(), profile);
-    println!("{:>10}  {}", "core".dimmed(), core_status);
     println!("{:>10}  {}", "wm".dimmed(), wm);
     println!("{:>10}  {}", "term".dimmed(), term);
     println!("{:>10}  {}", "shell".dimmed(), shell);

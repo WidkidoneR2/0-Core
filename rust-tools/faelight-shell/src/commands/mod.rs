@@ -7318,7 +7318,7 @@ fn observe_anomalies(db: &ForestDb) -> CommandResult {
 
     if perm_errors > 0 {
         anomalies.push(format!(
-            "{} permission errors — core locked during work?",
+            "{} permission errors during work",
             perm_errors
         ));
     }

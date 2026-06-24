@@ -1406,8 +1406,6 @@ pub enum StressCommands {
     Scenario3,
     /// Scenario 4 — false alarm resistance
     Scenario4,
-    /// Scenario 5 — lock/unlock cycle
-    Scenario5,
 }
 
 #[derive(Debug, Clone, clap::Subcommand)]

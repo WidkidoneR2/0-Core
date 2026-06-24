@@ -382,15 +382,6 @@ fn expand_vars(
     result
 }
 
-// Check if 0-core is locked (immutable flag set)
-fn is_core_locked(core_root: &str) -> bool {
-    // INT-272: read sentinel file -- single source of truth.
-    // Bar, doctor, and fsh all agree on the same file.
-    std::path::Path::new(core_root)
-        .join("runtime")
-        .join(".core-locked")
-        .exists()
-}
 
 // Strip # comments — only at start of line or after whitespace, never inside strings
 /// INT-249b: detect if a multi-line buffer is a complete shell command.
@@ -1286,55 +1277,6 @@ fn repl_main() -> Result<()> {
                         }
                     }
 
-                    // Phase 20b — Git guardrail: block commit/push when core is locked
-                    {
-                        let ftok = line.split_whitespace().next().unwrap_or("");
-                        let stok = line.split_whitespace().nth(1).unwrap_or("");
-                        let in_core = std::env::current_dir()
-                            .map(|d| d.starts_with(&core_root))
-                            .unwrap_or(false);
-                        if ftok == "git" && in_core && is_core_locked(&core_root) {
-                            match stok {
-                                "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge" => {
-                                    println!();
-                                    println!(
-                                        "  {} Core is LOCKED — editing blocked",
-                                        "🔒".normal()
-                                    );
-                                    println!(
-                                        "  {} No commits, pushes or changes allowed while locked",
-                                        "✗".bright_red()
-                                    );
-                                    println!(
-                                        "  {} Run: unlock-core  — then make your changes",
-                                        "→".bright_cyan()
-                                    );
-                                    println!();
-                                    continue 'segments;
-                                }
-                                _ => {}
-                            }
-                        }
-                        // Also block fg commit/push when locked
-                        if ftok == "fg" && in_core && is_core_locked(&core_root) {
-                            match stok {
-                                "commit" | "push" | "sync" => {
-                                    println!();
-                                    println!(
-                                        "  {} Core is LOCKED — editing blocked",
-                                        "🔒".normal()
-                                    );
-                                    println!(
-                                        "  {} Run: unlock-core  — then commit",
-                                        "→".bright_cyan()
-                                    );
-                                    println!();
-                                    continue 'segments;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
                     // INT-220 Gate 11 -- friday dismiss: negative learning
                     if line == "friday dismiss" || line.starts_with("friday dismiss ") {
                         let trigger = if line == "friday dismiss" {

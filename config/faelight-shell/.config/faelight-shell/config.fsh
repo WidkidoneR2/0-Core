@@ -65,8 +65,6 @@ alias forest-status = "~/0-core/pkgs/faelight/scripts/forest-status"
 alias cistart = "core intent start"
 alias cicomplete = "core intent complete"
 alias intent = "/run/current-system/sw/bin/intent"
-alias lock-core = "core protect lock"
-alias unlock-core = "core protect unlock"
 alias fg = "faelight-git"
 
 # Pre-command decision rules — INT-171
@@ -131,7 +129,6 @@ alias clq = core ledger query
 alias cls = core link sync
 alias compress = ouch compress
 alias conf = cd ~/.config
-alias core-status = /run/current-system/sw/bin/core protect status
 alias correlate = core why correlate
 alias cpa = core plugin add
 alias cpc = core checkpoint create
@@ -181,7 +178,6 @@ alias dotstatus = cd ~/0-core && git status
 alias down = cd ~/Downloads
 alias du = du -h
 alias duh = du -sh * | sort -hr
-alias edit-core = /run/current-system/sw/bin/core protect edit
 alias envrc-allow = direnv allow
 alias envrc-check = bat .envrc
 alias envrc-deny = direnv deny

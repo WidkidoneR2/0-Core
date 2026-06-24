@@ -743,76 +743,6 @@ pub fn scenario4(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn scenario5(ctx: &AppContext) -> CoreResult<()> {
-    println!(
-        "{}",
-        "🌲 Scenario 5 — Lock/Unlock Cycle Stability".cyan().bold()
-    );
-    separator();
-    println!();
-    println!(
-        "  {} Verifying core_protect excluded from health %...",
-        "→".bright_cyan()
-    );
-
-    // Check that core_protect is NOT in the scored checks by querying recent health
-    let recent_health: i64 = ctx.runtime.db.query_row(
-        "SELECT payload FROM events WHERE domain='doctor' AND action='run' ORDER BY timestamp DESC LIMIT 1",
-        [], |r| {
-            let p: Option<String> = r.get(0)?;
-            Ok(p.as_deref()
-                .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
-                .and_then(|v| v["detail"]["health"].as_i64())
-                .unwrap_or(100))
-        }
-    ).unwrap_or(100);
-
-    println!(
-        "  {} Last recorded health: {}%",
-        "▶".bright_cyan(),
-        recent_health.to_string().bright_white()
-    );
-
-    if recent_health >= 100 {
-        println!("  {} PASS — health is 100% while unlocked", "✅".normal());
-        println!(
-            "  {} core_protect correctly excluded from percentage",
-            "✅".normal()
-        );
-    } else {
-        println!(
-            "  {} Health: {}% — lock state may be affecting score",
-            "⚠️ ".normal(),
-            recent_health
-        );
-    }
-
-    // Verify shell_state integrity
-    let theme: Option<String> = ctx
-        .runtime
-        .db
-        .query_row(
-            "SELECT value FROM shell_state WHERE key='prompt_theme'",
-            [],
-            |r| r.get(0),
-        )
-        .ok();
-
-    println!(
-        "  {} shell_state intact — theme: {}",
-        "✅".normal(),
-        theme.as_deref().unwrap_or("forest").bright_white()
-    );
-
-    println!();
-    println!(
-        "  {} PASS — lock/unlock cycle does not corrupt state",
-        "✅".normal()
-    );
-    separator();
-    Ok(())
-}
-
 pub fn health_report(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "🌲 INT-154 — Core Health Stress Report".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -825,7 +755,6 @@ pub fn health_report(ctx: &AppContext) -> CoreResult<()> {
         ("Slow decline detection", scenario2),
         ("Recovery verification", scenario3),
         ("False alarm resistance", scenario4),
-        ("Lock/unlock stability", scenario5),
     ];
 
     let mut passed = 0u32;
