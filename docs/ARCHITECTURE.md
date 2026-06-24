@@ -70,7 +70,6 @@ LAYER 5 — Adapters (Thin Translation Only)
   rust-tools/           ← Specialist TUI tools (not replaceable by CLI)
     faelight-bar/       ← Custom Wayland status bar
     faelight-fm/        ← File manager with zone awareness
-    faelight-palette/   ← App launcher (replaces launcher + dmenu)
     faelight-git/       ← Git workflow governance TUI
     faelight-update/    ← Interactive update manager TUI
     faelight-term/      ← Terminal emulator (WIP)
@@ -117,7 +116,6 @@ LAYER 5 — Adapters (Thin Translation Only)
 | release   | versioning, changelog             | bump-system-version, get-version  |
 | notify    | notifications                     | faelight-notify                   |
 | lock      | screen locking                    | faelight-lock                     |
-| launcher  | app launching                     | faelight-palette                  |
 | friday    | intelligence layer                | cross-domain intelligence         |
 | genealogy | intent family tree                | core genealogy tree/show/roots    |
 | predict   | prediction engine                 | pattern-based anticipation        |
@@ -138,7 +136,7 @@ All cross-domain communication goes through `app/dispatcher`.
 
 **Declarative over imperative** — registry contains zero logic, only truth.
 
-**TUI tools stay separate** — faelight-fm, faelight-palette, faelight-bar, etc.
+**TUI tools stay separate** — faelight-fm, faelight-bar, etc.
 are specialist tools too rich to wrap in a CLI. They delegate through `core` where possible.
 
 ---
@@ -150,7 +148,6 @@ Health is a single source of truth across all tools:
 core doctor run → writes ~/.cache/faelight/health-status
                 ↓
     faelight-bar reads cache (fast, no subprocess)
-    faelight-palette reads cache (consistent with bar)
     prompt-health-dot reads cache (shell prompt dot)
 ```
 

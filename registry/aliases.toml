@@ -41,11 +41,6 @@ aliases = ["fg"]
 category = "development"
 
 [[alias]]
-command = "faelight-launcher"
-aliases = ["launch"]
-category = "desktop"
-
-[[alias]]
 command = "faelight-link"
 aliases = ["link"]
 category = "management"

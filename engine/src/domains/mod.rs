@@ -23,7 +23,6 @@ pub mod goals;
 pub mod intent;
 pub mod journal;
 pub mod knowledge;
-pub mod launcher;
 pub mod link;
 pub mod lock;
 pub mod narrative;

@@ -45,7 +45,6 @@
 | `ls` | `eza --icons` |  |
 | `menu` | `faelight-menu` |  |
 | `notify` | `faelight-notify` |  |
-| `palette` | `faelight-palette` |  |
 | `pulse` | `faelight-pulse` |  |
 | `rebuild` | `sudo nixos-rebuild switch --flake ~/0-core#framewo…` | NixOS rebuild switch |
 | `rebuild-check` | `sudo nixos-rebuild dry-run --flake ~/0-core#framew…` | Dry-run + quick doctor |

@@ -3,7 +3,7 @@ id: 072
 date: 2026-06-20
 type: future
 title: "Decommission faelight-palette (unused since Niri 11.0.0)"
-status: in-progress
+status: complete
 tags: [decommission, faelight-palette, cleanup, tools, audit, nixos]
 ---
 
@@ -65,8 +65,8 @@ Leave-alone refs (history / other intents): CHANGELOG, ARCHITECTURE.md, intents 
 assets/fonts/README.md.
 ## Gates
 - [x] dependency scan: no live consumers of faelight-palette (or each listed and handled)
-- [ ] faelight-palette removed from workspace, flake outputs, aliases, registry/metadata
-- [ ] rebuild clean with palette gone; not on PATH; tool count down one; d clean
+- [x] faelight-palette removed from workspace, flake outputs, aliases, registry/metadata
+- [x] rebuild clean with palette gone; not on PATH; tool count down one; d clean
 
 ## Notes
 - Clears one of the 8 sub-70 audit tools.
@@ -75,3 +75,20 @@ assets/fonts/README.md.
 
 ## The Rule
 "What the forest no longer uses, it lets go -- cleanly." 🌲
+
+## Gate Check
+✅ DEMONSTRATED (2026-06-23) -- faelight-palette decommissioned; launcher dispatch removed.
+Decision: palette unused since Niri 11.0.0 and user has no launcher -> remove palette
+AND the engine launcher subsystem entirely. New launcher captured as INT-084 (GTK,
+faelight-logout-grade polish).
+Removed:
+- engine launcher subsystem: domains/launcher/ (deleted), LauncherCommand/LauncherCommands
+  enums, parent Command::Launcher variant, cli mapping, dispatcher arm, doctor checks/aliases.
+- faelight umbrella: LaunchApp::Launcher arm + variant (kept fm/term/menu).
+- registry: palette [[tool]] + phantom `launch`->faelight-launcher [[alias]] (was broken).
+- docs: ALIASES (row) + ARCHITECTURE (4 live-component refs).
+- crate rust-tools/faelight-palette/ deleted; Cargo.lock reconciled (palette + orphaned
+  deps atty/fuzzy-matcher/hermit-abi pruned).
+VERIFIED LIVE (gen 221): which faelight-palette -> not found; `faelight launch` offers
+fm/term/menu only; core registry list rc=0; tool count 29->28 (14 binaries, 17 key tools,
+25/25 deployed); d 0 failures, integrity 100%.

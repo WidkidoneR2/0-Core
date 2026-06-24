@@ -6,7 +6,7 @@ use crate::cli::commands::{
     DelegateCommand, DeployCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand,
     EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
     GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
-    LauncherCommand, LedgerCommand, LinkCommand, NotifyCommand, PlanCommand, PluginCommand,
+  LedgerCommand, LinkCommand, NotifyCommand, PlanCommand, PluginCommand,
     PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand,
     ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand,
     StressCommand, SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
@@ -350,28 +350,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
-        Command::Launcher(c) => {
-            ctx.capabilities.require(
-                "launcher",
-                &[Capability::ControlWM, Capability::SpawnProcess],
-            )?;
-            match c {
-                LauncherCommand::Palette { dmenu, prompt } => {
-                    crate::domains::launcher::palette(ctx, dmenu, prompt.as_deref())
-                }
-                LauncherCommand::Dmenu {
-                    subcmd,
-                    prompt,
-                    multi,
-                } => crate::domains::launcher::dmenu(
-                    ctx,
-                    subcmd.as_deref(),
-                    prompt.as_deref(),
-                    multi,
-                ),
-                LauncherCommand::Launch { args } => crate::domains::launcher::launcher(ctx, &args),
-            }
-        }
 
         Command::Update(c) => {
             ctx.capabilities

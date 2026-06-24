@@ -7,7 +7,7 @@ use commands::{
     BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
     DelegateCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand, EventsCommand,
     EvolutionCommand, GenealogyCommand, GitCommand, GoalsCommand, IntegrityCommand, IntentCommand,
-    JournalCommand, LauncherCommand, LedgerCommand, LinkCommand, NotifyCommand, PartnerCommand,
+  JournalCommand, LedgerCommand, LinkCommand, NotifyCommand, PartnerCommand,
     PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand,
     RegistryCommand, ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand,
     StrategyCommand, StressCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
@@ -18,7 +18,7 @@ use parser::{
     BootstrapCommands, CheckpointCommands, Cli, Commands, DaemonCommands, DbCommands,
     DecisionCommands, DelegateCommands, DepsCommands, DocsCommands, DoctorCommands,
     EnginesCommands, EventsCommands, EvolutionCommands, GenealogyCommands, GitCommands,
-    GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands, LauncherCommands,
+  GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PartnerCommands, PlanCommands, PluginCommands,
     PredictCommands, PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands,
     ReleaseCommands, SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands,
@@ -355,21 +355,6 @@ pub fn parse() -> Command {
             NotifyCommands::Status => NotifyCommand::Status,
         }),
         Commands::Lock { health_check } => Command::Lock { health_check },
-        Commands::Launcher { command } => Command::Launcher(match command {
-            LauncherCommands::Palette { dmenu, prompt } => {
-                LauncherCommand::Palette { dmenu, prompt }
-            }
-            LauncherCommands::Dmenu {
-                subcmd,
-                prompt,
-                multi,
-            } => LauncherCommand::Dmenu {
-                subcmd,
-                prompt,
-                multi,
-            },
-            LauncherCommands::Launch { args } => LauncherCommand::Launch { args },
-        }),
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },

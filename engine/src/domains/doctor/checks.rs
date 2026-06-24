@@ -161,7 +161,6 @@ pub fn check_binaries() -> CheckResult {
     let bins = [
         "mango",
         "alacritty",
-        "faelight-palette",
         "hx",
         "git",
         "bat",

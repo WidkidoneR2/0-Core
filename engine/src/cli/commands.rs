@@ -135,7 +135,6 @@ pub enum Command {
     Lock {
         health_check: bool,
     },
-    Launcher(LauncherCommand),
     Update(UpdateCommand),
     Weight(WeightCommand),
     Daemon(DaemonCommand),
@@ -427,21 +426,6 @@ pub enum NotifyCommand {
     Status,
 }
 
-#[derive(Debug)]
-pub enum LauncherCommand {
-    Palette {
-        dmenu: bool,
-        prompt: Option<String>,
-    },
-    Dmenu {
-        subcmd: Option<String>,
-        prompt: Option<String>,
-        multi: bool,
-    },
-    Launch {
-        args: Vec<String>,
-    },
-}
 
 #[derive(Debug)]
 pub enum UpdateCommand {

@@ -106,8 +106,6 @@ enum LaunchApp {
     Fm,
     /// Terminal
     Term,
-    /// Launcher
-    Launcher,
     /// Menu
     Menu,
 }
@@ -267,10 +265,6 @@ fn handle_launch(app: LaunchApp) {
         LaunchApp::Term => {
             let term = find_tool("faelight-term");
             run_tool_bg(&term, &[]);
-        }
-        LaunchApp::Launcher => {
-            let launcher = find_tool("faelight-palette");
-            run_tool_bg(&launcher, &[]);
         }
         LaunchApp::Menu => {
             let menu = find_tool("faelight-logout");

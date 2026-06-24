@@ -103,10 +103,6 @@ pub enum Commands {
         #[arg(long)]
         health_check: bool,
     },
-    Launcher {
-        #[command(subcommand)]
-        command: LauncherCommands,
-    },
     Update {
         #[command(subcommand)]
         command: UpdateCommands,
@@ -886,26 +882,6 @@ pub enum NotifyCommands {
     Status,
 }
 
-#[derive(Subcommand)]
-pub enum LauncherCommands {
-    Palette {
-        #[arg(long)]
-        dmenu: bool,
-        #[arg(short, long)]
-        prompt: Option<String>,
-    },
-    Dmenu {
-        subcmd: Option<String>,
-        #[arg(short, long)]
-        prompt: Option<String>,
-        #[arg(long)]
-        multi: bool,
-    },
-    Launch {
-        #[arg(trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-}
 
 #[derive(Subcommand)]
 pub enum UpdateCommands {

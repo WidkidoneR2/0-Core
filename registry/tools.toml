@@ -150,15 +150,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-palette"
-version = "2.0.0"
-category = "ui"
-description = "Color palette and theme management"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "faelight-sandbox"
 version = "3.0.0"
 category = "development"

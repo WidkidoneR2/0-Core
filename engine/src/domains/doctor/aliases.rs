@@ -18,7 +18,6 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     "faelight-git",
     "faelight",
     "faelight-fm",
-    "faelight-palette",
     // Version Management
 ];
 
