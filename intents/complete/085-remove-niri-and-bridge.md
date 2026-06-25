@@ -2,7 +2,7 @@
 id: 085
 date: 2026-06-23
 type: future
-status: in-progress
+status: complete
 title: "Remove Niri + faelight-niri-bridge (retired compositor cleanup)"
 tags: [decommission, niri, compositor, cleanup, friday, doctor]
 version: TBD
