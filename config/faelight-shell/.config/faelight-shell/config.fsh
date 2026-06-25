@@ -45,7 +45,9 @@ alias inspect = "core nix inspect"
 # awesome-nix tools (installed, now wired in -- see decision pattern INT-097)
 alias ndiff = "nvd diff"
 alias deptree = nix-tree
-alias nhclean = "nh clean all"
+alias nhclean = "nh clean all --keep-since 7d --ask"
+alias nhclean-dry = "nh clean all --keep-since 7d --dry"
+alias nhclean-all = "nh clean all --ask"
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 
