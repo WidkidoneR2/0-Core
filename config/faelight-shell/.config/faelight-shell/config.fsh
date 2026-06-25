@@ -42,6 +42,10 @@ alias palette = "faelight-palette"
 alias vault = "faelight-vault"
 alias forecast = "core friday health-forecast"
 alias inspect = "core nix inspect"
+# awesome-nix tools (installed, now wired in -- see decision pattern INT-097)
+alias ndiff = "nvd diff"
+alias deptree = nix-tree
+alias nhclean = "nh clean all"
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 
