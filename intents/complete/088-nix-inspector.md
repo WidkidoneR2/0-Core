@@ -2,7 +2,7 @@
 id: 088
 date: 2026-06-23
 type: future
-status: in-progress
+status: complete
 title: "Nix Inspector: why did this value win? (option-resolution debugger)"
 tags: [nix, debugging, tool, understanding, forest-native]
 version: TBD
@@ -65,3 +65,25 @@ STILL OPEN (why this stays in-progress):
   shows values but not WHY one won when priorities differ. Needs deeper module-system query.
 - Phase 3 forest UX: themed TUI or richer presentation (current is clean prose output).
 - Obsolete-option-name flagging (nixos-option -r surfaces renames as traces -- could detect).
+
+
+## Progress -- 2026-06-26 (COMPLETE -- Phases 0-2 done; Phase 3 TUI carved out)
+CHARTER CORRECTION: the 06-24 note above marked Phase 2 as "STILL OPEN" but Phase 2 was
+actually built + committed (676ca93a) and is VERIFIED LIVE today. The option-resolution
+debugger is complete.
+Phase 2 (the "why") -- DONE + demonstrated:
+  nix/mod.rs grew 156 -> 262 lines: WhyInfo struct, query_why() (slow nix-eval of
+  definitionsWithLocations + highestPrio), prio_label() (mkOptionDefault=1500, mkDefault=1000,
+  normal=100, mkForce=50, mkOverride N=N -- lower wins), is_merge_type() (lists/attrsets/
+  submodules MERGE, scalars OVERRIDE). Hybrid: fast nixos-option default, auto-escalates to
+  slow nix-eval when defined_by.len()>1, and --why forces it.
+  LIVE TEST today: `core nix inspect services.openssh.enable --why` ->
+    "⚖ 1 definition -- normal won: hosts/framework16/configuration.nix = true". Works.
+The intent's PURPOSE is fulfilled: it answers "why did this value win" (The Rule). Phases 0-2
+deliver the complete option-resolution debugger, invoked `core nix inspect <opt> [--why]`,
+aliased `inspect`, built as a core capability (so friday-daemon INT-039 can consume it).
+CARVED OUT (separable enhancements, NOT blocking closure):
+  - Phase 3 (themed TUI / forest UX over the current clean prose output) -> NEW future intent
+    "faelight-inspect TUI". A presentation layer, larger scope, genuinely its own thing.
+  - Obsolete-option-name flagging (nixos-option -r rename traces) -> noted in the new intent.
+Closed on its core thesis demonstrably delivered. 🌲
