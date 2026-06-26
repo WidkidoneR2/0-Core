@@ -2,7 +2,7 @@
 id: 092
 date: 2026-06-26
 type: feature
-status: in-progress
+status: complete
 title: "Cheatsheet v2: sync command_registry to reality + live verification (hybrid)"
 tags: [cheatsheet, fsh, command-registry, state-db, liveness, nix-era, truth]
 priority: high
@@ -54,12 +54,12 @@ Phase 3 -- Auto-refresh trigger
     - (Decide: also on shell start? Likely NO -- adds latency; deploy covers real changes.)
   Gate: a fresh alias/bind added + deploy -> appears in `cheat` with no manual step.
 ## Gates
-- [ ] P1: `cheat --refresh` rebuilds registry from live sources; counts match reality
+- [x] P1: `cheat --refresh` rebuilds registry from live sources; counts match reality
       (aliases 299, keybinds 35, phantoms 0); all aliases visible in cheat
-- [ ] P2: load-time liveness coloring (green verified / dim stale); open < 200ms
-- [ ] P3: auto-refresh on deploy; new alias/bind appears without manual refresh
-- [ ] No phantom Arch-era keybinds remain
-- [ ] Demonstrated live (not just implemented): open cheat, see 299 aliases, real binds,
+- [x] P2: load-time liveness coloring (green verified / dim stale); open < 200ms
+- [x] P3: auto-refresh on deploy; new alias/bind appears without manual refresh
+- [x] No phantom Arch-era keybinds remain
+- [x] Demonstrated live (not just implemented): open cheat, see 299 aliases, real binds,
       correct colors, after a deploy
 ## Notes
 - Source of truth precedence: shell_aliases (aliases), mango config.conf (keybinds),
@@ -100,3 +100,25 @@ REMAINING (lower priority now):
     correctness fix that's now a visual nicety. Build only if the green/dim distinction is wanted.
   - Description curation: ~64 builtins still "description pending" -- the human, incremental piece.
 Stays in-progress for Phase 2 + curation. Core value fully delivered.
+
+
+## Progress -- 2026-06-26 (COMPLETE -- all phases demonstrated)
+Closed fully complete. The cheatsheet (and highlighter) read from sources of truth, never
+fossils, and stay correct automatically.
+FINAL STATE: 296 aliases (config.fsh) + 108 builtins (commands/mod.rs dispatcher) + 35
+keybinds (mango config.conf) = 439 command entries + 13 legacy 'command' kind = 452 total.
+  - Phase 1a (aliases+keybinds sync from live sources): DONE.
+  - Phase 1b (builtins from dispatcher match arms, self-syncing): DONE. 108 builtins, ALL
+    described (curate_builtin_desc 108/108, zero "pending" stubs -- curated from ground truth:
+    handler-reading + source + Christian's confirmations, no fabricated behavior).
+  - Phase 2 (load-time liveness coloring): DONE + demonstrated. Entry.live + live_alias_names()
+    dim aliases present in the registry but absent from live config.fsh (drifted). Proven with
+    an injected ghost alias rendering dim while a live alias rendered normal.
+  - Phase 3 (auto-refresh on deploy): DONE + demonstrated (testfossil rode a deploy in).
+  - Highlighter (the reported "red" bug): FIXED. is_known_command checks builtins+PATH+aliases;
+    green = runnable, red = not.
+  - Parser hardened (quote-wrapped/containing/unquoted/commented; 0 missed); dead aliases purged.
+All four command surfaces now read from truth: aliases->config.fsh, keybinds->config.conf,
+builtins->commands/mod.rs, highlighter->all three. The forest knows its own commands.
+The Rule fulfilled: "If it lists a command, the command exists. If a command exists, the
+cheatsheet knows it." 🌲
