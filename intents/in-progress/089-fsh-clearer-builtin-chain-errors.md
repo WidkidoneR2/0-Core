@@ -2,7 +2,7 @@
 id: 089
 date: 2026-06-24
 type: future
-status: planned
+status: in-progress
 title: "fsh: clearer errors when && chains hit a builtin"
 tags: [fsh, shell, errors, ux, builtins, paper-cut]
 priority: low

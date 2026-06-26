@@ -40,3 +40,13 @@ Plan: (1) read cmd_gui fully, (2) try a ONE-OFF launch with virtio (-vga virtio 
 paint? does Super+Return spawn alacritty? (4) if yes -> make permanent (script edit/option);
 if no -> keep diagnosing. Guest already has virtio drivers (kernel default). qxl stays right
 for the headless watching loop (INT-080) -- this may need a separate graphical-GPU path/flag.
+
+## Working convention (adopted 2026-06-26): human-legible abort/skip messages
+Edit-script abort/skip messages must state the SITUATION and its IMPLICATION, not raw match
+counts. They are for Christian reading the output, to diagnose without a full file search.
+  BAD:  "ABORT: found 0x, already=True"
+  GOOD: "SKIP: INT-089 warning already in main.rs (applied by a prior run). No change needed --
+         verify with cargo check."
+Pattern: say WHAT stopped it, WHETHER that's a problem, and the NEXT step to confirm.
+Same spirit as INT-089 itself: an error that blames the wrong thing (or is cryptic) is worse
+than none. Aborts should help locate the issue, not force reverse-engineering the logic.

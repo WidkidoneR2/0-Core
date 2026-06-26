@@ -1188,6 +1188,9 @@ fn repl_main() -> Result<()> {
                             let has_redirect = lcmd_trim.contains(" > ") || lcmd_trim.contains(" >> ")
                                 || lcmd_trim.contains(">>") || lcmd_trim.contains("2>");
                             if has_redirect {
+                                // INT-089: a forest builtin/alias here is invisible to sh.
+                                let cmd_word = lcmd_trim.split_whitespace().next().unwrap_or("");
+                                let forest_word = completion::is_fsh_only_word(cmd_word);
                                 let status = std::process::Command::new("sh")
                                     .arg("-c")
                                     .arg(lcmd_trim)
@@ -1196,6 +1199,14 @@ fn repl_main() -> Result<()> {
                                     .stderr(std::process::Stdio::inherit())
                                     .status();
                                 last_success = status.map(|s| s.success()).unwrap_or(false);
+                                // INT-089: error-message clarity (NOT changing execution). If a
+                                // forest word failed because the redirect routed it to sh, say so.
+                                if !last_success && forest_word {
+                                    eprintln!(
+                                        "  \u{1F332} fsh: '{}' is a forest word -- the redirect sent this line to sh, \n        which can't see fsh builtins/aliases. Run it on its own line (no redirect).",
+                                        cmd_word
+                                    );
+                                }
                             } else {
                                 let chain_result = commands::execute(lcmd_trim, &db, &core_root);
                                 last_success = !matches!(chain_result, commands::CommandResult::Error(_));
