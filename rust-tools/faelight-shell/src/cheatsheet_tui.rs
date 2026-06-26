@@ -56,10 +56,64 @@ impl KindFilter {
 /// Delete-and-rebuild (no UNIQUE constraint; registry is a clean projection of reality).
 /// Aliases come from shell_aliases; keybinds are parsed from mango config.conf.
 /// Builtins/commands are left untouched here (Phase 1b).
+/// INT-092 Phase 1b: curated one-line descriptions for builtins. None -> "pending" stub.
+/// The one intentionally hand-maintained piece (descriptions are human). Grow over time.
+fn curate_builtin_desc(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "help" => "Show available commands and help",
+        "exit" => "Exit the shell",
+        "health" => "Run the forest health check",
+        "doctor" => "System diagnostics (core doctor)",
+        "intents" => "Open the intent ledger",
+        "deploys" => "Show deploy history",
+        "decisions" => "Show recorded decisions",
+        "events" => "Show the forest event log",
+        "history" => "Open the command history TUI",
+        "snapshot" => "Create a system checkpoint",
+        "checkpoint" => "Create a checkpoint of system state",
+        "rewind" => "Time-travel through prior states",
+        "tools" => "List forest tools from the registry",
+        "version" => "Show forest version",
+        "reload" => "Reload fsh configuration",
+        "alias" => "Define a shell alias",
+        "unalias" => "Remove a shell alias",
+        "open" => "Open a file or URL",
+        "where" => "Locate a command or file",
+        "search" => "Search the forest",
+        "tree" => "Show a directory tree",
+        "explain" => "Explain a command or concept",
+        "describe" => "Describe a forest entity",
+        "friday" => "Friday intelligence interface",
+        "predict" => "Friday predictions",
+        "advise" => "Get forest advice",
+        "story" => "Narrate recent forest activity",
+        "audit" => "Run a security/tool audit",
+        "sandbox" => "Manage sandboxes",
+        "vm" => "Manage virtual machines",
+        "project" => "List or manage projects",
+        "experiment" => "List or manage experiments",
+        "session" => "Session info and controls",
+        "theme" => "Theme controls",
+        "query" => "Query forest state",
+        "schema" => "Inspect a data schema",
+        "store" => "Nix store operations",
+        "logs" => "Show logs",
+        "services" => "Show running services",
+        "ports" => "Show open ports",
+        "net" => "Network info",
+        "power" => "Power profile controls",
+        "pkgs" => "Package operations",
+        "goto" => "Jump to a forest location",
+        "run" => "Run a script file",
+        _ => return None,
+    })
+}
+
+
 pub struct RefreshStats {
     pub aliases: usize,
     pub keybinds: usize,
-    pub removed: usize,
+    pub builtins: usize,
 }
 
 pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Error> {
@@ -67,15 +121,6 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0) as i64;
-
-    // How many alias/keybind rows exist before we wipe (for the "removed" stat).
-    let before: i64 = conn
-        .query_row(
-            "SELECT count(*) FROM command_registry WHERE kind IN ('alias','keybind')",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap_or(0);
 
     let tx = conn.unchecked_transaction()?;
     tx.execute(
@@ -193,9 +238,82 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
         }
     }
 
+
+    // --- Builtins: parse the dispatcher match arms in commands/mod.rs (live source) ---
+    // INT-092 Phase 1b: the match cmd.as_str() block IS the source of truth for builtins.
+    // Parse it at refresh so the cheatsheet never drifts. First name in each `"a" | "b" =>`
+    // arm is canonical; the rest are aliases. Descriptions from curate_builtin_desc; else stub.
+    let mut builtins = 0usize;
+    {
+        tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
+        let core_root = conn_core_root(conn);
+        let mod_path = std::path::PathBuf::from(&core_root)
+            .join("rust-tools/faelight-shell/src/commands/mod.rs");
+        const SKIP: &[&str] = &[
+            "bash", "zsh", "sh", "python", "py", "js", "node", "git", "grep",
+            "ls", "cat", "echo", "make", "which", "realpath",
+            "where_old_disabled", "preexec", "exec",
+        ];
+        if let Ok(text) = std::fs::read_to_string(&mod_path) {
+            let lines: Vec<&str> = text.lines().collect();
+            if let Some(start) = lines.iter().position(|l| l.contains("match cmd.as_str()")) {
+                let mut ins = tx.prepare(
+                    "INSERT INTO command_registry
+                       (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
+                     VALUES ('builtin', ?1, 'commands/mod.rs', 'builtin', ?2, ?3, NULL, ?4, ?4, 0)",
+                )?;
+                for line in lines.iter().skip(start + 1).take(700) {
+                    if line.starts_with("        _ =>") {
+                        break;
+                    }
+                    if !line.starts_with("        \"") {
+                        continue;
+                    }
+                    let head = match line.trim_start().split("=>").next() {
+                        Some(h) => h,
+                        None => continue,
+                    };
+                    let names: Vec<String> = head
+                        .split('|')
+                        .filter_map(|seg| {
+                            let seg = seg.trim();
+                            if seg.starts_with('"') {
+                                seg.split('"').nth(1).map(|s| s.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .filter(|s| {
+                            !s.is_empty()
+                                && s.chars().all(|c| {
+                                    c.is_ascii_lowercase() || c == '-' || c == '_' || c.is_ascii_digit()
+                                })
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        continue;
+                    }
+                    let canon = names[0].clone();
+                    if SKIP.contains(&canon.as_str()) {
+                        continue;
+                    }
+                    let expansion = if names.len() > 1 {
+                        Some(format!("aliases: {}", names[1..].join(", ")))
+                    } else {
+                        None
+                    };
+                    let desc = curate_builtin_desc(&canon)
+                        .unwrap_or("builtin (description pending)")
+                        .to_string();
+                    ins.execute(rusqlite::params![canon, desc, expansion, now])?;
+                    builtins += 1;
+                }
+            }
+        }
+    }
+
     tx.commit()?;
-    let removed = (before as usize).saturating_sub(aliases + keybinds);
-    Ok(RefreshStats { aliases, keybinds, removed })
+    Ok(RefreshStats { aliases, keybinds, builtins })
 }
 
 /// Resolve the repo root from the db connection's file path (…/runtime/state.db -> repo root).

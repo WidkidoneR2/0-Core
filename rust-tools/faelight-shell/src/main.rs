@@ -461,8 +461,8 @@ fn main() -> Result<()> {
                 Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                     Ok(stats) => {
                         println!(
-                            "  🔄 cheatsheet refreshed: {} aliases, {} keybinds synced",
-                            stats.aliases, stats.keybinds
+                            "  🔄 cheatsheet refreshed: {} aliases, {} builtins, {} keybinds synced",
+                            stats.aliases, stats.builtins, stats.keybinds
                         );
                         std::process::exit(0);
                     }
@@ -924,8 +924,8 @@ fn repl_main() -> Result<()> {
                     match rusqlite::Connection::open(&db_path) {
                         Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                             Ok(stats) => println!(
-                                "  🔄 cheatsheet refreshed: {} aliases, {} keybinds synced ({} stale removed)",
-                                stats.aliases, stats.keybinds, stats.removed
+                                "  🔄 cheatsheet refreshed: {} aliases, {} builtins, {} keybinds synced",
+                                stats.aliases, stats.builtins, stats.keybinds
                             ),
                             Err(e) => eprintln!("  ✗ refresh failed: {}", e),
                         },
