@@ -1,6 +1,6 @@
 { config, pkgs, self, system, inputs, ... }:
 {
-  imports = [ ./hardware-configuration.nix ];
+  imports = [ ./hardware-configuration.nix ../../modules/desktop/mango.nix ];
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -76,6 +76,19 @@
   # Host side uses remote-viewer (virt-viewer) against the QEMU SPICE socket.
   services.spice-vdagentd.enable = true;
   services.qemuGuest.enable = true;
+
+  # INT-056: mirror framework16's login flow -- greetd -> tuigreet --cmd mango.
+  # Makes the VM a faithful login-test surface for the recovery/login cluster.
+  # The serial-console + SSH path (above) stays intact, so `vm ssh` rescues a
+  # broken graphical login -- a working preview of the 056 safety pattern itself.
+  services.greetd = {
+    enable = true;
+    settings.default_session = {
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd mango";
+      user = "greeter";
+    };
+  };
+  faelight.desktop.mango.enable = true;
 
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
