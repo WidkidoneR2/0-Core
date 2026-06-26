@@ -888,6 +888,21 @@ fn repl_main() -> Result<()> {
                 }
                 // INT-229: abbreviation expansion
                 // INT-260: cheat opens cheatsheet TUI
+                // INT-092: cheat --refresh rebuilds command_registry from live sources
+                if line.trim() == "cheat --refresh" {
+                    let db_path = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+                    match rusqlite::Connection::open(&db_path) {
+                        Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
+                            Ok(stats) => println!(
+                                "  🔄 cheatsheet refreshed: {} aliases, {} keybinds synced ({} stale removed)",
+                                stats.aliases, stats.keybinds, stats.removed
+                            ),
+                            Err(e) => eprintln!("  ✗ refresh failed: {}", e),
+                        },
+                        Err(e) => eprintln!("  ✗ could not open state.db: {}", e),
+                    }
+                    continue 'repl;
+                }
                 if line.trim() == "cheat" {
                     cheatsheet_tui::run_cheatsheet_tui(&core_root);
                     continue 'repl;

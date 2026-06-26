@@ -52,6 +52,128 @@ impl KindFilter {
         }
     }
 }
+/// INT-092 Phase 1a: rebuild alias + keybind rows in command_registry from live sources.
+/// Delete-and-rebuild (no UNIQUE constraint; registry is a clean projection of reality).
+/// Aliases come from shell_aliases; keybinds are parsed from mango config.conf.
+/// Builtins/commands are left untouched here (Phase 1b).
+pub struct RefreshStats {
+    pub aliases: usize,
+    pub keybinds: usize,
+    pub removed: usize,
+}
+
+pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Error> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+
+    // How many alias/keybind rows exist before we wipe (for the "removed" stat).
+    let before: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM command_registry WHERE kind IN ('alias','keybind')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "DELETE FROM command_registry WHERE kind IN ('alias','keybind')",
+        [],
+    )?;
+
+    // --- Aliases: straight projection of shell_aliases ---
+    let mut aliases = 0usize;
+    {
+        let mut stmt = tx.prepare("SELECT name, command FROM shell_aliases ORDER BY name")?;
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
+        let mut ins = tx.prepare(
+            "INSERT INTO command_registry
+               (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
+             VALUES ('alias', ?1, 'shell_aliases', 'alias', ?2, ?3, NULL, ?4, ?4, 0)",
+        )?;
+        for (name, command) in rows {
+            let desc = format!("alias -> {}", command);
+            ins.execute(rusqlite::params![name, desc, command, now])?;
+            aliases += 1;
+        }
+    }
+
+    // --- Keybinds: parse mango config.conf `bind=` lines ---
+    let mut keybinds = 0usize;
+    {
+        let core_root = conn_core_root(conn);
+        let cfg_path = std::path::PathBuf::from(&core_root)
+            .join("config/mango/.config/mango/config.conf");
+        if let Ok(text) = std::fs::read_to_string(&cfg_path) {
+            let mut ins = tx.prepare(
+                "INSERT INTO command_registry
+                   (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
+                 VALUES ('keybind', ?1, 'mango-config', ?2, ?3, ?4, NULL, ?5, ?5, 0)",
+            )?;
+            for line in text.lines() {
+                let line = line.trim();
+                if let Some(rest) = line.strip_prefix("bind=") {
+                    // rest = MODS,key,action[,args...]
+                    let parts: Vec<&str> = rest.split(',').collect();
+                    if parts.len() < 3 {
+                        continue;
+                    }
+                    let mods = parts[0].trim();
+                    let key = parts[1].trim();
+                    let action = parts[2].trim();
+                    let args: Vec<&str> = parts[3..].iter().map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+
+                    // chord: SUPER+SHIFT + key  ->  "SUPER+SHIFT+Left"
+                    let chord = if mods.is_empty() {
+                        key.to_string()
+                    } else {
+                        format!("{}+{}", mods, key)
+                    };
+                    // human action: "spawn alacritty -e yazi" / "view 1" / "killclient"
+                    let action_str = if args.is_empty() {
+                        action.to_string()
+                    } else {
+                        format!("{} {}", action, args.join(" "))
+                    };
+                    // category by action family for nicer grouping
+                    let category = match action {
+                        "spawn" => "launch",
+                        "view" => "workspace",
+                        "tag" => "tag",
+                        "chvt" => "recovery",
+                        _ => "window",
+                    };
+
+                    ins.execute(rusqlite::params![chord, category, action_str, action_str, now])?;
+                    keybinds += 1;
+                }
+            }
+        }
+    }
+
+    tx.commit()?;
+    let removed = (before as usize).saturating_sub(aliases + keybinds);
+    Ok(RefreshStats { aliases, keybinds, removed })
+}
+
+/// Resolve the repo root from the db connection's file path (…/runtime/state.db -> repo root).
+fn conn_core_root(conn: &Connection) -> String {
+    if let Some(p) = conn.path() {
+        if let Some(runtime) = std::path::Path::new(p).parent() {
+            if let Some(reporoot) = runtime.parent() {
+                return reporoot.to_string_lossy().to_string();
+            }
+        }
+    }
+    // fallback
+    format!("{}/0-core", std::env::var("HOME").unwrap_or_default())
+}
+
 pub fn run_cheatsheet_tui(core_root: &str) {
     let db_path = PathBuf::from(core_root).join("runtime/state.db");
     let conn = match Connection::open(&db_path) {
