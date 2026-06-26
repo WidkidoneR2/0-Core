@@ -23,4 +23,8 @@ echo "→ Running health check..."
 core doctor quick
 
 echo ""
+echo "Refreshing cheatsheet..."
+faelight-shell --refresh-cheatsheet 2>/dev/null || true
+
+echo ""
 echo "✅ Deploy complete"

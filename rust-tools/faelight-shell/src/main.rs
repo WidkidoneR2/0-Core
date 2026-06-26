@@ -448,6 +448,36 @@ fn main() -> Result<()> {
             std::process::exit(status.code().unwrap_or(1));
         }
     }
+    // INT-092 Phase 3: --refresh-cheatsheet rebuilds command_registry and exits.
+    // Called by the deploy script so the cheatsheet never refossilizes.
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if args.iter().any(|a| a == "--refresh-cheatsheet") {
+            let core_root = std::env::var("HOME")
+                .map(|h| format!("{}/0-core", h))
+                .unwrap_or_else(|_| ".".to_string());
+            let db_path = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+            match rusqlite::Connection::open(&db_path) {
+                Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
+                    Ok(stats) => {
+                        println!(
+                            "  🔄 cheatsheet refreshed: {} aliases, {} keybinds synced",
+                            stats.aliases, stats.keybinds
+                        );
+                        std::process::exit(0);
+                    }
+                    Err(e) => {
+                        eprintln!("  ✗ cheatsheet refresh failed: {}", e);
+                        std::process::exit(1);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("  ✗ could not open state.db: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .name("faelight-repl".into())
