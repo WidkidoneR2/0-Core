@@ -50,3 +50,12 @@ counts. They are for Christian reading the output, to diagnose without a full fi
 Pattern: say WHAT stopped it, WHETHER that's a problem, and the NEXT step to confirm.
 Same spirit as INT-089 itself: an error that blames the wrong thing (or is cryptic) is worse
 than none. Aborts should help locate the issue, not force reverse-engineering the logic.
+
+## Convention correction (2026-06-26, from INT-096): reload picks up deploys
+The "close + reopen terminal after a bundled-crane-tool deploy" step is NOT required.
+`reload` re-execs into the newly-deployed binary correctly (proven INT-096) AND now reports
+what it loaded: "New fsh build detected -- was <hash> / new <hash>" on a real change, or
+"Already on the current fsh build ... nothing new" when unchanged. So the deploy loop is:
+  commit -> rebuild -> deploy -> reload   (reload, not close+reopen).
+(Claude repeatedly told Christian to close+reopen today before this was understood -- that was
+unnecessary friction; reload alone suffices.)
