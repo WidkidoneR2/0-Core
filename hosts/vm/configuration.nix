@@ -84,7 +84,9 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd mango";
+      # INT-056: greetd -> tuigreet --cmd mango. With virtio-vga-gl + gtk,gl=on the VM has
+      # working virgl GL, so mango uses its normal GLES2 renderer (no pixman needed).
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd 'env WLR_NO_HARDWARE_CURSORS=1 mango'";
       user = "greeter";
     };
   };
