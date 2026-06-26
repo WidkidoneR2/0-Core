@@ -15,3 +15,15 @@ Sequence -- close-before-open (honors Friday's focus>speed flag):
 
 Discipline: VM/login is lockout-class -- VM-first, one verified step, facts over guesses.
 Helix stays primary if nixvim (090) curiosity surfaces -- it's a side-channel.
+
+## Idea to formalize later: focus-rotation cadence
+Christian's proposal -- dedicated ~2-week focus blocks, one domain at a time, to enforce
+sustained immersion over context-switching (the structural answer to Friday's focus>speed flag):
+  VM/system (this weekend) -> Friday (deep RL/world-models work) -> shell/fsh -> Faelight
+  Forest system -> repeat.
+Why: deep work (esp. Friday's theory) needs immersion, not scattered hours. Rotation = full
+presence in one domain at a time.
+Caution agreed: keep it a DEFAULT rhythm, not a rigid law -- flex when work is mid-flow or a
+domain isn't ready. Don't cut singing work short for the calendar.
+DECISION DEFERRED: try the VM block first, see how sustained focus actually feels, THEN decide
+if this earns a formal decisions/ record. Demonstrated-not-declared.
