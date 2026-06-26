@@ -2473,8 +2473,10 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 Err(e) => CommandResult::Error(format!("write: {}", e)),
             }
         }
-        "terminate" | "kill" if !args.is_empty() => {
-            // INT-326 Phase 5: semantic terminate
+        "terminate" if !args.is_empty() => {
+            // INT-326 Phase 5: semantic terminate (pattern-kill).
+            // INT-095: `kill` removed from this arm -- kill is now handled in main.rs as the
+            // real PID/job killer. `terminate <pattern>` keeps the pgrep -f semantic match.
             let target = args.join(" ");
             let pid_result = std::process::Command::new("sh")
                 .arg("-c").arg(format!("pgrep -f '{}'", target))

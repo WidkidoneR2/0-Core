@@ -2427,12 +2427,31 @@ fn repl_main() -> Result<()> {
                         // Otherwise fall through — fg commit etc. handled by alias
                     }
                     if first_tok == "kill" {
+                        // INT-095: only `kill %N` is a job-spec. Everything else (PIDs, signals
+                        // like -9/-TERM, multiple PIDs) goes to the REAL kill -- a PID is NOT a
+                        // job id. The old code parsed any number as a job id, so `kill <PID>`
+                        // silently did nothing (corruption risk: vm down -> no-op -> two VMs).
                         let arg = line.split_whitespace().nth(1).unwrap_or("");
-                        let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
-                        if id > 0 {
-                            job_table.kill_job(id);
-                        } else {
-                            println!("  usage: kill %<job_id>");
+                        if arg.starts_with('%') {
+                            // job-spec: kill %N -> the in-shell job table
+                            let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
+                            if id > 0 {
+                                job_table.kill_job(id);
+                            } else {
+                                println!("  usage: kill %<job_id>");
+                            }
+                            continue;
+                        }
+                        // PID / signal form: pass ALL args through to the real kill.
+                        let kill_args: Vec<&str> = line.split_whitespace().skip(1).collect();
+                        if kill_args.is_empty() {
+                            println!("  usage: kill <pid> | kill -SIG <pid> | kill %<job_id>");
+                            continue;
+                        }
+                        match std::process::Command::new("kill").args(&kill_args).status() {
+                            Ok(s) if s.success() => {}
+                            Ok(_) => eprintln!("  kill: failed for {}", kill_args.join(" ")),
+                            Err(e) => eprintln!("  kill: {}", e),
                         }
                         continue;
                     }
