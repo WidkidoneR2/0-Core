@@ -48,6 +48,7 @@ alias deptree = nix-tree
 alias nhclean = "nh clean all --keep-since 7d --ask"
 alias nhclean-dry = "nh clean all --keep-since 7d --dry"
 alias nhclean-all = "nh clean all --ask"
+alias testfossil = "echo phase3 works"  # INT-092 throwaway -- remove after gate test
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 
