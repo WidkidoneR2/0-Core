@@ -83,23 +83,55 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
         [],
     )?;
 
-    // --- Aliases: straight projection of shell_aliases ---
+    // --- Aliases: parse the DEPLOYED config.fsh directly (the live source of truth) ---
+    // The shell_aliases table is only refreshed at fsh startup, so it can be stale at
+    // deploy time. config.fsh is what the running shell actually loaded. INT-092 Phase 3.
+    // Format: alias NAME = "COMMAND"   (optional trailing # comment).
     let mut aliases = 0usize;
     {
-        let mut stmt = tx.prepare("SELECT name, command FROM shell_aliases ORDER BY name")?;
-        let rows: Vec<(String, String)> = stmt
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-            .filter_map(|r| r.ok())
-            .collect();
-        let mut ins = tx.prepare(
-            "INSERT INTO command_registry
-               (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
-             VALUES ('alias', ?1, 'shell_aliases', 'alias', ?2, ?3, NULL, ?4, ?4, 0)",
-        )?;
-        for (name, command) in rows {
-            let desc = format!("alias -> {}", command);
-            ins.execute(rusqlite::params![name, desc, command, now])?;
-            aliases += 1;
+        let cfg_path = std::env::var_os("HOME").map(|h| {
+            std::path::PathBuf::from(h).join(".config/faelight-shell/config.fsh")
+        });
+        if let Some(path) = cfg_path {
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                let mut ins = tx.prepare(
+                    "INSERT INTO command_registry
+                       (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
+                     VALUES ('alias', ?1, 'config.fsh', 'alias', ?2, ?3, NULL, ?4, ?4, 0)",
+                )?;
+                for line in text.lines() {
+                    let line = line.trim();
+                    let rest = match line.strip_prefix("alias ") {
+                        Some(r) => r,
+                        None => continue,
+                    };
+                    let eq = match rest.find('=') {
+                        Some(i) => i,
+                        None => continue,
+                    };
+                    let name = rest[..eq].trim().to_string();
+                    if name.is_empty() {
+                        continue;
+                    }
+                    let after = rest[eq + 1..].trim();
+                    // Command = text inside the first quote pair (trailing # comment ignored).
+                    // Unquoted fallback: up to " #" or end of line.
+                    let command = if let Some(start) = after.find('"') {
+                        match after[start + 1..].find('"') {
+                            Some(end) => after[start + 1..start + 1 + end].to_string(),
+                            None => continue, // unterminated quote -- skip malformed line
+                        }
+                    } else {
+                        after.split(" #").next().unwrap_or(after).trim().to_string()
+                    };
+                    if command.is_empty() {
+                        continue;
+                    }
+                    let desc = format!("alias -> {}", command);
+                    ins.execute(rusqlite::params![name, desc, command, now])?;
+                    aliases += 1;
+                }
+            }
         }
     }
 
