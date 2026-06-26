@@ -1,0 +1,77 @@
+---
+id: 092
+date: 2026-06-26
+type: feature
+status: in-progress
+title: "Cheatsheet v2: sync command_registry to reality + live verification (hybrid)"
+tags: [cheatsheet, fsh, command-registry, state-db, liveness, nix-era, truth]
+priority: high
+---
+## Why
+The `cheat` builtin (faelight-shell cheatsheet TUI) reads from the `command_registry`
+table in state.db, colored by KIND with NO liveness check. The table is a frozen
+Arch-era snapshot -- bulk-loaded once (every row stamped 1777762202), and NOTHING
+writes to it (only cheatsheet_tui.rs touches it, read-only). It has drifted badly:
+  DIAGNOSIS (measured 2026-06-26):
+    keybinds:  88 in registry  vs  35 real binds in mango config.conf  -> ~53 PHANTOM
+               (Arch-era niri/Hyprland binds that no longer exist -- the "red"/wrong entries)
+    aliases:    0 in registry  vs  299 real in shell_aliases          -> 299 MISSING
+    builtins:  17 in registry  vs  (fsh's real builtin set)           -> unverified
+    commands:  13 in registry                                          -> unverified
+The cheatsheet lies about the system: shows keybinds that do nothing, hides every alias.
+A cheatsheet that misrepresents the forest is worse than none -- it tells you wrong things
+about your own tools. This makes it tell the truth, live. ("A forest that knows itself.")
+Note: supersedes the Arch-era "INT-260" reference in INT-052 (260 does not exist on the
+Nix branch -- numbering restarted at 001). INT-052 re-points its cheatsheet gate here.
+## Approach: HYBRID (refresh-from-reality + load-time liveness)
+Decided (vs refresh-only or load-only): refresh rebuilds the registry from live sources;
+load-time does CHEAP verification to color entries. Best of both -- accurate data AND
+current status without 300 slow PATH lookups on every open.
+## Phases
+Phase 1 -- Refresh engine (the missing writer)
+  Build the rebuild path that regenerates command_registry from LIVE sources:
+    - builtins  : from fsh's actual command dispatch set (not a frozen 17)
+    - aliases   : all rows from shell_aliases (currently 299, shown as 0)
+    - keybinds  : parsed from mango config.conf `^bind=` lines (the real 35)
+    - commands  : forest tools that actually exist (registry/tools.toml + PATH)
+  Stale entries pruned or marked deprecated=1 (the ~53 phantom keybinds go).
+  Expose as `cheat --refresh` (and/or a core domain) -- explicit, idempotent.
+  Gate: after refresh, registry counts MATCH reality (aliases=299, keybinds=35,
+        0 phantoms); `cheat` shows all real aliases.
+Phase 2 -- Load-time liveness (the hybrid color)
+  TUI verifies each entry cheaply at load and colors green=verified / dim=stale:
+    - alias   : exists in shell_aliases?
+    - builtin : in fsh known builtin set?
+    - keybind : present in current mango config.conf?
+    - command : on PATH / in registry?
+  Cheap checks only -- no shelling out 300x. Keep `cheat` snappy to open.
+  Gate: working entries render verified, any stale entry visibly dim; open time < 200ms.
+Phase 3 -- Auto-refresh trigger
+  Wire refresh to a sensible trigger so the registry never refossilizes:
+    - PRIMARY: on `deploy` (aliases/binds change at deploy time) -- hook into the
+      deploy flow after config.fsh + mango config regenerate.
+    - MANUAL: `cheat --refresh` always available.
+    - (Decide: also on shell start? Likely NO -- adds latency; deploy covers real changes.)
+  Gate: a fresh alias/bind added + deploy -> appears in `cheat` with no manual step.
+## Gates
+- [ ] P1: `cheat --refresh` rebuilds registry from live sources; counts match reality
+      (aliases 299, keybinds 35, phantoms 0); all aliases visible in cheat
+- [ ] P2: load-time liveness coloring (green verified / dim stale); open < 200ms
+- [ ] P3: auto-refresh on deploy; new alias/bind appears without manual refresh
+- [ ] No phantom Arch-era keybinds remain
+- [ ] Demonstrated live (not just implemented): open cheat, see 299 aliases, real binds,
+      correct colors, after a deploy
+## Notes
+- Source of truth precedence: shell_aliases (aliases), mango config.conf (keybinds),
+  fsh dispatch (builtins), registry/tools.toml + PATH (commands).
+- command_registry schema already supports this: kind, name, source, category,
+  description, expansion, example, added_at, last_seen, deprecated. Use last_seen to
+  track refresh recency; deprecated=1 to hide stale without deleting history.
+- cheatsheet_tui.rs already filters WHERE deprecated=0 -- so marking phantoms
+  deprecated=1 hides them immediately with zero TUI change.
+- Keep it forest-owned: this is fsh's own source (rust-tools/faelight-shell), the
+  kind of tool we build and understand, not adopt.
+## The Rule
+"The cheatsheet must not lie. If it lists a command, the command must exist.
+ If a command exists, the cheatsheet must know it. The forest knows itself --
+ starting with knowing its own commands." 🌲
