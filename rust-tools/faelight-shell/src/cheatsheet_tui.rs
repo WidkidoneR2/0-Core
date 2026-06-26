@@ -114,14 +114,19 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
                         continue;
                     }
                     let after = rest[eq + 1..].trim();
-                    // Command = text inside the first quote pair (trailing # comment ignored).
-                    // Unquoted fallback: up to " #" or end of line.
-                    let command = if let Some(start) = after.find('"') {
-                        match after[start + 1..].find('"') {
-                            Some(end) => after[start + 1..start + 1 + end].to_string(),
-                            None => continue, // unterminated quote -- skip malformed line
+                    // Distinguish quote-WRAPPED values from quote-CONTAINING ones:
+                    //   alias gs = "git status"          -> wrapped: command is between quotes
+                    //   alias now = date +"%T"           -> containing: command is whole rest
+                    //   alias claude = xdg-open "https.." -> containing: command is whole rest
+                    // Only extract-between-quotes when the value STARTS with a quote.
+                    let command = if after.starts_with('"') {
+                        match after[1..].find('"') {
+                            Some(end) => after[1..1 + end].to_string(),
+                            None => after[1..].to_string(), // unterminated -- take the rest
                         }
                     } else {
+                        // Unquoted (may contain quotes mid-value): take the whole thing,
+                        // stripping only a trailing " #" comment (space-hash, not in-command #).
                         after.split(" #").next().unwrap_or(after).trim().to_string()
                     };
                     if command.is_empty() {
