@@ -59,3 +59,34 @@ what it loaded: "New fsh build detected -- was <hash> / new <hash>" on a real ch
   commit -> rebuild -> deploy -> reload   (reload, not close+reopen).
 (Claude repeatedly told Christian to close+reopen today before this was understood -- that was
 unnecessary friction; reload alone suffices.)
+
+## VM display -- NEW approaches to try next session (INT-056), researched 2026-06-26
+Recap: mango RENDERS correctly in the VM (connected output Virtual-1 1280x800, +virgl active,
+no EGL errors) -- only watching it paint through QEMU's display black-screens. login flow works
+end-to-end via SSH. So the VM is fully usable headless; only LIVE visual viewing is unsolved.
+
+NEW levers (not yet tried), in priority order:
+1. **blob resources + memfd** -- our `[drm] features` showed `-resource_blob` DISABLED. The
+   documented DRM-native-context setup adds it via:
+     -object memory-backend-memfd,id=mem,size=4G,share=on  (and -machine memory-backend=mem)
+     -device virtio-vga-gl,hostmem=4G,blob=true
+   Missing blob may be why scanout never reaches SPICE/GTK. Try blob=true + memfd first.
+2. **grim screenshot path (SIDESTEP the live-display problem entirely)** -- mango paints fine to
+   its framebuffer; we just can't watch it live. From inside the VM (via vm ssh, with
+   WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000): `grim /tmp/shot.png`, then scp it
+   out (scp -P 2222 christian@localhost:/tmp/shot.png .) and view on the real machine. For
+   testing a visual LOGIN THEME, a screenshot is sufficient -- you SEE what mango renders without
+   needing QEMU's live display to work. This likely unblocks the ~2 visual intents cleanly.
+3. **real-machine spare TTY** -- test visual greeter/theme on a free VT of framework16 (real GPU
+   renders perfectly); keep the VM for headless/login-mechanics. Pragmatic for visuals.
+4. (lower) virtio without GL + confirmed pixman software-comp, in a cleaner combination than the
+   contaminated tests we ran. Research shows virgl+compositor black-screens are common; disabling
+   GL + software-rendering sometimes fixes it.
+
+If none land: the VM works headless for ~11 of 13 intents NOW. Don't let the visual 10% block
+the rest -- run the headless-verifiable intents (043 Cachix, package/service tests, greetd
+fallback, TTY escape) via SSH+logs, and use grim/real-TTY for the ~2 visual ones.
+
+## If VM still won't cooperate, work these instead (Christian's pick): 061, 090, 094, 084
+(061 canonical repo structure, 090 nixvim Nix-learning, 094 deadwood dead-code scanner,
+084 = ? -- confirm the number; may be a typo for 074 update-manager/generation-browser.)
