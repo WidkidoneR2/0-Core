@@ -24,6 +24,7 @@ struct Entry {
     description: String,
     expansion: Option<String>,
     example: Option<String>,
+    live: bool,
 }
 enum KindFilter {
     All,
@@ -559,18 +560,26 @@ fn draw_ui(
     let items: Vec<ListItem> = filtered
         .iter()
         .map(|e| {
-            let kind_icon = match e.kind.as_str() {
-                "builtin" => Span::styled("⬡ ", Style::default().fg(Color::Rgb(107, 227, 163))),
-                "command" => Span::styled("▸ ", Style::default().fg(Color::Rgb(92, 200, 255))),
-                "keybind" => Span::styled("⌨ ", Style::default().fg(Color::Rgb(245, 193, 119))),
-                "alias" => Span::styled("~ ", Style::default().fg(Color::Rgb(180, 190, 183))),
-                _ => Span::styled("· ", Style::default().fg(Color::Rgb(119, 143, 127))),
+            // INT-092 Phase 2: drifted alias (in registry, not in live config.fsh) -> dim.
+            let dim = !e.live;
+            let kind_icon = if dim {
+                Span::styled("~ ", Style::default().fg(Color::Rgb(90, 100, 95)).add_modifier(Modifier::DIM))
+            } else {
+                match e.kind.as_str() {
+                    "builtin" => Span::styled("⬡ ", Style::default().fg(Color::Rgb(107, 227, 163))),
+                    "command" => Span::styled("▸ ", Style::default().fg(Color::Rgb(92, 200, 255))),
+                    "keybind" => Span::styled("⌨ ", Style::default().fg(Color::Rgb(245, 193, 119))),
+                    "alias" => Span::styled("~ ", Style::default().fg(Color::Rgb(180, 190, 183))),
+                    _ => Span::styled("· ", Style::default().fg(Color::Rgb(119, 143, 127))),
+                }
             };
             let name = Span::styled(
                 format!("{:<20}", &e.name[..e.name.len().min(20)]),
-                Style::default()
-                    .fg(Color::Rgb(215, 224, 218))
-                    .add_modifier(Modifier::BOLD),
+                if dim {
+                    Style::default().fg(Color::Rgb(90, 100, 95)).add_modifier(Modifier::DIM)
+                } else {
+                    Style::default().fg(Color::Rgb(215, 224, 218)).add_modifier(Modifier::BOLD)
+                },
             );
             let desc_len = 25usize;
             let desc = if e.description.len() > desc_len {
@@ -741,10 +750,44 @@ fn load_entries(conn: &Connection) -> Vec<Entry> {
             description: row.get(3)?,
             expansion: row.get(4)?,
             example: row.get(5)?,
+            live: true,
         })
     })
-    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+    .map(|rows| rows.filter_map(|r| r.ok()).collect::<Vec<Entry>>())
+    .map(|mut entries| {
+        // INT-092 Phase 2: mark alias entries that are NOT in the live config.fsh as
+        // not-live (drifted -- in the registry from a past deploy, but removed from the
+        // current config and not yet re-synced). These render dim.
+        let live_aliases = live_alias_names();
+        for e in entries.iter_mut() {
+            if e.kind == "alias" && !live_aliases.contains(&e.name) {
+                e.live = false;
+            }
+        }
+        entries
+    })
     .unwrap_or_default()
+}
+
+/// INT-092 Phase 2: names of aliases currently defined in the deployed config.fsh.
+fn live_alias_names() -> std::collections::HashSet<String> {
+    let mut set = std::collections::HashSet::new();
+    if let Some(home) = std::env::var_os("HOME") {
+        let path = std::path::Path::new(&home).join(".config/faelight-shell/config.fsh");
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            for line in text.lines() {
+                if let Some(rest) = line.trim().strip_prefix("alias ") {
+                    if let Some(eq) = rest.find('=') {
+                        let name = rest[..eq].trim().to_string();
+                        if !name.is_empty() {
+                            set.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    set
 }
 fn filter_entries(entries: &[Entry], filter: &KindFilter, query: &str) -> Vec<Entry> {
     entries
