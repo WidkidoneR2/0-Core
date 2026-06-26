@@ -963,13 +963,46 @@ fn is_known_command(cmd: &str) -> bool {
         "python3", "python",
         // Other
         "dev", "delete", "del", "diff", "list",
+        // TUI launchers (REPL special-cases -- INT-092)
+        "cheat", "it", "gt", "db", "ade", "rewind",
+        // Aliases/commands resolved at runtime
+        "reload", "help", "h",
     ];
     if BUILTINS.contains(&cmd) { return true; }
     // PATH check
     let path_env = std::env::var("PATH").unwrap_or_default();
-    path_env.split(':').any(|dir| {
+    if path_env.split(':').any(|dir| {
         std::path::Path::new(&format!("{}/{}", dir, cmd)).exists()
-    })
+    }) {
+        return true;
+    }
+    // INT-092: alias check -- a command that is a defined alias is valid (green).
+    // The 299 shell_aliases were previously all red unless coincidentally on PATH.
+    is_known_alias(cmd)
+}
+
+/// INT-092: is `cmd` a defined alias in state.db? Cached per-process to avoid
+/// a db hit on every keystroke. Green = the alias exists and will run.
+fn is_known_alias(cmd: &str) -> bool {
+    use std::sync::OnceLock;
+    static ALIASES: OnceLock<std::collections::HashSet<String>> = OnceLock::new();
+    let set = ALIASES.get_or_init(|| {
+        let mut s = std::collections::HashSet::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            let db_path = std::path::Path::new(&home).join("0-core/runtime/state.db");
+            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                if let Ok(mut stmt) = conn.prepare("SELECT name FROM shell_aliases") {
+                    if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                        for name in rows.flatten() {
+                            s.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+        s
+    });
+    set.contains(cmd)
 }
 
 impl<'a> Hinter for ForestHelper<'a> {
