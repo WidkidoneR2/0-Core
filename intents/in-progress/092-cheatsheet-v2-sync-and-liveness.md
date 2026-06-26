@@ -100,28 +100,3 @@ REMAINING (lower priority now):
     correctness fix that's now a visual nicety. Build only if the green/dim distinction is wanted.
   - Description curation: ~64 builtins still "description pending" -- the human, incremental piece.
 Stays in-progress for Phase 2 + curation. Core value fully delivered.
-
-
-## Progress -- 2026-06-26 (Phases 1a, 1b, 3 + highlighter DONE -- demonstrated)
-Core thesis PROVEN: the cheatsheet (and highlighter) now read from sources of truth, not
-fossils. Live counts after deploy: 296 aliases, 108 builtins, 35 keybinds (452 total entries).
-  - Phase 1a (aliases+keybinds sync): DONE. refresh_registry() rebuilds from config.fsh +
-    mango config.conf. cheat --refresh command added.
-  - Phase 1b (builtins): DONE. Parses commands/mod.rs execute() match arms AT REFRESH (108
-    real builtins, was a fossil 17). Self-syncing -- dispatcher IS the source of truth.
-    curate_builtin_desc covers ~44; rest are "description pending" stubs (incremental).
-  - Phase 3 (auto-refresh on deploy): DONE + proven end-to-end (testfossil rode a deploy
-    into the cheatsheet, zero manual steps). faelight-shell --refresh-cheatsheet + deploy hook.
-  - Highlighter fix (bonus, the reported bug): is_known_command now checks builtins + PATH +
-    aliases. Green = runnable, red = not. cheat/it/gt + all 296 aliases now green.
-  - Parser hardening: handles quote-wrapped, quote-containing, unquoted, commented alias
-    lines; 0 missed. Fixed two real parser bugs found via count-verification.
-  - Hygiene: removed 4 dead/malformed browser aliases (gmail/youtube/chatgpt/claude).
-Bugs found+fixed via "demonstrated not implemented" (count checks, not trusting green):
-  stale shell_aliases table -> read config.fsh directly; quote-containing alias parse miss.
-REMAINING (lower priority now):
-  - Phase 2 (load-time liveness coloring in the TUI): RE-SCOPED to optional polish. With all
-    sources reading from truth + auto-refresh on deploy, nothing CAN be stale -- Phase 2 was a
-    correctness fix that's now a visual nicety. Build only if the green/dim distinction is wanted.
-  - Description curation: ~64 builtins still "description pending" -- the human, incremental piece.
-Stays in-progress for Phase 2 + curation. Core value fully delivered.
