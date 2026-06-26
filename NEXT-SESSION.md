@@ -27,3 +27,16 @@ Caution agreed: keep it a DEFAULT rhythm, not a rigid law -- flex when work is m
 domain isn't ready. Don't cut singing work short for the calendar.
 DECISION DEFERRED: try the VM block first, see how sustained focus actually feels, THEN decide
 if this earns a formal decisions/ record. Demonstrated-not-declared.
+
+## RESUME HERE: virtio-gpu swap for the login-test VM (INT-056)
+State at break: greetd+mango committed to hosts/vm/configuration.nix (031b72c7). VM boots
+real login flow (greetd -> tuigreet --cmd mango), login works, mango runs on tty1 + gets a
+seat. SSH rescue path proven. BLOCKER: qxl GPU doesn't route wlroots output/input through
+SPICE -> black screen.
+NEXT STEP: switch the VM's virtual GPU qxl -> virtio-gpu (no install -- it's a QEMU device
+flag). In pkgs/faelight/scripts/vm, cmd_gui builds QOPTS with `-vga qxl -spice ...` (~line 166).
+Plan: (1) read cmd_gui fully, (2) try a ONE-OFF launch with virtio (-vga virtio or
+-device virtio-vga-gl) instead of qxl -- nothing committed, (3) check SPICE window: does mango
+paint? does Super+Return spawn alacritty? (4) if yes -> make permanent (script edit/option);
+if no -> keep diagnosing. Guest already has virtio drivers (kernel default). qxl stays right
+for the headless watching loop (INT-080) -- this may need a separate graphical-GPU path/flag.
