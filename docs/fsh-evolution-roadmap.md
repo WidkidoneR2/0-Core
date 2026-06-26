@@ -8,12 +8,14 @@ Sequence: **foundation (INT-060) -> stability (INT-057) -> feature lanes**.
 Bugs that cost real time in sessions. Fix before polishing features. Highest priority:
 builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 
-- [ ] **Builtin shadowing of process tools** -- `kill` only takes job-ids (`kill %N`), not
-      PIDs; `pkill`/`pgrep` fail (exit-1, no match). Broke `vm down` -> silent no-op -> two
-      VMs on one qcow2 (corruption risk). Workaround used: Python /proc walkers. (2026-06-23)
-- [ ] **Operators punt the whole line to bare `sh`** -- `|` `>` `;` `2>&1` and heredocs hand
-      the line to `sh`, which cannot see fsh builtins (`vm` -> "command not found"). Broke
-      command capture repeatedly across the session. (2026-06-23)
+- [x] **Builtin shadowing of process tools** -- FIXED (INT-095, 2026-06-26): kill split
+      three ways -- `kill %N` -> job table, `kill <PID>`/`-SIG` -> real kill, `terminate <pat>`
+      -> pgrep pattern. All gates proven live. Corruption risk removed. (vm /proc workaround
+      left in place, harmless; retire separately.)
+- [~] **Operators punt the whole line to bare `sh`** -- CLARITY FIXED (INT-089, 2026-06-26):
+      a forest word lost to the redirect->sh boundary now emits a clear message naming the
+      cause + workaround. EXECUTION still routes to sh (the real routing fix = INT-267/322).
+      (2026-06-23)
 - [ ] **Bare `python3` -> interactive REPL trap** -- no script arg drops into the
       interpreter; looks like a hang. (2026-06-23)
 - [ ] **`exec fsh` does not hot-swap** the rebuilt binary -- must close+reopen the terminal
