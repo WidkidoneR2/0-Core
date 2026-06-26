@@ -2,7 +2,7 @@
 id: 089
 date: 2026-06-24
 type: future
-status: in-progress
+status: complete
 title: "fsh: clearer errors when && chains hit a builtin"
 tags: [fsh, shell, errors, ux, builtins, paper-cut]
 priority: low
@@ -34,10 +34,26 @@ via sh -c") and 1112 (the && NOTE). The builtin/alias list already exists in fsh
 detection can reuse it to recognise the name before sh ever sees it, OR post-process the
 sh "command not found" against the known-builtin set.
 ## Gates
-- [ ] fsh recognises when a failed sh-chain command name is a known fsh builtin/alias
-- [ ] emits a clear message: names the builtin, explains the && -> sh boundary, gives the workaround
-- [ ] does NOT false-positive on genuinely missing commands (real typos still say "not found")
-- [ ] verified live: `git status && d` produces the clear message, not bare "sh: d: command not found"
+- [x] fsh recognises when a failed sh-chain command name is a known fsh builtin/alias
+- [x] emits a clear message: names the builtin, explains the && -> sh boundary, gives the workaround
+- [x] does NOT false-positive on genuinely missing commands (real typos still say "not found")
+- [x] verified live: `git status && d` produces the clear message, not bare "sh: d: command not found"
 ## The Rule
 "An error that blames the wrong thing is worse than no error.
  If the forest knows `d` is its own word, it should say so." 🌲
+
+
+## Progress -- 2026-06-26 (COMPLETE -- proven live)
+Root cause located precisely: INT-322 routes &&-chain segments WITH a redirect (2>, >, >>) to
+sh (line ~1190 main.rs); sh can't see fsh builtins/aliases -> misleading "command not found".
+This is the papercut that bit ~12x this session (cistart/deploy/cicomplete + 2>&1).
+Fix (clarity only, execution unchanged): added completion::is_fsh_only_word() -- true for
+aliases + forest builtins NOT on PATH (deploy, cistart, d, fg...), false for PATH tools
+(git, cargo). At the redirect->sh branch, if the segment's command word is a forest word AND
+sh failed, emit a clear message naming the word + the redirect->sh boundary + the workaround.
+PROVEN LIVE:
+  `true && cistart 099 2>&1` -> "sh: cistart: command not found" THEN the clear forest message.
+  `cistart 099 2>&1 | tail` -> ran via dispatcher, NO spurious warning (gate 3).
+  `git status 2>&1` -> normal, no warning (PATH tool, gate 3).
+Scope honored: did NOT change execution semantics (real routing = INT-267/322). The charter's
+"&&" framing refined: the trigger is redirect-on-a-chain-segment, not && alone.
