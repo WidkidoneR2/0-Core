@@ -83,8 +83,19 @@ pub fn inspect(ctx: &AppContext, option: String, why: bool) -> CoreResult<()> {
     };
 
     println!();
-    println!("  {} {}", "🔍".bright_cyan(), option.bright_white().bold());
-    println!("  {}", "─".repeat(50).bright_black());
+    // INT-093: candy-neon forest theme (INT-033/091 palette) via truecolor.
+    // lime = what won, coral = the winner marker, aqua = type/priority, near-black dim = lost.
+    let lime  = |s: &str| s.truecolor(0xA6, 0xE2, 0x2E);   // neon-lime
+    let coral = |s: &str| s.truecolor(0xFF, 0x5C, 0x57);   // hot-coral
+    let aqua  = |s: &str| s.truecolor(0x36, 0xE0, 0xD0);   // electric-aqua
+    let dim   = |s: &str| s.truecolor(0x55, 0x66, 0x55);   // faint forest-grey-green
+    let leaf  = |s: &str| s.truecolor(0x8C, 0xC2, 0x6B);   // soft leaf-green
+    let title = format!(" 🔍 {} ", &option);
+    let bar = "─".repeat(title.chars().count());
+    println!();
+    println!("  {}{}{}", dim("╭"), dim(&bar), dim("╮"));
+    println!("  {}{}{}", dim("│"), lime(&title), dim("│"));
+    println!("  {}{}{}", dim("╰"), dim(&bar), dim("╯"));
 
     let (ok, raw) = run_opt(&option);
     let mut info = parse_nixos_option(&raw);
@@ -118,25 +129,32 @@ pub fn inspect(ctx: &AppContext, option: String, why: bool) -> CoreResult<()> {
         println!("  {} {}", "ℹ".bright_blue(), note.bright_black());
         println!();
     }
+    println!();
     if let Some(v) = &info.value {
-        println!("  {}  {}", "Value: ".bright_black(), v.bright_green().bold());
+        println!("     {}   {}", dim("value  "), lime(v).bold());
     }
     if let Some(t) = &info.type_ {
-        println!("  {}  {}", "Type:  ".bright_black(), t.cyan());
+        println!("     {}   {}", dim("type   "), aqua(t));
+    }
+    if let Some(d) = &info.default {
+        println!("     {}   {}", dim("default"), dim(d));
     }
     if let (Some(v), Some(d)) = (&info.value, &info.default) {
-        println!("  {}  {}", "Default:".bright_black(), d.bright_black());
         if v == d {
-            println!("  {} {}", "⚠".yellow(),
-                "value equals the default -- this definition is redundant".yellow());
+            println!("     {} {}", coral("⚠"),
+                dim("value equals the default -- this definition is redundant"));
         }
     }
-    if !info.defined_by.is_empty() {
+    // INT-093: only show the standalone "defined here" list when the why-section WON'T
+    // (single def, or no --why). When --why expands a multi-def list below, this would just
+    // duplicate it -- so we skip it to avoid a wall of repeated paths.
+    let why_will_expand = info.defined_by.len() > 1 || why;
+    if !info.defined_by.is_empty() && !why_will_expand {
         println!();
-        println!("  {} {}", "Defined by".bright_white().bold(),
-            "(where the value is set -- what won):".bright_black());
+        println!("  {}  {}", coral("◈"), lime("defined here").bold());
+        println!("     {}", dim("(where the value is set -- what won)"));
         for d in &info.defined_by {
-            println!("    {} {}", "→".bright_green(), d.green());
+            println!("     {} {}", coral("✓"), leaf(d));
         }
     }
     // Phase 2: priority / merge analysis -- escalate to the slow nix eval only when
@@ -146,34 +164,47 @@ pub fn inspect(ctx: &AppContext, option: String, why: bool) -> CoreResult<()> {
             let merges = is_merge_type(&info.type_);
             println!();
             if merges {
-                println!("  {} {} sources {} into this value:",
-                    "🔀".bright_magenta(), w.defs.len().to_string().bright_white().bold(),
-                    "merge".bright_magenta());
+                println!("  {}  {}", aqua("🔀"), lime("why this value -- merged").bold());
+                println!("     {} {} {}", aqua(&w.defs.len().to_string()).bold(),
+                    dim("sources merged into the final value"), aqua("·"));
             } else {
                 let word = if w.defs.len() == 1 { "definition" } else { "definitions" };
-                println!("  {} {} {} -- {} won:",
-                    "⚖".bright_yellow(), w.defs.len().to_string().bright_white().bold(),
-                    word, prio_label(w.highest_prio).bright_yellow());
+                println!("  {}  {}", aqua("⚖"), lime("why this value won").bold());
+                println!("     {} {} {} {}",
+                    aqua(&w.defs.len().to_string()).bold(), dim(word), dim("·"),
+                    aqua(&prio_label(w.highest_prio)));
             }
-            for (file, val) in &w.defs {
+            // winner (first) glows; further defs are dimmed losers. Cap long lists:
+            // show the winner + up to 5 more, then "... and N more" so a 67-source merge
+            // stays readable instead of scrolling off-screen.
+            const CAP: usize = 6;
+            let total = w.defs.len();
+            for (idx, (file, val)) in w.defs.iter().enumerate().take(CAP) {
                 let shown = if val.len() > 60 { format!("{}...", &val[..60]) } else { val.clone() };
-                println!("    {} {} {} {}",
-                    "·".bright_black(), file.green(),
-                    "=".bright_black(), shown.cyan());
+                if idx == 0 {
+                    println!("     {} {} {} {}",
+                        coral("✓"), leaf(file), dim("→"), lime(&shown));
+                } else {
+                    println!("     {} {} {} {}",
+                        dim("╴"), dim(file), dim("→"), dim(&shown));
+                }
+            }
+            if total > CAP {
+                println!("     {} {}", dim("…"),
+                    dim(&format!("and {} more", total - CAP)));
             }
         }
     }
     if !info.declared_by.is_empty() {
         println!();
-        println!("  {} {}", "Declared by".bright_white().bold(),
-            "(where the option is defined):".bright_black());
+        println!("  {}  {}", aqua("◇"), aqua("declared in").bold());
         for d in &info.declared_by {
-            println!("    {} {}", "·".bright_black(), d.bright_black());
+            println!("     {} {}", dim("·"), dim(d));
         }
     }
     if let Some(desc) = &info.description {
         println!();
-        println!("  {}", desc.bright_black().italic());
+        println!("  {} {} {}", dim("❝"), dim(desc).italic(), dim("❞"));
     }
     println!();
     Ok(())

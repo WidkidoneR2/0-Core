@@ -2,7 +2,7 @@
 id: 093
 date: 2026-06-26
 type: future
-status: planned
+status: complete
 title: "faelight-inspect TUI: themed forest UX over the Nix option-resolution debugger"
 tags: [nix, inspect, tui, ratatui, forest-ux, presentation]
 priority: low
