@@ -9511,20 +9511,34 @@ fn resolve_fsh_binary() -> String {
 // canonicalizes to the SAME path already running, nothing new was deployed -- say so
 // instead of a pointless same-binary re-exec.
 fn reload_fsh() -> CommandResult {
+    use std::os::unix::process::CommandExt;
     let target = resolve_fsh_binary();
-    let target_real = std::fs::canonicalize(&target).ok();
-    let running_real = std::env::current_exe().ok().and_then(|p| std::fs::canonicalize(p).ok());
-    if let (Some(t), Some(r)) = (&target_real, &running_real) {
-        if t == r {
-            return CommandResult::Output(format!(
-                "  Already running the current fsh ({}). Nothing new to reload.\n  (Rebuild + deploy first, then reload to pick up changes.)",
-                t.display()
-            ));
+    // INT-096: compare the CURRENT deploy-target store path against the build this session
+    // launched from (recorded at startup in /tmp/fsh-running-build). The store hash changes
+    // every rebuild, so a differing hash = a genuinely new fsh was deployed. We never use
+    // current_exe() here -- it is unreliable through the makeWrapper wrapper.
+    let deployed = std::fs::canonicalize(&target).ok().map(|p| p.to_string_lossy().to_string());
+    let running = std::fs::read_to_string("/tmp/fsh-running-build").ok();
+    match (deployed.as_deref(), running.as_deref()) {
+        (Some(d), Some(r)) if d.trim() == r.trim() => {
+            CommandResult::Output(format!(
+                "  Already on the current fsh build:\n    {}\n  Nothing new to reload. (Rebuild + deploy first.)",
+                d.trim()
+            ))
+        }
+        (Some(d), Some(r)) => {
+            println!("  🔄 New fsh build detected -- reloading:");
+            println!("    was: {}", r.trim());
+            println!("    new: {}", d.trim());
+            let err = std::process::Command::new(&target).exec();
+            CommandResult::Error(format!("reload: {}: {}", target, err))
+        }
+        _ => {
+            println!("  🔄 Reloading fsh -> {} (no build marker to compare)", target);
+            let err = std::process::Command::new(&target).exec();
+            CommandResult::Error(format!("reload: {}: {}", target, err))
         }
     }
-    println!("  🔄 Reloading fsh -> {}", target);
-    let err = std::process::Command::new(&target).exec();
-    CommandResult::Error(format!("reload: {}: {}", target, err))
 }
 
 fn exec_cmd(args: &[&str]) -> CommandResult {

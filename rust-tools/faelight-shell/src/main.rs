@@ -549,6 +549,13 @@ fn repl_main() -> Result<()> {
     apply_direnv();
     // Connect to state.db
     let db = db::ForestDb::open()?;
+    // INT-096: record which fsh build this session launched from, so `reload` can tell
+    // whether a newer build was deployed. The deploy symlink canonicalizes to a store path
+    // whose hash changes on every rebuild -- that hash IS the build identity (current_exe()
+    // is unreliable here because the deployed binary is makeWrapper-wrapped).
+    if let Ok(p) = std::fs::canonicalize("/run/current-system/sw/bin/faelight-shell") {
+        let _ = std::fs::write("/tmp/fsh-running-build", p.to_string_lossy().as_bytes());
+    }
     let core_root = db.core_root();
     let _ = std::env::set_current_dir(&core_root);
     // Start in ~/0-core by default
