@@ -25,13 +25,13 @@
 
   # INT-077: serial console on ttyS0 so the VM can run in-terminal (QEMU -nographic).
   # Additive -- graphical boot still works; console mode is selected at launch via QEMU_OPTS.
-  boot.kernelParams = [ "console=ttyS0" ];
+  boot.kernelParams = [ "console=tty0" "console=ttyS0" ];  # INT-056: tty0 first so the graphical framebuffer initializes (was ttyS0-only = headless)
 
   # INT-077: make `build-vm` generate a headless, serial-on-stdio VM by default so the
   # guest runs IN the terminal (copy-paste) -- no graphical window, no QEMU flag-wrangling.
   # The graphical path is still available by overriding QEMU_OPTS at launch if needed.
   virtualisation.vmVariant.virtualisation = {
-    graphics = false;
+    graphics = true;  # INT-056: was false (headless). true = real graphical framebuffer the compositor can drive.
     # INT-077: forward guest SSH (22) -> host 2222 for the reliable console path.
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
