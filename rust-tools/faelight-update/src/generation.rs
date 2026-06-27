@@ -14,7 +14,37 @@ pub struct Generation {
     pub nixos_version: String, // "26.05.20260618.e8210c6"
     pub kernel: String,        // "6.18.35"
     pub commit: String,        // Configuration Revision (git rev), may end "-dirty" or be "--"
+    pub intent: String,        // INT-NNN shipped in this commit (from commit message), or "--"
     pub current: bool,         // the running generation
+}
+
+/// Look up the INT-NNN tag in a commit's subject line (commits are intent-tagged).
+fn intent_for_commit(commit: &str) -> String {
+    let rev = commit.trim_end_matches("-dirty");
+    if rev.is_empty() || rev == "--" {
+        return "--".to_string();
+    }
+    let out = Command::new("git")
+        .args(["-C", &flake_dir(), "log", "-1", "--format=%s", rev])
+        .output();
+    let subject = match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+        _ => return "--".to_string(),
+    };
+    // Find INT-NNN (case-insensitive) in the subject.
+    let upper = subject.to_uppercase();
+    if let Some(pos) = upper.find("INT-") {
+        let rest = &subject[pos + 4..];
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !digits.is_empty() {
+            return format!("INT-{digits}");
+        }
+    }
+    "--".to_string()
+}
+
+fn flake_dir() -> String {
+    std::env::var("HOME").map(|h| format!("{h}/0-core")).unwrap_or_else(|_| ".".into())
 }
 
 /// Store-profile path for a generation number.
@@ -59,7 +89,8 @@ fn parse_generations(text: &str) -> Vec<Generation> {
         let commit = cols.get(5).map(|s| s.to_string()).unwrap_or_else(|| "--".into());
         // "Current" is the last column: True/False.
         let current = cols.last().map(|s| *s == "True").unwrap_or(false);
-        gens.push(Generation { number, date, nixos_version, kernel, commit, current });
+        let intent = intent_for_commit(&commit);
+        gens.push(Generation { number, date, nixos_version, kernel, commit, intent, current });
     }
     // newest first
     gens.sort_by(|a, b| b.number.cmp(&a.number));
@@ -125,6 +156,7 @@ const C_AMBER: Color = Color::Rgb(255, 200, 50); // dirty / mark
 const C_CORAL: Color = Color::Rgb(255, 80, 80); // rollback / danger
 const C_TEXT: Color = Color::Rgb(215, 224, 218);
 const C_DIM: Color = Color::Rgb(120, 140, 130);
+const C_PURPLE: Color = Color::Rgb(180, 130, 255); // intent (forest philosophy color)
 
 struct GenBrowser {
     gens: Vec<Generation>,
@@ -235,6 +267,10 @@ fn render(f: &mut Frame, app: &GenBrowser) {
             Span::styled(format!("  {}", g.nixos_version), Style::default().fg(C_DIM).bg(bg)),
             Span::styled(format!("  {commit_short}"), Style::default().fg(C_AQUA).bg(bg)),
             Span::styled(if dirty { " *" } else { "" }, Style::default().fg(C_AMBER).bg(bg)),
+            Span::styled(
+                if g.intent != "--" { format!("  {}", g.intent) } else { String::new() },
+                Style::default().fg(C_PURPLE).bg(bg),
+            ),
             Span::styled(if g.current { "  (current)" } else { "" }, Style::default().fg(C_LIME).bg(bg)),
         ]))
     }).collect();

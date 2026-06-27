@@ -42,7 +42,7 @@ Phase 3 -- integration: tie generations to commit + intent (depends on INT-034 d
 - [x] Phase 0: current Faelight-Update surveyed; update-manager + gen-browser integration points recorded
 - [x] update manager: per-input flake update with pre-switch closure diff and a review gate
 - [x] generation browser: timeline + closure diff between generations + roll-back
-- [ ] generations tied to commit + intent (via INT-034 triad data)
+- [x] generations tied to commit + intent (via INT-034 triad data)
 
 ## Notes
 - Consolidates two post-1.0.0 ideas into the existing tool, not two new silos.
@@ -179,3 +179,17 @@ Skipping the cargo-update step fails with "cannot update lock file because --loc
 
 NEXT: Phase 3 -- tie generations to commit + intent (the triad, depends on INT-034 data). The
 commit is already shown per-gen; Phase 3 adds the intent mapping.
+
+
+## Phase 3 -- DONE (2026-06-27): generations tied to commit + intent -- 074 COMPLETE
+Added an `intent` field to Generation + intent_for_commit(): reads the generation's Configuration
+Revision (git commit), runs `git log -1 --format=%s <rev>`, extracts the INT-NNN tag from the
+commit subject (commits are intent-tagged). The generation browser timeline now shows, per row:
+number, date, kernel, nixos_version, commit (aqua), AND the shipped intent (purple, forest
+philosophy color). Proven live -- the full triad (generation -> commit -> intent) is now legible
+in the browser; you can see which intent shipped in any generation.
+All four 074 gates met: Phase 0 (survey), Phase 1 (update manager: per-input update + closure
+diff + review gate), Phase 2 (generation browser TUI), Phase 3 (gen tied to commit + intent).
+Composes with the INT-034 triad (release_triad table) we built in the same session -- both express
+the generation/commit/intent relationship: 034 at release granularity (state.db, survives GC),
+074 at generation-browse granularity (live timeline).
