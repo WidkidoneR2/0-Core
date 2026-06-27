@@ -146,6 +146,33 @@
             )
           '';
         };
+
+        # INT-084: faelight-launcher -- candy-neon GTK4 app launcher (logout's twin recipe).
+        # wrapGAppsHook4 + the LD_PRELOAD preFixup make layer-shell work as a clean binary.
+        faelight-launcher = let
+          py = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
+        in pkgs.stdenv.mkDerivation {
+          pname = "faelight-launcher";
+          version = "0.1.0";
+          src = ./pkgs/faelight-launcher;
+          nativeBuildInputs = [ pkgs.wrapGAppsHook4 pkgs.gobject-introspection ];
+          buildInputs = [ py pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.librsvg pkgs.adwaita-icon-theme ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/bin
+            { echo '#!${py}/bin/python3'; cat main.py; } > $out/bin/faelight-launcher
+            chmod +x $out/bin/faelight-launcher
+            runHook postInstall
+          '';
+          preFixup = ''
+            gappsWrapperArgs+=(
+              --set GDK_BACKEND wayland
+              --set LD_PRELOAD ${pkgs.gtk4-layer-shell}/lib/libgtk4-layer-shell.so
+            )
+          '';
+        };
       };
 
       devShells.${system}.default = pkgs.mkShell {

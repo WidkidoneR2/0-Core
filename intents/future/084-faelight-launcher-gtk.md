@@ -36,3 +36,27 @@ Phase 3 -- wire keybind + `launch` alias + registry entry; deploy; verify.
   for the GTK + candy-neon pattern.
 ## The Rule
 "What the forest launches, it launches beautifully." 🌲
+
+
+## Progress -- 2026-06-26 (Phases 1-3 core DONE -- working daily launcher)
+faelight-launcher is LIVE: glassy candy-neon GTK4 floating launcher, summoned by Super+Space.
+Built in Python GTK4 + gtk4-layer-shell, cloned from faelight-logout's (INT-064) proven recipe.
+- Phase 0: studied faelight-logout's GTK/layer-shell + CSS -- used as the template.
+- Phase 1: app list + fuzzy filter (type to narrow), arrow/Enter/Esc nav, smooth Esc fade.
+  (Placeholder app list for now; real .desktop scan is the next milestone -- Phase 1B.)
+- Phase 2: candy-neon theme -- glassy panel (rgba 0.55, desktop shows through), PER-APP neon
+  colors (lime/coral/aqua/violet/pink/gold, cycled), selected row glows its color. Float-mode
+  default (--fullscreen for an overlay variant). This look became a design-language reference --
+  Christian wants ReGreet (054) + the bar themed to match.
+- Phase 3 (packaging + wiring): packaged in flake.nix as faelight-launcher (wrapGAppsHook4 +
+  preFixup baking LD_PRELOAD=libgtk4-layer-shell.so -- a clean binary, no nix-shell/manual
+  preload). Installed on framework16. mango keybind SUPER,space -> faelight-launcher (toggle-
+  floating moved to SUPER+SHIFT,space). Aliases: launcher + launch -> faelight-launcher
+  (re-pointed off the retired faelight-palette, per the 072-cleanup Must-Do).
+REMAINING (follow-on milestones, not blocking the working tool):
+- Phase 1B: real .desktop scanning + forest-tool entries (replace the placeholder app list).
+- Registry entry in registry/tools.toml with a CORRECT description (charter Must-Do).
+- Optional: `faelight launch launcher` umbrella arm.
+- Design-language capture: the glassy-neon panel recipe as a reusable aesthetic (for 054, bar).
+LESSONS: flakes only see git-tracked files (untracked pkg dir = build can't find src);
+gtk4-layer-shell must load before libwayland (wrapGAppsHook4 preFixup handles it).

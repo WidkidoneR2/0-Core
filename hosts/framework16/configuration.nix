@@ -125,6 +125,7 @@
     pkgs.vim
     self.packages.${system}.faelight-forest
     self.packages.${system}.faelight-logout
+    self.packages.${system}.faelight-launcher  # INT-084
     self.packages.${system}.faelight-bar-gtk
     pkgs.alacritty
     pkgs.yazi
