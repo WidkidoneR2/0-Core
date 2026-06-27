@@ -485,3 +485,13 @@ expected_usage = "low"
 type = "cargo"
 deployable = false
 retired = false
+
+[[tool]]
+name = "faelight-launcher"
+version = "0.1.0"
+category = "tools"
+description = "Candy-neon GTK4 app launcher: fuzzy search over .desktop apps + forest tools, sectioned and themed"
+expected_usage = "high"
+type = "python"
+deployable = true
+retired = false

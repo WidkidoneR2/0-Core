@@ -60,3 +60,23 @@ REMAINING (follow-on milestones, not blocking the working tool):
 - Design-language capture: the glassy-neon panel recipe as a reusable aesthetic (for 054, bar).
 LESSONS: flakes only see git-tracked files (untracked pkg dir = build can't find src);
 gtk4-layer-shell must load before libwayland (wrapGAppsHook4 preFixup handles it).
+
+
+## Phase 1B + finish (2026-06-27): real app discovery, sections, registry -- 084 CORE COMPLETE
+- REAL .desktop SCANNING replaced the placeholder list: XDG dirs (XDG_DATA_DIRS + nix-profile +
+  /run/current-system/sw/share), parses Name/Exec, strips field codes, terminal apps wrapped in
+  alacritty, NoDisplay/Hidden skipped, junk blocklist (NixOS manual, remote-viewer, vim/gvim/nvim,
+  etc.).
+- SECTIONS: "FOREST TOOLS" (curated forest binaries, A-Z) + "APPLICATIONS" (scanned, A-Z), each
+  with a dim candy-neon header. Headers are non-selectable; arrow keys skip them.
+- AUTO-SCROLL fix: selected row grab_focus() scrolls it into view -- selection never hides below
+  the fold (was the reported bug). Fixed-height ScrolledWindow (420px) so the window stays put.
+- REGISTRY: registered in registry/tools.toml with an HONEST description (the 072 Must-Do --
+  the old faelight-palette was mislabeled; this one is not).
+- Verified live: Super+Space summons the finished launcher; real apps + forest tools, sectioned,
+  filtered, auto-scrolling, glassy candy-neon.
+
+CORE COMPLETE. Optional follow-ons remaining (nice-to-have, non-blocking):
+- `faelight launch launcher` umbrella arm.
+- Capture the glassy-neon panel as a reusable design language (for INT-054 ReGreet + the bar).
+- App icons (currently text-only rows).
