@@ -81,15 +81,15 @@
   # Makes the VM a faithful login-test surface for the recovery/login cluster.
   # The serial-console + SSH path (above) stays intact, so `vm ssh` rescues a
   # broken graphical login -- a working preview of the 056 safety pattern itself.
-  services.greetd = {
-    enable = true;
-    settings.default_session = {
-      # INT-056: greetd -> tuigreet --cmd mango. With virtio-vga-gl + gtk,gl=on the VM has
-      # working virgl GL, so mango uses its normal GLES2 renderer (no pixman needed).
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd 'env WLR_NO_HARDWARE_CURSORS=1 LIBGL_ALWAYS_SOFTWARE=1 WLR_RENDERER=pixman mango'";  # INT-056: pure software render (no virgl) -- research says virgl breaks client surfaces
-      user = "greeter";
-    };
-  };
+  # INT-056: ReGreet via its NixOS module. The module enables a default cage+regreet session
+  # WITH proper config (the raw 'cage -- regreet' command rendered an EMPTY window because
+  # regreet had no config). greetd stays enabled; the module manages default_session.
+  services.greetd.enable = true;
+  programs.regreet.enable = true;
+
+  # INT-056: the greetd 'greeter' user must be in input/seat/video to read /dev/input/event*
+  # (crw-rw---- root:input) -- without this, ReGreet renders but accepts NO keyboard input.
+  users.users.greeter.extraGroups = [ "input" "seat" "video" ];
   faelight.desktop.mango.enable = true;
   # INT-056: force software GL system-wide in the VM -- virgl breaks client-surface rendering
   # (compositor paints but app windows are invisible). llvmpipe software path renders reliably.
