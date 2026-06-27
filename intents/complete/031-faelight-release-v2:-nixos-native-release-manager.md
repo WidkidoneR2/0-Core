@@ -3,7 +3,7 @@ id: 031
 date: 2026-06-04
 type: feature
 title: "faelight-release v2: NixOS-native release manager"
-status: in-progress
+status: complete
 tags: [faelight-release, nixos, release, changelog, version]
 priority: high
 ---

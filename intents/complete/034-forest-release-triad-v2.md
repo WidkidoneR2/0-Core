@@ -3,7 +3,7 @@ id: 034
 date: 2026-06-04
 type: feature
 title: "Forest release v2: generation + commit + intent triad tracking"
-status: in-progress
+status: complete
 tags: [release, generation, triad, friday, versioning]
 priority: high
 ---
