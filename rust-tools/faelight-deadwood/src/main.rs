@@ -50,6 +50,8 @@ fn main() {
     if run("aliases") { report("Dead aliases", check_dead_aliases(&root)); }
     if run("baks") { report(&format!("Stale .bak files (>{} days)", cli.bak_age), check_stale_baks(&root, cli.bak_age)); }
     if run("keybinds") { report("Dead keybinds (mango)", check_dead_keybinds(&root)); }
+    if run("registry") { report("Registry orphans (deployable, no binary)", check_registry_orphans(&root)); }
+    if run("scripts") { report("Orphaned scripts (referenced nowhere)", check_orphaned_scripts(&root)); }
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  A healthy forest sheds dead wood.".dimmed());
 }
@@ -170,6 +172,83 @@ fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
         let live = BUILTINS.contains(&target) || on_path(target) || target.starts_with('~') || target.starts_with('/');
         if !live {
             findings.push(Finding { confidence: Confidence::Medium, detail: format!("bind -> spawn '{}' (not found)", target.bright_white()) });
+        }
+    }
+    findings
+}
+
+
+// ── Registry orphans ─────────────────────────────────────────────────────────
+// A tool in registry/tools.toml marked deployable=true, retired=false, whose `name` binary
+// isn't on PATH. (retired=true -> intentionally gone, skip.)
+
+fn check_registry_orphans(root: &Path) -> Vec<Finding> {
+    let path = root.join("registry/tools.toml");
+    let text = match std::fs::read_to_string(&path) { Ok(t) => t, Err(_) => return Vec::new() };
+    let mut findings = Vec::new();
+    // Parse [[tool]] blocks by scanning name/deployable/retired per block.
+    let mut name = String::new();
+    let mut deployable = false;
+    let mut retired = false;
+    let flush = |name: &str, deployable: bool, retired: bool, findings: &mut Vec<Finding>| {
+        if name.is_empty() || retired || !deployable { return; }
+        if BUILTINS.contains(&name) || on_path(name) { return; }
+        findings.push(Finding {
+            confidence: Confidence::High,
+            detail: format!("tool {} (deployable, not retired) -- no binary on PATH", name.bright_white()),
+        });
+    };
+    for line in text.lines() {
+        let l = line.trim();
+        if l == "[[tool]]" {
+            flush(&name, deployable, retired, &mut findings);
+            name.clear(); deployable = false; retired = false;
+            continue;
+        }
+        if let Some(v) = l.strip_prefix("name") {
+            name = v.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string();
+        } else if let Some(v) = l.strip_prefix("deployable") {
+            deployable = v.contains("true");
+        } else if let Some(v) = l.strip_prefix("retired") {
+            retired = v.contains("true");
+        }
+    }
+    flush(&name, deployable, retired, &mut findings); // last block
+    findings
+}
+
+// ── Orphaned scripts ─────────────────────────────────────────────────────────
+// A script in pkgs/faelight/scripts/ whose basename is referenced nowhere else in the repo
+// (no alias, no config, no other source). MED -- could be called dynamically.
+
+fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
+    let scripts_dir = root.join("pkgs/faelight/scripts");
+    let entries = match std::fs::read_dir(&scripts_dir) { Ok(e) => e, Err(_) => return Vec::new() };
+    // Build a corpus of all text in the repo (config + registry + rust src), once.
+    let mut corpus = String::new();
+    for dir in ["config", "registry", "rust-tools", "modules", "hosts"] {
+        for entry in WalkDir::new(root.join(dir)).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                let n = entry.file_name().to_string_lossy();
+                if n.contains(".bak") { continue; }
+                if let Ok(t) = std::fs::read_to_string(entry.path()) {
+                    corpus.push_str(&t);
+                    corpus.push('\n');
+                }
+            }
+        }
+    }
+    let mut findings = Vec::new();
+    for entry in entries.filter_map(|e| e.ok()) {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.contains(".bak") { continue; }
+        if !entry.path().is_file() { continue; }
+        // Referenced if its basename appears anywhere in the corpus.
+        if !corpus.contains(&name) {
+            findings.push(Finding {
+                confidence: Confidence::Medium,
+                detail: format!("script {} -- referenced nowhere (may be run dynamically)", name.bright_white()),
+            });
         }
     }
     findings
