@@ -3,7 +3,7 @@ id: 074
 date: 2026-06-22
 type: future
 title: "Faelight-Update v-next: update manager + generation browser"
-status: in-progress
+status: complete
 tags: [faelight-update, nix, flake-update, generations, generation-browser, tui, post-1.0.0]
 ---
 
