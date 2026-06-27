@@ -76,3 +76,32 @@ checker; the generation browser is a new TUI view. No architectural rework neede
 SEQUENCING for next session: Phase 1 (flake_checker per-input + closure diff + review gate),
 then Phase 2 (generation.rs + gen TUI view), then Phase 3 (INT-034 triad). Build on nvd; do
 NOT reinvent the diff engine.
+
+
+## Phase 1a -- DONE (2026-06-27): flake_checker.rs (legible per-input view)
+Built rust-tools/faelight-update/src/flake_checker.rs following the existing checker pattern
+(returns Vec<UpdateItem>, mod-declared, slotted into check_all_updates as a "❄ Flake Inputs"
+category). check_flake_updates() runs `nix flake metadata --json` against ~/0-core and reports
+each root input: locked rev (8-char) + lock age (Nd ago) + tracked ref. Unit test
+(parses_basic_metadata) PASSES; cargo check clean. Live output verified against the real flake
+-- all 7 inputs render correctly:
+  crane 469fd08d (8d) github · disko ff8702b4 (16d) github · home-manager 7bfff44b (6d)
+  release-26.05 · nixos-hardware 08018c72 (11d) github · nixpkgs e8210c64 (8d) nixos-26.05 ·
+  nixvim 7afca458 (6d) nixos-26.05 · pinnacle 5ae72933 (6d) github
+This is the legible per-input FOUNDATION. Phase 1 gate stays UNCHECKED -- 1a does enumeration
+only; 1b adds the actual per-input update + pre-switch closure diff (nvd) + review gate.
+
+### SIGNIFICANT FINDING (de-Arching needed -- blocks the tool on NixOS):
+faelight-update still carries Arch-era code that BREAKS it on NixOS:
+- TWO clap bugs: `verbose` and `count_only` fields lacked #[arg(...)] attributes -> clap
+  panicked at startup ("positional ... but action is SetTrue"), making the tool UN-RUNNABLE.
+  Fixed both (added #[arg(short, long)] / #[arg(long)]). The tool literally could not run before.
+- check_all_updates() + print_suggestions() call `sudo pacman`/`paru`/`pacman -Qtdq` even in
+  --dry-run, and these fire REGARDLESS of --only (so `--dry-run --only flake` still blocks on a
+  sudo password prompt). The Arch update/maintenance paths must be removed or NixOS-gated before
+  the tool is usable. This is real 074 scope (or a dedicated de-Arch cleanup): the update manager
+  cannot function on NixOS until the pacman/paru/sudo-maintenance code is retired. flake_checker
+  is the correct NixOS-native direction; the old Arch checkers need retiring.
+
+NEXT (074): Phase 1b -- per-input update probe + closure diff + review gate; AND de-Arch the
+tool (retire pacman/paru/Arch-maintenance so --dry-run is truly dry and the tool runs clean).

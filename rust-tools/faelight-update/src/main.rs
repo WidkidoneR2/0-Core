@@ -2,6 +2,7 @@ mod cargo_checker;
 mod cleanup_checker;
 mod config;
 mod firmware_checker;
+mod flake_checker;
 mod flatpak_checker;
 mod git_checker;
 mod neovim_checker;
@@ -45,6 +46,7 @@ struct Cli {
     yes: bool,
 
     /// Show detailed version information for each update
+    #[arg(short, long)]
     verbose: bool,
     /// Preview what would change without updating
     #[arg(long)]
@@ -59,6 +61,7 @@ struct Cli {
     #[arg(long)]
     maintain: bool,
     /// Output only the total count of updates (for scripts/bar)
+    #[arg(long)]
     count_only: bool,
     #[arg(long, value_delimiter = ',')]
     only: Option<Vec<String>>,
@@ -922,6 +925,15 @@ pub struct UpdateItem {
 /// Check all update sources
 fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     let mut categories = Vec::new();
+
+    // Flake inputs (INT-074 Phase 1a) -- the legible per-input view of the NixOS flake.
+    let flake_items = flake_checker::check_flake_updates();
+    categories.push(UpdateCategory {
+        name: "Flake Inputs".to_string(),
+        emoji: "❄".to_string(),
+        count: flake_items.len(),
+        items: flake_items,
+    });
 
     // System packages (pacman)
     if let Ok(cat) = check_pacman_updates() {
