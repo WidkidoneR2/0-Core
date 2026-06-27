@@ -10,8 +10,11 @@
   inputs.pinnacle.url = "github:pinnacle-comp/pinnacle";
   inputs.pinnacle.inputs.nixpkgs.follows = "nixpkgs";
   inputs.crane.url = "github:ipetkov/crane";
+  # INT-090 Phase 3: nixvim for the friday-dev devShell. Pin nixos-26.05 (NOT main); NO
+  # nixpkgs.follows -- Phase 0 lesson: let nixvim bring its own tested nixpkgs.
+  inputs.nixvim.url = "github:nix-community/nixvim/nixos-26.05";
 
-  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, crane, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, crane, nixvim, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -175,9 +178,15 @@
         };
       };
 
-      devShells.${system}.default = pkgs.mkShell {
+      devShells.${system}.default = let
+        # INT-090 Phase 3: build our candy-neon nixvim as an `nvim` package for this shell only.
+        forestNvim = nixvim.legacyPackages.${system}.makeNixvimWithModule {
+          inherit pkgs;
+          module = import ./config/nixvim/default.nix;
+        };
+      in pkgs.mkShell {
         name = "friday-dev";
-        buildInputs = with pkgs; [
+        buildInputs = (with pkgs; [
           # Rust toolchain
           rustc
           cargo
@@ -203,7 +212,7 @@
           ripgrep
           fd
           jq
-        ];
+        ]) ++ [ forestNvim ];
         shellHook = ''
           echo "🌲 Faelight Forest -- friday-dev shell"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

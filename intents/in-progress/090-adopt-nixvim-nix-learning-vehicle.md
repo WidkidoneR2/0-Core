@@ -52,11 +52,11 @@ FACTS confirmed:
   Add a nixvim instance to a 0-core devShell via makeNixvim in mkShell buildInputs, so
   `nvim` is available IN THAT SHELL ONLY. System nvim + Helix untouched. This is the
   "available where I want it, contained" form.
-  [ ] Gate: `nvim` works inside the chosen devShell; outside it, nothing changed.
+  [x] Gate: `nvim` works inside the chosen devShell; outside it, nothing changed.
 ## Phase 4 -- Decision point
   After living with it: decide -- keep as a devShell tool / promote further / "learned what
   I needed, Helix stays." ALL outcomes are wins; the Nix-learning happened regardless.
-  [ ] Gate: decision recorded with reasoning.
+  [x] Gate: decision recorded with reasoning.
 ## Notes
 - Errors of the form `vimPlugins.<name> attribute not found` => branch/nixpkgs mismatch
   (or a stale revision). First debugging step: confirm nixos-26.05 branch + no follows.
@@ -88,3 +88,24 @@ free sandbox. Verdict so far: declarative nixvim's reproducibility genuinely bea
 runtime plugin-manager model -- consistent with the forest philosophy.
 Phases 3 (devShell integration) and 4 (decision) REMAIN -- optional, for when wanted.
 Artifact lives in ~/nixvim-play (not committed to 0-core, by design).
+
+
+## Phase 3 + 4 -- DONE (2026-06-27): contained devShell nvim + decision -- 090 COMPLETE
+Phase 3: candy-neon nixvim wired into the friday-dev devShell, contained.
+- nixvim flake input added, pinned github:nix-community/nixvim/nixos-26.05, NO nixpkgs.follows
+  (Phase 0 rule held -- nixvim locked its own tested nixpkgs a0374025, zero vimPlugins errors).
+- Config modules (default/forest/candy-neon/bufferline.nix) copied from the ~/nixvim-play
+  sandbox into TRACKED ~/0-core/config/nixvim/ (flake builds from git-tracked files).
+- friday-dev devShell builds forestNvim via nixvim.legacyPackages.makeNixvimWithModule and
+  adds it to buildInputs. GATE PROVEN: inside `nix develop`, `nvim` resolves to the nixvim
+  store path (candy-neon IDE launches, full plugin set); OUTSIDE, no nvim leaked system-wide
+  and Helix (v -> hx) is untouched. Contained exactly as the phase intended.
+
+Phase 4 DECISION (recorded): KEEP nixvim as a contained devShell tool. All three of the
+intent's goals achieved: (1) Nix-learning -- module fluency banked richly in Phases 1-2
+(plugins.X.enable, opts/globals/keymaps as data, highlight groups, the merge/conflict system);
+(2) Helix stayed the dependable daily driver, untouched throughout every phase -- zero
+productivity risk; (3) open-mindedness -- ended with a real, reproducible, contained tool, not
+a from-scratch build. nixvim now lives in two forms: ~/nixvim-play (experiment sandbox) and
+~/0-core/config/nixvim (tracked, feeds the devShell). "Learned the Nix; Helix stays primary;
+nixvim available where wanted, contained." A clean all-outcomes-win close.
