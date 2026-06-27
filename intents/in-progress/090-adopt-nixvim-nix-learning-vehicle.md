@@ -42,12 +42,12 @@ FACTS confirmed:
   Run `nix flake init --template github:nix-community/nixvim` in a THROWAWAY directory
   (NOT in 0-core). Pin the nixvim input to the nixos-26.05 branch, no follows. Build/run
   with `nix run .#`. Helix completely untouched; nothing enters 0-core.
-  [ ] Gate: a stock nixvim builds and launches from the template, isolated from the system.
+  [x] Gate: a stock nixvim builds and launches from the template, isolated from the system.
 ## Phase 2 -- Port a small config slice (THE Nix-learning)
   In the throwaway flake, write a small real config in Nix: a colorscheme, 2-3 plugins,
   some `opts` (number, relativenumber, shiftwidth), maybe a keymap. Build, observe, iterate.
   This is the point: writing nixvim modules = practicing Nix. Feel the ergonomics vs lua.
-  [ ] Gate: a hand-written nixvim Nix config builds and the editor reflects it.
+  [x] Gate: a hand-written nixvim Nix config builds and the editor reflects it.
 ## Phase 3 -- devShell integration (still no system-wide change)
   Add a nixvim instance to a 0-core devShell via makeNixvim in mkShell buildInputs, so
   `nvim` is available IN THAT SHELL ONLY. System nvim + Helix untouched. This is the
@@ -66,3 +66,25 @@ FACTS confirmed:
 ## The Rule
 "Helix keeps the work moving; nixvim teaches the Nix. Keep them separate, keep Helix primary,
  and let the experiment deepen the craft without ever risking the day's work." 🌲
+
+
+## Progress -- 2026-06-26 (Phases 1 + 2 DONE -- richly)
+Phase 1: stock nixvim built from the template and launched, fully isolated in ~/nixvim-play
+(throwaway, NOT in 0-core). Helix untouched throughout. The Phase-0 pin held: nixos-26.05
+branch + NO follows -> no `vimPlugins not found` errors. Build is cached now (fast reruns).
+Phase 2: hand-wrote a real config in Nix and watched the editor become it -- a FULL IDE:
+  - colorscheme, opts (number/relativenumber/shiftwidth/cursorline/scrolloff), globals (leader=space)
+  - plugins: lualine, which-key, treesitter, telescope (ff/fg/fb), neo-tree (<leader>e),
+    web-devicons, gitsigns, comment (gcc/gc), nvim-cmp + luasnip autocomplete
+  - custom keymaps (<leader>w/q/e) -- all working live
+  - CANDY-NEON FOREST THEME (INT-091 crossover): hand-defined nvim highlight groups in the
+    forest palette (lime #A6E22E keywords, coral #FF5C57 strings, aqua #36E0D0 types, deep
+    forest-black #0B130B bg). The editor now wears the forest's own colors -- in pure Nix.
+Nix-learning banked (the whole point): plugins.X.enable model, opts/globals/keymaps as data,
+highlight groups, AND the module MERGE/CONFLICT system -- hit "colorschemes.gruvbox.enable has
+conflicting definition values" (forest.nix true vs candy-neon.nix false), learned the fix
+(remove the duplicate, or lib.mkForce/mkDefault for priority). Real fluency, learned in a
+free sandbox. Verdict so far: declarative nixvim's reproducibility genuinely beats LazyVim's
+runtime plugin-manager model -- consistent with the forest philosophy.
+Phases 3 (devShell integration) and 4 (decision) REMAIN -- optional, for when wanted.
+Artifact lives in ~/nixvim-play (not committed to 0-core, by design).
