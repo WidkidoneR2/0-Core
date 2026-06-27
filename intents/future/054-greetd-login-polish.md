@@ -74,3 +74,60 @@ checklist in INT-024's VM:
   [ ] recovery from a broken session demonstrated in VM
   [ ] all of the above documented before graduating
 Door is always open: docs/recovery-runbook.md · TTY2 via Ctrl+Alt+F2.
+
+
+## EVOLUTION -- 2026-06-26: ReGreet chosen as the greeter; VM testbed working
+The original charter said "tuigreet" + "Pinnacle". Two evolutions supersede that:
+  - GREETER: ReGreet (graphical, GTK, CSS-themeable) replaces tuigreet as the vehicle. It can
+    carry the candy-neon forest identity to the login screen the way tuigreet's text never could.
+  - COMPOSITORS: Miracle-wm (INT-087) replaces Pinnacle (INT-086 is removing Pinnacle). The
+    session picker offers Mango + Miracle, each with its own profile.
+
+### VM testbed -- PROVEN WORKING (2026-06-27, the breakthrough)
+The INT-056/024 VM now renders a full graphical ReGreet login end-to-end -- this is the
+test surface 054 always required. Key fixes that got it there:
+  - VM was headless: graphics=false + console=ttyS0 -> graphics=true + console=tty0,ttyS0.
+    THE fix for a 2-session black screen (the VM never showed graphical output before).
+  - ReGreet rendered an EMPTY window without config -> programs.regreet.enable provides the
+    cage+regreet+config scaffold (the module launches regreet in cage by default).
+  - ReGreet rendered but took NO keyboard -> the greetd 'greeter' user wasn't in the 'input'
+    group, so cage/libinput couldn't read /dev/input/event* (crw-rw---- root:input). Fixed:
+    users.users.greeter.extraGroups = [ "input" "seat" "video" ]. LOGIN THEN WORKED -- typed
+    password, authenticated, dropped to a session.
+  - VM-ONLY artifacts (NOT real-system bugs, do not chase on metal): post-login mango
+    client-surface compositing fails (QEMU/wlroots wall -- real GPU composites fine); upside-down
+    software cursor (WLR_NO_HARDWARE_CURSORS); wrong clock (no NTP in the VM).
+
+### What "done" now requires (expanded scope)
+  1. ReGreet configurability MAPPED -- regreet.toml + CSS ceiling (background, layout, behavior).
+  2. Themed to faelight-logout -- candy-neon, consistent with the logout screen (INT-091 palette).
+  3. Mango profile -- working session entry.
+  4. Miracle-wm profile (INT-087) -- second compositor, own session entry.
+  5. Session picker -- choose Mango / Miracle at login, verified.
+  6. SECURITY & LEAK AUDIT -- full greetd->cage->regreet->PAM chain: greeter least-privilege
+     (audit ALL the greeter user can reach, not just input groups), no secrets in committed
+     config, no password/keystroke leakage to logs, gitleaks clean. First-class gate -- this
+     touches authentication.
+  7. Exhaustive VM testing -- test after test to 100% before real-machine graduation.
+  8. INT-059 (Lanzaboote) interaction -- secure-boot/signing implications understood pre-deploy.
+
+### Open questions
+  - ReGreet config/theme ceiling (map it).
+  - How session profiles (Mango/Miracle) are declared + picked.
+  - Full security audit scope: greeter privileges, PAM, leak surface.
+  - Does the cursor flip persist on real hardware or is it VM-only?
+  - INT-059: any greeter-signing implications under secure boot.
+
+### Relates to
+  INT-056 (recovery net -- GATES this), INT-024 (VM pipeline), INT-005 (login flow),
+  INT-086 (remove Pinnacle), INT-087 (Miracle), INT-059 (Lanzaboote), INT-091 (candy-neon).
+
+## New gates (additive to the originals above)
+- [ ] ReGreet renders a usable login form in the VM (DONE 2026-06-27 -- login authenticates)
+- [ ] ReGreet config + CSS theming ceiling mapped
+- [ ] ReGreet themed to match faelight-logout (candy-neon)
+- [ ] Mango session profile works in the picker
+- [ ] Miracle-wm session profile works in the picker
+- [ ] Security & leak audit passed (greeter least-privilege, no secrets, PAM reviewed, gitleaks clean)
+- [ ] INT-059 secure-boot interaction understood
+- [ ] Exhaustive VM test cycles documented before real-machine graduation
