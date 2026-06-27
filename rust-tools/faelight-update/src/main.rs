@@ -55,7 +55,7 @@ struct Cli {
     /// Output results in JSON format
     #[arg(long)]
     json: bool,
-    /// Only check specific categories (comma-separated: pacman,aur,cargo,neovim,workspace)
+    /// Only check specific categories (comma-separated: flake,cargo,neovim,workspace)
 
     /// Run maintenance tasks (clean cache, orphans, journal)
     #[arg(long)]
@@ -80,35 +80,6 @@ fn print_suggestions(categories: &[UpdateCategory], total: usize) {
             if item.name.starts_with("linux") && !item.name.contains("headers") {
                 suggestions.push("Reboot recommended — kernel was updated".to_string());
             }
-        }
-    }
-    // Check for orphan packages
-    if let Ok(output) = std::process::Command::new("pacman")
-        .args(["-Qtdq"])
-        .output()
-    {
-        let count = String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter(|l| !l.is_empty())
-            .count();
-        if count > 0 {
-            suggestions.push(format!(
-                "{} orphan packages found — run: sudo pacman -Rns $(pacman -Qtdq)",
-                count
-            ));
-        }
-    }
-    // Check for pacnew files
-    if let Ok(output) = std::process::Command::new("find")
-        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
-        .output()
-    {
-        let count = String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter(|l| !l.is_empty())
-            .count();
-        if count > 0 {
-            suggestions.push(format!("Run pacdiff to resolve {} config file(s)", count));
         }
     }
     // If nothing was updated
@@ -151,46 +122,6 @@ fn run_preflight_checks() {
             }
         }
     }
-    // Check 2: mirrorlist age
-    if let Ok(meta) = std::fs::metadata("/etc/pacman.d/mirrorlist") {
-        if let Ok(modified) = meta.modified() {
-            if let Ok(age) = modified.elapsed() {
-                let days = age.as_secs() / 86400;
-                if days >= 30 {
-                    warnings.push(format!("Mirrorlist is {} days old — run: reflector --save /etc/pacman.d/mirrorlist", days));
-                } else if days >= 14 {
-                    warnings.push(format!(
-                        "Mirrorlist is {} days old — consider refreshing with reflector",
-                        days
-                    ));
-                }
-            }
-        }
-    }
-    // Check 3: pacnew files
-    if let Ok(output) = std::process::Command::new("find")
-        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
-        .output()
-    {
-        let text = String::from_utf8_lossy(&output.stdout);
-        let count = text.lines().filter(|l| !l.is_empty()).count();
-        if count > 0 {
-            warnings.push(format!(
-                "{} .pacnew config files pending review — run: pacdiff",
-                count
-            ));
-        }
-    }
-    // Check 4: partial upgrade risk
-    if let Ok(output) = std::process::Command::new("pacman")
-        .args(["-Qu", "--dbonly"])
-        .output()
-    {
-        let text = String::from_utf8_lossy(&output.stdout);
-        if text.lines().count() > 0 {
-            warnings.push("pacman database may be out of sync — partial upgrade risk".to_string());
-        }
-    }
     if !warnings.is_empty() {
         println!("  {} Pre-Update Warnings", "⚠️ ".yellow().bold());
         println!("  {}", "─".repeat(46).dimmed());
@@ -203,24 +134,17 @@ fn run_preflight_checks() {
 }
 /// Get system drift score based on last upgrade time
 fn get_drift_score() -> (String, String) {
-    // Read last upgrade time from pacman log
-    let log_path = "/var/log/pacman.log";
-    let last_upgrade = std::fs::read_to_string(log_path)
-        .unwrap_or_default()
-        .lines().rfind(|l| l.contains("starting full system upgrade") || l.contains("upgraded "))
-        .and_then(|l| {
-            // Parse date from [YYYY-MM-DDThh:mm:ss+0000]
-            l.get(1..11)
-        })
-        .map(|s| s.to_string());
-    let days_ago = if let Some(ref date_str) = last_upgrade {
-        let today = chrono::Local::now().date_naive();
-        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-            .map(|d| (today - d).num_days())
-            .unwrap_or(-1)
-    } else {
-        -1
-    };
+    // NixOS drift (INT-074 de-Arch): days since the flake.lock was last updated -- the
+    // NixOS analog of "days since last system upgrade". Older lock = more drift.
+    let lock_path = std::env::var("HOME")
+        .map(|h| format!("{h}/0-core/flake.lock"))
+        .unwrap_or_else(|_| "flake.lock".to_string());
+    let days_ago = std::fs::metadata(&lock_path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .map(|d| (d.as_secs() / 86_400) as i64)
+        .unwrap_or(-1);
     let label = if days_ago < 0 {
         ("unknown".to_string(), "?".to_string())
     } else if days_ago == 0 {
@@ -281,45 +205,8 @@ fn run_maintenance() -> Result<()> {
     println!("{}", "🧹 Faelight Maintenance Mode".green().bold());
     println!("{}", "─".repeat(48).dimmed());
     println!();
-    // 1. Clean pacman cache
-    println!("  {} Cleaning pacman cache...", "→".bright_cyan());
-    let status = std::process::Command::new("sudo")
-        .args(["pacman", "-Sc", "--noconfirm"])
-        .status();
-    match status {
-        Ok(s) if s.success() => println!("  {} Pacman cache cleaned", "✅".green()),
-        _ => println!(
-            "  {} Pacman cache clean failed (sudo required)",
-            "⚠️".yellow()
-        ),
-    }
-    // 2. Remove orphan packages
-    println!("  {} Checking orphan packages...", "→".bright_cyan());
-    let orphans = std::process::Command::new("pacman")
-        .args(["-Qtdq"])
-        .output();
-    if let Ok(out) = orphans {
-        let pkgs: Vec<&str> = std::str::from_utf8(&out.stdout)
-            .unwrap_or("")
-            .lines()
-            .filter(|l| !l.is_empty())
-            .collect();
-        if pkgs.is_empty() {
-            println!("  {} No orphan packages found", "✅".green());
-        } else {
-            println!(
-                "  {} {} orphan packages: {}",
-                "⚠️".yellow(),
-                pkgs.len(),
-                pkgs.join(", ").dimmed()
-            );
-            println!(
-                "  {} Run: sudo pacman -Rns $(pacman -Qtdq)",
-                "💡".bright_cyan()
-            );
-        }
-    }
-    // 3. Clean cargo cache
+
+    // 1. Clean cargo cache (cross-platform).
     println!("  {} Cleaning cargo cache...", "→".bright_cyan());
     let cargo_clean = std::process::Command::new("cargo")
         .args(["cache", "--autoclean"])
@@ -331,11 +218,9 @@ fn run_maintenance() -> Result<()> {
             "⚠️".yellow()
         ),
     }
-    // 4. Vacuum systemd journal
-    println!(
-        "  {} Vacuuming systemd journal (keep 2 weeks)...",
-        "→".bright_cyan()
-    );
+
+    // 2. Vacuum systemd journal (keep 2 weeks). systemd is cross-platform.
+    println!("  {} Vacuuming systemd journal (keep 2 weeks)...", "→".bright_cyan());
     let journal = std::process::Command::new("sudo")
         .args(["journalctl", "--vacuum-time=2weeks"])
         .status();
@@ -343,63 +228,15 @@ fn run_maintenance() -> Result<()> {
         Ok(s) if s.success() => println!("  {} Journal vacuumed", "✅".green()),
         _ => println!("  {} Journal vacuum failed (sudo required)", "⚠️".yellow()),
     }
-    // 5. Check pacnew files
-    println!("  {} Checking .pacnew files...", "\u{2192}".bright_cyan());
-    if let Ok(out) = std::process::Command::new("find")
-        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
-        .output()
-    {
-        let pacnew_files: Vec<String> = String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(|l| l.to_string())
-            .collect();
-        if pacnew_files.is_empty() {
-            println!("  {} No .pacnew files found", "\u{2705}".green());
-        } else {
-            println!("  {} Found {} .pacnew config file(s):", "\u{26a0}\u{fe0f} ".yellow(), pacnew_files.len());
-            for f in &pacnew_files {
-                let original = f.trim_end_matches(".pacnew");
-                println!("    {} {}", "\u{2192}".dimmed(), f.bright_yellow());
-                println!("      review: sudo vimdiff {} {}", f, original);
-            }
-            println!();
-            print!("  {} Run pacdiff now? (y/N): ", "\u{1f4a1}".cyan());
-            use std::io::Write;
-            let _ = std::io::stdout().flush();
-            let mut input = String::new();
-            let _ = std::io::stdin().read_line(&mut input);
-            let answer = input.trim().to_lowercase();
-            let db_path = std::path::PathBuf::from(
-                std::env::var("HOME").unwrap_or_default()
-            ).join("0-core/runtime/state.db");
-            if answer == "y" || answer == "yes" {
-                println!("  {} Running pacdiff...", "\u{2192}".bright_cyan());
-                let status = std::process::Command::new("sudo")
-                    .arg("pacdiff").status();
-                match status {
-                    Ok(s) if s.success() => {
-                        println!("  {} pacdiff complete", "\u{2705}".green());
-                        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                            let _ = conn.execute(
-                                "INSERT INTO events (domain, action, payload, timestamp) VALUES ('updater', 'pacnew_resolved', ?1, strftime('%s','now'))",
-                                rusqlite::params![format!("files={}", pacnew_files.len())]
-                            );
-                        }
-                    }
-                    _ => println!("  {} pacdiff failed", "\u{26a0}\u{fe0f} ".yellow()),
-                }
-            } else {
-                println!("  {} Skipped -- review manually: sudo pacdiff", "\u{2192}".dimmed());
-                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                    let _ = conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('updater', 'pacnew_skipped', ?1, strftime('%s','now'))",
-                        rusqlite::params![format!("files={}", pacnew_files.len())]
-                    );
-                }
-            }
-        }
-    }
+
+    // 3. Nix store cleanup -- delegate to the forest's dedicated tool rather than duplicate it.
+    //    (INT-074 de-Arch: replaces the old `sudo pacman -Sc` + orphan-removal steps.)
+    println!("  {} Nix store cleanup", "→".bright_cyan());
+    println!(
+        "    {} Run `nhclean` (nh clean all --keep-since 7d --ask) to reclaim store space",
+        "💡".bright_cyan()
+    );
+
     println!();
     println!("{}", "─".repeat(48).dimmed());
     println!("  {} Maintenance complete", "✅".green().bold());
@@ -723,11 +560,7 @@ fn run() -> Result<()> {
         // GIT STATUS CHECK
         check_git_status()?;
 
-        // CHECK FOR .PACNEW FILES
-        check_pacnew()?;
-
-        // CHECK AUR REBUILDS
-        check_aur_rebuilds()?;
+        // (Arch .pacnew + AUR-rebuild checks removed -- INT-074 de-Arch.)
 
         // FINAL SUMMARY
         println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
@@ -793,11 +626,7 @@ fn run() -> Result<()> {
             // GIT STATUS CHECK
             check_git_status()?;
 
-            // CHECK FOR .PACNEW FILES
-            check_pacnew()?;
-
-            // CHECK AUR REBUILDS
-            check_aur_rebuilds()?;
+            // (Arch .pacnew + AUR-rebuild checks removed -- INT-074 de-Arch.)
 
             // FINAL SUMMARY
             println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
@@ -833,8 +662,7 @@ fn category_matches(filter: &str, category: &str) -> bool {
     // Exact match or contains
     category_lower.contains(&filter_lower) ||
     // Common aliases
-    (filter_lower == "pacman" && category_lower.contains("system")) ||
-    (filter_lower == "aur" && category_lower.contains("aur")) ||
+    (filter_lower == "flake" && category_lower.contains("flake")) ||
     (filter_lower == "cargo" && category_lower.contains("cargo")) ||
     (filter_lower == "neovim" && category_lower.contains("neovim")) ||
     (filter_lower == "workspace" && category_lower.contains("workspace"))
@@ -935,15 +763,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         items: flake_items,
     });
 
-    // System packages (pacman)
-    if let Ok(cat) = check_pacman_updates() {
-        categories.push(cat);
-    }
-
-    // AUR packages (paru)
-    if let Ok(cat) = check_paru_updates() {
-        categories.push(cat);
-    }
+    // (Arch pacman/AUR checkers removed -- INT-074 de-Arch. Flake inputs are the NixOS analog.)
 
     // Cargo tools
     let cargo_items = cargo_checker::check_cargo_updates();
@@ -1102,84 +922,8 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     Ok(categories)
 }
 
-/// Check for pacman updates
-/// Check for pacman updates
-fn check_pacman_updates() -> Result<UpdateCategory> {
-    println!("   Checking pacman...");
 
-    // First sync the database quietly
-    let _ = Command::new("sudo")
-        .args(["pacman", "-Sy", "--noconfirm"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
 
-    // Now check for updates using the synced database
-    let output = Command::new("pacman")
-        .args(["-Qu"])
-        .output()
-        .context("Failed to run pacman -Qu")?;
-
-    let items = if !output.status.success() || output.stdout.is_empty() {
-        Vec::new()
-    } else {
-        parse_pacman_output(&output.stdout)
-    };
-
-    Ok(UpdateCategory {
-        name: "System Packages".to_string(),
-        emoji: "📦".to_string(),
-        count: items.len(),
-        items,
-    })
-}
-
-/// Parse pacman-style output (works for checkupdates and paru -Qua)
-fn parse_pacman_output(output: &[u8]) -> Vec<UpdateItem> {
-    use once_cell::sync::Lazy;
-    use regex::Regex;
-
-    // Regex to parse: "package current -> new" or "repo/package current -> new"
-    static PACMAN_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"^(?:([^/]+)/)?(\S+)\s+(\S+)\s+->\s+(\S+)").unwrap());
-
-    let text = String::from_utf8_lossy(output);
-    text.lines()
-        .filter_map(|line| {
-            PACMAN_REGEX.captures(line).and_then(|caps| {
-                Some(UpdateItem {
-                    repository: caps.get(1).map(|m| m.as_str().to_string()),
-                    name: caps.get(2)?.as_str().to_string(),
-                    current: caps.get(3)?.as_str().to_string(),
-                    new: caps.get(4)?.as_str().to_string(),
-                })
-            })
-        })
-        .collect()
-}
-
-/// Check for AUR updates
-fn check_paru_updates() -> Result<UpdateCategory> {
-    println!("   Checking AUR (paru)...");
-
-    let output = Command::new("paru")
-        .args(["-Qua"])
-        .output()
-        .context("Failed to run paru - is it installed?")?;
-
-    let items = if output.status.success() {
-        parse_pacman_output(&output.stdout)
-    } else {
-        Vec::new()
-    };
-
-    Ok(UpdateCategory {
-        name: "AUR Packages".to_string(),
-        emoji: "🔷".to_string(),
-        count: items.len(),
-        items,
-    })
-}
 
 /// Show update summary
 /// Classify update risk level by package name
@@ -1200,7 +944,6 @@ fn classify_risk(name: &str) -> &'static str {
         "vulkan-intel",
         "openssl",
         "nss",
-        "pacman",
         "filesystem",
         "linux-firmware",
         "grub",
@@ -1209,7 +952,7 @@ fn classify_risk(name: &str) -> &'static str {
     ];
     const IMPORTANT: &[&str] = &[
         "git", "neovim", "rust", "rustup", "cargo", "python", "nodejs", "npm", "openssh", "curl",
-        "wget", "bash", "sway", "ripgrep", "fd", "bat", "eza", "skim", "zoxide", "paru",
+        "wget", "bash", "sway", "ripgrep", "fd", "bat", "eza", "skim", "zoxide",
     ];
     let n = name.to_lowercase();
     if CRITICAL
@@ -1388,7 +1131,6 @@ fn analyze_impact(categories: &[UpdateCategory]) -> UpdateImpact {
         "gcc",
         "binutils",
         "filesystem",
-        "pacman",
         "linux-firmware",
         "mesa",
     ];
@@ -1446,12 +1188,6 @@ fn perform_updates(selections: &[(String, Vec<String>)]) -> Result<()> {
         match category.as_str() {
             "0-Core Workspace" => {
                 update_workspace()?;
-            }
-            "System Packages" => {
-                update_pacman(items)?;
-            }
-            "AUR Packages" => {
-                update_aur(items)?;
             }
             "Cargo Tools" => {
                 update_cargo(items)?;
@@ -1512,57 +1248,7 @@ fn update_workspace() -> Result<()> {
     Ok(())
 }
 
-/// Update system packages
-fn update_pacman(items: &[String]) -> Result<()> {
-    if items.is_empty() {
-        return Ok(());
-    }
-    println!(
-        "   Running: sudo pacman -S --needed --noconfirm {}",
-        items.join(" ")
-    );
 
-    let status = Command::new("sudo")
-        .arg("pacman")
-        .arg("--needed")
-        .arg("-S")
-        .arg("--noconfirm")
-        .args(items)
-        .status()
-        .context("Failed to update pacman packages")?;
-
-    if status.success() {
-        println!("   {}  Packages updated", "✅".green());
-    } else {
-        println!("   {}  Update failed", "❌".red());
-    }
-
-    Ok(())
-}
-
-/// Update AUR packages
-fn update_aur(items: &[String]) -> Result<()> {
-    if items.is_empty() {
-        return Ok(());
-    }
-    println!("   Running: paru -Su --noconfirm {}", items.join(" "));
-
-    let status = Command::new("paru")
-        .arg("-S")
-        .arg("--needed")
-        .arg("--noconfirm")
-        .args(items)
-        .status()
-        .context("Failed to update AUR packages")?;
-
-    if status.success() {
-        println!("   {}  Packages updated", "✅".green());
-    } else {
-        println!("   {}  Update failed", "❌".red());
-    }
-
-    Ok(())
-}
 
 /// Update cargo tools
 fn update_cargo(items: &[String]) -> Result<()> {
@@ -1675,12 +1361,6 @@ fn cleanup_caches() -> Result<()> {
         println!("    {}  Cargo cache cleaned", "✓".green());
     }
 
-    // Pacman cache
-    if let Err(e) = cleanup_checker::cleanup_pacman_cache() {
-        println!("    {}  Pacman cache cleanup failed: {}", "⚠️".yellow(), e);
-    } else {
-        println!("    {}  Pacman cache cleaned", "✓".green());
-    }
 
     Ok(())
 }
@@ -1709,106 +1389,4 @@ fn update_prompt_cache() -> Result<()> {
 
     Ok(())
 }
-/// Check for .pacnew files and offer to handle them
-/// Check for .pacnew files and offer to handle them
-fn check_pacnew() -> Result<()> {
-    let output = Command::new("find")
-        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
-        .output()
-        .context("Failed to find .pacnew files")?;
 
-    let output_str = String::from_utf8_lossy(&output.stdout).to_string();
-    let pacnew_files: Vec<_> = output_str.lines().filter(|line| !line.is_empty()).collect();
-
-    if pacnew_files.is_empty() {
-        return Ok(());
-    }
-
-    println!("⚠️  Found {} .pacnew config files:", pacnew_files.len());
-    for file in &pacnew_files {
-        println!("    {}", file);
-    }
-
-    println!("    Review with: pacdiff");
-    if !pacnew_files.is_empty() {
-        let original = pacnew_files[0].trim_end_matches(".pacnew");
-        println!(
-            "    Or manually: sudo vimdiff {} {}",
-            pacnew_files[0], original
-        );
-    }
-
-    // Offer to run pacdiff if available
-    if Command::new("which")
-        .arg("pacdiff")
-        .output()?
-        .status
-        .success()
-    {
-        println!("\n💡 Run pacdiff now to merge changes? (y/N)");
-        use std::io::{self, Write};
-        print!("> ");
-        io::stdout().flush()?;
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-
-        if input.trim().to_lowercase() == "y" {
-            println!("\n🔧 Running pacdiff...");
-            let status = Command::new("sudo")
-                .arg("pacdiff")
-                .status()
-                .context("Failed to run pacdiff")?;
-
-            if status.success() {
-                println!("   ✅  Config files merged");
-            } else {
-                println!("   ⚠️  pacdiff exited with errors");
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Check for AUR packages that need rebuilding after library updates
-fn check_aur_rebuilds() -> Result<()> {
-    println!("🔍  Checking for AUR packages needing rebuild...");
-
-    // Check if checkrebuild or similar tool exists
-    let has_checkrebuild = Command::new("which")
-        .arg("checkrebuild")
-        .output()?
-        .status
-        .success();
-
-    if has_checkrebuild {
-        let output = Command::new("checkrebuild")
-            .output()
-            .context("Failed to run checkrebuild")?;
-
-        let rebuild_list = String::from_utf8_lossy(&output.stdout).to_string();
-        let packages: Vec<_> = rebuild_list
-            .lines()
-            .filter(|line| !line.is_empty())
-            .collect();
-
-        if !packages.is_empty() {
-            println!("   ⚠️  {} packages need rebuilding:", packages.len());
-            for pkg in &packages {
-                println!("      - {}", pkg);
-            }
-
-            println!(
-                "\n   💡 Rebuild with: paru -S --rebuild {}",
-                packages.join(" ")
-            );
-        } else {
-            println!("   ✅  No packages need rebuilding");
-        }
-    } else {
-        println!("   ℹ️  checkrebuild not available (optional)");
-    }
-
-    Ok(())
-}

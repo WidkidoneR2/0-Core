@@ -105,3 +105,29 @@ faelight-update still carries Arch-era code that BREAKS it on NixOS:
 
 NEXT (074): Phase 1b -- per-input update probe + closure diff + review gate; AND de-Arch the
 tool (retire pacman/paru/Arch-maintenance so --dry-run is truly dry and the tool runs clean).
+
+
+## De-Arch pass -- DONE (2026-06-27): faelight-update now RUNS on NixOS
+The Arch residue was deep (~15 sites). Removed/rewired across 5 clusters, cargo-checking after
+each (zero warnings throughout), ~470 lines of Arch code gone:
+- Cluster 1 (checkers): removed pacman/paru/aur-rebuild/pacnew checker calls + deleted the 5
+  dead fns (check_pacman_updates, parse_pacman_output, check_paru_updates, check_pacnew,
+  check_aur_rebuilds).
+- Cluster 2 (suggestions/preflight): removed pacman-orphans, 2x pacnew, mirrorlist-age,
+  partial-upgrade blocks. REWIRED get_drift_score from /var/log/pacman.log -> flake.lock mtime
+  (NixOS-native drift: "days since last flake update", same FRESH/LOW/MED/HIGH/CRITICAL scale).
+- Cluster 3 (maintenance): rewrote run_maintenance 129->42 lines -- kept cargo-cache +
+  journal-vacuum (cross-platform), dropped pacman-cache/orphans/pacnew/pacdiff, points users to
+  the forest's existing `nhclean` for store cleanup (no duplication).
+- Cluster 4 (update paths): removed update_pacman + update_aur + their dispatch arms
+  (catch-all _ => handles the rest).
+- Cluster 5 (lists/filters): dropped pacman/aur from --only help + category-filter arms (added
+  "flake"), removed pacman/paru from the 2 critical-package lists + IMPORTANT list, removed the
+  cleanup_pacman_cache call + the fn in cleanup_checker.rs (kept cleanup_cargo_cache).
+RESULT (verified live): `faelight-update --dry-run` runs START TO FINISH with NO sudo prompt,
+no panic. Shows the NixOS-native System Profile (drift FRESH from flake.lock), "Checking flake
+inputs...", the cross-platform checkers, and a clean Update Summary. The tool was UN-RUNNABLE
+before (clap panic + sudo-pacman hang); it now works on NixOS. Also fixed the two latent clap
+bugs (verbose/count_only missing #[arg]) earlier this session.
+This unblocks Phase 1b (per-input update + closure diff + review gate) and Phase 2 (generation
+browser) -- both can now be built on a tool that actually runs.
