@@ -5,6 +5,7 @@ mod firmware_checker;
 mod flake_checker;
 mod flake_update;
 mod flatpak_checker;
+mod generation;
 mod git_checker;
 mod neovim_checker;
 mod npm_checker;
@@ -32,6 +33,9 @@ struct Cli {
     /// Update a single flake input with closure diff + review gate (e.g. --flake-update nixpkgs)
     #[arg(long, value_name = "INPUT")]
     flake_update: Option<String>,
+    /// Open the generation browser (timeline + closure diff + rollback)
+    #[arg(long, alias = "gens")]
+    generations: bool,
 
     /// Skip health check before updates
     #[arg(long)]
@@ -456,6 +460,13 @@ fn run() -> Result<()> {
     // INT-074 Phase 1b: per-input flake update + closure diff + review gate.
     if let Some(ref input) = cli.flake_update {
         return flake_update::run_flake_update(input, cli.dry_run);
+    }
+
+    // INT-074 Phase 2: the generation browser TUI.
+    if cli.generations {
+        generation::run_generation_browser()
+            .map_err(|e| anyhow::anyhow!("generation browser: {e}"))?;
+        return Ok(());
     }
     // System Identity header
     if !cli.json && !cli.count_only {

@@ -41,7 +41,7 @@ Phase 3 -- integration: tie generations to commit + intent (depends on INT-034 d
 ## Gates
 - [x] Phase 0: current Faelight-Update surveyed; update-manager + gen-browser integration points recorded
 - [x] update manager: per-input flake update with pre-switch closure diff and a review gate
-- [ ] generation browser: timeline + closure diff between generations + roll-back
+- [x] generation browser: timeline + closure diff between generations + roll-back
 - [ ] generations tied to commit + intent (via INT-034 triad data)
 
 ## Notes
@@ -150,3 +150,32 @@ explicit y at the gate. (Re-confirmed the flake-tracking lesson: nixos-rebuild b
 git-TRACKED files, so the new module had to be git-added before the build could see it.)
 Phase 1 (update manager) gate now MET: per-input update + pre-switch closure diff + review gate.
 NEXT: Phase 2 -- the generation browser (timeline + closure diff between gens + rollback).
+
+
+## Phase 2 -- DONE (2026-06-27): generation browser TUI -- PHASE 2 GATE MET
+Built rust-tools/faelight-update/src/generation.rs: a candy-neon ratatui generation browser.
+DATA LAYER (unit-tested): list_generations() parses `nixos-rebuild list-generations` into
+Generation{number,date,nixos_version,kernel,commit,current}; gen_path(n) -> the diffable
+system-N-link. Two unit tests pass (table parse incl -dirty suffix; path format).
+TUI (--generations / --gens flag): timeline newest-top, current gen glows neon-lime (●),
+marked gen amber (◆), commit hashes in aqua, dirty commits marked *, nixos_version dimmed.
+j/k+arrows navigate; Space marks a 2nd gen; d/Enter runs nvd diff (marked-or-current vs
+selected); r = gated rollback (coral warning, sudo switch-generation, confirm y/N); q quits.
+Colors mirror faelight-core::theme (forest design language -- matches launcher + logout).
+DEMONSTRATED LIVE (not just implemented):
+ - Timeline rendered: current highlighted, dirty-markers, helpers, coral "r = rollback".
+ - Diff PROVEN: marked gen 247, pressed d vs current 254 -> real nvd diff: "Added packages:
+   faelight-launcher 0.1.0; Closure size 1657->1658, 19 added/18 removed, delta +1". You can
+   SEE your own history -- the launcher (INT-084) appears as a real closure change between gens.
+ - Rollback: built + gated; intentionally NOT live-tested (it switches the system) -- caution.
+
+VERSION: bumped faelight-update 4.1.0 (Arch-era) -> 1.0.0 (NixOS-era real start). Banner
+auto-syncs via env!("CARGO_PKG_VERSION").
+
+### PROTOCOL noted (devShell --locked): bump version -> `cargo update -p <crate> --offline`
+-> THEN build. The faelight-forest devShell builds with --locked, so any Cargo.toml change
+(version or deps) requires Cargo.lock regenerated to match BEFORE the locked build accepts it.
+Skipping the cargo-update step fails with "cannot update lock file because --locked was passed".
+
+NEXT: Phase 3 -- tie generations to commit + intent (the triad, depends on INT-034 data). The
+commit is already shown per-gen; Phase 3 adds the intent mapping.
