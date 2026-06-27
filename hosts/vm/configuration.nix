@@ -86,11 +86,14 @@
     settings.default_session = {
       # INT-056: greetd -> tuigreet --cmd mango. With virtio-vga-gl + gtk,gl=on the VM has
       # working virgl GL, so mango uses its normal GLES2 renderer (no pixman needed).
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd 'env WLR_NO_HARDWARE_CURSORS=1 mango'";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd 'env WLR_NO_HARDWARE_CURSORS=1 LIBGL_ALWAYS_SOFTWARE=1 WLR_RENDERER=pixman mango'";  # INT-056: pure software render (no virgl) -- research says virgl breaks client surfaces
       user = "greeter";
     };
   };
   faelight.desktop.mango.enable = true;
+  # INT-056: force software GL system-wide in the VM -- virgl breaks client-surface rendering
+  # (compositor paints but app windows are invisible). llvmpipe software path renders reliably.
+  environment.variables.LIBGL_ALWAYS_SOFTWARE = "1";  # INT-056: kept (mango module); pinnacle launched directly via greetd --cmd below (binary is in systemPackages)
 
   environment.systemPackages = [
     inputs.pinnacle.packages.${system}.pinnacle
