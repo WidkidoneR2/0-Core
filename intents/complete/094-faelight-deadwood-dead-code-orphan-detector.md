@@ -2,7 +2,7 @@
 id: 094
 date: 2026-06-26
 type: feature
-status: in-progress
+status: complete
 title: "faelight-deadwood: forest-native dead-code & orphan detector"
 tags: [tool, dead-code, orphans, health, nix, registry, intents, forest-native]
 priority: low
