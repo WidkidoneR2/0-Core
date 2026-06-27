@@ -1,5 +1,5 @@
 #![allow(clippy::ptr_arg)]
-//! faelight-release v0.1.0
+//! faelight-release
 //! 🌲 Intelligent release and generation manager
 
 mod changelog;
@@ -17,7 +17,7 @@ use std::path::PathBuf;
 #[command(
     name = "faelight-release",
     about = "🌲 Intelligent release and generation manager",
-    version = "0.1.0"
+    version = env!("CARGO_PKG_VERSION")
 )]
 struct Cli {
     #[command(subcommand)]
