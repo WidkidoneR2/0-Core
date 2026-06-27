@@ -43,12 +43,12 @@ A 1.0.0 release made with broken tooling is not a real release.
 
 ## Gate
 
-- [ ] bump runs without errors on NixOS
-- [ ] Changelog only includes NixOS era commits
-- [ ] Version reads from flake.nix correctly
-- [ ] /etc/faelight/VERSION write replaced with NixOS-appropriate mechanism
-- [ ] meta/CHANGELOG.md path correct
-- [ ] README generation NixOS-aware
+- [x] bump runs without errors on NixOS
+- [x] Changelog only includes NixOS era commits
+- [x] Version reads from flake.nix correctly
+- [x] /etc/faelight/VERSION write replaced with NixOS-appropriate mechanism
+- [x] meta/CHANGELOG.md path correct
+- [x] README generation NixOS-aware
 
 ## Release Identity Philosophy (2026-06-04)
 
@@ -112,3 +112,22 @@ SEQUENCING (proposed phases for the build):
 NOTE: NOT cutting a Faelight NixOS 1.0.0 now -- faelight-release is being reworked first; a real
 release waits until this tooling is sound (031's own rule: "a 1.0.0 release made with broken
 tooling is not a real release").
+
+
+## COMPLETE (2026-06-27): faelight-release v2 -- NixOS-native, triad-recording. (merged w/ INT-034)
+All gates met. faelight-release 2.1.0 -> 1.0.0 (NixOS-era real start).
+- DE-ARCH: 00-meta/->meta/ (12 refs across 5 files -- they pointed at a nonexistent dir, so
+  bumps were writing into the void; now hit the real meta/). Removed the broken
+  /etc/faelight/{VERSION,COMMITS} writes (immutable on NixOS, always failed).
+- VERSION FLOW (NixOS-native): /etc/faelight/VERSION now written DECLARATIVELY by the framework16
+  config (environment.etc."faelight/VERSION".text = builtins.readFile ../../meta/VERSION). This
+  FIXES faelight-login's version display (it reads /etc/faelight/VERSION, which was missing ->
+  showing fallback). meta/VERSION is the source of truth; bump updates it (in-repo, no sudo).
+- CHANGELOG: already NixOS-scoped by design -- get_last_tag() finds the latest vX.Y.Z tag and
+  scopes git log to {tag}..HEAD, so it never pulls Arch-era history. Verified (latest tag v14.0.0).
+- TRIAD (the 034 core, see below): recorded in state.db on publish; surfaced via history/query/gc-check.
+- README: readme.rs is NixOS-clean (no Arch refs).
+Method: surgical de-Arch (NOT a gut) -- the tool's architecture (changelog engine, TUI, rollback)
+is sound and tag-scoped; only the Arch paths + immutable writes needed fixing. ~470-line tool kept.
+NOTE: still NOT cutting a Faelight NixOS 1.0.0 -- the release TOOL is now sound, the release itself
+is a separate deliberate act.

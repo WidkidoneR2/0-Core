@@ -52,6 +52,13 @@ enum Command {
     Status,
     /// List all release generations
     History,
+    /// Query the triad for a version: which generation is release X? (INT-034)
+    Query {
+        /// Version to look up (e.g. 14.1.0)
+        version: String,
+    },
+    /// Warn if any release generation is at risk of garbage collection (INT-034)
+    GcCheck,
     /// Rollback to a previous generation
     Rollback {
         /// Specific version to rollback to (optional — defaults to previous)
@@ -461,6 +468,68 @@ fn main() -> Result<()> {
             }
         }
 
+        Command::Query { version } => {
+            let db_path = root.join("runtime/state.db");
+            match rusqlite::Connection::open(&db_path) {
+                Ok(conn) => {
+                    let row = conn.query_row(
+                        "SELECT generation, commit_count, intent_range, theme
+                         FROM release_triad WHERE version = ?1 ORDER BY timestamp DESC LIMIT 1",
+                        rusqlite::params![version],
+                        |r| Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, String>(2)?,
+                            r.get::<_, String>(3).unwrap_or_default(),
+                        )),
+                    );
+                    match row {
+                        Ok((gen, commits, intents, theme)) => {
+                            println!("Release v{}", version);
+                            println!("  generation: {}", gen);
+                            println!("  commits:    {}", commits);
+                            println!("  intents:    {}", intents);
+                            if !theme.is_empty() {
+                                println!("  theme:      {}", theme);
+                            }
+                        }
+                        Err(_) => println!("No triad record found for version {}", version),
+                    }
+                }
+                Err(e) => eprintln!("Could not open state.db: {}", e),
+            }
+        }
+        Command::GcCheck => {
+            // Warn if any release generation no longer has a live system-NNN-link (i.e. was GC'd
+            // or is at risk). We list recorded release generations and check the profile links.
+            let db_path = root.join("runtime/state.db");
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => { eprintln!("Could not open state.db: {}", e); return Ok(()); }
+            };
+            let mut stmt = conn.prepare(
+                "SELECT version, generation FROM release_triad ORDER BY timestamp DESC"
+            )?;
+            let rows: Vec<(String, String)> = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+                .map(|m| m.filter_map(|x| x.ok()).collect())
+                .unwrap_or_default();
+            if rows.is_empty() {
+                println!("No release triad records to check.");
+            } else {
+                let mut warned = false;
+                for (ver, gen) in rows {
+                    let link = format!("/nix/var/nix/profiles/system-{}-link", gen);
+                    if !std::path::Path::new(&link).exists() {
+                        println!("\u{26a0}\u{fe0f}  Release v{} (generation {}) is GONE -- generation collected.", ver, gen);
+                        warned = true;
+                    }
+                }
+                if !warned {
+                    println!("\u{2705} All release generations still present (none collected).");
+                }
+            }
+        }
         Command::Rollback { version } => {
             rollback::rollback(&root, version.as_deref())?;
         }
