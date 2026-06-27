@@ -108,6 +108,8 @@ enum LaunchApp {
     Term,
     /// Menu
     Menu,
+    /// App launcher (candy-neon GTK4)
+    Launcher,
 }
 
 #[derive(Subcommand)]
@@ -269,6 +271,10 @@ fn handle_launch(app: LaunchApp) {
         LaunchApp::Menu => {
             let menu = find_tool("faelight-logout");
             run_tool_bg(&menu, &[]);
+        }
+        LaunchApp::Launcher => {
+            let launcher = find_tool("faelight-launcher");
+            run_tool_bg(&launcher, &[]);
         }
     }
 }
