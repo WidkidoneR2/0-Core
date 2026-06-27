@@ -2,7 +2,7 @@
 id: 090
 date: 2026-06-26
 type: feature
-status: in-progress
+status: complete
 title: "Adopt nixvim as a Nix-learning vehicle (Helix stays primary daily driver)"
 tags: [nixvim, neovim, nix-learning, declarative, devshell, helix, tools]
 priority: low
