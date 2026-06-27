@@ -18,6 +18,9 @@ struct Cli {
     /// Age in days above which .bak files are flagged (default 7)
     #[arg(long, default_value = "7")]
     bak_age: u64,
+    /// Output a single summary line with counts (for the health dashboard)
+    #[arg(long)]
+    summary: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -42,6 +45,21 @@ fn core_root() -> PathBuf {
 fn main() {
     let cli = Cli::parse();
     let root = core_root();
+
+    if cli.summary {
+        let aliases = check_dead_aliases(&root).len();
+        let baks = check_stale_baks(&root, cli.bak_age).iter().filter(|f| f.confidence != Confidence::Low).count();
+        let keybinds = check_dead_keybinds(&root).len();
+        let registry = check_registry_orphans(&root).len();
+        let scripts = check_orphaned_scripts(&root).len();
+        let modules = check_orphaned_modules(&root).len();
+        let intents = check_dangling_intents(&root).len();
+        let total = aliases + baks + keybinds + registry + scripts + modules + intents;
+        // machine-readable single line: TOTAL|aliases|baks|keybinds|registry|scripts|modules|intents
+        println!("{total}|{aliases}|{baks}|{keybinds}|{registry}|{scripts}|{modules}|{intents}");
+        return;
+    }
+
     println!("{}", "Faelight Deadwood -- forest hygiene report".green().bold());
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  Reports only -- never deletes. You decide every cut.".dimmed());

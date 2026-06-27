@@ -1215,6 +1215,54 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 }
 
 
+/// INT-094: forest hygiene -- orphan accumulation surfaced from faelight-deadwood --summary.
+/// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules|intents
+fn check_deadwood(_core_root: &str) -> CheckResult {
+    let out = std::process::Command::new("faelight-deadwood")
+        .arg("--summary")
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {
+            let line = String::from_utf8_lossy(&o.stdout);
+            let line = line.trim();
+            let parts: Vec<&str> = line.split('|').collect();
+            let total: usize = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+            // High-confidence structural orphans (registry+modules+intents) are the ones worth a Warn.
+            let registry: usize = parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let modules: usize = parts.get(6).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let intents: usize = parts.get(7).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let structural = registry + modules + intents;
+            if structural > 0 {
+                CheckResult {
+                    id: "deadwood".into(),
+                    name: "Deadwood".into(),
+                    status: Status::Warn,
+                    message: format!(
+                        "{} orphans flagged ({} structural: {} registry, {} modules, {} ghost-intents)",
+                        total, structural, registry, modules, intents
+                    ),
+                    fix: Some("Run: faelight-deadwood (reports only -- you decide every cut)".into()),
+                }
+            } else {
+                CheckResult {
+                    id: "deadwood".into(),
+                    name: "Deadwood".into(),
+                    status: Status::Pass,
+                    message: format!("{} low-priority items (stale .baks); no structural orphans", total),
+                    fix: None,
+                }
+            }
+        }
+        _ => CheckResult {
+            id: "deadwood".into(),
+            name: "Deadwood".into(),
+            status: Status::Pass,
+            message: "faelight-deadwood not installed (run after deploy)".into(),
+            fix: None,
+        },
+    }
+}
+
 fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
     vec![
         check_stow(core_root, home),
@@ -1226,6 +1274,7 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_scripts(core_root),
         check_dotmeta(),
         check_intents(core_root),
+        check_deadwood(core_root),
         check_profiles(core_root, home),
         check_faelight_config(home),
         check_keybinds(core_root, home),

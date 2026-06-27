@@ -110,6 +110,7 @@ pub fn render_cockpit(
         "Package Metadata",
         "Schema Validation",
         "Friday",
+        "Deadwood",
     ];
     let security_names = ["Security Hardening", "Security Audit", "Sandbox"];
     let boot_names = ["Boot Errors", "Boot Time"];
