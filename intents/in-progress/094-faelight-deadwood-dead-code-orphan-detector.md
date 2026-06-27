@@ -2,7 +2,7 @@
 id: 094
 date: 2026-06-26
 type: feature
-status: planned
+status: in-progress
 title: "faelight-deadwood: forest-native dead-code & orphan detector"
 tags: [tool, dead-code, orphans, health, nix, registry, intents, forest-native]
 priority: low
@@ -56,3 +56,20 @@ for binding hygiene; run deadwood for forest hygiene.
 ## The Rule
 "A healthy forest sheds dead wood. Know what's dead before you cut --
  and never cut what only looks dead." 🌲
+
+
+## Phase 1 -- DONE (2026-06-27): faelight-deadwood built, easy-wins detectors live
+New crate rust-tools/faelight-deadwood (report-only, never deletes -- cardinal rule honored).
+Three Phase 1 detectors, all proven live:
+- DEAD ALIASES: parses config.fsh, checks each alias target against BUILTINS + PATH + other
+  aliases (replicates is_known_command logic, INT-092). Found a real orphan: `alias palette ->
+  faelight-palette` (target binary not found). MED confidence (could be runtime/dynamic).
+- STALE .bak: walks the tree, age-flags .bak files (default >7d), sorted, with a protect-list
+  (regreet) downgrading shielded ones to LOW. Found 53 stale backups (docs/ ones 22-26d).
+- DEAD KEYBINDS (mango): checks `bind -> spawn <cmd>` liveness. Clean.
+Each finding carries HIGH/MED/LOW confidence; `# deadwood: skip` pragma respected; human decides
+every cut. CLI: --only <check>, --bak-age <days>.
+NOTE (lock protocol): new crate needed `cargo check` (bare, not devShell --locked) to enter
+Cargo.lock before the locked build accepts it -- same family as the version-bump lock lesson.
+NEXT: Phase 2 (registry entries w/ no binary, orphaned scripts), Phase 3 (module import-graph,
+orphaned intents), Phase 4 (Deadwood health-dashboard check).
