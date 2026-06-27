@@ -3,7 +3,7 @@ id: 034
 date: 2026-06-04
 type: feature
 title: "Forest release v2: generation + commit + intent triad tracking"
-status: planned
+status: in-progress
 tags: [release, generation, triad, friday, versioning]
 priority: high
 ---
@@ -45,3 +45,10 @@ Friday becomes the permanent memory when generations are gone.
 - [ ] Friday can answer "which generation is release X?"
 - [ ] GC warning fires before release generation is collected
 - [ ] Subsumed into INT-031 or standalone
+
+
+## MERGED INTO INT-031 (2026-06-27)
+INT-034 (triad tracking) is being built as part of INT-031 (faelight-release v2). The triad is
+031's core deliverable -- see 031's Phase 0 recon for the combined gate-set. This intent's gates
+are tracked there; 034 and 031 will cicomplete together. Kept as a separate ledger entry for
+traceability (the triad has its own identity), but the WORK lives in 031.

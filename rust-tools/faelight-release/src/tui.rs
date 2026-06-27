@@ -477,7 +477,7 @@ impl ReleaseTui {
                     Style::default().fg(FG),
                 )]),
                 Line::from(vec![Span::styled(
-                    "  · 00-meta/VERSION bumped",
+                    "  · meta/VERSION bumped",
                     Style::default().fg(FG),
                 )]),
                 Line::from(vec![Span::styled(
@@ -532,12 +532,12 @@ impl ReleaseTui {
         self.log.push(format!("🚀 Publishing v{}...", self.version));
 
         // 1. Update VERSION
-        let version_path = core_root.join("00-meta/VERSION");
+        let version_path = core_root.join("meta/VERSION");
         fs::write(&version_path, &self.version)?;
         self.log.push("✅ VERSION updated".to_string());
 
         // 2. Write release manifest
-        let release_dir = core_root.join(format!("00-meta/releases/{}", self.version));
+        let release_dir = core_root.join(format!("meta/releases/{}", self.version));
         fs::create_dir_all(&release_dir)?;
         let manifest = format!(
             r#"version = "{}"
@@ -563,7 +563,7 @@ intents_complete = {}
 
         // 3. Update README dynamic section
         let readme_path = core_root.join("README.md");
-        let readme_meta_path = core_root.join("00-meta/README.md");
+        let readme_meta_path = core_root.join("meta/README.md");
         let date = chrono::Local::now().format("%Y-%m-%d").to_string();
         if let Err(e) = crate::readme::update_readme(
             &readme_path,
@@ -587,11 +587,11 @@ intents_complete = {}
                 &self.data,
                 &self.stats,
             );
-            self.log.push("✅ 00-meta/README.md updated".to_string());
+            self.log.push("✅ meta/README.md updated".to_string());
         }
 
         // 3. Update CHANGELOG
-        let changelog_path = core_root.join("00-meta/CHANGELOG.md");
+        let changelog_path = core_root.join("meta/CHANGELOG.md");
         let existing = fs::read_to_string(&changelog_path).unwrap_or_default();
         let new_entry = self.data.render_markdown(&self.stats);
         let new_content = format!(

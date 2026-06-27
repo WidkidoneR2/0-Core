@@ -69,7 +69,7 @@ pub fn get_sorted_versions(releases_dir: &PathBuf) -> Vec<String> {
 
 pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     let gen_path = core_root.join("runtime/generation");
-    let releases_dir = core_root.join("00-meta/releases");
+    let releases_dir = core_root.join("meta/releases");
 
     let current = fs::read_to_string(&gen_path)
         .unwrap_or_default()

@@ -113,7 +113,7 @@ fn main() -> Result<()> {
                     .status();
 
                 // Re-write changelog with the actual theme from TUI
-                let changelog_path = std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md");
+                let changelog_path = std::path::PathBuf::from(&root).join("meta/CHANGELOG.md");
                 if changelog_path.exists() {
                     if let Ok(cl) = std::fs::read_to_string(&changelog_path) {
                         let fixed = cl.replace(
@@ -123,42 +123,72 @@ fn main() -> Result<()> {
                         std::fs::write(&changelog_path, fixed).ok();
                     }
                 }
-                // Sync /etc/faelight/ so faelight-login shows correct version
-                // Update commit count
-                let commits_file = std::path::Path::new("/etc/faelight/COMMITS");
-                if let Ok(output) = std::process::Command::new("git")
-                    .args([
-                        "-C",
-                        root.to_str().unwrap_or("."),
-                        "rev-list",
-                        "--count",
-                        "HEAD",
-                    ])
-                    .output()
+                // Record the release triad in state.db (INT-031/034): version + generation +
+                // commit_count + intent_range. Replaces the old immutable /etc/faelight/{VERSION,
+                // COMMITS} writes (which failed on NixOS). /etc/faelight/VERSION is now populated
+                // declaratively by the nix config from meta/VERSION; the rich triad lives here.
                 {
-                    let count = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    if let Err(e) = std::fs::write(commits_file, &count) {
-                        eprintln!("⚠️  Could not update /etc/faelight/COMMITS: {}", e);
-                        eprintln!("   Run manually: git rev-list --count HEAD | sudo tee /etc/faelight/COMMITS");
-                    } else {
-                        println!("✅ /etc/faelight/COMMITS updated to {}", count);
-                    }
-                }
-                let version_file = std::path::Path::new("/etc/faelight/VERSION");
-                if version_file.parent().map(|p| p.exists()).unwrap_or(false) {
-                    let v = if version_str.starts_with("v") {
-                        version_str.clone()
-                    } else {
-                        format!("v{}", version_str)
-                    };
-                    if let Err(e) = std::fs::write(version_file, &v) {
-                        eprintln!("⚠️  Could not update /etc/faelight/VERSION: {}", e);
-                        eprintln!(
-                            "   Run manually: sudo sh -c echo {} > /etc/faelight/VERSION",
-                            v
-                        );
-                    } else {
-                        println!("✅ /etc/faelight/VERSION updated to {}", v);
+                    let commit_count = std::process::Command::new("git")
+                        .args(["-C", root.to_str().unwrap_or("."), "rev-list", "--count", "HEAD"])
+                        .output()
+                        .ok()
+                        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                        .unwrap_or_default();
+                    // Current generation: resolve /nix/var/nix/profiles/system -> system-NNN-link.
+                    let generation = std::fs::read_link("/nix/var/nix/profiles/system")
+                        .ok()
+                        .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
+                        .and_then(|s| {
+                            s.strip_prefix("system-")
+                                .and_then(|r| r.strip_suffix("-link"))
+                                .map(|r| r.to_string())
+                        })
+                        .unwrap_or_else(|| "unknown".to_string());
+                    // Intent range: count completed intents for a simple range string.
+                    let complete_dir = root.join("intents/complete");
+                    let intent_count = std::fs::read_dir(&complete_dir)
+                        .map(|rd| rd.filter_map(|e| e.ok())
+                            .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
+                            .count())
+                        .unwrap_or(0);
+                    let intent_range = format!("{} complete", intent_count);
+
+                    let db_path = root.join("runtime/state.db");
+                    match rusqlite::Connection::open(&db_path) {
+                        Ok(conn) => {
+                            let _ = conn.execute(
+                                "CREATE TABLE IF NOT EXISTS release_triad (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    version      TEXT NOT NULL,
+                                    generation   TEXT NOT NULL,
+                                    commit_count TEXT NOT NULL,
+                                    intent_range TEXT NOT NULL,
+                                    theme        TEXT,
+                                    timestamp    INTEGER NOT NULL
+                                )",
+                                [],
+                            );
+                            let now = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_secs() as i64)
+                                .unwrap_or(0);
+                            match conn.execute(
+                                "INSERT INTO release_triad
+                                    (version, generation, commit_count, intent_range, theme, timestamp)
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                                rusqlite::params![
+                                    version_str, generation, commit_count, intent_range,
+                                    final_theme, now
+                                ],
+                            ) {
+                                Ok(_) => println!(
+                                    "\u{2705} Release triad recorded: v{} \u{b7} gen {} \u{b7} {} commits \u{b7} {}",
+                                    version_str, generation, commit_count, intent_range
+                                ),
+                                Err(e) => eprintln!("\u{26a0}\u{fe0f}  Could not record release triad: {}", e),
+                            }
+                        }
+                        Err(e) => eprintln!("\u{26a0}\u{fe0f}  Could not open state.db for triad: {}", e),
                     }
                 }
                 // Auto-commit the release
@@ -346,7 +376,7 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("  Current generation: {}", current);
 
-            let manifest_path = root.join(format!("00-meta/releases/{}/manifest.toml", current));
+            let manifest_path = root.join(format!("meta/releases/{}/manifest.toml", current));
             if manifest_path.exists() {
                 let manifest = std::fs::read_to_string(&manifest_path)?;
                 for line in manifest.lines().take(4) {
@@ -356,7 +386,7 @@ fn main() -> Result<()> {
         }
 
         Command::History => {
-            let releases_dir = root.join("00-meta/releases");
+            let releases_dir = root.join("meta/releases");
             let gen_path = root.join("runtime/generation");
             let current = std::fs::read_to_string(&gen_path).unwrap_or_default();
             let current = current.trim();
@@ -400,6 +430,35 @@ fn main() -> Result<()> {
                 println!("  {}  {}  {}{}", v, date, theme, marker);
             }
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            // Triad history from state.db (INT-031/034): version, generation, commits, intents.
+            let db_path = root.join("runtime/state.db");
+            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                if let Ok(mut q) = conn.prepare(
+                    "SELECT version, generation, commit_count, intent_range, theme
+                     FROM release_triad ORDER BY timestamp DESC",
+                ) {
+                    let rows: Vec<(String, String, String, String, String)> = q
+                        .query_map([], |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, String>(2)?,
+                                r.get::<_, String>(3)?,
+                                r.get::<_, String>(4).unwrap_or_default(),
+                            ))
+                        })
+                        .map(|m| m.filter_map(|x| x.ok()).collect())
+                        .unwrap_or_default();
+                    if !rows.is_empty() {
+                        println!();
+                        println!("Release Triad (version / generation / commits / intents)");
+                        for (ver, gen, commits, intents, th) in rows {
+                            println!("  v{}  gen {}  {} commits  {}  {}", ver, gen, commits, intents, th);
+                        }
+                    }
+                }
+            }
         }
 
         Command::Rollback { version } => {
