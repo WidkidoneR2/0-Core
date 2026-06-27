@@ -2,7 +2,7 @@
 id: 084
 date: 2026-06-23
 type: future
-status: in-progress
+status: complete
 title: "faelight-launcher: GTK app launcher with faelight-logout-grade polish"
 tags: [launcher, gtk, ui, wayland, candy-neon, post-072]
 version: TBD
