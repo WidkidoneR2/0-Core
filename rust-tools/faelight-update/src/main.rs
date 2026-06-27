@@ -3,6 +3,7 @@ mod cleanup_checker;
 mod config;
 mod firmware_checker;
 mod flake_checker;
+mod flake_update;
 mod flatpak_checker;
 mod git_checker;
 mod neovim_checker;
@@ -28,6 +29,9 @@ struct Cli {
     /// Check for updates without applying them
     #[arg(short = 'n', long)]
     dry_run: bool,
+    /// Update a single flake input with closure diff + review gate (e.g. --flake-update nixpkgs)
+    #[arg(long, value_name = "INPUT")]
+    flake_update: Option<String>,
 
     /// Skip health check before updates
     #[arg(long)]
@@ -447,6 +451,11 @@ fn run() -> Result<()> {
     // Maintenance mode
     if cli.maintain {
         return run_maintenance();
+    }
+
+    // INT-074 Phase 1b: per-input flake update + closure diff + review gate.
+    if let Some(ref input) = cli.flake_update {
+        return flake_update::run_flake_update(input, cli.dry_run);
     }
     // System Identity header
     if !cli.json && !cli.count_only {

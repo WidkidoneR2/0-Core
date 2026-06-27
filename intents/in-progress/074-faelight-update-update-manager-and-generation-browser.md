@@ -40,7 +40,7 @@ Phase 3 -- integration: tie generations to commit + intent (depends on INT-034 d
 
 ## Gates
 - [x] Phase 0: current Faelight-Update surveyed; update-manager + gen-browser integration points recorded
-- [ ] update manager: per-input flake update with pre-switch closure diff and a review gate
+- [x] update manager: per-input flake update with pre-switch closure diff and a review gate
 - [ ] generation browser: timeline + closure diff between generations + roll-back
 - [ ] generations tied to commit + intent (via INT-034 triad data)
 
@@ -131,3 +131,22 @@ before (clap panic + sudo-pacman hang); it now works on NixOS. Also fixed the tw
 bugs (verbose/count_only missing #[arg]) earlier this session.
 This unblocks Phase 1b (per-input update + closure diff + review gate) and Phase 2 (generation
 browser) -- both can now be built on a tool that actually runs.
+
+
+## Phase 1b -- DONE (2026-06-27): per-input update + closure diff + review gate -- PHASE 1 GATE MET
+Built rust-tools/faelight-update/src/flake_update.rs (run_flake_update) + wired --flake-update
+<INPUT> flag. The SAFE FLOW ("see what changes before it changes you"):
+  1. back up flake.lock (revert point)
+  2. nix flake update <input>  -- updates just that input's lock entry (reversible)
+  3. nixos-rebuild build --flake .#framework16  -- BUILD ONLY, unprivileged (-> ./result)
+  4. nvd diff /run/current-system ./result  -- the closure diff, read-only
+  5. REVIEW GATE: dry-run reverts the lock; live mode prompts apply? (y/N) -> sudo switch on y
+SAFETY PROVEN LIVE (twice): (a) when the build FAILED (untracked module file), the flow caught
+it and reverted the lock automatically -- "build failed -- lock reverted, system untouched";
+(b) successful dry-run on `disko` showed a REAL nvd diff -- "Closure size: 1658 -> 1658, 13
+paths added, 13 removed, delta +0, disk usage -79.0KiB, No version or selection state changes"
+-- then reverted the lock, system byte-identical. Nothing touches the running system until
+explicit y at the gate. (Re-confirmed the flake-tracking lesson: nixos-rebuild build evaluates
+git-TRACKED files, so the new module had to be git-added before the build could see it.)
+Phase 1 (update manager) gate now MET: per-input update + pre-switch closure diff + review gate.
+NEXT: Phase 2 -- the generation browser (timeline + closure diff between gens + rollback).
