@@ -3,7 +3,7 @@ id: 074
 date: 2026-06-22
 type: future
 title: "Faelight-Update v-next: update manager + generation browser"
-status: planned
+status: in-progress
 tags: [faelight-update, nix, flake-update, generations, generation-browser, tui, post-1.0.0]
 ---
 
@@ -39,7 +39,7 @@ Phase 2 -- generation browser: timeline + closure diff between gens + roll-back.
 Phase 3 -- integration: tie generations to commit + intent (depends on INT-034 data).
 
 ## Gates
-- [ ] Phase 0: current Faelight-Update surveyed; update-manager + gen-browser integration points recorded
+- [x] Phase 0: current Faelight-Update surveyed; update-manager + gen-browser integration points recorded
 - [ ] update manager: per-input flake update with pre-switch closure diff and a review gate
 - [ ] generation browser: timeline + closure diff between generations + roll-back
 - [ ] generations tied to commit + intent (via INT-034 triad data)
@@ -51,3 +51,28 @@ Phase 3 -- integration: tie generations to commit + intent (depends on INT-034 d
 
 ## The Rule
 "See what changes before it changes you." 🌲
+
+
+## Phase 0 -- DONE (2026-06-26): survey + integration map
+ARCHITECTURE (surveyed): main.rs (1802L) orchestrates; per-source CHECKER modules each expose
+check_X_updates()/update_X() -- cargo, npm, pip, rustup, flatpak, firmware, neovim, yazi, git,
+cleanup. TUI in tui_v2.rs (405L, ratatui): UpdateTUI state + CategoryState, category/package
+nav, render_categories/render_packages/render_status_bar. Data model: UpdateCategory{items}.
+CLI (clap): --dry-run/-n, --interactive/-i, --preview, --json, --only/--skip, --maintain, etc.
+
+GAPS 074 FILLS (integration points recorded):
+ 1. UPDATE MANAGER (flake) -- NO flake_checker.rs exists. git_checker only pulls ~/repos.
+    -> NEW flake_checker.rs (checker pattern): parse `nix flake update`/metadata for per-INPUT
+       update candidates; show pre-switch closure diff via nvd / nix store diff-closures;
+       gate the rebuild on review. Slots into main.rs's category aggregation like any checker.
+ 2. GENERATION BROWSER -- entirely absent (no gen module, no TUI view).
+    -> NEW generation.rs: read generation list (nix-env --list-generations / profile), dates,
+       sizes; closure-diff between any two gens (wrap nvd); rollback/boot a chosen gen.
+    -> NEW TUI view/tab in tui_v2.rs alongside the update view (timeline + diff + rollback).
+ 3. TRIAD tie-in (gen -> commit + intent) -- reads INT-034 data. DEFERRED to Phase 3.
+
+VERDICT: the checker-module + ratatui pattern extends cleanly -- flake_checker slots in as a
+checker; the generation browser is a new TUI view. No architectural rework needed.
+SEQUENCING for next session: Phase 1 (flake_checker per-input + closure diff + review gate),
+then Phase 2 (generation.rs + gen TUI view), then Phase 3 (INT-034 triad). Build on nvd; do
+NOT reinvent the diff engine.
