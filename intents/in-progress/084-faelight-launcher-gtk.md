@@ -80,3 +80,9 @@ CORE COMPLETE. Optional follow-ons remaining (nice-to-have, non-blocking):
 - `faelight launch launcher` umbrella arm.
 - Capture the glassy-neon panel as a reusable design language (for INT-054 ReGreet + the bar).
 - App icons (currently text-only rows).
+
+Added LaunchApp::Launcher to the faelight umbrella -> 'f launch launcher' spawns faelight-launcher
+(re-adds what INT-072 removed). cargo check+build clean, deployed, verified live. Health 6/6.
+ALL charter Must-Dos done: real sectioned launcher, launcher+launch aliases, Super+Space keybind,
+honest registry entry, umbrella arm. Optional nice-to-haves remain noted (design-language capture,
+app icons) but are NOT blockers. The forest launches beautifully. 🌲
