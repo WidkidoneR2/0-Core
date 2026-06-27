@@ -101,6 +101,10 @@ test surface 054 always required. Key fixes that got it there:
 ### What "done" now requires (expanded scope)
   1. ReGreet configurability MAPPED -- regreet.toml + CSS ceiling (background, layout, behavior).
   2. Themed to faelight-logout -- candy-neon, consistent with the logout screen (INT-091 palette).
+     VISUAL TARGET (pinned 2026-06-27): rich candy-neon green like faelight-logout -- the saturated,
+     high-richness green that excited us, NOT a muted terminal green. Full GTK/CSS background +
+     accents. DISPLAY THE FAELIGHT FOREST VERSION NUMBER on the greeter (like the fsh startup
+     banner shows "14.1.0 -- <codename>") so the login screen states which forest version it is.
   3. Mango profile -- working session entry.
   4. Miracle-wm profile (INT-087) -- second compositor, own session entry.
   5. Session picker -- choose Mango / Miracle at login, verified.
