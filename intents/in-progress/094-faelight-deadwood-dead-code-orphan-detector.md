@@ -73,3 +73,23 @@ NOTE (lock protocol): new crate needed `cargo check` (bare, not devShell --locke
 Cargo.lock before the locked build accepts it -- same family as the version-bump lock lesson.
 NEXT: Phase 2 (registry entries w/ no binary, orphaned scripts), Phase 3 (module import-graph,
 orphaned intents), Phase 4 (Deadwood health-dashboard check).
+
+
+## Phase 4 -- DONE (2026-06-27): Deadwood health-dashboard check -- 094 COMPLETE
+Added --summary mode to deadwood (machine-readable TOTAL|aliases|baks|keybinds|registry|scripts|
+modules|intents). Added check_deadwood() to the engine doctor (all_checks + forest_names display
+group): runs faelight-deadwood --summary, Warns when structural orphans (registry+modules+ghost-
+intents) > 0, else Pass; graceful fallback if not installed. PROVEN LIVE post-deploy:
+"⚠️ Deadwood: 33 orphans flagged (29 structural: 2 registry, 0 modules, 27 ghost-intents)".
+
+ALL 4 PHASES COMPLETE + DEPLOYED:
+- P1: dead aliases (found palette->faelight-palette), stale .bak (age-flagged), dead keybinds.
+- P2: registry orphans (security-audit, faelight-notifyctl), orphaned scripts (cache-push/status).
+- P3: orphaned modules (3 empty stubs, since removed), dangling intent refs (ghost-260 class, 27).
+- P4: Deadwood check in the health dashboard (d), live.
+CARDINAL RULE honored throughout: reports, never deletes; HIGH/MED/LOW confidence; # deadwood: skip
+pragma; protect-list shielded the regreet/greetd .baks during the cleanup pass.
+Hygiene pass executed off deadwood's findings: removed 3 empty orphan modules + 53 stale .baks,
+verified safe (flake still evaluates, git showed only intended deletions, protected baks survived).
+deadnix stays the aliased upstream for Nix dead-bindings; deadwood is the forest-graph complement.
+Tool deployed v1.0.0, on PATH, in the dashboard. The forest now sheds its own dead wood. 🌲
