@@ -130,7 +130,7 @@ fn cmd_public(dry_run: bool) {
     }
 
     // Generate index.md
-    let version = std::fs::read_to_string(root.join("00-meta/VERSION"))
+    let version = std::fs::read_to_string(root.join("meta/VERSION"))
         .unwrap_or_default().trim().to_string();
     let mut index = format!(
         "# Faelight Forest Documentation\n\n> {}\n\n## Contents\n\n",
@@ -230,12 +230,12 @@ struct ForestState {
 fn gather_state() -> ForestState {
     let root = core_root();
 
-    let version = std::fs::read_to_string(root.join("00-meta/VERSION"))
+    let version = std::fs::read_to_string(root.join("meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
 
-    let changelog = std::fs::read_to_string(root.join("00-meta/CHANGELOG.md")).unwrap_or_default();
+    let changelog = std::fs::read_to_string(root.join("meta/CHANGELOG.md")).unwrap_or_default();
     let theme = changelog
         .lines()
         .find(|l| l.contains(&format!("[{}]", version)))
@@ -245,7 +245,7 @@ fn gather_state() -> ForestState {
         .unwrap_or_else(|| "The Living Forest".to_string());
 
     // Count registered tools from tools.toml — matches doctor path resilience check
-    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+    let tool_count = std::fs::read_to_string(root.join("registry/tools.toml"))
         .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
