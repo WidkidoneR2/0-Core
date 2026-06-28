@@ -61,137 +61,100 @@
 
 ## What is Faelight Forest?
 
-A fully custom Arch Linux + Niri Wayland desktop built from first principles in ~96.4% Rust. Every tool is written or fully understood. No mystery packages. No magic. No convenience at the cost of comprehension.
-POSIX shells:      text → text → text
-Nu shell:          table → filter → transform
-Faelight Forest:   forest_data → judgment → wisdom → anticipation → alignment
+A self-aware personal computing environment, built from first principles on **NixOS 26.05**.
+One developer, working with an AI partner, building the pieces a team normally builds:
+a shell, an intelligence layer, and ~38 custom Rust tools -- each one written or fully
+understood. No mystery packages. No magic. No convenience at the cost of comprehension.
 
-**Four principles that govern everything:**
+**~97% Rust** (113k lines), with a thin Nix layer for declarative system management and
+small amounts of Lua and shell where they serve best. The forest is not Rust for its own
+sake -- it is Rust because understanding every line is the point.
 
-1. **Understanding over convenience** -- if you don't understand it, it doesn't run
-2. **Manual control over automation** -- nothing happens without explicit human authorization  
-3. **Intentional design** -- every tool has a purpose, every decision has a record
-4. **The forest remembers** -- every commit, decision, and intent is documented and learned from
-
----
-
-## The Stack
-
-### 🖥 faelight-compositor v2
-Custom Wayland compositor built on [Smithay](https://github.com/Smithay/smithay). Auto-tiling window management, full Wayland protocol support, forest integration via state.db.
-
-### 🐚 faelight-shell v2.1.0
-The forest's own login shell. Speaks human first, UNIX as fallback.
-
-```sh
-? show health          # natural language → core doctor
-deploy core            # intelligent deploy with cargo-audit
-parallel { build ||| test }  # true parallel execution
-friday where risk > medium   # Friday intelligence query
-compare --git HEAD~3   # diff with context
+```
+POSIX shells:      text -> text -> text
+Nu shell:          table -> filter -> transform
+Faelight Forest:   forest_data -> judgment -> wisdom -> anticipation -> alignment
 ```
 
-### 🖥 faelight-term v3
-GPU-accelerated terminal built on wgpu + cosmic-text. Full scrollback, Friday intelligence panel, 60fps rendering, bracketed paste, OSC 133 shell integration.
+## Origin
 
-### 📁 faelight-fm v2
-Forest-aware file manager built on libcosmic. Miller columns, git status per file, Friday context per directory, forest safety guard.
+Faelight Forest began in a failure. A catastrophic update broke a working system, and the
+rebuild that followed asked a harder question than "how do I fix this?" -- it asked "why
+don't I understand my own machine?" The answer became a principle: build it from parts you
+understand, or don't run it at all.
 
-### 🧠 Friday Intelligence -- v45 (Forest Mind)
-An intelligence layer that watches, learns, and speaks -- only when confident.
-
-- 298 facts from 2721 commits and 248 intents
-- 13 behavioral patterns with confidence scoring  
-- 87% prediction accuracy
-- Confidence-gated voice -- Friday speaks when it knows, stays quiet when it doesn't
-- Persistent decision memory across sessions
-
-### 🔧 core v3.0.0
-A single Rust binary with 56+ native domains:
-
-| Domain | Capability |
-|--------|-----------|
-| `core doctor` | 23-check health monitoring with forecast and early warning |
-| `core friday` | Friday intelligence -- observe, suggest, recommend, challenge |
-| `core intent` | Intent ledger -- dependency graph, velocity, health correlation |
-| `core predict` | Session patterns, health trajectory, intent velocity |
-| `core decisions` | Decision ledger with context fingerprints and outcomes |
-| `core integrity` | 13-check integrity engine -- schema, ledger, dedup |
-| `core strategy` | Planning across multiple time horizons |
-| `core goals` | Forest sets its own goals -- generate, accept, reject, prioritize |
-
----
-
-## 51 Tools
-
-All written in Rust. All understood. All intentional.
-
-| Category | Tools |
-|----------|-------|
-| **Compositor** | faelight-compositor v2 |
-| **Display** | faelight-bar, faelight-notify, faelight-login, faelight-lock |
-| **Shell** | faelight-shell v2.1.0, faelight-term v3, faelight-git, faelight-release |
-| **Files** | faelight-fm v2, faelight-diff, faelight-link, faelight-clipboard |
-| **Intelligence** | faelight-context, faelight-contextd, faelight-memory, faelight-digest |
-| **Security** | faelight-vault, faelight-sandbox, faelight-lock v2 |
-| **Updates** | faelight-update v4, faelight-maintain, faelight-pick |
-
----
-
-## Security
-
-Nothing runs without explicit human authorization.
-
-- UFW firewall + fail2ban active  
-- faelight-vault -- Argon2id encrypted credential manager  
-- faelight-sandbox v3 -- policy engine, namespace isolation, seccomp  
-- faelight-lock v2 -- native Rust Wayland lock via ext-session-lock-v1  
-- Immutable core -- requires explicit unlock before any changes  
-- 23-check health monitoring -- continuous integrity verification  
-- cargo-audit + cargo-deny on every deploy -- no silent vulnerabilities  
-
----
-
-## The Decision Record
-
-274 complete intents. Every one documented -- not just what was built, but why, when, what the health score was, what risk was accepted, and what happened next. The forest does not forget.
-
----
-
-## Standing on the Shoulders of Giants
-
-Faelight Forest would not exist without the exceptional open source work of:
-
-- **[Pop!_OS / System76](https://github.com/pop-os)** -- libcosmic, cosmic-text, cosmic-comp. The COSMIC stack is the visual layer that faelight-fm, faelight-term, and faelight-compositor are built on. Their architecture decisions shaped this forest's direction.
-- **[Alacritty](https://github.com/alacritty/alacritty)** -- alacritty_terminal powers faelight-term v3's PTY layer, VTE parsing, and scrollback engine.
-- **[Kitty](https://github.com/kovidgoyal/kitty)** -- Kitty's keyboard protocol and OSC sequences informed faelight-term's input handling and shell integration design.
-- **[Rio Terminal](https://github.com/raphamorim/rio)** -- Rio's wgpu rendering architecture was studied during faelight-term v3's design phase. Their GPU pipeline approach influenced the rendering strategy.
-- **[Smithay](https://github.com/Smithay/smithay)** -- The Wayland compositor toolkit that powers faelight-compositor v2.
-- **[Niri](https://github.com/YaLTeR/niri)** -- The scrollable-tiling Wayland compositor that is the forest's daily driver.
-- **[Helix](https://github.com/helix-editor/helix)** -- The modal editor at the heart of the forest's editing workflow.
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core
-cd ~/0-core && cargo build --release --workspace
-sudo cp target/release/* /usr/local/bin/
-cd 03-interfaces/stow && stow */
-core doctor run
-```
-
-> ⚠️ **This system is built for one person.** It is not designed to be installed by others without deep understanding. Read the philosophy documents before touching anything. The forest has opinions.
-
----
+That rebuild started on Arch Linux. In June 2026, after another Arch failure, the forest
+migrated to **NixOS 26.05** -- a deliberate move toward declarative, reproducible,
+rollback-safe computing. Every system change is now a bootable generation. Nothing is lost,
+nothing is mysterious.
 
 ## Philosophy
 
-> *"A system that knows its values can detect when it betrays them.*
-> *Alignment is not a constraint -- it is the compass that makes every decision navigable.*
-> *A partner without principles is clever.*
-> *A partner with principles is trustworthy."*
+Four principles govern everything:
 
-*Auto-generated sections maintained by faelight-docs v2.0.0*
-*Auto-generated by faelight-docs v2.0.0 — last sync: 2026-05-26 21:47*
+1. **Understanding over convenience** -- if you don't understand it, it doesn't run.
+2. **Manual control over automation** -- nothing happens without explicit authorization.
+3. **Intentional design** -- every tool has a purpose; every decision has a record.
+4. **The forest remembers** -- every commit, decision, and intent is documented and learned from.
+
+## The thesis
+
+One person, partnered with AI, can build what teams build -- in months, not years -- if
+the work is done with understanding rather than assembly. Faelight Forest is the proof:
+a coherent, self-documenting, self-aware computing environment, grown one intent at a time.
+The pure-Rust-OS question is being answered, in daily use. The work now is refinement, stability, and 1.0.0.
+
+## Architecture
+
+The forest rests on three pillars, plus an ecosystem of tools:
+
+- **fsh (faelight-shell)** -- the forest's own shell. Speaks human first, UNIX as fallback.
+- **core** -- a single Rust engine of native domains: health, intent ledger, integrity,
+  prediction, decisions, strategy.
+- **Friday** -- an intelligence layer that watches, learns, and speaks only when confident.
+  Persistent memory across sessions; confidence-gated voice.
+
+```sh
+? show health                  # natural language -> health dashboard
+deploy core                    # intelligent deploy with audit
+build ||| test                 # true parallel execution
+friday where risk > medium     # Friday intelligence query
+```
+
+Around these sit ~38 custom Rust tools -- compositor helpers, a GPU terminal, a file
+manager, git governance, a release manager, a credential vault, a sandbox, and more.
+
+**See the full, always-current tool catalog:** [rust-tools/](rust-tools/)
+
+## Going deeper
+
+This README is the front door. The depth lives here:
+
+- [Theory of Operation](docs/THEORY_OF_OPERATION.md) -- how the forest thinks
+- [Architecture](docs/ARCHITECTURE.md) -- how the pieces fit
+- [Philosophy](docs/PHILOSOPHY.md) -- why it is built this way
+- [Shell Philosophy](docs/FSH-PHILOSOPHY.md) -- the case for a human-first shell
+- [Release Process](docs/RELEASE.md) -- how the forest publishes itself
+- [Tool Catalog](rust-tools/) -- every active tool, generated from source
+- [Changelog](meta/CHANGELOG.md) -- the full history, Arch era through NixOS
+
+## Security
+
+Nothing runs without explicit authorization.
+
+- UFW firewall + fail2ban active
+- faelight-vault -- encrypted credential manager
+- faelight-sandbox -- policy engine with namespace isolation
+- Immutable core on NixOS -- system changes are declarative and reviewable
+- Health + integrity monitoring -- continuous verification
+- cargo-audit on deploy -- no silent vulnerabilities
+
+## The decision record
+
+Every intent is documented -- not just what was built, but why, when, what the health score
+was, what risk was accepted, and what happened next. The forest does not forget.
+
+---
+
+*Built by one developer, in partnership with AI. Every tool written or fully understood.*
+🌲
