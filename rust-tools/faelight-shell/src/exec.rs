@@ -322,6 +322,21 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             _ => String::new(),
         };
         let cmd_lower = ctx.cmd.to_lowercase();
+        // INT-097: search/filter tools exit non-zero to mean "no match / no result",
+        // which is NORMAL, not an error worth a Friday suggestion. Skip the knowledge
+        // lookup for them unless they produced real stderr (a genuine error message).
+        let first_word = cmd_lower.split_whitespace().next().unwrap_or("");
+        let no_match_tools = [
+            "grep", "rg", "egrep", "fgrep", "ripgrep", "find", "fd",
+            "diff", "test", "ag", "ack", "fsearch",
+        ];
+        let is_no_match_exit = no_match_tools.contains(&first_word)
+            && (error_msg.trim().is_empty()
+                || error_msg.contains("exited")
+                || error_msg.contains("os error"));
+        if is_no_match_exit {
+            return;
+        }
         let error_lower = error_msg.to_lowercase();
         // Tokenize error + command into meaningful keywords
         // Filter noise words, try each token against knowledge base
