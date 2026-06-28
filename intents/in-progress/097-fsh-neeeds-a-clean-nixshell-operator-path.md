@@ -59,7 +59,7 @@ new features.
 - [x] globs expand correctly; no-match now prints 'no matches for pattern: X' (failglob), no cryptic os-error
 - [x] `cp <file> /tmp/<scratch>` allowed; `cp x ~/.cargo/bin/core` still blocked (proven both ways, gen 260)
 - [x] `query <file> <out-of-range>` clamps safely, never closes the terminal (gen 261, proven 99999:99999 + 50:10)
-- [ ] `&&` `||` `;` `>` `>>` `2>&1` behave correctly in a multi-step test
+- [x] `&&` `||` `;` `>` `>>` `2>&1` all behave correctly (gen 264, proven live)
 - [ ] A full INT-076-style build session (scaffold, edits, git, cargo) completes
       start-to-finish in fsh with ZERO drops to bash
 - [ ] Stress test passes; 1-week daily-drive before new fsh features
