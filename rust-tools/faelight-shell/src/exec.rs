@@ -159,8 +159,13 @@ fn preexec(
 
     // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
     if cmd == "cp" || cmd == "mv" {
-        let core_bin = "core".to_string();
-        if raw.contains(&core_bin) && !raw.contains("deploy") {
+        // INT-097: was raw.contains("core") -- matched every path under ~/0-core,
+        // blocking legit copies. Now block only when the DESTINATION is a core binary.
+        let dest = raw.split_whitespace().last().unwrap_or("");
+        let protected = ["scripts/core", ".cargo/bin/core", "/bin/core"];
+        let hits_core_binary = dest.ends_with("/core") || dest == "core"
+            || protected.iter().any(|p| dest.ends_with(p));
+        if hits_core_binary && !raw.contains("deploy") {
             return Some(
                 "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string(),
             );
