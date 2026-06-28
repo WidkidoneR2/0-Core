@@ -23,6 +23,7 @@
   xdg.configFile."mango/config.conf".source = ../../config/mango/.config/mango/config.conf;
 
   home.packages = with pkgs; [
+    hello
     brave
     lla
      # CLI tools

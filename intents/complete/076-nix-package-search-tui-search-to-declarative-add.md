@@ -3,7 +3,7 @@ id: 076
 date: 2026-06-22
 type: future
 title: "Nix package search TUI: search to declarative config-add"
-status: in-progress
+status: complete
 tags: [nix, nixpkgs, search, declarative, config, tui, post-1.0.0]
 ---
 
