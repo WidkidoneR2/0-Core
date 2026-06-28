@@ -58,7 +58,7 @@ new features.
 - [ ] `sh -c '...'` and nested-quote commands run without "unexpected EOF"
 - [x] globs expand correctly; no-match now prints 'no matches for pattern: X' (failglob), no cryptic os-error
 - [x] `cp <file> /tmp/<scratch>` allowed; `cp x ~/.cargo/bin/core` still blocked (proven both ways, gen 260)
-- [ ] `query <file> <out-of-range>` clamps safely, never closes the terminal
+- [x] `query <file> <out-of-range>` clamps safely, never closes the terminal (gen 261, proven 99999:99999 + 50:10)
 - [ ] `&&` `||` `;` `>` `>>` `2>&1` behave correctly in a multi-step test
 - [ ] A full INT-076-style build session (scaffold, edits, git, cargo) completes
       start-to-finish in fsh with ZERO drops to bash
