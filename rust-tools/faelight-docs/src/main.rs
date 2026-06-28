@@ -220,6 +220,14 @@ fn main() {
             let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
             toolgen::cmd_generate(dry);
         }
+        "changelog-preview" => {
+            let name = args.get(2).map(|s| s.as_str()).unwrap_or("");
+            toolgen::cmd_changelog_preview(name);
+        }
+        "changelog-tools" | "changelog-generate" => {
+            let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
+            toolgen::cmd_changelog_generate(dry);
+        }
         _ => cmd_help(),
     }
 }
