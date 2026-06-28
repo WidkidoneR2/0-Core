@@ -3,7 +3,7 @@ id: 037
 date: 2026-06-05
 type: documentation
 title: "rust-tools documentation: README and CHANGELOG for all 38 tools"
-status: in-progress
+status: complete
 tags: [documentation, rust-tools, readme, changelog, release, conference]
 priority: medium
 ---
