@@ -141,3 +141,38 @@ a passing VM test FIRST. The test goes red in CI instead of locking the laptop.
 ## The Rule
 "The structure is the philosophy made visible. If you cannot point at the layer
  in the tree, it is not 0-Core -- it is just files." 🌲
+
+
+## Progress (2026-06-28): Phase 1 cleanup done; remaining moves scoped as deferred
+
+### Done
+- Purged 178 stale timestamped .bak edit-backups repo-wide (commit 363b2b24).
+  Tree now matches the charter's lean-root intent for non-gated paths.
+- Confirmed homes already exist + match spec: registry/, policy/, labs/
+  (labs/ already replaced r-and-d/). Phase 1 home-creation substantially complete.
+
+### Deferred -- and WHY (recon findings, not avoidance)
+- meta/, schema/, config/ are NOT in the charter's target tree and need homes,
+  BUT they are referenced by COMPILED RUST at RUNTIME, not just Nix imports:
+    * schema/*.json  -> read at runtime by engine doctor/bootstrap to validate
+      registry files (engine/src/domains/{doctor,bootstrap}).
+    * meta/VERSION   -> read by BOTH Nix (hosts/framework16 configuration.nix:122)
+      AND faelight-release at runtime.
+    * config/        -> home-manager stow SOURCE (users/christian/fsh.nix:5 imports
+      config/faelight-shell/.config/faelight-shell/config.fsh) AND referenced by
+      faelight tools.
+  Moving any of these = a cross-cutting refactor: move dir + fix Nix imports +
+  fix hardcoded paths in ~15 rust-tools + rebuild + verify NO runtime breakage.
+  This is "understanding over convenience" work -- each tool's path usage must be
+  read and understood, done deliberately, NOT batch-swept. A dedicated future pass.
+
+- Phase 2 (greetd isolation, desktop/ truth split) is LOCKOUT-CLASS and gated by
+  Phase 3 (tests/ harness). The tests harness needs working VM login tests, which
+  INT-054's 2026-06-28 finding showed are metal-gated (cage->mango seat handoff is
+  a QEMU artifact). So Phase 2 is blocked until either the tests harness is built
+  on metal or an alternative login-test path exists.
+
+### State
+061 stays in-progress (correctly partial). Safe cleanup banked. Remaining work =
+(a) meta/schema/config runtime-path refactor [future, careful], (b) greetd/desktop
+Phase 2 [VM-gated]. Do NOT cicomplete until those land.
