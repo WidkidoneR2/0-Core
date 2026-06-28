@@ -695,6 +695,16 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     end_str.parse::<usize>().unwrap_or(total).min(total)
                 };
                 let start = start.saturating_sub(1);
+                // INT-097: clamp start to the file length and ensure start <= end,
+                // so an out-of-range query shows a clean message instead of panicking
+                // (an out-of-bounds slice aborts the whole shell -> terminal closes).
+                let start = start.min(total);
+                if start >= end {
+                    return CommandResult::Output(format!(
+                        "  (query: range {}:{} is past end of file -- {} has {} lines)",
+                        start + 1, end, filepath, total
+                    ));
+                }
                 use colored::Colorize;
                 let is_rust = expanded.ends_with(".rs");
                 for (i, l) in file_lines[start..end].iter().enumerate() {
