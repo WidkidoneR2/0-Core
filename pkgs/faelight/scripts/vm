@@ -101,10 +101,20 @@ vm_clean_stale(){
 }
 
 cmd_build(){
-  info "Building VM image (nixos-rebuild build-vm; dirty tree uses tracked files)..."
-  ( cd "$STATE" && nixos-rebuild build-vm --flake "$FLAKE" )
+  # INT-024: optional mode arg selects the login flavour.
+  #   vm build          -> faelight-vm          (mirror: tuigreet -> mango)
+  #   vm build regreet  -> faelight-vm-regreet  (candy-neon ReGreet testbed)
+  local mode="${1:-mirror}"
+  local target
+  case "$mode" in
+    mirror)  target="$REPO#faelight-vm";;
+    regreet) target="$REPO#faelight-vm-regreet";;
+    *) err "vm build: unknown mode '$mode' (use: mirror | regreet)"; exit 2;;
+  esac
+  info "Building VM image [$mode] (nixos-rebuild build-vm; dirty tree uses tracked files)..."
+  ( cd "$STATE" && nixos-rebuild build-vm --flake "$target" )
   local L; L="$(launcher)"
-  [ -n "$L" ] && ok "VM image built (GC-rooted): $L" || { err "build done but no run-*-vm launcher in $STATE/result/bin"; exit 1; }
+  [ -n "$L" ] && ok "VM image built [$mode] (GC-rooted): $L" || { err "build done but no run-*-vm launcher in $STATE/result/bin"; exit 1; }
 }
 
 cmd_up(){

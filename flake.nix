@@ -43,12 +43,26 @@
         version = "9.2.0";
       });
     in {
+      # INT-024: faelight-vm has TWO login modes sharing one base.
+      #   faelight-vm          = base + tuigreet  (mirrors hosts/framework16)
+      #   faelight-vm-regreet  = base + ReGreet   (migration testbed)
       nixosConfigurations.faelight-vm = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit self system inputs; };
         modules = [
           home-manager.nixosModules.home-manager
-          ./hosts/vm/configuration.nix
+          ./hosts/vm/base.nix
+          ./hosts/vm/login-mirror.nix
+        ];
+      };
+
+      nixosConfigurations.faelight-vm-regreet = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit self system inputs; };
+        modules = [
+          home-manager.nixosModules.home-manager
+          ./hosts/vm/base.nix
+          ./hosts/vm/login-regreet.nix
         ];
       };
 
