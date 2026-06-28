@@ -14,6 +14,7 @@
 //   status   — what docs exist, last updated
 
 mod registry;
+mod toolgen;
 use colored::*;
 use std::path::PathBuf;
 
@@ -207,6 +208,17 @@ fn main() {
         "command-guide" => {
             let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
             cmd_command_guide(dry);
+        }
+        "readme-tools" => {
+            toolgen::cmd_readme_tools_dryprint();
+        }
+        "readme-preview" => {
+            let name = args.get(2).map(|s| s.as_str()).unwrap_or("");
+            toolgen::cmd_preview_one(name);
+        }
+        "readme-generate" => {
+            let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
+            toolgen::cmd_generate(dry);
         }
         _ => cmd_help(),
     }
