@@ -163,3 +163,51 @@ STILL BLOCKED (separate from theming -- the real 054/056 gate):
 - So: ReGreet greeter = themed + working; mango handoff = still to solve before real-machine.
 NOTE: keep the extraCss block in hosts/vm/configuration.nix as the canonical forest greeter theme;
 port to framework16 config ONLY after the mango-handoff crash is solved and the whole flow is 100%.
+
+
+## Progress (2026-06-28): Two-mode VM harness built; cage->mango handoff isolated as VM-ceiling
+
+Built the INT-024 two-mode VM login harness and used it to characterize the
+ReGreet->mango crash precisely. Committed + pushed at 14b60b33.
+
+### Harness (INT-024)
+- Split hosts/vm/configuration.nix into: base.nix (shared) + login-mirror.nix
+  (greetd->tuigreet->mango, mirrors framework16) + login-regreet.nix
+  (cage+ReGreet candy-neon, migration target).
+- flake: nixosConfigurations.faelight-vm (mirror) + faelight-vm-regreet.
+- vm script: `vm build` = mirror, `vm build regreet` = ReGreet testbed.
+
+### Findings (demonstrated, not declared)
+- MIRROR mode PROVEN WORKING: tuigreet->mango launches, christian session holds
+  open (identical to the real machine's login flow).
+- REGREET mode reproduces the crash: cage->mango fails. Captured stderr:
+    libseat: Could not poll connection: Broken pipe
+    Could not open tty0 to update VT: Permission denied
+    Could not open VT for client
+    Timeout waiting session to become active -> Failed to start a DRM session
+- ROOT CAUSE (proven by A/B): cage (ReGreet's wlroots compositor) holds seat0/VT;
+  mango's libseat cannot acquire it during the greeter->session handoff. tuigreet
+  is a TTY greeter (no DRM, hands the seat straight through) so it never hits this.
+
+### Fixes tested and ruled out
+- sleep 1 and sleep 3 in a session wrapper (timing/VT-race theory): NO effect.
+- LIBSEAT_BACKEND=logind (seatd-vs-logind contention theory): test tangled with a
+  ReGreet "session not found" wrinkle; inconclusive but the VT "Permission denied"
+  lines persisted.
+
+### Conclusion
+Almost certainly a QEMU-emulation artifact, NOT a ReGreet/mango bug: mirror mode
+works in the SAME VM, and the real machine runs mango daily. The cage->mango seat
+handoff is the one thing the VM cannot faithfully emulate. The real graduation
+test for ReGreet is on METAL (real DRM), performed carefully with INT-056 TTY
+rescue armed BEFORE touching the live login.
+
+### Capture method banked (reusable)
+  vm ssh sudo systemd-run --uid=1000 --gid=100 -p PAMName=login \
+    --setenv=XDG_RUNTIME_DIR=/run/user/1000 --wait --collect /path/to/wrapper.sh
+reliably captures session stderr that greetd otherwise swallows.
+
+### Next
+- ReGreet greeter itself (theme, render, auth) is PROVEN in the VM -- that work can
+  proceed without the post-login handoff.
+- Graduation to metal is the open step; gate it behind INT-056 (TTY rescue).
