@@ -5,6 +5,7 @@
 mod search;
 mod theme;
 mod app;
+mod config_edit;
 
 use app::{App, Mode};
 use crossterm::{
@@ -23,6 +24,29 @@ use ratatui::{
 use std::io;
 
 fn main() -> anyhow::Result<()> {
+    // INT-076 Phase 2 scratch test: `faelight-nix --test-add <pkg> <file>`
+    // runs the declarative-add engine and prints the diff. WRITES NOTHING.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(|s| s.as_str()) == Some("--test-add") {
+        let pkg = args.get(2).cloned().unwrap_or_default();
+        let path = args.get(3).cloned().unwrap_or_default();
+        let content = std::fs::read_to_string(&path)?;
+        match config_edit::plan_add(&content, &pkg) {
+            Ok(plan) => {
+                println!("--- diff preview (original file NOT modified) ---\n");
+                println!("{}", plan.diff);
+                // Write the full proposed result to a .preview file so the whole
+                // modified config can be inspected. This reads new_content.
+                let preview_path = format!("{path}.preview");
+                std::fs::write(&preview_path, &plan.new_content)?;
+                println!("(would add '{}')", plan.pkg);
+                println!("full proposed result written to: {preview_path}");
+            }
+            Err(e) => println!("plan_add error: {e}"),
+        }
+        return Ok(());
+    }
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -57,9 +81,15 @@ fn run<B: ratatui::backend::Backend>(
                 Mode::Browsing => match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
                     KeyCode::Char('/') => app.mode = Mode::Editing,
+                    KeyCode::Char('a') => app.plan_add_selected(),
                     KeyCode::Down | KeyCode::Char('j') => app.next(),
                     KeyCode::Up | KeyCode::Char('k') => app.prev(),
                     KeyCode::Enter => app.mode = Mode::Editing,
+                    _ => {}
+                },
+                Mode::Confirm => match key.code {
+                    KeyCode::Char('y') => app.confirm_add(),
+                    KeyCode::Char('n') | KeyCode::Esc => app.cancel_add(),
                     _ => {}
                 },
             }
@@ -147,6 +177,21 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App, area: Rect) {
         .title(Span::styled(" detail ", Style::default().fg(theme::MAGENTA)))
         .style(Style::default().bg(theme::BG));
 
+    if app.mode == Mode::Confirm {
+        let mut v: Vec<Line> = vec![
+            Line::from(Span::styled("REVIEW -- nothing written yet", Style::default().fg(theme::YELLOW).add_modifier(Modifier::BOLD))),
+            Line::from(""),
+        ];
+        for l in app.pending_diff.lines() {
+            let color = if l.trim_start().starts_with('+') { theme::GREEN } else { theme::WHITE };
+            v.push(Line::from(Span::styled(l.to_string(), Style::default().fg(color))));
+        }
+        v.push(Line::from(""));
+        v.push(Line::from(Span::styled("press y to write, n to cancel", Style::default().fg(theme::CYAN))));
+        f.render_widget(Paragraph::new(v).block(block).wrap(Wrap { trim: false }), area);
+        return;
+    }
+
     let lines: Vec<Line> = if let Some(p) = app.selected() {
         let mut v = vec![
             Line::from(Span::styled(p.attr.clone(), Style::default().fg(theme::GREEN).add_modifier(Modifier::BOLD))),
@@ -171,7 +216,7 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App, area: Rect) {
 }
 
 fn draw_status(f: &mut ratatui::Frame, app: &App, area: Rect) {
-    let hint = " / search  \u{2191}\u{2193} nav  enter run  q quit ";
+    let hint = " / search  \u{2191}\u{2193} nav  a add  q quit ";
     let line = Line::from(vec![
         Span::styled(format!(" {} ", app.status), Style::default().fg(theme::GREEN)),
         Span::styled(hint, Style::default().fg(theme::GRAY)),

@@ -7,6 +7,7 @@ use ratatui::widgets::ListState;
 pub enum Mode {
     Editing,
     Browsing,
+    Confirm,
 }
 
 pub struct App {
@@ -16,6 +17,9 @@ pub struct App {
     pub mode: Mode,
     pub status: String,
     pub should_quit: bool,
+    pub pending_diff: String,
+    pub pending_content: String,
+    pub pending_pkg: String,
 }
 
 impl App {
@@ -27,6 +31,9 @@ impl App {
             mode: Mode::Editing,
             status: String::from("type a package name, press Enter to search"),
             should_quit: false,
+            pending_diff: String::new(),
+            pending_content: String::new(),
+            pending_pkg: String::new(),
         }
     }
 
@@ -79,4 +86,63 @@ impl App {
         };
         self.list_state.select(Some(i));
     }
+
+    pub fn plan_add_selected(&mut self) {
+        let pkg = match self.selected() {
+            Some(p) => p.attr.clone(),
+            None => { self.status = String::from("no package selected"); return; }
+        };
+        let path = home_nix_path();
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => { self.status = format!("cannot read home.nix: {e}"); return; }
+        };
+        match crate::config_edit::plan_add(&content, &pkg) {
+            Ok(plan) => {
+                self.pending_diff = plan.diff;
+                self.pending_content = plan.new_content;
+                self.pending_pkg = plan.pkg;
+                self.status = format!("add '{}' to home.packages?  y / n", self.pending_pkg);
+                self.mode = Mode::Confirm;
+            }
+            Err(e) => { self.status = format!("{e}"); }
+        }
+    }
+
+    pub fn confirm_add(&mut self) {
+        let path = home_nix_path();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let bak = format!("{path}.bak-{stamp}");
+        if let Err(e) = std::fs::copy(&path, &bak) {
+            self.status = format!("backup failed, NOT writing: {e}");
+            self.mode = Mode::Browsing;
+            return;
+        }
+        match std::fs::write(&path, &self.pending_content) {
+            Ok(_) => {
+                self.status = format!("added '{}' -- run rebuild to apply", self.pending_pkg);
+            }
+            Err(e) => { self.status = format!("write failed: {e}"); }
+        }
+        self.pending_diff.clear();
+        self.pending_content.clear();
+        self.pending_pkg.clear();
+        self.mode = Mode::Browsing;
+    }
+
+    pub fn cancel_add(&mut self) {
+        self.pending_diff.clear();
+        self.pending_content.clear();
+        self.pending_pkg.clear();
+        self.status = String::from("add cancelled");
+        self.mode = Mode::Browsing;
+    }
+}
+
+fn home_nix_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".into());
+    format!("{home}/0-core/users/christian/home.nix")
 }
