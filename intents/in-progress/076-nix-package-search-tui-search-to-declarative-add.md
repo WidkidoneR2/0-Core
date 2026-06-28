@@ -32,9 +32,9 @@ Phase 1 -- search + package detail in the TUI.
 Phase 2 -- the core: declarative add to config (reviewable), ready to rebuild.
 
 ## Gates
-- [ ] Phase 0: search backend chosen; declarative-add target location in config pinned
-- [ ] search + package detail working in the TUI
-- [ ] selected package added to the declarative config (reviewable), ready to rebuild
+- [x] Phase 0: search backend chosen (nix search --json); add-target pinned (home.packages)
+- [x] search + package detail working in the TUI (candy-neon, driven live)
+- [x] selected package added to declarative config (reviewable + backed up); PROVEN: hello added -> rebuilt -> runs
 
 ## Notes
 - Differentiator is search -> declarative-add, not search (search.nixos.org / nix-index cover search).
