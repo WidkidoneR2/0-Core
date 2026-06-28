@@ -2,7 +2,7 @@
 id: 091
 date: 2026-06-25
 type: future
-status: planned
+status: complete
 title: "Evaluate Stylix: declarative system-wide theming (vs the hand-crafted forest visual language)"
 tags: [evaluation, stylix, theming, base16, visual-language, everglow, philosophy]
 priority: low
