@@ -135,3 +135,31 @@ test surface 054 always required. Key fixes that got it there:
 - [ ] Security & leak audit passed (greeter least-privilege, no secrets, PAM reviewed, gitleaks clean)
 - [ ] INT-059 secure-boot interaction understood
 - [ ] Exhaustive VM test cycles documented before real-machine graduation
+
+
+## Progress (2026-06-27): ReGreet candy-neon GLASS theme -- VM-proven, KEEP
+ReGreet configured + themed in the VM (NOT yet on real machine -- 054 discipline holds: VM-proof
+first). Big visual win, locked in.
+WHAT WORKS (proven live in `vm gui`):
+- ReGreet renders, accepts keyboard, authenticates (greeter user in input/seat/video groups).
+- Candy-neon GLASS theme via programs.regreet.extraCss: near-black radial-gradient green base,
+  translucent glass login card with top-edge light-catch + outer lime glow, glowing lime clock,
+  glassy inset entry fields (lime border -> aqua glow on focus), aqua glass buttons (fill-on-hover),
+  amber pencil-edit chips, coral dropdown arrows. JetBrainsMono Nerd Font throughout.
+- time.timeZone = "America/Chicago" added (clock was UTC, now correct Central).
+- Iterated the CSS over several passes to remove overlapping combobox/entry double-borders,
+  frame boxes around the greeting + bottom button row, and separator lines. Consolidated to
+  single-border fields.
+KNOWN LIMITATIONS (for the real-machine pass / newer ReGreet):
+- Greeting text "Welcome back!" is hardcoded in regreet 0.3.0 -- can't change to "Faelight Forest"
+  via config. Needs newer ReGreet or a patched build.
+- Some GTK4 combobox/entry nesting still needs CSS refinement for pixel-perfect single borders.
+STILL BLOCKED (separate from theming -- the real 054/056 gate):
+- Mango session CRASHES on launch from greetd in the VM: session opens+closes same second.
+  Manual `mango` over SSH shows libseat "Could not open VT / Failed to start a DRM session" --
+  but that's expected over SSH (no seat). The greetd-launch crash reason is still uncaptured
+  (mango stderr swallowed by greetd). christian has groups video/input/seat. NEXT debugging step:
+  wrap mango's session Exec to log stderr to a file to catch the real greetd-launch crash.
+- So: ReGreet greeter = themed + working; mango handoff = still to solve before real-machine.
+NOTE: keep the extraCss block in hosts/vm/configuration.nix as the canonical forest greeter theme;
+port to framework16 config ONLY after the mango-handoff crash is solved and the whole flow is 100%.
