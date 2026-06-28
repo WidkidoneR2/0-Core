@@ -49,9 +49,9 @@ then remaining tools alphabetically.
 
 ## Gate
 
-- [ ] All 38 rust-tools README.md updated to NixOS era
-- [ ] All 38 rust-tools CHANGELOG.md have NixOS migration entry
-- [ ] docs/RELEASE.md updated post INT-031
+- [x] All 38 rust-tools README.md generated/updated to NixOS era (faelight-docs readme-generate, 2026-06-28)
+- [x] All 38 rust-tools CHANGELOG.md have NixOS migration entry + git history (faelight-docs changelog-generate, 2026-06-28)
+- [x] docs/RELEASE.md rewritten for faelight-release v2 + 1.0.0 reset (2026-06-28)
 - [ ] Root README.md rewritten for 1.0.0 public release
 - [ ] meta/CHANGELOG.md has full NixOS migration section
 
