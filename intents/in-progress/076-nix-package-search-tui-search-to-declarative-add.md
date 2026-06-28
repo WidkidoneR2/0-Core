@@ -3,7 +3,7 @@ id: 076
 date: 2026-06-22
 type: future
 title: "Nix package search TUI: search to declarative config-add"
-status: planned
+status: in-progress
 tags: [nix, nixpkgs, search, declarative, config, tui, post-1.0.0]
 ---
 
@@ -42,3 +42,28 @@ Phase 2 -- the core: declarative add to config (reviewable), ready to rebuild.
 
 ## The Rule
 "Find it, then let the config own it." 🌲
+
+
+## Progress (2026-06-28): All 3 phases complete -- proven in production
+
+- Phase 0: scaffold + decisions. faelight-nix crate (ratatui), backend = `nix
+  search nixpkgs --json` (no new deps), add-target = users/christian/home.nix
+  home.packages. Commit f23e56ee.
+- Phase 1: search data layer (search.rs parses nix-search JSON -> Vec<Package>)
+  + candy-neon interactive TUI (theme.rs lifted from faelight-fm; search box,
+  results list, live detail pane, j/k nav). Driven live. Commits 49bf7484, 5920a161.
+- Phase 2: config_edit.rs plan_add engine (insert-first, duplicate-guard,
+  non-attr rejection) + TUI 'a' -> Confirm mode (diff in detail pane) -> y writes
+  (timestamped .bak then declarative write) / n cancels. Never imperative, never
+  silent, always backed up. Commit 70821a62.
+
+PROVEN END-TO-END: searched 'hello' -> selected -> reviewed diff -> y -> written to
+real home.nix (with backup) -> `dep` rebuild -> `hello` runs. The whole
+search->declarative-add->rebuild loop works on the real machine.
+
+All three gates MET. Tool is functionally complete and in production use.
+
+### Future polish (not blocking)
+- Remove the --test-add scratch mode from main.rs (superseded by the real 'a' flow).
+- Background-thread the search so the UI doesn't freeze ~3s during nix eval.
+- Optional: system-vs-user target toggle (currently home.packages only).
