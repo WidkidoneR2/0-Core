@@ -145,6 +145,41 @@ do")) {
     segments
 }
 
+/// INT-097: true if `needle` appears in `line` OUTSIDE any quotes.
+/// Mirrors split_semicolons' quote tracking so operators (|||, etc.) inside
+/// quoted strings (grep patterns, regexes) are NOT treated as shell operators.
+fn contains_outside_quotes(line: &str, needle: &str) -> bool {
+    let nbytes = needle.as_bytes();
+    if nbytes.is_empty() { return false; }
+    let chars: Vec<char> = line.chars().collect();
+    let mut in_quote = false;
+    let mut quote_char = ' ';
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if !in_quote && (ch == '"' || ch == '\'') {
+            in_quote = true; quote_char = ch; i += 1; continue;
+        }
+        if in_quote && ch == quote_char {
+            in_quote = false; i += 1; continue;
+        }
+        if !in_quote {
+            // try to match needle starting at i
+            let mut j = 0;
+            let mut k = i;
+            let mut matched = true;
+            for nb in needle.chars() {
+                if k >= chars.len() || chars[k] != nb { matched = false; break; }
+                k += 1; j += 1;
+            }
+            let _ = nbytes; let _ = j;
+            if matched { return true; }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Split a line on && and || operators (respecting quotes)
 /// Returns Vec<(cmd, operator)> where operator is None for last cmd,
 /// Some(true) for && (run next if success), Some(false) for || (run next if fail)
@@ -1094,7 +1129,7 @@ fn repl_main() -> Result<()> {
                     }
                 }
                 // INT-267: ||| parallel operator
-                if line.contains("|||") {
+                if contains_outside_quotes(&line, "|||") {
                     let parts: Vec<String> = line.split("|||")
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
