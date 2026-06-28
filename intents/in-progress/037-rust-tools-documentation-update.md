@@ -87,8 +87,21 @@ git, notify) + full index. Running across all ~35 active tools + hand-polish sta
 this intent's umbrella (along with the 1.0.0 root rewrite + meta/CHANGELOG sections).
 
 ### Sub-gates (this deliverable)
-- [ ] `faelight-docs readme-tools` walks Cargo.toml + registry, skips retired
-- [ ] Rich per-tool README generated (proven on fsh, fm, git, notify)
-- [ ] Top-level rust-tools/README.md index generated (all active tools by category)
-- [ ] Stale 00-meta/ -> meta/ paths fixed in faelight-docs
-- [ ] Re-runnable + deployed
+- [x] `faelight-docs readme-tools` walks Cargo.toml + registry (readme-tools/preview/generate)
+- [x] Rich per-tool README generated -- all 39 tools (fsh/fm/git/notify verified)
+- [x] Top-level rust-tools/README.md index generated (38 active by 13 categories + retired)
+- [x] Stale 00-meta/ -> meta/ + 01-registry/ -> registry/ paths fixed (6 refs)
+- [x] Re-runnable + deployed (gen, deployed; readme-generate refreshes from ground truth)
+
+
+### Registry drift finding (2026-06-28)
+The README generator's disk walk surfaced drift between registry/tools.toml and reality:
+- 39 tools on disk (38 active by Cargo.toml, 1 marked retired in registry: faelight-lock).
+- 11 real on-disk tools are NOT in the registry: db-browse, faelight-ade, faelight-context,
+  faelight-core, faelight-deadwood, faelight-nix (!), faelight-wsd, friday-chat, fsh-test,
+  gen-diff, faelight-compositor-adjacent. (faelight-nix is from INT-076 today.)
+- Conversely the registry has 53 [[tool]] entries -- ~14 reference tools no longer on disk
+  (retired/renamed). Registry last updated 2026-02-27 (v10.3.0); now on 14.1.0.
+FOLLOW-UP (separate cleanup, not tonight): reconcile registry <-> disk -- add the 11 missing,
+prune/mark the ~14 dead entries. The generator reads DISK as ground truth so it works
+regardless, treating unregistered tools as active/uncategorized.
