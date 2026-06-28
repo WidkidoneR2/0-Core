@@ -1,6 +1,6 @@
 # faelight-ade
 
-**Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** intelligence
 
 ---
 

@@ -1,6 +1,6 @@
 # faelight-nix
 
-**Version:** 0.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 0.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** system
 
 Nix package search TUI -- search nixpkgs, add declaratively to config
 

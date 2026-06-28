@@ -495,3 +495,104 @@ expected_usage = "high"
 type = "python"
 deployable = true
 retired = false
+
+# --- Added by INT-098 Phase 2 (registry reconciliation, 2026-06-28) ---
+[[tool]]
+name = "db-browse"
+version = "1.0.0"
+category = "development"
+description = "TUI SQLite browser for state.db -- list, query, filter"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-ade"
+version = "1.0.0"
+category = "intelligence"
+description = "Agentic dev environment -- fsh PTY + Friday Chat split-pane TUI"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-context"
+version = "1.0.0"
+category = "intelligence"
+description = "Deep codebase understanding engine (one-shot analysis; cf. faelight-contextd daemon)"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-core"
+version = "1.0.0"
+category = "core"
+description = "Shared library crate -- Wayland, theme, glyph, canvas primitives (lib, not a binary)"
+expected_usage = "medium"
+type = "rust"
+deployable = false
+retired = false
+[[tool]]
+name = "faelight-deadwood"
+version = "1.0.0"
+category = "development"
+description = "Forest dead-code and orphan detector (reports, never deletes)"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-nix"
+version = "0.1.0"
+category = "system"
+description = "Nix package search TUI -- search nixpkgs, add declaratively"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-wsd"
+version = "0.1.0"
+category = "compositor"
+description = "Workspace daemon -- manages workspace state and output bindings"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "friday-chat"
+version = "1.0.0"
+category = "intelligence"
+description = "Friday Chat TUI -- reads state.db, never invents"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "fsh-test"
+version = "1.0.0"
+category = "development"
+description = "fsh permanent regression suite"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "gen-diff"
+version = "0.1.0"
+category = "system"
+description = "Rich visual diff between NixOS generations"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
+name = "faelight-compositor"
+version = "0.1.0"
+category = "compositor"
+description = "Wayland compositor -- pre-NixOS, not yet updated for NixOS"
+expected_usage = "medium"
+type = "rust"
+deployable = false
+retired = false

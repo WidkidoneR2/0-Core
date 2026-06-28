@@ -11,12 +11,14 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`faelight-compositor`](./faelight-compositor/) | 0.1.0 | faelight-compositor — The compositor that joins the family |
+| [`faelight-wsd`](./faelight-wsd/) | 0.1.0 | - |
 
 ## Core
 
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`faelight`](./faelight/) | 2.1.0 | Unified CLI for Faelight Forest |
+| [`faelight-core`](./faelight-core/) | 1.0.0 | - |
 | [`faelight-daemon`](./faelight-daemon/) | 4.0.0 | Background daemon for Faelight Forest operations |
 
 ## Desktop
@@ -30,9 +32,12 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 
 | Tool | Version | Description |
 |------|---------|-------------|
+| [`db-browse`](./db-browse/) | 1.0.0 | - |
+| [`faelight-deadwood`](./faelight-deadwood/) | 1.0.0 | - |
 | [`faelight-git`](./faelight-git/) | 4.1.0 | Git governance for Faelight Forest |
 | [`faelight-hooks`](./faelight-hooks/) | 10.2.0 | - |
 | [`faelight-sandbox`](./faelight-sandbox/) | 3.0.0 | Controlled experimentation environment for Faelight Forest |
+| [`fsh-test`](./fsh-test/) | 1.0.0 | fsh permanent regression suite |
 | [`teach`](./teach/) | 4.0.0 | Live system narrator — adapts to newcomer or expert |
 
 ## Documentation
@@ -51,7 +56,10 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 
 | Tool | Version | Description |
 |------|---------|-------------|
+| [`faelight-ade`](./faelight-ade/) | 1.0.0 | - |
+| [`faelight-context`](./faelight-context/) | 1.0.0 | - |
 | [`faelight-contextd`](./faelight-contextd/) | 0.1.0 | Background awareness daemon — the nervous system of Faelight Forest |
+| [`friday-chat`](./friday-chat/) | 1.0.0 | - |
 
 ## Planning
 
@@ -85,8 +93,10 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 |------|---------|-------------|
 | [`faelight-idle`](./faelight-idle/) | 1.0.0 | 🌲 Rust idle daemon — replaces swayidle, integrates with event ledger |
 | [`faelight-login`](./faelight-login/) | 2.0.0 | - |
+| [`faelight-nix`](./faelight-nix/) | 0.1.0 | Nix package search TUI -- search nixpkgs, add declaratively to config |
 | [`faelight-update`](./faelight-update/) | 1.0.0 | - |
 | [`faelight-zone`](./faelight-zone/) | 2.1.0 | Zone detection - identify numbered gravity zones |
+| [`gen-diff`](./gen-diff/) | 0.1.0 | Rich visual diff between NixOS generations |
 | [`profile`](./profile/) | 2.1.0 | Profile management - switch between system configurations |
 | [`safe-update`](./safe-update/) | 2.1.0 | Safe system updater - snapshot before updating |
 
@@ -102,21 +112,6 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 |------|---------|-------------|
 | [`faelight-notify`](./faelight-notify/) | 4.0.0 | Notification daemon - path-resilient! |
 | [`faelight-term`](./faelight-term/) | 3.1.0 | faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal -- GPU-native Wayland terminal |
-
-## Uncategorized
-
-| Tool | Version | Description |
-|------|---------|-------------|
-| [`db-browse`](./db-browse/) | 1.0.0 | - |
-| [`faelight-ade`](./faelight-ade/) | 1.0.0 | - |
-| [`faelight-context`](./faelight-context/) | 1.0.0 | - |
-| [`faelight-core`](./faelight-core/) | 1.0.0 | - |
-| [`faelight-deadwood`](./faelight-deadwood/) | 1.0.0 | - |
-| [`faelight-nix`](./faelight-nix/) | 0.1.0 | Nix package search TUI -- search nixpkgs, add declaratively to config |
-| [`faelight-wsd`](./faelight-wsd/) | 0.1.0 | - |
-| [`friday-chat`](./friday-chat/) | 1.0.0 | - |
-| [`fsh-test`](./fsh-test/) | 1.0.0 | fsh permanent regression suite |
-| [`gen-diff`](./gen-diff/) | 0.1.0 | Rich visual diff between NixOS generations |
 
 ## Versioning
 
