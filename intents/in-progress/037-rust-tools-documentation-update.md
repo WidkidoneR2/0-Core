@@ -52,7 +52,7 @@ then remaining tools alphabetically.
 - [x] All 38 rust-tools README.md generated/updated to NixOS era (faelight-docs readme-generate, 2026-06-28)
 - [x] All 38 rust-tools CHANGELOG.md have NixOS migration entry + git history (faelight-docs changelog-generate, 2026-06-28)
 - [x] docs/RELEASE.md rewritten for faelight-release v2 + 1.0.0 reset (2026-06-28)
-- [ ] Root README.md rewritten for 1.0.0 public release
+- [x] Root README.md static section rewritten for 1.0.0 (NixOS front door, measured ~97% Rust, link-rich; dynamic section left to faelight-release, 2026-06-28)
 - [x] meta/CHANGELOG.md has NixOS-era marker section (migration documented, Arch-era history preserved, 2026-06-28)
 
 
