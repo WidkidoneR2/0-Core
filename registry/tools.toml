@@ -353,19 +353,19 @@ name = "security-audit"
 version = "1.0.0"
 category = "security"
 description = "Security audit scanner — checks system for vulnerabilities"
-expected_usage = "low"
+expected_usage = "none"
 type = "script"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-notifyctl"
 version = "1.0.0"
 category = "notification"
 description = "IPC controller for faelight-notify — set modes, dismiss notifications"
-expected_usage = "low"
+expected_usage = "none"
 type = "script"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "verify-bootstrap"
 version = "2.0.0"
