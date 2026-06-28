@@ -3,7 +3,7 @@ id: 097
 date: 2026-06-28
 type: future
 title: "Fsh needs a clean Nix/Shell operator path"
-status: in-progress
+status: complete
 tags: [fsh, Nix, system, faelight]
 ---
 
