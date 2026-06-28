@@ -1163,7 +1163,7 @@ fn repl_main() -> Result<()> {
                                     "DELETE FROM shell_state WHERE key = 'power_profile_prev'",
                                     [],
                                 );
-                                eprintln!("  ð² Friday: â restored {} profile", prev);
+                                eprintln!("  Friday: restored {} profile", prev);
                             }
                         }
                     }
@@ -1297,7 +1297,7 @@ fn repl_main() -> Result<()> {
                             );
                             let _ = std::process::Command::new("powerprofilesctl")
                                 .args(["set", "performance"]).status();
-                            eprintln!("  ð² Friday: switching to performance for compilation");
+                            eprintln!("  Friday: switching to performance for compilation");
                         }
                     }
      }
