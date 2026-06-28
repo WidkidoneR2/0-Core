@@ -582,6 +582,60 @@ pub fn expand_globs(line: &str) -> String {
     out
 }
 
+/// INT-097: failglob support. Return the list of unquoted glob patterns in `line`
+/// that match NOTHING. Mirrors expand_globs' quote-awareness and tilde handling so
+/// the report matches what expansion actually attempted. Empty vec = all good.
+pub fn find_unmatched_globs(line: &str) -> Vec<String> {
+    let mut unmatched: Vec<String> = vec![];
+    // Reuse the same quote-aware segmentation as expand_globs: only inspect
+    // UNQUOTED segments (quoted * is literal and must not be reported).
+    let mut in_double = false;
+    let mut in_single = false;
+    let mut segment = String::new();
+    let mut segments: Vec<(bool, String)> = vec![];
+    for ch in line.chars() {
+        let was = in_double || in_single;
+        match ch {
+            '"' if !in_single => { in_double = !in_double; segment.push(ch); }
+            '\'' if !in_double => { in_single = !in_single; segment.push(ch); }
+            _ => segment.push(ch),
+        }
+        let now = in_double || in_single;
+        if now != was {
+            let b = segment.pop();
+            if !segment.is_empty() { segments.push((was, std::mem::take(&mut segment))); }
+            if let Some(c) = b { segment.push(c); }
+        }
+    }
+    if !segment.is_empty() { segments.push((in_double || in_single, segment)); }
+
+    for (quoted, seg) in &segments {
+        if *quoted { continue; }
+        for part in seg.split_whitespace() {
+            if !part.contains('*') && !part.contains('?') { continue; }
+            let expanded = if part.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                part.replacen("~", &home, 1)
+            } else { part.to_string() };
+            let pattern_path = std::path::Path::new(&expanded);
+            let parent = {
+                let p = pattern_path.parent().unwrap_or(std::path::Path::new("."));
+                if p.as_os_str().is_empty() { std::path::Path::new(".") } else { p }
+            };
+            let file_pattern = pattern_path.file_name().and_then(|f| f.to_str()).unwrap_or(part);
+            let mut matched = false;
+            if let Ok(entries) = std::fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    if glob_match(file_pattern, &name.to_string_lossy()) { matched = true; break; }
+                }
+            }
+            if !matched { unmatched.push(part.to_string()); }
+        }
+    }
+    unmatched
+}
+
 pub fn expand_globs_in_segment(line: &str) -> String {
     if !line.contains('*') && !line.contains('?') {
         return line.to_string();

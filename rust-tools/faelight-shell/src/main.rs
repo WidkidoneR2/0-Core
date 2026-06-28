@@ -1839,6 +1839,17 @@ fn repl_main() -> Result<()> {
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
+                    // INT-097: failglob -- if any unquoted glob matched nothing,
+                    // report it clearly and skip the command (no cryptic literal-* OS error,
+                    // no bogus Friday suggestion via the error path).
+                    let unmatched = find_unmatched_globs(&line);
+                    if !unmatched.is_empty() {
+                        for pat in &unmatched {
+                            println!("  no matches for pattern: {}", pat);
+                        }
+                        last_exit_code = Some(1);
+                        continue;
+                    }
                     let line = expand_globs(&line);
                     let line = line.as_str();
 

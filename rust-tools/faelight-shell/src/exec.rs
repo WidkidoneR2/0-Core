@@ -345,9 +345,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                 .query_row(
                     "SELECT id, resolution, confidence FROM knowledge_entries
                  WHERE (LOWER(COALESCE(error_signature,'')) LIKE ?1
-                     OR LOWER(COALESCE(description,'')) LIKE ?1
-                     OR LOWER(COALESCE(resolution,'')) LIKE ?1
-                     OR LOWER(id) LIKE ?1)
+                     OR LOWER(COALESCE(description,'')) LIKE ?1)
                  AND confidence >= 0.85
                  ORDER BY confidence DESC, success_count DESC
                  LIMIT 1",
