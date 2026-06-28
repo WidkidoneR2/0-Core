@@ -55,7 +55,7 @@ Stabilise-first: land the layer, daily-drive 1+ week, stress-test each change BE
 new features.
 
 ## Success Criteria
-- [ ] `sh -c '...'` and nested-quote commands run without "unexpected EOF"
+- [x] `sh -c '...'` and nested-quote/operator-in-quotes commands run cleanly (gen 262); root was |||-in-quotes mis-splitting
 - [x] globs expand correctly; no-match now prints 'no matches for pattern: X' (failglob), no cryptic os-error
 - [x] `cp <file> /tmp/<scratch>` allowed; `cp x ~/.cargo/bin/core` still blocked (proven both ways, gen 260)
 - [x] `query <file> <out-of-range>` clamps safely, never closes the terminal (gen 261, proven 99999:99999 + 50:10)
@@ -122,3 +122,26 @@ over the live shell) -> commit -> deploy -> verify live.
 - Chains (#5): `&&`/`||`/`;` reliability (re-verify; may be edge cases).
 - Friday: a *successful* grep/command with no matches exits 1 -> treated as error ->
   enters knowledge path. Consider: exit-1-with-no-output isn't always an error.
+
+
+## Final state (2026-06-28): active-friction set cleared (gen 258 -> 263)
+
+Six fixes shipped, each subshell-tested before deploy:
+1. Friday matcher precision -- error->knowledge matched resolution/id (generic words);
+   now only error_signature + description. Stopped mis-suggestions. (f628568f)
+2. Failglob -- glob no-match prints clean message, no cryptic os-error. (f628568f)
+3. Safety-guard precision -- cp/mv blocked every ~/0-core path (substring "core");
+   now only real core-binary destinations. (c2f8350d)
+4. query out-of-range -- unclamped start panicked + CLOSED THE TERMINAL; now clamps. (af10a3c0)
+5. Quote-aware ||| parallel operator -- operator-in-quotes mis-split commands into
+   broken sh -c fragments ("unexpected EOF"); added contains_outside_quotes. (968839e5)
+6. Search-tool no-match -- grep/find/etc exit-1 no longer fires Friday suggestions;
+   no-match now shows clean "no matches for X". (c663baf3)
+
+### Remaining (polish, lower priority)
+- `||` chain prints "exited 1" for an intentional false (cosmetic noise).
+- `;` chains show verbose [n/N] chrome.
+- Redirects `>` `>>` `2>&1` not yet explicitly re-verified.
+- The 'ZERO drops to bash for a full build session' acceptance test: today's session
+  ran entirely in fsh (scaffold-free fixes, git, cargo, deploy) with NO bash drops --
+  the acceptance bar was effectively met in practice this session.
