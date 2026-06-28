@@ -1142,7 +1142,7 @@ fn repl_main() -> Result<()> {
                 // Phase 14 — multi-command: split on ; before execution
                 let segments = split_semicolons(&line);
                 let segment_count = segments.len();
-                if segment_count > 1 {
+                if segment_count > 2 {
                     println!("  {} {} commands", "○".bright_cyan(), segment_count);
                 }
                 'segments: for (seg_idx, segment) in segments.iter().enumerate() {
@@ -1168,7 +1168,7 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     let mut _children_pre: Vec<std::process::Child> = Vec::new(); // ensures children is fresh each segment iteration
-                    if segment_count > 1 {
+                    if segment_count > 2 {
                         println!(
                             "  {} {}",
                             format!("[{}/{}]", seg_idx + 1, segment_count).dimmed(),
@@ -1252,10 +1252,13 @@ fn repl_main() -> Result<()> {
                             } else {
                                 let chain_result = commands::execute(lcmd_trim, &db, &core_root);
                                 last_success = !matches!(chain_result, commands::CommandResult::Error(_));
+                                // INT-097: if this command is followed by || , a failure here is
+                                // EXPECTED (it's why the next command runs) -- don't print its error.
+                                let failure_consumed_by_or = !last_success && matches!(op, Some(false));
                                 // Print the result -- was silently discarded before
                                 match &chain_result {
                                     commands::CommandResult::Output(s) if !s.is_empty() => println!("{}", s),
-                                    commands::CommandResult::Error(s) => eprintln!("{}", s),
+                                    commands::CommandResult::Error(s) if !failure_consumed_by_or => eprintln!("{}", s),
                                     commands::CommandResult::Value(v) => println!("{:?}", v),
                                     _ => {}
                                 }
