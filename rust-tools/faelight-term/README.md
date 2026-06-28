@@ -1,15 +1,15 @@
-# faelight
+# faelight-term
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 3.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** ui
 
-Unified CLI for Faelight Forest
+faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal -- GPU-native Wayland terminal
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-term
 ```
 
 ## Deploy

@@ -1,15 +1,15 @@
-# faelight
+# faelight-docs
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 2.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** documentation
 
-Unified CLI for Faelight Forest
+Living documentation engine — keeps README and welcome in sync with forest state
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-docs
 ```
 
 ## Deploy

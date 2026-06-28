@@ -1,15 +1,17 @@
-# faelight
+# gen-diff
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 0.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
-Unified CLI for Faelight Forest
+Rich visual diff between NixOS generations
+
+> Originating intent: **INT-044**
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p gen-diff
 ```
 
 ## Deploy

@@ -1,15 +1,13 @@
-# faelight
+# faelight-wsd
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
-
-Unified CLI for Faelight Forest
+**Version:** 0.1.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-wsd
 ```
 
 ## Deploy

@@ -1,15 +1,15 @@
-# faelight
+# faelight-release
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 1.0.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** release
 
-Unified CLI for Faelight Forest
+🌲 Intelligent release and generation manager — the forest publishes itself
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-release
 ```
 
 ## Deploy

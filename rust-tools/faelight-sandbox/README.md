@@ -1,15 +1,15 @@
-# faelight
+# faelight-sandbox
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 3.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 
-Unified CLI for Faelight Forest
+Controlled experimentation environment for Faelight Forest
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-sandbox
 ```
 
 ## Deploy

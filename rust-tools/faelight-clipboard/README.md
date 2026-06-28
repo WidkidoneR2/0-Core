@@ -1,15 +1,15 @@
-# faelight
+# faelight-clipboard
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 0.2.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** desktop
 
-Unified CLI for Faelight Forest
+Rust clipboard manager — native wlr-data-control, zero C dependencies
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p faelight-clipboard
 ```
 
 ## Deploy

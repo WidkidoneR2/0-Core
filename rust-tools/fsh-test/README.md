@@ -1,15 +1,17 @@
-# faelight
+# fsh-test
 
-**Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
+**Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
-Unified CLI for Faelight Forest
+fsh permanent regression suite
+
+> Originating intent: **INT-304**
 
 ---
 
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight
+nix develop ~/0-core#faelight-forest -c cargo build -p fsh-test
 ```
 
 ## Deploy
