@@ -8,5 +8,5 @@
   time.timeZone = "America/Chicago";  # match host
 
   services.greetd.settings.default_session.command =
-    "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd mango";
+    "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --cmd mango";
 }

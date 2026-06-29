@@ -82,6 +82,7 @@
     self.packages.${system}.faelight-bar-gtk
     self.packages.${system}.faelight-logout
     self.packages.${system}.faelight-launcher
+    pkgs.miracle-wm  # INT-087: second compositor (VM test)
     pkgs.alacritty
     pkgs.yazi
     pkgs.bat
@@ -103,6 +104,16 @@
   system.stateVersion = "26.05";
 
   users.defaultUserShell = pkgs.bash;
+
+  # INT-087: VM-only Miracle session so the greetd picker offers mango OR miracle.
+  # Kept here (not mango.nix) so Miracle stays confined to the VM testbed until
+  # the charter's AFTER-085/086 sequencing is met for real hardware.
+  environment.etc."greetd/sessions/miracle.desktop".text = ''
+    [Desktop Entry]
+    Name=Miracle
+    Exec=miracle-wm
+    Type=Application
+  '';
 
   systemd.tmpfiles.rules = [
     # Create the 0-core path chain christian-owned so fsh can create state.db.
