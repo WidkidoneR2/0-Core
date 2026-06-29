@@ -105,7 +105,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --cmd mango";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --cmd mango";
       user = "greeter";
     };
   };
