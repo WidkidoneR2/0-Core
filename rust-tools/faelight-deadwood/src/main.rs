@@ -68,10 +68,9 @@ fn main() {
         let registry = check_registry_orphans(&root).len();
         let scripts = check_orphaned_scripts(&root).len();
         let modules = check_orphaned_modules(&root).len();
-        let intents = check_dangling_intents(&root).len();
-        let total = aliases + baks + keybinds + registry + scripts + modules + intents;
-        // machine-readable single line: TOTAL|aliases|baks|keybinds|registry|scripts|modules|intents
-        println!("{total}|{aliases}|{baks}|{keybinds}|{registry}|{scripts}|{modules}|{intents}");
+        let total = aliases + baks + keybinds + registry + scripts + modules;
+        // machine-readable single line: TOTAL|aliases|baks|keybinds|registry|scripts|modules
+        println!("{total}|{aliases}|{baks}|{keybinds}|{registry}|{scripts}|{modules}");
         return;
     }
 
@@ -86,7 +85,6 @@ fn main() {
     if run("registry") { report("Registry orphans (deployable, no binary)", check_registry_orphans(&root)); }
     if run("scripts") { report("Orphaned scripts (referenced nowhere)", check_orphaned_scripts(&root)); }
     if run("modules") { report("Orphaned Nix modules (imported by no host)", check_orphaned_modules(&root)); }
-    if run("intents") { report("Dangling intent references (ghost INT-NNN)", check_dangling_intents(&root)); }
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  A healthy forest sheds dead wood.".dimmed());
 }
@@ -213,7 +211,6 @@ fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
     findings
 }
 
-
 // ── Registry orphans ─────────────────────────────────────────────────────────
 // A tool in registry/tools.toml marked deployable=true, retired=false, whose `name` binary
 // isn't on PATH. (retired=true -> intentionally gone, skip.)
@@ -290,7 +287,6 @@ fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
     findings
 }
 
-
 // ── Orphaned Nix modules ─────────────────────────────────────────────────────
 // A modules/**/*.nix file whose filename is referenced in no host configuration's imports.
 // Empty module files are flagged HIGH (definitely dead); others MED (config may have moved
@@ -336,49 +332,6 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
                 detail: format!("{} -- imported by no host (config may have moved inline)", rel),
             });
         }
-    }
-    findings
-}
-
-
-// ── Dangling intent references ───────────────────────────────────────────────
-// An INT-NNN referenced in an intent file where no intent file with that number exists
-// (the "ghost INT-260" class). Walks intents/, collects real intent numbers from filenames,
-// then flags references to non-existent numbers. HIGH -- a dangling ref is a real doc error.
-
-fn check_dangling_intents(root: &Path) -> Vec<Finding> {
-    use once_cell::sync::Lazy;
-    use regex::Regex;
-    static INT_REF: Lazy<Regex> = Lazy::new(|| Regex::new(r"INT-(\d{3})").unwrap());
-    static FILE_NUM: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d{3})-").unwrap());
-
-    let intents_dir = root.join("intents");
-    // Collect real intent numbers from filenames (NNN-*.md in any subdir).
-    let mut real: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut ref_sites: Vec<(String, String)> = Vec::new(); // (int_num, file)
-    for entry in WalkDir::new(&intents_dir).into_iter().filter_map(|e| e.ok()) {
-        if !entry.file_type().is_file() { continue; }
-        let fname = entry.file_name().to_string_lossy().to_string();
-        if !fname.ends_with(".md") || fname.contains(".bak") { continue; }
-        if let Some(c) = FILE_NUM.captures(&fname) {
-            real.insert(c[1].to_string());
-        }
-        if let Ok(text) = std::fs::read_to_string(entry.path()) {
-            for c in INT_REF.captures_iter(&text) {
-                ref_sites.push((c[1].to_string(), fname.clone()));
-            }
-        }
-    }
-    // Flag references to numbers with no matching file. Dedup (num,file).
-    let mut seen: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
-    let mut findings = Vec::new();
-    for (num, file) in ref_sites {
-        if real.contains(&num) { continue; }
-        if !seen.insert((num.clone(), file.clone())) { continue; }
-        findings.push(Finding { action: None,
-            confidence: Confidence::High,
-            detail: format!("INT-{} referenced in {} -- no such intent file", num.bright_white(), file.dimmed()),
-        });
     }
     findings
 }
