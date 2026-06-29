@@ -33,7 +33,7 @@ forest's memory) is internally consistent.
 
 - [x] Phase 1: 2 registry orphans retired (security-audit->core security, faelight-notifyctl->core notify; verified superseded, Deadwood clean)
 - [ ] Phase 2: 11 unregistered tools added to registry (real category + description each)
-- [ ] Phase 3: dead palette alias removed; cache-status + cache-push resolved
+- [x] Phase 3: dead palette alias removed (target faelight-palette decommissioned per INT-072). cache-status + cache-push VERIFIED LIVE (invoked by fsh `cache` builtin + needed by in-progress INT-043) -- KEPT, not removed; Deadwood false-positives them. Built faelight-deadwood --purge (interactive + bulk) for safe dead-weight ONLY (dead aliases, stale .bak, dead keybinds); scripts/ghosts/registry/modules unpurgeable by design (action:None). Guards: git-clean required, per-item default-skip, re-verify before act. Proven: surgical single-line removal + exclusion of unsafe categories.
 - [ ] Phase 4: 27 ghost intent references resolved (repoint or remove, per-reference)
 - [ ] faelight-deadwood re-run: orphans cleared or remaining ones documented as intentional
 - [ ] Health green, integrity 100%, tree clean
@@ -44,3 +44,11 @@ forest's memory) is internally consistent.
 - Phases 1-3 are bankable quickly; Phase 4 is the long pole (27 judgment calls, may span
   sessions). Better to do fewer ghosts well than all 27 carelessly.
 - faelight-deadwood reports only, never deletes -- every cut is a human decision.
+
+
+### Phase 3 finding (2026-06-28): Deadwood false-positives live scripts
+cache-status / cache-push are flagged "referenced nowhere" but are LIVE -- the fsh `cache`
+builtin shells out to them (INT-068), and in-progress INT-043 depends on cache-push.
+Deadwood's static scan can't see dynamic invocation. FOLLOW-UP: teach faelight-deadwood an
+allowlist (or detect the fsh `cache` arm) so it stops flagging these. For now they are
+correctly EXCLUDED from --purge (orphaned-scripts category is action:None, unpurgeable).
