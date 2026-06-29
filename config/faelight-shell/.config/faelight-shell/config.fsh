@@ -332,3 +332,4 @@ alias work = cd ~/2-work
 alias yf = basename $PWD | wl-copy
 alias yp = pwd | wl-copy
 alias zone = faelight-zone
+alias zzz_purge_test = "nonexistent-tool-xyzzy"
