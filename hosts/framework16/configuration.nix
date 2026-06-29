@@ -105,7 +105,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --greeting \"Welcome to Faelight Forest\" --theme 'border=green;title=lightgreen;greet=lightgreen;text=lightcyan;time=lightgreen;prompt=lightcyan;input=lightgreen;action=lightyellow;button=lightmagenta;container=black' --cmd mango";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --greeting \"Welcome to Faelight Forest\" --theme 'border=green;title=lightgreen;greet=lightgreen;text=lightcyan;time=lightgreen;prompt=lightcyan;input=lightgreen;action=lightyellow;button=white;container=black' --cmd mango";
       user = "greeter";
     };
   };
