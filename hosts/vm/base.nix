@@ -105,7 +105,10 @@
   users.defaultUserShell = pkgs.bash;
 
   systemd.tmpfiles.rules = [
+    # Create the 0-core path chain christian-owned so fsh can create state.db.
+    # No empty-file rule: an empty file is not a valid SQLite db; fsh self-heals
+    # (create_dir_all + CREATE TABLE IF NOT EXISTS) and makes a real db on first run.
+    "d /home/christian/0-core 0755 christian users -"
     "d /home/christian/0-core/runtime 0755 christian users -"
-    "f /home/christian/0-core/runtime/state.db 0644 christian users -"
   ];
 }
