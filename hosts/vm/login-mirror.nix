@@ -8,5 +8,5 @@
   time.timeZone = "America/Chicago";  # match host
 
   services.greetd.settings.default_session.command =
-    "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --cmd mango";
+    "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --greeting \"Welcome to Faelight Forest\" --theme 'border=green;title=lightgreen;greet=lightgreen;text=lightcyan;time=lightgreen;prompt=lightcyan;input=lightgreen;action=lightyellow;button=lightmagenta;container=black' --cmd mango";
 }
