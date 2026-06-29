@@ -3,7 +3,7 @@ id: 098
 date: 2026-06-28
 type: future
 title: "Forest hygiene pass: registry reconciliation + Deadwood orphan cleanup"
-status: in-progress
+status: complete
 tags: [Nix, Deadwood, registry, cleanup]
 ---
 
