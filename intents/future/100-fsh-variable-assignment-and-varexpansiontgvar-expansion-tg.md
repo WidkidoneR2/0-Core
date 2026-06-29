@@ -3,7 +3,7 @@ id: 100
 date: 2026-06-29
 type: future
 title: "fsh: variable assignment and $VAR expansion (VAR=$(...) name-case bug)"
-status: VARexpansion(TG=(...) lowercases to $t
+status: planned
 tags: [fsh, variables, expansion, shell]
 ---
 
