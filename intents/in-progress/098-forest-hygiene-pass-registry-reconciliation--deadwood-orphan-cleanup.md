@@ -3,7 +3,7 @@ id: 098
 date: 2026-06-28
 type: future
 title: "Forest hygiene pass: registry reconciliation + Deadwood orphan cleanup"
-status: planned
+status: in-progress
 tags: [Nix, Deadwood, registry, cleanup]
 ---
 
@@ -31,7 +31,7 @@ forest's memory) is internally consistent.
 
 ## Gates
 
-- [ ] Phase 1: 2 registry orphans resolved (security-audit, faelight-notifyctl)
+- [x] Phase 1: 2 registry orphans retired (security-audit->core security, faelight-notifyctl->core notify; verified superseded, Deadwood clean)
 - [ ] Phase 2: 11 unregistered tools added to registry (real category + description each)
 - [ ] Phase 3: dead palette alias removed; cache-status + cache-push resolved
 - [ ] Phase 4: 27 ghost intent references resolved (repoint or remove, per-reference)
