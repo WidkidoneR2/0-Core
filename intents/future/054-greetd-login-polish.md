@@ -227,7 +227,7 @@ unproven on metal -- VM proves the LOGIC and seat handoff, not the real GPU DRM 
 Clears the "prove in VM first" bar; remaining before metal = real-hardware DRM test + cosmetic polish.
 
 ## Cosmetic polish TODO (noticed during VM test)
-- Stray green lines between the reboot/poweroff bubbles (look connected to them) -- separator CSS already zeroes height but they persist; investigate.
+- KNOWN (defer to next ReGreet version): parallel lines connecting the reboot/poweroff bubbles persist even with separator{min-height:0;opacity:0}. Likely NOT separators -- probably GTK linked-button-group border/join styling on the power-button box. Fix: target the linked button container (box.linked or the button-group frame), not separator.
 - User/password input bubbles could be improved.
 - Clock looks good (keep).
 - Make the card glossier/glassier.
