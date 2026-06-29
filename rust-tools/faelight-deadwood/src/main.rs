@@ -21,6 +21,10 @@ struct Cli {
     /// Output a single summary line with counts (for the health dashboard)
     #[arg(long)]
     summary: bool,
+    #[arg(long)]
+    purge: bool,
+    #[arg(long)]
+    bulk: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -36,7 +40,17 @@ impl Confidence {
     }
 }
 
-struct Finding { confidence: Confidence, detail: String }
+/// A safe, structured removal action. ONLY the three provably-safe checks
+/// (dead aliases, stale .bak files, dead keybinds) ever attach one. Every other
+/// finding has action: None and is therefore unpurgeable BY DESIGN -- purge skips
+/// any finding without an action. Scripts, ghost intents, registry orphans, and
+/// Nix modules stay manual, always.
+#[derive(Clone)]
+enum PurgeAction {
+    RemoveLine { file: PathBuf, exact: String },   // dead alias / dead keybind: remove one exact line
+    DeleteFile { path: PathBuf },                   // stale .bak file only
+}
+struct Finding { confidence: Confidence, detail: String, action: Option<PurgeAction> }
 
 fn core_root() -> PathBuf {
     std::env::var("HOME").map(|h| PathBuf::from(h).join("0-core")).unwrap_or_else(|_| PathBuf::from("."))
@@ -45,6 +59,7 @@ fn core_root() -> PathBuf {
 fn main() {
     let cli = Cli::parse();
     let root = core_root();
+    if cli.purge { purge(&root, cli.bak_age, cli.bulk); return; }
 
     if cli.summary {
         let aliases = check_dead_aliases(&root).len();
@@ -131,6 +146,7 @@ fn check_dead_aliases(root: &Path) -> Vec<Finding> {
             findings.push(Finding {
                 confidence: Confidence::Medium,
                 detail: format!("alias {} -> '{}' (target '{}' not found)", name.bright_white(), target.dimmed(), first),
+                action: Some(PurgeAction::RemoveLine { file: path.clone(), exact: line.to_string() }),
             });
         }
     }
@@ -164,9 +180,9 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
         let protected = BAK_PROTECT.iter().any(|k| lower.contains(k));
         let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
         if protected {
-            findings.push(Finding { confidence: Confidence::Low, detail: format!("{} ({}d) -- PROTECTED (kept on purpose)", rel.dimmed(), age) });
+            findings.push(Finding { action: None, confidence: Confidence::Low, detail: format!("{} ({}d) -- PROTECTED (kept on purpose)", rel.dimmed(), age) });
         } else {
-            findings.push(Finding { confidence: Confidence::High, detail: format!("{} ({}d old)", rel, age) });
+            findings.push(Finding { confidence: Confidence::High, detail: format!("{} ({}d old)", rel, age), action: Some(PurgeAction::DeleteFile { path: p.to_path_buf() }) });
         }
     }
     findings
@@ -191,7 +207,7 @@ fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
         if target.is_empty() { continue; }
         let live = BUILTINS.contains(&target) || on_path(target) || target.starts_with('~') || target.starts_with('/');
         if !live {
-            findings.push(Finding { confidence: Confidence::Medium, detail: format!("bind -> spawn '{}' (not found)", target.bright_white()) });
+            findings.push(Finding { confidence: Confidence::Medium, detail: format!("bind -> spawn '{}' (not found)", target.bright_white()), action: Some(PurgeAction::RemoveLine { file: path.to_path_buf(), exact: line.to_string() }) });
         }
     }
     findings
@@ -213,7 +229,7 @@ fn check_registry_orphans(root: &Path) -> Vec<Finding> {
     let flush = |name: &str, deployable: bool, retired: bool, findings: &mut Vec<Finding>| {
         if name.is_empty() || retired || !deployable { return; }
         if BUILTINS.contains(&name) || on_path(name) { return; }
-        findings.push(Finding {
+        findings.push(Finding { action: None,
             confidence: Confidence::High,
             detail: format!("tool {} (deployable, not retired) -- no binary on PATH", name.bright_white()),
         });
@@ -265,7 +281,7 @@ fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
         if !entry.path().is_file() { continue; }
         // Referenced if its basename appears anywhere in the corpus.
         if !corpus.contains(&name) {
-            findings.push(Finding {
+            findings.push(Finding { action: None,
                 confidence: Confidence::Medium,
                 detail: format!("script {} -- referenced nowhere (may be run dynamically)", name.bright_white()),
             });
@@ -310,12 +326,12 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
         let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
         let empty = entry.metadata().map(|m| m.len() == 0).unwrap_or(false);
         if empty {
-            findings.push(Finding {
+            findings.push(Finding { action: None,
                 confidence: Confidence::High,
                 detail: format!("{} -- EMPTY and imported by no host", rel.bright_white()),
             });
         } else {
-            findings.push(Finding {
+            findings.push(Finding { action: None,
                 confidence: Confidence::Medium,
                 detail: format!("{} -- imported by no host (config may have moved inline)", rel),
             });
@@ -359,10 +375,131 @@ fn check_dangling_intents(root: &Path) -> Vec<Finding> {
     for (num, file) in ref_sites {
         if real.contains(&num) { continue; }
         if !seen.insert((num.clone(), file.clone())) { continue; }
-        findings.push(Finding {
+        findings.push(Finding { action: None,
             confidence: Confidence::High,
             detail: format!("INT-{} referenced in {} -- no such intent file", num.bright_white(), file.dimmed()),
         });
     }
     findings
+}
+
+fn git_tree_clean(root: &Path) -> bool {
+    match std::process::Command::new("git")
+        .arg("-C").arg(root)
+        .args(["status", "--porcelain"])
+        .output()
+    {
+        Ok(o) => o.status.success() && o.stdout.is_empty(),
+        Err(_) => false,
+    }
+}
+
+fn purgeable(root: &Path, bak_age: u64) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for f in check_dead_aliases(root) { if f.action.is_some() { out.push(f); } }
+    for f in check_stale_baks(root, bak_age) { if f.action.is_some() { out.push(f); } }
+    for f in check_dead_keybinds(root) { if f.action.is_some() { out.push(f); } }
+    out
+}
+
+fn apply_action(action: &PurgeAction) -> Result<String, String> {
+    match action {
+        PurgeAction::RemoveLine { file, exact } => {
+            let text = std::fs::read_to_string(file).map_err(|e| format!("read {}: {}", file.display(), e))?;
+            let lines: Vec<&str> = text.lines().collect();
+            let hits: Vec<usize> = lines.iter().enumerate()
+                .filter(|(_, l)| **l == exact.as_str())
+                .map(|(i, _)| i).collect();
+            if hits.len() != 1 {
+                return Err(format!("line no longer matches exactly once ({} hits) in {} -- skipped for safety", hits.len(), file.display()));
+            }
+            let idx = hits[0];
+            let kept: Vec<&str> = lines.iter().enumerate()
+                .filter(|(i, _)| *i != idx).map(|(_, l)| *l).collect();
+            let mut new_text = kept.join("\n");
+            if text.ends_with('\n') { new_text.push('\n'); }
+            std::fs::write(file, new_text).map_err(|e| format!("write {}: {}", file.display(), e))?;
+            Ok(format!("removed line in {}", file.display()))
+        }
+        PurgeAction::DeleteFile { path } => {
+            let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if !name.contains(".bak") {
+                return Err(format!("refusing to delete non-.bak file {} -- skipped", path.display()));
+            }
+            std::fs::remove_file(path).map_err(|e| format!("delete {}: {}", path.display(), e))?;
+            Ok(format!("deleted {}", path.display()))
+        }
+    }
+}
+
+fn read_line_prompt(prompt: &str) -> String {
+    use std::io::Write;
+    print!("{}", prompt);
+    let _ = std::io::stdout().flush();
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    s.trim().to_string()
+}
+
+fn purge(root: &Path, bak_age: u64, bulk: bool) {
+    println!("{}", "Faelight Deadwood -- purge (safe dead weight only)".green().bold());
+    println!("{}", "-".repeat(56).dimmed());
+    println!("{}", "  Purges ONLY: dead aliases, stale .bak files, dead keybinds.".dimmed());
+    println!("{}", "  Scripts, ghost intents, registry, modules: never touched here.".dimmed());
+    println!();
+    if !git_tree_clean(root) {
+        println!("  {}", "Refusing to purge: git tree is not clean.".red().bold());
+        println!("  {}", "Commit or stash first, so every deletion is a reviewable diff.".dimmed());
+        return;
+    }
+    let items = purgeable(root, bak_age);
+    if items.is_empty() {
+        println!("  {}", "Nothing safe to purge. The forest is tidy.".dimmed());
+        return;
+    }
+    let mut done = 0usize;
+    let mut skipped = 0usize;
+    if bulk {
+        println!("  Manifest -- {} item(s) would be removed:", items.len());
+        for (i, f) in items.iter().enumerate() {
+            println!("    {}. [{}] {}", i + 1, f.confidence.tag(), f.detail);
+        }
+        println!();
+        let phrase = format!("purge {}", items.len());
+        let ans = read_line_prompt(&format!("  Type '{}' to confirm, anything else to abort: ", phrase));
+        if ans != phrase {
+            println!("  {}", "Aborted. Nothing removed.".dimmed());
+            return;
+        }
+        for f in &items {
+            if let Some(a) = &f.action {
+                match apply_action(a) {
+                    Ok(msg) => { println!("    {} {}", "[done]".green(), msg); done += 1; }
+                    Err(e) => { println!("    {} {}", "[skip]".yellow(), e); skipped += 1; }
+                }
+            }
+        }
+    } else {
+        for f in &items {
+            println!("  [{}] {}", f.confidence.tag(), f.detail);
+            let ans = read_line_prompt("    [d]elete / [s]kip / [q]uit (default skip): ");
+            match ans.as_str() {
+                "d" | "D" => {
+                    if let Some(a) = &f.action {
+                        match apply_action(a) {
+                            Ok(msg) => { println!("    {} {}", "[done]".green(), msg); done += 1; }
+                            Err(e) => { println!("    {} {}", "[skip]".yellow(), e); skipped += 1; }
+                        }
+                    }
+                }
+                "q" | "Q" => { println!("    {}", "stopped.".dimmed()); break; }
+                _ => { println!("    {}", "skipped.".dimmed()); skipped += 1; }
+            }
+        }
+    }
+    println!();
+    println!("  {} removed, {} skipped.", done, skipped);
+    if done > 0 {
+        println!("  {}", "Review the git diff, then commit the cuts.".dimmed());
+    }
 }
