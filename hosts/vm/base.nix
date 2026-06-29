@@ -79,6 +79,9 @@
     pkgs.git
     pkgs.vim
     self.packages.${system}.faelight-forest
+    self.packages.${system}.faelight-bar-gtk
+    self.packages.${system}.faelight-logout
+    self.packages.${system}.faelight-launcher
     pkgs.alacritty
     pkgs.yazi
     pkgs.bat
