@@ -138,4 +138,12 @@
       border: none;
     }
   '';
+
+  # INT-054: pre-select mango as the default session so login is just
+  # password -> Enter (no typing the session name; "MangoWM" vs "mango"
+  # free-text was the bounce-back trap). command matches the .desktop Exec.
+  programs.regreet.settings.default_session = {
+    command = "mango -c /home/christian/.config/mango/config.conf";
+    user = "christian";
+  };
 }
