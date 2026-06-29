@@ -73,3 +73,9 @@ Root cause of the free-text-session fragility found and fixed (VM-proven).
   framework16's tuigreet (configuration.nix line ~108) for the same hardening.
 - BONUS: tuigreet --power-shutdown / --power-reboot flags exist -> wire greeter power
   buttons later (solves the "power buttons do nothing" TODO on ReGreet too).
+tuigreet hardened (--sessions/F3 picker, June-9 fix) + candy-neon themed + Faelight Forest
+greeting, live on framework16, reboot-confirmed. The LOGIN FLOW works end to end on metal.
+HOWEVER 005 as written also scopes custom faelight-login + faelight-menu (Mod+Escape) tools
+which do NOT exist (we use upstream tuigreet). DECISION NEEDED before close: either rescope
+005 to "tuigreet is the greeter" (then closeable) OR keep open as the custom-greeter intent.
+Not closing tonight -- gates as written (faelight-menu) unmet.
