@@ -1216,7 +1216,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 
 
 /// INT-094: forest hygiene -- orphan accumulation surfaced from faelight-deadwood --summary.
-/// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules|intents
+/// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
 fn check_deadwood(_core_root: &str) -> CheckResult {
     let out = std::process::Command::new("faelight-deadwood")
         .arg("--summary")
@@ -1227,19 +1227,18 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             let line = line.trim();
             let parts: Vec<&str> = line.split('|').collect();
             let total: usize = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-            // High-confidence structural orphans (registry+modules+intents) are the ones worth a Warn.
+            // High-confidence structural orphans (registry+modules) are the ones worth a Warn.
             let registry: usize = parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
             let modules: usize = parts.get(6).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let intents: usize = parts.get(7).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let structural = registry + modules + intents;
+            let structural = registry + modules;
             if structural > 0 {
                 CheckResult {
                     id: "deadwood".into(),
                     name: "Deadwood".into(),
                     status: Status::Warn,
                     message: format!(
-                        "{} orphans flagged ({} structural: {} registry, {} modules, {} ghost-intents)",
-                        total, structural, registry, modules, intents
+                        "{} orphans flagged ({} structural: {} registry, {} modules)",
+                        total, structural, registry, modules
                     ),
                     fix: Some("Run: faelight-deadwood (reports only -- you decide every cut)".into()),
                 }
