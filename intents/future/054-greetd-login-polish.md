@@ -211,3 +211,23 @@ reliably captures session stderr that greetd otherwise swallows.
 - ReGreet greeter itself (theme, render, auth) is PROVEN in the VM -- that work can
   proceed without the post-login handoff.
 - Graduation to metal is the open step; gate it behind INT-056 (TTY rescue).
+
+
+## VM-proven milestone (2026-06-29)
+ReGreet tested end-to-end in the faithful faelight-vm-regreet mirror:
+- Loads with the candy-neon GLASS GTK4 theme (extraCss).
+- Authenticates (christian / password) -- auth path works.
+- Hands off to mango with NO seat-contention crash (the feared cage-holds-seat0
+  failure did NOT occur; seatd cleanly added/removed clients, mango acquired the seat).
+- Full desktop renders: mango background + faelight-bar up, same as the tuigreet mirror.
+- Session preset: default_session.command = mango launch, so login is password->Enter
+  (the "MangoWM" display-name vs "mango" Exec free-text trap is gone).
+CAVEAT: VM uses software-GL (llvmpipe). Real DRM on the 780M at greetd login is still
+unproven on metal -- VM proves the LOGIC and seat handoff, not the real GPU DRM path.
+Clears the "prove in VM first" bar; remaining before metal = real-hardware DRM test + cosmetic polish.
+
+## Cosmetic polish TODO (noticed during VM test)
+- Stray green lines between the reboot/poweroff bubbles (look connected to them) -- separator CSS already zeroes height but they persist; investigate.
+- User/password input bubbles could be improved.
+- Clock looks good (keep).
+- Make the card glossier/glassier.
