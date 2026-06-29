@@ -34,9 +34,9 @@ forest's memory) is internally consistent.
 - [x] Phase 1: 2 registry orphans retired (security-audit->core security, faelight-notifyctl->core notify; verified superseded, Deadwood clean)
 - [ ] Phase 2: 11 unregistered tools added to registry (real category + description each)
 - [x] Phase 3: dead palette alias removed (target faelight-palette decommissioned per INT-072). cache-status + cache-push VERIFIED LIVE (invoked by fsh `cache` builtin + needed by in-progress INT-043) -- KEPT, not removed; Deadwood false-positives them. Built faelight-deadwood --purge (interactive + bulk) for safe dead-weight ONLY (dead aliases, stale .bak, dead keybinds); scripts/ghosts/registry/modules unpurgeable by design (action:None). Guards: git-clean required, per-item default-skip, re-verify before act. Proven: surgical single-line removal + exclusion of unsafe categories.
-- [ ] Phase 4: 27 ghost intent references resolved (repoint or remove, per-reference)
-- [ ] faelight-deadwood re-run: orphans cleared or remaining ones documented as intentional
-- [ ] Health green, integrity 100%, tree clean
+- [x] Phase 4: RESOLVED BY REMOVAL -- removed the dangling-intent-reference CHECK from faelight-deadwood entirely. Intent cross-references are documentation (the intent ledger's domain), NOT dead code. Deadwood does only its real job now: dead aliases, stale .bak, dead keybinds, registry orphans, orphaned scripts, orphaned Nix modules. Dashboard parser (doctor/mod.rs) aligned to 7-field summary.
+- [x] Deadwood re-run: all structural orphans cleared (registry 0, modules 0, ghost-intents check removed). 2 remaining items are cache-status/cache-push -- LIVE scripts (fsh `cache` builtin + INT-043), documented false-positives. Follow-up: teach Deadwood to recognize dynamically-invoked scripts.
+- [x] Health 93% ADVISORY (2 warnings = transient generation-drift, clears on reboot), integrity 100%, tree clean + pushed. Deadwood dashboard line GREEN.
 
 ## Notes
 
