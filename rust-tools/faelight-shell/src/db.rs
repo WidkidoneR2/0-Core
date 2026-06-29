@@ -16,6 +16,14 @@ impl ForestDb {
         let core_root = format!("{}/0-core", home);
         let db_path = PathBuf::from(&core_root).join("runtime/state.db");
 
+        // Self-heal: ensure the runtime dir exists so a fresh environment (VM,
+        // recovery shell, new machine) can create state.db instead of fsh dying
+        // at startup. SQLite creates the .db file itself; it cannot create the dir.
+        // The CREATE TABLE IF NOT EXISTS schema below then initialises a fresh db.
+        if let Some(parent) = db_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Cannot open state.db at {:?}", db_path))?;
         // INT-249b: checkpoint WAL on startup so morning-after-suspend doesn't
