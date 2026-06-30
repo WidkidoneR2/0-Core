@@ -3,7 +3,7 @@ id: 101
 date: 2026-06-29
 type: future
 title: "fsh: fresh-db schema ordering (shell_history cwd column, ALTER-before-CREATE)"
-status: planned
+status: complete
 tags: [fsh, database, schema, resilience]
 ---
 
