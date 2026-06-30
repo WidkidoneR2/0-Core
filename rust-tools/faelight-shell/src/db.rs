@@ -31,12 +31,6 @@ impl ForestDb {
         // checkpoint fails, normal operation continues; retry logic handles transients.
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
 
-        // INT-250: enrich shell_history with cwd, exit_code, duration_ms columns.
-        // Idempotent ALTER TABLE -- ignored if columns already exist.
-        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN cwd TEXT");
-        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
-        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
-        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
         let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN command TEXT");
         let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN git_hash TEXT");
         let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN cwd TEXT");
@@ -60,6 +54,14 @@ impl ForestDb {
                 value TEXT NOT NULL
             );",
         )?;
+
+        // INT-101: enrich shell_history AFTER its CREATE above, so a FRESH db
+        // already has the table -- ALTERs succeed (no "no column named cwd"
+        // warning on first run) and no-op on existing dbs. (INT-250 columns.)
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN cwd TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
         // INT-322 Phase 2: command failures table for Friday learning
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS command_failures (
