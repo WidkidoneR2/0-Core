@@ -173,8 +173,7 @@ fn get_drift_score() -> (String, String) {
 
 /// Log update run to state.db
 fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: i64, drift: &str) {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let db_path = faelight_core::paths::state_db();
     if let Ok(conn) = rusqlite::Connection::open(&db_path) {
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS update_history (
@@ -353,7 +352,7 @@ fn print_system_identity() {
         );
     }
     // INT-207 L1 — Show alignment score
-    let state_db = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+    let state_db = faelight_core::paths::state_db();
     if let Ok(conn) = rusqlite::Connection::open(&state_db) {
         let align: Option<f64> = conn.query_row(
             "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
