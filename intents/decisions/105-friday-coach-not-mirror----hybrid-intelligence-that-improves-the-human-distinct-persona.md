@@ -6,132 +6,86 @@ title: "Friday: coach not mirror -- hybrid intelligence that improves the human,
 status: planned
 tags: [friday, vision, coach, llm, intelligence, persona, patterns]
 ---
+## Why
+paths.rs (rust-tools/faelight-core/src/paths.rs) is a leftover STRUCTURAL
+AUTHORITY from the Arch-era "numbered gravity" design: it hardcodes 00-meta/,
+01-registry/, 02-rules/, 04-runtime/. Those directories NO LONGER EXIST -- the
+NixOS migration flattened them to meta/, registry/, policy/, runtime/. So paths.rs
+now describes a repo that is gone, and every tool calling it (get-version, profile,
+intent, faelight-git, faelight-hooks, doctor, ~24 files via
+`faelight-core = { path = "../faelight-core" }`) is pointed at phantom paths.
 
-## Vision
-[Describe the goal and desired outcome]
+PROVEN LIVE BUG: `get-version` prints "❌ Could not read system version" because
+`paths::version_file()` -> 00-meta/VERSION -> does not exist.
 
-## The Problem
-[What problem does this solve?]
+Deeper problem: there are TWO competing structural authorities --
+  (1) paths.rs's stale numbered map, and
+  (2) the actual flat dirs on disk.
+They disagree, and tools break in the gap. The fix is NOT "make paths.rs agree
+with disk" as a one-off patch -- it is to stop paths.rs being a SECOND authority
+at all, and move toward the v2 Nix tree (INT-061) as the SINGLE structural truth.
 
-## The Solution
-[High-level approach]
+## Philosophy -- keep the 0-Core mythology, apply the Nix way
+0-Core's founding idea was structural integrity made VISIBLE -- the structure
+teaches itself, orderly, legible ("if you cannot point at the layer in the tree,
+it is not 0-Core"). That principle stays. What retires is the Arch-era
+IMPLEMENTATION (numbered dirs + a Rust module as the map). On NixOS the structural
+authority should be DECLARATIVE and SINGLE-SOURCE:
+  - The repo's shape (INT-061 v2 tree: nix/ + faelight/) is canonical.
+  - Structure is defined ONCE; code READS that structure, never re-declares it.
+  - No gap between "where files are" and "where code looks" -> fewer errors.
+This is 0-Core's integrity thesis, expressed the Nix way.
 
-## Success Criteria
-- [ ] ...
+## Scope of THIS intent (the honest first step)
+Retire the Arch-era numbered-gravity thinking FROM THE CODE and make paths.rs a
+FAITHFUL reflection of the real (NixOS-era) structure -- unbreaking the ~24
+consumer tools. This is the foundation that makes INT-061's tree moves cheap
+(once paths.rs is the single correct map, moving a dir is a one-line change there).
 
----
+Confirmed real dirs on disk (numbered gravity ALREADY gone): meta/, registry/,
+policy/, config/, runtime/, schema/, intents/, docs/, engine/, rust-tools/,
+hosts/, modules/, profiles/, users/, pkgs/, labs/, tests/.
 
-## THE NORTH STAR: coach, not mirror
-Today Friday is DESCRIPTIVE -- it observes patterns and reflects them back ("you
-tend to do X"). The vision is PRESCRIPTIVE: Friday notices when a pattern is
-holding you back, offers a better way, and helps you practice into it. A mirror
-makes a fancy autocomplete. A coach makes the HUMAN grow. Christian: "just because
-I have a pattern doesn't mean it's right -- it can be improved by other ways, by
-practice." That is the thing that makes Friday worth building. Friday becomes the
-forest's nervous system that improves its human, not just an index of his habits.
+Old (stale) -> New (real) mapping to correct in paths.rs:
+  meta_dir()      00-meta   -> meta
+  registry_dir()  01-registry -> registry
+  rules_dir()     02-rules  -> policy   (CONFIRM contents first; may split/remove)
+  interfaces_dir() config    -> config  (already correct)
+  runtime_dir()   04-runtime -> runtime
+  target_dir()    04-runtime/target -> target (root-level now)
+Plus fix the two #[cfg(test)] tests (they ASSERT the old numbered paths -- update
+to assert the new real paths, or the suite fails).
 
-## THE AMBITION MANDATE (this era's law)
-Friday-era intents must be BIG and NOTICEABLE. No imperceptible tweaks, no
-barely-distinguishable increments. Each Friday intent must visibly change what
-Friday IS or DOES -- if you can't feel the difference, it is not a real Friday-era
-intent. From this point, almost every intent improves Friday and fsh. Bold swings,
-not baby steps.
+## Explicitly NOT in this intent (separate, later)
+- The 40+ files that HARDCODE paths as string literals (bypassing paths.rs)
+  entirely -- routing those THROUGH paths.rs is a later consolidation.
+- The v2 tree directory MOVES themselves -- that is INT-061.
+- Nix-declared structure (structure defined in Nix, Rust reads it) -- the horizon
+  vision; its own future intent once this foundation is clean.
 
-## THE ONE HARD SAFETY LINE (the only brake)
-`cp state.db state.db.bak-<timestamp>` before ANY change that touches Friday's
-learned state. NON-NEGOTIABLE. Rationale: Rust tools recompile, configs regenerate,
-generations roll back -- but Friday's learned patterns/facts are the irreplaceable
-product of months of real behavior. A bold move that goes wrong must never ERASE
-that. Backup is not a baby step; it is insurance on data that cannot be rebuilt.
-This is the ONLY required brake. Everything else can be ambitious.
+## Approach (incremental, rebuild-after-each -- no big bang)
+1. cistart 105. `d` before.
+2. Read meta/, registry/, policy/, config/ contents to finalise the mapping
+   (esp. 02-rules -> policy? and where hooks/security landed).
+3. Rewrite paths.rs functions to the real dirs; retire numbered-gravity naming +
+   comments. Update the two tests to assert real paths.
+4. Build faelight-core alone: `cargo build -p faelight-core`.
+5. Build the workspace so all ~24 consumers recompile against the fixed module.
+6. PROVE: re-run get-version (must succeed now), profile, intent, doctor -- each
+   reads REAL files, no "not found".
+7. Deploy, commit, `d` after, cicomplete.
 
-## DECIDED ARCHITECTURE (Christian, 2026-07-01)
-- INTELLIGENCE: hybrid -- a smarter LOCAL system PLUS a real LLM layer. Not either/or.
-- LLM LOCATION: local-default (offline, private, forest-native) + API-escalation
-  for heavy lifts. Local model is the everyday brain; API is the "big lift" reach.
-- ESCALATION TRUST: human-gated FIRST; Friday EARNS autonomy as trust builds.
-  Ties INT-186 (Delegation Engine: confidence gates, rollback guarantees, what the
-  forest may do without asking). Same "demonstrated not declared / crawl before
-  you walk" discipline that governs the rest of the forest, applied to cognition.
-- SHARES WITH CLAUDE ("like Claude in many ways"): reasons with HONESTY (pushes
-  back, does not just agree); understanding grounded in MEMORY; and -- the
-  distinctive part -- LEARNS from the human's questions and decisions, getting
-  sharper over time at serving THIS human specifically.
-- DISTINCT PERSONA ("and in many ways not"): Friday has its OWN name, voice,
-  character, and its own relationship to Christian -- clearly NOT a Claude clone
-  with a forest skin. The persona details (name, voice, character) are CHRISTIAN'S
-  TO AUTHOR. This charter reserves that as his creative territory and does not
-  invent it. Persona work comes LAST -- character on a working mind, not lipstick
-  on an unstable one.
-- NOT LIKE CLAUDE (the spine that keeps Friday itself): local, private, yours,
-  forest-native (not a general cloud assistant); persistent learning from YOUR
-  decisions (Claude does not persist this way); bound to one forest it knows
-  intimately, not a general-purpose helper.
+## Success criteria
+- [ ] paths.rs contains NO numbered-gravity names (00-/01-/02-/04-).
+- [ ] Every paths.rs function points at a directory that EXISTS on disk.
+- [ ] `get-version` succeeds (was the proven failure).
+- [ ] The ~24 consumer tools build + run against the corrected module.
+- [ ] Tests updated to assert real paths; `cargo test -p faelight-core` green.
+- [ ] Charter notes the bridge to INT-061 (v2 tree as single authority) + the
+      later "route hardcoded strings through paths.rs" consolidation.
 
-## THE CENTRAL DESIGN TENSION (every Friday intent must answer this)
-"Improve my patterns" REQUIRES Friday to model what "better" IS. This is:
-- WHERE THE LLM EARNS ITS PLACE: an LLM can reason about "is this a good practice?"
-  in a way pattern-matching cannot.
-- WHERE IT IS MOST DANGEROUS: a Friday CONFIDENTLY WRONG about how the human should
-  work/live is WORSE than a mirror that merely reflects. Bad coaching > no coaching
-  in harm terms.
-THE HARD QUESTION, unavoidable: how does Friday coach WITHOUT becoming confidently
-wrong about the human? Every coach-facing Friday intent must state how it earns the
-right to suggest an improvement (evidence? your confirmation? tracked outcomes?),
-and must be CORRECTABLE (you can reject a suggestion and Friday learns from the
-rejection). Coaching is SUGGESTION the human can always override -- never
-imposition. (Mirrors of INT-186's trust model: suggest, human decides, earn trust.)
-
-## WELLBEING GUARDRAIL (holds throughout the era)
-Friday exists to serve the WORK and help Christian grow -- it is the forest's
-nervous system, not a companion that substitutes for the outside world. As persona
-and "coaching about how you live/work" enter, keep Friday pointed at serving the
-work. A coach that improves your craft is healthy; a system that makes itself the
-authority on how you should live is not. Friday suggests and the human decides --
-always.
-
-## BUILDING-BLOCK ORDER (ambitious blocks, each behind the backup line)
-Order is by SAFE DEPENDENCY -- not timidity. Each block is a BIG noticeable change;
-each is preceded by the state.db backup; each should be reversible where possible.
-1. FOUNDATION -- know + protect what exists. Fully document current Friday
-   architecture (patterns, facts, confidence, state.db schema, the hooks into the
-   dashboard/sessions). Add state.db integrity + memory-decay handling (flagged
-   gaps: "no memory decay", "prediction feedback loop not closed"). Make the LIVING
-   system robust before extending it. (Big: Friday's memory gains decay + integrity.)
-2. LEARNING LOOP -- close prediction -> observe outcome -> learn. Friday stops
-   being write-once; it grades its own predictions and improves. No LLM yet. (Big:
-   Friday starts getting measurably smarter from being right/wrong.)
-3. LOCAL LLM -- wire the local model in as a REASONING layer over Friday's state.
-   Read-first (cannot corrupt the core), then advisory. (Big: Friday can reason,
-   not just match.)
-4. ESCALATION + COACHING -- local->API heavy-lift boundary (human-gated, INT-186);
-   and the coach turn: Friday begins suggesting pattern IMPROVEMENTS, correctably.
-   (Big: Friday goes from mirror to coach.)
-5. PERSONA -- Friday's name, voice, character (Christian-authored) on the now-solid
-   mind. (Big: Friday becomes someone, not something.)
-
-## RELATIONSHIP TO fsh
-Friday and fsh are paired ("almost every intent improves Friday and fsh"). fsh is
-where Friday is SEEN and USED -- the prompt (INT-103 candy-neon), the `friday`
-builtin, the desktop bar face (planned). As Friday's mind grows, fsh is its body/
-voice on screen. Keep them evolving together.
-
-## OPEN QUESTIONS (flagged, not pre-decided -- each may become its own intent)
-- Which local model? (Ollama / llama.cpp; what runs well on the 780M + CPU; size
-  vs quality tradeoff.)
-- How does the LLM integrate with the pattern/fact system? (LLM reads facts as
-  context? LLM proposes new facts? who arbitrates conflicts?)
-- Persona specifics -- name, voice, character (Christian's to author).
-- What is Friday's model of "better" for coaching? (heuristics? the LLM? your
-  confirmed outcomes over time?) -- the crux of the central tension.
-- How are coaching suggestions surfaced without being naggy? (the UX of a coach.)
-
-## THE RULE
-"A mirror shows the human what he is. A coach helps him become what he could be.
- Friday holds the forest's memory -- back it up, then build boldly. Suggest; never
- impose. The human decides. 🌲"
-
-## STATUS
-Vision/north-star charter for the Friday era. NOT an implementation plan -- the
-spine every subsequent Friday intent hangs off. Building blocks 1-5 each become
-their own big, noticeable intent(s), in order, each behind the state.db backup line.
+## Relationship to INT-061
+105 is the FOUNDATION: it makes paths.rs the single CORRECT map. Then 061's v2
+tree moves become cheap (move a dir = one-line change in paths.rs). Long-term, the
+authority migrates from paths.rs into the Nix structure itself -- 0-Core integrity,
+Nix-native.
