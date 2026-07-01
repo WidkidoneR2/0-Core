@@ -30,7 +30,7 @@ pub fn core_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn meta_dir() -> PathBuf {
-    core_dir().join("00-meta")
+    core_dir().join("meta")
 }
 
 pub fn version_file() -> PathBuf {
@@ -50,7 +50,7 @@ pub fn readme_file() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn registry_dir() -> PathBuf {
-    core_dir().join("01-registry")
+    core_dir().join("registry")
 }
 
 pub fn tools_registry() -> PathBuf {
@@ -70,7 +70,7 @@ pub fn zones_registry() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn rules_dir() -> PathBuf {
-    core_dir().join("02-rules")
+    core_dir().join("policy")
 }
 
 pub fn hooks_dir() -> PathBuf {
@@ -106,11 +106,11 @@ pub fn themes_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn runtime_dir() -> PathBuf {
-    core_dir().join("04-runtime")
+    core_dir().join("runtime")
 }
 
 pub fn target_dir() -> PathBuf {
-    runtime_dir().join("target")
+    core_dir().join("target")
 }
 
 pub fn logs_dir() -> PathBuf {
@@ -394,17 +394,17 @@ mod tests {
     #[test]
     fn test_version_file_path() {
         let path = version_file();
-        assert!(path.to_string_lossy().contains("00-meta/VERSION"));
+        assert!(path.to_string_lossy().contains("meta/VERSION"));
     }
 
     #[test]
     fn test_numbered_gravity() {
-        // Verify numbered structure is preserved
-        assert!(meta_dir().to_string_lossy().contains("00-meta"));
-        assert!(registry_dir().to_string_lossy().contains("01-registry"));
-        assert!(rules_dir().to_string_lossy().contains("02-rules"));
+        // Verify flat NixOS-era structure (numbered gravity retired -- INT-105)
+        assert!(meta_dir().to_string_lossy().contains("meta"));
+        assert!(registry_dir().to_string_lossy().contains("registry"));
+        assert!(rules_dir().to_string_lossy().contains("policy"));
         assert!(interfaces_dir().to_string_lossy().contains("config"));
-        assert!(runtime_dir().to_string_lossy().contains("04-runtime"));
+        assert!(runtime_dir().to_string_lossy().contains("runtime"));
     }
 }
 
