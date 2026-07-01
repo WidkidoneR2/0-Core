@@ -109,6 +109,25 @@ pub fn runtime_dir() -> PathBuf {
     core_dir().join("runtime")
 }
 
+/// The single canonical state database. Every tool MUST resolve state.db
+/// through this function -- never hardcode "runtime/state.db". INT-061: this is
+/// the seam that makes moving runtime/ a one-line change here.
+pub fn state_db() -> PathBuf {
+    runtime_dir().join("state.db")
+}
+
+/// Schema directory (registry JSON schemas read by engine doctor/bootstrap).
+pub fn schema_dir() -> PathBuf {
+    core_dir().join("schema")
+}
+
+/// core_root as a String, for consumers (e.g. engine AppContext) that store the
+/// root as a String rather than a PathBuf. Single source of truth: derived from
+/// core_dir(), NOT re-computed via format!("{}/0-core", home).
+pub fn core_root_string() -> String {
+    core_dir().to_string_lossy().to_string()
+}
+
 pub fn target_dir() -> PathBuf {
     core_dir().join("target")
 }
