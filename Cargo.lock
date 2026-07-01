@@ -1847,6 +1847,7 @@ dependencies = [
  "colored",
  "crossterm 0.28.1",
  "ctrlc",
+ "faelight-core",
  "faelight-git",
  "git2",
  "libc",

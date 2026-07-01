@@ -6,6 +6,7 @@ edition = "2021"
 description = "Forest-native structured shell environment — beyond NixOS"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 rustyline = "17.0.2"
 colored = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }

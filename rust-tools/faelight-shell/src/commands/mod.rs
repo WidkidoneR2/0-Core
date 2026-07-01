@@ -4935,7 +4935,7 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             "health" => {
                 let health = db.health_score().unwrap_or(0);
                 let version = std::fs::read_to_string(
-                    std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION"),
+                    faelight_core::paths::version_file(),
                 )
                 .unwrap_or_default()
                 .trim()
@@ -8364,7 +8364,7 @@ fn health(db: &ForestDb) -> CommandResult {
     };
 
     let version =
-        std::fs::read_to_string(std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION"))
+        std::fs::read_to_string(faelight_core::paths::version_file())
             .unwrap_or_else(|_| "unknown".into())
             .trim()
             .to_string();
@@ -9083,7 +9083,7 @@ fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
 
 fn version(core_root: &str) -> CommandResult {
     let version =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("00-meta/VERSION"))
+        std::fs::read_to_string(faelight_core::paths::version_file())
             .unwrap_or_else(|_| "unknown".into());
 
     let changelog =
