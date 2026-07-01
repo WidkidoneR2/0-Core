@@ -39,9 +39,7 @@ pub const REGISTRY: &[DocEntry] = &[
     },
 ];
 pub fn db_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_default()
-        .join("0-core/runtime/state.db")
+    faelight_core::paths::state_db()
 }
 pub fn core_root() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join("0-core")

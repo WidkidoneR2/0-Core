@@ -131,7 +131,7 @@ fn cmd_public(dry_run: bool) {
     }
 
     // Generate index.md
-    let version = std::fs::read_to_string(root.join("meta/VERSION"))
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_default().trim().to_string();
     let mut index = format!(
         "# Faelight Forest Documentation\n\n> {}\n\n## Contents\n\n",
@@ -250,7 +250,7 @@ struct ForestState {
 fn gather_state() -> ForestState {
     let root = core_root();
 
-    let version = std::fs::read_to_string(root.join("meta/VERSION"))
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
