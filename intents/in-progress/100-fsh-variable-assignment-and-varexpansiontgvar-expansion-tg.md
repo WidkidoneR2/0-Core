@@ -3,7 +3,7 @@ id: 100
 date: 2026-06-29
 type: future
 title: "fsh: variable assignment and $VAR expansion (VAR=$(...) name-case bug)"
-status: complete
+status: in-progress
 tags: [fsh, variables, expansion, shell]
 ---
 
@@ -79,6 +79,8 @@ Touches fsh's core command parser -> do deliberately with full test matrix.
 Test cases: TG=$(echo hi); TG=$(find ... | head -1); A=1 B=2 cmd; VAR="a b c".
 
 ## Status
-Root cause located + documented (the hard part). Fix deferred to a focused session
+Root cause located + documented (the hard part). REOPENED 2026-07-01: status
+corrected to in-progress -- diagnosis complete but the CODE FIX is not yet done,
+so 100 is not complete until TG=$(...) actually works. Fix deferred to a focused session
 -- rushing a change to the central command parser is how new bugs are born.
 Workaround stands: avoid $(...) in fsh assignments; use full paths or a /tmp file.
