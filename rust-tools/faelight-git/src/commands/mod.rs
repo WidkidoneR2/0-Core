@@ -40,8 +40,7 @@ pub(crate) fn get_active_intent() -> Option<(String, String)> {
 /// Single recorder; called by BOTH `fg done` and `fg sync` so the table never goes stale again.
 /// gate_hint deferred to Phase 3; intent_status honest (in-progress when an intent is active, else none).
 pub(crate) fn record_commit(hash: &str, message: &str) {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let db_path = faelight_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
         Err(_) => return,

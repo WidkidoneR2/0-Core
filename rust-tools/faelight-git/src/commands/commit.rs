@@ -8,8 +8,7 @@ use colored::*;
 use std::io::{self, Write};
 
 fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pushed: bool) {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
-    let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -55,8 +54,7 @@ fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pu
     }
 }
 fn emit_git_event(action: &str, detail: &str) {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
-    let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -208,7 +206,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     // ── v4 Risk Assessment ─────────────────────────────────
     {
         let home = std::env::var("HOME").unwrap_or_default();
-        let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+        let db_path = faelight_core::paths::state_db();
         if let Ok(conn) = rusqlite::Connection::open(&db_path) {
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
