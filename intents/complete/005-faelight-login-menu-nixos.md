@@ -3,7 +3,7 @@ id: 005
 date: 2026-06-03
 type: feature
 title: "faelight-login + faelight-menu: proper NixOS login flow with greetd"
-status: in-progress
+status: complete
 tags: [faelight-login, faelight-menu, greetd, tuigreet, nixos]
 priority: high
 ---
