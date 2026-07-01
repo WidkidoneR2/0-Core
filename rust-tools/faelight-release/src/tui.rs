@@ -532,7 +532,7 @@ impl ReleaseTui {
         self.log.push(format!("🚀 Publishing v{}...", self.version));
 
         // 1. Update VERSION
-        let version_path = core_root.join("meta/VERSION");
+        let version_path = faelight_core::paths::version_file();
         fs::write(&version_path, &self.version)?;
         self.log.push("✅ VERSION updated".to_string());
 

@@ -18,7 +18,7 @@ pub struct RichStats {
 impl RichStats {
     pub fn load(core_root: &PathBuf) -> Self {
         let home = std::env::var("HOME").unwrap_or_default();
-        let db_path = PathBuf::from(&home).join("0-core/runtime/state.db");
+        let db_path = faelight_core::paths::state_db();
         let mut stats = RichStats {
             sessions: 0,
             total_commits: 0,

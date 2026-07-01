@@ -174,7 +174,7 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     }
 
     // Emit rollback event to ledger
-    emit_rollback_event(core_root, &current, &target_version);
+    emit_rollback_event(&current, &target_version);
 
     println!();
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -186,8 +186,8 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn emit_rollback_event(core_root: &PathBuf, from: &str, to: &str) {
-    let db_path = core_root.join("runtime/state.db");
+fn emit_rollback_event(from: &str, to: &str) {
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return;
     }

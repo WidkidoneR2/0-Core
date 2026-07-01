@@ -1815,6 +1815,7 @@ dependencies = [
  "clap",
  "crossterm 0.28.1",
  "dirs",
+ "faelight-core",
  "libc",
  "ratatui 0.29.0",
  "rusqlite",

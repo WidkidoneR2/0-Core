@@ -160,7 +160,7 @@ fn main() -> Result<()> {
                         .unwrap_or(0);
                     let intent_range = format!("{} complete", intent_count);
 
-                    let db_path = root.join("runtime/state.db");
+                    let db_path = faelight_core::paths::state_db();
                     match rusqlite::Connection::open(&db_path) {
                         Ok(conn) => {
                             let _ = conn.execute(
@@ -439,7 +439,7 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             // Triad history from state.db (INT-031/034): version, generation, commits, intents.
-            let db_path = root.join("runtime/state.db");
+            let db_path = faelight_core::paths::state_db();
             if let Ok(conn) = rusqlite::Connection::open(&db_path) {
                 if let Ok(mut q) = conn.prepare(
                     "SELECT version, generation, commit_count, intent_range, theme
@@ -469,7 +469,7 @@ fn main() -> Result<()> {
         }
 
         Command::Query { version } => {
-            let db_path = root.join("runtime/state.db");
+            let db_path = faelight_core::paths::state_db();
             match rusqlite::Connection::open(&db_path) {
                 Ok(conn) => {
                     let row = conn.query_row(
@@ -502,7 +502,7 @@ fn main() -> Result<()> {
         Command::GcCheck => {
             // Warn if any release generation no longer has a live system-NNN-link (i.e. was GC'd
             // or is at risk). We list recorded release generations and check the profile links.
-            let db_path = root.join("runtime/state.db");
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => { eprintln!("Could not open state.db: {}", e); return Ok(()); }

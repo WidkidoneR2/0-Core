@@ -11,6 +11,7 @@ name = "faelight-release"
 path = "src/main.rs"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 libc = "0.2"
 rusqlite = { version = "0.31", features = ["bundled"] }
 serde = { workspace = true }
