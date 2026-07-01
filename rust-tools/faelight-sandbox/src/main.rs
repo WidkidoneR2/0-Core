@@ -353,7 +353,7 @@ fn emit_to_ledger_with_policy(
     files_changed: usize,
     policy_name: Option<&str>,
 ) {
-    let db_path = std::path::PathBuf::from(home()).join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -386,7 +386,7 @@ fn emit_to_ledger_with_policy(
 
 #[allow(dead_code)]
 fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
-    let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -985,7 +985,7 @@ fn main() -> Result<()> {
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         }
         Commands::Audit { tool, limit } => {
-            let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
+            let db_path = faelight_core::paths::state_db();
             if !db_path.exists() {
                 println!("  {} state.db not found — no audit data yet", "○".dimmed());
                 return Ok(());
