@@ -313,7 +313,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         };
         parts.push(friday_hint);
 
-        let db_path = format!("{}/0-core/runtime/state.db", home);
+        let db_path = faelight_core::paths::state_db();
         let has_friday_msg = rusqlite::Connection::open_with_flags(
             &db_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,

@@ -54,8 +54,7 @@ pub fn run_history_search(initial_query: &str) -> Option<String> {
 }
 
 fn resolve_db_path() -> Option<PathBuf> {
-    let home = std::env::var("HOME").ok()?;
-    Some(PathBuf::from(home).join("0-core/runtime/state.db"))
+    Some(faelight_core::paths::state_db())
 }
 
 fn run_loop(

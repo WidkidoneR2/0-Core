@@ -852,8 +852,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             // session load <name>   -- restore directory + show history
             // session list          -- show all saved sessions
             // session delete <name> -- remove a saved session (INT-269)
-            let db_path = format!("{}/0-core/runtime/state.db",
-                std::env::var("HOME").unwrap_or_default());
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("session: db error: {}", e)),
@@ -999,8 +998,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 .and_then(|a| a.parse().ok())
                 .unwrap_or(10)
                 .min(50);
-            let db_path = format!("{}/0-core/runtime/state.db",
-                std::env::var("HOME").unwrap_or_default());
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
@@ -1030,8 +1028,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "env-save" => {
             // env-save <name>  -- save current environment snapshot (INT-269)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = format!("{}/0-core/runtime/state.db",
-                std::env::var("HOME").unwrap_or_default());
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-save: {}", e)),
@@ -1067,8 +1064,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "env-load" => {
             // env-load <name>  -- show vars from snapshot (can't set parent env)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = format!("{}/0-core/runtime/state.db",
-                std::env::var("HOME").unwrap_or_default());
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-load: {}", e)),
@@ -1102,8 +1098,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "env-diff" => {
             // env-diff <name>  -- diff current env vs snapshot (INT-269)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = format!("{}/0-core/runtime/state.db",
-                std::env::var("HOME").unwrap_or_default());
+            let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-diff: {}", e)),
@@ -9337,7 +9332,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         .to_string();
     // Load Friday live data from state.db
     let (friday_patterns, friday_facts) = {
-        let db_path = format!("{}/0-core/runtime/state.db", home);
+        let db_path = faelight_core::paths::state_db();
         let conn = rusqlite::Connection::open_with_flags(
             &db_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -10846,7 +10841,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     checks.push(("fsh binary", fsh_bin, if fsh_bin { "scripts/faelight-shell present".into() } else { "missing!".into() }));
 
     // 2. state.db writable
-    let db_path = format!("{}/runtime/state.db", db.core_root());
+    let db_path = faelight_core::paths::state_db().to_string_lossy().to_string();
     let db_ok = std::path::Path::new(&db_path).exists();
     checks.push(("state.db", db_ok, if db_ok { db_path.clone() } else { "not found!".into() }));
 

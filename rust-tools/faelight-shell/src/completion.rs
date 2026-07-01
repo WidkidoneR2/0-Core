@@ -1019,8 +1019,8 @@ fn is_known_alias(cmd: &str) -> bool {
     static ALIASES: OnceLock<std::collections::HashSet<String>> = OnceLock::new();
     let set = ALIASES.get_or_init(|| {
         let mut s = std::collections::HashSet::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            let db_path = std::path::Path::new(&home).join("0-core/runtime/state.db");
+        if let Some(_home) = std::env::var_os("HOME") {
+            let db_path = faelight_core::paths::state_db();
             if let Ok(conn) = rusqlite::Connection::open(&db_path) {
                 if let Ok(mut stmt) = conn.prepare("SELECT name FROM shell_aliases") {
                     if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {

@@ -3,7 +3,6 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use rustyline::{history::FileHistory, Editor, Helper};
-use std::path::PathBuf;
 
 pub struct ForestDb {
     pub conn: Connection,
@@ -12,9 +11,11 @@ pub struct ForestDb {
 
 impl ForestDb {
     pub fn open() -> Result<Self> {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let core_root = format!("{}/0-core", home);
-        let db_path = PathBuf::from(&core_root).join("runtime/state.db");
+        // INT-061: derive both core_root and the db path from the single path
+        // authority (paths.rs), not local format!/join. core_root is retained --
+        // it is stored on ForestDb and exposed via core_root() for git ops etc.
+        let core_root = faelight_core::paths::core_root_string();
+        let db_path = faelight_core::paths::state_db();
 
         // Self-heal: ensure the runtime dir exists so a fresh environment (VM,
         // recovery shell, new machine) can create state.db instead of fsh dying

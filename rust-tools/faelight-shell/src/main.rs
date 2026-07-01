@@ -488,10 +488,7 @@ fn main() -> Result<()> {
     {
         let args: Vec<String> = std::env::args().collect();
         if args.iter().any(|a| a == "--refresh-cheatsheet") {
-            let core_root = std::env::var("HOME")
-                .map(|h| format!("{}/0-core", h))
-                .unwrap_or_else(|_| ".".to_string());
-            let db_path = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+            let db_path = faelight_core::paths::state_db();
             match rusqlite::Connection::open(&db_path) {
                 Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                     Ok(stats) => {
@@ -962,7 +959,7 @@ fn repl_main() -> Result<()> {
                 // INT-260: cheat opens cheatsheet TUI
                 // INT-092: cheat --refresh rebuilds command_registry from live sources
                 if line.trim() == "cheat --refresh" {
-                    let db_path = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+                    let db_path = faelight_core::paths::state_db();
                     match rusqlite::Connection::open(&db_path) {
                         Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                             Ok(stats) => println!(

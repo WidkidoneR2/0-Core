@@ -15,7 +15,6 @@ use ratatui::{
 };
 use rusqlite::Connection;
 use std::io;
-use std::path::PathBuf;
 #[derive(Debug, Clone)]
 struct Entry {
     kind: String,
@@ -394,8 +393,8 @@ fn conn_core_root(conn: &Connection) -> String {
     format!("{}/0-core", std::env::var("HOME").unwrap_or_default())
 }
 
-pub fn run_cheatsheet_tui(core_root: &str) {
-    let db_path = PathBuf::from(core_root).join("runtime/state.db");
+pub fn run_cheatsheet_tui(_core_root: &str) {
+    let db_path = faelight_core::paths::state_db();
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(_) => return,
