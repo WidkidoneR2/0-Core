@@ -92,8 +92,7 @@ struct App {
 
 impl App {
     fn new(initial_table: Option<&str>) -> anyhow::Result<Self> {
-        let home = dirs::home_dir().unwrap_or_default();
-        let db = Connection::open(home.join("0-core/runtime/state.db"))?;
+        let db = Connection::open(faelight_core::paths::state_db())?;
         let tables = get_tables(&db);
         let mut app = App {
             db,

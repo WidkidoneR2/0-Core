@@ -1235,6 +1235,7 @@ dependencies = [
  "anyhow",
  "crossterm 0.28.1",
  "dirs",
+ "faelight-core",
  "ratatui 0.28.1",
  "rusqlite",
 ]
