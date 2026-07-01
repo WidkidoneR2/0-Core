@@ -6,6 +6,7 @@ license = "MIT"
 authors = ["Christian <christian@faelight.forest>"]
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 ratatui = "0.28"
 crossterm = "0.28"
 portable-pty = "0.8"

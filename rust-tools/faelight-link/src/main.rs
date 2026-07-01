@@ -124,8 +124,7 @@ fn main() -> Result<()> {
 }
 
 fn emit_signal(signal_type: &str, package: &str) -> anyhow::Result<()> {
-    let db_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     if !db_path.exists() {
         return Ok(());
     }

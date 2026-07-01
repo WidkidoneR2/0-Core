@@ -143,8 +143,7 @@ impl FaelightCompositor {
     }
 
     fn open_db() -> Option<Connection> {
-        let home = std::env::var("HOME").ok()?;
-        let db_path = std::path::PathBuf::from(home).join("0-core/runtime/state.db");
+        let db_path = faelight_core::paths::state_db();
 
         match Connection::open(&db_path) {
             Ok(conn) => {

@@ -20,7 +20,6 @@ use smithay_client_toolkit::{
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
-use std::path::PathBuf;
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_shm, wl_surface},
@@ -122,9 +121,7 @@ impl WallpaperState {
 }
 
 fn read_health_from_db() -> u32 {
-    let db_path = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/home/christian"))
-        .join("0-core/runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
 
     if !db_path.exists() {
         return 95;

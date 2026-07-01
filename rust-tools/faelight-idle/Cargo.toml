@@ -11,6 +11,7 @@ name = "faelight-idle"
 path = "src/main.rs"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 wayland-client = { workspace = true }
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 anyhow = { workspace = true }

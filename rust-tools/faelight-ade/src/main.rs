@@ -101,8 +101,7 @@ impl App {
         let pty_writer = pair.master.take_writer()?;
 
         // Friday state.db
-        let home = dirs::home_dir().unwrap_or_default();
-        let db = Connection::open(home.join("0-core/runtime/state.db"))?;
+        let db = Connection::open(faelight_core::paths::state_db())?;
         let intent_hint = get_intent(&db);
         let health_hint = get_health(&db);
 

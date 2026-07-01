@@ -17,8 +17,7 @@ impl Cmd {
     }
 }
 fn db_path() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    format!("{}/0-core/runtime/state.db", home)
+    faelight_core::paths::state_db().to_string_lossy().to_string()
 }
 fn open_db() -> rusqlite::Result<Connection> {
     let conn = Connection::open(db_path())?;

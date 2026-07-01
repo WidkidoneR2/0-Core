@@ -4,7 +4,6 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::path::PathBuf;
 use std::process::Command;
 use wayland_client::{
     globals::{registry_queue_init, GlobalListContents},
@@ -41,27 +40,22 @@ struct IdleState {
     lock_timeout_ms: u32,
     no_lock: bool,
     idle_start: Option<std::time::Instant>,
-    core_root: PathBuf,
     ready: bool,
 }
 
 impl IdleState {
     fn new(timeout_secs: u64, lock_timeout_secs: u64, no_lock: bool) -> Self {
-        let core_root = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("/home/christian"))
-            .join("0-core");
         let _ = timeout_secs;
         Self {
             lock_timeout_ms: (lock_timeout_secs * 1000) as u32,
             no_lock,
             idle_start: None,
-            core_root,
             ready: false,
         }
     }
 
     fn emit_event(&self, action: &str, detail: &str) {
-        let db_path = self.core_root.join("runtime/state.db");
+        let db_path = faelight_core::paths::state_db();
         if !db_path.exists() {
             return;
         }

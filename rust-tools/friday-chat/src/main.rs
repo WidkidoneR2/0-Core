@@ -49,8 +49,7 @@ struct App {
 
 impl App {
     fn new() -> anyhow::Result<Self> {
-        let home = dirs::home_dir().unwrap_or_default();
-        let db_path = home.join("0-core/runtime/state.db");
+        let db_path = faelight_core::paths::state_db();
         let db = Connection::open(&db_path)?;
 
         // Get context
@@ -510,8 +509,7 @@ fn main() -> anyhow::Result<()> {
     // Support: friday chat why [term] -- direct query mode
     if args.len() > 2 && args.get(1).map(|s| s == "chat").unwrap_or(false) {
         let query = args[2..].join(" ");
-        let home = dirs::home_dir().unwrap_or_default();
-        let db = Connection::open(home.join("0-core/runtime/state.db"))?;
+        let db = Connection::open(faelight_core::paths::state_db())?;
         println!("{}", friday_respond(&db, &query));
         return Ok(());
     }

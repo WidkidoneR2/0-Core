@@ -6,6 +6,7 @@ authors = ["Christian <christian@faelight.forest>"]
 license = "MIT"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 ratatui = "0.28"
 crossterm = "0.28"
 rusqlite = { version = "0.31", features = ["bundled"] }

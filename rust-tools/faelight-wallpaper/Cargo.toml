@@ -11,6 +11,7 @@ name = "faelight-wallpaper"
 path = "src/main.rs"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 smithay-client-toolkit = "0.19"
 wayland-client = { workspace = true }
 anyhow = { workspace = true }
