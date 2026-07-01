@@ -1665,7 +1665,28 @@ fn repl_main() -> Result<()> {
                             && after_eq.ends_with('"'))
                             || (after_eq.starts_with('\'') && after_eq.ends_with('\''));
                         let no_space_after = !after_eq.contains(' ');
-                        no_space_before && (no_space_after || value_is_quoted)
+                        // INT-100: a value that is a complete command substitution
+                        // $( ... ) counts as a single standalone value even though it
+                        // contains spaces/pipes -- route it to the non-truncating
+                        // standalone path (below) instead of the whitespace-splitting
+                        // inline path. Balanced-paren check keeps `A=$(x) B=$(y)` out.
+                        let value_is_cmdsub = {
+                            let a = after_eq;
+                            if a.starts_with("$(") && a.ends_with(')') {
+                                let mut depth = 0i32;
+                                let mut ok = true;
+                                for (idx, c) in a.char_indices() {
+                                    if c == '(' { depth += 1; }
+                                    else if c == ')' {
+                                        depth -= 1;
+                                        // closes early (before end) => not a single sub
+                                        if depth == 0 && idx != a.len() - 1 { ok = false; break; }
+                                    }
+                                }
+                                ok && depth == 0
+                            } else { false }
+                        };
+                        no_space_before && (no_space_after || value_is_quoted || value_is_cmdsub)
                     };
                     if is_standalone_assign {
                         let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
@@ -1681,7 +1702,10 @@ fn repl_main() -> Result<()> {
                             if valid {
                                 let val =
                                     parts[1].trim_matches('\"').trim_matches('\'').to_string();
+                                // INT-100: expand $VAR first, then run $(...) subshells
+                                // so `NAME=$(cmd)` stores the command OUTPUT, not the literal.
                                 let expanded = expand_vars(&val, &shell_vars, last_exit_code);
+                                let expanded = expand_subshells(&expanded);
                                 std::env::set_var(name, &expanded);
                                 shell_vars.insert(name.to_string(), expanded.clone());
                                 println!(
@@ -1715,7 +1739,9 @@ fn repl_main() -> Result<()> {
                                         .trim_matches('\"')
                                         .trim_matches('\'')
                                         .to_string();
+                                    // INT-100: also run $(...) subshells for inline KEY=$(x) cmd
                                     let expanded = expand_vars(&val, &shell_vars, last_exit_code);
+                                    let expanded = expand_subshells(&expanded);
                                     temp_vars.push((name.to_string(), expanded));
                                     rest = rest[maybe_var.len()..].trim_start();
                                     continue;
@@ -1872,8 +1898,6 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     let line = expand_vars(line, &shell_vars, last_exit_code);
-                    // Subshell expansion
-                    let line = expand_subshells(&line);
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
