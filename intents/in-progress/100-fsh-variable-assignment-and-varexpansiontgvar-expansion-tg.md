@@ -84,3 +84,18 @@ corrected to in-progress -- diagnosis complete but the CODE FIX is not yet done,
 so 100 is not complete until TG=$(...) actually works. Fix deferred to a focused session
 -- rushing a change to the central command parser is how new bugs are born.
 Workaround stands: avoid $(...) in fsh assignments; use full paths or a /tmp file.
+
+
+## RESOLVED (2026-07-01) -- fix in place + verified across the matrix
+The value_is_cmdsub check (main.rs ~1668-1688) detects a balanced $(...) value and
+routes it to the non-truncating standalone-assign path; the substitution is executed
+and its output stored. Verified in the running binary against the full test matrix:
+- TG=$(find /nix/store -name tuigreet -type f | head -1)  -> real tuigreet path (the
+  ORIGINAL failing case from the metal-tuigreet session -- now works, spaces+pipe).
+- TG=$(echo hello)      -> hello
+- X=$(echo one two three) -> one two three   (multi-word output captured whole)
+- FOO=bar echo test     -> test              (prefix-assign regression: OK)
+- Y=simple              -> simple            (plain assign regression: OK)
+- Z="a b c"             -> a b c             (quoted-with-spaces regression: OK)
+All pass. The value-truncation root cause (split_whitespace at line 1703) is bypassed
+for $(...) values by the balanced-paren guard. Closing.
