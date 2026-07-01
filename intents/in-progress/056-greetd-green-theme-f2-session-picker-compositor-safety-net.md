@@ -121,3 +121,24 @@ Not yet tested (honest gaps):
 - greetd fallback session: not defined or tested (VM-gated via INT-024).
 
 Reproducibility gap: the rescue chords live in an untracked ~/.config/mango/config.conf. A fresh install from the flake would not have them. Wiring config/mango into home-manager is pending.
+
+
+## Finding (2026-07-01): greeter-foreground rescue is NOT clean -- needs proper re-test
+Attempted the "TTY2 reachable when greetd is foreground" gate live. Result was
+NOT a clean pass:
+- Fn+Ctrl+Alt+F2 (the chord verified from MangoWM) did NOT behave the same at the
+  greeter. Reaching TTY2 from the greeter was difficult; the exact working method
+  was not confirmed (possibly plain Ctrl+Alt+F2 WITHOUT Fn -- UNVERIFIED, do not
+  trust as runbook gospel yet).
+- Recovery ultimately succeeded (returned to mango), but via an unclear path.
+HONEST STATE: the greeter-state rescue path is NOT confirmed working. This gate
+stays OPEN. The runbook currently implies Fn+Ctrl+Alt+F2 works everywhere; that
+appears FALSE at the greeter and must be corrected once the real method is found.
+NEXT: a calm, deliberate re-test with someone watching the exact keys -- ideally
+in the VM (INT-024) where a failed VT-switch cannot strand the metal machine, OR
+on metal with a second device (phone) ready and the exact chord written down
+BEFORE logging out. Do NOT check this gate until the working greeter chord is
+verified and written into recovery-runbook.md.
+Also cleaned this session: removed stale /etc/greetd/config.toml (pre-June-9
+orphan, agetty autologin, unreferenced by the flake, greetd never read it) -- it
+would have misled recovery debugging. sudo unlink; greetd store config untouched.
