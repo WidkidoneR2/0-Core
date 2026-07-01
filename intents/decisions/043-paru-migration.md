@@ -72,3 +72,9 @@ show_arch_news = true
 ---
 
 _"Choose tools that are maintained, not just familiar."_ 🌲
+Generation/store cleanup (nix-collect-garbage) is BLOCKED PENDING this intent.
+45 system generations exist (mostly redundant June 25-28 dev-iteration snapshots);
+no space pressure (store 2.2%). Do NOT nix-collect-garbage until 043 resolves --
+a store sweep could delete the deps closure (faelight-forest-deps-deps-9.2.0,
+691 paths) this intent is investigating, destroying the evidence/artifact mid-debug.
+After 043: safe to --delete-older-than <N>d + nixos-rebuild boot.
