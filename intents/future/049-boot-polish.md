@@ -99,3 +99,86 @@ Phase 4 -- Boot time optimization
  Stability is priority.
  Test in the VM. Graduate to the machine.
  Never the other way around." 🌲
+
+## RESEARCH + STRATEGY (2026-07-01) -- grounded, anti-band-aid
+
+### Measured problem (from this-boot journalctl, not memory)
+Boot timeline on gen 272 (framework16, AMD 780M):
+- 06:50:34.49  Plymouth TERMINATES ("Terminate Plymouth Boot Screen" finishes)
+- 06:50:34.54  greetd.service starts (~50ms after plymouth dies -- handoff is TIGHT here)
+- 06:50:37.36  greeter session opens (tuigreet actually paints)
+=> ~2.8s window between Plymouth gone and tuigreet visible. THIS is the rough
+   screen. It is NOT slow greetd-start; greetd starts immediately. It is the
+   time for tuigreet to initialise + present its first frame after plymouth quit.
+
+Second issue found in /proc/cmdline: `... splash loglevel=4 ...` -- `splash` is
+present but `quiet` is NOT. loglevel=4 lets kernel warnings print to console, so
+the 2.8s gap can also show kernel text, a SEPARATE noise source from the black gap.
+
+### Why this is a KNOWN AMD problem (research, not guessing)
+- AMDGPU driver is large/slow to load; kernel uses EFI framebuffer for early
+  console then SWITCHES to amdgpudrmfb when ready -- that framebuffer switch is a
+  documented flicker point on AMD (Gentoo/Arch). bgrt plymouth theme reads the
+  ACPI firmware logo and is repeatedly named as the AMD-handoff-conflict theme
+  (matches 049's existing "Problem Stack" item 1).
+- SimpleDRM: on UEFI, plymouth uses SimpleDRM on the EFI framebuffer to avoid
+  flicker waiting for amdgpu. Tunable via `plymouth.use-simpledrm=0/1`. CAUTION
+  (Arch): with SimpleDRM, SECONDARY monitors may not light during boot and a
+  docked-laptop LUKS prompt may be invisible -- relevant for a Framework 16 in a
+  dock. Test docked + undocked.
+
+### The HONEST ceiling (why "seamless" is not a config tweak)
+Per the greetd maintainer (kennylevinsen greetd issue #17): a truly seamless,
+zero-black, GDM-style FADE from plymouth -> greetd is NOT a solved declarative
+feature today. "plymouth quits as soon as greetd starts"; the black screen is
+just greetd+greeter coming up. GDM's smoothness is bespoke. A proper fix needs
+EITHER upstream plymouth using drmModeCloseFB to retain KMS state/framebuffer on
+exit (WIP: plymouth MR-173) OR a libseat/logind BACKGROUND-session approach:
+start the session in the background, DISABLE greetd's VT switch, then manually
+chvt + `plymouth quit`. That is experimental, compositor-specific (must verify
+with mango), and belongs in labs/ + VM -- NOT a quick param change.
+=> Anyone promising a clean seamless handoff on greetd today via a couple kernel
+   params is band-aiding. Naming that honestly is the point of this section.
+
+### STRATEGY -- three tiers (pick per honest cost/benefit; all VM-gated)
+TIER 1 -- Kill the avoidable NOISE (reliable, available now; cosmetic-only risk)
+  - Add `quiet` to boot.kernelParams (currently missing) so kernel text stops
+    printing during the gap. Keep `splash`.
+  - Set boot.plymouth.theme deliberately; get OFF bgrt (AMD ACPI-logo conflict)
+    -> spinner/breeze-class theme avoids the firmware-logo/framebuffer clash.
+  - Evaluate plymouth.use-simpledrm (test docked + undocked, LUKS prompt visible).
+  Outcome: cleaner boot (no text flash), though a brief black gap may remain.
+  This is essentially 049 Option B/C done with eyes open. LOW risk, real win.
+
+TIER 2 -- Shrink the 2.8s GAP (moderate; needs measurement)
+  - `systemd-analyze critical-chain greetd.service` to see the greetd path; check
+    if anything can start earlier/in parallel.
+  - The gap is tuigreet first-paint, not greetd-start -> investigate tuigreet init
+    cost; plymouth ShowDelay / quit-timing so splash isn't torn down before the
+    greeter is ready to present.
+  Outcome: smaller black window even without a true fade.
+
+TIER 3 -- ACTUAL seamless handoff (real R&D; VM-heavy; labs/)
+  - The greetd background-session + disable-VT-switch + manual chvt + plymouth quit
+    dance, and/or track upstream plymouth MR-173 (drmModeCloseFB KMS-retain).
+  - Compositor-specific: must prove it works with mango, not just sway.
+  - This is a RESEARCH SPIKE, not a config edit. Snapshot-heavy VM work. May
+    conclude "not worth it until upstream lands" -- a legitimate outcome.
+
+### Recommended path
+Do TIER 1 first (VM-proven, then metal, rescue-armed) for an immediate honest
+improvement. Measure with TIER 2 to decide if the residual gap is worth chasing.
+Treat TIER 3 as a separate, clearly-scoped labs/ research spike -- do NOT block a
+real Tier-1 win on the perfect Tier-3 fade. "Clean black boot" (049 Option A) also
+remains a valid Tier-1-adjacent answer: a fast clean black is smoother than a
+flickering splash.
+
+### Dependencies UNCHANGED (research reinforces them)
+- INT-056 (TTY rescue) MUST precede any boot change -- the AMD framebuffer/KMS
+  handoff is EXACTLY what blanked gen 92; a working Ctrl+Alt+F2 is the safety net.
+- INT-024 VM testing for every option. simpledrm's docked-monitor caveat makes
+  VM + real docked/undocked testing mandatory before metal.
+
+### NOT the fix
+- Lanzaboote (INT-059) is SECURE BOOT, not visual smoothness. It will not remove
+  the gap or add a fade. Decoupled from 049; don't pin smoothness hopes on it.
