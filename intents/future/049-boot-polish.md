@@ -182,3 +182,42 @@ flickering splash.
 ### NOT the fix
 - Lanzaboote (INT-059) is SECURE BOOT, not visual smoothness. It will not remove
   the gap or add a fade. Decoupled from 049; don't pin smoothness hopes on it.
+
+## PLYMOUTH vs ALTERNATIVES + DECISION (2026-07-01)
+
+### Is there something BETTER than Plymouth? (researched)
+No tool to switch TO. Plymouth is effectively the ONLY mature Linux boot-splash
+(Fedora/Arch/Gentoo/Ubuntu all use it). "Alternatives" are only: (a) Plymouth
+themes (still Plymouth), or (b) NO splash at all. There is no "Plymouth-but-better"
+competitor. Per ArchWiki/CachyOS: Plymouth is "not a system-critical component"
+and "has a nasty habit of breaking boot under various circumstances" -- which is
+literally our gen-92 history. So the real axis is NOT "Plymouth vs X"; it is
+"tuned Plymouth vs NO Plymouth."
+
+### DECISION (2026-07-01): KEEP Plymouth, TUNE it
+Rationale: we want to preserve the GRAPHICAL LUKS passphrase prompt. Dropping
+Plymouth (Option A) would give a text-console LUKS prompt -- functional, but we
+value the graphical prompt. So execution path = Option B/C (theme swap + quiet),
+NOT Option A (disable).
+- Trade-off accepted: keeping Plymouth keeps the AMD framebuffer-handoff conflict
+  surface + the "breaks boot sometimes" fragility. Mitigated by VM-gating + the
+  bgrt->spinner theme swap (removes the specific ACPI-logo AMD conflict) + rescue.
+- Option A (drop Plymouth) is NOT chosen, but RETAINED as the fallback if tuning
+  cannot make Plymouth stable on the 780M -- resilience beats splash if forced.
+
+### CONSTRAINT this decision creates (important)
+Keeping the graphical LUKS prompt INTERACTS with plymouth.use-simpledrm: with
+simpledrm, a DOCKED-laptop LUKS prompt may be INVISIBLE (Arch). Framework 16 may
+dock -> the simpledrm choice must be tested DOCKED + undocked so the kept prompt
+is never silently hidden. This makes the docked/undocked real-hardware test a HARD
+gate, not optional. Add to gates below.
+
+### Refined Tier-1 execution (given KEEP-and-tune)
+1. Add `quiet` to boot.kernelParams (keep `splash`). Stops kernel-text flash.
+2. Swap boot.plymouth.theme OFF bgrt -> spinner/breeze-class (kills the ACPI-logo
+   AMD conflict; a candy-neon-recolored spinner could match the forest later).
+3. Decide plymouth.use-simpledrm by DOCKED test: prompt must stay visible docked.
+4. VM-prove all three (5 clean boots + recovery), THEN metal, rescue-armed.
+Gate additions:
+- [ ] Graphical LUKS prompt still visible -- tested BOTH docked and undocked
+- [ ] Chosen plymouth theme is not bgrt; boots clean on 780M in VM
