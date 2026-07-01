@@ -87,3 +87,75 @@ Surfaced 2026-07-01 trying to bump faelight-shell after closing INT-100/101 --
 found bump-versions is display-only and faelight-release is a full ceremony, with
 no lightweight middle. Christian: "we need to figure out a systematic way to where
 tool versions could be bumped up -- but deciding how is another thing."
+
+## ============================================================
+## DECIDED ARCHITECTURE (2026-07-01) -- supersedes the open design space above
+## ============================================================
+Christian designed the resolution; refined together. The design-space section
+above is retained as rationale/history. The decisions below are the plan.
+
+### Decision 1: two orthogonal axes, forest release SNAPSHOTS (never bumps)
+Nix already separates these; the forest mirrors it:
+- TOOL VERSION -- semver per tool (faelight-shell 2.5.1), bumped when ITS code
+  changes. Independent of system generations.
+- FOREST RELEASE -- a SNAPSHOT that RECORDS whatever tool versions currently
+  exist at a generation. It changes NOTHING. Analogous to flake.lock pinning
+  inputs. e.g. forest-342.json { generation: 342, shell: "2.5.1", db: "1.8.0",
+  tui: "0.14.2" }.
+faelight-release stops being the only bump path; it becomes a pure recorder.
+A tool patch NEVER requires a forest release.
+
+### Decision 2: version lives in ONE place Nix already reads (single source of truth)
+CONSTRAINT (learned from the 104 shell_snapshots dual-schema bug -- do NOT recreate
+that at the version layer): a tool's version must have EXACTLY ONE source of truth,
+and it must be the place Nix already reads (the derivation/flake attribute, e.g.
+packages.faelight-shell.version). `bump-version faelight-shell patch` edits THAT.
+- A separate per-tool version.toml is allowed ONLY IF the flake IMPORTS from it
+  (so Nix reads it -> it's the single source). Never both a .toml AND a flake attr
+  that can drift. Decide at build time which physical location; the rule is
+  one-source-Nix-reads-it.
+
+### Decision 3: stored semver for RELEASES, git-describe for the DEV suffix
+Reconcile "store the version" vs "derive from git" -- they compose as base+suffix,
+not either/or:
+- The tool's BASE version is STORED (2.5.1) -- authoritative, human-set at bump.
+- Between releases, dev builds may APPEND git info: 2.5.1-14-g4b2a18d (git describe).
+- Only releases receive permanent stored semver. Nightly/dev = stored-base + git.
+So stored is authoritative; git-describe decorates dev builds. No conflict.
+
+### Decision 4: suggest, never auto-decide (human owns semver)
+cicomplete/CI DETECTS changed tools and SUGGESTS, but the human picks the level:
+  Intent INT-NNN touched: faelight-shell, faelight-db
+  Suggested: faelight-shell patch, faelight-db minor   Accept? [y/edit]
+The human can override every level. The tool never finalizes semver alone.
+
+### Decision 5: REJECTED -- do NOT map intent `type:` to semver level
+(Corrects the "promising lead" floated in the design space above.) Intent type
+answers WHY a change was made; semver answers API COMPATIBILITY. Different axes.
+- type: feature can be hidden / experimental / internal / breaking / reverted.
+- type: infrastructure can require a MAJOR bump if behavior changes.
+Mapping type->semver produces confidently-WRONG versions that LOOK principled.
+Worse than no automation. The human decides compatibility; type does not encode it.
+
+### THE HARD PART (the real engineering; everything else is data-recording)
+"Detect which tools changed" needs a concrete mechanism. Options to evaluate:
+- git-diff each tool's source dir since its last version bump/tag, OR
+- track touched paths per intent commit (map commit -> tool by path prefix).
+Detection is the core build-work. Suggestion + recording + the snapshot file are
+straightforward once detection is solid.
+
+### Revised pipeline (Christian's)
+  intent complete -> detect changed tools -> suggest semver bump -> user confirms
+  -> update tool version (single source Nix reads) -> commit.
+  LATER: forest release -> snapshot current versions (forest-N.json). Release
+  NEVER bumps; it only records.
+
+### Revised gates (supersede the earlier gate list)
+- [ ] Single source of truth for each tool's version, in a place Nix reads
+- [ ] `bump-version <tool> <patch|minor|major>` edits ONLY that source
+- [ ] "detect changed tools" mechanism chosen + working (the hard part)
+- [ ] cicomplete/CI SUGGESTS bumps on intent completion; human confirms/overrides
+- [ ] intent-type is NOT used to auto-pick semver level (explicitly avoided)
+- [ ] forest release RECORDS a version snapshot (forest-N.json) and bumps nothing
+- [ ] dev builds may carry git-describe suffix over the stored base version
+- [ ] faelight-shell bumped to 2.5.1 as the first real use (retroactive: INT-100/101)
