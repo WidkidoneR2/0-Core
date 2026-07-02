@@ -106,7 +106,7 @@ impl RichStats {
             }
         }
         // Intents completed from intents/complete/
-        stats.intents_completed = std::fs::read_dir(core_root.join("intents/complete"))
+        stats.intents_completed = std::fs::read_dir(faelight_core::paths::intents_dir().join("complete"))
             .map(|d| d.count())
             .unwrap_or(0) as u32;
         stats

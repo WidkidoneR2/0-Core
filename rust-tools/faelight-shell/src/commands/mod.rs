@@ -2258,7 +2258,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             let expand_path = |p: &str| -> String {
                 match p {
                     "@rust" => format!("{}/0-core/rust-tools", home),
-                    "@intents" => format!("{}/0-core/intents", home),
+                    "@intents" => faelight_core::paths::intents_dir().to_string_lossy().to_string(),
                     "@scripts" => format!("{}/0-core/scripts", home),
                     "@docs" => format!("{}/0-core/docs", home),
                     p if p.starts_with("~/") => format!("{}/{}", home, &p[2..]),
@@ -2710,7 +2710,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                         i += 1;
                     }
                     "@intents" => {
-                        search_root = std::path::PathBuf::from(format!("{}/intents", core_root));
+                        search_root = faelight_core::paths::intents_dir();
                         i += 1;
                     }
                     "@scripts" => {
@@ -2879,8 +2879,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     "--toml" => { filter_type = Some("toml"); i += 1; }
                     "--sh" | "--shell" => { filter_type = Some("sh"); i += 1; }
                     "--intent" | "--intents" => {
-                        let home = std::env::var("HOME").unwrap_or_default();
-                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core/intents", home)));
+                        let _home = std::env::var("HOME").unwrap_or_default();
+                        search_root = Some(faelight_core::paths::intents_dir());
                         i += 1;
                     }
                     "--forest" | "--all" => {
@@ -6045,7 +6045,7 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
             "--md"      => (Some("markdown"), root.clone()),
             "--sh"      => (Some("sh"),       root.clone()),
             "--toml"    => (Some("toml"),     root.clone()),
-            "--intent"  => (None, format!("{}/intents", root)),
+            "--intent"  => (None, faelight_core::paths::intents_dir().to_string_lossy().to_string()),
             "--scripts" => (None, format!("{}/scripts", root)),
             _           => (None, root.clone()),
         };
@@ -6183,7 +6183,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // Collect all intent files
             let mut items = String::new();
             for dir in &["future", "complete", "in-progress"] {
-                let path = format!("{}/intents/{}", core_root, dir);
+                let path = faelight_core::paths::intents_dir().join(dir).to_string_lossy().to_string();
                 if let Ok(entries) = std::fs::read_dir(&path) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
@@ -8558,7 +8558,7 @@ fn friday_patterns(db: &ForestDb) -> CommandResult {
     CommandResult::Value(crate::value::Value::Table(rows))
 }
 
-fn intents(core_root: &str) -> CommandResult {
+fn intents(_core_root: &str) -> CommandResult {
     use std::collections::HashMap;
     let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
     // INT-030: read all three dirs with correct status
@@ -8568,7 +8568,7 @@ fn intents(core_root: &str) -> CommandResult {
         ("future",      "planned"),
     ];
     for (dir, dir_status) in &dirs {
-        let path = std::path::PathBuf::from(core_root).join("intents").join(dir);
+        let path = faelight_core::paths::intents_dir().join(dir);
         if let Ok(entries) = std::fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -8614,21 +8614,21 @@ fn project_list(core_root: &str) -> CommandResult {
 ", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
 
     // Read version
-    let version = std::fs::read_to_string(root.join("meta/VERSION"))
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
         .trim().to_string();
 
     // Count intents
-    let count_md = |dir: &str| -> usize {
-        std::fs::read_dir(root.join(dir))
+    let count_md = |sub: &str| -> usize {
+        std::fs::read_dir(faelight_core::paths::intents_dir().join(sub))
             .map(|d| d.flatten()
                 .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
                 .count())
             .unwrap_or(0)
     };
-    let complete = count_md("intents/complete");
-    let in_progress = count_md("intents/in-progress");
-    let planned = count_md("intents/future");
+    let complete = count_md("complete");
+    let in_progress = count_md("in-progress");
+    let planned = count_md("future");
 
     // Git info
     let branch = std::process::Command::new("git")
@@ -12336,8 +12336,8 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
-fn forest_stats_intents(core_root: &str) -> CommandResult {
-    let complete_dir = format!("{}/intents/complete", core_root);
+fn forest_stats_intents(_core_root: &str) -> CommandResult {
+    let complete_dir = faelight_core::paths::intents_dir().join("complete").to_string_lossy().to_string();
     let mut out = String::new();
     out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
     let entries = std::fs::read_dir(&complete_dir).ok();

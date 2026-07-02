@@ -6,6 +6,7 @@ license = "MIT"
 description = "Forest-native file manager -- full Nix explorer, plugin system, semantic engine -- INT-032"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 ratatui = "0.29"
 crossterm = "0.28"
 dirs-next = "2.0"

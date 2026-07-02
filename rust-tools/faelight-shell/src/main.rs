@@ -3166,7 +3166,7 @@ fn repl_main() -> Result<()> {
             format!("{}m", _session_duration)
         };
         let active_intent: String =
-            std::fs::read_dir(std::path::PathBuf::from(&core_root).join("intents/in-progress"))
+            std::fs::read_dir(faelight_core::paths::intents_dir().join("in-progress"))
                 .map(|d| {
                     d.filter_map(|e| e.ok())
                         .filter(|e| {
@@ -3265,7 +3265,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
     let (complete_count, planned_count) = {
-        let intent_dir = root.join("intents");
+        let intent_dir = faelight_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",
@@ -3425,7 +3425,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .unwrap_or_default();
 
     // Show today's focus from actual in-progress intents only
-    let focus_intent: Option<String> = std::fs::read_dir(root.join("intents/future"))
+    let focus_intent: Option<String> = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
         .ok()
         .and_then(|entries| {
             let mut in_progress: Vec<String> = entries

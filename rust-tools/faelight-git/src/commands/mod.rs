@@ -15,8 +15,8 @@ use rusqlite;
 /// Active in-progress intent, scanned from intents/in-progress/ (matches fsh prompt + `fg done`).
 /// Returns (id, short_title). Single source of truth -- callers: done.rs, sync.rs.
 pub(crate) fn get_active_intent() -> Option<(String, String)> {
-    let home = std::env::var("HOME").ok()?;
-    let dir = format!("{}/0-core/intents/in-progress", home);
+    let _home = std::env::var("HOME").ok()?;
+    let dir = faelight_core::paths::intents_dir().join("in-progress").to_string_lossy().to_string();
     let mut entries: Vec<_> = std::fs::read_dir(&dir).ok()?.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
@@ -64,10 +64,10 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
     // for the RESOLVED intent_id -- the same intent attribution chose (message or active),
     // not a second independent get_active_intent() call. Scans in-progress/ and future/.
     let gate_hint: Option<String> = intent_id.and_then(|iid| {
-        let home = std::env::var("HOME").unwrap_or_default();
+        let _home = std::env::var("HOME").unwrap_or_default();
         let prefix = format!("{:03}-", iid);
         for sub in ["in-progress", "future"] {
-            let dir = format!("{}/0-core/intents/{}", home, sub);
+            let dir = faelight_core::paths::intents_dir().join(sub).to_string_lossy().to_string();
             let entries = match std::fs::read_dir(&dir) {
                 Ok(e) => e,
                 Err(_) => continue,

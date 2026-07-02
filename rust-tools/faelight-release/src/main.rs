@@ -152,7 +152,7 @@ fn main() -> Result<()> {
                         })
                         .unwrap_or_else(|| "unknown".to_string());
                     // Intent range: count completed intents for a simple range string.
-                    let complete_dir = root.join("intents/complete");
+                    let complete_dir = faelight_core::paths::intents_dir().join("complete");
                     let intent_count = std::fs::read_dir(&complete_dir)
                         .map(|rd| rd.filter_map(|e| e.ok())
                             .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))

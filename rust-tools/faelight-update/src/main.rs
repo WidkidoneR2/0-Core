@@ -320,8 +320,8 @@ fn print_system_identity() {
     );
     println!("  {:<12} {}", "Drift:".dimmed(), drift_colored);
     // INT-207 L1 — Show active intents
-    let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let intents_dir = std::path::PathBuf::from(&core_root).join("intents/future");
+    let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+    let intents_dir = faelight_core::paths::intents_dir().join("future");
     let active_intents: Vec<String> = std::fs::read_dir(&intents_dir)
         .map(|d| {
             d.filter_map(|e| e.ok())

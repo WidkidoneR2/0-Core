@@ -17,7 +17,7 @@ pub fn should_show(mem: &SessionMemory) -> bool {
     long_gap || morning
 }
 
-pub fn render(mem: &SessionMemory, db: &ForestDb, core_root: &str) -> String {
+pub fn render(mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
     use chrono::Timelike;
     let mut lines: Vec<String> = vec![];
 
@@ -61,7 +61,7 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, core_root: &str) -> String {
     lines.push(format!("    {} Health: {}", "·".dimmed(), health_str));
 
     // Active intents
-    let intents_path = std::path::Path::new(core_root).join("intents/future");
+    let intents_path = faelight_core::paths::intents_dir().join("future");
     let mut active_intents: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&intents_path) {
         for entry in entries.flatten() {
@@ -91,8 +91,8 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, core_root: &str) -> String {
 
     // INT-247 Phase 5: blocked + ready counts in session brief
     {
-        let intents_future = std::path::Path::new(core_root).join("intents/future");
-        let intents_complete = std::path::Path::new(core_root).join("intents/complete");
+        let intents_future = faelight_core::paths::intents_dir().join("future");
+        let intents_complete = faelight_core::paths::intents_dir().join("complete");
         let mut complete_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
         if let Ok(entries) = std::fs::read_dir(&intents_complete) {
             for entry in entries.flatten() {

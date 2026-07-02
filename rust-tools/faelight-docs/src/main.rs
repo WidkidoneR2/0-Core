@@ -271,7 +271,7 @@ fn gather_state() -> ForestState {
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic
     let (intent_complete, intent_planned) = {
-        let intent_dir = root.join("intents");
+        let intent_dir = faelight_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",

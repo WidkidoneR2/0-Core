@@ -110,9 +110,9 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     println!("{}", "━".repeat(52).dimmed());
     // INT-207 L1 — Show active intents context
     {
-        let home = std::env::var("HOME").unwrap_or_default();
+        let _home = std::env::var("HOME").unwrap_or_default();
         // INT-333 v5: scan both future/ and in-progress/ for active intents
-        let base = std::path::PathBuf::from(&home).join("0-core/intents");
+        let base = faelight_core::paths::intents_dir();
         let mut active: Vec<String> = Vec::new();
         for dir_name in &["future", "in-progress"] {
             let dir = base.join(dir_name);
@@ -280,9 +280,9 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         println!("  {} linked to intent {}", "✅".green(), i.cyan());
         Some(i.clone())
     } else {
-        let home = std::env::var("HOME").unwrap_or_default();
+        let _home = std::env::var("HOME").unwrap_or_default();
         // INT-333 v5: scan both future/ and in-progress/ directories
-        let base = std::path::PathBuf::from(&home).join("0-core/intents");
+        let base = faelight_core::paths::intents_dir();
         let mut active: Vec<(String, String)> = Vec::new();
         for dir_name in &["future", "in-progress"] {
             let dir = base.join(dir_name);

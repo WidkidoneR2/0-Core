@@ -162,8 +162,8 @@ impl SessionMemory {
 
 // ── Read active intents from filesystem ──────────────────────────────────────────
 
-fn active_intents(core_root: &str) -> Vec<String> {
-    let future = std::path::Path::new(core_root).join("intents/future");
+fn active_intents(_core_root: &str) -> Vec<String> {
+    let future = faelight_core::paths::intents_dir().join("future");
     let mut intents = vec![];
     if let Ok(entries) = std::fs::read_dir(&future) {
         let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();

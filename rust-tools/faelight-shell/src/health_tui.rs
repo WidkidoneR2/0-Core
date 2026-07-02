@@ -237,7 +237,7 @@ pub fn run_health_tui(core_root: &str) {
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
         .unwrap_or(0);
     // Count active intents from in-progress files
-    let active_intents: i64 = std::fs::read_dir(format!("{}/intents/future", core_root))
+    let active_intents: i64 = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
         .map(|dir| {
             dir.filter_map(|e| e.ok())
                 .filter(|e| {

@@ -267,7 +267,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 
     if is_friday {
         let home = std::env::var("HOME").unwrap_or_default();
-        let next_intent = std::fs::read_dir(format!("{}/0-core/intents/future", home))
+        let next_intent = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
             .ok()
             .and_then(|entries| {
                 let mut in_progress: Vec<String> = entries

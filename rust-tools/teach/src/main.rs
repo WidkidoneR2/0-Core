@@ -183,8 +183,8 @@ impl SystemSnapshot {
     }
 }
 
-fn gather_intent_counts(core: &str) -> (usize, usize) {
-    let intent_dir = format!("{}/intents", core);
+fn gather_intent_counts(_core: &str) -> (usize, usize) {
+    let intent_dir = faelight_core::paths::intents_dir().to_string_lossy().to_string();
     let mut total = 0usize;
     let mut done = 0usize;
 

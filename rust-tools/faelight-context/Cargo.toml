@@ -5,6 +5,7 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 colored = "2"
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"

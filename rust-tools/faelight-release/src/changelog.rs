@@ -561,10 +561,10 @@ fn count_tools(_core_root: &PathBuf) -> u32 {
     count
 }
 
-fn count_complete_intents(core_root: &PathBuf) -> u32 {
+fn count_complete_intents(_core_root: &PathBuf) -> u32 {
     // Count by scanning all intent subdirs for status: complete in frontmatter
     // This matches how core intent stats works
-    let intents_dir = core_root.join("intents");
+    let intents_dir = faelight_core::paths::intents_dir();
     let mut count = 0u32;
     if let Ok(entries) = std::fs::read_dir(&intents_dir) {
         for entry in entries.flatten() {
@@ -591,7 +591,7 @@ fn count_complete_intents(core_root: &PathBuf) -> u32 {
         count
     } else {
         // Hard fallback: just count complete/ dir
-        std::fs::read_dir(core_root.join("intents/complete"))
+        std::fs::read_dir(faelight_core::paths::intents_dir().join("complete"))
             .map(|d| {
                 d.filter_map(|e| e.ok())
                     .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))

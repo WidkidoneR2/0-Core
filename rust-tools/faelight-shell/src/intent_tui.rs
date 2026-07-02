@@ -457,12 +457,12 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
     }
     lines
 }
-fn load_intents(core_root: &str) -> Vec<Intent> {
+fn load_intents(_core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
     let dirs = vec![
-        format!("{}/intents/future", core_root),
-        format!("{}/intents/in-progress", core_root),
-        format!("{}/intents/complete", core_root),
+        faelight_core::paths::intents_dir().join("future").to_string_lossy().to_string(),
+        faelight_core::paths::intents_dir().join("in-progress").to_string_lossy().to_string(),
+        faelight_core::paths::intents_dir().join("complete").to_string_lossy().to_string(),
     ];
     for dir in &dirs {
         let path = std::path::Path::new(dir);

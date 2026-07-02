@@ -1,9 +1,7 @@
 // faelight-fm v3.1 -- active intent context
 
 pub fn get_active_intent() -> String {
-    let intents_dir = dirs_next::home_dir()
-        .unwrap_or_default()
-        .join("0-core/intents/in-progress");
+    let intents_dir = faelight_core::paths::intents_dir().join("in-progress");
     if let Ok(entries) = std::fs::read_dir(&intents_dir) {
         let mut files: Vec<_> = entries.flatten()
             .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))

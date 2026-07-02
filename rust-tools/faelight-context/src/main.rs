@@ -4,7 +4,7 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -406,8 +406,8 @@ fn cmd_summary(path: &str) {
 }
 
 fn cmd_decisions(path: &str) {
-    let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let intents_dir = PathBuf::from(&core_root).join("intents/complete");
+    let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+    let intents_dir = faelight_core::paths::intents_dir().join("complete");
 
     println!();
     println!("  {} Code ↔ Intent Links", "🔗".normal());

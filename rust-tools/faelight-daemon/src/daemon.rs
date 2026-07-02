@@ -566,7 +566,7 @@ async fn get_forest_context() -> crate::protocol::Response {
         .unwrap_or_else(|_| "dormant".to_string());
     // Get active intent from filesystem
     let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
-    let active_intent = std::fs::read_dir(format!("{}/intents/future", core_root))
+    let active_intent = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
         .ok()
         .and_then(|d| {
             d.filter_map(|e| e.ok())
@@ -678,9 +678,8 @@ async fn get_engine_signals(limit: u32) -> crate::protocol::Response {
     crate::protocol::Response::EngineSignals { signals }
 }
 async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
-    let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
     // Find active intent
-    let active = std::fs::read_dir(format!("{}/intents/future", core_root))
+    let active = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
         .ok()
         .and_then(|d| {
             d.filter_map(|e| e.ok())
