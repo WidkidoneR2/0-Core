@@ -119,7 +119,7 @@
 
   # Declarative /etc/faelight/VERSION from meta/VERSION (INT-031 de-Arch).
   # faelight-login reads this; faelight-release no longer writes it.
-  environment.etc."faelight/VERSION".text = builtins.readFile ../../meta/VERSION;
+  environment.etc."faelight/VERSION".text = builtins.readFile ../../faelight/meta/VERSION;
 
   # --- The forest + tools ---
   environment.systemPackages = [

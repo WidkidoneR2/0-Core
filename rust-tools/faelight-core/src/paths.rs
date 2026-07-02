@@ -38,7 +38,7 @@ pub fn faelight_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn meta_dir() -> PathBuf {
-    core_dir().join("meta")
+    faelight_dir().join("meta")
 }
 
 pub fn version_file() -> PathBuf {
