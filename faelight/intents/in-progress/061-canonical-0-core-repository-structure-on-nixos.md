@@ -143,6 +143,12 @@ from the first tree output.
   `users/` = authority-boundary emphasis. LEANING home/ (convention wins, and the
   authority boundary is already carried by the nix/modules vs nix/home split).
   Decide at Phase-1 execution, not silently.
+  **RESOLVED (2026-07-02):** `nix/home/christian/` -- convention wins per the
+  lean above; authority boundary carried by the nix/modules vs nix/home split.
+  Rename users/ -> nix/home/. MOVE DEFERRED to the INT-054 VM-gated session: it's
+  hosts-imported (framework16/configuration.nix:155 + hosts/vm/configuration.nix +
+  hosts/vm/base.nix all `import ../../users/christian/home.nix`), so relocating it
+  edits boot-critical host config -- same gate as modules/ + hosts/.
 - **runtime/ placement**: by OWNERSHIP, state.db is the engine's state ->
   faelight/runtime/ is correct (shown above). BUT runtime/state.db paths are
   HARDCODED in ~15+ rust-tools (db.rs and others). Relocating runtime is the SAME
