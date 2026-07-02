@@ -798,8 +798,7 @@ pub fn check_disk_space() -> CheckResult {
 
 pub fn check_tool_installation() -> CheckResult {
     // Registry-aware: read deployable, non-retired, high-usage tools
-    let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let registry_path = PathBuf::from(&core_root).join("registry/tools.toml");
+    let registry_path = faelight_core::paths::tools_registry();
     let tools: Vec<String> = fs::read_to_string(&registry_path)
         .map(|content| {
             let mut tools = vec![];
@@ -878,7 +877,7 @@ pub fn check_tool_installation() -> CheckResult {
 
 pub fn check_path_resilience(core_root: &str) -> CheckResult {
     let scripts_dir = PathBuf::from(core_root).join("scripts");
-    let registry_path = PathBuf::from(core_root).join("registry/tools.toml");
+    let registry_path = faelight_core::paths::tools_registry();
 
     // Read deployable, non-retired tools from registry (INT-183)
     let rust_tools: Vec<String> = fs::read_to_string(&registry_path)
@@ -968,8 +967,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
     }
 
     // Check policies file exists
-    let policies_path =
-        std::path::PathBuf::from(core_root).join("registry/sandbox-policies.toml");
+    let policies_path = faelight_core::paths::registry_dir().join("sandbox-policies.toml");
 
     if !policies_path.exists() {
         return CheckResult {

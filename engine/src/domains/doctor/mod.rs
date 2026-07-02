@@ -63,7 +63,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     );
 
     let registry =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("registry/tools.toml"))
+        std::fs::read_to_string(faelight_core::paths::tools_registry())
             .unwrap_or_default();
     let tools: Vec<&str> = registry
         .lines()

@@ -58,7 +58,7 @@ pub fn readme_file() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn registry_dir() -> PathBuf {
-    core_dir().join("registry")
+    faelight_dir().join("registry")
 }
 
 pub fn tools_registry() -> PathBuf {
