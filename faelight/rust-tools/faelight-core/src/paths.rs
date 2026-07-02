@@ -389,7 +389,7 @@ pub fn intents_incidents() -> PathBuf {
 
 /// fsh config file (aliases live here)
 pub fn aliases_file() -> PathBuf {
-    core_dir().join("config/faelight-shell/.config/faelight-shell/config.fsh")
+    core_dir().join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh")
 }
 
 // ═══════════════════════════════════════════════════════════

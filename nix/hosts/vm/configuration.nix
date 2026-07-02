@@ -250,7 +250,7 @@
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.christian = import ../../../users/christian/home.nix;
+  home-manager.users.christian = import ../../home/christian/home.nix;
 
   system.stateVersion = "26.05";
 

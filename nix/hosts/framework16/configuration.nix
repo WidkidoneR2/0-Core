@@ -152,7 +152,7 @@
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.christian = import ../../../users/christian/home.nix;
+  home-manager.users.christian = import ../../home/christian/home.nix;
 
 environment.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
   system.stateVersion = "25.11";

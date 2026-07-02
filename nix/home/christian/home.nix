@@ -16,11 +16,11 @@
   xdg.enable = true;
 
   # Faelight config files (the doctor checks these three)
-  xdg.configFile."faelight/config.toml".source = ../../config/faelight/.config/faelight/config.toml;
-  xdg.configFile."faelight/profiles.toml".source = ../../config/faelight/.config/faelight/profiles.toml;
-  xdg.configFile."faelight/themes.toml".source = ../../config/faelight/.config/faelight/themes.toml;
-  xdg.configFile."faelight/term.toml".source = ../../config/faelight/.config/faelight/term.toml;
-  xdg.configFile."mango/config.conf".source = ../../config/mango/.config/mango/config.conf;
+  xdg.configFile."faelight/config.toml".source = ../dotfiles/faelight/.config/faelight/config.toml;
+  xdg.configFile."faelight/profiles.toml".source = ../dotfiles/faelight/.config/faelight/profiles.toml;
+  xdg.configFile."faelight/themes.toml".source = ../dotfiles/faelight/.config/faelight/themes.toml;
+  xdg.configFile."faelight/term.toml".source = ../dotfiles/faelight/.config/faelight/term.toml;
+  xdg.configFile."mango/config.conf".source = ../dotfiles/mango/.config/mango/config.conf;
 
   home.packages = with pkgs; [
     hello
@@ -98,11 +98,11 @@
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
   xdg.configFile."helix" = {
-    source = ../../config/helix/.config/helix;
+    source = ../dotfiles/helix/.config/helix;
     recursive = true;
   };
   xdg.configFile."hyprlock/hyprlock.conf" = {
-    source = ../../config/hyprlock/.config/hyprlock/hyprlock.conf;
+    source = ../dotfiles/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;
   };
   home.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };

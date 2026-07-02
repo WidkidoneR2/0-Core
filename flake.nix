@@ -204,7 +204,7 @@
         # INT-090 Phase 3: build our candy-neon nixvim as an `nvim` package for this shell only.
         forestNvim = nixvim.legacyPackages.${system}.makeNixvimWithModule {
           inherit pkgs;
-          module = import ./config/nixvim/default.nix;
+          module = import ./nix/home/dotfiles/nixvim/default.nix;
         };
       in pkgs.mkShell {
         name = "friday-dev";
