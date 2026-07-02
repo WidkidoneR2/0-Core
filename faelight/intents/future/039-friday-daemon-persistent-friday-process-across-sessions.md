@@ -67,6 +67,7 @@ Phase 4 -- continuous operation: always-on ingestion + one idle-time task demons
 
 ## Notes
 - Foundation intent: INT-041 and future proactive features build ON this. Sequence 039 before 041.
+- The "fridayd" naming/idea (2026-07-02) folds into THIS intent -- fridayd IS friday-daemon. No separate intent needed; the daemon binary may simply be named `fridayd` or `friday-daemon` (decide at Phase 1).
 - Distinct from INT-071 (parity restoration): 071 recovers what the Arch->Nix migration broke; 039
   is a NEW capability (persistence). They meet at the state store.
 - Feeds / fed by: INT-034 (triad data), INT-071 (commit learning) once live.
