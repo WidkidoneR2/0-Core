@@ -339,7 +339,6 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
         "faelight-git",
         "faelight-term",
         "faelight-update",
-        "faelight-link",
         "faelight-daemon",
     ];
     let mut upstream: Vec<&str> = Vec::new();

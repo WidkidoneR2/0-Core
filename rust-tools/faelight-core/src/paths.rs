@@ -279,10 +279,6 @@ pub fn local_data_dir() -> PathBuf {
     home().join(".local/share")
 }
 
-/// faelight-link backups directory
-pub fn faelight_link_backups() -> PathBuf {
-    local_data_dir().join("faelight-link/backups")
-}
 
 /// faelight-core state directory
 pub fn faelight_state_dir() -> PathBuf {

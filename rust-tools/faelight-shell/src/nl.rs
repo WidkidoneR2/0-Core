@@ -457,7 +457,7 @@ pub fn render_pattern_list() -> String {
 
 // ── Custom TOML Patterns — INT-139 Criterion 8 ───────────────────────────────
 // Load user-defined patterns from ~/.config/faelight-shell/nl-patterns.toml
-// or ~/0-core/01-registry/shell-patterns.toml
+// or ~/0-core/registry/shell-patterns.toml (via paths::registry_dir())
 
 #[derive(Debug, Clone)]
 pub struct CustomPattern {

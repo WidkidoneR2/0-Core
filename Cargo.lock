@@ -1738,23 +1738,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-link"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "dialoguer",
- "faelight-core",
- "faelight-zone",
- "rusqlite",
- "serde",
- "toml 0.8.23",
- "walkdir",
-]
-
-[[package]]
 name = "faelight-lock"
 version = "2.0.0"
 dependencies = [

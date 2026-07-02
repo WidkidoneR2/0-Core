@@ -50,7 +50,6 @@ The forest's tool ecosystem: 38 active tools (plus 1 retired), each a purpose-bu
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`faelight-link`](./faelight-link/) | 3.0.0 | - |
 
 ## Intelligence
 
