@@ -2,9 +2,9 @@
 use super::{CheckResult, Status};
 use std::fs;
 
-pub fn check_schema_validation(core_root: &str) -> CheckResult {
-    let schema_dir = std::path::PathBuf::from(core_root).join("schema");
-    let registry_dir = std::path::PathBuf::from(core_root).join("registry");
+pub fn check_schema_validation(_core_root: &str) -> CheckResult {
+    let schema_dir = faelight_core::paths::schema_dir();
+    let registry_dir = faelight_core::paths::registry_dir();
 
     if !schema_dir.exists() {
         return CheckResult {
