@@ -39,27 +39,27 @@ fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
 // Meaning: lime=structure/peak, aqua=location, lavender=intent/focus,
 //          gold=caution, rose=attention/fail, near-green=quiet separators.
 // Health
-const C_HEALTH_PEAK:     (u8,u8,u8) = (166, 226, 46);   // electric lime
-const C_HEALTH_ADVISORY: (u8,u8,u8) = (244, 208, 111);  // gold
-const C_HEALTH_CRITICAL: (u8,u8,u8) = (237, 110, 130);  // hot rose
+const C_HEALTH_PEAK:     (u8,u8,u8) = (176, 246, 42);   // electric lime (neon70)
+const C_HEALTH_ADVISORY: (u8,u8,u8) = (252, 213, 78);   // gold (neon70)
+const C_HEALTH_CRITICAL: (u8,u8,u8) = (255, 95,  135);  // hot rose (neon70)
 // Prompt
-const C_CWD:             (u8,u8,u8) = (54,  224, 208);  // aqua (location)
-const C_PROMPT_OK:       (u8,u8,u8) = (166, 226, 46);   // electric lime
-const C_PROMPT_FAIL:     (u8,u8,u8) = (237, 147, 177);  // rose
-const C_INTENT:          (u8,u8,u8) = (175, 169, 236);  // lavender (focus)
-const C_BRANCH_CLEAN:    (u8,u8,u8) = (151, 196, 89);   // soft lime (calm)
-const C_BRANCH_DIRTY:    (u8,u8,u8) = (244, 208, 111);  // gold (warning)
+const C_CWD:             (u8,u8,u8) = (40,  242, 216);  // aqua (neon70)
+const C_PROMPT_OK:       (u8,u8,u8) = (176, 246, 42);   // electric lime (neon70)
+const C_PROMPT_FAIL:     (u8,u8,u8) = (255, 130, 168);  // rose (neon70)
+const C_INTENT:          (u8,u8,u8) = (186, 156, 255);  // lavender (neon70)
+const C_BRANCH_CLEAN:    (u8,u8,u8) = (158, 224, 78);   // soft lime (neon70)
+const C_BRANCH_DIRTY:    (u8,u8,u8) = (252, 213, 78);   // gold (neon70)
 const C_DIMMED:          (u8,u8,u8) = (90,  110, 95);   // near-green quiet
 // Directory-context accents (INT-103): path color tells you WHAT KIND of place
-const C_DIR_FOREST:      (u8,u8,u8) = (166, 226, 46);   // forest core (0-core/faelight): lime
-const C_DIR_RUST:        (u8,u8,u8) = (222, 128, 60);   // Rust territory (Cargo.toml): orange
-const C_DIR_NIX:         (u8,u8,u8) = (94,  180, 255);  // Nix domain (flake.nix/nix/): ice-blue
-const C_DIR_INTENTS:     (u8,u8,u8) = (175, 169, 236);  // intents/: lavender (thought-space)
-const C_DIR_DOTFILES:    (u8,u8,u8) = (237, 147, 177);  // dotfiles/: rose (personal)
-const C_DIR_HOME:        (u8,u8,u8) = (54,  224, 208);  // elsewhere in ~: aqua
-const C_DIR_SYSTEM:      (u8,u8,u8) = (244, 208, 111);  // /etc /nix/store /usr: gold caution
+const C_DIR_FOREST:      (u8,u8,u8) = (176, 246, 42);   // forest core: lime (neon70)
+const C_DIR_RUST:        (u8,u8,u8) = (255, 138, 44);   // Rust territory: orange (neon70)
+const C_DIR_NIX:         (u8,u8,u8) = (74,  196, 255);  // Nix domain: ice-blue (neon70)
+const C_DIR_INTENTS:     (u8,u8,u8) = (186, 156, 255);  // intents/: lavender (neon70)
+const C_DIR_DOTFILES:    (u8,u8,u8) = (255, 130, 168);  // dotfiles/: rose (neon70)
+const C_DIR_HOME:        (u8,u8,u8) = (40,  242, 216);  // elsewhere in ~: aqua (neon70)
+const C_DIR_SYSTEM:      (u8,u8,u8) = (252, 213, 78);   // system: gold (neon70)
 const C_DIR_ROOT:        (u8,u8,u8) = (200, 90,  110);  // outside home entirely: dim rose
-const C_DEVSHELL:        (u8,u8,u8) = (54,  224, 208);  // devshell: aqua (ties to nix ❄ identity)
+const C_DEVSHELL:        (u8,u8,u8) = (40,  242, 216);  // devshell: aqua (neon70)
 
 // ── Powerline (INT-103) ─────────────────────────────────────────────────────
 // Nerd Font glyphs (JetBrainsMono NF confirmed present)
