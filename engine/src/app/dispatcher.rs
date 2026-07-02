@@ -670,8 +670,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::domains::friday::doc_steward::resolve_proposal(ctx, id, false)
             }
             FridayCommand::Attention | FridayCommand::AttentionDebug => {
-                let home = dirs::home_dir().unwrap_or_default();
-                let db_path = home.join("0-core/runtime/state.db");
+                let db_path = faelight_core::paths::state_db();
                 if let Ok(db) = rusqlite::Connection::open(&db_path) {
                     crate::domains::friday::attention::show_debug(&db);
                 }

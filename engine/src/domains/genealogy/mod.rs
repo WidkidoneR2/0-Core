@@ -351,7 +351,7 @@ pub fn roots(ctx: &AppContext) -> CoreResult<()> {
 /// INT-312 Phase 3: show full context for a commit hash
 pub fn commit_show(_ctx: &AppContext, hash: &str) -> CoreResult<()> {
     use colored::Colorize;
-    let db = rusqlite::Connection::open(dirs::home_dir().unwrap_or_default().join("0-core/runtime/state.db"))?;
+    let db = rusqlite::Connection::open(faelight_core::paths::state_db())?;
     let result = db.query_row(
         "SELECT commit_hash, intent_id, intent_status, phase_hint, gate_hint,
                 health_at, friday_facts, friday_patterns, session_id, committed_at, message
@@ -401,7 +401,7 @@ pub fn commit_show(_ctx: &AppContext, hash: &str) -> CoreResult<()> {
 /// INT-312 Phase 3: show all commits for an intent
 pub fn commits_for_intent(_ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::Colorize;
-    let db = rusqlite::Connection::open(dirs::home_dir().unwrap_or_default().join("0-core/runtime/state.db"))?;
+    let db = rusqlite::Connection::open(faelight_core::paths::state_db())?;
     let intent_id: i64 = id.parse().unwrap_or(0);
     let mut stmt = db.prepare(
         "SELECT commit_hash, phase_hint, committed_at, message FROM intent_commits
@@ -439,7 +439,7 @@ pub fn commits_for_intent(_ctx: &AppContext, id: &str) -> CoreResult<()> {
 /// INT-312 Phase 3: search commit genealogy
 pub fn commit_search(_ctx: &AppContext, term: &str) -> CoreResult<()> {
     use colored::Colorize;
-    let db = rusqlite::Connection::open(dirs::home_dir().unwrap_or_default().join("0-core/runtime/state.db"))?;
+    let db = rusqlite::Connection::open(faelight_core::paths::state_db())?;
     let pattern = format!("%{}%", term);
     let mut stmt = db.prepare(
         "SELECT commit_hash, intent_id, phase_hint, committed_at, message

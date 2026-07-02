@@ -211,7 +211,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check 5 — runtime state db
-    let state_db = PathBuf::from(core_root).join("runtime/state.db");
+    let state_db = faelight_core::paths::state_db();
     if state_db.exists() {
         println!("  │  {} Runtime state.db present", "✅".green());
         passed += 1;

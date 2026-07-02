@@ -140,6 +140,40 @@ pub fn backups_dir() -> PathBuf {
     runtime_dir().join("backups")
 }
 
+// INT-061: runtime subdirectories -- every runtime/* path routes through here so
+// relocating runtime/ (e.g. to faelight/runtime/) is a one-line change above.
+pub fn checkpoints_dir() -> PathBuf {
+    runtime_dir().join("checkpoints")
+}
+
+pub fn events_dir() -> PathBuf {
+    runtime_dir().join("events")
+}
+
+pub fn reactions_dir() -> PathBuf {
+    runtime_dir().join("reactions")
+}
+
+pub fn cache_dir() -> PathBuf {
+    runtime_dir().join("cache")
+}
+
+pub fn health_cache() -> PathBuf {
+    cache_dir().join("health.txt")
+}
+
+pub fn forecast_cache() -> PathBuf {
+    cache_dir().join("forecast.txt")
+}
+
+pub fn reactions_config() -> PathBuf {
+    reactions_dir().join("custom.toml")
+}
+
+pub fn capabilities_log() -> PathBuf {
+    logs_dir().join("capabilities.jsonl")
+}
+
 // ═══════════════════════════════════════════════════════════
 // ROOT DIRECTORIES (Unnumbered)
 // ═══════════════════════════════════════════════════════════

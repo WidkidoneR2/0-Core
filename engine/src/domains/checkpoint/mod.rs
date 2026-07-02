@@ -9,9 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn checkpoints_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/runtime/checkpoints")
+    faelight_core::paths::checkpoints_dir()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,9 +37,7 @@ fn timestamp() -> String {
 }
 
 fn read_version() -> String {
-    let version_file = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/meta/VERSION");
+    let version_file = faelight_core::paths::version_file();
     fs::read_to_string(version_file)
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
@@ -132,9 +128,7 @@ fn read_config_hashes() -> HashMap<String, String> {
 }
 
 fn read_last_health() -> u32 {
-    let state_db = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/runtime/state.db");
+    let state_db = faelight_core::paths::state_db();
     if !state_db.exists() {
         return 0;
     }

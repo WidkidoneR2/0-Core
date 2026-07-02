@@ -6,8 +6,8 @@ use crate::errors::CoreResult;
 use colored::*;
 use std::path::PathBuf;
 
-fn db_path(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("runtime/state.db")
+fn db_path(_ctx: &AppContext) -> PathBuf {
+    faelight_core::paths::state_db()
 }
 
 fn backups_dir(ctx: &AppContext) -> PathBuf {

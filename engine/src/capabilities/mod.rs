@@ -46,8 +46,7 @@ pub struct CapabilityContext {
 
 impl CapabilityContext {
     pub fn unprivileged() -> Self {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let log_path = PathBuf::from(&home).join("0-core/runtime/logs/capabilities.jsonl");
+        let log_path = faelight_core::paths::capabilities_log();
         let mut granted = HashSet::new();
         granted.insert(Capability::FilesystemReadConfig);
         granted.insert(Capability::FilesystemReadHome);

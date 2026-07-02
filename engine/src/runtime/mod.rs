@@ -7,8 +7,7 @@ use std::path::PathBuf;
 /// Write a single event to the JSONL log file
 /// Call this alongside any direct db.execute for events
 pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+    let events_dir = faelight_core::paths::events_dir();
     if !events_dir.exists() && std::fs::create_dir_all(&events_dir).is_err() {
         return;
     }
@@ -48,8 +47,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn init() -> CoreResult<Self> {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-        let root = PathBuf::from(&home).join("0-core/runtime");
+        let root = faelight_core::paths::runtime_dir();
         let logs = root.join("logs");
         let cache = root.join("cache");
         let snapshots = root.join("snapshots");
@@ -215,8 +213,7 @@ impl<'a> EventWriter<'a> {
     }
 
     fn append_jsonl(&self, domain: &str, action: &str, payload: &str, ts: i64) {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+        let events_dir = faelight_core::paths::events_dir();
         if !events_dir.exists() && std::fs::create_dir_all(&events_dir).is_err() {
             return;
         }

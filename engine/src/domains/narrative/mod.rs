@@ -31,7 +31,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
 
     // Chapter 1 — Identity
-    let version = std::fs::read_to_string(PathBuf::from(core_root).join("meta/VERSION"))
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string());
     let version = version.trim();
 

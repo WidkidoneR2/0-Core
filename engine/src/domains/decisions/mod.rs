@@ -53,9 +53,7 @@ impl DecisionContext {
     pub fn capture(ctx: &AppContext) -> Self {
         // Read health from cache
         let health_score = std::fs::read_to_string(
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join("0-core/runtime/cache/health_score"),
+            faelight_core::paths::cache_dir().join("health_score"),
         )
         .ok()
         .and_then(|s| s.trim().parse::<u8>().ok())

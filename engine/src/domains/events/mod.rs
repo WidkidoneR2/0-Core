@@ -1062,9 +1062,7 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
 
     // Database size
     let db_size = std::fs::metadata(
-        std::path::PathBuf::from(&ctx.core_root)
-            .join("runtime")
-            .join("state.db"),
+        faelight_core::paths::state_db(),
     )
     .map(|m| m.len())
     .unwrap_or(0);
@@ -1764,7 +1762,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
 
     // ── 3. Checkpoint age ────────────────────────────────────────────────────
     let core_root = std::path::PathBuf::from(&ctx.core_root);
-    let cp_dir = core_root.join("runtime/checkpoints");
+    let cp_dir = faelight_core::paths::checkpoints_dir();
     let latest_cp = std::fs::read_dir(&cp_dir).ok().and_then(|d| {
         d.filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
@@ -2144,8 +2142,7 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
 pub fn status(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("events", &[Capability::FilesystemReadHome])?;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+    let events_dir = faelight_core::paths::events_dir();
 
     println!();
     println!(
@@ -2222,8 +2219,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
 pub fn archive(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("events", &[Capability::FilesystemReadHome])?;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+    let events_dir = faelight_core::paths::events_dir();
     let archive_dir = events_dir.join("archive");
     if !events_dir.exists() {
         println!("  {} No event log directory yet", "○".dimmed());

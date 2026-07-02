@@ -67,8 +67,8 @@ fn get_term() -> String {
     std::env::var("TERM").unwrap_or_else(|_| "alacritty".to_string())
 }
 
-fn get_version(ctx: &AppContext) -> String {
-    let version_file = std::path::PathBuf::from(&ctx.core_root).join("meta/VERSION");
+fn get_version(_ctx: &AppContext) -> String {
+    let version_file = faelight_core::paths::version_file();
     fs::read_to_string(&version_file)
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|_| "?.?.?".to_string())

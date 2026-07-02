@@ -1238,13 +1238,13 @@ pub fn check_nix_store() -> CheckResult {
     }
 }
 
-pub fn check_friday(core_root: &str) -> CheckResult {
+pub fn check_friday(_core_root: &str) -> CheckResult {
     // Friday learning vital signs, read from the same state.db the footer uses
     // (friday_patterns / friday_knowledge). PASS while learning; WARN only on a
     // genuine stall -- too few patterns, or no new fact in a week. Confidence is
     // shown for the trend but does NOT trigger a warn: low confidence is honest
     // uncertainty, not ill health.
-    let db_path = std::path::PathBuf::from(core_root).join("runtime/state.db");
+    let db_path = faelight_core::paths::state_db();
     let db = match rusqlite::Connection::open(&db_path) {
         Ok(d) => d,
         Err(_) => {

@@ -3,9 +3,8 @@ use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 
-fn read_version(ctx: &AppContext) -> String {
-    let root = &ctx.core_root;
-    std::fs::read_to_string(std::path::PathBuf::from(&root).join("meta/VERSION"))
+fn read_version(_ctx: &AppContext) -> String {
+    std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string()

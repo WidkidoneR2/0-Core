@@ -61,8 +61,8 @@ struct TomlRuleFile {
     rule: Option<Vec<TomlRule>>,
 }
 
-fn load_toml_overrides(core_root: &str) -> Vec<TomlRule> {
-    let dir = std::path::PathBuf::from(core_root).join("runtime/reactions");
+fn load_toml_overrides(_core_root: &str) -> Vec<TomlRule> {
+    let dir = faelight_core::paths::reactions_dir();
     let mut all = vec![];
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -260,8 +260,8 @@ fn eval_security_aging(ctx: &AppContext) -> Option<Reaction> {
     None
 }
 
-fn eval_checkpoint_stale(ctx: &AppContext) -> Option<Reaction> {
-    let cp_dir = std::path::PathBuf::from(&ctx.core_root).join("runtime/checkpoints");
+fn eval_checkpoint_stale(_ctx: &AppContext) -> Option<Reaction> {
+    let cp_dir = faelight_core::paths::checkpoints_dir();
     let latest = std::fs::read_dir(&cp_dir)
         .ok()?
         .filter_map(|e| e.ok())
@@ -313,9 +313,9 @@ fn eval_intent_overflow(ctx: &AppContext) -> Option<Reaction> {
     }
 }
 
-fn eval_forecast_declining(ctx: &AppContext) -> Option<Reaction> {
+fn eval_forecast_declining(_ctx: &AppContext) -> Option<Reaction> {
     // Read forecast from cache file
-    let cache = std::path::PathBuf::from(&ctx.core_root).join("runtime/cache/forecast.txt");
+    let cache = faelight_core::paths::forecast_cache();
     let text = std::fs::read_to_string(&cache).ok()?;
     // Look for trend value
     let trend: f64 = text
@@ -393,9 +393,9 @@ fn goal_context_for(rule_id: &str, goals: &[GoalContext]) -> Option<String> {
     goals.first().map(|g| format!("{} — {}", g.id, g.title))
 }
 
-fn current_health(ctx: &AppContext) -> u32 {
+fn current_health(_ctx: &AppContext) -> u32 {
     std::fs::read_to_string(
-        std::path::PathBuf::from(&ctx.core_root).join("runtime/cache/health.txt"),
+        faelight_core::paths::health_cache(),
     )
     .unwrap_or_else(|_| "95".to_string())
     .trim()
@@ -483,8 +483,7 @@ pub fn disable(ctx: &AppContext, id: &str) -> CoreResult<()> {
 }
 
 fn toggle_rule(_ctx: &AppContext, id: &str, enabled: bool) -> CoreResult<()> {
-    let dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("0-core/runtime/reactions");
+    let dir = faelight_core::paths::reactions_dir();
 
     let mut found = false;
     if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -543,13 +542,13 @@ fn toggle_rule(_ctx: &AppContext, id: &str, enabled: bool) -> CoreResult<()> {
 }
 
 pub fn add(
-    ctx: &AppContext,
+    _ctx: &AppContext,
     id: &str,
     description: &str,
     priority: u8,
     cooldown_m: i64,
 ) -> CoreResult<()> {
-    let path = std::path::PathBuf::from(&ctx.core_root).join("runtime/reactions/custom.toml");
+    let path = faelight_core::paths::reactions_config();
 
     let entry = format!(
         "\n[[rule]]\nid = \"{}\"\ndescription = \"{}\"\npriority = {}\ncooldown_m = {}\nenabled = true\n",
@@ -612,7 +611,7 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
 
     // Show any custom rules
     let custom_path =
-        std::path::PathBuf::from(&ctx.core_root).join("runtime/reactions/custom.toml");
+        faelight_core::paths::reactions_config();
     if custom_path.exists() {
         if let Ok(text) = std::fs::read_to_string(&custom_path) {
             if let Ok(parsed) = toml::from_str::<TomlRuleFile>(&text) {

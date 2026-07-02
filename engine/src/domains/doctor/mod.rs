@@ -154,7 +154,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "runtime/events/".bright_cyan()
     );
 
-    let events_dir = std::path::PathBuf::from(core_root).join("runtime/events");
+    let events_dir = faelight_core::paths::events_dir();
     let event_files = std::fs::read_dir(&events_dir)
         .map(|d| {
             d.flatten()
@@ -243,7 +243,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let home = std::env::var("HOME").unwrap_or_default();
     let core_root = ctx.core_root.clone();
 
-    let version = fs::read_to_string(PathBuf::from(&core_root).join("meta/VERSION"))
+    let version = fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();

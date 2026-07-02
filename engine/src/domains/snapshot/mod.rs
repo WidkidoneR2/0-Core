@@ -62,7 +62,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     let now = chrono::Local::now();
 
     // Version
-    let version = std::fs::read_to_string(PathBuf::from(core_root).join("meta/VERSION"))
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
@@ -107,7 +107,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
 
     // Health — read from cache or use default
     let health: u32 =
-        std::fs::read_to_string(PathBuf::from(core_root).join("runtime/cache/health.txt"))
+        std::fs::read_to_string(faelight_core::paths::health_cache())
             .ok()
             .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
             .unwrap_or(95);

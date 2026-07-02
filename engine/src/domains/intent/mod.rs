@@ -2642,7 +2642,7 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
     let content = std::fs::read_to_string(&path)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     // Log override to state.db
-    if let Ok(conn) = rusqlite::Connection::open(dirs::home_dir().unwrap_or_default().join("0-core/runtime/state.db")) {
+    if let Ok(conn) = rusqlite::Connection::open(faelight_core::paths::state_db()) {
         let _ = conn.execute(
             "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, detected_at)
              VALUES ('intent', 'gate_override', 'propose', ?1, 1, 1, strftime('%s','now'))",

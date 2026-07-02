@@ -20,7 +20,7 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     match package {
         None => {
             // Show system version
-            let version = fs::read_to_string(PathBuf::from(&ctx.core_root).join("meta/VERSION"))
+            let version = fs::read_to_string(faelight_core::paths::version_file())
                 .map(|s| s.trim().to_string())
                 .unwrap_or_else(|_| "unknown".to_string());
             println!("{}", version);
