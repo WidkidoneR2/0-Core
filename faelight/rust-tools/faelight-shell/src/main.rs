@@ -40,7 +40,7 @@ use expand::*;
 use anyhow::Result;
 use chrono::{Datelike, Timelike};
 use rustyline::{error::ReadlineError, CompletionType, Config, EditMode, Editor};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 /// Split a line on `;` separators, respecting quoted strings.
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
@@ -759,6 +759,8 @@ fn repl_main() -> Result<()> {
     }
 
     // REPL loop
+    // INT-099: queue for multi-command paste blocks (run each as if typed)
+    let mut pending: VecDeque<String> = VecDeque::new();
     'repl: loop {
         // INT-250: backfill completion data for the prior command.
         // Compute duration from start time captured at submit.
@@ -812,7 +814,11 @@ fn repl_main() -> Result<()> {
         let prompt_str = prompt::render_line(&db, last_exit_code);
 
         // INT-249b: multi-line aware read - accumulates until command is complete
-        let read_result = {
+        // INT-099: run any queued paste-block command as if freshly typed.
+        let read_result = if let Some(queued) = pending.pop_front() {
+            Ok(queued)
+        } else {
+        {
             let mut buffer = String::new();
             let mut first = true;
             let mut heredoc_delim: Option<String> = None;
@@ -859,6 +865,15 @@ fn repl_main() -> Result<()> {
                         buffer.push_str(&line);
                         let (complete, reason) = is_complete_command(&buffer);
                         if complete {
+                            // INT-099: split a multi-command block; first now, rest queued.
+                            let mut cmds = split_into_commands(&buffer);
+                            if cmds.len() > 1 {
+                                let first = cmds.remove(0);
+                                for c in cmds.into_iter().rev() {
+                                    pending.push_front(c);
+                                }
+                                break Ok(first);
+                            }
                             break Ok(buffer);
                         }
                         // BUG-298-2: track heredoc delimiter for prompt
@@ -870,6 +885,7 @@ fn repl_main() -> Result<()> {
                     Err(e) => break Err(e),
                 }
             }
+        }
         };
         match read_result {
             Ok(line) => {

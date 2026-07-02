@@ -3,7 +3,7 @@ id: 099
 date: 2026-06-29
 type: future
 title: "fsh: handle multi-line command blocks (per-line execution + abbreviation expansion)"
-status: planned
+status: in-progress
 tags: [fsh, blocks, command line]
 ---
 

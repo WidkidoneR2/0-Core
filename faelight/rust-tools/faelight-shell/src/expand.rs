@@ -345,6 +345,32 @@ pub fn is_complete_command(buf: &str) -> (bool, &'static str) {
     (true, "")
 }
 
+/// INT-099: split a completed multi-line buffer into independent logical commands.
+/// Boundary detection is delegated to is_complete_command, so heredocs, quotes,
+/// line-continuations, and block constructs (for/while/if/case, paren/brace/bracket)
+/// all stay glued as single commands. A single command in yields a 1-element vec
+/// (identical behaviour, zero regression); a pasted block of N independent commands
+/// yields N elements, each dispatched separately so abbreviations expand per-command.
+pub fn split_into_commands(buf: &str) -> Vec<String> {
+    let mut commands = Vec::new();
+    let mut current = String::new();
+    for line in buf.lines() {
+        if !current.is_empty() {
+            current.push('\n');
+        }
+        current.push_str(line);
+        let (complete, _) = is_complete_command(&current);
+        if complete && !current.trim().is_empty() {
+            commands.push(current.trim().to_string());
+            current.clear();
+        }
+    }
+    if !current.trim().is_empty() {
+        commands.push(current.trim().to_string());
+    }
+    commands
+}
+
 pub fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     // INT-245 #10: detect malformed redirects BEFORE permissive pattern matching.
     // A bare `>` or `>>` with no target file is a parse error, not a literal `>`.
