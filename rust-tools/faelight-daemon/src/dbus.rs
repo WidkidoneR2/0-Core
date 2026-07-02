@@ -233,8 +233,7 @@ pub async fn run_forest_bus() {
     let mut last_health = read_health();
     let mut last_intent = read_intent();
     let mut last_deploy_id: i64 = {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let db = format!("{}/0-core/runtime/state.db", home);
+        let db = faelight_core::paths::state_db();
         rusqlite::Connection::open(&db).ok()
             .and_then(|c| c.query_row(
                 "SELECT COALESCE(MAX(id),0) FROM deploy_patterns", [],
@@ -248,7 +247,6 @@ pub async fn run_forest_bus() {
 
     // ── logind power event subscription ───────────────────────────────────────
     // Spawn logind watcher as separate task
-    let home_logind = std::env::var("HOME").unwrap_or_default();
     tokio::spawn(async move {
         let Ok(sys_conn) = zbus::Connection::system().await else { return; };
         let Ok(proxy) = zbus::Proxy::new(
@@ -264,7 +262,7 @@ pub async fn run_forest_bus() {
                 if sleeping {
                     eprintln!("🌲 forest-bus: system suspending");
                     // Write suspend event to state.db
-                    let db = format!("{}/0-core/runtime/state.db", home_logind);
+                    let db = faelight_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -276,7 +274,7 @@ pub async fn run_forest_bus() {
                     }
                 } else {
                     eprintln!("🌲 forest-bus: system waking");
-                    let db = format!("{}/0-core/runtime/state.db", home_logind);
+                    let db = faelight_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -367,8 +365,7 @@ pub async fn run_forest_bus() {
 
         // ── Deploy check ──────────────────────────────────────────────────────
         {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let db = format!("{}/0-core/runtime/state.db", home);
+            let db = faelight_core::paths::state_db();
             if let Ok(conn_db) = rusqlite::Connection::open(&db) {
                 let rows: Vec<(i64, String, String, i64)> = conn_db.prepare(
                     "SELECT id, tool, version, COALESCE(duration_ms,0) FROM deploy_patterns

@@ -40,11 +40,7 @@ impl Daemon {
         }
 
         // INT-235 Gate 3: ensure friday_daemon_messages table exists
-        let _init_db = {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let p = format!("{}/0-core/runtime/state.db", home);
-            p
-        };
+        let _init_db = faelight_core::paths::state_db().to_string_lossy().to_string();
         if let Ok(conn) = rusqlite::Connection::open(&_init_db) {
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS friday_daemon_messages (
@@ -62,10 +58,7 @@ impl Daemon {
 
         // Spawn SQLite polling task
         let poll_tx = tx.clone();
-        let db_path = {
-            let home = std::env::var("HOME").unwrap_or_default();
-            format!("{}/0-core/runtime/state.db", home)
-        };
+        let db_path = faelight_core::paths::state_db().to_string_lossy().to_string();
         let db_path_poll = db_path.clone();
         tokio::spawn(async move {
             poll_events(poll_tx, db_path_poll).await;
@@ -542,8 +535,7 @@ async fn signal_aggregation(db_path: String) {
 }
 // ── INT-196 v2 Command Implementations ───────────────────────────────────────
 fn get_db_path() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    format!("{}/0-core/runtime/state.db", home)
+    faelight_core::paths::state_db().to_string_lossy().to_string()
 }
 fn read_health_cache() -> u32 {
     let home = std::env::var("HOME").unwrap_or_default();
@@ -753,8 +745,7 @@ async fn friday_record_event(
     timestamp: i64,
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let db_path = faelight_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridaySpeak {
             message: None,
@@ -855,8 +846,7 @@ async fn friday_answer_query(
     _context: Option<String>,
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let db_path = faelight_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridayAnswer {
             answer: "Friday cannot access state.db right now.".to_string(),
@@ -1054,8 +1044,7 @@ async fn friday_learning_loop() {
 // INT-220 Gate 11 -- Negative learning: dismissal penalizes confidence by -0.3
 async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let db_path = faelight_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridaySpeak {
             message: None,
