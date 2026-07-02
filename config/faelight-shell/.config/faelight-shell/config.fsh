@@ -273,9 +273,6 @@ alias pingg = ping -c 5 google.com
 alias planning = cd ~/0-core/docs/planning && ls
 alias ports = sudo ss -tulanp
 alias preview = fzf --preview "bat --color=always {}
-alias prof = profile
-alias prof-list = profile list
-alias prof-switch = profile switch
 alias psa = ps auxf
 alias psg = ps aux | grep -v grep | grep -i -e VSZ -e
 alias qc = git commit -m "Quick update: $(date +%Y-%m-%d)

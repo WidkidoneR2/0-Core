@@ -312,36 +312,6 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
     }
 }
 
-pub fn check_profiles(core_root: &str, home: &str) -> CheckResult {
-    let profile_script = PathBuf::from(core_root).join("scripts/profile");
-    let state_dir = PathBuf::from(home).join(".local/state/0-core");
-    let current = fs::read_to_string(state_dir.join("current-profile"))
-        .unwrap_or_else(|_| "default".into())
-        .trim()
-        .to_string();
-    let profile_present = if std::path::Path::new("/etc/NIXOS").exists() {
-        Command::new("which").arg("profile").output().map(|o| o.status.success()).unwrap_or(false)
-    } else {
-        profile_script.exists()
-    };
-    if !profile_present {
-        CheckResult {
-            id: "profiles".into(),
-            name: "Profile System".into(),
-            status: Status::Warn,
-            message: "Profile script missing".into(),
-            fix: Some("Check scripts/profile".into()),
-        }
-    } else {
-        CheckResult {
-            id: "profiles".into(),
-            name: "Profile System".into(),
-            status: Status::Pass,
-            message: format!("Profile system OK (current: {})", current),
-            fix: None,
-        }
-    }
-}
 
 pub fn check_faelight_config(home: &str) -> CheckResult {
     let config_dir = PathBuf::from(home).join(".config/faelight");

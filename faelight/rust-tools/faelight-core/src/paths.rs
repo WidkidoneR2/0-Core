@@ -95,9 +95,6 @@ pub fn security_dir() -> PathBuf {
 
 
 
-pub fn profiles_dir() -> PathBuf {
-    core_dir().join("config/profiles")
-}
 
 
 // ═══════════════════════════════════════════════════════════
@@ -413,15 +410,7 @@ pub fn entropy_history_file() -> PathBuf {
 // PROFILE STATE FILES
 // ═══════════════════════════════════════════════════════════
 
-/// Current active profile file
-pub fn current_profile_file() -> PathBuf {
-    faelight_state_dir().join("current-profile")
-}
 
-/// Profile operation log
-pub fn profile_log_file() -> PathBuf {
-    faelight_state_dir().join("profile.log")
-}
 
 // ═══════════════════════════════════════════════════════════
 // SWAY WINDOW MANAGER

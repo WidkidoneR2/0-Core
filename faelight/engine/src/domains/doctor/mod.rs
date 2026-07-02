@@ -1261,7 +1261,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_dotmeta(),
         check_intents(core_root),
         check_deadwood(core_root),
-        check_profiles(core_root, home),
         check_faelight_config(home),
         check_keybinds(core_root, home),
         check_security_hardening(),

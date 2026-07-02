@@ -3,7 +3,7 @@ id: 108
 date: 2026-07-02
 type: future
 title: "profile .profile-mechanism"
-status: planned
+status: in-progress
 tags: [profile]
 ---
 

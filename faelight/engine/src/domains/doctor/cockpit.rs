@@ -103,7 +103,6 @@ pub fn render_cockpit(
     ];
     let forest_names = [
         "Intent Ledger",
-        "Profile System",
         "Faelight Config",
         "Compositor Keybinds",
         "Theme Packages",

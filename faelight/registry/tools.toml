@@ -216,15 +216,6 @@ type = "rust"
 deployable = true
 retired = true
 [[tool]]
-name = "profile"
-version = "2.1.0"
-category = "system"
-description = "Profile management"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "safe-update"
 version = "2.1.0"
 category = "system"
