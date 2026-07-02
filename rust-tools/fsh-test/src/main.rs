@@ -417,8 +417,8 @@ fn all_tests() -> Vec<TestResult> {
 }
 
 fn store_results(results: &[TestResult]) {
-    let db_path = "/home/christian/0-core/runtime/state.db";
-    let Ok(conn) = rusqlite::Connection::open(db_path) else {
+    let db_path = faelight_core::paths::state_db();
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         eprintln!("  ⚠️  could not open state.db -- results not stored");
         return;
     };

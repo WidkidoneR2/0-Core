@@ -2183,6 +2183,7 @@ version = "1.0.0"
 dependencies = [
  "chrono",
  "colored",
+ "faelight-core",
  "rusqlite",
 ]
 
