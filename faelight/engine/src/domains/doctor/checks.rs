@@ -179,7 +179,8 @@ pub fn check_git(core_root: &str) -> CheckResult {
 }
 
 pub fn check_themes(core_root: &str) -> CheckResult {
-    let stow = PathBuf::from(core_root).join("config");
+    // INT-061: config/ moved to nix/home/dotfiles/
+    let stow = PathBuf::from(core_root).join("nix/home/dotfiles");
     let count = fs::read_dir(&stow)
         .map(|entries| {
             entries
