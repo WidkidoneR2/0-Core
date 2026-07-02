@@ -4,7 +4,6 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxPolicy {
@@ -45,8 +44,7 @@ struct PolicyFile {
 
 impl SandboxPolicy {
     pub fn load(name: &str) -> Result<Self> {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let policy_path = PathBuf::from(&home).join("0-core/01-registry/sandbox-policies.toml");
+        let policy_path = faelight_core::paths::registry_dir().join("sandbox-policies.toml");
 
         if !policy_path.exists() {
             anyhow::bail!(
@@ -73,8 +71,7 @@ impl SandboxPolicy {
     }
 
     pub fn list_all() -> Result<Vec<Self>> {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let policy_path = PathBuf::from(&home).join("0-core/01-registry/sandbox-policies.toml");
+        let policy_path = faelight_core::paths::registry_dir().join("sandbox-policies.toml");
 
         if !policy_path.exists() {
             return Ok(vec![]);
