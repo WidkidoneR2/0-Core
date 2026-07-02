@@ -2,8 +2,8 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/desktop/pinnacle.nix
-    ../../modules/desktop/mango.nix
+    ../../nix/modules/desktop/pinnacle.nix
+    ../../nix/modules/desktop/mango.nix
   ];
 
   # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
