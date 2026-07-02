@@ -277,3 +277,41 @@ v2 nix/+faelight/ structure. The sweep is the ENABLER; the restructure is the ac
 - IDEA (file as intent): build-output severity classifier (HIGH=compile errors,
   MEDIUM=env/dep e.g. pkg-config, LOW=warnings) to make scary output readable.
 - IDEA: check faelight-contextd vs faelight-context naming/duplication.
+
+## Progress (2026-07-02b): restructure STARTED + sweep was INCOMPLETE (honest correction)
+Correction to the "SWEEP COMPLETE" claim above: it was PREMATURE. The original
+sweep caught state.db / VERSION / runtime-subdir paths, but MISSED an entire class
+-- the Arch-era numbered paths (00-meta/, 01-registry/, 03-interfaces/). The
+restructure recon surfaced this: moving policy/ led to auditing tool references,
+which revealed the gap. "Demonstrated not declared" caught what a premature done
+would have buried.
+
+### Restructure -- STARTED (recoverable Faelight-half moves)
+- Created faelight/ domain. Added paths::faelight_dir() helper (core_dir().join("faelight")).
+- Moved policy/ -> faelight/policy/ (repointed rules_dir() through faelight_dir()).
+  Proof-of-pattern: git mv + one accessor repoint, ZERO tool source changes (the
+  sweep's payoff). Verified: sandbox policy-list works, faelight-core builds.
+
+### Second-wave sweep fixes (the missed numbered-path class -- NOW eliminated)
+- faelight-sandbox: policy loader read dead 01-registry/sandbox-policies.toml ->
+  routed to registry_dir(). Was BROKEN since migration; policy-list now lists 5.
+- faelight-shell / faelight-release / teach: 7 stale 01-registry/tools.toml,
+  00-meta/CHANGELOG.md, 01-registry/shell-patterns.toml refs -> tools_registry(),
+  changelog_file(), registry_dir(). faelight-docs stale zshrc ref noted (stow class).
+- faelight-link: REMOVED (dead weight). Rust GNU-Stow reimpl superseded by
+  home-manager (Nix-native config symlinking; ~/.config/* -> nix store confirmed).
+  Broken since migration (dead 03-interfaces/stow paths). Removed tool dir +
+  registry entry + engine deploy-list entry + dead paths.rs accessor + doc refs.
+
+### VERIFIED sweep-complete (this time by exhaustive grep, not claim)
+Full-repo audit `grep -rEn "0-core/[0-9][0-9]-[a-z]" rust-tools/ engine/` -> EMPTY.
+Both path classes (state.db/VERSION/runtime AND Arch-era numbered) grepped to zero.
+Full workspace builds clean (33 tools now, was 34). Health 100% (tool count honest).
+
+### RESTRUCTURE still remaining (the bulk -- unchanged from above)
+- Move remaining Faelight dirs -> faelight/: registry, meta, schema, runtime,
+  intents, engine, rust-tools (data dirs = accessor repoint + git mv; code dirs
+  also need Cargo.toml members path updates).
+- Then nix/ half: profiles, modules, hosts -> LOCKOUT-CLASS, VM-proof required,
+  Phase 2 still gated by INT-054 login-test finding.
+- labs/ -> stays (or the docs/labs top-level, per v2 tree).
