@@ -25,6 +25,14 @@ pub fn core_dir() -> PathBuf {
     home().join("0-core")
 }
 
+/// INT-061 v2: the Faelight platform domain under the repo root. Dirs owned by
+/// the platform (policy, registry, intents, engine state, etc.) live here so the
+/// tree encodes the OS/platform seam. Relocating the platform half = editing this
+/// one helper + the per-dir accessors that build on it.
+pub fn faelight_dir() -> PathBuf {
+    core_dir().join("faelight")
+}
+
 // ═══════════════════════════════════════════════════════════
 // 00-META: System Identity & Documentation
 // ═══════════════════════════════════════════════════════════
@@ -70,7 +78,7 @@ pub fn zones_registry() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn rules_dir() -> PathBuf {
-    core_dir().join("policy")
+    faelight_dir().join("policy")
 }
 
 pub fn hooks_dir() -> PathBuf {
