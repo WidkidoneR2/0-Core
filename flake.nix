@@ -117,7 +117,7 @@
         in pkgs.stdenv.mkDerivation {
           pname = "faelight-bar-gtk";
           version = "0.1.0";
-          src = ./pkgs/faelight-bar-gtk;
+          src = ./faelight/packages/faelight-bar-gtk;
           nativeBuildInputs = [ pkgs.wrapGAppsHook4 pkgs.gobject-introspection ];
           buildInputs = [ py pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.librsvg pkgs.adwaita-icon-theme ];
           dontConfigure = true;
@@ -143,7 +143,7 @@
         in pkgs.stdenv.mkDerivation {
           pname = "faelight-logout";
           version = "0.1.0";
-          src = ./pkgs/faelight-logout;
+          src = ./faelight/packages/faelight-logout;
           nativeBuildInputs = [ pkgs.wrapGAppsHook4 pkgs.gobject-introspection ];
           buildInputs = [ py pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.librsvg pkgs.adwaita-icon-theme ];
           dontConfigure = true;
@@ -171,7 +171,7 @@
         in pkgs.stdenv.mkDerivation {
           pname = "faelight-launcher";
           version = "0.1.0";
-          src = ./pkgs/faelight-launcher;
+          src = ./faelight/packages/faelight-launcher;
           nativeBuildInputs = [ pkgs.wrapGAppsHook4 pkgs.gobject-introspection ];
           buildInputs = [ py pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.librsvg pkgs.adwaita-icon-theme ];
           dontConfigure = true;
