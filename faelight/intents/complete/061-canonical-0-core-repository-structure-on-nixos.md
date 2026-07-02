@@ -3,7 +3,7 @@ id: 061
 date: 2026-06-14
 type: future
 title: "Canonical 0-Core repository structure on NixOS"
-status: in-progress
+status: complete
 tags: [faelight]
 version: TBD
 ---
