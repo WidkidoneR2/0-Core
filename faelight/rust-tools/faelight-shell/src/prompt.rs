@@ -35,18 +35,75 @@ fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
 }
 
 // ── Semantic color tokens (INT-033) ─────────────────────────────────────────
+// ── Candy-neon family (INT-103): launcher/logout palette ──
+// Meaning: lime=structure/peak, aqua=location, lavender=intent/focus,
+//          gold=caution, rose=attention/fail, near-green=quiet separators.
 // Health
-const C_HEALTH_PEAK:     (u8,u8,u8) = (57,  255, 20);
-const C_HEALTH_ADVISORY: (u8,u8,u8) = (255, 200, 50);
-const C_HEALTH_CRITICAL: (u8,u8,u8) = (255, 80,  80);
+const C_HEALTH_PEAK:     (u8,u8,u8) = (166, 226, 46);   // electric lime
+const C_HEALTH_ADVISORY: (u8,u8,u8) = (244, 208, 111);  // gold
+const C_HEALTH_CRITICAL: (u8,u8,u8) = (237, 110, 130);  // hot rose
 // Prompt
-const C_CWD:             (u8,u8,u8) = (50,  220, 255);
-const C_PROMPT_OK:       (u8,u8,u8) = (57,  255, 20);
-const C_PROMPT_FAIL:     (u8,u8,u8) = (255, 80,  80);
-const C_INTENT:          (u8,u8,u8) = (180, 130, 255);
-const C_BRANCH_CLEAN:    (u8,u8,u8) = (57,  255, 20);
-const C_BRANCH_DIRTY:    (u8,u8,u8) = (255, 200, 50);
-const C_DIMMED:          (u8,u8,u8) = (120, 140, 130);
+const C_CWD:             (u8,u8,u8) = (54,  224, 208);  // aqua (location)
+const C_PROMPT_OK:       (u8,u8,u8) = (166, 226, 46);   // electric lime
+const C_PROMPT_FAIL:     (u8,u8,u8) = (237, 147, 177);  // rose
+const C_INTENT:          (u8,u8,u8) = (175, 169, 236);  // lavender (focus)
+const C_BRANCH_CLEAN:    (u8,u8,u8) = (151, 196, 89);   // soft lime (calm)
+const C_BRANCH_DIRTY:    (u8,u8,u8) = (244, 208, 111);  // gold (warning)
+const C_DIMMED:          (u8,u8,u8) = (90,  110, 95);   // near-green quiet
+// Directory-context accents (INT-103): path color tells you WHAT KIND of place
+const C_DIR_FOREST:      (u8,u8,u8) = (166, 226, 46);   // forest core (0-core/faelight): lime
+const C_DIR_RUST:        (u8,u8,u8) = (222, 128, 60);   // Rust territory (Cargo.toml): orange
+const C_DIR_NIX:         (u8,u8,u8) = (94,  180, 255);  // Nix domain (flake.nix/nix/): ice-blue
+const C_DIR_INTENTS:     (u8,u8,u8) = (175, 169, 236);  // intents/: lavender (thought-space)
+const C_DIR_DOTFILES:    (u8,u8,u8) = (237, 147, 177);  // dotfiles/: rose (personal)
+const C_DIR_HOME:        (u8,u8,u8) = (54,  224, 208);  // elsewhere in ~: aqua
+const C_DIR_SYSTEM:      (u8,u8,u8) = (244, 208, 111);  // /etc /nix/store /usr: gold caution
+const C_DIR_ROOT:        (u8,u8,u8) = (200, 90,  110);  // outside home entirely: dim rose
+const C_DEVSHELL:        (u8,u8,u8) = (54,  224, 208);  // devshell: aqua (ties to nix ❄ identity)
+
+// ── Powerline (INT-103) ─────────────────────────────────────────────────────
+// Nerd Font glyphs (JetBrainsMono NF confirmed present)
+const PL_ARROW: &str = "\u{e0b0}";   // right-filled arrow (segment flow)
+const PL_FOLDER: &str = "\u{e5ff}";  // folder
+const PL_GIT: &str = "\u{e0a0}";     // git branch
+const PL_NIX: &str = "\u{f313}";     // nix snowflake-ish
+const DARK: (u8,u8,u8) = (12, 20, 15);   // near-black-green text on candy bg
+
+struct Seg {
+    text: String,
+    bg: (u8, u8, u8),
+    fg: (u8, u8, u8),
+}
+
+// Render a run of segments with flowing powerline arrows between them.
+// Each segment paints its bg; the arrow after it is that bg as FG on the next bg.
+fn powerline(segs: &[Seg]) -> String {
+    let mut out = String::new();
+    for (i, seg) in segs.iter().enumerate() {
+        let (br, bg, bb) = seg.bg;
+        let (fr, fg_, fb) = seg.fg;
+        // segment body: bold fg text on bg, padded
+        out.push_str(&format!(
+            "\x1b[48;2;{};{};{}m\x1b[1m\x1b[38;2;{};{};{}m {} \x1b[0m",
+            br, bg, bb, fr, fg_, fb, seg.text
+        ));
+        // arrow into next segment (or off the end)
+        if let Some(next) = segs.get(i + 1) {
+            let (nr, ng, nb) = next.bg;
+            out.push_str(&format!(
+                "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m{}\x1b[0m",
+                nr, ng, nb, br, bg, bb, PL_ARROW
+            ));
+        } else {
+            // tail arrow on terminal default bg
+            out.push_str(&format!(
+                "\x1b[38;2;{};{};{}m{}\x1b[0m",
+                br, bg, bb, PL_ARROW
+            ));
+        }
+    }
+    out
+}
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -74,6 +131,50 @@ fn cwd_str(max_len: usize) -> String {
     }
 }
 
+fn cwd_color() -> (u8, u8, u8) {
+    use std::path::Path;
+    let cwdp = std::env::current_dir().unwrap_or_default();
+    let cwd = cwdp.to_string_lossy().to_string();
+    let home = std::env::var("HOME").unwrap_or_default();
+    let forest = format!("{}/0-core", home);
+    let in_forest = cwd == forest || cwd.starts_with(&format!("{}/", forest));
+
+    // Zone precedence: forest sub-zones win first (so the workspace root reads
+    // as forest, not "rust" just because a workspace Cargo.toml sits there).
+    if in_forest {
+        if cwd.contains("/rust-tools") {
+            return C_DIR_RUST;         // Rust territory inside the forest
+        }
+        if cwd.contains("/intents") {
+            return C_DIR_INTENTS;      // the ledger / thought-space
+        }
+        if cwd.contains("/home/dotfiles") {
+            return C_DIR_DOTFILES;     // personal config
+        }
+        if cwd.contains("/nix") {
+            return C_DIR_NIX;          // the OS domain
+        }
+        return C_DIR_FOREST;           // forest core (root, faelight, etc.)
+    }
+    // Outside the forest: marker-file detection.
+    if Path::new("Cargo.toml").exists() {
+        return C_DIR_RUST;             // a Rust project anywhere
+    }
+    if Path::new("flake.nix").exists() {
+        return C_DIR_NIX;              // a Nix project anywhere
+    }
+    // System dirs -- careful
+    if cwd.starts_with("/etc") || cwd.starts_with("/nix")
+        || cwd.starts_with("/usr") || cwd.starts_with("/var") {
+        return C_DIR_SYSTEM;
+    }
+    // Elsewhere in home vs outside
+    if !home.is_empty() && cwd.starts_with(&home) {
+        C_DIR_HOME
+    } else {
+        C_DIR_ROOT
+    }
+}
 fn health_str(health: i64) -> String {
     let text = format!("{}%", health);
     if health >= 95 {
@@ -191,25 +292,23 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     let health = db.health_score().unwrap_or(95);
     let git = git_info();
 
-    // ── Line 1: path + git + exit + jobs + time ──────────────────────────
-    let mut line1 = format!("  {}", fc_bold(C_CWD.0, C_CWD.1, C_CWD.2, &cwd));
-
+    // ── Line 1: candy powerline (INT-103) -- directory / repo / devshell ──
+    let mut segs: Vec<Seg> = Vec::new();
+    let dir_bg = cwd_color();
+    segs.push(Seg { text: format!("{} {}", PL_FOLDER, cwd), bg: dir_bg, fg: DARK });
     if let Some((ref b, dirty, flake_dirty)) = git {
-        let symbol = if dirty { "*" } else { "" };
-        let (r,g,bl) = if dirty { C_BRANCH_DIRTY } else { C_BRANCH_CLEAN };
-        line1.push_str(&format!(
-            " {} {}{}",
-            fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "("),
-            fc_bold(r, g, bl, &format!("{}{}", b, symbol)),
-            fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, ")")
-        ));
-        if flake_dirty {
-            line1.push_str(&format!(
-                " {}",
-                fc_bold(C_BRANCH_DIRTY.0, C_BRANCH_DIRTY.1, C_BRANCH_DIRTY.2, "❄*")
-            ));
-        }
+        let star = if dirty { "*" } else { "" };
+        let bg = if dirty { C_BRANCH_DIRTY } else { C_BRANCH_CLEAN };
+        let fx = if flake_dirty { format!(" {}", PL_NIX) } else { String::new() };
+        segs.push(Seg { text: format!("{} {}{}{}", PL_GIT, b, star, fx), bg, fg: DARK });
     }
+    let devshell = std::env::var("name").ok()
+        .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
+        .filter(|n| !n.is_empty() && n != "0-core");
+    if let Some(d) = devshell {
+        segs.push(Seg { text: format!("{} {}", PL_NIX, d), bg: C_DEVSHELL, fg: DARK });
+    }
+    let mut line1 = format!("  {}", powerline(&segs));
 
     if let Some(code) = ctx.last_exit_code {
         if code != 0 {
@@ -334,14 +433,13 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
 
     let sep = fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, " · ");
-    let line2 = format!(
+    let _line2 = format!(
         "  {} {}",
         fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "→"),
         parts.join(&sep)
     );
 
     println!("{}", line1);
-    println!("{}", line2);
 }
 
 // ── readline prompt -- no emoji, ANSI wrapped, Tab completion safe ───────────
@@ -369,15 +467,11 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
         (None, None) => None,
     };
     let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        match &label {
-            Some(n) => format!("{} {} ", fc_rl(50, 220, 255, "❄"), fc_rl(50, 220, 255, n)),
-            None => format!("{} ", fc_rl(50, 220, 255, "❄")),
-        }
+        let _ = &label;
+        format!("{} ", fc_rl(54, 224, 208, "❄"))
     } else if std::env::var("DIRENV_DIR").is_ok() {
-        match &label {
-            Some(n) => format!("{} {} ", fc_rl(80, 140, 255, "❄"), fc_rl(80, 140, 255, n)),
-            None => format!("{} ", fc_rl(80, 140, 255, "❄")),
-        }
+        let _ = &label;
+        format!("{} ", fc_rl(54, 224, 208, "❄"))
     } else {
         String::new()
     };
