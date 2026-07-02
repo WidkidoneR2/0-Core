@@ -122,7 +122,7 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
 
 /// Gather metadata for ALL tools on disk (rust-tools/*/Cargo.toml).
 pub fn gather_all() -> Vec<ToolMeta> {
-    let rt = core_root().join("rust-tools");
+    let rt = faelight_core::paths::rust_tools_dir();
     let registry = parse_registry();
     let mut metas = vec![];
     if let Ok(entries) = std::fs::read_dir(&rt) {
@@ -309,7 +309,7 @@ fn cap_first(s: &str) -> String {
 /// PIECE 2c: generate per-tool READMEs + the index. dry_run prints what WOULD be written.
 pub fn cmd_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = core_root().join("rust-tools");
+    let rt = faelight_core::paths::rust_tools_dir();
     let mut written = 0usize;
     let mut skipped = 0usize;
 
@@ -369,9 +369,10 @@ fn truncate_words(s: &str, max: usize) -> String {
 /// Subject-line only, noise-filtered, capped. Returns Vec<(short_hash, subject)>.
 fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
     let path = format!("rust-tools/{}/", name);
+    let new_path = format!("faelight/rust-tools/{}/", name);
     let out = std::process::Command::new("git")
         .arg("-C").arg(core_root())
-        .args(["log", "--pretty=format:%h\x1f%s", "--", &path])
+        .args(["log", "--pretty=format:%h\x1f%s", "--", &path, &new_path])
         .output();
     let text = match out {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
@@ -443,7 +444,7 @@ pub fn cmd_changelog_preview(name: &str) {
 /// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
 pub fn cmd_changelog_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = core_root().join("rust-tools");
+    let rt = faelight_core::paths::rust_tools_dir();
     let mut written = 0usize;
     for m in &metas {
         let path = rt.join(&m.name).join("CHANGELOG.md");

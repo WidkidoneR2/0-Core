@@ -138,7 +138,7 @@ fn preexec(
                 }
             }
             // Block rm -rf on core source directories
-            let core_src = format!("{}/rust-tools", core_root);
+            let core_src = faelight_core::paths::rust_tools_dir().to_string_lossy().to_string();
             let core_engine = format!("{}/engine", core_root);
             let core_intents = faelight_core::paths::intents_dir().to_string_lossy().to_string();
             for protected in &[

@@ -216,8 +216,8 @@ fn gather_intent_counts(_core: &str) -> (usize, usize) {
     (total, done)
 }
 
-fn count_tools(core: &str) -> usize {
-    let tools_dir = format!("{}/rust-tools", core);
+fn count_tools(_core: &str) -> usize {
+    let tools_dir = faelight_core::paths::rust_tools_dir().to_string_lossy().to_string();
     std::fs::read_dir(&tools_dir)
         .map(|entries| entries.flatten().filter(|e| e.path().is_dir()).count())
         .unwrap_or(43)

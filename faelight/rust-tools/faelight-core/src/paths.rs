@@ -195,7 +195,7 @@ pub fn docs_dir() -> PathBuf {
 }
 
 pub fn rust_tools_dir() -> PathBuf {
-    core_dir().join("rust-tools")
+    faelight_dir().join("rust-tools")
 }
 
 pub fn scripts_dir() -> PathBuf {

@@ -7,7 +7,6 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
-use std::path::PathBuf;
 use std::process::Command;
 
 // ── Tool Score ────────────────────────────────────────────────────────────────
@@ -73,7 +72,7 @@ fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
 }
 
 fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
-    let tool_path = PathBuf::from(core_root).join("rust-tools").join(name);
+    let tool_path = faelight_core::paths::rust_tools_dir().join(name);
     let mut issues = Vec::new();
 
     // ── Usage score (25%) — calibrated by expected_usage ─────────────────
@@ -144,6 +143,7 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "--format=%ct",
                 "--",
                 &format!("rust-tools/{}/", name),
+                &format!("faelight/rust-tools/{}/", name),
             ])
             .output()
             .ok()
@@ -212,6 +212,7 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "--format=%ct",
                 "--",
                 &format!("rust-tools/{}/Cargo.toml", name),
+                &format!("faelight/rust-tools/{}/Cargo.toml", name),
             ])
             .output()
             .ok()
@@ -256,8 +257,8 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
     }
 }
 
-fn get_all_tools(core_root: &str) -> Vec<String> {
-    let tools_dir = PathBuf::from(core_root).join("rust-tools");
+fn get_all_tools(_core_root: &str) -> Vec<String> {
+    let tools_dir = faelight_core::paths::rust_tools_dir();
     let mut tools = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
@@ -499,7 +500,7 @@ pub fn coverage(ctx: &AppContext) -> CoreResult<()> {
     let mut no_description = Vec::new();
 
     for tool in &tools {
-        let tool_path = PathBuf::from(core_root).join("rust-tools").join(tool);
+        let tool_path = faelight_core::paths::rust_tools_dir().join(tool);
         if !tool_path.join("README.md").exists() {
             no_readme.push(tool.clone());
         }

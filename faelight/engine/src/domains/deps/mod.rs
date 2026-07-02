@@ -261,9 +261,9 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn gather_deps(core_root: &str) -> HashMap<String, Vec<String>> {
+fn gather_deps(_core_root: &str) -> HashMap<String, Vec<String>> {
     let mut result = HashMap::new();
-    let tools_dir = PathBuf::from(core_root).join("rust-tools");
+    let tools_dir = faelight_core::paths::rust_tools_dir();
 
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {

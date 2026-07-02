@@ -950,13 +950,13 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .unwrap_or_default();
 
         let mut tools: Vec<(&str, &str)> = vec![];
-        if touched.contains("faelight-shell") { tools.push(("faelight-shell", "rust-tools/faelight-shell/Cargo.toml")); }
-        if touched.contains("engine/src") || touched.contains("engine/Cargo") { tools.push(("core (engine)", "engine/Cargo.toml")); }
-        if touched.contains("faelight-git") { tools.push(("faelight-git", "rust-tools/faelight-git/Cargo.toml")); }
-        if touched.contains("faelight-release") { tools.push(("faelight-release", "rust-tools/faelight-release/Cargo.toml")); }
-        if touched.contains("friday-chat") { tools.push(("friday-chat", "rust-tools/friday-chat/Cargo.toml")); }
-        if touched.contains("db-browse") { tools.push(("db-browse", "rust-tools/db-browse/Cargo.toml")); }
-        if touched.contains("faelight-term") { tools.push(("faelight-term", "rust-tools/faelight-term/Cargo.toml")); }
+        if touched.contains("faelight-shell") { tools.push(("faelight-shell", "faelight/rust-tools/faelight-shell/Cargo.toml")); }
+        if touched.contains("engine/src") || touched.contains("engine/Cargo") { tools.push(("core (engine)", "faelight/engine/Cargo.toml")); }
+        if touched.contains("faelight-git") { tools.push(("faelight-git", "faelight/rust-tools/faelight-git/Cargo.toml")); }
+        if touched.contains("faelight-release") { tools.push(("faelight-release", "faelight/rust-tools/faelight-release/Cargo.toml")); }
+        if touched.contains("friday-chat") { tools.push(("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml")); }
+        if touched.contains("db-browse") { tools.push(("db-browse", "faelight/rust-tools/db-browse/Cargo.toml")); }
+        if touched.contains("faelight-term") { tools.push(("faelight-term", "faelight/rust-tools/faelight-term/Cargo.toml")); }
 
         if !tools.is_empty() {
             println!();

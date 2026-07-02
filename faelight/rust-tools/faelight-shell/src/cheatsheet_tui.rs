@@ -310,9 +310,8 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     let mut builtins = 0usize;
     {
         tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
-        let core_root = conn_core_root(conn);
-        let mod_path = std::path::PathBuf::from(&core_root)
-            .join("rust-tools/faelight-shell/src/commands/mod.rs");
+        let mod_path = faelight_core::paths::rust_tools_dir()
+            .join("faelight-shell/src/commands/mod.rs");
         const SKIP: &[&str] = &[
             "bash", "zsh", "sh", "python", "py", "js", "node", "git", "grep",
             "ls", "cat", "echo", "make", "which", "realpath",

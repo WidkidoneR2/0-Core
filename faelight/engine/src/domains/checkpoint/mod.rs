@@ -66,9 +66,7 @@ fn read_git_head() -> String {
 
 fn read_tool_versions() -> HashMap<String, String> {
     let mut versions = HashMap::new();
-    let tools_dir = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join("0-core/rust-tools");
+    let tools_dir = faelight_core::paths::rust_tools_dir();
     if let Ok(entries) = fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let cargo_toml = entry.path().join("Cargo.toml");

@@ -4,7 +4,6 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 
 pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
@@ -15,7 +14,7 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
             Capability::FilesystemWriteHome,
         ],
     )?;
-    let tools_dir = PathBuf::from(&ctx.core_root).join("rust-tools");
+    let tools_dir = faelight_core::paths::rust_tools_dir();
 
     match package {
         None => {

@@ -2257,7 +2257,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             let home = std::env::var("HOME").unwrap_or_default();
             let expand_path = |p: &str| -> String {
                 match p {
-                    "@rust" => format!("{}/0-core/rust-tools", home),
+                    "@rust" => faelight_core::paths::rust_tools_dir().to_string_lossy().to_string(),
                     "@intents" => faelight_core::paths::intents_dir().to_string_lossy().to_string(),
                     "@scripts" => format!("{}/0-core/scripts", home),
                     "@docs" => format!("{}/0-core/docs", home),
@@ -2706,7 +2706,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                         i += 2;
                     }
                     "@rust" => {
-                        search_root = std::path::PathBuf::from(format!("{}/rust-tools", core_root));
+                        search_root = faelight_core::paths::rust_tools_dir();
                         i += 1;
                     }
                     "@intents" => {
@@ -3987,7 +3987,7 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
-    let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
+    let tools_dir = faelight_core::paths::rust_tools_dir();
     let mut rows = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
@@ -9037,7 +9037,7 @@ fn vm_list() -> CommandResult {
 
 #[allow(dead_code)]
 fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
-    let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
+    let tools_dir = faelight_core::paths::rust_tools_dir();
     let total = std::fs::read_dir(&tools_dir)
         .map(|e| {
             e.flatten()
@@ -10366,9 +10366,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "test" => {
             // cargo nextest run for a specific tool or all
             let manifest = if tool.is_empty() {
-                format!("{}/rust-tools/faelight-shell/Cargo.toml", core_root)
+                faelight_core::paths::rust_tools_dir().join("faelight-shell/Cargo.toml").to_string_lossy().to_string()
             } else {
-                format!("{}/rust-tools/{}/Cargo.toml", core_root, tool)
+                faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string()
             };
             if !std::path::Path::new(&manifest).exists() {
                 return CommandResult::Error(format!("  dev test: no Cargo.toml found for '{}'", tool));
@@ -10386,9 +10386,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "watch" => {
             // cargo watch for a specific tool
             let manifest = if tool.is_empty() {
-                format!("{}/rust-tools/faelight-shell/Cargo.toml", core_root)
+                faelight_core::paths::rust_tools_dir().join("faelight-shell/Cargo.toml").to_string_lossy().to_string()
             } else {
-                format!("{}/rust-tools/{}/Cargo.toml", core_root, tool)
+                faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string()
             };
             println!("  {} starting: cargo watch --manifest-path {}", "👁".normal(), manifest.dimmed());
             println!("  {} Ctrl+C to stop", "→".dimmed());
@@ -10424,7 +10424,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
-            let manifest = format!("{}/rust-tools/{}/Cargo.toml", core_root, tool);
+            let manifest = faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string();
             println!("  {} scanning unsafe code in {}", "☢".normal(), tool);
             let _ = std::process::Command::new("cargo")
                 .args(["geiger", "--manifest-path", &manifest])
@@ -10438,7 +10438,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 println!("  {} starting bacon in current directory", "🥓".normal());
                 let _ = std::process::Command::new("bacon").status();
             } else {
-                let manifest = format!("{}/rust-tools/{}/Cargo.toml", core_root, tool);
+                let manifest = faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string();
                 println!("  {} starting bacon for {}", "🥓".normal(), tool);
                 let _ = std::process::Command::new("bacon")
                     .args(["--manifest-path", &manifest])
@@ -12619,14 +12619,14 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let apply = args.first().copied() == Some("apply");
     let tools = [
-        ("faelight-shell", "rust-tools/faelight-shell/Cargo.toml"),
-        ("core",           "engine/Cargo.toml"),
-        ("faelight-git",   "rust-tools/faelight-git/Cargo.toml"),
-        ("faelight-release", "rust-tools/faelight-release/Cargo.toml"),
-        ("friday-chat",    "rust-tools/friday-chat/Cargo.toml"),
-        ("db-browse",      "rust-tools/db-browse/Cargo.toml"),
-        ("faelight-term",  "rust-tools/faelight-term/Cargo.toml"),
-        ("faelight-notify","rust-tools/faelight-notify/Cargo.toml"),
+        ("faelight-shell", "faelight/rust-tools/faelight-shell/Cargo.toml"),
+        ("core",           "faelight/engine/Cargo.toml"),
+        ("faelight-git",   "faelight/rust-tools/faelight-git/Cargo.toml"),
+        ("faelight-release", "faelight/rust-tools/faelight-release/Cargo.toml"),
+        ("friday-chat",    "faelight/rust-tools/friday-chat/Cargo.toml"),
+        ("db-browse",      "faelight/rust-tools/db-browse/Cargo.toml"),
+        ("faelight-term",  "faelight/rust-tools/faelight-term/Cargo.toml"),
+        ("faelight-notify","faelight/rust-tools/faelight-notify/Cargo.toml"),
     ];
     let mut out = String::new();
     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
