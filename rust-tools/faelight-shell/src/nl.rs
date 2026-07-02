@@ -466,7 +466,7 @@ pub struct CustomPattern {
     pub context: String,
 }
 
-pub fn load_toml_patterns(core_root: &str) -> Vec<CustomPattern> {
+pub fn load_toml_patterns(_core_root: &str) -> Vec<CustomPattern> {
     let mut patterns = vec![];
 
     let paths = vec![
@@ -474,7 +474,7 @@ pub fn load_toml_patterns(core_root: &str) -> Vec<CustomPattern> {
             "{}/.config/faelight-shell/nl-patterns.toml",
             std::env::var("HOME").unwrap_or_default()
         ),
-        format!("{}/01-registry/shell-patterns.toml", core_root),
+        faelight_core::paths::registry_dir().join("shell-patterns.toml").to_string_lossy().to_string(),
     ];
 
     for path in &paths {

@@ -3297,7 +3297,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         (complete, planned)
     };
     // Count tools from registry — mirrors doctor check_path_resilience logic exactly
-    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+    let tool_count = std::fs::read_to_string(faelight_core::paths::tools_registry())
         .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
@@ -3412,7 +3412,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     );
     println!();
     // Today's Focus — lowest audit score tool
-    let _focus = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+    let _focus = std::fs::read_to_string(faelight_core::paths::tools_registry())
         .map(|t| {
             // Find tool with lowest score hint from name patterns
             let stale: Vec<&str> = t

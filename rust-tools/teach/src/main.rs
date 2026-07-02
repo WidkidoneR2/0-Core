@@ -110,7 +110,7 @@ impl SystemSnapshot {
         let core = format!("{}/0-core", home);
 
         // Core version — parse from CHANGELOG
-        let core_version = fs::read_to_string(format!("{}/00-meta/CHANGELOG.md", core))
+        let core_version = fs::read_to_string(faelight_core::paths::changelog_file())
             .unwrap_or_default()
             .lines()
             .find(|l| l.starts_with("## v"))

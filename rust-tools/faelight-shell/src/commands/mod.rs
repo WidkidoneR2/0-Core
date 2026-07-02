@@ -9076,13 +9076,13 @@ fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn version(core_root: &str) -> CommandResult {
+fn version(_core_root: &str) -> CommandResult {
     let version =
         std::fs::read_to_string(faelight_core::paths::version_file())
             .unwrap_or_else(|_| "unknown".into());
 
     let changelog =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("00-meta/CHANGELOG.md"))
+        std::fs::read_to_string(faelight_core::paths::changelog_file())
             .unwrap_or_default();
 
     let release_name = changelog

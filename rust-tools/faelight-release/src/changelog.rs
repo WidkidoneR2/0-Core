@@ -530,8 +530,8 @@ impl ReleaseStats {
     }
 }
 
-fn count_tools(core_root: &PathBuf) -> u32 {
-    let tools_toml = core_root.join("01-registry/tools.toml");
+fn count_tools(_core_root: &PathBuf) -> u32 {
+    let tools_toml = faelight_core::paths::tools_registry();
     let content = match std::fs::read_to_string(&tools_toml) {
         Ok(c) => c,
         Err(_) => return 0,

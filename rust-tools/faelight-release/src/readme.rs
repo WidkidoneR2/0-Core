@@ -11,13 +11,13 @@ const DYNAMIC_END: &str = "<!-- END DYNAMIC SECTION -->";
 
 /// Update static tool count references throughout README
 #[allow(dead_code)]
-pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
+pub fn update_tool_counts(readme_path: &std::path::Path, _core_root: &str) {
     let Ok(mut content) = std::fs::read_to_string(readme_path) else {
         return;
     };
 
     // Count tools from registry
-    let registry_path = std::path::PathBuf::from(core_root).join("01-registry/tools.toml");
+    let registry_path = faelight_core::paths::tools_registry();
     let tool_count = {
         let raw = std::fs::read_to_string(&registry_path).unwrap_or_default();
         let mut count = 0usize;
