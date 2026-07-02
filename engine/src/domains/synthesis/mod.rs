@@ -52,7 +52,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     ).unwrap_or(None).unwrap_or(1.0).clamp(0.0, 1.0);
     // 3. Active intent -- read from filesystem like predict domain
     let active_intent: String = {
-        let future_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/future");
+        let future_dir = ctx.fpath("intents/future");
         std::fs::read_dir(&future_dir)
             .ok()
             .and_then(|d| {

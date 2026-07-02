@@ -56,6 +56,7 @@ pub mod test_support {
             capabilities: CapabilityContext::unprivileged(),
             home:         "/tmp".to_string(),
             core_root:    "/tmp/faelight-test".to_string(),
+            faelight_root: "/tmp/faelight-test/faelight".to_string(),
         }
     }
 }

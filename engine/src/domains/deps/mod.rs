@@ -359,8 +359,8 @@ fn emit_event(ctx: &AppContext, action: &str) {
 // ─── Coordinator -- Registry-based Tool Dependency Planning (INT-251 Pillar 4) ──
 
 /// Parse registry/tools.toml and return a map of tool -> depends_on list.
-fn read_tool_registry(core_root: &str) -> HashMap<String, Vec<String>> {
-    let path = PathBuf::from(core_root).join("registry/tools.toml");
+fn read_tool_registry(_core_root: &str) -> HashMap<String, Vec<String>> {
+    let path = faelight_core::paths::tools_registry();
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => return HashMap::new(),

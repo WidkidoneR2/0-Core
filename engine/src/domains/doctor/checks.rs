@@ -331,8 +331,8 @@ pub fn check_dotmeta() -> CheckResult {
     }
 }
 
-pub fn check_intents(core_root: &str) -> CheckResult {
-    let intent_dir = PathBuf::from(core_root).join("intents");
+pub fn check_intents(_core_root: &str) -> CheckResult {
+    let intent_dir = faelight_core::paths::intents_dir();
     let mut total = 0;
     let mut complete = 0;
     let mut planned = 0;

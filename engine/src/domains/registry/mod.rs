@@ -5,7 +5,7 @@ use crate::errors::CoreResult;
 use colored::*;
 
 fn registry_path(ctx: &AppContext) -> std::path::PathBuf {
-    std::path::PathBuf::from(&ctx.core_root).join("registry/tools.toml")
+    ctx.fpath("registry/tools.toml")
 }
 
 fn read_registry(ctx: &AppContext) -> CoreResult<String> {
@@ -229,7 +229,7 @@ fn retire_in_block(content: &str, name: &str, retired: bool) -> String {
 pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
     use colored::*;
     // Load tools.toml
-    let tools_path = std::path::PathBuf::from(&ctx.core_root).join("registry/tools.toml");
+    let tools_path = ctx.fpath("registry/tools.toml");
     let tools_str = std::fs::read_to_string(&tools_path).unwrap_or_default();
     let tools_val: toml::Value =
         toml::from_str(&tools_str).unwrap_or(toml::Value::Table(toml::map::Map::new()));

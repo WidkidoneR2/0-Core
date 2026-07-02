@@ -36,7 +36,7 @@ impl Intent {
 }
 
 fn intents_dir(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("intents")
+    ctx.fpath("intents")
 }
 
 fn load_all(ctx: &AppContext) -> Vec<Intent> {
@@ -680,7 +680,7 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     );
 
     // Update frontmatter status in file
-    let base = PathBuf::from(&ctx.core_root).join("intents");
+    let base = ctx.fpath("intents");
     let folders = ["future", "planned", "deferred"];
     let mut found_path: Option<PathBuf> = None;
 
@@ -770,7 +770,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     // INT-332: block cicomplete if open gates exist without formal deferral
     if let Some(ref path) = {
-        let base = std::path::PathBuf::from(&ctx.core_root).join("intents");
+        let base = ctx.fpath("intents");
         let folders = ["future", "planned", "deferred", "in-progress"];
         let mut found: Option<std::path::PathBuf> = None;
         for folder in &folders {
@@ -846,7 +846,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     );
 
     // Find and move the file to complete/
-    let base = PathBuf::from(&ctx.core_root).join("intents");
+    let base = ctx.fpath("intents");
     let folders = ["future", "planned", "deferred", "in-progress"];
     let mut found_path: Option<PathBuf> = None;
 
@@ -1426,8 +1426,8 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
 pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     use colored::*;
-    let root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = root.join("intents/future");
+    let _root = std::path::PathBuf::from(&ctx.core_root);
+    let future_dir = faelight_core::paths::intents_dir().join("future");
     let now = chrono::Utc::now().timestamp();
     let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&future_dir) {
@@ -1579,7 +1579,7 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let done_gates = content.matches("✅").count();
     let remaining = total_gates.saturating_sub(done_gates);
     // Get average gates completed per session from recent intents
-    let complete_dir = root.join("intents/complete");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
     let mut gates_per_session: Vec<f64> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&complete_dir) {
         for entry in entries.flatten().take(10) {

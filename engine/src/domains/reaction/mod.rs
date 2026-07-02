@@ -287,7 +287,7 @@ fn eval_checkpoint_stale(_ctx: &AppContext) -> Option<Reaction> {
 }
 
 fn eval_intent_overflow(ctx: &AppContext) -> Option<Reaction> {
-    let intents_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/future");
+    let intents_dir = ctx.fpath("intents/future");
     let count = std::fs::read_dir(&intents_dir)
         .ok()?
         .filter_map(|e| e.ok())
@@ -932,8 +932,8 @@ struct DisciplineFile {
     discipline: Option<Vec<DisciplineRule>>,
 }
 
-fn load_discipline(core_root: &str) -> Vec<DisciplineRule> {
-    let path = std::path::PathBuf::from(core_root).join("runtime/reaction-discipline.toml");
+fn load_discipline(_core_root: &str) -> Vec<DisciplineRule> {
+    let path = faelight_core::paths::runtime_dir().join("reaction-discipline.toml");
     std::fs::read_to_string(&path)
         .ok()
         .and_then(|text| toml::from_str::<DisciplineFile>(&text).ok())

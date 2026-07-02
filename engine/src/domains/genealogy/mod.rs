@@ -22,10 +22,10 @@ struct IntentNode {
 }
 
 fn load_all_intents(core_root: &str) -> Vec<IntentNode> {
-    let root = PathBuf::from(core_root);
+    let _root = PathBuf::from(core_root);
     let mut nodes = Vec::new();
     for dir in &["complete", "future", "decisions", "incidents"] {
-        if let Ok(entries) = std::fs::read_dir(root.join("intents").join(dir)) {
+        if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join(dir)) {
             for entry in entries.flatten() {
                 if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                     continue;

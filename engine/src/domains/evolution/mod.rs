@@ -1123,7 +1123,7 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Intents at risk
-    let intents_path = std::path::Path::new(&ctx.core_root).join("intents/future");
+    let intents_path = faelight_core::paths::intents_dir().join("future");
     let mut at_risk_intents: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&intents_path) {
         for entry in entries.flatten() {

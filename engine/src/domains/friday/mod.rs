@@ -126,7 +126,7 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     // Seed from intent completions
     let complete_count = {
-        let intent_dir = std::path::PathBuf::from(&ctx.core_root).join("intents");
+        let intent_dir = ctx.fpath("intents");
         let categories = [
             "complete",
             "decisions",

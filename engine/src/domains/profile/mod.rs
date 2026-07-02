@@ -15,7 +15,7 @@ pub struct Profile {
 }
 
 fn profiles_toml(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("registry/profiles.toml")
+    ctx.fpath("registry/profiles.toml")
 }
 
 fn state_file() -> PathBuf {

@@ -41,9 +41,9 @@ impl ToolScore {
 
 // ── Scoring Logic ─────────────────────────────────────────────────────────────
 
-fn expected_usage(core_root: &str, tool_name: &str) -> &'static str {
+fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
     let registry =
-        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("registry/tools.toml"))
+        std::fs::read_to_string(faelight_core::paths::tools_registry())
             .unwrap_or_default();
 
     // Find the tool section and read expected_usage

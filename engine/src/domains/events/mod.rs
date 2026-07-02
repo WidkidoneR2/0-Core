@@ -1761,7 +1761,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── 3. Checkpoint age ────────────────────────────────────────────────────
-    let core_root = std::path::PathBuf::from(&ctx.core_root);
+    let _core_root = std::path::PathBuf::from(&ctx.core_root);
     let cp_dir = faelight_core::paths::checkpoints_dir();
     let latest_cp = std::fs::read_dir(&cp_dir).ok().and_then(|d| {
         d.filter_map(|e| e.ok())
@@ -1820,7 +1820,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── 5. In-progress intents ───────────────────────────────────────────────
-    let intents_dir = core_root.join("intents/future");
+    let intents_dir = faelight_core::paths::intents_dir().join("future");
     let in_progress: Vec<String> = std::fs::read_dir(&intents_dir)
         .ok()
         .map(|d| {

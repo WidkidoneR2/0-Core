@@ -202,7 +202,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     seed_temporal_models(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let root = std::path::PathBuf::from(&ctx.core_root);
+    let _root = std::path::PathBuf::from(&ctx.core_root);
     println!();
     println!("  {} Friday Phase 2 -- Strategic Plan", "🌲".normal());
     println!("  {}", "━".repeat(55).dimmed());
@@ -210,7 +210,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     // Read planned + in-progress intents from filesystem
     let mut open_intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
     for dir in &["future", "active"] {
-        let path = root.join("intents").join(dir);
+        let path = faelight_core::paths::intents_dir().join(dir);
         if let Ok(entries) = std::fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let p = entry.path();
@@ -789,10 +789,10 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
         // Generate resolution based on contradiction type
         let resolution = if desc.contains("focus") && desc.contains("intents") {
             let open: i64 = {
-                let root = std::path::PathBuf::from(&ctx.core_root);
+                let _root = std::path::PathBuf::from(&ctx.core_root);
                 let mut count = 0i64;
                 for dir in &["future"] {
-                    if let Ok(entries) = std::fs::read_dir(root.join("intents").join(dir)) {
+                    if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join(dir)) {
                         for entry in entries.flatten() {
                             if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                                 if let Ok(c) = std::fs::read_to_string(entry.path()) {
@@ -882,9 +882,9 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     };
     // Count active intents
     let active_intents: i64 = {
-        let root = std::path::PathBuf::from(&ctx.core_root);
+        let _root = std::path::PathBuf::from(&ctx.core_root);
         let mut count = 0i64;
-        if let Ok(entries) = std::fs::read_dir(root.join("intents/future")) {
+        if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join("future")) {
             for entry in entries.flatten() {
                 if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                     if let Ok(c) = std::fs::read_to_string(entry.path()) {
@@ -1098,7 +1098,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let root = std::path::PathBuf::from(&ctx.core_root);
+    let _root = std::path::PathBuf::from(&ctx.core_root);
     println!();
     println!(
         "  {} Friday Phase 2 -- Cross-Intent Pattern Detection",
@@ -1107,7 +1107,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Scan complete intents and extract domain patterns
-    let complete_dir = root.join("intents/complete");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
     let mut domain_counts: std::collections::HashMap<String, i64> =
         std::collections::HashMap::new();
     let mut total_complete = 0i64;

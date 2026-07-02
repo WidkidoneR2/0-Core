@@ -212,7 +212,7 @@ impl PipelineResult {
 fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
     match fix {
         FixAction::UpdateRegistryVersion { tool, version } => {
-            let path = ctx.core_root.join("registry/tools.toml");
+            let path = ctx.ctx.fpath("registry/tools.toml");
             if let Ok(content) = std::fs::read_to_string(&path) {
                 let old = format!("name = \"{}\"\nversion = \"", tool);
                 if let Some(idx) = content.find(&old) {
@@ -667,8 +667,8 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let dirs = [
-                ("complete", ctx.core_root.join("intents/complete")),
-                ("future", ctx.core_root.join("intents/future")),
+                ("complete", ctx.ctx.fpath("intents/complete")),
+                ("future", ctx.ctx.fpath("intents/future")),
             ];
             for (dir_type, dir_path) in &dirs {
                 let expected_status = match *dir_type {
@@ -707,7 +707,7 @@ pub mod checks {
                                     .unwrap_or_default()
                                     .to_string_lossy()
                                     .to_string();
-                                let dest = ctx.core_root.join("intents/complete").join(&fname);
+                                let dest = ctx.ctx.fpath("intents/complete").join(&fname);
                                 issues.push(IntegrityIssue::propose(
                                     Category::Intent,
                                     "intent_status_directory",
@@ -726,7 +726,7 @@ pub mod checks {
                                     .unwrap_or_default()
                                     .to_string_lossy()
                                     .to_string();
-                                let dest = ctx.core_root.join("intents/in-progress").join(&fname);
+                                let dest = ctx.ctx.fpath("intents/in-progress").join(&fname);
                                 issues.push(IntegrityIssue::propose(
                                     Category::Intent,
                                     "intent_status_directory",
@@ -774,7 +774,7 @@ pub mod checks {
             let mut issues = vec![];
             let mut seen: std::collections::HashMap<String, Vec<String>> =
                 std::collections::HashMap::new();
-            let intent_root = ctx.core_root.join("intents");
+            let intent_root = ctx.ctx.fpath("intents");
             // Only check main intent spaces -- decisions/incidents/philosophy/experiments have own numbering
             let subdirs = ["complete", "future", "in-progress"];
             for sub in &subdirs {
@@ -823,7 +823,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let future_dir = ctx.core_root.join("intents/future");
+            let future_dir = ctx.ctx.fpath("intents/future");
             let mut in_progress = vec![];
             if let Ok(entries) = std::fs::read_dir(&future_dir) {
                 for entry in entries.flatten() {
@@ -871,7 +871,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let registry_path = ctx.core_root.join("registry/tools.toml");
+            let registry_path = ctx.ctx.fpath("registry/tools.toml");
             let rust_tools_dir = ctx.core_root.join("rust-tools");
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
@@ -938,7 +938,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let registry_path = ctx.core_root.join("registry/tools.toml");
+            let registry_path = ctx.ctx.fpath("registry/tools.toml");
             // On NixOS tools are deployed to /run/current-system/sw/bin, not scripts/
             let nix_bin_dir = std::path::PathBuf::from("/run/current-system/sw/bin");
             let scripts_dir = if nix_bin_dir.exists() {
@@ -1080,7 +1080,7 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let readme_path = ctx.core_root.join("README.md");
-            let registry_path = ctx.core_root.join("registry/tools.toml");
+            let registry_path = ctx.ctx.fpath("registry/tools.toml");
 
             // Count tools in registry
             let registry_tools: usize = std::fs::read_to_string(&registry_path)
@@ -1326,9 +1326,9 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let success = match check_name.as_str() {
         "intent_status_directory" => {
             // Move complete intent from future/ to complete/
-            let root = std::path::PathBuf::from(&ctx.core_root);
-            let future_dir = root.join("intents/future");
-            let complete_dir = root.join("intents/complete");
+            let _root = std::path::PathBuf::from(&ctx.core_root);
+            let future_dir = faelight_core::paths::intents_dir().join("future");
+            let complete_dir = faelight_core::paths::intents_dir().join("complete");
             let mut moved = false;
             if let Ok(entries) = std::fs::read_dir(&future_dir) {
                 for entry in entries.flatten() {
@@ -1406,7 +1406,7 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
     };
     // Only flag aliases pointing to explicitly retired tools (from registry TOML)
     let retired_tools: Vec<String> = {
-        let registry_path = std::path::PathBuf::from(&ctx.core_root).join("registry/tools.toml");
+        let registry_path = ctx.fpath("registry/tools.toml");
         if let Ok(content) = std::fs::read_to_string(&registry_path) {
             content
                 .lines()

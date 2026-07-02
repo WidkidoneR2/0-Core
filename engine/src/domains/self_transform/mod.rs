@@ -208,7 +208,7 @@ fn generate_proposals(
     let month_ago = now_ts() - 2592000;
     // Check for high intent load
     let active_intents: i64 =
-        std::fs::read_dir(std::path::PathBuf::from(&ctx.core_root).join("intents/future"))
+        std::fs::read_dir(ctx.fpath("intents/future"))
             .map(|d| {
                 d.filter_map(|e| e.ok())
                     .filter(|e| {

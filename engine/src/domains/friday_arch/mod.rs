@@ -149,7 +149,7 @@ pub fn detect_patterns(ctx: &AppContext) -> CoreResult<Vec<String>> {
     let mut patterns_found: Vec<String> = Vec::new();
     // Pattern 1: Active intent count vs alignment
     let active_intents: i64 = {
-        let future_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/future");
+        let future_dir = ctx.fpath("intents/future");
         std::fs::read_dir(&future_dir)
             .ok()
             .map(|d| {

@@ -88,7 +88,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "intents/complete/".bright_cyan()
     );
 
-    let complete_dir = std::path::PathBuf::from(core_root).join("intents/complete");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
     let intent_count = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -406,8 +406,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 };
 
                 // Add active intent context to forecast
-                let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-                let future_dir = std::path::PathBuf::from(&core_root).join("intents/future");
+                let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+                let future_dir = faelight_core::paths::intents_dir().join("future");
                 let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
                     .map(|entries| {
                         entries

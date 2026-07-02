@@ -8,7 +8,6 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
-use std::path::PathBuf;
 
 pub fn narrative(ctx: &AppContext, json: bool, save: bool) -> CoreResult<()> {
     ctx.capabilities
@@ -77,7 +76,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .unwrap_or(0);
 
     // Tools from registry
-    let registry = std::fs::read_to_string(PathBuf::from(core_root).join("registry/tools.toml"))
+    let registry = std::fs::read_to_string(faelight_core::paths::tools_registry())
         .unwrap_or_default();
 
     let tool_names: Vec<String> = registry
@@ -125,8 +124,8 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     };
 
     // Intent counts
-    let complete_dir = PathBuf::from(core_root).join("intents/complete");
-    let future_dir = PathBuf::from(core_root).join("intents/future");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let future_dir = faelight_core::paths::intents_dir().join("future");
     let intents_complete = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -136,7 +135,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
 
     // Active policies
     let policies_content =
-        std::fs::read_to_string(PathBuf::from(core_root).join("registry/sandbox-policies.toml"))
+        std::fs::read_to_string(faelight_core::paths::registry_dir().join("sandbox-policies.toml"))
             .unwrap_or_default();
     let active_policies: Vec<String> = policies_content
         .lines()
@@ -454,7 +453,7 @@ fn save_snapshot(
     d: &SnapshotData,
     json_override: Option<&str>,
 ) -> CoreResult<()> {
-    let snapshots_dir = PathBuf::from(&ctx.core_root).join("runtime/snapshots");
+    let snapshots_dir = ctx.fpath("runtime/snapshots");
     std::fs::create_dir_all(&snapshots_dir).ok();
 
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();

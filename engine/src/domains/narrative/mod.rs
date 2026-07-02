@@ -7,7 +7,6 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
-use std::path::PathBuf;
 use std::process::Command;
 
 pub fn run(ctx: &AppContext, since: Option<&str>, intent: Option<&str>) -> CoreResult<()> {
@@ -76,7 +75,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
 
     // Count tools from registry
     let tool_count =
-        std::fs::read_to_string(PathBuf::from(core_root).join("registry/tools.toml"))
+        std::fs::read_to_string(faelight_core::paths::tools_registry())
             .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
             .unwrap_or(0);
 
@@ -141,8 +140,8 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter IV — Intentions".bright_white().bold());
     println!("  │");
 
-    let complete_dir = PathBuf::from(core_root).join("intents/complete");
-    let future_dir = PathBuf::from(core_root).join("intents/future");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let future_dir = faelight_core::paths::intents_dir().join("future");
     let complete_count = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -168,7 +167,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
     println!("  │");
 
-    let releases_dir = PathBuf::from(core_root).join("meta/releases");
+    let releases_dir = faelight_core::paths::meta_dir().join("releases");
     if releases_dir.exists() {
         let mut releases: Vec<String> = std::fs::read_dir(&releases_dir)
             .map(|d| {
@@ -246,8 +245,8 @@ fn intent_narrative(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     println!("  │");
 
     // Find the intent file
-    let complete_dir = PathBuf::from(core_root).join("intents/complete");
-    let future_dir = PathBuf::from(core_root).join("intents/future");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let future_dir = faelight_core::paths::intents_dir().join("future");
 
     let intent_file = std::fs::read_dir(&complete_dir)
         .ok()

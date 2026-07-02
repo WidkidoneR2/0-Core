@@ -312,7 +312,7 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check for intent drift — intents in future/ that are stale
-    let future_dir = PathBuf::from(core_root).join("intents/future");
+    let future_dir = faelight_core::paths::intents_dir().join("future");
     let future_count = std::fs::read_dir(&future_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -365,8 +365,8 @@ fn get_commit_count(core_root: &str) -> usize {
         .unwrap_or(0)
 }
 
-fn read_registry_tools(core_root: &str) -> Vec<String> {
-    let path = PathBuf::from(core_root).join("registry/tools.toml");
+fn read_registry_tools(_core_root: &str) -> Vec<String> {
+    let path = faelight_core::paths::tools_registry();
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     content
         .lines()
@@ -388,8 +388,8 @@ fn read_stow_packages(core_root: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn read_active_intents(core_root: &str) -> Vec<String> {
-    let future_dir = PathBuf::from(core_root).join("intents/future");
+fn read_active_intents(_core_root: &str) -> Vec<String> {
+    let future_dir = faelight_core::paths::intents_dir().join("future");
     std::fs::read_dir(&future_dir)
         .map(|d| {
             d.flatten()

@@ -11,7 +11,7 @@ fn db_path(_ctx: &AppContext) -> PathBuf {
 }
 
 fn backups_dir(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("runtime/backups")
+    ctx.fpath("runtime/backups")
 }
 
 fn fmt_size(bytes: u64) -> String {

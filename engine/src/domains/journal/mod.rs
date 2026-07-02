@@ -4,7 +4,7 @@ use crate::errors::CoreResult;
 use colored::*;
 use std::path::PathBuf;
 fn journal_dir(ctx: &AppContext) -> PathBuf {
-    PathBuf::from(&ctx.core_root).join("runtime/journal")
+    ctx.fpath("runtime/journal")
 }
 fn today_path(ctx: &AppContext) -> PathBuf {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
