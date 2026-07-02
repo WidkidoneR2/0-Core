@@ -191,6 +191,14 @@
           '';
         };
       };
+      # INT-061 harness: anti-lockout VM boot test. Proves framework16 boots
+      # headlessly + greetd reachable BEFORE any boot-critical move hits metal.
+      checks.${system} = {
+        framework16-boot = import ./nix/tests/framework16.nix {
+          inherit pkgs self inputs;
+        };
+      };
+
 
       devShells.${system}.default = let
         # INT-090 Phase 3: build our candy-neon nixvim as an `nvim` package for this shell only.
