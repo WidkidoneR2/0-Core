@@ -3,7 +3,7 @@ id: 107
 date: 2026-07-02
 type: future
 title: "Decommission Arch-era stow/link subsystem"
-status: planned
+status: in-progress
 tags: [link, Arch-era]
 ---
 

@@ -40,10 +40,6 @@ command = "faelight-git"
 aliases = ["fg"]
 category = "development"
 
-[[alias]]
-command = "faelight-link"
-aliases = ["link"]
-category = "management"
 
 [[alias]]
 command = "faelight-lock"
@@ -60,10 +56,6 @@ command = "faelight-update"
 aliases = ["fu", "update"]
 category = "automation"
 
-[[alias]]
-command = "get-version"
-aliases = ["ver"]
-category = "versioning"
 
 [[alias]]
 command = "intent"

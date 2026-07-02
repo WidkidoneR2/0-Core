@@ -49,10 +49,6 @@ pub enum Commands {
         #[command(subcommand)]
         command: PluginCommands,
     },
-    Link {
-        #[command(subcommand)]
-        command: LinkCommands,
-    },
     Zone {
         #[arg(long)]
         icon: bool,
@@ -588,51 +584,6 @@ pub enum DoctorCommands {
     History,
 }
 
-#[derive(Subcommand)]
-pub enum LinkCommands {
-    Status {
-        #[arg(long)]
-        json: bool,
-    },
-    List,
-    Audit,
-    /// Show what deploy would do without doing it
-    Plan {
-        /// Package name (or 'all')
-        package: Option<String>,
-    },
-    /// Deploy a package (create symlinks)
-    Deploy {
-        /// Package name (or 'all')
-        package: Option<String>,
-        /// Skip snapshot before deploy
-        #[arg(long)]
-        no_snapshot: bool,
-        /// Replace real files with symlinks
-        #[arg(long)]
-        adopt: bool,
-    },
-    /// Remove a package's symlinks
-    Undeploy {
-        /// Package name
-        package: String,
-    },
-    /// Undeploy then redeploy atomically
-    /// Adopt existing files (convert real files to managed symlinks)
-    Adopt {
-        /// Package name (or all packages if omitted)
-        package: Option<String>,
-    },
-    Redeploy {
-        /// Package name (or 'all')
-        package: Option<String>,
-    },
-    /// Sync all packages — deploy clean, surface conflicts with fix commands
-    Sync {
-        /// Package name (or 'all')
-        package: Option<String>,
-    },
-}
 
 #[derive(Subcommand)]
 pub enum IntentCommands {

@@ -93,21 +93,12 @@ pub fn security_dir() -> PathBuf {
 // 03-INTERFACES: User-Facing Configs
 // ═══════════════════════════════════════════════════════════
 
-pub fn interfaces_dir() -> PathBuf {
-    core_dir().join("config")
-}
 
-pub fn stow_dir() -> PathBuf {
-    interfaces_dir()
-}
 
 pub fn profiles_dir() -> PathBuf {
-    interfaces_dir().join("profiles")
+    core_dir().join("config/profiles")
 }
 
-pub fn themes_dir() -> PathBuf {
-    interfaces_dir().join("themes")
-}
 
 // ═══════════════════════════════════════════════════════════
 // 04-RUNTIME: Execution & Build Artifacts
@@ -345,10 +336,6 @@ pub fn cargo_toml() -> PathBuf {
     core_dir().join("Cargo.toml")
 }
 
-/// Zshrc file in stow
-pub fn zshrc_file() -> PathBuf {
-    stow_dir().join("shell-zsh/.config/zsh/.zshrc")
-}
 
 /// Changelog draft for a specific version
 pub fn changelog_draft(version: &str) -> PathBuf {
@@ -403,9 +390,9 @@ pub fn intents_incidents() -> PathBuf {
 // SHELL CONFIGURATION PATHS
 // ═══════════════════════════════════════════════════════════
 
-/// ZSH aliases file
+/// fsh config file (aliases live here)
 pub fn aliases_file() -> PathBuf {
-    stow_dir().join("faelight-shell/.config/faelight-shell/config.fsh")
+    core_dir().join("config/faelight-shell/.config/faelight-shell/config.fsh")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -460,7 +447,6 @@ mod tests {
         assert!(meta_dir().to_string_lossy().contains("meta"));
         assert!(registry_dir().to_string_lossy().contains("registry"));
         assert!(rules_dir().to_string_lossy().contains("policy"));
-        assert!(interfaces_dir().to_string_lossy().contains("config"));
         assert!(runtime_dir().to_string_lossy().contains("runtime"));
     }
 }

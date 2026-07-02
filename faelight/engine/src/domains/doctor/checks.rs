@@ -7,77 +7,14 @@ use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
 
-pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
-    let stow_dir = PathBuf::from(core_root).join("config");
-    let mut stowed = 0;
-    let mut total = 0;
-
-    if let Ok(entries) = fs::read_dir(&stow_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') {
-                continue;
-            }
-            let has_files = WalkDir::new(&path)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .any(|e| e.file_type().is_file());
-            if !has_files {
-                continue;
-            }
-            total += 1;
-            // Check if any symlink in home points to this package
-            let found = WalkDir::new(home)
-                .max_depth(5)
-                .follow_links(false)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .any(|e| {
-                    let p = e.path();
-                    if p.is_symlink() {
-                        if let Ok(target) = fs::read_link(p) {
-                            return target
-                                .to_string_lossy()
-                                .contains(&format!("0-core/config/{}", name));
-                        }
-                    }
-                    false
-                });
-            if found {
-                stowed += 1;
-            }
-        }
-    }
-
-    if std::path::Path::new("/etc/NIXOS").exists() {
-        return CheckResult {
-            id: "stow".into(),
-            name: "Stow Symlinks".into(),
-            status: Status::Pass,
-            message: "Managed by home-manager (NixOS)".into(),
-            fix: None,
-        };
-    }
-    if stowed == total {
-        CheckResult {
-            id: "stow".into(),
-            name: "Stow Symlinks".into(),
-            status: Status::Pass,
-            message: format!("All {}/{} packages properly stowed", stowed, total),
-            fix: None,
-        }
-    } else {
-        CheckResult {
-            id: "stow".into(),
-            name: "Stow Symlinks".into(),
-            status: Status::Fail,
-            message: format!("Only {}/{} packages stowed", stowed, total),
-            fix: Some("Run: rebuild to apply config changes".into()),
-        }
+pub fn check_stow(_core_root: &str, _home: &str) -> CheckResult {
+    // Dotfiles are owned by home-manager on NixOS (stow subsystem decommissioned, INT-107).
+    CheckResult {
+        id: "stow".into(),
+        name: "Dotfile Symlinks".into(),
+        status: Status::Pass,
+        message: "Managed by home-manager (NixOS)".into(),
+        fix: None,
     }
 }
 

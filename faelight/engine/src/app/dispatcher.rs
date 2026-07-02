@@ -7,7 +7,7 @@ use crate::cli::commands::{
     NixCommand,
     EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
     GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
-  LedgerCommand, LinkCommand, NotifyCommand, PlanCommand, PluginCommand,
+  LedgerCommand, NotifyCommand, PlanCommand, PluginCommand,
     PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand,
     ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand,
     StressCommand, SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
@@ -101,38 +101,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
-        Command::Link(c) => {
-            ctx.capabilities.require(
-                "link",
-                &[
-                    Capability::FilesystemReadHome,
-                    Capability::FilesystemWriteHome,
-                ],
-            )?;
-            match c {
-                LinkCommand::Status { json } => crate::domains::link::status(ctx, json),
-                LinkCommand::List => crate::domains::link::list(ctx),
-                LinkCommand::Audit => crate::domains::link::audit(ctx),
-                LinkCommand::Plan { package } => {
-                    crate::domains::link::plan(ctx, package.as_deref())
-                }
-                LinkCommand::Deploy {
-                    package,
-                    no_snapshot,
-                    adopt,
-                } => crate::domains::link::deploy(ctx, package.as_deref(), no_snapshot, adopt),
-                LinkCommand::Undeploy { package } => crate::domains::link::undeploy(ctx, &package),
-                LinkCommand::Adopt { package } => {
-                    crate::domains::link::adopt(ctx, package.as_deref())
-                }
-                LinkCommand::Redeploy { package } => {
-                    crate::domains::link::redeploy(ctx, package.as_deref())
-                }
-                LinkCommand::Sync { package } => {
-                    crate::domains::link::sync(ctx, package.as_deref())
-                }
-            }
-        }
 
         Command::Zone {
             icon,

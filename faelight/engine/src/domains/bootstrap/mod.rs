@@ -57,17 +57,10 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         tools.len().to_string().bright_white()
     );
 
-    // 4. Stow interfaces
+    // 4. Interfaces (dotfiles owned by home-manager on NixOS)
     println!("  │");
     println!("  │  {}", "④ Interfaces".bright_white().bold());
-    let stow_pkgs = read_stow_packages(core_root);
-    println!(
-        "  │    {} stow packages to deploy",
-        stow_pkgs.len().to_string().bright_white()
-    );
-    for pkg in &stow_pkgs {
-        println!("  │      stow {}", pkg.dimmed());
-    }
+    println!("  │    dotfiles managed by home-manager (NixOS)");
 
     // 5. Active intents
     println!("  │");
@@ -155,32 +148,6 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         issues.push(format!("{} tools not deployed", missing.len()));
     }
 
-    // Check 2 — stow packages linked
-    let stow_pkgs = read_stow_packages(core_root);
-    let _home = std::env::var("HOME").unwrap_or_default();
-    let stow_src = PathBuf::from(core_root).join("config");
-    let mut unstowed = Vec::new();
-    for pkg in &stow_pkgs {
-        let pkg_path = stow_src.join(pkg);
-        if !pkg_path.exists() {
-            unstowed.push(pkg.clone());
-        }
-    }
-    if unstowed.is_empty() {
-        println!(
-            "  │  {} All {} stow packages present",
-            "✅".green(),
-            stow_pkgs.len()
-        );
-        passed += 1;
-    } else {
-        println!(
-            "  │  {} {} stow packages missing",
-            "⚠".yellow(),
-            unstowed.len()
-        );
-        issues.push(format!("{} stow packages missing", unstowed.len()));
-    }
 
     // Check 3 — git history intact
     let commit_count = get_commit_count(core_root);
@@ -376,17 +343,6 @@ fn read_registry_tools(_core_root: &str) -> Vec<String> {
         .collect()
 }
 
-fn read_stow_packages(core_root: &str) -> Vec<String> {
-    let stow_dir = PathBuf::from(core_root).join("config");
-    std::fs::read_dir(&stow_dir)
-        .map(|d| {
-            d.flatten()
-                .filter(|e| e.path().is_dir())
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .collect()
-        })
-        .unwrap_or_default()
-}
 
 fn read_active_intents(_core_root: &str) -> Vec<String> {
     let future_dir = faelight_core::paths::intents_dir().join("future");

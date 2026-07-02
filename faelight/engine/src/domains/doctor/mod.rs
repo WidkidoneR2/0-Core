@@ -107,22 +107,13 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "config/".bright_cyan()
     );
 
-    let stow_dir = std::path::PathBuf::from(core_root).join("config");
-    let stow_pkgs: Vec<String> = std::fs::read_dir(&stow_dir)
-        .map(|d| {
-            d.flatten()
-                .filter(|e| e.path().is_dir())
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
+    let dotfile_count = std::fs::read_dir(std::path::PathBuf::from(core_root).join("config"))
+        .map(|d| d.flatten().filter(|e| e.path().is_dir()).count())
+        .unwrap_or(0);
     println!(
-        "  │    {} stow packages to deploy",
-        stow_pkgs.len().to_string().bright_white()
+        "  │    {} dotfile packages (deployed by home-manager)",
+        dotfile_count.to_string().bright_white()
     );
-    for pkg in &stow_pkgs {
-        println!("  │      stow {}", pkg.dimmed());
-    }
 
     // ── Source 4: Schema ──────────────────────────────────────────────────
     println!("  │");
@@ -188,10 +179,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │");
     println!("  │  {}  Deploy interfaces", "④".bright_white());
     println!("  │     cd ~/0-core/config");
-    for pkg in stow_pkgs.iter().take(4) {
-        println!("  │     stow {}", pkg.dimmed());
-    }
-    println!("  │     stow ... ({} packages total)", stow_pkgs.len());
     println!("  │");
     println!("  │  {}  Validate", "⑤".bright_white());
     println!("  │     core doctor run  → should show 23/23 ✅");

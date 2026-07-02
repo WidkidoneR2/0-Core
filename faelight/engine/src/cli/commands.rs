@@ -114,7 +114,6 @@ pub enum Command {
     Version,
     Doctor(DoctorCommand),
     Plugin(PluginCommand),
-    Link(LinkCommand),
     Zone {
         icon: bool,
         label: bool,
@@ -255,35 +254,6 @@ pub enum DoctorCommand {
     Rebuild,
     Quick,
     History,
-}
-
-#[derive(Debug)]
-pub enum LinkCommand {
-    Status {
-        json: bool,
-    },
-    List,
-    Audit,
-    Plan {
-        package: Option<String>,
-    },
-    Deploy {
-        package: Option<String>,
-        no_snapshot: bool,
-        adopt: bool,
-    },
-    Undeploy {
-        package: String,
-    },
-    Adopt {
-        package: Option<String>,
-    },
-    Redeploy {
-        package: Option<String>,
-    },
-    Sync {
-        package: Option<String>,
-    },
 }
 
 #[derive(Debug)]

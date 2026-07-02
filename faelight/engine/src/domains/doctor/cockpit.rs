@@ -89,7 +89,7 @@ pub fn render_cockpit(
 
     // ── Group checks ─────────────────────────────────────────────────
     let system_names = [
-        "Stow Symlinks",
+        "Dotfile Symlinks",
         "System Services",
         "Broken Symlinks",
         "Binary Dependencies",

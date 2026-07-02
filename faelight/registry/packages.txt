@@ -71,7 +71,6 @@ rust
 slurp
 snapper
 starship
-stow
 sudo
 sway
 swaybg
