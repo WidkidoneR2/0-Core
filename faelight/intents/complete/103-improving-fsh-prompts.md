@@ -3,7 +3,7 @@ id: 103
 date: 2026-07-01
 type: future
 title: "Improving Fsh Prompts"
-status: in-progress
+status: complete
 tags: [prompt, fsh]
 ---
 
