@@ -3223,12 +3223,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     let root = PathBuf::from(core_root);
 
-    let version = std::fs::read_to_string(root.join("meta/VERSION"))
+    let version = std::fs::read_to_string(root.join("faelight/meta/VERSION"))
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();
 
-    let changelog = std::fs::read_to_string(root.join("meta/CHANGELOG.md")).unwrap_or_default();
+    let changelog = std::fs::read_to_string(root.join("faelight/meta/CHANGELOG.md")).unwrap_or_default();
     let theme = changelog
         .lines()
         .find(|l| l.starts_with(&format!("## [{}]", version)))

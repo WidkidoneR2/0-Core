@@ -103,7 +103,7 @@ fn report(title: &str, findings: Vec<Finding>) {
 }
 
 fn config_fsh(root: &Path) -> PathBuf {
-    root.join("config/faelight-shell/.config/faelight-shell/config.fsh")
+    root.join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh")
 }
 
 const BUILTINS: &[&str] = &[
@@ -188,8 +188,8 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
 
 fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
     let candidates = [
-        root.join("config/mango/.config/mango/config.conf"),
-        root.join("config/mango/config.conf"),
+        root.join("nix/home/dotfiles/mango/.config/mango/config.conf"),
+        root.join("nix/home/dotfiles/mango/config.conf"),
     ];
     let path = match candidates.iter().find(|p| p.exists()) { Some(p) => p, None => return Vec::new() };
     let text = match std::fs::read_to_string(path) { Ok(t) => t, Err(_) => return Vec::new() };

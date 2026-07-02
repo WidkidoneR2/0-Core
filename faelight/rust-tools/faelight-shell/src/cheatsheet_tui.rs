@@ -254,7 +254,7 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     {
         let core_root = conn_core_root(conn);
         let cfg_path = std::path::PathBuf::from(&core_root)
-            .join("config/mango/.config/mango/config.conf");
+            .join("nix/home/dotfiles/mango/.config/mango/config.conf");
         if let Ok(text) = std::fs::read_to_string(&cfg_path) {
             let mut ins = tx.prepare(
                 "INSERT INTO command_registry

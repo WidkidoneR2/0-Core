@@ -563,7 +563,7 @@ intents_complete = {}
 
         // 3. Update README dynamic section
         let readme_path = core_root.join("README.md");
-        let readme_meta_path = core_root.join("meta/README.md");
+        let readme_meta_path = core_root.join("faelight/meta/README.md");
         let date = chrono::Local::now().format("%Y-%m-%d").to_string();
         if let Err(e) = crate::readme::update_readme(
             &readme_path,
@@ -591,7 +591,7 @@ intents_complete = {}
         }
 
         // 3. Update CHANGELOG
-        let changelog_path = core_root.join("meta/CHANGELOG.md");
+        let changelog_path = core_root.join("faelight/meta/CHANGELOG.md");
         let existing = fs::read_to_string(&changelog_path).unwrap_or_default();
         let new_entry = self.data.render_markdown(&self.stats);
         let new_content = format!(

@@ -255,7 +255,7 @@ fn gather_state() -> ForestState {
         .trim()
         .to_string();
 
-    let changelog = std::fs::read_to_string(root.join("meta/CHANGELOG.md")).unwrap_or_default();
+    let changelog = std::fs::read_to_string(root.join("faelight/meta/CHANGELOG.md")).unwrap_or_default();
     let theme = changelog
         .lines()
         .find(|l| l.contains(&format!("[{}]", version)))

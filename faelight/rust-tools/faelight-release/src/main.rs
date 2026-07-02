@@ -120,7 +120,7 @@ fn main() -> Result<()> {
                     .status();
 
                 // Re-write changelog with the actual theme from TUI
-                let changelog_path = std::path::PathBuf::from(&root).join("meta/CHANGELOG.md");
+                let changelog_path = std::path::PathBuf::from(&root).join("faelight/meta/CHANGELOG.md");
                 if changelog_path.exists() {
                     if let Ok(cl) = std::fs::read_to_string(&changelog_path) {
                         let fixed = cl.replace(

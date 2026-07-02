@@ -14,7 +14,7 @@ fn read_theme(ctx: &AppContext) -> String {
     let root = &ctx.core_root;
     let version = read_version(ctx);
     let changelog =
-        std::fs::read_to_string(std::path::PathBuf::from(&root).join("meta/CHANGELOG.md"))
+        std::fs::read_to_string(std::path::PathBuf::from(&root).join("faelight/meta/CHANGELOG.md"))
             .unwrap_or_default();
     changelog
         .lines()
