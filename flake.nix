@@ -51,8 +51,8 @@
         specialArgs = { inherit self system inputs; };
         modules = [
           home-manager.nixosModules.home-manager
-          ./hosts/vm/base.nix
-          ./hosts/vm/login-mirror.nix
+          ./nix/hosts/vm/base.nix
+          ./nix/hosts/vm/login-mirror.nix
         ];
       };
 
@@ -61,8 +61,8 @@
         specialArgs = { inherit self system inputs; };
         modules = [
           home-manager.nixosModules.home-manager
-          ./hosts/vm/base.nix
-          ./hosts/vm/login-regreet.nix
+          ./nix/hosts/vm/base.nix
+          ./nix/hosts/vm/login-regreet.nix
         ];
       };
 
@@ -71,10 +71,10 @@
         specialArgs = { inherit self system inputs; };
         modules = [
           disko.nixosModules.disko
-          ./hosts/framework16/disko.nix
+          ./nix/hosts/framework16/disko.nix
           nixos-hardware.nixosModules.framework-16-7040-amd
           home-manager.nixosModules.home-manager
-          ./hosts/framework16/configuration.nix
+          ./nix/hosts/framework16/configuration.nix
           { system.configurationRevision = self.rev or self.dirtyRev or "dirty"; }
         ];
       };

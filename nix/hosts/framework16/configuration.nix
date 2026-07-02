@@ -2,8 +2,8 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../nix/modules/desktop/pinnacle.nix
-    ../../nix/modules/desktop/mango.nix
+    ../../modules/desktop/pinnacle.nix
+    ../../modules/desktop/mango.nix
   ];
 
   # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
@@ -119,7 +119,7 @@
 
   # Declarative /etc/faelight/VERSION from meta/VERSION (INT-031 de-Arch).
   # faelight-login reads this; faelight-release no longer writes it.
-  environment.etc."faelight/VERSION".text = builtins.readFile ../../faelight/meta/VERSION;
+  environment.etc."faelight/VERSION".text = builtins.readFile ../../../faelight/meta/VERSION;
 
   # --- The forest + tools ---
   environment.systemPackages = [
@@ -152,7 +152,7 @@
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.christian = import ../../users/christian/home.nix;
+  home-manager.users.christian = import ../../../users/christian/home.nix;
 
 environment.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
   system.stateVersion = "25.11";

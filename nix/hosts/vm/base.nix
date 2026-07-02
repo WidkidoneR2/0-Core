@@ -4,7 +4,7 @@
   # (mirror = tuigreet, regreet = cage+ReGreet). The login layer is a
   # separate module the flake selects. greetd.enable + the session command
   # live in the login modules, not here.
-  imports = [ ./hardware-configuration.nix ../../nix/modules/desktop/mango.nix ];
+  imports = [ ./hardware-configuration.nix ../../modules/desktop/mango.nix ];
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -99,7 +99,7 @@
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.christian = import ../../users/christian/home.nix;
+  home-manager.users.christian = import ../../../users/christian/home.nix;
 
   system.stateVersion = "26.05";
 

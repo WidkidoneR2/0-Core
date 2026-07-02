@@ -19,7 +19,7 @@ pkgs.testers.runNixOSTest {
   nodes.machine = { config, pkgs, lib, ... }: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
-      ../../hosts/framework16/configuration.nix
+      ../hosts/framework16/configuration.nix
     ];
 
     # --- Neutralize metal-only pieces the VM can't provide ---

@@ -1,6 +1,6 @@
 { config, pkgs, self, system, inputs, ... }:
 {
-  imports = [ ./hardware-configuration.nix ../../nix/modules/desktop/mango.nix ];
+  imports = [ ./hardware-configuration.nix ../../modules/desktop/mango.nix ];
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -250,7 +250,7 @@
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.christian = import ../../users/christian/home.nix;
+  home-manager.users.christian = import ../../../users/christian/home.nix;
 
   system.stateVersion = "26.05";
 
