@@ -132,7 +132,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "schema/".bright_cyan()
     );
 
-    let schema_dir = std::path::PathBuf::from(core_root).join("schema");
+    let schema_dir = faelight_core::paths::schema_dir();
     let schema_count = std::fs::read_dir(&schema_dir)
         .map(|d| {
             d.flatten()

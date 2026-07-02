@@ -201,7 +201,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check 4 — schema layer present
-    let schema_dir = PathBuf::from(core_root).join("schema");
+    let schema_dir = faelight_core::paths::schema_dir();
     if schema_dir.exists() {
         println!("  │  {} Schema layer present", "✅".green());
         passed += 1;

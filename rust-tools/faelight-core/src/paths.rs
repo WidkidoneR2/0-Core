@@ -126,7 +126,7 @@ pub fn state_db() -> PathBuf {
 
 /// Schema directory (registry JSON schemas read by engine doctor/bootstrap).
 pub fn schema_dir() -> PathBuf {
-    core_dir().join("schema")
+    faelight_dir().join("schema")
 }
 
 /// core_root as a String, for consumers (e.g. engine AppContext) that store the
