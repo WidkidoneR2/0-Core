@@ -108,7 +108,7 @@ pub struct ShippedIntent {
 
 pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<ShippedIntent> {
     // Read complete/ directory and find intents modified since the last tag
-    let complete_dir = core_root.join("intents/complete");
+    let complete_dir = faelight_core::paths::intents_dir().join("complete");
     if !complete_dir.exists() {
         return vec![];
     }
@@ -127,6 +127,7 @@ pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<Shipped
             "HEAD",
             "--",
             "intents/complete/",
+            "faelight/intents/complete/",
         ])
         .output()
         .unwrap_or_else(|_| std::process::Output {

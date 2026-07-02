@@ -105,12 +105,14 @@ fn forest_context(older: &str, newer: &str) -> (usize, Vec<u32>) {
     if let Ok(out) = Command::new("git")
         .args([
             "-C", &repo, "log", "--no-renames", "--diff-filter=A",
-            "--name-only", "--pretty=format:", &range, "--", "intents/complete/",
+            "--name-only", "--pretty=format:", &range, "--", "intents/complete/", "faelight/intents/complete/",
         ])
         .output()
     {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
-            if let Some(rest) = line.trim().strip_prefix("intents/complete/") {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("faelight/intents/complete/")
+                .or_else(|| trimmed.strip_prefix("intents/complete/")) {
                 let num: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
                 if let Ok(n) = num.parse::<u32>() {
                     ids.insert(n);

@@ -187,7 +187,7 @@ pub fn capabilities_log() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn intents_dir() -> PathBuf {
-    core_dir().join("intents")
+    faelight_dir().join("intents")
 }
 
 pub fn docs_dir() -> PathBuf {
