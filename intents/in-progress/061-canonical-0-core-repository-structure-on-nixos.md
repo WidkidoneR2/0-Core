@@ -228,3 +228,52 @@ metal ship (2026-06-29) followed exactly this: VM-proven, staged, rescue-armed.
 ### State
 061 stays in-progress (correctly partial). v2 spec adds the nix/+faelight/ two-domain
 upgrade. Do NOT cicomplete until the gated/deferred phases land.
+
+## Progress (2026-07-02): Phase 6 hardcoded-path refactor -- SWEEP COMPLETE
+The cross-cutting refactor flagged above as "Understood, not batch-swept" is now
+DONE. This was the blocker for relocating meta/, schema/, runtime/: those dirs are
+read by compiled Rust at runtime, so moving them required first making every path
+resolve through ONE authority. That authority now exists and every tool uses it.
+
+### Single path authority (faelight-core/src/paths.rs) -- the complete map
+Accessors: core_dir, runtime_dir, state_db, version_file, schema_dir,
+core_root_string, target_dir, logs_dir, backups_dir, checkpoints_dir, events_dir,
+reactions_dir, cache_dir, capabilities_log, health_cache, forecast_cache,
+reactions_config. Moving any tracked dir is now a ONE-LINE change here instead of a
+per-tool hunt across the codebase. Engine AppContext core_root also derives from
+paths.rs (Arch format! retired).
+
+### Swept (18 units, ~77 refs, zero warnings, full workspace builds clean, pushed)
+faelight-shell (incl. primary db.rs open), db-browse, faelight-git,
+faelight-sandbox, faelight-update, faelight-ade, faelight-compositor,
+faelight-contextd, faelight-idle, faelight-link, faelight-wallpaper, friday-chat,
+faelight-docs, faelight-release, engine (core, ~28 refs / 3 path categories),
+faelight-daemon, fsh-test. Verified LIVE: fsh restart opens real db; sandbox audit
+reads real trail; core doctor 6/6 healthy; fsh-test 82/82 stored via authority.
+Deliberately kept literal: fsh-test `state_db_exists` fixture (tests shell path
+behavior, must NOT couple to the abstraction it may validate). Foundation commit
+ada8672d ... final fsh-test commit e209e8a9.
+
+### What this DID and DID NOT do (honest scope)
+DID: removed the hardcoded-path blocker; paths.rs is now the single source of truth.
+DID NOT: move any directory. The tree is still in the CURRENT layout, NOT yet the
+v2 nix/+faelight/ structure. The sweep is the ENABLER; the restructure is the act.
+
+### REMAINING for 061 (the tree restructure -- lockout-adjacent)
+- Phases 1-5 dir homes + nix/+faelight/ top split (per the re-sequenced plan above).
+- Phase 6 dir MOVES: git mv meta/, schema/, runtime/ into v2 homes; update the
+  ONE-LINE paths.rs roots + flake.nix imports; rebuild; verify no runtime breakage.
+- Hard rule still applies: VM-proof before metal; nixos-rebuild test before switch;
+  TTY rescue confirmed (Ctrl+Alt+F2 out / F1 back). Phase 2 still gated by the
+  metal-only login-test finding (INT-054).
+
+### Pending (non-blocking) + follow-up ideas to file as their own intents
+- Deploy routed faelight-daemon: next `rebuild` restarts the live service onto the
+  swept binary -- worth watching the restart.
+- IDEA (file as intent): `verify-structure` command -- assert paths.rs accessors
+  resolve to real existing paths, assert NO new hardcoded paths exist outside
+  paths.rs (makes the sweep SELF-ENFORCING against future drift), and once
+  restructured, assert the tree matches this v2 charter. "Structure knows itself."
+- IDEA (file as intent): build-output severity classifier (HIGH=compile errors,
+  MEDIUM=env/dep e.g. pkg-config, LOW=warnings) to make scary output readable.
+- IDEA: check faelight-contextd vs faelight-context naming/duplication.
