@@ -17,7 +17,7 @@ pub const TEXT_BODY: [u8; 4] = [0xd7, 0xe0, 0xda, 0xff]; // fog white    (215, 2
 
 pub const TEXT_HEADER: [u8; 4] = [0x5c, 0xc8, 0xff, 0xff]; // electric cyan (92, 200, 255)
 
-const FONT_DATA: &[u8] = include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../../../assets/fonts/HackNerdFont-Regular.ttf");
 
 static FONT: OnceLock<Font> = OnceLock::new();
 

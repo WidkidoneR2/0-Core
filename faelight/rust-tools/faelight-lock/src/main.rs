@@ -333,7 +333,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let username = std::env::var("USER").unwrap_or_else(|_| "christian".to_string());
     let font = Font::from_bytes(
-        include_bytes!("../../../assets/fonts/HackNerdFont-Regular.ttf") as &[u8],
+        include_bytes!("../../../../assets/fonts/HackNerdFont-Regular.ttf") as &[u8],
         FontSettings::default(),
     ).expect("Failed to load font");
     let conn = Connection::connect_to_env()?;
