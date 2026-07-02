@@ -313,7 +313,7 @@ fn gather_state() -> ForestState {
         let home = std::env::var("HOME").unwrap_or_default();
         let cache_path = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
         std::fs::read_to_string(&cache_path)
-            .or_else(|_| std::fs::read_to_string(root.join("runtime/cache/health.txt")))
+            .or_else(|_| std::fs::read_to_string(faelight_core::paths::cache_dir().join("health.txt")))
             .unwrap_or_else(|_| "100".to_string())
             .trim()
             .trim_end_matches('%')

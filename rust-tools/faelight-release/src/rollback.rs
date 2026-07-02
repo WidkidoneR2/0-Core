@@ -68,8 +68,8 @@ pub fn get_sorted_versions(releases_dir: &PathBuf) -> Vec<String> {
 }
 
 pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
-    let gen_path = core_root.join("runtime/generation");
-    let releases_dir = core_root.join("meta/releases");
+    let gen_path = faelight_core::paths::runtime_dir().join("generation");
+    let releases_dir = faelight_core::paths::meta_dir().join("releases");
 
     let current = fs::read_to_string(&gen_path)
         .unwrap_or_default()

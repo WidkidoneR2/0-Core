@@ -537,7 +537,7 @@ impl ReleaseTui {
         self.log.push("✅ VERSION updated".to_string());
 
         // 2. Write release manifest
-        let release_dir = core_root.join(format!("meta/releases/{}", self.version));
+        let release_dir = faelight_core::paths::meta_dir().join(format!("releases/{}", self.version));
         fs::create_dir_all(&release_dir)?;
         let manifest = format!(
             r#"version = "{}"
@@ -603,7 +603,7 @@ intents_complete = {}
         self.log.push("✅ CHANGELOG.md updated".to_string());
 
         // 4. Update generation pointer
-        let gen_path = core_root.join("runtime/generation");
+        let gen_path = faelight_core::paths::runtime_dir().join("generation");
         fs::write(&gen_path, &self.version)?;
         self.log.push("✅ Generation pointer updated".to_string());
 

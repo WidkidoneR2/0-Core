@@ -374,7 +374,7 @@ fn main() -> Result<()> {
         }
 
         Command::Status => {
-            let gen_path = root.join("runtime/generation");
+            let gen_path = faelight_core::paths::runtime_dir().join("generation");
             let current =
                 std::fs::read_to_string(&gen_path).unwrap_or_else(|_| "unknown".to_string());
             let current = current.trim();
@@ -383,7 +383,7 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("  Current generation: {}", current);
 
-            let manifest_path = root.join(format!("meta/releases/{}/manifest.toml", current));
+            let manifest_path = faelight_core::paths::meta_dir().join(format!("releases/{}/manifest.toml", current));
             if manifest_path.exists() {
                 let manifest = std::fs::read_to_string(&manifest_path)?;
                 for line in manifest.lines().take(4) {
@@ -393,8 +393,8 @@ fn main() -> Result<()> {
         }
 
         Command::History => {
-            let releases_dir = root.join("meta/releases");
-            let gen_path = root.join("runtime/generation");
+            let releases_dir = faelight_core::paths::meta_dir().join("releases");
+            let gen_path = faelight_core::paths::runtime_dir().join("generation");
             let current = std::fs::read_to_string(&gen_path).unwrap_or_default();
             let current = current.trim();
 

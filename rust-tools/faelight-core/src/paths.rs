@@ -114,7 +114,7 @@ pub fn themes_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn runtime_dir() -> PathBuf {
-    core_dir().join("runtime")
+    faelight_dir().join("runtime")
 }
 
 /// The single canonical state database. Every tool MUST resolve state.db
