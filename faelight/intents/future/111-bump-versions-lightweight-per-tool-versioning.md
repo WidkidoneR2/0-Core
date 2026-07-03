@@ -8,59 +8,78 @@ tags: [versioning, release, cicomplete]
 ---
 
 ## Why
-Tool versions drift stale because the only bump path is faelight-release, a full
-FOREST-RELEASE ceremony (publish TUI, changelog, generation triad, rollback
-points). Far too heavy for "one tool got a patch." Result: faelight-shell sat at
-2.5.0 through BOTH INT-100 (parser fix) and INT-101 (schema fix) -- two real
-shipped fixes, no version movement. There is no lightweight per-tool bump.
+`bump-versions` is SUGGESTION THEATER. It reads each tool's Cargo.toml, prints what a
+patch/minor bump WOULD be -- but has NO write path (verified: bump_versions_cmd in
+faelight-shell only builds a display String; even the `apply` branch just prints usage).
+cicomplete (engine intent/mod.rs) does the same: reads versions, prints "suggested",
+says "Run: bump-versions to apply" -- pointing at a command that cannot apply.
+So faelight-shell sat at 2.5.0 through INT-100/101 (and 104/082/116 this session) not
+because bumping is heavy -- because BUMPING WAS NEVER IMPLEMENTED. The gap is a missing
+writer + a closed loop, not a new tool.
 
-## The core conceptual split (root of the problem)
-Two DIFFERENT axes are conflated:
-- TOOL VERSION = "this artifact's code changed" (faelight-shell 2.5.0 -> 2.5.1)
-- FOREST GENERATION = "the whole-system state at gen N" (faelight-release's domain)
-Orthogonal. A tool patch should not require a forest release; a forest release
-snapshots whatever tool versions exist at that moment. Today they're welded
-together through faelight-release, so per-tool versioning has no home.
+## The axiom that resolves the confusion (gen vs version)
+TWO ORTHOGONAL AXES -- never linked in the data, only felt linked because nothing bumped:
+- TOOL VERSION = "this artifact's code changed" -> lives in the tool's Cargo.toml,
+  bumped at cicomplete when its code changed. ZERO connection to generation count.
+- FOREST GENERATION = "system rebuild count" (gen 300, 999...) -> disposable counter,
+  resets on fresh install, means nothing about tool maturity.
+Gen 999 is a non-event. A tool bumps ONCE per meaningful code change, no matter how many
+generations were burned testing it. The bump attaches to the CHANGE, not the testing.
 
-## Design space (decide before building)
-PHILOSOPHY 1 -- per-tool semver, DECOUPLED from forest releases [LEANING]
-  Each tool owns its version; bumps when ITS code changes, independent of forest
-  generations. faelight-release stays a separate axis that snapshots the forest.
-  The bump-versions registry already wants to be this -- the lightweight per-tool
-  bump ACTION is what's missing.
-PHILOSOPHY 2 -- versions bump ONLY at forest release
-  Simpler but coarse; tool versions don't reflect individual fixes. Current
-  de-facto state and the thing causing the frustration.
-PHILOSOPHY 3 -- auto-bump on change via cicomplete
-  cicomplete already SUGGESTS bumps ("faelight-shell patch or minor"). Close the
-  loop: cicomplete detects which tools an intent's commits touched and bumps them.
+## Architecture -- who owns what (settled by recon, no new tool)
+1. bump-versions (faelight-shell, commands/mod.rs:12432) = THE WRITER.
+   Already reads Cargo.toml + does semver math. ADD the missing write path:
+   `bump-versions patch|minor|major <tool>` edits the tool's Cargo.toml version line in
+   place (count-asserted). Turn the liar into a doer.
+2. cicomplete (engine domains/intent/mod.rs:~960) = THE TRIGGER.
+   Already detects which tools an intent's commits touched. Replace the dead
+   "Run: bump-versions to apply" print with an interactive prompt (see Interaction).
+3. faelight-docs = THE CHANGELOG owner.
+   Already generates version tables + Keep-a-Changelog sections from version metadata
+   (toolgen.rs). Once versions MOVE, its changelogs become accurate automatically.
+   (Optional stretch: bump appends a per-intent changelog line from the intent title.)
+4. faelight-update = EXCLUDED. Wrong axis -- it updates the RUNNING SYSTEM, not dev-time
+   source versions. Do not involve it.
 
-## The hard sub-problem: WHO decides patch vs minor vs major?
-A SEMANTIC judgment a tool can't fully automate. cicomplete suggested "patch OR
-minor" precisely because it can't tell a bug fix from a feature. Options:
-- (a) Human declares the level at cicomplete time (one prompt: patch/minor/major).
-- (b) Convention via intent `type:` field -- intents ALREADY have type
-  (feature/infrastructure/polish/future/decisions...). Map type -> semver:
-  bugfix/polish -> patch, feature -> minor, breaking -> major. The deciding
-  METADATA MAY ALREADY EXIST in the ledger. Promising lead.
+## Semver rules (type -> proposed level)
+Intent `type:` proposes; human confirms/overrides at the prompt.
+- bugfix / polish / infrastructure  -> PATCH   (x.y.Z+1)
+- feature                            -> MINOR   (x.Y+1.0)
+- breaking change                    -> MAJOR   (X+1.0.0)  [type has no "breaking";
+                                                            reached only by human override]
 
-## Integration question
-Should cicomplete close the loop end-to-end: on completion, detect touched tools
-(from the intent's commits), read the intent's type, bump each touched tool by
-the mapped semver level, and record it? Makes versioning a natural byproduct of
-the intent lifecycle instead of a forgotten manual chore.
+## Interaction (prompt at cicomplete -- Christian's design)
+At cicomplete, for each touched tool, PROPOSE from type and ASK:
+  "bump faelight-shell 2.5.0 -> 2.5.1 (patch)?  [patch / minor / major / skip]"
+- Level pre-filled from the intent type mapping (common case = one keypress to accept).
+- Human can escalate to MAJOR (the only path to major -- covers breaking changes the
+  type field cannot express) or downgrade / skip.
+- NOTHING bumps silently. Demonstrated, human-authorized, forest-aligned.
+- Fires at cicomplete because that is when the change is fresh (fix vs feature).
 
-## Where versions live (recon needed)
-- bump-versions (display alias) reads a registry -- WHERE? (state.db? a versions
-  file? faelight-release's triad?) Find source of truth before designing writes.
-- faelight-release commands: publish/plan/preview/status/history/query/gc-check/
-  rollback/diff -- understand how it currently reads+writes versions.
+## Phases
+Phase 0 -- Recon (done): source-of-truth = each tool Cargo.toml `version` line. The
+  8-tool list already lives in bump_versions_cmd; decide keep-hardcoded vs derive from
+  Cargo workspace members.
+Phase 1 -- Write path: `bump-versions patch|minor|major <tool>` edits the version line
+  in place, count-asserted. Verify a real read-modify-write bump.
+Phase 2 -- type->semver mapping function.
+Phase 3 -- Wire cicomplete: detect touched tools -> propose from type -> interactive
+  prompt -> call writer. Close the loop.
+Phase 4 -- Verify faelight-docs changelog/version tables reflect moved versions.
+Phase 5 -- Retroactive first use: bump faelight-shell / core / faelight-git for THIS
+  session (INT-104 schema, INT-082 de-Arch, INT-116 Arch sweep) -> clean 1.0.0 baseline.
 
-## Gates (when built)
-- [ ] Source-of-truth for tool versions located + documented
-- [ ] A lightweight per-tool bump exists (NOT the full release ceremony)
-- [ ] patch/minor/major decision mechanism chosen (human prompt or type-mapping)
-- [ ] faelight-shell bumped to reflect INT-100/101 (retroactive first use)
-- [ ] Forest-release vs tool-version axes cleanly separated (documented)
+## Gates
+- [ ] bump-versions has a real WRITE path; a demonstrated Cargo.toml bump verified
+- [ ] type -> patch/minor mapping implemented; major reachable via human override
+- [ ] cicomplete prompts per touched tool and applies the chosen bump (loop closed)
+- [ ] faelight-docs changelog + version tables reflect moved versions
+- [ ] retroactive bumps applied (shell/core/git) for this session's work
+- [ ] gen-vs-version axes documented (this file) so the confusion never recurs
 
----
+## Relationship
+- PREREQUISITE for the Faelight OS 1.0.0 release: cannot cut 1.0.0 with versioning that
+  is pure suggestion-theater. Do 111 -> then 1.0.0.
+- Excludes faelight-update. Touches faelight-shell (writer), engine/intent (trigger),
+  faelight-docs (changelog).
