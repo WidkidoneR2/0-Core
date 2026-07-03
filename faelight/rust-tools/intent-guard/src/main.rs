@@ -79,10 +79,6 @@ fn check_dd(cmd: &str) -> bool {
     cmd.trim_start().starts_with("dd ") && (cmd.contains("of=/dev/") || cmd.contains("if=/dev/"))
 }
 
-fn check_pacman_remove(cmd: &str) -> bool {
-    (cmd.trim_start().starts_with("pacman ") || cmd.trim_start().starts_with("sudo pacman "))
-        && (cmd.contains("-R") || cmd.contains("--remove"))
-}
 
 fn check_mv_core(cmd: &str) -> bool {
     if !(cmd.trim_start().starts_with("mv ") || cmd.trim_start().starts_with("sudo mv ")) {
@@ -196,13 +192,6 @@ const PATTERNS: &[Pattern] = &[
         description: "Find with delete flag",
         check: check_find_delete,
         risk: RiskLevel::High,
-    },
-    // MEDIUM - Package operations
-    Pattern {
-        name: "pacman_remove",
-        description: "Remove system packages",
-        check: check_pacman_remove,
-        risk: RiskLevel::Medium,
     },
     Pattern {
         name: "systemctl_disable",

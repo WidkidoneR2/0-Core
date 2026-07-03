@@ -381,7 +381,7 @@ fn cmd_summary(path: &str) {
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
     println!();
-    println!("  Faelight Forest is a custom Arch Linux personal computing environment");
+    println!("  Faelight Forest is a custom NixOS personal computing environment");
     println!(
         "  written in {:.0}% Rust across {} files ({} lines).",
         (rust_lines as f64 / stats.total_lines.max(1) as f64 * 100.0),

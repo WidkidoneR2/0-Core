@@ -486,8 +486,6 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
-        "pkgs" | "packages" => sys_packages(),
-        "pkg" => pkg_cmd(args),
         "store" => store_cmd(args),
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
@@ -537,8 +535,6 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 "files",
                 "find",
                 "net",
-                "pkgs",
-                "pkg",
                 "history",
                 "ht",
                 "hstats",
@@ -2532,7 +2528,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 "scripts",
                 "docs",
                 "engine",
-                "00-meta",
+                "meta",
             ];
             let in_source = source_dirs
                 .iter()
@@ -3160,8 +3156,6 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 "files",
                 "find",
                 "net",
-                "pkgs",
-                "pkg",
                 "history",
                 "ht",
                 "hstats",
@@ -5528,159 +5522,6 @@ fn sys_network() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-// ── Phase 12 — pkg — forest-native package interface ─────────────────────────
-// Wraps paru/pacman with structured table output.
-// pkg list installed   → Value::Table (pipeable)
-// pkg search <term>    → Value::Table (pipeable)
-// pkg install <name>   → interactive paru -S
-// pkg remove  <name>   → interactive paru -Rns
-// pkg update           → interactive paru -Syu
-fn pkg_cmd(args: &[&str]) -> CommandResult {
-    use crate::value::Value;
-    use std::collections::HashMap;
-
-    let sub = args.first().copied().unwrap_or("help");
-
-    match sub {
-        // ── pkg list installed ────────────────────────────────────────────
-        "list" => {
-            let filter = args.get(1).copied().unwrap_or("installed");
-            if filter != "installed" {
-                return CommandResult::Error(format!(
-                    "  unknown list filter: {} — try: pkg list installed",
-                    filter
-                ));
-            }
-            let output = std::process::Command::new("pacman")
-                .args(["-Q"])
-                .output()
-                .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .unwrap_or_default();
-
-            let rows: Vec<HashMap<String, Value>> = output
-                .lines()
-                .filter_map(|line| {
-                    let mut parts = line.splitn(2, ' ');
-                    let name = parts.next()?.to_string();
-                    let version = parts.next().unwrap_or("?").trim().to_string();
-                    let mut row = HashMap::new();
-                    row.insert("name".to_string(), Value::Text(name));
-                    row.insert("version".to_string(), Value::Text(version));
-                    Some(row)
-                })
-                .collect();
-
-            let count = rows.len();
-            println!(
-                "  {} {} packages installed",
-                "📦".normal(),
-                count.to_string().bright_white()
-            );
-            CommandResult::Value(Value::Table(rows))
-        }
-
-        // ── pkg install <name> ────────────────────────────────────────────
-        "install" | "add" => {
-            let name = match args.get(1) {
-                Some(n) => n,
-                None => return CommandResult::Error("  usage: pkg install <package>".to_string()),
-            };
-            println!(
-                "  {} installing {} via paru...",
-                "📦".normal(),
-                name.bright_cyan()
-            );
-            let status = std::process::Command::new("paru")
-                .args(["-S", name])
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match status {
-                Ok(s) if s.success() => CommandResult::Output(format!(
-                    "  {} {} installed",
-                    "✅".normal(),
-                    name.bright_green()
-                )),
-                Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}",
-                    s.code().unwrap_or(-1)
-                )),
-                Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
-            }
-        }
-
-        // ── pkg remove <name> ─────────────────────────────────────────────
-        "remove" | "uninstall" | "rm" => {
-            let name = match args.get(1) {
-                Some(n) => n,
-                None => return CommandResult::Error("  usage: pkg remove <package>".to_string()),
-            };
-            println!("  {} removing {} ...", "🗑".normal(), name.bright_red());
-            let status = std::process::Command::new("paru")
-                .args(["-Rns", name])
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match status {
-                Ok(s) if s.success() => CommandResult::Output(format!(
-                    "  {} {} removed",
-                    "✅".normal(),
-                    name.bright_green()
-                )),
-                Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}",
-                    s.code().unwrap_or(-1)
-                )),
-                Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
-            }
-        }
-
-        // ── pkg update ────────────────────────────────────────────────────
-        "update" | "upgrade" => {
-            println!("  {} updating all packages via paru...", "🔄".normal());
-            let status = std::process::Command::new("paru")
-                .args(["-Syu"])
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match status {
-                Ok(s) if s.success() => CommandResult::Output("  ✅ system updated".to_string()),
-                Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}",
-                    s.code().unwrap_or(-1)
-                )),
-                Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
-            }
-        }
-
-        // ── pkg help ──────────────────────────────────────────────────────
-        _ => CommandResult::Output(format!(
-            "  {} pkg — forest-native package interface\n\
-             {}\n\
-             {}  {}\n\
-             {}  {}\n\
-             {}  {}\n\
-             {}  {}\n\
-             {}  {}",
-            "📦".normal(),
-            "  ─────────────────────────────────────".dimmed(),
-            "  pkg list installed".bright_cyan(),
-            "list installed packages as table".dimmed(),
-            "  pkg search <term>".bright_cyan(),
-            "search repos and AUR".dimmed(),
-            "  pkg install <name>".bright_cyan(),
-            "install via paru".dimmed(),
-            "  pkg remove <name>".bright_cyan(),
-            "remove package".dimmed(),
-            "  pkg update".bright_cyan(),
-            "update all packages".dimmed(),
-        )),
-    }
-}
 
 // INT-075: nix store explorer. `store why <path|name>` answers "what keeps this
 // alive + how big is it" using fast per-path nix queries (NO --print-dead; that walks
@@ -5896,32 +5737,6 @@ fn nix_query_lines(argv: &[&str]) -> Vec<String> {
     }
 }
 
-fn sys_packages() -> CommandResult {
-    use crate::value::Value;
-    use std::collections::HashMap;
-
-    let output = std::process::Command::new("pacman")
-        .args(["-Q"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default();
-
-    let rows: Vec<HashMap<String, Value>> = output
-        .lines()
-        .filter_map(|line| {
-            let mut parts = line.splitn(2, ' ');
-            let name = parts.next()?.to_string();
-            let version = parts.next().unwrap_or("?").trim().to_string();
-            let mut row = HashMap::new();
-            row.insert("name".to_string(), Value::Text(name));
-            row.insert("version".to_string(), Value::Text(version));
-            Some(row)
-        })
-        .collect();
-
-    CommandResult::Value(Value::Table(rows))
-}
 
 fn sys_logs(args: &[&str]) -> CommandResult {
     use crate::value::Value;
@@ -8315,7 +8130,6 @@ fn help() -> CommandResult {
         ("services", "systemd services as table — pipeable"),
         ("files", "files as table  [path]"),
         ("net", "network interfaces as table"),
-        ("pkgs", "installed packages as table"),
         ("gc", "git commits as table — pipeable"),
         ("gf", "git files as table — pipeable"),
         (

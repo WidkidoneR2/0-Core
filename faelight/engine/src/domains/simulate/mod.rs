@@ -7,9 +7,6 @@ pub fn doctor(ctx: &AppContext) -> CoreResult<()> {
     crate::domains::doctor::simulate(ctx)
 }
 
-pub fn update(ctx: &AppContext) -> CoreResult<()> {
-    crate::domains::update::simulate(ctx)
-}
 
 /// Phase 5 — Extended simulation using decision patterns
 /// Uses decision history, context fingerprints, and heuristics

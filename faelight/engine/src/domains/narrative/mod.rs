@@ -38,7 +38,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter I — Identity".bright_white().bold());
     println!("  │");
     println!(
-        "  │  Faelight Forest {} runs on vanilla Arch Linux,",
+        "  │  Faelight Forest {} runs on NixOS 26.05 (Yarara),",
         version.bright_green()
     );
     println!("  │  entirely in Rust by a single developer.");

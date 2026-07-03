@@ -39,7 +39,7 @@ impl Default for Config {
             auto_yes_categories: Vec::new(),
             update_order: vec![
                 "System Packages".to_string(),
-                "AUR Packages".to_string(),
+                "Flatpak Packages".to_string(),
                 "Rust Toolchain".to_string(),
                 "Cargo Tools".to_string(),
                 "0-Core Workspace".to_string(),

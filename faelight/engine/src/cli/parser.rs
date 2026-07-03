@@ -857,10 +857,6 @@ pub enum UpdateCommands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    Safe {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -1085,8 +1081,6 @@ pub enum WhyCommands {
 pub enum SimulateCommands {
     /// Predict health after pending changes — no writes
     Doctor,
-    /// Show what packages would be updated — no writes
-    Update,
     /// Simulate risk for a planned scenario using decision history
     Scenario {
         /// Description of the planned scenario

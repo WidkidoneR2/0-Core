@@ -10,8 +10,6 @@ pub enum Capability {
     FilesystemReadHome,
     FilesystemWriteRuntime,
     FilesystemWriteHome,
-    QueryPacman,
-    ExecutePacman,
     ControlSystemdUser,
     ControlWM,
     NetworkQuery,
@@ -27,8 +25,6 @@ impl std::fmt::Display for Capability {
             Capability::FilesystemReadHome => write!(f, "filesystem.read.home"),
             Capability::FilesystemWriteRuntime => write!(f, "filesystem.write.runtime"),
             Capability::FilesystemWriteHome => write!(f, "filesystem.write.home"),
-            Capability::QueryPacman => write!(f, "pacman.query"),
-            Capability::ExecutePacman => write!(f, "pacman.execute"),
             Capability::ControlSystemdUser => write!(f, "systemd.user.control"),
             Capability::ControlWM => write!(f, "wm.control"),
             Capability::NetworkQuery => write!(f, "network.query"),
@@ -57,7 +53,6 @@ impl CapabilityContext {
         granted.insert(Capability::ControlWM);
         granted.insert(Capability::OrchestratorAccess);
         granted.insert(Capability::FilesystemWriteHome);
-        granted.insert(Capability::ExecutePacman);
         Self { granted, log_path }
     }
 

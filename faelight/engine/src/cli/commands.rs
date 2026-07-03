@@ -401,7 +401,6 @@ pub enum NotifyCommand {
 #[derive(Debug)]
 pub enum UpdateCommand {
     Run { args: Vec<String> },
-    Safe { args: Vec<String> },
 }
 
 #[derive(Debug)]
@@ -546,7 +545,6 @@ pub enum WhyCommand {
 #[derive(Debug)]
 pub enum SimulateCommand {
     Doctor,
-    Update,
     Scenario { description: String },
 }
 

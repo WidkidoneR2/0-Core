@@ -32,7 +32,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
 
     // 1. System requirements
     println!("  │  {}", "① System Requirements".bright_white().bold());
-    println!("  │    OS:      Arch Linux (vanilla)");
+    println!("  │    OS:      NixOS 26.05 (Yarara)");
     println!("  │    Shell:   zsh + faelight-shell");
     println!("  │    Rust:    {}", get_rust_version());
 

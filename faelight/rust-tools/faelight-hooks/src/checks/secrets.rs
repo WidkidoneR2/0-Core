@@ -21,7 +21,7 @@ pub fn check_secrets() -> Result<bool> {
         );
         println!(
             "   Install with: {}",
-            "pacman -S gitleaks  OR  cargo install gitleaks".dimmed()
+            "nix profile install nixpkgs#gitleaks  OR  cargo install gitleaks".dimmed()
         );
         println!();
         return Ok(true); // Warning, not a hard failure

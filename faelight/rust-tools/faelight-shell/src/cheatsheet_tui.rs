@@ -147,7 +147,6 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "on" => "Register a hook: on <event> do <action>",
         "peek" => "Quick file preview",
         "pick" => "Interactive item picker",
-        "pkg" => "Package operations",
         "plan" => "Preview what a command would do",
         "plugin-reload" => "Reload plugins",
         "plugins" => "List plugins",

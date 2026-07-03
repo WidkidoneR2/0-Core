@@ -136,7 +136,7 @@ pub fn check_binaries() -> CheckResult {
             name: "Binary Dependencies".into(),
             status: Status::Fail,
             message: format!("{} binaries missing", missing.len()),
-            fix: Some("Install with: sudo pacman -S <package>".into()),
+            fix: Some("Add the package to configuration.nix, or: nix profile install nixpkgs#<package>".into()),
         }
     }
 }
@@ -583,7 +583,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
         status,
         message,
         fix: if patchable_count > 0 {
-            Some("Run: sudo pacman -Syu".into())
+            Some("Run: update  (or: sudo nixos-rebuild switch)".into())
         } else {
             None
         },

@@ -95,86 +95,7 @@ fn scan_cargo(ctx: &AppContext) -> Vec<Finding> {
     findings
 }
 
-fn get_patchable_packages() -> std::collections::HashSet<String> {
-    let mut patchable = std::collections::HashSet::new();
-    if let Ok(output) = Command::new("arch-audit").args(["-u", "--json"]).output() {
-        let text = String::from_utf8_lossy(&output.stdout);
-        if let Ok(advisories) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
-            for advisory in advisories {
-                if let Some(pkgs) = advisory["packages"].as_array() {
-                    for p in pkgs {
-                        if let Some(s) = p.as_str() {
-                            patchable.insert(s.to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    patchable
-}
 
-fn scan_arch() -> Vec<Finding> {
-    let mut findings = Vec::new();
-    let patchable = get_patchable_packages();
-    let output = Command::new("arch-audit").args(["--json"]).output();
-    let Ok(output) = output else { return findings };
-    let text = String::from_utf8_lossy(&output.stdout);
-    let Ok(advisories) = serde_json::from_str::<Vec<serde_json::Value>>(&text) else {
-        return findings;
-    };
-    for advisory in advisories {
-        let status = advisory["status"].as_str().unwrap_or("Unknown");
-        if status == "Unknown" {
-            continue;
-        }
-        let avg_id = advisory["name"].as_str().unwrap_or("UNKNOWN").to_string();
-        let severity_str = advisory["severity"].as_str().unwrap_or("Unknown");
-        let vuln_type = advisory["type"].as_str().unwrap_or("unknown issue");
-        let packages: Vec<String> = advisory["packages"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|p| p.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            })
-            .unwrap_or_default();
-        let cves: Vec<String> = advisory["issues"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|i| i.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            })
-            .unwrap_or_default();
-        let severity = match severity_str.to_lowercase().as_str() {
-            "critical" => Severity::Critical,
-            "high" => Severity::High,
-            "medium" => Severity::Medium,
-            "low" => Severity::Low,
-            _ => Severity::Low,
-        };
-        for pkg in &packages {
-            let fix_msg = if patchable.contains(pkg.as_str()) {
-                "Patch available — run: sudo pacman -Syu".to_string()
-            } else {
-                "No patch yet — upstream pending (arch-audit -u)".to_string()
-            };
-            findings.push(Finding {
-                id: avg_id.clone(),
-                severity: severity.clone(),
-                category: "System Package".to_string(),
-                package: pkg.clone(),
-                description: format!("{} ({})", vuln_type, cves.join(", ")),
-                fix: Some(fix_msg),
-                url: Some(format!("https://security.archlinux.org/{}", avg_id)),
-            });
-        }
-    }
-    findings
-}
 
 fn scan_permissions() -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -320,9 +241,7 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
     findings.extend(scan_cargo(ctx));
     println!("{}", "done".dimmed());
 
-    print!("  {} System packages (arch-audit)... ", "📦".cyan());
     std::io::Write::flush(&mut std::io::stdout()).ok();
-    findings.extend(scan_arch());
     println!("{}", "done".dimmed());
 
     print!("  {} File permissions... ", "🔑".cyan());

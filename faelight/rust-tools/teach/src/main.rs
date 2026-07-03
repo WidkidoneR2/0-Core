@@ -396,7 +396,7 @@ fn slide_overview(snap: &SystemSnapshot) {
     );
     println!();
     println!(
-        "  {} commits. {} health. Running on vanilla Arch + Sway.",
+        "  {} commits. {} health. Running on NixOS 26.05 + mango.",
         snap.commit_count.to_string().cyan(),
         format!("{}%", snap.health_pct).green(),
     );
@@ -442,7 +442,7 @@ fn slide_philosophy(_snap: &SystemSnapshot) {
 fn slide_architecture(snap: &SystemSnapshot) {
     println!("  {}", "Stack".cyan().bold());
     println!();
-    println!("  {} Vanilla Arch Linux", "OS".dimmed());
+    println!("  {} NixOS 26.05 (Yarara)", "OS".dimmed());
     println!("  {} Sway (wlroots Wayland compositor)", "WM".dimmed());
     println!(
         "  {} {} tools in a Cargo workspace",

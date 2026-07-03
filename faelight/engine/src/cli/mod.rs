@@ -343,7 +343,6 @@ pub fn parse() -> Command {
         Commands::Lock { health_check } => Command::Lock { health_check },
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
-            UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
         }),
         Commands::Weight { command } => Command::Weight(match command {
             WeightCommands::List => WeightCommand::List,
@@ -650,7 +649,6 @@ pub fn parse() -> Command {
         }),
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,
-            SimulateCommands::Update => SimulateCommand::Update,
             SimulateCommands::Scenario { description } => SimulateCommand::Scenario { description },
         }),
         Commands::Checkpoint { command } => Command::Checkpoint(match command {

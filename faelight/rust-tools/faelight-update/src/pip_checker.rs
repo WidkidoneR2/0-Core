@@ -2,8 +2,8 @@ use std::path::Path;
 use std::process::Command;
 
 pub fn check_pip_updates() -> Vec<String> {
-    // Skip on Arch (PEP 668 - externally managed)
-    if Path::new("/etc/arch-release").exists() {
+    // Skip on NixOS (externally-managed / PEP 668) -- python via nixpkgs, not pip
+    if Path::new("/etc/NIXOS").exists() {
         return vec![];
     }
 
@@ -32,9 +32,10 @@ pub fn check_pip_updates() -> Vec<String> {
 }
 
 pub fn update_pip() -> std::io::Result<()> {
-    // Skip on Arch (PEP 668)
-    if Path::new("/etc/arch-release").exists() {
-        println!("   ⏭️  Skipping pip on Arch (use pacman for Python packages)");
+    // Skip on NixOS (externally-managed environment / PEP 668) -- python packages
+    // are managed declaratively via nixpkgs, not pip.
+    if Path::new("/etc/NIXOS").exists() {
+        println!("   ⏭️  Skipping pip on NixOS (use nixpkgs for Python packages)");
         return Ok(());
     }
 
@@ -57,7 +58,7 @@ pub fn update_pip() -> std::io::Result<()> {
         }
         Err(e) => {
             println!("   ⚠️  pip update failed: {}", e);
-            println!("   💡 On Arch, use pacman for Python packages");
+            println!("   💡 On NixOS, use nixpkgs for Python packages");
             return Ok(());
         }
     }

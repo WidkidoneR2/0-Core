@@ -148,13 +148,18 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
         }
     }
     println!("   📦 Recording package versions...");
-    for pkg in ["neovim", "zsh", "alacritty", "greetd"] {
-        if let Ok(output) = Command::new("pacman").args(["-Q", pkg]).output() {
-            if output.status.success() {
-                baseline.package_versions.insert(
-                    pkg.to_string(),
-                    String::from_utf8_lossy(&output.stdout).trim().to_string(),
-                );
+    // INT-116: NixOS-native -- a package's identity is its /nix/store path (hash =
+    // version+build). Resolving the binary's realpath captures that; any change to
+    // the package changes the store path, which is a stronger drift signal than a
+    // version string. (Replaces the Arch-era `pacman -Q` baseline.)
+    for pkg in ["nvim", "helix", "alacritty", "greetd"] {
+        if let Ok(output) = Command::new("sh")
+            .args(["-c", &format!("readlink -f $(command -v {}) 2>/dev/null", pkg)])
+            .output()
+        {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                baseline.package_versions.insert(pkg.to_string(), path);
             }
         }
     }
@@ -239,14 +244,15 @@ fn check_drift(baseline: &EntropyBaseline) -> DriftReport {
         }
     }
     for (pkg, baseline_version) in &baseline.package_versions {
-        if let Ok(output) = Command::new("pacman").args(["-Q", pkg]).output() {
-            if output.status.success() {
-                let current = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if &current != baseline_version {
-                    report
-                        .binary_drifts
-                        .push(format!("{}: {} → {}", pkg, baseline_version, current));
-                }
+        if let Ok(output) = Command::new("sh")
+            .args(["-c", &format!("readlink -f $(command -v {}) 2>/dev/null", pkg)])
+            .output()
+        {
+            let current = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !current.is_empty() && &current != baseline_version {
+                report
+                    .binary_drifts
+                    .push(format!("{}: {} → {}", pkg, baseline_version, current));
             }
         }
     }

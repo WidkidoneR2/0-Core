@@ -169,7 +169,6 @@ fn main() {
             println!("faelight-docs v{} — healthy", VERSION);
         }
         "sync" => {
-            cmd_welcome(false);
             cmd_readme(false);
             verify_links(false);
             cmd_public(false);
@@ -180,17 +179,14 @@ fn main() {
             cmd_public(dry);
         }
         "check" => {
-            cmd_welcome(true);
             cmd_readme(true);
             verify_links(true);
         }
         "verify-links" | "links" => {
             verify_links(false);
         }
-        "welcome" => cmd_welcome(false),
         "readme" => cmd_readme(false),
         "preview" => {
-            cmd_welcome(true);
             cmd_readme(true);
         }
         "status" => cmd_status(),
@@ -336,64 +332,6 @@ fn gather_state() -> ForestState {
     }
 }
 
-fn cmd_welcome(dry_run: bool) {
-    let state = gather_state();
-    let root = core_root();
-
-    let zshrc_path = root.join("03-interfaces/stow/shell-zsh/.zshrc");
-    let content = match std::fs::read_to_string(&zshrc_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("  {} Cannot read .zshrc: {}", "✗".bright_red(), e);
-            return;
-        }
-    };
-
-    // Find and replace the welcome line
-    let new_welcome = format!(
-        "    echo -e \"\\033[1;32m🌲 Welcome to Faelight Forest v{} — {}\\033[0m\"",
-        state.version, state.theme
-    );
-
-    let updated = content
-        .lines()
-        .map(|line| {
-            if line.contains("Welcome to Faelight Forest") {
-                new_welcome.clone()
-            } else {
-                line.to_string()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    // Preserve trailing newline
-    let updated = if content.ends_with('\n') {
-        updated + "\n"
-    } else {
-        updated
-    };
-
-    if content == updated {
-        println!("  {} Welcome message already up to date", "✅".normal());
-        return;
-    }
-
-    if dry_run {
-        println!("  {} Welcome message would update to:", "→".bright_cyan());
-        println!("     {}", new_welcome.bright_white());
-    } else {
-        match std::fs::write(&zshrc_path, &updated) {
-            Ok(_) => println!(
-                "  {} Welcome message updated → v{} — {}",
-                "✅".normal(),
-                state.version.bright_green(),
-                state.theme.dimmed()
-            ),
-            Err(e) => eprintln!("  {} Cannot write .zshrc: {}", "✗".bright_red(), e),
-        }
-    }
-}
 
 fn cmd_readme(dry_run: bool) {
     let root = core_root();
@@ -646,21 +584,6 @@ fn cmd_status() {
     );
     println!();
 
-    // Check welcome message
-    let zshrc = std::fs::read_to_string(root.join("03-interfaces/stow/shell-zsh/.zshrc"))
-        .unwrap_or_default();
-    let welcome_ok = zshrc.contains(&format!("v{}", state.version));
-    println!(
-        "  {}  {}",
-        "Welcome msg:".dimmed(),
-        if welcome_ok {
-            "✅ up to date".bright_green().to_string()
-        } else {
-            "⚠  outdated — run: faelight-docs welcome"
-                .yellow()
-                .to_string()
-        }
-    );
 
     // Check README — use actual diff logic, not shallow version check
     let readme_ok = {
@@ -909,7 +832,6 @@ fn cmd_help() {
     let cmds = [
         ("sync", "Update all docs from forest state"),
         ("check", "Show what is out of date (dry run)"),
-        ("welcome", "Regenerate zshrc welcome message"),
         ("readme", "Regenerate README static section"),
         ("preview", "Preview what would change"),
         ("links", "Verify all README links resolve"),
