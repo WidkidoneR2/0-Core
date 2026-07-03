@@ -3,7 +3,7 @@ id: 116
 date: 2026-07-02
 type: future
 title: "Final Arch sweep: retire safe-update, de-Arch fsh pkg command, purge pacman/AUR remnants for true NixOS-native 1.0.0"
-status: in-progress
+status: complete
 tags: [de-arch, nixos, cleanup, 1.0.0.]
 ---
 
