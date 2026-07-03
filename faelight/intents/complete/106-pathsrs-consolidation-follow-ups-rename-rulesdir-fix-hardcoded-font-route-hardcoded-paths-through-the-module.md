@@ -3,7 +3,7 @@ id: 106
 date: 2026-07-01
 type: future
 title: "paths.rs consolidation follow-ups: rename rules_dir, fix hardcoded font, route hardcoded paths through the module"
-status: planned
+status: complete
 tags: [paths, faelight-core, refactor, cleanup]
 ---
 
