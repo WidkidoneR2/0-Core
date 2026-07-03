@@ -32,10 +32,21 @@ impl ForestDb {
         // checkpoint fails, normal operation continues; retry logic handles transients.
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
 
-        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN command TEXT");
-        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN git_hash TEXT");
-        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN cwd TEXT");
-        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN intent_id TEXT");
+        // INT-104: command_snapshots -- destructive-command audit ledger (INT-322 Phase 4).
+        // Split out of shell_snapshots: distinct purpose (pre-destructive command context),
+        // its own authoritative schema. No ALTER-patching of shell_snapshots (fresh-db safe).
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS command_snapshots (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                name      TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                health    INTEGER,
+                command   TEXT,
+                git_hash  TEXT,
+                cwd       TEXT,
+                intent_id TEXT
+            );",
+        );
 
         // Ensure shell tables exist
         conn.execute_batch(
@@ -402,7 +413,7 @@ impl ForestDb {
             .unwrap_or_default();
         let name = format!("auto-{}", command.split_whitespace().next().unwrap_or("cmd"));
         let _ = self.conn.execute(
-            "INSERT INTO shell_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)
+            "INSERT INTO command_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![name, ts, health as i64, command, git_hash, cwd, intent_id],
         );

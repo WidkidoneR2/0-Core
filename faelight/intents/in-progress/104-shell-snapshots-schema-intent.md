@@ -3,7 +3,7 @@ id: 104
 date: 2026-07-01
 type: future
 title: "Shell SnapShots Schema Intent"
-status: planned
+status: in-progress
 tags: [shell, fsh, Schema, Intent]
 ---
 
