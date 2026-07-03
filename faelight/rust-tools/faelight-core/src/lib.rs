@@ -26,8 +26,16 @@ mod tests {
 
     #[test]
     fn test_glyph_cache_basic() {
-        let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
-        let mut cache = GlyphCache::new(font_data).unwrap();
+        // INT-106: load the font at runtime and skip gracefully if absent (e.g. the
+        // Nix build sandbox has no system fonts). Previously include_bytes! with an
+        // absolute path hard-failed the test build. GlyphCache::new takes font bytes,
+        // so production is unaffected -- only this test referenced a system path.
+        let font_path = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf";
+        let font_data = match std::fs::read(font_path) {
+            Ok(d) => d,
+            Err(_) => return, // font not available in this environment -- skip
+        };
+        let mut cache = GlyphCache::new(&font_data).unwrap();
 
         let glyph1 = cache.rasterize('A', 16.0);
         assert!(!glyph1.bitmap.is_empty());

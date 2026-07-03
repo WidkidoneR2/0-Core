@@ -77,16 +77,16 @@ pub fn zones_registry() -> PathBuf {
 // 02-RULES: Governance & Security
 // ═══════════════════════════════════════════════════════════
 
-pub fn rules_dir() -> PathBuf {
+pub fn policy_dir() -> PathBuf {
     faelight_dir().join("policy")
 }
 
 pub fn hooks_dir() -> PathBuf {
-    rules_dir().join("hooks")
+    policy_dir().join("hooks")
 }
 
 pub fn security_dir() -> PathBuf {
-    rules_dir().join("security")
+    policy_dir().join("security")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -435,7 +435,7 @@ mod tests {
         // Verify flat NixOS-era structure (numbered gravity retired -- INT-105)
         assert!(meta_dir().to_string_lossy().contains("meta"));
         assert!(registry_dir().to_string_lossy().contains("registry"));
-        assert!(rules_dir().to_string_lossy().contains("policy"));
+        assert!(policy_dir().to_string_lossy().contains("policy"));
         assert!(runtime_dir().to_string_lossy().contains("runtime"));
     }
 }
