@@ -1,7 +1,6 @@
 //! Intent-aware commit — stages, verifies, and commits
 
 use crate::git::GitRepo;
-use crate::is_locked;
 use crate::risk::RiskScore;
 use anyhow::{bail, Result};
 use colored::*;
@@ -93,10 +92,6 @@ fn emit_git_event(action: &str, detail: &str) {
 pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     let repo = GitRepo::open()?;
 
-    // ── Guard: core must be unlocked ──────────────────────────
-    if is_locked() {
-        bail!("Core is locked. Run 'unlock-core' before committing.");
-    }
 
     // ── Guard: must have changes ───────────────────────────────
     let status = repo.status()?;

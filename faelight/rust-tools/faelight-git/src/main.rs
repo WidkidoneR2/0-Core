@@ -288,13 +288,7 @@ fn verify() -> i32 {
 
     let mut issues = 0;
 
-    // Check lock status
-    if paths::is_core_locked() {
-        println!("  {} Core is locked - commits blocked", "❌".red());
-        issues += 1;
-    } else {
-        println!("  {} Core is unlocked", "✅".green());
-    }
+    println!("  {} Core is unlocked", "✅".green());
 
     // Check for uncommitted changes
     let status = Command::new("git")
@@ -312,6 +306,7 @@ fn verify() -> i32 {
         } else {
             let lines = String::from_utf8_lossy(&output.stdout).lines().count();
             println!("  {} {} uncommitted changes", "⚠️".yellow(), lines);
+            issues += 1;
         }
     }
 
@@ -374,17 +369,6 @@ fn verify() -> i32 {
 // ═══════════════════════════════════════════════════════════
 
 fn hook_pre_commit() -> i32 {
-    // Check if core is locked
-    if paths::is_core_locked() {
-        eprintln!();
-        eprintln!("{}", "═══════════════════════════════════════════".red());
-        eprintln!("{}", "🔒 COMMIT BLOCKED - Core is locked!".red().bold());
-        eprintln!("{}", "═══════════════════════════════════════════".red());
-        eprintln!();
-        eprintln!("Run {} to unlock before committing.", "unlock-core".cyan());
-        eprintln!();
-        return 1;
-    }
 
     // Run gitleaks to scan for secrets
     println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());

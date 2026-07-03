@@ -2,7 +2,7 @@
 id: 082
 date: 2026-06-23
 type: future
-status: planned
+status: in-progress
 title: "faelight-git v-next: Nix + GitHub-native rewrite, shed Arch-era lock model"
 tags: [faelight-git, rewrite, nix, github, productivity, post-025]
 version: TBD

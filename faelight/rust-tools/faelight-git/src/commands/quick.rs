@@ -1,16 +1,12 @@
 //! Quick commit and push — native git2, no shell-out for git ops
 
 use crate::git::GitRepo;
-use crate::is_locked;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use colored::*;
 
 pub fn run(message: &str) -> Result<()> {
     let repo = GitRepo::open()?;
 
-    if is_locked() {
-        bail!("Core is locked. Run 'unlock-core' first.");
-    }
 
     let status = repo.status()?;
     if status.is_empty() {

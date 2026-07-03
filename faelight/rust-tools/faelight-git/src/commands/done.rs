@@ -1,13 +1,9 @@
 //! fg done -- stage all, commit with active intent prefix, push. No prompts.
 //! INT-256: the fastest path from work to pushed commit.
 use crate::git::GitRepo;
-use crate::is_locked;
 use anyhow::{bail, Result};
 use colored::*;
 pub fn run(extra: Option<&str>) -> Result<()> {
-    if is_locked() {
-        bail!("Core is locked. Run 'unlock-core' first.");
-    }
     let repo = GitRepo::open()?;
     let status = repo.status()?;
     if status.is_empty() {

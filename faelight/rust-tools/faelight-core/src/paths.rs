@@ -292,15 +292,7 @@ pub fn git_config_dir() -> PathBuf {
     config_dir().join("git")
 }
 
-/// Core lock file (prevents simultaneous operations)
-pub fn core_lock_file() -> PathBuf {
-    home().join(".0-core-locked")
-}
 
-/// Check if 0-core is locked
-pub fn is_core_locked() -> bool {
-    core_lock_file().exists()
-}
 
 // ═══════════════════════════════════════════════════════════
 // GIT CONFIGURATION FILES

@@ -1,7 +1,6 @@
 //! Risk-aware git status — shows actual files, not just counts
 
 use crate::git::{FileState, GitRepo};
-use crate::is_locked;
 use crate::risk::RiskScore;
 use anyhow::Result;
 use colored::*;
@@ -48,14 +47,6 @@ pub fn run() -> Result<()> {
         println!(" {} {}", "upstream".dimmed(), up.dimmed());
     }
 
-    // Lock line
-    if is_locked() {
-        println!(
-            " {} {}",
-            "core".dimmed(),
-            "🔒 LOCKED — commits blocked".red()
-        );
-    }
 
     if status.is_empty() {
         println!();
