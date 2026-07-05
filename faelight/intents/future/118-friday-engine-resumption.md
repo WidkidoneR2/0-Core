@@ -60,6 +60,60 @@ Phase 3 -- Demonstrate on a real (or safely reproduced) failure case -> unlock I
 - What causal infrastructure already exists (why_chain / why_correlate / why_suggest were
   built in the Arch "Core v5" era -- do they survive in faelight/engine)?
 
+## LONG ARC -- Friday as queryable semantic memory (north star, NOT 1.1; 1.5-2.0+)
+The causal-chain work above is step one of a much larger direction, captured here so it
+is not lost. Friday grows from "594 facts" into a PERSONAL, LOCAL, QUERYABLE MEMORY over
+the forest's own data -- a second brain that can actually be asked questions, not just a
+counter.
+
+NORTH-STAR QUERY (the whole vision in one line):
+  "How did I solve that PipeWire issue six months ago?"
+The answer already EXISTS in the forest (a commit, an intent, an incident, the runbook);
+the problem is it is not retrievable BY MEANING. Friday-as-memory fixes that. (Note: we
+literally hit this pain by hand this week -- hunting a lost README via file greps +
+conversation search. Semantic memory over forest data automates exactly that.)
+
+WHY IT IS ACHIEVABLE FOR THE FOREST SPECIFICALLY:
+- The data is ALREADY GENERATED (commits, intents, decisions, incidents/, docs, errors,
+  fixes). The forest already documents itself; this makes it searchable by meaning.
+- The COORDINATOR already exists (Friday observes/correlates/speaks-when-confident).
+- The DISCIPLINE already exists ("the forest remembers").
+
+TWO TIERS (separate them -- the key design decision):
+- TIER 1 (text already produced -- START HERE, buildable one source at a time):
+  projects, commands, documentation, shell history, errors, fixes, architecture, notes,
+  workflows. Approach: embed the text + let Friday retrieve semantically. This is the
+  PipeWire-recall capability. Natural evolution of the 594-facts store.
+- TIER 2 (rich media -- LATER, a second mountain, needs processing first):
+  terminal recordings, screenshots. Need OCR/vision/parse to BECOME text before they are
+  searchable (this is the "image models / OCR / transcription" ecosystem idea). Do NOT
+  let Tier 2 difficulty block the Tier 1 win.
+
+THE TWO HARD PROBLEMS (the interesting design work, not blockers):
+1. SIGNAL vs NOISE -- do NOT embed raw everything. The PipeWire FIX matters; the 400 runs
+   of `ls` do not. Friday must decide what is worth remembering. This makes the already-
+   flagged gap CRITICAL at scale: "no memory decay -- state.db grows indefinitely."
+   Memory-decay/curation is a prerequisite, not an afterthought, for memory-at-scale.
+2. RETRIEVAL QUALITY -- storing is easy; surfacing the RIGHT thing is the engineering.
+   "How did I solve X" must return the fix, not 50 tangentially-related commits.
+
+COORDINATOR QUESTION (sit with it, do not answer prematurely):
+  What does Friday "coordinating" mean mechanically -- router (picks a model), memory
+  (embeds + retrieves), or orchestrator (chains OCR->transcribe->index)? The vision says
+  "coordinates"; the eventual DESIGN must pick which. Likely: memory first (Tier 1),
+  orchestrator later (Tier 2).
+
+RUNWAY (this stands on already-filed work):
+- INT-039 (friday-daemon, persistent process) -- memory must PERSIST across sessions.
+- INT-118 (this intent -- causal reasoning) -- Friday reasons over what she remembers.
+  A persistent Friday that reasons over embedded forest memory IS step one of this arc.
+
+DISCIPLINE (so the vision's size never breaks the forest's method):
+  ONE capability, proven end-to-end, before the next. First capability = Tier 1 semantic
+  memory (embed existing forest text; prove the PipeWire-recall query works) -- highest
+  value, lowest risk, daily-useful. Then expand sources; then Tier 2. Demonstrated, not
+  declared -- even here, especially here.
+
 ## Relationship
 - INT-117 (Friday language cleanup) is the natural warm-up before this.
 - Ties to INT-251 (reasoning Pillars), the old INT-342 (re-homed here), and the Friday
