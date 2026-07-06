@@ -160,6 +160,57 @@ pub fn cmd_readme_tools_dryprint() {
         metas.len(), active, metas.len() - active);
 }
 
+// INT-111/037: strip a leading "INT-NNN:" or "INT-NNN " prefix from a commit subject,
+// so auto-seeded changelogs never expose internal intent numbers on public READMEs.
+fn strip_int_prefix(subject: &str) -> String {
+    let t = subject.trim();
+    if let Some(rest) = t.strip_prefix("INT-") {
+        // skip the digits, then an optional ':' or ' ' separator
+        let after_num: String = rest.chars().skip_while(|c| c.is_ascii_digit() || *c == '-').collect();
+        return after_num.trim_start_matches([':', ' ']).trim().to_string();
+    }
+    t.to_string()
+}
+
+// INT-111/037: the Changelog SECTION embedded in a tool's README.
+// Curated source: {tool}/CHANGELOG.md (hand-written, version-grouped, emoji'd) -- embedded verbatim.
+// Fallback: auto-seed from git history with INT-numbers stripped (presentable until curated).
+fn render_changelog_section(m: &ToolMeta) -> String {
+    let mut out = String::new();
+    out.push_str("## \u{1f4dd} Changelog\n\n");
+    // Curated source of truth, if present.
+    let rel = format!("faelight/rust-tools/{}/CHANGELOG.md", m.name);
+    let curated_path = core_root().join(&rel);
+    if let Ok(curated) = std::fs::read_to_string(&curated_path) {
+        // Embed the curated body (skip a leading top-level "# ..." title if present;
+        // the README already titles the tool).
+        let body: String = curated
+            .lines()
+            .skip_while(|l| l.trim_start().starts_with("# "))
+            .collect::<Vec<_>>()
+            .join("\n");
+        out.push_str(body.trim());
+        out.push_str("\n\n");
+        return out;
+    }
+    // Fallback: auto-seed from git, INT-numbers stripped.
+    let hist = tool_history(&m.name, 12);
+    if hist.is_empty() {
+        out.push_str("_No changelog yet._\n\n");
+    } else {
+        out.push_str(&format!("### \u{1f331} {}\n\n",
+            if m.version.is_empty() { "current" } else { &m.version }));
+        for (_hash, subj) in &hist {
+            let clean = strip_int_prefix(subj);
+            if !clean.is_empty() {
+                out.push_str(&format!("- {}\n", clean));
+            }
+        }
+        out.push_str("\n> _Auto-seeded from history; curated entries coming._\n\n");
+    }
+    out
+}
+
 /// PIECE 2b: render a rich NixOS-era README for one tool.
 pub fn render_readme(m: &ToolMeta) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -172,7 +223,7 @@ pub fn render_readme(m: &ToolMeta) -> String {
     let mut out = String::new();
 
     // Title
-    out.push_str(&format!("# {}\n\n", m.name));
+    out.push_str(&format!("# \u{1f332} {}\n\n", m.name));
 
     // Badge line
     out.push_str(&format!(
@@ -183,7 +234,8 @@ pub fn render_readme(m: &ToolMeta) -> String {
         if m.category.is_empty() { "-" } else { &m.category },
     ));
 
-    // Description (strip a trailing "-- INT-NNN" since the intent is surfaced separately)
+    // Description (curated prose from Cargo.toml)
+    out.push_str("## \u{1f4d6} Description\n\n");
     if !m.description.is_empty() {
         let desc = match m.description.find("-- INT-") {
             Some(pos) => m.description[..pos].trim_end().to_string(),
@@ -192,10 +244,9 @@ pub fn render_readme(m: &ToolMeta) -> String {
         out.push_str(&format!("{}\n\n", desc));
     }
 
-    // Intent link
-    if let Some(intent) = &m.intent {
-        out.push_str(&format!("> Originating intent: **{}**\n\n", intent));
-    }
+    out.push_str("---\n\n");
+    // Changelog: curated CHANGELOG.md if present, else auto-seed from git (INT stripped)
+    out.push_str(&render_changelog_section(m));
 
     out.push_str("---\n\n");
 
