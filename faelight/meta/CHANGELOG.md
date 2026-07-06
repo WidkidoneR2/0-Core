@@ -1,5 +1,152 @@
 # Changelog
 
+## [1.0.0] — Morphwood (2026-07-06)
+
+### 🎯 Completed Intents
+- NixOS Era Begins — Faelight Forest on NixOS
+- Fenix: Rust 1.93+ toolchain via flake overlay
+- NixOS scripts layer: lock-core, unlock-core, deploy, core-protect
+- faelight-fm v3: broot-inspired, ratatui, forest-native navigation
+- faelight-login + faelight-menu: proper NixOS login flow with greetd
+- Pinnacle WM: compositor migration path, i3-style ownership model
+- friday-dev shell: nix develop environment for Friday/forest development
+- Forest GitHub organization: repo structure, README, public face cleanup
+- Study: Yazelix — multiplexer + shell + FM convergence patterns
+- UFW→nftables doctor fix: update hardcoded security check for NixOS
+- Intent ledger NixOS improvements: intent shorthand, display, workflow
+- faelight-fm v3.1: Nix-aware, git-first, semantic navigation
+- Tool audit: Nix/Rust boundary — what should be Nix vs Rust
+- faelight-git NixOS audit: review paths, assumptions, improvements
+- Retire faelight-browser: brave is the forest browser
+- faelight-notify v5: NixOS-native, noti research, layer-shell ready
+- faelight-shell v4: NixOS-native, nix develop aware, forest-first
+- Pinnacle VM study: prove compositor in nixos-lab before touching real system
+- Retire NixOS-obsolete tools: faelight-bootstrap, verify-bootstrap, core-protect, dotctl
+- Replace faelight-wallpaper and faelight-idle with NixOS services
+- Forest R&D Environment — VM-based sandbox, experiment graduation pipeline, hypothesis-test-gate-graduate
+- core-protect retirement: remove 19-file dependency chain, NixOS-native replacement
+- Forest dev tooling: nix-tree, nvd, nh, bacon, cargo-nextest
+- fsh semantic domains: project/intent/experiment as first-class shell objects
+- faelight-release v2: NixOS-native release manager
+- faelight-fm v4: full Nix explorer, plugin system, semantic engine
+- Forest-aware color system: semantic colors, context themes, git regions
+- Forest release v2: generation + commit + intent triad tracking
+- Forest safety net: pre/post health gate, VM-first workflow, rebuild guard
+- config/ cleanup: remove Arch-era configs, retire core-diff and faelight-diff
+- rust-tools documentation: README and CHANGELOG for all 38 tools
+- Pinnacle compositor config: Lua config, layer-shell, lock screen
+- fsh-completions: tab completion for domain objects and NixOS vocabulary
+- generation-diff: rich visual diff between NixOS generations
+- nix-dev-shells: per-project devShells that auto-activate on cd
+- faelight-lock v2: NixOS-native lock screen for Pinnacle and MangoWM
+- doctor v2: NixOS-aware health checks
+- NixOS structure: user modules, compositor modules, flake cleanup
+- MangoWM: daily driver configuration, keybinds, and autostart
+- faelight-bar v2: i3-style wlr-layer-shell bar for MangoWM and Pinnacle
+- fsh crashes (closes terminal) on df
+- Making config.fsh the declarative source of Truth
+- Canonical 0-Core repository structure on NixOS
+- fsh prompt: nix-context awareness — current flake + dirty flake state
+- Faelight-FM vs Superfile vs Broot
+- faelight-logout: candy-neon Wayland power menu
+- faelight-notify managed systemd user service
+- Add cancel command and cancelled state to intent ledger
+- fsh cache commands: cache status + cache push
+- Faelight-FM: full listing, arrow-key nav, and Superfile-style layout polish
+- Fix intent-add numbering: derive next id across all intent dirs
+- Friday: restore Nix-era parity (commit-to-intent recording, then learning)
+- Decommission faelight-palette (unused since Niri 11.0.0)
+- Generation count control: prune policy and boot-menu cap
+- Faelight-Update v-next: update manager + generation browser
+- Nix store explorer: GC roots, reverse-deps, and what keeps paths alive
+- Nix package search TUI: search to declarative config-add
+- Smooth VM workflow
+- faelight-vm launch hardening: atomic lock, stale-state janitor, vm debug
+- vm gui single-window: drop leftover egl-headless GL surface
+- fsh reload thinks Nix: hot-swap the rebuilt binary
+- faelight-git v-next: Nix + GitHub-native rewrite, shed Arch-era lock model
+- registry alias-hygiene: fix collapsed [[alias]] blocks in aliases.toml
+- faelight-launcher: GTK app launcher with faelight-logout-grade polish
+- Remove Niri + faelight-niri-bridge (retired compositor cleanup)
+- Nix Inspector: why did this value win? (option-resolution debugger)
+- fsh: clearer errors when && chains hit a builtin
+- Adopt nixvim as a Nix-learning vehicle (Helix stays primary daily driver)
+- Evaluate Stylix: declarative system-wide theming (vs the hand-crafted forest visual language)
+- Cheatsheet v2: sync command_registry to reality + live verification (hybrid)
+- faelight-inspect TUI: themed forest UX over the Nix option-resolution debugger
+- faelight-deadwood: forest-native dead-code & orphan detector
+- fsh: kill hijacked to pattern-match — kill <PID> does not signal that PID
+- fsh reload: identify the new build (stop blind re-exec)
+- Fsh needs a clean Nix/Shell operator path
+- Forest hygiene pass: registry reconciliation + Deadwood orphan cleanup
+- fsh: handle multi-line command blocks (per-line execution + abbreviation expansion)
+- fsh: variable assignment and $VAR expansion (VAR=$(...) name-case bug)
+- fsh: fresh-db schema ordering (shell_history cwd column, ALTER-before-CREATE)
+- Improving Fsh Prompts
+- Shell SnapShots Schema Intent
+- paths.rs consolidation follow-ups: rename rules_dir, fix hardcoded font, route hardcoded paths through the module
+- Decommission Arch-era stow/link subsystem
+- profile .profile-mechanism
+- bump-versions lightweight per-tool versioning
+- Final Arch sweep: retire safe-update, de-Arch fsh pkg command, purge pacman/AUR remnants for true NixOS-native 1.0.0
+
+### ✨ Features
+- neon candy colors in faelight-notify render.rs -- INT-033 palette
+- neon candy notification style -- urgency stripe, cyan header, underlined summary
+- forest-aware notifications -- health<85, integrity<80, intent-complete via notify::desktop (D-Bus)
+- fix intents() to read all three dirs, replace vm_list() with qcow2 scanner
+- close -- semantic domains complete; completion (040) + colors (033) deferrals resolved
+- neon candy truecolor prompt -- semantic color tokens in theme.rs, truecolor in prompt.rs
+- faelight-bar neon candy colors -- match semantic palette, health thresholds, intent purple
+- faelight-fm neon candy palette -- semantic intent file colors by status
+- domain verb subcommands + vm/rebuild dynamic completions
+- vm subcommand routing -- start/stop/snapshot/restore with qcow2 support
+- fsh completion -- domain verbs + clean rebuild host names (no dup)
+- fsh-completions complete -- domain verbs, rebuild hosts, nix develop; all 8 gates
+
+**doctor**
+- Phase 0 cleanup -- honest existing checks
+- Phase 0 -- compositor-aware keybinds check
+- generation drift check + NixOS box
+- generation count check (age-aware)
+- flake.lock age check
+- update readiness check
+- boot errors check (crit-gated) + Boot box
+- boot time check (userspace)
+
+**fsh**
+- direnv auto-activation + devshell list
+
+### 🔧 Fixes
+- doctor services check -- match full NixOS binary path pgrep -f was matching process names in arguments (false positives) pgrep -x was too strict (full path not matching short name) Fix: match /run/current-system/sw/bin/<name> explicitly
+- tuigreet --cmd mango working config
+- replace yazi with broot in doctor checks, add faelight-bar systemd service
+- replace yazi with broot in doctor checks
+- replace niri with mango in binary check
+- vm completion partial detection -- handle trailing space correctly
+- faelight-notify broken pipe panic -- graceful exit on flush error
+- faelight-notify as systemd user service -- stderr to journal, no terminal noise
+- silence wayland-client broken pipe noise -- redirect stderr to /dev/null
+- move stderr redirect after startup messages -- enables debug visibility
+- blocking_dispatch keeps Wayland connection alive -- fixes idle timeout exit
+- restore polling loop -- blocking_dispatch missed D-Bus queue updates
+- Layer::Top instead of Overlay -- MangoWM honors Top layer
+- faelight-notify on Layer::Top -- renders on MangoWM (Overlay not drawn by wlroots/dwl)
+- intent-add numbering now scans decisions/ (was excluded, caused ID collisions -- INT-070 regressed). decisions/ shares the numeric ID space but was skipped in next-ID derivation, so future/ reaching 121 collided with decisions/121. Added 'decisions' to active_folders at both call sites + corrected the misleading comments. Also renumbered the nixCats eval intent 121 -> 122 to clear the existing collision. Pre-release correctness fix.
+
+### 📚 Documentation
+- NixOS era cleanup -- update and remove Arch-era documentation - Deleted: AUTOSTART-MAP.md, cosmic-comp-patterns.md, INT-286-PHASE-0-STUDY-NOTES.md - Deleted: docs/archive/, docs/public/ (duplicates) - Deleted: meta/PHILOSOPHY.md (duplicate), meta/TOOLS.md (stale) - PHILOSOPHY.md: updated to NixOS 26.05, v14.1.0 - WORKFLOWS.md: full rewrite for NixOS workflow - ARCHITECTURE.md: replaced Stow section with NixOS deployment - ALIASES.md: rewritten -- 368 Arch aliases → 50 NixOS aliases - ARCHITECTURE-FUTURE.md: version references updated
+- complete NixOS era documentation update - COMMAND-GUIDE.md: full rewrite -- NixOS commands, fm keybinds, nix inspection - FAELIGHT-SHELL.md: version updated to v2.5.0 / 14.1.0 - THEORY_OF_OPERATION.md: NixOS references, version updated - POLICIES.md: NixOS references, version updated - NEW-CHAT-DIRECTIVES.md: updated for pre-1.0.0 state - ARCHITECTURE-FUTURE.md: version references updated
+- fsh roadmap -- mark shipped (nix-context, Friday, workspaces, lane-2)
+- bring current -- INT-060 (config.fsh source of truth) marked done, file manager corrected to yazi (INT-063), aliases reconciled, added fsh-as-first-class-command (shipped 2026-06-18), footer sequence updated (060 done, 057 next).
+- regenerate all 35 per-tool READMEs + index with the new format. Each: 🌲 title, 📖 Description (enriched for 5 flagships), 📝 Changelog (curated for shell/release/sandbox/git; clean auto-seed INT-stripped for the rest), accurate versions from the Morphwood baseline. Zero intent numbers on any public README (verified). Root README (teaser) untouched. 5 flagships fully curated; remaining ~30 clean auto-seed, curated 5/day this week.
+- bring the engine (core) into the self-maintaining README pipeline. gather_all() now includes faelight/engine/Cargo.toml; cmd_generate writes core's README to faelight/engine/README.md (special-cased like its CHANGELOG path). Core -- a flagship -- now gets: 🌲 title, enriched description, curated changelog, live version (3.2.1), and auto-refreshes on future bumps just like every other tool. readme-generate now covers 36 tools (was 35). Engine README created (was absent).
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 3517  ·  Tools: 46 deployed  ·  Intents: 99 complete
+
+---
+
 > ## NixOS Era -- the forest migrated to NixOS
 
 **On 2026-06-01, Faelight Forest migrated from Arch Linux to NixOS 26.05 ("Yarara").**
