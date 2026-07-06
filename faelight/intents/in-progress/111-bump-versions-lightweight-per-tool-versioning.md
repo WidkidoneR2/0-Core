@@ -78,6 +78,25 @@ Phase 5 -- Retroactive first use: bump faelight-shell / core / faelight-git for 
 - [ ] retroactive bumps applied (shell/core/git) for this session's work
 - [ ] gen-vs-version axes documented (this file) so the confusion never recurs
 
+## CRITICAL LESSON (learned live 2026-07-06) -- version bump REQUIRES lock regen
+A version bump changes a workspace member's Cargo.toml, but Cargo.lock still pins the OLD
+version. The LOCKED devShell (`cargo check --workspace --locked`) then REFUSES to build:
+  "error: cannot update the lock file ... because --locked was passed to prevent this"
+This is the build system correctly catching manifest/lock DRIFT. If missed, it breaks the
+DEPLOY (nixos-rebuild) -- worst possible timing (mid-release).
+
+MANDATORY STEP after ANY version bump, BEFORE deploy:
+  cd ~/0-core && cargo check -p <bumped-tool>     # BARE cargo, NOT via the locked devShell
+This regenerates Cargo.lock to match the new version(s). Then the locked devShell + deploy
+accept it (manifest and lock agree again). This is the SAME rule as "new crates need bare
+cargo check before the locked devShell accepts them" -- applied to CHANGED VERSIONS too.
+
+FOLLOW-UP (make the bump flow do this automatically -- future enhancement):
+  bump-versions (and the cicomplete prompt) SHOULD, after writing a version, run the bare
+  `cargo check -p <tool>` to sync the lock -- so a bump is never left in a deploy-breaking
+  half-state. Until that is wired, the manual `cargo check` step is REQUIRED after bumps.
+  Add a gate: "bump-versions regenerates Cargo.lock (or reminds to) after a write."
+
 ## Relationship
 - PREREQUISITE for the Faelight OS 1.0.0 release: cannot cut 1.0.0 with versioning that
   is pure suggestion-theater. Do 111 -> then 1.0.0.
