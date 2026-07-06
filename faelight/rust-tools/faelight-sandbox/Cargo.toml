@@ -3,7 +3,7 @@ name = "faelight-sandbox"
 license = "MIT"
 version = "3.0.0"
 edition = "2021"
-description = "Controlled experimentation environment for Faelight Forest"
+description = "The forest's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization."
 
 [dependencies]
 faelight-core = { path = "../faelight-core" }

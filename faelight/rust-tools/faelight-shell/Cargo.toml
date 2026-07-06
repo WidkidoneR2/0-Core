@@ -3,7 +3,7 @@ name = "faelight-shell"
 license = "MIT"
 version = "3.0.0"
 edition = "2021"
-description = "Forest-native structured shell environment — beyond NixOS"
+description = "The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
 
 [dependencies]
 faelight-core = { path = "../faelight-core" }

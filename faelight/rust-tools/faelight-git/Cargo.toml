@@ -3,7 +3,7 @@ name = "faelight-git"
 license = "MIT"
 version = "4.2.0"
 edition = "2021"
-description = "Git governance for Faelight Forest"
+description = "Git governance for the forest -- guarded commits, health-aware verification, and intent-commit genealogy."
 
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }

@@ -3,7 +3,7 @@ name = "core"
 license = "MIT"
 version = "3.2.0"
 edition = "2021"
-description = "0-Core v2 — single orchestrator binary"
+description = "The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary."
 
 [[bin]]
 name = "core"
