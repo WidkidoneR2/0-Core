@@ -137,6 +137,16 @@ pub fn gather_all() -> Vec<ToolMeta> {
             }
         }
     }
+    // INT-111/037: the engine (core) lives at faelight/engine, not rust-tools/.
+    // Include it explicitly so it joins the self-maintaining README pipeline.
+    let engine_cargo = core_root()
+        .join("faelight/engine/Cargo.toml");
+    if engine_cargo.exists() {
+        if let Some(mut m) = parse_cargo(&engine_cargo) {
+            enrich_from_registry(&registry, &mut m);
+            metas.push(m);
+        }
+    }
     metas.sort_by(|a, b| a.name.cmp(&b.name));
     metas
 }
@@ -369,7 +379,12 @@ pub fn cmd_generate(dry_run: bool) {
 
     for m in &metas {
         // Generate READMEs for all tools (active + retired get a stub via the same template).
-        let readme_path = rt.join(&m.name).join("README.md");
+        // INT-111/037: core (engine) writes to faelight/engine/, not rust-tools/core/.
+        let readme_path = if m.name == "core" {
+            core_root().join("faelight/engine/README.md")
+        } else {
+            rt.join(&m.name).join("README.md")
+        };
         let content = render_readme(m);
         if dry_run {
             println!("  would write: rust-tools/{}/README.md ({} bytes)", m.name, content.len());

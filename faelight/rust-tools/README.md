@@ -1,6 +1,6 @@
 # Faelight Forest -- Rust Tools
 
-The forest's tool ecosystem: 35 active tools (plus 0 retired), each a purpose-built Rust program.
+The forest's tool ecosystem: 36 active tools (plus 0 retired), each a purpose-built Rust program.
 
 **Generated:** 2026-07-06 by `faelight-docs sync`
 
@@ -10,6 +10,7 @@ The forest's tool ecosystem: 35 active tools (plus 0 retired), each a purpose-bu
 
 | Tool | Version | Description |
 |------|---------|-------------|
+| [`core`](./core/) | 3.2.1 | The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`db-browse`](./db-browse/) | 1.0.0 | - |
 | [`faelight`](./faelight/) | 2.1.0 | Unified CLI for Faelight Forest |
 | [`faelight-ade`](./faelight-ade/) | 1.0.0 | - |
