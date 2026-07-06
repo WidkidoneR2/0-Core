@@ -179,7 +179,11 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     let mut out = String::new();
     out.push_str("## \u{1f4dd} Changelog\n\n");
     // Curated source of truth, if present.
-    let rel = format!("faelight/rust-tools/{}/CHANGELOG.md", m.name);
+    let rel = if m.name == "core" {
+        "faelight/engine/CHANGELOG.md".to_string()
+    } else {
+        format!("faelight/rust-tools/{}/CHANGELOG.md", m.name)
+    };
     let curated_path = core_root().join(&rel);
     if let Ok(curated) = std::fs::read_to_string(&curated_path) {
         // Embed the curated body (skip a leading top-level "# ..." title if present;

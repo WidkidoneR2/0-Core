@@ -1,0 +1,18 @@
+# Changelog -- faelight-git
+
+## 🌱 4.2.0
+- 🌲 Shed the Arch-era core-lock model -- the last vestige of the pre-Nix locking system, fully removed.
+- ✅ `fg verify` now meaningfully fails on a dirty tree; uncommitted changes are caught, not ignored.
+- ♻️ Routed all state references through the central paths module after the workspace restructure.
+
+## 4.1.0
+- 🌲 Migrated from Arch Linux to NixOS 26.05 "Yarara" -- builds via the forest devShell, deploys declaratively.
+- ♻️ Relocated into the unified `faelight/` tree.
+
+## 4.0.0 -- v5
+- ✨ Event-bus integration: git operations now emit forest signals.
+- ✨ Intent-commit genealogy -- every commit records which intent it belongs to.
+- ✨ Commit-message intelligence and drift detection.
+
+## Earlier
+- ⚙️ Git governance foundation: guarded commits, health-aware verification, forest-native workflow.
