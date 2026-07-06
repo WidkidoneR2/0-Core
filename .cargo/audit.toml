@@ -1,0 +1,26 @@
+# Faelight Forest -- cargo-audit triage
+# Every ignored advisory below has a documented, reviewed reason.
+# Reviewed 2026-07-06 for the 1.0.0 "Morphwood" release.
+# This file makes audit findings TRACKED, not silent: each is triaged, not hidden.
+
+[advisories]
+ignore = [
+    # --- quick-xml: DoS via malicious XML (quadratic runtime / memory exhaustion) ---
+    # Pulled ONLY by wayland-scanner, a BUILD-TIME proc-macro that parses trusted,
+    # shipped Wayland protocol XML -- never attacker-controlled input. Not exploitable
+    # in this usage. Constrained: wayland-scanner pins quick-xml <0.41.0; a real fix
+    # requires the upstream Wayland stack to bump. Tracked; revisit when wayland-rs moves.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+
+    # --- users: unmaintained + `root` appended to group listings ---
+    # No upstream fix available. Reviewed: the group-listing behavior is not exploitable
+    # in forest usage. Tracked for eventual replacement.
+    "RUSTSEC-2025-0040",
+
+    # --- Unmaintained crates (warnings, not vulnerabilities) ---
+    # cgmath: unmaintained math crate (transitive). No known vulnerability; tracked.
+    "RUSTSEC-2026-0196",
+    # number_prefix: unmaintained (transitive). No known vulnerability; tracked.
+    "RUSTSEC-2025-0119",
+]

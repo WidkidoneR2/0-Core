@@ -145,13 +145,6 @@ fn build_dynamic_section(
     data: &ChangelogData,
     stats: &ReleaseStats,
 ) -> String {
-    let health_color = if stats.health >= 95 {
-        "brightgreen"
-    } else if stats.health >= 80 {
-        "yellow"
-    } else {
-        "red"
-    };
     let mut s = String::new();
     s.push_str(DYNAMIC_START);
     s.push('\n');
@@ -160,12 +153,10 @@ fn build_dynamic_section(
         "![Version](https://img.shields.io/badge/version-{}-green?style=flat-square)\n",
         version.replace('-', "--")
     ));
-    s.push_str(&format!(
-        "![Health](https://img.shields.io/badge/health-{}%25-{}?style=flat-square)\n",
-        stats.health, health_color
-    ));
-    s.push_str("![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)\n");
-    s.push_str("![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)\n\n");
+    s.push_str("![Rust](https://img.shields.io/badge/Rust-96.5%25-dea584?style=flat-square)\n");
+    s.push_str("![Lines](https://img.shields.io/badge/lines-113k-blue?style=flat-square)\n");
+    s.push_str("![NixOS](https://img.shields.io/badge/NixOS-26.05_Yarara-7ebae4?style=flat-square)\n");
+    s.push_str("![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)\n\n");
     s.push_str("> **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**\n\n");
     s.push_str(&format!("## 🎊 {} -- {} ({})\n\n", version, theme, date));
     // What Shipped -- public titles only, no INT numbers

@@ -1,4 +1,0 @@
-
-[[ignore]]
-id = "RUSTSEC-2025-0040"
-reason = "users crate via pam in faelight-lock -- no fix available, root group listing issue, low risk in screen lock context, review when fix becomes available"
