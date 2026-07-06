@@ -1,5 +1,5 @@
 ---
-id: 121
+id: 122
 date: 2026-07-06
 type: future
 title: "Evaluate nixCats vs current nixvim"

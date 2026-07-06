@@ -1063,9 +1063,11 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
         ],
     )?;
 
-    // Find next ID -- only scan active NixOS era folders, not archive/decisions
+    // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
     let base = intents_dir(ctx);
-    let active_folders = ["complete", "future", "in-progress"];
+    // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
+    // scanned when deriving the next ID -- excluding it caused 121 collisions.
+    let active_folders = ["complete", "future", "in-progress", "decisions"];
     let max_id = active_folders.iter()
         .flat_map(|folder| {
             let dir = base.join(folder);
@@ -2138,9 +2140,11 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     } else {
         String::new()
     };
-    // Find next ID -- only scan active NixOS era folders, not archive/decisions
+    // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
     let base = intents_dir(ctx);
-    let active_folders = ["complete", "future", "in-progress"];
+    // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
+    // scanned when deriving the next ID -- excluding it caused 121 collisions.
+    let active_folders = ["complete", "future", "in-progress", "decisions"];
     let max_id = active_folders.iter()
         .flat_map(|folder| {
             let dir = base.join(folder);
