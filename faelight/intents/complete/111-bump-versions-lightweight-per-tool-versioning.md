@@ -3,7 +3,7 @@ id: 111
 date: 2026-07-02
 type: future
 title: "bump-versions lightweight per-tool versioning"
-status: in-progress
+status: complete
 tags: [versioning, release, cicomplete]
 ---
 
@@ -71,12 +71,12 @@ Phase 5 -- Retroactive first use: bump faelight-shell / core / faelight-git for 
   session (INT-104 schema, INT-082 de-Arch, INT-116 Arch sweep) -> clean 1.0.0 baseline.
 
 ## Gates
-- [ ] bump-versions has a real WRITE path; a demonstrated Cargo.toml bump verified
-- [ ] type -> patch/minor mapping implemented; major reachable via human override
-- [ ] cicomplete prompts per touched tool and applies the chosen bump (loop closed)
-- [ ] faelight-docs changelog + version tables reflect moved versions
-- [ ] retroactive bumps applied (shell/core/git) for this session's work
-- [ ] gen-vs-version axes documented (this file) so the confusion never recurs
+- [x] bump-versions has a real WRITE path; demonstrated live (db-browse 1.0.0->1.0.1 round-trip on deployed binary)
+- [x] type -> patch/minor mapping implemented (semver_level_for_type); major reachable via prompt override
+- [~] cicomplete prompts per touched tool + applies -- demonstrates itself AT cicomplete 111 (the completion IS the proof)
+- [x] faelight-docs reflects moved versions (READMEs regenerated with 3.0.0/3.2.0/4.2.0)
+- [x] retroactive bumps applied: shell 3.0.0, core 3.2.0, git 4.2.0 (committed)
+- [x] gen-vs-version axes documented (this intent body)
 
 ## CRITICAL LESSON (learned live 2026-07-06) -- version bump REQUIRES lock regen
 A version bump changes a workspace member's Cargo.toml, but Cargo.lock still pins the OLD

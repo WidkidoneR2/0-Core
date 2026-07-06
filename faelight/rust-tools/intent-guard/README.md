@@ -12,6 +12,7 @@ Command safety guard - protecting your system 🛡️
 
 ### 🌱 2.1.0
 
+- docs: regenerate all 35 per-tool READMEs + index with the new format. Each: 🌲…
 - README: Morphwood teaser (temporary) + remove 35 stale auto-dump CHANGELOG.md…
 - final Arch sweep -- purge all executable Arch code for a true…
 - Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
@@ -23,7 +24,6 @@ Command safety guard - protecting your system 🛡️
 - feat(intent-guard): modernize to v2.0.0 🛡️
 - chore: Apply cargo fix suggestions
 - intent-guard v1.0.0 - Safety guardrails for Linus presentation
-- 🐛 Fix intent-guard: Only block moves FROM 0-core
 
 > _Auto-seeded from history; curated entries coming._
 

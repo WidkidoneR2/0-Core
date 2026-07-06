@@ -1,6 +1,6 @@
 # 🌲 faelight-shell
 
-**Version:** 3.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 3.0.1 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
 ## 📖 Description
 

@@ -1,7 +1,7 @@
 [package]
 name = "faelight-git"
 license = "MIT"
-version = "4.2.0"
+version = "4.2.1"
 edition = "2021"
 description = "Git governance for the forest -- guarded commits, health-aware verification, and intent-commit genealogy."
 

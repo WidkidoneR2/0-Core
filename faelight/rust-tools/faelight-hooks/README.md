@@ -10,6 +10,7 @@
 
 ### 🌱 10.2.0
 
+- docs: regenerate all 35 per-tool READMEs + index with the new format. Each: 🌲…
 - README: Morphwood teaser (temporary) + remove 35 stale auto-dump CHANGELOG.md…
 - final Arch sweep -- purge all executable Arch code for a true…
 - Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
@@ -21,7 +22,6 @@
 - feat(hooks): v10.2.0 - status cmd, real config, graceful tool detection
 - Workspace-wide quality improvements - Zero clippy warnings
 - feat(faelight-hooks): v10.1.0 - Production-ready standalone release
-- feat(faelight-hooks): MAJOR upgrade with rustfmt/clippy v10.0.0 🎣
 
 > _Auto-seeded from history; curated entries coming._
 

@@ -1,6 +1,6 @@
 # 🌲 faelight-git
 
-**Version:** 4.2.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 4.2.1 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
 ## 📖 Description
 

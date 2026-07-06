@@ -12,6 +12,7 @@ Zone detection - identify numbered gravity zones
 
 ### 🌱 2.1.0
 
+- docs: regenerate all 35 per-tool READMEs + index with the new format. Each: 🌲…
 - README: Morphwood teaser (temporary) + remove 35 stale auto-dump CHANGELOG.md…
 - Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
 - generate 39 per-tool CHANGELOGs (NixOS migration entry + git history)
@@ -23,7 +24,6 @@ Zone detection - identify numbered gravity zones
 - Workspace-wide quality improvements - Zero clippy warnings
 - feat(faelight-zone): migrate to faelight-core::paths v2.0.0 🎯
 - feat(faelight-zone): change Core zone icon from 🔒 to 🌲
-- chore: Update workspace after warning cleanup
 
 > _Auto-seeded from history; curated entries coming._
 

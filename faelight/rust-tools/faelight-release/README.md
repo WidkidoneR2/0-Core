@@ -1,6 +1,6 @@
 # 🌲 faelight-release
 
-**Version:** 1.0.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 1.0.1 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 
 ## 📖 Description
 
