@@ -3,7 +3,7 @@ id: 111
 date: 2026-07-02
 type: future
 title: "bump-versions lightweight per-tool versioning"
-status: planned
+status: in-progress
 tags: [versioning, release, cicomplete]
 ---
 

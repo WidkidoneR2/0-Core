@@ -748,6 +748,53 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
+// INT-111: map an intent's `type:` to a proposed semver level.
+// feature -> minor; everything else -> patch. major only via human override at prompt.
+fn semver_level_for_type(intent_type: &str) -> &'static str {
+    match intent_type {
+        "feature" => "minor",
+        _ => "patch",
+    }
+}
+
+// INT-111: engine-side version writer (self-contained; no dependency on faelight-shell).
+// Reads a tool's Cargo.toml, count-asserts exactly one package `version = ` line,
+// writes the bumped version back in place. Returns (old, new).
+fn engine_apply_bump(core_root: &str, rel_path: &str, level: &str) -> Result<(String, String), String> {
+    let full = format!("{}/{}", core_root, rel_path);
+    let content = std::fs::read_to_string(&full)
+        .map_err(|e| format!("cannot read {}: {}", full, e))?;
+    let ver_lines: Vec<&str> = content
+        .lines()
+        .filter(|l| l.trim_start().starts_with("version = "))
+        .collect();
+    if ver_lines.len() != 1 {
+        return Err(format!(
+            "expected exactly 1 `version = ` line in {}, found {} -- aborting (no write)",
+            full, ver_lines.len()
+        ));
+    }
+    let old_line = ver_lines[0];
+    let old_ver = old_line.trim().trim_start_matches("version = ").trim_matches('"').to_string();
+    let parts: Vec<u32> = old_ver.split('.').filter_map(|p| p.parse().ok()).collect();
+    if parts.len() != 3 {
+        return Err(format!("version '{}' is not x.y.z semver", old_ver));
+    }
+    let new_ver = match level {
+        "patch" => format!("{}.{}.{}", parts[0], parts[1], parts[2] + 1),
+        "minor" => format!("{}.{}.0", parts[0], parts[1] + 1),
+        "major" => format!("{}.0.0", parts[0] + 1),
+        other => return Err(format!("unknown level '{}'", other)),
+    };
+    let new_line = old_line.replace(&old_ver, &new_ver);
+    if content.matches(old_line).count() != 1 {
+        return Err(format!("version line not uniquely matchable in {} -- aborting", full));
+    }
+    let updated = content.replacen(old_line, &new_line, 1);
+    std::fs::write(&full, updated).map_err(|e| format!("cannot write {}: {}", full, e))?;
+    Ok((old_ver, new_ver))
+}
+
 pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
@@ -957,21 +1004,49 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if touched.contains("friday-chat") { tools.push(("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml")); }
         if touched.contains("db-browse") { tools.push(("db-browse", "faelight/rust-tools/db-browse/Cargo.toml")); }
         if touched.contains("faelight-term") { tools.push(("faelight-term", "faelight/rust-tools/faelight-term/Cargo.toml")); }
+        if touched.contains("faelight-notify") { tools.push(("faelight-notify", "faelight/rust-tools/faelight-notify/Cargo.toml")); }
 
         if !tools.is_empty() {
+            use std::io::{IsTerminal, Write};
+            let proposed = semver_level_for_type(&intent.intent_type);
+            let interactive = std::io::stdin().is_terminal();
             println!();
-            println!("  {} Version bumps suggested:", "📦".normal());
+            println!("  {} Version bumps ({} proposed from type: {}):",
+                "📦".normal(), proposed.bright_yellow(), intent.intent_type.dimmed());
             for (name, cargo_path) in &tools {
                 let full_path = format!("{}/{}", ctx.core_root, cargo_path);
-                if let Ok(cargo) = std::fs::read_to_string(&full_path) {
-                    if let Some(ver_line) = cargo.lines().find(|l| l.starts_with("version = ")) {
-                        let ver = ver_line.trim_start_matches("version = ").trim_matches('"');
-                        println!("    {} {}  {} (patch or minor bump)",
-                            "◦".bright_yellow(), name.bright_white(), ver.dimmed());
-                    }
+                let cur = std::fs::read_to_string(&full_path).ok()
+                    .and_then(|c| c.lines()
+                        .find(|l| l.trim_start().starts_with("version = "))
+                        .map(|l| l.trim().trim_start_matches("version = ").trim_matches('"').to_string()));
+                let Some(cur) = cur else { continue; };
+                if !interactive {
+                    // No TTY -- never block a scripted completion. Suggest only.
+                    println!("    {} {}  {} (would bump {}; run: bump-versions {} {})",
+                        "◦".dimmed(), name.bright_white(), cur.dimmed(),
+                        proposed.dimmed(), proposed, name);
+                    continue;
+                }
+                print!("    {} bump {} {} ({})? [{}/skip] > ",
+                    "◦".bright_cyan(), name.bright_white(), cur.dimmed(),
+                    proposed.bright_yellow(),
+                    "patch/minor/major".dimmed());
+                let _ = std::io::stdout().flush();
+                let mut line = String::new();
+                if std::io::stdin().read_line(&mut line).is_err() { continue; }
+                let choice = line.trim();
+                let level = match choice {
+                    "" => proposed,               // Enter accepts the proposal
+                    "patch" | "minor" | "major" => choice,
+                    "skip" | "s" | "n" => { println!("      skipped"); continue; }
+                    other => { println!("      unrecognized '{}', skipped", other); continue; }
+                };
+                match engine_apply_bump(&ctx.core_root, cargo_path, level) {
+                    Ok((old, new)) => println!("      {} {} -> {} ({})",
+                        "✓".green(), old.dimmed(), new.bright_green(), level.dimmed()),
+                    Err(e) => println!("      {} bump failed: {}", "✗".red(), e),
                 }
             }
-            println!("    {} Run: bump-versions to apply", "→".dimmed());
         }
     }
     // INT-217 -- Friday speaks on cicomplete
