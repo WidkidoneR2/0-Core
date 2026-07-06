@@ -119,7 +119,7 @@
 
 > Built by one developer. Every tool written or fully understood.
 
-[Full Changelog →](meta/CHANGELOG.md)
+[Full Changelog →](faelight/meta/CHANGELOG.md)
 
 ---
 

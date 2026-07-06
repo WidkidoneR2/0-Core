@@ -208,7 +208,7 @@ fn build_dynamic_section(
     s.push_str("| 🌍 **Philosophy** | Understanding over convenience · No mystery packages |\n");
     s.push('\n');
     s.push_str("> Built by one developer. Every tool written or fully understood.\n\n");
-    s.push_str("[Full Changelog →](meta/CHANGELOG.md)\n\n");
+    s.push_str("[Full Changelog →](faelight/meta/CHANGELOG.md)\n\n");
     s.push_str("---\n");
     s
 }
