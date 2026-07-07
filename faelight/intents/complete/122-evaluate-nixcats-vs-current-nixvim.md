@@ -3,7 +3,7 @@ id: 122
 date: 2026-07-06
 type: future
 title: "Evaluate nixCats vs current nixvim"
-status: in-progress
+status: complete
 tags: [nix, nixcats, nixvim]
 ---
 
