@@ -10,6 +10,11 @@
   inputs.pinnacle.url = "github:pinnacle-comp/pinnacle";
   inputs.pinnacle.inputs.nixpkgs.follows = "nixpkgs";
   inputs.crane.url = "github:ipetkov/crane";
+  # INT-043: Attic self-hosted binary cache (replaces Cachix -- Cachix's multi-tenant
+  # content-dedup refused to serve our crane deps closure; Attic is single-tenant/ours
+  # with configurable upstream-skip, so it actually serves the closure).
+  inputs.attic.url = "github:zhaofengli/attic";
+  inputs.attic.inputs.nixpkgs.follows = "nixpkgs";
   # INT-090 Phase 3: nixvim for the friday-dev devShell. Pin nixos-26.05 (NOT main); NO
   # nixpkgs.follows -- Phase 0 lesson: let nixvim bring its own tested nixpkgs.
   inputs.nixvim.url = "github:nix-community/nixvim/nixos-26.05";
@@ -101,6 +106,7 @@
           nixos-hardware.nixosModules.framework-16-7040-amd
           home-manager.nixosModules.home-manager
           ./nix/hosts/framework16/configuration.nix
+          ./nix/modules/services/atticd.nix
           { system.configurationRevision = self.rev or self.dirtyRev or "dirty"; }
         ];
       };

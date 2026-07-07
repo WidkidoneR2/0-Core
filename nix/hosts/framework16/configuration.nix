@@ -22,10 +22,14 @@
   nix.settings.max-jobs = "auto";
   nix.settings.cores = 0;
 
-  # INT-043: Cachix binary cache (pull side). Additive -- keeps cache.nixos.org default.
-  nix.settings.extra-substituters = [ "https://faelight-forest.cachix.org" ];
+  # INT-043: Attic self-hosted binary cache (pull side). Additive -- keeps
+  # cache.nixos.org default (Attic priority 41 vs nixos.org 40, so nixos.org is
+  # consulted first, Attic supplements with our crane deps closure). Replaced Cachix,
+  # whose multi-tenant content-dedup refused to serve our crane paths (proven 2026-07-07;
+  # Attic clean-pull of the full 667-path closure verified). Server: nix/modules/services/atticd.nix.
+  nix.settings.extra-substituters = [ "http://127.0.0.1:8080/faelight" ];
   nix.settings.extra-trusted-public-keys = [
-    "faelight-forest.cachix.org-1:IFKABeIAWapKtYNrjD/f3hIFBAUrsQcxA/m1pheT2yM="
+    "faelight:oyzBMXRQvmCpv7tXJHstiYm/4C+kDjH8rjfEe1sZecU="
   ];
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [
@@ -143,7 +147,7 @@
     pkgs.wireplumber
     pkgs.cargo
     pkgs.rustc
-    pkgs.cachix
+    inputs.attic.packages.${system}.attic-client  # INT-043: attic CLI (replaced pkgs.cachix)
     pkgs.virt-viewer  # INT-077: SPICE client (remote-viewer) for `vm gui`
   ];
 
