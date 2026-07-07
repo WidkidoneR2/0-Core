@@ -3,7 +3,7 @@ id: 124
 date: 2026-07-06
 type: future
 title: "Health freshness: refresh doctor event on session-start-if-stale + after deploy (splash never shows stale health)"
-status: in-progress
+status: complete
 tags: [health, doctor, splash, deploy]
 ---
 
