@@ -3,7 +3,7 @@ id: 126
 date: 2026-07-07
 type: future
 title: "fsearch: teach extension allow-list -- .nix + forest config types"
-status: in-progress
+status: complete
 tags: [faelight-shell, fsh, nix, fsearch, tooling]
 ---
 
