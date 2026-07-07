@@ -41,6 +41,32 @@
       faelightDeps = craneLib.buildDepsOnly (faelightCommonArgs // {
         pname = "faelight-forest-deps";
         version = "9.2.0";
+        # INT-043: keep the deps hash stable so the Cachix push stays valid across
+        # daily work. With src = ./. the deps hash churned on every repo change.
+        # We build a manifests-only source (Cargo.toml + Cargo.lock, no .rs), then
+        # run normalize-deps-versions.sh which (1) zeroes each [package] version so
+        # our cicomplete bumps do not move the hash, and (2) stubs targets so cargo
+        # can check the workspace. We do NOT use crane's mkDummySrc: it embeds a
+        # store path in the dummy TOML (issue #117) which this Nix rejects. Result:
+        # the deps hash changes ONLY when real third-party dependencies change.
+        # NB: pass as `dummySrc` (not `src`) so crane uses our prepared source
+        # verbatim and SKIPS its own mkDummySrc -- avoiding both the store-path
+        # build line (issue #117) and crane's panic-handler dummy which collides
+        # with our crate literally named `core`.
+        dummySrc =
+          let
+            manifests = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.fileFilter
+                (file: file.name == "Cargo.toml" || file.name == "Cargo.lock")
+                ./.;
+            };
+          in
+          pkgs.runCommand "faelight-deps-src" { nativeBuildInputs = [ pkgs.gawk pkgs.gnugrep pkgs.findutils ]; } ''
+            cp -r ${manifests} $out
+            chmod -R u+w $out
+            ${pkgs.bash}/bin/bash ${./faelight/packages/faelight/scripts/normalize-deps-versions.sh} $out
+          '';
       });
     in {
       # INT-024: faelight-vm has TWO login modes sharing one base.
