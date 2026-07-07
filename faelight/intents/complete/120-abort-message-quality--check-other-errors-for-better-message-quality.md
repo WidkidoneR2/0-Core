@@ -3,7 +3,7 @@ id: 120
 date: 2026-07-04
 type: future
 title: "Abort-message quality + check other errors for better message quality"
-status: in-progress
+status: complete
 tags: [errors, abort, messaging]
 ---
 
