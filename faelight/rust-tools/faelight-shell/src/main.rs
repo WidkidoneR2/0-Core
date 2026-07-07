@@ -44,6 +44,46 @@ use std::collections::{HashMap, VecDeque};
 
 /// Split a line on `;` separators, respecting quoted strings.
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
+/// INT-124: refresh the doctor health event if it's stale (older than this boot).
+/// Cheap on the common path -- a timestamp compare. Only runs `core doctor run`
+/// (silently) when the latest doctor event predates the current boot, so the
+/// splash never shows a pre-reboot health number. Output is captured/discarded --
+/// we want the event written, not the dashboard printed on login.
+fn refresh_health_if_stale(core_root: &str, db: &crate::db::ForestDb) {
+    let _ = core_root;
+    // Latest doctor event timestamp (0 if none).
+    let last_event_ts: i64 = db
+        .conn
+        .query_row(
+            "SELECT timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+
+    // System boot time from /proc/stat (btime line).
+    let boot_ts: i64 = std::fs::read_to_string("/proc/stat")
+        .ok()
+        .and_then(|txt| {
+            txt.lines()
+                .find(|l| l.starts_with("btime "))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|n| n.parse::<i64>().ok())
+        })
+        .unwrap_or(0);
+
+    // Fresh = event recorded after this boot. Skip the doctor run (cheap path).
+    if last_event_ts != 0 && last_event_ts >= boot_ts {
+        return;
+    }
+
+    // Stale (or no event) -- refresh silently: write the event, suppress the dashboard.
+    let _ = std::process::Command::new("core")
+        .args(["doctor", "run"])
+        .env("NO_COLOR", "1")
+        .output();
+}
+
 fn expand_braces(s: &str) -> String {
     // Expand {N..M} and {a..z} sequences without regex
     if !s.contains('{') { return s.to_string(); }
@@ -3489,6 +3529,8 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         }
     }
     println!();
+    // INT-124: ensure the splash's health is fresh (refresh once if stale since boot)
+    refresh_health_if_stale(core_root, db);
     // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root, db) {
         // Phase 23 — restore last working directory
