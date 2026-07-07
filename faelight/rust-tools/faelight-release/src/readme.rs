@@ -168,8 +168,15 @@ fn build_dynamic_section(
         .collect();
     if !public_intents.is_empty() {
         s.push_str("### ✅ What Shipped\n\n");
-        for title in &public_intents {
+        let cap = 15usize;
+        for title in public_intents.iter().take(cap) {
             s.push_str(&format!("- {}\n", title));
+        }
+        if public_intents.len() > cap {
+            s.push_str(&format!(
+                "\n_…and {} more -- see the [full changelog](faelight/meta/CHANGELOG.md)._\n",
+                public_intents.len() - cap
+            ));
         }
         s.push('\n');
     }
@@ -188,7 +195,7 @@ fn build_dynamic_section(
             } else {
                 format!("{}: ", feat.scope)
             };
-            s.push_str(&format!("- {}{}\n", scope, feat.message));
+            s.push_str(&format!("- {}{}\n", scope, clean_intent_title(&feat.message)));
         }
         s.push('\n');
     }
@@ -207,7 +214,7 @@ fn build_dynamic_section(
     s.push_str("| ⚡ **Stack** | Rust · Wayland · Smithay · ratatui · wgpu |\n");
     s.push_str("| 🌍 **Philosophy** | Understanding over convenience · No mystery packages |\n");
     s.push('\n');
-    s.push_str("> Built by one developer. Every tool written or fully understood.\n\n");
+    s.push_str("> Every tool written or fully understood. Nothing runs blindly.\n\n");
     s.push_str("[Full Changelog →](faelight/meta/CHANGELOG.md)\n\n");
     s.push_str("---\n");
     s
