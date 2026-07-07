@@ -3014,6 +3014,10 @@ fn execute_impl(
                         filter_type = Some("toml");
                         i += 1;
                     }
+                    "--nix" => {
+                        filter_type = Some("nix");
+                        i += 1;
+                    }
                     "--sh" | "--shell" => {
                         filter_type = Some("sh");
                         i += 1;
@@ -3113,8 +3117,8 @@ fn execute_impl(
                         // Only search text files (check extension)
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                         let text_exts = [
-                            "rs", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml", "yml",
-                            "html", "css", "js", "ts",
+                            "rs", "nix", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml", "yml",
+                            "html", "css", "js", "ts", "lua", "conf", "desktop", "service", "lock",
                         ];
                         if !text_exts.contains(&ext) {
                             continue;
