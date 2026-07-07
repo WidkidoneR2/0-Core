@@ -178,3 +178,94 @@ own small future intent; recorded here so the research is not lost.
  Build once. Cache everywhere.
  Time saved is time for the work." 🌲
 <!-- INT-071 backfill (2026-06-22): 043 commit history restored to intent_commits; queryable via genealogy again. -->
+
+
+## SESSION 2026-07-07 -- CHURN ROOT-CAUSE FOUND + FIXED (Tier 1 live); cache-serve gap re-characterized
+
+This session CORRECTS the 2026-06-23 "cachix push silently failed" theory. The push
+was not the (whole) problem -- the deps derivation hash was never stable, so every
+push was for an instantly-dead path.
+
+### REAL ROOT CAUSE (of the churn)
+flake.nix `faelightDeps = buildDepsOnly (faelightCommonArgs // {...})` inherited
+`src = ./.` (line 23) -- the WHOLE repo tree. So the deps hash changed on EVERY repo
+change (.rs edits, intent .md files, version bumps). Evidence: ~25+ distinct
+`faelight-forest-deps-deps-9.2.0` output paths in /nix/store. Every push was stale on
+arrival. buildDepsOnly is meant to depend only on Cargo.toml/Cargo.lock, not source.
+
+### TIER-1 FIX (DONE, committed 7eb0075f, deployed live)
+Give faelightDeps its own source:
+  - manifests-only via `pkgs.lib.fileset.fileFilter` (Cargo.toml + Cargo.lock only)
+  - stub targets via faelight/packages/faelight/scripts/normalize-deps-versions.sh
+    (creates src/main.rs + src/lib.rs per [package] crate, plus any explicit
+    `path = "src/bin/*.rs"` -- e.g. faelight-lock/auth.rs, faelight-daemon/test-client.rs)
+  - the script ALSO normalizes [package] versions to 0.0.0 (Cargo.toml + Cargo.lock,
+    section-aware: only OUR workspace members, identified by no `source=` line)
+  - pass the prepared source as `dummySrc` (NOT `src`) so crane uses it verbatim and
+    SKIPS its own mkDummySrc.
+PROVEN: a .rs edit does NOT move the deps hash (identical before/after). Deps build
+clean (148s). faelight-forest builds against cached deps (~55s vs ~156s cold).
+
+### mkDummySrc BLOCKER (why we can't use crane's built-in) -- SOLVED via dummySrc
+crane's mkDummySrc sets `package.build = <store-path-to-dummyBuild.rs>` in each dummy
+Cargo.toml (crane issue #117 workaround for cargo timestamp checking), then writes it
+via `builtins.toJSON` -> Nix 26.05 REJECTS "string is not allowed to refer to a store
+path". Present even on crane master (checked). ALSO: crane's dummy injects a
+`#[panic_handler] fn panic(_info: &::core::panic::PanicInfo)` which fails to compile
+because our engine crate is literally NAMED `core` (`::core::` resolves to our crate).
+Both avoided by supplying our own dummySrc (buildDepsOnly.nix:37 uses args.dummySrc
+directly when present).
+
+### TIER 2 (version-bump stability) -- DEFERRED, not achievable this way
+Normalizing versions inside the runCommand happens at BUILD time, but the deps .drv
+HASH is computed from the runCommand's INPUTS at eval time -- which include the
+un-normalized manifests fileset. So a version bump still moves the deps hash
+(verified: 3.0.2->3.0.4 changed the hash). To fix, versions must be laundered at
+EVAL time (read+rewrite in Nix before hashing, like mkDummySrc's
+unsafeDiscardStringContext trick). Tier 1 (.rs stability) is the frequent case and is
+enough for now; version bumps (cicomplete) re-push occasionally.
+
+### CACHE-SERVE GAP -- RE-CHARACTERIZED (this is the actual remaining blocker)
+With a stable deps path now, pushed fresh:
+  - the deps DERIVATION narinfo SERVES: `curl -sI .../zhsyaypl....narinfo` -> HTTP 200
+  - but its CLOSURE cargo-package paths 404 on BOTH our cache AND cache.nixos.org
+    (crane builds each crate with crane-specific hashes nixpkgs' cache never has, so
+    they genuinely must live in OUR cache)
+  - `cachix push` reports "Pushing 4 paths (663 already present) ... All done" but
+    those 663 paths 404 -> the cachix "already present" claim is FALSE (the 06-23 trap,
+    now confirmed with a stable target)
+  - NO local cachix skip-record in ~/.cache/cachix or ~/.local/share/cachix (so the
+    stale record is server-side, not a local file we can delete)
+KEY METHOD CORRECTION: verify retrievability with narinfo HTTP HEAD
+(`curl -sI https://faelight-forest.cachix.org/<hash32>.narinfo`), NOT
+`nix path-info --store https://...` -- the latter FALSE-NEGATIVES ("path is not valid")
+and likely produced the 06-23 "6/691" figure. Re-verify all future cache claims via
+narinfo HTTP.
+KEY METHOD CORRECTION 2: `nix copy --to https://faelight-forest.cachix.org` CANNOT push
+to Cachix -> HTTP 405 "Method not supported" (the public URL is read-only; uploads MUST
+go through the `cachix push` protocol). This RULES OUT the 06-23 "use nix copy --to"
+suggestion.
+
+### NEXT SESSION (focused "make cachix actually serve the closure")
+1. Force cachix to re-push the FULL closure ignoring its false "already present" --
+   investigate `cachix push` flags (e.g. --compression, or push the whole closure via
+   `nix-store -qR <deps> | cachix push faelight-forest`), watch for real upload counts.
+2. Signing key: cachix.dhall has `binaryCaches = []` (no local signing key). Confirm
+   whether this cache needs a signing key generated (`cachix generate-keypair`) for
+   pushes to persist/serve, and configure it if so.
+3. Re-verify via narinfo HTTP HEAD over the whole ~667-path closure until served=667.
+4. Then the clean-pull gate: `nix copy --from https://faelight-forest.cachix.org <deps>`
+   into a scratch /tmp store succeeds end-to-end (this DOES work for pulling; only
+   pushing via nix copy is blocked).
+5. If the cachix skip-record/serve behavior stays opaque -> pivot to Attic (Option C,
+   self-hosted, NixOS-native) as the cleaner backend.
+
+### SECURITY
+The Cachix authToken in ~/.config/cachix/cachix.dhall was exposed during this session
+-> ROTATE it (regenerate at cachix.org, then `cachix authtoken <new>`). Scope is `tx`
+push on a public cache, low-risk, but rotate for hygiene.
+
+### HONEST SCOPE NOTE
+The LOCAL crane win (rebuild ~156s->~55s) is delivered and live -- NOT at risk from any
+of the above. The remaining work is purely clean-VM/recovery/CI RESILIENCE (the cache
+actually serving a from-scratch machine), which does not speed the daily loop.
