@@ -20,7 +20,7 @@ sudo nixos-rebuild switch --flake .#framework16
 
 echo ""
 echo "→ Running health check..."
-core doctor quick
+core doctor run
 
 echo ""
 echo "Refreshing cheatsheet..."
