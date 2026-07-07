@@ -3,7 +3,7 @@ id: 123
 date: 2026-07-06
 type: future
 title: "Release changelog polish: cap What Shipped + strip INT-numbers from Notable Changes"
-status: in-progress
+status: complete
 tags: [faelight-release, changelog, public]
 ---
 
