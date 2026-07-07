@@ -115,3 +115,34 @@ auto-promoted from spike enthusiasm.
 - Decide by feel over time, not by current excitement. If after living with it nvim
   genuinely feels like the better primary, promote it deliberately. If Helix still fits
   better for daily driving, nixCats stays the excellent nvim-when-wanted. Both fine.
+
+## MIGRATION COMPLETE -- 2026-07-07 (this session)
+Faithful port executed on branch experiment/nixcats-122, then merged.
+- Built nix/home/dotfiles/forest-nvim/ : default.nix (categoryDefinitions +
+  packageDefinitions, the Nix "package" half) + init.lua + plugin/*.lua (real-Lua
+  config half). Plugins ported 1:1 from nixvim: lualine, bufferline, which-key,
+  treesitter, telescope(+ff/fg/fb), neo-tree, gitsigns, comment, nvim-cmp+luasnip
+  (nvim_lsp/luasnip/buffer/path sources), web-devicons, candy-neon theme.
+- Wired into friday-dev devShell (flake.nix): forestNvim = import ./forest-nvim
+  { pkgs; nixCats = inputs.nixcats; }, replacing the nixvim makeNixvimWithModule.
+- nixvim RETIRED: inputs.nixvim removed, nix/home/dotfiles/nixvim/ deleted, devShell
+  rebuilds clean without it.
+- One real API-drift fix during the port (exactly the kind of thing nixCats surfaces
+  and nixvim hid): modern nvim-treesitter removed `.configs.setup{}`; replaced with a
+  FileType autocmd calling vim.treesitter.start (grammars from withAllGrammars).
+- PARITY VERIFIED by launching forest-nvim in the devShell: candy-neon colors correct,
+  line numbers, treesitter highlight, lualine, bufferline, telescope, neo-tree, which-key,
+  comment, cmp -- all working. Demonstrated, not declared.
+
+Binary: `forest-nvim` (defaultPackageName), available in `nix develop ~/0-core`.
+
+## Gates -- ALL MET
+- [x] nixCats set up in a branch (experiment/nixcats-122)
+- [x] a real config slice migrated + working (full config, not just a slice)
+- [x] honest side-by-side: real Lua felt direct/clear, clicked (LazyVim-like) -- nixCats won
+- [x] decision recorded (MIGRATE) with rationale + the discipline lesson
+- [x] migration executed + parity verified + nixvim retired
+
+## Note carried forward
+OPEN QUESTION (above) -- nixCats as PRIMARY editor vs Helix -- remains open by design.
+Daily-drive the devShell forest-nvim first; let it earn primary. Not decided here.
