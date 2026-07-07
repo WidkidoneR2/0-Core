@@ -3,7 +3,7 @@ id: 119
 date: 2026-07-04
 type: future
 title: "Git-Hooks.nix evalution"
-status: in-progress
+status: complete
 tags: [nix, git-hook]
 ---
 
