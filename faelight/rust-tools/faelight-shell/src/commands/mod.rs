@@ -8945,7 +8945,7 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
     // rejects true unknowns itself (unknown subcommand -> usage + exit 2).
     let _ = args.first().copied().unwrap_or("");
     let home = std::env::var("HOME").unwrap_or_default();
-    let script = format!("{}/0-core/pkgs/faelight/scripts/vm", home);
+    let script = format!("{}/0-core/faelight/packages/faelight/scripts/vm", home);
     let st = std::process::Command::new(&script)
         .args(args)
         .stdin(std::process::Stdio::inherit())
