@@ -27,7 +27,9 @@ pub fn parse_flake_lock(flake_dir: &Path) -> Vec<FlakeInput> {
     };
     let mut inputs = vec![];
     for (name, node) in nodes {
-        if name == "root" { continue; }
+        if name == "root" {
+            continue;
+        }
         let locked = node.get("locked");
         let input_type = locked
             .and_then(|l| l.get("type"))
@@ -41,20 +43,29 @@ pub fn parse_flake_lock(flake_dir: &Path) -> Vec<FlakeInput> {
             .to_string();
         let url = match input_type.as_str() {
             "github" => {
-                let owner = locked.and_then(|l| l.get("owner"))
-                    .and_then(|o| o.as_str()).unwrap_or("?");
-                let repo = locked.and_then(|l| l.get("repo"))
-                    .and_then(|r| r.as_str()).unwrap_or("?");
+                let owner = locked
+                    .and_then(|l| l.get("owner"))
+                    .and_then(|o| o.as_str())
+                    .unwrap_or("?");
+                let repo = locked
+                    .and_then(|l| l.get("repo"))
+                    .and_then(|r| r.as_str())
+                    .unwrap_or("?");
                 format!("github:{}/{}", owner, repo)
-            },
+            }
             "gitlab" => {
-                let owner = locked.and_then(|l| l.get("owner"))
-                    .and_then(|o| o.as_str()).unwrap_or("?");
-                let repo = locked.and_then(|l| l.get("repo"))
-                    .and_then(|r| r.as_str()).unwrap_or("?");
+                let owner = locked
+                    .and_then(|l| l.get("owner"))
+                    .and_then(|o| o.as_str())
+                    .unwrap_or("?");
+                let repo = locked
+                    .and_then(|l| l.get("repo"))
+                    .and_then(|r| r.as_str())
+                    .unwrap_or("?");
                 format!("gitlab:{}/{}", owner, repo)
-            },
-            "path" => locked.and_then(|l| l.get("path"))
+            }
+            "path" => locked
+                .and_then(|l| l.get("path"))
                 .and_then(|p| p.as_str())
                 .unwrap_or("?")
                 .to_string(),
@@ -139,11 +150,15 @@ pub fn format_gc_roots() -> String {
             let path = parts[0];
             let target = parts[2];
             let short = if target.contains("/nix/store/") {
-                target.strip_prefix("/nix/store/")
+                target
+                    .strip_prefix("/nix/store/")
                     .and_then(|s| s.splitn(2, '-').nth(1))
                     .unwrap_or(target)
-            } else { target };
-            out.push_str(&format!("  ⚓ {} → {}\n", 
+            } else {
+                target
+            };
+            out.push_str(&format!(
+                "  ⚓ {} → {}\n",
                 path.rsplit('/').next().unwrap_or(path),
                 short
             ));

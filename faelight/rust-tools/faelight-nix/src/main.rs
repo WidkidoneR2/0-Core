@@ -2,10 +2,10 @@
 //! Phase 1b: candy-neon interactive search. Search nixpkgs, browse, view detail.
 //! "Find it, then let the config own it."
 
-mod search;
-mod theme;
 mod app;
 mod config_edit;
+mod search;
+mod theme;
 
 use app::{App, Mode};
 use crossterm::{
@@ -73,8 +73,14 @@ fn run<B: ratatui::backend::Backend>(
                 Mode::Editing => match key.code {
                     KeyCode::Enter => app.run_search(),
                     KeyCode::Char(c) => app.query.push(c),
-                    KeyCode::Backspace => { app.query.pop(); }
-                    KeyCode::Down => { if !app.results.is_empty() { app.mode = Mode::Browsing; } }
+                    KeyCode::Backspace => {
+                        app.query.pop();
+                    }
+                    KeyCode::Down => {
+                        if !app.results.is_empty() {
+                            app.mode = Mode::Browsing;
+                        }
+                    }
                     KeyCode::Esc => app.should_quit = true,
                     _ => {}
                 },
@@ -94,7 +100,9 @@ fn run<B: ratatui::backend::Backend>(
                 },
             }
         }
-        if app.should_quit { return Ok(()); }
+        if app.should_quit {
+            return Ok(());
+        }
     }
 }
 
@@ -105,7 +113,11 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
         .split(size);
 
     draw_search(f, app, chunks[0]);
@@ -119,12 +131,20 @@ fn draw_search(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border))
-        .title(Span::styled(" search nixpkgs ", Style::default().fg(theme::CYAN)))
+        .title(Span::styled(
+            " search nixpkgs ",
+            Style::default().fg(theme::CYAN),
+        ))
         .style(Style::default().bg(theme::BG));
     let caret = if editing { "_" } else { "" };
     let line = Line::from(vec![
         Span::styled(" \u{1f50d} ", Style::default().fg(theme::GREEN)),
-        Span::styled(app.query.clone(), Style::default().fg(theme::GREEN).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            app.query.clone(),
+            Style::default()
+                .fg(theme::GREEN)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(caret, Style::default().fg(theme::GREEN)),
     ]);
     f.render_widget(Paragraph::new(line).block(block), area);
@@ -149,21 +169,30 @@ fn draw_results(f: &mut ratatui::Frame, app: &App, area: Rect) {
         .style(Style::default().bg(theme::BG));
 
     let inner_w = area.width.saturating_sub(2) as usize;
-    let items: Vec<ListItem> = app.results.iter().map(|p| {
-        let ver = &p.version;
-        let attr = &p.attr;
-        let pad = inner_w.saturating_sub(attr.len() + ver.len() + 3);
-        let line = Line::from(vec![
-            Span::styled(format!(" {attr}"), Style::default().fg(theme::WHITE)),
-            Span::raw(" ".repeat(pad)),
-            Span::styled(format!("{ver} "), Style::default().fg(theme::YELLOW)),
-        ]);
-        ListItem::new(line)
-    }).collect();
+    let items: Vec<ListItem> = app
+        .results
+        .iter()
+        .map(|p| {
+            let ver = &p.version;
+            let attr = &p.attr;
+            let pad = inner_w.saturating_sub(attr.len() + ver.len() + 3);
+            let line = Line::from(vec![
+                Span::styled(format!(" {attr}"), Style::default().fg(theme::WHITE)),
+                Span::raw(" ".repeat(pad)),
+                Span::styled(format!("{ver} "), Style::default().fg(theme::YELLOW)),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
 
     let list = List::new(items)
         .block(block)
-        .highlight_style(Style::default().bg(theme::BG_SEL).fg(theme::GREEN).add_modifier(Modifier::BOLD))
+        .highlight_style(
+            Style::default()
+                .bg(theme::BG_SEL)
+                .fg(theme::GREEN)
+                .add_modifier(Modifier::BOLD),
+        )
         .highlight_symbol("\u{25b8} ");
 
     let mut state = app.list_state.clone();
@@ -174,27 +203,53 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::GRAY))
-        .title(Span::styled(" detail ", Style::default().fg(theme::MAGENTA)))
+        .title(Span::styled(
+            " detail ",
+            Style::default().fg(theme::MAGENTA),
+        ))
         .style(Style::default().bg(theme::BG));
 
     if app.mode == Mode::Confirm {
         let mut v: Vec<Line> = vec![
-            Line::from(Span::styled("REVIEW -- nothing written yet", Style::default().fg(theme::YELLOW).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "REVIEW -- nothing written yet",
+                Style::default()
+                    .fg(theme::YELLOW)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
         ];
         for l in app.pending_diff.lines() {
-            let color = if l.trim_start().starts_with('+') { theme::GREEN } else { theme::WHITE };
-            v.push(Line::from(Span::styled(l.to_string(), Style::default().fg(color))));
+            let color = if l.trim_start().starts_with('+') {
+                theme::GREEN
+            } else {
+                theme::WHITE
+            };
+            v.push(Line::from(Span::styled(
+                l.to_string(),
+                Style::default().fg(color),
+            )));
         }
         v.push(Line::from(""));
-        v.push(Line::from(Span::styled("press y to write, n to cancel", Style::default().fg(theme::CYAN))));
-        f.render_widget(Paragraph::new(v).block(block).wrap(Wrap { trim: false }), area);
+        v.push(Line::from(Span::styled(
+            "press y to write, n to cancel",
+            Style::default().fg(theme::CYAN),
+        )));
+        f.render_widget(
+            Paragraph::new(v).block(block).wrap(Wrap { trim: false }),
+            area,
+        );
         return;
     }
 
     let lines: Vec<Line> = if let Some(p) = app.selected() {
         let mut v = vec![
-            Line::from(Span::styled(p.attr.clone(), Style::default().fg(theme::GREEN).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                p.attr.clone(),
+                Style::default()
+                    .fg(theme::GREEN)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
         ];
         v.push(Line::from(vec![
@@ -206,20 +261,35 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App, area: Rect) {
             Span::styled(p.version.clone(), Style::default().fg(theme::YELLOW)),
         ]));
         v.push(Line::from(""));
-        v.push(Line::from(Span::styled(p.description.clone(), Style::default().fg(theme::WHITE))));
+        v.push(Line::from(Span::styled(
+            p.description.clone(),
+            Style::default().fg(theme::WHITE),
+        )));
         v
     } else {
-        vec![Line::from(Span::styled("(no selection)", Style::default().fg(theme::GRAY)))]
+        vec![Line::from(Span::styled(
+            "(no selection)",
+            Style::default().fg(theme::GRAY),
+        ))]
     };
 
-    f.render_widget(Paragraph::new(lines).block(block).wrap(Wrap { trim: true }), area);
+    f.render_widget(
+        Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+        area,
+    );
 }
 
 fn draw_status(f: &mut ratatui::Frame, app: &App, area: Rect) {
     let hint = " / search  \u{2191}\u{2193} nav  a add  q quit ";
     let line = Line::from(vec![
-        Span::styled(format!(" {} ", app.status), Style::default().fg(theme::GREEN)),
+        Span::styled(
+            format!(" {} ", app.status),
+            Style::default().fg(theme::GREEN),
+        ),
         Span::styled(hint, Style::default().fg(theme::GRAY)),
     ]);
-    f.render_widget(Paragraph::new(line).style(Style::default().bg(theme::BG)), area);
+    f.render_widget(
+        Paragraph::new(line).style(Style::default().bg(theme::BG)),
+        area,
+    );
 }

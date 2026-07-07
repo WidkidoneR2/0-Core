@@ -1061,11 +1061,9 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     )?;
 
     // Database size
-    let db_size = std::fs::metadata(
-        faelight_core::paths::state_db(),
-    )
-    .map(|m| m.len())
-    .unwrap_or(0);
+    let db_size = std::fs::metadata(faelight_core::paths::state_db())
+        .map(|m| m.len())
+        .unwrap_or(0);
 
     println!("{}", "🌲 Ledger Stats".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());

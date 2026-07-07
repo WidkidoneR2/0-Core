@@ -351,10 +351,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         0
     };
     println!();
-    println!(
-        "  {} Friday -- Active Intelligence",
-        "🌲".normal(),
-    );
+    println!("  {} Friday -- Active Intelligence", "🌲".normal(),);
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     println!(
@@ -586,7 +583,12 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         println!("  From recent activity:");
         for (kind, payload) in &recent_events {
             let short = payload.chars().take(80).collect::<String>();
-            println!("  {} [{}] {}", "→".bright_cyan(), kind.bright_green(), short.bright_white());
+            println!(
+                "  {} [{}] {}",
+                "→".bright_cyan(),
+                kind.bright_green(),
+                short.bright_white()
+            );
         }
         println!();
     }
@@ -845,11 +847,13 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
     if let Some((trigger, action, conf)) = top_pattern {
         // Skip if pattern is about deploying and we just deployed recently
-        let recently_deployed: i64 = db.query_row(
-            "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-            rusqlite::params![now_ts() - 300],
-            |r| r.get(0),
-        ).unwrap_or(0);
+        let recently_deployed: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                rusqlite::params![now_ts() - 300],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         let skip = action.contains("deploy") && recently_deployed > 0;
         if !skip && conf >= 0.85 {
             suggestions.push(format!(

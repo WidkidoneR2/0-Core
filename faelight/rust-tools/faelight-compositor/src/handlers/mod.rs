@@ -68,15 +68,13 @@ impl OutputHandler for FaelightCompositor {}
 delegate_output!(FaelightCompositor);
 
 use smithay::{
-    delegate_primary_selection, delegate_xdg_decoration, delegate_xdg_activation,
+    delegate_primary_selection, delegate_xdg_activation, delegate_xdg_decoration,
+    reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     wayland::{
-        selection::primary_selection::{
-            PrimarySelectionHandler, PrimarySelectionState,
-        },
+        selection::primary_selection::{PrimarySelectionHandler, PrimarySelectionState},
         shell::xdg::decoration::XdgDecorationHandler,
         xdg_activation::{XdgActivationHandler, XdgActivationState, XdgActivationToken},
     },
-    reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
 };
 
 impl PrimarySelectionHandler for FaelightCompositor {
@@ -94,7 +92,12 @@ impl XdgDecorationHandler for FaelightCompositor {
         });
         toplevel.send_configure();
     }
-    fn request_mode(&mut self, _toplevel: smithay::wayland::shell::xdg::ToplevelSurface, _mode: Mode) {}
+    fn request_mode(
+        &mut self,
+        _toplevel: smithay::wayland::shell::xdg::ToplevelSurface,
+        _mode: Mode,
+    ) {
+    }
     fn unset_mode(&mut self, _toplevel: smithay::wayland::shell::xdg::ToplevelSurface) {}
 }
 
@@ -104,29 +107,43 @@ impl XdgActivationHandler for FaelightCompositor {
     fn activation_state(&mut self) -> &mut XdgActivationState {
         &mut self.xdg_activation_state
     }
-    fn token_created(&mut self, _token: XdgActivationToken, _data: smithay::wayland::xdg_activation::XdgActivationTokenData) -> bool { true }
-    fn request_activation(&mut self, _token: XdgActivationToken, _data: smithay::wayland::xdg_activation::XdgActivationTokenData, _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) {}
+    fn token_created(
+        &mut self,
+        _token: XdgActivationToken,
+        _data: smithay::wayland::xdg_activation::XdgActivationTokenData,
+    ) -> bool {
+        true
+    }
+    fn request_activation(
+        &mut self,
+        _token: XdgActivationToken,
+        _data: smithay::wayland::xdg_activation::XdgActivationTokenData,
+        _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
+    ) {
+    }
 }
 
 delegate_xdg_activation!(FaelightCompositor);
 
 use smithay::{
     delegate_cursor_shape, delegate_fractional_scale,
-    wayland::{
-        fractional_scale::FractionalScaleHandler,
-    },
+    wayland::fractional_scale::FractionalScaleHandler,
 };
 
 impl FractionalScaleHandler for FaelightCompositor {
-    fn new_fractional_scale(&mut self, _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) {}
+    fn new_fractional_scale(
+        &mut self,
+        _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
+    ) {
+    }
 }
 
 delegate_cursor_shape!(FaelightCompositor);
 delegate_fractional_scale!(FaelightCompositor);
 
-use smithay::wayland::tablet_manager::TabletSeatHandler;
 use smithay::backend::input::TabletToolDescriptor;
 use smithay::input::pointer::CursorImageStatus;
+use smithay::wayland::tablet_manager::TabletSeatHandler;
 impl TabletSeatHandler for FaelightCompositor {
     fn tablet_tool_image(&mut self, _tool: &TabletToolDescriptor, _image: CursorImageStatus) {}
 }

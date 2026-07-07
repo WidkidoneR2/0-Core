@@ -99,7 +99,6 @@ enum IntentAction {
     Show { id: String },
 }
 
-
 #[derive(Subcommand)]
 enum LaunchApp {
     /// File manager
@@ -252,7 +251,6 @@ fn handle_intent(action: IntentAction) {
         }
     }
 }
-
 
 // ═══════════════════════════════════════════════════════════
 // 🚀 LAUNCH APPLICATIONS

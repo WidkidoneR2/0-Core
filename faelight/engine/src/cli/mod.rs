@@ -6,10 +6,9 @@ use commands::{
     AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
     BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
     DelegateCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand, EventsCommand,
-    NixCommand,
     EvolutionCommand, GenealogyCommand, GitCommand, GoalsCommand, IntegrityCommand, IntentCommand,
-  JournalCommand, LedgerCommand, NotifyCommand, PartnerCommand,
-    PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand,
+    JournalCommand, LedgerCommand, NixCommand, NotifyCommand, PartnerCommand, PlanCommand,
+    PluginCommand, PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand,
     RegistryCommand, ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand,
     StrategyCommand, StressCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
     WeightCommand, WhyCommand, WorkspaceCommand,
@@ -18,14 +17,13 @@ use parser::{
     AlignCommands, AnomalyCommands, AuditCommands, AutobiographyCommands, AutonomyCommands,
     BootstrapCommands, CheckpointCommands, Cli, Commands, DaemonCommands, DbCommands,
     DecisionCommands, DelegateCommands, DepsCommands, DocsCommands, DoctorCommands,
-    NixCommands,
     EnginesCommands, EventsCommands, EvolutionCommands, GenealogyCommands, GitCommands,
-  GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands,
-    LedgerCommands, NotifyCommands, PartnerCommands, PlanCommands, PluginCommands,
-    PredictCommands, PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands,
-    ReleaseCommands, SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands,
-    StrategyCommands, StressCommands, TraceCommands, TradeoffCommands, UpdateCommands,
-    ValuesCommands, WeightCommands, WhyCommands, WorkspaceCommands,
+    GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands, LedgerCommands, NixCommands,
+    NotifyCommands, PartnerCommands, PlanCommands, PluginCommands, PredictCommands,
+    PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands, ReleaseCommands,
+    SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands, StrategyCommands,
+    StressCommands, TraceCommands, TradeoffCommands, UpdateCommands, ValuesCommands,
+    WeightCommands, WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -83,11 +81,21 @@ pub fn parse() -> Command {
             FridayCommands::Review => FridayCommand::Review,
             // INT-244 v22
             FridayCommands::Why { topic } => FridayCommand::Why { topic },
-            FridayCommands::Decide { what, why, ties_to } => FridayCommand::Decide { what, why, ties_to },
+            FridayCommands::Decide { what, why, ties_to } => {
+                FridayCommand::Decide { what, why, ties_to }
+            }
             FridayCommands::Decisions => FridayCommand::Decisions,
             FridayCommands::MapShow => FridayCommand::MapShow,
             FridayCommands::MapUpdate => FridayCommand::MapUpdate,
-            FridayCommands::EventBus { domain, limit, json } => FridayCommand::EventBus { domain, limit, json },
+            FridayCommands::EventBus {
+                domain,
+                limit,
+                json,
+            } => FridayCommand::EventBus {
+                domain,
+                limit,
+                json,
+            },
             FridayCommands::ReasonEngine => FridayCommand::ReasonEngine,
             FridayCommands::MapImpact { change } => FridayCommand::MapImpact(change),
             FridayCommands::SelfReview => FridayCommand::SelfReview,

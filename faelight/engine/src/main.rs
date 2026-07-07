@@ -23,7 +23,9 @@ fn main() {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
     std::panic::set_hook(Box::new(|info| {
-        let msg = info.payload().downcast_ref::<String>()
+        let msg = info
+            .payload()
+            .downcast_ref::<String>()
             .map(|s| s.as_str())
             .or_else(|| info.payload().downcast_ref::<&str>().copied())
             .unwrap_or("");

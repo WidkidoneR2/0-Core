@@ -2,9 +2,9 @@
 // Static plugins compiled in, toggled at runtime
 // Plugin trait: name, handles, preview, actions
 
-pub mod nix_plugin;
 pub mod git_plugin;
 pub mod intent_plugin;
+pub mod nix_plugin;
 
 use std::path::Path;
 
@@ -42,7 +42,8 @@ impl PluginRegistry {
 
     /// Find first plugin that handles this path
     pub fn find(&self, path: &Path) -> Option<&dyn Plugin> {
-        self.plugins.iter()
+        self.plugins
+            .iter()
             .find(|p| p.handles(path))
             .map(|p| p.as_ref())
     }
@@ -55,9 +56,7 @@ impl PluginRegistry {
     /// Get actions from matching plugin
     #[allow(dead_code)]
     pub fn actions(&self, path: &Path) -> Vec<PluginAction> {
-        self.find(path)
-            .map(|p| p.actions(path))
-            .unwrap_or_default()
+        self.find(path).map(|p| p.actions(path)).unwrap_or_default()
     }
 
     #[allow(dead_code)]

@@ -2,9 +2,11 @@
 //! friday::events::emit is the canonical way all tools report to Friday
 fn now_ts() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
-
 
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
@@ -60,7 +62,10 @@ pub fn recent(ctx: &AppContext, domain: &str, limit: usize) -> Vec<(String, Stri
             r.get::<_, String>(1).unwrap_or_default(),
             r.get::<_, i64>(2)?,
         ))
-    }).ok().map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default()
+    })
+    .ok()
+    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+    .unwrap_or_default()
 }
 
 /// Query events by kind across all domains (for cross-tool reasoning)
@@ -79,11 +84,19 @@ pub fn by_kind(ctx: &AppContext, kind: &str, since_ts: i64) -> Vec<(String, Stri
             r.get::<_, String>(1).unwrap_or_default(),
             r.get::<_, i64>(2)?,
         ))
-    }).ok().map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default()
+    })
+    .ok()
+    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+    .unwrap_or_default()
 }
 
 /// Show recent events -- core friday events command
-pub fn show_recent(ctx: &AppContext, limit: usize, domain: Option<&str>, json: bool) -> CoreResult<()> {
+pub fn show_recent(
+    ctx: &AppContext,
+    limit: usize,
+    domain: Option<&str>,
+    json: bool,
+) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let day_ago = now - 86400;
@@ -91,31 +104,39 @@ pub fn show_recent(ctx: &AppContext, limit: usize, domain: Option<&str>, json: b
     let rows: Vec<(String, String, String, String, i64)> = if let Some(d) = domain {
         let mut s = db.prepare(
             "SELECT domain, action, source_tool, payload, timestamp FROM events
-             WHERE timestamp > ?1 AND domain = ?2 ORDER BY timestamp DESC LIMIT ?3"
+             WHERE timestamp > ?1 AND domain = ?2 ORDER BY timestamp DESC LIMIT ?3",
         )?;
-        let x = s.query_map(rusqlite::params![day_ago, d, limit as i64], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2).unwrap_or_default(),
-                r.get::<_, String>(3).unwrap_or_default(),
-                r.get::<_, i64>(4)?,
-            ))
-        })?.filter_map(|r| r.ok()).collect(); x
+        let x = s
+            .query_map(rusqlite::params![day_ago, d, limit as i64], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2).unwrap_or_default(),
+                    r.get::<_, String>(3).unwrap_or_default(),
+                    r.get::<_, i64>(4)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     } else {
         let mut s = db.prepare(
             "SELECT domain, action, source_tool, payload, timestamp FROM events
-             WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT ?2"
+             WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT ?2",
         )?;
-        let x = s.query_map(rusqlite::params![day_ago, limit as i64], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2).unwrap_or_default(),
-                r.get::<_, String>(3).unwrap_or_default(),
-                r.get::<_, i64>(4)?,
-            ))
-        })?.filter_map(|r| r.ok()).collect(); x
+        let x = s
+            .query_map(rusqlite::params![day_ago, limit as i64], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2).unwrap_or_default(),
+                    r.get::<_, String>(3).unwrap_or_default(),
+                    r.get::<_, i64>(4)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
 
     if json {

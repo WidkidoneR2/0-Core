@@ -17,9 +17,14 @@ impl XdgShellHandler for FaelightCompositor {
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface);
         // INT-308 Phase 3: auto-tiling -- place windows side by side
-        let output_size = self.space.outputs().next()
+        let output_size = self
+            .space
+            .outputs()
+            .next()
             .and_then(|o| self.space.output_geometry(o))
-            .unwrap_or(smithay::utils::Rectangle::from_size((2560i32, 1600i32).into()));
+            .unwrap_or(smithay::utils::Rectangle::from_size(
+                (2560i32, 1600i32).into(),
+            ));
         let win_count = self.space.elements().count();
         let x = if win_count == 0 {
             0
@@ -47,10 +52,16 @@ impl XdgShellHandler for FaelightCompositor {
             window.toplevel().unwrap().send_pending_configure();
             // Deactivate other windows (forest: only one active at a time)
             let active_surf = window.toplevel().and_then(|t| Some(t.wl_surface().clone()));
-            let others: Vec<_> = self.space.elements().filter(|w| {
-                w.toplevel().and_then(|t| Some(t.wl_surface().clone())) != active_surf
-            }).cloned().collect();
-            for w in others { w.set_activated(false); w.toplevel().map(|t| t.send_pending_configure()); }
+            let others: Vec<_> = self
+                .space
+                .elements()
+                .filter(|w| w.toplevel().and_then(|t| Some(t.wl_surface().clone())) != active_surf)
+                .cloned()
+                .collect();
+            for w in others {
+                w.set_activated(false);
+                w.toplevel().map(|t| t.send_pending_configure());
+            }
         }
 
         // Emit window.open into the forest ledger

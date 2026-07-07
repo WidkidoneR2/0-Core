@@ -267,8 +267,12 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
             }
         }
         if pruned > 0 {
-            println!("  {} reconciled - {} runtime alias{} pruned to config.fsh",
-                     "✓".bright_green(), pruned, if pruned == 1 { "" } else { "es" });
+            println!(
+                "  {} reconciled - {} runtime alias{} pruned to config.fsh",
+                "✓".bright_green(),
+                pruned,
+                if pruned == 1 { "" } else { "es" }
+            );
         }
     }
 

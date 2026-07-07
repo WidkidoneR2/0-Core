@@ -10,7 +10,11 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
-#[command(name = "faelight-deadwood", version, about = "Forest dead-code & orphan detector (reports, never deletes)")]
+#[command(
+    name = "faelight-deadwood",
+    version,
+    about = "Forest dead-code & orphan detector (reports, never deletes)"
+)]
 struct Cli {
     /// Only run one check: aliases, baks, keybinds
     #[arg(long)]
@@ -28,7 +32,11 @@ struct Cli {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Confidence { High, Medium, Low }
+enum Confidence {
+    High,
+    Medium,
+    Low,
+}
 
 impl Confidence {
     fn tag(self) -> ColoredString {
@@ -47,23 +55,35 @@ impl Confidence {
 /// Nix modules stay manual, always.
 #[derive(Clone)]
 enum PurgeAction {
-    RemoveLine { file: PathBuf, exact: String },   // dead alias / dead keybind: remove one exact line
-    DeleteFile { path: PathBuf },                   // stale .bak file only
+    RemoveLine { file: PathBuf, exact: String }, // dead alias / dead keybind: remove one exact line
+    DeleteFile { path: PathBuf },                // stale .bak file only
 }
-struct Finding { confidence: Confidence, detail: String, action: Option<PurgeAction> }
+struct Finding {
+    confidence: Confidence,
+    detail: String,
+    action: Option<PurgeAction>,
+}
 
 fn core_root() -> PathBuf {
-    std::env::var("HOME").map(|h| PathBuf::from(h).join("0-core")).unwrap_or_else(|_| PathBuf::from("."))
+    std::env::var("HOME")
+        .map(|h| PathBuf::from(h).join("0-core"))
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn main() {
     let cli = Cli::parse();
     let root = core_root();
-    if cli.purge { purge(&root, cli.bak_age, cli.bulk); return; }
+    if cli.purge {
+        purge(&root, cli.bak_age, cli.bulk);
+        return;
+    }
 
     if cli.summary {
         let aliases = check_dead_aliases(&root).len();
-        let baks = check_stale_baks(&root, cli.bak_age).iter().filter(|f| f.confidence != Confidence::Low).count();
+        let baks = check_stale_baks(&root, cli.bak_age)
+            .iter()
+            .filter(|f| f.confidence != Confidence::Low)
+            .count();
         let keybinds = check_dead_keybinds(&root).len();
         let registry = check_registry_orphans(&root).len();
         let scripts = check_orphaned_scripts(&root).len();
@@ -74,17 +94,47 @@ fn main() {
         return;
     }
 
-    println!("{}", "Faelight Deadwood -- forest hygiene report".green().bold());
+    println!(
+        "{}",
+        "Faelight Deadwood -- forest hygiene report".green().bold()
+    );
     println!("{}", "-".repeat(56).dimmed());
-    println!("{}", "  Reports only -- never deletes. You decide every cut.".dimmed());
+    println!(
+        "{}",
+        "  Reports only -- never deletes. You decide every cut.".dimmed()
+    );
     println!();
     let run = |name: &str| cli.only.as_deref().map(|o| o == name).unwrap_or(true);
-    if run("aliases") { report("Dead aliases", check_dead_aliases(&root)); }
-    if run("baks") { report(&format!("Stale .bak files (>{} days)", cli.bak_age), check_stale_baks(&root, cli.bak_age)); }
-    if run("keybinds") { report("Dead keybinds (mango)", check_dead_keybinds(&root)); }
-    if run("registry") { report("Registry orphans (deployable, no binary)", check_registry_orphans(&root)); }
-    if run("scripts") { report("Orphaned scripts (referenced nowhere)", check_orphaned_scripts(&root)); }
-    if run("modules") { report("Orphaned Nix modules (imported by no host)", check_orphaned_modules(&root)); }
+    if run("aliases") {
+        report("Dead aliases", check_dead_aliases(&root));
+    }
+    if run("baks") {
+        report(
+            &format!("Stale .bak files (>{} days)", cli.bak_age),
+            check_stale_baks(&root, cli.bak_age),
+        );
+    }
+    if run("keybinds") {
+        report("Dead keybinds (mango)", check_dead_keybinds(&root));
+    }
+    if run("registry") {
+        report(
+            "Registry orphans (deployable, no binary)",
+            check_registry_orphans(&root),
+        );
+    }
+    if run("scripts") {
+        report(
+            "Orphaned scripts (referenced nowhere)",
+            check_orphaned_scripts(&root),
+        );
+    }
+    if run("modules") {
+        report(
+            "Orphaned Nix modules (imported by no host)",
+            check_orphaned_modules(&root),
+        );
+    }
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  A healthy forest sheds dead wood.".dimmed());
 }
@@ -107,44 +157,174 @@ fn config_fsh(root: &Path) -> PathBuf {
 }
 
 const BUILTINS: &[&str] = &[
-    "cd","ls","ll","la","pwd","which","find","cistart","cicomplete","dc","ds","deploy","d",
-    "rebuild","rebuild-safe","rebuild-dry","rebuild-check","rollback","update-flake","friday",
-    "intent","intents","project","experiment","vm","fm","fmd","faelight-fm","gc","gp","fg",
-    "core","fsh","snapshot","where","fsearch","patch","edit","run","query","history","rewind",
-    "git","lazygit","lg","cargo","rustc","make","nix","echo","cat","grep","sed","awk","head",
-    "tail","sort","uniq","wc","tr","cut","xargs","tee","export","source","exit","clear","c",
-    "sudo","rm","mv","cp","mkdir","touch","chmod","chown","kill","ps","top","htop","systemctl",
-    "journalctl","env","ssh","curl","wget","tar","zip","unzip","nvim","vim","hx","bat","less",
-    "more","man","date","uname","python3","python","dev","delete","del","diff","list","cheat",
-    "it","gt","db","ade","reload","help","h",
+    "cd",
+    "ls",
+    "ll",
+    "la",
+    "pwd",
+    "which",
+    "find",
+    "cistart",
+    "cicomplete",
+    "dc",
+    "ds",
+    "deploy",
+    "d",
+    "rebuild",
+    "rebuild-safe",
+    "rebuild-dry",
+    "rebuild-check",
+    "rollback",
+    "update-flake",
+    "friday",
+    "intent",
+    "intents",
+    "project",
+    "experiment",
+    "vm",
+    "fm",
+    "fmd",
+    "faelight-fm",
+    "gc",
+    "gp",
+    "fg",
+    "core",
+    "fsh",
+    "snapshot",
+    "where",
+    "fsearch",
+    "patch",
+    "edit",
+    "run",
+    "query",
+    "history",
+    "rewind",
+    "git",
+    "lazygit",
+    "lg",
+    "cargo",
+    "rustc",
+    "make",
+    "nix",
+    "echo",
+    "cat",
+    "grep",
+    "sed",
+    "awk",
+    "head",
+    "tail",
+    "sort",
+    "uniq",
+    "wc",
+    "tr",
+    "cut",
+    "xargs",
+    "tee",
+    "export",
+    "source",
+    "exit",
+    "clear",
+    "c",
+    "sudo",
+    "rm",
+    "mv",
+    "cp",
+    "mkdir",
+    "touch",
+    "chmod",
+    "chown",
+    "kill",
+    "ps",
+    "top",
+    "htop",
+    "systemctl",
+    "journalctl",
+    "env",
+    "ssh",
+    "curl",
+    "wget",
+    "tar",
+    "zip",
+    "unzip",
+    "nvim",
+    "vim",
+    "hx",
+    "bat",
+    "less",
+    "more",
+    "man",
+    "date",
+    "uname",
+    "python3",
+    "python",
+    "dev",
+    "delete",
+    "del",
+    "diff",
+    "list",
+    "cheat",
+    "it",
+    "gt",
+    "db",
+    "ade",
+    "reload",
+    "help",
+    "h",
 ];
 
 fn on_path(cmd: &str) -> bool {
-    std::env::var("PATH").unwrap_or_default().split(':')
+    std::env::var("PATH")
+        .unwrap_or_default()
+        .split(':')
         .any(|dir| Path::new(&format!("{dir}/{cmd}")).exists())
 }
 
 fn check_dead_aliases(root: &Path) -> Vec<Finding> {
     let path = config_fsh(root);
-    let text = match std::fs::read_to_string(&path) { Ok(t) => t, Err(_) => return Vec::new() };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
     let mut alias_names: HashSet<String> = HashSet::new();
     for line in text.lines() {
-        if let Some((n, _)) = parse_alias(line) { alias_names.insert(n); }
+        if let Some((n, _)) = parse_alias(line) {
+            alias_names.insert(n);
+        }
     }
     let mut findings = Vec::new();
     for line in text.lines() {
-        if line.contains("# deadwood: skip") { continue; }
-        let (name, target) = match parse_alias(line) { Some(x) => x, None => continue };
+        if line.contains("# deadwood: skip") {
+            continue;
+        }
+        let (name, target) = match parse_alias(line) {
+            Some(x) => x,
+            None => continue,
+        };
         let first = target.split_whitespace().next().unwrap_or("");
-        if first.is_empty() { continue; }
+        if first.is_empty() {
+            continue;
+        }
         let first = first.trim_matches(|c| c == '"' || c == '\'');
-        let live = BUILTINS.contains(&first) || alias_names.contains(first) || on_path(first)
-            || first.starts_with('~') || first.starts_with('/') || first.starts_with('$') || first.contains('=');
+        let live = BUILTINS.contains(&first)
+            || alias_names.contains(first)
+            || on_path(first)
+            || first.starts_with('~')
+            || first.starts_with('/')
+            || first.starts_with('$')
+            || first.contains('=');
         if !live {
             findings.push(Finding {
                 confidence: Confidence::Medium,
-                detail: format!("alias {} -> '{}' (target '{}' not found)", name.bright_white(), target.dimmed(), first),
-                action: Some(PurgeAction::RemoveLine { file: path.clone(), exact: line.to_string() }),
+                detail: format!(
+                    "alias {} -> '{}' (target '{}' not found)",
+                    name.bright_white(),
+                    target.dimmed(),
+                    first
+                ),
+                action: Some(PurgeAction::RemoveLine {
+                    file: path.clone(),
+                    exact: line.to_string(),
+                }),
             });
         }
     }
@@ -156,8 +336,13 @@ fn parse_alias(line: &str) -> Option<(String, String)> {
     let rest = l.strip_prefix("alias ")?;
     let eq = rest.find('=')?;
     let name = rest[..eq].trim().to_string();
-    let target = rest[eq+1..].trim().trim_matches(|c| c == '"' || c == '\'').to_string();
-    if name.is_empty() { return None; }
+    let target = rest[eq + 1..]
+        .trim()
+        .trim_matches(|c| c == '"' || c == '\'')
+        .to_string();
+    if name.is_empty() {
+        return None;
+    }
     Some((name, target))
 }
 
@@ -169,18 +354,41 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
     for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
         let p = entry.path();
         let name = entry.file_name().to_string_lossy();
-        if !name.contains(".bak") { continue; }
-        let meta = match entry.metadata() { Ok(m) => m, Err(_) => continue };
-        let modified = match meta.modified() { Ok(m) => m, Err(_) => continue };
-        let age = now.duration_since(modified).map(|d| d.as_secs() / 86_400).unwrap_or(0);
-        if age < age_days { continue; }
+        if !name.contains(".bak") {
+            continue;
+        }
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let modified = match meta.modified() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let age = now
+            .duration_since(modified)
+            .map(|d| d.as_secs() / 86_400)
+            .unwrap_or(0);
+        if age < age_days {
+            continue;
+        }
         let lower = name.to_lowercase();
         let protected = BAK_PROTECT.iter().any(|k| lower.contains(k));
         let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
         if protected {
-            findings.push(Finding { action: None, confidence: Confidence::Low, detail: format!("{} ({}d) -- PROTECTED (kept on purpose)", rel.dimmed(), age) });
+            findings.push(Finding {
+                action: None,
+                confidence: Confidence::Low,
+                detail: format!("{} ({}d) -- PROTECTED (kept on purpose)", rel.dimmed(), age),
+            });
         } else {
-            findings.push(Finding { confidence: Confidence::High, detail: format!("{} ({}d old)", rel, age), action: Some(PurgeAction::DeleteFile { path: p.to_path_buf() }) });
+            findings.push(Finding {
+                confidence: Confidence::High,
+                detail: format!("{} ({}d old)", rel, age),
+                action: Some(PurgeAction::DeleteFile {
+                    path: p.to_path_buf(),
+                }),
+            });
         }
     }
     findings
@@ -191,21 +399,52 @@ fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
         root.join("nix/home/dotfiles/mango/.config/mango/config.conf"),
         root.join("nix/home/dotfiles/mango/config.conf"),
     ];
-    let path = match candidates.iter().find(|p| p.exists()) { Some(p) => p, None => return Vec::new() };
-    let text = match std::fs::read_to_string(path) { Ok(t) => t, Err(_) => return Vec::new() };
+    let path = match candidates.iter().find(|p| p.exists()) {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
     let mut findings = Vec::new();
     for line in text.lines() {
         let l = line.trim();
-        if l.starts_with('#') || !l.starts_with("bind") { continue; }
-        if l.contains("# deadwood: skip") { continue; }
-        let cmd_field = match l.rsplit(',').next() { Some(c) => c.trim(), None => continue };
+        if l.starts_with('#') || !l.starts_with("bind") {
+            continue;
+        }
+        if l.contains("# deadwood: skip") {
+            continue;
+        }
+        let cmd_field = match l.rsplit(',').next() {
+            Some(c) => c.trim(),
+            None => continue,
+        };
         let first = cmd_field.split_whitespace().next().unwrap_or("");
-        if first != "spawn" { continue; }
-        let target = cmd_field.split_whitespace().nth(1).unwrap_or("").trim_matches(|c| c == '"' || c == '\'');
-        if target.is_empty() { continue; }
-        let live = BUILTINS.contains(&target) || on_path(target) || target.starts_with('~') || target.starts_with('/');
+        if first != "spawn" {
+            continue;
+        }
+        let target = cmd_field
+            .split_whitespace()
+            .nth(1)
+            .unwrap_or("")
+            .trim_matches(|c| c == '"' || c == '\'');
+        if target.is_empty() {
+            continue;
+        }
+        let live = BUILTINS.contains(&target)
+            || on_path(target)
+            || target.starts_with('~')
+            || target.starts_with('/');
         if !live {
-            findings.push(Finding { confidence: Confidence::Medium, detail: format!("bind -> spawn '{}' (not found)", target.bright_white()), action: Some(PurgeAction::RemoveLine { file: path.to_path_buf(), exact: line.to_string() }) });
+            findings.push(Finding {
+                confidence: Confidence::Medium,
+                detail: format!("bind -> spawn '{}' (not found)", target.bright_white()),
+                action: Some(PurgeAction::RemoveLine {
+                    file: path.to_path_buf(),
+                    exact: line.to_string(),
+                }),
+            });
         }
     }
     findings
@@ -217,29 +456,46 @@ fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
 
 fn check_registry_orphans(root: &Path) -> Vec<Finding> {
     let path = root.join("registry/tools.toml");
-    let text = match std::fs::read_to_string(&path) { Ok(t) => t, Err(_) => return Vec::new() };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
     let mut findings = Vec::new();
     // Parse [[tool]] blocks by scanning name/deployable/retired per block.
     let mut name = String::new();
     let mut deployable = false;
     let mut retired = false;
     let flush = |name: &str, deployable: bool, retired: bool, findings: &mut Vec<Finding>| {
-        if name.is_empty() || retired || !deployable { return; }
-        if BUILTINS.contains(&name) || on_path(name) { return; }
-        findings.push(Finding { action: None,
+        if name.is_empty() || retired || !deployable {
+            return;
+        }
+        if BUILTINS.contains(&name) || on_path(name) {
+            return;
+        }
+        findings.push(Finding {
+            action: None,
             confidence: Confidence::High,
-            detail: format!("tool {} (deployable, not retired) -- no binary on PATH", name.bright_white()),
+            detail: format!(
+                "tool {} (deployable, not retired) -- no binary on PATH",
+                name.bright_white()
+            ),
         });
     };
     for line in text.lines() {
         let l = line.trim();
         if l == "[[tool]]" {
             flush(&name, deployable, retired, &mut findings);
-            name.clear(); deployable = false; retired = false;
+            name.clear();
+            deployable = false;
+            retired = false;
             continue;
         }
         if let Some(v) = l.strip_prefix("name") {
-            name = v.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string();
+            name = v
+                .trim_start_matches([' ', '='])
+                .trim()
+                .trim_matches('"')
+                .to_string();
         } else if let Some(v) = l.strip_prefix("deployable") {
             deployable = v.contains("true");
         } else if let Some(v) = l.strip_prefix("retired") {
@@ -256,14 +512,22 @@ fn check_registry_orphans(root: &Path) -> Vec<Finding> {
 
 fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
     let scripts_dir = root.join("pkgs/faelight/scripts");
-    let entries = match std::fs::read_dir(&scripts_dir) { Ok(e) => e, Err(_) => return Vec::new() };
+    let entries = match std::fs::read_dir(&scripts_dir) {
+        Ok(e) => e,
+        Err(_) => return Vec::new(),
+    };
     // Build a corpus of all text in the repo (config + registry + rust src), once.
     let mut corpus = String::new();
     for dir in ["config", "registry", "rust-tools", "modules", "hosts"] {
-        for entry in WalkDir::new(root.join(dir)).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(root.join(dir))
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
                 let n = entry.file_name().to_string_lossy();
-                if n.contains(".bak") { continue; }
+                if n.contains(".bak") {
+                    continue;
+                }
                 if let Ok(t) = std::fs::read_to_string(entry.path()) {
                     corpus.push_str(&t);
                     corpus.push('\n');
@@ -274,13 +538,21 @@ fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
     let mut findings = Vec::new();
     for entry in entries.filter_map(|e| e.ok()) {
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.contains(".bak") { continue; }
-        if !entry.path().is_file() { continue; }
+        if name.contains(".bak") {
+            continue;
+        }
+        if !entry.path().is_file() {
+            continue;
+        }
         // Referenced if its basename appears anywhere in the corpus.
         if !corpus.contains(&name) {
-            findings.push(Finding { action: None,
+            findings.push(Finding {
+                action: None,
                 confidence: Confidence::Medium,
-                detail: format!("script {} -- referenced nowhere (may be run dynamically)", name.bright_white()),
+                detail: format!(
+                    "script {} -- referenced nowhere (may be run dynamically)",
+                    name.bright_white()
+                ),
             });
         }
     }
@@ -295,7 +567,10 @@ fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
 fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
     // Gather all host config text (the import sites).
     let mut host_text = String::new();
-    for entry in WalkDir::new(root.join("hosts")).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(root.join("hosts"))
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         if entry.file_type().is_file() {
             let n = entry.file_name().to_string_lossy();
             if n.ends_with(".nix") && !n.contains(".bak") {
@@ -312,24 +587,38 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
     }
 
     let mut findings = Vec::new();
-    for entry in WalkDir::new(root.join("modules")).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(root.join("modules"))
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let p = entry.path();
-        if !entry.file_type().is_file() { continue; }
+        if !entry.file_type().is_file() {
+            continue;
+        }
         let name = entry.file_name().to_string_lossy().to_string();
-        if !name.ends_with(".nix") || name.contains(".bak") { continue; }
+        if !name.ends_with(".nix") || name.contains(".bak") {
+            continue;
+        }
         // Referenced if the filename appears in any host/flake text.
-        if host_text.contains(&name) { continue; }
+        if host_text.contains(&name) {
+            continue;
+        }
         let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
         let empty = entry.metadata().map(|m| m.len() == 0).unwrap_or(false);
         if empty {
-            findings.push(Finding { action: None,
+            findings.push(Finding {
+                action: None,
                 confidence: Confidence::High,
                 detail: format!("{} -- EMPTY and imported by no host", rel.bright_white()),
             });
         } else {
-            findings.push(Finding { action: None,
+            findings.push(Finding {
+                action: None,
                 confidence: Confidence::Medium,
-                detail: format!("{} -- imported by no host (config may have moved inline)", rel),
+                detail: format!(
+                    "{} -- imported by no host (config may have moved inline)",
+                    rel
+                ),
             });
         }
     }
@@ -338,7 +627,8 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
 
 fn git_tree_clean(root: &Path) -> bool {
     match std::process::Command::new("git")
-        .arg("-C").arg(root)
+        .arg("-C")
+        .arg(root)
         .args(["status", "--porcelain"])
         .output()
     {
@@ -349,35 +639,68 @@ fn git_tree_clean(root: &Path) -> bool {
 
 fn purgeable(root: &Path, bak_age: u64) -> Vec<Finding> {
     let mut out = Vec::new();
-    for f in check_dead_aliases(root) { if f.action.is_some() { out.push(f); } }
-    for f in check_stale_baks(root, bak_age) { if f.action.is_some() { out.push(f); } }
-    for f in check_dead_keybinds(root) { if f.action.is_some() { out.push(f); } }
+    for f in check_dead_aliases(root) {
+        if f.action.is_some() {
+            out.push(f);
+        }
+    }
+    for f in check_stale_baks(root, bak_age) {
+        if f.action.is_some() {
+            out.push(f);
+        }
+    }
+    for f in check_dead_keybinds(root) {
+        if f.action.is_some() {
+            out.push(f);
+        }
+    }
     out
 }
 
 fn apply_action(action: &PurgeAction) -> Result<String, String> {
     match action {
         PurgeAction::RemoveLine { file, exact } => {
-            let text = std::fs::read_to_string(file).map_err(|e| format!("read {}: {}", file.display(), e))?;
+            let text = std::fs::read_to_string(file)
+                .map_err(|e| format!("read {}: {}", file.display(), e))?;
             let lines: Vec<&str> = text.lines().collect();
-            let hits: Vec<usize> = lines.iter().enumerate()
+            let hits: Vec<usize> = lines
+                .iter()
+                .enumerate()
                 .filter(|(_, l)| **l == exact.as_str())
-                .map(|(i, _)| i).collect();
+                .map(|(i, _)| i)
+                .collect();
             if hits.len() != 1 {
-                return Err(format!("line no longer matches exactly once ({} hits) in {} -- skipped for safety", hits.len(), file.display()));
+                return Err(format!(
+                    "line no longer matches exactly once ({} hits) in {} -- skipped for safety",
+                    hits.len(),
+                    file.display()
+                ));
             }
             let idx = hits[0];
-            let kept: Vec<&str> = lines.iter().enumerate()
-                .filter(|(i, _)| *i != idx).map(|(_, l)| *l).collect();
+            let kept: Vec<&str> = lines
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| *i != idx)
+                .map(|(_, l)| *l)
+                .collect();
             let mut new_text = kept.join("\n");
-            if text.ends_with('\n') { new_text.push('\n'); }
-            std::fs::write(file, new_text).map_err(|e| format!("write {}: {}", file.display(), e))?;
+            if text.ends_with('\n') {
+                new_text.push('\n');
+            }
+            std::fs::write(file, new_text)
+                .map_err(|e| format!("write {}: {}", file.display(), e))?;
             Ok(format!("removed line in {}", file.display()))
         }
         PurgeAction::DeleteFile { path } => {
-            let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             if !name.contains(".bak") {
-                return Err(format!("refusing to delete non-.bak file {} -- skipped", path.display()));
+                return Err(format!(
+                    "refusing to delete non-.bak file {} -- skipped",
+                    path.display()
+                ));
             }
             std::fs::remove_file(path).map_err(|e| format!("delete {}: {}", path.display(), e))?;
             Ok(format!("deleted {}", path.display()))
@@ -395,19 +718,39 @@ fn read_line_prompt(prompt: &str) -> String {
 }
 
 fn purge(root: &Path, bak_age: u64, bulk: bool) {
-    println!("{}", "Faelight Deadwood -- purge (safe dead weight only)".green().bold());
+    println!(
+        "{}",
+        "Faelight Deadwood -- purge (safe dead weight only)"
+            .green()
+            .bold()
+    );
     println!("{}", "-".repeat(56).dimmed());
-    println!("{}", "  Purges ONLY: dead aliases, stale .bak files, dead keybinds.".dimmed());
-    println!("{}", "  Scripts, ghost intents, registry, modules: never touched here.".dimmed());
+    println!(
+        "{}",
+        "  Purges ONLY: dead aliases, stale .bak files, dead keybinds.".dimmed()
+    );
+    println!(
+        "{}",
+        "  Scripts, ghost intents, registry, modules: never touched here.".dimmed()
+    );
     println!();
     if !git_tree_clean(root) {
-        println!("  {}", "Refusing to purge: git tree is not clean.".red().bold());
-        println!("  {}", "Commit or stash first, so every deletion is a reviewable diff.".dimmed());
+        println!(
+            "  {}",
+            "Refusing to purge: git tree is not clean.".red().bold()
+        );
+        println!(
+            "  {}",
+            "Commit or stash first, so every deletion is a reviewable diff.".dimmed()
+        );
         return;
     }
     let items = purgeable(root, bak_age);
     if items.is_empty() {
-        println!("  {}", "Nothing safe to purge. The forest is tidy.".dimmed());
+        println!(
+            "  {}",
+            "Nothing safe to purge. The forest is tidy.".dimmed()
+        );
         return;
     }
     let mut done = 0usize;
@@ -419,7 +762,10 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
         }
         println!();
         let phrase = format!("purge {}", items.len());
-        let ans = read_line_prompt(&format!("  Type '{}' to confirm, anything else to abort: ", phrase));
+        let ans = read_line_prompt(&format!(
+            "  Type '{}' to confirm, anything else to abort: ",
+            phrase
+        ));
         if ans != phrase {
             println!("  {}", "Aborted. Nothing removed.".dimmed());
             return;
@@ -427,8 +773,14 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
         for f in &items {
             if let Some(a) = &f.action {
                 match apply_action(a) {
-                    Ok(msg) => { println!("    {} {}", "[done]".green(), msg); done += 1; }
-                    Err(e) => { println!("    {} {}", "[skip]".yellow(), e); skipped += 1; }
+                    Ok(msg) => {
+                        println!("    {} {}", "[done]".green(), msg);
+                        done += 1;
+                    }
+                    Err(e) => {
+                        println!("    {} {}", "[skip]".yellow(), e);
+                        skipped += 1;
+                    }
                 }
             }
         }
@@ -440,19 +792,34 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
                 "d" | "D" => {
                     if let Some(a) = &f.action {
                         match apply_action(a) {
-                            Ok(msg) => { println!("    {} {}", "[done]".green(), msg); done += 1; }
-                            Err(e) => { println!("    {} {}", "[skip]".yellow(), e); skipped += 1; }
+                            Ok(msg) => {
+                                println!("    {} {}", "[done]".green(), msg);
+                                done += 1;
+                            }
+                            Err(e) => {
+                                println!("    {} {}", "[skip]".yellow(), e);
+                                skipped += 1;
+                            }
                         }
                     }
                 }
-                "q" | "Q" => { println!("    {}", "stopped.".dimmed()); break; }
-                _ => { println!("    {}", "skipped.".dimmed()); skipped += 1; }
+                "q" | "Q" => {
+                    println!("    {}", "stopped.".dimmed());
+                    break;
+                }
+                _ => {
+                    println!("    {}", "skipped.".dimmed());
+                    skipped += 1;
+                }
             }
         }
     }
     println!();
     println!("  {} removed, {} skipped.", done, skipped);
     if done > 0 {
-        println!("  {}", "Review the git diff, then commit the cuts.".dimmed());
+        println!(
+            "  {}",
+            "Review the git diff, then commit the cuts.".dimmed()
+        );
     }
 }

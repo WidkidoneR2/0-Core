@@ -378,7 +378,8 @@ fn read_tool_registry(_core_root: &str) -> HashMap<String, Vec<String>> {
         } else if let Some(rest) = line.strip_prefix("name = ") {
             current_name = Some(rest.trim().trim_matches('"').to_string());
         } else if let Some(rest) = line.strip_prefix("depends_on = ") {
-            current_deps = rest.trim()
+            current_deps = rest
+                .trim()
                 .trim_start_matches('[')
                 .trim_end_matches(']')
                 .split(',')
@@ -432,16 +433,32 @@ pub fn plan(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     if order.len() == 1 {
-        println!("  {} {} has no declared dependencies -- deploy directly.", "✅".normal(), tool.bright_white());
+        println!(
+            "  {} {} has no declared dependencies -- deploy directly.",
+            "✅".normal(),
+            tool.bright_white()
+        );
     } else {
         println!("  {} Target: {}", "→".dimmed(), tool.bright_white());
         println!();
         for (i, step) in order.iter().enumerate() {
             let step_num = i + 1;
             if step == tool {
-                println!("  {} Step {}: {} {}", "→".bright_green(), step_num, step.bright_white(), "(target)".dimmed());
+                println!(
+                    "  {} Step {}: {} {}",
+                    "→".bright_green(),
+                    step_num,
+                    step.bright_white(),
+                    "(target)".dimmed()
+                );
             } else {
-                println!("  {} Step {}: {} {}", "·".bright_cyan(), step_num, step.bright_cyan(), "(dependency)".dimmed());
+                println!(
+                    "  {} Step {}: {} {}",
+                    "·".bright_cyan(),
+                    step_num,
+                    step.bright_cyan(),
+                    "(dependency)".dimmed()
+                );
             }
         }
     }
@@ -462,31 +479,53 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     let mut any_blocked = false;
-    let mut tools_with_deps: Vec<(&String, &Vec<String>)> = registry.iter()
+    let mut tools_with_deps: Vec<(&String, &Vec<String>)> = registry
+        .iter()
         .filter(|(_, deps)| !deps.is_empty())
         .collect();
     tools_with_deps.sort_by_key(|(name, _)| name.as_str());
     for (tool, deps) in &tools_with_deps {
-        let unresolved: Vec<&String> = deps.iter()
+        let unresolved: Vec<&String> = deps
+            .iter()
             .filter(|dep| {
                 !scripts.join(dep.as_str()).exists() && !cargo_bin.join(dep.as_str()).exists()
             })
             .collect();
         if !unresolved.is_empty() {
             any_blocked = true;
-            println!("  {} {} is waiting for prerequisites:", "⚠️ ".normal(), tool.bright_white());
+            println!(
+                "  {} {} is waiting for prerequisites:",
+                "⚠️ ".normal(),
+                tool.bright_white()
+            );
             for dep in &unresolved {
-                println!("    {} deploy {} is waiting for {} to deploy first", "→".bright_yellow(), tool.bright_yellow(), dep.bright_yellow());
+                println!(
+                    "    {} deploy {} is waiting for {} to deploy first",
+                    "→".bright_yellow(),
+                    tool.bright_yellow(),
+                    dep.bright_yellow()
+                );
             }
         } else {
-            println!("  {} {} -- all {} dep(s) resolved", "✅".normal(), tool.bright_white(), deps.len());
+            println!(
+                "  {} {} -- all {} dep(s) resolved",
+                "✅".normal(),
+                tool.bright_white(),
+                deps.len()
+            );
         }
     }
     if !any_blocked {
-        println!("  {} No blocked tools -- all declared dependencies are resolved.", "✅".normal());
+        println!(
+            "  {} No blocked tools -- all declared dependencies are resolved.",
+            "✅".normal()
+        );
     }
     if tools_with_deps.is_empty() {
-        println!("  {} No tools declare dependencies in the registry.", "💡".dimmed());
+        println!(
+            "  {} No tools declare dependencies in the registry.",
+            "💡".dimmed()
+        );
     }
     println!();
     Ok(())

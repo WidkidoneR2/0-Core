@@ -369,7 +369,6 @@ fn verify() -> i32 {
 // ═══════════════════════════════════════════════════════════
 
 fn hook_pre_commit() -> i32 {
-
     // Run gitleaks to scan for secrets
     println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
     let gitleaks = Command::new("gitleaks")

@@ -1,5 +1,5 @@
-use rusqlite;
 use chrono;
+use rusqlite;
 // INT-153 — Intent Genealogy Domain
 // The forest remembers how it grew.
 // Every intent has parents and children.
@@ -357,35 +357,74 @@ pub fn commit_show(_ctx: &AppContext, hash: &str) -> CoreResult<()> {
                 health_at, friday_facts, friday_patterns, session_id, committed_at, message
          FROM intent_commits WHERE commit_hash LIKE ?1 LIMIT 1",
         rusqlite::params![format!("{}%", hash)],
-        |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,Option<i64>>(1)?,
-            r.get::<_,Option<String>>(2)?, r.get::<_,Option<String>>(3)?,
-            r.get::<_,Option<String>>(4)?, r.get::<_,Option<i64>>(5)?,
-            r.get::<_,Option<i64>>(6)?, r.get::<_,Option<i64>>(7)?,
-            r.get::<_,Option<String>>(8)?, r.get::<_,Option<i64>>(9)?,
-            r.get::<_,String>(10)?
-        )),
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<i64>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<i64>>(5)?,
+                r.get::<_, Option<i64>>(6)?,
+                r.get::<_, Option<i64>>(7)?,
+                r.get::<_, Option<String>>(8)?,
+                r.get::<_, Option<i64>>(9)?,
+                r.get::<_, String>(10)?,
+            ))
+        },
     );
     println!();
     match result {
         Err(_) => {
-            println!("  {} Commit {} not found in genealogy", "❌".bright_red(), hash);
-            println!("  {} Run: core genealogy search <term> to find commits", "·".dimmed());
+            println!(
+                "  {} Commit {} not found in genealogy",
+                "❌".bright_red(),
+                hash
+            );
+            println!(
+                "  {} Run: core genealogy search <term> to find commits",
+                "·".dimmed()
+            );
         }
         Ok((chash, intent_id, status, phase, gate, health, facts, patterns, session, ts, msg)) => {
-            println!("  {} {}", "🌲 Commit Genealogy".bright_green().bold(), chash.bright_yellow());
-            println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!(
+                "  {} {}",
+                "🌲 Commit Genealogy".bright_green().bold(),
+                chash.bright_yellow()
+            );
+            println!(
+                "{}",
+                "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+            );
             println!("  {} {}", "→ Message:".bright_cyan(), msg);
             if let Some(id) = intent_id {
-                println!("  {} INT-{} ({})", "→ Intent:".bright_cyan(), id,
-                    status.unwrap_or_else(|| "unknown".to_string()).dimmed());
+                println!(
+                    "  {} INT-{} ({})",
+                    "→ Intent:".bright_cyan(),
+                    id,
+                    status.unwrap_or_else(|| "unknown".to_string()).dimmed()
+                );
             }
-            if let Some(p) = phase { println!("  {} {}", "→ Phase:".bright_cyan(), p); }
-            if let Some(g) = gate { println!("  {} {}", "→ Gate:".bright_cyan(), g); }
-            if let Some(h) = health { println!("  {} {}%", "→ Health:".bright_cyan(), h); }
-            if let Some(f) = facts { println!("  {} {} facts, {} patterns",
-                "→ Friday:".bright_cyan(), f, patterns.unwrap_or(0)); }
-            if let Some(s) = session { println!("  {} {}", "→ Session:".bright_cyan(), s.dimmed()); }
+            if let Some(p) = phase {
+                println!("  {} {}", "→ Phase:".bright_cyan(), p);
+            }
+            if let Some(g) = gate {
+                println!("  {} {}", "→ Gate:".bright_cyan(), g);
+            }
+            if let Some(h) = health {
+                println!("  {} {}%", "→ Health:".bright_cyan(), h);
+            }
+            if let Some(f) = facts {
+                println!(
+                    "  {} {} facts, {} patterns",
+                    "→ Friday:".bright_cyan(),
+                    f,
+                    patterns.unwrap_or(0)
+                );
+            }
+            if let Some(s) = session {
+                println!("  {} {}", "→ Session:".bright_cyan(), s.dimmed());
+            }
             if let Some(t) = ts {
                 let dt = chrono::DateTime::from_timestamp(t, 0)
                     .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
@@ -405,15 +444,29 @@ pub fn commits_for_intent(_ctx: &AppContext, id: &str) -> CoreResult<()> {
     let intent_id: i64 = id.parse().unwrap_or(0);
     let mut stmt = db.prepare(
         "SELECT commit_hash, phase_hint, committed_at, message FROM intent_commits
-         WHERE intent_id = ?1 ORDER BY committed_at ASC"
+         WHERE intent_id = ?1 ORDER BY committed_at ASC",
     )?;
-    let rows: Vec<_> = stmt.query_map(rusqlite::params![intent_id], |r| {
-        Ok((r.get::<_,String>(0)?, r.get::<_,Option<String>>(1)?,
-            r.get::<_,Option<i64>>(2)?, r.get::<_,String>(3)?))
-    })?.flatten().collect();
+    let rows: Vec<_> = stmt
+        .query_map(rusqlite::params![intent_id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<i64>>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })?
+        .flatten()
+        .collect();
     println!();
-    println!("  {} {}", "🌲 Commits for INT-".bright_green().bold(), id.bright_yellow());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {} {}",
+        "🌲 Commits for INT-".bright_green().bold(),
+        id.bright_yellow()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     if rows.is_empty() {
         println!("  {} No commits found for INT-{}", "·".dimmed(), id);
     } else {
@@ -422,13 +475,21 @@ pub fn commits_for_intent(_ctx: &AppContext, id: &str) -> CoreResult<()> {
         for (hash, phase, ts, msg) in &rows {
             let phase_str = phase.as_deref().unwrap_or("");
             let short_msg = if msg.len() > 60 { &msg[..60] } else { msg };
-            println!("  {} {} {} {}",
+            println!(
+                "  {} {} {} {}",
                 hash[..8.min(hash.len())].bright_yellow(),
-                if phase_str.is_empty() { "      ".to_string() } else { format!("[{}]", phase_str) }.bright_cyan(),
+                if phase_str.is_empty() {
+                    "      ".to_string()
+                } else {
+                    format!("[{}]", phase_str)
+                }
+                .bright_cyan(),
                 short_msg,
-                ts.map(|t| chrono::DateTime::from_timestamp(t,0)
+                ts.map(|t| chrono::DateTime::from_timestamp(t, 0)
                     .map(|d| d.format("%m-%d").to_string())
-                    .unwrap_or_default()).unwrap_or_default().dimmed()
+                    .unwrap_or_default())
+                    .unwrap_or_default()
+                    .dimmed()
             );
         }
     }
@@ -443,33 +504,49 @@ pub fn commit_search(_ctx: &AppContext, term: &str) -> CoreResult<()> {
     let pattern = format!("%{}%", term);
     let mut stmt = db.prepare(
         "SELECT commit_hash, intent_id, phase_hint, committed_at, message
-         FROM intent_commits WHERE message LIKE ?1 ORDER BY committed_at DESC LIMIT 20"
+         FROM intent_commits WHERE message LIKE ?1 ORDER BY committed_at DESC LIMIT 20",
     )?;
-    let rows: Vec<_> = stmt.query_map(rusqlite::params![pattern], |r| {
-        Ok((r.get::<_,String>(0)?, r.get::<_,Option<i64>>(1)?,
-            r.get::<_,Option<String>>(2)?, r.get::<_,Option<i64>>(3)?,
-            r.get::<_,String>(4)?))
-    })?.flatten().collect();
+    let rows: Vec<_> = stmt
+        .query_map(rusqlite::params![pattern], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<i64>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<i64>>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })?
+        .flatten()
+        .collect();
     println!();
-    println!("  {} {}", "🌲 Genealogy Search:".bright_green().bold(), term.bright_yellow());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {} {}",
+        "🌲 Genealogy Search:".bright_green().bold(),
+        term.bright_yellow()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     if rows.is_empty() {
         println!("  {} No commits found matching: {}", "·".dimmed(), term);
     } else {
         for (hash, intent_id, _phase, ts, msg) in &rows {
             let int_str = intent_id.map(|i| format!("INT-{}", i)).unwrap_or_default();
             let short = if msg.len() > 55 { &msg[..55] } else { msg };
-            println!("  {} {} {} {}",
+            println!(
+                "  {} {} {} {}",
                 hash[..8.min(hash.len())].bright_yellow(),
                 int_str.bright_cyan(),
                 short,
-                ts.map(|t| chrono::DateTime::from_timestamp(t,0)
+                ts.map(|t| chrono::DateTime::from_timestamp(t, 0)
                     .map(|d| d.format("%m-%d").to_string())
-                    .unwrap_or_default()).unwrap_or_default().dimmed()
+                    .unwrap_or_default())
+                    .unwrap_or_default()
+                    .dimmed()
             );
         }
     }
     println!();
     Ok(())
 }
-

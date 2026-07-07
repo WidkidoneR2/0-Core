@@ -2,7 +2,7 @@ use std::{ffi::OsString, sync::Arc};
 
 use rusqlite::Connection;
 use smithay::{
-    desktop::{PopupManager, Space, Window, layer_map_for_output},
+    desktop::{layer_map_for_output, PopupManager, Space, Window},
     input::{Seat, SeatState},
     reexports::{
         calloop::{generic::Generic, EventLoop, Interest, LoopSignal, Mode, PostAction},
@@ -14,21 +14,15 @@ use smithay::{
     },
     wayland::{
         compositor::{CompositorClientState, CompositorState},
+        cursor_shape::CursorShapeManagerState,
+        fractional_scale::FractionalScaleManagerState,
         output::OutputManagerState,
-        selection::{
-            data_device::DataDeviceState,
-            primary_selection::PrimarySelectionState,
-        },
-        shell::xdg::{
-            XdgShellState,
-            decoration::XdgDecorationState,
-        },
+        selection::{data_device::DataDeviceState, primary_selection::PrimarySelectionState},
+        shell::wlr_layer::{Layer, LayerSurface, WlrLayerShellHandler, WlrLayerShellState},
+        shell::xdg::{decoration::XdgDecorationState, XdgShellState},
         shm::ShmState,
         socket::ListeningSocketSource,
         xdg_activation::XdgActivationState,
-        cursor_shape::CursorShapeManagerState,
-        fractional_scale::FractionalScaleManagerState,
-        shell::wlr_layer::{WlrLayerShellHandler, WlrLayerShellState, LayerSurface, Layer},
     },
 };
 
@@ -241,7 +235,12 @@ impl smithay::wayland::dmabuf::DmabufHandler for FaelightCompositor {
     fn dmabuf_state(&mut self) -> &mut smithay::wayland::dmabuf::DmabufState {
         self.dmabuf_state.as_mut().unwrap()
     }
-    fn dmabuf_imported(&mut self, _global: &smithay::wayland::dmabuf::DmabufGlobal, _dmabuf: smithay::backend::allocator::dmabuf::Dmabuf, notifier: smithay::wayland::dmabuf::ImportNotifier) {
+    fn dmabuf_imported(
+        &mut self,
+        _global: &smithay::wayland::dmabuf::DmabufGlobal,
+        _dmabuf: smithay::backend::allocator::dmabuf::Dmabuf,
+        notifier: smithay::wayland::dmabuf::ImportNotifier,
+    ) {
         let _ = notifier.successful::<FaelightCompositor>();
     }
 }
@@ -262,7 +261,8 @@ impl WlrLayerShellHandler for FaelightCompositor {
         // Map the layer surface to the first output
         let output = self.space.outputs().next().cloned();
         if let Some(output) = output {
-            let desktop_surface = smithay::desktop::LayerSurface::new(surface.clone(), namespace.clone());
+            let desktop_surface =
+                smithay::desktop::LayerSurface::new(surface.clone(), namespace.clone());
             let mut map = layer_map_for_output(&output);
             let _ = map.map_layer(&desktop_surface);
             map.arrange();

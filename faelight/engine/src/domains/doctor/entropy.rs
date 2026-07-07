@@ -154,7 +154,10 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
     // version string. (Replaces the Arch-era `pacman -Q` baseline.)
     for pkg in ["nvim", "helix", "alacritty", "greetd"] {
         if let Ok(output) = Command::new("sh")
-            .args(["-c", &format!("readlink -f $(command -v {}) 2>/dev/null", pkg)])
+            .args([
+                "-c",
+                &format!("readlink -f $(command -v {}) 2>/dev/null", pkg),
+            ])
             .output()
         {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -245,7 +248,10 @@ fn check_drift(baseline: &EntropyBaseline) -> DriftReport {
     }
     for (pkg, baseline_version) in &baseline.package_versions {
         if let Ok(output) = Command::new("sh")
-            .args(["-c", &format!("readlink -f $(command -v {}) 2>/dev/null", pkg)])
+            .args([
+                "-c",
+                &format!("readlink -f $(command -v {}) 2>/dev/null", pkg),
+            ])
             .output()
         {
             let current = String::from_utf8_lossy(&output.stdout).trim().to_string();

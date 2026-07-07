@@ -132,7 +132,15 @@ pub fn draw_notification(
     let underline_y = (summary_y + 18) as u32;
     let uw = ((summary_end - left).max(0) as u32).min(width.saturating_sub(stripe_w + 14));
     if underline_y + 2 < height {
-        fill_rect(canvas, stride, stripe_w + 12, underline_y, uw, 2, TEXT_SUMMARY);
+        fill_rect(
+            canvas,
+            stride,
+            stripe_w + 12,
+            underline_y,
+            uw,
+            2,
+            TEXT_SUMMARY,
+        );
     }
 
     // Body -- fog white

@@ -284,13 +284,8 @@ fn main() {
     let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
 
     let surface = compositor.create_surface(&qh);
-    let layer = layer_shell.create_layer_surface(
-        &qh,
-        surface,
-        Layer::Top,
-        Some("faelight-notify"),
-        None,
-    );
+    let layer =
+        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-notify"), None);
     layer.set_size(POPUP_W, POPUP_H);
     layer.set_anchor(Anchor::TOP | Anchor::RIGHT);
     layer.set_margin(8, 8, 0, 0);
@@ -319,7 +314,10 @@ fn main() {
     if let Ok(devnull) = std::fs::File::open("/dev/null") {
         use std::os::unix::io::IntoRawFd;
         let null_fd = devnull.into_raw_fd();
-        unsafe { nix::libc::dup2(null_fd, 2); nix::libc::close(null_fd); }
+        unsafe {
+            nix::libc::dup2(null_fd, 2);
+            nix::libc::close(null_fd);
+        }
     }
 
     loop {

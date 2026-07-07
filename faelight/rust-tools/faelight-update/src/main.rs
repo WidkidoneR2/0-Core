@@ -227,7 +227,10 @@ fn run_maintenance() -> Result<()> {
     }
 
     // 2. Vacuum systemd journal (keep 2 weeks). systemd is cross-platform.
-    println!("  {} Vacuuming systemd journal (keep 2 weeks)...", "→".bright_cyan());
+    println!(
+        "  {} Vacuuming systemd journal (keep 2 weeks)...",
+        "→".bright_cyan()
+    );
     let journal = std::process::Command::new("sudo")
         .args(["journalctl", "--vacuum-time=2weeks"])
         .status();
@@ -941,9 +944,6 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     Ok(categories)
 }
 
-
-
-
 /// Show update summary
 /// Classify update risk level by package name
 fn classify_risk(name: &str) -> &'static str {
@@ -1267,8 +1267,6 @@ fn update_workspace() -> Result<()> {
     Ok(())
 }
 
-
-
 /// Update cargo tools
 fn update_cargo(items: &[String]) -> Result<()> {
     println!("   Running: cargo install-update -a");
@@ -1380,7 +1378,6 @@ fn cleanup_caches() -> Result<()> {
         println!("    {}  Cargo cache cleaned", "✓".green());
     }
 
-
     Ok(())
 }
 
@@ -1408,4 +1405,3 @@ fn update_prompt_cache() -> Result<()> {
 
     Ok(())
 }
-

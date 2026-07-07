@@ -70,7 +70,9 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if self.results.is_empty() { return; }
+        if self.results.is_empty() {
+            return;
+        }
         let i = match self.list_state.selected() {
             Some(i) => (i + 1).min(self.results.len() - 1),
             None => 0,
@@ -79,7 +81,9 @@ impl App {
     }
 
     pub fn prev(&mut self) {
-        if self.results.is_empty() { return; }
+        if self.results.is_empty() {
+            return;
+        }
         let i = match self.list_state.selected() {
             Some(i) => i.saturating_sub(1),
             None => 0,
@@ -90,12 +94,18 @@ impl App {
     pub fn plan_add_selected(&mut self) {
         let pkg = match self.selected() {
             Some(p) => p.attr.clone(),
-            None => { self.status = String::from("no package selected"); return; }
+            None => {
+                self.status = String::from("no package selected");
+                return;
+            }
         };
         let path = home_nix_path();
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
-            Err(e) => { self.status = format!("cannot read home.nix: {e}"); return; }
+            Err(e) => {
+                self.status = format!("cannot read home.nix: {e}");
+                return;
+            }
         };
         match crate::config_edit::plan_add(&content, &pkg) {
             Ok(plan) => {
@@ -105,7 +115,9 @@ impl App {
                 self.status = format!("add '{}' to home.packages?  y / n", self.pending_pkg);
                 self.mode = Mode::Confirm;
             }
-            Err(e) => { self.status = format!("{e}"); }
+            Err(e) => {
+                self.status = format!("{e}");
+            }
         }
     }
 
@@ -125,7 +137,9 @@ impl App {
             Ok(_) => {
                 self.status = format!("added '{}' -- run rebuild to apply", self.pending_pkg);
             }
-            Err(e) => { self.status = format!("write failed: {e}"); }
+            Err(e) => {
+                self.status = format!("write failed: {e}");
+            }
         }
         self.pending_diff.clear();
         self.pending_content.clear();

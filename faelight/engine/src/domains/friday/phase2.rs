@@ -792,7 +792,9 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
                 let _root = std::path::PathBuf::from(&ctx.core_root);
                 let mut count = 0i64;
                 for dir in &["future"] {
-                    if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join(dir)) {
+                    if let Ok(entries) =
+                        std::fs::read_dir(faelight_core::paths::intents_dir().join(dir))
+                    {
                         for entry in entries.flatten() {
                             if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                                 if let Ok(c) = std::fs::read_to_string(entry.path()) {

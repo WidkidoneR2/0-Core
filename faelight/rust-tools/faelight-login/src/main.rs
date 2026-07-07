@@ -247,7 +247,10 @@ fn draw_login(
         let status_lines = vec![
             Line::from(vec![
                 Span::styled("  Commits  ", Style::default().fg(DIM)),
-                Span::styled(&state.commits, Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &state.commits,
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                ),
                 Span::styled("   ·   Faelight Forest ", Style::default().fg(DIM)),
                 Span::styled(&state.version, Style::default().fg(FG)),
             ]),
@@ -310,10 +313,7 @@ fn read_system_version() -> String {
 fn main() -> io::Result<()> {
     // Redirect stderr to /dev/null -- suppress daemon output bleeding into TUI
     unsafe {
-        let devnull = libc::open(
-            c"/dev/null".as_ptr(),
-            libc::O_WRONLY,
-        );
+        let devnull = libc::open(c"/dev/null".as_ptr(), libc::O_WRONLY);
         if devnull >= 0 {
             libc::dup2(devnull, 2); // redirect stderr
             libc::close(devnull);
@@ -327,7 +327,9 @@ fn main() -> io::Result<()> {
     // Force terminal size check -- greetd VT may report wrong dimensions
     // Set minimum safe size if terminal reports too small
     {
-        let size = terminal.size().unwrap_or(ratatui::layout::Size::new(80, 24));
+        let size = terminal
+            .size()
+            .unwrap_or(ratatui::layout::Size::new(80, 24));
         if size.width < 40 || size.height < 10 {
             let _ = terminal.resize(ratatui::layout::Rect::new(0, 0, 80, 24));
         }

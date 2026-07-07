@@ -612,35 +612,36 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
 
             // Check for related intents
             let _root = std::path::PathBuf::from(&ctx.core_root);
-            let related: Vec<String> = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
-                .map(|entries| {
-                    entries
-                        .flatten()
-                        .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                        .filter_map(|e| {
-                            let c = std::fs::read_to_string(e.path()).ok()?;
-                            if !c.contains("status: in-progress") {
-                                return None;
-                            }
-                            let t = c
-                                .lines()
-                                .find(|l| l.starts_with("title:"))?
-                                .trim_start_matches("title:")
-                                .trim()
-                                .trim_matches('"')
-                                .to_string();
-                            let id = e
-                                .file_name()
-                                .to_string_lossy()
-                                .split('-')
-                                .next()
-                                .unwrap_or("?")
-                                .to_string();
-                            Some(format!("INT-{}: {}", id, t))
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
+            let related: Vec<String> =
+                std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+                    .map(|entries| {
+                        entries
+                            .flatten()
+                            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                            .filter_map(|e| {
+                                let c = std::fs::read_to_string(e.path()).ok()?;
+                                if !c.contains("status: in-progress") {
+                                    return None;
+                                }
+                                let t = c
+                                    .lines()
+                                    .find(|l| l.starts_with("title:"))?
+                                    .trim_start_matches("title:")
+                                    .trim()
+                                    .trim_matches('"')
+                                    .to_string();
+                                let id = e
+                                    .file_name()
+                                    .to_string_lossy()
+                                    .split('-')
+                                    .next()
+                                    .unwrap_or("?")
+                                    .to_string();
+                                Some(format!("INT-{}: {}", id, t))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
             if !related.is_empty() {
                 println!();
@@ -2514,7 +2515,14 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
         };
 
         // Factor 4: Presentation proximity (0.15) — summer 2026 presentation
-        let presentation_keywords = ["voice", "friday-readiness", "shell", "demo", "partner", "autonomy"];
+        let presentation_keywords = [
+            "voice",
+            "friday-readiness",
+            "shell",
+            "demo",
+            "partner",
+            "autonomy",
+        ];
         let pres_score = if presentation_keywords
             .iter()
             .any(|k| content.to_lowercase().contains(k))

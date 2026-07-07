@@ -52,12 +52,11 @@ pub struct DecisionContext {
 impl DecisionContext {
     pub fn capture(ctx: &AppContext) -> Self {
         // Read health from cache
-        let health_score = std::fs::read_to_string(
-            faelight_core::paths::cache_dir().join("health_score"),
-        )
-        .ok()
-        .and_then(|s| s.trim().parse::<u8>().ok())
-        .unwrap_or(95);
+        let health_score =
+            std::fs::read_to_string(faelight_core::paths::cache_dir().join("health_score"))
+                .ok()
+                .and_then(|s| s.trim().parse::<u8>().ok())
+                .unwrap_or(95);
 
         // Count active intents from ledger
         let active_intent_count = count_active_intents(ctx);
@@ -1718,7 +1717,12 @@ pub fn friction(ctx: &AppContext) -> CoreResult<()> {
             } else {
                 outcome.yellow().to_string()
             };
-            println!("  {} [{}] {}", dec_id.bright_white().bold(), outcome_colored, domain.dimmed());
+            println!(
+                "  {} [{}] {}",
+                dec_id.bright_white().bold(),
+                outcome_colored,
+                domain.dimmed()
+            );
             println!("    {}", desc.dimmed());
             if let Some(n) = notes {
                 if !n.is_empty() {

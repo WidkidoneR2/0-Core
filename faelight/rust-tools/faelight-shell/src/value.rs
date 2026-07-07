@@ -194,13 +194,18 @@ pub fn apply_pipeline_with_stats(
             Value::Table(rows) => rows.len(),
             _ => 1,
         };
-        let label = stage_labels.get(i).cloned().unwrap_or_else(|| format!("stage {}", i + 1));
-        stats.push(PipelineStageStats { label, row_count, duration_ms });
+        let label = stage_labels
+            .get(i)
+            .cloned()
+            .unwrap_or_else(|| format!("stage {}", i + 1));
+        stats.push(PipelineStageStats {
+            label,
+            row_count,
+            duration_ms,
+        });
     }
     (current, stats)
 }
-
-
 
 // ── Phase 2: Schema System — INT-162 ─────────────────────────────────────────
 // Typed schemas guarantee consistent column names across pipeline operators.

@@ -20,62 +20,62 @@ pub fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
 // All tools reference these constants -- never hardcode RGB values elsewhere.
 
 // Greens
-pub const NEON_GREEN:    (u8, u8, u8) = (57,  255, 20);   // primary forest green
-pub const FOREST_GREEN:  (u8, u8, u8) = (107, 227, 163);  // softer green
-pub const MUTED_GREEN:   (u8, u8, u8) = (100, 180, 100);  // dimmed green
+pub const NEON_GREEN: (u8, u8, u8) = (57, 255, 20); // primary forest green
+pub const FOREST_GREEN: (u8, u8, u8) = (107, 227, 163); // softer green
+pub const MUTED_GREEN: (u8, u8, u8) = (100, 180, 100); // dimmed green
 
 // Cyans / Blues
-pub const NEON_CYAN:     (u8, u8, u8) = (50,  220, 255);  // cwd, links, info
-pub const SOFT_CYAN:     (u8, u8, u8) = (100, 200, 220);  // secondary info
-pub const NEON_BLUE:     (u8, u8, u8) = (80,  140, 255);  // git ahead
+pub const NEON_CYAN: (u8, u8, u8) = (50, 220, 255); // cwd, links, info
+pub const SOFT_CYAN: (u8, u8, u8) = (100, 200, 220); // secondary info
+pub const NEON_BLUE: (u8, u8, u8) = (80, 140, 255); // git ahead
 
 // Purples
-pub const NEON_PURPLE:   (u8, u8, u8) = (180, 130, 255);  // active intent, philosophy
-pub const SOFT_PURPLE:   (u8, u8, u8) = (160, 120, 220);  // planned intent
-pub const MUTED_PURPLE:  (u8, u8, u8) = (130, 100, 180);  // dimmed purple
+pub const NEON_PURPLE: (u8, u8, u8) = (180, 130, 255); // active intent, philosophy
+pub const SOFT_PURPLE: (u8, u8, u8) = (160, 120, 220); // planned intent
+pub const MUTED_PURPLE: (u8, u8, u8) = (130, 100, 180); // dimmed purple
 
 // Ambers / Yellows
-pub const NEON_AMBER:    (u8, u8, u8) = (255, 200, 50);   // git dirty, warning
-pub const SOFT_AMBER:    (u8, u8, u8) = (220, 170, 80);   // advisory
+pub const NEON_AMBER: (u8, u8, u8) = (255, 200, 50); // git dirty, warning
+pub const SOFT_AMBER: (u8, u8, u8) = (220, 170, 80); // advisory
 
 // Reds
-pub const NEON_RED:      (u8, u8, u8) = (255, 80,  80);   // error, blocked, danger
-pub const SOFT_RED:      (u8, u8, u8) = (220, 100, 100);  // soft error
+pub const NEON_RED: (u8, u8, u8) = (255, 80, 80); // error, blocked, danger
+pub const SOFT_RED: (u8, u8, u8) = (220, 100, 100); // soft error
 
 // Whites / Grays
-pub const FOG_WHITE:     (u8, u8, u8) = (215, 224, 218);  // primary text
-pub const MUTED_GRAY:    (u8, u8, u8) = (120, 140, 130);  // dimmed text
+pub const FOG_WHITE: (u8, u8, u8) = (215, 224, 218); // primary text
+pub const MUTED_GRAY: (u8, u8, u8) = (120, 140, 130); // dimmed text
 
 // ── Semantic Color Tokens ───────────────────────────────────────────────────
 // Map domain concepts to palette colors.
 // Use these in all tools -- not the raw palette constants above.
 
 // Intent status colors
-pub const COLOR_INTENT_ACTIVE:    (u8, u8, u8) = NEON_GREEN;
-pub const COLOR_INTENT_PLANNED:   (u8, u8, u8) = SOFT_PURPLE;
-pub const COLOR_INTENT_COMPLETE:  (u8, u8, u8) = MUTED_GREEN;
-pub const COLOR_INTENT_BLOCKED:   (u8, u8, u8) = NEON_RED;
-pub const COLOR_INTENT_RESEARCH:  (u8, u8, u8) = NEON_CYAN;
-pub const COLOR_INTENT_EXPERIMENT:(u8, u8, u8) = NEON_PURPLE;
+pub const COLOR_INTENT_ACTIVE: (u8, u8, u8) = NEON_GREEN;
+pub const COLOR_INTENT_PLANNED: (u8, u8, u8) = SOFT_PURPLE;
+pub const COLOR_INTENT_COMPLETE: (u8, u8, u8) = MUTED_GREEN;
+pub const COLOR_INTENT_BLOCKED: (u8, u8, u8) = NEON_RED;
+pub const COLOR_INTENT_RESEARCH: (u8, u8, u8) = NEON_CYAN;
+pub const COLOR_INTENT_EXPERIMENT: (u8, u8, u8) = NEON_PURPLE;
 
 // Git state colors
-pub const COLOR_GIT_CLEAN:        (u8, u8, u8) = NEON_GREEN;
-pub const COLOR_GIT_DIRTY:        (u8, u8, u8) = NEON_AMBER;
-pub const COLOR_GIT_AHEAD:        (u8, u8, u8) = NEON_BLUE;
-pub const COLOR_GIT_BEHIND:       (u8, u8, u8) = SOFT_AMBER;
+pub const COLOR_GIT_CLEAN: (u8, u8, u8) = NEON_GREEN;
+pub const COLOR_GIT_DIRTY: (u8, u8, u8) = NEON_AMBER;
+pub const COLOR_GIT_AHEAD: (u8, u8, u8) = NEON_BLUE;
+pub const COLOR_GIT_BEHIND: (u8, u8, u8) = SOFT_AMBER;
 pub const COLOR_GIT_EXPERIMENTAL: (u8, u8, u8) = NEON_PURPLE;
 
 // Health colors
-pub const COLOR_HEALTH_PEAK:      (u8, u8, u8) = NEON_GREEN;
-pub const COLOR_HEALTH_ADVISORY:  (u8, u8, u8) = NEON_AMBER;
-pub const COLOR_HEALTH_CRITICAL:  (u8, u8, u8) = NEON_RED;
+pub const COLOR_HEALTH_PEAK: (u8, u8, u8) = NEON_GREEN;
+pub const COLOR_HEALTH_ADVISORY: (u8, u8, u8) = NEON_AMBER;
+pub const COLOR_HEALTH_CRITICAL: (u8, u8, u8) = NEON_RED;
 
 // Prompt colors
-pub const COLOR_PROMPT_CWD:       (u8, u8, u8) = NEON_CYAN;
-pub const COLOR_PROMPT_OK:        (u8, u8, u8) = NEON_GREEN;
-pub const COLOR_PROMPT_FAIL:      (u8, u8, u8) = NEON_RED;
-pub const COLOR_PROMPT_INTENT:    (u8, u8, u8) = NEON_PURPLE;
-pub const COLOR_PROMPT_BRANCH:    (u8, u8, u8) = NEON_AMBER;
+pub const COLOR_PROMPT_CWD: (u8, u8, u8) = NEON_CYAN;
+pub const COLOR_PROMPT_OK: (u8, u8, u8) = NEON_GREEN;
+pub const COLOR_PROMPT_FAIL: (u8, u8, u8) = NEON_RED;
+pub const COLOR_PROMPT_INTENT: (u8, u8, u8) = NEON_PURPLE;
+pub const COLOR_PROMPT_BRANCH: (u8, u8, u8) = NEON_AMBER;
 
 /// Theme configuration for Faelight tools
 #[derive(Debug, Clone)]

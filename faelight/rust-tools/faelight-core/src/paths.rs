@@ -93,10 +93,6 @@ pub fn security_dir() -> PathBuf {
 // 03-INTERFACES: User-Facing Configs
 // ═══════════════════════════════════════════════════════════
 
-
-
-
-
 // ═══════════════════════════════════════════════════════════
 // 04-RUNTIME: Execution & Build Artifacts
 // ═══════════════════════════════════════════════════════════
@@ -267,7 +263,6 @@ pub fn local_data_dir() -> PathBuf {
     home().join(".local/share")
 }
 
-
 /// faelight-core state directory
 pub fn faelight_state_dir() -> PathBuf {
     home().join(".local/state/0-core")
@@ -291,8 +286,6 @@ pub fn git_hooks_dir() -> PathBuf {
 pub fn git_config_dir() -> PathBuf {
     config_dir().join("git")
 }
-
-
 
 // ═══════════════════════════════════════════════════════════
 // GIT CONFIGURATION FILES
@@ -324,7 +317,6 @@ pub fn git_ignore() -> PathBuf {
 pub fn cargo_toml() -> PathBuf {
     core_dir().join("Cargo.toml")
 }
-
 
 /// Changelog draft for a specific version
 pub fn changelog_draft(version: &str) -> PathBuf {
@@ -401,8 +393,6 @@ pub fn entropy_history_file() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 // PROFILE STATE FILES
 // ═══════════════════════════════════════════════════════════
-
-
 
 // ═══════════════════════════════════════════════════════════
 // SWAY WINDOW MANAGER

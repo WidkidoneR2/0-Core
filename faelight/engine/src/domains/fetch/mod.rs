@@ -87,7 +87,6 @@ fn get_profile() -> String {
         .unwrap_or_else(|| "DEF".to_string())
 }
 
-
 pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "fetch",

@@ -7,16 +7,16 @@
 // Backends:
 //   --drm     Run on real hardware (production)
 
+mod drm_renderer;
 mod handlers;
 mod input;
 mod state;
 mod udev_backend;
 mod winit;
-mod drm_renderer;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
-use std::time::Duration;
 use state::FaelightCompositor;
+use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Ensure XDG_RUNTIME_DIR is set — needed for Wayland socket
@@ -38,7 +38,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         crate::udev_backend::probe_drm();
         return Ok(());
     }
-
 
     if use_drm {
         tracing::info!("faelight-compositor starting — DRM/udev backend (real hardware)");

@@ -74,10 +74,9 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
         .unwrap_or_else(|| "?".to_string());
 
     // Count tools from registry
-    let tool_count =
-        std::fs::read_to_string(faelight_core::paths::tools_registry())
-            .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
-            .unwrap_or(0);
+    let tool_count = std::fs::read_to_string(faelight_core::paths::tools_registry())
+        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
+        .unwrap_or(0);
 
     println!(
         "  │  Since {}, the forest has grown through",

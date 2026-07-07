@@ -69,8 +69,12 @@ impl FaelightCompositor {
                 );
             }
             InputEvent::PointerMotionAbsolute { event, .. } => {
-                let Some(output) = self.space.outputs().next() else { return; };
-                let Some(output_geo) = self.space.output_geometry(output) else { return; };
+                let Some(output) = self.space.outputs().next() else {
+                    return;
+                };
+                let Some(output_geo) = self.space.output_geometry(output) else {
+                    return;
+                };
                 let pos = event.position_transformed(output_geo.size) + output_geo.loc.to_f64();
                 let serial = SERIAL_COUNTER.next_serial();
                 let pointer = self.seat.get_pointer().unwrap();

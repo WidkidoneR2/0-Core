@@ -21,7 +21,11 @@ pub fn check_stow(_core_root: &str, _home: &str) -> CheckResult {
 pub fn check_services() -> CheckResult {
     // Per-session daemons the doctor expects up. faelight-bar joined this list
     // when INT-053 shipped it as a real systemd user service.
-    let services = [("faelight-notify", "Notifications"), ("faelight-bar", "Bar"), ("faelight-wsd", "Workspaces")];
+    let services = [
+        ("faelight-notify", "Notifications"),
+        ("faelight-bar", "Bar"),
+        ("faelight-wsd", "Workspaces"),
+    ];
     let down: Vec<&str> = services
         .iter()
         .filter(|(name, _)| {
@@ -136,7 +140,10 @@ pub fn check_binaries() -> CheckResult {
             name: "Binary Dependencies".into(),
             status: Status::Fail,
             message: format!("{} binaries missing", missing.len()),
-            fix: Some("Add the package to configuration.nix, or: nix profile install nixpkgs#<package>".into()),
+            fix: Some(
+                "Add the package to configuration.nix, or: nix profile install nixpkgs#<package>"
+                    .into(),
+            ),
         }
     }
 }
@@ -313,7 +320,6 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
     }
 }
 
-
 pub fn check_faelight_config(home: &str) -> CheckResult {
     let config_dir = PathBuf::from(home).join(".config/faelight");
     let files = ["config.toml", "profiles.toml", "themes.toml"];
@@ -364,13 +370,15 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     };
     let config_content = match std::fs::read_to_string(&wm_config) {
         Ok(c) => c,
-        Err(_) => return CheckResult {
-            id: "keybinds".into(),
-            name: "Compositor Keybinds".into(),
-            status: Status::Warn,
-            message: "Could not read keybind config".into(),
-            fix: None,
-        },
+        Err(_) => {
+            return CheckResult {
+                id: "keybinds".into(),
+                name: "Compositor Keybinds".into(),
+                status: Status::Warn,
+                message: "Could not read keybind config".into(),
+                fix: None,
+            }
+        }
     };
     let keybinds: Vec<String> = if is_mango {
         config_content
@@ -389,8 +397,11 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
             .lines()
             .filter(|l| {
                 let t = l.trim();
-                t.starts_with("Mod+") || t.starts_with("Ctrl+") || t.starts_with("Shift+")
-                    || t.starts_with("Alt+") || t.starts_with("Super+")
+                t.starts_with("Mod+")
+                    || t.starts_with("Ctrl+")
+                    || t.starts_with("Shift+")
+                    || t.starts_with("Alt+")
+                    || t.starts_with("Super+")
             })
             .map(|l| l.trim().split('{').next().unwrap_or("").trim().to_string())
             .collect()
@@ -416,7 +427,10 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
             id: "keybinds".into(),
             name: "Compositor Keybinds".into(),
             status: Status::Warn,
-            message: format!("{}: {} keybind conflicts detected -- review {} config", wm_name, conflicts, wm_name),
+            message: format!(
+                "{}: {} keybind conflicts detected -- review {} config",
+                wm_name, conflicts, wm_name
+            ),
             fix: None,
         }
     }
@@ -623,7 +637,11 @@ pub fn check_alias_coverage() -> CheckResult {
             id: "alias_coverage".into(),
             name: "Alias Coverage".into(),
             status: Status::Pass,
-            message: format!("All {} tools have aliases ({} total)", EXPECTED_TOOLS.len(), aliases.len()),
+            message: format!(
+                "All {} tools have aliases ({} total)",
+                EXPECTED_TOOLS.len(),
+                aliases.len()
+            ),
             fix: None,
         }
     } else {
@@ -631,7 +649,11 @@ pub fn check_alias_coverage() -> CheckResult {
             id: "alias_coverage".into(),
             name: "Alias Coverage".into(),
             status: Status::Warn,
-            message: format!("{} tools missing aliases: {}", missing.len(), missing.join(", ")),
+            message: format!(
+                "{} tools missing aliases: {}",
+                missing.len(),
+                missing.join(", ")
+            ),
             fix: Some("Run: core audit aliases".into()),
         }
     }
@@ -828,7 +850,11 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
         .iter()
         .filter(|n| {
             if std::path::Path::new("/etc/NIXOS").exists() {
-                Command::new("which").arg(n).output().map(|o| o.status.success()).unwrap_or(false)
+                Command::new("which")
+                    .arg(n)
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
             } else {
                 scripts_dir.join(n).exists()
             }
@@ -859,7 +885,8 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
 pub fn check_sandbox(core_root: &str) -> CheckResult {
     // Check sandbox binary exists and policies are valid
     // NixOS: check /run/current-system/sw/bin first, fall back to scripts/
-    let binary_exists = std::path::Path::new("/run/current-system/sw/bin/faelight-sandbox").exists()
+    let binary_exists = std::path::Path::new("/run/current-system/sw/bin/faelight-sandbox")
+        .exists()
         || std::path::PathBuf::from(core_root)
             .join("scripts/faelight-sandbox")
             .exists();
@@ -904,7 +931,6 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
     }
 }
 
-
 pub fn check_boot_errors() -> CheckResult {
     // Honest boot health: benign error-priority noise (USB-C/EC/HID init) is the
     // baseline on this hardware, so WARN only on critical-or-worse kernel events.
@@ -928,7 +954,10 @@ pub fn check_boot_errors() -> CheckResult {
         Some(0) => {
             let msg = match errs {
                 Some(0) | None => "No kernel errors since last boot".to_string(),
-                Some(n) => format!("No critical kernel errors since boot ({} low-priority notices)", n),
+                Some(n) => format!(
+                    "No critical kernel errors since boot ({} low-priority notices)",
+                    n
+                ),
             };
             CheckResult {
                 id: "boot_errors".into(),
@@ -1020,7 +1049,12 @@ pub fn check_vm_state() -> CheckResult {
     // A running VM is NOT a fault -- VM-first development (compositor work in
     // INT-005/006/024/038/052/056) means VMs are often up by design. We report
     // the count so a forgotten VM gets noticed, and let the human judge intent.
-    let count = match Command::new("pgrep").arg("-f").arg("-c").arg("qemu-system").output() {
+    let count = match Command::new("pgrep")
+        .arg("-f")
+        .arg("-c")
+        .arg("qemu-system")
+        .output()
+    {
         Ok(o) => String::from_utf8_lossy(&o.stdout)
             .trim()
             .parse::<u32>()
@@ -1053,10 +1087,7 @@ pub fn check_compositor() -> CheckResult {
     // Identify the running compositor (mango/pinnacle) by process.
     // "none" is not a fault -- d can run from a TTY or headless session --
     // so we report it as info rather than crying wolf, same as VM State.
-    let candidates = [
-        ("mango", "MangoWM"),
-        ("pinnacle", "Pinnacle"),
-    ];
+    let candidates = [("mango", "MangoWM"), ("pinnacle", "Pinnacle")];
     for (proc_name, label) in candidates {
         let found = Command::new("pgrep")
             .arg("-x")
@@ -1093,7 +1124,9 @@ pub fn check_nix_store() -> CheckResult {
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
     )
     .and_then(|db| {
-        db.query_row("SELECT SUM(narSize) FROM ValidPaths", [], |r| r.get::<_, i64>(0))
+        db.query_row("SELECT SUM(narSize) FROM ValidPaths", [], |r| {
+            r.get::<_, i64>(0)
+        })
     }) {
         Ok(b) => b,
         Err(_) => {
@@ -1170,10 +1203,18 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
         .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
         .unwrap_or(0);
     let avg_conf: f64 = db
-        .query_row("SELECT COALESCE(AVG(confidence), 0.0) FROM friday_patterns", [], |r| r.get(0))
+        .query_row(
+            "SELECT COALESCE(AVG(confidence), 0.0) FROM friday_patterns",
+            [],
+            |r| r.get(0),
+        )
         .unwrap_or(0.0);
     let last_learned: i64 = db
-        .query_row("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge", [], |r| r.get(0))
+        .query_row(
+            "SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge",
+            [],
+            |r| r.get(0),
+        )
         .unwrap_or(0);
 
     let now = chrono::Utc::now().timestamp();
@@ -1193,7 +1234,10 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
             id: "friday".into(),
             name: "Friday".into(),
             status: Status::Warn,
-            message: format!("Learning stalled -- no new facts in {} days ({} patterns, {} facts)", days, patterns, facts),
+            message: format!(
+                "Learning stalled -- no new facts in {} days ({} patterns, {} facts)",
+                days, patterns, facts
+            ),
             fix: Some("Check that Friday is recording from sessions".into()),
         }
     } else {
@@ -1201,7 +1245,10 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
             id: "friday".into(),
             name: "Friday".into(),
             status: Status::Pass,
-            message: format!("{} patterns · {} facts · {:.2} avg confidence", patterns, facts, avg_conf),
+            message: format!(
+                "{} patterns · {} facts · {:.2} avg confidence",
+                patterns, facts, avg_conf
+            ),
             fix: None,
         }
     }
@@ -1283,7 +1330,6 @@ pub fn check_generation_drift() -> CheckResult {
     }
 }
 
-
 pub fn check_generation_count() -> CheckResult {
     // Warn only when a GC could actually prune something: generations whose link
     // mtime is older than 14d (approximates --delete-older-than 14d). Total shown
@@ -1301,7 +1347,11 @@ pub fn check_generation_count() -> CheckResult {
                 total += 1;
                 if let Ok(meta) = std::fs::symlink_metadata(e.path()) {
                     if let Ok(mtime) = meta.modified() {
-                        if now.duration_since(mtime).map(|a| a > PRUNE_AGE).unwrap_or(false) {
+                        if now
+                            .duration_since(mtime)
+                            .map(|a| a > PRUNE_AGE)
+                            .unwrap_or(false)
+                        {
                             old += 1;
                         }
                     }
@@ -1327,7 +1377,6 @@ pub fn check_generation_count() -> CheckResult {
         }
     }
 }
-
 
 pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
     use std::time::SystemTime;
@@ -1361,7 +1410,6 @@ pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
         },
     }
 }
-
 
 pub fn check_update_readiness(core_root: &str) -> CheckResult {
     // Synthesis: is the system in a safe STATE to run an update?

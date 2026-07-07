@@ -9,7 +9,7 @@ use anyhow::{bail, Result};
 
 pub struct AddPlan {
     pub new_content: String,
-    pub diff: String,      // human-readable preview (old/new context)
+    pub diff: String, // human-readable preview (old/new context)
     pub pkg: String,
 }
 
@@ -26,7 +26,10 @@ pub fn plan_add(content: &str, pkg: &str) -> Result<AddPlan> {
     // Only single-attr leaf packages are valid Nix identifiers here.
     // Dotted attrs (e.g. nerd-fonts.hack) ARE valid in a with-pkgs list,
     // so we allow letters, digits, -, _, and .
-    if !pkg.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
+    if !pkg
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
         bail!("'{pkg}' is not a plain package attr (won't insert)");
     }
 
@@ -87,7 +90,9 @@ pub fn plan_add(content: &str, pkg: &str) -> Result<AddPlan> {
     let ctx_start = anchor_idx;
     let ctx_end = (anchor_idx + 3).min(lines.len());
     let mut diff = String::new();
-    diff.push_str(&format!("  users/christian/home.nix  (insert into home.packages)\n\n"));
+    diff.push_str(&format!(
+        "  users/christian/home.nix  (insert into home.packages)\n\n"
+    ));
     for l in &lines[ctx_start..ctx_end] {
         diff.push_str(&format!("    {l}\n"));
         if l.contains(ANCHOR) {
@@ -95,5 +100,9 @@ pub fn plan_add(content: &str, pkg: &str) -> Result<AddPlan> {
         }
     }
 
-    Ok(AddPlan { new_content, diff, pkg: pkg.to_string() })
+    Ok(AddPlan {
+        new_content,
+        diff,
+        pkg: pkg.to_string(),
+    })
 }

@@ -148,7 +148,6 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         issues.push(format!("{} tools not deployed", missing.len()));
     }
 
-
     // Check 3 — git history intact
     let commit_count = get_commit_count(core_root);
     if commit_count > 100 {
@@ -342,7 +341,6 @@ fn read_registry_tools(_core_root: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .collect()
 }
-
 
 fn read_active_intents(_core_root: &str) -> Vec<String> {
     let future_dir = faelight_core::paths::intents_dir().join("future");

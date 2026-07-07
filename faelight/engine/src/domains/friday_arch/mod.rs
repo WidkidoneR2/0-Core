@@ -430,21 +430,29 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     } else {
         {
             // Generate real brief from recent activity
-            let deploy_count: i64 = ctx.runtime.db.query_row(
-                "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-                rusqlite::params![now - 86400],
-                |r| r.get(0),
-            ).unwrap_or(0);
+            let deploy_count: i64 = ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                    rusqlite::params![now - 86400],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
             let commit_count: i64 = ctx.runtime.db.query_row(
                 "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
                 rusqlite::params![now - 86400],
                 |r| r.get(0),
             ).unwrap_or(0);
-            let active_intent: String = ctx.runtime.db.query_row(
-                "SELECT value FROM domain_state WHERE key='active_intent' LIMIT 1",
-                [],
-                |r| r.get(0),
-            ).unwrap_or_else(|_| "none".to_string());
+            let active_intent: String = ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT value FROM domain_state WHERE key='active_intent' LIMIT 1",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap_or_else(|_| "none".to_string());
             format!(
                 "Healthy. {} deploy(s), {} commit(s) today. Active: {}. No conflicts detected.",
                 deploy_count, commit_count, active_intent
@@ -510,7 +518,10 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
             println!("      → {}", action.bright_cyan());
             println!("      Simulation preview:");
             let _ = simulate(ctx, action);
-            println!("      approve: core friday-arch approve {}  |  reject: {}", id, id);
+            println!(
+                "      approve: core friday-arch approve {}  |  reject: {}",
+                id, id
+            );
         }
     }
     println!();
@@ -520,22 +531,27 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
 // ── INT-246: Friday Architecture v2 ──────────────────────────────────────
 /// Confidence tiers -- formalized from INT-246 Pillar 1
 pub enum ConfidenceTier {
-    Observe,    // 0.0 - 0.4  -- collect data, say nothing
-    Suggest,    // 0.4 - 0.7  -- surface insight, no interruption
-    Recommend,  // 0.7 - 0.9  -- interrupt with specific suggestion
-    Challenge,  // 0.9+       -- block and require explicit approval
+    Observe,   // 0.0 - 0.4  -- collect data, say nothing
+    Suggest,   // 0.4 - 0.7  -- surface insight, no interruption
+    Recommend, // 0.7 - 0.9  -- interrupt with specific suggestion
+    Challenge, // 0.9+       -- block and require explicit approval
 }
 impl ConfidenceTier {
     pub fn from_confidence(c: f64) -> Self {
-        if c >= 0.9 { Self::Challenge }
-        else if c >= 0.7 { Self::Recommend }
-        else if c >= 0.4 { Self::Suggest }
-        else { Self::Observe }
+        if c >= 0.9 {
+            Self::Challenge
+        } else if c >= 0.7 {
+            Self::Recommend
+        } else if c >= 0.4 {
+            Self::Suggest
+        } else {
+            Self::Observe
+        }
     }
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Observe   => "OBSERVE",
-            Self::Suggest   => "SUGGEST",
+            Self::Observe => "OBSERVE",
+            Self::Suggest => "SUGGEST",
             Self::Recommend => "RECOMMEND",
             Self::Challenge => "CHALLENGE",
         }
@@ -590,15 +606,22 @@ pub fn show_usefulness(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     println!("{}", "📊 Friday Usefulness Metrics".bold());
     println!("{}", "━".repeat(55).dimmed());
-    let total: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_usefulness", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let accepted: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_usefulness", [], |r| r.get(0))
+        .unwrap_or(0);
+    let accepted: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if total == 0 {
         println!("  {} No suggestions tracked yet", "○".dimmed());
-        println!("  {} Suggestions are tracked as you accept or reject Friday proposals", "→".dimmed());
+        println!(
+            "  {} Suggestions are tracked as you accept or reject Friday proposals",
+            "→".dimmed()
+        );
         return Ok(());
     }
     let rate = accepted as f64 / total as f64 * 100.0;
@@ -609,24 +632,52 @@ pub fn show_usefulness(ctx: &AppContext) -> CoreResult<()> {
     } else {
         format!("{:.1}%", rate).bright_red().to_string()
     };
-    println!("  {} Total suggestions: {}", "→".dimmed(), total.to_string().bright_white());
-    println!("  {} Accepted: {}", "→".dimmed(), accepted.to_string().bright_green());
-    println!("  {} Rejected: {}", "→".dimmed(), (total - accepted).to_string().bright_red());
-    println!("  {} Acceptance rate: {} (target: >75%)", "→".dimmed(), rate_str);
+    println!(
+        "  {} Total suggestions: {}",
+        "→".dimmed(),
+        total.to_string().bright_white()
+    );
+    println!(
+        "  {} Accepted: {}",
+        "→".dimmed(),
+        accepted.to_string().bright_green()
+    );
+    println!(
+        "  {} Rejected: {}",
+        "→".dimmed(),
+        (total - accepted).to_string().bright_red()
+    );
+    println!(
+        "  {} Acceptance rate: {} (target: >75%)",
+        "→".dimmed(),
+        rate_str
+    );
     // By tier
     println!();
     println!("  {} By confidence tier:", "→".dimmed());
     for tier in &["OBSERVE", "SUGGEST", "RECOMMEND", "CHALLENGE"] {
-        let t: i64 = db.query_row(
-            "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1",
-            params![tier], |r| r.get(0)
-        ).unwrap_or(0);
-        let a: i64 = db.query_row(
-            "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1 AND accepted = 1",
-            params![tier], |r| r.get(0)
-        ).unwrap_or(0);
+        let t: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1",
+                params![tier],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let a: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1 AND accepted = 1",
+                params![tier],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if t > 0 {
-            println!("    {} {}: {}/{} accepted", "◦".dimmed(), tier.bright_white(), a, t);
+            println!(
+                "    {} {}: {}/{} accepted",
+                "◦".dimmed(),
+                tier.bright_white(),
+                a,
+                t
+            );
         }
     }
     println!("{}", "━".repeat(55).dimmed());
@@ -644,12 +695,19 @@ pub fn decay_trust(ctx: &AppContext) -> CoreResult<()> {
         "SELECT m.id, m.confidence, t.predictions, t.correct
          FROM friday_models m
          JOIN friday_trust t ON t.model_id = m.id
-         WHERE m.active = 1 AND t.predictions > 0"
+         WHERE m.active = 1 AND t.predictions > 0",
     )?;
-    let models: Vec<(i64, f64, i64, i64)> = stmt.query_map([], |r| {
-        Ok((r.get::<_, i64>(0)?, r.get::<_, f64>(1)?,
-            r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let models: Vec<(i64, f64, i64, i64)> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, f64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     if models.is_empty() {
         println!("  {} No models with prediction data yet", "○".dimmed());
         return Ok(());
@@ -682,19 +740,32 @@ pub fn decay_trust(ctx: &AppContext) -> CoreResult<()> {
                 params![accuracy, now, model_id],
             )?;
             if !still_active {
-                println!("  {} Model {} silenced (accuracy: {:.0}%, confidence: {:.2} → {:.2})",
-                    "🔇".dimmed(), model_id,
-                    accuracy * 100.0, confidence, new_confidence);
+                println!(
+                    "  {} Model {} silenced (accuracy: {:.0}%, confidence: {:.2} → {:.2})",
+                    "🔇".dimmed(),
+                    model_id,
+                    accuracy * 100.0,
+                    confidence,
+                    new_confidence
+                );
                 silenced += 1;
             } else if new_confidence < *confidence {
-                println!("  {} Model {} decayed to {} (accuracy: {:.0}%)",
-                    "📉".bright_yellow(), model_id, tier.label(),
-                    accuracy * 100.0);
+                println!(
+                    "  {} Model {} decayed to {} (accuracy: {:.0}%)",
+                    "📉".bright_yellow(),
+                    model_id,
+                    tier.label(),
+                    accuracy * 100.0
+                );
                 decayed += 1;
             } else {
-                println!("  {} Model {} gained trust → {} (accuracy: {:.0}%)",
-                    "📈".bright_green(), model_id, tier.label(),
-                    accuracy * 100.0);
+                println!(
+                    "  {} Model {} gained trust → {} (accuracy: {:.0}%)",
+                    "📈".bright_green(),
+                    model_id,
+                    tier.label(),
+                    accuracy * 100.0
+                );
                 gained += 1;
             }
         }
@@ -703,8 +774,13 @@ pub fn decay_trust(ctx: &AppContext) -> CoreResult<()> {
         println!("  {} All models stable -- no decay needed", "✅".green());
     } else {
         println!();
-        println!("  {} {} silenced  {} decayed  {} gained trust",
-            "→".dimmed(), silenced, decayed, gained);
+        println!(
+            "  {} {} silenced  {} decayed  {} gained trust",
+            "→".dimmed(),
+            silenced,
+            decayed,
+            gained
+        );
     }
     println!("{}", "━".repeat(55).dimmed());
     Ok(())
@@ -723,7 +799,11 @@ pub fn approve_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ).ok();
     match proposal {
         None => {
-            println!("  {} Proposal {} not found or not pending", "⚠".bright_yellow(), id);
+            println!(
+                "  {} Proposal {} not found or not pending",
+                "⚠".bright_yellow(),
+                id
+            );
         }
         Some((desc, action, confidence)) => {
             db.execute(
@@ -754,7 +834,11 @@ pub fn reject_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ).ok();
     match proposal {
         None => {
-            println!("  {} Proposal {} not found or not pending", "⚠".bright_yellow(), id);
+            println!(
+                "  {} Proposal {} not found or not pending",
+                "⚠".bright_yellow(),
+                id
+            );
         }
         Some((desc, action, confidence)) => {
             db.execute(
@@ -765,7 +849,10 @@ pub fn reject_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
             println!("{}", "⬜ Proposal Rejected".bold().bright_red());
             println!("{}", "━".repeat(55).dimmed());
             println!("  {} {}", "Proposal:".dimmed(), desc.bright_white());
-            println!("  {} Trust -0.1 applied via next trust-decay run", "→".dimmed());
+            println!(
+                "  {} Trust -0.1 applied via next trust-decay run",
+                "→".dimmed()
+            );
             println!("{}", "━".repeat(55).dimmed());
         }
     }
@@ -777,49 +864,67 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
     ensure_usefulness_table(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let health: i64 = db.query_row(
-        "SELECT COALESCE(AVG(score), 100) FROM health_history ORDER BY checked_at DESC LIMIT 5",
-        [], |r| r.get(0)
-    ).unwrap_or(100);
-    let active_intent: Option<(i64, String)> = db.query_row(
-        "SELECT id, title FROM intents WHERE status = 'in-progress' LIMIT 1",
-        [], |r| Ok((r.get(0)?, r.get(1)?))
-    ).ok();
-    let recent_deploys: i64 = db.query_row(
-        "SELECT COUNT(*) FROM deploy_history WHERE deployed_at > ?1",
-        params![now - 3600], |r| r.get(0)
-    ).unwrap_or(0);
-    let pattern_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns WHERE confidence > 0.7",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let health: i64 = db
+        .query_row(
+            "SELECT COALESCE(AVG(score), 100) FROM health_history ORDER BY checked_at DESC LIMIT 5",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(100);
+    let active_intent: Option<(i64, String)> = db
+        .query_row(
+            "SELECT id, title FROM intents WHERE status = 'in-progress' LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .ok();
+    let recent_deploys: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM deploy_history WHERE deployed_at > ?1",
+            params![now - 3600],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_patterns WHERE confidence > 0.7",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let (description, action, confidence, rationale) = if recent_deploys > 0 && health < 95 {
         (
             "Health check after recent deploys -- verify nothing degraded".to_string(),
             "core doctor run".to_string(),
             0.88f64,
-            format!("{} deploy(s) in last hour, health at {}%", recent_deploys, health)
+            format!(
+                "{} deploy(s) in last hour, health at {}%",
+                recent_deploys, health
+            ),
         )
     } else if let Some((id, ref title)) = active_intent {
         (
             format!("Checkpoint -- commit progress on INT-{}", id),
             "fg done \"progress checkpoint\"".to_string(),
             0.75f64,
-            format!("Working on: {} -- regular commits improve recovery", title)
+            format!("Working on: {} -- regular commits improve recovery", title),
         )
     } else if pattern_count > 10 {
         (
             "Review Friday patterns -- high-confidence patterns ready".to_string(),
             "core friday-arch models".to_string(),
             0.72f64,
-            format!("{} patterns above 0.7 confidence ready for review", pattern_count)
+            format!(
+                "{} patterns above 0.7 confidence ready for review",
+                pattern_count
+            ),
         )
     } else {
         (
             "Forest health check -- routine verification".to_string(),
             "core doctor run".to_string(),
             0.65f64,
-            "Regular verification keeps the forest coherent".to_string()
+            "Regular verification keeps the forest coherent".to_string(),
         )
     };
     db.execute(
@@ -829,18 +934,31 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
     )?;
     let proposal_id: i64 = db.query_row(
         "SELECT id FROM friday_proposals ORDER BY id DESC LIMIT 1",
-        [], |r| r.get(0)
+        [],
+        |r| r.get(0),
     )?;
     println!();
     println!("  {} Friday Proposal [{}]", "🌲".normal(), proposal_id);
     println!("  {}", "─".repeat(55).dimmed());
-    println!("  {} {}", "Proposal:  ".dimmed(), description.bright_white());
+    println!(
+        "  {} {}",
+        "Proposal:  ".dimmed(),
+        description.bright_white()
+    );
     println!("  {} {}", "Action:    ".dimmed(), action.bright_cyan());
     println!("  {} {:.0}%", "Confidence:".dimmed(), confidence * 100.0);
     println!("  {} {}", "Rationale: ".dimmed(), rationale.dimmed());
     println!();
-    println!("  {} approve: core friday-arch approve {}", "→".dimmed(), proposal_id);
-    println!("  {} reject:  core friday-arch reject {}", "→".dimmed(), proposal_id);
+    println!(
+        "  {} approve: core friday-arch approve {}",
+        "→".dimmed(),
+        proposal_id
+    );
+    println!(
+        "  {} reject:  core friday-arch reject {}",
+        "→".dimmed(),
+        proposal_id
+    );
     println!("  {}", "─".repeat(55).dimmed());
     Ok(())
 }
@@ -890,46 +1008,87 @@ pub fn simulate(ctx: &AppContext, command: &str) -> CoreResult<()> {
 
 fn simulate_deploy(db: &rusqlite::Connection, tool: &str) -> CoreResult<()> {
     // Query historical deploy data for this tool
-    let data: Option<(i64, i64, f64, i64, i64)> = db.query_row(
-        "SELECT COUNT(*),
+    let data: Option<(i64, i64, f64, i64, i64)> = db
+        .query_row(
+            "SELECT COUNT(*),
                 SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END),
                 AVG(duration_ms),
                 MIN(duration_ms),
                 MAX(duration_ms)
          FROM deploy_patterns WHERE tool = ?1",
-        rusqlite::params![tool],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get::<_,f64>(2).unwrap_or(0.0),
-                 r.get(3)?, r.get(4)?))
-    ).ok();
+            rusqlite::params![tool],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get::<_, f64>(2).unwrap_or(0.0),
+                    r.get(3)?,
+                    r.get(4)?,
+                ))
+            },
+        )
+        .ok();
 
     match data {
         Some((total, success, avg_ms, min_ms, max_ms)) if total > 0 => {
             let success_rate = (success as f64 / total as f64) * 100.0;
             let avg_s = avg_ms / 1000.0;
-            let confidence = if total >= 10 { 0.92 } else if total >= 3 { 0.78 } else { 0.60 };
+            let confidence = if total >= 10 {
+                0.92
+            } else if total >= 3 {
+                0.78
+            } else {
+                0.60
+            };
 
-            let risk = if success_rate >= 99.0 { "LOW".bright_green() }
-                       else if success_rate >= 90.0 { "MEDIUM".bright_yellow() }
-                       else { "HIGH".bright_red() };
+            let risk = if success_rate >= 99.0 {
+                "LOW".bright_green()
+            } else if success_rate >= 90.0 {
+                "MEDIUM".bright_yellow()
+            } else {
+                "HIGH".bright_red()
+            };
 
             println!("  {} Deploy: {}", "→".dimmed(), tool.bright_cyan());
             println!("  {} Historical data: {} deploys", "→".dimmed(), total);
-            println!("  {} Success rate:    {:.1}% ({}/{})",
-                "→".dimmed(), success_rate, success, total);
-            println!("  {} Avg duration:    {:.1}s  (range: {:.1}s - {:.1}s)",
-                "→".dimmed(), avg_s, min_ms as f64 / 1000.0, max_ms as f64 / 1000.0);
+            println!(
+                "  {} Success rate:    {:.1}% ({}/{})",
+                "→".dimmed(),
+                success_rate,
+                success,
+                total
+            );
+            println!(
+                "  {} Avg duration:    {:.1}s  (range: {:.1}s - {:.1}s)",
+                "→".dimmed(),
+                avg_s,
+                min_ms as f64 / 1000.0,
+                max_ms as f64 / 1000.0
+            );
             println!("  {} Risk:            {}", "→".dimmed(), risk);
-            println!("  {} Confidence:      {:.0}%", "→".dimmed(), confidence * 100.0);
+            println!(
+                "  {} Confidence:      {:.0}%",
+                "→".dimmed(),
+                confidence * 100.0
+            );
             println!();
 
-            let pred = if success_rate >= 95.0 { "SUCCESS" } else { "UNCERTAIN" };
+            let pred = if success_rate >= 95.0 {
+                "SUCCESS"
+            } else {
+                "UNCERTAIN"
+            };
             let pred_colored = if pred == "SUCCESS" {
                 pred.bright_green().to_string()
             } else {
                 pred.bright_yellow().to_string()
             };
-            println!("  {} Predicted outcome: {} ({:.0}% confidence)",
-                "🌲".normal(), pred_colored, confidence * 100.0);
+            println!(
+                "  {} Predicted outcome: {} ({:.0}% confidence)",
+                "🌲".normal(),
+                pred_colored,
+                confidence * 100.0
+            );
             // Record simulation for accuracy tracking
             let now = now_ts();
             let cmd_key = format!("deploy {}", tool);
@@ -949,37 +1108,54 @@ fn simulate_deploy(db: &rusqlite::Connection, tool: &str) -> CoreResult<()> {
 }
 
 fn simulate_build(db: &rusqlite::Connection, _cmd: &str) -> CoreResult<()> {
-    let recent_errors: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history
+    let recent_errors: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history
          WHERE command LIKE '%cargo build%' AND command LIKE '%error%'
          AND timestamp > strftime('%s','now') - 86400",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!("  {} Cargo build simulation", "→".dimmed());
-    println!("  {} Recent build errors (24h): {}", "→".dimmed(), recent_errors);
+    println!(
+        "  {} Recent build errors (24h): {}",
+        "→".dimmed(),
+        recent_errors
+    );
 
     if recent_errors == 0 {
         println!("  {} Risk: LOW -- no recent errors", "→".dimmed());
         println!("  {} Predicted: SUCCESS (workspace clean)", "→".dimmed());
     } else {
-        println!("  {} Risk: MEDIUM -- {} errors in last 24h", "→".dimmed(), recent_errors);
+        println!(
+            "  {} Risk: MEDIUM -- {} errors in last 24h",
+            "→".dimmed(),
+            recent_errors
+        );
         println!("  {} Check error patterns before building", "→".dimmed());
     }
     Ok(())
 }
 
 fn simulate_commit(db: &rusqlite::Connection) -> CoreResult<()> {
-    let uncommitted: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history
+    let uncommitted: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history
          WHERE command LIKE '%git add%' OR command LIKE '%fg done%'
          AND timestamp > strftime('%s','now') - 3600",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!("  {} Commit simulation", "→".dimmed());
     println!("  {} Risk: LOW -- standard forest operation", "→".dimmed());
-    println!("  {} Predicted: SUCCESS -- pre-push hooks will validate", "→".dimmed());
+    println!(
+        "  {} Predicted: SUCCESS -- pre-push hooks will validate",
+        "→".dimmed()
+    );
     let _ = uncommitted;
     Ok(())
 }
@@ -987,29 +1163,47 @@ fn simulate_commit(db: &rusqlite::Connection) -> CoreResult<()> {
 fn simulate_intent_op(db: &rusqlite::Connection, op: &str, intent_id: &str) -> CoreResult<()> {
     println!("  {} Intent {} simulation", "→".dimmed(), op);
     if !intent_id.is_empty() {
-        println!("  {} Target intent: {}", "→".dimmed(), intent_id.bright_white());
+        println!(
+            "  {} Target intent: {}",
+            "→".dimmed(),
+            intent_id.bright_white()
+        );
     }
-    println!("  {} Risk: LOW -- creates checkpoint before operation", "→".dimmed());
-    println!("  {} Predicted: SUCCESS -- checkpoint protects state", "→".dimmed());
+    println!(
+        "  {} Risk: LOW -- creates checkpoint before operation",
+        "→".dimmed()
+    );
+    println!(
+        "  {} Predicted: SUCCESS -- checkpoint protects state",
+        "→".dimmed()
+    );
     let _ = db;
     Ok(())
 }
 
 fn simulate_generic(db: &rusqlite::Connection, cmd: &str) -> CoreResult<()> {
     // Check if this command has been run before
-    let prior_runs: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command = ?1",
-        rusqlite::params![cmd],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let prior_runs: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command = ?1",
+            rusqlite::params![cmd],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!("  {} Generic command simulation", "→".dimmed());
     if prior_runs > 0 {
         println!("  {} Prior runs: {} times", "→".dimmed(), prior_runs);
-        println!("  {} Risk: LOW -- command has been run before", "→".dimmed());
+        println!(
+            "  {} Risk: LOW -- command has been run before",
+            "→".dimmed()
+        );
         println!("  {} Confidence: 70%", "→".dimmed());
     } else {
-        println!("  {} Prior runs: 0 -- first time running this", "→".dimmed());
+        println!(
+            "  {} Prior runs: 0 -- first time running this",
+            "→".dimmed()
+        );
         println!("  {} Risk: UNKNOWN -- no historical data", "→".dimmed());
         println!("  {} Confidence: 50%", "→".dimmed());
     }
@@ -1028,11 +1222,18 @@ pub fn resolve_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
     let pending: Vec<(i64, String, String)> = {
         let mut stmt = db.prepare(
             "SELECT id, command, predicted FROM friday_simulations
-             WHERE correct IS NULL AND created_at < ?1"
+             WHERE correct IS NULL AND created_at < ?1",
         )?;
-        let x: Vec<(i64, String, String)> = stmt.query_map(rusqlite::params![now - 60], |r| {
-            Ok((r.get::<_,i64>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
-        })?.filter_map(|r| r.ok()).collect();
+        let x: Vec<(i64, String, String)> = stmt
+            .query_map(rusqlite::params![now - 60], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         x
     };
 
@@ -1043,12 +1244,14 @@ pub fn resolve_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
         // For deploy commands, check deploy_patterns for actual outcome
         if command.starts_with("deploy ") {
             let tool = command.trim_start_matches("deploy ").trim();
-            let actual: Option<String> = db.query_row(
-                "SELECT outcome FROM deploy_patterns WHERE tool = ?1
+            let actual: Option<String> = db
+                .query_row(
+                    "SELECT outcome FROM deploy_patterns WHERE tool = ?1
                  ORDER BY timestamp DESC LIMIT 1",
-                rusqlite::params![tool],
-                |r| r.get(0)
-            ).ok();
+                    rusqlite::params![tool],
+                    |r| r.get(0),
+                )
+                .ok();
 
             if let Some(ref outcome) = actual {
                 let is_correct = (predicted == "SUCCESS" && outcome == "success")
@@ -1061,14 +1264,21 @@ pub fn resolve_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
                     rusqlite::params![outcome, correct_val, now, sim_id],
                 )?;
                 resolved += 1;
-                if is_correct { correct_count += 1; }
+                if is_correct {
+                    correct_count += 1;
+                }
             }
         }
     }
 
     if resolved > 0 {
-        println!("  {} Resolved {} simulations -- {}/{} correct",
-            "→".dimmed(), resolved, correct_count, resolved);
+        println!(
+            "  {} Resolved {} simulations -- {}/{} correct",
+            "→".dimmed(),
+            resolved,
+            correct_count,
+            resolved
+        );
     }
     Ok(())
 }
@@ -1078,20 +1288,29 @@ pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
 
-    let total: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NOT NULL",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let correct: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_simulations WHERE correct = 1",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let correct: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_simulations WHERE correct = 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let pending: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NULL",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let pending: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!();
     println!("  {} Friday Simulation Accuracy", "🌲".normal());
@@ -1099,8 +1318,10 @@ pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
 
     if total == 0 {
         println!("  {} No resolved simulations yet", "○".dimmed());
-        println!("  {} Run: core friday-arch simulate-accuracy to resolve pending",
-            "→".dimmed());
+        println!(
+            "  {} Run: core friday-arch simulate-accuracy to resolve pending",
+            "→".dimmed()
+        );
     } else {
         let rate = correct as f64 / total as f64 * 100.0;
         let rate_str = if rate >= 80.0 {
@@ -1111,7 +1332,13 @@ pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
             format!("{:.1}%", rate).bright_red().to_string()
         };
         println!("  {} Resolved: {}", "→".dimmed(), total);
-        println!("  {} Correct:  {} ({}/{})", "→".dimmed(), rate_str, correct, total);
+        println!(
+            "  {} Correct:  {} ({}/{})",
+            "→".dimmed(),
+            rate_str,
+            correct,
+            total
+        );
         println!("  {} Pending:  {}", "→".dimmed(), pending);
         println!("  {} Target:   80%+ for CHALLENGE tier", "→".dimmed());
     }

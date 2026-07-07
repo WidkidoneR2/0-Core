@@ -92,7 +92,6 @@ fn emit_git_event(action: &str, detail: &str) {
 pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     let repo = GitRepo::open()?;
 
-
     // ── Guard: must have changes ───────────────────────────────
     let status = repo.status()?;
     if status.is_empty() {

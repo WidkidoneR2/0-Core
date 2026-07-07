@@ -23,15 +23,18 @@ use std::{
 };
 
 // Forest palette
-const BG:     Color = Color::Rgb(10, 15, 10);
-const FG:     Color = Color::Rgb(168, 197, 176);
-const GREEN:  Color = Color::Rgb(42, 255, 213);
+const BG: Color = Color::Rgb(10, 15, 10);
+const FG: Color = Color::Rgb(168, 197, 176);
+const GREEN: Color = Color::Rgb(42, 255, 213);
 const ACCENT: Color = Color::Rgb(0, 191, 255);
-const AMBER:  Color = Color::Rgb(255, 212, 59);
-const DIM:    Color = Color::Rgb(74, 107, 82);
+const AMBER: Color = Color::Rgb(255, 212, 59);
+const DIM: Color = Color::Rgb(74, 107, 82);
 
 #[derive(PartialEq, Clone, Copy)]
-enum ActivePane { Terminal, Friday }
+enum ActivePane {
+    Terminal,
+    Friday,
+}
 
 #[derive(Clone)]
 struct FridayMessage {
@@ -74,7 +77,7 @@ impl App {
         // Launch fsh in PTY
         let mut cmd = CommandBuilder::new("fsh");
         cmd.env("FAELIGHT_ADE", "1");
-        cmd.env("TERM", "vt100");  // vt100 prevents mouse tracking
+        cmd.env("TERM", "vt100"); // vt100 prevents mouse tracking
         cmd.env("COLORTERM", "truecolor");
         let _child = pair.slave.spawn_command(cmd)?;
         // Small delay then disable mouse tracking
@@ -113,9 +116,15 @@ impl App {
         Ok(App {
             pty_output,
             pty_writer,
-            terminal_lines: vec![vec![("🌲 fsh starting...".to_string(), Style::default().fg(GREEN))]],
+            terminal_lines: vec![vec![(
+                "🌲 fsh starting...".to_string(),
+                Style::default().fg(GREEN),
+            )]],
 
-            friday_messages: vec![FridayMessage { from_friday: true, text: welcome }],
+            friday_messages: vec![FridayMessage {
+                from_friday: true,
+                text: welcome,
+            }],
             friday_input: String::new(),
             db,
             intent_hint,
@@ -139,19 +148,25 @@ impl App {
                 }
                 // Keep last 1000 lines
                 if self.terminal_lines.len() > 1000 {
-                    self.terminal_lines.drain(0..self.terminal_lines.len() - 1000);
+                    self.terminal_lines
+                        .drain(0..self.terminal_lines.len() - 1000);
                 }
                 out.clear();
                 // Auto-scroll to bottom
                 self.terminal_scroll = self.terminal_lines.len().saturating_sub(1);
 
                 // INT-346 Phase 5: Friday sees PTY output
-                let last: String = self.terminal_lines.last()
-                    .map(|spans| spans.iter().map(|(s,_)| s.as_str()).collect::<String>())
+                let last: String = self
+                    .terminal_lines
+                    .last()
+                    .map(|spans| spans.iter().map(|(s, _)| s.as_str()).collect::<String>())
                     .unwrap_or_default();
                 if last.contains("error") || last.contains("Error") || last.contains("warning") {
                     let msg = format!("Detected: {}", &last[..last.len().min(80)]);
-                    self.friday_messages.push(FridayMessage { from_friday: true, text: msg });
+                    self.friday_messages.push(FridayMessage {
+                        from_friday: true,
+                        text: msg,
+                    });
                 }
             }
         }
@@ -163,11 +178,19 @@ impl App {
 
     fn send_friday(&mut self) {
         let input = self.friday_input.trim().to_string();
-        if input.is_empty() { return; }
+        if input.is_empty() {
+            return;
+        }
         self.friday_input.clear();
-        self.friday_messages.push(FridayMessage { from_friday: false, text: input.clone() });
+        self.friday_messages.push(FridayMessage {
+            from_friday: false,
+            text: input.clone(),
+        });
         let response = friday_respond(&self.db, &input);
-        self.friday_messages.push(FridayMessage { from_friday: true, text: response });
+        self.friday_messages.push(FridayMessage {
+            from_friday: true,
+            text: response,
+        });
         self.friday_scroll = self.friday_messages.len().saturating_sub(1);
     }
 }
@@ -175,15 +198,19 @@ impl App {
 fn get_intent(db: &Connection) -> String {
     db.query_row(
         "SELECT value FROM shell_state WHERE key = 'focus_intent'",
-        [], |r| r.get::<_, String>(0),
-    ).unwrap_or_else(|_| "none".to_string())
+        [],
+        |r| r.get::<_, String>(0),
+    )
+    .unwrap_or_else(|_| "none".to_string())
 }
 
 fn get_health(db: &Connection) -> String {
     db.query_row(
         "SELECT value FROM shell_state WHERE key = 'last_health'",
-        [], |r| r.get::<_, String>(0),
-    ).unwrap_or_else(|_| "100%".to_string())
+        [],
+        |r| r.get::<_, String>(0),
+    )
+    .unwrap_or_else(|_| "100%".to_string())
 }
 
 /// Parse ANSI escape sequences into ratatui styled spans
@@ -218,15 +245,20 @@ fn parse_ansi(s: &str) -> Vec<Vec<(String, Style)>> {
                     // OSC sequence -- skip until ST (ESC \ or BEL)
                     chars.next();
                     while let Some(n) = chars.next() {
-                        if n == '\x07' { break; } // BEL
+                        if n == '\x07' {
+                            break;
+                        } // BEL
                         if n == '\x1b' {
-                            if chars.peek() == Some(&'\\') { chars.next(); }
+                            if chars.peek() == Some(&'\\') {
+                                chars.next();
+                            }
                             break;
                         }
                     }
                 }
                 Some(&'(') | Some(&')') | Some(&'*') | Some(&'+') => {
-                    chars.next(); chars.next(); // skip charset sequences
+                    chars.next();
+                    chars.next(); // skip charset sequences
                 }
                 _ => {
                     // skip single char escape sequences
@@ -259,17 +291,15 @@ fn parse_sgr(params: &str, current: Style) -> Style {
         return Style::default().fg(FG);
     }
     let mut style = current;
-    let codes: Vec<u8> = params.split(';')
-        .filter_map(|p| p.parse().ok())
-        .collect();
+    let codes: Vec<u8> = params.split(';').filter_map(|p| p.parse().ok()).collect();
     let mut i = 0;
     while i < codes.len() {
         match codes[i] {
-            0  => style = Style::default().fg(FG),
-            1  => style = style.add_modifier(Modifier::BOLD),
-            2  => style = style.add_modifier(Modifier::DIM),
-            3  => style = style.add_modifier(Modifier::ITALIC),
-            4  => style = style.add_modifier(Modifier::UNDERLINED),
+            0 => style = Style::default().fg(FG),
+            1 => style = style.add_modifier(Modifier::BOLD),
+            2 => style = style.add_modifier(Modifier::DIM),
+            3 => style = style.add_modifier(Modifier::ITALIC),
+            4 => style = style.add_modifier(Modifier::UNDERLINED),
             22 => style = style.remove_modifier(Modifier::BOLD),
             // Standard foreground colors
             30 => style = style.fg(Color::Black),
@@ -291,12 +321,12 @@ fn parse_sgr(params: &str, current: Style) -> Style {
             96 => style = style.fg(Color::LightCyan),
             97 => style = style.fg(Color::White),
             // 256 color and RGB
-            38 if i + 2 < codes.len() && codes[i+1] == 5 => {
-                style = style.fg(ansi256_to_color(codes[i+2]));
+            38 if i + 2 < codes.len() && codes[i + 1] == 5 => {
+                style = style.fg(ansi256_to_color(codes[i + 2]));
                 i += 2;
             }
-            38 if i + 4 < codes.len() && codes[i+1] == 2 => {
-                style = style.fg(Color::Rgb(codes[i+2], codes[i+3], codes[i+4]));
+            38 if i + 4 < codes.len() && codes[i + 1] == 2 => {
+                style = style.fg(Color::Rgb(codes[i + 2], codes[i + 3], codes[i + 4]));
                 i += 4;
             }
             _ => {}
@@ -308,23 +338,23 @@ fn parse_sgr(params: &str, current: Style) -> Style {
 
 fn ansi256_to_color(n: u8) -> Color {
     match n {
-        0  => Color::Black,
-        1  => Color::Red,
-        2  => Color::Green,
-        3  => Color::Yellow,
-        4  => Color::Blue,
-        5  => Color::Magenta,
-        6  => Color::Cyan,
-        7  => Color::White,
-        8  => Color::DarkGray,
-        9  => Color::LightRed,
+        0 => Color::Black,
+        1 => Color::Red,
+        2 => Color::Green,
+        3 => Color::Yellow,
+        4 => Color::Blue,
+        5 => Color::Magenta,
+        6 => Color::Cyan,
+        7 => Color::White,
+        8 => Color::DarkGray,
+        9 => Color::LightRed,
         10 => Color::LightGreen,
         11 => Color::LightYellow,
         12 => Color::LightBlue,
         13 => Color::LightMagenta,
         14 => Color::LightCyan,
         15 => Color::White,
-        n  => {
+        n => {
             // 6x6x6 color cube
             if n >= 16 && n <= 231 {
                 let n = n - 16;
@@ -347,61 +377,123 @@ fn friday_respond(db: &Connection, input: &str) -> String {
         return "/status /intent /patterns /facts /why /recall /trace /where /show".to_string();
     }
     if lower.starts_with("/status") || lower == "status" {
-        let facts: i64 = db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
-        let patterns: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-        return format!("Health: {} | INT-{} | Facts: {} | Patterns: {}",
-            get_health(db), get_intent(db), facts, patterns);
+        let facts: i64 = db
+            .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+            .unwrap_or(0);
+        let patterns: i64 = db
+            .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+            .unwrap_or(0);
+        return format!(
+            "Health: {} | INT-{} | Facts: {} | Patterns: {}",
+            get_health(db),
+            get_intent(db),
+            facts,
+            patterns
+        );
     }
     if lower.starts_with("/patterns") || lower == "patterns" {
         let mut stmt = db.prepare(
             "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 5"
         ).unwrap();
-        let rows: Vec<String> = stmt.query_map([], |r| {
-            Ok(format!("{:.0}% {} → {}", r.get::<_,f64>(2)?*100.0, r.get::<_,String>(0)?, r.get::<_,String>(1)?))
-        }).unwrap().flatten().collect();
-        return if rows.is_empty() { "No patterns yet".to_string() } else { rows.join("\n") };
+        let rows: Vec<String> = stmt
+            .query_map([], |r| {
+                Ok(format!(
+                    "{:.0}% {} → {}",
+                    r.get::<_, f64>(2)? * 100.0,
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?
+                ))
+            })
+            .unwrap()
+            .flatten()
+            .collect();
+        return if rows.is_empty() {
+            "No patterns yet".to_string()
+        } else {
+            rows.join("\n")
+        };
     }
     if lower.starts_with("/why") || lower.starts_with("why") {
-        let term = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
-        if term.is_empty() { return "Usage: why [event]".to_string(); }
+        let term = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
+        if term.is_empty() {
+            return "Usage: why [event]".to_string();
+        }
         let pattern = format!("%{}%", term);
         let mut stmt = db.prepare(
             "SELECT domain, action, payload FROM events WHERE payload LIKE ?1 ORDER BY timestamp DESC LIMIT 3"
         ).unwrap();
-        let rows: Vec<String> = stmt.query_map(rusqlite::params![pattern], |r| {
-            Ok(format!("[{}:{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?,
-                r.get::<_,String>(2).unwrap_or_default()))
-        }).unwrap().flatten().collect();
-        return if rows.is_empty() { format!("No events matching: {}", term) }
-               else { rows.join("\n") };
+        let rows: Vec<String> = stmt
+            .query_map(rusqlite::params![pattern], |r| {
+                Ok(format!(
+                    "[{}:{}] {}",
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2).unwrap_or_default()
+                ))
+            })
+            .unwrap()
+            .flatten()
+            .collect();
+        return if rows.is_empty() {
+            format!("No events matching: {}", term)
+        } else {
+            rows.join("\n")
+        };
     }
     // Natural language fallback
     let pattern = format!("%{}%", input.split_whitespace().next().unwrap_or(""));
-    let fact: Option<String> = db.query_row(
-        "SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 LIMIT 1",
-        rusqlite::params![pattern], |r| r.get(0)
-    ).ok();
+    let fact: Option<String> = db
+        .query_row(
+            "SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 LIMIT 1",
+            rusqlite::params![pattern],
+            |r| r.get(0),
+        )
+        .ok();
     fact.unwrap_or_else(|| format!("No knowledge about '{}'. Try /why or /patterns", input))
 }
 
 fn draw(f: &mut ratatui::Frame, app: &App) {
     let area = f.area();
-    f.render_widget(ratatui::widgets::Block::default().style(Style::default().bg(BG)), area);
+    f.render_widget(
+        ratatui::widgets::Block::default().style(Style::default().bg(BG)),
+        area,
+    );
 
     // Header
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
         .split(area);
 
     let header = Paragraph::new(Line::from(vec![
-        Span::styled(" 🌲 Forest ADE ", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " 🌲 Forest ADE ",
+            Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+        ),
         Span::styled("│ ", Style::default().fg(DIM)),
-        Span::styled(format!("INT-{}", app.intent_hint), Style::default().fg(ACCENT)),
+        Span::styled(
+            format!("INT-{}", app.intent_hint),
+            Style::default().fg(ACCENT),
+        ),
         Span::styled(" │ ", Style::default().fg(DIM)),
-        Span::styled(format!("Health: {}", app.health_hint), Style::default().fg(GREEN)),
-        Span::styled("  Alt+Tab: switch panes  Ctrl+c: exit", Style::default().fg(DIM)),
-    ])).style(Style::default().bg(BG));
+        Span::styled(
+            format!("Health: {}", app.health_hint),
+            Style::default().fg(GREEN),
+        ),
+        Span::styled(
+            "  Alt+Tab: switch panes  Ctrl+c: exit",
+            Style::default().fg(DIM),
+        ),
+    ]))
+    .style(Style::default().bg(BG));
     f.render_widget(header, chunks[0]);
 
     // Main split
@@ -411,69 +503,103 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
         .split(chunks[1]);
 
     // Terminal pane
-    let term_border = if app.active_pane == ActivePane::Terminal { GREEN } else { DIM };
-    let term_lines: Vec<Line> = app.terminal_lines.iter()
+    let term_border = if app.active_pane == ActivePane::Terminal {
+        GREEN
+    } else {
+        DIM
+    };
+    let term_lines: Vec<Line> = app
+        .terminal_lines
+        .iter()
         .skip(app.terminal_scroll.saturating_sub(panes[0].height as usize))
         .take(panes[0].height as usize)
         .map(|spans| {
-            Line::from(spans.iter()
-                .map(|(text, style)| Span::styled(text.clone(), *style))
-                .collect::<Vec<_>>())
+            Line::from(
+                spans
+                    .iter()
+                    .map(|(text, style)| Span::styled(text.clone(), *style))
+                    .collect::<Vec<_>>(),
+            )
         })
         .collect();
-    let term_widget = Paragraph::new(term_lines)
-        .block(Block::default()
+    let term_widget = Paragraph::new(term_lines).block(
+        Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(term_border))
-            .title(Span::styled(" fsh ", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)))
-            .style(Style::default().bg(BG)));
+            .title(Span::styled(
+                " fsh ",
+                Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+            ))
+            .style(Style::default().bg(BG)),
+    );
     f.render_widget(term_widget, panes[0]);
 
     // Friday pane -- split into messages + input
-    let friday_border = if app.active_pane == ActivePane::Friday { GREEN } else { DIM };
+    let friday_border = if app.active_pane == ActivePane::Friday {
+        GREEN
+    } else {
+        DIM
+    };
     let friday_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1), Constraint::Length(3)])
         .split(panes[1]);
 
-    let friday_lines: Vec<Line> = app.friday_messages.iter()
+    let friday_lines: Vec<Line> = app
+        .friday_messages
+        .iter()
         .flat_map(|m| {
             let prefix = if m.from_friday {
                 Span::styled("🌲 ", Style::default().fg(GREEN))
             } else {
                 Span::styled("  ", Style::default())
             };
-            m.text.lines().enumerate().map(move |(i, line)| {
-                if i == 0 {
-                    Line::from(vec![prefix.clone(),
-                        Span::styled(line.to_string(), Style::default().fg(FG))])
-                } else {
-                    Line::from(vec![
-                        Span::raw("   "),
-                        Span::styled(line.to_string(), Style::default().fg(FG))])
-                }
-            }).collect::<Vec<_>>()
-        }).collect();
+            m.text
+                .lines()
+                .enumerate()
+                .map(move |(i, line)| {
+                    if i == 0 {
+                        Line::from(vec![
+                            prefix.clone(),
+                            Span::styled(line.to_string(), Style::default().fg(FG)),
+                        ])
+                    } else {
+                        Line::from(vec![
+                            Span::raw("   "),
+                            Span::styled(line.to_string(), Style::default().fg(FG)),
+                        ])
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
     let friday_widget = Paragraph::new(friday_lines)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(friday_border))
-            .title(Span::styled(" Friday ", Style::default().fg(AMBER).add_modifier(Modifier::BOLD)))
-            .style(Style::default().bg(BG)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(friday_border))
+                .title(Span::styled(
+                    " Friday ",
+                    Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
+                ))
+                .style(Style::default().bg(BG)),
+        )
         .wrap(Wrap { trim: true });
     f.render_widget(friday_widget, friday_chunks[0]);
 
     // Friday input
     let input_widget = Paragraph::new(format!("> {}", app.friday_input))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(DIM))
-            .title(Span::styled(" Ask Friday ", Style::default().fg(DIM)))
-            .style(Style::default().bg(BG)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(DIM))
+                .title(Span::styled(" Ask Friday ", Style::default().fg(DIM)))
+                .style(Style::default().bg(BG)),
+        )
         .style(Style::default().fg(FG));
     f.render_widget(input_widget, friday_chunks[1]);
 
@@ -481,7 +607,8 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
     let status = Paragraph::new(Line::from(vec![
         Span::styled(" ", Style::default()),
         Span::styled(&app.status, Style::default().fg(DIM)),
-    ])).style(Style::default().bg(BG));
+    ]))
+    .style(Style::default().bg(BG));
     f.render_widget(status, chunks[2]);
 }
 
@@ -510,28 +637,34 @@ async fn main() -> anyhow::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match app.active_pane {
                     ActivePane::Terminal => match key.code {
-                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            break
+                        }
                         KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
                             app.active_pane = ActivePane::Friday;
                         }
                         KeyCode::Char(c) => app.send_to_pty(&c.to_string()),
-                        KeyCode::Enter  => app.send_to_pty("\n"),
+                        KeyCode::Enter => app.send_to_pty("\n"),
                         KeyCode::Backspace => app.send_to_pty("\x7f"),
-                        KeyCode::Tab    => app.send_to_pty("\t"),
-                        KeyCode::Up     => app.send_to_pty("\x1b[A"),
-                        KeyCode::Down   => app.send_to_pty("\x1b[B"),
-                        KeyCode::Left   => app.send_to_pty("\x1b[D"),
-                        KeyCode::Right  => app.send_to_pty("\x1b[C"),
-                        KeyCode::Esc    => app.send_to_pty("\x1b"),
+                        KeyCode::Tab => app.send_to_pty("\t"),
+                        KeyCode::Up => app.send_to_pty("\x1b[A"),
+                        KeyCode::Down => app.send_to_pty("\x1b[B"),
+                        KeyCode::Left => app.send_to_pty("\x1b[D"),
+                        KeyCode::Right => app.send_to_pty("\x1b[C"),
+                        KeyCode::Esc => app.send_to_pty("\x1b"),
                         _ => {}
                     },
                     ActivePane::Friday => match key.code {
-                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            break
+                        }
                         KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
                             app.active_pane = ActivePane::Terminal;
                         }
                         KeyCode::Enter => app.send_friday(),
-                        KeyCode::Backspace => { app.friday_input.pop(); }
+                        KeyCode::Backspace => {
+                            app.friday_input.pop();
+                        }
                         KeyCode::Char(c) => app.friday_input.push(c),
                         KeyCode::Esc => app.active_pane = ActivePane::Terminal,
                         _ => {}

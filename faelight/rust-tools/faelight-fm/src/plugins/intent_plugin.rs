@@ -1,18 +1,19 @@
 // faelight-fm v4.0 -- Intent plugin
 // Handles: .md files in intents/, intent-linked files
 
-use std::path::Path;
 use super::{Plugin, PluginAction};
+use std::path::Path;
 
 pub struct IntentPlugin;
 
 impl Plugin for IntentPlugin {
-    fn name(&self) -> &str { "intent" }
+    fn name(&self) -> &str {
+        "intent"
+    }
 
     fn handles(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
-        path_str.contains("/intents/") && 
-            path.extension().map(|e| e == "md").unwrap_or(false)
+        path_str.contains("/intents/") && path.extension().map(|e| e == "md").unwrap_or(false)
     }
 
     fn preview(&self, path: &Path) -> String {
@@ -40,15 +41,19 @@ impl Plugin for IntentPlugin {
                 // Format key fields
                 for key in &["title", "status", "tags", "priority", "date"] {
                     if line.starts_with(key) {
-                        let val = line.splitn(2, ':').nth(1)
-                            .unwrap_or("").trim().trim_matches('"');
+                        let val = line
+                            .splitn(2, ':')
+                            .nth(1)
+                            .unwrap_or("")
+                            .trim()
+                            .trim_matches('"');
                         let icon = match *key {
-                            "title"    => "📌",
-                            "status"   => "🔄",
-                            "tags"     => "🏷",
+                            "title" => "📌",
+                            "status" => "🔄",
+                            "tags" => "🏷",
                             "priority" => "⚡",
-                            "date"     => "📅",
-                            _          => "  ",
+                            "date" => "📅",
+                            _ => "  ",
                         };
                         out.push_str(&format!("{} {}: {}\n", icon, key, val));
                     }
@@ -94,10 +99,11 @@ impl Plugin for IntentPlugin {
                     crossterm::cursor::Hide,
                 );
                 format!("Opening {}", path.display())
-            },
+            }
             's' => {
                 // Extract ID from filename
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
                 let id = name.split('-').next().unwrap_or("").to_string();
@@ -115,7 +121,7 @@ impl Plugin for IntentPlugin {
                 } else {
                     out
                 }
-            },
+            }
             _ => String::new(),
         }
     }

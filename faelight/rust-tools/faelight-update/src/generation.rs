@@ -44,7 +44,9 @@ fn intent_for_commit(commit: &str) -> String {
 }
 
 fn flake_dir() -> String {
-    std::env::var("HOME").map(|h| format!("{h}/0-core")).unwrap_or_else(|_| ".".into())
+    std::env::var("HOME")
+        .map(|h| format!("{h}/0-core"))
+        .unwrap_or_else(|_| ".".into())
 }
 
 /// Store-profile path for a generation number.
@@ -86,11 +88,22 @@ fn parse_generations(text: &str) -> Vec<Generation> {
         let nixos_version = cols[3].to_string();
         let kernel = cols[4].to_string();
         // Configuration Revision is col 5 when present; some rows may lack it.
-        let commit = cols.get(5).map(|s| s.to_string()).unwrap_or_else(|| "--".into());
+        let commit = cols
+            .get(5)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "--".into());
         // "Current" is the last column: True/False.
         let current = cols.last().map(|s| *s == "True").unwrap_or(false);
         let intent = intent_for_commit(&commit);
-        gens.push(Generation { number, date, nixos_version, kernel, commit, intent, current });
+        gens.push(Generation {
+            number,
+            date,
+            nixos_version,
+            kernel,
+            commit,
+            intent,
+            current,
+        });
     }
     // newest first
     gens.sort_by(|a, b| b.number.cmp(&a.number));
@@ -167,7 +180,12 @@ struct GenBrowser {
 
 impl GenBrowser {
     fn new(gens: Vec<Generation>) -> Self {
-        Self { gens, selected: 0, marked: None, status: "j/k move · space mark · d diff · r rollback · q quit".into() }
+        Self {
+            gens,
+            selected: 0,
+            marked: None,
+            status: "j/k move · space mark · d diff · r rollback · q quit".into(),
+        }
     }
     fn next(&mut self) {
         if !self.gens.is_empty() {
@@ -179,7 +197,10 @@ impl GenBrowser {
     }
     fn mark(&mut self) {
         self.marked = Some(self.selected);
-        self.status = format!("marked gen {} -- move to another and press d to diff", self.gens[self.selected].number);
+        self.status = format!(
+            "marked gen {} -- move to another and press d to diff",
+            self.gens[self.selected].number
+        );
     }
 }
 
@@ -198,12 +219,19 @@ pub fn run_generation_browser() -> io::Result<()> {
     let mut app = GenBrowser::new(gens);
     let res = run_loop(&mut terminal, &mut app);
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
     res
 }
 
-fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut GenBrowser) -> io::Result<()> {
+fn run_loop(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut GenBrowser,
+) -> io::Result<()> {
     loop {
         terminal.draw(|f| render(f, app))?;
         if let Event::Key(key) = event::read()? {
@@ -220,7 +248,12 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut Gen
                     let sel = app.gens[app.selected].number;
                     let other = match app.marked {
                         Some(m) => app.gens[m].number,
-                        None => app.gens.iter().find(|g| g.current).map(|g| g.number).unwrap_or(sel),
+                        None => app
+                            .gens
+                            .iter()
+                            .find(|g| g.current)
+                            .map(|g| g.number)
+                            .unwrap_or(sel),
                     };
                     run_diff(terminal, other, sel)?;
                 }
@@ -237,45 +270,106 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut Gen
 fn render(f: &mut Frame, app: &GenBrowser) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(3), Constraint::Length(3)])
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(3),
+            Constraint::Length(3),
+        ])
         .split(f.area());
 
     // Header.
     let header = Paragraph::new(Line::from(vec![
         Span::styled("❄ ", Style::default().fg(C_AQUA)),
-        Span::styled("Generation Browser", Style::default().fg(C_LIME).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Generation Browser",
+            Style::default().fg(C_LIME).add_modifier(Modifier::BOLD),
+        ),
         Span::styled("  --  the forest's history", Style::default().fg(C_DIM)),
     ]))
     .style(Style::default().bg(C_BG));
     f.render_widget(header, chunks[0]);
 
     // Timeline list.
-    let rows: Vec<ListItem> = app.gens.iter().enumerate().map(|(i, g)| {
-        let is_sel = i == app.selected;
-        let is_marked = app.marked == Some(i);
-        let bg = if is_sel { C_BG_SEL } else { C_BG };
-        let marker = if g.current { "●" } else if is_marked { "◆" } else { "○" };
-        let marker_color = if g.current { C_LIME } else if is_marked { C_AMBER } else { C_DIM };
-        let num_color = if g.current { C_LIME } else { C_FOREST };
-        let commit_short: String = g.commit.chars().take(8).collect();
-        let dirty = g.commit.ends_with("-dirty");
-        ListItem::new(Line::from(vec![
-            Span::styled(format!(" {marker} "), Style::default().fg(marker_color).bg(bg)),
-            Span::styled(format!("{:>4}", g.number), Style::default().fg(num_color).bg(bg).add_modifier(if is_sel { Modifier::BOLD } else { Modifier::empty() })),
-            Span::styled(format!("  {}", g.date), Style::default().fg(C_DIM).bg(bg)),
-            Span::styled(format!("  {}", g.kernel), Style::default().fg(C_TEXT).bg(bg)),
-            Span::styled(format!("  {}", g.nixos_version), Style::default().fg(C_DIM).bg(bg)),
-            Span::styled(format!("  {commit_short}"), Style::default().fg(C_AQUA).bg(bg)),
-            Span::styled(if dirty { " *" } else { "" }, Style::default().fg(C_AMBER).bg(bg)),
-            Span::styled(
-                if g.intent != "--" { format!("  {}", g.intent) } else { String::new() },
-                Style::default().fg(C_PURPLE).bg(bg),
-            ),
-            Span::styled(if g.current { "  (current)" } else { "" }, Style::default().fg(C_LIME).bg(bg)),
-        ]))
-    }).collect();
+    let rows: Vec<ListItem> = app
+        .gens
+        .iter()
+        .enumerate()
+        .map(|(i, g)| {
+            let is_sel = i == app.selected;
+            let is_marked = app.marked == Some(i);
+            let bg = if is_sel { C_BG_SEL } else { C_BG };
+            let marker = if g.current {
+                "●"
+            } else if is_marked {
+                "◆"
+            } else {
+                "○"
+            };
+            let marker_color = if g.current {
+                C_LIME
+            } else if is_marked {
+                C_AMBER
+            } else {
+                C_DIM
+            };
+            let num_color = if g.current { C_LIME } else { C_FOREST };
+            let commit_short: String = g.commit.chars().take(8).collect();
+            let dirty = g.commit.ends_with("-dirty");
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    format!(" {marker} "),
+                    Style::default().fg(marker_color).bg(bg),
+                ),
+                Span::styled(
+                    format!("{:>4}", g.number),
+                    Style::default()
+                        .fg(num_color)
+                        .bg(bg)
+                        .add_modifier(if is_sel {
+                            Modifier::BOLD
+                        } else {
+                            Modifier::empty()
+                        }),
+                ),
+                Span::styled(format!("  {}", g.date), Style::default().fg(C_DIM).bg(bg)),
+                Span::styled(
+                    format!("  {}", g.kernel),
+                    Style::default().fg(C_TEXT).bg(bg),
+                ),
+                Span::styled(
+                    format!("  {}", g.nixos_version),
+                    Style::default().fg(C_DIM).bg(bg),
+                ),
+                Span::styled(
+                    format!("  {commit_short}"),
+                    Style::default().fg(C_AQUA).bg(bg),
+                ),
+                Span::styled(
+                    if dirty { " *" } else { "" },
+                    Style::default().fg(C_AMBER).bg(bg),
+                ),
+                Span::styled(
+                    if g.intent != "--" {
+                        format!("  {}", g.intent)
+                    } else {
+                        String::new()
+                    },
+                    Style::default().fg(C_PURPLE).bg(bg),
+                ),
+                Span::styled(
+                    if g.current { "  (current)" } else { "" },
+                    Style::default().fg(C_LIME).bg(bg),
+                ),
+            ]))
+        })
+        .collect();
     let list = List::new(rows)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(C_DIM)).style(Style::default().bg(C_BG)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(C_DIM))
+                .style(Style::default().bg(C_BG)),
+        )
         .style(Style::default().bg(C_BG));
     f.render_widget(list, chunks[1]);
 
@@ -289,15 +383,27 @@ fn render(f: &mut Frame, app: &GenBrowser) {
         Span::styled("  [r = rollback]", Style::default().fg(C_CORAL)),
         Span::styled(marked_txt, Style::default().fg(C_AMBER)),
     ]))
-    .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(C_DIM)))
+    .block(
+        Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(C_DIM)),
+    )
     .style(Style::default().bg(C_BG));
     f.render_widget(status, chunks[2]);
 }
 
 /// Leave the alt screen, run nvd diff between two generations, wait for a keypress, return.
-fn run_diff(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, a: u32, b: u32) -> io::Result<()> {
+fn run_diff(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    a: u32,
+    b: u32,
+) -> io::Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     println!("\n  ❄ nvd diff: gen {a} -> gen {b}\n");
     let _ = std::process::Command::new("nvd")
         .args(["diff", &gen_path(a), &gen_path(b)])
@@ -306,29 +412,49 @@ fn run_diff(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, a: u32, b: u3
     let mut buf = String::new();
     io::stdin().read_line(&mut buf).ok();
     enable_raw_mode()?;
-    execute!(terminal.backend_mut(), EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
     terminal.clear()?;
     Ok(())
 }
 
 /// Gated rollback: confirm, then `sudo nixos-rebuild switch --rollback`-style activation.
-fn run_rollback(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut GenBrowser, n: u32) -> io::Result<()> {
+fn run_rollback(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut GenBrowser,
+    n: u32,
+) -> io::Result<()> {
     if app.gens.iter().find(|g| g.current).map(|g| g.number) == Some(n) {
         app.status = format!("gen {n} is already current");
         return Ok(());
     }
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     println!("\n  ⚠  Roll back to generation {n}? This will switch the system. (y/N): ");
     let mut buf = String::new();
     io::stdin().read_line(&mut buf).ok();
     if buf.trim().to_lowercase() == "y" {
         println!("  → Activating generation {n}...");
         let _ = std::process::Command::new("sudo")
-            .args(["nix-env", "--profile", "/nix/var/nix/profiles/system", "--switch-generation", &n.to_string()])
+            .args([
+                "nix-env",
+                "--profile",
+                "/nix/var/nix/profiles/system",
+                "--switch-generation",
+                &n.to_string(),
+            ])
             .status();
         let _ = std::process::Command::new("sudo")
-            .arg(format!("/nix/var/nix/profiles/system-{n}-link/bin/switch-to-configuration"))
+            .arg(format!(
+                "/nix/var/nix/profiles/system-{n}-link/bin/switch-to-configuration"
+            ))
             .arg("switch")
             .status();
         println!("  ✓ Rolled back to gen {n}. (press Enter)");
@@ -338,7 +464,11 @@ fn run_rollback(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut
     let mut b2 = String::new();
     io::stdin().read_line(&mut b2).ok();
     enable_raw_mode()?;
-    execute!(terminal.backend_mut(), EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
     terminal.clear()?;
     app.gens = list_generations();
     app.status = "rolled back -- list refreshed".into();

@@ -17,10 +17,10 @@ pub struct ToolMeta {
     pub license: String,
     pub edition: String,
     pub description: String,
-    pub intent: Option<String>,   // INT-NNN parsed from description
+    pub intent: Option<String>, // INT-NNN parsed from description
     // registry enrichment:
     pub category: String,
-    pub status: String,           // active / retired / deferred
+    pub status: String, // active / retired / deferred
     pub expected_usage: String,
     pub depends_on: Vec<String>,
     pub retired: bool,
@@ -37,7 +37,9 @@ fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
             in_package = t == "[package]";
             continue;
         }
-        if !in_package { continue; }
+        if !in_package {
+            continue;
+        }
         if let Some((key, val)) = t.split_once('=') {
             let key = key.trim();
             let val = val.trim().trim_matches('"').to_string();
@@ -51,18 +53,26 @@ fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
             }
         }
     }
-    if m.name.is_empty() { return None; }
+    if m.name.is_empty() {
+        return None;
+    }
     // Extract INT-NNN from the description if present.
     if let Some(pos) = m.description.find("INT-") {
         let tail = &m.description[pos..];
-        let num: String = tail.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+        let num: String = tail
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
+            .collect();
         m.intent = Some(num);
     }
     Some(m)
 }
 
 /// Enrich a ToolMeta from registry/tools.toml (line-parsed, matching existing style).
-fn enrich_from_registry(tools: &[(String, String, String, String, bool, Vec<String>)], m: &mut ToolMeta) {
+fn enrich_from_registry(
+    tools: &[(String, String, String, String, bool, Vec<String>)],
+    m: &mut ToolMeta,
+) {
     // tools: (name, category, expected_usage, description, retired)
     if let Some((_, cat, usage, _desc, retired, deps)) =
         tools.iter().find(|(n, _, _, _, _, _)| *n == m.name)
@@ -71,7 +81,11 @@ fn enrich_from_registry(tools: &[(String, String, String, String, bool, Vec<Stri
         m.expected_usage = usage.clone();
         m.retired = *retired;
         m.depends_on = deps.clone();
-        m.status = if *retired { "retired".into() } else { "active".into() };
+        m.status = if *retired {
+            "retired".into()
+        } else {
+            "active".into()
+        };
     } else {
         m.status = "unregistered".into();
         m.category = "uncategorized".into();
@@ -83,18 +97,50 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
     let path = core_root().join("registry/tools.toml");
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let mut out = vec![];
-    let (mut name, mut cat, mut usage, mut desc, mut retired, mut deps) =
-        (String::new(), String::new(), String::new(), String::new(), false, Vec::<String>::new());
-    let flush = |v: &mut Vec<_>, name: &mut String, cat: &mut String, usage: &mut String, desc: &mut String, retired: &mut bool, deps: &mut Vec<String>| {
+    let (mut name, mut cat, mut usage, mut desc, mut retired, mut deps) = (
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        false,
+        Vec::<String>::new(),
+    );
+    let flush = |v: &mut Vec<_>,
+                 name: &mut String,
+                 cat: &mut String,
+                 usage: &mut String,
+                 desc: &mut String,
+                 retired: &mut bool,
+                 deps: &mut Vec<String>| {
         if !name.is_empty() {
-            v.push((name.clone(), cat.clone(), usage.clone(), desc.clone(), *retired, deps.clone()));
+            v.push((
+                name.clone(),
+                cat.clone(),
+                usage.clone(),
+                desc.clone(),
+                *retired,
+                deps.clone(),
+            ));
         }
-        *name = String::new(); *cat = String::new(); *usage = String::new(); *desc = String::new(); *retired = false; deps.clear();
+        *name = String::new();
+        *cat = String::new();
+        *usage = String::new();
+        *desc = String::new();
+        *retired = false;
+        deps.clear();
     };
     for line in text.lines() {
         let t = line.trim();
         if t == "[[tool]]" {
-            flush(&mut out, &mut name, &mut cat, &mut usage, &mut desc, &mut retired, &mut deps);
+            flush(
+                &mut out,
+                &mut name,
+                &mut cat,
+                &mut usage,
+                &mut desc,
+                &mut retired,
+                &mut deps,
+            );
             continue;
         }
         if let Some((k, val)) = t.split_once('=') {
@@ -106,7 +152,8 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
                 "description" => desc = val,
                 "retired" => retired = val == "true",
                 "depends_on" => {
-                    deps = val.trim_matches(|c| c == '[' || c == ']')
+                    deps = val
+                        .trim_matches(|c| c == '[' || c == ']')
                         .split(',')
                         .map(|s| s.trim().trim_matches('"').to_string())
                         .filter(|s| !s.is_empty())
@@ -116,7 +163,15 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
             }
         }
     }
-    flush(&mut out, &mut name, &mut cat, &mut usage, &mut desc, &mut retired, &mut deps);
+    flush(
+        &mut out,
+        &mut name,
+        &mut cat,
+        &mut usage,
+        &mut desc,
+        &mut retired,
+        &mut deps,
+    );
     out
 }
 
@@ -128,9 +183,13 @@ pub fn gather_all() -> Vec<ToolMeta> {
     if let Ok(entries) = std::fs::read_dir(&rt) {
         for e in entries.flatten() {
             let p = e.path();
-            if !p.is_dir() { continue; }
+            if !p.is_dir() {
+                continue;
+            }
             let cargo = p.join("Cargo.toml");
-            if !cargo.exists() { continue; }
+            if !cargo.exists() {
+                continue;
+            }
             if let Some(mut m) = parse_cargo(&cargo) {
                 enrich_from_registry(&registry, &mut m);
                 metas.push(m);
@@ -139,8 +198,7 @@ pub fn gather_all() -> Vec<ToolMeta> {
     }
     // INT-111/037: the engine (core) lives at faelight/engine, not rust-tools/.
     // Include it explicitly so it joins the self-maintaining README pipeline.
-    let engine_cargo = core_root()
-        .join("faelight/engine/Cargo.toml");
+    let engine_cargo = core_root().join("faelight/engine/Cargo.toml");
     if engine_cargo.exists() {
         if let Some(mut m) = parse_cargo(&engine_cargo) {
             enrich_from_registry(&registry, &mut m);
@@ -154,20 +212,35 @@ pub fn gather_all() -> Vec<ToolMeta> {
 /// PIECE 2a: print parsed metadata for verification (no file writing).
 pub fn cmd_readme_tools_dryprint() {
     let metas = gather_all();
-    println!("  Parsed {} tools from rust-tools/*/Cargo.toml:\n", metas.len());
+    println!(
+        "  Parsed {} tools from rust-tools/*/Cargo.toml:\n",
+        metas.len()
+    );
     for m in &metas {
         let intent = m.intent.clone().unwrap_or_else(|| "-".into());
-        let deps = if m.depends_on.is_empty() { String::new() }
-                   else { format!("deps={}", m.depends_on.join(",")) };
+        let deps = if m.depends_on.is_empty() {
+            String::new()
+        } else {
+            format!("deps={}", m.depends_on.join(","))
+        };
         println!(
             "  {:22} v{:8} [{}] cat={:14} intent={} {} {}",
-            m.name, m.version, m.status, m.category, intent,
-            if m.retired { "(RETIRED)" } else { "" }, deps
+            m.name,
+            m.version,
+            m.status,
+            m.category,
+            intent,
+            if m.retired { "(RETIRED)" } else { "" },
+            deps
         );
     }
     let active = metas.iter().filter(|m| !m.retired).count();
-    println!("\n  Total: {} on disk, {} active, {} retired",
-        metas.len(), active, metas.len() - active);
+    println!(
+        "\n  Total: {} on disk, {} active, {} retired",
+        metas.len(),
+        active,
+        metas.len() - active
+    );
 }
 
 // INT-111/037: strip a leading "INT-NNN:" or "INT-NNN " prefix from a commit subject,
@@ -176,7 +249,10 @@ fn strip_int_prefix(subject: &str) -> String {
     let t = subject.trim();
     if let Some(rest) = t.strip_prefix("INT-") {
         // skip the digits, then an optional ':' or ' ' separator
-        let after_num: String = rest.chars().skip_while(|c| c.is_ascii_digit() || *c == '-').collect();
+        let after_num: String = rest
+            .chars()
+            .skip_while(|c| c.is_ascii_digit() || *c == '-')
+            .collect();
         return after_num.trim_start_matches([':', ' ']).trim().to_string();
     }
     t.to_string()
@@ -212,8 +288,14 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     if hist.is_empty() {
         out.push_str("_No changelog yet._\n\n");
     } else {
-        out.push_str(&format!("### \u{1f331} {}\n\n",
-            if m.version.is_empty() { "current" } else { &m.version }));
+        out.push_str(&format!(
+            "### \u{1f331} {}\n\n",
+            if m.version.is_empty() {
+                "current"
+            } else {
+                &m.version
+            }
+        ));
         for (_hash, subj) in &hist {
             let clean = strip_int_prefix(subj);
             if !clean.is_empty() {
@@ -267,7 +349,10 @@ pub fn render_readme(m: &ToolMeta) -> String {
     // Build & install (NixOS-native -- NOT Arch/stow)
     out.push_str("## Build\n\n");
     out.push_str("```sh\n");
-    out.push_str(&format!("nix develop ~/0-core#faelight-forest -c cargo build -p {}\n", m.name));
+    out.push_str(&format!(
+        "nix develop ~/0-core#faelight-forest -c cargo build -p {}\n",
+        m.name
+    ));
     out.push_str("```\n\n");
     out.push_str("## Deploy\n\n");
     out.push_str("```sh\n");
@@ -319,7 +404,10 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
         "The forest's tool ecosystem: {} active tools (plus {} retired), each a purpose-built Rust program.\n\n",
         active.len(), retired.len()
     ));
-    out.push_str(&format!("**Generated:** {} by `faelight-docs sync`\n\n", date));
+    out.push_str(&format!(
+        "**Generated:** {} by `faelight-docs sync`\n\n",
+        date
+    ));
     out.push_str("---\n\n");
 
     // Group active tools by category.
@@ -329,7 +417,9 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
 
     for cat in &cats {
         let in_cat: Vec<&&ToolMeta> = active.iter().filter(|m| &m.category == cat).collect();
-        if in_cat.is_empty() { continue; }
+        if in_cat.is_empty() {
+            continue;
+        }
         out.push_str(&format!("## {}\n\n", cap_first(cat)));
         out.push_str("| Tool | Version | Description |\n");
         out.push_str("|------|---------|-------------|\n");
@@ -338,11 +428,20 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
                 Some(pos) => m.description[..pos].trim_end().to_string(),
                 None => m.description.clone(),
             };
-            let desc = if desc.is_empty() { "-".to_string() } else { desc };
+            let desc = if desc.is_empty() {
+                "-".to_string()
+            } else {
+                desc
+            };
             out.push_str(&format!(
                 "| [`{}`](./{}/) | {} | {} |\n",
-                m.name, m.name,
-                if m.version.is_empty() { "-" } else { &m.version },
+                m.name,
+                m.name,
+                if m.version.is_empty() {
+                    "-"
+                } else {
+                    &m.version
+                },
                 desc,
             ));
         }
@@ -387,12 +486,18 @@ pub fn cmd_generate(dry_run: bool) {
         };
         let content = render_readme(m);
         if dry_run {
-            println!("  would write: rust-tools/{}/README.md ({} bytes)", m.name, content.len());
+            println!(
+                "  would write: rust-tools/{}/README.md ({} bytes)",
+                m.name,
+                content.len()
+            );
             written += 1;
             continue;
         }
         match std::fs::write(&readme_path, &content) {
-            Ok(_) => { written += 1; }
+            Ok(_) => {
+                written += 1;
+            }
             Err(e) => {
                 eprintln!("  failed: {}/README.md -- {}", m.name, e);
                 skipped += 1;
@@ -404,7 +509,10 @@ pub fn cmd_generate(dry_run: bool) {
     let index = render_index(&metas);
     let index_path = rt.join("README.md");
     if dry_run {
-        println!("  would write: rust-tools/README.md (index, {} bytes)", index.len());
+        println!(
+            "  would write: rust-tools/README.md (index, {} bytes)",
+            index.len()
+        );
     } else {
         match std::fs::write(&index_path, &index) {
             Ok(_) => println!("  wrote: rust-tools/README.md (index)"),
@@ -413,9 +521,15 @@ pub fn cmd_generate(dry_run: bool) {
     }
 
     if dry_run {
-        println!("\n  DRY RUN: {} per-tool READMEs + 1 index would be written", written);
+        println!(
+            "\n  DRY RUN: {} per-tool READMEs + 1 index would be written",
+            written
+        );
     } else {
-        println!("\n  Done: {} per-tool READMEs written, {} skipped, + index", written, skipped);
+        println!(
+            "\n  Done: {} per-tool READMEs written, {} skipped, + index",
+            written, skipped
+        );
     }
 }
 
@@ -440,14 +554,23 @@ fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
     let path = format!("rust-tools/{}/", name);
     let new_path = format!("faelight/rust-tools/{}/", name);
     let out = std::process::Command::new("git")
-        .arg("-C").arg(core_root())
+        .arg("-C")
+        .arg(core_root())
         .args(["log", "--pretty=format:%h\x1f%s", "--", &path, &new_path])
         .output();
     let text = match out {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
         Err(_) => return vec![],
     };
-    let noise = ["wip", "typo", "fmt", "format", "merge", "bump version", "checkpoint"];
+    let noise = [
+        "wip",
+        "typo",
+        "fmt",
+        "format",
+        "merge",
+        "bump version",
+        "checkpoint",
+    ];
     let mut entries = vec![];
     for line in text.lines() {
         if let Some((hash, subj)) = line.split_once('\x1f') {
@@ -455,10 +578,16 @@ fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
             // subject only; truncate at a word boundary near 80 chars, add ellipsis.
             let subject = truncate_words(s, 80);
             let low = subject.to_lowercase();
-            if noise.iter().any(|n| low == *n || low.starts_with(n)) { continue; }
-            if subject.is_empty() { continue; }
+            if noise.iter().any(|n| low == *n || low.starts_with(n)) {
+                continue;
+            }
+            if subject.is_empty() {
+                continue;
+            }
             entries.push((hash.to_string(), subject));
-            if entries.len() >= cap { break; }
+            if entries.len() >= cap {
+                break;
+            }
         }
     }
     entries
@@ -470,13 +599,21 @@ pub fn render_changelog(m: &ToolMeta) -> String {
     let mut out = String::new();
 
     out.push_str(&format!("# Changelog -- {}\n\n", m.name));
-    out.push_str("All notable changes to this tool. Generated by `faelight-docs changelog-tools`.\n\n");
+    out.push_str(
+        "All notable changes to this tool. Generated by `faelight-docs changelog-tools`.\n\n",
+    );
     out.push_str("This project follows the Faelight Forest versioning model; format loosely tracks Keep a Changelog.\n\n");
     out.push_str("---\n\n");
 
     // NixOS migration entry (the gate requirement).
-    out.push_str(&format!("## [{}] -- NixOS 26.05 era\n\n",
-        if m.version.is_empty() { "current" } else { &m.version }));
+    out.push_str(&format!(
+        "## [{}] -- NixOS 26.05 era\n\n",
+        if m.version.is_empty() {
+            "current"
+        } else {
+            &m.version
+        }
+    ));
     out.push_str("### Changed\n");
     out.push_str("- Migrated from Arch Linux to NixOS 26.05 (Yarara).\n");
     out.push_str("- Build: `nix develop ~/0-core#faelight-forest -c cargo build`.\n");
@@ -519,7 +656,11 @@ pub fn cmd_changelog_generate(dry_run: bool) {
         let path = rt.join(&m.name).join("CHANGELOG.md");
         let content = render_changelog(m);
         if dry_run {
-            println!("  would write: rust-tools/{}/CHANGELOG.md ({} bytes)", m.name, content.len());
+            println!(
+                "  would write: rust-tools/{}/CHANGELOG.md ({} bytes)",
+                m.name,
+                content.len()
+            );
             written += 1;
             continue;
         }

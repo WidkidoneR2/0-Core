@@ -86,14 +86,31 @@ impl App {
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for App {
-    fn event(app: &mut Self, registry: &wl_registry::WlRegistry, event: wl_registry::Event,
-             _: &(), _: &Connection, qh: &QueueHandle<App>) {
-        if let wl_registry::Event::Global { name, interface, version } = event {
+    fn event(
+        app: &mut Self,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<App>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
             match interface.as_str() {
-                "zdwl_ipc_manager_v2" =>
-                    app.manager = Some(registry.bind::<ZdwlIpcManagerV2, _, _>(name, version.min(2), qh, ())),
-                "wl_output" =>
-                    app.outputs.push(registry.bind::<wl_output::WlOutput, _, _>(name, version.min(4), qh, ())),
+                "zdwl_ipc_manager_v2" => {
+                    app.manager =
+                        Some(registry.bind::<ZdwlIpcManagerV2, _, _>(name, version.min(2), qh, ()))
+                }
+                "wl_output" => app.outputs.push(registry.bind::<wl_output::WlOutput, _, _>(
+                    name,
+                    version.min(4),
+                    qh,
+                    (),
+                )),
                 _ => {}
             }
         }
@@ -101,21 +118,40 @@ impl Dispatch<wl_registry::WlRegistry, ()> for App {
 }
 
 impl Dispatch<ZdwlIpcManagerV2, ()> for App {
-    fn event(app: &mut Self, _: &ZdwlIpcManagerV2, event: zdwl_ipc_manager_v2::Event,
-             _: &(), _: &Connection, _: &QueueHandle<App>) {
+    fn event(
+        app: &mut Self,
+        _: &ZdwlIpcManagerV2,
+        event: zdwl_ipc_manager_v2::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<App>,
+    ) {
         match event {
-            zdwl_ipc_manager_v2::Event::Tags { amount } => app.ensure_tag(amount.saturating_sub(1) as usize),
+            zdwl_ipc_manager_v2::Event::Tags { amount } => {
+                app.ensure_tag(amount.saturating_sub(1) as usize)
+            }
             zdwl_ipc_manager_v2::Event::Layout { name } => app.layouts.push(name),
         }
     }
 }
 
 impl Dispatch<ZdwlIpcOutputV2, ()> for App {
-    fn event(app: &mut Self, _: &ZdwlIpcOutputV2, event: zdwl_ipc_output_v2::Event,
-             _: &(), _: &Connection, _: &QueueHandle<App>) {
+    fn event(
+        app: &mut Self,
+        _: &ZdwlIpcOutputV2,
+        event: zdwl_ipc_output_v2::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<App>,
+    ) {
         use zdwl_ipc_output_v2::Event;
         match event {
-            Event::Tag { tag, state, clients, focused } => {
+            Event::Tag {
+                tag,
+                state,
+                clients,
+                focused,
+            } => {
                 let bits: u32 = match state {
                     WEnum::Value(v) => v.into(),
                     WEnum::Unknown(n) => n,
@@ -135,8 +171,15 @@ impl Dispatch<ZdwlIpcOutputV2, ()> for App {
 }
 
 impl Dispatch<wl_output::WlOutput, ()> for App {
-    fn event(_: &mut Self, _: &wl_output::WlOutput, _: wl_output::Event,
-             _: &(), _: &Connection, _: &QueueHandle<App>) {}
+    fn event(
+        _: &mut Self,
+        _: &wl_output::WlOutput,
+        _: wl_output::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<App>,
+    ) {
+    }
 }
 
 fn main() {
@@ -173,7 +216,11 @@ fn main() {
     for o in &outs {
         _ipc_outputs.push(mgr.get_output(o, &qh, ()));
     }
-    eprintln!("faelight-wsd: bound manager + {} output(s); writing {}", outs.len(), app.out_path.display());
+    eprintln!(
+        "faelight-wsd: bound manager + {} output(s); writing {}",
+        outs.len(),
+        app.out_path.display()
+    );
 
     loop {
         if let Err(e) = queue.blocking_dispatch(&mut app) {

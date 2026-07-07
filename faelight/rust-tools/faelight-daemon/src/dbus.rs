@@ -3,9 +3,9 @@
 //! Exposes forest state (health, intent) as D-Bus properties and signals.
 //! Any tool on the system can subscribe -- bar, FM, compositor, external scripts.
 
-use std::sync::Arc;
-use rusqlite;
 use futures_util::StreamExt as _;
+use rusqlite;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use zbus::{connection, interface, SignalContext};
 
@@ -44,11 +44,7 @@ impl ForestHealthIface {
 
     /// Emitted when health changes
     #[zbus(signal)]
-    async fn health_changed(
-        ctx: &SignalContext<'_>,
-        old: u32,
-        new_val: u32,
-    ) -> zbus::Result<()>;
+    async fn health_changed(ctx: &SignalContext<'_>, old: u32, new_val: u32) -> zbus::Result<()>;
 }
 
 // ── Intent interface -- org.faelight.Forest.Intent ───────────────────────────
@@ -125,16 +121,28 @@ impl ForestDeployIface {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum DeploySignal {
-    Completed { tool: String, version: String, duration_ms: u64 },
-    Failed { tool: String, error: String },
+    Completed {
+        tool: String,
+        version: String,
+        duration_ms: u64,
+    },
+    Failed {
+        tool: String,
+        error: String,
+    },
 }
 
-static DEPLOY_TX: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<DeploySignal>> = std::sync::OnceLock::new();
+static DEPLOY_TX: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<DeploySignal>> =
+    std::sync::OnceLock::new();
 
 #[allow(dead_code)]
 pub fn emit_deploy_completed(tool: String, version: String, duration_ms: u64) {
     if let Some(tx) = DEPLOY_TX.get() {
-        let _ = tx.send(DeploySignal::Completed { tool, version, duration_ms });
+        let _ = tx.send(DeploySignal::Completed {
+            tool,
+            version,
+            duration_ms,
+        });
     }
 }
 
@@ -147,7 +155,8 @@ pub fn emit_deploy_failed(tool: String, error: String) {
 
 // ── Friday signal channel -- callable from anywhere in the daemon ─────────────
 
-static FRIDAY_TX: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<(String, f64)>> = std::sync::OnceLock::new();
+static FRIDAY_TX: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<(String, f64)>> =
+    std::sync::OnceLock::new();
 
 /// Called from friday_record_event when a suggestion fires.
 /// Non-blocking: just queues the signal for the D-Bus loop.
@@ -183,8 +192,7 @@ pub fn read_intent() -> String {
 
 pub fn read_intent_id() -> u32 {
     // Try to extract INT-NNN from the INTENT file content
-    let content = std::fs::read_to_string("/etc/faelight/INTENT")
-        .unwrap_or_default();
+    let content = std::fs::read_to_string("/etc/faelight/INTENT").unwrap_or_default();
     // Look for pattern "INT-NNN" in content
     content
         .split_whitespace()
@@ -234,10 +242,14 @@ pub async fn run_forest_bus() {
     let mut last_intent = read_intent();
     let mut last_deploy_id: i64 = {
         let db = faelight_core::paths::state_db();
-        rusqlite::Connection::open(&db).ok()
-            .and_then(|c| c.query_row(
-                "SELECT COALESCE(MAX(id),0) FROM deploy_patterns", [],
-                |r| r.get(0)).ok())
+        rusqlite::Connection::open(&db)
+            .ok()
+            .and_then(|c| {
+                c.query_row("SELECT COALESCE(MAX(id),0) FROM deploy_patterns", [], |r| {
+                    r.get(0)
+                })
+                .ok()
+            })
             .unwrap_or(0)
     };
     let (friday_tx, mut friday_rx) = tokio::sync::mpsc::unbounded_channel::<(String, f64)>();
@@ -248,17 +260,25 @@ pub async fn run_forest_bus() {
     // ── logind power event subscription ───────────────────────────────────────
     // Spawn logind watcher as separate task
     tokio::spawn(async move {
-        let Ok(sys_conn) = zbus::Connection::system().await else { return; };
+        let Ok(sys_conn) = zbus::Connection::system().await else {
+            return;
+        };
         let Ok(proxy) = zbus::Proxy::new(
             &sys_conn,
             "org.freedesktop.login1",
             "/org/freedesktop/login1",
             "org.freedesktop.login1.Manager",
-        ).await else { return; };
-        let Ok(mut sigs) = proxy.receive_signal("PrepareForSleep").await else { return; };
+        )
+        .await
+        else {
+            return;
+        };
+        let Ok(mut sigs) = proxy.receive_signal("PrepareForSleep").await else {
+            return;
+        };
         while let Some(sig) = sigs.next().await {
             let body: Result<bool, _> = sig.body().deserialize();
-                if let Ok(sleeping) = body {
+            if let Ok(sleeping) = body {
                 if sleeping {
                     eprintln!("🌲 forest-bus: system suspending");
                     // Write suspend event to state.db
@@ -266,7 +286,8 @@ pub async fn run_forest_bus() {
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .map(|d| d.as_secs() as i64).unwrap_or(0);
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or(0);
                         let _ = c.execute(
                             "INSERT INTO events (domain, action, payload, timestamp) VALUES ('system','suspend','logind',?1)",
                             rusqlite::params![now],
@@ -278,7 +299,8 @@ pub async fn run_forest_bus() {
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .map(|d| d.as_secs() as i64).unwrap_or(0);
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or(0);
                         let _ = c.execute(
                             "INSERT INTO events (domain, action, payload, timestamp) VALUES ('system','wake','logind',?1)",
                         rusqlite::params![now],
@@ -367,14 +389,26 @@ pub async fn run_forest_bus() {
         {
             let db = faelight_core::paths::state_db();
             if let Ok(conn_db) = rusqlite::Connection::open(&db) {
-                let rows: Vec<(i64, String, String, i64)> = conn_db.prepare(
-                    "SELECT id, tool, version, COALESCE(duration_ms,0) FROM deploy_patterns
-                     WHERE id > ?1 AND outcome = 'success' ORDER BY id ASC LIMIT 10"
-                ).ok().map(|mut s| s.query_map(
-                    rusqlite::params![last_deploy_id],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2).unwrap_or_default(), r.get(3).unwrap_or(0)))
-                ).ok().map(|rows| rows.filter_map(|r| r.ok()).collect())
-                .unwrap_or_default()).unwrap_or_default();
+                let rows: Vec<(i64, String, String, i64)> = conn_db
+                    .prepare(
+                        "SELECT id, tool, version, COALESCE(duration_ms,0) FROM deploy_patterns
+                     WHERE id > ?1 AND outcome = 'success' ORDER BY id ASC LIMIT 10",
+                    )
+                    .ok()
+                    .map(|mut s| {
+                        s.query_map(rusqlite::params![last_deploy_id], |r| {
+                            Ok((
+                                r.get(0)?,
+                                r.get(1)?,
+                                r.get(2).unwrap_or_default(),
+                                r.get(3).unwrap_or(0),
+                            ))
+                        })
+                        .ok()
+                        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                        .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
                 for (id, tool, version, dur) in rows {
                     last_deploy_id = last_deploy_id.max(id);
                     eprintln!("🌲 forest-bus: deploy {} v{} ({}ms)", tool, version, dur);
@@ -384,8 +418,8 @@ pub async fn run_forest_bus() {
                         .await
                     {
                         let ctx = iface_ref.signal_context();
-                        let _ = ForestDeployIface::deploy_completed(
-                            ctx, tool, version, dur as u64).await;
+                        let _ = ForestDeployIface::deploy_completed(ctx, tool, version, dur as u64)
+                            .await;
                     }
                 }
             }

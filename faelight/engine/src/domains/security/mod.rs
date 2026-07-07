@@ -95,8 +95,6 @@ fn scan_cargo(ctx: &AppContext) -> Vec<Finding> {
     findings
 }
 
-
-
 fn scan_permissions() -> Vec<Finding> {
     let mut findings = Vec::new();
     let home = std::env::var("HOME").unwrap_or_default();

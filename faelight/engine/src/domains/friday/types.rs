@@ -2,7 +2,6 @@
 //! Forward declarations -- will be used by simulation engine and event bus
 #![allow(dead_code)]
 
-
 use crate::domains::events::signal::SignalKind;
 
 /// The confidence tier that determines Friday's voice level
@@ -20,18 +19,23 @@ pub enum ConfidenceTier {
 
 impl ConfidenceTier {
     pub fn from_confidence(c: f64) -> Self {
-        if c >= 0.9 { Self::Challenge }
-        else if c >= 0.7 { Self::Recommend }
-        else if c >= 0.4 { Self::Suggest }
-        else { Self::Observe }
+        if c >= 0.9 {
+            Self::Challenge
+        } else if c >= 0.7 {
+            Self::Recommend
+        } else if c >= 0.4 {
+            Self::Suggest
+        } else {
+            Self::Observe
+        }
     }
 
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Observe    => "OBSERVE",
-            Self::Suggest    => "SUGGEST",
-            Self::Recommend  => "RECOMMEND",
-            Self::Challenge  => "CHALLENGE",
+            Self::Observe => "OBSERVE",
+            Self::Suggest => "SUGGEST",
+            Self::Recommend => "RECOMMEND",
+            Self::Challenge => "CHALLENGE",
         }
     }
 
@@ -78,7 +82,9 @@ impl FridayInput {
             intent_id: None,
             health: None,
             timestamp,
-            cwd: std::env::current_dir().ok().map(|p| p.to_string_lossy().to_string()),
+            cwd: std::env::current_dir()
+                .ok()
+                .map(|p| p.to_string_lossy().to_string()),
             session_id: std::env::var("FSH_SESSION_ID").ok(),
         }
     }
@@ -115,7 +121,12 @@ pub struct Suggestion {
 impl Suggestion {
     pub fn new(message: impl Into<String>, confidence: f64) -> Self {
         let message = message.into();
-        let dedup_key = message.to_lowercase().replace(' ', "_").chars().take(40).collect();
+        let dedup_key = message
+            .to_lowercase()
+            .replace(' ', "_")
+            .chars()
+            .take(40)
+            .collect();
         Self {
             message,
             confidence,

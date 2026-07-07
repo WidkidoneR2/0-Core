@@ -76,8 +76,8 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .unwrap_or(0);
 
     // Tools from registry
-    let registry = std::fs::read_to_string(faelight_core::paths::tools_registry())
-        .unwrap_or_default();
+    let registry =
+        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
 
     let tool_names: Vec<String> = registry
         .lines()
@@ -105,11 +105,10 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .collect();
 
     // Health — read from cache or use default
-    let health: u32 =
-        std::fs::read_to_string(faelight_core::paths::health_cache())
-            .ok()
-            .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
-            .unwrap_or(95);
+    let health: u32 = std::fs::read_to_string(faelight_core::paths::health_cache())
+        .ok()
+        .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
+        .unwrap_or(95);
 
     // Decisions
     let decisions: Vec<(String, String)> = {
@@ -509,8 +508,6 @@ fn emit_event(ctx: &AppContext, action: &str) {
         action
     );
     // INT-251 v23: use canonical event bus
-    let _ = crate::domains::friday::events::emit(
-        ctx, "snapshot", action, &payload, "core", None,
-    );
+    let _ = crate::domains::friday::events::emit(ctx, "snapshot", action, &payload, "core", None);
     crate::runtime::write_event_log("snapshot", action, &payload, ts);
 }

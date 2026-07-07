@@ -40,7 +40,9 @@ impl Daemon {
         }
 
         // INT-235 Gate 3: ensure friday_daemon_messages table exists
-        let _init_db = faelight_core::paths::state_db().to_string_lossy().to_string();
+        let _init_db = faelight_core::paths::state_db()
+            .to_string_lossy()
+            .to_string();
         if let Ok(conn) = rusqlite::Connection::open(&_init_db) {
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS friday_daemon_messages (
@@ -58,7 +60,9 @@ impl Daemon {
 
         // Spawn SQLite polling task
         let poll_tx = tx.clone();
-        let db_path = faelight_core::paths::state_db().to_string_lossy().to_string();
+        let db_path = faelight_core::paths::state_db()
+            .to_string_lossy()
+            .to_string();
         let db_path_poll = db_path.clone();
         tokio::spawn(async move {
             poll_events(poll_tx, db_path_poll).await;
@@ -450,7 +454,10 @@ async fn health_watchdog(db_path: String) {
                     "--urgency=critical",
                     "--app-name=Friday",
                     "[Friday] Forest Health Alert",
-                    &format!("Health dropped to {}% (was {}%). Run: d", health, last_health),
+                    &format!(
+                        "Health dropped to {}% (was {}%). Run: d",
+                        health, last_health
+                    ),
                 ])
                 .spawn();
         } else if health >= 100 && last_health < 95 {
@@ -535,7 +542,9 @@ async fn signal_aggregation(db_path: String) {
 }
 // ── INT-196 v2 Command Implementations ───────────────────────────────────────
 fn get_db_path() -> String {
-    faelight_core::paths::state_db().to_string_lossy().to_string()
+    faelight_core::paths::state_db()
+        .to_string_lossy()
+        .to_string()
 }
 fn read_health_cache() -> u32 {
     let home = std::env::var("HOME").unwrap_or_default();
@@ -968,20 +977,18 @@ async fn friday_answer_query(
 // INT-235 Gate 2 -- Contradiction detection loop
 async fn contradiction_detection_loop(db_path: String) {
     // Start from current max id -- do not notify old contradictions on startup
-    let last_id: i64 = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .ok()
-    .and_then(|c| {
-        c.query_row(
-            "SELECT COALESCE(MAX(id), 0) FROM friday_contradictions",
-            [],
-            |r| r.get(0),
-        )
-        .ok()
-    })
-    .unwrap_or(0);
+    let last_id: i64 =
+        rusqlite::Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .ok()
+            .and_then(|c| {
+                c.query_row(
+                    "SELECT COALESCE(MAX(id), 0) FROM friday_contradictions",
+                    [],
+                    |r| r.get(0),
+                )
+                .ok()
+            })
+            .unwrap_or(0);
     let mut last_seen_id = last_id;
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
@@ -1000,7 +1007,11 @@ async fn contradiction_detection_loop(db_path: String) {
         };
         let rows: Vec<(i64, String, String)> = stmt
             .query_map(rusqlite::params![last_seen_id], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2).unwrap_or_else(|_| "low".to_string())))
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2).unwrap_or_else(|_| "low".to_string()),
+                ))
             })
             .map(|r| r.filter_map(|x| x.ok()).collect())
             .unwrap_or_default();
@@ -1010,7 +1021,11 @@ async fn contradiction_detection_loop(db_path: String) {
             if severity == "low" {
                 continue;
             }
-            let urgency = if severity == "critical" { "critical" } else { "normal" };
+            let urgency = if severity == "critical" {
+                "critical"
+            } else {
+                "normal"
+            };
             let short = if description.len() > 80 {
                 format!("{}...", &description[..80])
             } else {

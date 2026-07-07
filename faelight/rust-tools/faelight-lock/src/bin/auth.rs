@@ -1,7 +1,7 @@
 //! faelight-lock-auth -- PAM authentication helper
 //! Privileged component: reads username+password from stdin, authenticates via PAM
 //! Outputs "OK" or "FAIL" to stdout. Exits immediately after.
-//! 
+//!
 //! Security design:
 //! - No Wayland code
 //! - No font rendering  
@@ -53,15 +53,13 @@ fn authenticate(username: &str, password: &str) -> bool {
     };
     auth.conversation_mut().set_credentials(username, password);
     match auth.authenticate() {
-        Ok(()) => {
-            match auth.open_session() {
-                Ok(()) => true,
-                Err(e) => {
-                    eprintln!("faelight-lock-auth: session failed: {}", e);
-                    false
-                }
+        Ok(()) => match auth.open_session() {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("faelight-lock-auth: session failed: {}", e);
+                false
             }
-        }
+        },
         Err(e) => {
             eprintln!("faelight-lock-auth: auth failed: {}", e);
             false

@@ -147,15 +147,12 @@ pub fn record(
         rusqlite::params![payload, weight, now],
     );
     // INT-251 v23: emit to unified event bus
-    let event_kind = if outcome == "success" { "deploy_completed" } else { "deploy_failed" };
-    let _ = crate::domains::friday::events::emit(
-        ctx,
-        "deploy",
-        event_kind,
-        &payload,
-        "core",
-        None,
-    );
+    let event_kind = if outcome == "success" {
+        "deploy_completed"
+    } else {
+        "deploy_failed"
+    };
+    let _ = crate::domains::friday::events::emit(ctx, "deploy", event_kind, &payload, "core", None);
 
     let icon = if outcome == "success" { "✅" } else { "❌" };
     println!(

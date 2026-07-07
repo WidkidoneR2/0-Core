@@ -220,10 +220,24 @@ impl<'a> ForestHelper<'a> {
             // All multi-word completions — prefix match from start=0
             const MULTI_CMDS: &[&str] = &[
                 // -- INT-040: bare domain verbs (shell-native) --
-                "intent list", "intent show", "intent search", "intent new", "intent edit",
-                "vm list", "vm start", "vm stop", "vm status", "vm snapshot", "vm restore", "vm snapshots",
-                "project list", "project status", "project health",
-                "experiment list", "experiment new", "experiment graduate",
+                "intent list",
+                "intent show",
+                "intent search",
+                "intent new",
+                "intent edit",
+                "vm list",
+                "vm start",
+                "vm stop",
+                "vm status",
+                "vm snapshot",
+                "vm restore",
+                "vm snapshots",
+                "project list",
+                "project status",
+                "project health",
+                "experiment list",
+                "experiment new",
+                "experiment graduate",
                 // ── core intent ──────────────────────────────────────────
                 "core intent focus",
                 "core intent unfocus",
@@ -476,12 +490,15 @@ impl<'a> ForestHelper<'a> {
                     if in_nixos && t.contains("= nixpkgs.lib.nixosSystem") {
                         if let Some(tok) = t.split_whitespace().next() {
                             let host = tok.rsplit('.').next().unwrap_or(tok);
-                            if !host.is_empty() && (partial.is_empty() || host.starts_with(partial)) {
+                            if !host.is_empty() && (partial.is_empty() || host.starts_with(partial))
+                            {
                                 hosts.push(host.to_string());
                             }
                         }
                     }
-                    if in_nixos && t == "};" { in_nixos = false; }
+                    if in_nixos && t == "};" {
+                        in_nixos = false;
+                    }
                 }
             }
             hosts.sort();
@@ -501,8 +518,13 @@ impl<'a> ForestHelper<'a> {
                 for l in fsrc.lines() {
                     let t = l.trim();
                     if let Some(after) = t.strip_prefix("devShells.${system}.") {
-                        let name = after.split(|c: char| c == ' ' || c == '=').next().unwrap_or("");
-                        if !name.is_empty() { names.push(name.to_string()); }
+                        let name = after
+                            .split(|c: char| c == ' ' || c == '=')
+                            .next()
+                            .unwrap_or("");
+                        if !name.is_empty() {
+                            names.push(name.to_string());
+                        }
                     }
                     if t.contains("= pkgs.rustPlatform.buildRustPackage") {
                         if let Some(name) = t.split_whitespace().next() {
@@ -525,16 +547,27 @@ impl<'a> ForestHelper<'a> {
             let home = std::env::var("HOME").unwrap_or_default();
             let scripts = format!("{}/0-core/scripts", home);
             if let Ok(entries) = std::fs::read_dir(&scripts) {
-                let mut tools: Vec<String> = entries.flatten().filter_map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    let ok = e.metadata().map(|m| {
-                        use std::os::unix::fs::PermissionsExt;
-                        m.permissions().mode() & 0o111 != 0
-                    }).unwrap_or(false);
-                    if ok && !name.contains('.') && (partial.is_empty() || name.starts_with(partial)) {
-                        Some(name)
-                    } else { None }
-                }).collect();
+                let mut tools: Vec<String> = entries
+                    .flatten()
+                    .filter_map(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        let ok = e
+                            .metadata()
+                            .map(|m| {
+                                use std::os::unix::fs::PermissionsExt;
+                                m.permissions().mode() & 0o111 != 0
+                            })
+                            .unwrap_or(false);
+                        if ok
+                            && !name.contains('.')
+                            && (partial.is_empty() || name.starts_with(partial))
+                        {
+                            Some(name)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
                 tools.sort();
                 if !tools.is_empty() {
                     let start = line.len() - partial.len();
@@ -644,7 +677,9 @@ impl<'a> ForestHelper<'a> {
                     }
                 }
                 gens.sort_by(|a, b| {
-                    b.parse::<u64>().unwrap_or(0).cmp(&a.parse::<u64>().unwrap_or(0))
+                    b.parse::<u64>()
+                        .unwrap_or(0)
+                        .cmp(&a.parse::<u64>().unwrap_or(0))
                 });
                 gens.dedup();
                 if !gens.is_empty() {
@@ -873,7 +908,10 @@ impl<'a> Completer for ForestHelper<'a> {
                     } else {
                         c.clone()
                     };
-                    Pair { display, replacement: c }
+                    Pair {
+                        display,
+                        replacement: c,
+                    }
                 })
                 .collect(),
         ))
@@ -884,47 +922,85 @@ impl<'a> Completer for ForestHelper<'a> {
 // Neon candy color scheme -- the forest lights up
 
 // Electric green -- valid forest/system commands
-const NEON_GREEN:   &str = "[38;2;57;255;20m";
+const NEON_GREEN: &str = "[38;2;57;255;20m";
 // Neon red -- unknown commands
-const NEON_RED:     &str = "[38;2;255;50;50m";
+const NEON_RED: &str = "[38;2;255;50;50m";
 // Hot magenta -- dangerous commands
 const NEON_MAGENTA: &str = "[38;2;255;0;128m";
 // Electric cyan -- forest-native commands
-const NEON_CYAN:    &str = "[38;2;0;255;220m";
+const NEON_CYAN: &str = "[38;2;0;255;220m";
 // Electric purple -- natural language / semantic commands
-const NEON_PURPLE:  &str = "[38;2;180;0;255m";
+const NEON_PURPLE: &str = "[38;2;180;0;255m";
 // Bright amber -- warnings
-const NEON_AMBER:   &str = "[38;2;255;165;0m";
-const RESET:        &str = "[0m";
+const NEON_AMBER: &str = "[38;2;255;165;0m";
+const RESET: &str = "[0m";
 
 fn is_dangerous_command(cmd: &str) -> bool {
     const DANGEROUS: &[&str] = &[
-        "rm", "sudo", "dd", "kill", "pkill", "killall",
-        "chmod", "chown", "mkfs", "fdisk", "parted",
-        "shred", "wipefs", "truncate",
+        "rm", "sudo", "dd", "kill", "pkill", "killall", "chmod", "chown", "mkfs", "fdisk",
+        "parted", "shred", "wipefs", "truncate",
     ];
     DANGEROUS.contains(&cmd)
 }
 
 fn is_forest_command(cmd: &str) -> bool {
     const FOREST: &[&str] = &[
-        "cistart", "cicomplete", "ds", "dc", "deploy",
-        "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
-        "rollback", "update-flake", "friday", "intent", "intents",
-        "project", "experiment", "vm", "fm", "fmd",
-        "d", "gc", "gp",
-        "core", "fsh", "snapshot", "where", "fsearch",
-        "patch", "edit", "run", "query",
+        "cistart",
+        "cicomplete",
+        "ds",
+        "dc",
+        "deploy",
+        "rebuild",
+        "rebuild-safe",
+        "rebuild-dry",
+        "rebuild-check",
+        "rollback",
+        "update-flake",
+        "friday",
+        "intent",
+        "intents",
+        "project",
+        "experiment",
+        "vm",
+        "fm",
+        "fmd",
+        "d",
+        "gc",
+        "gp",
+        "core",
+        "fsh",
+        "snapshot",
+        "where",
+        "fsearch",
+        "patch",
+        "edit",
+        "run",
+        "query",
     ];
     FOREST.contains(&cmd)
 }
 
 fn is_natural_language(line: &str) -> bool {
     const NL_PREFIXES: &[&str] = &[
-        "what ", "show ", "how ", "find ", "where ", "when ",
-        "why ", "list ", "tell ", "give ", "help ", "focus",
-        "start work", "end work", "what did", "what was",
-        "how is", "show me", "find me",
+        "what ",
+        "show ",
+        "how ",
+        "find ",
+        "where ",
+        "when ",
+        "why ",
+        "list ",
+        "tell ",
+        "give ",
+        "help ",
+        "focus",
+        "start work",
+        "end work",
+        "what did",
+        "what was",
+        "how is",
+        "show me",
+        "find me",
     ];
     let lower = line.to_lowercase();
     NL_PREFIXES.iter().any(|p| lower.starts_with(p))
@@ -933,47 +1009,141 @@ fn is_natural_language(line: &str) -> bool {
 fn is_known_command(cmd: &str) -> bool {
     const BUILTINS: &[&str] = &[
         // Navigation
-        "cd", "ls", "ll", "la", "pwd", "which", "find",
+        "cd",
+        "ls",
+        "ll",
+        "la",
+        "pwd",
+        "which",
+        "find",
         // Forest tools
-        "cistart", "cicomplete", "dc", "ds", "deploy", "d",
-        "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
-        "rollback", "update-flake", "friday", "intent", "intents",
-        "project", "experiment", "vm", "fm", "fmd", "faelight-fm",
-        "gc", "gp", "fg",
-        "core", "fsh", "snapshot", "where", "fsearch",
-        "patch", "edit", "run", "query", "history", "rewind",
+        "cistart",
+        "cicomplete",
+        "dc",
+        "ds",
+        "deploy",
+        "d",
+        "rebuild",
+        "rebuild-safe",
+        "rebuild-dry",
+        "rebuild-check",
+        "rollback",
+        "update-flake",
+        "friday",
+        "intent",
+        "intents",
+        "project",
+        "experiment",
+        "vm",
+        "fm",
+        "fmd",
+        "faelight-fm",
+        "gc",
+        "gp",
+        "fg",
+        "core",
+        "fsh",
+        "snapshot",
+        "where",
+        "fsearch",
+        "patch",
+        "edit",
+        "run",
+        "query",
+        "history",
+        "rewind",
         // Git
-        "git", "lazygit", "lg",
+        "git",
+        "lazygit",
+        "lg",
         // Build
-        "cargo", "rustc", "make", "nix",
+        "cargo",
+        "rustc",
+        "make",
+        "nix",
         // Shell
-        "echo", "cat", "grep", "sed", "awk", "head", "tail",
-        "sort", "uniq", "wc", "tr", "cut", "xargs", "tee",
-        "export", "source", "exit", "clear", "c",
+        "echo",
+        "cat",
+        "grep",
+        "sed",
+        "awk",
+        "head",
+        "tail",
+        "sort",
+        "uniq",
+        "wc",
+        "tr",
+        "cut",
+        "xargs",
+        "tee",
+        "export",
+        "source",
+        "exit",
+        "clear",
+        "c",
         // System
-        "sudo", "rm", "mv", "cp", "mkdir", "touch",
-        "chmod", "chown", "kill", "ps", "top", "htop",
-        "systemctl", "journalctl", "env",
+        "sudo",
+        "rm",
+        "mv",
+        "cp",
+        "mkdir",
+        "touch",
+        "chmod",
+        "chown",
+        "kill",
+        "ps",
+        "top",
+        "htop",
+        "systemctl",
+        "journalctl",
+        "env",
         // Network
-        "ssh", "curl", "wget",
+        "ssh",
+        "curl",
+        "wget",
         // Files
-        "tar", "zip", "unzip", "nvim", "vim", "hx", "bat",
-        "less", "more", "man", "date", "uname",
+        "tar",
+        "zip",
+        "unzip",
+        "nvim",
+        "vim",
+        "hx",
+        "bat",
+        "less",
+        "more",
+        "man",
+        "date",
+        "uname",
         // Python
-        "python3", "python",
+        "python3",
+        "python",
         // Other
-        "dev", "delete", "del", "diff", "list",
+        "dev",
+        "delete",
+        "del",
+        "diff",
+        "list",
         // TUI launchers (REPL special-cases -- INT-092)
-        "cheat", "it", "gt", "db", "ade", "rewind",
+        "cheat",
+        "it",
+        "gt",
+        "db",
+        "ade",
+        "rewind",
         // Aliases/commands resolved at runtime
-        "reload", "help", "h",
+        "reload",
+        "help",
+        "h",
     ];
-    if BUILTINS.contains(&cmd) { return true; }
+    if BUILTINS.contains(&cmd) {
+        return true;
+    }
     // PATH check
     let path_env = std::env::var("PATH").unwrap_or_default();
-    if path_env.split(':').any(|dir| {
-        std::path::Path::new(&format!("{}/{}", dir, cmd)).exists()
-    }) {
+    if path_env
+        .split(':')
+        .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
+    {
         return true;
     }
     // INT-092: alias check -- a command that is a defined alias is valid (green).
@@ -993,21 +1163,49 @@ pub(crate) fn is_fsh_only_word(cmd: &str) -> bool {
     // a forest builtin that is NOT resolvable on PATH is invisible to sh
     let on_path = {
         let path_env = std::env::var("PATH").unwrap_or_default();
-        path_env.split(':').any(|dir| {
-            std::path::Path::new(&format!("{}/{}", dir, cmd)).exists()
-        })
+        path_env
+            .split(':')
+            .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
     };
     if on_path {
         return false;
     }
     // forest-only builtin names that sh cannot reach
     const FOREST_ONLY: &[&str] = &[
-        "cistart", "cicomplete", "dc", "ds", "deploy", "d", "fg",
-        "rebuild", "rebuild-safe", "rebuild-dry", "rebuild-check",
-        "rollback", "update-flake", "intent", "intents",
-        "project", "experiment", "vm", "fm", "fmd", "faelight-fm",
-        "snapshot", "where", "fsearch", "patch", "query", "rewind",
-        "dev", "cheat", "it", "gt", "db", "ade", "reload",
+        "cistart",
+        "cicomplete",
+        "dc",
+        "ds",
+        "deploy",
+        "d",
+        "fg",
+        "rebuild",
+        "rebuild-safe",
+        "rebuild-dry",
+        "rebuild-check",
+        "rollback",
+        "update-flake",
+        "intent",
+        "intents",
+        "project",
+        "experiment",
+        "vm",
+        "fm",
+        "fmd",
+        "faelight-fm",
+        "snapshot",
+        "where",
+        "fsearch",
+        "patch",
+        "query",
+        "rewind",
+        "dev",
+        "cheat",
+        "it",
+        "gt",
+        "db",
+        "ade",
+        "reload",
     ];
     FOREST_ONLY.contains(&cmd)
 }
@@ -1065,29 +1263,36 @@ impl<'a> Hinter for ForestHelper<'a> {
 impl<'a> Highlighter for ForestHelper<'a> {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let trimmed = line.trim_start();
-        if trimmed.is_empty() { return Cow::Borrowed(line); }
+        if trimmed.is_empty() {
+            return Cow::Borrowed(line);
+        }
         let leading = line.len() - trimmed.len();
 
         // Natural language -- electric purple
         if is_natural_language(trimmed) {
             return Cow::Owned(format!(
                 "{}{}{}{}",
-                &line[..leading], NEON_PURPLE, trimmed, RESET
+                &line[..leading],
+                NEON_PURPLE,
+                trimmed,
+                RESET
             ));
         }
 
         let first_word = trimmed.split_whitespace().next().unwrap_or("");
-        if first_word.is_empty() { return Cow::Borrowed(line); }
+        if first_word.is_empty() {
+            return Cow::Borrowed(line);
+        }
         let rest = &line[leading + first_word.len()..];
 
         let cmd_color = if is_dangerous_command(first_word) {
-            NEON_MAGENTA  // hot magenta -- dangerous
+            NEON_MAGENTA // hot magenta -- dangerous
         } else if is_forest_command(first_word) {
-            NEON_CYAN     // electric cyan -- forest-native
+            NEON_CYAN // electric cyan -- forest-native
         } else if is_known_command(first_word) {
-            NEON_GREEN    // electric green -- valid
+            NEON_GREEN // electric green -- valid
         } else {
-            NEON_RED      // neon red -- unknown
+            NEON_RED // neon red -- unknown
         };
 
         // Color args amber if dangerous command
@@ -1099,7 +1304,11 @@ impl<'a> Highlighter for ForestHelper<'a> {
 
         Cow::Owned(format!(
             "{}{}{}{}{}",
-            &line[..leading], cmd_color, first_word, RESET, rest_colored
+            &line[..leading],
+            cmd_color,
+            first_word,
+            RESET,
+            rest_colored
         ))
     }
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {

@@ -184,7 +184,9 @@ impl SystemSnapshot {
 }
 
 fn gather_intent_counts(_core: &str) -> (usize, usize) {
-    let intent_dir = faelight_core::paths::intents_dir().to_string_lossy().to_string();
+    let intent_dir = faelight_core::paths::intents_dir()
+        .to_string_lossy()
+        .to_string();
     let mut total = 0usize;
     let mut done = 0usize;
 
@@ -217,7 +219,9 @@ fn gather_intent_counts(_core: &str) -> (usize, usize) {
 }
 
 fn count_tools(_core: &str) -> usize {
-    let tools_dir = faelight_core::paths::rust_tools_dir().to_string_lossy().to_string();
+    let tools_dir = faelight_core::paths::rust_tools_dir()
+        .to_string_lossy()
+        .to_string();
     std::fs::read_dir(&tools_dir)
         .map(|entries| entries.flatten().filter(|e| e.path().is_dir()).count())
         .unwrap_or(43)

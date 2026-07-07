@@ -63,8 +63,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     );
 
     let registry =
-        std::fs::read_to_string(faelight_core::paths::tools_registry())
-            .unwrap_or_default();
+        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
     let tools: Vec<&str> = registry
         .lines()
         .filter(|l| l.starts_with("name = "))
@@ -207,14 +206,8 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     // Emit event
     let payload = r#"{"actor":"core","result":"ok","detail":{"command":"doctor.rebuild"}}"#;
     // INT-251 v23: use canonical event bus
-    let _ = crate::domains::friday::events::emit(
-        ctx,
-        "doctor",
-        "health_check",
-        payload,
-        "core",
-        None,
-    );
+    let _ =
+        crate::domains::friday::events::emit(ctx, "doctor", "health_check", payload, "core", None);
 
     Ok(())
 }
@@ -563,8 +556,11 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 if confidence >= 0.85 {
                     println!("  🌲 Friday: {}", brief.bright_white().bold());
                 } else {
-                    println!("  🌲 Friday: {} (not enough signal yet -- {:.0}% confidence)",
-                        brief.dimmed(), confidence * 100.0);
+                    println!(
+                        "  🌲 Friday: {} (not enough signal yet -- {:.0}% confidence)",
+                        brief.dimmed(),
+                        confidence * 100.0
+                    );
                 }
             }
             None => {
@@ -593,24 +589,42 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-246 -- Friday usefulness score in d output
     {
         let _ = crate::domains::friday_arch::ensure_usefulness_table(ctx);
-        let total: i64 = ctx.runtime.db
+        let total: i64 = ctx
+            .runtime
+            .db
             .query_row("SELECT COUNT(*) FROM friday_usefulness", [], |r| r.get(0))
             .unwrap_or(0);
         if total > 0 {
-            let accepted: i64 = ctx.runtime.db
-                .query_row("SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1", [], |r| r.get(0))
+            let accepted: i64 = ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1",
+                    [],
+                    |r| r.get(0),
+                )
                 .unwrap_or(0);
             let rate = accepted as f64 / total as f64 * 100.0;
             let rate_str = if rate >= 75.0 {
-                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_green().to_string()
+                format!("{:.0}% useful ({}/{})", rate, accepted, total)
+                    .bright_green()
+                    .to_string()
             } else if rate >= 50.0 {
-                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_yellow().to_string()
+                format!("{:.0}% useful ({}/{})", rate, accepted, total)
+                    .bright_yellow()
+                    .to_string()
             } else {
-                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_red().to_string()
+                format!("{:.0}% useful ({}/{})", rate, accepted, total)
+                    .bright_red()
+                    .to_string()
             };
-            let calibration = if rate >= 75.0 { "trust well-calibrated" }
-                else if rate >= 50.0 { "trust building" }
-                else { "trust needs improvement" };
+            let calibration = if rate >= 75.0 {
+                "trust well-calibrated"
+            } else if rate >= 50.0 {
+                "trust building"
+            } else {
+                "trust needs improvement"
+            };
             println!("  🌲  Friday: {} · {}", rate_str, calibration.dimmed());
         }
     }
@@ -1201,7 +1215,6 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-
 /// INT-094: forest hygiene -- orphan accumulation surfaced from faelight-deadwood --summary.
 /// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
 fn check_deadwood(_core_root: &str) -> CheckResult {
@@ -1227,14 +1240,19 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
                         "{} orphans flagged ({} structural: {} registry, {} modules)",
                         total, structural, registry, modules
                     ),
-                    fix: Some("Run: faelight-deadwood (reports only -- you decide every cut)".into()),
+                    fix: Some(
+                        "Run: faelight-deadwood (reports only -- you decide every cut)".into(),
+                    ),
                 }
             } else {
                 CheckResult {
                     id: "deadwood".into(),
                     name: "Deadwood".into(),
                     status: Status::Pass,
-                    message: format!("{} low-priority items (stale .baks); no structural orphans", total),
+                    message: format!(
+                        "{} low-priority items (stale .baks); no structural orphans",
+                        total
+                    ),
                     fix: None,
                 }
             }

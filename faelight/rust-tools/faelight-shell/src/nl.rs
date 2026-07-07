@@ -474,7 +474,10 @@ pub fn load_toml_patterns(_core_root: &str) -> Vec<CustomPattern> {
             "{}/.config/faelight-shell/nl-patterns.toml",
             std::env::var("HOME").unwrap_or_default()
         ),
-        faelight_core::paths::registry_dir().join("shell-patterns.toml").to_string_lossy().to_string(),
+        faelight_core::paths::registry_dir()
+            .join("shell-patterns.toml")
+            .to_string_lossy()
+            .to_string(),
     ];
 
     for path in &paths {

@@ -1,7 +1,7 @@
 // faelight-fm v3.1 -- git integration
 
-use std::{collections::HashMap, path::PathBuf, process::Command};
 use crate::types::GitStatus;
+use std::{collections::HashMap, path::PathBuf, process::Command};
 
 pub fn get_git_status(path: &PathBuf) -> HashMap<String, GitStatus> {
     let mut map = HashMap::new();
@@ -27,9 +27,13 @@ pub fn get_git_status(path: &PathBuf) -> HashMap<String, GitStatus> {
                         .ok()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or(file_path.clone())
-                } else { file_path.clone() };
+                } else {
+                    file_path.clone()
+                };
                 let first = rel.split('/').next().unwrap_or(&rel).to_string();
-                if first.is_empty() || first.starts_with('.') { continue; }
+                if first.is_empty() || first.starts_with('.') {
+                    continue;
+                }
                 let gs = match &status[..1] {
                     "M" | "A" | "R" | "C" => GitStatus::Staged,
                     _ if status.contains('?') => GitStatus::Untracked,
@@ -52,7 +56,9 @@ pub fn branch_info(path: &PathBuf) -> String {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
-    if branch.is_empty() || branch == "HEAD" { return String::new(); }
+    if branch.is_empty() || branch == "HEAD" {
+        return String::new();
+    }
     // Count ahead/behind
     let ahead = Command::new("git")
         .args(["rev-list", "--count", "@{u}..HEAD"])
@@ -85,7 +91,9 @@ pub fn file_diff(path: &PathBuf, filename: &str) -> Option<String> {
             .output()
             .ok()?;
         let s = String::from_utf8_lossy(&staged.stdout).to_string();
-        if s.is_empty() { return None; }
+        if s.is_empty() {
+            return None;
+        }
         return Some(s.lines().take(60).collect::<Vec<_>>().join("\n"));
     }
     Some(diff.lines().take(60).collect::<Vec<_>>().join("\n"))
@@ -97,8 +105,11 @@ pub fn stage_file(path: &PathBuf, filename: &str) -> Result<(), String> {
         .current_dir(path)
         .output()
         .map_err(|e| e.to_string())?;
-    if out.status.success() { Ok(()) }
-    else { Err(String::from_utf8_lossy(&out.stderr).to_string()) }
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).to_string())
+    }
 }
 
 pub fn unstage_file(path: &PathBuf, filename: &str) -> Result<(), String> {
@@ -107,6 +118,9 @@ pub fn unstage_file(path: &PathBuf, filename: &str) -> Result<(), String> {
         .current_dir(path)
         .output()
         .map_err(|e| e.to_string())?;
-    if out.status.success() { Ok(()) }
-    else { Err(String::from_utf8_lossy(&out.stderr).to_string()) }
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).to_string())
+    }
 }

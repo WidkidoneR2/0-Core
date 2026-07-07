@@ -18,13 +18,12 @@ use smithay::{
 use crate::FaelightCompositor;
 use smithay_drm_extras::drm_scanner::{DrmScanEvent, DrmScanner, SimpleCrtcMapper};
 
-
 // ── Probe mode -- enumerate DRM/GBM without taking over display ──────────────
 
 pub fn probe_drm() {
     use smithay::reexports::rustix::fs::OFlags;
     println!("🌲 DRM probe starting...");
-    
+
     // Find DRM devices
     for entry in std::fs::read_dir("/dev/dri").unwrap_or_else(|_| {
         println!("❌ /dev/dri not found");
@@ -33,33 +32,45 @@ pub fn probe_drm() {
         let Ok(entry) = entry else { continue };
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if !name.starts_with("card") { continue; }
-        
+        if !name.starts_with("card") {
+            continue;
+        }
+
         println!("📍 Found DRM device: {}", path.display());
-        
+
         let open_flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOCTTY | OFlags::NONBLOCK;
         let fd = match smithay::backend::session::libseat::LibSeatSession::new() {
-            Ok((mut session, _)) => {
-                match session.open(&path, open_flags) {
-                    Ok(fd) => fd,
-                    Err(e) => { println!("❌ Cannot open via libseat: {e}"); continue; }
+            Ok((mut session, _)) => match session.open(&path, open_flags) {
+                Ok(fd) => fd,
+                Err(e) => {
+                    println!("❌ Cannot open via libseat: {e}");
+                    continue;
                 }
-            }
+            },
             Err(_) => {
                 // Try direct open (may work as root)
-                match std::fs::OpenOptions::new().read(true).write(true).open(&path) {
+                match std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                {
                     Ok(f) => {
                         use std::os::unix::io::IntoRawFd;
-                        
+
                         println!("⚠️  Opened directly (root mode)");
                         let raw = f.into_raw_fd();
-                        unsafe { <smithay::reexports::rustix::fd::OwnedFd as std::os::fd::FromRawFd>::from_raw_fd(raw) }
+                        unsafe {
+                            <smithay::reexports::rustix::fd::OwnedFd as std::os::fd::FromRawFd>::from_raw_fd(raw)
+                        }
                     }
-                    Err(e) => { println!("❌ Cannot open directly: {e}"); continue; }
+                    Err(e) => {
+                        println!("❌ Cannot open directly: {e}");
+                        continue;
+                    }
                 }
             }
         };
-        
+
         let drm_fd = smithay::backend::drm::DrmDeviceFd::new(fd.into());
         match smithay::backend::drm::DrmDevice::new(drm_fd, true) {
             Ok((drm, _)) => {
@@ -151,16 +162,17 @@ pub fn init_drm(
                 match DrmDevice::new(drm_fd, true) {
                     Ok((mut drm, drm_notifier)) => {
                         // Wire VBlank events into calloop — required for DrmCompositor::frame_submitted
-                        let _ = event_loop.handle().insert_source(drm_notifier, move |event, _metadata, state| {
-                            match event {
+                        let _ = event_loop.handle().insert_source(
+                            drm_notifier,
+                            move |event, _metadata, state| match event {
                                 DrmEvent::VBlank(_crtc) => {
                                     if let Some(pipeline) = state.gbm_pipeline.as_mut() {
                                         let _ = pipeline.compositor.frame_submitted();
                                     }
                                 }
                                 DrmEvent::Error(e) => tracing::error!("DRM error: {:?}", e),
-                            }
-                        });
+                            },
+                        );
                         let resources = drm.resource_handles().ok();
                         let connector_count = resources
                             .as_ref()
@@ -310,4 +322,3 @@ pub fn init_drm(
     tracing::info!("DRM/udev backend initialized — faelight-compositor on real hardware");
     Ok(())
 }
-

@@ -42,8 +42,7 @@ impl ToolScore {
 
 fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
     let registry =
-        std::fs::read_to_string(faelight_core::paths::tools_registry())
-            .unwrap_or_default();
+        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
 
     // Find the tool section and read expected_usage
     let mut in_tool = false;
@@ -612,21 +611,32 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
         };
         for entry in entries.flatten() {
             let fname = entry.file_name().to_string_lossy().to_string();
-            if !fname.ends_with(".md") { continue; }
+            if !fname.ends_with(".md") {
+                continue;
+            }
             let intent_id = fname.split('-').next().unwrap_or("???").to_string();
             let content = match fs::read_to_string(entry.path()) {
                 Ok(c) => c,
                 Err(_) => continue,
             };
             // Get intent title from frontmatter
-            let title = content.lines()
+            let title = content
+                .lines()
                 .find(|l| l.starts_with("title:"))
-                .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                .map(|l| {
+                    l.trim_start_matches("title:")
+                        .trim()
+                        .trim_matches('"')
+                        .to_string()
+                })
                 .unwrap_or_else(|| fname.clone());
             // Find ⏸ lines
             for line in content.lines() {
                 let trimmed = line.trim();
-                if trimmed.starts_with("⏸") || trimmed.starts_with("- [x] ⏸") || trimmed.starts_with("[x] ⏸") {
+                if trimmed.starts_with("⏸")
+                    || trimmed.starts_with("- [x] ⏸")
+                    || trimmed.starts_with("[x] ⏸")
+                {
                     // Parse: ⏸ gate -- deferred: reason -- approved by: christian date
                     let clean = trimmed
                         .trim_start_matches("- [x] ")
@@ -634,7 +644,9 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
                         .trim_start_matches("⏸ ");
                     let parts: Vec<&str> = clean.splitn(3, " -- ").collect();
                     let gate = parts.first().copied().unwrap_or(clean).trim().to_string();
-                    let reason = parts.get(1).copied()
+                    let reason = parts
+                        .get(1)
+                        .copied()
                         .unwrap_or("deferred")
                         .trim_start_matches("deferred: ")
                         .to_string();
@@ -652,9 +664,20 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
                             let m: i64 = p[1].parse().unwrap_or(5);
                             let d: i64 = p[2].parse().unwrap_or(1);
                             (y - 1970) * 365 * 86400 + m * 30 * 86400 + d * 86400
-                        } else { 0 }
-                    } else { 0 };
-                    all_deferrals.push((intent_id.clone(), title.clone(), gate, reason, date, date_ts));
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    };
+                    all_deferrals.push((
+                        intent_id.clone(),
+                        title.clone(),
+                        gate,
+                        reason,
+                        date,
+                        date_ts,
+                    ));
                 }
             }
         }
@@ -668,8 +691,15 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
     });
 
     println!();
-    println!("  {} {}", "⏸ Deferral Ledger".bright_yellow().bold(), format!("({} total)", all_deferrals.len()).dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {} {}",
+        "⏸ Deferral Ledger".bright_yellow().bold(),
+        format!("({} total)", all_deferrals.len()).dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let mut old_count = 0;
     let mut current_intent = String::new();
@@ -677,20 +707,45 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
         if *id != current_intent {
             println!();
             let short_title = title.split(" -- ").next().unwrap_or(title);
-            println!("  {} INT-{}: {}", "▶".bright_cyan(), id.bright_white(), short_title.dimmed());
+            println!(
+                "  {} INT-{}: {}",
+                "▶".bright_cyan(),
+                id.bright_white(),
+                short_title.dimmed()
+            );
             current_intent = id.clone();
         }
         let is_old = *date_ts > 0 && *date_ts < thirty_days_ago;
-        if is_old { old_count += 1; }
-        let age_marker = if is_old { " ⚠️  >30 days".bright_red().to_string() } else { String::new() };
-        let gate_display = if gate.len() > 60 { format!("{}...", &gate[..57]) } else { gate.clone() };
-        println!("    {} {} ({}){}", "⏸".yellow(), gate_display.bright_white(), date.dimmed(), age_marker);
+        if is_old {
+            old_count += 1;
+        }
+        let age_marker = if is_old {
+            " ⚠️  >30 days".bright_red().to_string()
+        } else {
+            String::new()
+        };
+        let gate_display = if gate.len() > 60 {
+            format!("{}...", &gate[..57])
+        } else {
+            gate.clone()
+        };
+        println!(
+            "    {} {} ({}){}",
+            "⏸".yellow(),
+            gate_display.bright_white(),
+            date.dimmed(),
+            age_marker
+        );
         println!("      {} {}", "→".dimmed(), reason.dimmed());
     }
 
     println!();
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("  {} {} deferrals across {} intents",
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
+    println!(
+        "  {} {} deferrals across {} intents",
         "📊".normal(),
         all_deferrals.len().to_string().bright_white(),
         {
@@ -700,8 +755,11 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
         }
     );
     if old_count > 0 {
-        println!("  {} {} deferrals older than 30 days -- review before NixOS migration",
-            "⚠️".normal(), old_count.to_string().bright_red());
+        println!(
+            "  {} {} deferrals older than 30 days -- review before NixOS migration",
+            "⚠️".normal(),
+            old_count.to_string().bright_red()
+        );
     }
     println!();
     Ok(())

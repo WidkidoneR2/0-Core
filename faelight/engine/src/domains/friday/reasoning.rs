@@ -7,7 +7,10 @@ use colored::*;
 
 fn now_ts() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// A reasoning rule: watches the event stream and produces observations
@@ -42,11 +45,13 @@ pub fn starter_rules() -> Vec<Rule> {
             check: |ctx| {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
-                let deploys: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-                    rusqlite::params![now - 300],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let deploys: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                        rusqlite::params![now - 300],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 let commits: i64 = db.query_row(
                     "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
                     rusqlite::params![now - 300],
@@ -58,7 +63,9 @@ pub fn starter_rules() -> Vec<Rule> {
                         confidence: 0.9,
                         kind: ObservationKind::Anomaly,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
         Rule {
@@ -67,18 +74,25 @@ pub fn starter_rules() -> Vec<Rule> {
             check: |ctx| {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
-                let deploys: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-                    rusqlite::params![now - 3600],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let deploys: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                        rusqlite::params![now - 3600],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 if deploys > 10 {
                     Some(Observation {
-                        conclusion: format!("{} deploys in the last hour -- consider batching changes", deploys),
+                        conclusion: format!(
+                            "{} deploys in the last hour -- consider batching changes",
+                            deploys
+                        ),
                         confidence: 0.8,
                         kind: ObservationKind::SystemWide,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
         Rule {
@@ -87,18 +101,25 @@ pub fn starter_rules() -> Vec<Rule> {
             check: |ctx| {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
-                let events: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM events WHERE domain='compositor' AND timestamp > ?1",
-                    rusqlite::params![now - 3600],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let events: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM events WHERE domain='compositor' AND timestamp > ?1",
+                        rusqlite::params![now - 3600],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 if events > 0 {
                     Some(Observation {
-                        conclusion: format!("faelight-compositor active -- {} window events in last hour", events),
+                        conclusion: format!(
+                            "faelight-compositor active -- {} window events in last hour",
+                            events
+                        ),
                         confidence: 0.95,
                         kind: ObservationKind::SystemWide,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
         Rule {
@@ -112,18 +133,22 @@ pub fn starter_rules() -> Vec<Rule> {
                     rusqlite::params![now - 7200],
                     |r| r.get(0),
                 ).unwrap_or(0);
-                let recent_cmds: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
-                    rusqlite::params![now - 7200],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let recent_cmds: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
+                        rusqlite::params![now - 7200],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 if recent_cmds > 50 && lifecycle == 0 {
                     Some(Observation {
                         conclusion: "Active session (50+ commands) with no intent lifecycle activity in 2h -- work may be undocumented".to_string(),
                         confidence: 0.75,
                         kind: ObservationKind::Anomaly,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
         Rule {
@@ -132,23 +157,31 @@ pub fn starter_rules() -> Vec<Rule> {
             check: |ctx| {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
-                let events: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM events WHERE domain='shell' AND timestamp > ?1",
-                    rusqlite::params![now - 86400],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let events: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM events WHERE domain='shell' AND timestamp > ?1",
+                        rusqlite::params![now - 86400],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 if events > 0 {
                     Some(Observation {
-                        conclusion: format!("fsh emitting {} events today -- shell intelligence active", events),
+                        conclusion: format!(
+                            "fsh emitting {} events today -- shell intelligence active",
+                            events
+                        ),
                         confidence: 0.9,
                         kind: ObservationKind::Normal,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
         Rule {
             name: "commits_without_deploy",
-            description: "Commits in last 2h with no deploy -- changes may be uncommitted to runtime",
+            description:
+                "Commits in last 2h with no deploy -- changes may be uncommitted to runtime",
             check: |ctx| {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
@@ -158,55 +191,66 @@ pub fn starter_rules() -> Vec<Rule> {
                     rusqlite::params![two_hours_ago],
                     |r| r.get(0),
                 ).unwrap_or(0);
-                let deploys: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-                    rusqlite::params![two_hours_ago],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let deploys: i64 = db
+                    .query_row(
+                        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                        rusqlite::params![two_hours_ago],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
                 if commits >= 3 && deploys == 0 {
                     Some(Observation {
                         conclusion: format!("{} commit(s) in last 2h with no deploy -- consider deploying to validate changes", commits),
                         confidence: 0.8,
                         kind: ObservationKind::Causal,
                     })
-                } else { None }
+                } else {
+                    None
+                }
             },
         },
-    Rule {
-        name: "rapid_fix_cycle",
-        description: "Detect rapid deploy cycles suggesting a tool change caused a regression",
-        check: |ctx: &AppContext| {
-            use std::collections::HashMap;
-            use std::time::{SystemTime, UNIX_EPOCH};
-            let db = &ctx.runtime.db;
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-            let one_hour_ago = now - 3600;
-            let mut s = match db.prepare(
+        Rule {
+            name: "rapid_fix_cycle",
+            description: "Detect rapid deploy cycles suggesting a tool change caused a regression",
+            check: |ctx: &AppContext| {
+                use std::collections::HashMap;
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let db = &ctx.runtime.db;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let one_hour_ago = now - 3600;
+                let mut s = match db.prepare(
                 "SELECT source_tool, timestamp FROM events WHERE action = 'deploy_completed' AND timestamp > ?1 ORDER BY source_tool, timestamp"
             ) {
                 Ok(s) => s,
                 Err(_) => return None,
             };
-            let mapped = match s.query_map(rusqlite::params![one_hour_ago], |r: &rusqlite::Row<'_>| {
-                Ok((r.get::<_, String>(0).unwrap_or_default(), r.get::<_, i64>(1).unwrap_or(0)))
-            }) {
-                Ok(m) => m,
-                Err(_) => return None,
-            };
-            let rows: Vec<(String, i64)> = mapped.filter_map(|r| r.ok()).collect();
-            let mut by_tool: HashMap<String, Vec<i64>> = HashMap::new();
-            for (tool, ts) in rows {
-                by_tool.entry(tool).or_default().push(ts);
-            }
-            for (tool, timestamps) in &by_tool {
-                if timestamps.len() >= 3 {
-                    let mut ts_sorted = timestamps.clone();
-                    ts_sorted.sort();
-                    for window in ts_sorted.windows(3) {
-                        let span = window[2] - window[0];
-                        if span <= 600 {
-                            let minutes = (span / 60) + 1;
-                            return Some(Observation {
+                let mapped =
+                    match s.query_map(rusqlite::params![one_hour_ago], |r: &rusqlite::Row<'_>| {
+                        Ok((
+                            r.get::<_, String>(0).unwrap_or_default(),
+                            r.get::<_, i64>(1).unwrap_or(0),
+                        ))
+                    }) {
+                        Ok(m) => m,
+                        Err(_) => return None,
+                    };
+                let rows: Vec<(String, i64)> = mapped.filter_map(|r| r.ok()).collect();
+                let mut by_tool: HashMap<String, Vec<i64>> = HashMap::new();
+                for (tool, ts) in rows {
+                    by_tool.entry(tool).or_default().push(ts);
+                }
+                for (tool, timestamps) in &by_tool {
+                    if timestamps.len() >= 3 {
+                        let mut ts_sorted = timestamps.clone();
+                        ts_sorted.sort();
+                        for window in ts_sorted.windows(3) {
+                            let span = window[2] - window[0];
+                            if span <= 600 {
+                                let minutes = (span / 60) + 1;
+                                return Some(Observation {
                                 conclusion: format!(
                                     "Rapid deploy cycle for {}: 3+ deploys in {}min -- tool change likely triggered a regression. Review last major change before the cycle.",
                                     tool, minutes
@@ -214,39 +258,48 @@ pub fn starter_rules() -> Vec<Rule> {
                                 confidence: 0.80,
                                 kind: ObservationKind::Causal,
                             });
+                            }
                         }
                     }
                 }
-            }
-            None
+                None
+            },
         },
-    },
-    Rule {
-        name: "tool_retirement_regression",
-        description: "Detect when a health check failed shortly after a deploy -- stale binary reference",
-        check: |ctx: &AppContext| {
-            use std::time::{SystemTime, UNIX_EPOCH};
-            let db = &ctx.runtime.db;
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-            let day_ago = now - 86400;
-            let failed_count: i64 = db.query_row(
+        Rule {
+            name: "tool_retirement_regression",
+            description:
+                "Detect when a health check failed shortly after a deploy -- stale binary reference",
+            check: |ctx: &AppContext| {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let db = &ctx.runtime.db;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let day_ago = now - 86400;
+                let failed_count: i64 = db.query_row(
                 "SELECT COUNT(*) FROM events WHERE action = 'health_check_failed' AND timestamp > ?1",
                 rusqlite::params![day_ago],
                 |r: &rusqlite::Row<'_>| r.get(0),
             ).unwrap_or(0);
-            if failed_count == 0 {
-                return None;
-            }
-            let result: rusqlite::Result<(String, String)> = db.query_row(
-                "SELECT e1.payload, e2.source_tool FROM events e1
+                if failed_count == 0 {
+                    return None;
+                }
+                let result: rusqlite::Result<(String, String)> = db.query_row(
+                    "SELECT e1.payload, e2.source_tool FROM events e1
                  JOIN events e2 ON e2.action = 'deploy_completed'
                  AND e2.timestamp < e1.timestamp AND e2.timestamp > e1.timestamp - 120
                  WHERE e1.action = 'health_check_failed'
                  ORDER BY e1.timestamp DESC LIMIT 1",
-                [],
-                |r: &rusqlite::Row<'_>| Ok((r.get::<_, String>(0).unwrap_or_default(), r.get::<_, String>(1).unwrap_or_default())),
-            );
-            match result {
+                    [],
+                    |r: &rusqlite::Row<'_>| {
+                        Ok((
+                            r.get::<_, String>(0).unwrap_or_default(),
+                            r.get::<_, String>(1).unwrap_or_default(),
+                        ))
+                    },
+                );
+                match result {
                 Ok((check_msg, tool)) => Some(Observation {
                     conclusion: format!(
                         "Health check failed within 2min of {} deploy -- stale binary reference or missing tool dependency. Check: {}",
@@ -257,8 +310,8 @@ pub fn starter_rules() -> Vec<Rule> {
                 }),
                 Err(_) => None,
             }
+            },
         },
-    },
     ]
 }
 
@@ -291,7 +344,10 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
     let observations = reason(ctx)?;
 
     if observations.is_empty() {
-        println!("  {} No active observations -- system within normal parameters", "·".dimmed());
+        println!(
+            "  {} No active observations -- system within normal parameters",
+            "·".dimmed()
+        );
     } else {
         println!("  {} Observations ({}):", "🧠".normal(), observations.len());
         println!();
@@ -302,8 +358,17 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
                 "causal" => kind.bright_yellow(),
                 _ => kind.dimmed(),
             };
-            println!("  {} [{}] {}", "→".bright_cyan(), kind_color, conclusion.bright_white());
-            println!("    {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
+            println!(
+                "  {} [{}] {}",
+                "→".bright_cyan(),
+                kind_color,
+                conclusion.bright_white()
+            );
+            println!(
+                "    {} confidence: {:.0}%",
+                "·".dimmed(),
+                confidence * 100.0
+            );
             println!();
         }
     }

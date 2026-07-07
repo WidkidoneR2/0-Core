@@ -1,7 +1,7 @@
 // faelight-fm v3.1 -- input handling and keybindings
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::types::Mode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -42,22 +42,22 @@ pub fn handle_key(key: KeyEvent, mode: &Mode) -> Action {
         },
         Mode::Normal => match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Action::Quit,
-            KeyCode::Char('j') | KeyCode::Down  => Action::MoveDown,
-            KeyCode::Char('k') | KeyCode::Up    => Action::MoveUp,
-            KeyCode::Char('g')                  => Action::MoveTop,
-            KeyCode::Char('G')                  => Action::MoveBottom,
+            KeyCode::Char('j') | KeyCode::Down => Action::MoveDown,
+            KeyCode::Char('k') | KeyCode::Up => Action::MoveUp,
+            KeyCode::Char('g') => Action::MoveTop,
+            KeyCode::Char('G') => Action::MoveBottom,
             KeyCode::Char('l') | KeyCode::Enter => Action::NavigateInto,
             KeyCode::Char('h') | KeyCode::Backspace => Action::NavigateUp,
-            KeyCode::Char('y')                  => Action::YankPath,
-            KeyCode::Char('d')                  => Action::DeleteSelected,
-            KeyCode::Char('s')                  => Action::StageUnstage,
-            KeyCode::Char('.')                  => Action::ToggleHidden,
-            KeyCode::Char('n')                  => Action::NixInfo,
-            KeyCode::Char('/')                  => Action::FilterChar('/'),
+            KeyCode::Char('y') => Action::YankPath,
+            KeyCode::Char('d') => Action::DeleteSelected,
+            KeyCode::Char('s') => Action::StageUnstage,
+            KeyCode::Char('.') => Action::ToggleHidden,
+            KeyCode::Char('n') => Action::NixInfo,
+            KeyCode::Char('/') => Action::FilterChar('/'),
             KeyCode::Char(c) if key.modifiers == KeyModifiers::NONE => {
                 // Start filter mode on any printable char
                 Action::FilterChar(c)
-            },
+            }
             _ => Action::None,
         },
     }

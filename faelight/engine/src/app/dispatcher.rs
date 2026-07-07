@@ -4,14 +4,13 @@ use crate::cli::commands::{
     AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
     BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
     DelegateCommand, DeployCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand,
-    NixCommand,
     EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
     GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
-  LedgerCommand, NotifyCommand, PlanCommand, PluginCommand,
-    PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand,
-    ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand,
-    StressCommand, SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
-    WeightCommand, WhyCommand, WorkspaceCommand,
+    LedgerCommand, NixCommand, NotifyCommand, PlanCommand, PluginCommand, PredictCommand,
+    PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand, ReleaseCommand,
+    SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand, StressCommand,
+    SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand, WeightCommand,
+    WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -101,7 +100,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
-
         Command::Zone {
             icon,
             label,
@@ -167,9 +165,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Next => crate::domains::intent::next_intent(ctx),
                 IntentCommand::Brief => crate::domains::intent::brief(ctx),
                 IntentCommand::Graph => crate::domains::intent::graph(ctx),
-                IntentCommand::Defer { id, reason } => crate::domains::intent::defer_intent(ctx, &id, &reason),
-                IntentCommand::Cancel { id, reason } => crate::domains::intent::cancel_intent(ctx, &id, &reason),
-                IntentCommand::Override { id, reason } => crate::domains::intent::override_intent(ctx, &id, &reason),
+                IntentCommand::Defer { id, reason } => {
+                    crate::domains::intent::defer_intent(ctx, &id, &reason)
+                }
+                IntentCommand::Cancel { id, reason } => {
+                    crate::domains::intent::cancel_intent(ctx, &id, &reason)
+                }
+                IntentCommand::Override { id, reason } => {
+                    crate::domains::intent::override_intent(ctx, &id, &reason)
+                }
             }
         }
 
@@ -321,7 +325,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::domains::lock::lock(ctx)
             }
         }
-
 
         Command::Update(c) => {
             ctx.capabilities
@@ -623,7 +626,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::Decisions => crate::domains::friday::decisions::list_decisions(ctx),
             FridayCommand::MapShow => crate::domains::friday::map::show(ctx),
             FridayCommand::MapUpdate => crate::domains::friday::map::update(ctx),
-            FridayCommand::EventBus { domain, limit, json } => crate::domains::friday::events::show_recent(ctx, limit, domain.as_deref(), json),
+            FridayCommand::EventBus {
+                domain,
+                limit,
+                json,
+            } => crate::domains::friday::events::show_recent(ctx, limit, domain.as_deref(), json),
             FridayCommand::ReasonEngine => crate::domains::friday::reasoning::show(ctx),
             FridayCommand::MapImpact(change) => crate::domains::friday::map::impact(ctx, &change),
             FridayCommand::SelfReview => crate::domains::friday::self_review::run(ctx),
@@ -709,7 +716,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AuditCommand::Show { tool } => crate::domains::audit::show(ctx, &tool),
             AuditCommand::Stale => crate::domains::audit::stale(ctx),
             AuditCommand::Coverage => crate::domains::audit::coverage(ctx),
-            AuditCommand::Deferral { flag_old } => crate::domains::audit::deferral_list(ctx, flag_old),
+            AuditCommand::Deferral { flag_old } => {
+                crate::domains::audit::deferral_list(ctx, flag_old)
+            }
         },
         Command::Goals(c) => match c {
             GoalsCommand::List => crate::domains::goals::list(ctx),
@@ -780,7 +789,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DbCommand::Compact => crate::domains::db::compact(ctx),
             DbCommand::Browse { table } => {
                 let mut cmd = std::process::Command::new("db-browse");
-                if let Some(t) = table { cmd.arg(t); }
+                if let Some(t) = table {
+                    cmd.arg(t);
+                }
                 let _ = cmd.status();
                 Ok(())
             }
@@ -790,8 +801,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
             GenealogyCommand::Commit { hash } => crate::domains::genealogy::commit_show(ctx, &hash),
-            GenealogyCommand::Commits { id } => crate::domains::genealogy::commits_for_intent(ctx, &id),
-            GenealogyCommand::Search { term } => crate::domains::genealogy::commit_search(ctx, &term),
+            GenealogyCommand::Commits { id } => {
+                crate::domains::genealogy::commits_for_intent(ctx, &id)
+            }
+            GenealogyCommand::Search { term } => {
+                crate::domains::genealogy::commit_search(ctx, &term)
+            }
         },
         Command::Integrity(cmd) => match cmd {
             IntegrityCommand::Run => crate::domains::integrity::cmd_run(ctx),

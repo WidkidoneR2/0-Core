@@ -56,13 +56,13 @@ impl App {
         let intent_hint = get_active_intent(&db);
         let health_hint = get_health(&db);
 
-        let welcome = format!(
-            "INT-{} | {}% | /help",
-            intent_hint, health_hint
-        );
+        let welcome = format!("INT-{} | {}% | /help", intent_hint, health_hint);
 
         Ok(Self {
-            messages: vec![Message { author: Author::Friday, text: welcome }],
+            messages: vec![Message {
+                author: Author::Friday,
+                text: welcome,
+            }],
             input: String::new(),
             scroll: 0,
             db,
@@ -73,15 +73,23 @@ impl App {
 
     fn send_message(&mut self) {
         let input = self.input.trim().to_string();
-        if input.is_empty() { return; }
+        if input.is_empty() {
+            return;
+        }
         self.input.clear();
 
         // Log user message
-        self.messages.push(Message { author: Author::User, text: input.clone() });
+        self.messages.push(Message {
+            author: Author::User,
+            text: input.clone(),
+        });
 
         // Friday responds
         let response = friday_respond(&self.db, &input);
-        self.messages.push(Message { author: Author::Friday, text: response });
+        self.messages.push(Message {
+            author: Author::Friday,
+            text: response,
+        });
 
         // Scroll to bottom
         self.scroll = self.messages.len().saturating_sub(1);
@@ -95,33 +103,39 @@ fn get_active_intent(db: &Connection) -> String {
     // INT-071: focus.toml is source of truth (written by cistart). shell_state row
     // went stale at the NixOS migration. Read the toml first, fall back to the row.
     let home = std::env::var("HOME").unwrap_or_default();
-    let focus_file = std::path::PathBuf::from(&home)
-        .join(".local/state/0-core/intent/focus.toml");
+    let focus_file = std::path::PathBuf::from(&home).join(".local/state/0-core/intent/focus.toml");
     if let Ok(content) = std::fs::read_to_string(&focus_file) {
         for line in content.lines() {
             if let Some(rest) = line.strip_prefix("id = ") {
                 let id = rest.trim().trim_matches('"').to_string();
-                if !id.is_empty() { return id; }
+                if !id.is_empty() {
+                    return id;
+                }
             }
         }
     }
     db.query_row(
         "SELECT value FROM shell_state WHERE key = 'focus_intent'",
-        [], |r| r.get::<_, String>(0),
-    ).unwrap_or_else(|_| "none".to_string())
+        [],
+        |r| r.get::<_, String>(0),
+    )
+    .unwrap_or_else(|_| "none".to_string())
 }
 
 fn get_health(db: &Connection) -> String {
     db.query_row(
         "SELECT value FROM shell_state WHERE key = 'last_health'",
-        [], |r| r.get::<_, String>(0),
-    ).unwrap_or_else(|_| "100%".to_string())
+        [],
+        |r| r.get::<_, String>(0),
+    )
+    .unwrap_or_else(|_| "100%".to_string())
 }
 
 fn log_conversation(db: &Connection, message: &str) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default().as_secs() as i64;
+        .unwrap_or_default()
+        .as_secs() as i64;
     let _ = db.execute(
         "INSERT INTO events (timestamp, domain, action, payload, source_tool)
          VALUES (?1, 'friday', 'chat_message', ?2, 'friday-chat')",
@@ -158,30 +172,54 @@ fn friday_respond(db: &Connection, input: &str) -> String {
     }
 
     if lower.starts_with("/why") || lower.starts_with("why") {
-        let term = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let term = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_why(db, &term);
     }
 
     if lower.starts_with("/recall") || lower.starts_with("recall") {
-        let term = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let term = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_recall(db, &term);
     }
 
     if lower.starts_with("/trace") || lower.starts_with("trace") {
-        let term = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let term = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_trace(db, &term);
     }
 
     if lower.starts_with("/where") || lower.starts_with("where ") {
-        let condition = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let condition = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_where(db, &condition);
     }
     if lower.starts_with("/show") || lower.starts_with("show ") {
-        let subject = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let subject = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_show(db, &subject);
     }
     if lower.starts_with("/explain") || lower.starts_with("explain ") {
-        let subject = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        let subject = input
+            .split_whitespace()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join(" ");
         return friday_explain(db, &subject);
     }
     // Natural language -- search knowledge base
@@ -191,10 +229,22 @@ fn friday_respond(db: &Connection, input: &str) -> String {
 fn friday_status(db: &Connection) -> String {
     let health = get_health(db);
     let intent = get_active_intent(db);
-    let facts: i64 = db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
-    let patterns: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-    let decisions: i64 = db.query_row("SELECT COUNT(*) FROM friday_decisions", [], |r| r.get(0)).unwrap_or(0);
-    let attention: i64 = db.query_row("SELECT COUNT(*) FROM friday_attention WHERE spoke=1", [], |r| r.get(0)).unwrap_or(0);
+    let facts: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+        .unwrap_or(0);
+    let patterns: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let decisions: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_decisions", [], |r| r.get(0))
+        .unwrap_or(0);
+    let attention: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_attention WHERE spoke=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     format!(
         "Forest Status:\n  Health: {}\n  Active intent: {}\n  Facts: {}\n  Patterns: {}\n  Decisions: {}\n  Attention events spoken: {}",
         health, intent, facts, patterns, decisions, attention
@@ -212,26 +262,39 @@ fn friday_intent(db: &Connection) -> String {
         let mut stmt = db.prepare(
             "SELECT message FROM intent_commits WHERE intent_id = ?1 ORDER BY committed_at DESC LIMIT 3"
         ).unwrap();
-        stmt.query_map(rusqlite::params![id], |r| r.get::<_,String>(0))
-            .unwrap().flatten()
+        stmt.query_map(rusqlite::params![id], |r| r.get::<_, String>(0))
+            .unwrap()
+            .flatten()
             .map(|m| format!("  · {}", &m[..m.len().min(60)]))
             .collect()
     };
     format!(
         "Active intent: INT-{}\nRecent commits:\n{}",
         intent_id,
-        if commits.is_empty() { "  (none yet)".to_string() } else { commits.join("\n") }
+        if commits.is_empty() {
+            "  (none yet)".to_string()
+        } else {
+            commits.join("\n")
+        }
     )
 }
 
 fn friday_events(db: &Connection) -> String {
-    let mut stmt = db.prepare(
-        "SELECT domain, action, payload FROM events ORDER BY timestamp DESC LIMIT 8"
-    ).unwrap();
-    let rows: Vec<String> = stmt.query_map([], |r| {
-        Ok(format!("  [{}:{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?,
-            r.get::<_,String>(2).unwrap_or_default()))
-    }).unwrap().flatten().collect();
+    let mut stmt = db
+        .prepare("SELECT domain, action, payload FROM events ORDER BY timestamp DESC LIMIT 8")
+        .unwrap();
+    let rows: Vec<String> = stmt
+        .query_map([], |r| {
+            Ok(format!(
+                "  [{}:{}] {}",
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2).unwrap_or_default()
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect();
     if rows.is_empty() {
         "No recent events in event bus.".to_string()
     } else {
@@ -243,25 +306,41 @@ fn friday_patterns(db: &Connection) -> String {
     let mut stmt = db.prepare(
         "SELECT trigger, action, confidence, frequency FROM friday_patterns ORDER BY confidence DESC LIMIT 8"
     ).unwrap();
-    let rows: Vec<String> = stmt.query_map([], |r| {
-        Ok(format!("  {:.0}% ({}) {} → {}", r.get::<_,f64>(2)?*100.0, r.get::<_,i64>(3)?,
-            r.get::<_,String>(0)?, r.get::<_,String>(1)?))
-    }).unwrap().flatten().collect();
-    if rows.is_empty() { "No patterns learned yet.".to_string() }
-    else { format!("Friday patterns (confidence %):\n{}", rows.join("\n")) }
+    let rows: Vec<String> = stmt
+        .query_map([], |r| {
+            Ok(format!(
+                "  {:.0}% ({}) {} → {}",
+                r.get::<_, f64>(2)? * 100.0,
+                r.get::<_, i64>(3)?,
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect();
+    if rows.is_empty() {
+        "No patterns learned yet.".to_string()
+    } else {
+        format!("Friday patterns (confidence %):\n{}", rows.join("\n"))
+    }
 }
 
 fn friday_facts(db: &Connection) -> String {
-    let mut stmt = db.prepare(
-        "SELECT fact FROM friday_knowledge ORDER BY id DESC LIMIT 6"
-    ).unwrap();
-    let rows: Vec<String> = stmt.query_map([], |r| {
-        r.get::<_,String>(0)
-    }).unwrap().flatten()
-      .map(|s| format!("  · {}", &s[..s.len().min(80)]))
-      .collect();
-    if rows.is_empty() { "No facts in friday_knowledge yet.".to_string() }
-    else { format!("Recent Friday knowledge:\n{}", rows.join("\n")) }
+    let mut stmt = db
+        .prepare("SELECT fact FROM friday_knowledge ORDER BY id DESC LIMIT 6")
+        .unwrap();
+    let rows: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .flatten()
+        .map(|s| format!("  · {}", &s[..s.len().min(80)]))
+        .collect();
+    if rows.is_empty() {
+        "No facts in friday_knowledge yet.".to_string()
+    } else {
+        format!("Recent Friday knowledge:\n{}", rows.join("\n"))
+    }
 }
 
 fn friday_why(db: &Connection, term: &str) -> String {
@@ -278,8 +357,17 @@ fn friday_why(db: &Connection, term: &str) -> String {
             let dt = chrono::DateTime::from_timestamp(ts, 0)
                 .map(|d| d.format("%m-%d %H:%M").to_string())
                 .unwrap_or_default();
-            Ok(format!("  [{}] {}:{} -- {}", dt, r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
-        }).unwrap().flatten().collect()
+            Ok(format!(
+                "  [{}] {}:{} -- {}",
+                dt,
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect()
     };
     if events.is_empty() {
         format!("No events found matching: {}\nFriday does not invent. It only reports what it observed.", term)
@@ -295,11 +383,12 @@ fn friday_recall(db: &Connection, term: &str) -> String {
     let pattern = format!("%{}%", term);
     // Search knowledge + events
     let knowledge: Vec<String> = {
-        let mut stmt = db.prepare(
-            "SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 LIMIT 3"
-        ).unwrap();
-        stmt.query_map(rusqlite::params![pattern], |r| r.get::<_,String>(0))
-            .unwrap().flatten()
+        let mut stmt = db
+            .prepare("SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 LIMIT 3")
+            .unwrap();
+        stmt.query_map(rusqlite::params![pattern], |r| r.get::<_, String>(0))
+            .unwrap()
+            .flatten()
             .map(|s| format!("  [knowledge] {}", &s[..s.len().min(80)]))
             .collect()
     };
@@ -308,8 +397,19 @@ fn friday_recall(db: &Connection, term: &str) -> String {
             "SELECT commit_hash, message FROM intent_commits WHERE message LIKE ?1 ORDER BY committed_at DESC LIMIT 3"
         ).unwrap();
         stmt.query_map(rusqlite::params![pattern], |r| {
-            Ok(format!("  [commit] {} {}", { let h = r.get::<_,String>(0)?; let end = h.len().min(8); h[..end].to_string() }, r.get::<_,String>(1)?))
-        }).unwrap().flatten().collect()
+            Ok(format!(
+                "  [commit] {} {}",
+                {
+                    let h = r.get::<_, String>(0)?;
+                    let end = h.len().min(8);
+                    h[..end].to_string()
+                },
+                r.get::<_, String>(1)?
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect()
     };
     let mut results = Vec::new();
     results.extend(knowledge);
@@ -335,8 +435,17 @@ fn friday_trace(db: &Connection, term: &str) -> String {
             let dt = chrono::DateTime::from_timestamp(ts, 0)
                 .map(|d| d.format("%m-%d %H:%M").to_string())
                 .unwrap_or_default();
-            Ok(format!("  {} [{}:{}] {}", dt, r.get::<_,String>(1)?, r.get::<_,String>(2)?, r.get::<_,String>(3)?))
-        }).unwrap().flatten().collect()
+            Ok(format!(
+                "  {} [{}:{}] {}",
+                dt,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect()
     };
     if signals.is_empty() {
         format!("No signal trace found for: {}", term)
@@ -347,30 +456,35 @@ fn friday_trace(db: &Connection, term: &str) -> String {
 
 fn friday_natural(db: &Connection, input: &str) -> String {
     // Extract keywords and search knowledge
-    let keywords: Vec<&str> = input.split_whitespace()
-        .filter(|w| w.len() > 3)
-        .collect();
+    let keywords: Vec<&str> = input.split_whitespace().filter(|w| w.len() > 3).collect();
     if keywords.is_empty() {
         return "I didn't understand that. Try /help for available commands.".to_string();
     }
     let term = keywords.join(" ");
     let pattern = format!("%{}%", keywords.first().unwrap_or(&""));
     let facts: Vec<String> = {
-        let mut stmt = db.prepare(
-            "SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 LIMIT 3"
-        ).unwrap();
-        stmt.query_map(rusqlite::params![pattern], |r| r.get::<_,String>(0))
-            .unwrap().flatten()
+        let mut stmt = db
+            .prepare("SELECT fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 LIMIT 3")
+            .unwrap();
+        stmt.query_map(rusqlite::params![pattern], |r| r.get::<_, String>(0))
+            .unwrap()
+            .flatten()
             .map(|s| format!("  · {}", &s[..s.len().min(100)]))
             .collect()
     };
     if facts.is_empty() {
-        format!("Friday has no knowledge about '{}'. Try /recall {} or /why {}", term, term, term)
+        format!(
+            "Friday has no knowledge about '{}'. Try /recall {} or /why {}",
+            term, term, term
+        )
     } else {
-        format!("From friday_knowledge about '{}':\n{}", term, facts.join("\n"))
+        format!(
+            "From friday_knowledge about '{}':\n{}",
+            term,
+            facts.join("\n")
+        )
     }
 }
-
 
 /// FQL: friday where [field] [op] [value]
 fn friday_where(db: &Connection, condition: &str) -> String {
@@ -379,7 +493,10 @@ fn friday_where(db: &Connection, condition: &str) -> String {
     }
     let parts: Vec<&str> = condition.splitn(3, ' ').collect();
     if parts.len() < 3 {
-        return format!("FQL parse error: expected 'field op value', got: {}", condition);
+        return format!(
+            "FQL parse error: expected 'field op value', got: {}",
+            condition
+        );
     }
     let field = parts[0].to_lowercase();
     let op = parts[1];
@@ -395,35 +512,79 @@ fn friday_where(db: &Connection, condition: &str) -> String {
                 _ => return format!("Unknown operator: {}", op),
             };
             let mut stmt = db.prepare(q).unwrap();
-            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
-                Ok(format!("  {:.0}% {} → {}", r.get::<_,f64>(2)?*100.0, r.get::<_,String>(0)?, r.get::<_,String>(1)?))
-            }).unwrap().flatten().collect();
-            if rows.is_empty() { format!("No patterns where confidence {} {}", comp, threshold) }
-            else { format!("Patterns where confidence {} {}:\n{}", comp, threshold, rows.join("\n")) }
+            let rows: Vec<String> = stmt
+                .query_map(rusqlite::params![threshold], |r| {
+                    Ok(format!(
+                        "  {:.0}% {} → {}",
+                        r.get::<_, f64>(2)? * 100.0,
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?
+                    ))
+                })
+                .unwrap()
+                .flatten()
+                .collect();
+            if rows.is_empty() {
+                format!("No patterns where confidence {} {}", comp, threshold)
+            } else {
+                format!(
+                    "Patterns where confidence {} {}:\n{}",
+                    comp,
+                    threshold,
+                    rows.join("\n")
+                )
+            }
         }
         "domain" => {
             let mut stmt = db.prepare(
                 "SELECT kind, detail FROM events WHERE domain = ?1 ORDER BY timestamp DESC LIMIT 10"
             ).unwrap();
-            let rows: Vec<String> = stmt.query_map(rusqlite::params![value], |r| {
-                Ok(format!("  [{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?))
-            }).unwrap().flatten().collect();
-            if rows.is_empty() { format!("No events in domain: {}", value) }
-            else { format!("Events in domain '{}':\n{}", value, rows.join("\n")) }
+            let rows: Vec<String> = stmt
+                .query_map(rusqlite::params![value], |r| {
+                    Ok(format!(
+                        "  [{}] {}",
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?
+                    ))
+                })
+                .unwrap()
+                .flatten()
+                .collect();
+            if rows.is_empty() {
+                format!("No events in domain: {}", value)
+            } else {
+                format!("Events in domain '{}':\n{}", value, rows.join("\n"))
+            }
         }
         "health" => {
             let threshold: i64 = value.parse().unwrap_or(95);
             let mut stmt = db.prepare(
                 "SELECT timestamp, detail FROM events WHERE domain = 'health' AND CAST(detail AS INTEGER) < ?1 ORDER BY timestamp DESC LIMIT 5"
             ).unwrap();
-            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
-                let ts: i64 = r.get(0)?;
-                let dt = chrono::DateTime::from_timestamp(ts, 0)
-                    .map(|d| d.format("%m-%d %H:%M").to_string()).unwrap_or_default();
-                Ok(format!("  [{}] {}", dt, r.get::<_,String>(1)?))
-            }).unwrap().flatten().collect();
-            if rows.is_empty() { format!("No health events matching where health {} {}", op, threshold) }
-            else { format!("Health events where health {} {}:\n{}", op, threshold, rows.join("\n")) }
+            let rows: Vec<String> = stmt
+                .query_map(rusqlite::params![threshold], |r| {
+                    let ts: i64 = r.get(0)?;
+                    let dt = chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|d| d.format("%m-%d %H:%M").to_string())
+                        .unwrap_or_default();
+                    Ok(format!("  [{}] {}", dt, r.get::<_, String>(1)?))
+                })
+                .unwrap()
+                .flatten()
+                .collect();
+            if rows.is_empty() {
+                format!(
+                    "No health events matching where health {} {}",
+                    op, threshold
+                )
+            } else {
+                format!(
+                    "Health events where health {} {}:\n{}",
+                    op,
+                    threshold,
+                    rows.join("\n")
+                )
+            }
         }
         "risk" => {
             // Map risk levels: low=0.3, medium=0.5, high=0.7, critical=0.9
@@ -437,16 +598,32 @@ fn friday_where(db: &Connection, condition: &str) -> String {
             let mut stmt = db.prepare(
                 "SELECT event_type, attention_score, event_detail FROM friday_attention WHERE risk > ?1 ORDER BY timestamp DESC LIMIT 8"
             ).unwrap();
-            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
-                Ok(format!("  risk={:.2} [{}] {}", r.get::<_,f64>(1)?, r.get::<_,String>(0)?, r.get::<_,String>(2)?))
-            }).unwrap().flatten().collect();
+            let rows: Vec<String> = stmt
+                .query_map(rusqlite::params![threshold], |r| {
+                    Ok(format!(
+                        "  risk={:.2} [{}] {}",
+                        r.get::<_, f64>(1)?,
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(2)?
+                    ))
+                })
+                .unwrap()
+                .flatten()
+                .collect();
             if rows.is_empty() {
                 format!("No attention events where risk > {} ({})", value, threshold)
             } else {
-                format!("Attention events where risk > {}:\n{}", value, rows.join("\n"))
+                format!(
+                    "Attention events where risk > {}:\n{}",
+                    value,
+                    rows.join("\n")
+                )
             }
         }
-        _ => format!("Unknown field: {}\nSupported: confidence, domain, health, risk, source", field)
+        _ => format!(
+            "Unknown field: {}\nSupported: confidence, domain, health, risk, source",
+            field
+        ),
     }
 }
 
@@ -457,13 +634,24 @@ fn friday_show(db: &Connection, subject: &str) -> String {
         return friday_patterns(db);
     }
     if lower.contains("decision") || lower.contains("decisions") {
-        let mut stmt = db.prepare(
-            "SELECT what, why, ties_to FROM friday_decisions ORDER BY id DESC LIMIT 5"
-        ).unwrap();
-        let rows: Vec<String> = stmt.query_map([], |r| {
-            Ok(format!("  · {} (why: {}) ties_to: {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
-        }).unwrap().flatten().collect();
-        if rows.is_empty() { return "No decisions recorded yet.".to_string(); }
+        let mut stmt = db
+            .prepare("SELECT what, why, ties_to FROM friday_decisions ORDER BY id DESC LIMIT 5")
+            .unwrap();
+        let rows: Vec<String> = stmt
+            .query_map([], |r| {
+                Ok(format!(
+                    "  · {} (why: {}) ties_to: {}",
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?
+                ))
+            })
+            .unwrap()
+            .flatten()
+            .collect();
+        if rows.is_empty() {
+            return "No decisions recorded yet.".to_string();
+        }
         return format!("Recent decisions:\n{}", rows.join("\n"));
     }
     if lower.contains("intent") || lower.contains("intents") {
@@ -473,14 +661,29 @@ fn friday_show(db: &Connection, subject: &str) -> String {
         let mut stmt = db.prepare(
             "SELECT event_type, attention_score, spoke, event_detail FROM friday_attention ORDER BY timestamp DESC LIMIT 8"
         ).unwrap();
-        let rows: Vec<String> = stmt.query_map([], |r| {
-            Ok(format!("  {:.3} {} [{}] {}", r.get::<_,f64>(1)?,
-                if r.get::<_,i64>(2)? == 1 { "spoke " } else { "silent" },
-                r.get::<_,String>(0)?, r.get::<_,String>(3)?))
-        }).unwrap().flatten().collect();
+        let rows: Vec<String> = stmt
+            .query_map([], |r| {
+                Ok(format!(
+                    "  {:.3} {} [{}] {}",
+                    r.get::<_, f64>(1)?,
+                    if r.get::<_, i64>(2)? == 1 {
+                        "spoke "
+                    } else {
+                        "silent"
+                    },
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(3)?
+                ))
+            })
+            .unwrap()
+            .flatten()
+            .collect();
         return format!("Attention log:\n{}", rows.join("\n"));
     }
-    format!("friday show: unknown subject '{}'\nTry: patterns, decisions, intents, attention", subject)
+    format!(
+        "friday show: unknown subject '{}'\nTry: patterns, decisions, intents, attention",
+        subject
+    )
 }
 
 /// FQL: friday explain [subject]
@@ -493,12 +696,23 @@ fn friday_explain(db: &Connection, subject: &str) -> String {
     let mut stmt = db.prepare(
         "SELECT domain, key, fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 ORDER BY id DESC LIMIT 4"
     ).unwrap();
-    let rows: Vec<String> = stmt.query_map(rusqlite::params![pattern], |r| {
-        Ok(format!("  [{}:{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?,
-            r.get::<_,String>(2)?))
-    }).unwrap().flatten().collect();
+    let rows: Vec<String> = stmt
+        .query_map(rusqlite::params![pattern], |r| {
+            Ok(format!(
+                "  [{}:{}] {}",
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?
+            ))
+        })
+        .unwrap()
+        .flatten()
+        .collect();
     if rows.is_empty() {
-        format!("Friday has no knowledge about '{}'. Try /recall {} or /where domain = {}", subject, subject, subject)
+        format!(
+            "Friday has no knowledge about '{}'. Try /recall {} or /where domain = {}",
+            subject, subject, subject
+        )
     } else {
         format!("Friday explains '{}':\n{}", subject, rows.join("\n"))
     }
@@ -531,7 +745,10 @@ fn main() -> anyhow::Result<()> {
     loop {
         terminal.draw(|f| {
             let area = f.area();
-            f.render_widget(ratatui::widgets::Block::default().style(Style::default().bg(BG)), area);
+            f.render_widget(
+                ratatui::widgets::Block::default().style(Style::default().bg(BG)),
+                area,
+            );
 
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -544,22 +761,29 @@ fn main() -> anyhow::Result<()> {
 
             // Header
             let header = Paragraph::new(Line::from(vec![
-                Span::styled(" 🌲 Friday Chat ", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    " 🌲 Friday Chat ",
+                    Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+                ),
                 Span::styled("│ ", Style::default().fg(DIM)),
                 Span::styled(app.intent_hint.as_str(), Style::default().fg(ACCENT)),
                 Span::styled(" │ health: ", Style::default().fg(DIM)),
                 Span::styled(app.health_hint.as_str(), Style::default().fg(GREEN)),
                 Span::styled("  /help for commands  q to quit", Style::default().fg(DIM)),
-            ])).style(Style::default().bg(BG));
+            ]))
+            .style(Style::default().bg(BG));
             f.render_widget(header, chunks[0]);
 
             // Messages
-            let items: Vec<ListItem> = app.messages.iter().map(|m| {
-                match m.author {
+            let items: Vec<ListItem> = app
+                .messages
+                .iter()
+                .map(|m| match m.author {
                     Author::Friday => {
-                        let mut lines = vec![Line::from(vec![
-                            Span::styled("🌲 Friday  ", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
-                        ])];
+                        let mut lines = vec![Line::from(vec![Span::styled(
+                            "🌲 Friday  ",
+                            Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+                        )])];
                         for line in m.text.lines() {
                             lines.push(Line::from(vec![
                                 Span::styled("          ", Style::default()),
@@ -568,33 +792,38 @@ fn main() -> anyhow::Result<()> {
                         }
                         ListItem::new(lines)
                     }
-                    Author::User => {
-                        ListItem::new(Line::from(vec![
-                            Span::styled("  You  ", Style::default().fg(AMBER).add_modifier(Modifier::BOLD)),
-                            Span::styled(m.text.clone(), Style::default().fg(FG)),
-                        ]))
-                    }
-                    Author::System => {
-                        ListItem::new(Line::from(Span::styled(m.text.clone(), Style::default().fg(DIM))))
-                    }
-                }
-            }).collect();
+                    Author::User => ListItem::new(Line::from(vec![
+                        Span::styled(
+                            "  You  ",
+                            Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(m.text.clone(), Style::default().fg(FG)),
+                    ])),
+                    Author::System => ListItem::new(Line::from(Span::styled(
+                        m.text.clone(),
+                        Style::default().fg(DIM),
+                    ))),
+                })
+                .collect();
 
-            let list = List::new(items)
-                .block(Block::default()
+            let list = List::new(items).block(
+                Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
                     .border_style(Style::default().fg(ACCENT))
-                    .style(Style::default().bg(BG)));
+                    .style(Style::default().bg(BG)),
+            );
             f.render_widget(list, chunks[1]);
 
             // Input
             let input = Paragraph::new(format!("> {}", app.input))
-                .block(Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(DIM))
-                    .title(Span::styled(" Ask Friday ", Style::default().fg(DIM))))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Rounded)
+                        .border_style(Style::default().fg(DIM))
+                        .title(Span::styled(" Ask Friday ", Style::default().fg(DIM))),
+                )
                 .style(Style::default().fg(FG).bg(BG))
                 .wrap(Wrap { trim: false });
             f.render_widget(input, chunks[2]);
@@ -606,7 +835,9 @@ fn main() -> anyhow::Result<()> {
                 KeyCode::Char('q') if app.input.is_empty() => break,
                 KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => break,
                 KeyCode::Esc => break,
-                KeyCode::Backspace => { app.input.pop(); }
+                KeyCode::Backspace => {
+                    app.input.pop();
+                }
                 KeyCode::Char(c) => app.input.push(c),
                 _ => {}
             }
@@ -614,7 +845,11 @@ fn main() -> anyhow::Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
     Ok(())
 }

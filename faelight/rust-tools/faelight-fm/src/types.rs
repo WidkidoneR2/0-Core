@@ -19,7 +19,7 @@ pub struct TreeNode {
     pub symlink_target: Option<String>,
     pub expanded: bool,
     pub children: Vec<TreeNode>,
-    pub unlisted: usize,     // count of items not shown
+    pub unlisted: usize, // count of items not shown
     pub depth: usize,
 }
 
@@ -41,7 +41,7 @@ pub struct FlatNode {
 pub enum Mode {
     Normal,
     Filter(String),
-    Command(String),      // :verb mode
+    Command(String), // :verb mode
     ConfirmDelete(String),
 }
 

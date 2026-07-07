@@ -9,7 +9,7 @@ use crate::db::ForestDb;
 
 // OSC 133 shell integration sequences (INT-296)
 pub const OSC133_PROMPT_START: &str = "\x1b]133;A\x1b\\"; // prompt start
-pub const OSC133_PROMPT_END: &str   = "\x1b]133;B\x1b\\"; // command input start
+pub const OSC133_PROMPT_END: &str = "\x1b]133;B\x1b\\"; // command input start
 pub const OSC133_OUTPUT_START: &str = "\x1b]133;C\x1b\\"; // output start
 pub fn osc133_command_end(exit_code: i32) -> String {
     format!("\x1b]133;D;{}\x1b\\", exit_code)
@@ -27,11 +27,17 @@ fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
 }
 fn fc_bold_rl(r: u8, g: u8, b: u8, text: &str) -> String {
     // rl_wrap-safe bold truecolor for rustyline prompt
-    format!("\x01\x1b[1m\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02", r, g, b, text)
+    format!(
+        "\x01\x1b[1m\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02",
+        r, g, b, text
+    )
 }
 fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
     // rl_wrap-safe truecolor for rustyline prompt
-    format!("\x01\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02", r, g, b, text)
+    format!(
+        "\x01\x1b[38;2;{};{};{}m\x02{}\x01\x1b[0m\x02",
+        r, g, b, text
+    )
 }
 
 // ── Semantic color tokens (INT-033) ─────────────────────────────────────────
@@ -39,35 +45,35 @@ fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
 // Meaning: lime=structure/peak, aqua=location, lavender=intent/focus,
 //          gold=caution, rose=attention/fail, near-green=quiet separators.
 // Health
-const C_HEALTH_PEAK:     (u8,u8,u8) = (176, 246, 42);   // electric lime (neon70)
-const C_HEALTH_ADVISORY: (u8,u8,u8) = (252, 213, 78);   // gold (neon70)
-const C_HEALTH_CRITICAL: (u8,u8,u8) = (255, 95,  135);  // hot rose (neon70)
-// Prompt
-const C_CWD:             (u8,u8,u8) = (40,  242, 216);  // aqua (neon70)
-const C_PROMPT_OK:       (u8,u8,u8) = (176, 246, 42);   // electric lime (neon70)
-const C_PROMPT_FAIL:     (u8,u8,u8) = (255, 130, 168);  // rose (neon70)
-const C_INTENT:          (u8,u8,u8) = (186, 156, 255);  // lavender (neon70)
-const C_BRANCH_CLEAN:    (u8,u8,u8) = (158, 224, 78);   // soft lime (neon70)
-const C_BRANCH_DIRTY:    (u8,u8,u8) = (252, 213, 78);   // gold (neon70)
-const C_DIMMED:          (u8,u8,u8) = (90,  110, 95);   // near-green quiet
-// Directory-context accents (INT-103): path color tells you WHAT KIND of place
-const C_DIR_FOREST:      (u8,u8,u8) = (176, 246, 42);   // forest core: lime (neon70)
-const C_DIR_RUST:        (u8,u8,u8) = (255, 138, 44);   // Rust territory: orange (neon70)
-const C_DIR_NIX:         (u8,u8,u8) = (74,  196, 255);  // Nix domain: ice-blue (neon70)
-const C_DIR_INTENTS:     (u8,u8,u8) = (186, 156, 255);  // intents/: lavender (neon70)
-const C_DIR_DOTFILES:    (u8,u8,u8) = (255, 130, 168);  // dotfiles/: rose (neon70)
-const C_DIR_HOME:        (u8,u8,u8) = (40,  242, 216);  // elsewhere in ~: aqua (neon70)
-const C_DIR_SYSTEM:      (u8,u8,u8) = (252, 213, 78);   // system: gold (neon70)
-const C_DIR_ROOT:        (u8,u8,u8) = (200, 90,  110);  // outside home entirely: dim rose
-const C_DEVSHELL:        (u8,u8,u8) = (40,  242, 216);  // devshell: aqua (neon70)
+const C_HEALTH_PEAK: (u8, u8, u8) = (176, 246, 42); // electric lime (neon70)
+const C_HEALTH_ADVISORY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
+const C_HEALTH_CRITICAL: (u8, u8, u8) = (255, 95, 135); // hot rose (neon70)
+                                                        // Prompt
+const C_CWD: (u8, u8, u8) = (40, 242, 216); // aqua (neon70)
+const C_PROMPT_OK: (u8, u8, u8) = (176, 246, 42); // electric lime (neon70)
+const C_PROMPT_FAIL: (u8, u8, u8) = (255, 130, 168); // rose (neon70)
+const C_INTENT: (u8, u8, u8) = (186, 156, 255); // lavender (neon70)
+const C_BRANCH_CLEAN: (u8, u8, u8) = (158, 224, 78); // soft lime (neon70)
+const C_BRANCH_DIRTY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
+const C_DIMMED: (u8, u8, u8) = (90, 110, 95); // near-green quiet
+                                              // Directory-context accents (INT-103): path color tells you WHAT KIND of place
+const C_DIR_FOREST: (u8, u8, u8) = (176, 246, 42); // forest core: lime (neon70)
+const C_DIR_RUST: (u8, u8, u8) = (255, 138, 44); // Rust territory: orange (neon70)
+const C_DIR_NIX: (u8, u8, u8) = (74, 196, 255); // Nix domain: ice-blue (neon70)
+const C_DIR_INTENTS: (u8, u8, u8) = (186, 156, 255); // intents/: lavender (neon70)
+const C_DIR_DOTFILES: (u8, u8, u8) = (255, 130, 168); // dotfiles/: rose (neon70)
+const C_DIR_HOME: (u8, u8, u8) = (40, 242, 216); // elsewhere in ~: aqua (neon70)
+const C_DIR_SYSTEM: (u8, u8, u8) = (252, 213, 78); // system: gold (neon70)
+const C_DIR_ROOT: (u8, u8, u8) = (200, 90, 110); // outside home entirely: dim rose
+const C_DEVSHELL: (u8, u8, u8) = (40, 242, 216); // devshell: aqua (neon70)
 
 // ── Powerline (INT-103) ─────────────────────────────────────────────────────
 // Nerd Font glyphs (JetBrainsMono NF confirmed present)
-const PL_ARROW: &str = "\u{e0b0}";   // right-filled arrow (segment flow)
-const PL_FOLDER: &str = "\u{e5ff}";  // folder
-const PL_GIT: &str = "\u{e0a0}";     // git branch
-const PL_NIX: &str = "\u{f313}";     // nix snowflake-ish
-const DARK: (u8,u8,u8) = (12, 20, 15);   // near-black-green text on candy bg
+const PL_ARROW: &str = "\u{e0b0}"; // right-filled arrow (segment flow)
+const PL_FOLDER: &str = "\u{e5ff}"; // folder
+const PL_GIT: &str = "\u{e0a0}"; // git branch
+const PL_NIX: &str = "\u{f313}"; // nix snowflake-ish
+const DARK: (u8, u8, u8) = (12, 20, 15); // near-black-green text on candy bg
 
 struct Seg {
     text: String,
@@ -143,29 +149,32 @@ fn cwd_color() -> (u8, u8, u8) {
     // as forest, not "rust" just because a workspace Cargo.toml sits there).
     if in_forest {
         if cwd.contains("/rust-tools") {
-            return C_DIR_RUST;         // Rust territory inside the forest
+            return C_DIR_RUST; // Rust territory inside the forest
         }
         if cwd.contains("/intents") {
-            return C_DIR_INTENTS;      // the ledger / thought-space
+            return C_DIR_INTENTS; // the ledger / thought-space
         }
         if cwd.contains("/home/dotfiles") {
-            return C_DIR_DOTFILES;     // personal config
+            return C_DIR_DOTFILES; // personal config
         }
         if cwd.contains("/nix") {
-            return C_DIR_NIX;          // the OS domain
+            return C_DIR_NIX; // the OS domain
         }
-        return C_DIR_FOREST;           // forest core (root, faelight, etc.)
+        return C_DIR_FOREST; // forest core (root, faelight, etc.)
     }
     // Outside the forest: marker-file detection.
     if Path::new("Cargo.toml").exists() {
-        return C_DIR_RUST;             // a Rust project anywhere
+        return C_DIR_RUST; // a Rust project anywhere
     }
     if Path::new("flake.nix").exists() {
-        return C_DIR_NIX;              // a Nix project anywhere
+        return C_DIR_NIX; // a Nix project anywhere
     }
     // System dirs -- careful
-    if cwd.starts_with("/etc") || cwd.starts_with("/nix")
-        || cwd.starts_with("/usr") || cwd.starts_with("/var") {
+    if cwd.starts_with("/etc")
+        || cwd.starts_with("/nix")
+        || cwd.starts_with("/usr")
+        || cwd.starts_with("/var")
+    {
         return C_DIR_SYSTEM;
     }
     // Elsewhere in home vs outside
@@ -180,9 +189,19 @@ fn health_str(health: i64) -> String {
     if health >= 95 {
         fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, &text)
     } else if health >= 80 {
-        fc_bold(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, &text)
+        fc_bold(
+            C_HEALTH_ADVISORY.0,
+            C_HEALTH_ADVISORY.1,
+            C_HEALTH_ADVISORY.2,
+            &text,
+        )
     } else {
-        fc_bold(C_HEALTH_CRITICAL.0, C_HEALTH_CRITICAL.1, C_HEALTH_CRITICAL.2, &text)
+        fc_bold(
+            C_HEALTH_CRITICAL.0,
+            C_HEALTH_CRITICAL.1,
+            C_HEALTH_CRITICAL.2,
+            &text,
+        )
     }
 }
 
@@ -227,7 +246,9 @@ fn flake_info() -> Option<String> {
         }
         dir = dir.parent()?;
     };
-    flake_root.file_name().map(|n| n.to_string_lossy().to_string())
+    flake_root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
 }
 
 fn system_drift() -> Option<bool> {
@@ -242,10 +263,8 @@ fn system_drift() -> Option<bool> {
     } else {
         head.to_string()
     };
-    let built = std::fs::read_to_string(
-        format!("{}/.cache/faelight/last-system-rev", home),
-    )
-    .ok()?;
+    let built =
+        std::fs::read_to_string(format!("{}/.cache/faelight/last-system-rev", home)).ok()?;
     Some(current.as_str() != built.trim())
 }
 
@@ -295,18 +314,39 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     // ── Line 1: candy powerline (INT-103) -- directory / repo / devshell ──
     let mut segs: Vec<Seg> = Vec::new();
     let dir_bg = cwd_color();
-    segs.push(Seg { text: format!("{} {}", PL_FOLDER, cwd), bg: dir_bg, fg: DARK });
+    segs.push(Seg {
+        text: format!("{} {}", PL_FOLDER, cwd),
+        bg: dir_bg,
+        fg: DARK,
+    });
     if let Some((ref b, dirty, flake_dirty)) = git {
         let star = if dirty { "*" } else { "" };
-        let bg = if dirty { C_BRANCH_DIRTY } else { C_BRANCH_CLEAN };
-        let fx = if flake_dirty { format!(" {}", PL_NIX) } else { String::new() };
-        segs.push(Seg { text: format!("{} {}{}{}", PL_GIT, b, star, fx), bg, fg: DARK });
+        let bg = if dirty {
+            C_BRANCH_DIRTY
+        } else {
+            C_BRANCH_CLEAN
+        };
+        let fx = if flake_dirty {
+            format!(" {}", PL_NIX)
+        } else {
+            String::new()
+        };
+        segs.push(Seg {
+            text: format!("{} {}{}{}", PL_GIT, b, star, fx),
+            bg,
+            fg: DARK,
+        });
     }
-    let devshell = std::env::var("name").ok()
+    let devshell = std::env::var("name")
+        .ok()
         .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
         .filter(|n| !n.is_empty() && n != "0-core");
     if let Some(d) = devshell {
-        segs.push(Seg { text: format!("{} {}", PL_NIX, d), bg: C_DEVSHELL, fg: DARK });
+        segs.push(Seg {
+            text: format!("{} {}", PL_NIX, d),
+            bg: C_DEVSHELL,
+            fg: DARK,
+        });
     }
     let mut line1 = format!("  {}", powerline(&segs));
 
@@ -314,8 +354,12 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         if code != 0 {
             line1.push_str(&format!(
                 " {}",
-                fc_bold(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2,
-                    &format!("[✗ {}]", code))
+                fc_bold(
+                    C_PROMPT_FAIL.0,
+                    C_PROMPT_FAIL.1,
+                    C_PROMPT_FAIL.2,
+                    &format!("[✗ {}]", code)
+                )
             ));
         }
     }
@@ -323,9 +367,16 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     if ctx.job_count > 0 {
         line1.push_str(&format!(
             " {}",
-            fc(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2,
-                &format!("[{} job{}]", ctx.job_count,
-                    if ctx.job_count == 1 { "" } else { "s" }))
+            fc(
+                C_HEALTH_ADVISORY.0,
+                C_HEALTH_ADVISORY.1,
+                C_HEALTH_ADVISORY.2,
+                &format!(
+                    "[{} job{}]",
+                    ctx.job_count,
+                    if ctx.job_count == 1 { "" } else { "s" }
+                )
+            )
         ));
     }
 
@@ -333,8 +384,12 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         if ms >= 2000 {
             line1.push_str(&format!(
                 " {}",
-                fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2,
-                    &format!("[{:.1}s]", ms as f64 / 1000.0))
+                fc_dim(
+                    C_DIMMED.0,
+                    C_DIMMED.1,
+                    C_DIMMED.2,
+                    &format!("[{:.1}s]", ms as f64 / 1000.0)
+                )
             ));
         } else if ms >= 100 {
             line1.push_str(&format!(
@@ -356,12 +411,21 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
 
     if today_commits > 0 {
-        parts.push(fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2,
-            &format!("{} today", today_commits)));
+        parts.push(fc_dim(
+            C_DIMMED.0,
+            C_DIMMED.1,
+            C_DIMMED.2,
+            &format!("{} today", today_commits),
+        ));
     }
 
     if let Some(true) = system_drift() {
-        parts.push(fc_bold(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, "⇡ rebuild"));
+        parts.push(fc_bold(
+            C_HEALTH_ADVISORY.0,
+            C_HEALTH_ADVISORY.1,
+            C_HEALTH_ADVISORY.2,
+            "⇡ rebuild",
+        ));
     }
 
     if is_friday {
@@ -392,8 +456,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             });
 
         let trend_hint = {
-            let cache = std::fs::read_to_string(
-                format!("{}/.cache/faelight/health-status", home))
+            let cache = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
                 .unwrap_or_else(|_| "100".to_string());
             let h: u32 = cache.trim().parse().unwrap_or(100);
             if h >= 100 {
@@ -401,13 +464,21 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             } else if h >= 95 {
                 fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "stable")
             } else {
-                fc(C_HEALTH_ADVISORY.0, C_HEALTH_ADVISORY.1, C_HEALTH_ADVISORY.2, "advisory")
+                fc(
+                    C_HEALTH_ADVISORY.0,
+                    C_HEALTH_ADVISORY.1,
+                    C_HEALTH_ADVISORY.2,
+                    "advisory",
+                )
             }
         };
 
         let friday_hint = match next_intent {
-            Some(id) => format!("▸ {} · {}",
-                fc(C_INTENT.0, C_INTENT.1, C_INTENT.2, &id), trend_hint),
+            Some(id) => format!(
+                "▸ {} · {}",
+                fc(C_INTENT.0, C_INTENT.1, C_INTENT.2, &id),
+                trend_hint
+            ),
             None => format!("▸ {}", trend_hint),
         };
         parts.push(friday_hint);
@@ -426,7 +497,8 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             )
             .ok()
         })
-        .unwrap_or(0) > 0;
+        .unwrap_or(0)
+            > 0;
         if has_friday_msg {
             parts.push("🌲".to_string());
         }
@@ -491,10 +563,12 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
                 fc_rl(C_CWD.0, C_CWD.1, C_CWD.2, &cwd)
             )
         }
-        _ => format!("  {}{}{}  ",
+        _ => format!(
+            "  {}{}{}  ",
             nix_indicator,
             fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "fsh"),
-            caret),
+            caret
+        ),
     };
     raw
 }
@@ -513,5 +587,3 @@ pub fn status_line(db: &ForestDb) -> String {
         fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "forest"),
     )
 }
-
-

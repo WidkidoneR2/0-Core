@@ -1,19 +1,22 @@
 //! gen-diff -- Rich visual diff between NixOS generations
 //! INT-044 Phase 1-3: list, package diff, forest context (commits + intents)
 //! "Every rebuild is a checkpoint."
-use std::process::Command;
-use std::collections::BTreeSet;
-use serde::Deserialize;
-use colored::*;
-use chrono::{NaiveDateTime, TimeZone, Local};
+use chrono::{Local, NaiveDateTime, TimeZone};
 use clap::Parser;
+use colored::*;
+use serde::Deserialize;
+use std::collections::BTreeSet;
+use std::process::Command;
 
 const ARROW: &str = "→";
 const EMPTY: &str = "∅";
-const EPS:   &str = "ε";
+const EPS: &str = "ε";
 
 #[derive(Parser)]
-#[command(name = "gen-diff", about = "Rich visual diff between NixOS generations -- INT-044")]
+#[command(
+    name = "gen-diff",
+    about = "Rich visual diff between NixOS generations -- INT-044"
+)]
 struct Cli {
     /// Older generation (default: the one before current)
     a: Option<u64>,
@@ -76,7 +79,10 @@ fn load_commits() -> Vec<(String, i64)> {
 fn match_commit(gen_date: &str, commits: &[(String, i64)]) -> Option<String> {
     let naive = NaiveDateTime::parse_from_str(gen_date, "%Y-%m-%d %H:%M:%S").ok()?;
     let epoch = Local.from_local_datetime(&naive).single()?.timestamp();
-    commits.iter().find(|(_, ct)| *ct <= epoch).map(|(h, _)| h.clone())
+    commits
+        .iter()
+        .find(|(_, ct)| *ct <= epoch)
+        .map(|(h, _)| h.clone())
 }
 
 fn commit_for(g: &Generation, commits: &[(String, i64)]) -> String {
@@ -98,21 +104,37 @@ fn forest_context(older: &str, newer: &str) -> (usize, Vec<u32>) {
         .args(["-C", &repo, "rev-list", "--count", &range])
         .output()
         .ok()
-        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<usize>().ok())
+        .and_then(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .parse::<usize>()
+                .ok()
+        })
         .unwrap_or(0);
 
     let mut ids = BTreeSet::new();
     if let Ok(out) = Command::new("git")
         .args([
-            "-C", &repo, "log", "--no-renames", "--diff-filter=A",
-            "--name-only", "--pretty=format:", &range, "--", "intents/complete/", "faelight/intents/complete/",
+            "-C",
+            &repo,
+            "log",
+            "--no-renames",
+            "--diff-filter=A",
+            "--name-only",
+            "--pretty=format:",
+            &range,
+            "--",
+            "intents/complete/",
+            "faelight/intents/complete/",
         ])
         .output()
     {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
             let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix("faelight/intents/complete/")
-                .or_else(|| trimmed.strip_prefix("intents/complete/")) {
+            if let Some(rest) = trimmed
+                .strip_prefix("faelight/intents/complete/")
+                .or_else(|| trimmed.strip_prefix("intents/complete/"))
+            {
                 let num: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
                 if let Ok(n) = num.parse::<u32>() {
                     ids.insert(n);
@@ -124,13 +146,17 @@ fn forest_context(older: &str, newer: &str) -> (usize, Vec<u32>) {
 }
 
 fn list_generations(gens: &[Generation], commits: &[(String, i64)]) {
-    let header = format!("{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
-        "GEN", "DATE", "NIXOS", "KERNEL", "COMMIT");
+    let header = format!(
+        "{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
+        "GEN", "DATE", "NIXOS", "KERNEL", "COMMIT"
+    );
     println!("{}", header.truecolor(0x78, 0x8C, 0x82));
     for g in gens {
         let commit = commit_for(g, commits);
-        let mut line = format!("{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
-            g.generation, g.date, g.nixos_version, g.kernel_version, commit);
+        let mut line = format!(
+            "{:>5}  {:<19}  {:<24}  {:<9}  {:<12}",
+            g.generation, g.date, g.nixos_version, g.kernel_version, commit
+        );
         if g.current {
             line.push_str("  <- current");
             println!("{}", line.truecolor(0x39, 0xFF, 0x14).bold());
@@ -138,13 +164,26 @@ fn list_generations(gens: &[Generation], commits: &[(String, i64)]) {
             println!("{}", line.truecolor(0xD7, 0xE0, 0xDA));
         }
     }
-    eprintln!("{}", format!("{} generations", gens.len()).truecolor(0x32, 0xDC, 0xFF));
+    eprintln!(
+        "{}",
+        format!("{} generations", gens.len()).truecolor(0x32, 0xDC, 0xFF)
+    );
 }
 
 enum Change {
-    Added { name: String, ver: String },
-    Removed { name: String, ver: String },
-    Changed { name: String, old: String, new: String },
+    Added {
+        name: String,
+        ver: String,
+    },
+    Removed {
+        name: String,
+        ver: String,
+    },
+    Changed {
+        name: String,
+        old: String,
+        new: String,
+    },
 }
 
 fn parse_diff(raw: &str) -> (Vec<Change>, usize, usize) {
@@ -154,7 +193,9 @@ fn parse_diff(raw: &str) -> (Vec<Change>, usize, usize) {
     let sep = format!(" {} ", ARROW);
     for line in raw.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
         let (name, rest) = match line.split_once(": ") {
             Some(x) => x,
             None => continue,
@@ -167,11 +208,21 @@ fn parse_diff(raw: &str) -> (Vec<Change>, usize, usize) {
                 continue;
             }
             if before == EMPTY {
-                changes.push(Change::Added { name: name.into(), ver: after_ver.into() });
+                changes.push(Change::Added {
+                    name: name.into(),
+                    ver: after_ver.into(),
+                });
             } else if after_ver == EMPTY {
-                changes.push(Change::Removed { name: name.into(), ver: before.into() });
+                changes.push(Change::Removed {
+                    name: name.into(),
+                    ver: before.into(),
+                });
             } else {
-                changes.push(Change::Changed { name: name.into(), old: before.into(), new: after_ver.into() });
+                changes.push(Change::Changed {
+                    name: name.into(),
+                    old: before.into(),
+                    new: after_ver.into(),
+                });
             }
         } else {
             resized += 1;
@@ -194,15 +245,27 @@ fn diff_generations(a: u64, b: u64, gens: &[Generation], commits: &[(String, i64
         .output()
         .expect("failed to run `nix store diff-closures`");
     if !out.status.success() {
-        eprintln!("{}", format!("diff-closures failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()).truecolor(0xFF, 0x50, 0x50));
+        eprintln!(
+            "{}",
+            format!(
+                "diff-closures failed: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )
+            .truecolor(0xFF, 0x50, 0x50)
+        );
         std::process::exit(1);
     }
     let raw = String::from_utf8_lossy(&out.stdout);
     let (changes, system, resized) = parse_diff(&raw);
 
-    let head = format!("gen {} ({})  {}  gen {} ({})",
-        a, date_of(da), ARROW, b, date_of(db));
+    let head = format!(
+        "gen {} ({})  {}  gen {} ({})",
+        a,
+        date_of(da),
+        ARROW,
+        b,
+        date_of(db)
+    );
     println!("{}", head.truecolor(0x32, 0xDC, 0xFF).bold());
     println!();
 
@@ -210,20 +273,28 @@ fn diff_generations(a: u64, b: u64, gens: &[Generation], commits: &[(String, i64
     for c in &changes {
         if let Change::Changed { name, old, new } = c {
             changed += 1;
-            println!("{}", format!("  ~ {}  {} {} {}", name, old, ARROW, new)
-                .truecolor(0xFF, 0xC8, 0x32));
+            println!(
+                "{}",
+                format!("  ~ {}  {} {} {}", name, old, ARROW, new).truecolor(0xFF, 0xC8, 0x32)
+            );
         }
     }
     for c in &changes {
         if let Change::Added { name, ver } = c {
             added += 1;
-            println!("{}", format!("  + {}  {}", name, ver).truecolor(0x39, 0xFF, 0x14));
+            println!(
+                "{}",
+                format!("  + {}  {}", name, ver).truecolor(0x39, 0xFF, 0x14)
+            );
         }
     }
     for c in &changes {
         if let Change::Removed { name, ver } = c {
             removed += 1;
-            println!("{}", format!("  - {}  {}", name, ver).truecolor(0xFF, 0x50, 0x50));
+            println!(
+                "{}",
+                format!("  - {}  {}", name, ver).truecolor(0xFF, 0x50, 0x50)
+            );
         }
     }
 
@@ -244,7 +315,11 @@ fn diff_generations(a: u64, b: u64, gens: &[Generation], commits: &[(String, i64
                 ctx.push_str(", 0 intents completed");
             } else {
                 let ids: Vec<String> = intents.iter().map(|i| format!("INT-{:03}", i)).collect();
-                ctx.push_str(&format!(", {} intents completed: {}", intents.len(), ids.join(", ")));
+                ctx.push_str(&format!(
+                    ", {} intents completed: {}",
+                    intents.len(),
+                    ids.join(", ")
+                ));
             }
             println!("{}", ctx.truecolor(0xB4, 0x82, 0xFF));
         }
@@ -255,7 +330,9 @@ fn main() {
     // Behave like a normal Unix tool when piped to head/less:
     // exit on SIGPIPE instead of panicking on a broken-pipe write.
     #[cfg(unix)]
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
 
     let cli = Cli::parse();
     let gens = load_generations();

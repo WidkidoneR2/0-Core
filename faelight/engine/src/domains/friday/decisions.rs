@@ -20,9 +20,12 @@ pub fn decide(ctx: &AppContext, what: &str, why: &str, ties_to: &str) -> CoreRes
     )?;
     // INT-251 v23: emit to unified event bus
     let _ = super::events::emit(
-        ctx, "decisions", "decision_recorded",
+        ctx,
+        "decisions",
+        "decision_recorded",
         &format!(r#"{{"what":"{}","ties_to":"{}"}}"#, what, ties_to),
-        "core", None,
+        "core",
+        None,
     );
     println!("  {} Decision recorded", "✅".green());
     println!("  {} What:    {}", "→".dimmed(), what.bright_white());
@@ -40,12 +43,14 @@ pub fn why(ctx: &AppContext, topic: &str) -> CoreResult<()> {
         "SELECT id, timestamp, what, why, ties_to
          FROM friday_decisions
          WHERE lower(what) LIKE ?1 OR lower(why) LIKE ?1 OR lower(ties_to) LIKE ?1
-         ORDER BY timestamp DESC LIMIT 10"
+         ORDER BY timestamp DESC LIMIT 10",
     )?;
-    let rows: Vec<(i64, i64, String, String, String)> = stmt.query_map(
-        params![search],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-    )?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(i64, i64, String, String, String)> = stmt
+        .query_map(params![search], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     if rows.is_empty() {
         println!("  🤔 No decisions found for: {}", topic.yellow());
         println!("  → Record one: core friday decide \"<what>\" --why \"<why>\"");
@@ -72,10 +77,10 @@ pub fn list_decisions(ctx: &AppContext) -> CoreResult<()> {
     let mut stmt = db.prepare(
         "SELECT id, timestamp, what, ties_to FROM friday_decisions ORDER BY timestamp DESC LIMIT 20"
     )?;
-    let rows: Vec<(i64, i64, String, String)> = stmt.query_map(
-        [],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-    )?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(i64, i64, String, String)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
     if rows.is_empty() {
         println!("  No decisions recorded yet.");
         println!("  Record one: core friday decide \"what\" --why \"why\"");
@@ -87,8 +92,18 @@ pub fn list_decisions(ctx: &AppContext) -> CoreResult<()> {
         let dt = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|d| d.format("%Y-%m-%d").to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        let ties = if ties_to.is_empty() { String::new() } else { format!(" [{}]", ties_to) };
-        println!("  {} {} {}{}", id.to_string().dimmed(), dt.dimmed(), what.bright_white(), ties.dimmed());
+        let ties = if ties_to.is_empty() {
+            String::new()
+        } else {
+            format!(" [{}]", ties_to)
+        };
+        println!(
+            "  {} {} {}{}",
+            id.to_string().dimmed(),
+            dt.dimmed(),
+            what.bright_white(),
+            ties.dimmed()
+        );
     }
     Ok(())
 }

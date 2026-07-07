@@ -514,14 +514,32 @@ pub enum FridayCommands {
     MapShow,
     /// INT-244 v22 -- update the system map from current state
     MapUpdate,
-    #[command(name = "map-impact", about = "INT-244 v22 -- trace impact of a change across the system map")]
-    #[command(name = "reason-engine", about = "INT-251 v23 -- run reasoning engine on event stream")]
+    #[command(
+        name = "map-impact",
+        about = "INT-244 v22 -- trace impact of a change across the system map"
+    )]
+    #[command(
+        name = "reason-engine",
+        about = "INT-251 v23 -- run reasoning engine on event stream"
+    )]
     ReasonEngine,
-    #[command(name = "event-bus", about = "INT-251 v23 -- show recent event bus activity")]
+    #[command(
+        name = "event-bus",
+        about = "INT-251 v23 -- show recent event bus activity"
+    )]
     EventBus {
-        #[arg(short = 'd', long, help = "Filter by domain (e.g. doctor, git, shell, compositor)")]
+        #[arg(
+            short = 'd',
+            long,
+            help = "Filter by domain (e.g. doctor, git, shell, compositor)"
+        )]
         domain: Option<String>,
-        #[arg(short = 'l', long, default_value = "50", help = "Number of events to show")]
+        #[arg(
+            short = 'l',
+            long,
+            default_value = "50",
+            help = "Number of events to show"
+        )]
         limit: usize,
         #[arg(long, help = "Output as JSON")]
         json: bool,
@@ -583,7 +601,6 @@ pub enum DoctorCommands {
     /// Show health score history over time
     History,
 }
-
 
 #[derive(Subcommand)]
 pub enum IntentCommands {
@@ -849,7 +866,6 @@ pub enum NotifyCommands {
     },
     Status,
 }
-
 
 #[derive(Subcommand)]
 pub enum UpdateCommands {

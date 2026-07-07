@@ -138,9 +138,13 @@ fn preexec(
                 }
             }
             // Block rm -rf on core source directories
-            let core_src = faelight_core::paths::rust_tools_dir().to_string_lossy().to_string();
+            let core_src = faelight_core::paths::rust_tools_dir()
+                .to_string_lossy()
+                .to_string();
             let core_engine = format!("{}/engine", core_root);
-            let core_intents = faelight_core::paths::intents_dir().to_string_lossy().to_string();
+            let core_intents = faelight_core::paths::intents_dir()
+                .to_string_lossy()
+                .to_string();
             for protected in &[
                 core_src.as_str(),
                 core_engine.as_str(),
@@ -156,14 +160,14 @@ fn preexec(
         }
     }
 
-
     // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
     if cmd == "cp" || cmd == "mv" {
         // INT-097: was raw.contains("core") -- matched every path under ~/0-core,
         // blocking legit copies. Now block only when the DESTINATION is a core binary.
         let dest = raw.split_whitespace().last().unwrap_or("");
         let protected = ["scripts/core", ".cargo/bin/core", "/bin/core"];
-        let hits_core_binary = dest.ends_with("/core") || dest == "core"
+        let hits_core_binary = dest.ends_with("/core")
+            || dest == "core"
             || protected.iter().any(|p| dest.ends_with(p));
         if hits_core_binary && !raw.contains("deploy") {
             return Some(
@@ -274,7 +278,6 @@ fn preexec(
     None
 }
 
-
 /// Postexec hook — runs after every command
 fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
     // Phase 0: record to shell_history with context
@@ -327,8 +330,8 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         // lookup for them unless they produced real stderr (a genuine error message).
         let first_word = cmd_lower.split_whitespace().next().unwrap_or("");
         let no_match_tools = [
-            "grep", "rg", "egrep", "fgrep", "ripgrep", "find", "fd",
-            "diff", "test", "ag", "ack", "fsearch",
+            "grep", "rg", "egrep", "fgrep", "ripgrep", "find", "fd", "diff", "test", "ag", "ack",
+            "fsearch",
         ];
         let is_no_match_exit = no_match_tools.contains(&first_word)
             && (error_msg.trim().is_empty()

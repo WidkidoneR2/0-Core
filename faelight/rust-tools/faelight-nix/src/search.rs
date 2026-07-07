@@ -42,8 +42,8 @@ pub fn search(query: &str) -> Result<Vec<Package>> {
     }
 
     // stdout is the JSON object; stderr holds eval warnings (ignored).
-    let stdout = String::from_utf8(output.stdout)
-        .context("nix search stdout was not valid UTF-8")?;
+    let stdout =
+        String::from_utf8(output.stdout).context("nix search stdout was not valid UTF-8")?;
 
     if stdout.trim().is_empty() {
         return Ok(vec![]);
@@ -56,8 +56,16 @@ pub fn search(query: &str) -> Result<Vec<Package>> {
         .into_iter()
         .map(|(key, val)| Package {
             attr: clean_attr(&key),
-            pname: val.get("pname").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            version: val.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            pname: val
+                .get("pname")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            version: val
+                .get("version")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             description: val
                 .get("description")
                 .and_then(|v| v.as_str())

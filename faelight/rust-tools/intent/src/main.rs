@@ -26,7 +26,9 @@ fn main() {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
     std::panic::set_hook(Box::new(|info| {
-        let msg = info.payload().downcast_ref::<String>()
+        let msg = info
+            .payload()
+            .downcast_ref::<String>()
             .map(|s| s.as_str())
             .or_else(|| info.payload().downcast_ref::<&str>().copied())
             .unwrap_or("");
@@ -329,7 +331,8 @@ fn cmd_list(filter: Option<&str>) {
                 let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
                 let title = extract_frontmatter(&content, "title")
                     .unwrap_or("Untitled".to_string())
-                    .trim_matches('"').trim_matches('\'')
+                    .trim_matches('"')
+                    .trim_matches('\'')
                     .to_string();
                 let status =
                     extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
@@ -590,11 +593,13 @@ fn cmd_next() {
         files.sort_by_key(|e| e.file_name());
         for entry in files {
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") { continue; }
+            if !name.ends_with(".md") {
+                continue;
+            }
             if let Ok(content) = fs::read_to_string(entry.path()) {
                 let id = name.split('-').next().unwrap_or("").to_string();
-                let title = extract_frontmatter(&content, "title")
-                    .unwrap_or_else(|| format!("INT-{}", id));
+                let title =
+                    extract_frontmatter(&content, "title").unwrap_or_else(|| format!("INT-{}", id));
                 active.push((id, title));
             }
         }
@@ -602,7 +607,12 @@ fn cmd_next() {
     if !active.is_empty() {
         println!("  {}Active:{}", "[1;33m", "[0m");
         for (id, title) in &active {
-            println!("  {} INT-{}  {}", format!("{}▶{}", GREEN, NC).as_str(), id, title);
+            println!(
+                "  {} INT-{}  {}",
+                format!("{}▶{}", GREEN, NC).as_str(),
+                id,
+                title
+            );
         }
         println!();
     }
@@ -614,11 +624,13 @@ fn cmd_next() {
         files.sort_by_key(|e| e.file_name());
         for entry in files.iter().take(5) {
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") { continue; }
+            if !name.ends_with(".md") {
+                continue;
+            }
             if let Ok(content) = fs::read_to_string(entry.path()) {
                 let id = name.split('-').next().unwrap_or("").to_string();
-                let title = extract_frontmatter(&content, "title")
-                    .unwrap_or_else(|| format!("INT-{}", id));
+                let title =
+                    extract_frontmatter(&content, "title").unwrap_or_else(|| format!("INT-{}", id));
                 planned.push((id, title));
             }
         }
@@ -626,11 +638,19 @@ fn cmd_next() {
     if !planned.is_empty() {
         println!("  {}Next planned:{}", "[0;90m", "[0m");
         for (id, title) in &planned {
-            println!("  {} INT-{}  {}", format!("{}○{}", GRAY, NC).as_str(), id, title);
+            println!(
+                "  {} INT-{}  {}",
+                format!("{}○{}", GRAY, NC).as_str(),
+                id,
+                title
+            );
         }
     }
     println!();
-    println!("  Run {} to start", format!("{}cistart <id>{}", CYAN, NC).as_str());
+    println!(
+        "  Run {} to start",
+        format!("{}cistart <id>{}", CYAN, NC).as_str()
+    );
 }
 
 fn cmd_stats() {

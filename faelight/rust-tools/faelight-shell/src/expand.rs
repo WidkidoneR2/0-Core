@@ -92,7 +92,6 @@ pub fn count_keyword_starts(s: &str, kw: &str) -> usize {
     count
 }
 
-
 // — Phase 2 extractions —
 
 pub fn find_heredoc_delimiter(s: &str) -> Option<String> {
@@ -427,7 +426,6 @@ pub fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     (line.to_string(), None)
 }
 
-
 // — Phase 3 extractions —
 
 pub fn expand_subshells(line: &str) -> String {
@@ -522,25 +520,39 @@ pub fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
 
 pub fn parse_parallel_block(input: &str) -> Option<Vec<String>> {
     let trimmed = input.trim();
-    if !trimmed.starts_with("parallel") { return None; }
+    if !trimmed.starts_with("parallel") {
+        return None;
+    }
     let rest = trimmed["parallel".len()..].trim();
-    if !rest.starts_with('{') { return None; }
+    if !rest.starts_with('{') {
+        return None;
+    }
     let inner = rest.trim_start_matches('{');
-    let inner = if let Some(pos) = inner.rfind('}') { &inner[..pos] } else { return None; };
+    let inner = if let Some(pos) = inner.rfind('}') {
+        &inner[..pos]
+    } else {
+        return None;
+    };
     // Split by newlines first, then by semicolons for single-line usage
     let cmds: Vec<String> = if inner.contains('\n') {
-        inner.lines()
+        inner
+            .lines()
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect()
     } else {
         // Single line: parallel {cmd1; cmd2; cmd3}
-        inner.split(';')
+        inner
+            .split(';')
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect()
     };
-    if cmds.is_empty() { None } else { Some(cmds) }
+    if cmds.is_empty() {
+        None
+    } else {
+        Some(cmds)
+    }
 }
 
 pub fn expand_globs(line: &str) -> String {
@@ -622,41 +634,71 @@ pub fn find_unmatched_globs(line: &str) -> Vec<String> {
     for ch in line.chars() {
         let was = in_double || in_single;
         match ch {
-            '"' if !in_single => { in_double = !in_double; segment.push(ch); }
-            '\'' if !in_double => { in_single = !in_single; segment.push(ch); }
+            '"' if !in_single => {
+                in_double = !in_double;
+                segment.push(ch);
+            }
+            '\'' if !in_double => {
+                in_single = !in_single;
+                segment.push(ch);
+            }
             _ => segment.push(ch),
         }
         let now = in_double || in_single;
         if now != was {
             let b = segment.pop();
-            if !segment.is_empty() { segments.push((was, std::mem::take(&mut segment))); }
-            if let Some(c) = b { segment.push(c); }
+            if !segment.is_empty() {
+                segments.push((was, std::mem::take(&mut segment)));
+            }
+            if let Some(c) = b {
+                segment.push(c);
+            }
         }
     }
-    if !segment.is_empty() { segments.push((in_double || in_single, segment)); }
+    if !segment.is_empty() {
+        segments.push((in_double || in_single, segment));
+    }
 
     for (quoted, seg) in &segments {
-        if *quoted { continue; }
+        if *quoted {
+            continue;
+        }
         for part in seg.split_whitespace() {
-            if !part.contains('*') && !part.contains('?') { continue; }
+            if !part.contains('*') && !part.contains('?') {
+                continue;
+            }
             let expanded = if part.starts_with("~/") {
                 let home = std::env::var("HOME").unwrap_or_default();
                 part.replacen("~", &home, 1)
-            } else { part.to_string() };
+            } else {
+                part.to_string()
+            };
             let pattern_path = std::path::Path::new(&expanded);
             let parent = {
                 let p = pattern_path.parent().unwrap_or(std::path::Path::new("."));
-                if p.as_os_str().is_empty() { std::path::Path::new(".") } else { p }
+                if p.as_os_str().is_empty() {
+                    std::path::Path::new(".")
+                } else {
+                    p
+                }
             };
-            let file_pattern = pattern_path.file_name().and_then(|f| f.to_str()).unwrap_or(part);
+            let file_pattern = pattern_path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or(part);
             let mut matched = false;
             if let Ok(entries) = std::fs::read_dir(parent) {
                 for entry in entries.flatten() {
                     let name = entry.file_name();
-                    if glob_match(file_pattern, &name.to_string_lossy()) { matched = true; break; }
+                    if glob_match(file_pattern, &name.to_string_lossy()) {
+                        matched = true;
+                        break;
+                    }
                 }
             }
-            if !matched { unmatched.push(part.to_string()); }
+            if !matched {
+                unmatched.push(part.to_string());
+            }
         }
     }
     unmatched
@@ -718,4 +760,3 @@ pub fn expand_globs_in_segment(line: &str) -> String {
     }
     result_parts.join(" ")
 }
-

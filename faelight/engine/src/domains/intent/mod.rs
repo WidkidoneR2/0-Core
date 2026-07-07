@@ -161,7 +161,14 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     })
 }
 
-pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: bool, cancelled: bool) -> CoreResult<()> {
+pub fn list(
+    ctx: &AppContext,
+    planned: bool,
+    active: bool,
+    complete: bool,
+    all: bool,
+    cancelled: bool,
+) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -186,7 +193,9 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
             if cancelled {
                 return i.status == "cancelled";
             }
-            if all { return true; }
+            if all {
+                return true;
+            }
             // default: only actionable intents
             // INT-332: in-progress/ folder must always show
             (i.folder == "future" || i.folder == "deferred" || i.folder == "in-progress")
@@ -199,10 +208,26 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
     // INT-332: ACTIVE first, then PLANNED -- no mixing by folder
-    let mut active_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "in-progress").copied().collect();
-    let mut planned_items: Vec<&Intent> = filtered.iter().filter(|i| i.status != "in-progress" && i.status != "complete" && i.status != "cancelled").copied().collect();
-    let mut cancelled_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "cancelled").copied().collect();
-    let complete_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "complete").copied().collect();
+    let mut active_items: Vec<&Intent> = filtered
+        .iter()
+        .filter(|i| i.status == "in-progress")
+        .copied()
+        .collect();
+    let mut planned_items: Vec<&Intent> = filtered
+        .iter()
+        .filter(|i| i.status != "in-progress" && i.status != "complete" && i.status != "cancelled")
+        .copied()
+        .collect();
+    let mut cancelled_items: Vec<&Intent> = filtered
+        .iter()
+        .filter(|i| i.status == "cancelled")
+        .copied()
+        .collect();
+    let complete_items: Vec<&Intent> = filtered
+        .iter()
+        .filter(|i| i.status == "complete")
+        .copied()
+        .collect();
     active_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
     planned_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
     cancelled_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
@@ -645,12 +670,19 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // INT-247 Phase 3: dependency check before starting
     {
         let intents_all = load_all(ctx);
-        let complete_ids: std::collections::HashSet<String> =
-            intents_all.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
-        let unmet: Vec<String> = intent.depends_on.iter()
+        let complete_ids: std::collections::HashSet<String> = intents_all
+            .iter()
+            .filter(|i| i.status == "complete")
+            .map(|i| i.id.clone())
+            .collect();
+        let unmet: Vec<String> = intent
+            .depends_on
+            .iter()
             .filter(|dep| !complete_ids.contains(*dep))
             .map(|dep| {
-                intents_all.iter().find(|i| &i.id == dep)
+                intents_all
+                    .iter()
+                    .find(|i| &i.id == dep)
                     .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
                     .unwrap_or_else(|| format!("INT-{} (not found)", dep))
             })
@@ -663,7 +695,10 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 println!("    {} {}", "⬆".bright_yellow(), dep.bright_red());
             }
             println!();
-            println!("  {} Complete dependencies first, or override:", "→".dimmed());
+            println!(
+                "  {} Complete dependencies first, or override:",
+                "→".dimmed()
+            );
             println!("  {} cistart {} --override", "  ".dimmed(), id);
             println!("{}", "━".repeat(55).dimmed());
             return Ok(());
@@ -674,9 +709,12 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-start", id))?;
     // INT-251 v23: emit to unified event bus
     let _ = crate::domains::friday::events::emit(
-        ctx, "intent", "intent_started",
+        ctx,
+        "intent",
+        "intent_started",
         &format!(r#"{{\"id\":\"{}\"}}"#, id),
-        "core", None,
+        "core",
+        None,
     );
 
     // Update frontmatter status in file
@@ -717,7 +755,9 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
         fs::write(&path, updated).map_err(crate::errors::CoreError::Io)?;
         // cistart fix: move file from future/ to in-progress/ if needed
         if path.to_string_lossy().contains("/intents/future/") {
-            if let (Some(filename), Some(parent)) = (path.file_name(), path.parent().and_then(|p| p.parent())) {
+            if let (Some(filename), Some(parent)) =
+                (path.file_name(), path.parent().and_then(|p| p.parent()))
+            {
                 let new_path = parent.join("in-progress").join(filename);
                 let _ = fs::rename(&path, &new_path);
             }
@@ -760,10 +800,14 @@ fn semver_level_for_type(intent_type: &str) -> &'static str {
 // INT-111: engine-side version writer (self-contained; no dependency on faelight-shell).
 // Reads a tool's Cargo.toml, count-asserts exactly one package `version = ` line,
 // writes the bumped version back in place. Returns (old, new).
-fn engine_apply_bump(core_root: &str, rel_path: &str, level: &str) -> Result<(String, String), String> {
+fn engine_apply_bump(
+    core_root: &str,
+    rel_path: &str,
+    level: &str,
+) -> Result<(String, String), String> {
     let full = format!("{}/{}", core_root, rel_path);
-    let content = std::fs::read_to_string(&full)
-        .map_err(|e| format!("cannot read {}: {}", full, e))?;
+    let content =
+        std::fs::read_to_string(&full).map_err(|e| format!("cannot read {}: {}", full, e))?;
     let ver_lines: Vec<&str> = content
         .lines()
         .filter(|l| l.trim_start().starts_with("version = "))
@@ -771,11 +815,16 @@ fn engine_apply_bump(core_root: &str, rel_path: &str, level: &str) -> Result<(St
     if ver_lines.len() != 1 {
         return Err(format!(
             "expected exactly 1 `version = ` line in {}, found {} -- aborting (no write)",
-            full, ver_lines.len()
+            full,
+            ver_lines.len()
         ));
     }
     let old_line = ver_lines[0];
-    let old_ver = old_line.trim().trim_start_matches("version = ").trim_matches('"').to_string();
+    let old_ver = old_line
+        .trim()
+        .trim_start_matches("version = ")
+        .trim_matches('"')
+        .to_string();
     let parts: Vec<u32> = old_ver.split('.').filter_map(|p| p.parse().ok()).collect();
     if parts.len() != 3 {
         return Err(format!("version '{}' is not x.y.z semver", old_ver));
@@ -788,7 +837,10 @@ fn engine_apply_bump(core_root: &str, rel_path: &str, level: &str) -> Result<(St
     };
     let new_line = old_line.replace(&old_ver, &new_ver);
     if content.matches(old_line).count() != 1 {
-        return Err(format!("version line not uniquely matchable in {} -- aborting", full));
+        return Err(format!(
+            "version line not uniquely matchable in {} -- aborting",
+            full
+        ));
     }
     let updated = content.replacen(old_line, &new_line, 1);
     std::fs::write(&full, updated).map_err(|e| format!("cannot write {}: {}", full, e))?;
@@ -825,21 +877,26 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let p = entry.path();
-                    if p.file_name().and_then(|n| n.to_str())
+                    if p.file_name()
+                        .and_then(|n| n.to_str())
                         .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
-                        .unwrap_or(false) {
+                        .unwrap_or(false)
+                    {
                         found = Some(p);
                         break;
                     }
                 }
             }
-            if found.is_some() { break; }
+            if found.is_some() {
+                break;
+            }
         }
         found
     } {
         let file_content = std::fs::read_to_string(path).unwrap_or_default();
         // Check for malformed deferrals (⏸ without approval signature)
-        let bad_deferrals: Vec<&str> = file_content.lines()
+        let bad_deferrals: Vec<&str> = file_content
+            .lines()
             .filter(|l| {
                 let trimmed = l.trim();
                 trimmed.starts_with('⏸') &&
@@ -850,7 +907,10 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .collect();
         if !bad_deferrals.is_empty() {
             println!();
-            println!("  {} Deferral format error -- missing approval signature:", "🚫".normal());
+            println!(
+                "  {} Deferral format error -- missing approval signature:",
+                "🚫".normal()
+            );
             for d in &bad_deferrals {
                 println!("  {} {}", "⏸".normal(), d.trim());
             }
@@ -860,7 +920,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             println!();
             return Ok(());
         }
-        let open_gates: Vec<&str> = file_content.lines()
+        let open_gates: Vec<&str> = file_content
+            .lines()
             .filter(|l| {
                 let trimmed = l.trim();
                 trimmed.starts_with('⬜') && !l.contains('⏸')
@@ -874,10 +935,19 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 println!("  {} {}", "⬜".normal(), gate.trim());
             }
             println!();
-            println!("  {} To defer a gate, edit the intent file and use:", "💡".normal());
-            println!("    ⏸ gate description -- deferred: [reason] -- approved by: christian {}", chrono::Utc::now().format("%Y-%m-%d"));
+            println!(
+                "  {} To defer a gate, edit the intent file and use:",
+                "💡".normal()
+            );
+            println!(
+                "    ⏸ gate description -- deferred: [reason] -- approved by: christian {}",
+                chrono::Utc::now().format("%Y-%m-%d")
+            );
             println!();
-            println!("  {} cicomplete blocked. Demonstrate gates or formally defer them.", "→".bright_red());
+            println!(
+                "  {} cicomplete blocked. Demonstrate gates or formally defer them.",
+                "→".bright_red()
+            );
             return Ok(());
         }
     }
@@ -887,9 +957,12 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
     // INT-251 v23: emit to unified event bus
     let _ = crate::domains::friday::events::emit(
-        ctx, "intent", "intent_completed",
+        ctx,
+        "intent",
+        "intent_completed",
         &format!(r#"{{\"id\":\"{}\"}}"#, id),
-        "core", None,
+        "core",
+        None,
     );
 
     // Find and move the file to complete/
@@ -957,12 +1030,15 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // INT-247 Phase 4: show newly unblocked intents + simple retrospective
     {
         let all = load_all(ctx);
-        let newly_unblocked: Vec<String> = all.iter()
+        let newly_unblocked: Vec<String> = all
+            .iter()
             .filter(|i| i.status == "planned")
-            .filter(|i| i.depends_on.contains(&intent.id) &&
-                i.depends_on.iter().all(|dep| {
-                    dep == id || all.iter().any(|x| &x.id == dep && x.status == "complete")
-                }))
+            .filter(|i| {
+                i.depends_on.contains(&intent.id)
+                    && i.depends_on.iter().all(|dep| {
+                        dep == id || all.iter().any(|x| &x.id == dep && x.status == "complete")
+                    })
+            })
             .map(|i| format!("INT-{} -- {}", i.id, i.title))
             .collect();
         if !newly_unblocked.is_empty() {
@@ -973,15 +1049,26 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             }
         }
         let commits = std::process::Command::new("git")
-            .args(["-C", &ctx.core_root, "log", "--oneline",
-                   &format!("--grep=INT-{}", id), "--since=30 days ago"])
+            .args([
+                "-C",
+                &ctx.core_root,
+                "log",
+                "--oneline",
+                &format!("--grep=INT-{}", id),
+                "--since=30 days ago",
+            ])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
             .unwrap_or(0);
         println!();
         println!("  {} Retrospective:", "📋".dimmed());
         if commits > 0 {
-            println!("    {} ~{} commits referencing INT-{}", "◦".dimmed(), commits, id);
+            println!(
+                "    {} ~{} commits referencing INT-{}",
+                "◦".dimmed(),
+                commits,
+                id
+            );
         }
         println!("    {} Run: core intent next", "◦".dimmed());
     }
@@ -990,60 +1077,133 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         use colored::Colorize;
         // Find which Rust tools were touched in this intent's commits
         let touched = std::process::Command::new("git")
-            .args(["-C", &ctx.core_root, "log", "--name-only", "--format=",
-                   &format!("--grep=INT-{}", id), "--since=60 days ago"])
+            .args([
+                "-C",
+                &ctx.core_root,
+                "log",
+                "--name-only",
+                "--format=",
+                &format!("--grep=INT-{}", id),
+                "--since=60 days ago",
+            ])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
             .unwrap_or_default();
 
         let mut tools: Vec<(&str, &str)> = vec![];
-        if touched.contains("faelight-shell") { tools.push(("faelight-shell", "faelight/rust-tools/faelight-shell/Cargo.toml")); }
-        if touched.contains("engine/src") || touched.contains("engine/Cargo") { tools.push(("core (engine)", "faelight/engine/Cargo.toml")); }
-        if touched.contains("faelight-git") { tools.push(("faelight-git", "faelight/rust-tools/faelight-git/Cargo.toml")); }
-        if touched.contains("faelight-release") { tools.push(("faelight-release", "faelight/rust-tools/faelight-release/Cargo.toml")); }
-        if touched.contains("friday-chat") { tools.push(("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml")); }
-        if touched.contains("db-browse") { tools.push(("db-browse", "faelight/rust-tools/db-browse/Cargo.toml")); }
-        if touched.contains("faelight-term") { tools.push(("faelight-term", "faelight/rust-tools/faelight-term/Cargo.toml")); }
-        if touched.contains("faelight-notify") { tools.push(("faelight-notify", "faelight/rust-tools/faelight-notify/Cargo.toml")); }
+        if touched.contains("faelight-shell") {
+            tools.push((
+                "faelight-shell",
+                "faelight/rust-tools/faelight-shell/Cargo.toml",
+            ));
+        }
+        if touched.contains("engine/src") || touched.contains("engine/Cargo") {
+            tools.push(("core (engine)", "faelight/engine/Cargo.toml"));
+        }
+        if touched.contains("faelight-git") {
+            tools.push((
+                "faelight-git",
+                "faelight/rust-tools/faelight-git/Cargo.toml",
+            ));
+        }
+        if touched.contains("faelight-release") {
+            tools.push((
+                "faelight-release",
+                "faelight/rust-tools/faelight-release/Cargo.toml",
+            ));
+        }
+        if touched.contains("friday-chat") {
+            tools.push(("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml"));
+        }
+        if touched.contains("db-browse") {
+            tools.push(("db-browse", "faelight/rust-tools/db-browse/Cargo.toml"));
+        }
+        if touched.contains("faelight-term") {
+            tools.push((
+                "faelight-term",
+                "faelight/rust-tools/faelight-term/Cargo.toml",
+            ));
+        }
+        if touched.contains("faelight-notify") {
+            tools.push((
+                "faelight-notify",
+                "faelight/rust-tools/faelight-notify/Cargo.toml",
+            ));
+        }
 
         if !tools.is_empty() {
             use std::io::{IsTerminal, Write};
             let proposed = semver_level_for_type(&intent.intent_type);
             let interactive = std::io::stdin().is_terminal();
             println!();
-            println!("  {} Version bumps ({} proposed from type: {}):",
-                "📦".normal(), proposed.bright_yellow(), intent.intent_type.dimmed());
+            println!(
+                "  {} Version bumps ({} proposed from type: {}):",
+                "📦".normal(),
+                proposed.bright_yellow(),
+                intent.intent_type.dimmed()
+            );
             for (name, cargo_path) in &tools {
                 let full_path = format!("{}/{}", ctx.core_root, cargo_path);
-                let cur = std::fs::read_to_string(&full_path).ok()
-                    .and_then(|c| c.lines()
+                let cur = std::fs::read_to_string(&full_path).ok().and_then(|c| {
+                    c.lines()
                         .find(|l| l.trim_start().starts_with("version = "))
-                        .map(|l| l.trim().trim_start_matches("version = ").trim_matches('"').to_string()));
-                let Some(cur) = cur else { continue; };
+                        .map(|l| {
+                            l.trim()
+                                .trim_start_matches("version = ")
+                                .trim_matches('"')
+                                .to_string()
+                        })
+                });
+                let Some(cur) = cur else {
+                    continue;
+                };
                 if !interactive {
                     // No TTY -- never block a scripted completion. Suggest only.
-                    println!("    {} {}  {} (would bump {}; run: bump-versions {} {})",
-                        "◦".dimmed(), name.bright_white(), cur.dimmed(),
-                        proposed.dimmed(), proposed, name);
+                    println!(
+                        "    {} {}  {} (would bump {}; run: bump-versions {} {})",
+                        "◦".dimmed(),
+                        name.bright_white(),
+                        cur.dimmed(),
+                        proposed.dimmed(),
+                        proposed,
+                        name
+                    );
                     continue;
                 }
-                print!("    {} bump {} {} ({})? [{}/skip] > ",
-                    "◦".bright_cyan(), name.bright_white(), cur.dimmed(),
+                print!(
+                    "    {} bump {} {} ({})? [{}/skip] > ",
+                    "◦".bright_cyan(),
+                    name.bright_white(),
+                    cur.dimmed(),
                     proposed.bright_yellow(),
-                    "patch/minor/major".dimmed());
+                    "patch/minor/major".dimmed()
+                );
                 let _ = std::io::stdout().flush();
                 let mut line = String::new();
-                if std::io::stdin().read_line(&mut line).is_err() { continue; }
+                if std::io::stdin().read_line(&mut line).is_err() {
+                    continue;
+                }
                 let choice = line.trim();
                 let level = match choice {
-                    "" => proposed,               // Enter accepts the proposal
+                    "" => proposed, // Enter accepts the proposal
                     "patch" | "minor" | "major" => choice,
-                    "skip" | "s" | "n" => { println!("      skipped"); continue; }
-                    other => { println!("      unrecognized '{}', skipped", other); continue; }
+                    "skip" | "s" | "n" => {
+                        println!("      skipped");
+                        continue;
+                    }
+                    other => {
+                        println!("      unrecognized '{}', skipped", other);
+                        continue;
+                    }
                 };
                 match engine_apply_bump(&ctx.core_root, cargo_path, level) {
-                    Ok((old, new)) => println!("      {} {} -> {} ({})",
-                        "✓".green(), old.dimmed(), new.bright_green(), level.dimmed()),
+                    Ok((old, new)) => println!(
+                        "      {} {} -> {} ({})",
+                        "✓".green(),
+                        old.dimmed(),
+                        new.bright_green(),
+                        level.dimmed()
+                    ),
                     Err(e) => println!("      {} bump failed: {}", "✗".red(), e),
                 }
             }
@@ -1068,7 +1228,8 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
     // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
     // scanned when deriving the next ID -- excluding it caused 121 collisions.
     let active_folders = ["complete", "future", "in-progress", "decisions"];
-    let max_id = active_folders.iter()
+    let max_id = active_folders
+        .iter()
         .flat_map(|folder| {
             let dir = base.join(folder);
             std::fs::read_dir(&dir).ok().into_iter().flatten()
@@ -2145,7 +2306,8 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
     // scanned when deriving the next ID -- excluding it caused 121 collisions.
     let active_folders = ["complete", "future", "in-progress", "decisions"];
-    let max_id = active_folders.iter()
+    let max_id = active_folders
+        .iter()
         .flat_map(|folder| {
             let dir = base.join(folder);
             std::fs::read_dir(&dir).ok().into_iter().flatten()
@@ -2375,14 +2537,24 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> =
-        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    let complete_ids: std::collections::HashSet<String> = intents
+        .iter()
+        .filter(|i| i.status == "complete")
+        .map(|i| i.id.clone())
+        .collect();
     let mut blocked_list: Vec<(&Intent, Vec<String>)> = Vec::new();
-    for intent in intents.iter().filter(|i| i.status == "planned" || i.status == "in-progress") {
-        let unmet: Vec<String> = intent.depends_on.iter()
+    for intent in intents
+        .iter()
+        .filter(|i| i.status == "planned" || i.status == "in-progress")
+    {
+        let unmet: Vec<String> = intent
+            .depends_on
+            .iter()
             .filter(|dep| !complete_ids.contains(*dep))
             .map(|dep| {
-                intents.iter().find(|i| &i.id == dep)
+                intents
+                    .iter()
+                    .find(|i| &i.id == dep)
                     .map(|i| format!("INT-{} ({})", i.id, i.status))
                     .unwrap_or_else(|| format!("INT-{} (not found)", dep))
             })
@@ -2394,15 +2566,31 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "🔒 Blocked Intents".bold());
     println!("{}", "━".repeat(60).dimmed());
     if blocked_list.is_empty() {
-        println!("  {} No blocked intents -- all dependencies satisfied", "✅".green());
+        println!(
+            "  {} No blocked intents -- all dependencies satisfied",
+            "✅".green()
+        );
         return Ok(());
     }
-    println!("  {} {} intents blocked by incomplete dependencies", "⚠".bright_yellow(), blocked_list.len());
+    println!(
+        "  {} {} intents blocked by incomplete dependencies",
+        "⚠".bright_yellow(),
+        blocked_list.len()
+    );
     println!();
     for (intent, blockers) in &blocked_list {
-        println!("  {} INT-{} -- {}", "🔒".dimmed(), intent.id.bright_white(), intent.title.bright_white());
+        println!(
+            "  {} INT-{} -- {}",
+            "🔒".dimmed(),
+            intent.id.bright_white(),
+            intent.title.bright_white()
+        );
         for blocker in blockers {
-            println!("       {} waiting on: {}", "⬆".bright_yellow(), blocker.bright_red());
+            println!(
+                "       {} waiting on: {}",
+                "⬆".bright_yellow(),
+                blocker.bright_red()
+            );
         }
     }
     println!("{}", "━".repeat(60).dimmed());
@@ -2413,22 +2601,31 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> =
-        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    let complete_ids: std::collections::HashSet<String> = intents
+        .iter()
+        .filter(|i| i.status == "complete")
+        .map(|i| i.id.clone())
+        .collect();
     // Score each planned intent
     let mut scored: Vec<(&Intent, u32, Vec<String>)> = Vec::new();
     for intent in intents.iter().filter(|i| i.status == "planned") {
         // Check if all deps are complete
-        let unmet: Vec<String> = intent.depends_on.iter()
+        let unmet: Vec<String> = intent
+            .depends_on
+            .iter()
             .filter(|dep| !complete_ids.contains(*dep))
-            .cloned().collect();
-        if !unmet.is_empty() { continue; } // skip blocked
+            .cloned()
+            .collect();
+        if !unmet.is_empty() {
+            continue;
+        } // skip blocked
         let mut score = 0u32;
         let mut reasons = Vec::new();
         // How many intents does this unblock?
-        let unblocks: usize = intents.iter().filter(|other| {
-            other.status == "planned" && other.depends_on.contains(&intent.id)
-        }).count();
+        let unblocks: usize = intents
+            .iter()
+            .filter(|other| other.status == "planned" && other.depends_on.contains(&intent.id))
+            .count();
         if unblocks > 0 {
             score += (unblocks as u32 * 15).min(30);
             reasons.push(format!("unblocks {} other intent(s)", unblocks));
@@ -2460,9 +2657,17 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
         return Ok(());
     }
     let (top, score, reasons) = &scored[0];
-    println!("  {} Recommended: INT-{}", "→".bright_green(), top.id.bright_white());
+    println!(
+        "  {} Recommended: INT-{}",
+        "→".bright_green(),
+        top.id.bright_white()
+    );
     println!("  {} {}", "  ".dimmed(), top.title.bright_white());
-    println!("  {} Priority score: {}/100", "  ".dimmed(), score.to_string().bright_green());
+    println!(
+        "  {} Priority score: {}/100",
+        "  ".dimmed(),
+        score.to_string().bright_green()
+    );
     println!();
     println!("  {} Why this intent:", "→".dimmed());
     for reason in reasons {
@@ -2472,11 +2677,13 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
         println!();
         println!("{}", "  Other ready intents:".dimmed());
         for (intent, score, _) in scored.iter().skip(1).take(3) {
-            println!("    {} INT-{} -- {} (score: {})",
+            println!(
+                "    {} INT-{} -- {} (score: {})",
                 "◦".dimmed(),
                 intent.id.dimmed(),
                 intent.title.dimmed(),
-                score.to_string().dimmed());
+                score.to_string().dimmed()
+            );
         }
     }
     println!("{}", "━".repeat(60).dimmed());
@@ -2487,9 +2694,15 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> =
-        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
-    let active: Vec<&Intent> = intents.iter().filter(|i| i.status == "in-progress").collect();
+    let complete_ids: std::collections::HashSet<String> = intents
+        .iter()
+        .filter(|i| i.status == "complete")
+        .map(|i| i.id.clone())
+        .collect();
+    let active: Vec<&Intent> = intents
+        .iter()
+        .filter(|i| i.status == "in-progress")
+        .collect();
     let planned_count = intents.iter().filter(|i| i.status == "planned").count();
     let complete_count = complete_ids.len();
     println!("{}", "🌲 Session Brief".bold());
@@ -2500,31 +2713,47 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     } else {
         println!("  {} Active:", "▸".bright_cyan());
         for intent in &active {
-            println!("    {} INT-{} -- {}", "→".bright_green(), intent.id.bright_white(), intent.title.bright_white());
+            println!(
+                "    {} INT-{} -- {}",
+                "→".bright_green(),
+                intent.id.bright_white(),
+                intent.title.bright_white()
+            );
         }
     }
     println!();
     // Forest state
     println!("  {} Forest state:", "→".dimmed());
-    println!("    {} {} complete  {} planned",
+    println!(
+        "    {} {} complete  {} planned",
         "◦".dimmed(),
         complete_count.to_string().bright_green(),
-        planned_count.to_string().bright_white());
+        planned_count.to_string().bright_white()
+    );
     // What's ready to start
-    let ready: Vec<&Intent> = intents.iter()
+    let ready: Vec<&Intent> = intents
+        .iter()
         .filter(|i| i.status == "planned")
         .filter(|i| i.depends_on.iter().all(|dep| complete_ids.contains(dep)))
         .collect();
     println!();
     println!("  {} Ready to start ({}):", "✅".green(), ready.len());
     for intent in ready.iter().take(5) {
-        println!("    {} INT-{} -- {}", "◦".dimmed(), intent.id.bright_white(), intent.title.dimmed());
+        println!(
+            "    {} INT-{} -- {}",
+            "◦".dimmed(),
+            intent.id.bright_white(),
+            intent.title.dimmed()
+        );
     }
     if ready.len() > 5 {
         println!("    {} ...and {} more", "◦".dimmed(), ready.len() - 5);
     }
     println!();
-    println!("  {} Run: core intent next -- for priority recommendation", "→".dimmed());
+    println!(
+        "  {} Run: core intent next -- for priority recommendation",
+        "→".dimmed()
+    );
     println!("{}", "━".repeat(60).dimmed());
     Ok(())
 }
@@ -2533,31 +2762,56 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> =
-        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
-    let planned: Vec<&Intent> = intents.iter()
+    let complete_ids: std::collections::HashSet<String> = intents
+        .iter()
+        .filter(|i| i.status == "complete")
+        .map(|i| i.id.clone())
+        .collect();
+    let planned: Vec<&Intent> = intents
+        .iter()
         .filter(|i| i.status == "planned" || i.status == "in-progress")
         .collect();
     println!("{}", "🌲 Intent Dependency Graph".bold());
     println!("{}", "━".repeat(60).dimmed());
-    println!("  {} complete  {} in-progress  {} planned  {} blocked",
-        "✅".green(), "▸".bright_cyan(), "○".bright_white(), "🔒".dimmed());
+    println!(
+        "  {} complete  {} in-progress  {} planned  {} blocked",
+        "✅".green(),
+        "▸".bright_cyan(),
+        "○".bright_white(),
+        "🔒".dimmed()
+    );
     println!("{}", "━".repeat(60).dimmed());
     for intent in &planned {
         let status_icon = match intent.status.as_str() {
             "in-progress" => "▸".bright_cyan().to_string(),
-            "complete"    => "✅".to_string(),
-            _             => {
-                let blocked = intent.depends_on.iter().any(|dep| !complete_ids.contains(dep));
-                if blocked { "🔒".to_string() } else { "○".bright_white().to_string() }
+            "complete" => "✅".to_string(),
+            _ => {
+                let blocked = intent
+                    .depends_on
+                    .iter()
+                    .any(|dep| !complete_ids.contains(dep));
+                if blocked {
+                    "🔒".to_string()
+                } else {
+                    "○".bright_white().to_string()
+                }
             }
         };
-        println!("  {} INT-{} -- {}", status_icon, intent.id.bright_white(), intent.title.dimmed());
+        println!(
+            "  {} INT-{} -- {}",
+            status_icon,
+            intent.id.bright_white(),
+            intent.title.dimmed()
+        );
         for dep in &intent.depends_on {
             if !complete_ids.contains(dep) {
                 if let Some(d) = intents.iter().find(|i| &i.id == dep) {
-                    println!("       {} needs: INT-{} [{}]",
-                        "⬆".bright_yellow(), d.id.bright_red(), d.status.dimmed());
+                    println!(
+                        "       {} needs: INT-{} [{}]",
+                        "⬆".bright_yellow(),
+                        d.id.bright_red(),
+                        d.status.dimmed()
+                    );
                 }
             }
         }
@@ -2572,7 +2826,8 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     if reason.trim().is_empty() {
         return Err(crate::errors::CoreError::Domain {
             domain: "intent".to_string(),
-            message: "cancel requires a non-empty --reason: a cancelled intent must record why".to_string(),
+            message: "cancel requires a non-empty --reason: a cancelled intent must record why"
+                .to_string(),
         });
     }
     let base = intents_dir(ctx);
@@ -2596,7 +2851,10 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     }
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
-        message: format!("Active intent {} not found (already complete or cancelled?)", id),
+        message: format!(
+            "Active intent {} not found (already complete or cancelled?)",
+            id
+        ),
     })?;
     let content = std::fs::read_to_string(&path)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -2616,10 +2874,12 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     };
     let cancelled_dir = base.join("cancelled");
     std::fs::create_dir_all(&cancelled_dir)?;
-    let filename = path.file_name().ok_or_else(|| crate::errors::CoreError::Domain {
-        domain: "intent".to_string(),
-        message: "intent file has no name".to_string(),
-    })?;
+    let filename = path
+        .file_name()
+        .ok_or_else(|| crate::errors::CoreError::Domain {
+            domain: "intent".to_string(),
+            message: "intent file has no name".to_string(),
+        })?;
     let dest = cancelled_dir.join(filename);
     std::fs::write(&dest, stamped)?;
     if dest != path {
@@ -2644,11 +2904,19 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
         .collect();
     if !dependents.is_empty() {
         println!();
-        println!("  {} {} intent(s) still depend on INT-{}:", "⚠".yellow().bold(), dependents.len(), id);
+        println!(
+            "  {} {} intent(s) still depend on INT-{}:",
+            "⚠".yellow().bold(),
+            dependents.len(),
+            id
+        );
         for d in &dependents {
             println!("    {} {}", "→".yellow(), d);
         }
-        println!("  {} Review these -- their dependency now points at a cancelled intent.", "→".dimmed());
+        println!(
+            "  {} Review these -- their dependency now points at a cancelled intent.",
+            "→".dimmed()
+        );
     }
     Ok(())
 }
@@ -2670,7 +2938,9 @@ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> 
                 }
             }
         }
-        if found_path.is_some() { break; }
+        if found_path.is_some() {
+            break;
+        }
     }
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
@@ -2683,7 +2953,10 @@ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> 
         id, reason, today
     );
     let new_content = if content.contains("## Gate Check") {
-        content.replace("## Gate Check", &format!("## Gate Check\n{}", deferral.trim()))
+        content.replace(
+            "## Gate Check",
+            &format!("## Gate Check\n{}", deferral.trim()),
+        )
     } else {
         format!("{}\n## Gate Check\n{}", content.trim(), deferral.trim())
     };
@@ -2712,7 +2985,9 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
                 }
             }
         }
-        if found_path.is_some() { break; }
+        if found_path.is_some() {
+            break;
+        }
     }
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
@@ -2733,15 +3008,25 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
         id, today, reason
     );
     let new_content = if content.contains("## Gate Check") {
-        content.replace("## Gate Check", &format!("## Gate Check\n{}", override_note.trim()))
+        content.replace(
+            "## Gate Check",
+            &format!("## Gate Check\n{}", override_note.trim()),
+        )
     } else {
-        format!("{}\n## Gate Check\n{}", content.trim(), override_note.trim())
+        format!(
+            "{}\n## Gate Check\n{}",
+            content.trim(),
+            override_note.trim()
+        )
     };
     std::fs::write(&path, new_content)?;
     println!("{}", "✅ Gate overridden".green().bold());
     println!("  Intent:  INT-{}", id);
     println!("  Reason:  {}", reason);
     println!("  Date:    {}", today);
-    println!("{}", "  ⚠️  Override logged to integrity audit trail".yellow());
+    println!(
+        "{}",
+        "  ⚠️  Override logged to integrity audit trail".yellow()
+    );
     Ok(())
 }

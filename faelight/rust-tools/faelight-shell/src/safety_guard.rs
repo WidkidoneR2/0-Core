@@ -11,10 +11,31 @@ pub fn check(cmd: &str) -> Option<String> {
     // Check first word only -- never match on arguments or paths
     let first_word = trimmed.split_whitespace().next().unwrap_or("");
     // Safe commands -- fsh builtins and forest tools never trigger guard
-    let safe = ["fg", "core", "python3", "python", "cargo", "git", "deploy",
-                "cistart", "cicomplete", "intent", "faelight-docs", "docs",
-                "cat", "echo", "grep", "sed", "awk", "curl", "ls", "cd"];
-    if safe.contains(&first_word) { return None; }
+    let safe = [
+        "fg",
+        "core",
+        "python3",
+        "python",
+        "cargo",
+        "git",
+        "deploy",
+        "cistart",
+        "cicomplete",
+        "intent",
+        "faelight-docs",
+        "docs",
+        "cat",
+        "echo",
+        "grep",
+        "sed",
+        "awk",
+        "curl",
+        "ls",
+        "cd",
+    ];
+    if safe.contains(&first_word) {
+        return None;
+    }
 
     // rm -rf on non-temp paths -- high risk
     if first_word == "rm" && (lower.contains("-rf") || lower.contains("-fr")) {
@@ -29,7 +50,9 @@ pub fn check(cmd: &str) -> Option<String> {
     }
 
     // SQL DROP TABLE -- only trigger when running sqlite3 directly
-    if (first_word == "sqlite3") && (lower.contains("drop table") || lower.contains("drop database")) {
+    if (first_word == "sqlite3")
+        && (lower.contains("drop table") || lower.contains("drop database"))
+    {
         return Some(format!(
             "Destructive SQL: {}",
             trimmed.chars().take(60).collect::<String>()
@@ -83,9 +106,15 @@ pub fn check(cmd: &str) -> Option<String> {
 /// Returns true if the human approved, false if blocked.
 pub fn challenge_gate(warning: &str) -> bool {
     println!();
-    println!("  {} CHALLENGE -- Friday requires explicit approval", "\u{26a0}");
+    println!(
+        "  {} CHALLENGE -- Friday requires explicit approval",
+        "\u{26a0}"
+    );
     println!("  {} {}", "\u{2192}".to_string(), warning);
-    println!("  {} Confidence: CHALLENGE tier (0.9+)", "\u{1f332}".to_string());
+    println!(
+        "  {} Confidence: CHALLENGE tier (0.9+)",
+        "\u{1f332}".to_string()
+    );
     println!();
     print!("  Type 'yes' to proceed, anything else to abort: ");
     use std::io::Write;
@@ -94,9 +123,15 @@ pub fn challenge_gate(warning: &str) -> bool {
     std::io::stdin().read_line(&mut input).unwrap_or(0);
     let approved = input.trim() == "yes";
     if approved {
-        println!("  {} Proceeding with explicit approval.", "\u{2705}".to_string());
+        println!(
+            "  {} Proceeding with explicit approval.",
+            "\u{2705}".to_string()
+        );
     } else {
-        println!("  {} Command blocked by Friday safety guard.", "\u{274c}".to_string());
+        println!(
+            "  {} Command blocked by Friday safety guard.",
+            "\u{274c}".to_string()
+        );
     }
     println!();
     approved

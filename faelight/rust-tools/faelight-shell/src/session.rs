@@ -280,7 +280,11 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
                     sc_dim(140, 200, 255, "The forest waited patiently.")
                 )
             } else {
-                format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                format!(
+                    "  {} {}",
+                    sc_bold(50, 220, 255, "↺"),
+                    sc_dim(140, 200, 255, "Welcome back.")
+                )
             }
         }
         ShellMode::Milestone => format!(
@@ -291,7 +295,11 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
         ShellMode::Focused => {
             if let Some(hours) = mem.hours_since() {
                 if hours == 0 {
-                    format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                    format!(
+                        "  {} {}",
+                        sc_bold(50, 220, 255, "↺"),
+                        sc_dim(140, 200, 255, "Welcome back.")
+                    )
                 } else if hours < 2 {
                     format!(
                         "  {} {}",
@@ -302,13 +310,26 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) ->
                     format!(
                         "  {} {}",
                         sc_bold(50, 220, 255, "↺"),
-                        sc_dim(140, 200, 255, &format!("{} hours since last session.", hours))
+                        sc_dim(
+                            140,
+                            200,
+                            255,
+                            &format!("{} hours since last session.", hours)
+                        )
                     )
                 } else {
-                    format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                    format!(
+                        "  {} {}",
+                        sc_bold(50, 220, 255, "↺"),
+                        sc_dim(140, 200, 255, "Welcome back.")
+                    )
                 }
             } else {
-                format!("  {} {}", sc_bold(50, 220, 255, "↺"), sc_dim(140, 200, 255, "Welcome back."))
+                format!(
+                    "  {} {}",
+                    sc_bold(50, 220, 255, "↺"),
+                    sc_dim(140, 200, 255, "Welcome back.")
+                )
             }
         }
     };

@@ -172,7 +172,6 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
     })
 }
 
-
 pub struct RefreshStats {
     pub aliases: usize,
     pub keybinds: usize,
@@ -197,9 +196,8 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     // Format: alias NAME = "COMMAND"   (optional trailing # comment).
     let mut aliases = 0usize;
     {
-        let cfg_path = std::env::var_os("HOME").map(|h| {
-            std::path::PathBuf::from(h).join(".config/faelight-shell/config.fsh")
-        });
+        let cfg_path = std::env::var_os("HOME")
+            .map(|h| std::path::PathBuf::from(h).join(".config/faelight-shell/config.fsh"));
         if let Some(path) = cfg_path {
             if let Ok(text) = std::fs::read_to_string(&path) {
                 let mut ins = tx.prepare(
@@ -271,7 +269,11 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
                     let mods = parts[0].trim();
                     let key = parts[1].trim();
                     let action = parts[2].trim();
-                    let args: Vec<&str> = parts[3..].iter().map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+                    let args: Vec<&str> = parts[3..]
+                        .iter()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .collect();
 
                     // chord: SUPER+SHIFT + key  ->  "SUPER+SHIFT+Left"
                     let chord = if mods.is_empty() {
@@ -294,13 +296,14 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
                         _ => "window",
                     };
 
-                    ins.execute(rusqlite::params![chord, category, action_str, action_str, now])?;
+                    ins.execute(rusqlite::params![
+                        chord, category, action_str, action_str, now
+                    ])?;
                     keybinds += 1;
                 }
             }
         }
     }
-
 
     // --- Builtins: parse the dispatcher match arms in commands/mod.rs (live source) ---
     // INT-092 Phase 1b: the match cmd.as_str() block IS the source of truth for builtins.
@@ -309,12 +312,27 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     let mut builtins = 0usize;
     {
         tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
-        let mod_path = faelight_core::paths::rust_tools_dir()
-            .join("faelight-shell/src/commands/mod.rs");
+        let mod_path =
+            faelight_core::paths::rust_tools_dir().join("faelight-shell/src/commands/mod.rs");
         const SKIP: &[&str] = &[
-            "bash", "zsh", "sh", "python", "py", "js", "node", "git", "grep",
-            "ls", "cat", "echo", "make", "which", "realpath",
-            "where_old_disabled", "preexec", "exec",
+            "bash",
+            "zsh",
+            "sh",
+            "python",
+            "py",
+            "js",
+            "node",
+            "git",
+            "grep",
+            "ls",
+            "cat",
+            "echo",
+            "make",
+            "which",
+            "realpath",
+            "where_old_disabled",
+            "preexec",
+            "exec",
         ];
         if let Ok(text) = std::fs::read_to_string(&mod_path) {
             let lines: Vec<&str> = text.lines().collect();
@@ -348,7 +366,10 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
                         .filter(|s| {
                             !s.is_empty()
                                 && s.chars().all(|c| {
-                                    c.is_ascii_lowercase() || c == '-' || c == '_' || c.is_ascii_digit()
+                                    c.is_ascii_lowercase()
+                                        || c == '-'
+                                        || c == '_'
+                                        || c.is_ascii_digit()
                                 })
                         })
                         .collect();
@@ -375,7 +396,11 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     }
 
     tx.commit()?;
-    Ok(RefreshStats { aliases, keybinds, builtins })
+    Ok(RefreshStats {
+        aliases,
+        keybinds,
+        builtins,
+    })
 }
 
 /// Resolve the repo root from the db connection's file path (…/runtime/state.db -> repo root).
@@ -560,7 +585,12 @@ fn draw_ui(
             // INT-092 Phase 2: drifted alias (in registry, not in live config.fsh) -> dim.
             let dim = !e.live;
             let kind_icon = if dim {
-                Span::styled("~ ", Style::default().fg(Color::Rgb(90, 100, 95)).add_modifier(Modifier::DIM))
+                Span::styled(
+                    "~ ",
+                    Style::default()
+                        .fg(Color::Rgb(90, 100, 95))
+                        .add_modifier(Modifier::DIM),
+                )
             } else {
                 match e.kind.as_str() {
                     "builtin" => Span::styled("⬡ ", Style::default().fg(Color::Rgb(107, 227, 163))),
@@ -573,9 +603,13 @@ fn draw_ui(
             let name = Span::styled(
                 format!("{:<20}", &e.name[..e.name.len().min(20)]),
                 if dim {
-                    Style::default().fg(Color::Rgb(90, 100, 95)).add_modifier(Modifier::DIM)
+                    Style::default()
+                        .fg(Color::Rgb(90, 100, 95))
+                        .add_modifier(Modifier::DIM)
                 } else {
-                    Style::default().fg(Color::Rgb(215, 224, 218)).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Rgb(215, 224, 218))
+                        .add_modifier(Modifier::BOLD)
                 },
             );
             let desc_len = 25usize;

@@ -11,7 +11,9 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn flake_dir() -> String {
-    std::env::var("HOME").map(|h| format!("{h}/0-core")).unwrap_or_else(|_| ".".into())
+    std::env::var("HOME")
+        .map(|h| format!("{h}/0-core"))
+        .unwrap_or_else(|_| ".".into())
 }
 
 /// Check root flake inputs: locked rev + lock age + tracked ref. One UpdateItem per input.
@@ -27,7 +29,10 @@ pub fn check_flake_updates() -> Vec<crate::UpdateItem> {
         Ok(o) if o.status.success() => o.stdout,
         Ok(o) => {
             let err = String::from_utf8_lossy(&o.stderr);
-            eprintln!("      ⚠️  nix flake metadata failed: {}", err.lines().next().unwrap_or("").trim());
+            eprintln!(
+                "      ⚠️  nix flake metadata failed: {}",
+                err.lines().next().unwrap_or("").trim()
+            );
             return Vec::new();
         }
         Err(e) => {
@@ -48,7 +53,11 @@ fn parse_flake_metadata(stdout: &[u8]) -> Vec<crate::UpdateItem> {
         }
     };
 
-    let nodes = match json.get("locks").and_then(|l| l.get("nodes")).and_then(|n| n.as_object()) {
+    let nodes = match json
+        .get("locks")
+        .and_then(|l| l.get("nodes"))
+        .and_then(|n| n.as_object())
+    {
         Some(n) => n,
         None => return Vec::new(),
     };

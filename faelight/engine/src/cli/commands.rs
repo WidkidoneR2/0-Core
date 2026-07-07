@@ -48,14 +48,19 @@ pub enum SynthesizeCommand {
 #[derive(Debug)]
 pub enum FridayCommand {
     Status,
-    Ask { question: String },
+    Ask {
+        question: String,
+    },
     Observe,
     ExtractPatterns,
     Suggest,
     UpdatePersonality,
     SeedKnowledge,
     LearningLoop,
-    NameAbstraction { name: String, description: String },
+    NameAbstraction {
+        name: String,
+        description: String,
+    },
     Vocabulary,
     ProposeIntent,
     // INT-219 Phase 2
@@ -73,25 +78,43 @@ pub enum FridayCommand {
     SessionStart,
     SessionEnd,
     Context,
-    Infer { verbose: bool },
-    Reason { question: String },
+    Infer {
+        verbose: bool,
+    },
+    Reason {
+        question: String,
+    },
     Anticipate,
     Review,
     // INT-244 v22 -- Useful Partner
-    Why { topic: String },
-    Decide { what: String, why: String, ties_to: String },
+    Why {
+        topic: String,
+    },
+    Decide {
+        what: String,
+        why: String,
+        ties_to: String,
+    },
     Decisions,
     MapShow,
     MapUpdate,
     MapImpact(String),
-    EventBus { domain: Option<String>, limit: usize, json: bool },
+    EventBus {
+        domain: Option<String>,
+        limit: usize,
+        json: bool,
+    },
     ReasonEngine,
     SelfReview,
     // Pillar 1 -- Doc Steward
     Docs,
     DocsAnalyze,
-    DocsApprove { id: i64 },
-    DocsDismiss { id: i64 },
+    DocsApprove {
+        id: i64,
+    },
+    DocsDismiss {
+        id: i64,
+    },
     // INT-277 Core v24 -- Attention Engine
     Attention,
     AttentionDebug,
@@ -318,9 +341,18 @@ pub enum IntentCommand {
     Next,
     Brief,
     Graph,
-    Defer { id: String, reason: String },
-    Cancel { id: String, reason: String },
-    Override { id: String, reason: String },
+    Defer {
+        id: String,
+        reason: String,
+    },
+    Cancel {
+        id: String,
+        reason: String,
+    },
+    Override {
+        id: String,
+        reason: String,
+    },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {
@@ -396,7 +428,6 @@ pub enum NotifyCommand {
     },
     Status,
 }
-
 
 #[derive(Debug)]
 pub enum UpdateCommand {

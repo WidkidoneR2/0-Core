@@ -17,24 +17,24 @@ mod history_tui;
 mod intent_tui;
 mod output;
 mod pty_exec;
-mod safety_guard;
 mod registry;
+mod safety_guard;
 #[cfg(test)]
 mod tests;
 use colored::Colorize;
 mod completion;
 mod config;
 mod digest;
+mod expand;
 mod jobs;
 mod nl;
 mod prompt;
 mod schema;
 mod scripting;
+mod semantic;
 mod session;
 mod triggers;
 mod value;
-mod semantic;
-mod expand;
 use expand::*;
 
 use anyhow::Result;
@@ -86,17 +86,19 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::ForestDb) {
 
 fn expand_braces(s: &str) -> String {
     // Expand {N..M} and {a..z} sequences without regex
-    if !s.contains('{') { return s.to_string(); }
+    if !s.contains('{') {
+        return s.to_string();
+    }
     let mut result = String::new();
     let chars: Vec<char> = s.chars().collect();
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == '{' {
-            if let Some(close) = chars[i+1..].iter().position(|&c| c == '}') {
-                let inner: String = chars[i+1..i+1+close].iter().collect();
+            if let Some(close) = chars[i + 1..].iter().position(|&c| c == '}') {
+                let inner: String = chars[i + 1..i + 1 + close].iter().collect();
                 if let Some(dotdot) = inner.find("..") {
                     let left = &inner[..dotdot];
-                    let right = &inner[dotdot+2..];
+                    let right = &inner[dotdot + 2..];
                     if let (Ok(start_n), Ok(end_n)) = (left.parse::<i64>(), right.parse::<i64>()) {
                         let expanded: Vec<String> = if start_n <= end_n {
                             (start_n..=end_n).map(|n| n.to_string()).collect()
@@ -130,23 +132,32 @@ fn expand_braces(s: &str) -> String {
     result
 }
 
-
 fn split_semicolons(line: &str) -> Vec<String> {
     // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
     // The entire construct is passed to sh for execution as one unit
     let trimmed = line.trim();
-    let is_loop = trimmed.starts_with("for ") || trimmed.starts_with("while ") || trimmed.starts_with("until ");
-    if is_loop && (trimmed.contains("; do") || trimmed.contains(";do") || trimmed.contains("
-do")) {
+    let is_loop = trimmed.starts_with("for ")
+        || trimmed.starts_with("while ")
+        || trimmed.starts_with("until ");
+    if is_loop
+        && (trimmed.contains("; do")
+            || trimmed.contains(";do")
+            || trimmed.contains(
+                "
+do",
+            ))
+    {
         return vec![trimmed.to_string()];
     }
     // if/then/else/fi constructs are atomic -- never split at semicolons
     let is_if = trimmed.starts_with("if ");
-    if is_if && (trimmed.contains("; then") || trimmed.contains(";then")) && trimmed.ends_with("fi") {
+    if is_if && (trimmed.contains("; then") || trimmed.contains(";then")) && trimmed.ends_with("fi")
+    {
         return vec![trimmed.to_string()];
     }
     // piped while loops are atomic: "cmd | while ...; do ...; done"
-    let has_piped_while = trimmed.contains("| while ") && trimmed.contains("; do") && trimmed.ends_with("done");
+    let has_piped_while =
+        trimmed.contains("| while ") && trimmed.contains("; do") && trimmed.ends_with("done");
     if has_piped_while {
         return vec![trimmed.to_string()];
     }
@@ -190,7 +201,9 @@ do")) {
 /// quoted strings (grep patterns, regexes) are NOT treated as shell operators.
 fn contains_outside_quotes(line: &str, needle: &str) -> bool {
     let nbytes = needle.as_bytes();
-    if nbytes.is_empty() { return false; }
+    if nbytes.is_empty() {
+        return false;
+    }
     let chars: Vec<char> = line.chars().collect();
     let mut in_quote = false;
     let mut quote_char = ' ';
@@ -198,10 +211,15 @@ fn contains_outside_quotes(line: &str, needle: &str) -> bool {
     while i < chars.len() {
         let ch = chars[i];
         if !in_quote && (ch == '"' || ch == '\'') {
-            in_quote = true; quote_char = ch; i += 1; continue;
+            in_quote = true;
+            quote_char = ch;
+            i += 1;
+            continue;
         }
         if in_quote && ch == quote_char {
-            in_quote = false; i += 1; continue;
+            in_quote = false;
+            i += 1;
+            continue;
         }
         if !in_quote {
             // try to match needle starting at i
@@ -209,11 +227,18 @@ fn contains_outside_quotes(line: &str, needle: &str) -> bool {
             let mut k = i;
             let mut matched = true;
             for nb in needle.chars() {
-                if k >= chars.len() || chars[k] != nb { matched = false; break; }
-                k += 1; j += 1;
+                if k >= chars.len() || chars[k] != nb {
+                    matched = false;
+                    break;
+                }
+                k += 1;
+                j += 1;
             }
-            let _ = nbytes; let _ = j;
-            if matched { return true; }
+            let _ = nbytes;
+            let _ = j;
+            if matched {
+                return true;
+            }
         }
         i += 1;
     }
@@ -228,13 +253,17 @@ fn contains_outside_quotes(line: &str, needle: &str) -> bool {
 fn run_parallel(commands: &[String]) -> bool {
     use std::sync::{Arc, Mutex};
     use std::thread;
-    if commands.is_empty() { return true; }
+    if commands.is_empty() {
+        return true;
+    }
     println!("  ∴ Running {} commands in parallel...", commands.len());
     let results: Arc<Mutex<Vec<(String, bool, String)>>> = Arc::new(Mutex::new(Vec::new()));
     let mut handles = vec![];
     for cmd in commands {
         let cmd = cmd.trim().to_string();
-        if cmd.is_empty() { continue; }
+        if cmd.is_empty() {
+            continue;
+        }
         let results = Arc::clone(&results);
         let label = cmd.split_whitespace().take(2).collect::<Vec<_>>().join(" ");
         let handle = thread::spawn(move || {
@@ -248,24 +277,35 @@ fn run_parallel(commands: &[String]) -> bool {
                     let success = o.status.success();
                     let mut out = String::from_utf8_lossy(&o.stdout).to_string();
                     let err = String::from_utf8_lossy(&o.stderr).to_string();
-                    if !err.is_empty() { out.push_str(&err); }
+                    if !err.is_empty() {
+                        out.push_str(&err);
+                    }
                     results.lock().unwrap().push((label, success, out));
                 }
                 Err(e) => {
-                    results.lock().unwrap().push((label, false, format!("error: {}", e)));
+                    results
+                        .lock()
+                        .unwrap()
+                        .push((label, false, format!("error: {}", e)));
                 }
             }
         });
         handles.push(handle);
     }
-    for handle in handles { let _ = handle.join(); }
+    for handle in handles {
+        let _ = handle.join();
+    }
     let results = results.lock().unwrap();
     let mut all_success = true;
     for (label, success, output) in results.iter() {
         let icon = if *success { "✅" } else { "❌" };
         println!("  {} [{}]", icon, label);
-        for line in output.lines() { println!("    {}", line); }
-        if !success { all_success = false; }
+        for line in output.lines() {
+            println!("    {}", line);
+        }
+        if !success {
+            all_success = false;
+        }
     }
     all_success
 }
@@ -285,10 +325,22 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         // Deploy rules
         (&["deploy", "core"], "deploy core", 0.95),
         (&["deploy", "shell"], "deploy faelight-shell", 0.95),
-        (&["deploy", "everything"], "parallel {deploy core; deploy faelight-shell; deploy faelight-term}", 0.85),
+        (
+            &["deploy", "everything"],
+            "parallel {deploy core; deploy faelight-shell; deploy faelight-term}",
+            0.85,
+        ),
         // Git rules
-        (&["what", "changed", "today"], "git log --since=today --oneline", 0.90),
-        (&["show", "changed", "today"], "git log --since=today --oneline", 0.90),
+        (
+            &["what", "changed", "today"],
+            "git log --since=today --oneline",
+            0.90,
+        ),
+        (
+            &["show", "changed", "today"],
+            "git log --since=today --oneline",
+            0.90,
+        ),
         (&["recent", "commits"], "git log --oneline -10", 0.88),
         (&["last", "commit"], "git log --oneline -1", 0.92),
         // Health/status
@@ -299,7 +351,11 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         // Intent
         (&["working", "on"], "intent show --active", 0.90),
         (&["active", "intent"], "intent show --active", 0.92),
-        (&["what", "intents"], "intent list --status in-progress", 0.88),
+        (
+            &["what", "intents"],
+            "intent list --status in-progress",
+            0.88,
+        ),
         // File operations
         (&["find", "rust", "file"], "fsearch", 0.80),
         (&["list", "files"], "list files in .", 0.85),
@@ -307,7 +363,11 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         // Friday
         (&["friday", "status"], "core friday status", 0.95),
         (&["friday", "decisions"], "core friday decisions", 0.95),
-        (&["friday", "self", "review"], "core friday self-review", 0.92),
+        (
+            &["friday", "self", "review"],
+            "core friday self-review",
+            0.92,
+        ),
         // Sessions
         (&["saved", "sessions"], "session list", 0.92),
         (&["show", "sessions"], "session list", 0.90),
@@ -319,7 +379,11 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         (&["fsh", "info"], "fsh", 0.90),
         (&["cheatsheet"], "cheat", 0.95),
         (&["help"], "cheat", 0.88),
-        (&["parallel", "deploy"], "parallel {deploy core; deploy faelight-shell}", 0.85),
+        (
+            &["parallel", "deploy"],
+            "parallel {deploy core; deploy faelight-shell}",
+            0.85,
+        ),
     ];
     // Score each rule by how many pattern words appear in the query
     let mut best_cmd = None;
@@ -327,7 +391,9 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
     let mut best_conf: f64 = 0.0;
     for (patterns, cmd, conf) in rules {
         let matches = patterns.iter().filter(|p| q.contains(**p)).count();
-        if matches == 0 { continue; }
+        if matches == 0 {
+            continue;
+        }
         let score = (matches as f64 / patterns.len() as f64) * conf;
         if score > best_score {
             best_score = score;
@@ -342,8 +408,6 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
     }
 }
 
-
-
 /// Detect and strip redirection from a command line.
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
 
@@ -353,7 +417,6 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
 /// INT-245 #8: token-level glob expansion within an unquoted segment.
 /// Extracted from the original expand_globs body; logic unchanged for parts
 /// that lack quotes.
-
 
 fn expand_vars(
     line: &str,
@@ -457,7 +520,6 @@ fn expand_vars(
     result
 }
 
-
 // Strip # comments — only at start of line or after whitespace, never inside strings
 /// INT-249b: detect if a multi-line buffer is a complete shell command.
 #[allow(dead_code)]
@@ -468,9 +530,7 @@ fn expand_vars(
 /// check and hanging fsh in continuation mode.
 
 #[allow(dead_code)]
-
 #[allow(dead_code)]
-
 
 // INT-045: apply direnv environment for the current directory.
 // Uses "direnv export json" -- a flat JSON object mapping env var names to
@@ -492,9 +552,7 @@ fn apply_direnv() {
     if trimmed.is_empty() {
         return;
     }
-    if let Ok(serde_json::Value::Object(map)) =
-        serde_json::from_str::<serde_json::Value>(trimmed)
-    {
+    if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(trimmed) {
         for (key, val) in map {
             match val {
                 serde_json::Value::Null => std::env::remove_var(&key),
@@ -518,8 +576,10 @@ fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().collect();
         if args.len() >= 3 && args[1] == "-c" {
             let status = std::process::Command::new("sh")
-                .arg("-c").arg(&args[2])
-                .status().unwrap_or_else(|_| std::process::exit(1));
+                .arg("-c")
+                .arg(&args[2])
+                .status()
+                .unwrap_or_else(|_| std::process::exit(1));
             std::process::exit(status.code().unwrap_or(1));
         }
     }
@@ -605,9 +665,11 @@ fn repl_main() -> Result<()> {
         // Ensure NixOS paths are in PATH
         if let Ok(home) = std::env::var("HOME") {
             let cargo_bin = format!("{}/.cargo/bin", home);
-            let nix_system   = "/run/current-system/sw/bin".to_string();
-            let nix_user     = format!("/etc/profiles/per-user/{}/bin",
-                                std::env::var("USER").unwrap_or_default());
+            let nix_system = "/run/current-system/sw/bin".to_string();
+            let nix_user = format!(
+                "/etc/profiles/per-user/{}/bin",
+                std::env::var("USER").unwrap_or_default()
+            );
             let current_path = std::env::var("PATH").unwrap_or_default();
             if !current_path.contains(&nix_system) {
                 std::env::set_var(
@@ -652,7 +714,8 @@ fn repl_main() -> Result<()> {
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
     // INT-246: session deduplication -- suggestions never repeated in same session
-    let mut shown_friday_suggestions: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut shown_friday_suggestions: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     // INT-246: once per context switch -- Friday speaks when intent changes, not every command
     let mut last_friday_intent: Option<String> = None;
     let mut _session_deploys: usize = 0;
@@ -821,8 +884,7 @@ fn repl_main() -> Result<()> {
             let cwd = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let session = std::env::var("FSH_SESSION_ID")
-                .unwrap_or_else(|_| "unknown".to_string());
+            let session = std::env::var("FSH_SESSION_ID").unwrap_or_else(|_| "unknown".to_string());
             let _ = db.conn.execute(
                 "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
                  SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIMIT 1",
@@ -861,74 +923,76 @@ fn repl_main() -> Result<()> {
         let read_result = if let Some(queued) = pending.pop_front() {
             Ok(queued)
         } else {
-        {
-            let mut buffer = String::new();
-            let mut first = true;
-            let mut heredoc_delim: Option<String> = None;
-            loop {
-                let p_owned = if !first {
-                    heredoc_delim.as_ref().map(|delim| format!("  heredoc({})> ", delim))
-                } else {
-                    None
-                };
-                let p = if first {
-                    prompt_str.as_str()
-                } else if let Some(ref s) = p_owned {
-                    // BUG-298-2: show delimiter so user knows what to type
-                    s.as_str()
-                } else {
-                    "  ... "
-                };
-                match rl.readline(p) {
-                    Ok(line) => {
-                        // INT-250: check Ctrl+R flag set by HSearchHandler
-                        if hsearch_triggered.swap(false, Ordering::SeqCst) {
-                            // line contains whatever user had typed before Ctrl+R - use as initial query
-                            if let Some(selected) = history_tui::run_history_search(&line) {
-                                break Ok(selected);
-                            } else {
-                                // Cancelled - return empty to skip dispatch, fresh prompt next iteration
+            {
+                let mut buffer = String::new();
+                let mut first = true;
+                let mut heredoc_delim: Option<String> = None;
+                loop {
+                    let p_owned = if !first {
+                        heredoc_delim
+                            .as_ref()
+                            .map(|delim| format!("  heredoc({})> ", delim))
+                    } else {
+                        None
+                    };
+                    let p = if first {
+                        prompt_str.as_str()
+                    } else if let Some(ref s) = p_owned {
+                        // BUG-298-2: show delimiter so user knows what to type
+                        s.as_str()
+                    } else {
+                        "  ... "
+                    };
+                    match rl.readline(p) {
+                        Ok(line) => {
+                            // INT-250: check Ctrl+R flag set by HSearchHandler
+                            if hsearch_triggered.swap(false, Ordering::SeqCst) {
+                                // line contains whatever user had typed before Ctrl+R - use as initial query
+                                if let Some(selected) = history_tui::run_history_search(&line) {
+                                    break Ok(selected);
+                                } else {
+                                    // Cancelled - return empty to skip dispatch, fresh prompt next iteration
+                                    break Ok(String::new());
+                                }
+                            }
+                            // INT-258: Ctrl+D opens health TUI
+                            if hhealth_triggered.swap(false, Ordering::SeqCst) {
+                                health_tui::run_health_tui(&core_root);
                                 break Ok(String::new());
                             }
-                        }
-                        // INT-258: Ctrl+D opens health TUI
-                        if hhealth_triggered.swap(false, Ordering::SeqCst) {
-                            health_tui::run_health_tui(&core_root);
-                            break Ok(String::new());
-                        }
-                        // INT-253: Ctrl+G opens git TUI
-                        if hgit_triggered.swap(false, Ordering::SeqCst) {
-                            let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
-                            git_tui::run_git_tui(&core_root, active.as_deref());
-                            break Ok(String::new());
-                        }
-                        if !buffer.is_empty() {
-                            buffer.push('\n');
-                        }
-                        buffer.push_str(&line);
-                        let (complete, reason) = is_complete_command(&buffer);
-                        if complete {
-                            // INT-099: split a multi-command block; first now, rest queued.
-                            let mut cmds = split_into_commands(&buffer);
-                            if cmds.len() > 1 {
-                                let first = cmds.remove(0);
-                                for c in cmds.into_iter().rev() {
-                                    pending.push_front(c);
-                                }
-                                break Ok(first);
+                            // INT-253: Ctrl+G opens git TUI
+                            if hgit_triggered.swap(false, Ordering::SeqCst) {
+                                let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
+                                git_tui::run_git_tui(&core_root, active.as_deref());
+                                break Ok(String::new());
                             }
-                            break Ok(buffer);
+                            if !buffer.is_empty() {
+                                buffer.push('\n');
+                            }
+                            buffer.push_str(&line);
+                            let (complete, reason) = is_complete_command(&buffer);
+                            if complete {
+                                // INT-099: split a multi-command block; first now, rest queued.
+                                let mut cmds = split_into_commands(&buffer);
+                                if cmds.len() > 1 {
+                                    let first = cmds.remove(0);
+                                    for c in cmds.into_iter().rev() {
+                                        pending.push_front(c);
+                                    }
+                                    break Ok(first);
+                                }
+                                break Ok(buffer);
+                            }
+                            // BUG-298-2: track heredoc delimiter for prompt
+                            if reason == "unclosed heredoc" && heredoc_delim.is_none() {
+                                heredoc_delim = find_heredoc_delimiter(&buffer);
+                            }
+                            first = false;
                         }
-                        // BUG-298-2: track heredoc delimiter for prompt
-                        if reason == "unclosed heredoc" && heredoc_delim.is_none() {
-                            heredoc_delim = find_heredoc_delimiter(&buffer);
-                        }
-                        first = false;
+                        Err(e) => break Err(e),
                     }
-                    Err(e) => break Err(e),
                 }
             }
-        }
         };
         match read_result {
             Ok(line) => {
@@ -946,8 +1010,10 @@ fn repl_main() -> Result<()> {
                     let home = std::env::var("HOME").unwrap_or_default();
                     let candidates = vec![
                         "/run/current-system/sw/bin/faelight-shell".to_string(),
-                        format!("/etc/profiles/per-user/{}/bin/faelight-shell",
-                            std::env::var("USER").unwrap_or_default()),
+                        format!(
+                            "/etc/profiles/per-user/{}/bin/faelight-shell",
+                            std::env::var("USER").unwrap_or_default()
+                        ),
                         format!("{}/.cargo/bin/faelight-shell", home),
                         format!("{}/0-core/scripts/faelight-shell", home),
                     ];
@@ -1148,7 +1214,10 @@ fn repl_main() -> Result<()> {
                     }
                     match translate_natural_language(query) {
                         Some((cmd, confidence)) => {
-                            println!("  Friday translates ({:.0}% confidence):", confidence * 100.0);
+                            println!(
+                                "  Friday translates ({:.0}% confidence):",
+                                confidence * 100.0
+                            );
                             println!("    -> {}", cmd);
                             print!("  Run this? (y/N): ");
                             use std::io::Write;
@@ -1186,7 +1255,8 @@ fn repl_main() -> Result<()> {
                 }
                 // INT-267: ||| parallel operator
                 if contains_outside_quotes(&line, "|||") {
-                    let parts: Vec<String> = line.split("|||")
+                    let parts: Vec<String> = line
+                        .split("|||")
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
@@ -1206,11 +1276,13 @@ fn repl_main() -> Result<()> {
                     if seg_idx == 0 {
                         if let Ok(prev) = db.conn.query_row(
                             "SELECT value FROM shell_state WHERE key = 'power_profile_prev'",
-                            [], |r| r.get::<_, String>(0),
+                            [],
+                            |r| r.get::<_, String>(0),
                         ) {
                             if !prev.is_empty() {
                                 let _ = std::process::Command::new("powerprofilesctl")
-                                    .args(["set", &prev]).status();
+                                    .args(["set", &prev])
+                                    .status();
                                 let _ = db.conn.execute(
                                     "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile', ?1)",
                                     rusqlite::params![prev],
@@ -1236,7 +1308,7 @@ fn repl_main() -> Result<()> {
                     if logical_parts.len() > 1 {
                         let mut last_success = true;
                         let mut prev_op: Option<bool> = None; // operator from previous command
-                        // fsh builtins that cannot run via sh -c
+                                                              // fsh builtins that cannot run via sh -c
                         for (lcmd, op) in &logical_parts {
                             // Check if we should run based on PREVIOUS operator and result
                             // Use continue (not break) so || chains after failed && still execute
@@ -1264,7 +1336,7 @@ fn repl_main() -> Result<()> {
                                     std::path::PathBuf::from(format!("{}/{}", home, &target[2..]))
                                 } else if target == "-" {
                                     std::path::PathBuf::from(
-                                        std::env::var("OLDPWD").unwrap_or(home)
+                                        std::env::var("OLDPWD").unwrap_or(home),
                                     )
                                 } else {
                                     std::path::PathBuf::from(target)
@@ -1275,16 +1347,22 @@ fn repl_main() -> Result<()> {
                                     last_success = false;
                                 }
                                 if let Some(is_and) = op {
-                                    if *is_and && !last_success { break; }
-                                    if !*is_and && last_success { break; }
+                                    if *is_and && !last_success {
+                                        break;
+                                    }
+                                    if !*is_and && last_success {
+                                        break;
+                                    }
                                 }
                                 continue;
                             }
                             // INT-322 Phase 1: route through fsh builtin dispatcher
                             // Commands with redirects use sh -c (proper redirect + real system cmds)
                             // Pure commands use fsh dispatcher (enables fg, deploy, cistart in chains)
-                            let has_redirect = lcmd_trim.contains(" > ") || lcmd_trim.contains(" >> ")
-                                || lcmd_trim.contains(">>") || lcmd_trim.contains("2>");
+                            let has_redirect = lcmd_trim.contains(" > ")
+                                || lcmd_trim.contains(" >> ")
+                                || lcmd_trim.contains(">>")
+                                || lcmd_trim.contains("2>");
                             if has_redirect {
                                 // INT-089: a forest builtin/alias here is invisible to sh.
                                 let cmd_word = lcmd_trim.split_whitespace().next().unwrap_or("");
@@ -1307,14 +1385,22 @@ fn repl_main() -> Result<()> {
                                 }
                             } else {
                                 let chain_result = commands::execute(lcmd_trim, &db, &core_root);
-                                last_success = !matches!(chain_result, commands::CommandResult::Error(_));
+                                last_success =
+                                    !matches!(chain_result, commands::CommandResult::Error(_));
                                 // INT-097: if this command is followed by || , a failure here is
                                 // EXPECTED (it's why the next command runs) -- don't print its error.
-                                let failure_consumed_by_or = !last_success && matches!(op, Some(false));
+                                let failure_consumed_by_or =
+                                    !last_success && matches!(op, Some(false));
                                 // Print the result -- was silently discarded before
                                 match &chain_result {
-                                    commands::CommandResult::Output(s) if !s.is_empty() => println!("{}", s),
-                                    commands::CommandResult::Error(s) if !failure_consumed_by_or => eprintln!("{}", s),
+                                    commands::CommandResult::Output(s) if !s.is_empty() => {
+                                        println!("{}", s)
+                                    }
+                                    commands::CommandResult::Error(s)
+                                        if !failure_consumed_by_or =>
+                                    {
+                                        eprintln!("{}", s)
+                                    }
                                     commands::CommandResult::Value(v) => println!("{:?}", v),
                                     _ => {}
                                 }
@@ -1330,33 +1416,51 @@ fn repl_main() -> Result<()> {
                     // INT-322 Phase 4: auto-snapshot before destructive commands
                     {
                         let _snap_tok = line.split_whitespace().next().unwrap_or("");
-                        let _is_destructive = ["rm", "rmdir", "mv", "deploy", "cicomplete", "dc", "sudo", "dd"].contains(&_snap_tok)
-                            || (_snap_tok == "git" && (line.contains(" push") || line.contains(" reset")));
+                        let _is_destructive = [
+                            "rm",
+                            "rmdir",
+                            "mv",
+                            "deploy",
+                            "cicomplete",
+                            "dc",
+                            "sudo",
+                            "dd",
+                        ]
+                        .contains(&_snap_tok)
+                            || (_snap_tok == "git"
+                                && (line.contains(" push") || line.contains(" reset")));
                         if _is_destructive {
                             let _iid = db.get_focus_intent();
                             db.capture_snapshot(line, _iid.as_deref());
                         }
-                                   // INT-307 Phase 2: Friday power switching on compilation
-                    {
-                        let _compile_tok = line.split_whitespace().next().unwrap_or("");
-                        let _is_compile = _compile_tok == "cargo"
-                            && (line.contains(" build") || line.contains(" check")
-                                || line.contains(" test") || line.contains(" nextest"));
-                        if _is_compile {
-                            let _prev = db.conn.query_row(
-                                "SELECT value FROM shell_state WHERE key = 'power_profile'",
-                                [], |r| r.get::<_, String>(0),
-                            ).unwrap_or_else(|_| "balanced".to_string());
-                            let _ = db.conn.execute(
+                        // INT-307 Phase 2: Friday power switching on compilation
+                        {
+                            let _compile_tok = line.split_whitespace().next().unwrap_or("");
+                            let _is_compile = _compile_tok == "cargo"
+                                && (line.contains(" build")
+                                    || line.contains(" check")
+                                    || line.contains(" test")
+                                    || line.contains(" nextest"));
+                            if _is_compile {
+                                let _prev = db
+                                    .conn
+                                    .query_row(
+                                        "SELECT value FROM shell_state WHERE key = 'power_profile'",
+                                        [],
+                                        |r| r.get::<_, String>(0),
+                                    )
+                                    .unwrap_or_else(|_| "balanced".to_string());
+                                let _ = db.conn.execute(
                                 "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile_prev', ?1)",
                                 rusqlite::params![_prev],
                             );
-                            let _ = std::process::Command::new("powerprofilesctl")
-                                .args(["set", "performance"]).status();
-                            eprintln!("  Friday: switching to performance for compilation");
+                                let _ = std::process::Command::new("powerprofilesctl")
+                                    .args(["set", "performance"])
+                                    .status();
+                                eprintln!("  Friday: switching to performance for compilation");
+                            }
                         }
                     }
-     }
                     // Phase 18b — Flow mode: earliest intercept
                     {
                         let ftok = line.split_whitespace().next().unwrap_or("");
@@ -1522,9 +1626,15 @@ fn repl_main() -> Result<()> {
                     // INT-220 -- friday <question>: ask Friday about the forest
                     // INT-342: db-browse -- launch state.db TUI browser
                     if line == "db-browse" || line.starts_with("db-browse ") {
-                        let table_arg = if line.len() > 10 { line[10..].trim().to_string() } else { String::new() };
+                        let table_arg = if line.len() > 10 {
+                            line[10..].trim().to_string()
+                        } else {
+                            String::new()
+                        };
                         let mut cmd = std::process::Command::new("db-browse");
-                        if !table_arg.is_empty() { cmd.arg(&table_arg); }
+                        if !table_arg.is_empty() {
+                            cmd.arg(&table_arg);
+                        }
                         let _ = cmd.status();
                         continue 'segments;
                     }
@@ -1533,10 +1643,13 @@ fn repl_main() -> Result<()> {
                         || line.starts_with("friday show ")
                         || line.starts_with("friday explain ")
                         || line.starts_with("friday trace ")
-                        || line.starts_with("friday recall ") {
+                        || line.starts_with("friday recall ")
+                    {
                         let query = line[7..].trim().to_string(); // strip "friday "
                         if let Ok(out) = std::process::Command::new("friday-chat")
-                            .args(["chat", &query]).output() {
+                            .args(["chat", &query])
+                            .output()
+                        {
                             let result = String::from_utf8_lossy(&out.stdout).to_string();
                             if !result.trim().is_empty() {
                                 println!("{}", result.trim());
@@ -1551,7 +1664,9 @@ fn repl_main() -> Result<()> {
                             let _ = std::process::Command::new("friday-chat").status();
                         } else {
                             if let Ok(out) = std::process::Command::new("friday-chat")
-                                .args(["chat", &rest]).output() {
+                                .args(["chat", &rest])
+                                .output()
+                            {
                                 print!("{}", String::from_utf8_lossy(&out.stdout));
                             }
                         }
@@ -1732,15 +1847,21 @@ fn repl_main() -> Result<()> {
                                 let mut depth = 0i32;
                                 let mut ok = true;
                                 for (idx, c) in a.char_indices() {
-                                    if c == '(' { depth += 1; }
-                                    else if c == ')' {
+                                    if c == '(' {
+                                        depth += 1;
+                                    } else if c == ')' {
                                         depth -= 1;
                                         // closes early (before end) => not a single sub
-                                        if depth == 0 && idx != a.len() - 1 { ok = false; break; }
+                                        if depth == 0 && idx != a.len() - 1 {
+                                            ok = false;
+                                            break;
+                                        }
                                     }
                                 }
                                 ok && depth == 0
-                            } else { false }
+                            } else {
+                                false
+                            }
                         };
                         no_space_before && (no_space_after || value_is_quoted || value_is_cmdsub)
                     };
@@ -1978,7 +2099,8 @@ fn repl_main() -> Result<()> {
                     let cat_with_redirect = first_word == "cat" && {
                         let has_redirect = line.contains(" > ") || line.contains(" >> ");
                         let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]
-                            .iter().any(|f| line.split_whitespace().any(|w| w == *f));
+                            .iter()
+                            .any(|f| line.split_whitespace().any(|w| w == *f));
                         has_redirect || bat_unsupported
                     };
                     let line = if cat_with_redirect {
@@ -1997,11 +2119,26 @@ fn repl_main() -> Result<()> {
                     // INT-265: Forest pipeline detection
                     {
                         let first = line.split_whitespace().next().unwrap_or("");
-                        let forest_sources = ["from", "list", "find", "db", "intents", "deploys", "friday", "ps", "processes", "files", "tools", "events", "deploys"];
+                        let forest_sources = [
+                            "from",
+                            "list",
+                            "find",
+                            "db",
+                            "intents",
+                            "deploys",
+                            "friday",
+                            "ps",
+                            "processes",
+                            "files",
+                            "tools",
+                            "events",
+                            "deploys",
+                        ];
                         let has_pipe = line.contains(" | ");
                         if forest_sources.contains(&first) && has_pipe {
                             let explain = line.contains("--explain");
-                            let clean_line = line.replace(" --explain", "").replace("--explain", "");
+                            let clean_line =
+                                line.replace(" --explain", "").replace("--explain", "");
                             let clean_line = clean_line.as_str();
                             let parts: Vec<&str> = clean_line.splitn(2, " | ").collect();
                             let source_cmd = parts[0].trim();
@@ -2025,15 +2162,38 @@ fn repl_main() -> Result<()> {
                                             .split(" | ")
                                             .map(|s| s.trim().to_string())
                                             .collect();
-                                        let (result, stats) = value::apply_pipeline_with_stats(v, &ops, &stage_labels);
+                                        let (result, stats) = value::apply_pipeline_with_stats(
+                                            v,
+                                            &ops,
+                                            &stage_labels,
+                                        );
                                         println!("{}", result.render());
                                         println!();
                                         println!("  {} pipeline explain", "─".repeat(10).dimmed());
-                                        println!("  {:<28} {} rows", "source".bright_cyan(), source_count);
+                                        println!(
+                                            "  {:<28} {} rows",
+                                            "source".bright_cyan(),
+                                            source_count
+                                        );
                                         for stat in &stats {
-                                            let slow = if stat.duration_ms > 100 { "  ⚠ slow" } else { "" };
-                                            let zero = if stat.row_count == 0 { " ← zero rows!" } else { "" };
-                                            println!("  {:<28} {} rows  {}ms{}{}", stat.label.bright_cyan(), stat.row_count, stat.duration_ms, slow, zero);
+                                            let slow = if stat.duration_ms > 100 {
+                                                "  ⚠ slow"
+                                            } else {
+                                                ""
+                                            };
+                                            let zero = if stat.row_count == 0 {
+                                                " ← zero rows!"
+                                            } else {
+                                                ""
+                                            };
+                                            println!(
+                                                "  {:<28} {} rows  {}ms{}{}",
+                                                stat.label.bright_cyan(),
+                                                stat.row_count,
+                                                stat.duration_ms,
+                                                slow,
+                                                zero
+                                            );
                                         }
                                     } else {
                                         let result = value::apply_pipeline(v, &ops);
@@ -2238,16 +2398,18 @@ fn repl_main() -> Result<()> {
                         .any(|op| matches!(op, value::PipeOp::External(_)));
                     // Native pipe execution -- no sh fallback for external pipe chains
                     // If any pipe stage is a shell construct (while/for/if/until), pass to sh
-                    let has_shell_construct = has_pipe && original_line.split(" | ").skip(1)
-                        .any(|stage| {
+                    let has_shell_construct = has_pipe
+                        && original_line.split(" | ").skip(1).any(|stage| {
                             let s = stage.trim();
-                            s.starts_with("while ") || s.starts_with("for ") ||
-                            s.starts_with("if ") || s.starts_with("until ")
+                            s.starts_with("while ")
+                                || s.starts_with("for ")
+                                || s.starts_with("if ")
+                                || s.starts_with("until ")
                         });
                     if has_shell_construct {
                         let _ = std::process::Command::new("sh")
                             .arg("-c")
-                            .arg(segment.as_str())  // use raw unexpanded segment
+                            .arg(segment.as_str()) // use raw unexpanded segment
                             .stdin(std::process::Stdio::inherit())
                             .stdout(std::process::Stdio::inherit())
                             .stderr(std::process::Stdio::inherit())
@@ -2322,16 +2484,19 @@ fn repl_main() -> Result<()> {
                                 };
                                 let cmd_name = expanded_cmd.as_str();
                                 // BUG-298-1: expand tilde in pipe-stage arguments
-                                let owned_args: Vec<String> = tokens[1..].iter().map(|s| {
-                                    if s.starts_with("~/") {
-                                        let home = std::env::var("HOME").unwrap_or_default();
-                                        format!("{}{}", home, &s[1..])
-                                    } else if s.as_str() == "~" {
-                                        std::env::var("HOME").unwrap_or_default()
-                                    } else {
-                                        s.clone()
-                                    }
-                                }).collect();
+                                let owned_args: Vec<String> = tokens[1..]
+                                    .iter()
+                                    .map(|s| {
+                                        if s.starts_with("~/") {
+                                            let home = std::env::var("HOME").unwrap_or_default();
+                                            format!("{}{}", home, &s[1..])
+                                        } else if s.as_str() == "~" {
+                                            std::env::var("HOME").unwrap_or_default()
+                                        } else {
+                                            s.clone()
+                                        }
+                                    })
+                                    .collect();
                                 let args: Vec<&str> =
                                     owned_args.iter().map(|s| s.as_str()).collect();
                                 let is_last = idx == pipe_parts.len() - 1;
@@ -2359,7 +2524,8 @@ fn repl_main() -> Result<()> {
                                         commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
                                         commands::CommandResult::Value(v) => {
                                             if !pipeline_ops.is_empty() && !has_external_op {
-                                                let result = crate::value::apply_pipeline(v, &pipeline_ops);
+                                                let result =
+                                                    crate::value::apply_pipeline(v, &pipeline_ops);
                                                 println!("{}", result.render());
                                             } else {
                                                 println!("{}", v.render());
@@ -2802,7 +2968,9 @@ fn repl_main() -> Result<()> {
                                     .arg(&msg)
                                     .spawn()
                                 {
-                                    std::thread::spawn(move || { let _ = child.wait(); });
+                                    std::thread::spawn(move || {
+                                        let _ = child.wait();
+                                    });
                                 }
                             }
                         }
@@ -2881,15 +3049,18 @@ fn repl_main() -> Result<()> {
                             .next()
                             .unwrap_or(&base_cmd)
                             .to_string();
-                        let consecutive: i64 = db.conn.query_row(
-                            "SELECT COUNT(*) FROM (
+                        let consecutive: i64 = db
+                            .conn
+                            .query_row(
+                                "SELECT COUNT(*) FROM (
                                 SELECT exit_code FROM term_commands
                                 WHERE command LIKE ?1
                                 ORDER BY id DESC LIMIT 3
                             ) AS recent WHERE exit_code != 0",
-                            rusqlite::params![format!("{}%", fail_cmd)],
-                            |r| r.get(0),
-                        ).unwrap_or(0);
+                                rusqlite::params![format!("{}%", fail_cmd)],
+                                |r| r.get(0),
+                            )
+                            .unwrap_or(0);
                         if consecutive >= 3 {
                             let fail_key = format!("fail3_{}", fail_cmd);
                             if !shown_friday_suggestions.contains(&fail_key) {
@@ -3061,13 +3232,20 @@ fn repl_main() -> Result<()> {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
                                                     // INT-246: once per intent -- only speak when intent changed
-                                                    let current_intent = db.get_focus_intent().map(|i| format!("{}", i));
-                                                    if current_intent == last_friday_intent && last_friday_intent.is_some() {
+                                                    let current_intent = db
+                                                        .get_focus_intent()
+                                                        .map(|i| format!("{}", i));
+                                                    if current_intent == last_friday_intent
+                                                        && last_friday_intent.is_some()
+                                                    {
                                                         continue;
                                                     }
                                                     // INT-246: never repeat same suggestion in a session
-                                                    if shown_friday_suggestions.contains(msg) { continue; }
-                                                    shown_friday_suggestions.insert(msg.to_string());
+                                                    if shown_friday_suggestions.contains(msg) {
+                                                        continue;
+                                                    }
+                                                    shown_friday_suggestions
+                                                        .insert(msg.to_string());
                                                     last_friday_intent = current_intent;
                                                     println!();
                                                     let tier = if resp.contains("\"high\"") {
@@ -3077,7 +3255,10 @@ fn repl_main() -> Result<()> {
                                                     } else {
                                                         ("SUGGEST", "54%")
                                                     };
-                                                    println!("  🌲 Friday: {}  ·  {} · {}", msg, tier.0, tier.1);
+                                                    println!(
+                                                        "  🌲 Friday: {}  ·  {} · {}",
+                                                        msg, tier.0, tier.1
+                                                    );
                                                 }
                                             }
                                         }
@@ -3127,18 +3308,27 @@ fn repl_main() -> Result<()> {
                                 [], |r| r.get(0),
                             ).unwrap_or(0);
                             let novelty = match seen_count {
-                                0 => 1.0f64, 1..=2 => 0.7, 3..=10 => 0.4, _ => 0.15,
+                                0 => 1.0f64,
+                                1..=2 => 0.7,
+                                3..=10 => 0.4,
+                                _ => 0.15,
                             };
                             let risk = 0.4f64; // pattern suggestion is informational
                             let strategic_relevance = if conf >= 0.95 { 0.8 } else { 0.5 };
                             let uncertainty = 1.0 - conf;
                             let temporal_pressure = 0.3f64;
-                            let attention_score = (novelty * risk * strategic_relevance * uncertainty * temporal_pressure).powf(0.2);
+                            let attention_score = (novelty
+                                * risk
+                                * strategic_relevance
+                                * uncertainty
+                                * temporal_pressure)
+                                .powf(0.2);
                             let spoke = attention_score >= 0.6;
                             // Record in friday_attention
                             let now = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default().as_secs() as i64;
+                                .unwrap_or_default()
+                                .as_secs() as i64;
                             let _ = db.conn.execute(
                                 "INSERT INTO friday_attention (timestamp, event_type, event_detail, novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, threshold, spoke) VALUES (?1,'pattern_match',?2,?3,?4,?5,?6,?7,?8,0.6,?9)",
                                 rusqlite::params![now, format!("{} -> {}", trigger, action), novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, if spoke { 1 } else { 0 }],
@@ -3263,7 +3453,6 @@ fn repl_main() -> Result<()> {
     Ok(())
 }
 
-
 // Faelight truecolor helpers -- neon candy palette
 #[allow(dead_code)]
 fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
@@ -3287,11 +3476,18 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .trim()
         .to_string();
 
-    let changelog = std::fs::read_to_string(root.join("faelight/meta/CHANGELOG.md")).unwrap_or_default();
+    let changelog =
+        std::fs::read_to_string(root.join("faelight/meta/CHANGELOG.md")).unwrap_or_default();
     let theme = changelog
         .lines()
         .find(|l| l.starts_with(&format!("## [{}]", version)))
-        .and_then(|l| if l.contains(" — ") { l.split(" — ").nth(1) } else { l.split(" -- ").nth(1) })
+        .and_then(|l| {
+            if l.contains(" — ") {
+                l.split(" — ").nth(1)
+            } else {
+                l.split(" -- ").nth(1)
+            }
+        })
         .and_then(|s| s.split('(').next())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Living Forest".to_string());
@@ -3443,7 +3639,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // ── neon separator ──
     println!(
         "  {}",
-        fc(34, 200, 80, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        fc(
+            34,
+            200,
+            80,
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
     );
     // ── stats row ──
     println!(
@@ -3465,10 +3666,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     );
     println!();
     // ── philosophy quote -- bold not dimmed ──
-    println!(
-        "  {}",
-        fc_bold(180, 130, 255, &format!("\"{}\"", quote))
-    );
+    println!("  {}", fc_bold(180, 130, 255, &format!("\"{}\"", quote)));
     println!();
     // Today's Focus — lowest audit score tool
     let _focus = std::fs::read_to_string(faelight_core::paths::tools_registry())
@@ -3484,37 +3682,42 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .unwrap_or_default();
 
     // Show today's focus from actual in-progress intents only
-    let focus_intent: Option<String> = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
-        .ok()
-        .and_then(|entries| {
-            let mut in_progress: Vec<String> = entries
-                .flatten()
-                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                .filter_map(|e| {
-                    let content = std::fs::read_to_string(e.path()).ok()?;
-                    if !content.contains("status: in-progress") {
-                        return None;
-                    }
-                    Some(
-                        e.file_name()
-                            .to_string_lossy()
-                            .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
-                            .trim_end_matches(".md")
-                            .replace('-', " ")
-                            .to_string(),
-                    )
-                })
-                .collect();
-            in_progress.sort();
-            if in_progress.is_empty() {
-                None
-            } else {
-                Some(in_progress.join(", "))
-            }
-        });
+    let focus_intent: Option<String> =
+        std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+            .ok()
+            .and_then(|entries| {
+                let mut in_progress: Vec<String> = entries
+                    .flatten()
+                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                    .filter_map(|e| {
+                        let content = std::fs::read_to_string(e.path()).ok()?;
+                        if !content.contains("status: in-progress") {
+                            return None;
+                        }
+                        Some(
+                            e.file_name()
+                                .to_string_lossy()
+                                .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
+                                .trim_end_matches(".md")
+                                .replace('-', " ")
+                                .to_string(),
+                        )
+                    })
+                    .collect();
+                in_progress.sort();
+                if in_progress.is_empty() {
+                    None
+                } else {
+                    Some(in_progress.join(", "))
+                }
+            });
 
     if let Some(ref focus) = focus_intent {
-        println!("  {}  {}", fc_dim(255, 180, 50, "Today:"), fc_bold(255, 230, 100, focus));
+        println!(
+            "  {}  {}",
+            fc_dim(255, 180, 50, "Today:"),
+            fc_bold(255, 230, 100, focus)
+        );
         // Auto-persist detected intent so prompt.rs can read it
         {
             // Only write if no conscious focus already set
@@ -3589,6 +3792,3 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     );
     println!();
 }
-
-
-

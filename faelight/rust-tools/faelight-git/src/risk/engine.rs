@@ -43,7 +43,6 @@ impl RiskScore {
             });
         }
 
-
         // Factor 3: No upstream
         if repo.upstream()?.is_none() {
             let delta = 5;

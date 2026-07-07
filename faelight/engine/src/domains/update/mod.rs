@@ -6,10 +6,7 @@ use std::process::Command;
 pub fn update(ctx: &AppContext, args: &[String]) -> CoreResult<()> {
     ctx.capabilities.require(
         "update",
-        &[
-            Capability::FilesystemReadHome,
-            Capability::SpawnProcess,
-        ],
+        &[Capability::FilesystemReadHome, Capability::SpawnProcess],
     )?;
     let bin = format!("{}/target/release/faelight-update", ctx.core_root);
     let status = Command::new(&bin).args(args).status()?;

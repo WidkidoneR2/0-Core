@@ -79,7 +79,6 @@ fn check_dd(cmd: &str) -> bool {
     cmd.trim_start().starts_with("dd ") && (cmd.contains("of=/dev/") || cmd.contains("if=/dev/"))
 }
 
-
 fn check_mv_core(cmd: &str) -> bool {
     if !(cmd.trim_start().starts_with("mv ") || cmd.trim_start().starts_with("sudo mv ")) {
         return false;

@@ -47,21 +47,30 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-
 /// Fire-and-forget desktop notification via D-Bus (org.freedesktop.Notifications).
 /// Proven path: busctl. Used by forest reactions (intent complete, health/integrity drops).
 pub fn desktop(summary: &str, body: &str, critical: bool) {
     let urgency = if critical { "2" } else { "1" };
     let _ = Command::new("busctl")
         .args([
-            "--user", "call",
+            "--user",
+            "call",
             "org.freedesktop.Notifications",
             "/org/freedesktop/Notifications",
             "org.freedesktop.Notifications",
             "Notify",
             "susssasa{sv}i",
-            "Faelight Forest", "0", "", summary, body,
-            "0", "1", "urgency", "y", urgency, "0",
+            "Faelight Forest",
+            "0",
+            "",
+            summary,
+            body,
+            "0",
+            "1",
+            "urgency",
+            "y",
+            urgency,
+            "0",
         ])
         .status();
 }

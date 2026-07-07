@@ -61,7 +61,8 @@ fn levenshtein(a: &str, b: &str) -> usize {
                 .min(dp[i][j - 1] + 1)
                 .min(dp[i - 1][j - 1] + cost);
             // Transposition (Damerau-Levenshtein: gti->git = 1, not 2)
-            if i > 1 && j > 1
+            if i > 1
+                && j > 1
                 && a.as_bytes()[i - 1] == b.as_bytes()[j - 2]
                 && a.as_bytes()[i - 2] == b.as_bytes()[j - 1]
             {
@@ -174,7 +175,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     execute_impl(line, db, core_root, &[])
 }
 
-fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&str]) -> CommandResult {
+fn execute_impl(
+    line: &str,
+    db: &ForestDb,
+    core_root: &str,
+    expanded_names: &[&str],
+) -> CommandResult {
     fn tokenize_args(s: &str) -> Vec<String> {
         let mut tokens: Vec<String> = Vec::new();
         let mut current = String::new();
@@ -253,7 +259,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             return CommandResult::Output(String::new());
         } else {
             let out = std::process::Command::new("friday-chat")
-                .args(["chat", &rest]).output()
+                .args(["chat", &rest])
+                .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                 .unwrap_or_default();
             return CommandResult::Output(out);
@@ -307,7 +314,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             return CommandResult::Output(String::new());
         } else {
             let out = std::process::Command::new("friday-chat")
-                .args(["chat", &rest]).output()
+                .args(["chat", &rest])
+                .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                 .unwrap_or_default();
             return CommandResult::Output(out);
@@ -353,7 +361,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             } else {
                 // Direct query mode
                 let out = std::process::Command::new("friday-chat")
-                    .args(["chat", &rest]).output()
+                    .args(["chat", &rest])
+                    .output()
                     .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                     .unwrap_or_default();
                 CommandResult::Output(out)
@@ -375,12 +384,27 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
             Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
             Some("scope") => fsh_scope_status(db),
-            Some("rename") => fsh_rename_cmd(args.get(1).copied().unwrap_or(""), args.get(2).copied().unwrap_or("")),
+            Some("rename") => fsh_rename_cmd(
+                args.get(1).copied().unwrap_or(""),
+                args.get(2).copied().unwrap_or(""),
+            ),
             _ => run_external(line, db),
         },
-        "plan" => semantic_plan_cmd(if args.is_empty() { "" } else { &line[5..].trim() }),
-        "why" => semantic_why_cmd(if args.is_empty() { "" } else { &line[4..].trim() }),
-        "dry-run" => semantic_dryrun_cmd(if args.is_empty() { "" } else { &line[8..].trim() }),
+        "plan" => semantic_plan_cmd(if args.is_empty() {
+            ""
+        } else {
+            &line[5..].trim()
+        }),
+        "why" => semantic_why_cmd(if args.is_empty() {
+            ""
+        } else {
+            &line[4..].trim()
+        }),
+        "dry-run" => semantic_dryrun_cmd(if args.is_empty() {
+            ""
+        } else {
+            &line[8..].trim()
+        }),
         "clean" | "fix" => semantic_ambiguous_cmd(db, line),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "dev" => dev_cmd(db, core_root, args),
@@ -409,9 +433,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 if cmd.is_empty() {
                     CommandResult::Error("fsh -c: missing command".to_string())
                 } else {
-                    let out = std::process::Command::new("sh")
-                        .arg("-c").arg(cmd)
-                        .output();
+                    let out = std::process::Command::new("sh").arg("-c").arg(cmd).output();
                     match out {
                         Ok(o) => {
                             let mut s = String::from_utf8_lossy(&o.stdout).to_string();
@@ -453,7 +475,9 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
         "history-table" | "ht" | "history" => match args.first().copied() {
-            Some("intent") if args.get(1).is_some() => history_for_intent(db, args.get(1).copied().unwrap_or("")),
+            Some("intent") if args.get(1).is_some() => {
+                history_for_intent(db, args.get(1).copied().unwrap_or(""))
+            }
             Some("stats") => history_stats_for_intent(db, args.get(1).copied().unwrap_or("")),
             Some("intent") => ht_intent(db),
             Some("today") => ht_today(db),
@@ -698,7 +722,10 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 if start >= end {
                     return CommandResult::Output(format!(
                         "  (query: range {}:{} is past end of file -- {} has {} lines)",
-                        start + 1, end, filepath, total
+                        start + 1,
+                        end,
+                        filepath,
+                        total
                     ));
                 }
                 use colored::Colorize;
@@ -864,7 +891,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     env_vars    TEXT NOT NULL DEFAULT '{}',
                     created_at  INTEGER NOT NULL,
                     updated_at  INTEGER NOT NULL
-                );"
+                );",
             );
             let sub = args.first().copied().unwrap_or("");
             match sub {
@@ -990,7 +1017,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         }
         "history-replay" => {
             // history-replay <n>  -- show last n commands and offer to replay (INT-269)
-            let n: usize = args.first()
+            let n: usize = args
+                .first()
                 .and_then(|a| a.parse().ok())
                 .unwrap_or(10)
                 .min(50);
@@ -999,16 +1027,17 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
             };
-            let mut stmt = match conn.prepare(
-                "SELECT id, command FROM shell_history ORDER BY id DESC LIMIT ?1"
-            ) {
+            let mut stmt = match conn
+                .prepare("SELECT id, command FROM shell_history ORDER BY id DESC LIMIT ?1")
+            {
                 Ok(s) => s,
                 Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
             };
-            let rows: Vec<(i64, String)> = stmt.query_map(
-                rusqlite::params![n as i64],
-                |r| Ok((r.get(0)?, r.get(1)?))
-            ).ok().map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+            let rows: Vec<(i64, String)> = stmt
+                .query_map(rusqlite::params![n as i64], |r| Ok((r.get(0)?, r.get(1)?)))
+                .ok()
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
             if rows.is_empty() {
                 return CommandResult::Output("  No history found".to_string());
             }
@@ -1034,10 +1063,19 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     name TEXT PRIMARY KEY,
                     vars TEXT NOT NULL,
                     saved_at INTEGER NOT NULL
-                );"
+                );",
             );
-            let keys = ["EDITOR", "VISUAL", "RUST_LOG", "PATH", "HOME", "SHELL",
-                       "XDG_CURRENT_DESKTOP", "WAYLAND_DISPLAY", "FSH_SESSION_ID"];
+            let keys = [
+                "EDITOR",
+                "VISUAL",
+                "RUST_LOG",
+                "PATH",
+                "HOME",
+                "SHELL",
+                "XDG_CURRENT_DESKTOP",
+                "WAYLAND_DISPLAY",
+                "FSH_SESSION_ID",
+            ];
             let mut vars = serde_json::Map::new();
             for key in &keys {
                 if let Ok(val) = std::env::var(key) {
@@ -1047,14 +1085,19 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             let vars_json = serde_json::Value::Object(vars).to_string();
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64).unwrap_or(0);
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
             match conn.execute(
                 "INSERT INTO fsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
                  ON CONFLICT(name) DO UPDATE SET vars=?2, saved_at=?3",
-                rusqlite::params![name, vars_json, ts]
+                rusqlite::params![name, vars_json, ts],
             ) {
-                Ok(_) => CommandResult::Output(format!("  ✅ Environment '{}' saved ({} vars)", name, keys.len())),
-                Err(e) => CommandResult::Error(format!("env-save: {}", e))
+                Ok(_) => CommandResult::Output(format!(
+                    "  ✅ Environment '{}' saved ({} vars)",
+                    name,
+                    keys.len()
+                )),
+                Err(e) => CommandResult::Error(format!("env-save: {}", e)),
             }
         }
         "env-load" => {
@@ -1065,11 +1108,13 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-load: {}", e)),
             };
-            let row: Option<(String, i64)> = conn.query_row(
-                "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
-                rusqlite::params![name],
-                |r| Ok((r.get(0)?, r.get(1)?))
-            ).ok();
+            let row: Option<(String, i64)> = conn
+                .query_row(
+                    "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
+                    rusqlite::params![name],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .ok();
             match row {
                 None => CommandResult::Error(format!("env-load: snapshot '{}' not found", name)),
                 Some((vars_json, ts)) => {
@@ -1078,15 +1123,26 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                         .unwrap_or_else(|| "unknown".to_string());
                     let mut out = format!("  📦 Environment snapshot '{}' [{}]\n", name, dt);
                     out.push_str(&"─".repeat(44));
-                    if let Ok(vars) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&vars_json) {
+                    if let Ok(vars) = serde_json::from_str::<
+                        serde_json::Map<String, serde_json::Value>,
+                    >(&vars_json)
+                    {
                         for (k, v) in &vars {
                             let val = v.as_str().unwrap_or("");
-                            let short = if val.len() > 60 { format!("{}...", &val[..57]) } else { val.to_string() };
+                            let short = if val.len() > 60 {
+                                format!("{}...", &val[..57])
+                            } else {
+                                val.to_string()
+                            };
                             out.push_str(&format!("\n  {}={}", k, short));
                         }
                     }
-                    out.push_str("\n\n  ⚠️  Note: vars shown only -- fsh cannot set parent process env");
-                    out.push_str(&format!("\n  → export manually or use 'source' in your shell"));
+                    out.push_str(
+                        "\n\n  ⚠️  Note: vars shown only -- fsh cannot set parent process env",
+                    );
+                    out.push_str(&format!(
+                        "\n  → export manually or use 'source' in your shell"
+                    ));
                     CommandResult::Output(out)
                 }
             }
@@ -1099,27 +1155,53 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-diff: {}", e)),
             };
-            let vars_json: Option<String> = conn.query_row(
-                "SELECT vars FROM fsh_env_snapshots WHERE name = ?1",
-                rusqlite::params![name], |r| r.get(0)
-            ).ok();
+            let vars_json: Option<String> = conn
+                .query_row(
+                    "SELECT vars FROM fsh_env_snapshots WHERE name = ?1",
+                    rusqlite::params![name],
+                    |r| r.get(0),
+                )
+                .ok();
             match vars_json {
                 None => CommandResult::Error(format!("env-diff: snapshot '{}' not found", name)),
                 Some(json) => {
                     let mut out = format!("  🔍 env-diff: current vs '{}'\n", name);
                     out.push_str(&"─".repeat(44));
-                    if let Ok(saved) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json) {
-                        let keys = ["EDITOR", "VISUAL", "RUST_LOG", "PATH", "HOME", "SHELL",
-                                   "XDG_CURRENT_DESKTOP", "WAYLAND_DISPLAY", "FSH_SESSION_ID"];
+                    if let Ok(saved) =
+                        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
+                    {
+                        let keys = [
+                            "EDITOR",
+                            "VISUAL",
+                            "RUST_LOG",
+                            "PATH",
+                            "HOME",
+                            "SHELL",
+                            "XDG_CURRENT_DESKTOP",
+                            "WAYLAND_DISPLAY",
+                            "FSH_SESSION_ID",
+                        ];
                         let mut diffs = 0;
                         for key in &keys {
                             let current = std::env::var(key).unwrap_or_default();
-                            let snapped = saved.get(*key).and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let snapped = saved
+                                .get(*key)
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
                             if current != snapped {
                                 diffs += 1;
                                 out.push_str(&format!("\n  ~ {}:", key));
-                                let sc = if snapped.len() > 50 { format!("{}...", &snapped[..47]) } else { snapped.clone() };
-                                let cc = if current.len() > 50 { format!("{}...", &current[..47]) } else { current.clone() };
+                                let sc = if snapped.len() > 50 {
+                                    format!("{}...", &snapped[..47])
+                                } else {
+                                    snapped.clone()
+                                };
+                                let cc = if current.len() > 50 {
+                                    format!("{}...", &current[..47])
+                                } else {
+                                    current.clone()
+                                };
                                 out.push_str(&format!("\n    saved:   {}", sc));
                                 out.push_str(&format!("\n    current: {}", cc));
                             }
@@ -1708,7 +1790,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         }
         "show" => {
             // INT-326 Phase 5: semantic pipeline -- show processes
-            if args.first().copied() == Some("processes") || args.first().copied() == Some("procs") {
+            if args.first().copied() == Some("processes") || args.first().copied() == Some("procs")
+            {
                 let filter_arg = args.get(1..).unwrap_or(&[]).join(" ");
                 let ps_out = std::process::Command::new("sh")
                     .arg("-c")
@@ -1720,18 +1803,31 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     return CommandResult::Output(ps_out);
                 }
                 // filter inline: show processes cpu > 50
-                let threshold: f64 = filter_arg.replace("cpu", "").replace(">", "").trim().parse().unwrap_or(0.0);
-                let filtered: String = ps_out.lines()
+                let threshold: f64 = filter_arg
+                    .replace("cpu", "")
+                    .replace(">", "")
+                    .trim()
+                    .parse()
+                    .unwrap_or(0.0);
+                let filtered: String = ps_out
+                    .lines()
                     .enumerate()
                     .filter(|(i, line)| {
-                        if *i == 0 { return true; } // header
+                        if *i == 0 {
+                            return true;
+                        } // header
                         let cols: Vec<&str> = line.split_whitespace().collect();
-                        cols.get(2).and_then(|c| c.parse::<f64>().ok()).unwrap_or(0.0) > threshold
+                        cols.get(2)
+                            .and_then(|c| c.parse::<f64>().ok())
+                            .unwrap_or(0.0)
+                            > threshold
                     })
                     .map(|(_, l)| l)
                     .collect::<Vec<_>>()
-                    .join("
-");
+                    .join(
+                        "
+",
+                    );
                 return CommandResult::Output(filtered);
             }
             // show file.rs 46:80   -- syntax-highlighted lines
@@ -2253,8 +2349,12 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             let home = std::env::var("HOME").unwrap_or_default();
             let expand_path = |p: &str| -> String {
                 match p {
-                    "@rust" => faelight_core::paths::rust_tools_dir().to_string_lossy().to_string(),
-                    "@intents" => faelight_core::paths::intents_dir().to_string_lossy().to_string(),
+                    "@rust" => faelight_core::paths::rust_tools_dir()
+                        .to_string_lossy()
+                        .to_string(),
+                    "@intents" => faelight_core::paths::intents_dir()
+                        .to_string_lossy()
+                        .to_string(),
                     "@scripts" => format!("{}/0-core/scripts", home),
                     "@docs" => format!("{}/0-core/docs", home),
                     p if p.starts_with("~/") => format!("{}/{}", home, &p[2..]),
@@ -2271,7 +2371,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 }
             } else {
                 // INT-300: accept bare path: list ~/path
-                let bare = args.iter()
+                let bare = args
+                    .iter()
                     .find(|a| !["files", "directories", "in"].contains(a));
                 if let Some(p) = bare {
                     expand_path(p)
@@ -2480,15 +2581,23 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             // real PID/job killer. `terminate <pattern>` keeps the pgrep -f semantic match.
             let target = args.join(" ");
             let pid_result = std::process::Command::new("sh")
-                .arg("-c").arg(format!("pgrep -f '{}'", target))
+                .arg("-c")
+                .arg(format!("pgrep -f '{}'", target))
                 .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                 .unwrap_or_default();
             if pid_result.trim().is_empty() {
-                return CommandResult::Error(format!("terminate: no process matching '{}'", target));
+                return CommandResult::Error(format!(
+                    "terminate: no process matching '{}'",
+                    target
+                ));
             }
             let pids: Vec<&str> = pid_result.trim().lines().collect();
-            println!("  🌲 Terminating {} process(es) matching '{}'", pids.len(), target);
+            println!(
+                "  🌲 Terminating {} process(es) matching '{}'",
+                pids.len(),
+                target
+            );
             for pid in &pids {
                 let _ = std::process::Command::new("kill").arg(pid.trim()).status();
             }
@@ -2522,14 +2631,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                 return CommandResult::Error(format!("delete: path not found: {}", expanded));
             }
             // Source-tree warning
-            let source_dirs = [
-                "rust-tools",
-                "intents",
-                "scripts",
-                "docs",
-                "engine",
-                "meta",
-            ];
+            let source_dirs = ["rust-tools", "intents", "scripts", "docs", "engine", "meta"];
             let in_source = source_dirs
                 .iter()
                 .any(|d| target.starts_with(format!("{}/{}", core_root, d)));
@@ -2652,7 +2754,7 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             // gt status, gt commit, gt push -- maps directly to git
             if args.is_empty() {
                 return CommandResult::Error(
-                    "usage: gt <git-command> [args]\n  gt is the forest word for git".to_string()
+                    "usage: gt <git-command> [args]\n  gt is the forest word for git".to_string(),
                 );
             }
             let status = std::process::Command::new("git")
@@ -2670,10 +2772,20 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
             // find: detect Unix vs forest usage
             // Unix find: first arg is a path (/, ~/, ./, ..) OR any arg has single-hyphen flag (-name, -type, -exec)
             // Forest find: first arg is a pattern or @shortcut
-            let is_unix_find = args.first().map(|a| {
-                a.starts_with('/') || a.starts_with("~/") || a.starts_with("./") || a.starts_with("../") || *a == "." || *a == ".."
-            }).unwrap_or(false)
-            || args.iter().any(|a| a.starts_with('-') && !a.starts_with("--"));
+            let is_unix_find = args
+                .first()
+                .map(|a| {
+                    a.starts_with('/')
+                        || a.starts_with("~/")
+                        || a.starts_with("./")
+                        || a.starts_with("../")
+                        || *a == "."
+                        || *a == ".."
+                })
+                .unwrap_or(false)
+                || args
+                    .iter()
+                    .any(|a| a.starts_with('-') && !a.starts_with("--"));
             if is_unix_find {
                 return run_external(line, db);
             }
@@ -2869,11 +2981,26 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                         i += 2;
                     }
                     // INT-300: forest shortcut flags
-                    "--rust" => { filter_type = Some("rs"); i += 1; }
-                    "--py" | "--python" => { filter_type = Some("py"); i += 1; }
-                    "--md" | "--markdown" => { filter_type = Some("md"); i += 1; }
-                    "--toml" => { filter_type = Some("toml"); i += 1; }
-                    "--sh" | "--shell" => { filter_type = Some("sh"); i += 1; }
+                    "--rust" => {
+                        filter_type = Some("rs");
+                        i += 1;
+                    }
+                    "--py" | "--python" => {
+                        filter_type = Some("py");
+                        i += 1;
+                    }
+                    "--md" | "--markdown" => {
+                        filter_type = Some("md");
+                        i += 1;
+                    }
+                    "--toml" => {
+                        filter_type = Some("toml");
+                        i += 1;
+                    }
+                    "--sh" | "--shell" => {
+                        filter_type = Some("sh");
+                        i += 1;
+                    }
                     "--intent" | "--intents" => {
                         let _home = std::env::var("HOME").unwrap_or_default();
                         search_root = Some(faelight_core::paths::intents_dir());
@@ -2886,7 +3013,8 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
                     }
                     "--scripts" => {
                         let home = std::env::var("HOME").unwrap_or_default();
-                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core/scripts", home)));
+                        search_root =
+                            Some(std::path::PathBuf::from(format!("{}/0-core/scripts", home)));
                         i += 1;
                     }
                     arg if !arg.starts_with("--") => {
@@ -3395,55 +3523,73 @@ fn execute_impl(line: &str, db: &ForestDb, core_root: &str, expanded_names: &[&s
         "how" => {
             // INT-326 Phase 6: shell memory -- "how did I fix X last month?"
             let query = args.join(" ").to_lowercase();
-            let query = query.trim_start_matches("did i ").trim_start_matches("do i ").trim_start_matches("i ");
+            let query = query
+                .trim_start_matches("did i ")
+                .trim_start_matches("do i ")
+                .trim_start_matches("i ");
             let pattern = format!("%{}%", query.split_whitespace().next().unwrap_or(""));
             let time_filter = if args.iter().any(|a| *a == "today") {
                 let today = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
                 today - 86400
             } else if args.iter().any(|a| *a == "week") {
                 let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
                 now - 604800
             } else if args.iter().any(|a| *a == "month") {
                 let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
                 now - 2592000
-            } else { 0 };
+            } else {
+                0
+            };
 
             let mut stmt = match db.conn.prepare(
                 "SELECT command, cwd, timestamp, exit_code FROM shell_history 
                  WHERE command LIKE ?1 AND timestamp > ?2 
-                 ORDER BY timestamp DESC LIMIT 10"
+                 ORDER BY timestamp DESC LIMIT 10",
             ) {
                 Ok(s) => s,
                 Err(e) => return CommandResult::Error(format!("how: db error: {}", e)),
             };
 
-            let rows: Vec<String> = match stmt.query_map(
-                rusqlite::params![pattern, time_filter as i64],
-                |r| {
+            let rows: Vec<String> =
+                match stmt.query_map(rusqlite::params![pattern, time_filter as i64], |r| {
                     let cmd: String = r.get(0)?;
-                    let cwd: String = r.get::<_,String>(1).unwrap_or_default();
+                    let cwd: String = r.get::<_, String>(1).unwrap_or_default();
                     let ts: i64 = r.get(2)?;
-                    let exit: i64 = r.get::<_,i64>(3).unwrap_or(0);
+                    let exit: i64 = r.get::<_, i64>(3).unwrap_or(0);
                     let dt = chrono::DateTime::from_timestamp(ts, 0)
                         .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
                         .unwrap_or_else(|| ts.to_string());
                     let status = if exit == 0 { "✅" } else { "❌" };
                     Ok(format!("  {} {} | {} | {}", status, cmd, dt, cwd))
-                }
-            ) {
-                Ok(mapped) => mapped.flatten().collect(),
-                Err(_) => vec![],
-            };
+                }) {
+                    Ok(mapped) => mapped.flatten().collect(),
+                    Err(_) => vec![],
+                };
 
             if rows.is_empty() {
-                CommandResult::Output(format!("  🌲 No history matching '{}' -- try: how deploy / how fix / how build", query))
+                CommandResult::Output(format!(
+                    "  🌲 No history matching '{}' -- try: how deploy / how fix / how build",
+                    query
+                ))
             } else {
-                CommandResult::Output(format!("  🌲 Shell memory for '{}':
-{}", query, rows.join("
-")))
+                CommandResult::Output(format!(
+                    "  🌲 Shell memory for '{}':
+{}",
+                    query,
+                    rows.join(
+                        "
+"
+                    )
+                ))
             }
         }
         "recall" => {
@@ -4265,14 +4411,21 @@ fn history_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
         Err(_) => return CommandResult::Error("history for: database error".to_string()),
     };
     let rows: Vec<(String, i64, Option<i32>)> = stmt
-        .query_map(rusqlite::params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .query_map(rusqlite::params![id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     if rows.is_empty() {
         return CommandResult::Output(format!("  No history found for INT-{} (commands run before this session won't have intent tags)", id));
     }
     let mut out = String::new();
-    out.push_str(&format!("\n  {} History for INT-{} ({} commands)\n", "▸".bright_cyan(), id, rows.len()));
+    out.push_str(&format!(
+        "\n  {} History for INT-{} ({} commands)\n",
+        "▸".bright_cyan(),
+        id,
+        rows.len()
+    ));
     out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
     for (cmd, ts, exit_code) in &rows {
         let dt = chrono::DateTime::from_timestamp(*ts, 0)
@@ -4294,10 +4447,14 @@ fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
     if id.is_empty() {
         return CommandResult::Output("  Usage: history stats INT-NNN".to_string());
     }
-    let total: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE intent_id = ?1",
-        rusqlite::params![id], |r| r.get(0),
-    ).unwrap_or(0);
+    let total: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE intent_id = ?1",
+            rusqlite::params![id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if total == 0 {
         return CommandResult::Output(format!("  No history found for INT-{}", id));
     }
@@ -4319,11 +4476,21 @@ fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("\n  {} Stats for INT-{}\n", "▸".bright_cyan(), id));
     out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
-    out.push_str(&format!("  Total commands:  {}\n", total.to_string().bright_white()));
-    out.push_str(&format!("  Success rate:    {}%\n", success_rate.to_string().bright_white()));
+    out.push_str(&format!(
+        "  Total commands:  {}\n",
+        total.to_string().bright_white()
+    ));
+    out.push_str(&format!(
+        "  Success rate:    {}%\n",
+        success_rate.to_string().bright_white()
+    ));
     out.push_str("\n  Top commands:\n");
     for (cmd, cnt) in &top {
-        out.push_str(&format!("    {} × {}\n", cnt.to_string().bright_cyan(), cmd));
+        out.push_str(&format!(
+            "    {} × {}\n",
+            cnt.to_string().bright_cyan(),
+            cmd
+        ));
     }
     CommandResult::Output(out)
 }
@@ -4923,12 +5090,10 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         match target {
             "health" => {
                 let health = db.health_score().unwrap_or(0);
-                let version = std::fs::read_to_string(
-                    faelight_core::paths::version_file(),
-                )
-                .unwrap_or_default()
-                .trim()
-                .to_string();
+                let version = std::fs::read_to_string(faelight_core::paths::version_file())
+                    .unwrap_or_default()
+                    .trim()
+                    .to_string();
 
                 let status = if health >= 95 {
                     "HEALTHY".bright_green().bold()
@@ -5218,7 +5383,9 @@ fn sys_processes() -> CommandResult {
         .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 6 { return None; }
+            if parts.len() < 6 {
+                return None;
+            }
             let mut row = HashMap::new();
             row.insert("user".to_string(), Value::Text(parts[0].to_string()));
             row.insert("pid".to_string(), Value::Text(parts[1].to_string()));
@@ -5463,10 +5630,15 @@ fn read_battery_status() -> String {
                     .map(|s| s.trim().to_string())
                     .unwrap_or_default();
                 let pct: i32 = capacity.parse().unwrap_or(0);
-                let icon = if status == "Charging" { "🔌" }
-                    else if pct > 80 { "🔋" }
-                    else if pct > 20 { "🪫" }
-                    else { "⚠" };
+                let icon = if status == "Charging" {
+                    "🔌"
+                } else if pct > 80 {
+                    "🔋"
+                } else if pct > 20 {
+                    "🪫"
+                } else {
+                    "⚠"
+                };
                 let pct_colored = if pct > 50 {
                     format!("{}%", pct).bright_green().to_string()
                 } else if pct > 20 {
@@ -5521,7 +5693,6 @@ fn sys_network() -> CommandResult {
     }
     CommandResult::Value(Value::Table(rows))
 }
-
 
 // INT-075: nix store explorer. `store why <path|name>` answers "what keeps this
 // alive + how big is it" using fast per-path nix queries (NO --print-dead; that walks
@@ -5601,7 +5772,10 @@ fn store_reclaim() -> CommandResult {
         .output();
     let dead_paths: Vec<String> = match dead_out {
         Ok(o) => String::from_utf8_lossy(&o.stdout)
-            .lines().filter(|l| l.starts_with("/nix/store")).map(|s| s.to_string()).collect(),
+            .lines()
+            .filter(|l| l.starts_with("/nix/store"))
+            .map(|s| s.to_string())
+            .collect(),
         Err(e) => return CommandResult::Error(format!("  store reclaim: nix-store failed: {}", e)),
     };
     let n = dead_paths.len();
@@ -5621,22 +5795,33 @@ fn store_reclaim() -> CommandResult {
         for line in String::from_utf8_lossy(&o.stdout).lines() {
             // line: "<path>\t<self-bytes>"  -- last whitespace token is the byte count
             if let Some(tok) = line.split_whitespace().last() {
-                if let Ok(b) = tok.parse::<u64>() { total += b; counted += 1; }
+                if let Ok(b) = tok.parse::<u64>() {
+                    total += b;
+                    counted += 1;
+                }
             }
         }
     }
 
     let human = |b: u64| -> String {
-        let (mut v, units) = (b as f64, ["B","KiB","MiB","GiB","TiB"]);
+        let (mut v, units) = (b as f64, ["B", "KiB", "MiB", "GiB", "TiB"]);
         let mut i = 0;
-        while v >= 1024.0 && i < units.len()-1 { v /= 1024.0; i += 1; }
+        while v >= 1024.0 && i < units.len() - 1 {
+            v /= 1024.0;
+            i += 1;
+        }
         format!("{:.2} {}", v, units[i])
     };
 
     out.push_str(&format!("  dead paths    : {}\n", n));
     out.push_str(&format!("  \u{1b}[38;2;57;255;20mfreeable\u{1b}[0m      : {}  (sum of SELF sizes -- the true disk a GC frees)\n", human(total)));
     if counted < n {
-        out.push_str(&format!("  note          : sized {}/{} paths ({} had no size info)\n", counted, n, n-counted));
+        out.push_str(&format!(
+            "  note          : sized {}/{} paths ({} had no size info)\n",
+            counted,
+            n,
+            n - counted
+        ));
     }
     out.push_str("  method        : self-size (-s) summed, NOT closure (-S would double-count shared deps).\n");
     out.push_str("  to actually free: run  nix-collect-garbage  (or nix-collect-garbage -d for old generations).\n");
@@ -5655,33 +5840,53 @@ fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String
         // closure size in bytes (-S = closure, default bytes when no -h)
         if let Some(s) = nix_query(&["path-info", "-S", p]) {
             if let Some(tok) = s.split_whitespace().last() {
-                if let Ok(b) = tok.parse::<u64>() { total_bytes += b; }
+                if let Ok(b) = tok.parse::<u64>() {
+                    total_bytes += b;
+                }
             }
         }
         // pinned? (any GC root)
         let roots = nix_query_lines(&["nix-store", "--query", "--roots", p]);
-        if roots.is_empty() { unrooted += 1; } else { rooted += 1; }
+        if roots.is_empty() {
+            unrooted += 1;
+        } else {
+            rooted += 1;
+        }
     }
     let human = |b: u64| -> String {
-        let (mut v, units) = (b as f64, ["B","KiB","MiB","GiB","TiB"]);
+        let (mut v, units) = (b as f64, ["B", "KiB", "MiB", "GiB", "TiB"]);
         let mut i = 0;
-        while v >= 1024.0 && i < units.len()-1 { v /= 1024.0; i += 1; }
+        while v >= 1024.0 && i < units.len() - 1 {
+            v /= 1024.0;
+            i += 1;
+        }
         format!("{:.1} {}", v, units[i])
     };
     let mut msg = String::new();
     msg.push_str(&format!(
-        "  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  '{}' matches {} store paths:\n", target, n));
+        "  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  '{}' matches {} store paths:\n",
+        target, n
+    ));
     msg.push_str(&format!("  total closure : {}\n", human(total_bytes)));
-    msg.push_str(&format!("  pinned        : {} (GC-rooted -- a generation/result holds them)\n", rooted));
+    msg.push_str(&format!(
+        "  pinned        : {} (GC-rooted -- a generation/result holds them)\n",
+        rooted
+    ));
     msg.push_str(&format!(
         "  \u{1b}[38;2;255;200;50mreclaimable\u{1b}[0m   : {} (no GC root -- would be freed by a GC)\n", unrooted));
-    msg.push_str("  (note: closure sizes overlap heavily via shared deps; total is an upper bound,\n");
-    msg.push_str("   not additive disk usage. Use `store why <full-path>` for one specific build.)\n");
+    msg.push_str(
+        "  (note: closure sizes overlap heavily via shared deps; total is an upper bound,\n",
+    );
+    msg.push_str(
+        "   not additive disk usage. Use `store why <full-path>` for one specific build.)\n",
+    );
     msg.push_str("  first few matches:\n");
     for m in matches.iter().take(6) {
         msg.push_str(&format!("      {}\n", m.rsplit('/').next().unwrap_or(m)));
     }
-    if n > 6 { msg.push_str(&format!("      ... and {} more\n", n-6)); }
+    if n > 6 {
+        msg.push_str(&format!("      ... and {} more\n", n - 6));
+    }
     msg
 }
 
@@ -5690,8 +5895,8 @@ fn store_resolve(target: &str) -> Result<String, String> {
         return Ok(target.to_string());
     }
     // grep store dir entries for the name
-    let entries = std::fs::read_dir("/nix/store")
-        .map_err(|e| format!("  cannot read /nix/store: {}", e))?;
+    let entries =
+        std::fs::read_dir("/nix/store").map_err(|e| format!("  cannot read /nix/store: {}", e))?;
     let mut matches: Vec<String> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path().to_string_lossy().to_string())
@@ -5714,8 +5919,11 @@ fn store_resolve(target: &str) -> Result<String, String> {
 fn size_tail(s: &str) -> String {
     let toks: Vec<&str> = s.split_whitespace().collect();
     let n = toks.len();
-    if n >= 2 { format!("{} {}", toks[n-2], toks[n-1]) }
-    else { s.trim().to_string() }
+    if n >= 2 {
+        format!("{} {}", toks[n - 2], toks[n - 1])
+    } else {
+        s.trim().to_string()
+    }
 }
 
 // Run `nix <args>` and capture trimmed stdout (single line/value).
@@ -5723,20 +5931,30 @@ fn nix_query(args: &[&str]) -> Option<String> {
     let out = std::process::Command::new("nix").args(args).output().ok()?;
     let s = String::from_utf8(out.stdout).ok()?;
     let t = s.trim();
-    if t.is_empty() { None } else { Some(t.to_string()) }
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
 }
 
 // Run a command (first arg = binary) and capture stdout lines.
 fn nix_query_lines(argv: &[&str]) -> Vec<String> {
-    if argv.is_empty() { return vec![]; }
-    let out = std::process::Command::new(argv[0]).args(&argv[1..]).output();
+    if argv.is_empty() {
+        return vec![];
+    }
+    let out = std::process::Command::new(argv[0])
+        .args(&argv[1..])
+        .output();
     match out {
         Ok(o) => String::from_utf8_lossy(&o.stdout)
-            .lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect(),
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect(),
         Err(_) => vec![],
     }
 }
-
 
 fn sys_logs(args: &[&str]) -> CommandResult {
     use crate::value::Value;
@@ -5849,24 +6067,44 @@ fn sys_logs(args: &[&str]) -> CommandResult {
 
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     // INT-300: forest flags -- delegate to file search (fsearch behavior)
-    let forest_flags = ["--rust", "--intent", "--forest", "--py", "--md", "--sh", "--toml", "--scripts"];
+    let forest_flags = [
+        "--rust",
+        "--intent",
+        "--forest",
+        "--py",
+        "--md",
+        "--sh",
+        "--toml",
+        "--scripts",
+    ];
     if let Some(&flag) = args.iter().find(|a| forest_flags.contains(*a)) {
-        let pattern = args.iter().find(|a| !a.starts_with("--")).copied().unwrap_or("");
+        let pattern = args
+            .iter()
+            .find(|a| !a.starts_with("--"))
+            .copied()
+            .unwrap_or("");
         let home = std::env::var("HOME").unwrap_or_default();
         let root = format!("{}/0-core", home);
         let (type_flag, search_root): (Option<&str>, String) = match flag {
-            "--rust"    => (Some("rust"),     root.clone()),
-            "--py"      => (Some("py"),       root.clone()),
-            "--md"      => (Some("markdown"), root.clone()),
-            "--sh"      => (Some("sh"),       root.clone()),
-            "--toml"    => (Some("toml"),     root.clone()),
-            "--intent"  => (None, faelight_core::paths::intents_dir().to_string_lossy().to_string()),
+            "--rust" => (Some("rust"), root.clone()),
+            "--py" => (Some("py"), root.clone()),
+            "--md" => (Some("markdown"), root.clone()),
+            "--sh" => (Some("sh"), root.clone()),
+            "--toml" => (Some("toml"), root.clone()),
+            "--intent" => (
+                None,
+                faelight_core::paths::intents_dir()
+                    .to_string_lossy()
+                    .to_string(),
+            ),
             "--scripts" => (None, format!("{}/scripts", root)),
-            _           => (None, root.clone()),
+            _ => (None, root.clone()),
         };
         let mut cmd = std::process::Command::new("rg");
         cmd.arg("--line-number").arg("--color=never");
-        if let Some(t) = type_flag { cmd.arg("--type").arg(t); }
+        if let Some(t) = type_flag {
+            cmd.arg("--type").arg(t);
+        }
         cmd.arg(pattern).arg(&search_root);
         return match cmd.output() {
             Ok(o) => {
@@ -5874,9 +6112,16 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
                 if raw.is_empty() {
                     CommandResult::Output(format!("  (no matches for '{}')", pattern))
                 } else {
-                    let out: String = raw.lines().take(50)
-                        .map(|l| format!("{}
-", l.replace(&format!("{}/", root), "")))
+                    let out: String = raw
+                        .lines()
+                        .take(50)
+                        .map(|l| {
+                            format!(
+                                "{}
+",
+                                l.replace(&format!("{}/", root), "")
+                            )
+                        })
                         .collect();
                     CommandResult::Output(out.trim_end().to_string())
                 }
@@ -5983,9 +6228,9 @@ fn compare_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
     match Command::new(&bin).args(&cmd_args).status() {
         Ok(_) => CommandResult::Output(String::new()),
-        Err(_) => CommandResult::Error(
-            "faelight-diff not found -- run: deploy faelight-diff".to_string()
-        ),
+        Err(_) => {
+            CommandResult::Error("faelight-diff not found -- run: deploy faelight-diff".to_string())
+        }
     }
 }
 fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
@@ -5998,21 +6243,32 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // Collect all intent files
             let mut items = String::new();
             for dir in &["future", "complete", "in-progress"] {
-                let path = faelight_core::paths::intents_dir().join(dir).to_string_lossy().to_string();
+                let path = faelight_core::paths::intents_dir()
+                    .join(dir)
+                    .to_string_lossy()
+                    .to_string();
                 if let Ok(entries) = std::fs::read_dir(&path) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
-                        if !name.ends_with(".md") { continue; }
+                        if !name.ends_with(".md") {
+                            continue;
+                        }
                         let num = name.split('-').next().unwrap_or("").to_string();
-                        let title = name.trim_end_matches(".md")
+                        let title = name
+                            .trim_end_matches(".md")
                             .splitn(3, '-')
                             .nth(2)
                             .unwrap_or("")
                             .replace('-', " ");
                         let status = *dir;
-                        if extra == "--active" && status != "future" { continue; }
-                        items.push_str(&format!("INT-{}  [{}]  {}
-", num, status, title));
+                        if extra == "--active" && status != "future" {
+                            continue;
+                        }
+                        items.push_str(&format!(
+                            "INT-{}  [{}]  {}
+",
+                            num, status, title
+                        ));
                     }
                 }
             }
@@ -6020,24 +6276,38 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 return CommandResult::Output("  No intents found".to_string());
             }
             let mut child = match Command::new("sk")
-                .args(["--prompt=pick intent> ", "--height=50%", "--reverse", "--ansi"])
+                .args([
+                    "--prompt=pick intent> ",
+                    "--height=50%",
+                    "--reverse",
+                    "--ansi",
+                ])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
-                .spawn() {
-                    Ok(c) => c,
-                    Err(_) => return CommandResult::Error("sk not found -- install skim".to_string()),
-                };
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(_) => return CommandResult::Error("sk not found -- install skim".to_string()),
+            };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
             }
-            let output = child.wait_with_output().unwrap_or_else(|_| {
-                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
-            });
+            let output = child
+                .wait_with_output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                });
             if output.status.success() {
                 let line = String::from_utf8_lossy(&output.stdout);
                 let line = line.trim();
                 if !line.is_empty() {
-                    let id = line.split_whitespace().next().unwrap_or("").replace("INT-", "");
+                    let id = line
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .replace("INT-", "");
                     if !id.is_empty() {
                         return CommandResult::Output(format!("intent show {}", id));
                     }
@@ -6060,23 +6330,31 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let mut items = String::new();
             for (cmd, ts) in &rows {
                 let time = fmt_time(*ts, "%H:%M");
-                items.push_str(&format!("{}  {}
-", time, cmd));
+                items.push_str(&format!(
+                    "{}  {}
+",
+                    time, cmd
+                ));
             }
             let mut child = match Command::new("sk")
                 .args(["--prompt=pick history> ", "--height=50%", "--reverse"])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
-                .spawn() {
-                    Ok(c) => c,
-                    Err(_) => return CommandResult::Error("sk not found".to_string()),
-                };
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(_) => return CommandResult::Error("sk not found".to_string()),
+            };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
             }
-            let output = child.wait_with_output().unwrap_or_else(|_| {
-                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
-            });
+            let output = child
+                .wait_with_output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                });
             if output.status.success() {
                 let line = String::from_utf8_lossy(&output.stdout);
                 let cmd = line.trim().splitn(2, "  ").nth(1).unwrap_or("").trim();
@@ -6094,9 +6372,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_else(|_| ".".to_string())
             };
-            let rg_out = Command::new("rg")
-                .args(["--files", &search_dir])
-                .output();
+            let rg_out = Command::new("rg").args(["--files", &search_dir]).output();
             let items = match rg_out {
                 Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
                 Err(_) => return CommandResult::Error("rg not found".to_string()),
@@ -6105,16 +6381,21 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .args(["--prompt=pick file> ", "--height=50%", "--reverse"])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
-                .spawn() {
-                    Ok(c) => c,
-                    Err(_) => return CommandResult::Error("sk not found".to_string()),
-                };
+                .spawn()
+            {
+                Ok(c) => c,
+                Err(_) => return CommandResult::Error("sk not found".to_string()),
+            };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
             }
-            let output = child.wait_with_output().unwrap_or_else(|_| {
-                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
-            });
+            let output = child
+                .wait_with_output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                });
             if output.status.success() {
                 let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !path.is_empty() {
@@ -6169,9 +6450,7 @@ fn devshell_list(args: &[&str]) -> CommandResult {
     let shells = json.get("devShells").and_then(|d| d.get(system.as_str()));
     let map = match shells {
         Some(serde_json::Value::Object(m)) if !m.is_empty() => m,
-        _ => {
-            return CommandResult::Output(format!("  no devShells for {} in this flake", system))
-        }
+        _ => return CommandResult::Output(format!("  no devShells for {} in this flake", system)),
     };
     let mut lines = vec![format!("  devShells in current flake ({}):", system)];
     for name in map.keys() {
@@ -6761,23 +7040,26 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn cmd_in_path(cmd: &str) -> bool {
-    if cmd.contains('/') { return std::path::Path::new(cmd).exists(); }
+    if cmd.contains('/') {
+        return std::path::Path::new(cmd).exists();
+    }
     let path_env = std::env::var("PATH").unwrap_or_default();
-    path_env.split(':').any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
-
+    path_env
+        .split(':')
+        .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
 }
 
 fn explain_exit_code(code: i32) -> &'static str {
     match code {
-        1   => "general error",
-        2   => "misuse of shell builtin",
+        1 => "general error",
+        2 => "misuse of shell builtin",
         126 => "permission denied -- command exists but not executable. Try: chmod +x <file>",
         127 => "command not found",
         128 => "invalid exit argument",
         130 => "interrupted by Ctrl+C",
         137 => "killed (OOM or SIGKILL)",
         139 => "segmentation fault",
-        _   => "non-zero exit",
+        _ => "non-zero exit",
     }
 }
 
@@ -6794,11 +7076,14 @@ fn record_failure(db: &ForestDb, cmd: &str, exit_code: i32) {
         "INSERT INTO command_failures (command, exit_code, cwd, timestamp) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![first, exit_code, cwd, ts],
     );
-    let count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM command_failures WHERE command = ?1 AND timestamp > ?2",
-        rusqlite::params![first, ts - 86400],
-        |r| r.get(0),
-    ).unwrap_or(0);
+    let count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM command_failures WHERE command = ?1 AND timestamp > ?2",
+            rusqlite::params![first, ts - 86400],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if count == 3 {
         println!("  🌳 Friday: {} failed 3 times today -- consider adding an alias or checking the command", first);
     }
@@ -6809,25 +7094,62 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     if !cmd_name.is_empty() && !cmd_name.contains('/') && !cmd_in_path(cmd_name) {
         let typed_cmd = cmd_name.to_lowercase();
         let known: &[&str] = &[
-            "deploy", "cistart", "cicomplete", "intent", "delete", "del",
-            "fsearch", "query", "rspatch", "patch", "edit", "run", "friday",
-            "d", "gc", "gp", "core", "fg",
-            "faelight-shell", "faelight-term",
-            "git", "cargo", "python3", "python", "node", "npm", "sudo",
-            "systemctl", "pacman", "ssh", "curl", "wget", "make", "vim", "nvim",
+            "deploy",
+            "cistart",
+            "cicomplete",
+            "intent",
+            "delete",
+            "del",
+            "fsearch",
+            "query",
+            "rspatch",
+            "patch",
+            "edit",
+            "run",
+            "friday",
+            "d",
+            "gc",
+            "gp",
+            "core",
+            "fg",
+            "faelight-shell",
+            "faelight-term",
+            "git",
+            "cargo",
+            "python3",
+            "python",
+            "node",
+            "npm",
+            "sudo",
+            "systemctl",
+            "pacman",
+            "ssh",
+            "curl",
+            "wget",
+            "make",
+            "vim",
+            "nvim",
         ];
         let prefix_len = typed_cmd.len().min(3);
         let prefix = &typed_cmd[..prefix_len];
-        let suggestion = known.iter()
+        let suggestion = known
+            .iter()
             .filter(|&&k| levenshtein(k, &typed_cmd) <= 2 && k != typed_cmd.as_str())
             .min_by_key(|&&k| levenshtein(k, &typed_cmd))
             .copied();
-        let alias_suggestion: Option<String> = db.conn.query_row(
-            "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
-            rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
-            |r| r.get(0)
-        ).ok();
-        println!("  {} command not found: {}", "✗".bright_red(), typed_cmd.bright_red());
+        let alias_suggestion: Option<String> = db
+            .conn
+            .query_row(
+                "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
+                rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
+                |r| r.get(0),
+            )
+            .ok();
+        println!(
+            "  {} command not found: {}",
+            "✗".bright_red(),
+            typed_cmd.bright_red()
+        );
         if let Some(s) = suggestion {
             println!("  {} did you mean: {}", "→".bright_cyan(), s.bright_cyan());
         } else if let Some(a) = alias_suggestion {
@@ -6875,8 +7197,18 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "faelight-daemon",
                             "faelight-shell",
                             "faelight-term",
-                            "git", "cargo", "python3", "python", "node", "npm",
-                            "sudo", "systemctl", "pacman", "ssh", "curl", "wget",
+                            "git",
+                            "cargo",
+                            "python3",
+                            "python",
+                            "node",
+                            "npm",
+                            "sudo",
+                            "systemctl",
+                            "pacman",
+                            "ssh",
+                            "curl",
+                            "wget",
                         ];
                         let prefix_len = typed_cmd.len().min(3);
                         let prefix = &typed_cmd[..prefix_len];
@@ -7139,10 +7471,7 @@ fn observe_anomalies(db: &ForestDb) -> CommandResult {
     ).unwrap_or(0);
 
     if perm_errors > 0 {
-        anomalies.push(format!(
-            "{} permission errors during work",
-            perm_errors
-        ));
+        anomalies.push(format!("{} permission errors during work", perm_errors));
     }
 
     let mut out = String::new();
@@ -7820,7 +8149,13 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         ));
     }
     // INT-326: append three-layer semantic analysis
-    let full_cmd = format!("{} {}", cmd, args.get(1..).map(|a| a.join(" ")).unwrap_or_default()).trim().to_string();
+    let full_cmd = format!(
+        "{} {}",
+        cmd,
+        args.get(1..).map(|a| a.join(" ")).unwrap_or_default()
+    )
+    .trim()
+    .to_string();
     let si = crate::semantic::interpret(&full_cmd);
     if si.confidence > 0.0 {
         out.push_str(&crate::semantic::format_three_layers(&si));
@@ -7891,9 +8226,8 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     }
     // INT-300: forest vocabulary words -- human-first commands (INT-261)
     let vocab_words = [
-        "write", "read", "list", "copy", "move", "delete", "find",
-        "db", "gt", "it", "search", "show", "where", "compare",
-        "fsearch", "query",
+        "write", "read", "list", "copy", "move", "delete", "find", "db", "gt", "it", "search",
+        "show", "where", "compare", "fsearch", "query",
     ];
     if vocab_words.contains(&cmd) {
         out.push_str(&format!(
@@ -8172,11 +8506,10 @@ fn health(db: &ForestDb) -> CommandResult {
         "DEGRADED".bright_red()
     };
 
-    let version =
-        std::fs::read_to_string(faelight_core::paths::version_file())
-            .unwrap_or_else(|_| "unknown".into())
-            .trim()
-            .to_string();
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
+        .unwrap_or_else(|_| "unknown".into())
+        .trim()
+        .to_string();
 
     let mut out = String::new();
     out.push_str(&format!(
@@ -8378,66 +8711,95 @@ fn intents(_core_root: &str) -> CommandResult {
     // INT-030: read all three dirs with correct status
     let dirs = [
         ("in-progress", "in-progress"),
-        ("complete",    "complete"),
-        ("future",      "planned"),
+        ("complete", "complete"),
+        ("future", "planned"),
     ];
     for (dir, dir_status) in &dirs {
         let path = faelight_core::paths::intents_dir().join(dir);
         if let Ok(entries) = std::fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".md") { continue; }
+                if !name.ends_with(".md") {
+                    continue;
+                }
                 let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
                 let id = name.split('-').next().unwrap_or("0").to_string();
-                let title = file_content.lines()
+                let title = file_content
+                    .lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
-                    .or_else(|| file_content.lines()
-                        .find(|l| l.trim_start().starts_with("# "))
-                        .map(|l| l.trim_start_matches('#').trim().to_string()))
+                    .map(|l| {
+                        l.trim_start_matches("title:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
+                    .or_else(|| {
+                        file_content
+                            .lines()
+                            .find(|l| l.trim_start().starts_with("# "))
+                            .map(|l| l.trim_start_matches('#').trim().to_string())
+                    })
                     .unwrap_or_else(|| name.replace(".md", ""));
                 // Prefer status from frontmatter, fall back to dir_status
-                let status = file_content.lines()
+                let status = file_content
+                    .lines()
                     .find(|l| l.starts_with("status:"))
                     .map(|l| l.trim_start_matches("status:").trim().to_string())
                     .unwrap_or_else(|| dir_status.to_string());
                 let mut row = HashMap::new();
-                row.insert("id".to_string(), crate::value::Value::Int(id.parse().unwrap_or(0)));
+                row.insert(
+                    "id".to_string(),
+                    crate::value::Value::Int(id.parse().unwrap_or(0)),
+                );
                 row.insert("title".to_string(), crate::value::Value::Text(title));
                 row.insert("status".to_string(), crate::value::Value::Text(status));
                 rows.push(row);
             }
         }
     }
-    rows.sort_by_key(|r| if let Some(crate::value::Value::Int(i)) = r.get("id") { *i } else { 0 });
+    rows.sort_by_key(|r| {
+        if let Some(crate::value::Value::Int(i)) = r.get("id") {
+            *i
+        } else {
+            0
+        }
+    });
     if rows.is_empty() {
         return CommandResult::Output("  ○ No intents found".to_string());
     }
     CommandResult::Value(crate::value::Value::Table(rows))
 }
 
-
 fn project_list(core_root: &str) -> CommandResult {
     use colored::Colorize;
     let root = std::path::PathBuf::from(core_root);
     let mut out = String::new();
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
 {}
-", "  🌲 Forest Projects".bright_green().bold()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+",
+        "  🌲 Forest Projects".bright_green().bold()
+    ));
+    out.push_str(&format!(
+        "{}
+",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    ));
 
     // Read version
     let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
-        .trim().to_string();
+        .trim()
+        .to_string();
 
     // Count intents
     let count_md = |sub: &str| -> usize {
         std::fs::read_dir(faelight_core::paths::intents_dir().join(sub))
-            .map(|d| d.flatten()
-                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                .count())
+            .map(|d| {
+                d.flatten()
+                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                    .count()
+            })
             .unwrap_or(0)
     };
     let complete = count_md("complete");
@@ -8447,13 +8809,15 @@ fn project_list(core_root: &str) -> CommandResult {
     // Git info
     let branch = std::process::Command::new("git")
         .args(["-C", core_root, "rev-parse", "--abbrev-ref", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "unknown".into());
     let commits = std::process::Command::new("git")
         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "?".into());
@@ -8464,15 +8828,20 @@ fn project_list(core_root: &str) -> CommandResult {
         "0-core".bright_white().bold(),
         version.bright_green(),
         "100% ✅".bright_green(),
-        (complete + in_progress + planned).to_string().bright_white(),
+        (complete + in_progress + planned)
+            .to_string()
+            .bright_white(),
         complete.to_string().bright_green(),
         in_progress.to_string().bright_yellow(),
         planned.to_string().dimmed(),
         commits.bright_white(),
         branch.bright_cyan(),
     ));
-    out.push_str(&format!("  {}
-", root.display().to_string().dimmed()));
+    out.push_str(&format!(
+        "  {}
+",
+        root.display().to_string().dimmed()
+    ));
     CommandResult::Output(out)
 }
 
@@ -8480,40 +8849,57 @@ fn experiment_list(core_root: &str) -> CommandResult {
     use colored::Colorize;
     let labs_dir = std::path::PathBuf::from(core_root).join("labs");
     let mut out = String::new();
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
 {}
-", "  🧪 Experiments".bright_yellow().bold()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+",
+        "  🧪 Experiments".bright_yellow().bold()
+    ));
+    out.push_str(&format!(
+        "{}
+",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    ));
 
     let mut found = false;
     if let Ok(entries) = std::fs::read_dir(&labs_dir) {
-        let mut dirs: Vec<_> = entries.flatten()
-            .filter(|e| e.path().is_dir())
-            .collect();
+        let mut dirs: Vec<_> = entries.flatten().filter(|e| e.path().is_dir()).collect();
         dirs.sort_by_key(|e| e.file_name());
         for entry in &dirs {
             let name = entry.file_name().to_string_lossy().to_string();
             if name == "graduated" {
                 let count = std::fs::read_dir(entry.path())
-                    .map(|d| d.flatten().count()).unwrap_or(0);
-                out.push_str(&format!("  {}  {} graduated experiments
+                    .map(|d| d.flatten().count())
+                    .unwrap_or(0);
+                out.push_str(&format!(
+                    "  {}  {} graduated experiments
 ",
-                    name.dimmed(), count.to_string().bright_green()));
+                    name.dimmed(),
+                    count.to_string().bright_green()
+                ));
             } else {
-                out.push_str(&format!("  {}  {}
+                out.push_str(&format!(
+                    "  {}  {}
 ",
-                    name.bright_yellow().bold(), "active".bright_yellow()));
+                    name.bright_yellow().bold(),
+                    "active".bright_yellow()
+                ));
             }
             found = true;
         }
     }
     if !found {
-        out.push_str(&format!("  {}
-", "No active experiments -- use labs/ to create one".dimmed()));
+        out.push_str(&format!(
+            "  {}
+",
+            "No active experiments -- use labs/ to create one".dimmed()
+        ));
     }
-    out.push_str(&format!("  {}
-", format!("{}/labs/", core_root).dimmed()));
+    out.push_str(&format!(
+        "  {}
+",
+        format!("{}/labs/", core_root).dimmed()
+    ));
     CommandResult::Output(out)
 }
 
@@ -8545,17 +8931,19 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
     }
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_snapshot(snap: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
     let name = match snap {
         Some(n) if !n.is_empty() => n,
-        _ => return CommandResult::Output(format!(
-            "  {}\n",
-            "vm snapshot: needs a name -- e.g. vm snapshot before-greetd-test".bright_red()
-        )),
+        _ => {
+            return CommandResult::Output(format!(
+                "  {}\n",
+                "vm snapshot: needs a name -- e.g. vm snapshot before-greetd-test".bright_red()
+            ))
+        }
     };
     let result = std::process::Command::new("virsh")
         .args(["-c", "qemu:///system", "snapshot-create-as", domain, name])
@@ -8590,17 +8978,19 @@ fn vm_snapshot(snap: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_restore(snap: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
     let name = match snap {
         Some(n) if !n.is_empty() => n,
-        _ => return CommandResult::Output(format!(
-            "  {}\n",
-            "vm restore: needs a name -- e.g. vm restore before-greetd-test".bright_red()
-        )),
+        _ => {
+            return CommandResult::Output(format!(
+                "  {}\n",
+                "vm restore: needs a name -- e.g. vm restore before-greetd-test".bright_red()
+            ))
+        }
     };
     let result = std::process::Command::new("virsh")
         .args(["-c", "qemu:///system", "snapshot-revert", domain, name])
@@ -8635,8 +9025,8 @@ fn vm_restore(snap: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_snapshots() -> CommandResult {
     use colored::Colorize;
     let domain = "nixos-lab";
@@ -8644,7 +9034,10 @@ fn vm_snapshots() -> CommandResult {
         .args(["-c", "qemu:///system", "snapshot-list", domain])
         .output();
     let mut out = String::new();
-    out.push_str(&format!("\n  {}\n", format!("📸 Snapshots ({})", domain).bright_cyan().bold()));
+    out.push_str(&format!(
+        "\n  {}\n",
+        format!("📸 Snapshots ({})", domain).bright_cyan().bold()
+    ));
     match result {
         Ok(o) if o.status.success() => {
             let listing = String::from_utf8_lossy(&o.stdout);
@@ -8668,8 +9061,8 @@ fn vm_snapshots() -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_status(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8711,8 +9104,8 @@ fn vm_status(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_stop(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8731,7 +9124,10 @@ fn vm_stop(name: Option<&str>) -> CommandResult {
             if !stdout.trim().is_empty() {
                 out.push_str(&format!("  {}\n", stdout.trim().dimmed()));
             }
-            out.push_str(&format!("  {}\n", "(graceful shutdown -- give it a few seconds)".dimmed()));
+            out.push_str(&format!(
+                "  {}\n",
+                "(graceful shutdown -- give it a few seconds)".dimmed()
+            ));
         }
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
@@ -8753,8 +9149,8 @@ fn vm_stop(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_start(name: Option<&str>) -> CommandResult {
     use colored::Colorize;
     let domain = name.unwrap_or("nixos-lab");
@@ -8794,13 +9190,19 @@ fn vm_start(name: Option<&str>) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm). 
-#[allow(dead_code)] 
+// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
+#[allow(dead_code)]
 fn vm_list() -> CommandResult {
     use colored::Colorize;
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  🖥  Virtual Machines".bright_cyan().bold()));
-    out.push_str(&format!("{}\n", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  🖥  Virtual Machines".bright_cyan().bold()
+    ));
+    out.push_str(&format!(
+        "{}\n",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    ));
     // INT-030: scan ~/vms/*.qcow2 -- no virsh dependency
     let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     let vms_dir = std::path::PathBuf::from(&home).join("vms");
@@ -8821,8 +9223,7 @@ fn vm_list() -> CommandResult {
             let fname = entry.file_name().to_string_lossy().to_string();
             let name = fname.trim_end_matches(".qcow2").to_string();
             let disk_path = entry.path().to_string_lossy().to_string();
-            let is_running = running_output.contains(&disk_path)
-                || running_output.contains(&name);
+            let is_running = running_output.contains(&disk_path) || running_output.contains(&name);
             let state_str = if is_running { "running" } else { "stopped" };
             let state_colored = if is_running {
                 state_str.bright_green().to_string()
@@ -8832,18 +9233,27 @@ fn vm_list() -> CommandResult {
             let size = std::fs::metadata(entry.path())
                 .map(|m| {
                     let mb = m.len() / 1_048_576;
-                    if mb >= 1024 { format!("{}G", mb / 1024) } else { format!("{}M", mb) }
+                    if mb >= 1024 {
+                        format!("{}G", mb / 1024)
+                    } else {
+                        format!("{}M", mb)
+                    }
                 })
                 .unwrap_or_else(|_| "?".to_string());
-            out.push_str(&format!("  {}  {}  {}\n",
+            out.push_str(&format!(
+                "  {}  {}  {}\n",
                 name.bright_white().bold(),
                 state_colored,
-                size.dimmed()));
+                size.dimmed()
+            ));
             count += 1;
         }
     }
     if count == 0 {
-        out.push_str(&format!("  {}\n", "No VMs found -- place .qcow2 files in ~/vms/".dimmed()));
+        out.push_str(&format!(
+            "  {}\n",
+            "No VMs found -- place .qcow2 files in ~/vms/".dimmed()
+        ));
     }
     out.push_str(&format!("  {}\n", format!("{}/vms/", home).dimmed()));
     CommandResult::Output(out)
@@ -8891,13 +9301,11 @@ fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
 }
 
 fn version(_core_root: &str) -> CommandResult {
-    let version =
-        std::fs::read_to_string(faelight_core::paths::version_file())
-            .unwrap_or_else(|_| "unknown".into());
+    let version = std::fs::read_to_string(faelight_core::paths::version_file())
+        .unwrap_or_else(|_| "unknown".into());
 
     let changelog =
-        std::fs::read_to_string(faelight_core::paths::changelog_file())
-            .unwrap_or_default();
+        std::fs::read_to_string(faelight_core::paths::changelog_file()).unwrap_or_default();
 
     let release_name = changelog
         .lines()
@@ -9153,16 +9561,16 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         );
         match conn {
             Ok(c) => {
-                let patterns: i64 = c.query_row(
-                    "SELECT COUNT(*) FROM friday_patterns WHERE confidence >= 0.7",
-                    [],
-                    |r| r.get(0),
-                ).unwrap_or(0);
-                let facts: i64 = c.query_row(
-                    "SELECT COUNT(*) FROM friday_knowledge",
-                    [],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let patterns: i64 = c
+                    .query_row(
+                        "SELECT COUNT(*) FROM friday_patterns WHERE confidence >= 0.7",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
+                let facts: i64 = c
+                    .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+                    .unwrap_or(0);
                 (patterns, facts)
             }
             Err(_) => (0, 0),
@@ -9197,7 +9605,12 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         "  {:<16} {}
 ",
         "Forest".dimmed(),
-        std::fs::read_to_string("/etc/faelight/VERSION").unwrap_or_else(|_| "v14.0.0".to_string()).trim().trim_start_matches("v").to_string().bright_green()
+        std::fs::read_to_string("/etc/faelight/VERSION")
+            .unwrap_or_else(|_| "v14.0.0".to_string())
+            .trim()
+            .trim_start_matches("v")
+            .to_string()
+            .bright_green()
     ));
     out.push_str(&format!(
         "  {:<16} {}
@@ -9215,7 +9628,11 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         "  {:<16} {}
 ",
         "Friday".dimmed(),
-        format!("active · {} patterns · {} facts", friday_patterns, friday_facts).bright_cyan()
+        format!(
+            "active · {} patterns · {} facts",
+            friday_patterns, friday_facts
+        )
+        .bright_cyan()
     ));
     out.push_str(&format!(
         "  {}
@@ -9336,7 +9753,9 @@ fn reload_fsh() -> CommandResult {
     // launched from (recorded at startup in /tmp/fsh-running-build). The store hash changes
     // every rebuild, so a differing hash = a genuinely new fsh was deployed. We never use
     // current_exe() here -- it is unreliable through the makeWrapper wrapper.
-    let deployed = std::fs::canonicalize(&target).ok().map(|p| p.to_string_lossy().to_string());
+    let deployed = std::fs::canonicalize(&target)
+        .ok()
+        .map(|p| p.to_string_lossy().to_string());
     let running = std::fs::read_to_string("/tmp/fsh-running-build").ok();
     match (deployed.as_deref(), running.as_deref()) {
         (Some(d), Some(r)) if d.trim() == r.trim() => {
@@ -9369,7 +9788,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     };
     let is_self = matches!(*cmd, "fsh" | "faelight-shell" | "shell");
     let resolved = if is_self {
-        resolve_fsh_binary()  // INT-081: current-system-first, not current_exe()
+        resolve_fsh_binary() // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
         cmd.replacen("~/", &format!("{}/", home), 1)
     } else {
@@ -10180,19 +10599,35 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "test" => {
             // cargo nextest run for a specific tool or all
             let manifest = if tool.is_empty() {
-                faelight_core::paths::rust_tools_dir().join("faelight-shell/Cargo.toml").to_string_lossy().to_string()
+                faelight_core::paths::rust_tools_dir()
+                    .join("faelight-shell/Cargo.toml")
+                    .to_string_lossy()
+                    .to_string()
             } else {
-                faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string()
+                faelight_core::paths::rust_tools_dir()
+                    .join(tool)
+                    .join("Cargo.toml")
+                    .to_string_lossy()
+                    .to_string()
             };
             if !std::path::Path::new(&manifest).exists() {
-                return CommandResult::Error(format!("  dev test: no Cargo.toml found for '{}'", tool));
+                return CommandResult::Error(format!(
+                    "  dev test: no Cargo.toml found for '{}'",
+                    tool
+                ));
             }
-            println!("  {} running: cargo nextest run --manifest-path {}", "🧪".normal(), manifest.dimmed());
+            println!(
+                "  {} running: cargo nextest run --manifest-path {}",
+                "🧪".normal(),
+                manifest.dimmed()
+            );
             let status = std::process::Command::new("cargo")
                 .args(["nextest", "run", "--manifest-path", &manifest])
                 .status();
             match status {
-                Ok(s) if s.success() => CommandResult::Output(format!("  {} all tests passed", "✅".normal())),
+                Ok(s) if s.success() => {
+                    CommandResult::Output(format!("  {} all tests passed", "✅".normal()))
+                }
                 Ok(_) => CommandResult::Error("  dev test: tests failed".to_string()),
                 Err(e) => CommandResult::Error(format!("  dev test: {}", e)),
             }
@@ -10200,11 +10635,22 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "watch" => {
             // cargo watch for a specific tool
             let manifest = if tool.is_empty() {
-                faelight_core::paths::rust_tools_dir().join("faelight-shell/Cargo.toml").to_string_lossy().to_string()
+                faelight_core::paths::rust_tools_dir()
+                    .join("faelight-shell/Cargo.toml")
+                    .to_string_lossy()
+                    .to_string()
             } else {
-                faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string()
+                faelight_core::paths::rust_tools_dir()
+                    .join(tool)
+                    .join("Cargo.toml")
+                    .to_string_lossy()
+                    .to_string()
             };
-            println!("  {} starting: cargo watch --manifest-path {}", "👁".normal(), manifest.dimmed());
+            println!(
+                "  {} starting: cargo watch --manifest-path {}",
+                "👁".normal(),
+                manifest.dimmed()
+            );
             println!("  {} Ctrl+C to stop", "→".dimmed());
             let _ = std::process::Command::new("cargo")
                 .args(["watch", "--manifest-path", &manifest, "-x", "build"])
@@ -10213,32 +10659,46 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         }
         "audit-deps" => {
             // cargo udeps -- find unused dependencies
-            println!("  {} running: cargo +nightly udeps (this may take a moment)", "🔍".normal());
+            println!(
+                "  {} running: cargo +nightly udeps (this may take a moment)",
+                "🔍".normal()
+            );
             let status = std::process::Command::new("cargo")
                 .args(["+nightly", "udeps", "--all-targets"])
                 .current_dir(core_root)
                 .status();
             match status {
-                Ok(s) if s.success() => CommandResult::Output("  ✅ no unused dependencies found".to_string()),
-                Ok(_) => CommandResult::Output("  ⚠ unused dependencies found -- review above".to_string()),
-                Err(e) => CommandResult::Error(format!("  dev audit-deps: {} -- is cargo-udeps installed?", e)),
+                Ok(s) if s.success() => {
+                    CommandResult::Output("  ✅ no unused dependencies found".to_string())
+                }
+                Ok(_) => CommandResult::Output(
+                    "  ⚠ unused dependencies found -- review above".to_string(),
+                ),
+                Err(e) => CommandResult::Error(format!(
+                    "  dev audit-deps: {} -- is cargo-udeps installed?",
+                    e
+                )),
             }
         }
         "bench" => {
             // hyperfine benchmarking
             let cmd = args.get(1..).map(|a| a.join(" ")).unwrap_or_default();
             if cmd.is_empty() {
-                return CommandResult::Output("  Usage: dev bench <command>  (e.g. dev bench fsh-test)".to_string());
+                return CommandResult::Output(
+                    "  Usage: dev bench <command>  (e.g. dev bench fsh-test)".to_string(),
+                );
             }
-            let _ = std::process::Command::new("hyperfine")
-                .arg(&cmd)
-                .status();
+            let _ = std::process::Command::new("hyperfine").arg(&cmd).status();
             CommandResult::Empty
         }
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
-            let manifest = faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string();
+            let manifest = faelight_core::paths::rust_tools_dir()
+                .join(tool)
+                .join("Cargo.toml")
+                .to_string_lossy()
+                .to_string();
             println!("  {} scanning unsafe code in {}", "☢".normal(), tool);
             let _ = std::process::Command::new("cargo")
                 .args(["geiger", "--manifest-path", &manifest])
@@ -10252,7 +10712,11 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 println!("  {} starting bacon in current directory", "🥓".normal());
                 let _ = std::process::Command::new("bacon").status();
             } else {
-                let manifest = faelight_core::paths::rust_tools_dir().join(tool).join("Cargo.toml").to_string_lossy().to_string();
+                let manifest = faelight_core::paths::rust_tools_dir()
+                    .join(tool)
+                    .join("Cargo.toml")
+                    .to_string_lossy()
+                    .to_string();
                 println!("  {} starting bacon for {}", "🥓".normal(), tool);
                 let _ = std::process::Command::new("bacon")
                     .args(["--manifest-path", &manifest])
@@ -10264,13 +10728,45 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let mut out = String::new();
             out.push_str(&format!("\n  {} dev commands\n", "🛠".normal()));
             out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev test <tool>", "cargo nextest -- run unit tests"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev watch <tool>", "cargo watch -- hot reload builds"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev check [tool]", "bacon -- background error checker"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev bench <cmd>", "hyperfine -- benchmark a command"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev geiger <tool>", "cargo-geiger -- count unsafe code"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev audit-deps", "cargo-udeps -- find unused deps"));
-            out.push_str(&format!("\n  tools with tests: faelight-shell, faelight-core, faelight-update, core-diff\n"));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev test <tool>",
+                "cargo nextest -- run unit tests"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev watch <tool>",
+                "cargo watch -- hot reload builds"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev check [tool]",
+                "bacon -- background error checker"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev bench <cmd>",
+                "hyperfine -- benchmark a command"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev geiger <tool>",
+                "cargo-geiger -- count unsafe code"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev audit-deps",
+                "cargo-udeps -- find unused deps"
+            ));
+            out.push_str(&format!(
+                "\n  tools with tests: faelight-shell, faelight-core, faelight-update, core-diff\n"
+            ));
             CommandResult::Output(out)
         }
     }
@@ -10281,7 +10777,10 @@ fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
     use colored::Colorize;
     use std::io::{self, BufRead, Write};
     // Check for learned preference in state.db
-    let pref_key = format!("semantic_pref_{}", input.split_whitespace().next().unwrap_or(input));
+    let pref_key = format!(
+        "semantic_pref_{}",
+        input.split_whitespace().next().unwrap_or(input)
+    );
     if let Ok(preferred) = db.conn.query_row(
         "SELECT value FROM shell_state WHERE key = ?1",
         rusqlite::params![pref_key],
@@ -10290,8 +10789,11 @@ fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
         // Preference learned -- execute directly
         let si = crate::semantic::interpret(&preferred);
         let mut out = String::new();
-        out.push_str(&format!("  {} using learned preference: {}\n",
-            "🌲".normal(), preferred.bright_green()));
+        out.push_str(&format!(
+            "  {} using learned preference: {}\n",
+            "🌲".normal(),
+            preferred.bright_green()
+        ));
         for cmd in &si.layer3_commands {
             out.push_str(&format!("  {} {}\n", "→".bright_cyan(), cmd.dimmed()));
         }
@@ -10320,13 +10822,19 @@ fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
                     if let Some(i) = idx {
                         if let Some((si, _)) = amb.options.get(i) {
                             // Record choice count for preference learning
-                            let count_key = format!("semantic_choice_count_{}_{}",
-                                input.split_whitespace().next().unwrap_or(""), i);
-                            let count: i64 = db.conn.query_row(
-                                "SELECT CAST(value AS INTEGER) FROM shell_state WHERE key = ?1",
-                                rusqlite::params![count_key],
-                                |r| r.get(0),
-                            ).unwrap_or(0);
+                            let count_key = format!(
+                                "semantic_choice_count_{}_{}",
+                                input.split_whitespace().next().unwrap_or(""),
+                                i
+                            );
+                            let count: i64 = db
+                                .conn
+                                .query_row(
+                                    "SELECT CAST(value AS INTEGER) FROM shell_state WHERE key = ?1",
+                                    rusqlite::params![count_key],
+                                    |r| r.get(0),
+                                )
+                                .unwrap_or(0);
                             let new_count = count + 1;
                             let _ = db.conn.execute(
                                 "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
@@ -10338,8 +10846,11 @@ fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
                                     "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
                                     rusqlite::params![pref_key, &si.raw_input],
                                 );
-                                println!("  {} preference learned for '{}'",
-                                    "🌲 Friday:".bright_green(), input.split_whitespace().next().unwrap_or(""));
+                                println!(
+                                    "  {} preference learned for '{}'",
+                                    "🌲 Friday:".bright_green(),
+                                    input.split_whitespace().next().unwrap_or("")
+                                );
                             }
                             let mut out = String::new();
                             for cmd in &si.layer3_commands {
@@ -10364,12 +10875,17 @@ fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
 fn semantic_explain_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {
-        return CommandResult::Output("  Usage: explain <command>\n  Example: explain delete ~/tmp".to_string());
+        return CommandResult::Output(
+            "  Usage: explain <command>\n  Example: explain delete ~/tmp".to_string(),
+        );
     }
     let si = crate::semantic::interpret(input);
     let layers = crate::semantic::format_three_layers(&si);
     let mut out = String::new();
-    out.push_str(&format!("  {} INT-326 Semantic Explanation\n", "🔍".normal()));
+    out.push_str(&format!(
+        "  {} INT-326 Semantic Explanation\n",
+        "🔍".normal()
+    ));
     out.push_str(&layers);
     CommandResult::Output(out)
 }
@@ -10378,17 +10894,30 @@ fn semantic_explain_cmd(input: &str) -> CommandResult {
 fn semantic_plan_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {
-        return CommandResult::Output("  Usage: plan <command>\n  Example: plan deploy faelight-shell".to_string());
+        return CommandResult::Output(
+            "  Usage: plan <command>\n  Example: plan deploy faelight-shell".to_string(),
+        );
     }
     let si = crate::semantic::interpret(input);
     let mut out = String::new();
-    out.push_str(&format!("\n  {} Semantic Plan for: {}\n", "📋".normal(), input.bright_white()));
+    out.push_str(&format!(
+        "\n  {} Semantic Plan for: {}\n",
+        "📋".normal(),
+        input.bright_white()
+    ));
     out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
     out.push_str(&format!("  action:     {:?}\n", si.action));
     out.push_str(&format!("  target:     {:?}\n", si.target));
     out.push_str(&format!("  category:   {}\n", si.category.label()));
     out.push_str(&format!("  confidence: {:.0}%\n", si.confidence * 100.0));
-    out.push_str(&format!("  reversible: {}\n", if si.reversible { "yes" } else { "⚠ NO -- confirm required" }));
+    out.push_str(&format!(
+        "  reversible: {}\n",
+        if si.reversible {
+            "yes"
+        } else {
+            "⚠ NO -- confirm required"
+        }
+    ));
     out.push_str(&format!("  plan:       {}\n", si.layer2_description));
     CommandResult::Output(out)
 }
@@ -10397,18 +10926,27 @@ fn semantic_plan_cmd(input: &str) -> CommandResult {
 fn semantic_dryrun_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {
-        return CommandResult::Output("  Usage: dry-run <command>\n  Example: dry-run deploy faelight-shell".to_string());
+        return CommandResult::Output(
+            "  Usage: dry-run <command>\n  Example: dry-run deploy faelight-shell".to_string(),
+        );
     }
     let si = crate::semantic::interpret(input);
     let mut out = String::new();
-    out.push_str(&format!("\n  {} Dry run: {} {}\n",
-        "🔬".normal(), input.bright_white(), "(not executed)".dimmed()));
+    out.push_str(&format!(
+        "\n  {} Dry run: {} {}\n",
+        "🔬".normal(),
+        input.bright_white(),
+        "(not executed)".dimmed()
+    ));
     out.push_str(&format!("  {}\n\n", "─".repeat(50).dimmed()));
     for (i, cmd) in si.layer3_commands.iter().enumerate() {
         out.push_str(&format!("  step {}: {}\n", i + 1, cmd.bright_cyan()));
     }
     if si.category.requires_confirm() {
-        out.push_str(&format!("\n  {} This command requires confirmation before execution\n", "⚠".yellow()));
+        out.push_str(&format!(
+            "\n  {} This command requires confirmation before execution\n",
+            "⚠".yellow()
+        ));
     }
     CommandResult::Output(out)
 }
@@ -10422,12 +10960,23 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
     let si = crate::semantic::interpret(input);
     let first_word = input.split_whitespace().next().unwrap_or(input);
     let mut out = String::new();
-    out.push_str(&format!("\n  {} Why fsh interprets: {}\n", "💭".normal(), input.bright_white()));
+    out.push_str(&format!(
+        "\n  {} Why fsh interprets: {}\n",
+        "💭".normal(),
+        input.bright_white()
+    ));
     out.push_str(&format!("  {}\n\n", "─".repeat(50).dimmed()));
     if si.confidence > 0.0 {
-        out.push_str(&format!("  {} is a {} verb\n", first_word.bright_cyan(), si.category.label()));
+        out.push_str(&format!(
+            "  {} is a {} verb\n",
+            first_word.bright_cyan(),
+            si.category.label()
+        ));
         out.push_str(&format!("  confidence: {:.0}%\n", si.confidence * 100.0));
-        out.push_str(&format!("  reversible: {}\n", if si.reversible { "yes" } else { "no" }));
+        out.push_str(&format!(
+            "  reversible: {}\n",
+            if si.reversible { "yes" } else { "no" }
+        ));
         out.push_str(&format!("\n  Forest vocabulary rule:\n"));
         match si.category {
             crate::semantic::VerbCategory::Observation => {
@@ -10448,7 +10997,10 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
             }
         }
     } else {
-        out.push_str(&format!("  {} is not in the forest vocabulary\n", first_word.bright_red()));
+        out.push_str(&format!(
+            "  {} is not in the forest vocabulary\n",
+            first_word.bright_red()
+        ));
         out.push_str("  Treated as raw UNIX command (Layer 3 direct)\n");
         out.push_str("  UNIX compatibility always preserved\n");
     }
@@ -10487,7 +11039,8 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
         }
         let parts: Vec<&str> = pattern.split('*').collect();
         if parts.len() == 2 {
-            name.starts_with(parts[0]) && name.ends_with(parts[1])
+            name.starts_with(parts[0])
+                && name.ends_with(parts[1])
                 && name.len() >= parts[0].len() + parts[1].len()
         } else {
             false
@@ -10495,7 +11048,11 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     };
     let apply_pattern = |name: &str, from: &str, to: &str| -> Option<String> {
         if !from.contains('*') {
-            return if name == from { Some(to.to_string()) } else { None };
+            return if name == from {
+                Some(to.to_string())
+            } else {
+                None
+            };
         }
         let parts_from: Vec<&str> = from.split('*').collect();
         let parts_to: Vec<&str> = to.split('*').collect();
@@ -10505,13 +11062,22 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
             if name.starts_with(prefix) && name.ends_with(suffix) {
                 let middle = &name[prefix.len()..name.len() - suffix.len()];
                 Some(format!("{}{}{}", parts_to[0], middle, parts_to[1]))
-            } else { None }
-        } else { None }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     };
     let mut renamed = 0;
     let mut skipped = 0;
     let mut out = String::new();
-    out.push_str(&format!("\n  {} fsh rename {} → {}\n", "→".bright_cyan(), pat.bright_white(), to.bright_white()));
+    out.push_str(&format!(
+        "\n  {} fsh rename {} → {}\n",
+        "→".bright_cyan(),
+        pat.bright_white(),
+        to.bright_white()
+    ));
     out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
     for entry in &entries {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -10519,8 +11085,12 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
             if let Some(new_name) = apply_pattern(&name, pat, to) {
                 let old_path = entry.path();
                 let new_path = cwd.join(&new_name);
-                out.push_str(&format!("  {} {} → {}\n",
-                    "✓".bright_green(), name.dimmed(), new_name.bright_white()));
+                out.push_str(&format!(
+                    "  {} {} → {}\n",
+                    "✓".bright_green(),
+                    name.dimmed(),
+                    new_name.bright_white()
+                ));
                 if !dry_run {
                     if let Err(e) = std::fs::rename(&old_path, &new_path) {
                         out.push_str(&format!("  {} failed: {}\n", "✗".bright_red(), e));
@@ -10572,17 +11142,29 @@ fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
         std::path::PathBuf::from(project),
         std::path::PathBuf::from(&home).join(project),
         std::path::PathBuf::from(&home).join("0-core").join(project),
-        std::path::PathBuf::from(&home).join("projects").join(project),
+        std::path::PathBuf::from(&home)
+            .join("projects")
+            .join(project),
     ];
     let target = candidates.iter().find(|p| p.is_dir());
     if let Some(path) = target {
         let _ = std::env::set_current_dir(path);
-        let resolved = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+        let resolved = std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
         let mut out = String::new();
-        out.push_str(&format!("\n  {} Entering scope: {}\n", "🌿".normal(), project.bright_green()));
+        out.push_str(&format!(
+            "\n  {} Entering scope: {}\n",
+            "🌿".normal(),
+            project.bright_green()
+        ));
         out.push_str(&format!("  {} cwd  → {}\n", "→".bright_cyan(), resolved));
         out.push_str(&format!("  {} return path saved\n", "→".bright_cyan()));
-        out.push_str(&format!("  {} run {} to restore\n", "→".dimmed(), "fsh leave".bright_cyan()));
+        out.push_str(&format!(
+            "  {} run {} to restore\n",
+            "→".dimmed(),
+            "fsh leave".bright_cyan()
+        ));
         CommandResult::Output(out)
     } else {
         let _ = db.conn.execute(
@@ -10590,8 +11172,16 @@ fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
             rusqlite::params![project],
         );
         let mut out = String::new();
-        out.push_str(&format!("  {} Scope set: {} (path not found -- staying in current dir)\n", "⚠".yellow(), project));
-        out.push_str(&format!("  {} run {} to restore\n", "→".dimmed(), "fsh leave".bright_cyan()));
+        out.push_str(&format!(
+            "  {} Scope set: {} (path not found -- staying in current dir)\n",
+            "⚠".yellow(),
+            project
+        ));
+        out.push_str(&format!(
+            "  {} run {} to restore\n",
+            "→".dimmed(),
+            "fsh leave".bright_cyan()
+        ));
         CommandResult::Output(out)
     }
 }
@@ -10599,14 +11189,22 @@ fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
 /// INT-322 Phase 7: fsh leave -- restore pre-scope state
 fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
-    let return_path: Option<String> = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='scope_return_path'",
-        [], |r| r.get(0),
-    ).ok();
-    let scope_name: Option<String> = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='scope_name'",
-        [], |r| r.get(0),
-    ).ok();
+    let return_path: Option<String> = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='scope_return_path'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
+    let scope_name: Option<String> = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='scope_name'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
     if return_path.is_none() && scope_name.is_none() {
         return CommandResult::Output("  No active scope to leave.".to_string());
     }
@@ -10615,28 +11213,54 @@ fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
         let _ = std::env::set_current_dir(path);
     }
     let _ = db.conn.execute("DELETE FROM shell_state WHERE key IN ('scope_name', 'scope_return_path', 'scope_return_intent')", []);
-    let restored = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+    let restored = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
     let mut out = String::new();
-    out.push_str(&format!("\n  {} Left scope: {}\n", "🌿".normal(), name.bright_green()));
-    out.push_str(&format!("  {} cwd restored → {}\n", "→".bright_cyan(), restored));
+    out.push_str(&format!(
+        "\n  {} Left scope: {}\n",
+        "🌿".normal(),
+        name.bright_green()
+    ));
+    out.push_str(&format!(
+        "  {} cwd restored → {}\n",
+        "→".bright_cyan(),
+        restored
+    ));
     CommandResult::Output(out)
 }
 
 /// INT-322 Phase 7: fsh scope -- show active scope status
 fn fsh_scope_status(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
-    let scope: Option<String> = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='scope_name'", [], |r| r.get(0),
-    ).ok();
-    let return_path: Option<String> = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='scope_return_path'", [], |r| r.get(0),
-    ).ok();
+    let scope: Option<String> = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='scope_name'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
+    let return_path: Option<String> = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='scope_return_path'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
     match scope {
         Some(name) => {
-            let cwd = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-            CommandResult::Output(format!("  {} Active scope: {}  cwd: {}  return: {}",
-                "🌿".normal(), name.bright_green(), cwd,
-                return_path.as_deref().unwrap_or("?").dimmed()))
+            let cwd = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            CommandResult::Output(format!(
+                "  {} Active scope: {}  cwd: {}  return: {}",
+                "🌿".normal(),
+                name.bright_green(),
+                cwd,
+                return_path.as_deref().unwrap_or("?").dimmed()
+            ))
         }
         None => CommandResult::Output("  No active scope.".to_string()),
     }
@@ -10652,19 +11276,39 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     // 1. fsh binary exists and is this binary
     let fsh_bin = std::path::Path::new("/home/christian/0-core/scripts/faelight-shell").exists();
-    checks.push(("fsh binary", fsh_bin, if fsh_bin { "scripts/faelight-shell present".into() } else { "missing!".into() }));
+    checks.push((
+        "fsh binary",
+        fsh_bin,
+        if fsh_bin {
+            "scripts/faelight-shell present".into()
+        } else {
+            "missing!".into()
+        },
+    ));
 
     // 2. state.db writable
-    let db_path = faelight_core::paths::state_db().to_string_lossy().to_string();
+    let db_path = faelight_core::paths::state_db()
+        .to_string_lossy()
+        .to_string();
     let db_ok = std::path::Path::new(&db_path).exists();
-    checks.push(("state.db", db_ok, if db_ok { db_path.clone() } else { "not found!".into() }));
+    checks.push((
+        "state.db",
+        db_ok,
+        if db_ok {
+            db_path.clone()
+        } else {
+            "not found!".into()
+        },
+    ));
 
     // 3. focus.toml readable
     let home = std::env::var("HOME").unwrap_or_default();
     let focus_path = format!("{}/.local/state/0-core/intent/focus.toml", home);
     let focus_ok = std::path::Path::new(&focus_path).exists();
     let focus_note = if focus_ok {
-        db.get_focus_intent().map(|i| format!("INT-{} active", i)).unwrap_or("no active intent".into())
+        db.get_focus_intent()
+            .map(|i| format!("INT-{} active", i))
+            .unwrap_or("no active intent".into())
     } else {
         "no focus.toml".into()
     };
@@ -10676,23 +11320,60 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         []
     ).is_ok();
     if hist_ok {
-        let _ = db.conn.execute("DELETE FROM shell_history WHERE command = '__fsh_doctor_test__'", []);
+        let _ = db.conn.execute(
+            "DELETE FROM shell_history WHERE command = '__fsh_doctor_test__'",
+            [],
+        );
     }
-    checks.push(("history writable", hist_ok, if hist_ok { "insert+delete ok".into() } else { "db error!".into() }));
+    checks.push((
+        "history writable",
+        hist_ok,
+        if hist_ok {
+            "insert+delete ok".into()
+        } else {
+            "db error!".into()
+        },
+    ));
 
     // 5. aliases loaded
-    let alias_count: i64 = db.conn.query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0)).unwrap_or(0);
+    let alias_count: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0))
+        .unwrap_or(0);
     let aliases_ok = alias_count > 0;
-    checks.push(("aliases loaded", aliases_ok, format!("{} aliases", alias_count)));
+    checks.push((
+        "aliases loaded",
+        aliases_ok,
+        format!("{} aliases", alias_count),
+    ));
 
     // 6. snapshots table exists
-    let snap_ok = db.conn.execute("SELECT id FROM shell_snapshots LIMIT 1", []).is_ok()
-        || db.conn.query_row("SELECT COUNT(*) FROM shell_snapshots", [], |r| r.get::<_,i64>(0)).unwrap_or(0) >= 0;
+    let snap_ok = db
+        .conn
+        .execute("SELECT id FROM shell_snapshots LIMIT 1", [])
+        .is_ok()
+        || db
+            .conn
+            .query_row("SELECT COUNT(*) FROM shell_snapshots", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .unwrap_or(0)
+            >= 0;
     checks.push(("snapshots table", snap_ok, "shell_snapshots ok".into()));
 
     // 7. PATH contains cargo bin
-    let cargo_bin = std::env::var("PATH").map(|p| p.contains(".cargo/bin")).unwrap_or(false);
-    checks.push(("cargo in PATH", cargo_bin, if cargo_bin { ".cargo/bin found".into() } else { "missing -- run: source ~/.profile".into() }));
+    let cargo_bin = std::env::var("PATH")
+        .map(|p| p.contains(".cargo/bin"))
+        .unwrap_or(false);
+    checks.push((
+        "cargo in PATH",
+        cargo_bin,
+        if cargo_bin {
+            ".cargo/bin found".into()
+        } else {
+            "missing -- run: source ~/.profile".into()
+        },
+    ));
 
     let elapsed = start.elapsed().as_millis();
     let passed = checks.iter().filter(|(_, ok, _)| *ok).count();
@@ -10703,20 +11384,33 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     out.push_str(&format!("\n  {} fsh doctor\n", "🩺".normal()));
     out.push_str(&format!("  {}\n\n", "━".repeat(50).dimmed()));
     for (name, ok, note) in &checks {
-        let icon = if *ok { "✅".to_string() } else { "✗ ".bright_red().to_string() };
+        let icon = if *ok {
+            "✅".to_string()
+        } else {
+            "✗ ".bright_red().to_string()
+        };
         out.push_str(&format!("  {} {:<22} {}\n", icon, name, note.dimmed()));
         if !ok && fix_mode {
-            out.push_str(&format!("    {} no auto-fix available for '{}'\n", "→".yellow(), name));
+            out.push_str(&format!(
+                "    {} no auto-fix available for '{}'\n",
+                "→".yellow(),
+                name
+            ));
         }
     }
     out.push_str(&format!("\n  {}\n", "─".repeat(50).dimmed()));
-    out.push_str(&format!("  {}/{} checks passed  {}ms\n",
-        passed, total, elapsed));
+    out.push_str(&format!(
+        "  {}/{} checks passed  {}ms\n",
+        passed, total, elapsed
+    ));
     if all_ok {
         out.push_str(&format!("  {} shell is healthy\n", "🌲".normal()));
     } else {
-        out.push_str(&format!("  {} {} check(s) failed -- run: fsh doctor --fix\n",
-            "⚠".yellow(), total - passed));
+        out.push_str(&format!(
+            "  {} {} check(s) failed -- run: fsh doctor --fix\n",
+            "⚠".yellow(),
+            total - passed
+        ));
     }
     CommandResult::Output(out)
 }
@@ -10725,13 +11419,33 @@ fn rewind_cmd(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
     let mut stmt = match db.conn.prepare(
         "SELECT id, name, timestamp, health, command, git_hash, cwd, intent_id
-         FROM shell_snapshots ORDER BY timestamp DESC LIMIT 20"
+         FROM shell_snapshots ORDER BY timestamp DESC LIMIT 20",
     ) {
         Ok(s) => s,
         Err(_) => return CommandResult::Output("  No snapshots yet.".to_string()),
     };
-    let rows: Vec<(i64, String, i64, Option<i64>, Option<String>, Option<String>, Option<String>, Option<String>)> = stmt
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?)))
+    let rows: Vec<(
+        i64,
+        String,
+        i64,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+            ))
+        })
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     if rows.is_empty() {
@@ -10740,22 +11454,50 @@ fn rewind_cmd(db: &ForestDb) -> CommandResult {
         );
     }
     let mut out = String::new();
-    out.push_str(&format!("\n  {} Time-Travel Snapshot Timeline ({} snapshots)\n", "🌲".normal(), rows.len()));
+    out.push_str(&format!(
+        "\n  {} Time-Travel Snapshot Timeline ({} snapshots)\n",
+        "🌲".normal(),
+        rows.len()
+    ));
     out.push_str(&format!("  {}\n\n", "━".repeat(60).dimmed()));
     for (id, name, ts, health, command, git_hash, _cwd, intent_id) in &rows {
         let dt = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|d: chrono::DateTime<chrono::Utc>| d.format("%m-%d %H:%M:%S").to_string())
             .unwrap_or_else(|| ts.to_string());
-        let health_str = health.map(|h| format!("{}%", h)).unwrap_or_else(|| "?".to_string());
+        let health_str = health
+            .map(|h| format!("{}%", h))
+            .unwrap_or_else(|| "?".to_string());
         let git_str = git_hash.as_deref().unwrap_or("?");
-        let intent_str = intent_id.as_deref().map(|i| format!(" [INT-{}]", i)).unwrap_or_default();
+        let intent_str = intent_id
+            .as_deref()
+            .map(|i| format!(" [INT-{}]", i))
+            .unwrap_or_default();
         let cmd_str = command.as_deref().unwrap_or(&name);
         let cmd_short: String = cmd_str.chars().take(45).collect();
-        out.push_str(&format!("  {} #{} {}{}\n", "→".bright_cyan(), id.to_string().dimmed(), dt.bright_white(), intent_str.dimmed()));
-        out.push_str(&format!("    {} {}\n", "cmd:".dimmed(), cmd_short.bright_white()));
-        out.push_str(&format!("    {} {}  {} {}\n\n", "health:".dimmed(), health_str, "git:".dimmed(), git_str.yellow()));
+        out.push_str(&format!(
+            "  {} #{} {}{}\n",
+            "→".bright_cyan(),
+            id.to_string().dimmed(),
+            dt.bright_white(),
+            intent_str.dimmed()
+        ));
+        out.push_str(&format!(
+            "    {} {}\n",
+            "cmd:".dimmed(),
+            cmd_short.bright_white()
+        ));
+        out.push_str(&format!(
+            "    {} {}  {} {}\n\n",
+            "health:".dimmed(),
+            health_str,
+            "git:".dimmed(),
+            git_str.yellow()
+        ));
     }
-    out.push_str(&format!("  {} snapshot <name> to capture now\n", "💡".dimmed()));
+    out.push_str(&format!(
+        "  {} snapshot <name> to capture now\n",
+        "💡".dimmed()
+    ));
     CommandResult::Output(out)
 }
 
@@ -12151,7 +12893,10 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 fn forest_stats_intents(_core_root: &str) -> CommandResult {
-    let complete_dir = faelight_core::paths::intents_dir().join("complete").to_string_lossy().to_string();
+    let complete_dir = faelight_core::paths::intents_dir()
+        .join("complete")
+        .to_string_lossy()
+        .to_string();
     let mut out = String::new();
     out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
     let entries = std::fs::read_dir(&complete_dir).ok();
@@ -12434,14 +13179,14 @@ fn memory_distill(db: &ForestDb) -> CommandResult {
 // Count-asserted: exactly one version line, or it errors (never a partial/wrong write).
 fn tool_cargo_path(name: &str) -> Option<&'static str> {
     match name {
-        "faelight-shell"   => Some("faelight/rust-tools/faelight-shell/Cargo.toml"),
-        "core" | "engine"  => Some("faelight/engine/Cargo.toml"),
-        "faelight-git"     => Some("faelight/rust-tools/faelight-git/Cargo.toml"),
+        "faelight-shell" => Some("faelight/rust-tools/faelight-shell/Cargo.toml"),
+        "core" | "engine" => Some("faelight/engine/Cargo.toml"),
+        "faelight-git" => Some("faelight/rust-tools/faelight-git/Cargo.toml"),
         "faelight-release" => Some("faelight/rust-tools/faelight-release/Cargo.toml"),
-        "friday-chat"      => Some("faelight/rust-tools/friday-chat/Cargo.toml"),
-        "db-browse"        => Some("faelight/rust-tools/db-browse/Cargo.toml"),
-        "faelight-term"    => Some("faelight/rust-tools/faelight-term/Cargo.toml"),
-        "faelight-notify"  => Some("faelight/rust-tools/faelight-notify/Cargo.toml"),
+        "friday-chat" => Some("faelight/rust-tools/friday-chat/Cargo.toml"),
+        "db-browse" => Some("faelight/rust-tools/db-browse/Cargo.toml"),
+        "faelight-term" => Some("faelight/rust-tools/faelight-term/Cargo.toml"),
+        "faelight-notify" => Some("faelight/rust-tools/faelight-notify/Cargo.toml"),
         _ => None,
     }
 }
@@ -12456,16 +13201,20 @@ fn bump_semver(ver: &str, level: &str) -> Result<String, String> {
         "patch" => Ok(format!("{}.{}.{}", maj, min, pat + 1)),
         "minor" => Ok(format!("{}.{}.0", maj, min + 1)),
         "major" => Ok(format!("{}.0.0", maj + 1)),
-        other   => Err(format!("unknown level '{}' (use patch|minor|major)", other)),
+        other => Err(format!("unknown level '{}' (use patch|minor|major)", other)),
     }
 }
 
 /// Apply a version bump to a tool's Cargo.toml. Returns (old, new) on success.
-pub fn apply_version_bump(core_root: &str, tool: &str, level: &str) -> Result<(String, String), String> {
+pub fn apply_version_bump(
+    core_root: &str,
+    tool: &str,
+    level: &str,
+) -> Result<(String, String), String> {
     let rel = tool_cargo_path(tool).ok_or_else(|| format!("unknown tool '{}'", tool))?;
     let full = format!("{}/{}", core_root, rel);
-    let content = std::fs::read_to_string(&full)
-        .map_err(|e| format!("cannot read {}: {}", full, e))?;
+    let content =
+        std::fs::read_to_string(&full).map_err(|e| format!("cannot read {}: {}", full, e))?;
 
     // Find the version line(s). Count-assert exactly one at the top level.
     let ver_lines: Vec<&str> = content
@@ -12475,7 +13224,8 @@ pub fn apply_version_bump(core_root: &str, tool: &str, level: &str) -> Result<(S
     if ver_lines.len() != 1 {
         return Err(format!(
             "expected exactly 1 `version = ` line in {}, found {} -- aborting (no write)",
-            full, ver_lines.len()
+            full,
+            ver_lines.len()
         ));
     }
     let old_line = ver_lines[0];
@@ -12490,12 +13240,12 @@ pub fn apply_version_bump(core_root: &str, tool: &str, level: &str) -> Result<(S
     // Replace only that one line, verify the replacement is unique + applied.
     if content.matches(old_line).count() != 1 {
         return Err(format!(
-            "version line not uniquely matchable in {} -- aborting (no write)", full
+            "version line not uniquely matchable in {} -- aborting (no write)",
+            full
         ));
     }
     let updated = content.replacen(old_line, &new_line, 1);
-    std::fs::write(&full, updated)
-        .map_err(|e| format!("cannot write {}: {}", full, e))?;
+    std::fs::write(&full, updated).map_err(|e| format!("cannot write {}: {}", full, e))?;
     Ok((old_ver, new_ver))
 }
 
@@ -12514,8 +13264,11 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
             return match apply_version_bump(core_root, tool, level) {
                 Ok((old, new)) => CommandResult::Output(format!(
                     "  {} {} {} -> {} ({})",
-                    "\u{1f4e6}".normal(), tool.bright_white(),
-                    old.dimmed(), new.bright_green(), level.dimmed()
+                    "\u{1f4e6}".normal(),
+                    tool.bright_white(),
+                    old.dimmed(),
+                    new.bright_green(),
+                    level.dimmed()
                 )),
                 Err(e) => CommandResult::Error(format!("bump failed: {}", e)),
             };
@@ -12523,14 +13276,29 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
 
     let tools = [
-        ("faelight-shell", "faelight/rust-tools/faelight-shell/Cargo.toml"),
-        ("core",           "faelight/engine/Cargo.toml"),
-        ("faelight-git",   "faelight/rust-tools/faelight-git/Cargo.toml"),
-        ("faelight-release", "faelight/rust-tools/faelight-release/Cargo.toml"),
-        ("friday-chat",    "faelight/rust-tools/friday-chat/Cargo.toml"),
-        ("db-browse",      "faelight/rust-tools/db-browse/Cargo.toml"),
-        ("faelight-term",  "faelight/rust-tools/faelight-term/Cargo.toml"),
-        ("faelight-notify","faelight/rust-tools/faelight-notify/Cargo.toml"),
+        (
+            "faelight-shell",
+            "faelight/rust-tools/faelight-shell/Cargo.toml",
+        ),
+        ("core", "faelight/engine/Cargo.toml"),
+        (
+            "faelight-git",
+            "faelight/rust-tools/faelight-git/Cargo.toml",
+        ),
+        (
+            "faelight-release",
+            "faelight/rust-tools/faelight-release/Cargo.toml",
+        ),
+        ("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml"),
+        ("db-browse", "faelight/rust-tools/db-browse/Cargo.toml"),
+        (
+            "faelight-term",
+            "faelight/rust-tools/faelight-term/Cargo.toml",
+        ),
+        (
+            "faelight-notify",
+            "faelight/rust-tools/faelight-notify/Cargo.toml",
+        ),
     ];
     let mut out = String::new();
     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
@@ -12559,9 +13327,15 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
     out.push_str(&format!("  {}\n", "━".repeat(50).dimmed()));
     if apply {
-        out.push_str(&format!("  {} Use: bump-versions patch <tool> or bump-versions minor <tool>\n", "→".dimmed()));
+        out.push_str(&format!(
+            "  {} Use: bump-versions patch <tool> or bump-versions minor <tool>\n",
+            "→".dimmed()
+        ));
     } else {
-        out.push_str(&format!("  {} Use: bump-versions to see versions · cicomplete suggests bumps automatically\n", "→".dimmed()));
+        out.push_str(&format!(
+            "  {} Use: bump-versions to see versions · cicomplete suggests bumps automatically\n",
+            "→".dimmed()
+        ));
     }
     CommandResult::Output(out)
 }
@@ -12570,12 +13344,16 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
 fn ade_cmd(args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let layout = args.first().copied().unwrap_or("forest-ade");
-    let layout_path = format!("{}/.config/zellij/layouts/{}.kdl",
-        std::env::var("HOME").unwrap_or_default(), layout);
+    let layout_path = format!(
+        "{}/.config/zellij/layouts/{}.kdl",
+        std::env::var("HOME").unwrap_or_default(),
+        layout
+    );
 
     if !std::path::Path::new(&layout_path).exists() {
         return CommandResult::Error(format!(
-            "ADE layout not found: {}\nRun: core intent show 346", layout_path
+            "ADE layout not found: {}\nRun: core intent show 346",
+            layout_path
         ));
     }
 
@@ -12583,7 +13361,10 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
     println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
     println!("  {} Left: fsh (Alacritty)", "→".dimmed());
     println!("  {} Right: friday-chat", "→".dimmed());
-    println!("  {} Alt+h/l to switch panes · Alt+f fullscreen · Alt+w close pane", "→".dimmed());
+    println!(
+        "  {} Alt+h/l to switch panes · Alt+f fullscreen · Alt+w close pane",
+        "→".dimmed()
+    );
 
     // Check if session already exists -- attach if so
     let sessions = std::process::Command::new("zellij")
@@ -12592,8 +13373,12 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let _is_alive = sessions.lines().any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
-    let is_dead = sessions.lines().any(|l| l.contains("forest-ade") && (l.contains("EXITED") || l.contains("dead")));
+    let _is_alive = sessions
+        .lines()
+        .any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
+    let is_dead = sessions
+        .lines()
+        .any(|l| l.contains("forest-ade") && (l.contains("EXITED") || l.contains("dead")));
 
     if is_dead {
         // Kill the dead session first

@@ -28,11 +28,13 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
     let subject = parts.get(1).unwrap_or(&"").trim();
     let body = parts.get(2).unwrap_or(&"").trim();
     // Skip if already analyzed this commit
-    let existing: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_doc_proposals WHERE commit_hash = ?1",
-        params![hash],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let existing: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_doc_proposals WHERE commit_hash = ?1",
+            params![hash],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if existing > 0 {
         return Ok(());
     }
@@ -46,8 +48,11 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
     let ts = now_ts();
     let mut proposals = 0;
     // Rule 1: vocabulary word added -> COMMAND-GUIDE.md
-    if subject.contains("vocab") || subject.contains("vocabulary") || 
-       body.contains("vocab") || changed_files.iter().any(|f| f.contains("commands/mod.rs")) {
+    if subject.contains("vocab")
+        || subject.contains("vocabulary")
+        || body.contains("vocab")
+        || changed_files.iter().any(|f| f.contains("commands/mod.rs"))
+    {
         if subject.contains("feat") || subject.contains("add") {
             db.execute(
                 "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
@@ -58,11 +63,21 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     // Rule 2: new tool or deploy change -> TOOLS.md
-    if changed_files.iter().any(|f| f.contains("registry") || f.contains("scripts/")) {
+    if changed_files
+        .iter()
+        .any(|f| f.contains("registry") || f.contains("scripts/"))
+    {
         db.execute(
             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
              VALUES (?1, ?2, 'docs/TOOLS.md', ?3, 'pending')",
-            params![ts, hash, format!("Registry or scripts changed in commit '{}' -- TOOLS.md may need updating", subject)]
+            params![
+                ts,
+                hash,
+                format!(
+                    "Registry or scripts changed in commit '{}' -- TOOLS.md may need updating",
+                    subject
+                )
+            ],
         )?;
         proposals += 1;
     }
@@ -71,22 +86,42 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
         db.execute(
             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
              VALUES (?1, ?2, 'meta/CHANGELOG.md', ?3, 'pending')",
-            params![ts, hash, format!("Intent-related commit '{}' -- CHANGELOG.md entry may be needed", subject)]
+            params![
+                ts,
+                hash,
+                format!(
+                    "Intent-related commit '{}' -- CHANGELOG.md entry may be needed",
+                    subject
+                )
+            ],
         )?;
         proposals += 1;
     }
     // Rule 4: architecture change -> README.md
-    if subject.contains("arch") || subject.contains("refactor") || subject.contains("Core v") ||
-       changed_files.iter().any(|f| f.contains("engine/src/domains/")) {
+    if subject.contains("arch")
+        || subject.contains("refactor")
+        || subject.contains("Core v")
+        || changed_files
+            .iter()
+            .any(|f| f.contains("engine/src/domains/"))
+    {
         db.execute(
             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
              VALUES (?1, ?2, 'README.md', ?3, 'pending')",
-            params![ts, hash, format!("Architecture change in commit '{}' -- README.md may need updating", subject)]
+            params![
+                ts,
+                hash,
+                format!(
+                    "Architecture change in commit '{}' -- README.md may need updating",
+                    subject
+                )
+            ],
         )?;
         proposals += 1;
     }
     if proposals > 0 {
-        println!("  {} {} doc update{} suggested -- run: core friday docs",
+        println!(
+            "  {} {} doc update{} suggested -- run: core friday docs",
             "\u{1f4cb}".cyan(),
             proposals,
             if proposals == 1 { "" } else { "s" }
@@ -102,27 +137,54 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
         "SELECT id, timestamp, commit_hash, doc_file, reason, status
          FROM friday_doc_proposals
          WHERE status = 'pending'
-         ORDER BY timestamp DESC LIMIT 10"
+         ORDER BY timestamp DESC LIMIT 10",
     )?;
-    let rows: Vec<(i64, i64, String, String, String, String)> = stmt.query_map(
-        [],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
-    )?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(i64, i64, String, String, String, String)> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     if rows.is_empty() {
         println!("  {} No pending doc proposals", "\u{2705}".green());
         return Ok(());
     }
-    println!("  {} Pending Doc Proposals ({})", "\u{1f4cb}".cyan().bold(), rows.len());
+    println!(
+        "  {} Pending Doc Proposals ({})",
+        "\u{1f4cb}".cyan().bold(),
+        rows.len()
+    );
     println!("{}", "\u{2500}".repeat(52).dimmed());
     for (id, ts, hash, doc_file, reason, _status) in &rows {
         let dt = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|d| d.format("%Y-%m-%d").to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let short_hash = &hash[..hash.len().min(8)];
-        println!("  {} [{}] {} {}", id.to_string().dimmed(), dt.dimmed(), doc_file.bright_white(), short_hash.dimmed());
+        println!(
+            "  {} [{}] {} {}",
+            id.to_string().dimmed(),
+            dt.dimmed(),
+            doc_file.bright_white(),
+            short_hash.dimmed()
+        );
         println!("    {}", reason.cyan());
-        println!("    {} core friday docs --approve {}", "\u{2192}".dimmed(), id);
-        println!("    {} core friday docs --dismiss {}", "\u{2192}".dimmed(), id);
+        println!(
+            "    {} core friday docs --approve {}",
+            "\u{2192}".dimmed(),
+            id
+        );
+        println!(
+            "    {} core friday docs --dismiss {}",
+            "\u{2192}".dimmed(),
+            id
+        );
         println!();
     }
     Ok(())
@@ -134,16 +196,23 @@ pub fn resolve_proposal(ctx: &AppContext, id: i64, approve: bool) -> CoreResult<
     let status = if approve { "approved" } else { "dismissed" };
     let updated = db.execute(
         "UPDATE friday_doc_proposals SET status = ?1 WHERE id = ?2",
-        params![status, id]
+        params![status, id],
     )?;
     if updated > 0 {
         let verb = if approve { "Approved" } else { "Dismissed" };
         println!("  {} {} proposal {}", "\u{2705}".green(), verb, id);
         if approve {
-            println!("  {} Remember to update the doc manually and commit", "\u{2192}".dimmed());
+            println!(
+                "  {} Remember to update the doc manually and commit",
+                "\u{2192}".dimmed()
+            );
         }
     } else {
-        println!("  {} Proposal {} not found", "\u{26a0}\u{fe0f}".yellow(), id);
+        println!(
+            "  {} Proposal {} not found",
+            "\u{26a0}\u{fe0f}".yellow(),
+            id
+        );
     }
     Ok(())
 }
@@ -151,14 +220,19 @@ pub fn resolve_proposal(ctx: &AppContext, id: i64, approve: bool) -> CoreResult<
 #[allow(dead_code)]
 pub fn check_pending(ctx: &AppContext) -> Option<String> {
     let db = &ctx.runtime.db;
-    let count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_doc_proposals WHERE status = 'pending'",
-        [],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_doc_proposals WHERE status = 'pending'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if count > 0 {
-        Some(format!("{} doc update{} pending \u{2014} core friday docs",
-            count, if count == 1 { "" } else { "s" }))
+        Some(format!(
+            "{} doc update{} pending \u{2014} core friday docs",
+            count,
+            if count == 1 { "" } else { "s" }
+        ))
     } else {
         None
     }

@@ -1146,7 +1146,8 @@ pub mod checks {
                 std::env::var("HOME")
                     .map(|h| PathBuf::from(h).join(".zshrc"))
                     .unwrap_or_default(),
-                ctx.core_root.join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh"),
+                ctx.core_root
+                    .join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh"),
             ];
 
             for config_path in &config_files {

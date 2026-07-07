@@ -644,18 +644,17 @@ pub fn compute(ctx: &AppContext) -> CoreResult<()> {
         classify_weight(health_breakdown.final_weight).label()
     );
     // Pattern 3: active intent load
-    let active_intents: i64 =
-        std::fs::read_dir(ctx.fpath("intents/future"))
-            .map(|d| {
-                d.filter_map(|e| e.ok())
-                    .filter(|e| {
-                        std::fs::read_to_string(e.path())
-                            .map(|c| c.contains("status: in-progress"))
-                            .unwrap_or(false)
-                    })
-                    .count() as i64
-            })
-            .unwrap_or(0);
+    let active_intents: i64 = std::fs::read_dir(ctx.fpath("intents/future"))
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    std::fs::read_to_string(e.path())
+                        .map(|c| c.contains("status: in-progress"))
+                        .unwrap_or(false)
+                })
+                .count() as i64
+        })
+        .unwrap_or(0);
     let intent_rate = (active_intents as f64 / 8.0).min(1.0);
     let intent_metrics = PatternMetrics {
         frequency: intent_rate,

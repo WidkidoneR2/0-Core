@@ -480,21 +480,24 @@ fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
     Ok(None)
 }
 
-
 fn check_pushback(ctx: &AppContext) -> CoreResult<Option<String>> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Push back if working without an active intent for more than 30 minutes
-    let has_cistart: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'cistart%' AND timestamp > ?1",
-        rusqlite::params![now - 1800],
-        |r| r.get(0),
-    ).unwrap_or(0);
-    let recent_cmds: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
-        rusqlite::params![now - 1800],
-        |r| r.get(0),
-    ).unwrap_or(0);
+    let has_cistart: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'cistart%' AND timestamp > ?1",
+            rusqlite::params![now - 1800],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let recent_cmds: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
+            rusqlite::params![now - 1800],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if recent_cmds > 20 && has_cistart == 0 {
         return Ok(Some("Working without cistart -- intent context is missing. Which intent are you working on? Run cistart <id>.".to_string()));
     }
@@ -509,18 +512,25 @@ fn check_recent_activity(ctx: &AppContext) -> CoreResult<Option<String>> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let day_ago = now - 86400;
-    let deploys: i64 = db.query_row(
-        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-        rusqlite::params![day_ago],
-        |r| r.get(0),
-    ).unwrap_or(0);
-    let commits: i64 = db.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
-        rusqlite::params![day_ago],
-        |r| r.get(0),
-    ).unwrap_or(0);
+    let deploys: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+            rusqlite::params![day_ago],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let commits: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
+            rusqlite::params![day_ago],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if deploys > 0 || commits > 0 {
-        return Ok(Some(format!("{} deploy(s) and {} commit(s) today -- forest is active", deploys, commits)));
+        return Ok(Some(format!(
+            "{} deploy(s) and {} commit(s) today -- forest is active",
+            deploys, commits
+        )));
     }
     Ok(None)
 }
@@ -923,13 +933,18 @@ fn predict_from_event_bus(ctx: &AppContext) -> Option<(String, f64)> {
         return Some((format!("d -- verify {} deploy health", tool), 0.75));
     }
     // Recent health check failure -- suggest investigation
-    let fail_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM events WHERE action = 'health_check_failed' AND timestamp > ?1",
-        rusqlite::params![ten_min_ago],
-        |r: &rusqlite::Row<'_>| r.get(0),
-    ).unwrap_or(0);
+    let fail_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE action = 'health_check_failed' AND timestamp > ?1",
+            rusqlite::params![ten_min_ago],
+            |r: &rusqlite::Row<'_>| r.get(0),
+        )
+        .unwrap_or(0);
     if fail_count > 0 {
-        return Some(("d -- health check failure detected in event bus".to_string(), 0.80));
+        return Some((
+            "d -- health check failure detected in event bus".to_string(),
+            0.80,
+        ));
     }
     None
 }
@@ -983,10 +998,15 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
     if let Some((action, conf)) = predict_from_event_bus(ctx) {
         let content = format!(
             "Event bus signal: {} ({:.0}% confidence, v23 canonical source)",
-            action, conf * 100.0
+            action,
+            conf * 100.0
         );
         write_anticipation(ctx, &content, None, conf)?;
-        println!("  {} {} -- EVENT BUS", "→".bright_blue(), action.bright_cyan());
+        println!(
+            "  {} {} -- EVENT BUS",
+            "→".bright_blue(),
+            action.bright_cyan()
+        );
         println!("    {} {}", "·".dimmed(), content.dimmed());
         println!("    {} source: events table (v23 canonical)", "·".dimmed());
         println!();

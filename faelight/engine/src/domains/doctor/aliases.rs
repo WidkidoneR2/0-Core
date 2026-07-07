@@ -26,11 +26,17 @@ pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
     let mut aliases = HashMap::new();
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with('#') { continue; }
+        if trimmed.starts_with('#') {
+            continue;
+        }
         if let Some(rest) = trimmed.strip_prefix("alias ") {
             if let Some((name, target)) = rest.split_once('=') {
                 let name = name.trim().to_string();
-                let target = target.trim().trim_matches('\'').trim_matches('"').to_string();
+                let target = target
+                    .trim()
+                    .trim_matches('\'')
+                    .trim_matches('"')
+                    .to_string();
                 if !name.is_empty() {
                     aliases.insert(name, target);
                 }

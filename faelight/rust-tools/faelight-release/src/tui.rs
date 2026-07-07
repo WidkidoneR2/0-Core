@@ -537,7 +537,8 @@ impl ReleaseTui {
         self.log.push("✅ VERSION updated".to_string());
 
         // 2. Write release manifest
-        let release_dir = faelight_core::paths::meta_dir().join(format!("releases/{}", self.version));
+        let release_dir =
+            faelight_core::paths::meta_dir().join(format!("releases/{}", self.version));
         fs::create_dir_all(&release_dir)?;
         let manifest = format!(
             r#"version = "{}"

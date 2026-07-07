@@ -7,7 +7,6 @@ use colored::*;
 pub fn run(message: &str) -> Result<()> {
     let repo = GitRepo::open()?;
 
-
     let status = repo.status()?;
     if status.is_empty() {
         println!("{}", "  ✅ Nothing to commit".green());

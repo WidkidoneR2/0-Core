@@ -120,7 +120,8 @@ fn main() -> Result<()> {
                     .status();
 
                 // Re-write changelog with the actual theme from TUI
-                let changelog_path = std::path::PathBuf::from(&root).join("faelight/meta/CHANGELOG.md");
+                let changelog_path =
+                    std::path::PathBuf::from(&root).join("faelight/meta/CHANGELOG.md");
                 if changelog_path.exists() {
                     if let Ok(cl) = std::fs::read_to_string(&changelog_path) {
                         let fixed = cl.replace(
@@ -136,7 +137,13 @@ fn main() -> Result<()> {
                 // declaratively by the nix config from meta/VERSION; the rich triad lives here.
                 {
                     let commit_count = std::process::Command::new("git")
-                        .args(["-C", root.to_str().unwrap_or("."), "rev-list", "--count", "HEAD"])
+                        .args([
+                            "-C",
+                            root.to_str().unwrap_or("."),
+                            "rev-list",
+                            "--count",
+                            "HEAD",
+                        ])
                         .output()
                         .ok()
                         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
@@ -154,9 +161,11 @@ fn main() -> Result<()> {
                     // Intent range: count completed intents for a simple range string.
                     let complete_dir = faelight_core::paths::intents_dir().join("complete");
                     let intent_count = std::fs::read_dir(&complete_dir)
-                        .map(|rd| rd.filter_map(|e| e.ok())
-                            .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
-                            .count())
+                        .map(|rd| {
+                            rd.filter_map(|e| e.ok())
+                                .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
+                                .count()
+                        })
                         .unwrap_or(0);
                     let intent_range = format!("{} complete", intent_count);
 
@@ -195,7 +204,9 @@ fn main() -> Result<()> {
                                 Err(e) => eprintln!("\u{26a0}\u{fe0f}  Could not record release triad: {}", e),
                             }
                         }
-                        Err(e) => eprintln!("\u{26a0}\u{fe0f}  Could not open state.db for triad: {}", e),
+                        Err(e) => {
+                            eprintln!("\u{26a0}\u{fe0f}  Could not open state.db for triad: {}", e)
+                        }
                     }
                 }
                 // Auto-commit the release
@@ -383,7 +394,8 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("  Current generation: {}", current);
 
-            let manifest_path = faelight_core::paths::meta_dir().join(format!("releases/{}/manifest.toml", current));
+            let manifest_path = faelight_core::paths::meta_dir()
+                .join(format!("releases/{}/manifest.toml", current));
             if manifest_path.exists() {
                 let manifest = std::fs::read_to_string(&manifest_path)?;
                 for line in manifest.lines().take(4) {
@@ -461,7 +473,10 @@ fn main() -> Result<()> {
                         println!();
                         println!("Release Triad (version / generation / commits / intents)");
                         for (ver, gen, commits, intents, th) in rows {
-                            println!("  v{}  gen {}  {} commits  {}  {}", ver, gen, commits, intents, th);
+                            println!(
+                                "  v{}  gen {}  {} commits  {}  {}",
+                                ver, gen, commits, intents, th
+                            );
                         }
                     }
                 }
@@ -476,12 +491,14 @@ fn main() -> Result<()> {
                         "SELECT generation, commit_count, intent_range, theme
                          FROM release_triad WHERE version = ?1 ORDER BY timestamp DESC LIMIT 1",
                         rusqlite::params![version],
-                        |r| Ok((
-                            r.get::<_, String>(0)?,
-                            r.get::<_, String>(1)?,
-                            r.get::<_, String>(2)?,
-                            r.get::<_, String>(3).unwrap_or_default(),
-                        )),
+                        |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, String>(2)?,
+                                r.get::<_, String>(3).unwrap_or_default(),
+                            ))
+                        },
                     );
                     match row {
                         Ok((gen, commits, intents, theme)) => {
@@ -505,11 +522,13 @@ fn main() -> Result<()> {
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => { eprintln!("Could not open state.db: {}", e); return Ok(()); }
+                Err(e) => {
+                    eprintln!("Could not open state.db: {}", e);
+                    return Ok(());
+                }
             };
-            let mut stmt = conn.prepare(
-                "SELECT version, generation FROM release_triad ORDER BY timestamp DESC"
-            )?;
+            let mut stmt = conn
+                .prepare("SELECT version, generation FROM release_triad ORDER BY timestamp DESC")?;
             let rows: Vec<(String, String)> = stmt
                 .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
                 .map(|m| m.filter_map(|x| x.ok()).collect())

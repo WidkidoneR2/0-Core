@@ -394,14 +394,12 @@ fn goal_context_for(rule_id: &str, goals: &[GoalContext]) -> Option<String> {
 }
 
 fn current_health(_ctx: &AppContext) -> u32 {
-    std::fs::read_to_string(
-        faelight_core::paths::health_cache(),
-    )
-    .unwrap_or_else(|_| "95".to_string())
-    .trim()
-    .trim_end_matches('%')
-    .parse()
-    .unwrap_or(95)
+    std::fs::read_to_string(faelight_core::paths::health_cache())
+        .unwrap_or_else(|_| "95".to_string())
+        .trim()
+        .trim_end_matches('%')
+        .parse()
+        .unwrap_or(95)
 }
 
 fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
@@ -610,8 +608,7 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Show any custom rules
-    let custom_path =
-        faelight_core::paths::reactions_config();
+    let custom_path = faelight_core::paths::reactions_config();
     if custom_path.exists() {
         if let Ok(text) = std::fs::read_to_string(&custom_path) {
             if let Ok(parsed) = toml::from_str::<TomlRuleFile>(&text) {

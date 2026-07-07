@@ -19,7 +19,9 @@ use std::path::Path;
 use std::process::Command;
 
 fn flake_dir() -> String {
-    std::env::var("HOME").map(|h| format!("{h}/0-core")).unwrap_or_else(|_| ".".into())
+    std::env::var("HOME")
+        .map(|h| format!("{h}/0-core"))
+        .unwrap_or_else(|_| ".".into())
 }
 
 fn host() -> String {
@@ -37,7 +39,14 @@ pub fn run_flake_update(input: &str, dry_run: bool) -> Result<()> {
     println!("{}", "❄ Faelight Flake Update".bright_cyan().bold());
     println!("{}", "─".repeat(48).dimmed());
     println!("  Input:   {}", input.bright_white());
-    println!("  Mode:    {}", if dry_run { "dry-run (no switch)".yellow() } else { "live".green() });
+    println!(
+        "  Mode:    {}",
+        if dry_run {
+            "dry-run (no switch)".yellow()
+        } else {
+            "live".green()
+        }
+    );
     println!();
 
     // 1. Back up the lock so we can revert cleanly.
@@ -56,7 +65,10 @@ pub fn run_flake_update(input: &str, dry_run: bool) -> Result<()> {
     }
 
     // 3. Build the new config (NO switch). Unprivileged.
-    println!("  {} Building new configuration (no switch)...", "→".bright_cyan());
+    println!(
+        "  {} Building new configuration (no switch)...",
+        "→".bright_cyan()
+    );
     let build = Command::new("nixos-rebuild")
         .args(["build", "--flake", &format!("{dir}#{}", host())])
         .current_dir(&dir)
@@ -84,13 +96,19 @@ pub fn run_flake_update(input: &str, dry_run: bool) -> Result<()> {
     // 5. Gate.
     if dry_run {
         println!();
-        println!("  {} Dry-run: reverting lock, system untouched.", "✓".green());
+        println!(
+            "  {} Dry-run: reverting lock, system untouched.",
+            "✓".green()
+        );
         restore_lock(&lock, &lock_bak);
         return Ok(());
     }
 
     println!();
-    print!("  {} Apply this update (switch)? (y/N): ", "💡".bright_cyan());
+    print!(
+        "  {} Apply this update (switch)? (y/N): ",
+        "💡".bright_cyan()
+    );
     use std::io::Write;
     std::io::stdout().flush().ok();
     let mut answer = String::new();
@@ -98,7 +116,12 @@ pub fn run_flake_update(input: &str, dry_run: bool) -> Result<()> {
     if answer.trim().to_lowercase() == "y" {
         println!("  {} Switching...", "→".bright_cyan());
         let sw = Command::new("sudo")
-            .args(["nixos-rebuild", "switch", "--flake", &format!("{dir}#{}", host())])
+            .args([
+                "nixos-rebuild",
+                "switch",
+                "--flake",
+                &format!("{dir}#{}", host()),
+            ])
             .current_dir(&dir)
             .status()
             .context("nixos-rebuild switch failed to run")?;
@@ -110,7 +133,10 @@ pub fn run_flake_update(input: &str, dry_run: bool) -> Result<()> {
             anyhow::bail!("switch failed -- lock reverted");
         }
     } else {
-        println!("  {} Aborted -- reverting lock, system untouched.", "✓".green());
+        println!(
+            "  {} Aborted -- reverting lock, system untouched.",
+            "✓".green()
+        );
         restore_lock(&lock, &lock_bak);
     }
     Ok(())

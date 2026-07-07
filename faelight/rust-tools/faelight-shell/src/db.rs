@@ -82,7 +82,7 @@ impl ForestDb {
                 exit_code INTEGER NOT NULL,
                 cwd       TEXT,
                 timestamp INTEGER NOT NULL
-            );"
+            );",
         );
 
         Ok(Self { conn, core_root })
@@ -339,8 +339,8 @@ impl ForestDb {
     pub fn get_focus_intent(&self) -> Option<String> {
         // Read from focus.toml (written by cistart via core engine)
         let home = std::env::var("HOME").unwrap_or_default();
-        let focus_file = std::path::PathBuf::from(&home)
-            .join(".local/state/0-core/intent/focus.toml");
+        let focus_file =
+            std::path::PathBuf::from(&home).join(".local/state/0-core/intent/focus.toml");
         if let Ok(content) = std::fs::read_to_string(&focus_file) {
             for line in content.lines() {
                 if let Some(rest) = line.strip_prefix("id = ") {
@@ -411,7 +411,10 @@ impl ForestDb {
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())
             .unwrap_or_default();
-        let name = format!("auto-{}", command.split_whitespace().next().unwrap_or("cmd"));
+        let name = format!(
+            "auto-{}",
+            command.split_whitespace().next().unwrap_or("cmd")
+        );
         let _ = self.conn.execute(
             "INSERT INTO command_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -450,7 +453,4 @@ pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::Exit
         }
     }
     child.wait()
-
-
-
 }

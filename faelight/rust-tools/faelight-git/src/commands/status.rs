@@ -47,7 +47,6 @@ pub fn run() -> Result<()> {
         println!(" {} {}", "upstream".dimmed(), up.dimmed());
     }
 
-
     if status.is_empty() {
         println!();
         println!("{}", "  ✅ Working tree clean".green());

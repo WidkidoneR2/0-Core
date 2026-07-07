@@ -1,16 +1,19 @@
 // faelight-fm v4.0 -- Nix plugin
 // Handles: flake.nix, flake.lock, .drv files, /nix/store paths
 
-use std::{path::Path, process::Command};
 use super::{Plugin, PluginAction};
+use std::{path::Path, process::Command};
 
 pub struct NixPlugin;
 
 impl Plugin for NixPlugin {
-    fn name(&self) -> &str { "nix" }
+    fn name(&self) -> &str {
+        "nix"
+    }
 
     fn handles(&self, path: &Path) -> bool {
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
         let path_str = path.to_string_lossy();
@@ -22,7 +25,8 @@ impl Plugin for NixPlugin {
     }
 
     fn preview(&self, path: &Path) -> String {
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
         let path_str = path.to_string_lossy();
@@ -46,16 +50,15 @@ impl Plugin for NixPlugin {
     }
 
     fn actions(&self, path: &Path) -> Vec<PluginAction> {
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
-        let mut actions = vec![
-            PluginAction {
-                label: "nix-store info".to_string(),
-                key: 'i',
-                description: "Show store path info".to_string(),
-            },
-        ];
+        let mut actions = vec![PluginAction {
+            label: "nix-store info".to_string(),
+            key: 'i',
+            description: "Show store path info".to_string(),
+        }];
         if name == "flake.nix" || name == "flake.lock" {
             actions.push(PluginAction {
                 label: "browse inputs".to_string(),
@@ -92,19 +95,18 @@ fn preview_flake_lock(path: &Path) -> String {
     };
     let mut out = String::from("❄️  Flake Inputs\n━━━━━━━━━━━━━━━━\n");
     if let Some(nodes) = json.get("nodes").and_then(|n| n.as_object()) {
-        let mut inputs: Vec<String> = nodes.keys()
-            .filter(|k| *k != "root")
-            .cloned()
-            .collect();
+        let mut inputs: Vec<String> = nodes.keys().filter(|k| *k != "root").cloned().collect();
         inputs.sort();
         for input in &inputs {
             if let Some(node) = nodes.get(input) {
-                let rev = node.get("locked")
+                let rev = node
+                    .get("locked")
                     .and_then(|l| l.get("rev"))
                     .and_then(|r| r.as_str())
                     .map(|r| &r[..8])
                     .unwrap_or("?");
-                let typ = node.get("locked")
+                let typ = node
+                    .get("locked")
                     .and_then(|l| l.get("type"))
                     .and_then(|t| t.as_str())
                     .unwrap_or("?");
@@ -124,11 +126,15 @@ fn preview_flake_nix(path: &Path) -> String {
     // Extract inputs
     let mut in_inputs = false;
     for line in content.lines().take(60) {
-        if line.contains("inputs") && line.contains("{") { in_inputs = true; }
+        if line.contains("inputs") && line.contains("{") {
+            in_inputs = true;
+        }
         if in_inputs {
             out.push_str(line);
             out.push('\n');
-            if line.contains('}') && !line.contains('{') { in_inputs = false; }
+            if line.contains('}') && !line.contains('{') {
+                in_inputs = false;
+            }
         }
     }
     if out.len() < 30 {
@@ -145,7 +151,10 @@ fn preview_derivation(store_path: &str) -> String {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
     if out.is_empty() {
-        return format!("⚙️  Derivation: {}\n\nRun: nix show-derivation {}", store_path, store_path);
+        return format!(
+            "⚙️  Derivation: {}\n\nRun: nix show-derivation {}",
+            store_path, store_path
+        );
     }
     // Pretty print key fields
     let Ok(json) = serde_json::from_str::<serde_json::Value>(&out) else {
@@ -163,7 +172,8 @@ fn preview_derivation(store_path: &str) -> String {
             if let Some(inputs) = drv.get("inputDrvs").and_then(|i| i.as_object()) {
                 result.push_str(&format!("\nInputs: {} derivations\n", inputs.len()));
                 for (k, _) in inputs.iter().take(5) {
-                    let name = k.strip_prefix("/nix/store/")
+                    let name = k
+                        .strip_prefix("/nix/store/")
                         .and_then(|s| s.splitn(2, '-').nth(1))
                         .unwrap_or(k);
                     result.push_str(&format!("  ← {}\n", name));
@@ -176,7 +186,8 @@ fn preview_derivation(store_path: &str) -> String {
 
 fn preview_store_path(store_path: &str) -> String {
     let mut info = format!("❄️  Nix Store\n{}\n\n", store_path);
-    if let Some(pkg) = store_path.strip_prefix("/nix/store/")
+    if let Some(pkg) = store_path
+        .strip_prefix("/nix/store/")
         .and_then(|s| s.splitn(2, '-').nth(1))
     {
         info.push_str(&format!("Package: {}\n", pkg));
@@ -192,7 +203,8 @@ fn preview_store_path(store_path: &str) -> String {
         let count = refs.lines().count();
         info.push_str(&format!("\nReferrers: {}\n", count));
         for line in refs.lines().take(3) {
-            if let Some(n) = line.strip_prefix("/nix/store/")
+            if let Some(n) = line
+                .strip_prefix("/nix/store/")
                 .and_then(|s| s.splitn(2, '-').nth(1))
             {
                 info.push_str(&format!("  ← {}\n", n));
@@ -243,7 +255,8 @@ fn show_drv_deps(store_path: &str) -> String {
     }
     let mut result = String::from("Dependencies:\n");
     for line in out.lines() {
-        if let Some(n) = line.strip_prefix("/nix/store/")
+        if let Some(n) = line
+            .strip_prefix("/nix/store/")
             .and_then(|s| s.splitn(2, '-').nth(1))
         {
             result.push_str(&format!("  → {}\n", n));

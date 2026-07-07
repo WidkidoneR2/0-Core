@@ -20,11 +20,11 @@ enum Category {
 impl std::fmt::Display for Category {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Category::Tilde      => write!(f, "tilde"),
-            Category::Pipes      => write!(f, "pipes"),
+            Category::Tilde => write!(f, "tilde"),
+            Category::Pipes => write!(f, "pipes"),
             Category::Vocabulary => write!(f, "vocabulary"),
-            Category::Heredoc    => write!(f, "heredoc"),
-            Category::Signals    => write!(f, "signals"),
+            Category::Heredoc => write!(f, "heredoc"),
+            Category::Signals => write!(f, "signals"),
             Category::Regression => write!(f, "regression"),
             Category::Performance => write!(f, "performance"),
         }
@@ -125,7 +125,11 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("vocab_list_home", Category::Vocabulary, || {
         // list is fsh vocabulary -- test via ls which it maps to
         let out = run_fsh("ls ~")?;
-        if out.is_empty() { Err("ls produced no output".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("ls produced no output".to_string())
+        } else {
+            Ok(())
+        }
     }));
     results.push(test("vocab_find_basic", Category::Vocabulary, || {
         // find vocabulary uses fd syntax -- test fd directly
@@ -205,19 +209,28 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("ls ~/0-core")?, "faelight")
     }));
     results.push(test("tilde_ls_scripts", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/packages/faelight/scripts")?, "deploy")
+        expect_contains(
+            &run_fsh("ls ~/0-core/faelight/packages/faelight/scripts")?,
+            "deploy",
+        )
     }));
     results.push(test("tilde_ls_runtime", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/runtime")?, "state.db")
     }));
     results.push(test("tilde_cat_cargo", Category::Tilde, || {
-        expect_contains(&run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml")?, "faelight-shell")
+        expect_contains(
+            &run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml")?,
+            "faelight-shell",
+        )
     }));
     results.push(test("tilde_pipe_grep", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
     }));
     results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
-        expect_contains(&run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml | grep name")?, "name")
+        expect_contains(
+            &run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml | grep name")?,
+            "name",
+        )
     }));
 
     // --- PIPES (additional) ---
@@ -238,26 +251,37 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     // --- REGRESSION ---
-    results.push(test("regression_sigpipe_no_crash", Category::Regression, || {
-        // Pipe to head should not crash with SIGPIPE
-        let out = run_fsh("printf 'a\\nb\\nc\\nd\\ne\\n' | head -3")?;
-        expect_eq(&out, "a\nb\nc")
-    }));
-    results.push(test("regression_tilde_not_literal", Category::Regression, || {
-        // ~ must never appear literally in output when used as path
-        let out = run_fsh("echo ~/0-core")?;
-        if out.contains('~') {
-            Err(format!("~ not expanded: {:?}", out))
-        } else {
+    results.push(test(
+        "regression_sigpipe_no_crash",
+        Category::Regression,
+        || {
+            // Pipe to head should not crash with SIGPIPE
+            let out = run_fsh("printf 'a\\nb\\nc\\nd\\ne\\n' | head -3")?;
+            expect_eq(&out, "a\nb\nc")
+        },
+    ));
+    results.push(test(
+        "regression_tilde_not_literal",
+        Category::Regression,
+        || {
+            // ~ must never appear literally in output when used as path
+            let out = run_fsh("echo ~/0-core")?;
+            if out.contains('~') {
+                Err(format!("~ not expanded: {:?}", out))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+    results.push(test(
+        "regression_empty_pipe_ok",
+        Category::Regression,
+        || {
+            // Empty output through pipe should not error
+            run_fsh("echo '' | cat")?;
             Ok(())
-        }
-    }));
-    results.push(test("regression_empty_pipe_ok", Category::Regression, || {
-        // Empty output through pipe should not error
-        run_fsh("echo '' | cat")?;
-        Ok(())
-    }));
-
+        },
+    ));
 
     // --- ADDITIONAL TESTS from fsh_audit.sh ---
     results.push(test("date_has_year", Category::Regression, || {
@@ -265,7 +289,11 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("ls_la_tmp", Category::Regression, || {
         let out = run_fsh("ls /tmp")?;
-        if out.is_empty() { Err("ls /tmp empty".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("ls /tmp empty".to_string())
+        } else {
+            Ok(())
+        }
     }));
     results.push(test("grep_pattern_match", Category::Regression, || {
         expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
@@ -274,10 +302,16 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("grep -r 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
     }));
     results.push(test("awk_print_field", Category::Regression, || {
-        expect_eq(&run_fsh("echo 'christian:x:1000' | awk -F: '{print $1}'")?, "christian")
+        expect_eq(
+            &run_fsh("echo 'christian:x:1000' | awk -F: '{print $1}'")?,
+            "christian",
+        )
     }));
     results.push(test("awk_in_pipeline", Category::Regression, || {
-        expect_eq(&run_fsh("printf 'a 1\nb 2\nc 3\n' | awk '{print $2}' | head -1")?, "1")
+        expect_eq(
+            &run_fsh("printf 'a 1\nb 2\nc 3\n' | awk '{print $2}' | head -1")?,
+            "1",
+        )
     }));
     results.push(test("fsh_c_echo", Category::Regression, || {
         expect_eq(&run_fsh("echo hello")?, "hello")
@@ -298,32 +332,55 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
         let out = run_fsh("ls ~/0-core | sort | head -1")?;
-        if out.is_empty() { Err("no output".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("no output".to_string())
+        } else {
+            Ok(())
+        }
     }));
     results.push(test("tilde_nested_pipe", Category::Tilde, || {
         let out = run_fsh("ls ~/0-core/faelight/rust-tools | grep faelight | wc -l")?;
         let n: i32 = out.trim().parse().unwrap_or(0);
-        if n > 0 { Ok(()) } else { Err(format!("expected >0 got {}", n)) }
+        if n > 0 {
+            Ok(())
+        } else {
+            Err(format!("expected >0 got {}", n))
+        }
     }));
     results.push(test("where_delete_vocab", Category::Vocabulary, || {
-        expect_contains(&run_fsh("core vocabulary where delete 2>/dev/null || echo vocabulary")?, "vocabulary")
+        expect_contains(
+            &run_fsh("core vocabulary where delete 2>/dev/null || echo vocabulary")?,
+            "vocabulary",
+        )
     }));
     results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
-        expect_contains(&run_fsh("grep -r expand_braces ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+        expect_contains(
+            &run_fsh(
+                "grep -r expand_braces ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1",
+            )?,
+            "expand_braces",
+        )
     }));
     results.push(test("grep_in_and_chain", Category::Regression, || {
         expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/main.rs | head -1")?, "expand_braces")
     }));
     results.push(test("cat_hostname", Category::Regression, || {
         let out = run_fsh("cat /etc/hostname")?;
-        if out.is_empty() { Err("hostname empty".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("hostname empty".to_string())
+        } else {
+            Ok(())
+        }
     }));
     results.push(test("echo_env_home", Category::Regression, || {
         expect_contains(&run_fsh("echo $HOME")?, "/home/christian")
     }));
 
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "faelight-shell")
+        expect_contains(
+            &run_fsh("ls ~/0-core/faelight/rust-tools")?,
+            "faelight-shell",
+        )
     }));
     results.push(test("tilde_ls_docs", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
@@ -332,7 +389,10 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents")?, "future")
     }));
     results.push(test("tilde_deep_nested", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools/faelight-shell/src")?, "main.rs")
+        expect_contains(
+            &run_fsh("ls ~/0-core/faelight/rust-tools/faelight-shell/src")?,
+            "main.rs",
+        )
     }));
     results.push(test("cat_reads_file", Category::Regression, || {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
@@ -340,22 +400,36 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("tilde_in_subshell", Category::Tilde, || {
         let out = run_fsh("echo $(ls ~/0-core | head -1)")?;
-        if out.is_empty() { Err("empty output".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("empty output".to_string())
+        } else {
+            Ok(())
+        }
     }));
     results.push(test("ls_tmp_exists", Category::Regression, || {
         let out = run_fsh("ls /tmp")?;
-        if out.is_empty() { Err("ls /tmp empty".to_string()) } else { Ok(()) }
+        if out.is_empty() {
+            Err("ls /tmp empty".to_string())
+        } else {
+            Ok(())
+        }
     }));
 
     // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
     results.push(test("state_db_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/runtime/state.db")?, "state.db")
+        expect_contains(
+            &run_fsh("ls ~/0-core/faelight/runtime/state.db")?,
+            "state.db",
+        )
     }));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
     }));
     results.push(test("fsh_binary_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls /run/current-system/sw/bin/faelight-shell")?, "faelight-shell")
+        expect_contains(
+            &run_fsh("ls /run/current-system/sw/bin/faelight-shell")?,
+            "faelight-shell",
+        )
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md")
@@ -385,33 +459,57 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     // --- PHASE 2: INT-298/299 specific regression tests ---
-    results.push(test("regression_fsh_c_inside_fsh", Category::Regression, || {
-        // INT-299: fsh -c works inside fsh
-        expect_eq(&run_fsh("echo hello")?, "hello")
-    }));
-    results.push(test("regression_sigpipe_head", Category::Regression, || {
-        // INT-299: SIGPIPE does not crash on pipe to head
-        let out = run_fsh("seq 1 100 | head -3")?;
-        expect_eq(&out, "1\n2\n3")
-    }));
-    results.push(test("regression_awk_passthrough", Category::Regression, || {
-        // INT-299: awk passes through correctly
-        expect_eq(&run_fsh("echo 'a b c' | awk '{print $2}'")?, "b")
-    }));
-    results.push(test("regression_grep_passthrough", Category::Regression, || {
-        // INT-299: grep passes through correctly
-        expect_eq(&run_fsh("printf 'foo\nbar\n' | grep foo")?, "foo")
-    }));
-    results.push(test("regression_pipe_quote_aware", Category::Regression, || {
-        // INT-299: pipe detection with quote awareness
-        expect_eq(&run_fsh("echo 'a|b' | cat")?, "a|b")
-    }));
-    results.push(test("regression_heredoc_single_quote", Category::Heredoc, || {
-        // INT-299: heredoc with single-quoted delimiter
-        let out = run_fsh("cat << 'MARKER'\nhello $USER\nMARKER")?;
-        // single-quoted heredoc should NOT expand $USER
-        expect_eq(&out, "hello $USER")
-    }));
+    results.push(test(
+        "regression_fsh_c_inside_fsh",
+        Category::Regression,
+        || {
+            // INT-299: fsh -c works inside fsh
+            expect_eq(&run_fsh("echo hello")?, "hello")
+        },
+    ));
+    results.push(test(
+        "regression_sigpipe_head",
+        Category::Regression,
+        || {
+            // INT-299: SIGPIPE does not crash on pipe to head
+            let out = run_fsh("seq 1 100 | head -3")?;
+            expect_eq(&out, "1\n2\n3")
+        },
+    ));
+    results.push(test(
+        "regression_awk_passthrough",
+        Category::Regression,
+        || {
+            // INT-299: awk passes through correctly
+            expect_eq(&run_fsh("echo 'a b c' | awk '{print $2}'")?, "b")
+        },
+    ));
+    results.push(test(
+        "regression_grep_passthrough",
+        Category::Regression,
+        || {
+            // INT-299: grep passes through correctly
+            expect_eq(&run_fsh("printf 'foo\nbar\n' | grep foo")?, "foo")
+        },
+    ));
+    results.push(test(
+        "regression_pipe_quote_aware",
+        Category::Regression,
+        || {
+            // INT-299: pipe detection with quote awareness
+            expect_eq(&run_fsh("echo 'a|b' | cat")?, "a|b")
+        },
+    ));
+    results.push(test(
+        "regression_heredoc_single_quote",
+        Category::Heredoc,
+        || {
+            // INT-299: heredoc with single-quoted delimiter
+            let out = run_fsh("cat << 'MARKER'\nhello $USER\nMARKER")?;
+            // single-quoted heredoc should NOT expand $USER
+            expect_eq(&out, "hello $USER")
+        },
+    ));
 
     results
 }
@@ -423,7 +521,13 @@ fn store_results(results: &[TestResult]) {
         return;
     };
     let commit = std::process::Command::new("git")
-        .args(["-C", "/home/christian/0-core", "rev-parse", "--short", "HEAD"])
+        .args([
+            "-C",
+            "/home/christian/0-core",
+            "rev-parse",
+            "--short",
+            "HEAD",
+        ])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
@@ -471,13 +575,20 @@ fn store_results(results: &[TestResult]) {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let show_only_failed = args.contains(&"--failed".to_string());
-    let category_filter = args.iter()
+    let category_filter = args
+        .iter()
         .find(|a| a.starts_with("--category="))
         .map(|a| a.trim_start_matches("--category=").to_string());
 
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!("{}", "  🌲 fsh-test v1.0.0 -- INT-304".bold());
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let results = all_tests();
     let mut passed = 0;
@@ -485,9 +596,13 @@ fn main() {
 
     for r in &results {
         if let Some(ref cat) = category_filter {
-            if r.category.to_string() != *cat { continue; }
+            if r.category.to_string() != *cat {
+                continue;
+            }
         }
-        if show_only_failed && r.passed { continue; }
+        if show_only_failed && r.passed {
+            continue;
+        }
 
         let status = if r.passed {
             "✅".to_string()
@@ -495,7 +610,8 @@ fn main() {
             "❌".to_string()
         };
 
-        println!("  {} [{:>11}] {} {}ms",
+        println!(
+            "  {} [{:>11}] {} {}ms",
             status,
             r.category.to_string().dimmed(),
             r.name,
@@ -512,24 +628,50 @@ fn main() {
         }
     }
 
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("  Results: {} / {} passed",
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
+    println!(
+        "  Results: {} / {} passed",
         passed.to_string().green().bold(),
         (passed + failed).to_string().bold()
     );
     store_results(&results);
     // Phase 5: coverage reporting
     if args.contains(&"--coverage".to_string()) {
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!(
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+        );
         println!("{}", "  📊 Coverage Report".bold());
-        let categories = ["tilde", "pipes", "vocabulary", "heredoc", "regression", "performance"];
+        let categories = [
+            "tilde",
+            "pipes",
+            "vocabulary",
+            "heredoc",
+            "regression",
+            "performance",
+        ];
         for cat in &categories {
-            let count = results.iter().filter(|r| r.category.to_string() == *cat).count();
-            let passed = results.iter().filter(|r| r.category.to_string() == *cat && r.passed).count();
+            let count = results
+                .iter()
+                .filter(|r| r.category.to_string() == *cat)
+                .count();
+            let passed = results
+                .iter()
+                .filter(|r| r.category.to_string() == *cat && r.passed)
+                .count();
             let pct = if count > 0 { (passed * 100) / count } else { 0 };
             let bar = "█".repeat(pct / 10);
-            println!("  [{:>11}] {}/{} {}% {}",
-                cat.dimmed(), passed, count, pct, bar.green());
+            println!(
+                "  [{:>11}] {}/{} {}% {}",
+                cat.dimmed(),
+                passed,
+                count,
+                pct,
+                bar.green()
+            );
         }
         println!("");
         println!("  Vocabulary words tested: delete, find, list, gt, fsearch, where");
@@ -537,19 +679,31 @@ fn main() {
     }
     // Phase 3: performance summary
     if args.contains(&"--perf".to_string()) {
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!(
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+        );
         println!("{}", "  ⏱️  Performance Summary".bold());
-        let mut by_cat: std::collections::HashMap<String, Vec<u64>> = std::collections::HashMap::new();
+        let mut by_cat: std::collections::HashMap<String, Vec<u64>> =
+            std::collections::HashMap::new();
         for r in &results {
-            by_cat.entry(r.category.to_string()).or_default().push(r.duration_ms);
+            by_cat
+                .entry(r.category.to_string())
+                .or_default()
+                .push(r.duration_ms);
         }
         let mut cats: Vec<_> = by_cat.iter().collect();
         cats.sort_by(|(a, _), (b, _)| a.cmp(b));
         for (cat, times) in &cats {
             let avg = times.iter().sum::<u64>() / times.len() as u64;
             let max = times.iter().max().unwrap_or(&0);
-            println!("  [{:>11}] avg: {}ms  max: {}ms  count: {}",
-                cat.dimmed(), avg, max, times.len());
+            println!(
+                "  [{:>11}] avg: {}ms  max: {}ms  count: {}",
+                cat.dimmed(),
+                avg,
+                max,
+                times.len()
+            );
         }
     }
     if failed > 0 {
