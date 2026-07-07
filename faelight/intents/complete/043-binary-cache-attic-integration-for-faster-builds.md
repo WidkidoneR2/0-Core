@@ -3,7 +3,7 @@ id: 043
 date: 2026-06-09
 type: infrastructure
 title: "faster builds: crane dep-split + Attic binary cache"
-status: in-progress
+status: complete
 tags: [nix, attic, crane, rust, binary-cache, builds, performance, nixos, flake]
 priority: low
 ---
