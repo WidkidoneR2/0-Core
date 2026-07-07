@@ -3,7 +3,7 @@ id: 109
 date: 2026-07-02
 type: future
 title: "Improve fsh to handle muiltiple/bundle commands"
-status: planned
+status: complete
 tags: [fsh, commands]
 ---
 
@@ -41,10 +41,11 @@ Proper command-sequence parsing in fsh:
 - INT-298 tracks remaining shell issues; coordinate scope to avoid overlap.
 
 ## Success Criteria
-- [ ] `cmd1 && cmd2` executes both with correct short-circuit
-- [ ] `cmd1; cmd2; cmd3` runs reliably (incl. after redirects)
-- [ ] `... 2>&1 | tail -N` works without broken-pipe panic and streams sanely
-- [ ] `cd dir && cmd` composes correctly
-- [ ] Multi-command pastes (like this session's) run as-is, no manual splitting
+- [x] `cmd1 && cmd2` executes both with correct short-circuit
+- [x] `cmd1; cmd2; cmd3` runs reliably (incl. after redirects)
+- [x] `... 2>&1 | tail -N` works without broken-pipe panic and streams sanely
+- [x] `cd dir && cmd` composes correctly
+- [x] Multi-command pastes (like this session's) run as-is, no manual splitting
+- [x] pipe on the left of `&&` / `||` runs as a pipeline (fixed 2026-07-07; covered by fsh-test `pipe_left_of_and`)
 
 ---

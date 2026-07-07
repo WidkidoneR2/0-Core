@@ -121,6 +121,12 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&out, "b")
     }));
 
+    // --- INT-109: pipeline on the left of && / || ---
+    results.push(test("pipe_left_of_and", Category::Pipes, || {
+        let out = run_fsh("echo hi | tr a-z A-Z && echo done")?;
+        expect_eq(&out, "HI\ndone")
+    }));
+
     // --- VOCABULARY ---
     results.push(test("vocab_list_home", Category::Vocabulary, || {
         // list is fsh vocabulary -- test via ls which it maps to

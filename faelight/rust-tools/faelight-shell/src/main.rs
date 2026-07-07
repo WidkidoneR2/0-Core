@@ -1356,6 +1356,35 @@ fn repl_main() -> Result<()> {
                                 }
                                 continue;
                             }
+                            // INT-109: piped sub-command in a logical chain must run
+                            // as a pipeline, not as a single command. commands::execute has no
+                            // pipe support, so route piped sub-commands through sh -c (same
+                            // fallback the has_redirect branch below uses).
+                            let has_pipe_in_lcmd = {
+                                let mut in_q = false; let mut qc = ' '; let mut found = false;
+                                for ch in lcmd_trim.chars() {
+                                    match ch {
+                                        '"' | '\'' if !in_q => { in_q = true; qc = ch; }
+                                        c if in_q && c == qc => { in_q = false; }
+                                        '|' if !in_q => { found = true; break; }
+                                        _ => {}
+                                    }
+                                }
+                                found
+                            };
+                            if has_pipe_in_lcmd {
+                                let status = std::process::Command::new("/bin/sh")
+                                    .arg("-c")
+                                    .arg(lcmd_trim)
+                                    .stdin(std::process::Stdio::inherit())
+                                    .stdout(std::process::Stdio::inherit())
+                                    .stderr(std::process::Stdio::inherit())
+                                    .envs(std::env::vars())
+                                    .status();
+                                last_success = status.map(|s| s.success()).unwrap_or(false);
+                                prev_op = *op;
+                                continue;
+                            }
                             // INT-322 Phase 1: route through fsh builtin dispatcher
                             // Commands with redirects use sh -c (proper redirect + real system cmds)
                             // Pure commands use fsh dispatcher (enables fg, deploy, cistart in chains)
