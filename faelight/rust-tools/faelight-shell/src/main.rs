@@ -637,6 +637,9 @@ fn repl_main() -> Result<()> {
     config::ensure_default();
     let cfg = config::load();
 
+    // INT-124: refresh health BEFORE the welcome header renders, so the splash
+    // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
+    refresh_health_if_stale(&core_root, &db);
     // Print welcome
     print_welcome(&core_root, &db);
     // Write journal session-start entry
@@ -3529,8 +3532,6 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         }
     }
     println!();
-    // INT-124: ensure the splash's health is fresh (refresh once if stale since boot)
-    refresh_health_if_stale(core_root, db);
     // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root, db) {
         // Phase 23 — restore last working directory
