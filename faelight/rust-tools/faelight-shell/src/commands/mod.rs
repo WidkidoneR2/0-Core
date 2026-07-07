@@ -23,6 +23,20 @@ pub enum CommandResult {
 }
 
 // ── Security Layer — log every command ───────────────────────────────────────
+/// Truncate a string to at most `max` bytes WITHOUT splitting a UTF-8 char.
+/// Used in abort/error messages so a multibyte anchor (em-dash, box-drawing char)
+/// never panics the shell via an out-of-bounds byte slice (a panic here closes fsh).
+fn truncate_safe(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        return s;
+    }
+    let mut end = max;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1624,13 +1638,13 @@ fn execute_impl(
             if count == 0 {
                 return CommandResult::Error(format!(
                     "rspatch: anchor not found in {}\n  what:  anchor text does not exist in file\n  anchor: {}\n  fix:   run fsearch '{}' to verify exact text",
-                    filepath, &anchor[..anchor.len().min(60)], &anchor[..anchor.len().min(20)]
+                    filepath, truncate_safe(&anchor, 60), truncate_safe(&anchor, 20)
                 ));
             }
             if count > 1 {
                 return CommandResult::Error(format!(
                     "rspatch: anchor matches {} times -- must be unique\n  what:  anchor text is ambiguous\n  anchor: {}\n  fix:   use a longer, more specific anchor string",
-                    count, &anchor[..anchor.len().min(60)]
+                    count, truncate_safe(&anchor, 60)
                 ));
             }
             // Apply transformation based on mode
@@ -1651,7 +1665,7 @@ fn execute_impl(
                     "✅".to_string(),
                     filepath,
                     mode,
-                    &anchor[..anchor.len().min(40)]
+                    truncate_safe(&anchor, 40)
                 )),
                 Err(e) => CommandResult::Error(format!("rspatch: write failed: {}", e)),
             }
@@ -1704,11 +1718,14 @@ fn execute_impl(
             for (old, _) in &pairs {
                 let count = content_str.matches(*old).count();
                 if count == 0 {
-                    errors.push(format!("  not found: '{}'", old));
+                    errors.push(format!(
+                        "  not found: '{}' -- fix: fsearch to verify exact text",
+                        truncate_safe(old, 60)
+                    ));
                 } else if count > 1 {
                     errors.push(format!(
-                        "  ambiguous: '{}' ({} matches -- must be unique)",
-                        old, count
+                        "  ambiguous: '{}' (expected 1, found {}) -- fix: add more context",
+                        truncate_safe(old, 60), count
                     ));
                 }
             }
@@ -3219,12 +3236,18 @@ fn execute_impl(
             };
             let count = content_str.matches(old_text.as_str()).count();
             if count == 0 {
-                return CommandResult::Error(format!("patch: text not found in {}", filepath));
+                return CommandResult::Error(format!(
+                    "patch: text not found in {}\n  what:  --old text does not exist in file\n  text:  {}\n  fix:   run fsearch '{}' to verify the exact text",
+                    filepath,
+                    truncate_safe(&old_text, 60),
+                    truncate_safe(&old_text, 20)
+                ));
             }
             if count > 1 {
                 return CommandResult::Error(format!(
-                    "patch: {} occurrences found -- text must be unique (found {})",
-                    count, count
+                    "patch: --old text matches {} times -- must be unique\n  what:  --old text is ambiguous (expected 1, found {})\n  text:  {}\n  fix:   add more surrounding context to make it unique",
+                    count, count,
+                    truncate_safe(&old_text, 60)
                 ));
             }
             let patched = content_str.replacen(&old_text, &new_text, 1);
