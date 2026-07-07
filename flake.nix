@@ -15,11 +15,11 @@
   # with configurable upstream-skip, so it actually serves the closure).
   inputs.attic.url = "github:zhaofengli/attic";
   inputs.attic.inputs.nixpkgs.follows = "nixpkgs";
-  # INT-090 Phase 3: nixvim for the friday-dev devShell. Pin nixos-26.05 (NOT main); NO
-  # nixpkgs.follows -- Phase 0 lesson: let nixvim bring its own tested nixpkgs.
-  inputs.nixvim.url = "github:nix-community/nixvim/nixos-26.05";
+  # INT-122: nixCats -- real-Lua-packaged-by-Nix neovim (migrating off nixvim).
+  # Bring its own nixpkgs is NOT needed; nixCats is a library builder, follows ours.
+  inputs.nixcats.url = "github:BirdeeHub/nixCats-nvim";
 
-  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, crane, nixvim, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, disko, nixos-hardware, pinnacle, crane, ... }@inputs:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -233,10 +233,10 @@
 
 
       devShells.${system}.default = let
-        # INT-090 Phase 3: build our candy-neon nixvim as an `nvim` package for this shell only.
-        forestNvim = nixvim.legacyPackages.${system}.makeNixvimWithModule {
+        # INT-122: build our candy-neon neovim via nixCats (real Lua, migrated off nixvim).
+        forestNvim = import ./nix/home/dotfiles/forest-nvim {
           inherit pkgs;
-          module = import ./nix/home/dotfiles/nixvim/default.nix;
+          nixCats = inputs.nixcats;
         };
       in pkgs.mkShell {
         name = "friday-dev";
