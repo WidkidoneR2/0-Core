@@ -129,7 +129,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("vocab_find_basic", Category::Vocabulary, || {
         // find vocabulary uses fd syntax -- test fd directly
-        let out = run_fsh("fd Cargo.toml /home/christian/0-core/engine")?;
+        let out = run_fsh("fd Cargo.toml /home/christian/0-core/faelight/engine")?;
         expect_contains(&out, "Cargo.toml")
     }));
 
@@ -202,22 +202,22 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("echo ~/0-core")?, "/home/christian/0-core")
     }));
     results.push(test("tilde_ls_root", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core")?, "rust-tools")
+        expect_contains(&run_fsh("ls ~/0-core")?, "faelight")
     }));
     results.push(test("tilde_ls_scripts", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/pkgs/faelight/scripts")?, "deploy")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/packages/faelight/scripts")?, "deploy")
     }));
     results.push(test("tilde_ls_runtime", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/runtime")?, "state.db")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/runtime")?, "state.db")
     }));
     results.push(test("tilde_cat_cargo", Category::Tilde, || {
-        expect_contains(&run_fsh("cat ~/0-core/rust-tools/faelight-shell/Cargo.toml")?, "faelight-shell")
+        expect_contains(&run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml")?, "faelight-shell")
     }));
     results.push(test("tilde_pipe_grep", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core | grep engine")?, "engine")
+        expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
     }));
     results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
-        expect_contains(&run_fsh("cat ~/0-core/rust-tools/faelight-shell/Cargo.toml | grep name")?, "name")
+        expect_contains(&run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml | grep name")?, "name")
     }));
 
     // --- PIPES (additional) ---
@@ -234,7 +234,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("echo hello | tr a-z A-Z | tr A-Z a-z")?, "hello")
     }));
     results.push(test("pipe_ls_grep", Category::Pipes, || {
-        expect_contains(&run_fsh("ls ~/0-core | grep rust")?, "rust-tools")
+        expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
     }));
 
     // --- REGRESSION ---
@@ -271,7 +271,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
     }));
     results.push(test("grep_r_in_src", Category::Regression, || {
-        expect_contains(&run_fsh("grep -r 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+        expect_contains(&run_fsh("grep -r 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
     }));
     results.push(test("awk_print_field", Category::Regression, || {
         expect_eq(&run_fsh("echo 'christian:x:1000' | awk -F: '{print $1}'")?, "christian")
@@ -301,7 +301,7 @@ fn all_tests() -> Vec<TestResult> {
         if out.is_empty() { Err("no output".to_string()) } else { Ok(()) }
     }));
     results.push(test("tilde_nested_pipe", Category::Tilde, || {
-        let out = run_fsh("ls ~/0-core/rust-tools | grep faelight | wc -l")?;
+        let out = run_fsh("ls ~/0-core/faelight/rust-tools | grep faelight | wc -l")?;
         let n: i32 = out.trim().parse().unwrap_or(0);
         if n > 0 { Ok(()) } else { Err(format!("expected >0 got {}", n)) }
     }));
@@ -309,10 +309,10 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("core vocabulary where delete 2>/dev/null || echo vocabulary")?, "vocabulary")
     }));
     results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
-        expect_contains(&run_fsh("grep -r expand_braces ~/0-core/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+        expect_contains(&run_fsh("grep -r expand_braces ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
     }));
     results.push(test("grep_in_and_chain", Category::Regression, || {
-        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/main.rs | head -1")?, "expand_braces")
+        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/main.rs | head -1")?, "expand_braces")
     }));
     results.push(test("cat_hostname", Category::Regression, || {
         let out = run_fsh("cat /etc/hostname")?;
@@ -323,16 +323,16 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/rust-tools")?, "faelight-shell")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "faelight-shell")
     }));
     results.push(test("tilde_ls_docs", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
     }));
     results.push(test("tilde_ls_intents", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/intents")?, "future")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/intents")?, "future")
     }));
     results.push(test("tilde_deep_nested", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/rust-tools/faelight-shell/src")?, "main.rs")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools/faelight-shell/src")?, "main.rs")
     }));
     results.push(test("cat_reads_file", Category::Regression, || {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
@@ -349,7 +349,7 @@ fn all_tests() -> Vec<TestResult> {
 
     // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
     results.push(test("state_db_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/runtime/state.db")?, "state.db")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/runtime/state.db")?, "state.db")
     }));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
@@ -358,7 +358,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/faelight-shell")?, "faelight-shell")
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/intents/future")?, ".md")
+        expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md")
     }));
     results.push(test("pipe_multiline_output", Category::Pipes, || {
         let out = run_fsh("printf 'a\nb\nc\n' | wc -l")?;
