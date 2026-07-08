@@ -1197,13 +1197,58 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
                     }
                 };
                 match engine_apply_bump(&ctx.core_root, cargo_path, level) {
-                    Ok((old, new)) => println!(
-                        "      {} {} -> {} ({})",
-                        "✓".green(),
-                        old.dimmed(),
-                        new.bright_green(),
-                        level.dimmed()
-                    ),
+                    Ok((old, new)) => {
+                        println!(
+                            "      {} {} -> {} ({})",
+                            "✓".green(),
+                            old.dimmed(),
+                            new.bright_green(),
+                            level.dimmed()
+                        );
+                        // INT-125: sync Cargo.lock so it never lags a version bump.
+                        // Derive the cargo package name from the crate's Cargo.toml
+                        // [package] name (display `name` may differ, e.g. "core (engine)").
+                        let pkg = std::fs::read_to_string(&full_path).ok().and_then(|c| {
+                            c.lines()
+                                .find(|l| l.trim_start().starts_with("name = "))
+                                .map(|l| {
+                                    l.trim()
+                                        .trim_start_matches("name = ")
+                                        .trim_matches('"')
+                                        .to_string()
+                                })
+                        });
+                        if let Some(pkg) = pkg {
+                            let lock = std::process::Command::new("cargo")
+                                .args([
+                                    "update",
+                                    "-p",
+                                    &pkg,
+                                    "--precise",
+                                    &new,
+                                ])
+                                .current_dir(&ctx.core_root)
+                                .output();
+                            match lock {
+                                Ok(o) if o.status.success() => println!(
+                                    "        {} Cargo.lock synced ({} {})",
+                                    "✓".green(),
+                                    pkg.dimmed(),
+                                    new.dimmed()
+                                ),
+                                Ok(o) => println!(
+                                    "        {} Cargo.lock sync skipped: {}",
+                                    "⚠".yellow(),
+                                    String::from_utf8_lossy(&o.stderr).trim().dimmed()
+                                ),
+                                Err(e) => println!(
+                                    "        {} cargo not available for lock sync: {}",
+                                    "⚠".yellow(),
+                                    e.to_string().dimmed()
+                                ),
+                            }
+                        }
+                    }
                     Err(e) => println!("      {} bump failed: {}", "✗".red(), e),
                 }
             }

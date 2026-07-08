@@ -3,7 +3,7 @@ id: 125
 date: 2026-07-07
 type: future
 title: "cicomplete auto-syncs Cargo.lock after version bumps"
-status: planned
+status: in-progress
 tags: [cicomplete, cargo, workflow, core, intent-domain]
 ---
 
