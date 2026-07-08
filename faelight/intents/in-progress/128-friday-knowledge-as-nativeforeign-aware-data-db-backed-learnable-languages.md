@@ -79,7 +79,7 @@ FACTS table" (correct). Findings:
 
 ## Success Criteria (locked)
 - [x] friday_knowledge_meta companion table added (system/kind/translates_to, keyed on domain,key); base table untouched (615 rows intact), fresh-db-safe per INT-104 <!-- gate 1: proven live gen 322 -- companion table, not ALTER, matching INT-104 schema discipline -->
-- [ ] Existing fact rows backfilled: nixos facts labeled native; the pacman-keyed rows labeled as translations; system/kind set sensibly for the rest
+- [x] Existing fact rows backfilled: 146 meta rows (131 forest fact / 12 nixos native / 3 nixos translation); gap-check 0 unlabeled; base table untouched <!-- gate 2: labeled from evidence per INT-104 discipline; 3 pacman rows mapped to short native cmds in translates_to -->
 - [ ] vec! seed writes the new columns (idempotent upsert; re-seed does not orphan or duplicate)
 - [ ] Friday teaches only native (nixos) facts as "this system" (foreign facts not surfaced as native)
 - [ ] Friday recognizes a foreign command and translates it to the native way, driven by a DATA row (not hardcoded)
