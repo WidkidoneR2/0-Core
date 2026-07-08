@@ -91,7 +91,7 @@ FACTS table" (correct). Findings:
        - Friday teaches only native facts as "this system"
        - Friday recognizes + translates a foreign command via a DATA row
        - A new fact/translation via db write is live with NO rebuild (the "learnable" proof)
-     Follow-on: "Friday teaching path: bidirectional knowledge feedback loop" (INT-NNN,
+     Follow-on: "Friday teaching path: bidirectional knowledge feedback loop" (INT-132,
      filled in once numbered). 128 is the foundation that intent builds on. -->
 
 ## Relationship
