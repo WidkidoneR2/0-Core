@@ -959,12 +959,14 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let knowledge = vec![
-        // Arch Linux
-        ("arch", "pacman -Syu updates all packages. pacman -S installs. pacman -Rs removes with deps.", 0.95),
-        ("arch", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
-        ("arch", "AUR packages are built from source. paru or yay are AUR helpers. Never run as root.", 0.90),
-        ("arch", "Arch uses rolling release. Updates can break things. Always read the Arch news before updating.", 0.90),
-        ("arch", "/etc/pacman.conf controls mirrors and options. reflector updates mirror list.", 0.85),
+        // NixOS (INT-117: de-Arched -- native facts only. Arch recognition + translation
+        // is INT-128's job as data, not taught here. `fu` omitted until faelight-update
+        // is verified on NixOS. All commands verified against scripts/deploy.)
+        ("nixos", "deploy rebuilds and switches the whole system from the flake, then runs a health check. Packages are declared in the flake, not installed imperatively.", 0.95),
+        ("nixos", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
+        ("nixos", "NixOS has no separate AUR -- packages come from nixpkgs or flake inputs. Adding a flake input brings in software not in nixpkgs.", 0.90),
+        ("nixos", "NixOS builds are atomic: each deploy creates a generation you can roll back to. A bad rebuild is reverted by booting the previous generation.", 0.90),
+        ("nixos", "Binary caches (substituters) provide prebuilt packages, set in nix.settings. update-flake refreshes flake inputs.", 0.85),
         // Wayland
         ("wayland", "Wayland uses wl_display, wl_surface, wl_compositor objects. No global X display connection.", 0.90),
         ("wayland", "layer-shell protocol enables desktop widgets and panels. smithay implements it in Rust.", 0.85),
