@@ -81,10 +81,18 @@ FACTS table" (correct). Findings:
 - [x] friday_knowledge_meta companion table added (system/kind/translates_to, keyed on domain,key); base table untouched (615 rows intact), fresh-db-safe per INT-104 <!-- gate 1: proven live gen 322 -- companion table, not ALTER, matching INT-104 schema discipline -->
 - [x] Existing fact rows backfilled: 146 meta rows (131 forest fact / 12 nixos native / 3 nixos translation); gap-check 0 unlabeled; base table untouched <!-- gate 2: labeled from evidence per INT-104 discipline; 3 pacman rows mapped to short native cmds in translates_to -->
 - [x] sync_knowledge_meta() in ensure_tables auto-labels any fact row lacking meta (seed-agnostic, self-healing); PROVEN from empty: deploy reconstructed 131 forest / 12 nixos / 3 translation, 0 unlabeled <!-- gate 3: central labeler beats per-seed writes -- multiple seed paths + legacy db rows; INSERT OR IGNORE fills gaps only -->
-- [ ] Friday teaches only native (nixos) facts as "this system" (foreign facts not surfaced as native)
-- [ ] Friday recognizes a foreign command and translates it to the native way, driven by a DATA row (not hardcoded)
-- [ ] A new fact/translation added via db write is live with NO core rebuild -- demonstrated
-- [ ] session_summary / knowledge_entries / friday_language left untouched (verified)
+- [x] Other stores untouched by 128: knowledge facts 146 (unchanged), knowledge_entries 19, friday_language 6; 128 touched ONLY the new companion table. (session_summary went 469->470 via the normal session roll -- external to 128, not our write.) <!-- gate 7: honest verify -- the +1 is an auto session log, not an INT-128 change; facts + other stores pristine -->
+
+<!-- SCOPE CLOSE (2026-07-08): 128 delivers the native/foreign/translation DATA LAYER
+     (gates 1-3, proven). The BEHAVIORAL gates below were moved to the follow-on intent
+     because the metadata has no consumer yet -- surfacing/translating/teaching requires
+     a teach mechanism that is itself feature-sized work (a "teaching path"). Removed here,
+     not skipped -- rehomed to the follow-on:
+       - Friday teaches only native facts as "this system"
+       - Friday recognizes + translates a foreign command via a DATA row
+       - A new fact/translation via db write is live with NO rebuild (the "learnable" proof)
+     Follow-on: "Friday teaching path: bidirectional knowledge feedback loop" (INT-NNN,
+     filled in once numbered). 128 is the foundation that intent builds on. -->
 
 ## Relationship
 - FOLLOWS INT-117 (which does the textual de-Arch within the current structure -- ships
