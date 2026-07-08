@@ -52,6 +52,8 @@
     nix-tree
     nvd
     nh
+    deadnix    # dead-code linter for .nix files
+    statix     # Nix anti-pattern / style linter
     # Wayland essentials
     wl-clipboard
     wpaperd
