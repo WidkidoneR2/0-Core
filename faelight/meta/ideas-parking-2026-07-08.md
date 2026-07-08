@@ -41,6 +41,28 @@ NONE started -- captured so they survive a 2-day break. Verdicts from checking t
   Do NOT bump the metal kernel without VM proof. INT-056/recovery-adjacent.
 - Action when back: evaluation intent; VM-test before bare metal.
 
+
+- Burden of proof is ON the upgrade, not the status quo. For a DEV daily driver:
+  - Gaming win (Proton/NTSYNC) = irrelevant unless Christian games. Framework 16 is a build machine.
+  - Scheduler/btrfs gains = real but MODEST/unmeasured for Rust builds; btrfs 6.19 work is "experimental" (bad for a daily driver).
+  - Leaving an LTS kernel = shorter support + more churn -- AGAINST the forest's stability/recover-from-anything ethos.
+- Start the eval with "what problem am I solving?" NOT "should I get the newer number."
+  - Nothing broken + just saw 7.1 exists -> likely honest answer is STAY on stable LTS.
+  - Flaky suspend / want scheduler for builds / do game / specific Framework AMD fix -> then test it.
+- First data point to gather: 6.18.35 (what am I even on now?). Small delta if already on recent 6.x.
+
+
+- uname = 6.18.35 BUT config has NO boot.kernelPackages line (grep empty). So NOT pinned to LTS.
+- NixOS default kernel = rolling nixpkgs stable, NOT the 6.18-LTS-until-2027 branch. Version == LTS
+  number by coincidence; the TRACK is the rolling default that will move to 6.19/7.0/7.1 forward.
+- My earlier "you are on LTS, stay put" was WRONG -- version number != maintenance track.
+- REAL decision (reframed): should the forest PIN boot.kernelPackages to the actual LTS
+  (pkgs.linuxPackages_6_18, supported to Dec 2027) for stability -- OR ride the rolling default
+  forward (which reaches 7.x naturally)? Right now: implicitly riding the default (nothing pinned).
+- Forest-ethos angle: PINNING to real LTS is arguably the MORE stability-aligned move than either
+  drifting on default OR chasing 7.x. That is the honest question for the eval intent.
+- Action when back: eval = "pin to LTS vs ride rolling default"; VM-test any kernel change.
+
 ---
 Note: filed as a scratch parking doc, not intents, because these are pre-decision ideas.
 sops + kernel would each become proper evaluation intents when actually dug into.
