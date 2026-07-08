@@ -63,6 +63,19 @@ NONE started -- captured so they survive a 2-day break. Verdicts from checking t
   drifting on default OR chasing 7.x. That is the honest question for the eval intent.
 - Action when back: eval = "pin to LTS vs ride rolling default"; VM-test any kernel change.
 
+
+Christian insisted we VERIFY rather than assert. Result overturns my "corrected" claim:
+  readlink /run/current-system/kernel  -> d5fzzrf...-linux-6.18.35
+  linuxPackages.kernel.outPath         -> d5fzzrf...-linux-6.18.35   (the DEFAULT)
+  linuxPackages_6_18.kernel.outPath    -> d5fzzrf...-linux-6.18.35   (the LTS)
+  => IDENTICAL derivation. The nixpkgs 26.05 DEFAULT linuxPackages IS linuxPackages_6_18 (LTS).
+  (linuxPackages_latest = 7.0.12, which Christian is NOT on.)
+VERDICT (confirmed): Christian IS on the 6.18 LTS (EOL Dec 2027), via the default. Nothing to pin.
+  Stability choice is ALREADY correctly made. STAY. Moving to 7.x = explicitly setting
+  linuxPackages_latest = leaving LTS for ~5-month support, no dev gain. No action.
+Meta-lesson: I asserted twice (right-by-accident, then WRONG). Only the outPath comparison
+  DEMONSTRATED it. Verify, do not declare. Christian was right to hold the line.
+
 ---
 Note: filed as a scratch parking doc, not intents, because these are pre-decision ideas.
 sops + kernel would each become proper evaluation intents when actually dug into.
