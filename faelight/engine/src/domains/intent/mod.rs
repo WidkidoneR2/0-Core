@@ -1310,9 +1310,9 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
 
     let slug = title.to_lowercase().replace(' ', "-");
     let filename = format!("{:0>3}-{}.md", next_id, slug);
-    let filepath = PathBuf::from(&ctx.core_root)
-        .join("intents/future")
-        .join(&filename);
+    // INT-061 drift fix: write through intents_dir(ctx), not the stale
+    // pre-061 ctx.core_root/intents path (which no longer exists).
+    let filepath = intents_dir(ctx).join("future").join(&filename);
 
     let content = format!(
         r#"---
@@ -2385,9 +2385,9 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     };
     let slug = title.to_lowercase().replace(' ', "-");
     let filename = format!("{:0>3}-{}.md", next_id, slug);
-    let filepath = PathBuf::from(&ctx.core_root)
-        .join("intents/future")
-        .join(&filename);
+    // INT-061 drift fix: write through intents_dir(ctx), not the stale
+    // pre-061 ctx.core_root/intents path (which no longer exists).
+    let filepath = intents_dir(ctx).join("future").join(&filename);
     let content = format!(
         "---
 id: {:03}
