@@ -150,3 +150,8 @@ NOTE: several of 130's own gates ARE already met (root cause confirmed, blocker 
 demonstrated live, core built+deployed+verified). They are left unticked deliberately until
 the 23-audit gate is also done -- 130 completes as ONE honest unit, and (fittingly) its own
 fixed blocker will now enforce that.
+
+INT-332 predates the Arch->NixOS migration (June 1 2026). The gate-blocker has therefore
+been a no-op for the ENTIRE NixOS era and likely its whole existence back to Arch -- not
+weeks. This is why the 27 affected intents span a wide range (023 onward) rather than
+clustering recent: nothing was ever enforced, the whole time.
