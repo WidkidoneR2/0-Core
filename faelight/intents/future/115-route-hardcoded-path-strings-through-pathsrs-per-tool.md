@@ -47,3 +47,25 @@ testing each tool before moving on. Priority order:
 
 ## Notes
 Explicitly multi-session / may split into per-tool sub-intents. Was INT-106 #3.
+
+
+## CONFIRMED INSTANCES (2026-07-08) -- concrete evidence this debt is live
+Found while fixing `core intent new` (which was fatally broken by exactly this class):
+- `new_intent` + `new_intent_smart` (engine/src/domains/intent/mod.rs, was lines 1313/2388)
+  hardcoded `PathBuf::from(&ctx.core_root).join("intents/future")` -- the pre-061 path
+  that no longer exists. FIXED as a one-off today (commit ff2b9610) -> intents_dir(ctx),
+  but it is a textbook 115 instance ("intents/future" literal, named in this charter).
+- FOUR MORE unaudited `PathBuf::from(&ctx.core_root)` uses in the same file:
+  lines ~1718 (_root), 1830, 1945, 2064 (root). NOT checked whether they are stale-path
+  bugs or legitimate -- a focused 115 pass should audit each. Likely more of this class.
+- Related 061 debt: `core intent new` reads a template from a `templates/` dir that does
+  not exist (lost in the 061 move) -- separate from paths.rs but same "061 moved things,
+  code still points at old locations" root cause.
+- ID-numbering bug (separate, flagged commit ff2b9610): new_intent scans decisions/ for
+  max ID, so next-id jumped to 277 not 133. Not a paths bug -- note here only so it is not
+  lost; belongs with core-intent-new repair, not 115.
+
+Takeaway: 115's "~40 files" is real and LIVE. Start a focused pass with the grep in this
+charter PLUS `grep -rn "PathBuf::from(&ctx.core_root)" faelight/engine/src`. And per this
+charter's own note, 115 should precede INT-112 (restructure) so the v2 move is a one-line
+paths.rs change, not another multi-file drift like 061 caused.
