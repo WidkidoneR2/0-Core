@@ -3,7 +3,7 @@ id: 128
 date: 2026-07-07
 type: future
 title: "Friday knowledge as native/foreign-aware data (db-backed, learnable languages)"
-status: in-progress
+status: complete
 tags: [Friday, faelight-shell, fsh, foreign aware, learnable]
 ---
 
