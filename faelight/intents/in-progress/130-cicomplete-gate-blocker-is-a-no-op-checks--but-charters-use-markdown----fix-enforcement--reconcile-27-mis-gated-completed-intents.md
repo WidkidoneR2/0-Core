@@ -102,3 +102,51 @@ need genuine per-intent audit -- work status unknown, must be verified not assum
 "A guard that checks for a door no one uses has never once stopped anyone.
  A ledger that says 'done' without proof is a story, not a record.
  Make the guard watch the real door. Make 'complete' mean complete." 🌲
+
+
+## Progress (2026-07-07)
+- ROOT CAUSE fixed: gate-blocker now detects markdown `- [ ]` / `- [~]` (was ⬜-emoji-only
+  no-op). Committed 872159c8. PROVEN LIVE both ways with throwaway INT-131: open `- [ ]`
+  -> cicomplete BLOCKED; `- [x]` -> completed. 131 cancelled.
+- Confirmed the gate-block does NOT interfere with the version-bump path: they are
+  sequential + independent (block runs first and returns early; bump runs later only if
+  the block passed). 131 completed with no bump because it touched no crates -- correct.
+- TIER 1 reconciled (committed a3274ae2): 117/125/126/127 -- gates ticked because their
+  work was DEMONSTRATED LIVE in this session. Notes added inline on the 3 non-obvious
+  gates (125 crane-mismatch = build-succeeded-on-deploy not isolated test; 126 .conf =
+  met-by-inspection, dotdir-skip not extension; 117 config.fsh = actually config.rs:104).
+  126 junk stub line deleted.
+- LEDGER AUDIT (2026-07-07): the ONLY anomaly is complete/ intents with open gates.
+  in-progress (056, 130) and future/* open gates are NORMAL. No status/folder mismatches
+  (grep 'status: complete' in non-complete folders = empty). Damage is bounded + mapped.
+
+## Reconciliation Method (for the remaining 23 -- do NOT bulk-tick)
+Bulk-ticking to make the ledger look clean would REPEAT the original sin. Each intent
+gets a real look. Per intent:
+1. Read its gates AND its charter body (## Status / completion notes -- many older
+   charters document what was demonstrated, e.g. 116/024/077).
+2. Decide per gate:
+   - Work VERIFIABLE (charter documents it done, or it's trivially checkable now)
+     -> tick `- [x]`, add an inline `<!-- -->` note citing the evidence.
+   - Work NOT evidenced anywhere -> do NOT tick. Either REOPEN (move to in-progress)
+     or FORMALLY DEFER: `⏸ gate -- deferred: [reason] -- approved by: christian [date]`.
+3. Stamp the charter: `<!-- Gates reconciled per INT-130, [date]: [tick/defer/reopen summary] -->`.
+Reopening is not failure -- it is the ledger telling the truth. Better an honest
+"in-progress" than a false "complete."
+
+## The remaining 23 (Tier 2/3 -- fresh-session audit)
+023, 028, 032, 064, 065, 091, 097, 098, 099, 100, 101, 103, 104, 105, 106, 107, 108,
+116, 119, 120, 122, 123, 124.
+(117, 125, 126, 127 done in Tier 1.)
+
+## 130's own gates
+- [ ] Root cause confirmed in code (emoji-vs-markdown mismatch at intent/mod.rs ~928)
+- [ ] Blocker rewritten to detect `- [ ]` markdown gates (+ back-compat emoji)
+- [ ] Deferral logic updated to match markdown too
+- [ ] DEMONSTRATED: cicomplete BLOCKS on an open `- [ ]` gate (shown live), completes once checked
+- [ ] Reconciliation pass: every affected intent audited (tick if done / reopen if not)
+- [ ] core builds clean, deployed, verified on the running binary
+NOTE: several of 130's own gates ARE already met (root cause confirmed, blocker rewritten,
+demonstrated live, core built+deployed+verified). They are left unticked deliberately until
+the 23-audit gate is also done -- 130 completes as ONE honest unit, and (fittingly) its own
+fixed blocker will now enforce that.
