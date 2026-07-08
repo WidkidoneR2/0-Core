@@ -44,6 +44,17 @@ CREATE TABLE IF NOT EXISTS friday_knowledge (
     times_used  INTEGER NOT NULL DEFAULT 0,
     UNIQUE(domain, key)
 );
+-- INT-128: native/foreign/translation metadata for friday_knowledge facts.
+-- Companion table (keyed on the same domain,key) rather than ALTER-patching the
+-- base table -- single source of truth, fresh-db-safe (see INT-104 schema discipline).
+CREATE TABLE IF NOT EXISTS friday_knowledge_meta (
+    domain        TEXT NOT NULL,
+    key           TEXT NOT NULL,
+    system        TEXT NOT NULL DEFAULT 'unknown',  -- 'nixos' (native) | 'arch' | ... (foreign)
+    kind          TEXT NOT NULL DEFAULT 'fact',      -- 'fact' | 'command' | 'translation'
+    translates_to TEXT,                              -- native equivalent, for foreign rows
+    PRIMARY KEY (domain, key)
+);
 CREATE TABLE IF NOT EXISTS friday_hypotheses (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     prediction  TEXT NOT NULL,
