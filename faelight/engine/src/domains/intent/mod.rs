@@ -924,7 +924,13 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .lines()
             .filter(|l| {
                 let trimmed = l.trim();
-                trimmed.starts_with('⬜') && !l.contains('⏸')
+                // INT-130: detect markdown gates (the real format), not just the emoji.
+                // OPEN = unchecked `- [ ]` or partial `- [~]`; legacy ⬜ still counts.
+                // Only `- [x]` passes. A ⏸ deferral line is exempt.
+                (trimmed.starts_with("- [ ]")
+                    || trimmed.starts_with("- [~]")
+                    || trimmed.starts_with('⬜'))
+                    && !l.contains('⏸')
             })
             .collect();
         if !open_gates.is_empty() {

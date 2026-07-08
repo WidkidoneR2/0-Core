@@ -3,7 +3,7 @@ id: 130
 date: 2026-07-07
 type: future
 title: "cicomplete gate-blocker is a no-op: checks ⬜ but charters use markdown [ ] — fix enforcement + reconcile 27 mis-gated completed intents"
-status: planned
+status: in-progress
 tags: [cicomplete, integrity, gates, int-332, critical, ledger]
 ---
 
