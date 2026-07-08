@@ -3,7 +3,7 @@ id: 127
 date: 2026-07-07
 type: future
 title: "Rewire vm verbs (vm up/down/status) -- unwired by INT-027, faelight-vm undeployed"
-status: in-progress
+status: complete
 tags: [vm, libvirt, virsh, int-027, regression]
 ---
 
