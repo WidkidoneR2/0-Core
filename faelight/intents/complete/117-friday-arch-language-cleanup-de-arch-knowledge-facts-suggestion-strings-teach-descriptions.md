@@ -48,13 +48,15 @@ knowledge-entry decisions. Re-run the INT-116 sweep grep at the end; the only re
 hits should be history + "arch"=architecture.
 
 ## Gates
-- [ ] friday/mod.rs knowledge facts decided (reframe/keep/remove) + applied
-- [ ] fsh suggestion strings reframed to nix update path
-- [ ] teach descriptions updated to nix wording
-- [ ] config.fsh paru warning reframed
-- [ ] full workspace builds clean, zero warnings
-- [ ] sweep grep: only history + architecture-"arch" remain
+- [x] friday/mod.rs knowledge facts decided (reframe/keep/remove) + applied
+- [x] fsh suggestion strings reframed to nix update path
+- [x] teach descriptions updated to nix wording
+- [x] config.fsh paru warning reframed  <!-- actual target was config.rs:104 (charter mislabeled as config.fsh); reframed the paru doc-example to a nix-env warn example -->
+- [x] full workspace builds clean, zero warnings
+- [x] sweep grep: only history + architecture-"arch" remain
 
 ## Relationship
 Follows INT-116 (executable Arch removed). This completes the de-Arch at the language
 layer. A natural warm-up before INT-118 (Friday engine resumption).
+
+<!-- Gates reconciled per INT-130, 2026-07-08: work demonstrated live in the 2026-07-07 session. Notes inline where a gate was met by inspection or the charter target differed. -->

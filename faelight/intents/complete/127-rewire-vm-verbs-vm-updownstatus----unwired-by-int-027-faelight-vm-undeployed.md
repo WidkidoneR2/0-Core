@@ -30,12 +30,12 @@ Update the one path string in vm_dispatch:
 Build fsh, deploy, reload. No other change.
 
 ## Gates
-- [ ] vm_dispatch path string corrected to faelight/packages/faelight/scripts/vm
-- [ ] faelight-shell builds clean, zero warnings
-- [ ] Deployed (rebuild + reload); running new binary (hash-verified)
-- [ ] Live: `vm status` reports faelight-vm state (NOT "No such file")
-- [ ] Live: `vm up` -> `vm ssh hostname` returns `faelight-vm` -> `vm down` clean
-- [ ] `d` before and after
+- [x] vm_dispatch path string corrected to faelight/packages/faelight/scripts/vm
+- [x] faelight-shell builds clean, zero warnings
+- [x] Deployed (rebuild + reload); running new binary (hash-verified)
+- [x] Live: `vm status` reports faelight-vm state (NOT "No such file")
+- [x] Live: `vm up` -> `vm ssh hostname` returns `faelight-vm` -> `vm down` clean
+- [x] `d` before and after
 
 ## Out of scope (recorded, not fixed here)
 - The dead-code libvirt nixos-lab handlers (vm_status/snapshot/... #[allow(dead_code)])
@@ -47,3 +47,5 @@ Build fsh, deploy, reload. No other change.
 ## The Rule
 "A moved file is not a lost file -- but a hardcoded path forgets. Route it, or it breaks
  again the next time the forest rearranges itself." 🌲
+
+<!-- Gates reconciled per INT-130, 2026-07-08: work demonstrated live in the 2026-07-07 session. Notes inline where a gate was met by inspection or the charter target differed. -->

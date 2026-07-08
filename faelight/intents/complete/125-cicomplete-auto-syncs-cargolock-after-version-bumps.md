@@ -37,11 +37,11 @@ Treat with care: focused session, thorough testing, not a rushed edit.
   crane build accepts it.
 
 ## Gates
-- [ ] cicomplete, after bumping a crate version, leaves Cargo.lock consistent (no manual step)
-- [ ] Existing cicomplete flow otherwise unchanged (intent move, checkpoint, prompts)
-- [ ] A bumped crate builds via crane with no Cargo.toml-vs-lock mismatch
-- [ ] Demonstrated on a real version-bumped cicomplete
-- [ ] core builds clean, zero warnings
+- [x] cicomplete, after bumping a crate version, leaves Cargo.lock consistent (no manual step)
+- [x] Existing cicomplete flow otherwise unchanged (intent move, checkpoint, prompts)
+- [x] A bumped crate builds via crane with no Cargo.toml-vs-lock mismatch  <!-- crane build succeeded on deploy after the auto-sync; no isolated mismatch test run -->
+- [x] Demonstrated on a real version-bumped cicomplete
+- [x] core builds clean, zero warnings
 
 ## Relationship
 - Workflow-friction fix in the intent domain (core). NOT a 1.0.0 blocker.
@@ -51,3 +51,5 @@ Treat with care: focused session, thorough testing, not a rushed edit.
 - fsh glob papercuts: `*/src/` and `*/120-*.md` both failed to expand in fsh this session
   (fell back to find). Worth a small fsh glob fix or folding into INT-109 (fsh command
   handling). Noting so it is not lost.
+
+<!-- Gates reconciled per INT-130, 2026-07-08: work demonstrated live in the 2026-07-07 session. Notes inline where a gate was met by inspection or the charter target differed. -->
