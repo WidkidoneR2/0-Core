@@ -127,8 +127,60 @@ fn now_ts() -> i64 {
 }
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
+    // INT-128: keep native/foreign metadata in sync with the knowledge base.
+    let _ = sync_knowledge_meta(&ctx.runtime.db);
     planning::ensure_tables(ctx)?;
     planning::maybe_roll_session(ctx)?;
+    Ok(())
+}
+
+/// INT-128: keep friday_knowledge_meta in sync with friday_knowledge.
+/// Self-healing central labeler: fills a meta row for any fact row that lacks one,
+/// deriving system/kind from the domain. Seed-agnostic -- reads the db, so facts from
+/// ANY seed path (or runtime `core knowledge add`) get labeled automatically.
+///
+/// Rule: domain=='nixos' -> system='nixos', else 'forest'. kind='fact' by default,
+/// overridden to 'translation' (with a short native command in translates_to) for the
+/// known legacy pacman->nix rows. session_summary is excluded (a session log, not knowledge).
+///
+/// NOTE: INSERT OR IGNORE means this fills GAPS only -- it never re-derives an existing
+/// meta row. If the derivation rule ever changes, existing rows must be migrated separately.
+fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
+    // Explicit translation curation: (fact_key, translates_to). Cannot be derived from
+    // domain alone (the other nixos rows are plain facts), so these are recognized by key.
+    const TRANSLATIONS: &[(&str, &str)] = &[
+        ("pacman -Syu updates all packages. pacman -S installs. pacman -Rs removes with deps.",
+         "nix flake update && nixos-rebuild switch"),
+        ("pacman -Qi <pkg> shows installed package info. pacman -Ql <pkg> lists files. pacman -Qo <file> finds owner.",
+         "nix-env -q / nix-store -q"),
+        ("/etc/pacman.conf controls mirrors and options. reflector updates mirror list.",
+         "configuration.nix / flake.nix"),
+    ];
+
+    // Read fact rows that lack a meta row (excluding the session log).
+    let mut stmt = db.prepare(
+        "SELECT k.domain, k.key FROM friday_knowledge k
+         LEFT JOIN friday_knowledge_meta m ON k.domain = m.domain AND k.key = m.key
+         WHERE m.domain IS NULL AND k.domain != 'session_summary'",
+    )?;
+    let rows: Vec<(String, String)> = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .filter_map(Result::ok)
+        .collect();
+
+    for (domain, key) in rows {
+        let translation = TRANSLATIONS.iter().find(|(k, _)| *k == key);
+        let (system, kind, translates_to): (&str, &str, Option<&str>) = match translation {
+            Some((_, tt)) => ("nixos", "translation", Some(*tt)),
+            None if domain == "nixos" => ("nixos", "fact", None),
+            None => ("forest", "fact", None),
+        };
+        db.execute(
+            "INSERT OR IGNORE INTO friday_knowledge_meta (domain, key, system, kind, translates_to)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![domain, key, system, kind, translates_to],
+        )?;
+    }
     Ok(())
 }
 /// Seed initial Friday knowledge from forest state
