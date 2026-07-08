@@ -8445,7 +8445,7 @@ fn suggest_after_external(line: &str, cmd_lower: &str) {
         "cicomplete" => Some("💡 Next: fg commit — record the completion"),
         "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
         "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
-        "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),
+        "paru" | "pacman" => Some("💡 That isn't a NixOS command — apply changes with deploy (it rebuilds + health-checks)"),
         "core" if line.contains("intent complete") => {
             Some("💡 Next: fg commit — record the completion")
         }

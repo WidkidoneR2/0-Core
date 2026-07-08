@@ -3,7 +3,7 @@ id: 117
 date: 2026-07-02
 type: future
 title: "Friday Arch-language cleanup: de-Arch knowledge facts, suggestion strings, teach descriptions"
-status: in-progress
+status: complete
 tags: [friday, de-arch, cleanup]
 ---
 

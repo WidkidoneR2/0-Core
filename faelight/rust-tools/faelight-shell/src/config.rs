@@ -101,7 +101,7 @@ pub fn load() -> ShellConfig {
         }
         // Parse before_run rules:
         // if command contains "rm -rf" { block "message" }
-        // if command starts_with "paru" { warn "message" }
+        // if command starts_with "nix-env -i" { warn "prefer declaring packages in the flake" }
         // if command == "deploy" { suggest "message" }
         if in_before_run {
             if let Some(rest) = line.strip_prefix("if command ") {

@@ -56,3 +56,10 @@ Option B -- RETIRE: the flake-native path (update-flake alias = nix flake update
 ## The Rule
 "An updater that speaks the old system's language is a map to a country you left.
  Teach it the new roads -- or retire it and trust the ones you built." 🌲
+
+teach/main.rs faelight-update entry has accuracy drift beyond the Arch language 117 fixed:
+- version says "3.3.0" but the live tool reports v1.0.0
+- replaces: Some("topgrade") -- topgrade was removed May 2026; nothing to replace
+Both are accuracy, not Arch-language, so 117 left them. Fix as part of the 129 evaluation
+(if faelight-update is adapted, correct the teach entry to match reality; if retired,
+remove the entry).

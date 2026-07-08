@@ -412,7 +412,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
             "cicomplete" => Some("💡 Next: fg commit — record the completion"),
             "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
-            "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),
+            "paru" | "pacman" => Some("💡 That isn't a NixOS command — apply changes with deploy (it rebuilds + health-checks)"),
             _ => None,
         };
         if let Some(msg) = suggestion {

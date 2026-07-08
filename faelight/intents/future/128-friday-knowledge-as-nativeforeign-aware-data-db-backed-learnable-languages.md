@@ -81,3 +81,13 @@ Each step build-gated; the vec! stays as fallback until the table proves out.
 "A forest that only speaks one language forgets it was ever planted elsewhere. Teach the
  native tongue -- but remember how to translate. And keep the words as data, so learning
  a new language is a seed, not a rebuild." 🌲
+
+friday_knowledge (state.db) is a SEPARATE, richer knowledge store from both the
+friday/mod.rs vec! seed AND the knowledge_entries table (core knowledge search).
+It ALREADY does foreign->native translation: rows where key = Arch phrasing
+("pacman -Syu updates...") and fact = nix answer ("nixos-rebuild switch upgrades...").
+So 128's native/foreign/translation model PARTLY EXISTS in the db already -- 128 should
+unify these three stores and formalize the translation pattern that friday_knowledge
+already demonstrates. Also: re-keying a fact (arch->nixos) in the vec! seed leaves the
+old-domain rows ORPHANED in the db (insert-not-upsert). 128 must handle re-key cleanup
+so knowledge edits reach the runtime, not just the source.

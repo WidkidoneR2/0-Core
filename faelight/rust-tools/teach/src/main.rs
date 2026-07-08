@@ -259,11 +259,11 @@ fn build_tool_registry() -> Vec<ToolInfo> {
         ToolInfo {
             name: "faelight-update".to_string(),
             version: "3.3.0".to_string(),
-            description: "Intelligent update manager. Detects LazyVim distro, uses safe pacman checker (no sudo -Sy), gates on hard failures not warnings.".to_string(),
+            description: "Update dashboard. Scans flake inputs, cargo tools, neovim, workspace, git, firmware, flatpak; runs a health gate before applying.".to_string(),
             commands: vec![
                 "faelight-update             # interactive TUI with category selection".to_string(),
                 "faelight-update --dry-run   # preview all updates".to_string(),
-                "faelight-update --only pacman,cargo  # targeted categories".to_string(),
+                "faelight-update --only flake,cargo  # targeted categories".to_string(),
             ],
             philosophy: "Updates are not automatic. You see what changes before it changes. The health gate ensures you never update a broken system.".to_string(),
             replaces: Some("topgrade".to_string()),

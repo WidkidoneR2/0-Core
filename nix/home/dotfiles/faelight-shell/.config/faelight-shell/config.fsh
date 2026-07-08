@@ -310,7 +310,6 @@ alias targz = tar -czf
 alias timestamp = date +"%Y%m%d_%H%M%S
 alias tmp = cd ~/9-temp
 alias top = btm
-alias topgrade = faelight-update
 alias tree = eza --tree --icons --group-directories-first
 alias untar = tar -xvf
 alias update = faelight-update
