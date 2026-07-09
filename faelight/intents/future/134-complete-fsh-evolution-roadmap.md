@@ -28,7 +28,8 @@ and sequenced so it SPAWNS intents rather than accumulating checkboxes.
 
 ## The Solution
 Reconcile and own it. NOT execute the lanes -- that is fsh's whole future and would never
-close. This intent makes the roadmap TRUE and ACTIONABLE, then gets out of the way.
+close. This intent makes the roadmap TRUE and ACTIONABLE, then SHIPS it as an fsh release.
+A document says what it says; a version bump is a claim you have to stand behind.
 
 **The filter is the spine** (from the doc, kept verbatim as the governing criterion):
 > A feature earns a place only if it deepens understanding + authorized, reproducible
@@ -55,6 +56,15 @@ correction; silent auto-magic).
       requiring its own decision record before any work starts
 - [ ] The roadmap states how it stays true: who reconciles it, and when (e.g. at each fsh
       release, or whenever an fsh intent completes)
+- [ ] **Version bump + release -- the close condition.** fsh is currently v3.0.5
+      (`faelight/rust-tools/faelight-shell/Cargo.toml:4`; mirrored in Cargo.lock and in every
+      `faelight/runtime/checkpoints/*.toml`). Once the roadmap is reconciled and Lane 0 is
+      resolved, bump it per `decisions/102` (version-bumping faelight tools on Nix) and cut
+      the release per `decisions/121` (release process + naming convention).
+      Release notes must state: what was VERIFIED (not assumed), what the filter CUT and why,
+      and which lane is next. The bump is the proof the reconciliation landed -- a release you
+      must stand behind, not a document that can be quietly edited.
+      Self-verifying: the checkpoint written at `cicomplete` will record the new version.
 
 ## Explicitly out of scope
 Building the features. This intent produces a trustworthy, sequenced plan; the lanes then
