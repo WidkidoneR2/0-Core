@@ -65,6 +65,10 @@ correction; silent auto-magic).
       and which lane is next. The bump is the proof the reconciliation landed -- a release you
       must stand behind, not a document that can be quietly edited.
       Self-verifying: the checkpoint written at `cicomplete` will record the new version.
+      The version NUMBER is deliberately left unpinned: decided at cicomplete from the actual
+      diff, not declared now. Documentation-only -> patch. Lane 0 papercuts FIXED -> minor.
+      The sh-routing fix (INT-267/322) landing -> major, since it changes fsh's execution
+      model -- but that is a bigger intent than this one, and 134 must not grow into it.
 
 ## Explicitly out of scope
 Building the features. This intent produces a trustworthy, sequenced plan; the lanes then
