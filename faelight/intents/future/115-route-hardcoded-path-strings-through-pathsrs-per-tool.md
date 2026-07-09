@@ -61,9 +61,17 @@ Found while fixing `core intent new` (which was fatally broken by exactly this c
 - Related 061 debt: `core intent new` reads a template from a `templates/` dir that does
   not exist (lost in the 061 move) -- separate from paths.rs but same "061 moved things,
   code still points at old locations" root cause.
-- ID-numbering bug (separate, flagged commit ff2b9610): new_intent scans decisions/ for
-  max ID, so next-id jumped to 277 not 133. Not a paths bug -- note here only so it is not
-  lost; belongs with core-intent-new repair, not 115.
+- ID-numbering: CORRECTED 2026-07-09. The 2026-07-08 note here was WRONG. It is not a
+  paths bug and it is not in the engine at all. Root cause: rust-tools/intent/src/main.rs
+  line 155 listed "cancelled" in the ID scan, so a cancelled intent's retired number set
+  the high-water mark (cancelled/277 -> next id 278). Fixed by removing "cancelled";
+  proven on the DEPLOYED binary (intent add offered 135 after 134). Commit 039e1211.
+  STILL OPEN, and this part IS 115's class: the engine has its OWN copy of this scan
+  (active_folders, intent/mod.rs:1281 and :2359) which includes "decisions" and carries a
+  comment claiming decisions share the ID space. The evidence refutes that -- decisions/002
+  exists twice, and 001 appears in decisions/, incidents/, experiments/, philosophy/ alike.
+  Two implementations of one rule, drifted apart, each with a comment swearing it is right.
+  That duplication is exactly what 115 is for.
 
 Takeaway: 115's "~40 files" is real and LIVE. Start a focused pass with the grep in this
 charter PLUS `grep -rn "PathBuf::from(&ctx.core_root)" faelight/engine/src`. And per this
