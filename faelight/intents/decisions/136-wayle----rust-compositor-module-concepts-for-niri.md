@@ -1,5 +1,5 @@
 ---
-id: 276
+id: 136
 title: "Wayle -- Rust Compositor Module Concepts for Niri"
 status: decided
 date: 2026-05-06

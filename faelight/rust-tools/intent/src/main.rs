@@ -152,7 +152,7 @@ fn get_next_id() -> String {
     // INT-077: only the intent-lifecycle dirs are numbered work-intents. The record dirs
     // (decisions/, incidents/, experiments/, philosophy/) carry their own numbering/dates
     // (e.g. decisions/275, incidents/190, date-stamped files) and must NOT drive the counter.
-    let intent_dirs = ["future", "in-progress", "complete", "cancelled"];
+    let intent_dirs = ["future", "in-progress", "complete"];
     for sub in intent_dirs {
         let dir = base.join(sub);
         if let Ok(entries) = fs::read_dir(&dir) {
