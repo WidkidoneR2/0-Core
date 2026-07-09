@@ -79,7 +79,17 @@ creation must work in the engine BEFORE the tool that owns creation can be retir
       The engine is `-p core`. Three confusable names: `faelight-forest` (flake output),
       `core` (engine crate), `faelight-core` (a rust-tool). Cargo suggests the wrong one on
       a typo. A green `Finished` can mean nothing was built. Only `dep` compiles what runs.
-- [ ] **Gate 3 -- `next_id` scans the category being written to.** `rust-tools/intent`
+- [x] **Gate 3 -- DONE 2026-07-09, gen 329.** `get_next_id()` took no argument and always
+      scanned the intent lifecycle dirs; `main()` then wrote into the chosen category. Now
+      `get_next_id(category)`: intent dirs (future/in-progress/complete) share one counter
+      because a file MOVES between them; each record dir owns its own sequence.
+      PROVEN on the deployed binary, both namespaces in one pass: `intent add` -> decisions
+      gave **139** (next after 138-nixos); -> future gave **136** (next after 135).
+      Also confirmed: the standalone's raw string writes `title: "{}"` unescaped, which is
+      why its files were always valid YAML. Gate 2b's damage really was limited to `064`.
+      NOTE: `intent add` accepted `status: complete` for a decision, though real decisions use
+      `status: decided` + `verdict:`. It validates nothing it writes. -> Gate 5.
+      ORIGINAL: `rust-tools/intent`
       computes the id from the intent dirs regardless of chosen category. Scan the directory
       the file will land in. Demonstrated by creating a decision and confirming it takes the
       next free DECISION number, not the next intent number.

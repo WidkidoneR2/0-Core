@@ -146,14 +146,18 @@ fn prompt(msg: &str) -> String {
     input.trim().to_string()
 }
 
-fn get_next_id() -> String {
+fn get_next_id(category: &str) -> String {
     let base = get_intent_dir();
     let mut max_id = 0;
-    // INT-077: only the intent-lifecycle dirs are numbered work-intents. The record dirs
-    // (decisions/, incidents/, experiments/, philosophy/) carry their own numbering/dates
-    // (e.g. decisions/275, incidents/190, date-stamped files) and must NOT drive the counter.
-    let intent_dirs = ["future", "in-progress", "complete"];
-    for sub in intent_dirs {
+    // decisions/137: intent dirs and record dirs are SEPARATE namespaces.
+    // An intent MOVES between future/in-progress/complete, so all three share one counter.
+    // A record (decisions/, incidents/, experiments/, philosophy/) never moves and owns its
+    // own sequence -- scan only the directory the file will actually land in.
+    let scan_dirs: Vec<&str> = match category {
+        "future" | "in-progress" | "complete" => vec!["future", "in-progress", "complete"],
+        other => vec![other],
+    };
+    for sub in scan_dirs {
         let dir = base.join(sub);
         if let Ok(entries) = fs::read_dir(&dir) {
             for entry in entries.flatten() {
@@ -192,7 +196,7 @@ fn cmd_add() {
         _ => error("Invalid choice"),
     };
 
-    let id = get_next_id();
+    let id = get_next_id(&category);
     let title = prompt("Title: ");
     let status = prompt("Status (planned/in-progress/complete): ");
     let tags = prompt("Tags (comma-separated, optional): ");
