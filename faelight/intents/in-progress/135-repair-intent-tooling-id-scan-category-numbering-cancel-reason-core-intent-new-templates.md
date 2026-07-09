@@ -3,7 +3,7 @@ id: 135
 date: 2026-07-09
 type: future
 title: "Repair and consolidate the intent ledger tooling"
-status: planned
+status: in-progress
 tags: [ledger, intent, tooling, bugfix, consolidation]
 ---
 
@@ -48,14 +48,37 @@ Consolidate onto `core intent`, then make the ledger self-checking. The order is
 creation must work in the engine BEFORE the tool that owns creation can be retired.
 
 ## Success Criteria
-- [ ] **Gate 1 -- engine ID scan obeys `decisions/137`.** Remove `"decisions"` from
+- [x] **Gate 1 -- DONE 2026-07-09, gen 327.** Both sites patched (:1283, :2363).
+      PROVEN behaviorally: `core intent new future` offered **136**, not 139 (max would be
+      decisions/138 if decisions/ were still scanned). Not provable alone -- `active_folders`
+      has no caller but new_intent/new_intent_smart, both reached via `core intent new`.
+      ORIGINAL: Remove `"decisions"` from
       `active_folders` at `intent/mod.rs:1281` and `:2359`. Both sites; fixing one leaves the
       other drifted (the same failure mode as the `intents/future` path bug). Deploy; prove.
       MUST precede Gate 2 -- a repaired `core intent new` on the old scan hands out 138s.
-- [ ] **Gate 2 -- `core intent new` works.** The `templates/` dir vanished in INT-061. Decide
-      and record: restore it from git history, or generate the stub inline as `intent add`
-      does (it needs no templates). Prove on the DEPLOYED binary: create an intent, confirm
-      the number, cancel it.
+- [x] **Gate 2 -- DONE 2026-07-09. It already worked.** The `templates/` cause was
+      FABRICATED: `grep -rn templates intent/mod.rs` -> no match; `git log --diff-filter=D`
+      -> no such dir ever existed. `core intent new` takes the template NAME as an arg and
+      generates the stub inline. What broke it was the stale path, fixed 2026-07-08 (ff2b9610).
+      The false cause propagated to the parking note, ff2b9610's message, INT-115, and this
+      charter. Corrected everywhere but the commit message.
+
+- [x] **Gate 2b -- `core intent new` wrote invalid YAML.** DONE 2026-07-09, gen 328.
+      `new_intent` (line 1319) opens `format!(r#"---` -- a RAW string -- then wrote
+      `title: \"{}\"`, so a literal backslash-quote landed in every file it created.
+      `new_intent_smart` (2395) opens `format!("---` -- a NORMAL string -- where the same
+      escape is CORRECT. Same text, opposite correctness, because the enclosing literal
+      differs. Patched both on the assumption they matched; the compiler caught it
+      (`expected ',' found '{'` at 2400). Reverted 2400, kept 1324.
+      PROVEN: created an intent, `xxd` line 5 -> `title: "..."` (0x22, no 0x5c).
+      `intent validate` had reported this class correctly for months; `core intent validate`
+      never checked frontmatter, so the true signal was buried under its 20 false
+      duplicate-ID reports. Still to repair: `complete/064-faelight-logout`.
+
+- [x] **Workflow finding.** `cargo build -p faelight-core` is a NO-OP on an unrelated crate.
+      The engine is `-p core`. Three confusable names: `faelight-forest` (flake output),
+      `core` (engine crate), `faelight-core` (a rust-tool). Cargo suggests the wrong one on
+      a typo. A green `Finished` can mean nothing was built. Only `dep` compiles what runs.
 - [ ] **Gate 3 -- `next_id` scans the category being written to.** `rust-tools/intent`
       computes the id from the intent dirs regardless of chosen category. Scan the directory
       the file will land in. Demonstrated by creating a decision and confirming it takes the

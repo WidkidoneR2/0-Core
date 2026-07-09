@@ -1276,9 +1276,11 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
 
     // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
     let base = intents_dir(ctx);
-    // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
-    // scanned when deriving the next ID -- excluding it caused 121 collisions.
-    let active_folders = ["complete", "future", "in-progress", "decisions"];
+    // decisions/137: intent dirs and record dirs are SEPARATE namespaces. Record dirs
+    // (decisions/, incidents/, experiments/, philosophy/) number themselves -- decisions/002
+    // exists twice, and 001 appears independently in four record dirs. The old INT-070
+    // comment claiming a shared space memorialized a misdiagnosis. Do not re-add "decisions".
+    let active_folders = ["complete", "future", "in-progress"];
     let max_id = active_folders
         .iter()
         .flat_map(|folder| {
@@ -1319,7 +1321,7 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
 id: {:03}
 date: {}
 type: {}
-title: \"{}\"
+title: "{}"
 status: planned
 tags: [{}]
 version: TBD
@@ -2354,9 +2356,11 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     };
     // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
     let base = intents_dir(ctx);
-    // INT-070 fix (regressed): decisions/ SHARES the numeric ID space, so it MUST be
-    // scanned when deriving the next ID -- excluding it caused 121 collisions.
-    let active_folders = ["complete", "future", "in-progress", "decisions"];
+    // decisions/137: intent dirs and record dirs are SEPARATE namespaces. Record dirs
+    // (decisions/, incidents/, experiments/, philosophy/) number themselves -- decisions/002
+    // exists twice, and 001 appears independently in four record dirs. The old INT-070
+    // comment claiming a shared space memorialized a misdiagnosis. Do not re-add "decisions".
+    let active_folders = ["complete", "future", "in-progress"];
     let max_id = active_folders
         .iter()
         .flat_map(|folder| {
