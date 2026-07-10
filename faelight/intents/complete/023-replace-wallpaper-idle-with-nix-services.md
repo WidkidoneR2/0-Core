@@ -38,11 +38,11 @@ Retire both tools in registry once replaced.
 
 ## Success Criteria
 
-- [ ] faelight-wallpaper replaced with systemd.user.service
-- [ ] faelight-idle replaced with services.swayidle
-- [ ] Both removed from niri spawn-at-startup
-- [ ] Both marked retired in registry
-- [ ] Wallpaper still shows on login
+- [~] faelight-wallpaper replaced with systemd.user.service <!-- INT-130: DEFERRED -- investigation reversed the plan: tool is health-reactive (wlr-layer-shell direct), not a swaybg wrapper. KEEP AS RUST. approved by christian 2026-06-04 -->
+- [~] faelight-idle replaced with services.swayidle <!-- INT-130: DEFERRED -- tool uses ext-idle-notify-v1 natively, not a swayidle wrapper. KEEP AS RUST. approved by christian 2026-06-04 -->
+- [x] Both removed from niri spawn-at-startup <!-- INT-130: verified 2026-07-10 -- absent from all startup config; niri itself uninstalled (which niri -> not found; only a stale GPU/Wayland comment remains in configuration.nix:54) -->
+- [x] Both marked retired in registry <!-- INT-130: VOID -- superseded by the KEEP decision (2026-06-04). Both tools intentionally NOT retired: registry shows retired=false for both. Gate no longer applies. -->
+- [x] Wallpaper still shows on login <!-- INT-130: verified 2026-07-10 -- wallpaper live on the running session -->
 
 ## Gate Check
 ⏸ Wallpaper service -- deferred: tool has health-reactive intelligence, not replaceable -- approved by: christian 2026-06-04
@@ -71,3 +71,5 @@ specifically -- they have forest awareness that a Nix service cannot replicate.
 
 The only NixOS improvement needed: ensure they start reliably via systemd
 user services rather than niri spawn-at-startup (more robust on session start).
+
+<!-- Gates reconciled per INT-130, 2026-07-10: G1/G2 deferred (KEEP-as-Rust decision, approved christian 2026-06-04); G3/G5 ticked (verified live: niri uninstalled, wallpaper showing); G4 voided (superseded by KEEP -- both retired=false). NOTE: the investigation named 'declarative startup via systemd user service' as the one improvement worth doing; it was never implemented (no systemd.user.service exists). Recorded, not a success criterion -- 023 closes as-is. SEPARATE observation: configuration.nix:54 has a stale 'so niri can run' comment; niri is gone. -->
