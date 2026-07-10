@@ -70,7 +70,6 @@ alias forest-status = "~/0-core/faelight/packages/faelight/scripts/forest-status
 # Forest workflow aliases — INT-171
 alias cistart = "core intent start"
 alias cicomplete = "core intent complete"
-alias intent = "/run/current-system/sw/bin/intent"
 alias fg = "faelight-git"
 
 # Pre-command decision rules — INT-171
@@ -240,12 +239,13 @@ alias heuristics = core heuristics
 alias hibernate = systemctl hibernate
 alias hindsight = core hindsight
 alias hooks = faelight-hooks
-alias int = intent
-alias int-active = intent list --active
-alias inta = intent add
-alias intc = intent complete
-alias intl = intent list
-alias ints = intent show
+alias int = core intent show
+alias int-active = core intent list --active
+alias inta = core intent add
+alias intc = core intent complete
+alias intl = core intent list
+alias ints = core intent show
+alias intt = core intent timeline
 alias jail-status = sudo fail2ban-client status
 alias jb = journalctl -b | tspin
 alias jf = journalctl -f | tspin
