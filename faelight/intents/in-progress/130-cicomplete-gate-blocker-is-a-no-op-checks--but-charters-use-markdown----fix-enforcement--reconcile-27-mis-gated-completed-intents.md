@@ -134,6 +134,20 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10b) -- update
+Supersedes the partial status above. Reconciliation now 2 of 23 COMPLETE:
+- 023: closed (62dc9e47).
+- 028: FULLY closed (f21c0463). All 4 gates honest [x]. Gate 4 (nextest faster-than-cargo-test)
+  was measured live, NOT deferred: cargo test ~432ms vs nextest ~561ms at N=26 -> nextest not
+  faster at this scale; criterion retired as inapplicable, real numbers in 028's charter.
+- INT-137: COMPLETE (cbb845f1 tick, 987712b5 move). devShell was missing SEVEN system libs
+  (udev, libxkbcommon, seatd, libdisplay-info, pam, libinput, libgbm); all added; whole
+  workspace incl. faelight-compositor now compiles+links in-shell; bacon green. 137 closed via
+  cicomplete -- 130's own fixed blocker passed it on zero open gates (the fix, proven in use).
+
+REMAINING: 21 intents -- 032, 064, 065, 091, 097, 098, 099, 100, 101, 103, 104, 105, 106,
+107, 108, 116, 119, 120, 122, 123, 124. Next up: 032.
+
 ## Progress (2026-07-10)
 Reconciliation resumed -- Tier 2/3 audit begun. Now 2 of 23 done:
 - 023 (replace-wallpaper-idle): CLOSED. G1/G2 deferred under the pre-approved KEEP-as-Rust
