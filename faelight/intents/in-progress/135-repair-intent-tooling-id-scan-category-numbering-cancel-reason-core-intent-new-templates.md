@@ -130,7 +130,34 @@ creation must work in the engine BEFORE the tool that owns creation can be retir
       present, frontmatter parses, status consistent with the directory. Its 20 false
       duplicates drop to the real ones. Fix those: `decisions/002` (twice) and `105` (twice,
       one with malformed frontmatter, likely INT-061 damage). Also `cancelled/058`.
-- [ ] **Gate 6 -- retire `rust-tools/intent`.** Move the `add` wizard and `timeline` into
+- [x] **Gate 6 -- DONE 2026-07-10, gen 339. The second implementation is gone.**
+      Five steps, each proven on the deployed binary before the next began:
+      1. `create(category, type_tag, title, status, tags)` -- the ONE creator. Validates the
+         category, writes to its directory, numbers per namespace via the same rule
+         `validate_issues` enforces, emits a SINGULAR type, sanitizes control characters.
+         `next_id(category)` replaced THREE copies of the numbering logic.
+      2. `core intent add` -- the wizard, ported. Proven on all five categories:
+         decisions/140 (type=decision, status=decided), incidents/191 (NOT 141 --
+         per-namespace), philosophy/003 (not `philosoph`), experiments/002, future/137.
+      3. `core intent new <category> <template> <title>` -- calls create(). Killed the
+         hardcoded `future/`, the raw-string frontmatter, and the `_ => future` fallthrough
+         that let `banana` silently become a future intent. `new_intent_smart` deleted
+         entirely (212 lines); its tag suggestion lives in `add --smart`.
+      4a. `timeline` ported -- the only capability the standalone had that the engine lacked.
+         Rewritten over `load_all` (nine folders); `cmd_timeline` walked eight and omitted
+         `in-progress`, so it had NEVER shown an active intent. It then disagreed with
+         `validate_issues` (165 vs 164), exposing a hole I introduced at Gate 7:
+         `content.contains("type: index")` skipped any file whose BODY quoted that string --
+         including THIS charter. The validator could not see the intent that built it.
+      4b. Seven aliases repointed: int, int-active, inta, intc, intl, ints, + new intt.
+         `alias intent` removed.
+      4c. `docs/POLICIES.md`, `registry/tools.toml`, and `faelight/rust-tools/intent/`
+         deleted. `Cargo.lock` needed `cargo update --workspace --offline` -- the flake
+         builds `--locked` and refused a stale lock (INT-125's territory, for removals too).
+      PROVEN on gen 339: `which intent` -> not found. `intl`, `int-active`, `ints 135`,
+      `int 135`, `intt` all work. `fsh-test` 83/83. Tools 59 -> 58.
+      REMAINING: `rust-tools/README.md:46` still lists the retired tool -- regenerate docs.
+      ORIGINAL: Move the `add` wizard and `timeline` into
       `core intent`. Repoint aliases `intl`, `ints`, `int-active`. Update `docs/POLICIES.md:377`.
       Remove the crate from the flake and `registry/tools.toml`. `fsh-test` and the cheatsheet
       must still pass. Nothing may reference the retired binary.

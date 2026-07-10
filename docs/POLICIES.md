@@ -374,7 +374,7 @@ git status  # What changed?
 git restore <file>  # Rollback
 
 # Document
-intent add incident "Description of what broke"
+core intent new incidents incident "Description of what broke"
 
 # Update policies if needed
 nvim docs/POLICIES.md

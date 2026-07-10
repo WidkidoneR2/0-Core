@@ -180,15 +180,6 @@ retired = false
 deployable = true
 retired = false
 [[tool]]
-name = "intent"
-version = "3.0.0"
-category = "planning"
-description = "Intent ledger management"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "intent-guard"
 version = "2.1.0"
 category = "planning"

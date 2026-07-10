@@ -43,7 +43,6 @@ The forest's tool ecosystem: 36 active tools (plus 0 retired), each a purpose-bu
 | [`friday-chat`](./friday-chat/) | 1.0.0 | - |
 | [`fsh-test`](./fsh-test/) | 1.0.0 | fsh permanent regression suite |
 | [`gen-diff`](./gen-diff/) | 0.1.0 | Rich visual diff between NixOS generations |
-| [`intent`](./intent/) | 3.0.0 | Intent Ledger - The heart of intentional computing 🎯 |
 | [`intent-guard`](./intent-guard/) | 2.1.0 | Command safety guard - protecting your system 🛡️ |
 | [`teach`](./teach/) | 4.0.0 | Live system narrator — adapts to newcomer or expert |
 
