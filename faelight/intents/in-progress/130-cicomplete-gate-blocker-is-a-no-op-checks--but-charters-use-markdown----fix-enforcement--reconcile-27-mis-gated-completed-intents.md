@@ -134,6 +134,22 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10d) -- 064 reconciled; session pause
+064 (faelight-logout) reconciled -- GENUINE this time (built + deployed, unlike 032). All 7
+gates [x] on honest evidence (commit 132a8fdf): overlay/Esc/styling verified LIVE; keybind+
+deploy verified (PATH + mango config.conf:107); Shutdown/Reboot/Lock ATTESTED by author in
+daily use (poweroff untestable mid-session); Phase 4 scope guard VERIFIED -- no greetd/tuigreet
+refs, only loginctl (no lockout risk).
+
+TALLY: 3 genuinely reconciled (023, 028, 064) + 1 false-complete corrected (032).
+REMAINING 17: 065, 091, 097, 098, 099, 100, 101, 103, 104, 105, 106, 107, 108, 116, 119,
+120, 122, 123, 124. NEXT UP: 065.
+
+REMINDER for closing 130 later: (1) audit each remaining intent for BOTH under-ticked-reconcile
+AND false-complete (032 lesson). (2) Before cicomplete, DEDUPE 130's own charter -- its 6 gates
+appear TWICE (## Gates ~L84 and ## 130's own gates ~L190); left as-is deliberately to avoid
+touching the blocker read-surface mid-session, but must be one clean block before 130 can close.
+
 ## Progress (2026-07-10c) -- 032 was a false-complete, not a reconcile
 032 (faelight-fm v4) audited: it was NEVER built (running FM is v3, INT-015) and had 0/5
 gates ever met, yet sat in complete/ as status:complete. Reclassified complete/ -> future/,
