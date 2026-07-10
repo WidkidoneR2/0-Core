@@ -1504,6 +1504,13 @@ pub fn create(
         )));
     }
 
+    // A stray backspace (0x7f) from read_line landed inside a title during Gate 6 testing,
+    // and the validator called it valid. Strip control characters before anything sees them.
+    let title: String = title.chars().filter(|c| !c.is_control()).collect();
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(crate::errors::CoreError::Runtime("title is empty after sanitizing".into()));
+    }
     let id = next_id(category);
     let date = std::process::Command::new("date")
         .args(["+%Y-%m-%d"])
