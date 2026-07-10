@@ -25,6 +25,10 @@ sqlite, python3 -- but NOT udev. So any build that touches smithay fails inside 
     The system library `libudev` required by crate `libudev-sys` was not found.
     HINT: install a package such as libudev / libudev-dev / libudev-devel.
 
+SECOND GAP (found 2026-07-10 via `cargo nextest list`): smithay-client-toolkit ALSO
+panics on a missing `xkbcommon` (xkbcommon.pc not found) -- same class of bug, same
+devShell. So the gap is TWO system libs, not one: udev AND xkbcommon.
+
 Discovered 2026-07-10 during INT-130 / INT-028 reconciliation: `bacon` ran correctly
 (watched + triggered a build -- bacon itself is NOT at fault) and surfaced this compile
 failure. Scope was deliberately kept out of 028; filed here instead.
@@ -33,16 +37,16 @@ failure. Scope was deliberately kept out of 028; filed here instead.
 Add the udev library to the devShell's buildInputs so pkg-config can resolve libudev.pc.
 
 - In flake.nix devShells.${system}.default buildInputs, add `udev` (pkgs.udev provides
-  the lib + libudev.pc via udev.dev). Place near pkg-config/openssl.
+  libudev.pc) AND `libxkbcommon` (provides xkbcommon.pc). Place near pkg-config/openssl.
 - Rebuild the devShell (exit + re-enter `nix develop`, or `rebuild` if wired system-side).
 - Confirm pkg-config sees it: `pkg-config --exists libudev && echo OK`.
 - Confirm the real fix: smithay compiles in-shell (bacon / cargo build reaches completion,
   no libudev-sys panic).
 
 ## Success Criteria
-- [ ] `udev` added to friday-dev devShell buildInputs in flake.nix
-- [ ] Inside `nix develop`: `pkg-config --exists libudev` returns success
-- [ ] `libudev-sys` build script no longer panics (smithay compiles past it)
+- [ ] `udev` AND `libxkbcommon` added to friday-dev devShell buildInputs in flake.nix
+- [ ] Inside `nix develop`: `pkg-config --exists libudev` AND `pkg-config --exists xkbcommon` both succeed
+- [ ] `libudev-sys` AND `smithay-client-toolkit` build scripts no longer panic (both compile past)
 - [ ] `bacon` completes a build cycle in-shell with no missing-system-library error
 - [ ] DEMONSTRATED live on the running shell, not assumed -- output pasted into this intent
 
@@ -53,5 +57,5 @@ Add the udev library to the devShell's buildInputs so pkg-config can resolve lib
 
 ## Notes
 - Root confirmed, not theorized: smithay at Cargo.toml:44 (backend_udev, backend_session_libseat).
-  devShell at flake.nix:258. Missing input = udev. Fix is one line in buildInputs.
+  devShell at flake.nix:258. Missing inputs = udev + libxkbcommon. Fix is two lines in buildInputs.
 - `bacon` is NOT broken -- it correctly detected and reported the failure. Do not "fix" bacon.
