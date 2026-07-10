@@ -134,6 +134,31 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10)
+Reconciliation resumed -- Tier 2/3 audit begun. Now 2 of 23 done:
+- 023 (replace-wallpaper-idle): CLOSED. G1/G2 deferred under the pre-approved KEEP-as-Rust
+  decision (christian 2026-06-04); G3/G5 verified live (niri uninstalled, wallpaper showing);
+  G4 voided by KEEP. Committed 62dc9e47.
+- 028 (forest-dev-tooling): PARTIAL, does NOT close yet.
+    - nix-tree: [x] present + ran live (built 1665-path tree). Commit b3257eed/ (g1).
+    - nvd diffs cleanly: [x] demonstrated 340->341 diff live. Commit b3257eed.
+    - bacon watches+rebuilds: [x] demonstrated (watch loop drove a build cycle).
+    - cargo-nextest faster-than-cargo-test: [~] NOT YET MET -- tool present + functional
+      (0.9.136) but the "faster" claim is UNMEASURED: workspace won't compile in-shell
+      until udev + xkbcommon land. Commit a9f005b1.
+- INT-137 filed + amended: friday-dev devShell missing udev AND xkbcommon (both smithay
+  build-deps). This is what blocks 028 G4. Surfaced by bacon + cargo nextest list this session.
+
+DEPENDENCY: 130's reconciliation gate cannot close until ALL 23 are honestly resolved.
+028 cannot fully resolve until 137 lands. Therefore 130 is transitively blocked on 137
+via 028. Order to close 130: finish 137 -> close 028 G4 with a real timed comparison ->
+reconcile the remaining 21 (032, 064, 065, 091, 097-108, 116, 119-124) -> then G5 closes.
+
+NOTE: charter has the gate list twice (## Gates and ## 130's own gates), byte-identical.
+Left as-is deliberately -- cicomplete's gate-scanner reads this file, and the dedupe is
+not worth risking the enforcement surface until we've watched a real block read it. Cosmetic,
+makes nothing false (both show the same honest open state). Dedupe is its own later task.
+
 ## The remaining 23 (Tier 2/3 -- fresh-session audit)
 023, 028, 032, 064, 065, 091, 097, 098, 099, 100, 101, 103, 104, 105, 106, 107, 108,
 116, 119, 120, 122, 123, 124.
