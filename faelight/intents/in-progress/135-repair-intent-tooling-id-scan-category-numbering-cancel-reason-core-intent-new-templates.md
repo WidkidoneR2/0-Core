@@ -102,7 +102,29 @@ creation must work in the engine BEFORE the tool that owns creation can be retir
       THE REAL DEFECT, which stands: two commands, one verb, incompatible interfaces --
       `core intent cancel --reason "x" <id>` vs `intent cancel <id> "x"`. That is the
       consolidation problem (Gate 6), not a cancel bug.
-- [ ] **Gate 5 -- one validator, namespace-aware, complete.** `core intent validate` learns
+- [x] **Gate 5 -- DONE 2026-07-10, gen 330.** Rewrote `core intent validate` (was 24 lines:
+      one flat HashMap over nine folders -> 21 duplicates, 1 real). Now two-pass:
+      Pass 1 semantic checks on parsed intents; Pass 2 raw-byte frontmatter check, because
+      `parse_intent()` returns Option and load_all SILENTLY DROPS malformed files -- which is
+      precisely why `complete/105` hid for months.
+      Ported from `rust-tools/intent` (the crate Gate 6 retires -- it held the better code):
+      four required fields, seven-state status vocabulary, README/`type: index` exemption,
+      `starts_with("---")`. Added three: id matches filename prefix; status matches directory
+      (LIFECYCLE dirs only -- record dirs legitimately carry several statuses); duplicate ids
+      WITHIN a namespace per decisions/137.
+      FOUND 6 REAL DEFECTS, zero false positives, all repaired:
+        - `philosophy/002` carried `id: "philosophy-002"` (quoted, prefixed; 001 says `id: 001`)
+        - `incidents/112` carried `id: 111` -- filename and frontmatter disagreed
+        - three date-named incidents (`2026-02-03-...`, `2025-...`) carried ids 007/008/009 but
+          were UNREACHABLE by `intent NNN`, which resolves on filename prefix. Renamed.
+        - `decisions/002` duplicated. `002-faelight-bar` had `type: future` -- a misfiled
+          INTENT from the Hyprland era, not a decision. Renumbered to `decisions/139`.
+      All 165 intents valid. `decisions/001` vs `philosophy/001` vs `incidents/001` correctly
+      produce NO complaint -- separate namespaces, enforced.
+      NOTE for Gate 6: the two validators report different counts (165 vs 160). `intent
+      validate` walks eight folders and omits `in-progress` entirely -- it has never validated
+      an in-progress intent. Same disease: two walkers, two folder lists, silently different.
+      ORIGINAL: `core intent validate` learns
       per-namespace uniqueness (not global) AND the frontmatter checks currently only in
       `intent validate`: `id:` present and matching the filename, `title:`/`status:`/`date:`
       present, frontmatter parses, status consistent with the directory. Its 20 false

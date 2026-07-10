@@ -379,87 +379,27 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn validate(ctx: &AppContext) -> CoreResult<()> {
-    // decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between
-    // them). Each record dir owns its own sequence. The old global HashMap conflated all
-    // nine folders and called decisions/001 vs incidents/001 a collision. It is not.
+/// The ONE validator. Context-free: reads `faelight_core::paths::intents_dir()`, the same
+/// source doctor uses. Returns (intents_seen, issues). Callers decide how to present it.
+///
+/// decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between them).
+/// Each record dir owns its own sequence.
+pub fn validate_issues() -> (usize, Vec<String>) {
     const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
     const VALID_STATUS: &[&str] = &[
         "planned", "in-progress", "complete", "cancelled", "deferred", "resolved", "decided",
     ];
-
-    let intents = load_all(ctx);
-    let mut issues: Vec<String> = Vec::new();
-
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("{}", "🔍 Intent Ledger Validation".bold());
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-
-    // ── Pass 1: semantic checks on parsed intents ──
-    let mut seen: HashMap<(String, String), usize> = HashMap::new();
-    for i in &intents {
-        let ns = if LIFECYCLE.contains(&i.folder.as_str()) {
-            "lifecycle".to_string()
-        } else {
-            i.folder.clone()
-        };
-        *seen.entry((ns, i.id.clone())).or_insert(0) += 1;
-
-        if i.id.is_empty() {
-            issues.push(format!("Missing 'id': {}/{}", i.folder, i.filename));
-        }
-        if i.title.is_empty() {
-            issues.push(format!("Missing 'title': {}/{}", i.folder, i.filename));
-        }
-        if i.date.is_empty() {
-            issues.push(format!("Missing 'date': {}/{}", i.folder, i.filename));
-        }
-        if i.status.is_empty() {
-            issues.push(format!("Missing 'status': {}/{}", i.folder, i.filename));
-        } else if !VALID_STATUS.contains(&i.status.as_str()) {
-            issues.push(format!(
-                "Invalid status '{}': {}/{}",
-                i.status, i.folder, i.filename
-            ));
-        }
-
-        if let Some(prefix) = i.filename.split('-').next() {
-            if !i.id.is_empty() && prefix != i.id {
-                issues.push(format!(
-                    "id '{}' != filename prefix '{}': {}/{}",
-                    i.id, prefix, i.folder, i.filename
-                ));
-            }
-        }
-
-        // Record dirs legitimately carry several statuses (decisions/121 is 'complete',
-        // decisions/136 is 'decided'). Only the lifecycle dirs map 1:1.
-        if LIFECYCLE.contains(&i.folder.as_str()) {
-            let expected: &str = if i.folder == "future" { "planned" } else { i.folder.as_str() };
-            if !i.status.is_empty() && i.status.as_str() != expected {
-                issues.push(format!(
-                    "status '{}' != directory: {}/{}",
-                    i.status, i.folder, i.filename
-                ));
-            }
-        }
-    }
-
-    for ((ns, id), count) in &seen {
-        if *count > 1 {
-            issues.push(format!("Duplicate id {} within namespace '{}'", id, ns));
-        }
-    }
-
-    // ── Pass 2: files load_all silently dropped ──
-    // parse_intent() returns Option. A malformed file never becomes an Intent, so Pass 1
-    // cannot see it. complete/105 ('i---') hid here for months. Read the raw bytes.
-    let base = intents_dir(ctx);
-    let folders = [
+    const FOLDERS: &[&str] = &[
         "complete", "future", "in-progress", "cancelled", "deferred",
         "decisions", "experiments", "incidents", "philosophy",
     ];
-    for folder in &folders {
+
+    let base = faelight_core::paths::intents_dir();
+    let mut issues: Vec<String> = Vec::new();
+    let mut seen: HashMap<(String, String), usize> = HashMap::new();
+    let mut count = 0usize;
+
+    for folder in FOLDERS {
         let dir = base.join(folder);
         let Ok(entries) = fs::read_dir(&dir) else { continue };
         for entry in entries.flatten() {
@@ -475,14 +415,77 @@ pub fn validate(ctx: &AppContext) -> CoreResult<()> {
             if content.contains("type: index") {
                 continue;
             }
+
+            // Frontmatter MUST begin at byte 0. parse_intent() returns Option and would
+            // silently drop this file -- which is exactly why complete/105 ('i---') hid
+            // for months, and cancelled/058 ('\n---') beside it.
             if !content.starts_with("---") {
                 issues.push(format!("Malformed frontmatter: {}/{}", folder, name));
+                continue;
+            }
+
+            count += 1;
+            let fm = content.split("---").nth(1).unwrap_or("");
+            let field = |k: &str| -> Option<String> {
+                fm.lines()
+                    .find(|l| l.trim_start().starts_with(&format!("{}:", k)))
+                    .map(|l| l.splitn(2, ':').nth(1).unwrap_or("").trim().trim_matches('"').to_string())
+                    .filter(|v| !v.is_empty())
+            };
+
+            let id = field("id");
+            for k in ["id", "title", "status", "date"] {
+                if field(k).is_none() {
+                    issues.push(format!("Missing '{}': {}/{}", k, folder, name));
+                }
+            }
+
+            if let Some(st) = field("status") {
+                if !VALID_STATUS.contains(&st.as_str()) {
+                    issues.push(format!("Invalid status '{}': {}/{}", st, folder, name));
+                }
+                // Record dirs legitimately carry several statuses (decisions/121 is
+                // 'complete', decisions/136 is 'decided'). Only lifecycle dirs map 1:1.
+                if LIFECYCLE.contains(folder) {
+                    let want = if *folder == "future" { "planned" } else { folder };
+                    if st != want {
+                        issues.push(format!("status '{}' != directory: {}/{}", st, folder, name));
+                    }
+                }
+            }
+
+            if let Some(id) = id {
+                if let Some(prefix) = name.split('-').next() {
+                    if prefix != id {
+                        issues.push(format!(
+                            "id '{}' != filename prefix '{}': {}/{}", id, prefix, folder, name
+                        ));
+                    }
+                }
+                let ns = if LIFECYCLE.contains(folder) { "lifecycle" } else { folder };
+                *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
         }
     }
 
+    for ((ns, id), n) in &seen {
+        if *n > 1 {
+            issues.push(format!("Duplicate id {} within namespace '{}'", id, ns));
+        }
+    }
+
+    (count, issues)
+}
+
+pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
+    let (count, issues) = validate_issues();
+
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("{}", "🔍 Intent Ledger Validation".bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+
     if issues.is_empty() {
-        println!("  {} All {} intents valid", "✅".green(), intents.len());
+        println!("  {} All {} intents valid", "✅".green(), count);
     } else {
         for msg in &issues {
             println!("  {} {}", "✗".bright_red(), msg);

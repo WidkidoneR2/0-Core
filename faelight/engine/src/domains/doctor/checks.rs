@@ -277,46 +277,27 @@ pub fn check_dotmeta() -> CheckResult {
 }
 
 pub fn check_intents(_core_root: &str) -> CheckResult {
-    let intent_dir = faelight_core::paths::intents_dir();
-    let mut total = 0;
-    let mut complete = 0;
-    let mut planned = 0;
-    for category in [
-        "complete",
-        "decisions",
-        "experiments",
-        "philosophy",
-        "future",
-        "cancelled",
-        "deferred",
-        "incidents",
-        "active",
-    ] {
-        let cat_dir = intent_dir.join(category);
-        if let Ok(entries) = fs::read_dir(&cat_dir) {
-            for entry in entries.flatten() {
-                if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                    total += 1;
-                    if let Ok(content) = fs::read_to_string(entry.path()) {
-                        if content.contains("status: complete") {
-                            complete += 1;
-                        } else if content.contains("status: planned") {
-                            planned += 1;
-                        }
-                    }
-                }
-            }
+    // INT-135 Gate 7: was decoration -- hardcoded Status::Pass, a phantom "active/" folder,
+    // no "in-progress", and a substring match for "status: complete" over whole files.
+    // Now calls the ONE validator. Doctor and `core intent validate` cannot disagree.
+    let (count, issues) = crate::domains::intent::validate_issues();
+
+    if issues.is_empty() {
+        CheckResult {
+            id: "intents".into(),
+            name: "Intent Ledger".into(),
+            status: Status::Pass,
+            message: format!("{} intents, all valid", count),
+            fix: None,
         }
-    }
-    CheckResult {
-        id: "intents".into(),
-        name: "Intent Ledger".into(),
-        status: Status::Pass,
-        message: format!(
-            "{} intents ({} complete, {} planned)",
-            total, complete, planned
-        ),
-        fix: None,
+    } else {
+        CheckResult {
+            id: "intents".into(),
+            name: "Intent Ledger".into(),
+            status: Status::Warn,
+            message: format!("{} issue(s) -- first: {}", issues.len(), issues[0]),
+            fix: Some("core intent validate".into()),
+        }
     }
 }
 
