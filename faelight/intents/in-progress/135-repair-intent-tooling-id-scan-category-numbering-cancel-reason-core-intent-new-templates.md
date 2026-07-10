@@ -134,7 +134,29 @@ creation must work in the engine BEFORE the tool that owns creation can be retir
       `core intent`. Repoint aliases `intl`, `ints`, `int-active`. Update `docs/POLICIES.md:377`.
       Remove the crate from the flake and `registry/tools.toml`. `fsh-test` and the cheatsheet
       must still pass. Nothing may reference the retired binary.
-- [ ] **Gate 7 -- `doctor` runs `core intent validate` every deploy.** This is the point of
+- [x] **Gate 7 -- DONE 2026-07-10, gen 332. The ledger checks itself.**
+      `check_intents` was decoration: hardcoded `Status::Pass` (it could never fail), a THIRD
+      divergent folder list -- no `in-progress`, plus a phantom `active/` that has never
+      existed -- and `content.contains("status: complete")`, a substring match over whole
+      files, so any charter quoting that string counted as complete. Doctor said 161; the CLI
+      said 165. Nobody knew what doctor was counting.
+      Extracted `validate_issues() -> (usize, Vec<String>)`, context-free, reading
+      `faelight_core::paths::intents_dir()` -- the same source doctor already used.
+      `validate()` prints it. `check_intents()` reports it. ONE rule, ONE implementation,
+      TWO consumers. They cannot disagree.
+      Count corrected 165 -> 164: the old `load_all` counted `incidents/00-INDEX.md` as an
+      intent. It is `type: index`. 164 is right.
+      PROVEN on the deployed binary: doctor read `164 intents, all valid`, matching the CLI.
+      Seeded `decisions/121-seeded-duplicate.md` -> check went WARN, named
+      `Duplicate id 121 within namespace 'decisions'`, health 90 -> 87, `health_drop` fired.
+      Removed it -> Pass, 164 valid.
+      KNOWN DEBT: `validate_issues` hand-rolls frontmatter extraction rather than reusing
+      `parse_intent`. Its `field()` closure splits on the first `:`, so a title containing a
+      colon is truncated. Harmless -- only `id` and `status` are compared, never `title` --
+      but it is a THIRD parser in a codebase whose disease is duplicate implementations.
+      Fix when Gate 6 lands: walk the dir for the byte-0 `---` check, call `parse_intent`
+      for everything else.
+      ORIGINAL: This is the point of
       the whole intent: a collision like `decisions/135` is caught the moment it is made, not
       months later. Green when the ledger is sound; warns with the specific file when not.
       Seeded-failure test: introduce a duplicate, confirm doctor catches it, remove it.
