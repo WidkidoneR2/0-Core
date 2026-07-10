@@ -3,7 +3,7 @@ id: 032
 date: 2026-06-04
 type: feature
 title: "faelight-fm v4: full Nix explorer, plugin system, semantic engine"
-status: complete
+status: planned
 tags: [faelight-fm, nix, explorer, plugins, semantic, v4]
 priority: medium
 ---
@@ -56,3 +56,5 @@ Extensions/Plugins:
 ✅ Dual panel :cp :mv
 ✅ Helix TUI suspend/restore
 ✅ Forest green helix theme
+
+<!-- Reclassified per INT-130, 2026-07-10: was falsely status:complete in complete/ with 0/5 gates ever met. faelight-fm v4 was never built (running FM is v3, INT-015). Moved complete/ -> future/, status -> planned. This is a PLAN, not done work. Audit caught a false-complete (blocker was the no-op 130 fixed). -->
