@@ -1569,7 +1569,12 @@ fn prompt(label: &str) -> Option<String> {
     Some(line.trim().to_string())
 }
 
-pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
+pub fn new_intent(
+    ctx: &AppContext,
+    category: &str,
+    template: &str,
+    title: &str,
+) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -1578,103 +1583,27 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
         ],
     )?;
 
-    // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
-    let base = intents_dir(ctx);
-    // decisions/137: intent dirs and record dirs are SEPARATE namespaces. Record dirs
-    // (decisions/, incidents/, experiments/, philosophy/) number themselves -- decisions/002
-    // exists twice, and 001 appears independently in four record dirs. The old INT-070
-    // comment claiming a shared space memorialized a misdiagnosis. Do not re-add "decisions".
-    let active_folders = ["complete", "future", "in-progress"];
-    let max_id = active_folders
+    // `banana` used to work: the old match fell through `_ => ("future", "faelight")`,
+    // silently filing an unknown template as a future intent. Now it is an error.
+    let (_, type_tag, tags, status) = TEMPLATES
         .iter()
-        .flat_map(|folder| {
-            let dir = base.join(folder);
-            std::fs::read_dir(&dir).ok().into_iter().flatten()
-        })
-        .flatten()
-        .filter_map(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            name.split('-').next()?.parse::<u32>().ok()
-        })
-        .max()
-        .unwrap_or(0);
-    let next_id = max_id + 1;
+        .find(|(t, ..)| *t == template)
+        .copied()
+        .ok_or_else(|| {
+            crate::errors::CoreError::Runtime(format!(
+                "unknown template '{}' -- expected one of: {}",
+                template,
+                TEMPLATES
+                    .iter()
+                    .map(|(t, ..)| *t)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))
+        })?;
 
-    let today = std::process::Command::new("date")
-        .args(["+%Y-%m-%d"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "2026-01-01".to_string());
-
-    let (type_tag, tags) = match template {
-        "feature" => ("feature", "feature, rust, faelight"),
-        "fix" => ("fix", "fix, bugfix"),
-        "arch" => ("arch", "architecture, rust, design"),
-        "study" => ("study", "study, research, learning"),
-        _ => ("future", "faelight"),
-    };
-
-    let slug = title.to_lowercase().replace(' ', "-");
-    let filename = format!("{:0>3}-{}.md", next_id, slug);
-    // INT-061 drift fix: write through intents_dir(ctx), not the stale
-    // pre-061 ctx.core_root/intents path (which no longer exists).
-    let filepath = intents_dir(ctx).join("future").join(&filename);
-
-    let content = format!(
-        r#"---
-id: {:03}
-date: {}
-type: {}
-title: "{}"
-status: planned
-tags: [{}]
-version: TBD
----
-
-## Vision
-
-<!-- What is this intent trying to achieve? -->
-
-## Why Now
-
-<!-- Why is this the right time for this intent? -->
-
-## Approach
-
-<!-- How will this be implemented? -->
-
-## Success Criteria
-
-- [ ] <!-- First criterion -->
-- [ ] <!-- Second criterion -->
-
-## Gate Check
-```
-⬜ Not started
-```
-
----
-
-*\"The forest grows with intention.\"* 🌲
-"#,
-        next_id, today, type_tag, title, tags
-    );
-
-    fs::write(&filepath, content).map_err(crate::errors::CoreError::Io)?;
-
-    println!("{}", "📝 Intent Created".bold());
-    println!("{}", "━".repeat(50).dimmed());
-    println!("  {} {:03}", "ID:       ".dimmed(), next_id);
-    println!("  {} {}", "Title:    ".dimmed(), title.bright_white());
-    println!("  {} {}", "Template: ".dimmed(), template.bright_cyan());
-    println!("  {} {}", "File:     ".dimmed(), filename.dimmed());
-    println!("{}", "━".repeat(50).dimmed());
-    println!(
-        "  {} Edit: {}",
-        "→".dimmed(),
-        filepath.display().to_string().bright_cyan()
-    );
-
+    let tags: Vec<String> = tags.split(',').map(|t| t.trim().to_string()).collect();
+    let path = create(category, type_tag, title, status, &tags)?;
+    println!("  {} {}", "✅".normal(), path.display());
     Ok(())
 }
 
@@ -2534,218 +2463,6 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
 }
 
 // ── Smart Intent Creation (INT-198) ──────────────────────────────────────────
-pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[
-            Capability::FilesystemReadHome,
-            Capability::FilesystemWriteHome,
-        ],
-    )?;
-    let intents = load_all(ctx);
-    // Gather active intent context
-    let active: Vec<&Intent> = intents
-        .iter()
-        .filter(|i| i.status == "in-progress")
-        .collect();
-    // Collect tags from active intents for suggestions
-    let mut tag_freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for intent in &active {
-        for tag in &intent.tags {
-            *tag_freq.entry(tag.trim().to_string()).or_insert(0) += 1;
-        }
-    }
-    let mut suggested_tags: Vec<String> = tag_freq
-        .iter()
-        .filter(|(_, &count)| count >= 1)
-        .map(|(tag, _)| tag.clone())
-        .collect();
-    suggested_tags.sort();
-    suggested_tags.dedup();
-    suggested_tags.truncate(5);
-    // Get recent commit context
-    let recent_commits = std::process::Command::new("git")
-        .args([
-            "-C",
-            &ctx.core_root,
-            "log",
-            "--oneline",
-            "-5",
-            "--pretty=format:%s",
-        ])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
-    // Find related intents by title similarity to the new title
-    let title_lower = title.to_lowercase();
-    let title_words: Vec<&str> = title_lower.split_whitespace().collect();
-    let related: Vec<(String, String)> = intents
-        .iter()
-        .filter(|i| {
-            let t = i.title.to_lowercase();
-            title_words.iter().any(|w| w.len() > 3 && t.contains(*w))
-        })
-        .map(|i| (i.id.clone(), i.title.clone()))
-        .take(3)
-        .collect();
-    // Display context analysis
-    println!();
-    println!("{}", "🌲 Smart Intent Creation".bright_cyan().bold());
-    println!("{}", "━".repeat(56).dimmed());
-    println!();
-    println!("  {} Context analysis:", "▶".bright_cyan());
-    if !active.is_empty() {
-        println!(
-            "    {} {} intents currently in progress:",
-            "·".dimmed(),
-            active.len()
-        );
-        for a in &active {
-            println!(
-                "      {} INT-{} — {}",
-                "◦".dimmed(),
-                a.id.bright_white(),
-                a.title.dimmed()
-            );
-        }
-    }
-    if !suggested_tags.is_empty() {
-        println!(
-            "    {} Suggested tags: {}",
-            "·".dimmed(),
-            suggested_tags.join(", ").bright_yellow()
-        );
-    }
-    if !recent_commits.is_empty() {
-        println!("    {} Recent work:", "·".dimmed());
-        for line in recent_commits.lines().take(3) {
-            println!("      {} {}", "◦".dimmed(), line.dimmed());
-        }
-    }
-    if !related.is_empty() {
-        println!("    {} Related intents found:", "·".dimmed());
-        for (id, t) in &related {
-            println!(
-                "      {} INT-{} — {}",
-                "◦".dimmed(),
-                id.bright_white(),
-                t.dimmed()
-            );
-        }
-    }
-    println!();
-    // Build smart tags — merge template defaults with suggested
-    let base_tags = match template {
-        "feature" => "feature, rust, faelight",
-        "fix" => "fix, bugfix",
-        "arch" => "architecture, rust, design",
-        "study" => "study, research, learning",
-        _ => "faelight",
-    };
-    let smart_tags = if !suggested_tags.is_empty() {
-        format!("{}, {}", base_tags, suggested_tags.join(", "))
-    } else {
-        base_tags.to_string()
-    };
-    // Build relates_to section from related intents
-    let relates_section = if !related.is_empty() {
-        let ids: Vec<String> = related.iter().map(|(id, _)| id.clone()).collect();
-        format!(
-            "relates_to: [{}]
-",
-            ids.join(", ")
-        )
-    } else {
-        String::new()
-    };
-    // Find next ID -- scan ALL live intent folders (decisions/ shares the ID space)
-    let base = intents_dir(ctx);
-    // decisions/137: intent dirs and record dirs are SEPARATE namespaces. Record dirs
-    // (decisions/, incidents/, experiments/, philosophy/) number themselves -- decisions/002
-    // exists twice, and 001 appears independently in four record dirs. The old INT-070
-    // comment claiming a shared space memorialized a misdiagnosis. Do not re-add "decisions".
-    let active_folders = ["complete", "future", "in-progress"];
-    let max_id = active_folders
-        .iter()
-        .flat_map(|folder| {
-            let dir = base.join(folder);
-            std::fs::read_dir(&dir).ok().into_iter().flatten()
-        })
-        .flatten()
-        .filter_map(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            name.split('-').next()?.parse::<u32>().ok()
-        })
-        .max()
-        .unwrap_or(0);
-    let next_id = max_id + 1;
-    let today = std::process::Command::new("date")
-        .args(["+%Y-%m-%d"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "2026-01-01".to_string());
-    let type_tag = match template {
-        "feature" => "feature",
-        "fix" => "fix",
-        "arch" => "arch",
-        "study" => "study",
-        _ => "future",
-    };
-    let slug = title.to_lowercase().replace(' ', "-");
-    let filename = format!("{:0>3}-{}.md", next_id, slug);
-    // INT-061 drift fix: write through intents_dir(ctx), not the stale
-    // pre-061 ctx.core_root/intents path (which no longer exists).
-    let filepath = intents_dir(ctx).join("future").join(&filename);
-    let content = format!(
-        "---
-id: {:03}
-date: {}
-type: {}
-title: \"{}\"
-status: planned
-tags: [{}]
-{}version: TBD
----
-
-## Vision
-
-<!-- What is this intent trying to achieve? -->
-
-## Why Now
-
-<!-- Active context: {} intents in progress -->
-
-## Approach
-
-<!-- How will this be implemented? -->
-
-## Gate Check
-```
-⬜ Not started
-```
-
----
-
-*\"The forest grows with intention.\"* 🌲
-",
-        next_id,
-        today,
-        type_tag,
-        title,
-        smart_tags,
-        relates_section,
-        active.len()
-    );
-    fs::write(&filepath, &content).map_err(crate::errors::CoreError::Io)?;
-    println!("  {} Intent created with forest context", "✅".normal());
-    println!("  {} ID:    INT-{:03}", "→".dimmed(), next_id);
-    println!("  {} Title: {}", "→".dimmed(), title.bright_white());
-    println!("  {} Tags:  {}", "→".dimmed(), smart_tags.bright_yellow());
-    println!("  {} File:  {}", "→".dimmed(), filename.dimmed());
-    println!();
-    println!("{}", "━".repeat(56).dimmed());
-    Ok(())
-}
 // ── Critical Path Analysis (INT-198) ─────────────────────────────────────────
 pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities

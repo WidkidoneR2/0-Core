@@ -134,16 +134,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
                 IntentCommand::Add { smart } => crate::domains::intent::add(ctx, smart),
                 IntentCommand::New {
+                    category,
                     template,
                     title,
-                    smart,
-                } => {
-                    if smart {
-                        crate::domains::intent::new_intent_smart(ctx, &template, &title)
-                    } else {
-                        crate::domains::intent::new_intent(ctx, &template, &title)
-                    }
-                }
+                } => crate::domains::intent::new_intent(ctx, &category, &template, &title),
                 IntentCommand::Deps { id, critical_path } => {
                     if critical_path {
                         crate::domains::intent::deps_critical_path(ctx)

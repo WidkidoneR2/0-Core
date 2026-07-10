@@ -297,9 +297,9 @@ pub enum IntentCommand {
         smart: bool,
     },
     New {
+        category: String,
         template: String,
         title: String,
-        smart: bool,
     },
     Deps {
         id: Option<String>,

@@ -205,13 +205,13 @@ pub fn parse() -> Command {
             IntentCommands::Complete { id } => IntentCommand::Complete { id },
             IntentCommands::Add { smart } => IntentCommand::Add { smart },
             IntentCommands::New {
+                category,
                 template,
                 title,
-                smart,
             } => IntentCommand::New {
+                category,
                 template,
                 title,
-                smart,
             },
             IntentCommands::Deps { id, critical_path } => IntentCommand::Deps { id, critical_path },
             IntentCommands::Burndown => IntentCommand::Burndown,

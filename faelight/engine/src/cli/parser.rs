@@ -628,15 +628,13 @@ pub enum IntentCommands {
         #[arg(long)]
         smart: bool,
     },
-    /// Create a new intent from template
     New {
-        /// Template type: feature, fix, arch, study
+        /// Category (directory): future, decisions, experiments, philosophy, incidents
+        category: String,
+        /// Template: feature, fix, arch, study, future, decision, incident, experiment, philosophy
         template: String,
         /// Intent title
         title: String,
-        /// Context-aware smart creation — forest suggests based on active work
-        #[arg(long)]
-        smart: bool,
     },
     /// Show dependency graph for an intent
     Deps {
