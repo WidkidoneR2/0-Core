@@ -134,6 +134,18 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10c) -- 032 was a false-complete, not a reconcile
+032 (faelight-fm v4) audited: it was NEVER built (running FM is v3, INT-015) and had 0/5
+gates ever met, yet sat in complete/ as status:complete. Reclassified complete/ -> future/,
+status -> planned (commit 5bb0eb76) -- an honest planned v4, sibling to INT-136. This is a
+DIFFERENT outcome than 023/028: not a clean reconcile-close, but a MISFILING correction.
+The audit caught a false-complete that predates the ledger rebuild -- exactly what 130 is for.
+
+Reconciliation tally: 023 + 028 genuinely closed (2). 032 removed from the 23 (it was never
+a real complete). So the remaining list is now 20: 064, 065, 091, 097, 098, 099, 100, 101,
+103, 104, 105, 106, 107, 108, 116, 119, 120, 122, 123, 124. LESSON: some of these 20 may
+also be false-completes, not just under-ticked reconciles. Audit each for BOTH.
+
 ## Progress (2026-07-10b) -- update
 Supersedes the partial status above. Reconciliation now 2 of 23 COMPLETE:
 - 023: closed (62dc9e47).
