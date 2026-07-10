@@ -3,7 +3,7 @@ id: 135
 date: 2026-07-09
 type: future
 title: "Repair and consolidate the intent ledger tooling"
-status: in-progress
+status: complete
 tags: [ledger, intent, tooling, bugfix, consolidation]
 ---
 
