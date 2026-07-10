@@ -293,6 +293,9 @@ pub enum IntentCommand {
     Complete {
         id: String,
     },
+    Add {
+        smart: bool,
+    },
     New {
         template: String,
         title: String,

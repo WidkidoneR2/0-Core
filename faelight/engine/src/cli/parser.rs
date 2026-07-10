@@ -622,6 +622,12 @@ pub enum IntentCommands {
     Complete {
         id: String,
     },
+    /// Interactive wizard -- prompts for category, title, status, tags
+    Add {
+        /// Suggest tags from active intents and recent commits
+        #[arg(long)]
+        smart: bool,
+    },
     /// Create a new intent from template
     New {
         /// Template type: feature, fix, arch, study

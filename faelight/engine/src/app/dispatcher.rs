@@ -132,6 +132,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Drift => crate::domains::intent::drift(ctx),
                 IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
                 IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
+                IntentCommand::Add { smart } => crate::domains::intent::add(ctx, smart),
                 IntentCommand::New {
                     template,
                     title,

@@ -1353,6 +1353,215 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     crate::domains::notify::desktop(&format!("Intent {} complete", id), &intent.title, false);
     Ok(())
 }
+/// A category IS a directory. Nothing outside this list is creatable.
+/// `banana` was accepted for months because `new_intent` matched templates, not categories,
+/// and fell through `_ =>` to "future".
+// Order matters: this IS the wizard menu. Matches rust-tools/intent's numbering so
+// muscle memory survives the retirement. 1=decisions, 2=experiments, 3=philosophy,
+// 4=future, 5=incidents.
+pub const CATEGORIES: &[&str] = &["decisions", "experiments", "philosophy", "future", "incidents"];
+
+/// (template, type_tag, default_tags, default_status). `type` is SINGULAR -- what the
+/// document IS. The wizard used to write `type: decisions` (the plural folder name) while
+/// hand-written records said `type: decision`.
+pub const TEMPLATES: &[(&str, &str, &str, &str)] = &[
+    ("feature", "feature", "feature, rust, faelight", "planned"),
+    ("fix", "fix", "fix, bugfix", "planned"),
+    ("arch", "arch", "architecture, rust, design", "planned"),
+    ("study", "study", "study, research, learning", "planned"),
+    ("future", "future", "faelight", "planned"),
+    ("decision", "decision", "decision", "decided"),
+    ("incident", "incident", "incident", "resolved"),
+    ("experiment", "experiment", "experiment", "complete"),
+    ("philosophy", "philosophy", "philosophy", "complete"),
+];
+
+/// The ONE numberer. Same namespace rule `validate_issues` enforces (decisions/137):
+/// the lifecycle dirs share a counter because a file MOVES between them; each record dir
+/// owns its own sequence. Three copies of this logic existed before.
+fn next_id(category: &str) -> u32 {
+    const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
+    let base = faelight_core::paths::intents_dir();
+    let scan: Vec<&str> = if LIFECYCLE.contains(&category) {
+        LIFECYCLE.to_vec()
+    } else {
+        vec![category]
+    };
+    scan.iter()
+        .flat_map(|d| fs::read_dir(base.join(d)).ok().into_iter().flatten())
+        .flatten()
+        .filter_map(|e| {
+            let n = e.file_name().to_string_lossy().to_string();
+            let p = n.split('-').next()?;
+            if p.len() == 3 && p.bytes().all(|b| b.is_ascii_digit()) {
+                p.parse::<u32>().ok()
+            } else {
+                None
+            }
+        })
+        .max()
+        .unwrap_or(0)
+        + 1
+}
+
+/// `core intent add` -- the interactive wizard. Ported from rust-tools/intent's cmd_add,
+/// which wrote `type: {plural folder name}`. This writes the SINGULAR type from TEMPLATES.
+pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
+
+    println!("{}", "📝 Adding New Intent".bright_cyan().bold());
+    println!();
+    println!("Select category:");
+    for (n, c) in CATEGORIES.iter().enumerate() {
+        println!("  {}) {}", n + 1, c);
+    }
+
+    let Some(choice) = prompt("Choice (1-5): ") else {
+        return Err(crate::errors::CoreError::Runtime(
+            "core intent add requires a terminal -- use `core intent new <category> <template> <title>`".into(),
+        ));
+    };
+    let idx: usize = choice.parse().unwrap_or(0);
+    if idx == 0 || idx > CATEGORIES.len() {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "invalid choice '{}'",
+            choice
+        )));
+    }
+    let category = CATEGORIES[idx - 1];
+
+    // Default type + status for this category, from TEMPLATES.
+    // Explicit map. Do NOT chop the trailing 's': philosophy -> philosoph.
+    let want = match category {
+        "decisions" => "decision",
+        "experiments" => "experiment",
+        "philosophy" => "philosophy",
+        "incidents" => "incident",
+        _ => "future",
+    };
+    let (_, type_tag, def_tags, def_status) = TEMPLATES
+        .iter()
+        .find(|(t, ..)| *t == want)
+        .copied()
+        .unwrap_or(("future", "future", "faelight", "planned"));
+
+    let title = prompt("Title: ").unwrap_or_default();
+    if title.is_empty() {
+        return Err(crate::errors::CoreError::Runtime("title is required".into()));
+    }
+
+    let status = prompt(&format!("Status [{}]: ", def_status))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| def_status.to_string());
+
+    if smart {
+        let intents = load_all(ctx);
+        let mut freq: HashMap<String, usize> = HashMap::new();
+        for i in intents.iter().filter(|i| i.status == "in-progress") {
+            for t in &i.tags {
+                *freq.entry(t.trim().to_string()).or_insert(0) += 1;
+            }
+        }
+        let mut sug: Vec<String> = freq.into_keys().collect();
+        sug.sort();
+        sug.truncate(5);
+        if !sug.is_empty() {
+            println!("  {} from active work: {}", "💡".normal(), sug.join(", ").dimmed());
+        }
+    }
+
+    let tags_in = prompt(&format!("Tags [{}]: ", def_tags)).unwrap_or_default();
+    let tags: Vec<String> = if tags_in.is_empty() { def_tags } else { &tags_in }
+        .split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+
+    let path = create(category, type_tag, &title, &status, &tags)?;
+    println!();
+    println!("  {} {}", "✅".normal(), path.display());
+    Ok(())
+}
+
+/// The ONE creator. Nothing else writes an intent file.
+pub fn create(
+    category: &str,
+    type_tag: &str,
+    title: &str,
+    status: &str,
+    tags: &[String],
+) -> CoreResult<PathBuf> {
+    if !CATEGORIES.contains(&category) {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "unknown category '{}' -- expected one of {:?}",
+            category, CATEGORIES
+        )));
+    }
+
+    let id = next_id(category);
+    let date = std::process::Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "1970-01-01".to_string());
+
+    // One slug rule. `new_intent` only replaced spaces, which is why 136's filename kept a
+    // colon and a comma. cmd_add filtered to alphanumeric+dash. This does the latter.
+    let slug: String = title
+        .to_lowercase()
+        .replace(' ', "-")
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-')
+        .collect();
+
+    let filename = format!("{:03}-{}.md", id, slug);
+    let path = faelight_core::paths::intents_dir().join(category).join(&filename);
+    if path.exists() {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "refusing to overwrite {}",
+            path.display()
+        )));
+    }
+
+    let tags_str = if tags.is_empty() {
+        "[]".to_string()
+    } else {
+        format!("[{}]", tags.join(", "))
+    };
+
+    let content = format!(
+        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\n---\n\n\
+## Vision\n[Describe the goal and desired outcome]\n\n\
+## The Problem\n[What problem does this solve?]\n\n\
+## The Solution\n[High-level approach]\n\n\
+## Success Criteria\n- [ ] ...\n",
+        id, date, type_tag, title, status, tags_str
+    );
+
+    fs::create_dir_all(path.parent().unwrap()).map_err(crate::errors::CoreError::Io)?;
+    fs::write(&path, content).map_err(crate::errors::CoreError::Io)?;
+    Ok(path)
+}
+
+/// Prompt on a TTY. Returns None when stdin is not a terminal -- never block a script.
+fn prompt(label: &str) -> Option<String> {
+    use std::io::{IsTerminal, Write};
+    if !std::io::stdin().is_terminal() {
+        return None;
+    }
+    print!("{}", label);
+    let _ = std::io::stdout().flush();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).ok()?;
+    Some(line.trim().to_string())
+}
+
 pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",

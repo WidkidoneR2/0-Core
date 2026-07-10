@@ -203,6 +203,7 @@ pub fn parse() -> Command {
             IntentCommands::Drift => IntentCommand::Drift,
             IntentCommands::Start { id } => IntentCommand::Start { id },
             IntentCommands::Complete { id } => IntentCommand::Complete { id },
+            IntentCommands::Add { smart } => IntentCommand::Add { smart },
             IntentCommands::New {
                 template,
                 title,
