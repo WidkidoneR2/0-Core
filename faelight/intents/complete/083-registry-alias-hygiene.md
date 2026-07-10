@@ -3,6 +3,7 @@ id: 083
 date: 2026-06-23
 type: future
 title: "registry alias-hygiene: fix collapsed [[alias]] blocks in aliases.toml"
+status: complete
 tags: [registry, aliases, toml, hygiene, cleanup]
 version: TBD
 ---

@@ -93,7 +93,15 @@ creation must work in the engine BEFORE the tool that owns creation can be retir
       computes the id from the intent dirs regardless of chosen category. Scan the directory
       the file will land in. Demonstrated by creating a decision and confirming it takes the
       next free DECISION number, not the next intent number.
-- [ ] **Gate 4 -- `intent cancel --reason` stores the reason, not the flag name.**
+- [x] **Gate 4 -- NOT A BUG. Corrected 2026-07-10.** `rust-tools/intent/src/main.rs:108-111`
+      takes the reason POSITIONALLY: `let reason = args.get(3)`. Its own usage text (line 113)
+      says `intent cancel <id> [reason]`, example `intent cancel 036 "no longer needed"`.
+      Claude invoked it with `core intent`'s clap signature (`--reason "x" <id>`), so it
+      faithfully stored the literal string `--reason`. The tool did what it documents.
+      No fix needed; the charter's item 4 was a fabricated defect, like the `templates/` dir.
+      THE REAL DEFECT, which stands: two commands, one verb, incompatible interfaces --
+      `core intent cancel --reason "x" <id>` vs `intent cancel <id> "x"`. That is the
+      consolidation problem (Gate 6), not a cancel bug.
 - [ ] **Gate 5 -- one validator, namespace-aware, complete.** `core intent validate` learns
       per-namespace uniqueness (not global) AND the frontmatter checks currently only in
       `intent validate`: `id:` present and matching the filename, `title:`/`status:`/`date:`
