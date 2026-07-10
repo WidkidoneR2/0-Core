@@ -68,11 +68,11 @@ PROVEN LIVE (fresh `nix develop`, 2026-07-10):
 Not yet committed at time of this note. Next: commit flake + charter, then tick gates.
 
 ## Success Criteria
-- [ ] `udev` AND `libxkbcommon` added to friday-dev devShell buildInputs in flake.nix
-- [ ] Inside `nix develop`: `pkg-config --exists libudev` AND `pkg-config --exists xkbcommon` both succeed
-- [ ] `libudev-sys` AND `smithay-client-toolkit` build scripts no longer panic (both compile past)
-- [ ] `bacon` completes a build cycle in-shell with no missing-system-library error
-- [ ] DEMONSTRATED live on the running shell, not assumed -- output pasted into this intent
+- [x] `udev` AND `libxkbcommon` added to friday-dev devShell buildInputs in flake.nix <!-- 2026-07-10: all SEVEN added (udev, libxkbcommon, seatd, libdisplay-info, pam, libinput, libgbm). Commit 3b295a44 -->
+- [x] Inside `nix develop`: `pkg-config --exists libudev` AND `pkg-config --exists xkbcommon` both succeed <!-- 2026-07-10: both returned OK in fresh nix develop -->
+- [x] `libudev-sys` AND `smithay-client-toolkit` build scripts no longer panic (both compile past) <!-- 2026-07-10: both compiled past; ENTIRE workspace compiles+links incl. faelight-compositor -->
+- [x] `bacon` completes a build cycle in-shell with no missing-system-library error <!-- 2026-07-10: ran bacon in fixed devShell, all green, 0 errors, no missing-lib panic -->
+- [x] DEMONSTRATED live on the running shell, not assumed -- output pasted into this intent <!-- 2026-07-10: cargo nextest list + bacon output pasted live this session -->
 
 ## Relationship
 - Surfaced by INT-130 (028 reconciliation, bacon gate). 028's bacon gate closes on bacon's
