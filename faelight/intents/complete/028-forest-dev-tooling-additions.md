@@ -27,6 +27,6 @@ cargo-nextest for faster tests.
 ## Gate
 
 - [ ] nix-tree available system-wide
-- [ ] nvd shows generation diffs cleanly
+- [x] nvd shows generation diffs cleanly <!-- INT-130: verified 2026-07-10 -- nvd diff system-340-link -> system-341-link rendered clean (headers, closure delta, path counts). Tool present at /etc/profiles/per-user/christian/bin/nvd -->
 - [ ] bacon watches and rebuilds on save
 - [ ] cargo-nextest runs test suite faster than cargo test
