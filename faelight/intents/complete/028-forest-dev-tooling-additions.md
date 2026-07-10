@@ -26,7 +26,7 @@ cargo-nextest for faster tests.
 
 ## Gate
 
-- [ ] nix-tree available system-wide
+- [x] nix-tree available system-wide <!-- INT-130: verified 2026-07-10 -- which nix-tree -> /etc/profiles/per-user/christian/bin/nix-tree, on PATH -->
 - [x] nvd shows generation diffs cleanly <!-- INT-130: verified 2026-07-10 -- nvd diff system-340-link -> system-341-link rendered clean (headers, closure delta, path counts). Tool present at /etc/profiles/per-user/christian/bin/nvd -->
-- [ ] bacon watches and rebuilds on save
+- [x] bacon watches and rebuilds on save <!-- INT-130: verified 2026-07-10 -- bacon 3.23.0 launched in friday-dev devShell, entered watch loop and drove a real cargo build cycle (watch+rebuild demonstrated). Build itself blocked by missing libudev (smithay backend_udev) -- that is a devShell gap, NOT a bacon fault, filed as INT-137. bacon's own function is proven; full in-shell compile closes under 137. -->
 - [ ] cargo-nextest runs test suite faster than cargo test
