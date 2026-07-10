@@ -3,7 +3,7 @@ id: 137
 date: 2026-07-10
 type: future
 title: "friday-dev devShell missing libudev -- smithay backend_udev cannot compile in-shell"
-status: planned
+status: complete
 tags: [nix, devshell, smithay, libudev, build]
 ---
 
