@@ -636,6 +636,8 @@ pub enum IntentCommands {
         /// Intent title
         title: String,
     },
+    /// Chronological history of every intent
+    Timeline,
     /// Show dependency graph for an intent
     Deps {
         /// Intent ID (optional when using --critical-path)

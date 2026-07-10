@@ -138,6 +138,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                     template,
                     title,
                 } => crate::domains::intent::new_intent(ctx, &category, &template, &title),
+                IntentCommand::Timeline => crate::domains::intent::timeline(ctx),
                 IntentCommand::Deps { id, critical_path } => {
                     if critical_path {
                         crate::domains::intent::deps_critical_path(ctx)

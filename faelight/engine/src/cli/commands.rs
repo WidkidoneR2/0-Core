@@ -301,6 +301,7 @@ pub enum IntentCommand {
         template: String,
         title: String,
     },
+    Timeline,
     Deps {
         id: Option<String>,
         critical_path: bool,

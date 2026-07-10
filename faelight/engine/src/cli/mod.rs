@@ -213,6 +213,7 @@ pub fn parse() -> Command {
                 template,
                 title,
             },
+            IntentCommands::Timeline => IntentCommand::Timeline,
             IntentCommands::Deps { id, critical_path } => IntentCommand::Deps { id, critical_path },
             IntentCommands::Burndown => IntentCommand::Burndown,
             IntentCommands::Velocity => IntentCommand::Velocity,

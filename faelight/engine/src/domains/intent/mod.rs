@@ -412,7 +412,15 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 continue;
             }
             let Ok(content) = fs::read_to_string(&path) else { continue };
-            if content.contains("type: index") {
+            // Only the FRONTMATTER decides. A `content.contains("type: index")` here skipped
+            // any charter that merely QUOTED the string -- including INT-135's own, which
+            // documents this exemption. The validator could not see the intent that built it.
+            let is_index = content
+                .split("---")
+                .nth(1)
+                .map(|fm| fm.lines().any(|l| l.trim() == "type: index"))
+                .unwrap_or(false);
+            if is_index {
                 continue;
             }
 
@@ -1402,6 +1410,34 @@ fn next_id(category: &str) -> u32 {
         .max()
         .unwrap_or(0)
         + 1
+}
+
+/// Chronological history. Ported from rust-tools/intent's cmd_timeline, which walked eight
+/// folders and omitted `in-progress` -- it never once showed an active intent. load_all()
+/// walks all nine.
+pub fn timeline(ctx: &AppContext) -> CoreResult<()> {
+    let mut intents: Vec<Intent> = load_all(ctx)
+        .into_iter()
+        .filter(|i| i.intent_type != "index" && !i.title.is_empty())
+        .collect();
+    intents.sort_by(|a, b| a.date.cmp(&b.date).then(a.id.cmp(&b.id)));
+
+    println!();
+    println!("{}", "📅 Intent Timeline".bright_cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+    for i in &intents {
+        println!(
+            "{} - {} {} {}",
+            i.date.dimmed(),
+            format!("{:<4}", i.id).dimmed(),
+            i.status_colored(),
+            i.title
+        );
+    }
+    println!();
+    println!("  {} {}", "Total:".dimmed(), intents.len());
+    Ok(())
 }
 
 /// `core intent add` -- the interactive wizard. Ported from rust-tools/intent's cmd_add,
