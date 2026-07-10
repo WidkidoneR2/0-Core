@@ -97,14 +97,14 @@ Phase 4 -- scope guard (login stays separate)
   Gate: no greetd or login-path changes are part of this intent
 
 ## Gates
-- [ ] Wayland locker chosen and locks/unlocks correctly under MangoWM (Phase 0)
-- [ ] overlay launches as a fullscreen Wayland surface over MangoWM (Phase 1)
-- [ ] all four actions verified: Shutdown, Reboot, Logout, Lock (Phase 1)
-- [ ] Esc cancels with no action taken -- no accidental power events (Phase 1)
-- [ ] menu renders as four big candy-neon squares, symbol + label, INT-033
-      palette (Phase 2)
-- [ ] app + deps + mango keybind all declarative, survive a rebuild (Phase 3)
-- [ ] no greetd / login-path changes in this intent (Phase 4 scope guard)
+- [x] Wayland locker chosen and locks/unlocks correctly under MangoWM (Phase 0) <!-- INT-130 2026-07-10: attested by author -- Lock action works in daily use (locks + unlocks). Not re-demonstrated this session. -->
+- [x] overlay launches as a fullscreen Wayland surface over MangoWM (Phase 1) <!-- INT-130 2026-07-10: verified LIVE -- Super+Esc opens fullscreen overlay over MangoWM. -->
+- [x] all four actions verified: Shutdown, Reboot, Logout, Lock (Phase 1) <!-- INT-130 2026-07-10: Logout verified live (daily Super+Esc). Shutdown/Reboot/Lock ATTESTED by author as working in daily use -- not re-tested this session (poweroff/reboot untestable mid-session). Code: systemctl poweroff/reboot, loginctl terminate-session, locker. -->
+- [x] Esc cancels with no action taken -- no accidental power events (Phase 1) <!-- INT-130 2026-07-10: verified LIVE -- Esc dismissed the overlay, no action fired. -->
+- [x] menu renders as four big candy-neon squares, symbol + label, INT-033
+      palette (Phase 2) <!-- INT-130 2026-07-10: verified LIVE -- four candy-neon squares with symbol + label rendered. -->
+- [x] app + deps + mango keybind all declarative, survive a rebuild (Phase 3) <!-- INT-130 2026-07-10: verified -- faelight-logout on PATH (/run/current-system/sw/bin), keybind 'bind=SUPER,escape,spawn,faelight-logout' at mango config.conf:107. Declarative, survives rebuild (in current generation). -->
+- [x] no greetd / login-path changes in this intent (Phase 4 scope guard) <!-- INT-130 2026-07-10: verified -- grep of faelight-logout package: NO greetd/tuigreet refs. Only loginctl terminate-session/terminate-user (the Logout action itself, not a login-path change). Scope guard genuinely held -- no lockout risk. -->
 
 ## Depends On
   INT-033 (neon-candy palette -- the menu reuses these tokens)
@@ -112,3 +112,5 @@ Phase 4 -- scope guard (login stays separate)
 ## The Rule
 "Leaving should feel like the forest, too --
  four bright doors, clearly marked, no accidental goodbyes." 🌲
+
+<!-- Gates reconciled per INT-130, 2026-07-10: GENUINE reconcile (unlike 032) -- faelight-logout is built + deployed. All 7 gates [x] on real evidence: overlay/Esc/styling verified LIVE this session; keybind+deploy verified (PATH + config.conf:107); Shutdown/Reboot/Lock attested by author in daily use (poweroff untestable mid-session); scope guard verified (no greetd/tuigreet refs). 3/23. NOTE: title has literal backslash-quote corruption from the pre-INT-135 raw-string bug -- cosmetic, INT-135's territory, not fixed here. -->
