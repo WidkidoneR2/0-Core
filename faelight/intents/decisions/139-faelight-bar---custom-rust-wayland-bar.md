@@ -1,11 +1,16 @@
 ---
-id: 002
+id: 139
 date: 2025-12-31
-type: future
+type: decisions
 title: "faelight-bar - Custom Rust Wayland Bar"
 status: complete
 tags: [rust, wayland, bar, hyprland, v5.0]
 ---
+
+> Renumbered 2026-07-10 (INT-135 Gate 5): this was filed as decisions/002,
+> colliding with 002-versioning-strategy-clarification. Its `type: future` shows it
+> began as a misfiled INTENT from the Hyprland era, not a decision. Kept in decisions/
+> at the next free id rather than rewritten into the intent sequence.
 
 ## The Vision
 

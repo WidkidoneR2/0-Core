@@ -380,29 +380,114 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
 }
 
 pub fn validate(ctx: &AppContext) -> CoreResult<()> {
+    // decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between
+    // them). Each record dir owns its own sequence. The old global HashMap conflated all
+    // nine folders and called decisions/001 vs incidents/001 a collision. It is not.
+    const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
+    const VALID_STATUS: &[&str] = &[
+        "planned", "in-progress", "complete", "cancelled", "deferred", "resolved", "decided",
+    ];
+
     let intents = load_all(ctx);
-    let mut issues = 0;
+    let mut issues: Vec<String> = Vec::new();
 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!("{}", "🔍 Intent Ledger Validation".bold());
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
-    // Check for duplicate IDs
-    let mut seen_ids: HashMap<String, usize> = HashMap::new();
+    // ── Pass 1: semantic checks on parsed intents ──
+    let mut seen: HashMap<(String, String), usize> = HashMap::new();
     for i in &intents {
-        *seen_ids.entry(i.id.clone()).or_insert(0) += 1;
-    }
-    for (id, count) in &seen_ids {
-        if *count > 1 {
-            println!("  {} Duplicate ID: {}", "✗".bright_red(), id);
-            issues += 1;
+        let ns = if LIFECYCLE.contains(&i.folder.as_str()) {
+            "lifecycle".to_string()
+        } else {
+            i.folder.clone()
+        };
+        *seen.entry((ns, i.id.clone())).or_insert(0) += 1;
+
+        if i.id.is_empty() {
+            issues.push(format!("Missing 'id': {}/{}", i.folder, i.filename));
+        }
+        if i.title.is_empty() {
+            issues.push(format!("Missing 'title': {}/{}", i.folder, i.filename));
+        }
+        if i.date.is_empty() {
+            issues.push(format!("Missing 'date': {}/{}", i.folder, i.filename));
+        }
+        if i.status.is_empty() {
+            issues.push(format!("Missing 'status': {}/{}", i.folder, i.filename));
+        } else if !VALID_STATUS.contains(&i.status.as_str()) {
+            issues.push(format!(
+                "Invalid status '{}': {}/{}",
+                i.status, i.folder, i.filename
+            ));
+        }
+
+        if let Some(prefix) = i.filename.split('-').next() {
+            if !i.id.is_empty() && prefix != i.id {
+                issues.push(format!(
+                    "id '{}' != filename prefix '{}': {}/{}",
+                    i.id, prefix, i.folder, i.filename
+                ));
+            }
+        }
+
+        // Record dirs legitimately carry several statuses (decisions/121 is 'complete',
+        // decisions/136 is 'decided'). Only the lifecycle dirs map 1:1.
+        if LIFECYCLE.contains(&i.folder.as_str()) {
+            let expected: &str = if i.folder == "future" { "planned" } else { i.folder.as_str() };
+            if !i.status.is_empty() && i.status.as_str() != expected {
+                issues.push(format!(
+                    "status '{}' != directory: {}/{}",
+                    i.status, i.folder, i.filename
+                ));
+            }
         }
     }
 
-    if issues == 0 {
+    for ((ns, id), count) in &seen {
+        if *count > 1 {
+            issues.push(format!("Duplicate id {} within namespace '{}'", id, ns));
+        }
+    }
+
+    // ── Pass 2: files load_all silently dropped ──
+    // parse_intent() returns Option. A malformed file never becomes an Intent, so Pass 1
+    // cannot see it. complete/105 ('i---') hid here for months. Read the raw bytes.
+    let base = intents_dir(ctx);
+    let folders = [
+        "complete", "future", "in-progress", "cancelled", "deferred",
+        "decisions", "experiments", "incidents", "philosophy",
+    ];
+    for folder in &folders {
+        let dir = base.join(folder);
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name == "README.md" {
+                continue;
+            }
+            let Ok(content) = fs::read_to_string(&path) else { continue };
+            if content.contains("type: index") {
+                continue;
+            }
+            if !content.starts_with("---") {
+                issues.push(format!("Malformed frontmatter: {}/{}", folder, name));
+            }
+        }
+    }
+
+    if issues.is_empty() {
         println!("  {} All {} intents valid", "✅".green(), intents.len());
     } else {
-        println!("  {} {} issues found", "✗".bright_red(), issues);
+        for msg in &issues {
+            println!("  {} {}", "✗".bright_red(), msg);
+        }
+        println!("  {} {} issues found", "✗".bright_red(), issues.len());
     }
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     Ok(())

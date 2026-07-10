@@ -1,5 +1,5 @@
 ---
-id: "philosophy-002"
+id: 002
 date: 2026-02-02
 type: philosophy
 title: "Tool Harmony Vision - Integrated Ecosystem"

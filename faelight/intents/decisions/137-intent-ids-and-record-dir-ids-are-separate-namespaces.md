@@ -21,8 +21,10 @@ Two implementations of the same rule, each with a comment insisting it is correc
 They cannot both be right.
 
 ## The evidence (2026-07-09, from the directory listing)
-- `decisions/002-faelight-bar` and `decisions/002-versioning-strategy` -- the SAME number,
+- `decisions/002-faelight-bar` and `decisions/002-versioning-strategy` had the SAME number,
   twice, in the SAME directory. Impossible under a shared namespace.
+  (RESOLVED 2026-07-10, INT-135 Gate 5: faelight-bar renumbered to decisions/139 --
+  its `type: future` revealed it was a misfiled intent, not a decision.)
 - `001` exists independently in `decisions/`, `incidents/`, `experiments/`, `philosophy/`.
 - `incidents/` also carries date-stamped files (`2026-02-03-...`), no number at all.
 

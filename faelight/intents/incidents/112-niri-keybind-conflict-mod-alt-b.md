@@ -1,5 +1,5 @@
 ---
-id: 111
+id: 112
 date: 2026-03-03
 type: incident
 title: "Niri keybind conflict — Mod+Alt+b locked system for 2 days"
