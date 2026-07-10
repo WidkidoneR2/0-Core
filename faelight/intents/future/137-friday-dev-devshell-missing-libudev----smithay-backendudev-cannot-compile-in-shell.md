@@ -43,6 +43,30 @@ Add the udev library to the devShell's buildInputs so pkg-config can resolve lib
 - Confirm the real fix: smithay compiles in-shell (bacon / cargo build reaches completion,
   no libudev-sys panic).
 
+## Progress (2026-07-10) -- SOLVED, pending commit
+The gap was NOT two libs but SEVEN. Found by letting the compiler name each one in turn
+(never guessed; every Nix attribute confirmed against nixpkgs before adding). All seven
+added to the friday-dev devShell buildInputs in flake.nix:
+
+  1. udev            -- libudev.pc      (libudev-sys / smithay backend_udev)
+  2. libxkbcommon    -- xkbcommon.pc    (smithay-client-toolkit)
+  3. seatd           -- libseat.pc      (libseat-sys / backend_session_libseat)
+  4. libdisplay-info -- libdisplay-info.pc (libdisplay-info-sys)
+  5. pam             -- security/pam_appl.h header (pam-sys / faelight-login)
+  6. libinput        -- -linput link    (faelight-compositor / backend_libinput)
+  7. libgbm          -- -lgbm link      (faelight-compositor / backend_gbm)
+
+All seven already appear in the PACKAGE build inputs (flake.nix:39,46) -- the devShell was
+simply missing what the package build already had.
+
+PROVEN LIVE (fresh `nix develop`, 2026-07-10):
+- pkg-config --exists libudev AND xkbcommon -> both OK.
+- `cargo nextest list` -> entire workspace COMPILES AND LINKS, incl. faelight-compositor
+  (the last + hardest crate). nextest listed real tests (faelight-shell pipeline tests,
+  faelight-update tests, etc). "Finished test profile" -- no panics, no link errors.
+
+Not yet committed at time of this note. Next: commit flake + charter, then tick gates.
+
 ## Success Criteria
 - [ ] `udev` AND `libxkbcommon` added to friday-dev devShell buildInputs in flake.nix
 - [ ] Inside `nix develop`: `pkg-config --exists libudev` AND `pkg-config --exists xkbcommon` both succeed

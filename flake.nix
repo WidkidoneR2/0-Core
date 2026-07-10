@@ -269,6 +269,13 @@
           cmake
           openssl
           openssl.dev
+          udev            # INT-137: libudev.pc for smithay backend_udev (libudev-sys)
+          libxkbcommon    # INT-137: xkbcommon.pc for smithay-client-toolkit
+          seatd           # INT-137: libseat.pc for smithay backend_session_libseat (libseat-sys)
+          libdisplay-info # INT-137: libdisplay-info.pc for smithay (libdisplay-info-sys)
+          pam             # INT-137: security/pam_appl.h for faelight-login (pam-sys)
+          libinput        # INT-137: -linput for faelight-compositor (smithay backend_libinput)
+          libgbm          # INT-137: -lgbm for faelight-compositor (smithay backend_gbm)
           # Forest tools
           sqlite
           python3
