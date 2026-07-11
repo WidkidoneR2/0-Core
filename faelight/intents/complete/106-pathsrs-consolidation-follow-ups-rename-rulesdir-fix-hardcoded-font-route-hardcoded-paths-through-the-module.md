@@ -43,10 +43,10 @@ a one-line change instead of a 40-file sweep. Do incrementally, never big-bang.
 - Bridge toward the horizon: structure declared in Nix, code reads it.
 
 ## Success criteria
-- [ ] rules_dir() renamed to policy_dir(); call sites updated; builds clean.
-- [ ] faelight-core test build no longer fails on the font path.
-- [ ] Hardcoded path strings migrated to paths:: (tracked per-tool; may span
-      multiple sessions -- this intent can complete in stages or spawn sub-intents).
+- [x] rules_dir() renamed to policy_dir(); call sites updated; builds clean. <!-- STAMP-106-DONE / INT-130 2026-07-10: VERIFIED IN SOURCE -- paths.rs:80 policy_dir() (rules_dir gone), call sites at 85/89, test assert at 420 passes ('policy'). Commit 73687ec5. -->
+- [x] faelight-core test build no longer fails on the font path. <!-- INT-130 2026-07-10: commit 73687ec5 -- font path changed from include_bytes! absolute to runtime std::fs::read with graceful skip-if-absent; 'cargo test -p faelight-core runs clean (11 passed)'. -->
+- [~] Hardcoded path strings migrated to paths:: (tracked per-tool; may span
+      multiple sessions -- this intent can complete in stages or spawn sub-intents). <!-- INT-130 2026-07-10: DEFERRED via authorized split -- this gate's own text permits 'spawn sub-intents'. #3 was split to INT-115 (future/115-route-hardcoded-path-strings-through-pathsrs-per-tool.md, VERIFIED to exist) per commit 73687ec5 ('#3 split to INT-115, not a 1.0.0 blocker'). Marked [~], not [x]: the migration itself is NOT done -- it lives on in INT-115. 106's quick wins (#1,#2) are done; the big item is legitimately tracked elsewhere. -->
 
 ## Notes
 Surfaced 2026-07-01 during INT-105. #1 and #2 are quick; #3 is substantial and
