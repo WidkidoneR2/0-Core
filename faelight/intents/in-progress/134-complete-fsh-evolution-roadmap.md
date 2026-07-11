@@ -3,7 +3,7 @@ id: 134
 date: 2026-07-09
 type: future
 title: "Complete fsh Evolution Roadmap"
-status: planned
+status: in-progress
 tags: [fsh, faelight-shell, roadmap, ledger]
 ---
 
@@ -40,8 +40,8 @@ deferred -- the doc already models this ("Cut -- fails the filter": smart cd wit
 correction; silent auto-magic).
 
 ## Success Criteria
-- [ ] Roadmap landed in the repo at a durable path (e.g. `docs/fsh-evolution-roadmap.md`),
-      so the reference in `docs/faelight-1.0.0-roadmap.md:11` resolves
+- [x] Roadmap landed in the repo at a durable path (e.g. `docs/fsh-evolution-roadmap.md`),
+      so the reference in `docs/faelight-1.0.0-roadmap.md:11` resolves <!-- STAMP-134-DONE / 2026-07-10: VERIFIED -- docs/fsh-evolution-roadmap.md exists (6.2k, 2026-06-26); faelight-1.0.0-roadmap.md:11 references it by name ('see fsh-evolution-roadmap'); reference resolves to the real file. -->
 - [ ] Every checkbox claiming DONE is verified against the ledger or the running shell --
       demonstrated, not declared. Unverifiable claims are unticked and noted, never bulk-ticked
 - [ ] Each "done" item that has an intent carries its intent number; each that does not is

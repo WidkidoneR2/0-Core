@@ -198,7 +198,6 @@ fn show_ecosystem_versions() {
         ("dot-doctor", "scripts/dot-doctor"),
         ("faelight-fm", "target/release/faelight-fm"),
         ("faelight-term", "target/release/faelight-term"),
-        ("faelight-hooks", "target/release/faelight-hooks"),
     ];
 
     println!("  {} Key Tools:", "📦".bold());

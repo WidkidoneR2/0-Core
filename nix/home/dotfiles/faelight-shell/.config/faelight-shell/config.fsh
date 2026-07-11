@@ -238,7 +238,6 @@ alias gunstage = git reset HEAD
 alias heuristics = core heuristics
 alias hibernate = systemctl hibernate
 alias hindsight = core hindsight
-alias hooks = faelight-hooks
 alias int = core intent show
 alias int-active = core intent list --active
 alias inta = core intent add

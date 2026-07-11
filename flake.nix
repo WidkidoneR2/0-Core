@@ -18,9 +18,10 @@
   # INT-122: nixCats -- real-Lua-packaged-by-Nix neovim (migrating off nixvim).
   # Bring its own nixpkgs is NOT needed; nixCats is a library builder, follows ours.
   inputs.nixcats.url = "github:BirdeeHub/nixCats-nvim";
-  # INT-119: git-hooks.nix -- adds a SANDBOXED, reproducible `nix flake check` hook
-  # gate (read-only FS, no network, pinned tools). COMPLEMENTS faelight-hooks (which
-  # stays the commit-time authority but shells out to host tools + skips when absent).
+  # INT-119: git-hooks.nix -- the SANDBOXED, reproducible `nix flake check` hook
+  # gate (read-only FS, no network, pinned tools). Sole hook mechanism as of INT-113
+  # (faelight-hooks retired 2026-07-10 -- dead weight: never installed into .git/hooks,
+  # its Arch-era stow role long since ceded to home-manager).
   inputs.git-hooks.url = "github:cachix/git-hooks.nix";
   inputs.git-hooks.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -235,13 +236,12 @@
           inherit pkgs self inputs;
         };
         # INT-119: sandboxed hook gate. `nix flake check` runs these in a Nix sandbox
-        # (read-only FS, no network, pinned tools) -- the unskippable/reproducible
-        # guarantee faelight-hooks (host-tool shell-outs, skips when absent) can't give.
-        # faelight-hooks stays the commit-time authority; this is the flake-check gate.
+        # (read-only FS, no network, pinned tools) -- unskippable + reproducible.
+        # Sole hook mechanism (INT-113 retired faelight-hooks 2026-07-10).
         pre-commit-check = inputs.git-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            rustfmt.enable = true;      # overlaps faelight-hooks rustfmt -- but GUARANTEED here
+            rustfmt.enable = true;      # sandboxed, reproducible, unskippable
             ripsecrets.enable = true;   # secret scan (overlaps gitleaks) -- sandboxed
           };
         };
