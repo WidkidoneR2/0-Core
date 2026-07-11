@@ -134,6 +134,34 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10h) -- 103,104,105,106,107,108,116 reconciled (17/23) -- BREAK
+Seven more, all GENUINE, all verified (log + source + live), never on memory:
+- 103 (fsh prompt): 17d2628c. 4 gates [x], gate 5 [~] (referenced an uncreated bar-candy
+  pass -> now filed as INT-138).
+- 104 (shell_snapshots schema): c5175873. Split into command_snapshots + health-only. Cited
+  later by INT-128 as "schema discipline."
+- 105 (paths.rs drift): 187b8fe6. Numbered-gravity gone (grep=0 live). get-version healed then
+  retired by design (INT-107).
+- 106 (paths.rs follow-ups): a0672999. #1/#2 [x], #3 [~] split to INT-115 (verified exists).
+- 107 (stow/link decommission): 58909d28. 8 gates [x], source+live verified. Hooks follow-on
+  is INT-113 (separate planned).
+- 108 (profile): e96d5835. RESOLVED BY RETIREMENT not consolidation -- tool removed (command-
+  not-found live). 6 [x] + 3 [~] (moot: no tool to list/switch). Arch-era INT-108=faelight-sync
+  was a different, long-cancelled intent (same number).
+- 116 (final Arch sweep): 26734c8a. All 7 [x]. Gate 7 (its OWN sweep-grep test) re-run LIVE:
+  zero executable Arch invocations; remaining hits all allowed (history/knowledge/redirects).
+
+TALLY: 17 genuinely reconciled (023,028,064,065,091,097,098,099,100,101,103,104,105,106,107,
+108,116) + 1 false-complete corrected (032). REMAINING 6: 119, 120, 122, 123, 124. NEXT: 119.
+
+FILED THIS SESSION (separate deliberate acts, not part of reconcile): INT-138 (Neon-Candy Bar,
+detailed charter, gives 103 gate 5 a real referent) + INT-139 (TUI Git Log Reader, stub -- flesh
+out later). Both planned/future.
+
+STILL BEFORE 130 CAN cicomplete: (1) finish 119-124. (2) DEDUPE 130's own duplicated gate block
+(## Gates + ## 130's own gates, byte-identical) into one clean block. (3) tick 130's own 6 gates.
+(4) cicomplete 130 (runs its own fixed blocker -- fitting).
+
 ## Progress (2026-07-10g) -- 100 + 101 reconciled -- HALFWAY (10/23)
 Two more, both charter-repairs like 099:
 - 100 (fsh VAR=$(...) value-truncation): 4bf16cb6. Malformed charter (stub + prose gates);
