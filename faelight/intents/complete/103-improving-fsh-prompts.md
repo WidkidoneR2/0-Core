@@ -7,19 +7,6 @@ status: complete
 tags: [prompt, fsh]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
----
 
 ## Why
 The fsh prompt is functional but visually flat -- it does NOT sing the way
@@ -62,11 +49,11 @@ accent meanings) so prompt and bar read as one system.
 - Preserve prompt performance (it renders every keystroke-ish; keep it fast).
 
 ## Gates (demonstrated, not declared)
-- [ ] Prompt uses the candy-neon palette consistent with launcher/logout
-- [ ] Each prompt zone's color has MEANING (not random rainbow)
-- [ ] Legible + fast (no performance regression, no clutter)
-- [ ] Christian's eye test: "it stands out, it's unmistakably Faelight"
-- [ ] Visually consistent with the planned faelight-bar candy pass
+- [x] Prompt uses the candy-neon palette consistent with launcher/logout <!-- STAMP-103-DONE / INT-130 2026-07-10: shipped -- commits a001b8e8 (candy-neon powerline) + 24f451a9 (~70% neon across 17 zone/accent colors: lime, rust-orange, lavender, ice-blue, aqua, gold, rose). Same palette family as launcher/logout. NixOS-era 103 (NOT the Arch-era faelight-idle INT-103). -->
+- [x] Each prompt zone's color has MEANING (not random rainbow) <!-- INT-130 2026-07-10: meanings documented in a001b8e8 -- lime=forest, orange=rust, lavender=intents, ice-blue=nix, gold=dirty-git, aqua=devshell. 'Directory color tells you what KIND of place you're in.' Semantic, not rainbow. -->
+- [x] Legible + fast (no performance regression, no clutter) <!-- INT-130 2026-07-10: attested by author -- prompt renders fast, legible, uncluttered in daily use. Health/rebuild line was removed (lives on bar + d), reducing clutter. -->
+- [x] Christian's eye test: "it stands out, it's unmistakably Faelight" <!-- INT-130 2026-07-10: PASSED -- author confirmed live this session ("yes it works"); eye-tested live per commit 94df029b. -->
+- [~] Visually consistent with the planned faelight-bar candy pass <!-- INT-130 2026-07-10: CANNOT be met as written -- the 'planned faelight-bar candy pass' (named as a companion intent in this charter, 2026-07-01) was NEVER created as an intent, and the bar is not candy-neon. The prompt cannot be consistent with an unbuilt thing. Deferred [~]. FOLLOW-UP: file a faelight-bar candy-neon intent (author wants the bar as magical as launcher/logout) -- that would give this gate a real referent. To be done AFTER the 130 audit + 137, per author's sequencing. -->
 
 ## Notes
 Christian 2026-07-01: "the fsh prompt needs to be better improved, not just by
