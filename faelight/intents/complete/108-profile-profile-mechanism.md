@@ -53,11 +53,11 @@ against the live profile system.
 - Verify no regression: `profile list`, profile switching, doctor "Profile System OK"
 
 ## Gates
-- [ ] Zero-warning build (non-negotiable)
-- [ ] `profile list` shows real profiles (from the consolidated TOML model)
-- [ ] Profile switching works end-to-end (demonstrated, not declared)
-- [ ] doctor "Profile System OK" stays green
-- [ ] No dead `.profile`-file code paths remain; profiles_dir() resolved
+- [x] Zero-warning build (non-negotiable) <!-- STAMP-108-DONE / INT-130 2026-07-10: commit 291d4ab5 'Full workspace builds clean'. -->
+- [~] `profile list` shows real profiles (from the consolidated TOML model) <!-- INT-130 2026-07-10: MOOT by retirement. The intent RESOLVED by retiring the profile tool entirely (commit 291d4ab5), not consolidating it -- 'profile' is now command-not-found (verified live). So there is no 'profile list' to demonstrate; the dead .profile mechanism this gate targeted is gone. Marked [~]: honest -- the tool was removed, not fixed-to-list-TOML. Power-switching is declarative on NixOS now. -->
+- [~] Profile switching works end-to-end (demonstrated, not declared) <!-- INT-130 2026-07-10: MOOT by retirement -- profile tool removed (command-not-found, verified live). No switching to demonstrate; superseded by declarative NixOS power-switching. -->
+- [x] doctor "Profile System OK" stays green <!-- INT-130 2026-07-10: commit 291d4ab5 removed doctor check_profiles + cockpit label (the dead-dir check). doctor is 100% healthy / 32-32 live this session -- no profile-related failure. The check was retired WITH the tool, cleanly. -->
+- [x] No dead `.profile`-file code paths remain; profiles_dir() resolved <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- profiles_dir()/current_profile_file gone from paths.rs (grep=0); the only remaining 'profile' in engine/domains/profile/mod.rs is a struct-field access (r.profile), NOT the .profile-file mechanism. Dead paths gone. -->
 
 ## Relationship
 - Follows INT-107 (which decoupled profiles_dir as a stopgap so profile compiled).
@@ -67,9 +67,9 @@ against the live profile system.
   Arch-era accessors 106 is broadly concerned with.
 
 ## Success Criteria
-- [ ] profile tool speaks one storage model (TOML); .profile-file mechanism removed
-- [ ] profiles_dir() removed or honestly repointed; no nonexistent-dir reads
-- [ ] Live profile system verified green; build clean
-- [ ] config/ move unblocked of profile entanglement
+- [~] profile tool speaks one storage model (TOML); .profile-file mechanism removed <!-- INT-130 2026-07-10: resolved by RETIRE, not consolidate. The charter's own open question ('is TOML the whole story -- remove the file mechanism?') was answered at execution: the whole tool is Arch-era residue -> retired (commit 291d4ab5). The .profile mechanism IS removed [x-part], but 'tool speaks TOML' is moot (no tool) [~-part]. Net [~]: honest about the pivot. -->
+- [x] profiles_dir() removed or honestly repointed; no nonexistent-dir reads <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- profiles_dir() removed from paths.rs (grep=0). No nonexistent-dir reads remain. -->
+- [x] Live profile system verified green; build clean <!-- INT-130 2026-07-10: doctor 100% healthy live; build clean (commit 291d4ab5). 'Profile System' concern resolved by removing the dead subsystem -- nothing profile-related is red. -->
+- [x] config/ move unblocked of profile entanglement <!-- INT-130 2026-07-10: PROVEN by outcome -- INT-061 FINALE (commit 252b3914) later moved config/ -> nix/home/dotfiles/ cleanly; profiles_dir removal (this intent) was the unblock. -->
 
 ---
