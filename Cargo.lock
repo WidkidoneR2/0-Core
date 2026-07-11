@@ -1701,6 +1701,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-glog"
+version = "0.1.0"
+dependencies = [
+ "crossterm 0.28.1",
+ "faelight-core",
+ "ratatui 0.29.0",
+]
+
+[[package]]
 name = "faelight-idle"
 version = "1.0.0"
 dependencies = [

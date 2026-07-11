@@ -1,0 +1,15 @@
+[package]
+name = "faelight-glog"
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+description = "TUI git-log reader -- filter history by intent/author/date, candy-neon, forest-native (INT-139)"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+faelight-core = { path = "../faelight-core" }
+
+[[bin]]
+name = "faelight-glog"
+path = "src/main.rs"

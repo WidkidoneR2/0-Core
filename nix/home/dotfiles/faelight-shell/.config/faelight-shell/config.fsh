@@ -225,6 +225,7 @@ alias gf = git fetch
 alias gl = git pull
 alias gla = git log --oneline --graph --all
 alias glog = git log --oneline -10
+alias fgl = faelight-glog
 alias greset = git reset --hard
 alias gsh = git show
 alias gss = git status -s

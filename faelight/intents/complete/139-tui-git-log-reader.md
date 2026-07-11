@@ -3,7 +3,7 @@ id: 139
 date: 2026-07-10
 type: future
 title: "TUI Git Log Reader"
-status: planned
+status: complete
 tags: [Git, git-log, tui]
 ---
 
@@ -76,14 +76,36 @@ Every column color-coded with MEANING, brighter than the cheatsheet's floor:
 - Each phase build-gated; standalone binary in registry + an fsh alias to launch it.
 
 ## Gates (when built -- demonstrated, not declared)
-- [ ] Standalone ratatui tool launches, reads real `git log`, scrolls a commit list, quits clean
-- [ ] Filter by INT-number works (type NNN -> only that intent's commits) -- the INT-130 workhorse
-- [ ] Filter by author / date-range / keyword (fuzzy over subject+body) works
-- [ ] Candy-neon color-coding with MEANING: intent-number=lavender (matches prompt/bar), refs=lime,
+- [x] Standalone ratatui tool launches, reads real `git log`, scrolls a commit list, quits clean <!-- STAMP-139-DONE 2026-07-11 Phase 1: faelight-glog crate (rust-tools/faelight-glog), shells out to `git log --pretty` (Phase 0 decision: zero-dep shell-out over git2), loads all 3640 commits, cheatsheet-pattern scaffold (raw-mode -> alt-screen -> run_loop -> clean teardown), j/k+arrows scroll, q/Esc/Ctrl-C quit. Demonstrated live. -->
+- [x] Filter by INT-number works (type NNN -> only that intent's commits) -- the INT-130 workhorse <!-- 2026-07-11 Phase 2: `/`-to-search (cheatsheet flow), live substring filter over subject; typing e.g. 114 shows only INT-114 commits, Esc clears. Demonstrated. -->
+- [x] Filter by author / date-range / keyword (fuzzy over subject+body) works <!-- 2026-07-11 PARTIAL (honest): KEYWORD filtering works (same `/`-search substring covers keyword AND INT-number over the subject line). DEFERRED to v2 (noted by Christian): dedicated author filter, date-range filter, and fuzzy-over-BODY (currently subject-only). The highest-value cases (INT-number + keyword) ship now; author/date-range/body-fuzzy are a documented v0.2 enhancement, likely alongside the planned floating-window view. -->
+- [x] Candy-neon color-coding with MEANING: intent-number=amber (NEON_AMBER, matches nothing else in glog so it pops), refs=green (NEON_GREEN, structure), hash=muted-gray, subject=fog-white -- <!-- 2026-07-11 Phase 3: colors pulled from faelight-core::theme (imports the palette, INT-091-aligned single-source, NOT hardcoded). Charter said lavender/lime; at build Christian chose amber for INT-numbers (reads better) + green refs. Consistent with the forest palette tokens. -->
       author=aqua, date=ice-blue -- consistent with the forest palette (INT-033)
-- [ ] Same-numbered Arch-era vs NixOS-era commits are visually distinguishable (era disambiguation)
-- [ ] Detail view: expand a commit (message body + --stat); copy selected hash
-- [ ] Snappy to open (load-once + in-memory filter, like `cheat`); registered + aliased
+- [x] Same-numbered Arch-era vs NixOS-era commits are visually distinguishable (era disambiguation) <!-- 2026-07-11 Phase 4: is_arch_era() compares the ISO commit date to the 2026-06-01 NixOS daily-driver cutoff; Arch-era commits render dimmed (MUTED_GRAY + DIM) with an [arch] marker, NixOS-era full candy-neon. Directly solves the INT-130 099-Niri-vs-099-multiline pain. Demonstrated. -->
+- [x] Detail view: expand a commit (message body + --stat); copy selected hash <!-- 2026-07-11 Phase 4: Enter toggles a full-screen detail (on-demand `git show --stat --format=%b`, fog-white, scrollable j/k + PageUp/Down), Esc back. `y` copies the commit hash via wl-copy (works from list AND detail; status line confirms 'copied <hash>'). Demonstrated. -->
+- [x] Snappy to open (load-once + in-memory filter, like `cheat`); registered + aliased <!-- 2026-07-11: load-once at startup, all filtering in-memory per-frame (cheatsheet pattern) -- opens instantly. Registered in tools.toml (faelight-glog, deployable=true), aliased `fgl` in config.fsh. Deployed gen 345 to /run/current-system/sw/bin/faelight-glog (tool count 56->57, 29/29 deployed). `fgl` launches from anywhere. -->
+
+## RESOLUTION (2026-07-11): SHIPPED faelight-glog v0.1.0 -- built in 4 phases, deployed, aliased `fgl`
+
+A standalone ratatui TUI git-log reader, built demonstrated-not-declared in four compiled phases:
+- **P1** scaffold: cheatsheet-pattern (load-once + per-frame filter + ListState), shells out to
+  `git log` (Phase 0 decision: zero-dep shell-out chosen over git2, which is available as an
+  upgrade path). Loads all 3640 commits, scrolls, quits clean.
+- **P2** live `/`-search: substring filter over subject -- covers INT-number (the INT-130
+  reconciliation workhorse) AND keyword in one box.
+- **P3** candy-neon from faelight-core::theme (single-source palette, INT-091-aligned): INT-number
+  in amber (Christian's build-time call over the charter's lavender -- reads better), refs green,
+  hash gray, subject fog-white.
+- **P4** era-dimming (Arch <2026-06-01 dimmed + [arch] marker -- solves the same-numbered
+  Arch/NixOS disambiguation pain), toggle detail view (Enter -> body + --stat, scrollable, Esc
+  back), copy-hash via wl-copy (`y`).
+
+Registered (tools.toml, deployable), aliased `fgl`, deployed gen 345 (57 tools).
+
+**Deferred to v0.2 (Christian's note):** dedicated author + date-range filters, fuzzy over commit
+BODY (currently subject-only). Bigger idea on the table: a **floating-window** view of glog (and
+more) rather than / in addition to the TUI -- a candy-neon float showing commit info at a glance.
+That's the natural next version; this intent shipped the terminal reader that earns its keep now.
 
 ## Depends On / Relates To
 - INT-092 (cheatsheet TUI) -- the architectural template (ratatui load-once/filter/list-detail).

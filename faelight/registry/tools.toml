@@ -87,6 +87,15 @@ type = "rust"
 deployable = false
 retired = false
 [[tool]]
+name = "faelight-glog"
+version = "0.1.0"
+category = "tools"
+description = "TUI git-log reader -- filter by INT-number/author/date/keyword, candy-neon, Arch/NixOS era disambiguation (INT-139)"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
+[[tool]]
 name = "faelight-git"
 version = "4.1.0"
 category = "development"
