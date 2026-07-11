@@ -19,6 +19,7 @@ mod output;
 mod pty_exec;
 mod registry;
 mod safety_guard;
+mod triage;
 #[cfg(test)]
 mod tests;
 use colored::Colorize;
@@ -608,6 +609,18 @@ fn main() -> Result<()> {
                     std::process::exit(1);
                 }
             }
+        }
+    }
+
+    // INT-140: --triage-deploy [logfile] classifies deploy output and exits.
+    // Read-only; called by the deploy script AFTER the rebuild. Never alters
+    // deploy success/failure -- the deploy script keeps its own exit status.
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(pos) = args.iter().position(|a| a == "--triage-deploy") {
+            let logfile = args.get(pos + 1).map(|s| s.as_str());
+            let code = triage::run_triage(logfile);
+            std::process::exit(code);
         }
     }
     let result = std::thread::Builder::new()

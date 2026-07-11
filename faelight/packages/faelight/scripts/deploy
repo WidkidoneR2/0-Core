@@ -16,7 +16,26 @@ fi
 cd "$HOME/0-core"
 
 echo "→ Building and switching configuration..."
-sudo nixos-rebuild switch --flake .#framework16
+# INT-140: capture rebuild output to a log AND show it live (tee), so triage can
+# classify it afterward. The rebuild command itself is UNCHANGED. set -e is lifted
+# for exactly this one line so we can read the rebuild's real exit code via
+# PIPESTATUS (tee's exit code would mask a rebuild failure -> a false all-clear),
+# then restored immediately. Triage NEVER changes deploy success/failure.
+set +e
+sudo nixos-rebuild switch --flake .#framework16 2>&1 | tee /tmp/faelight-deploy.log
+rebuild_rc=${PIPESTATUS[0]}
+set -e
+
+# INT-140: read-only triage of the rebuild output (sniffles / cold / heart-attack).
+faelight-shell --triage-deploy /tmp/faelight-deploy.log || true
+
+# Honor the rebuild's REAL exit code. Triage informs; it never decides. A failed
+# rebuild still fails here with its own code -- no false all-clear.
+if [ "$rebuild_rc" -ne 0 ]; then
+    echo ""
+    echo "❌ Deploy failed (rebuild exit $rebuild_rc) -- see triage above."
+    exit "$rebuild_rc"
+fi
 
 echo ""
 echo "→ Running health check..."
