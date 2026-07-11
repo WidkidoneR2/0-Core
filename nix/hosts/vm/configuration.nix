@@ -32,6 +32,12 @@
   # The graphical path is still available by overriding QEMU_OPTS at launch if needed.
   virtualisation.vmVariant.virtualisation = {
     graphics = true;  # INT-056: was false (headless). true = real graphical framebuffer the compositor can drive.
+    # INT-087: give the VM real RAM + cores so Miracle (Mir + software GL) has headroom.
+    # Default build-vm RAM is ~1024 MB -- far too little for a Mir compositor on llvmpipe;
+    # the earlier "needs real metal" failure was likely this ceiling. VM-only (vmVariant),
+    # does NOT affect the metal framework16 config. Framework 16 has ample RAM to spare.
+    memorySize = 8192;  # 8 GiB
+    cores = 4;
     # INT-077: forward guest SSH (22) -> host 2222 for the reliable console path.
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
