@@ -34,10 +34,10 @@ is resolved by FEEL (using it), not by theory.
 - Keep nixvim as the working setup until nixCats is proven better in practice.
 
 ## Gates
-- [ ] nixCats set up in a branch (not main)
-- [ ] a real config slice migrated + working
-- [ ] honest side-by-side: which feels better to USE and to MAINTAIN
-- [ ] decision recorded (migrate / stay on nixvim / hybrid) with rationale
+- [x] nixCats set up in a branch (not main) <!-- STAMP-122-DONE / INT-130 2026-07-10: branch experiment/nixcats-122; spiked in /tmp, candy-neon ported to real Lua. -->
+- [x] a real config slice migrated + working <!-- INT-130 2026-07-10: FULL config ported (not just a slice) -- lualine, bufferline, which-key, treesitter, telescope, neo-tree, gitsigns, comment, nvim-cmp+luasnip, candy-neon. -->
+- [x] honest side-by-side: which feels better to USE and to MAINTAIN <!-- INT-130 2026-07-10: real Lua felt direct/clear, clicked (LazyVim-like); nixCats won on feel. Honest driver named (better-fit + editor-tinkering-is-valuable, not incumbent-broken). -->
+- [x] decision recorded (migrate / stay on nixvim / hybrid) with rationale <!-- INT-130 2026-07-10: DECISION = MIGRATE, recorded 2026-07-07 with the demonstrate-fit + name-the-driver discipline lesson (reinforces INT-043). -->
 
 ## Relationship
 - Editor tooling; post-1.0.0. NOT a release item.
