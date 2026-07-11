@@ -38,10 +38,10 @@ into a DIAGNOSTIC: the user should understand the cause without re-reading the c
   re-hand-written per site.
 
 ## Gates
-- [ ] Edit/patch aborts report failed anchor + expected-vs-found count + a hint
-- [ ] A consistent error-message style defined (what/why/what-to-try)
-- [ ] Opaque error paths found during daily use improved (list them as found)
-- [ ] Full workspace builds clean, zero warnings after changes
+- [x] Edit/patch aborts report failed anchor + expected-vs-found count + a hint <!-- STAMP-120-DONE / INT-130 2026-07-10: DONE (resolution block confirms + demonstrated all session -- every ABORT this session rendered 'ABORT: match count N for: ...'). patch/patch-multi lifted to rspatch's what/text/fix style. -->
+- [x] A consistent error-message style defined (what/why/what-to-try) <!-- INT-130 2026-07-10: rspatch's 'what / <detail> / fix' is the standard, applied across all three patch builtins. -->
+- [~] Opaque error paths found during daily use improved (list them as found) <!-- INT-130 2026-07-10: [~] matches the resolution's own honest mark. Addressed the patch builtins (highest daily friction) + the unicode panic; deliberately BOUNDED per charter guidance -- did NOT audit all ~59 tools. Running list, not exhaustive sweep (version-bump count-asserts ~13226/13243 noted for a future pass). -->
+- [x] Full workspace builds clean, zero warnings after changes <!-- INT-130 2026-07-10: resolution 'Full workspace builds clean, zero warnings'. -->
 
 ## Relationship
 - Quality/usability improvement; touches fsh (patch builtins) + any tool with terse
