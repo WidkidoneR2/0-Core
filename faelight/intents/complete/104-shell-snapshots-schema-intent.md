@@ -7,19 +7,6 @@ status: complete
 tags: [shell, fsh, Schema, Intent]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
----
 
 ## Why
 shell_snapshots has TWO conflicting schema definitions -- a latent inconsistency
@@ -65,11 +52,11 @@ This is "understand before you fix" -- do NOT just union the columns without
 knowing whether the two INSERTs are two features or one confused one.
 
 ## Gates
-- [ ] Both shell_snapshots INSERT paths traced; live-vs-dead determined
-- [ ] Decision recorded: one table (unified schema) or two tables (split purpose)
-- [ ] Single source of truth for the schema (no CREATE/INSERT column mismatch)
-- [ ] Fresh-db proof: shell_snapshots correct on a brand-new db, no ALTER reliance
-- [ ] No regression: existing snapshot save/read paths still work
+- [x] Both shell_snapshots INSERT paths traced; live-vs-dead determined <!-- STAMP-104-DONE / INT-130 2026-07-10: commit 60907547 -- traced both: health snapshots (mod.rs, read by 4 SELECTs = LIVE) vs destructive-command audit (db.rs capture_snapshot, INT-322 Phase 4 = WRITTEN on rm/deploy/git-push but READ BY NOTHING). Evidence-based investigation done. -->
+- [x] Decision recorded: one table (unified schema) or two tables (split purpose) <!-- INT-130 2026-07-10: DECISION = TWO tables (charter Option B). The two INSERTs were two DIFFERENT purposes conflated in one table. Split into command_snapshots (destructive-command audit) + shell_snapshots (health-only). Recorded in commit 60907547 + db.rs comments (lines 36-37). -->
+- [x] Single source of truth for the schema (no CREATE/INSERT column mismatch) <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- db.rs:39 CREATE TABLE command_snapshots (own authoritative 8-col schema); shell_snapshots stays health-only; NO shell_snapshots ALTERs remain (grep confirms only shell_history ALTERs at 73-76). Mismatch resolved. -->
+- [x] Fresh-db proof: shell_snapshots correct on a brand-new db, no ALTER reliance <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- command_snapshots uses unconditional CREATE TABLE IF NOT EXISTS (db.rs:39), no ALTER-ordering dependency (the INT-101-class risk the charter flagged is eliminated). db.rs:36-37 comment: 'No ALTER-patching of shell_snapshots (fresh-db safe).' -->
+- [x] No regression: existing snapshot save/read paths still work <!-- INT-130 2026-07-10: commit 60907547 -- 'all shell_snapshots SELECTs read health cols only; capture_snapshot repointed to command_snapshots; full workspace clean.' Corroborated: INT-128 (commit 98cd3fae) later cites 'INT-104 schema discipline' as an established principle. -->
 
 ## Notes
 Found during INT-101 (shell_history fresh-db fix). Deliberately scoped OUT of 101
