@@ -2,7 +2,7 @@
 id: 086
 date: 2026-06-23
 type: future
-status: in-progress
+status: cancelled
 title: "Remove Pinnacle (installed) -- making room for Miracle"
 tags: [decommission, pinnacle, compositor, flake, cleanup]
 version: TBD
@@ -24,6 +24,32 @@ Total-scan-first, remove: flake input, module, host enable + systemPackages entr
 protobuf if pinnacle-only, registry/docs. Rebuild clean.
 ## Sequencing
 AFTER INT-085, BEFORE INT-087.
+## RESOLUTION (2026-07-11): CANCELLED -- premise invalidated. Pinnacle KEPT as 3rd profile.
+
+086's entire premise was "Pinnacle was studied but NOT chosen -- remove it." That premise is now
+FALSE. On 2026-07-11, with the SafeShell rescue net proven live on metal (INT-056), Pinnacle was
+tested on REAL HARDWARE for the first time and worked flawlessly: launched from greetd, Alacritty
+spawned via Super+Return, dynamic tiling worked (second terminal tiled into a new region), the
+Snowcap quit-confirm (Super+Shift+Q) worked, and the session exited cleanly back to the greeter.
+Fn+Ctrl+Alt+F2 also reached TTY2 from inside it (INT-056 gate 3).
+
+The original decision (2026-06-23: "go Miracle instead, remove Pinnacle") was made when Pinnacle
+had only smoke-tested nested and never run for real. Now that it demonstrably works on metal,
+Christian's decision is to KEEP Pinnacle as a THIRD compositor profile alongside mango (daily
+driver) and Miracle (INT-087, second profile). Three selectable greetd sessions, no conflict --
+each is just a picker entry (like SafeShell). "Smoke test passed" finally became "works on metal."
+
+Therefore 086 is CANCELLED (decided-against): the Pinnacle removal footprint documented here is
+NOT executed. Pinnacle's flake input, module, systemPackages entry, greetd session, and code refs
+all STAY. Nothing to remove.
+
+Carry-forwards (still valid, re-pointed):
+- INT-067 (faelight-bar under secondary compositor): Pinnacle ships bare (no bar -- confirmed on
+  metal). 067's premise updates -- the forest now has THREE compositors (mango + Miracle + Pinnacle);
+  faelight-bar should run under whichever non-mango compositor is active. Update 067 when 087 lands.
+- INT-087 (Miracle): unaffected. Keeping Pinnacle does not block Miracle -- they coexist as separate
+  profiles. 087 proceeds independently.
+
 ## The Rule
 "Studied, considered, not chosen -- a complete answer. Remove it cleanly." 🌲
 
@@ -56,3 +82,6 @@ independently, but cleanest is one pass during the login rebuild.
 INT-067 (faelight-bar secondary compositor) assumes "Pinnacle primary, Miracle fallback" --
 that premise is now inverted (Pinnacle removed, Miracle is THE second compositor). Update 067
 when 087 lands.
+
+## Gate Check
+🚫 086 -- cancelled: Premise invalidated -- Pinnacle works on metal tested 2026-07-11, kept as 3rd profile. Nothing to remove. -- approved by: christian 2026-07-11
