@@ -31,6 +31,12 @@
 
   virtualisation.vmVariant.virtualisation = {
     graphics = true;
+    # INT-087: give the VM real RAM + cores so Miracle (Mir + software GL) has headroom.
+    # Default build-vm RAM is ~1024 MB -- far too little for a Mir compositor on llvmpipe;
+    # the earlier "needs real metal" failure was likely this ceiling. VM-only (vmVariant),
+    # does NOT affect the metal framework16 config. Framework 16 has ample RAM to spare.
+    memorySize = 8192;  # 8 GiB
+    cores = 4;
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
     ];
