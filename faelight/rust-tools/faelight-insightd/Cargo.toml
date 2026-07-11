@@ -1,5 +1,5 @@
 [package]
-name = "faelight-contextd"
+name = "faelight-insightd"
 license = "MIT"
 version = "0.1.0"
 edition = "2021"
@@ -12,5 +12,5 @@ serde_json = "1"
 chrono = "0.4"
 colored = "2"
 [[bin]]
-name = "faelight-contextd"
+name = "faelight-insightd"
 path = "src/main.rs"

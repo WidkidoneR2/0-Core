@@ -52,7 +52,7 @@ fn main() {
     // This prevents corruption without blocking the bar/prompt polling
     let _lock = runtime::RuntimeLock::acquire(&ctx.runtime).ok();
 
-    // Emit forest event for contextd to observe
+    // Emit forest event for insightd to observe
     let cmd_name = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
     let domain = std::env::args()
         .nth(1)

@@ -1612,18 +1612,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-contextd"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "colored",
- "faelight-core",
- "rusqlite",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [
@@ -1713,20 +1701,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-hooks"
-version = "10.2.0"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "dirs",
- "faelight-core",
- "regex",
- "serde",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "faelight-idle"
 version = "1.0.0"
 dependencies = [
@@ -1737,6 +1711,18 @@ dependencies = [
  "rusqlite",
  "wayland-client",
  "wayland-protocols 0.32.10",
+]
+
+[[package]]
+name = "faelight-insightd"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "faelight-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

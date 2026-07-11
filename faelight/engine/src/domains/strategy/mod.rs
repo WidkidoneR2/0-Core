@@ -1567,9 +1567,9 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     };
     factors.push(("Shell Intelligence".to_string(), shell_score, shell_note));
     total += shell_score;
-    // Factor 8: Nervous System (+5) — faelight-contextd operational
-    let contextd_running = std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "faelight-contextd"])
+    // Factor 8: Nervous System (+5) — faelight-insightd operational
+    let insightd_running = std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "faelight-insightd"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
@@ -1578,11 +1578,11 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         .db
         .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
         .unwrap_or(0);
-    let (nervous_score, nervous_note) = if contextd_running && events_count > 0 {
+    let (nervous_score, nervous_note) = if insightd_running && events_count > 0 {
         (
             5,
             format!(
-                "faelight-contextd active -- {} events observed",
+                "faelight-insightd active -- {} events observed",
                 events_count
             ),
         )
@@ -1590,7 +1590,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         (
             3,
             format!(
-                "forest_events active ({} events) -- contextd not running",
+                "forest_events active ({} events) -- insightd not running",
                 events_count
             ),
         )

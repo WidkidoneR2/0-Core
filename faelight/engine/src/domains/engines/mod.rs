@@ -44,7 +44,7 @@ fn seed_registry(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     let engines = vec![
         ("core", "3.0.0", "active"),
-        ("faelight-contextd", "0.1.0", "active"),
+        ("faelight-insightd", "0.1.0", "active"),
         ("delegation", "0.3.0", "active"),
         ("friday", "0.0.0", "dormant"),
         ("pattern-weight", "0.0.0", "planned"),

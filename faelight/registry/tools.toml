@@ -326,13 +326,15 @@ deployable = true
 retired = false
 
 
-[[tools]]
-name = "faelight-contextd"
+[[tool]]
+name = "faelight-insightd"
 version = "0.1.0"
 category = "intelligence"
-description = "Context daemon -- watches state.db, processes signals, surfaces insights"
+description = "Insight daemon -- watches state.db, polls for signals, surfaces insights (the forest's nervous system)"
 expected_usage = "background"
-deployed = true
+type = "rust"
+deployable = true
+retired = false
 
 # ── Cargo Dev Tools (INT-311) ──────────────────────────────────────────────────
 [[tool]]
@@ -450,15 +452,6 @@ name = "faelight-ade"
 version = "1.0.0"
 category = "intelligence"
 description = "Agentic dev environment -- fsh PTY + Friday Chat split-pane TUI"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
-name = "faelight-context"
-version = "1.0.0"
-category = "intelligence"
-description = "Deep codebase understanding engine (one-shot analysis; cf. faelight-contextd daemon)"
 expected_usage = "medium"
 type = "rust"
 deployable = true

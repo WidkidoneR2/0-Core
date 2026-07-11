@@ -7,6 +7,7 @@
     ./faelight-bar.nix
     ./faelight-wsd.nix
     ./faelight-notify.nix
+    ./faelight-insightd.nix
   ];
 
   home.stateVersion = "25.11";

@@ -3296,7 +3296,7 @@ fn repl_main() -> Result<()> {
                             }
                         }
                     }
-                    // 🌲 Forest speaks — surface contextd insights after every command
+                    // 🌲 Forest speaks — surface insightd insights after every command
                     {
                         let insight: Option<(i64, String, String, f64)> = db
                             .conn

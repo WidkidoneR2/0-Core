@@ -1488,7 +1488,7 @@ pub fn cross_session(ctx: &AppContext) -> CoreResult<()> {
         total_history.to_string().bright_white()
     );
     println!(
-        "    {} {} events observed by contextd",
+        "    {} {} events observed by insightd",
         "·".dimmed(),
         total_events.to_string().bright_white()
     );
