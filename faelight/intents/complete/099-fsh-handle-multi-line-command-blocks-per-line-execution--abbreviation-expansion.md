@@ -7,19 +7,6 @@ status: complete
 tags: [fsh, blocks, command line]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
----
 
 
 ## Why
@@ -54,14 +41,16 @@ Must distinguish "a sequence of independent commands" from "ONE multi-line comma
 - Preserve current single-command behaviour exactly; this is additive.
 
 ## Gates (demonstrated, not declared)
-- Pasting `git add X` / `git commit -m "..."` / `gp` as a block runs all three,
-  `gp` expands and pushes.
-- A heredoc Python block pasted in still executes as ONE command (not split).
-- A `for` loop pasted across lines runs as one construct.
-- Single commands behave exactly as before (no regression).
+- [x] Pasting `git add X` / `git commit -m "..."` / `gp` as a block runs all three,
+  `gp` expands and pushes. <!-- INT-130 2026-07-10: done. Impl commit 3c170e2a (split_into_commands + per-line abbreviation expansion), completed 3fcdde34. Demonstrated continuously this session -- every commit was a pasted block whose `gp` expanded and pushed. -->
+- [x] A heredoc Python block pasted in still executes as ONE command (not split). <!-- INT-130 2026-07-10: done. is_complete_command keeps heredoc bodies glued. Demonstrated all session -- every python patch was a `cat > /tmp/x.py << 'PYEOF' ... PYEOF; python3` block that ran as one command. -->
+- [x] A `for` loop pasted across lines runs as one construct. <!-- INT-130 2026-07-10: VERIFIED LIVE -- pasted a 4-line `for i in 1 2 3 / do / echo / done` block; ran as one loop, output line 1/2/3. -->
+- [x] Single commands behave exactly as before (no regression). <!-- INT-130 2026-07-10: additive change (commit 3c170e2a: zero changes to existing execute sites); single-command behaviour unchanged, confirmed by daily use since 2026-06-29. -->
 
 ## Notes
 Discovered during the 2026-06-29 metal-tuigreet session (came up every time a
 multi-line git/python block was pasted). Daily papercut; fix improves every
 multi-step workflow. Touches fsh input parsing -- do with a clear head; the
 multi-command-vs-multi-line-command distinction is the crux.
+
+<!-- Gates reconciled per INT-130, 2026-07-10: GENUINE reconcile + CHARTER REPAIR. Charter was malformed -- a dead template stub (Vision/Problem/Solution placeholders + junk '- [ ] ...') above the real content, and real gates written as prose bullets not checkboxes. Removed the stub; converted 4 gates to [x] with evidence. Work confirmed: NixOS-era impl commits 3c170e2a + 3fcdde34 (NOT the Arch-era Niri 099 in the log); for-loop gate VERIFIED LIVE; heredoc/block/gp demonstrated all session. (Cosmetic note: frontmatter type:future while status:complete -- left as-is, future hygiene.) 8/23. -->
