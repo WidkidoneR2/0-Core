@@ -4,6 +4,7 @@
     ./hardware-configuration.nix
     ../../modules/desktop/pinnacle.nix
     ../../modules/desktop/mango.nix
+    ../../modules/desktop/miracle.nix
   ];
 
   # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
@@ -168,6 +169,7 @@
 
   faelight.desktop.pinnacle.enable = true;
   faelight.desktop.mango.enable = true;
+  faelight.desktop.miracle.enable = true; # INT-087: enable Miracle as selectable session (056 SafeShell net confirmed)
 
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
