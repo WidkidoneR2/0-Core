@@ -134,6 +134,26 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10g) -- 100 + 101 reconciled -- HALFWAY (10/23)
+Two more, both charter-repairs like 099:
+- 100 (fsh VAR=$(...) value-truncation): 4bf16cb6. Malformed charter (stub + prose gates);
+  removed stub, added 5 [x] gates. Was REOPENED once (diagnosis mistaken for fix) -- so
+  VERIFIED LIVE: X=$(echo one two three) captured whole, not truncated. Initial "lowercasing"
+  theory was a misdiagnosis; real bug was split_whitespace truncation.
+- 101 (fsh fresh-db schema ordering, shell_history cwd): abf69ef1. Charter repair; 3 [x]
+  gates. VERIFIED IN SOURCE -- db.rs orders CREATE (line 53) before ALTERs (73-76); root
+  cause (ALTER-before-CREATE) corrected. Source-verified, not fresh-db-spiked.
+
+TALLY: 10 genuinely reconciled (023, 028, 064, 065, 091, 097, 098, 099, 100, 101) + 1
+false-complete corrected (032). REMAINING 10: 103, 104, 105, 106, 107, 108, 116, 119, 120,
+122, 123, 124. NEXT UP: 103.
+
+NOTE: the fsh cluster (099/100/101) all shared the SAME malformed-charter shape -- a dead
+template stub (Vision/Problem/Solution placeholders + junk "- [ ] ...") above the real
+content, with real gates as prose not checkboxes. Repair = strip stub + convert/insert real
+[x] gates. Watch for more of these in the 103-108 range (same era). Stamp marker changed to
+STAMP-NNN-DONE (distinct from headers) to avoid false "already stamped" aborts.
+
 ## Progress (2026-07-10f) -- 097, 098, 099 reconciled
 Three more GENUINE reconciles, all verified not assumed:
 - 097 (fsh clean Nix/Shell operator path): 2df51b9c. 5/7 gates already ticked w/ commits;
