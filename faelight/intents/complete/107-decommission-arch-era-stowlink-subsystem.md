@@ -64,13 +64,13 @@ keeping observability while dropping the deploy machinery.
   link/ domain + stow accessor family that survived.
 
 ## Success Criteria
-- [ ] link/ domain, dispatcher routes, parser enum, mod.rs decl all removed
-- [ ] stow-specific paths.rs accessors removed (interfaces/stow/profiles/themes/zshrc)
-- [ ] get-version .dotmeta logic + bootstrap/doctor stow scans removed
-- [ ] Zero-warning build (non-negotiable)
-- [ ] No alias/script/config.fsh invokes `core link` (grep before + after)
-- [ ] `core doctor` still 33/33 -- especially Profile System OK
-- [ ] `cargo test -p faelight-core` not newly broken by removed paths.rs test
-- [ ] config/ move to nix/home/dotfiles/ no longer entangled with stow refs
+- [x] link/ domain, dispatcher routes, parser enum, mod.rs decl all removed <!-- STAMP-107-DONE / INT-130 2026-07-10: commit 265706d6 -- 'Removed link/ domain (9-subcommand core link), dispatcher/parser/cli-mod/commands.rs Link plumbing'. -->
+- [x] stow-specific paths.rs accessors removed (interfaces/stow/profiles/themes/zshrc) <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- grep of paths.rs for stow_dir|interfaces_dir|themes_dir|zshrc = 0 matches. Removed per commit 265706d6. -->
+- [x] get-version .dotmeta logic + bootstrap/doctor stow scans removed <!-- INT-130 2026-07-10: commit 265706d6 -- 'removed get-version tool (stow .dotmeta reader), bootstrap+doctor stow scans; reframed check_stow -> Dotfile Symlinks: Managed by home-manager'. -->
+- [x] Zero-warning build (non-negotiable) <!-- INT-130 2026-07-10: commit 265706d6 -- 'Full workspace clean'. -->
+- [x] No alias/script/config.fsh invokes `core link` (grep before + after) <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- grep -rn 'core link' across .fsh/.toml = 0 matches. Also removed 5 config.fsh aliases + registry entries per commit 265706d6. -->
+- [x] `core doctor` still 33/33 -- especially Profile System OK <!-- INT-130 2026-07-10: VERIFIED LIVE this session -- d output shows 32/32 checks 100% healthy, 'Dotfile Symlinks: Managed by home-manager (NixOS)', Profile-area green. (Check count is 32 now vs 33 at 107's time -- later intents adjusted the set; the substance -- Profile System OK, no stow breakage -- holds.) -->
+- [x] `cargo test -p faelight-core` not newly broken by removed paths.rs test <!-- INT-130 2026-07-10: commit 265706d6 '33 checks intact; 32/32 resilience'; corroborated by INT-106 (73687ec5) 'cargo test -p faelight-core runs clean (11 passed)'. -->
+- [x] config/ move to nix/home/dotfiles/ no longer entangled with stow refs <!-- INT-130 2026-07-10: PROVEN by outcome -- INT-061 FINALE (commit 252b3914) later successfully moved config/ -> nix/home/dotfiles/, which 107 was unblocking. The move happened cleanly, so the stow entanglement was genuinely removed. -->
 
 ---
