@@ -3,7 +3,7 @@ id: 130
 date: 2026-07-07
 type: future
 title: "cicomplete gate-blocker is a no-op: checks ⬜ but charters use markdown [ ] — fix enforcement + reconcile 27 mis-gated completed intents"
-status: in-progress
+status: complete
 tags: [cicomplete, integrity, gates, int-332, critical, ledger]
 ---
 
@@ -85,13 +85,13 @@ reconciliation is ticking boxes for work already proven. The older ones (023-116
 need genuine per-intent audit -- work status unknown, must be verified not assumed.
 
 ## Gates
-- [ ] Root cause confirmed in code (emoji-vs-markdown mismatch at intent/mod.rs ~928)
-- [ ] Blocker rewritten to detect `- [ ]` markdown gates (+ back-compat emoji)
-- [ ] Deferral logic updated to match markdown too
-- [ ] DEMONSTRATED: cicomplete BLOCKS on an open `- [ ]` gate (shown live), and
-      completes once checked
-- [ ] Reconciliation pass: every affected intent audited (tick if done / reopen if not)
-- [ ] core builds clean, deployed, verified on the running binary
+- [x] Root cause confirmed in code (emoji-vs-markdown mismatch at intent/mod.rs ~928) <!-- STAMP-130-DONE / 2026-07-10: confirmed June -- blocker matched emoji checkboxes but charters use `- [ ]` markdown; the no-op let mis-gated intents complete. -->
+- [x] Blocker rewritten to detect `- [ ]` markdown gates (+ back-compat emoji) <!-- 2026-07-10: rewritten (INT-135 Gate 5 rewrote core intent validate/blocker -- namespace-aware, markdown-gate-aware, back-compat). -->
+- [x] Deferral logic updated to match markdown too <!-- 2026-07-10: deferral path reads the same markdown-gate parser; [~] gates recognized (used honestly across this reconcile: 028/064/103/106/108/120). -->
+- [x] DEMONSTRATED: cicomplete BLOCKS on an open `- [ ]` gate (shown live), and
+      completes once checked <!-- 2026-07-10: DEMONSTRATED LIVE this session -- with this gate open, `cicomplete 130` printed '🚫 cicomplete BLOCKED -- 1 open gate(s)' and correctly read the markdown `- [ ]` gate (the exact capability the no-op lacked). Then, with it checked, cicomplete completes. Block-then-pass proven; the blocker enforced the very sentence describing it. -->
+- [x] Reconciliation pass: every affected intent audited (tick if done / reopen if not) <!-- 2026-07-10: COMPLETED THIS SESSION -- 22 genuinely reconciled (023,028,064,065,091,097,098,099,100,101,103,104,105,106,107,108,116,119,120,122,123,124) + 032 corrected as a false-complete = all 23 audited. Each verified by git log / source / live, never memory. -->
+- [x] core builds clean, deployed, verified on the running binary <!-- 2026-07-10: the fixed blocker has been running all session -- caught real open gates on every reconcile, allowed completion only when [x]. Verified live on the running binary throughout. -->
 
 ## Relationship
 - Fixes INT-332 (which introduced the never-working blocker).
@@ -298,13 +298,7 @@ makes nothing false (both show the same honest open state). Dedupe is its own la
 116, 119, 120, 122, 123, 124.
 (117, 125, 126, 127 done in Tier 1.)
 
-## 130's own gates
-- [ ] Root cause confirmed in code (emoji-vs-markdown mismatch at intent/mod.rs ~928)
-- [ ] Blocker rewritten to detect `- [ ]` markdown gates (+ back-compat emoji)
-- [ ] Deferral logic updated to match markdown too
-- [ ] DEMONSTRATED: cicomplete BLOCKS on an open `- [ ]` gate (shown live), completes once checked
-- [ ] Reconciliation pass: every affected intent audited (tick if done / reopen if not)
-- [ ] core builds clean, deployed, verified on the running binary
+
 NOTE: several of 130's own gates ARE already met (root cause confirmed, blocker rewritten,
 demonstrated live, core built+deployed+verified). They are left unticked deliberately until
 the 23-audit gate is also done -- 130 completes as ONE honest unit, and (fittingly) its own
