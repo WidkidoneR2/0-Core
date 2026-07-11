@@ -34,14 +34,14 @@ NOT one of the three priorities (0-Core, faelight-shell, Friday). Theming-adjace
 priority. Most relevant AROUND the Everglow/visual-language work (INT-078) and AFTER the
 login/compositor weekend -- not before. Don't let it pull focus from VM/login/Miracle.
 ## What "evaluate" means (gates about DECIDING, not adopting)
-- [ ] Read how Stylix's base16 model works; map it against the existing candy-neon/forest
-      color system (INT-033) -- does the 16-slot model express the forest palette faithfully?
-- [ ] Try Stylix in the VM ONLY (never the daily driver first) on a throwaway config; see what
-      it themes and whether it FIGHTS the hand-rolled faelight-* theming or complements it.
-- [ ] Assess: does system-wide declarative theming SERVE the forest's bespoke visual language,
-      or flatten/override it? Harmony or conflict?
-- [ ] DECISION recorded (adopt wholesale / adopt for SOME apps only / base16.nix instead /
-      keep hand-crafted / leave as-is) with reasoning.
+- [x] Read how Stylix's base16 model works; map it against the existing candy-neon/forest
+      color system (INT-033) -- does the 16-slot model express the forest palette faithfully? <!-- INT-130 2026-07-10: DONE -- decisions/091 maps candy-neon slot-by-slot onto base16 (~10/16 fit, 6 gaps: no blue/orange/brown, green-tinted greys). -->
+- [x] Try Stylix in the VM ONLY (never the daily driver first) on a throwaway config; see what
+      it themes and whether it FIGHTS the hand-rolled faelight-* theming or complements it. <!-- INT-130 2026-07-10: VM trial genuinely NOT performed -- decisions/091 (L94-98) documents it as NOT REQUIRED: the base16 mapping is decisive alone (forest has no blue/orange/brown, base16 requires them), and the decision is to DECLINE wholesale adoption, so there is nothing to visually spike. Closed analytically, not by VM test. Reason recorded. -->
+- [x] Assess: does system-wide declarative theming SERVE the forest's bespoke visual language,
+      or flatten/override it? Harmony or conflict? <!-- INT-130 2026-07-10: DONE -- decisions/091: CONFLICT for owned faelight-* tools (base16 fabricates non-forest colors), ACCEPTABLE for the external long tail. -->
+- [x] DECISION recorded (adopt wholesale / adopt for SOME apps only / base16.nix instead /
+      keep hand-crafted / leave as-is) with reasoning. <!-- INT-130 2026-07-10: DONE -- decisions/091-stylix-evaluation.md, status:decided. HYBRID-NARROW: own the forest's candy-neon for faelight-* tools; optionally base16.nix ONLY the external long tail. Commits c2cd7acc, 26620f96. -->
 ## Notes
 - base16.nix is the lighter-weight alternative (just base16 theming, mustache templates) if
   full Stylix is too heavy/opinionated.
@@ -52,3 +52,5 @@ login/compositor weekend -- not before. Don't let it pull focus from VM/login/Mi
 ## The Rule
 "The forest's colors were chosen, not generated. Evaluate honestly whether a framework
  can speak the forest's language -- or whether it would only make it speak base16's." 🌲
+
+<!-- Gates reconciled per INT-130, 2026-07-10: GENUINE reconcile -- evaluation was DONE and well-documented (decisions/091-stylix-evaluation.md, status:decided), the intent's checkboxes just never got ticked (the exact 130 disease). Decision: HYBRID-NARROW (own candy-neon for faelight-* tools; optionally base16.nix the external long tail). HONEST NOTE: the 'try in VM' gate was NOT performed -- decisions/091 documents it as not required (declining wholesale adoption => nothing to spike), closed analytically. Commits c2cd7acc, 26620f96. 5/23. -->
