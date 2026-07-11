@@ -7,19 +7,6 @@ status: complete
 tags: [fsh, variables, expansion, shell]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
----
 
 ## Why
 fsh mishandles shell variable assignment + expansion. Observed 2026-06-29:
@@ -99,3 +86,12 @@ and its output stored. Verified in the running binary against the full test matr
 - Z="a b c"             -> a b c             (quoted-with-spaces regression: OK)
 All pass. The value-truncation root cause (split_whitespace at line 1703) is bypassed
 for $(...) values by the balanced-paren guard. Closing.
+
+## Gates (reconciled per INT-130, 2026-07-10)
+- [x] Variable name case preserved through assignment/expansion (TG stays TG). <!-- Root cause was NOT lowercasing (initial misdiagnosis corrected 2026-06-30); both assign paths preserve case. RESOLVED matrix confirms. -->
+- [x] `VAR=$(cmd)` captures the whole value, not truncated at the first space. <!-- VERIFIED LIVE 2026-07-10: X=$(echo one two three) -> "one two three" (whole, untruncated). The exact split_whitespace root cause (main.rs:1703) is fixed. -->
+- [x] The original failing case works: TG=$(find /nix/store -name tuigreet | head -1). <!-- RESOLVED matrix (2026-07-01): returns the real tuigreet path -- the metal-tuigreet-session case with spaces+pipe now works. Mechanism re-verified live this session. -->
+- [x] No regressions: FOO=bar cmd (prefix-assign), VAR=value (plain), VAR="a b c" (quoted). <!-- RESOLVED matrix: all pass. -->
+- [x] Fix is IN THE DEPLOYED BINARY, not merely diagnosed. <!-- INT-130 note: 100 was REOPENED 2026-07-01 because diagnosis had been mistaken for completion. This gate honors that: fix verified live in the running fsh this session (TG=$(echo hello)->hello; X=$(echo one two three)->one two three). -->
+
+<!-- STAMP-100-DONE. Reconciled per INT-130, 2026-07-10: GENUINE reconcile + CHARTER REPAIR (like 099). Removed dead template stub; added 5 real [x] gates after the RESOLVED matrix. Was REOPENED once (2026-07-01) when diagnosis was mistaken for the fix -- so verified LIVE this session in the deployed binary: TG=$(echo hello)->hello, X=$(echo one two three)->'one two three' (whole, untruncated -- the split_whitespace root cause fixed). Initial 'lowercasing' theory was a misdiagnosis; real bug was value truncation. 9/23. -->
