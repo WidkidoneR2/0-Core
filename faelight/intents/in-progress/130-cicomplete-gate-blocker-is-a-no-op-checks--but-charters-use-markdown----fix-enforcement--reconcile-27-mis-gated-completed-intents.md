@@ -134,6 +134,28 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10e) -- 065 + 091 reconciled
+Post-break run continues. Two more GENUINE reconciles:
+- 065 (faelight-notify systemd service): commit e9fe550b. Verified mostly LIVE -- systemctl
+  enabled+active, WantedBy=faelight-session.target; restart seatbelt DEMONSTRATED (killed
+  PID 2745 -> respawned 3966 in <5s). Reboot/rebuild survival structural (Nix-store unit).
+- 091 (Stylix evaluation): commit 6d102c49. Work was DONE + documented in decisions/091
+  (status:decided, HYBRID-NARROW) -- checkboxes just never ticked. VM-trial gate honestly
+  marked NOT-performed-but-not-required (documented in the decision record).
+
+TALLY: 5 genuinely reconciled (023, 028, 064, 065, 091) + 1 false-complete corrected (032).
+REMAINING 15: 097, 098, 099, 100, 101, 103, 104, 105, 106, 107, 108, 116, 119, 120, 122,
+123, 124. NEXT UP: 097.
+
+CONFIRMED PATTERN (Christian's insight): "if it's in the git log / a decision record, the
+work happened -- the intents just never got their boxes ticked because the blocker was a
+no-op." So per intent: CHECK GIT LOG + decision records FIRST, then verify live where
+possible, tick to match. 091 nearly got mis-reclassified as a false-complete until the log
+corrected us -- always check before reclassifying.
+
+REMINDER (unchanged): before cicomplete on 130, DEDUPE its own duplicated gate block
+(## Gates + ## 130's own gates, byte-identical). Left as-is until audit done.
+
 ## Progress (2026-07-10d) -- 064 reconciled; session pause
 064 (faelight-logout) reconciled -- GENUINE this time (built + deployed, unlike 032). All 7
 gates [x] on honest evidence (commit 132a8fdf): overlay/Esc/styling verified LIVE; keybind+
