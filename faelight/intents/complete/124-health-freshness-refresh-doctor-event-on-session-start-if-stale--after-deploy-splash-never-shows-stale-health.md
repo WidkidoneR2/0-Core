@@ -44,10 +44,10 @@ Data is correct; the splash reads a pre-change snapshot.
 
 ## Gates (demonstrated, not declared)
 
-- [ ] Reboot → open terminal → splash shows CURRENT health without manually running `d`
-- [ ] Recent event (within TTL) → session start does NOT re-run doctor (verify no startup penalty via timing)
-- [ ] After `deploy` → recorded doctor event reflects post-deploy health
-- [ ] Splash number always matches `d` number (no divergence)
+- [x] Reboot → open terminal → splash shows CURRENT health without manually running `d` <!-- STAMP-124-DONE / INT-130 2026-07-10: VERIFIED IN SOURCE + LIVE -- refresh_health_if_stale() (main.rs:52) runs before splash (main.rs:704, moved before print_welcome per commit 9ec28ff0). Demonstrated on reboot (commit e30d9f74). This session: gen 341 splash showed 100%, matching d, no manual run. -->
+- [x] Recent event (within TTL) → session start does NOT re-run doctor (verify no startup penalty via timing) <!-- INT-130 2026-07-10: VERIFIED IN SOURCE -- main.rs:64-75 reads /proc/stat btime; 'Fresh = event recorded after this boot. Skip the doctor run (cheap path)' -- timestamp compare only, doctor run ONLY when stale. No startup penalty on the common path. -->
+- [x] After `deploy` → recorded doctor event reflects post-deploy health <!-- INT-130 2026-07-10: commit ddcf20d3 -- deploy now runs full 'core doctor run' (was 'quick', which wrote no event); full run writes the 32-check event + health-status cache, so the splash reflects post-deploy health immediately. -->
+- [x] Splash number always matches `d` number (no divergence) <!-- INT-130 2026-07-10: VERIFIED LIVE TWICE this session -- splash 100% = d 100% (32/32), gen 341. The exact 93%-splash-vs-100%-d divergence 124 fixed (observed 2026-07-07) is absent. Both read the same events-table detail.health source. -->
 
 ## Design guardrails
 
