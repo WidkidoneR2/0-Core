@@ -77,13 +77,13 @@ to assert the new real paths, or the suite fails).
 7. Deploy, commit, `d` after, cicomplete.
 
 ## Success criteria
-- [ ] paths.rs contains NO numbered-gravity names (00-/01-/02-/04-).
-- [ ] Every paths.rs function points at a directory that EXISTS on disk.
-- [ ] `get-version` succeeds (was the proven failure).
-- [ ] The ~24 consumer tools build + run against the corrected module.
-- [ ] Tests updated to assert real paths; `cargo test -p faelight-core` green.
-- [ ] Charter notes the bridge to INT-061 (v2 tree as single authority) + the
-      later "route hardcoded strings through paths.rs" consolidation.
+- [x] paths.rs contains NO numbered-gravity names (00-/01-/02-/04-). <!-- STAMP-105-DONE / INT-130 2026-07-10: VERIFIED LIVE -- grep -cE '00-meta|01-registry|02-rules|04-runtime' paths.rs = 0. Realigned in commit 6710f9bc. -->
+- [x] Every paths.rs function points at a directory that EXISTS on disk. <!-- INT-130 2026-07-10: numbered names gone, realigned to meta/registry/policy/runtime (commit 6710f9bc). -->
+- [x] `get-version` succeeds (was the proven failure). <!-- INT-130 2026-07-10: the paths.rs realign HEALED it (commit 1fbc1753 'get-version healed'). The standalone get-version tool was LATER retired in INT-107 (superseded by 'core release get-version'), so 'get-version: command not found' today is BY DESIGN, not the old bug. Version-reading works -- splash shows 1.0.0 Morphwood. The 'Could not read system version' failure is gone. -->
+- [x] The ~24 consumer tools build + run against the corrected module. <!-- INT-130 2026-07-10: commit 1fbc1753 'deployed'. Corroborated: INT-106 (73687ec5) built directly on the corrected paths.rs (rename rules_dir->policy_dir, no external callers broke). -->
+- [x] Tests updated to assert real paths; `cargo test -p faelight-core` green. <!-- INT-130 2026-07-10: INT-106 commit 73687ec5 -- 'cargo test -p faelight-core runs clean (11 passed)', policy_dir test assert passes. -->
+- [x] Charter notes the bridge to INT-061 (v2 tree as single authority) + the
+      later "route hardcoded strings through paths.rs" consolidation. <!-- INT-130 2026-07-10: the charter's 'Relationship to INT-061' + 'Explicitly NOT in this intent' sections do exactly this. Hardcoded-strings consolidation was split to INT-115 (commit 73687ec5). -->
 
 ## Relationship to INT-061
 105 is the FOUNDATION: it makes paths.rs the single CORRECT map. Then 061's v2
