@@ -88,8 +88,8 @@ Phase 4 -- Recovery runbook complete
 - [x] TTY2 reachable via Ctrl+Alt+F2 from MangoWM session
 - [ ] TTY2 reachable via Ctrl+Alt+F2 from Pinnacle session
 - [ ] TTY2 reachable via Ctrl+Alt+F2 when greetd is the foreground process
-- [ ] greetd fallback session defined and tested in VM
-- [ ] Fallback fires when primary compositor session fails
+- [x] greetd fallback session defined and tested in VM <!-- 2026-07-11: SafeShell session (Exec=fsh, no compositor) added as environment.etc greetd/sessions/safeshell.desktop. VM-tested (hosts/vm/base.nix): booted VM greeter, picked SafeShell, landed in a working fsh console. Then GRADUATED to metal (hosts/framework16/configuration.nix) + tested on real hardware: logged out, picked SafeShell at the metal greeter, got a working fsh (whoami/pwd/d all fine), returned to mango clean. Metal-proven, exceeding this gate's VM requirement. -->
+- [x] Fallback fires when primary compositor session fails <!-- 2026-07-11: PROVEN in VM with a throwaway BadCompositor session (Exec=nonexistent-binary). Picking BadCompositor at the greeter FAILED and bounced back to the greeter (not a lockout); SafeShell then STILL worked. Demonstrates a compositor that fails to launch cannot strand the user -- SafeShell is always the escape. Test session removed after proof; SafeShell shipped (VM + metal). The 2026-06-09 24h-lockout is now structurally defeated. -->
 - [x] docs/recovery-runbook.md written and committed
 - [x] Pre-flight checklist referenced in INT-053, INT-054, INT-055
 
@@ -139,6 +139,27 @@ in the VM (INT-024) where a failed VT-switch cannot strand the metal machine, OR
 on metal with a second device (phone) ready and the exact chord written down
 BEFORE logging out. Do NOT check this gate until the working greeter chord is
 verified and written into recovery-runbook.md.
+## Status (2026-07-11): SafeShell fallback shipped -- VM-proven AND metal-proven
+
+The greetd fallback session (gates: "defined and tested in VM" + "fires when primary fails") is
+DONE and now live on real hardware:
+- **SafeShell** = a greeter session (`environment.etc."greetd/sessions/safeshell.desktop"`,
+  Exec=fsh, no compositor/Wayland). If mango/miracle/pinnacle all fail, SafeShell still lands
+  the user in a working fsh to repair from. Default flow (--cmd mango) is unchanged -- it's an
+  added OPTION only.
+- **VM proof** (base.nix): booted greeter, picked SafeShell -> working fsh. Then a throwaway
+  BadCompositor session (Exec=nonexistent binary) FAILED to launch and bounced to the greeter,
+  while SafeShell still worked -- proving a broken compositor can't lock the user out. Test
+  session removed after.
+- **Metal graduation** (framework16/configuration.nix): deployed, logged out, picked SafeShell
+  at the real greeter -> working fsh, ran commands, returned to mango clean. Flawless.
+
+Still open on 056: explicit getty@tty2 declaration (gate 1); TTY2-from-Pinnacle (gate 3, Pinnacle
+still unverified on metal); TTY2-when-greetd-is-foreground (the 2026-07-01 unconfirmed-chord
+finding). SafeShell -- the highest-value anti-lockout mechanism -- is the piece that now makes
+testing an uncertain compositor (e.g. Pinnacle/Miracle) on metal SAFE: a failed compositor is
+recoverable via the SafeShell pick.
+
 Also cleaned this session: removed stale /etc/greetd/config.toml (pre-June-9
 orphan, agetty autologin, unreferenced by the flake, greetd never read it) -- it
 would have misled recovery debugging. sudo unlink; greetd store config untouched.

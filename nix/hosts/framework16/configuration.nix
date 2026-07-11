@@ -114,6 +114,21 @@
     };
   };
 
+  # INT-056: SafeShell rescue session -- the anti-lockout safety net.
+  # A bare fsh login on the VT, NO compositor/Wayland. If every compositor
+  # session (mango/pinnacle/miracle) fails to launch, the greeter still
+  # offers "SafeShell" -> a working login shell to repair the system from.
+  # Makes the 2026-06-09 24h-lockout structurally impossible to repeat.
+  # VM-proven (base.nix Phase 2: BadCompositor failed, SafeShell survived)
+  # before graduating here. Adds a session OPTION only -- default --cmd mango
+  # flow is unchanged.
+  environment.etc."greetd/sessions/safeshell.desktop".text = ''
+    [Desktop Entry]
+    Name=SafeShell
+    Exec=fsh
+    Type=Application
+  '';
+
 
   services.openssh = {
     enable = true;

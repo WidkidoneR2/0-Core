@@ -121,6 +121,18 @@
     Type=Application
   '';
 
+  # INT-056 Phase 2: SafeShell fallback session -- the anti-lockout safety net.
+  # A bare fsh login on the VT, NO compositor/Wayland. If every compositor
+  # session fails to launch (bad GPU lib, broken config), the greeter still
+  # offers "Shell" -> a working login shell to repair the system from.
+  # Tested VM-first per 056's Rule before it graduates to metal.
+  environment.etc."greetd/sessions/safeshell.desktop".text = ''
+    [Desktop Entry]
+    Name=SafeShell
+    Exec=fsh
+    Type=Application
+  '';
+
   systemd.tmpfiles.rules = [
     # Create the 0-core path chain christian-owned so fsh can create state.db.
     # No empty-file rule: an empty file is not a valid SQLite db; fsh self-heals
