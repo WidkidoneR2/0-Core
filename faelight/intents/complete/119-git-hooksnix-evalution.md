@@ -46,11 +46,11 @@ gaining a sandboxed flake-check gate. Evaluate whether that gate earns its place
 - Decide: adopt as complement / reject / defer. Keep ONLY if it earns its place.
 
 ## Gates
-- [ ] git-hooks.nix wired into a branch flake; `nix flake check` runs hooks sandboxed
-- [ ] Overlap vs faelight-hooks characterized (what each covers, at which moment)
-- [ ] Hybrid-vs-reject decision made + recorded (with rationale)
-- [ ] If adopted: faelight-hooks remains commit-time authority; git-hooks.nix is
-      flake-check gate only -- boundary documented
+- [x] git-hooks.nix wired into a branch flake; `nix flake check` runs hooks sandboxed <!-- STAMP-119-DONE / INT-130 2026-07-10: VERIFIED LIVE -- git-hooks.nix is now wired into the MAIN flake (flake.nix:24 inputs.git-hooks, :241 pre-commit-check = git-hooks.lib.run). Fully adopted, not just branch-spiked. -->
+- [x] Overlap vs faelight-hooks characterized (what each covers, at which moment) <!-- INT-130 2026-07-10: characterized in the ALL-MET block -- both do rustfmt+secret-scan; faelight-hooks=commit-time/staged/skippable, git-hooks.nix=flake-check/whole-tree/pinned/unskippable. -->
+- [x] Hybrid-vs-reject decision made + recorded (with rationale) <!-- INT-130 2026-07-10: DECISION recorded in-charter (2026-07-07): ADOPT AS HYBRID. Decisive demo: nix flake check caught REAL unformatted drift on main (teach/main.rs) that faelight-hooks passed -- a real gap closed, proven not assumed. -->
+- [x] If adopted: faelight-hooks remains commit-time authority; git-hooks.nix is
+      flake-check gate only -- boundary documented <!-- INT-130 2026-07-10: adopted + boundary documented -- faelight-hooks=commit-time authority, git-hooks.nix=flake-check gate ONLY (sandboxed CI-style). Verified live in flake.nix:241. -->
 
 ## Relationship
 - Complements faelight-hooks; does NOT replace it.
