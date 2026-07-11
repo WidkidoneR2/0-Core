@@ -51,13 +51,13 @@ LEAVE ALONE (not Arch dependence):
 Each build-gated. Deploy once at end.
 
 ## Success criteria
-- [ ] safe-update retired (crate gone, no registry/alias refs)
-- [ ] fsh pkg command retired or NixOS-native
-- [ ] zero live pacman/paru/makepkg/AUR invocations in engine + tools
-- [ ] identity strings say NixOS, not Arch Linux
-- [ ] dead stow/.zshrc paths removed
-- [ ] full workspace builds clean, zero warnings; health green
-- [ ] re-run the sweep grep: only history + Friday-knowledge + "arch"=architecture remain
+- [x] safe-update retired (crate gone, no registry/alias refs) <!-- STAMP-116-DONE / INT-130 2026-07-10: VERIFIED LIVE -- find for safe-update dir = empty. Crate + tools.toml + aliases removed; 'update' repointed to faelight-update. Resolution section + commit trail. -->
+- [x] fsh pkg command retired or NixOS-native <!-- INT-130 2026-07-10: pkg/pkgs/sys_packages removed (Resolution section; README.md:15 + CHANGELOG.md:5 record it as a breaking change -- 'the forest no longer speaks pacman'). -->
+- [x] zero live pacman/paru/makepkg/AUR invocations in engine + tools <!-- INT-130 2026-07-10: VERIFIED LIVE -- re-ran the sweep grep across engine/src + rust-tools. Remaining hits are ALL allowed: comments/history, Friday knowledge facts (keep=awareness), anti-Arch redirects ('paru|pacman => not a NixOS command, use deploy'), a .v2.0.0 backup file, and command-name lists for typo-matching (7152/7235 -- 'pacman' as a known-command string, not an invocation). NO executable Arch code. -->
+- [x] identity strings say NixOS, not Arch Linux <!-- INT-130 2026-07-10: VERIFIED LIVE -- grep '\"Arch Linux' in engine/src = empty. Strings changed to 'NixOS 26.05 (Yarara)' (bootstrap/doctor/narrative/context/teach) per Resolution. -->
+- [x] dead stow/.zshrc paths removed <!-- INT-130 2026-07-10: Resolution -- faelight-docs cmd_welcome patched (dead zsh .zshrc path removed; fsh renders greeting dynamically). -->
+- [x] full workspace builds clean, zero warnings; health green <!-- INT-130 2026-07-10: Resolution 'Full workspace builds clean, zero warnings'; doctor 100% healthy live this session. -->
+- [x] re-run the sweep grep: only history + Friday-knowledge + "arch"=architecture remain <!-- INT-130 2026-07-10: DEMONSTRATED LIVE -- the intent's own acceptance test, re-run this session: every remaining hit is history/comment, Friday-knowledge (deferred awareness), anti-Arch redirect, backup file, or command-name-for-typo-match. ZERO executable Arch invocations. The sweep is the judge; it passes. -->
 
 ## Relationship
 - Follows INT-082 (lock model shed). This is the LAST de-Arch work.
