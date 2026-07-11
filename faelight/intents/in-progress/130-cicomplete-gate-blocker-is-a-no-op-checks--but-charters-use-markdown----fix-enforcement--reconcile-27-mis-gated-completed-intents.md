@@ -134,6 +134,28 @@ gets a real look. Per intent:
 Reopening is not failure -- it is the ledger telling the truth. Better an honest
 "in-progress" than a false "complete."
 
+## Progress (2026-07-10f) -- 097, 098, 099 reconciled
+Three more GENUINE reconciles, all verified not assumed:
+- 097 (fsh clean Nix/Shell operator path): 2df51b9c. 5/7 gates already ticked w/ commits;
+  2 acceptance gates closed on attestation (fsh daily-driver 12+ days, no systemic bash drops;
+  features deferred to INT-134).
+- 098 (forest hygiene pass): 7b9e3268. 5/6 already ticked; Phase 2 (register 11 tools)
+  VERIFIED LIVE -- all 11 present in registry/tools.toml.
+- 099 (fsh multi-line command blocks): 0ecd1267. GENUINE + CHARTER REPAIR -- charter was
+  malformed (dead template stub + gates as prose not checkboxes). Removed stub, converted
+  4 gates to [x]. for-loop gate verified LIVE. NOTE: log has a DIFFERENT Arch-era INT-099
+  (Niri migration) -- disambiguated by date; our 099 is the NixOS-era one (commits 3c170e2a/
+  3fcdde34).
+
+TALLY: 8 genuinely reconciled (023, 028, 064, 065, 091, 097, 098, 099) + 1 false-complete
+corrected (032). REMAINING 12: 100, 101, 103, 104, 105, 106, 107, 108, 116, 119, 120, 122,
+123, 124. NEXT UP: 100.
+
+WATCH-FORS accumulated this run: (1) false-completes (032). (2) malformed charters -- stub
+templates + prose-gates (099). (3) Arch-era vs NixOS-era number collisions -- disambiguate
+by date (099). (4) cosmetic frontmatter drift (099 type:future/status:complete) -- note,
+don't fix mid-reconcile. ALWAYS: check git log + records + live state before ticking.
+
 ## Progress (2026-07-10e) -- 065 + 091 reconciled
 Post-break run continues. Two more GENUINE reconciles:
 - 065 (faelight-notify systemd service): commit e9fe550b. Verified mostly LIVE -- systemctl
