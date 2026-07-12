@@ -525,6 +525,135 @@ fn execute_impl(
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
         "store" => store_cmd(args),
+        "packages" | "pkgs" => {
+            // packages [filter]  -- list installed packages from the current system
+            // environment (INT-134). Source: references of /run/current-system/sw, each a
+            // /nix/store/<hash>-<name>-<version> path. Optional filter matches the name.
+            let filter = args.first().copied().unwrap_or("");
+            let paths = nix_query_lines(&[
+                "nix-store",
+                "-q",
+                "--references",
+                "/run/current-system/sw",
+            ]);
+            if paths.is_empty() {
+                return CommandResult::Error(
+                    "packages: could not read /run/current-system/sw references".to_string(),
+                );
+            }
+            // Strip /nix/store/<hash>- prefix -> name-version. Hash is 32 chars + one dash.
+            let mut names: Vec<String> = paths
+                .iter()
+                .filter_map(|p| {
+                    let base = p.rsplit('/').next().unwrap_or(p);
+                    // base = <32-hash>-<name-version>; drop the hash + first dash.
+                    base.split_once('-').map(|(_, rest)| rest.to_string())
+                })
+                .filter(|nv| filter.is_empty() || nv.contains(filter))
+                .collect();
+            names.sort();
+            names.dedup();
+            if names.is_empty() {
+                return CommandResult::Output(format!(
+                    "  no packages matching '{}'", filter
+                ));
+            }
+            let header = if filter.is_empty() {
+                format!("  \u{1f4e6} Installed packages ({})\n", names.len())
+            } else {
+                format!("  \u{1f4e6} Installed packages matching '{}' ({})\n", filter, names.len())
+            };
+            let mut out = header;
+            out.push_str(&"\u{2500}".repeat(44));
+            for nv in &names {
+                out.push_str(&format!("\n  {}", nv));
+            }
+            CommandResult::Output(out)
+        }
+        "generations" | "gens" => {
+            // generations [all|<N>]  -- browse NixOS generations (INT-134). Read-only.
+            // Source: nixos-rebuild list-generations --json (same source main.rs uses for
+            // the prompt). Rollback is SHOWN, never executed -- switching generations is a
+            // sudo-level system mutation that deserves deliberate action, not a builtin.
+            let out_raw = std::process::Command::new("nixos-rebuild")
+                .args(["list-generations", "--json"])
+                .output();
+            let json = match out_raw {
+                Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+                Err(e) => return CommandResult::Error(format!("generations: {}", e)),
+            };
+            let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&json);
+            let gens = match parsed {
+                Ok(g) => g,
+                Err(e) => return CommandResult::Error(format!("generations: parse: {}", e)),
+            };
+            if gens.is_empty() {
+                return CommandResult::Output("  no generations found".to_string());
+            }
+            let sub = args.first().copied().unwrap_or("");
+
+            // generations <N> -- detail + rollback command for one generation.
+            if let Ok(n) = sub.parse::<u64>() {
+                let found = gens.iter().find(|g| g["generation"].as_u64() == Some(n));
+                match found {
+                    None => return CommandResult::Error(format!("generations: {} not found", n)),
+                    Some(g) => {
+                        let date = g["date"].as_str().unwrap_or("?");
+                        let ver = g["nixosVersion"].as_str().unwrap_or("?");
+                        let kernel = g["kernelVersion"].as_str().unwrap_or("?");
+                        let rev = g["configurationRevision"].as_str().unwrap_or("?");
+                        let cur = g["current"].as_bool().unwrap_or(false);
+                        let mut out = format!("  \u{2744} Generation {}{}\n", n, if cur { "  (current)" } else { "" });
+                        out.push_str(&"\u{2500}".repeat(44));
+                        out.push_str(&format!("\n  date    : {}", date));
+                        out.push_str(&format!("\n  nixos   : {}", ver));
+                        out.push_str(&format!("\n  kernel  : {}", kernel));
+                        out.push_str(&format!("\n  config  : {}", rev));
+                        if cur {
+                            out.push_str("\n\n  this is the current generation -- nothing to roll back to.");
+                        } else {
+                            out.push_str("\n\n  to roll back to this generation (deliberate, sudo):");
+                            out.push_str(&format!(
+                                "\n    sudo nix-env --switch-generation {} -p /nix/var/nix/profiles/system", n
+                            ));
+                            out.push_str("\n    sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch");
+                        }
+                        return CommandResult::Output(out);
+                    }
+                }
+            }
+
+            // generations [all] -- browse.
+            let show_all = sub == "all";
+            let limit = if show_all { gens.len() } else { 15.min(gens.len()) };
+            let mut out = format!(
+                "  \u{2744} NixOS Generations ({} total{})\n",
+                gens.len(),
+                if show_all { String::new() } else { format!(", showing {}", limit) }
+            );
+            out.push_str(&"\u{2500}".repeat(52));
+            for g in gens.iter().take(limit) {
+                let num = g["generation"].as_u64().unwrap_or(0);
+                let date = g["date"].as_str().unwrap_or("?");
+                let cur = g["current"].as_bool().unwrap_or(false);
+                let rev = g["configurationRevision"].as_str().unwrap_or("");
+                let short_rev = rev.split('-').next().unwrap_or(rev);
+                let short_rev = short_rev.chars().take(8).collect::<String>();
+                let dirty = if rev.ends_with("-dirty") { " *" } else { "" };
+                let marker = if cur { "\u{25cf}" } else { " " };
+                out.push_str(&format!(
+                    "\n  {} {:>4}  {}  {}{}",
+                    marker, num, date, short_rev, dirty
+                ));
+            }
+            if !show_all && gens.len() > limit {
+                out.push_str(&format!("\n\n  ... {} older. `generations all` to see all, `generations <N>` for detail + rollback.",
+                    gens.len() - limit));
+            } else {
+                out.push_str("\n\n  \u{25cf} = current   * = dirty tree.  `generations <N>` for detail + rollback.");
+            }
+            CommandResult::Output(out)
+        }
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "git-churn" | "gchurn" | "git.files" => git_churn(core_root, args),
