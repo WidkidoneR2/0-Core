@@ -75,20 +75,24 @@ solaar show
 
 ## Compositor Recovery
 
-### Compositor crash / frozen session
-From TTY (Ctrl+Alt+F2)
-systemctl --user restart niri
-Or kill and restart
-pkill niri
-niri &
+The forest runs three compositors (mango daily + Pinnacle + Miracle), all selectable
+at the greeter, all under the SafeShell net. Recovery is layered (INT-056).
+Full detail: `docs/recovery-runbook.md`.
 
-### VT switch stuck
-Switch to TTY
-Ctrl+Alt+F2
-Switch back to Wayland session
-Ctrl+Alt+F1  (or F7 depending on session)
-From TTY: restart session
-systemctl --user restart niri
+### SafeShell -- the 100% recovery (do this first)
+If a compositor fails to launch or black-screens, you do NOT need a TTY. At the greeter,
+press **F3** -> select **SafeShell** -> a bare `fsh` with no compositor, to repair from.
+SafeShell is always in the picker; a broken compositor can never lock you out.
+
+### Compositor crash / frozen session (mango)
+1. `Fn+Ctrl+Alt+F2` -> tty2, log in (Fn is a Framework media-row quirk).
+2. `sudo systemctl restart greetd` -- restarts the login stack, fresh greeter.
+3. `Fn+Ctrl+Alt+F1` back to the graphical VT.
+
+### VT switch
+- To a console: `Fn+Ctrl+Alt+F2` (-> tty2). A kernel function -- works even if the
+  compositor is fully hung. Provided by autovt (always present).
+- Back to the session: `Fn+Ctrl+Alt+F1`.
 
 ---
 
