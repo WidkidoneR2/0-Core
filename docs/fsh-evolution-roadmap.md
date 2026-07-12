@@ -89,8 +89,8 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 
 ## Lane 3 -- Rust-native
 - [x] Cargo integration commands -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev` subcommands test/watch/check(bacon)/bench/geiger/audit-deps + `dev deps <crate>` (cargo tree --invert, 'store why for Rust'). commits 86c82588 (+ fuzzy/ambiguous handling). commands/mod.rs dev_cmd.
-- [ ] Cargo workspace navigation
-- [ ] Rustdoc lookup from shell
+- [x] Cargo workspace navigation -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev workspace`/`ws` -- lists all 35 workspace crates (name/version/path, authoritative from cargo metadata, includes never-visited crates unlike zoxide); `dev workspace <name>` cd's into any crate (set_current_dir, teaches zoxide). commands/mod.rs dev_cmd.
+- [x] Rustdoc lookup from shell -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev doc [crate]` -- auto-routes: no arg -> web std docs; workspace crate -> local cargo doc --open; external crate -> docs.rs. Membership resolved via serde_json parse of cargo metadata (exact match, no substring false-positives). commit 4cd4977e. commands/mod.rs dev_cmd.
 - [ ] Crate search completion
 - [ ] Native Rust scripting support
 - [ ] Compile shell scripts to binaries
