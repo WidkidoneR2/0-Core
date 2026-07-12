@@ -11320,6 +11320,84 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             }
             CommandResult::Empty
         }
+        "workspace" | "ws" => {
+            // Cargo workspace navigation. No arg -> list all members (authoritative, from
+            // cargo metadata -- includes crates never visited, unlike zoxide's frecency).
+            // <name> -> cd into that crate's dir (set_current_dir like z_jump), and teach zoxide.
+            let want = args.get(1).copied().unwrap_or("");
+            let meta = std::process::Command::new("cargo")
+                .args(["metadata", "--format-version", "1"])
+                .current_dir(core_root)
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok());
+            let meta = match meta {
+                Some(m) => m,
+                None => return CommandResult::Error("  dev workspace: cargo metadata failed".to_string()),
+            };
+            let members: std::collections::HashSet<String> = meta
+                .get("workspace_members")
+                .and_then(|m| m.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            // Collect (name, version, manifest_dir) for each workspace member.
+            let mut crates: Vec<(String, String, String)> = meta
+                .get("packages")
+                .and_then(|p| p.as_array())
+                .map(|pkgs| {
+                    pkgs.iter()
+                        .filter(|pkg| {
+                            pkg.get("id").and_then(|v| v.as_str()).map(|id| members.contains(id)).unwrap_or(false)
+                        })
+                        .filter_map(|pkg| {
+                            let name = pkg.get("name")?.as_str()?.to_string();
+                            let version = pkg.get("version")?.as_str()?.to_string();
+                            let manifest = pkg.get("manifest_path")?.as_str()?;
+                            let dir = std::path::Path::new(manifest)
+                                .parent()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or_default();
+                            Some((name, version, dir))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            crates.sort_by(|a, b| a.0.cmp(&b.0));
+
+            if want.is_empty() {
+                // list mode
+                let mut out = String::new();
+                out.push_str(&format!("\n  {} workspace crates ({})\n", "📦".normal(), crates.len()));
+                out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
+                for (name, version, dir) in &crates {
+                    let short = dir.strip_prefix(core_root).unwrap_or(dir).trim_start_matches('/');
+                    out.push_str(&format!(
+                        "  {} {:<24} {:<10} {}\n",
+                        "→".bright_cyan(),
+                        name.white(),
+                        format!("v{}", version).dimmed(),
+                        short.dimmed()
+                    ));
+                }
+                out.push_str(&format!("\n  {} dev workspace <name> to jump\n", "→".dimmed()));
+                return CommandResult::Output(out);
+            }
+            // jump mode
+            match crates.iter().find(|(name, _, _)| name == want) {
+                Some((name, _, dir)) => match std::env::set_current_dir(dir) {
+                    Ok(_) => {
+                        let _ = std::process::Command::new("zoxide").args(["add", dir]).status();
+                        CommandResult::Output(format!("  {} {} ({})", "📦".normal(), name.bright_cyan(), dir.dimmed()))
+                    }
+                    Err(e) => CommandResult::Error(format!("  dev workspace: cd {}: {}", dir, e)),
+                },
+                None => CommandResult::Error(format!(
+                    "  dev workspace: no crate named '{}' (try: dev workspace)",
+                    want
+                )),
+            }
+        }
         "doc" => {
             // rustdoc lookup -- auto-routes: no arg -> std docs on the web; workspace crate ->
             // local cargo doc --open; anything else -> docs.rs (instant, no local build).
@@ -11442,6 +11520,12 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "→".bright_cyan(),
                 "dev doc [crate]",
                 "rustdoc -- std / workspace crate / docs.rs"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev workspace [name]",
+                "list workspace crates / jump to one"
             ));
             out.push_str(&format!(
                 "  {} {:<22} {}\n",
