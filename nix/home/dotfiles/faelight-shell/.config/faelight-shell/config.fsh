@@ -15,7 +15,7 @@ set prompt_style = forest
 
 # Tier 1 — Daily use
 alias d = "/run/current-system/sw/bin/core doctor run"
-alias v = "hx"
+alias v = "nvim"
 alias l = "eza -lh --icons --group-directories-first"
 alias b = "bat --paging=never"
 alias y = "yazi"
@@ -303,7 +303,7 @@ alias sst = core security trend
 alias story = core story
 alias suggest = core why suggest
 alias suspend = systemctl suspend
-alias svi = sudo hx
+alias svi = sudo nvim
 alias sysver = uname -r
 alias t = teach
 alias targz = tar -czf

@@ -3,7 +3,7 @@ id: 149
 date: 2026-07-12
 type: future
 title: "Remove hx (helix): drop package + config + repoint v/svi aliases to nvim -- completes the INT-147 editor switch"
-status: planned
+status: in-progress
 tags: [editor, helix, nixcats, config, cleanup]
 ---
 
@@ -43,15 +43,12 @@ aliases entirely. Repoint is the default.)
    helix symlink); health not degraded.
 
 ## Success Criteria
-- [ ] `v` and `svi` aliases repointed to nvim (config.fsh) -- demonstrated: `v <file>` opens nvim,
-      `svi <file>` opens sudo nvim
-- [ ] `helix` package removed (home.nix:66); deployed
-- [ ] `xdg.configFile."helix"` block removed (home.nix:103-104); NO dangling helix config symlink --
-      doctor Broken Symlinks check green post-dep
-- [ ] helix theme file decision recorded (keep as harmless dotfile OR remove) -- with reason
-- [ ] `which hx` -> not found on the DEPLOYED system; no hx/helix references remain except
-      intentional history -- demonstrated
-- [ ] deploy clean; health not degraded by the removal
+- [x] `v` and `svi` aliases repointed to nvim (config.fsh) <!-- 2026-07-12: config.fsh:18 v->nvim, :306 svi->sudo nvim. Repointed FIRST (before pkg removal) per ordered solution. -->
+- [x] `helix` package removed (home.nix:66); deployed <!-- 2026-07-12: removed helix + its '# Editor' comment from home.packages. Deployed gen 360. -->
+- [x] `xdg.configFile."helix"` block removed; NO dangling helix config symlink <!-- 2026-07-12: removed the 4-line xdg.configFile block; Broken Symlinks check GREEN post-dep. -->
+- [x] helix theme file decision recorded -- REMOVED <!-- 2026-07-12: git rm -r nix/home/dotfiles/helix/ (config.toml + faelight-forest.toml theme). Reason: Christian wants nvim only, no helix -- an orphaned dotfile dir nothing reads is deadwood. -->
+- [x] `which hx` -> not found; no hx/helix references remain except history <!-- 2026-07-12: hx gone from /etc/profiles/per-user/christian/bin. RECON SURFACED 2 engine refs the nix/ sweep missed: checks.rs:132 required-binaries list ('hx'->'nvim', so the editor stays health-checked) + entropy.rs:155 drift-baseline ('helix' removed). Both cleaned; doctor engine sweep clean. -->
+- [x] deploy clean; health not degraded <!-- 2026-07-12: the removal FIRST degraded health to 87% (Binary Dependencies ❌ -- engine still expected hx). Caught by the check, fixed (hx->nvim in the list), re-deployed: Binary Dependencies GREEN, 0 failed, health recovered to 90%. The board-green discipline caught what 'hx gone from PATH' alone would have missed. -->
 
 ## Relationship
 Completes: INT-147 (editor switch to nvim). 147 switched the default; this removes the superseded

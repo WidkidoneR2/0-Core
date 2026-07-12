@@ -152,7 +152,7 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
     // version+build). Resolving the binary's realpath captures that; any change to
     // the package changes the store path, which is a stronger drift signal than a
     // version string. (Replaces the Arch-era `pacman -Q` baseline.)
-    for pkg in ["nvim", "helix", "alacritty", "greetd"] {
+    for pkg in ["nvim", "alacritty", "greetd"] {
         if let Ok(output) = Command::new("sh")
             .args([
                 "-c",

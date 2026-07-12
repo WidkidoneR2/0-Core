@@ -62,8 +62,6 @@
     lazygit
     # File tools
     mmv-go
-    # Editor
-    helix
     # Lock screen
     hyprlock
     nix-direnv
@@ -100,10 +98,6 @@
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
-  xdg.configFile."helix" = {
-    source = ../dotfiles/helix/.config/helix;
-    recursive = true;
-  };
   xdg.configFile."hyprlock/hyprlock.conf" = {
     source = ../dotfiles/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;

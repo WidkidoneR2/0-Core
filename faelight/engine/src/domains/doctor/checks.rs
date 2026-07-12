@@ -129,7 +129,7 @@ pub fn check_binaries() -> CheckResult {
     let bins = [
         "mango",
         "alacritty",
-        "hx",
+        "nvim",
         "git",
         "bat",
         "eza",
