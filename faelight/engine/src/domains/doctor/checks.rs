@@ -34,8 +34,8 @@ pub fn check_services() -> CheckResult {
     // Probe reachability ONCE; if the bus is unavailable, report honestly rather than crying wolf.
     let bus_reachable = Command::new("systemctl")
         .args(["--user", "show-environment"])
-        .status()
-        .map(|s| s.success())
+        .output()                        // .output() captures stdout; .status() would leak the
+        .map(|o| o.status.success())     // env dump to the terminal. Same reachability check.
         .unwrap_or(false);
 
     if !bus_reachable {
