@@ -1,0 +1,5 @@
+# INT-133: Nix hygiene tuning -- signal, not noise.
+# Disable the style lints that fight the forest's idiomatic Nix; keep the real ones.
+disabled = [
+  "repeated_keys",  # flat-dotted keys (boot.loader.x / boot.initrd.y) are idiomatic, not a defect
+]

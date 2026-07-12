@@ -1,4 +1,4 @@
-{ ... }:
+_:
 {
   # --- Faelight Workspace Daemon (INT-053) ---
   # dwl-ipc client (zdwl_ipc_manager_v2): tracks mango tag state and writes

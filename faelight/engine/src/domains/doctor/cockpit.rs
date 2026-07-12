@@ -115,6 +115,7 @@ pub fn render_cockpit(
         "Flake Lock Age",
         "Update Readiness",
         "Nix Store",
+        "Nix Hygiene",
     ];
     let runtime_names = ["VM State", "Compositor", "Network"];
 

@@ -1,4 +1,4 @@
-{ ... }:
+_:
 {
   # --- Faelight Insight Daemon (INT-114) ---
   # The nervous system of Faelight Forest. Watches runtime/state.db on a 30s

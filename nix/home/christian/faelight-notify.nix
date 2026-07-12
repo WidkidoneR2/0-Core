@@ -1,4 +1,4 @@
-{ ... }:
+_:
 {
   # --- Faelight Notify (INT-065) ---
   # org.freedesktop.Notifications daemon + wlr-layer-shell overlay.

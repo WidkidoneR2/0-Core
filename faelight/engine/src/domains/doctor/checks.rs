@@ -1432,3 +1432,79 @@ pub fn check_update_readiness(core_root: &str) -> CheckResult {
         }
     }
 }
+
+pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
+    // INT-133: tuned deadnix + statix over nix/. Both tools exit 0 even with
+    // findings, so we parse output, not exit codes. Tuning: deadnix runs with
+    // --no-lambda-pattern-names (idiomatic `{ config, pkgs, lib, ... }:` headers
+    // are not dead code); statix reads statix.toml at repo root (repeated_keys
+    // disabled -- flat-dotted keys are idiomatic). Green when clean, warns on
+    // genuine findings only (dead code, empty patterns, real anti-patterns).
+    use std::process::Command;
+
+    let nix_dir = format!("{}/nix", core_root);
+
+    // deadnix: prints findings to stdout; empty stdout == clean.
+    let deadnix_out = Command::new("deadnix")
+        .args(["--no-lambda-pattern-names", &nix_dir])
+        .output();
+    let dead_count = match &deadnix_out {
+        Ok(o) => {
+            let s = String::from_utf8_lossy(&o.stdout);
+            // deadnix prints one block per finding; count lines that name a .nix file.
+            s.lines().filter(|l| l.contains(".nix")).count()
+        }
+        Err(_) => {
+            return CheckResult {
+                id: "nix_hygiene".into(),
+                name: "Nix Hygiene".into(),
+                status: Status::Warn,
+                message: "deadnix not found -- install it to lint Nix code".into(),
+                fix: Some("Add deadnix to your packages".into()),
+            };
+        }
+    };
+
+    // statix: exits 0 but prints "Warning:" per finding; count those.
+    let statix_out = Command::new("statix")
+        .args(["check", &nix_dir])
+        .current_dir(core_root) // so statix.toml at repo root is picked up
+        .output();
+    let statix_count = match &statix_out {
+        Ok(o) => {
+            let s = String::from_utf8_lossy(&o.stdout);
+            s.matches("Warning:").count()
+        }
+        Err(_) => {
+            return CheckResult {
+                id: "nix_hygiene".into(),
+                name: "Nix Hygiene".into(),
+                status: Status::Warn,
+                message: "statix not found -- install it to lint Nix code".into(),
+                fix: Some("Add statix to your packages".into()),
+            };
+        }
+    };
+
+    let total = dead_count + statix_count;
+    if total == 0 {
+        CheckResult {
+            id: "nix_hygiene".into(),
+            name: "Nix Hygiene".into(),
+            status: Status::Pass,
+            message: "Nix code clean -- no dead code or anti-patterns (tuned deadnix + statix)".into(),
+            fix: None,
+        }
+    } else {
+        CheckResult {
+            id: "nix_hygiene".into(),
+            name: "Nix Hygiene".into(),
+            status: Status::Warn,
+            message: format!(
+                "{} Nix hygiene finding(s): {} dead-code, {} anti-pattern",
+                total, dead_count, statix_count
+            ),
+            fix: Some("Run `deadnix --no-lambda-pattern-names nix/` and `statix check nix/` to see them".into()),
+        }
+    }
+}

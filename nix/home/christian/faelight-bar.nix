@@ -1,4 +1,4 @@
-{ ... }:
+_:
 {
   # --- Faelight session group ---
   # graphical-session.target refuses manual start, so we own a startable
