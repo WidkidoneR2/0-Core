@@ -80,22 +80,22 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Show current flake in prompt (INT-062)
 - [x] Detect dirty git + flake state (INT-062)
 - [x] Built-in nix command wrappers -- partial (rebuild / dep / update-flake aliases)
-- [ ] Auto dev-shell activation per flake project
-- [ ] Generation rollback browser
-- [ ] Query installed packages from prompt
-- [ ] Package search integrated into completion
-- [ ] Nix store explorer
+- [~] Dev-shell activation per flake project -- PARTIAL (INT-134, 2026-07-12): manual `devshell enter [name]` SHIPPED (reproducible via `nix develop --command <fsh>`, nested fsh). commit 0af760ae. The AUTO-detect half was CUT: the session is always already in a devShell (IN_NIX_SHELL=impure, name=friday-dev-env always set) -- an edge-triggered auto hint has no reliable off-state. Filter-appropriate cut; documented.
+- [x] Generation rollback browser -- SHIPPED (INT-134, 2026-07-12): `generations`/`gens` -- read-only NixOS generation browser (rollback shown, not run). commit 976d5334.
+- [x] Query installed packages from prompt -- FIXED (INT-134, 2026-07-12): new `packages` (alias `pkgs`) builtin lists the current system environment, sourced from `nix-store -q --references /run/current-system/sw`, parsed to name-version (hash stripped via split_once so multi-dash names stay intact), sorted + deduped. `packages <filter>` narrows by substring (partly serves package-search too). Verified live: 211 packages listed; 'packages ripgrep' -> ripgrep-15.1.0; 'packages neovim' -> neovim-0.12.3. Reuses INT-075's nix_query_lines. commands/mod.rs packages arm.
+- [x] Package search integrated into completion -- SHIPPED (INT-134, 2026-07-12): `pkg-search`/`pkgsearch <term>` (nix 2.34 `nix search nixpkgs <regex> --json`), caches to /tmp/fsh-pkg-search.json; completion.rs reads the cache for TAB (no network). commit 0af760ae.
+- [x] Nix store explorer -- VERIFIED (INT-075, tested 2026-07-12): `store` command. `store why <path|name>` resolves a name to its /nix/store path and reports self size, closure size, GC roots that pin it, and direct referrers; `store reclaim` is the GC preview. Verified live: 'store why ripgrep' -> 6.2 MiB self / 54.2 MiB closure / 94 GC roots / 104 referrers. Already complete; no build needed. commands/mod.rs store_cmd.
 - [x] GC statistics widget -- VERIFIED (INT-075, tested 2026-07-11): `store reclaim` is an honest read-only GC statistics preview -- computes the dead set (nix-store --gc --print-dead, deletes nothing), counts dead paths, sums true freeable size (self-sizes, not closure, to avoid double-counting shared deps). Verified live: 'dead paths: 1108, freeable: 6.24 GiB' in ~24s against the real store. Already complete; no build needed (avoided duplicating as a separate gc-stats). commands/mod.rs store_reclaim.
 
 ## Lane 3 -- Rust-native
-- [ ] Cargo integration commands
+- [x] Cargo integration commands -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev` subcommands test/watch/check(bacon)/bench/geiger/audit-deps + `dev deps <crate>` (cargo tree --invert, 'store why for Rust'). commits 86c82588 (+ fuzzy/ambiguous handling). commands/mod.rs dev_cmd.
 - [ ] Cargo workspace navigation
 - [ ] Rustdoc lookup from shell
 - [ ] Crate search completion
 - [ ] Native Rust scripting support
 - [ ] Compile shell scripts to binaries
 - [ ] Dependency graph visualization
-- [ ] Benchmark commands with Criterion
+- [x] Benchmark commands with hyperfine -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev bench` uses hyperfine (retitled from Criterion -- hyperfine is the actual tool wired). commands/mod.rs dev_cmd.
 
 ## Lane 4 -- Friday / AI  (always human-authorized)
 - [ ] Explain command before execution
