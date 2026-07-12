@@ -3,7 +3,7 @@ id: 146
 date: 2026-07-12
 type: future
 title: "fsh drops XDG_RUNTIME_DIR from child env -- breaks systemctl --user in health check (services actually up; checker misreports 0/3). Fix: propagate XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS to spawned processes."
-status: in-progress
+status: complete
 tags: [fsh, Runtime, session, XDG]
 ---
 
@@ -60,15 +60,12 @@ health %, health_drop, tallies, schema) -- is DEFERRED to its own intent (filed 
 it is a doctor-domain-wide type change, not a rider on this symptom fix.
 
 ## Success Criteria
-- [ ] check_services() distinguishes bus-unreachable (Err) from genuinely-inactive; the Err case is
-      NOT counted as "down" -- demonstrated in code + behavior
-- [ ] `d` from the user session still shows 3/3 when services are up (no regression) -- live
-- [ ] running the check in a bus-less context (simulate: unset XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS
-      then run the check) no longer reports services as down -- demonstrated
-- [ ] a GENUINELY inactive service (bus reachable, service stopped) still correctly reports down/Warn
-      -- demonstrated (stop a service, confirm it's caught; restart it)
-- [ ] engine rebuilt + deployed; a real `dep`'s post-rebuild health check no longer shows the false
-      0/3 for services -- demonstrated on the next deploy
+- [x] check_services() distinguishes bus-unreachable (Err) from genuinely-inactive; the Err case is
+      NOT counted as "down" <!-- 2026-07-12: bus-probe via `systemctl --user show-environment`; unreachable -> honest Pass, not down. checks.rs. -->
+- [x] `d` from the user session still shows 3/3 when services are up (no regression) <!-- 2026-07-12: live `d` shows System Services 3/3 running on deployed engine. -->
+- [x] running the check in a bus-less context no longer reports services as down <!-- 2026-07-12: `env -u XDG_RUNTIME_DIR -u DBUS_SESSION_BUS_ADDRESS ./target/debug/core doctor run` -> '3 services (session bus unavailable -- not checked in this context)', Pass, not 0/3. -->
+- [x] a GENUINELY inactive service still correctly reports down/Warn <!-- 2026-07-12: stopped faelight-wsd (bus reachable) -> '2/3 running -- down: faelight-wsd', Warn. Restarted. No false green. -->
+- [x] engine rebuilt + deployed; a real `dep`'s post-rebuild health check no longer shows the false 0/3 <!-- 2026-07-12: deployed (commit 14dc46d5); the dep's own activation-context health check showed System Services 3/3, not the prior false 0/3. -->
 
 ## Relationship
 Builds on: nothing structural. Single-function fix in engine doctor.
