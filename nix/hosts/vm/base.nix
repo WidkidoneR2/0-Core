@@ -45,6 +45,7 @@
   systemd.services."serial-getty@ttyS0".enable = true;
   services.getty.autologinUser = "christian";
 
+
   users.users.christian = {
     isNormalUser = true;
     extraGroups = [ "wheel" "seat" "video" "input" ];

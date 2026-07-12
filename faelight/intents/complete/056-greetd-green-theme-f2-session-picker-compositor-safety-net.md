@@ -3,7 +3,7 @@ id: 056
 date: 2026-06-09
 type: infrastructure
 title: "Forest Recovery Protocol: TTY rescue hardening and compositor pre-flight"
-status: in-progress
+status: complete
 tags: [recovery, tty, greetd, compositor, safety, preflight, rescue]
 priority: critical
 ---
@@ -84,10 +84,10 @@ Phase 4 -- Recovery runbook complete
   Gate: another person could recover this system using only that doc
 
 ## Gates
-- [ ] getty@tty2.service explicitly declared in NixOS flake
+- [x] TTY2 rescue getty guaranteed on tty2 (via autovt -- the explicit-declaration experiment showed autovt is what actually delivers it) <!-- 2026-07-11: VM-tested `systemd.services."getty@tty2".enable = true` per path-c. FINDING: built clean and did NOT conflict with greetd (greetd stayed active/running, 0 failed units -- the documented PR#30893 restart-conflict did NOT occur), BUT the explicit unit sat inactive(dead); when tty2 was selected, `autovt@tty2.service` (NOT our getty@tty2) activated and delivered the login. So the explicit declaration is cosmetic/dormant -- autovt already guarantees tty2 rescue. Removed the inert declaration (path b). Gate INTENT (tty2 rescue guaranteed, not assumed) is MET by autovt, proven functional from mango + Pinnacle + greeter, VM AND metal. -->
 - [x] TTY2 reachable via Ctrl+Alt+F2 from MangoWM session
 - [x] TTY2 reachable via Ctrl+Alt+F2 from Pinnacle session <!-- 2026-07-11: Pinnacle metal-tested this session (launched from greetd, Alacritty spawned via Super+Return, dynamic tiling + Snowcap quit-confirm all working -- Pinnacle CONFIRMED working on real hardware, first time). From inside the Pinnacle session, Fn+Ctrl+Alt+F2 reached TTY2 successfully (Framework Fn caveat applies, same as mango). Return via Fn+Ctrl+Alt+F1. -->
-- [ ] TTY2 reachable via Ctrl+Alt+F2 when greetd is the foreground process
+- [x] TTY2 reachable via Ctrl+Alt+F2 when greetd is the foreground process <!-- 2026-07-11: RESOLVED the 2026-07-01 unconfirmed-chord finding. Tested calmly in the VM (where a failed VT-switch can't strand metal): from the greeter (greetd foreground), Ctrl+Alt+F2 reached a tty2 login (autovt@tty2 activated on switch), Ctrl+Alt+F1 returned. Christian confirmed the SAME works on real metal (both directions). The greeter-state rescue path is now CONFIRMED. Note: in the VM plain Ctrl+Alt+F2 works; on Framework metal the Fn modifier is needed for the media-row F-keys (Fn+Ctrl+Alt+F2), same caveat as the mango/Pinnacle gates. -->
 - [x] greetd fallback session defined and tested in VM <!-- 2026-07-11: SafeShell session (Exec=fsh, no compositor) added as environment.etc greetd/sessions/safeshell.desktop. VM-tested (hosts/vm/base.nix): booted VM greeter, picked SafeShell, landed in a working fsh console. Then GRADUATED to metal (hosts/framework16/configuration.nix) + tested on real hardware: logged out, picked SafeShell at the metal greeter, got a working fsh (whoami/pwd/d all fine), returned to mango clean. Metal-proven, exceeding this gate's VM requirement. -->
 - [x] Fallback fires when primary compositor session fails <!-- 2026-07-11: PROVEN in VM with a throwaway BadCompositor session (Exec=nonexistent-binary). Picking BadCompositor at the greeter FAILED and bounced back to the greeter (not a lockout); SafeShell then STILL worked. Demonstrates a compositor that fails to launch cannot strand the user -- SafeShell is always the escape. Test session removed after proof; SafeShell shipped (VM + metal). The 2026-06-09 24h-lockout is now structurally defeated. -->
 - [x] docs/recovery-runbook.md written and committed
@@ -100,6 +100,35 @@ Phase 4 -- Recovery runbook complete
 - INT-053 (faelight-bar v2) -- pre-flight gate must pass first
 - INT-054 (greetd polish) -- pre-flight gate must pass first
 - INT-055 (faelight-compositor bridge) -- pre-flight gate must pass first
+
+## RESOLUTION (2026-07-11): 056 COMPLETE -- the recovery protocol is proven, end to end.
+
+All 8 gates met. The Forest Recovery Protocol -- born from the 2026-06-09 24h greetd/tuigreet
+lockout -- is now structurally in place and demonstrated on real hardware:
+
+1. SafeShell rescue session (the anti-lockout net): a greetd session (Exec=fsh, no compositor)
+   that lands the user in a working fsh if every compositor fails. VM-proven (BadCompositor test:
+   a failing session bounced to the greeter, SafeShell still worked) AND metal-proven (logged
+   out, picked SafeShell, got a working fsh, returned to mango clean).
+
+2. TTY2 rescue from every state: Ctrl+Alt+F2 (Fn+Ctrl+Alt+F2 on Framework metal for the
+   media-row keys) reaches a tty2 login from mango, Pinnacle, AND the greeter (greetd
+   foreground) -- all confirmed VM + metal. The greeter-state path (the open 2026-07-01
+   finding) was re-tested calmly in the VM and confirmed on metal.
+
+3. getty@tty2 finding (path c -> b): VM-tested an explicit `getty@tty2.enable = true`. It did
+   NOT conflict with greetd (the feared PR#30893 restart-loop did not occur), but the explicit
+   unit sat DORMANT -- autovt@tty2 is what actually activates and delivers the tty2 login on
+   VT-switch. So the explicit declaration was cosmetic; removed it. autovt already GUARANTEES
+   tty2 rescue (standard NixOS mechanism, always present, proven from every state). The gate's
+   intent -- "tty2 rescue guaranteed, not assumed" -- is met by autovt, now explicitly
+   understood and documented rather than forced.
+
+4. recovery-runbook.md written + committed; pre-flight checklist referenced in 053/054/055.
+
+Discipline that made this safe: every login-touching change went through the VM first (INT-024
+harness), with SafeShell + TTY2 as backups on metal. Nothing that could break login was tested
+on metal without a proven escape. The lockout is defeated.
 
 ## The Rule
 "Nothing that can break the session lands on the real machine
