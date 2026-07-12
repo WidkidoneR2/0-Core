@@ -7,6 +7,12 @@
 
     environment.systemPackages = [
       inputs.pinnacle.packages.${system}.pinnacle
+      # INT-067: lua interpreter for Pinnacle's config (pinnacle.toml runs
+      # `lua lua/init.lua`). Without this in the SYSTEM path, the greetd-launched
+      # session can't find lua and silently falls back to Pinnacle's default
+      # config -- which is why the custom forest keybinds (Super+B/E/P) never
+      # loaded. lua5_4 matches the config's Lua version.
+      pkgs.lua5_4
     ];
 
     # XDG portal for Pinnacle (wlr-compatible)
