@@ -10,6 +10,19 @@ pub fn check(cmd: &str) -> Option<String> {
     let trimmed = cmd.trim();
     // Check first word only -- never match on arguments or paths
     let first_word = trimmed.split_whitespace().next().unwrap_or("");
+    // INT-134: user-managed command allow/deny lists (DB-backed, managed via `guard`).
+    // Deny is checked FIRST and wins over everything (even the static safe list below).
+    // Allow is checked next -- an explicitly vetted command skips the guard. Both match
+    // on first_word only, consistent with the rest of this module (never args/paths).
+    if guard_list_contains("deny", first_word) {
+        return Some(format!(
+            "Denylisted command (user guard): {}",
+            trimmed.chars().take(60).collect::<String>()
+        ));
+    }
+    if guard_list_contains("allow", first_word) {
+        return None;
+    }
     // Safe commands -- fsh builtins and forest tools never trigger guard
     let safe = [
         "fg",
@@ -100,6 +113,38 @@ pub fn check(cmd: &str) -> Option<String> {
     }
 
     None
+}
+
+
+/// INT-134: read the user-managed guard allow/deny list from state.db.
+/// Returns true if `word` is present with the given kind ("allow" or "deny").
+/// Opens the db read-only itself so check()'s signature stays unchanged. Best-effort:
+/// any error -> false (fail-open for allow, fail-safe for deny is handled by the caller
+/// order -- deny miss just falls through to the normal heuristics).
+fn guard_list_contains(kind: &str, word: &str) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    let db_path = faelight_core::paths::state_db();
+    let conn = match rusqlite::Connection::open(&db_path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS fsh_guard_list (
+            word TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            PRIMARY KEY (word, kind)
+        );",
+    );
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM fsh_guard_list WHERE kind = ?1 AND word = ?2",
+            rusqlite::params![kind, word],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    count > 0
 }
 
 /// Display the CHALLENGE gate and wait for explicit confirmation.

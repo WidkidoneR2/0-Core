@@ -436,7 +436,7 @@ fn execute_impl(
         "checkpoint" | "cpc" => checkpoint(db),
         "let" => scripting_let_cmd(db, core_root, args),
         "run" => scripting_run_cmd(db, core_root, args),
-        "python" | "py" => run_python_cmd(args),
+        "python" | "py" | "python3" => run_python_cmd(args),
         "js" | "node" => run_js_cmd(args),
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
@@ -928,6 +928,20 @@ fn execute_impl(
                         } else { vec![] }
                     };
                     let cmds_json = serde_json::to_string(&cmds).unwrap_or_else(|_| "[]".to_string());
+                    // INT-134: capture reproducible environment. We snapshot only the
+                    // shell/forest-relevant vars -- capturing ALL of std::env would drag in
+                    // session-specific system noise (DBUS addr, XDG runtime paths, PID vars)
+                    // that would be wrong to restore into a different session. PATH plus any
+                    // FAELIGHT_*/FSH_* project vars are what "reproducible" actually needs.
+                    let env_map: std::collections::BTreeMap<String, String> = std::env::vars()
+                        .filter(|(k, _)| {
+                            k == "PATH"
+                                || k.starts_with("FAELIGHT_")
+                                || k.starts_with("FSH_")
+                                || k.starts_with("FOREST_")
+                        })
+                        .collect();
+                    let env_json = serde_json::to_string(&env_map).unwrap_or_else(|_| "{}".to_string());
                     // Get active intent
                     let intent = conn.query_row(
                         "SELECT title FROM intent_ledger WHERE status='in-progress' ORDER BY updated_at DESC LIMIT 1",
@@ -937,15 +951,15 @@ fn execute_impl(
                         .duration_since(std::time::UNIX_EPOCH)
                         .map(|d| d.as_secs() as i64).unwrap_or(0);
                     match conn.execute(
-                        "INSERT INTO fsh_sessions (name, directory, intent, commands, created_at, updated_at)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+                        "INSERT INTO fsh_sessions (name, directory, intent, commands, env_vars, created_at, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
                          ON CONFLICT(name) DO UPDATE SET
-                         directory=?2, intent=?3, commands=?4, updated_at=?5",
-                        rusqlite::params![name, cwd, intent, cmds_json, ts]
+                         directory=?2, intent=?3, commands=?4, env_vars=?5, updated_at=?6",
+                        rusqlite::params![name, cwd, intent, cmds_json, env_json, ts]
                     ) {
                         Ok(_) => CommandResult::Output(format!(
-                            "  ✅ Session '{}' saved\n  → directory: {}\n  → {} commands captured{}",
-                            name, cwd, cmds.len(),
+                            "  ✅ Session '{}' saved\n  → directory: {}\n  → {} commands captured\n  → {} env var(s) captured{}",
+                            name, cwd, cmds.len(), env_map.len(),
                             if intent.is_empty() { String::new() } else { format!("\n  → intent: {}", intent) }
                         )),
                         Err(e) => CommandResult::Error(format!("session save: {}", e))
@@ -953,20 +967,30 @@ fn execute_impl(
                 }
                 "load" => {
                     let name = args.get(1).copied().unwrap_or("default");
-                    let row: Option<(String, String, String)> = conn.query_row(
-                        "SELECT directory, intent, commands FROM fsh_sessions WHERE name = ?1",
+                    let row: Option<(String, String, String, String)> = conn.query_row(
+                        "SELECT directory, intent, commands, env_vars FROM fsh_sessions WHERE name = ?1",
                         rusqlite::params![name],
-                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
                     ).ok();
                     match row {
                         None => CommandResult::Error(format!("session: '{}' not found. Use: session list", name)),
-                        Some((dir, intent, cmds_json)) => {
+                        Some((dir, intent, cmds_json, env_json)) => {
                             let _ = std::env::set_current_dir(&dir);
+                            // INT-134: restore the captured environment so the session is reproducible.
+                            let env_map: std::collections::BTreeMap<String, String> =
+                                serde_json::from_str(&env_json).unwrap_or_default();
+                            let env_count = env_map.len();
+                            for (k, v) in &env_map {
+                                std::env::set_var(k, v);
+                            }
                             let cmds: Vec<String> = serde_json::from_str(&cmds_json).unwrap_or_default();
                             let mut out = format!(
                                 "  ✅ Session '{}' loaded\n  → directory: {}",
                                 name, dir
                             );
+                            if env_count > 0 {
+                                out.push_str(&format!("\n  → {} env var(s) restored", env_count));
+                            }
                             if !intent.is_empty() {
                                 out.push_str(&format!("\n  → was working on: {}", intent));
                             }
@@ -1141,8 +1165,11 @@ fn execute_impl(
                         serde_json::Map<String, serde_json::Value>,
                     >(&vars_json)
                     {
+                        let mut restored = 0;
                         for (k, v) in &vars {
                             let val = v.as_str().unwrap_or("");
+                            std::env::set_var(k, val);
+                            restored += 1;
                             let short = if val.len() > 60 {
                                 format!("{}...", &val[..57])
                             } else {
@@ -1150,14 +1177,52 @@ fn execute_impl(
                             };
                             out.push_str(&format!("\n  {}={}", k, short));
                         }
+                        out.push_str(&format!(
+                            "\n\n  ✅ {} var(s) restored into the fsh environment", restored
+                        ));
                     }
-                    out.push_str(
-                        "\n\n  ⚠️  Note: vars shown only -- fsh cannot set parent process env",
-                    );
-                    out.push_str(&format!(
-                        "\n  → export manually or use 'source' in your shell"
-                    ));
                     CommandResult::Output(out)
+                }
+            }
+        }
+        "env-rollback" => {
+            // env-rollback  -- restore the MOST RECENT env snapshot (INT-134).
+            // Rollback = "undo my env changes back to the last saved version".
+            // Reuses the env-load restore machinery; no name needed -- takes newest by saved_at.
+            let db_path = faelight_core::paths::state_db();
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-rollback: {}", e)),
+            };
+            let row: Option<(String, String, i64)> = conn
+                .query_row(
+                    "SELECT name, vars, saved_at FROM fsh_env_snapshots ORDER BY saved_at DESC LIMIT 1",
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                )
+                .ok();
+            match row {
+                None => CommandResult::Error(
+                    "env-rollback: no snapshots to roll back to. Use: env-save <name>".to_string(),
+                ),
+                Some((name, vars_json, ts)) => {
+                    let dt = chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let mut restored = 0;
+                    let parsed: Result<serde_json::Map<String, serde_json::Value>, _> =
+                        serde_json::from_str(&vars_json);
+                    if let Ok(vars) = parsed {
+                        for (k, v) in &vars {
+                            let val = v.as_str().unwrap_or("");
+                            std::env::set_var(k, val);
+                            restored += 1;
+                        }
+                    }
+                    CommandResult::Output(format!(
+                        "  \u{21a9} Rolled back to '{}' [{}]\n  \u{2705} {} var(s) restored into the fsh environment",
+                        name, dt, restored
+                    ))
                 }
             }
         }
@@ -1230,6 +1295,169 @@ fn execute_impl(
                 }
             }
         }
+        "env-export" => {
+            // env-export <name> [path]  -- write a snapshot to a portable TOML
+            // manifest (INT-134). Shareable/committable. Default path: ./<name>.env.toml
+            let name = args.first().copied().unwrap_or("default");
+            let path = args
+                .get(1)
+                .copied()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("./{}.env.toml", name));
+            let db_path = faelight_core::paths::state_db();
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-export: {}", e)),
+            };
+            let row: Option<(String, i64)> = conn
+                .query_row(
+                    "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
+                    rusqlite::params![name],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .ok();
+            match row {
+                None => CommandResult::Error(format!(
+                    "env-export: snapshot '{}' not found. Use: env-save <name>",
+                    name
+                )),
+                Some((vars_json, ts)) => {
+                    let parsed: Result<serde_json::Map<String, serde_json::Value>, _> =
+                        serde_json::from_str(&vars_json);
+                    let vars = parsed.unwrap_or_default();
+                    let mut manifest = String::new();
+                    manifest.push_str("# Faelight environment manifest (INT-134)\n");
+                    manifest.push_str(&format!("# Exported from snapshot '{}'\n", name));
+                    manifest.push_str(&format!("name = \"{}\"\n", name));
+                    manifest.push_str(&format!("exported_at = {}\n\n", ts));
+                    manifest.push_str("[vars]\n");
+                    for (k, v) in &vars {
+                        let val = v.as_str().unwrap_or("");
+                        // TOML basic string: escape backslashes and quotes.
+                        let esc = val.replace('\\', "\\\\").replace('"', "\\\"");
+                        manifest.push_str(&format!("{} = \"{}\"\n", k, esc));
+                    }
+                    match std::fs::write(&path, manifest) {
+                        Ok(_) => CommandResult::Output(format!(
+                            "  📤 Exported '{}' -> {}\n  → {} var(s). Shareable/committable TOML manifest.\n  → import elsewhere with: env-import {}",
+                            name, path, vars.len(), path
+                        )),
+                        Err(e) => CommandResult::Error(format!("env-export: write failed: {}", e)),
+                    }
+                }
+            }
+        }
+        "env-import" => {
+            // env-import <path>  -- read a TOML manifest into a snapshot (INT-134).
+            // After import, apply with: env-load <name>
+            let path = match args.first().copied() {
+                Some(p) => p,
+                None => return CommandResult::Error("usage: env-import <path>".to_string()),
+            };
+            let contents = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-import: read failed: {}", e)),
+            };
+            let doc: toml::Value = match toml::from_str(&contents) {
+                Ok(v) => v,
+                Err(e) => return CommandResult::Error(format!("env-import: invalid manifest: {}", e)),
+            };
+            let name = doc
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("imported")
+                .to_string();
+            let mut vars = serde_json::Map::new();
+            if let Some(tbl) = doc.get("vars").and_then(|v| v.as_table()) {
+                for (k, v) in tbl {
+                    if let Some(s) = v.as_str() {
+                        vars.insert(k.clone(), serde_json::Value::String(s.to_string()));
+                    }
+                }
+            }
+            let n_vars = vars.len();
+            let vars_json = serde_json::Value::Object(vars).to_string();
+            let db_path = faelight_core::paths::state_db();
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-import: {}", e)),
+            };
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
+                    name TEXT PRIMARY KEY,
+                    vars TEXT NOT NULL,
+                    saved_at INTEGER NOT NULL
+                );",
+            );
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            match conn.execute(
+                "INSERT INTO fsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(name) DO UPDATE SET vars=?2, saved_at=?3",
+                rusqlite::params![name, vars_json, ts],
+            ) {
+                Ok(_) => CommandResult::Output(format!(
+                    "  📥 Imported manifest -> snapshot '{}' ({} vars)\n  → apply with: env-load {}",
+                    name, n_vars, name
+                )),
+                Err(e) => CommandResult::Error(format!("env-import: {}", e)),
+            }
+        }
+        "audit-log" => {
+            // audit-log [n]  -- show the immutable command audit trail (INT-134).
+            // Reads shell_history_audit: append-only, DB-enforced (delete/update blocked
+            // by triggers). This surfaces the tamper-proof record we capture on every command.
+            let n: i64 = args
+                .first()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(20);
+            let db_path = faelight_core::paths::state_db();
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("audit-log: {}", e)),
+            };
+            let mut stmt = match conn.prepare(
+                "SELECT audit_id, command, timestamp FROM shell_history_audit
+                 ORDER BY audit_id DESC LIMIT ?1",
+            ) {
+                Ok(s) => s,
+                Err(e) => return CommandResult::Error(format!("audit-log: {}", e)),
+            };
+            let rows: Vec<(i64, String, i64)> = stmt
+                .query_map(rusqlite::params![n], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            let total: i64 = conn
+                .query_row("SELECT COUNT(*) FROM shell_history_audit", [], |r| r.get(0))
+                .unwrap_or(0);
+            if rows.is_empty() {
+                return CommandResult::Output(
+                    "  🔒 Immutable audit log is empty (no commands captured yet).".to_string(),
+                );
+            }
+            let mut out = format!(
+                "  🔒 Immutable Command Audit Log (last {} of {})\n",
+                rows.len(),
+                total
+            );
+            out.push_str(&"─".repeat(52));
+            for (id, cmd, ts) in &rows {
+                let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                    .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                let short = if cmd.len() > 60 {
+                    format!("{}...", &cmd[..57])
+                } else {
+                    cmd.clone()
+                };
+                out.push_str(&format!("\n  [{}] {}  {}", id, dt, short));
+            }
+            out.push_str("\n\n  → append-only, DB-enforced: deletes/updates blocked by trigger");
+            CommandResult::Output(out)
+        }
+        "cmdguard" => guard_cmd(args),
         "make" => {
             // make <directory> [in <path>] (INT-270)
             // Human word for mkdir -p -- create directory with full path
@@ -12322,15 +12550,103 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
         }
     }
 }
+fn guard_cmd(args: &[&str]) -> CommandResult {
+    // INT-134: manage the command allow/deny lists that safety_guard reads.
+    //   guard list
+    //   guard deny  add|remove <cmd>
+    //   guard allow add|remove <cmd>
+    // deny wins over allow at check time; both match on the command's first word.
+    let db_path = faelight_core::paths::state_db();
+    let conn = match rusqlite::Connection::open(&db_path) {
+        Ok(c) => c,
+        Err(e) => return CommandResult::Error(format!("guard: {}", e)),
+    };
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS fsh_guard_list (
+            word TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            PRIMARY KEY (word, kind)
+        );",
+    );
+    let sub = args.first().copied().unwrap_or("");
+    match sub {
+        "list" | "" => {
+            let mut stmt = match conn.prepare(
+                "SELECT kind, word FROM fsh_guard_list ORDER BY kind, word",
+            ) {
+                Ok(s) => s,
+                Err(e) => return CommandResult::Error(format!("guard list: {}", e)),
+            };
+            let rows: Vec<(String, String)> = stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            if rows.is_empty() {
+                return CommandResult::Output(
+                    "  🛡  Command guard lists are empty.\n  → cmdguard deny add <cmd> | cmdguard allow add <cmd>".to_string(),
+                );
+            }
+            let mut out = String::from("  🛡  Command Guard Lists\n");
+            out.push_str(&"─".repeat(40));
+            let deny: Vec<&String> = rows.iter().filter(|(k, _)| k == "deny").map(|(_, w)| w).collect();
+            let allow: Vec<&String> = rows.iter().filter(|(k, _)| k == "allow").map(|(_, w)| w).collect();
+            out.push_str("\n  ⛔ deny (blocked -- requires approval):");
+            if deny.is_empty() { out.push_str(" none"); }
+            for w in &deny { out.push_str(&format!("\n     · {}", w)); }
+            out.push_str("\n  ✅ allow (vetted -- skips guard):");
+            if allow.is_empty() { out.push_str(" none"); }
+            for w in &allow { out.push_str(&format!("\n     · {}", w)); }
+            out.push_str("\n\n  note: deny wins over allow; matches on first word only");
+            CommandResult::Output(out)
+        }
+        "deny" | "allow" => {
+            let action = args.get(1).copied().unwrap_or("");
+            let word = args.get(2).copied().unwrap_or("");
+            if word.is_empty() {
+                return CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub));
+            }
+            match action {
+                "add" => {
+                    match conn.execute(
+                        "INSERT OR IGNORE INTO fsh_guard_list (word, kind) VALUES (?1, ?2)",
+                        rusqlite::params![word, sub],
+                    ) {
+                        Ok(_) => CommandResult::Output(format!(
+                            "  🛡  '{}' added to {} list.{}",
+                            word, sub,
+                            if sub == "allow" { "  ⚠ this command will now SKIP the safety guard." } else { "" }
+                        )),
+                        Err(e) => CommandResult::Error(format!("guard {}: {}", sub, e)),
+                    }
+                }
+                "remove" | "rm" => {
+                    let n = conn.execute(
+                        "DELETE FROM fsh_guard_list WHERE word = ?1 AND kind = ?2",
+                        rusqlite::params![word, sub],
+                    ).unwrap_or(0);
+                    if n > 0 {
+                        CommandResult::Output(format!("  🛡  '{}' removed from {} list.", word, sub))
+                    } else {
+                        CommandResult::Error(format!("guard {}: '{}' not in {} list", sub, word, sub))
+                    }
+                }
+                _ => CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub)),
+            }
+        }
+        _ => CommandResult::Error(
+            "usage: cmdguard list | cmdguard deny add|remove <cmd> | cmdguard allow add|remove <cmd>".to_string(),
+        ),
+    }
+}
+
 fn run_python_cmd(args: &[&str]) -> CommandResult {
     if args.is_empty() {
-        // Interactive python3
-        let _ = std::process::Command::new("python3")
-            .stdin(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .status();
-        return CommandResult::Empty;
+        // INT-134/143: bare `python3`/`python`/`py` with no script arg used to drop
+        // silently into the interactive REPL, which looks like a hang in fsh. Guard it:
+        // name what happened and how to actually run Python. Explicit > opaque.
+        return CommandResult::Error(
+            "python: no script argument -- bare `python3` drops into the interactive REPL (looks like a hang).\n  \u{2192} run a script:  python <file.py>\n  \u{2192} run a snippet: run python \"print(1+1)\"\n  \u{2192} real REPL:     python3 -i   (explicit interactive)".to_string()
+        );
     }
     // run python <code> or run python <file.py>
     let first = args[0];

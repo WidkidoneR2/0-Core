@@ -74,6 +74,41 @@ impl ForestDb {
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
+        // INT-134: immutable command audit log. A separate append-only table
+        // captures every REAL command (internal SUGGEST:/TIMING:/doctor-test rows
+        // excluded). Auto-populated by an AFTER INSERT trigger on shell_history, so
+        // capture rides on the existing insert -- no write-path change, can't drift.
+        // UPDATE/DELETE on the audit table are blocked by triggers -> true immutability,
+        // demonstrable (try to delete an audit row -> SQLite ABORTs).
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS shell_history_audit (
+                audit_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                command    TEXT NOT NULL,
+                timestamp  INTEGER NOT NULL,
+                cwd        TEXT,
+                intent_id  TEXT,
+                audited_at INTEGER NOT NULL
+            );
+            CREATE TRIGGER IF NOT EXISTS trg_audit_capture
+            AFTER INSERT ON shell_history
+            WHEN NEW.command NOT LIKE 'SUGGEST:%'
+                 AND NEW.command NOT LIKE 'TIMING:%'
+                 AND NEW.command <> '__fsh_doctor_test__'
+            BEGIN
+                INSERT INTO shell_history_audit (command, timestamp, cwd, intent_id, audited_at)
+                VALUES (NEW.command, NEW.timestamp, NEW.cwd, NEW.intent_id, strftime('%s','now'));
+            END;
+            CREATE TRIGGER IF NOT EXISTS trg_audit_no_update
+            BEFORE UPDATE ON shell_history_audit
+            BEGIN
+                SELECT RAISE(ABORT, 'shell_history_audit is immutable: updates not permitted');
+            END;
+            CREATE TRIGGER IF NOT EXISTS trg_audit_no_delete
+            BEFORE DELETE ON shell_history_audit
+            BEGIN
+                SELECT RAISE(ABORT, 'shell_history_audit is immutable: deletes not permitted');
+            END;",
+        );
         // INT-322 Phase 2: command failures table for Friday learning
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS command_failures (

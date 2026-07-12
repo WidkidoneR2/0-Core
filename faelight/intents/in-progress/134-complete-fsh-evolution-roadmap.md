@@ -42,19 +42,19 @@ correction; silent auto-magic).
 ## Success Criteria
 - [x] Roadmap landed in the repo at a durable path (e.g. `docs/fsh-evolution-roadmap.md`),
       so the reference in `docs/faelight-1.0.0-roadmap.md:11` resolves <!-- STAMP-134-DONE / 2026-07-10: VERIFIED -- docs/fsh-evolution-roadmap.md exists (6.2k, 2026-06-26); faelight-1.0.0-roadmap.md:11 references it by name ('see fsh-evolution-roadmap'); reference resolves to the real file. -->
-- [ ] Every checkbox claiming DONE is verified against the ledger or the running shell --
+- [x] Every checkbox claiming DONE is verified against the ledger or the running shell -- <!-- 2026-07-11: each 'verify+keep' DONE claim checked against registry.rs + commands/mod.rs dispatch arrays + live behavior on the DEPLOYED binary. terminate/kill/jobs (INT-095) verified live; session save/load/replay (mod.rs:888-1032); ? / run / sandbox / yazi (dispatch); syntax highlighting (mod.rs:91/126, partial-honest); git/nix/health/intent/Friday in prompt+bar (live). Evidence anchored in the roadmap. Method note recorded: verify on own line, never through a pipe (pipes route forest words to sh). None required unticking -- all claims resolved to real source/behavior. -->
       demonstrated, not declared. Unverifiable claims are unticked and noted, never bulk-ticked
-- [ ] Each "done" item that has an intent carries its intent number; each that does not is
+- [x] Each "done" item that has an intent carries its intent number; each that does not is <!-- 2026-07-11: every [x] item now carries an intent number (095,096,057,060,062,033,053,065,064,046,063,024,269) OR explicit evidence (source refs, flake.nix postFixup, focus.toml mechanism, live-verified). ade + first-class-command + active-intent-bar evidenced (no dedicated intent). None left unnumbered-and-unevidenced. -->
       either evidenced or reopened
-- [ ] Lane 0 papercuts each become a real intent or are explicitly closed with evidence
+- [x] Lane 0 papercuts each become a real intent or are explicitly closed with evidence <!-- 2026-07-11: python3 REPL trap -> INT-143 filed; `exec fsh` hot-swap -> SOLVED by INT-096 `reload` (verified main.rs:699+1012-1044); [~] sh-routing -> INT-089 clarity-fix complete, deeper routing corrected from phantom INT-267/322 to accurate 'unfiled future work, out of 134 scope'. All three resolved. -->
       (bare `python3` REPL trap; `exec fsh` no hot-swap; the `[~]` INT-089 partial ->
-      confirm INT-267/322 own the routing fix)
+      RESOLVED: INT-267/322 are PHANTOM -- never filed; deeper sh-routing fix is unfiled future work, out of 134 scope)
 - [ ] The filter is applied to every unchecked item: KEEP (with lane + rough order), or CUT
       (with the reason). No item left unjudged
-- [ ] Lane order decided and written down, honoring the doc's own rule:
+- [x] Lane order decided and written down, honoring the doc's own rule:
       foundation -> stability -> features. Lane 5 (structured-data pipelines) stays an EPIC
       requiring its own decision record before any work starts
-- [ ] The roadmap states how it stays true: who reconciles it, and when (e.g. at each fsh
+- [x] The roadmap states how it stays true: who reconciles it, and when (e.g. at each fsh
       release, or whenever an fsh intent completes)
 - [ ] **Version bump + release -- the close condition.** fsh is currently v3.0.5
       (`faelight/rust-tools/faelight-shell/Cargo.toml:4`; mirrored in Cargo.lock and in every
