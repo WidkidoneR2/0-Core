@@ -570,6 +570,7 @@ fn execute_impl(
             }
             CommandResult::Output(out)
         }
+        "pkg-search" | "pkgsearch" => pkg_search(args),
         "generations" | "gens" => {
             // generations [all|<N>]  -- browse NixOS generations (INT-134). Read-only.
             // Source: nixos-rebuild list-generations --json (same source main.rs uses for
@@ -4018,7 +4019,10 @@ fn execute_impl(
         }
         "cd" => cd(args),
         "cache" => cache(args),
-        "devshell" => devshell_list(args),
+        "devshell" => match args.first().copied() {
+            Some("enter") => devshell_enter(&args[1..]),
+            _ => devshell_list(args),
+        },
         "d" => {
             // forest built-in: d → core doctor run
             let output = std::process::Command::new("core")
@@ -6841,6 +6845,83 @@ fn devshell_list(args: &[&str]) -> CommandResult {
         lines.push(format!("    {}", name));
     }
     CommandResult::Output(lines.join("\n"))
+}
+
+fn pkg_search(args: &[&str]) -> CommandResult {
+    // pkg-search <term> -- search nixpkgs, print name/version/description (INT-134, Lane 2).
+    // Deliberate, read-only: runs `nix search nixpkgs <regex> --json` (nix 2.34 form, regex
+    // as a separate arg). Latency is expected because you asked -- this is NOT a TAB handler.
+    // Caches results to /tmp/fsh-pkg-search.json so completion can read them without a network hit.
+    let term = args.join(" ");
+    if term.trim().is_empty() {
+        return CommandResult::Error("pkg-search <term>  -- e.g. pkg-search ripgrep".to_string());
+    }
+    let out = std::process::Command::new("nix")
+        .args(["search", "nixpkgs", &term, "--json"])
+        .output();
+    let out = match out {
+        Ok(o) if o.status.success() => o,
+        Ok(o) => {
+            let err = String::from_utf8_lossy(&o.stderr);
+            return CommandResult::Error(format!("pkg-search: nix search failed: {}", err.trim()));
+        }
+        Err(e) => return CommandResult::Error(format!("pkg-search: {}", e)),
+    };
+    let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
+        Ok(v) => v,
+        Err(e) => return CommandResult::Error(format!("pkg-search: parse: {}", e)),
+    };
+    let map = match json.as_object() {
+        Some(m) if !m.is_empty() => m,
+        _ => return CommandResult::Output(format!("  no packages matching '{}'", term)),
+    };
+    // Cache raw JSON for completion (piece 2). Best-effort: a failed write never fails the search.
+    let _ = std::fs::write("/tmp/fsh-pkg-search.json", &out.stdout);
+    let mut rows: Vec<(String, String, String)> = Vec::new();
+    for (attr, v) in map.iter() {
+        let name = attr.rsplit('.').next().unwrap_or(attr).to_string();
+        let ver = v.get("version").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let desc = v.get("description").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        rows.push((name, ver, desc));
+    }
+    rows.sort();
+    rows.dedup();
+    let mut lines = vec![format!("  \u{1f50d} nixpkgs matches for '{}' ({})", term, rows.len())];
+    lines.push("\u{2500}".repeat(52));
+    for (name, ver, desc) in rows.iter().take(40) {
+        let d = if desc.len() > 60 { format!("{}...", &desc[..57]) } else { desc.clone() };
+        lines.push(format!("  {:<28} {:<14} {}", name, ver, d));
+    }
+    if rows.len() > 40 {
+        lines.push(format!("\n  ... {} more (narrow the term)", rows.len() - 40));
+    }
+    CommandResult::Output(lines.join("\n"))
+}
+
+fn devshell_enter(args: &[&str]) -> CommandResult {
+    // devshell enter [name] -- enter a flake devShell reproducibly (INT-134, Lane 2).
+    // fsh IS the shell; it cannot inject a devShell into its own process. It execs
+    // `nix develop` and runs a nested fsh inside the real nix env -- `exit` returns here.
+    // Authorized + reproducible: nix does the eval, you type the command, nothing auto-runs.
+    // Nesting is allowed -- nix stacks devShells cleanly, and this session normally
+    // starts inside friday-dev, so a hard nix-shell block would make enter unusable.
+    let cwd = std::env::current_dir().unwrap_or_default();
+    if !cwd.join("flake.nix").exists() {
+        return CommandResult::Error(format!("devshell: no flake.nix in {}", cwd.display()));
+    }
+    let fsh = std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "faelight-shell".to_string());
+    let mut cmd = std::process::Command::new("nix");
+    cmd.arg("develop");
+    if let Some(name) = args.first() {
+        cmd.arg(format!(".#{}", name));
+    }
+    cmd.args(["--command", &fsh]).current_dir(&cwd);
+    match cmd.status() {
+        Ok(_) => CommandResult::Empty,
+        Err(e) => CommandResult::Error(format!("devshell enter: {}", e)),
+    }
 }
 
 fn cache(args: &[&str]) -> CommandResult {

@@ -541,6 +541,32 @@ impl<'a> ForestHelper<'a> {
                 return (start, names);
             }
         }
+        // pkg-search <TAB> -- complete package names from the last `pkg-search` result
+        // (INT-134, Lane 2). Reads /tmp/fsh-pkg-search.json ONLY -- never the network, so no
+        // TAB stall. Empty until you have run `pkg-search <term>` at least once; then falls
+        // through silently (returns nothing, never errors).
+        if let Some(rest) = line.strip_prefix("pkg-search ").or_else(|| line.strip_prefix("pkgsearch ")) {
+            let partial = rest.split_whitespace().last().unwrap_or("");
+            let mut names: Vec<String> = Vec::new();
+            if let Ok(src) = std::fs::read_to_string("/tmp/fsh-pkg-search.json") {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&src) {
+                    if let Some(map) = json.as_object() {
+                        for attr in map.keys() {
+                            let name = attr.rsplit('.').next().unwrap_or(attr);
+                            if partial.is_empty() || name.starts_with(partial) {
+                                names.push(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            names.sort();
+            names.dedup();
+            if !names.is_empty() {
+                let start = line.len() - partial.len();
+                return (start, names);
+            }
+        }
         // ── Case 2c: path completion — cd or path-like argument ─────────────────
         if line.starts_with("deploy ") {
             let partial = &line["deploy ".len()..];
