@@ -108,5 +108,5 @@
     source = ../dotfiles/hyprlock/.config/hyprlock/hyprlock.conf;
     force = true;
   };
-  home.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
+  home.sessionVariables = { EDITOR = "nvim"; VISUAL = "nvim"; };
 }

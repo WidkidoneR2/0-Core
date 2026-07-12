@@ -175,6 +175,9 @@
   home-manager.useUserPackages = true;
   home-manager.users.christian = import ../../home/christian/home.nix;
 
-environment.sessionVariables = { EDITOR = "hx"; VISUAL = "hx"; };
+  # nano ships EDITOR=nano at the system level by default; disable so home-manager
+  # (home.sessionVariables EDITOR=nvim) is the sole EDITOR source. (INT-147)
+  programs.nano.enable = false;
+
   system.stateVersion = "25.11";
 }
