@@ -11200,6 +11200,93 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let _ = std::process::Command::new("hyperfine").arg(&cmd).status();
             CommandResult::Empty
         }
+        "deps" => {
+            // dev deps <crate> -- why is <crate> in the build? (INT-134, Lane 3).
+            // The Rust-side mirror of `store why`: `cargo tree --invert` shows every path
+            // from your workspace down to <crate>. Read-only; cargo already renders the tree,
+            // so we add a header + honest not-found message and pass its output through.
+            let krate = match args.get(1) {
+                Some(c) => *c,
+                None => return CommandResult::Error(
+                    "  dev deps <crate>  -- what pulls <crate> into the build (e.g. dev deps libc)".to_string()),
+            };
+            let out = std::process::Command::new("cargo")
+                .args(["tree", "--invert", "--package", krate])
+                .current_dir(core_root)
+                .output();
+            match out {
+                Ok(o) if o.status.success() => {
+                    let tree = String::from_utf8_lossy(&o.stdout);
+                    let tree = tree.trim_end();
+                    if tree.is_empty() {
+                        return CommandResult::Output(format!(
+                            "  {} is not in the workspace dependency tree", krate));
+                    }
+                    let mut s = format!("  \u{1f333} why is '{}' in the build?\n", krate);
+                    s.push_str(&"\u{2500}".repeat(52));
+                    s.push('\n');
+                    s.push_str(tree);
+                    CommandResult::Output(s)
+                }
+                Ok(o) => {
+                    let err = String::from_utf8_lossy(&o.stderr);
+                    // Multiple versions in the tree -> cargo refuses a bare name. Surface the
+                    // version choices as a prompt, not a raw error. (INT-134, Lane 3)
+                    if err.contains("is ambiguous") {
+                        let mut vers: Vec<String> = Vec::new();
+                        for line in err.lines() {
+                            let t = line.trim();
+                            // cargo lists "<name>@<ver>" one per line under the help text.
+                            if t.starts_with(krate) && t.contains('@') {
+                                vers.push(t.to_string());
+                            }
+                        }
+                        if vers.is_empty() {
+                            return CommandResult::Error(format!("  dev deps: {}", err.trim()));
+                        }
+                        return CommandResult::Output(format!(
+                            "  '{}' is ambiguous -- pick a version:\n    {}\n  e.g. dev deps {}",
+                            krate, vers.join("\n    "), vers[0]));
+                    }
+                    // cargo says "package ID specification ... did not match" when the crate
+                    // isn't a dependency -- surface that as a clean not-found, not a raw error.
+                    if err.contains("did not match") || err.contains("not found") {
+                        // Fuzzy nudge: exact match failed, but the crate may exist under a
+                        // different name (e.g. openssl -> openssl-sys). Scan the full tree once
+                        // for names CONTAINING the term and suggest them. (INT-134, Lane 3)
+                        let full = std::process::Command::new("cargo")
+                            .args(["tree", "--prefix", "none"])
+                            .current_dir(core_root)
+                            .output();
+                        let mut hits: Vec<String> = Vec::new();
+                        if let Ok(f) = full {
+                            let listing = String::from_utf8_lossy(&f.stdout);
+                            for line in listing.lines() {
+                                if let Some(name) = line.split_whitespace().next() {
+                                    if name.contains(krate) && name != krate {
+                                        hits.push(name.to_string());
+                                    }
+                                }
+                            }
+                        }
+                        hits.sort();
+                        hits.dedup();
+                        if hits.is_empty() {
+                            CommandResult::Output(format!(
+                                "  {} is not a dependency of this workspace", krate))
+                        } else {
+                            let shown: Vec<String> = hits.iter().take(8).cloned().collect();
+                            CommandResult::Output(format!(
+                                "  no crate named '{}' -- did you mean:\n    {}",
+                                krate, shown.join("\n    ")))
+                        }
+                    } else {
+                        CommandResult::Error(format!("  dev deps: {}", err.trim()))
+                    }
+                }
+                Err(e) => CommandResult::Error(format!("  dev deps: {}", e)),
+            }
+        }
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
