@@ -6138,8 +6138,52 @@ fn store_cmd(args: &[&str]) -> CommandResult {
             CommandResult::Output(out)
         }
         "reclaim" => store_reclaim(),
+        "big" => {
+            // store big [N] -- the N largest store paths by SELF size (INT-134, Lane 2).
+            // Read-only: `nix path-info --all -S --json` (self size, not closure, to avoid
+            // double-counting shared deps -- same honesty as store reclaim). Default N=20.
+            // Slow: walks the whole store. Pairs with `store why <name>` to investigate a hit.
+            let n: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(20);
+            let out = std::process::Command::new("nix")
+                .args(["path-info", "-r", "-S", "--json", "--json-format", "1",
+                       "/run/current-system"])
+                .output();
+            let out = match out {
+                Ok(o) if o.status.success() => o,
+                Ok(o) => return CommandResult::Error(format!(
+                    "store big: nix path-info failed: {}",
+                    String::from_utf8_lossy(&o.stderr).trim())),
+                Err(e) => return CommandResult::Error(format!("store big: {}", e)),
+            };
+            let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
+                Ok(v) => v,
+                Err(e) => return CommandResult::Error(format!("store big: parse: {}", e)),
+            };
+            // nix 2.34: top-level object keyed by store path -> { narSize, ... }.
+            let map = match json.as_object() {
+                Some(m) if !m.is_empty() => m,
+                _ => return CommandResult::Output("  store big: no paths reported".to_string()),
+            };
+            let mut rows: Vec<(u64, String)> = Vec::new();
+            for (path, v) in map.iter() {
+                let sz = v.get("narSize").and_then(|x| x.as_u64()).unwrap_or(0);
+                let base = path.rsplit('/').next().unwrap_or(path).to_string();
+                rows.push((sz, base));
+            }
+            rows.sort_by(|a, b| b.0.cmp(&a.0));
+            let total = rows.len();
+            let mut lines = vec![format!("  \u{1f4be} largest paths in the live system closure by self size (top {} of {})", n.min(total), total)];
+            lines.push("\u{2500}".repeat(60));
+            for (sz, base) in rows.iter().take(n) {
+                let mib = *sz as f64 / (1024.0 * 1024.0);
+                lines.push(format!("  {:>9.1} MiB  {}", mib, base));
+            }
+            lines.push(String::new());
+            lines.push("  investigate any of these with  store why <name>".to_string());
+            CommandResult::Output(lines.join("\n"))
+        }
         "help" | _ => CommandResult::Output(
-            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n  store reclaim          honest GC preview: real freeable size (slow, walks store)\n".to_string()),
+            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n  store reclaim          honest GC preview: real freeable size (slow, walks store)\n  store big [N]          the N largest store paths by self size (slow, walks store)\n".to_string()),
     }
 }
 
