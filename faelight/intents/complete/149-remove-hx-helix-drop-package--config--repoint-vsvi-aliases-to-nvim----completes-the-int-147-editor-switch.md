@@ -3,7 +3,7 @@ id: 149
 date: 2026-07-12
 type: future
 title: "Remove hx (helix): drop package + config + repoint v/svi aliases to nvim -- completes the INT-147 editor switch"
-status: in-progress
+status: complete
 tags: [editor, helix, nixcats, config, cleanup]
 ---
 
