@@ -374,7 +374,7 @@ pub enum KnowledgeCommands {
     Patterns { domain: Option<String> },
     /// Show accuracy by domain
     Accuracy,
-    /// Add a lesson manually -- core knowledge add "fact" [domain] [resolution]
+    /// Add a lesson manually -- `core knowledge add "fact" [domain] [resolution]`
     Add {
         /// The fact/description to record
         description: String,
@@ -387,7 +387,7 @@ pub enum KnowledgeCommands {
     Seed,
     /// Show full entry detail
     Show { id: String },
-    /// Record outcome: core knowledge outcome <id> yes|no
+    /// Record outcome: `core knowledge outcome <id> yes|no`
     Outcome { id: String, correct: String },
 }
 

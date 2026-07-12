@@ -780,7 +780,7 @@ pub fn counterfactuals(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core delegate log-counterfactual <proposed> <actual> <matched>
+/// `core delegate log-counterfactual <proposed> <actual> <matched>`
 pub fn log_counterfactual(
     ctx: &AppContext,
     proposed: &str,

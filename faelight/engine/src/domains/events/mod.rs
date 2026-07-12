@@ -101,7 +101,7 @@ fn query_events(
     Ok(())
 }
 
-/// core events emit <type> <payload> [--caused-by SEQ] -- validated signal emission to v2
+/// `core events emit <type> <payload> [--caused-by SEQ]` -- validated signal emission to v2
 pub fn emit_v2(
     ctx: &AppContext,
     type_name: &str,
@@ -192,7 +192,7 @@ pub fn replay(ctx: &AppContext, from_seq: i64, to_seq: i64) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core events chain <SEQ> -- show causality chain for a signal
+/// `core events chain <SEQ>` -- show causality chain for a signal
 pub fn chain(ctx: &AppContext, seq: i64) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(signal::CREATE_TABLE)?;
     let chain = signal::causality_chain(&ctx.runtime.db, seq);

@@ -465,7 +465,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core friday ask <question> -- Q&A from stored forest knowledge
+/// `core friday ask <question>` -- Q&A from stored forest knowledge
 pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     seed_knowledge(ctx)?;

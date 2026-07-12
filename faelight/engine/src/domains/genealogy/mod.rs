@@ -113,7 +113,7 @@ fn status_icon(status: &str) -> &'static str {
     }
 }
 
-/// core genealogy show <id> — show lineage of a specific intent
+/// `core genealogy show <id>` — show lineage of a specific intent
 pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let nodes = load_all_intents(&ctx.core_root);
     let map: HashMap<String, &IntentNode> = nodes.iter().map(|n| (n.id.clone(), n)).collect();

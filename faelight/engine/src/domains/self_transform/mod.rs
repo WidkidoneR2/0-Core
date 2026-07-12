@@ -366,7 +366,7 @@ pub fn evolve(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core self apply <id> [--dry-run] [--checkpoint]
+/// `core self apply <id> [--dry-run] [--checkpoint]`
 pub fn apply(
     ctx: &AppContext,
     proposal_id: i64,

@@ -114,7 +114,7 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     }
     Ok(())
 }
-/// core journal search <term>
+/// `core journal search <term>`
 pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     println!();
     println!(
@@ -167,7 +167,7 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core journal show <date>  (e.g. 2026-04-08)
+/// `core journal show <date>`  (e.g. 2026-04-08)
 pub fn show(ctx: &AppContext, date: &str) -> CoreResult<()> {
     show_date(ctx, date, date)
 }

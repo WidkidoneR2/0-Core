@@ -422,7 +422,7 @@ fn collect_ordered_deps(tool: &str, registry: &HashMap<String, Vec<String>>) -> 
     order
 }
 
-/// core deps plan <tool> -- show ordered deployment plan respecting depends_on.
+/// `core deps plan <tool>` -- show ordered deployment plan respecting depends_on.
 /// INT-251 v23 Pillar 4: coordinator schedules cooperative work in correct order.
 pub fn plan(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     use colored::*;

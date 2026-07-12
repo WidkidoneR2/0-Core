@@ -142,7 +142,7 @@ pub fn context(_ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core daemon signals [limit]
+/// `core daemon signals [limit]`
 pub fn signals(_ctx: &AppContext, limit: u32) -> CoreResult<()> {
     println!();
     println!("{}", "📡 Engine Signals (via daemon)".cyan().bold());
@@ -182,7 +182,7 @@ pub fn signals(_ctx: &AppContext, limit: u32) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core daemon neovim <file>
+/// `core daemon neovim <file>`
 pub fn neovim(_ctx: &AppContext, file_path: &str) -> CoreResult<()> {
     match send_command(serde_json::json!({"GetNeovimContext": {"file_path": file_path}})) {
         Ok(resp) => {

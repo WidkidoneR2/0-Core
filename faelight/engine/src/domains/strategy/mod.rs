@@ -796,7 +796,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core strategy tradeoff <action> — what do we give up to do this now?
+/// `core strategy tradeoff <action>` — what do we give up to do this now?
 pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let in_progress = get_in_progress_intents(ctx);
@@ -1250,7 +1250,7 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core strategy merge <goal1> <goal2> — can these goals be pursued together?
+/// `core strategy merge <goal1> <goal2>` — can these goals be pursued together?
 pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
@@ -2220,7 +2220,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core strategy learn <strategy_id> <outcome> — record that a strategy worked or didn't
+/// `core strategy learn <strategy_id> <outcome>` — record that a strategy worked or didn't
 pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
 

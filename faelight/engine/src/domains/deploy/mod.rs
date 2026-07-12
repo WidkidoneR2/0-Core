@@ -1,6 +1,6 @@
 //! deploy domain -- INT-222 Deploy Intelligence v2
-//! core deploy check <tool>   -- pre-deploy health gate + dependency warning
-//! core deploy record <tool> <version> <outcome> <duration_ms>  -- log pattern + emit signal
+//! `core deploy check <tool>` -- pre-deploy health gate + dependency warning
+//! `core deploy record <tool> <version> <outcome> <duration_ms>` -- log pattern + emit signal
 //! core deploy log            -- recent deploy history
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS deploy_patterns (
     active_intents  TEXT NOT NULL DEFAULT '',
     git_commit      TEXT NOT NULL DEFAULT ''
 );";
-/// core deploy check <tool> -- pre-deploy gate
+/// `core deploy check <tool>` -- pre-deploy gate
 pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     // Ensure table exists
@@ -90,7 +90,7 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core deploy record <tool> <version> <outcome> <duration_ms> -- log to state.db
+/// `core deploy record <tool> <version> <outcome> <duration_ms>` -- log to state.db
 pub fn record(
     ctx: &AppContext,
     tool: &str,
@@ -228,7 +228,7 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core deploy rollback [tool] [--dry-run] -- restore previous version
+/// `core deploy rollback [tool] [--dry-run]` -- restore previous version
 pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     db.execute_batch(CREATE_TABLE)?;
@@ -306,7 +306,7 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
     println!();
     Ok(())
 }
-/// core deploy check-deps <tool> -- show full dependency graph
+/// `core deploy check-deps <tool>` -- show full dependency graph
 pub fn check_deps(tool: &str) -> CoreResult<()> {
     use colored::*;
     println!();

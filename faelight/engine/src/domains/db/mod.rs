@@ -69,7 +69,7 @@ pub fn backup(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core db restore <file> — restore from a backup snapshot
+/// `core db restore <file>` — restore from a backup snapshot
 pub fn restore(ctx: &AppContext, file: &str) -> CoreResult<()> {
     let backups = backups_dir(ctx);
     let db = db_path(ctx);

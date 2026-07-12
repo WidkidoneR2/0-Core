@@ -11320,6 +11320,89 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             }
             CommandResult::Empty
         }
+        "doc" => {
+            // rustdoc lookup -- auto-routes: no arg -> std docs on the web; workspace crate ->
+            // local cargo doc --open; anything else -> docs.rs (instant, no local build).
+            let target = args.get(1).copied().unwrap_or("");
+            if target.is_empty() {
+                // NixOS: rustc doesn't ship browsable std HTML and rustup isn't the toolchain
+                // manager here, so open the canonical web std docs (always current).
+                let url = "https://doc.rust-lang.org/std/";
+                println!("  {} opening std library docs", "📖".normal());
+                let ok = std::process::Command::new("xdg-open")
+                    .arg(url)
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                return if ok {
+                    CommandResult::Output(format!("  {} {}", "→".dimmed(), url.dimmed()))
+                } else {
+                    CommandResult::Output(format!("  std docs: {}", url))
+                };
+            }
+            // Is `target` a workspace member? Parse cargo metadata properly (serde_json):
+            // build the set of workspace package NAMES and exact-match. (A substring check
+            // false-positives on dependency names like ratatui -- INT-134 Lane 3 fix.)
+            let is_member = std::process::Command::new("cargo")
+                .args(["metadata", "--format-version", "1"])
+                .current_dir(core_root)
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                .map(|meta| {
+                    let members: std::collections::HashSet<String> = meta
+                        .get("workspace_members")
+                        .and_then(|m| m.as_array())
+                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        .unwrap_or_default();
+                    meta.get("packages")
+                        .and_then(|p| p.as_array())
+                        .map(|pkgs| {
+                            pkgs.iter().any(|pkg| {
+                                let id = pkg.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                                let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                members.contains(id) && name == target
+                            })
+                        })
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false);
+            if is_member {
+                println!(
+                    "  {} building + opening local docs for workspace crate {}",
+                    "📖".normal(),
+                    target.bright_cyan()
+                );
+                let status = std::process::Command::new("cargo")
+                    .args(["doc", "--open", "--no-deps", "-p", target])
+                    .current_dir(core_root)
+                    .status();
+                match status {
+                    Ok(s) if s.success() => CommandResult::Empty,
+                    Ok(_) => CommandResult::Error(format!("  dev doc: cargo doc failed for {}", target)),
+                    Err(e) => CommandResult::Error(format!("  dev doc: {}", e)),
+                }
+            } else {
+                // external crate -> docs.rs (published latest; instant, no build).
+                let url = format!("https://docs.rs/{}", target);
+                println!(
+                    "  {} opening docs.rs for {} (external crate)",
+                    "📖".normal(),
+                    target.bright_cyan()
+                );
+                let ok = std::process::Command::new("xdg-open")
+                    .arg(&url)
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                if ok {
+                    CommandResult::Output(format!("  {} {}", "→".dimmed(), url.dimmed()))
+                } else {
+                    CommandResult::Output(format!("  docs: {}", url))
+                }
+            }
+        }
         _ => {
             let mut out = String::new();
             out.push_str(&format!("\n  {} dev commands\n", "🛠".normal()));
@@ -11353,6 +11436,12 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "→".bright_cyan(),
                 "dev geiger <tool>",
                 "cargo-geiger -- count unsafe code"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev doc [crate]",
+                "rustdoc -- std / workspace crate / docs.rs"
             ));
             out.push_str(&format!(
                 "  {} {:<22} {}\n",

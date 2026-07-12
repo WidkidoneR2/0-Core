@@ -707,7 +707,7 @@ fn match_templates_to_question(question: &str) -> Vec<&'static str> {
     }
     matched
 }
-/// core friday reason <question> -- chain facts to answer a question.
+/// `core friday reason <question>` -- chain facts to answer a question.
 /// Routes question to relevant templates, fires matches, writes conclusions
 /// that cite the originating ask via references_id.
 pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {

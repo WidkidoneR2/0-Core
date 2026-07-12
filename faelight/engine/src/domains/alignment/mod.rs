@@ -149,7 +149,7 @@ pub fn values_list(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core values define <statement> [--weight N] [--scope S]
+/// `core values define <statement> [--weight N] [--scope S]`
 pub fn values_define(
     ctx: &AppContext,
     statement: &str,
@@ -188,7 +188,7 @@ pub fn values_define(
     Ok(())
 }
 
-/// core values remove <id>
+/// `core values remove <id>`
 pub fn values_remove(ctx: &AppContext, id: i64) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let affected = ctx.runtime.db.execute(
@@ -203,7 +203,7 @@ pub fn values_remove(ctx: &AppContext, id: i64) -> CoreResult<()> {
     Ok(())
 }
 
-/// core values weight <id> <weight>
+/// `core values weight <id> <weight>`
 pub fn values_weight(ctx: &AppContext, id: i64, weight: i64) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let affected = ctx.runtime.db.execute(
@@ -223,7 +223,7 @@ pub fn values_weight(ctx: &AppContext, id: i64, weight: i64) -> CoreResult<()> {
     Ok(())
 }
 
-/// core align check <subject>
+/// `core align check <subject>`
 pub fn align_check(ctx: &AppContext, subject: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     seed_values(ctx)?;

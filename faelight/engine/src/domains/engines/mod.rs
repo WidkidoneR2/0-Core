@@ -168,7 +168,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// core engines sync <engine> — acknowledge upgrade
+/// `core engines sync <engine>` — acknowledge upgrade
 pub fn sync(ctx: &AppContext, engine: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let now = now_ts();

@@ -367,7 +367,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core weight explain <id> — full decomposed explanation
+/// `core weight explain <id>` — full decomposed explanation
 pub fn explain(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let row: Option<(
@@ -795,7 +795,7 @@ pub fn top(ctx: &AppContext) -> CoreResult<()> {
     }
     Ok(())
 }
-/// core weight calibrate <id> <outcome> — record outcome for calibration
+/// `core weight calibrate <id> <outcome>` — record outcome for calibration
 pub fn calibrate(ctx: &AppContext, id: &str, outcome: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let pattern: Option<(f64, String)> = ctx
