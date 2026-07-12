@@ -26,6 +26,34 @@ pub fn check_services() -> CheckResult {
         ("faelight-bar", "Bar"),
         ("faelight-wsd", "Workspaces"),
     ];
+    let total = services.len();
+
+    // INT-146: distinguish "couldn't query the bus" from "service inactive". The user session
+    // bus is unreachable in bus-less contexts (deploy activation, early boot, headless). Probing
+    // is-active there Errs, and treating Err as "down" was a false red (was: .unwrap_or(true)).
+    // Probe reachability ONCE; if the bus is unavailable, report honestly rather than crying wolf.
+    let bus_reachable = Command::new("systemctl")
+        .args(["--user", "show-environment"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    if !bus_reachable {
+        return CheckResult {
+            id: "services".into(),
+            name: "System Services".into(),
+            status: Status::Pass,
+            message: format!(
+                "{} services (session bus unavailable -- not checked in this context)",
+                total
+            ),
+            fix: None,
+        };
+    }
+
+    // Bus is reachable -> is-active answers are trustworthy. A non-success now genuinely means
+    // the service is inactive, not that we failed to ask. (unwrap_or(true) is safe here because
+    // the bus is up; a residual Err would be a real problem worth flagging as down.)
     let down: Vec<&str> = services
         .iter()
         .filter(|(name, _)| {
@@ -39,7 +67,6 @@ pub fn check_services() -> CheckResult {
         })
         .map(|(name, _)| *name)
         .collect();
-    let total = services.len();
     let running = total - down.len();
     if running == total {
         CheckResult {
