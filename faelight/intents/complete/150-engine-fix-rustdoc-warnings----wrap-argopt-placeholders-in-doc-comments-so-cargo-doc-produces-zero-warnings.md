@@ -3,7 +3,7 @@ id: 150
 date: 2026-07-12
 type: future
 title: "engine: fix rustdoc warnings -- wrap <arg>/[opt] placeholders in doc comments so cargo doc produces zero warnings"
-status: in-progress
+status: complete
 tags: [engine, rustdoc, hygiene, cleanup]
 ---
 
