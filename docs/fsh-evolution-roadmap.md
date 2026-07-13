@@ -123,10 +123,10 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Command previews before execution
 - [ ] Interactive file picker
 - [~] Directory jumping / bookmark directories -- PARTIAL (INT-134, 2026-07-12): JUMPING shipped (`z`/`zi` zoxide frecency, commands/mod.rs:667; plus `dev workspace <name>` authoritative crate-jump). Named BOOKMARKS half unbuilt (no mark/bm command -- only session-save exists, which is L129 Session workspaces, a different feature). Bookmarks deferred; not owned by a current intent.
-- [ ] Notifications when long tasks finish
+- [x] Notifications when long tasks finish -- ALREADY BUILT (verified INT-134, 2026-07-13): commands >30s fire faelight-notify on completion (main.rs:3001-3006). Long-command notification hook is live.
 
 ## Productivity
-- [ ] Session workspaces
+- [x] Session workspaces -- ALREADY BUILT (verified INT-134, 2026-07-13): full env-snapshot cycle -- `env-save <name>` (snapshot), `env-load` (restore named), `env-rollback` (restore most recent), `env-diff` (compare current vs snapshot). SQLite fsh_env_snapshots table (INT-269). commands/mod.rs:1221-1359.
 - [ ] Named command collections
 - [ ] Macro system
 - [ ] Aliases with arguments
@@ -135,8 +135,8 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Quick notes / todos
 
 ## Terminal UI  (some covered by bar / ade / fm)
-- [ ] Dashboard mode
-- [ ] Built-in process monitor
+- [x] Dashboard mode -- ALREADY BUILT (verified INT-134, 2026-07-13): `dashboard`/`dash` -> dashboard_cmd (commands/mod.rs:12824). `dashboard` = full overview, `dashboard system` = CPU/memory/network/top processes, `dashboard forest` = forest state.
+- [x] Built-in process monitor -- ALREADY BUILT (verified INT-134, 2026-07-13): `dashboard system` shows CPU, memory, network, and top processes (commands/mod.rs:12822-12827). Covered by the dashboard subsystem.
 - [x] Resource usage widgets -- the bar (CPU / RAM / battery / wifi)
 - [x] Network monitor -- partial (wifi up/down in bar)
 
