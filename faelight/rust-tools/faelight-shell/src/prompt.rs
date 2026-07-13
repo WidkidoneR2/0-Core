@@ -349,6 +349,11 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         });
     }
     let mut line1 = format!("  {}", powerline(&segs));
+    // INT-153: debug-build marker -- prefix. cfg!(debug_assertions) is
+    // compile-time true in debug, false in release; both blocks vanish in release.
+    if cfg!(debug_assertions) {
+        line1 = format!("\u{1f527}{}", line1);
+    }
 
     if let Some(code) = ctx.last_exit_code {
         if code != 0 {
@@ -399,6 +404,13 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         }
     }
 
+    // INT-153: debug-build marker -- suffix tag at far right of line 1.
+    if cfg!(debug_assertions) {
+        line1.push_str(&format!(
+            " {}",
+            fc_bold(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2, "[DEBUG BUILD]")
+        ));
+    }
     // ── Line 2: health · intent · commits ───────────────────────────────
     let h_str = health_str(health);
     let intent = active_intent(db);
