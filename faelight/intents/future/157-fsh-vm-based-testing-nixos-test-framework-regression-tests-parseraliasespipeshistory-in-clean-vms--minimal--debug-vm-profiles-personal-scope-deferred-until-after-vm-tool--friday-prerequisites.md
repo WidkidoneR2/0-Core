@@ -68,6 +68,55 @@ by need.
   testing-fsh-behavior is distinct from the VM-tool plumbing, and future testing needs are
   unpredictable -- a separate home lets it grow without muddying 027.
 
+
+## Mechanism: the NixOS test driver (the HOW -- added 2026-07-13)
+Use the NixOS test framework (`nixosTest` / a flake `checks` target run by `nix flake check`),
+NOT hand-rolled QEMU. The driver creates fresh VMs per run, boots them, runs a Python test
+script that drives the guest, then destroys them. Reproducible, ephemeral, purpose-built.
+
+Each test file under tests/ defines a complete NixOS VM + a Python script. Three parts:
+1. Machine config -- a normal NixOS configuration (services, users, systemPackages incl. fsh).
+2. Virtual hardware -- CPU/RAM/disk/NIC/EFI/bootloader/serial, all auto-provided by the driver.
+3. Python test script -- drives the guest via `machine.*` objects.
+
+Building blocks (the Python API):
+- machine.start()                         -- boot the VM
+- machine.wait_for_unit("multi-user.target") -- wait for boot complete
+- machine.wait_for_open_port(22)          -- wait until a port is up
+- machine.succeed("cmd")                  -- run in guest; FAIL the test if exit != 0
+- machine.fail("cmd")                     -- expect NON-zero exit (test invalid input)
+- machine.execute("cmd")                  -- run; returns (exit_code, stdout)
+- machine.send_chars("help\n")            -- simulate a USER TYPING into the guest
+- machine.send_key("ctrl-c")              -- simulate a KEYPRESS (ctrl-c/ctrl-d/tab/arrows/esc)
+- machine.copy_from_host("config.fsh")    -- push a host file into the guest (config-load tests)
+
+send_chars / send_key are why this fits a SHELL so well: you can drive fsh interactively and
+assert on what it does -- the automated complement to INT-156's interactive `keys` tester.
+
+## Staged rollout (build the suite incrementally -- small, real, grow by need)
+- Stage 1 -- one VM: boots, starts fsh, verifies basic commands (fsh runs; `echo hello` -> hello).
+- Stage 2 -- language behavior: parser, pipes (`echo hello | cat`), redirection, variables
+  (`export TEST=123; echo $TEST` -> 123), history (run commands -> restart shell -> history
+  persists), signals.
+- Stage 3 -- keybindings via send_key: Ctrl+C, Ctrl+D, Ctrl+L, Tab completion, arrows, Esc.
+  Directly complements INT-156 (`keys`): keys is interactive/manual, this AUTOMATES the same
+  verification in a clean VM.
+(Stages 4-5 -- Home Manager install tests, multi-VM SSH/networking -- remain OUT of scope per the
+"Explicitly OUT" section above: distribution testing a personal shell does not need.)
+
+## CRITICAL distinction: test driver is NOT the dev VM (do not conflate)
+Two DIFFERENT VM systems for two DIFFERENT jobs -- keep them separate:
+- INT-027 `vm` script = a PERSISTENT, stateful DEV VM: build once, boot, ssh in, work, snapshot.
+  Long-lived, interactive. For DOING work (Friday experiments). Snapshots/perf/Rust-migration
+  live there.
+- INT-157 nixosTest = EPHEMERAL TEST VMs: created fresh per `nix flake check`, run assertions,
+  destroyed. Short-lived, stateless, automated. For PROVING correctness.
+The test driver does NOT replace the dev VM, and the dev VM should NOT try to become the test
+driver. They are complementary. This intent (157) is the nixosTest side; 027 is the dev-VM side.
+"Build a real VM not just a script" applies to 027's dev VM (Rust migration); testing correctly
+uses the driver, which is script-defined NixOS tests by design -- that is the right tool, not a
+lesser one.
+
 ## The Rule
 "Prove it in a clean machine. Small, real tests that grow by need -- not a pipeline built for
 users who do not exist." 🌲
