@@ -91,10 +91,10 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Cargo integration commands -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev` subcommands test/watch/check(bacon)/bench/geiger/audit-deps + `dev deps <crate>` (cargo tree --invert, 'store why for Rust'). commits 86c82588 (+ fuzzy/ambiguous handling). commands/mod.rs dev_cmd.
 - [x] Cargo workspace navigation -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev workspace`/`ws` -- lists all 35 workspace crates (name/version/path, authoritative from cargo metadata, includes never-visited crates unlike zoxide); `dev workspace <name>` cd's into any crate (set_current_dir, teaches zoxide). commands/mod.rs dev_cmd.
 - [x] Rustdoc lookup from shell -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev doc [crate]` -- auto-routes: no arg -> web std docs; workspace crate -> local cargo doc --open; external crate -> docs.rs. Membership resolved via serde_json parse of cargo metadata (exact match, no substring false-positives). commit 4cd4977e. commands/mod.rs dev_cmd.
-- [ ] Crate search completion
+- [x] Crate search completion -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev search <query>` -- crates.io keyword search via cargo search (analogue of pkg-search's nixpkgs search). Text-parses cargo's name="ver" # desc format, char-safe truncation, caches to /tmp/fsh-crate-search.json for a future completion feature. Scoped as a SEARCH command (not tab-completion). commands/mod.rs dev_cmd.
 - [ ] Native Rust scripting support
 - [ ] Compile shell scripts to binaries
-- [ ] Dependency graph visualization
+- [x] Dependency graph visualization -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev graph [crate] [--full]` -- FORWARD cargo tree (what a crate depends ON), complement of `dev deps` (--invert). Depth-2 default since forward trees explode, --full for all depths. Reuses dev deps' ambiguous-version prompt. commands/mod.rs dev_cmd.
 - [x] Benchmark commands with hyperfine -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev bench` uses hyperfine (retitled from Criterion -- hyperfine is the actual tool wired). commands/mod.rs dev_cmd.
 
 ## Lane 4 -- Friday / AI  (always human-authorized)
