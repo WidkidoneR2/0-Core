@@ -175,9 +175,15 @@
   home-manager.useUserPackages = true;
   home-manager.users.christian = import ../../home/christian/home.nix;
 
-  # nano ships EDITOR=nano at the system level by default; disable so home-manager
-  # (home.sessionVariables EDITOR=nvim) is the sole EDITOR source. (INT-147)
+  # EDITOR: NixOS ships EDITOR=nano in /etc/set-environment by default, and that file
+  # WINS the login chain over home-manager's hm-session-vars (it sources later). INT-147
+  # tried "disable nano + let home-manager own EDITOR" but the nano default re-appeared in
+  # set-environment regardless of programs.nano.enable, so a fresh login still got nano.
+  # Correct fix: set EDITOR at the SYSTEM level so set-environment itself exports nvim.
+  # Verified by full-chain trace: `bash --login -x` -> EDITOR=nvim. (INT-147 follow-up)
   programs.nano.enable = false;
+  environment.variables.EDITOR = "nvim";
+  environment.variables.VISUAL = "nvim";
 
   system.stateVersion = "25.11";
 }
