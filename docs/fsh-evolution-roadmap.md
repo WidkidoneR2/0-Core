@@ -141,8 +141,8 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Network monitor -- partial (wifi up/down in bar)
 
 ## Security
-- [ ] Command risk scoring
-- [ ] Dangerous command confirmation
+- [x] Command risk scoring -- ALREADY BUILT (INT-246, verified live 2026-07-13): safety_guard::check() classifies commands by danger -- rm -rf on non-temp paths, sqlite3 DROP TABLE/DATABASE, direct state.db DELETE, plus DB-backed user allow/deny lists (deny wins). First-word matched (never args/paths); safe-command fast-path. Wired BEFORE execution at main.rs:1165/1207.
+- [x] Dangerous command confirmation -- ALREADY BUILT (INT-246, verified live 2026-07-13): safety_guard::challenge_gate() prompts 'Type yes to proceed, anything else to abort' at CHALLENGE tier, blocks by default. LIVE TEST: rm -rf /nonexistent-test challenged with 'Destructive remove' + prompt; safe commands (ls) passed with no prompt.
 - [ ] Secret management
 - [ ] Environment variable permissions
 
