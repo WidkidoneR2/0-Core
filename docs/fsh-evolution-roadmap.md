@@ -109,7 +109,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Structured data pipelines (objects, not plain text)
 - [ ] Native JSON / YAML / TOML
 - [ ] Interactive tables
-- [ ] Charts in terminal
+- [~] Charts in terminal -- CUT (INT-134, 2026-07-12): low utility-to-effort. `the bar` already shows live metrics (CPU/RAM/battery/wifi) and the health panel covers status; a general terminal-charting engine is a lot of build for occasional sparklines. No specific recurring visualization need identified. Filter-appropriate cut.
 
 ## UX / Editing  (evaluate per item)
 - [ ] Multi-line editing
@@ -118,11 +118,11 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Undo / redo command editing
 - [ ] Fish-style autosuggestions
 - [ ] Fuzzy command completion
-- [ ] Command history with semantic search
+- [~] Command history with semantic search -- PARTIAL (INT-134, 2026-07-12): literal search SHIPPED (`hs`/`history-search`/`hsearch` -> history_search_cmd, SQLite LIKE-substring, dedup + frequency/recency ranking + timestamps, commands/mod.rs:4643). SEMANTIC (meaning-based/embedding) half DEFERRED -- would need embeddings for a shell-history feature (high cost, marginal benefit over literal); possible future pairing with Friday's fact infrastructure, or a later CUT. Not owned by a current intent.
 - [ ] Popup command palettes
 - [ ] Command previews before execution
 - [ ] Interactive file picker
-- [ ] Directory jumping / bookmark directories
+- [~] Directory jumping / bookmark directories -- PARTIAL (INT-134, 2026-07-12): JUMPING shipped (`z`/`zi` zoxide frecency, commands/mod.rs:667; plus `dev workspace <name>` authoritative crate-jump). Named BOOKMARKS half unbuilt (no mark/bm command -- only session-save exists, which is L129 Session workspaces, a different feature). Bookmarks deferred; not owned by a current intent.
 - [ ] Notifications when long tasks finish
 
 ## Productivity
