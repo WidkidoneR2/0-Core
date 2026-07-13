@@ -2,7 +2,7 @@
 id: 027
 date: 2026-06-04
 type: feature
-title: "VM-native development: faelight-vm tooling (build/up/ssh/down + snapshot/rollback)"
+title: "faelight-vm: Friday-infrastructure VM tooling -- Rust migration (organic) + performance tuning + snapshot/rollback"
 status: planned
 tags: [vm, nixos, qemu, development, sandbox]
 priority: high
@@ -67,3 +67,48 @@ IMPORTANT history correction:
 ## The Rule
 "The VM is the safe forest -- disposable ground to prove risky work. Make it smooth, make it
 snapshot." 🌲
+
+## Strategic layer (2026-07-13): the VM is FRIDAY INFRASTRUCTURE
+Context from Christian: the VM is not a side utility -- it is core proving-ground infrastructure
+for building Friday (the real work, ~3-4 months out). It is part of the project/labs triad
+together with the debug-shell (INT-153) and the labs/ directory. Friday work is high-risk and
+iterative; it happens in disposable VMs FIRST, before touching the real system. So the quality of
+this tool directly determines how smoothly Friday gets built. That is why it earns real
+investment now, during the prerequisite phase -- a rough VM tool means friction on every Friday
+experiment later.
+
+Sequencing: VM improvements are PREREQUISITE work -- done before the real Friday build starts.
+Christian's stated plan: focus on the VM when back from break.
+
+## Two SEPARATE efforts (do not conflate -- different payoffs)
+Christian named both architecture AND performance as the pain. They are distinct fixes:
+
+### 1. Architecture -- migrate to a Rust `faelight-vm` crate (ORGANICALLY, not big-bang)
+Decision: the VM tool should become a proper Rust tool like every other forest tool, NOT stay a
+286-line bash script with embedded Python (the embedded Python parsing /proc + managing state is
+the tell that it has outgrown shell). Rationale: consistency with the forest, real types + error
+handling, testability, first-class fsh domain -- and crucially, Friday work will demand
+programmatic VM orchestration (snapshots tied to intents, state you can reason about) that bolts
+poorly onto bash.
+BUT avoid the trap: DO NOT big-bang-rewrite the working build/up/ssh/down bash into Rust that
+does the same thing -- that is motion, not progress (zero new capability for a day of porting).
+Instead: build NEW capabilities (snapshots) in Rust as the START of faelight-vm, and port the old
+bash pieces over as you touch them. The Rust tool grows in while every step also ships a real
+feature. Architecture migrates through value-add, not through a rewrite sprint.
+
+### 2. Performance -- profile + tune the Nix/qemu layer (NOT a language fix)
+Honest caveat: a Rust rewrite will NOT make the VM faster. Build/boot time is Nix + qemu, not the
+script. The real levers (do these while finishing prerequisite intents -- daily-friction payoff):
+- Profile `vm build`: is the time Nix EVALUATION or the BUILD/realize? Different fixes. Time eval
+  vs realize separately.
+- Build caching: if `vm build` rebuilds when nix/hosts/vm/ is UNCHANGED, that is pure waste -- a
+  content/hash check to skip the rebuild is a big cheap win.
+- Guest resources: verify KVM acceleration is actually on (-enable-kvm), CPU cores, RAM (a prior
+  hand-tune exists for the Mir compositor), disk cache mode.
+- Boot time: lighter guest config (fewer services, faster boot target) since it is a test-bed.
+
+## Priorities for the VM day (Christian to confirm order on the day)
+- Performance tuning likely FIRST (immediate daily payoff while finishing prerequisites), then
+- Snapshots-in-Rust (new capability + starts the faelight-vm crate), then
+- Organic port of the rest as touched.
+(Christian to set the actual order when the VM day begins.)
