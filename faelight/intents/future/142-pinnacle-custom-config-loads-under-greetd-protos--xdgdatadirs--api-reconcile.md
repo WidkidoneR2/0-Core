@@ -90,3 +90,30 @@ config against the 0.2.3 Lua API. May be clean; may need edits. Unknown until te
   fixes here inform Miracle.
 - The goal: 'switch to any profile and still communicate' -- Pinnacle keybinds are the polish
   on top of the already-working typed-brave path.
+## CORRECTION (2026-07-13 recon -- Layer 2 plan was based on a package that does not exist)
+Recon from a Miracle session disproved the documented Layer 2 approach:
+- The pinnacle flake input exposes ONLY two package attrs: `default` and `pinnacle` -- and they
+  are the SAME derivation (both resolve to pinnacle-server-0.2.3). There is NO separate
+  `client-api` / `lua5.4-pinnacle-client-api-0.2.3` package attribute to add. The old blocker
+  ("couldn't name the client-api attr") is resolved: it doesn't exist.
+- pinnacle-server-0.2.3 ships NO `share/` dir at all (no share/pinnacle/protobuf). So the protos
+  are not in the installed package.
+- The protobuf definitions actually live in the flake SOURCE:
+  `<pinnacle-source>/api/protobuf` -- confirmed via the home symlink
+  ~/.local/share/pinnacle/protobuf -> /nix/store/pw3dsna4...-source/api/protobuf (readlink -f
+  resolved to a REAL path, so the symlink may NOT be stale after all -- re-verify).
+
+### Corrected fix direction (for next session)
+The fix is NOT "add a package." It is: make greetd's session environment find the protos in the
+pinnacle source's api/protobuf. Options to evaluate:
+  1. Set XDG_DATA_DIRS (or the specific env var protobuf.lua reads) in pinnacle.nix to include a
+     path containing pinnacle/protobuf -- sourced from the flake input directly, e.g. reference
+     `inputs.pinnacle` source's api/protobuf in the module and expose it via environment or a
+     systemd/greetd session env.
+  2. Or link the flake source's api/protobuf into a system share dir greetd already has in
+     XDG_DATA_DIRS (pathsToLink / a wrapper), replacing the hand-made home symlink with a
+     reproducible one.
+  3. protoc is already on the system path (/run/current-system/sw/bin/protoc) -- no protoc fix needed.
+Then: deploy, logout, pick Pinnacle, confirm the log shows setup() completing (no
+"protobuf definitions directory" assert, no "Config crashed! Falling back"), and custom keybinds
+(Super+B) fire. THEN Layer 3 (API-drift) if any.
