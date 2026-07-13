@@ -150,18 +150,18 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Async jobs with futures
 
 ## Experimental / Research  (later, eyes open)
-- [ ] Time-travel shell state snapshots
 - [ ] Transactional filesystem operations
 - [ ] Reversible commands (undo for file ops)
 - [ ] Pipe execution visualizer
 - [ ] Command dependency graphs
 - [ ] Event-driven shell hooks
 - [ ] WASM plugins / Lua-Rhai plugins / hot-reload extensions
-- [ ] Distributed shell across machines
 
 ## Cut -- fails the filter
 - Smart cd with typo correction (erodes explicitness)
 - Silent auto-magic / opaque AI that runs commands without authorization
+- Distributed shell across machines (CUT INT-134, 2026-07-13: a distributed-systems project, not a shell feature -- out of scope for a personal single-machine daily driver; complexity vastly exceeds value)
+- Time-travel shell state snapshots (CUT INT-134, 2026-07-13: the grand 'rewind the whole shell to any past moment' version is over-engineered for the need. The useful SUBSET already exists elsewhere: env-save/env-load/env-rollback session snapshots + cistart/cicomplete auto-checkpoints. Cutting the cathedral, keeping the chapel.)
 
 ---
 **Status:** roadmap finalized at fsh v3.1.0 (2026-07-11, INT-134). Reconciled at each version bump.
