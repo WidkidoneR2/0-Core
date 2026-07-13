@@ -3,7 +3,7 @@ id: 153
 date: 2026-07-12
 type: future
 title: "fsh/core: visual DEBUG-BUILD marker -- debug binaries (./target/debug/core) announce themselves via cfg!(debug_assertions) so test runs are never mistaken for the live deployed shell"
-status: in-progress
+status: complete
 tags: [core, debug, dx, safety, testing]
 ---
 
@@ -46,13 +46,12 @@ The binary self-identifies; there is no runtime flag to forget or spoof.
    Decide: core only, or core + fsh.
 
 ## Success Criteria
-- [ ] design questions RESOLVED (scope, form, core-only-vs-core+fsh)
-- [ ] debug build shows the marker -- demonstrated: ./target/debug/core doctor run displays it
-- [ ] release build does NOT -- demonstrated: build release, run it, confirm NO marker (elegant
-      proof: same source, two builds, only debug shows it -- cfg!(debug_assertions) compiled out)
-- [ ] piped/scripted output unaffected (per Q1 -- e.g. TTY-gated so `core ... | grep` sees no banner)
-- [ ] consistent with the Case 2 "stepping out of the forest" clean-shell marker (shared aesthetic)
-- [ ] built, deployed; live d (release) is clean, debug binary flagged
+- [x] design questions RESOLVED: fsh prompt marker (the debug SHELL you sit in, not core cmds); form = wrench prefix + [DEBUG BUILD] tag; fsh-only (core consciously OUT -- see note)
+- [x] debug build shows the marker -- DEMONSTRATED live: ./target/debug/faelight-shell prompt renders wrench prefix + rose [DEBUG BUILD] tag (render_context, prompt.rs:352/407)
+- [x] release build does NOT -- DEMONSTRATED live: deployed fsh (gen 366, a release build) prompt is clean, no marker. Same source, two builds, only debug shows it -- cfg!(debug_assertions) compiled out.
+- [x] piped/scripted output unaffected -- marker lives in render_context (interactive prompt only), NOT command output, so pipes/scripts see nothing.
+- [x] consistent with the "stepping out of the forest" spirit -- a simple always-visible visual marker telling you which reality you are in.
+- [x] built + deployed (gen 366); live prompt clean (release), debug binary flagged. Committed 6258837c.
 
 ## Relationship
 Origin: user question during the INT-151 session -- "could we visually tell debug-testing from the
@@ -64,3 +63,15 @@ Filter: reduces a real testing footgun at zero cost to the deployed binary. In-f
 - cfg!(debug_assertions) is the whole trick -- no runtime version check, no env var, no config.
   The compiler decides, and release literally cannot show it.
 - Case 2 (clean-shell "stepping out of the forest") is the aesthetic precedent to match.
+
+## Resolution (2026-07-13 -- CLOSED)
+Scope narrowed by the user at cistart: the real need is the debug SHELL (fsh you sit IN and can
+mistake for the real one), not the debug core BINARY. So: fsh-only. Core commands run-and-finish
+(less confusing) -- left OUT consciously, not incompletely. Form is exactly what the user asked:
+wrench prefix + [DEBUG BUILD] suffix on the prompt context line. Mechanism cfg!(debug_assertions):
+debug fsh shows it, release fsh (deployed) cannot. Both proven live.
+
+DEFERRED (out of scope, user-noted): a dedicated "debugging terminal" for real testing -- "not
+something for this forest yet." The user has a labs/ directory for testing. If it ever becomes an
+intent, it is separate from this marker.
+
