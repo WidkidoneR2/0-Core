@@ -12,6 +12,9 @@ pub enum Status {
     Warn,
     Fail,
     Blocked,
+    /// The check could not run (e.g. a dependency/bus/toolchain was unavailable).
+    /// NOT a failure: excluded from the health denominator, rendered neutrally. (INT-148)
+    Unknown,
 }
 
 #[derive(Debug)]
@@ -235,6 +238,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let passed = scored.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = scored.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = scored.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    let unknown = scored.iter().filter(|r| r.status == Status::Unknown).count() as u32;
+    let blocked = scored.iter().filter(|r| r.status == Status::Blocked).count() as u32;
     // INT-342: emit health_check_failed events for each failing check
     for check in scored.iter().filter(|r| r.status == Status::Fail) {
         let _ = crate::domains::friday::events::emit(
@@ -249,7 +254,10 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             None,
         );
     }
-    let health = if total > 0 { (passed * 100) / total } else { 0 };
+    // INT-148: Unknown (couldn't-run) and Blocked checks are excluded from the ratio --
+    // "couldn't determine" and "blocked" are not failures and must not drag health down.
+    let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
+    let health = if determinable > 0 { (passed * 100) / determinable } else { 0 };
 
     // Run integrity quick scan (safe auto-fixes only)
     let (integrity_pct, int_fixed, int_proposed, int_alerts) =
@@ -262,6 +270,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         passed,
         warnings,
         failed,
+        unknown,
         integrity_pct,
     );
 
@@ -284,9 +293,15 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 trigger_type TEXT NOT NULL DEFAULT 'manual'
             );",
         );
+        // INT-148: add checks_unknown to pre-existing tables (CREATE IF NOT EXISTS won't
+        // alter an already-created table). Ignore error if the column already exists.
         let _ = db.execute(
-            "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed, trigger_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            rusqlite::params![ts, health as i64, integrity_pct as i64, passed as i64, warnings as i64, failed as i64, "manual"],
+            "ALTER TABLE health_patterns ADD COLUMN checks_unknown INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = db.execute(
+            "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed, checks_unknown, trigger_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![ts, health as i64, integrity_pct as i64, passed as i64, warnings as i64, failed as i64, unknown as i64, "manual"],
         );
     }
 
@@ -1109,6 +1124,7 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
             Status::Pass => "✅".to_string(),
             Status::Warn => "⚠️ ".to_string(),
             Status::Fail | Status::Blocked => "❌".to_string(),
+            Status::Unknown => "❔".to_string(),
         };
         println!(
             "  {}  {:<28} {}",

@@ -39,12 +39,15 @@ pub fn check_services() -> CheckResult {
         .unwrap_or(false);
 
     if !bus_reachable {
+        // INT-148: was Status::Pass with a note (146 workaround, before Unknown existed).
+        // Now Unknown -- "couldn't determine service state" is honest, and it's excluded from
+        // the health denominator rather than counting as a free Pass in bus-less contexts.
         return CheckResult {
             id: "services".into(),
             name: "System Services".into(),
-            status: Status::Pass,
+            status: Status::Unknown,
             message: format!(
-                "{} services (session bus unavailable -- not checked in this context)",
+                "{} services (session bus unavailable -- could not check in this context)",
                 total
             ),
             fix: None,
