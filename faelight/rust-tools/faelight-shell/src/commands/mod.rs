@@ -11287,6 +11287,132 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Err(e) => CommandResult::Error(format!("  dev deps: {}", e)),
             }
         }
+        "search" => {
+            // dev search <query> -- search crates.io via `cargo search`, print name/version/desc
+            // (INT-134, Lane 3; crates.io analogue of pkg-search's nixpkgs search). cargo search
+            // outputs TEXT (name = "ver"  # desc), not JSON -- parsed line-wise. Read-only;
+            // latency expected (network). Caches to /tmp/fsh-crate-search.json for future completion.
+            let query = args[1..].join(" ");
+            if query.trim().is_empty() {
+                return CommandResult::Error(
+                    "  dev search <query>  -- search crates.io (e.g. dev search tui)".to_string());
+            }
+            let out = std::process::Command::new("cargo")
+                .args(["search", "--limit", "20", &query])
+                .output();
+            let out = match out {
+                Ok(o) if o.status.success() => o,
+                Ok(o) => {
+                    let err = String::from_utf8_lossy(&o.stderr);
+                    return CommandResult::Error(format!("  dev search: cargo search failed: {}", err.trim()));
+                }
+                Err(e) => return CommandResult::Error(format!("  dev search: {}", e)),
+            };
+            let text = String::from_utf8_lossy(&out.stdout);
+            let mut rows: Vec<(String, String, String)> = Vec::new();
+            let mut more_note = String::new();
+            for line in text.lines() {
+                let line = line.trim_end();
+                if line.trim_start().starts_with("...") {
+                    more_note = line.trim().to_string();
+                    continue;
+                }
+                if let Some((name, rest)) = line.split_once(" = ") {
+                    let name = name.trim().to_string();
+                    let ver = rest.split('"').nth(1).unwrap_or("").to_string();
+                    let desc = match rest.split_once('#') {
+                        Some((_, d)) => d.trim().to_string(),
+                        None => String::new(),
+                    };
+                    if !name.is_empty() {
+                        rows.push((name, ver, desc));
+                    }
+                }
+            }
+            if rows.is_empty() {
+                return CommandResult::Output(format!("  no crates matching '{}'", query));
+            }
+            let _ = std::fs::write("/tmp/fsh-crate-search.json", text.as_bytes());
+            let mut lines = vec![format!("  \u{1f4e6} crates.io matches for '{}' ({})", query, rows.len())];
+            lines.push("\u{2500}".repeat(52));
+            for (name, ver, desc) in rows.iter() {
+                // char-safe truncation (byte-slicing panics mid-UTF8).
+                let d = if desc.chars().count() > 55 {
+                    let s: String = desc.chars().take(52).collect();
+                    format!("{}...", s)
+                } else {
+                    desc.clone()
+                };
+                lines.push(format!("  {:<26} {:<12} {}", name, ver, d));
+            }
+            if !more_note.is_empty() {
+                lines.push(format!("\n  {}  (narrow the query)", more_note));
+            }
+            lines.push("\n  \u{2192} dev doc <crate> for docs, dev graph <crate> for deps".to_string());
+            CommandResult::Output(lines.join("\n"))
+        }
+        "graph" => {
+            // dev graph [crate] [--full] -- FORWARD dependency tree (what <crate> depends ON).
+            // The complement of `dev deps` (which is --invert: what depends on <crate>). Forward
+            // trees explode, so default to depth 2 with a --full escape hatch. (INT-134, Lane 3)
+            let want = args.get(1).copied().unwrap_or("");
+            let full = args.iter().any(|a| *a == "--full");
+            let target = if want.is_empty() || want == "--full" { "" } else { want };
+
+            let mut cargo_args: Vec<String> = vec!["tree".to_string()];
+            if !target.is_empty() {
+                cargo_args.push("--package".to_string());
+                cargo_args.push(target.to_string());
+            }
+            if !full {
+                cargo_args.push("--depth".to_string());
+                cargo_args.push("2".to_string());
+            }
+            let out = std::process::Command::new("cargo")
+                .args(&cargo_args)
+                .current_dir(core_root)
+                .output();
+            match out {
+                Ok(o) if o.status.success() => {
+                    let tree = String::from_utf8_lossy(&o.stdout);
+                    let tree = tree.trim_end();
+                    if tree.is_empty() {
+                        return CommandResult::Output("  (no dependency tree)".to_string());
+                    }
+                    let label = if target.is_empty() { "workspace" } else { target };
+                    let depth_note = if full { "full depth" } else { "depth 2 -- dev graph <crate> --full for all" };
+                    let mut s = format!("  \u{1f333} dependency tree: {} ({})\n", label, depth_note);
+                    s.push_str(&"\u{2500}".repeat(52));
+                    s.push('\n');
+                    s.push_str(tree);
+                    CommandResult::Output(s)
+                }
+                Ok(o) => {
+                    let err = String::from_utf8_lossy(&o.stderr);
+                    // Same ambiguous-version handling as dev deps -- forward tree hits it too.
+                    if err.contains("is ambiguous") {
+                        let mut vers: Vec<String> = Vec::new();
+                        for line in err.lines() {
+                            let tl = line.trim();
+                            if tl.starts_with(target) && tl.contains('@') {
+                                vers.push(tl.to_string());
+                            }
+                        }
+                        if !vers.is_empty() {
+                            return CommandResult::Output(format!(
+                                "  '{}' is ambiguous -- pick a version:\n    {}\n  e.g. dev graph {}",
+                                target, vers.join("\n    "), vers[0]));
+                        }
+                    }
+                    if err.contains("did not match") || err.contains("not found") {
+                        return CommandResult::Output(format!(
+                            "  {} is not in this workspace (try: dev workspace)", target));
+                    }
+                    CommandResult::Error(format!("  dev graph: {}", err.trim()))
+                }
+                Err(e) => CommandResult::Error(format!("  dev graph: {}", e)),
+            }
+        }
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
@@ -11526,6 +11652,18 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "→".bright_cyan(),
                 "dev workspace [name]",
                 "list workspace crates / jump to one"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev graph [crate]",
+                "forward dep tree (--full for all depths)"
+            ));
+            out.push_str(&format!(
+                "  {} {:<22} {}\n",
+                "→".bright_cyan(),
+                "dev search <query>",
+                "search crates.io by keyword"
             ));
             out.push_str(&format!(
                 "  {} {:<22} {}\n",
