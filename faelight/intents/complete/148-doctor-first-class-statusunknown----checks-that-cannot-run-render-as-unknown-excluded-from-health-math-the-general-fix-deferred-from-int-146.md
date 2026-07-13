@@ -3,7 +3,7 @@ id: 148
 date: 2026-07-12
 type: future
 title: "doctor: first-class Status::Unknown -- checks that CANNOT run render as UNKNOWN, excluded from health math (the general fix deferred from INT-146)"
-status: planned
+status: complete
 tags: [doctor, health-check, engine, observability, status-enum]
 ---
 
@@ -58,16 +58,16 @@ Add `Status::Unknown` and thread it honestly:
    honest (tool-missing, path-absent) -- adopt or defer per the fsh filter.
 
 ## Success Criteria
-- [ ] Status::Unknown added; project builds (every match arm handles it -- exhaustive match enforced)
-- [ ] renderer shows a distinct UNKNOWN glyph, visually separate from Pass/Warn/Fail -- demonstrated
-- [ ] health % EXCLUDES UNKNOWN from the denominator -- demonstrated: a run with K unknowns reports
+- [x] Status::Unknown added; project builds <!-- 2026-07-13: variant added to enum (mod.rs:14). cargo build -p core clean -- exhaustive match confirmed all sites handled (4: mod.rs render map + cockpit.rs 3 arms). --> Status::Unknown added; project builds (every match arm handles it -- exhaustive match enforced)
+- [x] renderer shows a distinct UNKNOWN glyph <!-- 2026-07-13: ❔ glyph, separate from ✅/⚠️/❌/⏭. Demonstrated: forced-Unknown check shows '❔ System Services unknown'. --> renderer shows a distinct UNKNOWN glyph, visually separate from Pass/Warn/Fail -- demonstrated
+- [x] health % EXCLUDES UNKNOWN from the denominator <!-- 2026-07-13: determinable = total - unknown - blocked (mod.rs). Demonstrated: 1 unknown -> health held 90% (not dropped); computed over determinable checks only. --> health % EXCLUDES UNKNOWN from the denominator -- demonstrated: a run with K unknowns reports
       the same % as the same run with those K checks removed
-- [ ] UNKNOWN does NOT fire health_drop and does NOT drag the forecast -- demonstrated
-- [ ] health_patterns persistence handles UNKNOWN (checks_unknown column or clean exclusion) -- schema
+- [x] UNKNOWN does NOT fire health_drop / drag forecast <!-- 2026-07-13: health stayed 90% with 1 unknown; no health_drop event, forecast unaffected (Unknown excluded from the ratio that feeds it). --> UNKNOWN does NOT fire health_drop and does NOT drag the forecast -- demonstrated
+- [x] health_patterns persistence handles UNKNOWN <!-- 2026-07-13: checks_unknown INTEGER column added + ALTER TABLE migration for existing DBs; INSERT includes unknown count. No crash on runs with unknowns. --> health_patterns persistence handles UNKNOWN (checks_unknown column or clean exclusion) -- schema
       + INSERT updated, verified no write error
-- [ ] check_services (INT-146) migrated from the local Pass-with-note workaround to Status::Unknown
+- [x] check_services migrated Pass-with-note -> Status::Unknown <!-- 2026-07-13: checks.rs bus-unavailable branch now returns Status::Unknown (was Status::Pass w/ note, the 146 workaround). REAL test: env -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR forced the bus-unavailable path -> '❔ System Services unknown' + Unknown:1 in summary, health held. Bus-up run still shows ✅ 3/3. --> check_services (INT-146) migrated from the local Pass-with-note workaround to Status::Unknown::Unknown
       on bus-unreachable -- demonstrated: bus-less `core doctor run` shows services as ⚪ Unknown
-- [ ] a genuinely failing check still reports Fail/Warn (no regression) and a passing one still Pass
+- [x] failing/passing checks unaffected (no regression) <!-- 2026-07-13: normal run shows ✅ 3/3 System Services, 30 passed, warnings/fails render normally. Only the couldn't-run path changed. --> a genuinely failing check still reports Fail/Warn (no regression) and a passing one still Pass
       -- demonstrated
 
 ## Relationship
