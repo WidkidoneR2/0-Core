@@ -99,7 +99,7 @@ pub fn render_cockpit(
         "Binary Dependencies",
         "Disk Space",
     ];
-    let git_names = ["Git Repository", "Scripts", "Rust Toolchain"];
+    let git_names = ["Git Repository", "Scripts", "Rust Toolchain", "Rust Docs"];
     let tools_names = ["Tool Installation", "Path Resilience", "Alias Coverage"];
     let forest_names = [
         "Intent Ledger",
@@ -144,8 +144,18 @@ pub fn render_cockpit(
     println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     // INT-148: show Unknown count only when > 0 (checks that could not run; excluded
     // from the health denominator but surfaced so they are not silently invisible).
+    // INT-151: name the unknown checks, not just count them -- "which one couldn't run?"
+    // is the actionable question. Names pulled from the checks slice already in scope.
     let unknown_seg = if unknown > 0 {
-        format!("   ❔ {}", format!("Unknown: {}", unknown).dimmed())
+        let names: Vec<&str> = checks
+            .iter()
+            .filter(|c| c.status == Status::Unknown)
+            .map(|c| c.name.as_str())
+            .collect();
+        format!(
+            "   ❔ {}",
+            format!("Unknown: {} ({})", unknown, names.join(", ")).dimmed()
+        )
     } else {
         String::new()
     };

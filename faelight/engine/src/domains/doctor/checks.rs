@@ -178,6 +178,63 @@ pub fn check_binaries() -> CheckResult {
     }
 }
 
+pub fn check_rust_docs(core_root: &str) -> CheckResult {
+    // INT-151: catch rustdoc warnings on every `d` (prevents INT-150-class silent accumulation).
+    // cargo doc is ~0.12s warm, ~2s cold (measured). Bounded at 3s via the thread+recv_timeout
+    // pattern (mirrors check_network): a stuck/locked cargo -> Unknown (INT-148), never a hang.
+    // Warnings are cosmetic -> Warn, never Fail.
+    let manifest = format!("{}/faelight/engine/Cargo.toml", core_root);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = Command::new("cargo")
+            .args(["doc", "-p", "core", "--no-deps", "--manifest-path", &manifest])
+            .output();
+        let _ = tx.send(out);
+    });
+    match rx.recv_timeout(std::time::Duration::from_secs(3)) {
+        Ok(Ok(output)) => {
+            // Rustdoc prints a summary line "generated N warning(s)" -- parse THAT number
+            // (authoritative), never count "warning:" lines (the summary line is itself one,
+            // which would double-count -- confirmed by INT-151 calibration). No summary line
+            // present -> 0 warnings (clean docs emit none).
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let warns: u32 = stderr
+                .lines()
+                .find(|l| l.contains("generated") && l.contains("warning"))
+                .and_then(|l| {
+                    l.split_whitespace()
+                        .find_map(|w| w.parse::<u32>().ok())
+                })
+                .unwrap_or(0);
+            if warns == 0 {
+                CheckResult {
+                    id: "rust_docs".into(),
+                    name: "Rust Docs".into(),
+                    status: Status::Pass,
+                    message: "cargo doc clean, 0 warnings".into(),
+                    fix: None,
+                }
+            } else {
+                CheckResult {
+                    id: "rust_docs".into(),
+                    name: "Rust Docs".into(),
+                    status: Status::Warn,
+                    message: format!("{} rustdoc warning(s)", warns),
+                    fix: Some("dev doc core  -- to see them".into()),
+                }
+            }
+        }
+        // Timed out, or cargo could not be spawned: cannot determine -> Unknown (INT-148).
+        _ => CheckResult {
+            id: "rust_docs".into(),
+            name: "Rust Docs".into(),
+            status: Status::Unknown,
+            message: "docs not checked (cargo busy or unavailable)".into(),
+            fix: None,
+        },
+    }
+}
+
 pub fn check_git(core_root: &str) -> CheckResult {
     let has_changes = Command::new("git")
         .args(["-C", core_root, "status", "--porcelain"])
