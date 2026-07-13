@@ -1,0 +1,38 @@
+# Faelight Forest -- Miracle profile (dark glassy forest)
+# INT-087 P2: config that makes Miracle forest-native. Written 2026-07-13.
+
+# Super is the action key (referenced as "primary" in custom_actions).
+action_key: super
+
+# Terminal keybind launches Alacritty running fsh (the forest shell),
+# not the default login shell. Fixes the "shell doesn't show up" gap.
+terminal: alacritty -e fsh
+
+# Launch to a clean empty session -- no auto-started apps.
+# Open terminals on demand with Super+Enter. (INT-087)
+startup_apps: []
+
+# Dark-glass border: thin, rounded, deep-glass focus color.
+# (Load-proof marker: an unconfigured Miracle has size:0/no border.
+# Seeing a rounded glowing border = config loaded.)
+border:
+  size: 3
+  radius: 12
+  color: 0xff1a1a2e        # deep dark-glass (unfocused)
+  focus_color:
+    r: 64
+    g: 224
+    b: 208               # turquoise glass glow (focused) -- dark glassy forest
+    a: 255
+
+# Gaps for the glassy floating feel.
+inner_gaps: 8
+outer_gaps: 8
+
+# Forest keybinds (mirror mango). primary = Super (action_key above).
+custom_actions:
+  - command: brave
+    action: down
+    modifiers:
+      - primary
+    key: b
