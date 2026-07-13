@@ -3,7 +3,7 @@ id: 151
 date: 2026-07-12
 type: future
 title: "doctor: Rust Docs health check -- cargo doc must produce zero warnings, surfaced on every d (prevents INT-150-class doc-warning accumulation)"
-status: planned
+status: complete
 tags: [doctor, rustdoc, health-check, engine, prevention]
 ---
 
@@ -44,15 +44,16 @@ a CheckResult.
    false Pass/Warn. If 148 lands first, use Status::Unknown here; if not, degrade gracefully.
 
 ## Success Criteria
-- [ ] design questions above RESOLVED and recorded (when-it-runs, which-crates, severity, unknown-handling)
-- [ ] `check_rust_docs()` added to checks.rs, following the existing check pattern (spawn, parse, CheckResult)
-- [ ] wired into the doctor run + cockpit label list so it renders in `d`
-- [ ] GREEN demonstrated: with docs clean (post-150), `d` shows "Rust Docs" Pass / 0 warnings
-- [ ] WARN demonstrated: temporarily break one doc comment (e.g. add `/// foo <bar>`), rebuild, run
+- [x] design questions RESOLVED (2026-07-13) <!-- Q1: run cargo doc -p core --no-deps SYNCHRONOUSLY with a 3s timeout. Measured on Framework 16: cold cache 2.05s, warm 0.12s. Most d runs are warm (negligible); cold only after an engine change (~2s, tolerable); 3s timeout caps a stuck/locked cargo. Timeout -> Unknown. Chose timeout over deploy-cache because recon showed deploy does NOT build docs (caching would add weight). Timeout pattern already exists in checks.rs (network checks, Duration::from_secs). Q2: -p core only. Q3: Warn (never Fail -- cosmetic). Q4: timeout OR cargo/toolchain unavailable -> Status::Unknown (INT-148, now landed). --> design questions above RESOLVED and recorded
+- [x] check_rust_docs() added <!-- 2026-07-13: checks.rs:181. Spawns cargo doc -p core --no-deps in a thread, recv_timeout(3s) (mirrors check_network's thread+channel timeout pattern). Returns CheckResult. --> `check_rust_docs()` added to checks.rs, following the existing check pattern (spawn, parse, CheckResult)
+- [x] wired into run + cockpit <!-- 2026-07-13: added to all_checks (mod.rs, the list d renders via run()); skipped run_quick (fast preflight subset -- a 3s-capable check does not belong there). Added "Rust Docs" to git_names in cockpit.rs so it renders under Git & Code. --> wired into the doctor run + cockpit label list so it renders in `d`
+- [x] GREEN demonstrated <!-- 2026-07-13: live d shows '✅ Rust Docs  cargo doc clean, 0 warnings' in Git & Code (gen 365). --> GREEN demonstrated: with docs clean (post-150), `d` shows "Rust Docs" Pass / 0 warnings
+- [x] WARN demonstrated <!-- 2026-07-13: injected an unclosed-HTML-tag doc comment -> '⚠️ Rust Docs  1 rustdoc warning(s)'. CALIBRATED: parse reads the 'generated N warning' summary line, so it reports 1 (not 2 -- the summary line is itself a 'warning:' line that naive counting would double-count; caught by pre-build calibration). Reverted; docs clean. --> WARN demonstrated: temporarily break one doc comment (e.g. add `/// foo <bar>`), rebuild, run
       the check -> shows the warning count; then REVERT the break (leave docs clean)
-- [ ] latency acceptable: `d` runtime with the check added stays within the chosen budget -- measured,
+- [x] latency acceptable (measured) <!-- 2026-07-13: cargo doc -p core --no-deps measured on Framework 16 -- warm 0.12s (common case, negligible), cold 2.05s (only after engine change). 3s recv_timeout caps a stuck/locked cargo -> Unknown. Live d runtime ~0.7s. --> latency acceptable: `d` runtime with the check added stays within the chosen budget -- measured,
       not assumed (per design Q1's resolution)
-- [ ] engine rebuilt + deployed; `d` clean and the new check green on the live system
+- [x] deployed + live green <!-- 2026-07-13: gen 365 deployed, fsh reloaded. Live d: ✅ Rust Docs, 31/34 checks, 0 failed, health 91%, forecast +1.5. --> engine rebuilt + deployed; `d` clean and the new check green on the live system
+- [x] FOLDED: unknowns IDENTIFIABLE in summary <!-- 2026-07-13: unknown_seg (cockpit.rs) now collects Unknown-status check names from the checks slice and renders 'Unknown: N (names)'. Demonstrated via forced 3s-timeout (fakebin slow cargo): summary showed '❔ Unknown: 1 (Rust Docs)'. Answers 'which check couldn't run?', not just how many. --> FOLDED FROM 148-followup: unknowns are IDENTIFIABLE in the summary -- when unknown checks exist, name them (e.g. `❔ Unknown: 1 (Rust Docs)`), not just a bare count. Demonstrated: a run with an unknown check shows the check name in the summary.
 
 ## Relationship
 Prevention half of: INT-150 (which cleared the 42-warning backlog). 150 fixed the instances; 151
