@@ -221,3 +221,29 @@ gate, not optional. Add to gates below.
 Gate additions:
 - [ ] Graphical LUKS prompt still visible -- tested BOTH docked and undocked
 - [ ] Chosen plymouth theme is not bgrt; boots clean on 780M in VM
+
+## LIFECYCLE EXTENSION (2026-07-13 discussion) -- boot-polish grows to the WHOLE arc
+This intent is boot-focused (Plymouth -> greetd -> session display handoff). A design discussion
+extended the vision to the FULL system lifecycle: power-on -> boot -> login -> session -> logout
+-> SHUTDOWN. Two intertwined goals:
+
+1. VISUAL SEAMLESSNESS (the aesthetic soul): flicker-free handoffs, smooth fades, no jarring stage
+   transitions, no flash-to-black-console, no resolution blink -- the screen flows gracefully from
+   firmware through greeter into session and back out. NOT about speed (boot is already fast at
+   ~7s -- that is fine); about GRACE. This is "flicker-free boot," a real discipline.
+2. LIFECYCLE CORRECTNESS (system health -- the more important half): orderly, CONSISTENT startup
+   AND shutdown. Key observation: the three compositor profiles (mango / Miracle / Pinnacle) each
+   shut down DIFFERENTLY -- different teardown order, different process-kill behavior, different
+   display release. Inconsistent/ungraceful shutdown stresses the system (half-written state, fs
+   stress, occasional boot problems downstream) and "does not give software a moment to disconnect
+   properly." Goal: a graceful, CONSISTENT shutdown across all three profiles.
+
+WHERE IT IS BUILT: proven in the faelight-vm (INT-027) for the LOGIC/ORDERING (systemd shutdown
+ordering, compositor stop hooks, boot sequence) -- the part that can brick/corrupt on metal. Final
+VISUAL flicker-tuning happens on real metal (VM virtual GPU != Framework 16 AMD 780M display
+path). VM-for-logic, metal-for-visual. (Supersedes the older "test in VM via INT-024" pointer:
+the concrete VM is now 027's OVMF-capable faelight-vm.)
+
+NOTE: 049 is the boot/login/shutdown EXPERIENCE (per INT-078's own boundary: 078 = boot
+INFRASTRUCTURE, 049/054 = experience). Tonight's seamlessness+shutdown vision lives HERE, not in
+Everglow.

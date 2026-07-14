@@ -51,3 +51,15 @@ Recovery Protocol recovery — before bare metal.
 - nix-community/lanzaboote (docs/getting-started)
 - NixOS wiki: Lanzaboote, Secure Boot
 - Framework community: "secureboot setup mode" thread
+
+## VM PROVING GROUND + 078 OVERLAP (2026-07-13)
+The MANDATORY VM-rehearsal gate above now points at the CONCRETE tool: the forest-native
+faelight-vm being built in INT-027 (QEMU/KVM + Rust, OVMF/UEFI + Secure Boot emulation). Rehearse
+the full GRUB->systemd-boot->Lanzaboote path + the deliberate lockout + Forest Recovery Protocol
+recovery THERE before bare metal. (027 is being reshaped into the canonical VM proving ground; its
+foundational capability -- boot through OVMF, snapshot, rollback -- is exactly what this rehearsal
+needs.)
+OVERLAP: INT-078 (Everglow, build-own boot manager) contemplates REPLACING this Lanzaboote layer.
+059 (adopt Lanzaboote) vs 078 (build own) is an either/or to resolve before boot work -- see 078.
+TIMING: Christian -- ~1-2 weeks out. Sequenced AFTER the 027 VM foundation exists (need the OVMF
+proving ground first).

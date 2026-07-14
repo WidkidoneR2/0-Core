@@ -62,3 +62,12 @@ minimal trusted base is the core design question.
 Captured from Christian's design braindump before sleep. NOT a refined charter yet --
 deserves a clear-headed design session (possibly a standalone design doc first) before
 phases/gates lock. Fix tag typo: gerneration -> generation.
+
+## OVERLAP-WITH-059 DECISION + VM NOTE (2026-07-13)
+078 already flags it "may replace" INT-059's Secure Boot layer. Make that an EXPLICIT decision to
+resolve BEFORE boot work starts: Everglow (build our OWN generation-aware Rust EFI boot manager +
+Secure Boot) vs INT-059 (ADOPT existing Lanzaboote). These are two approaches to the SAME boot/
+Secure-Boot layer -- likely NOT both. Decide deliberately (build-own = maximal control + huge
+scope; adopt-Lanzaboote = faster, proven, less control). Do not drift into building both.
+VM: all of this (own boot manager OR Lanzaboote) is rehearsed in the INT-027 faelight-vm with
+OVMF + Secure Boot emulation BEFORE metal -- boot-manager work is the classic lockout risk.

@@ -112,3 +112,40 @@ script. The real levers (do these while finishing prerequisite intents -- daily-
 - Snapshots-in-Rust (new capability + starts the faelight-vm crate), then
 - Organic port of the rest as touched.
 (Christian to set the actual order when the VM day begins.)
+
+## VISION SEED (2026-07-13 discussion -- full rewrite is tomorrow's VM-day opening act)
+A deep architecture discussion reframed what this intent IS. Captured here so nothing is lost;
+the proper rewrite happens tomorrow with fresh focus.
+
+STACK DECIDED -- forest-native:
+QEMU/KVM as the engine, driven directly by a Rust `faelight-vm` tool. NO libvirt daemon, NO GUI
+(virt-manager). Full firmware boot via OVMF/UEFI. Rejected the enterprise stack
+(libvirt + virt-manager): GUI + stateful daemon + XML config clash with the forest's TUI/CLI/
+Nix-reproducible philosophy -- and it is partly the very layer 027 already RETIRED once. Quickemu
+(a bash QEMU wrapper) is a useful REFERENCE for snapshot-command structure + hardware-optimal
+qemu flags -- but it is bash, i.e. mine-it-for-WHAT-not-HOW (we are going Rust).
+
+THE VM'S TRUE IDENTITY (bigger than "improve the script"):
+The safe, disposable, FULL-BOOT-CHAIN proving ground for multiple major projects:
+- Everglow / boot-polish lifecycle work (INT-049 experience, INT-078 infrastructure, INT-059
+  Lanzaboote): the boot->login->shutdown chain is TOO DANGEROUS to iterate on real metal (a wrong
+  early-boot or shutdown change can brick boot / corrupt state). The VM is the ONLY safe forge.
+- The deterministic (non-AI) personal assistant: developed + snapshotted + rolled-back in
+  disposable VMs.
+- Friday + continued shell work: regression + experiment safely.
+
+FOUNDATIONAL CAPABILITY (build FIRST, prove before layering anything):
+Boot a VM through OVMF all the way to the greeter, observe each stage, snapshot, roll back. That
+single proven capability unlocks Everglow experimentation and everything downstream.
+
+HONEST CONSTRAINT (VM-for-logic, metal-for-visual):
+The VM proves lifecycle LOGIC + CORRECTNESS (systemd ordering, boot sequence, shutdown ordering,
+"does it hang") safely. But final VISUAL flicker-tuning needs REAL hardware -- the VM's virtual
+GPU (virtio) != the Framework 16 AMD 780M display path. So: build/prove the dangerous ordering
+logic in the VM; do the last visual mile on metal. Everglow/049 must plan around this split.
+
+TOMORROW (VM day opening act): rewrite this intent into the foundational
+"faelight-vm: the forest's proving ground" vision; file a small DECISION intent recording the
+stack choice (forest-native vs enterprise) with reasoning + the Quickemu/retired-libvirt evidence
+(dogfood INT-158); make 027 the CANONICAL vm intent that the scattered VM refs (INT-024/077/079)
+point to; sequence: boot-chain-control FIRST, then snapshots, then test-driver (157) + perf.
