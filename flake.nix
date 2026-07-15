@@ -30,8 +30,33 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       craneLib = crane.mkLib pkgs;
-      faelightCommonArgs = {
+      # INT-027 (2026-07-15): src = ./. meant ANY repo change -- including a MARKDOWN
+      # file -- churned the faelight-forest hash and forced a full ~170s workspace
+      # rebuild. PROVEN: appending one blank line to faelight/rust-tools/README.md moved
+      # the drvPath 3qizc14s... -> ksxlyghqy... That is why `dep` and `vm build` cost
+      # ~3 minutes after every intent commit -- and we commit intents constantly.
+      # INT-043 already diagnosed this ("With src = ./. the deps hash churned on every
+      # repo change") and fixed it for buildDepsOnly via a manifests-only source.
+      # buildPackage never got the same treatment. This is that fix.
+      # KEEPS: Cargo sources (.rs / Cargo.toml / Cargo.lock) + assets/ -- faelight-notify
+      # and faelight-lock include_bytes! the Hack font from assets/fonts/, which lives at
+      # the REPO ROOT, outside every crate. A plain cleanCargoSource would strip it and
+      # break the build. Verified 2026-07-15: no build.rs, no migrations/proto/sqlx, and
+      # the font is the only compile-time file read in the workspace.
+      faelightSrc = pkgs.lib.cleanSourceWith {
         src = ./.;
+        name = "faelight-source";
+        # /protocols: faelight-wsd runs wayland_scanner::generate_client_code! against
+        # protocols/dwl-ipc-unstable-v2.xml at COMPILE time -- a macro, not include_str!,
+        # so the first filter-safety grep missed it and the build failed on E0432
+        # (no zdwl_ipc_manager_v2 in dwl). Found by building, not by reading.
+        filter = path: type:
+          (pkgs.lib.hasInfix "/assets" path)
+          || (pkgs.lib.hasInfix "/protocols/" path)
+          || (craneLib.filterCargoSources path type);
+      };
+      faelightCommonArgs = {
+        src = faelightSrc;
         strictDeps = true;
         cargoExtraArgs = "--workspace --locked";
         doCheck = false;
