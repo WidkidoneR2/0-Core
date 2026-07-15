@@ -1,0 +1,88 @@
+---
+id: 027
+date: 2026-06-04
+type: feature
+title: "faelight-vm: the forest's proving ground -- full-boot-chain VM (OVMF), snapshots, Rust migration, performance"
+status: in-progress
+tags: [vm, nixos, qemu, ovmf, development, sandbox, friday]
+priority: high
+---
+
+## Vision
+The VM is the forest's PROVING GROUND: a safe, disposable machine that boots the FULL chain like
+real metal, so dangerous work is rehearsed here before it ever touches the Framework 16. Simple
+forest verbs on top (`vm up` / `vm down` / `vm build` / `vm status`), real power underneath.
+
+## Why it matters (who depends on this)
+- INT-049 lifecycle work (boot -> login -> session -> logout -> shutdown): a wrong early-boot or
+  shutdown change on metal can brick boot or corrupt state. The VM is the ONLY safe forge.
+- INT-059 (Lanzaboote) + INT-078 (Everglow): bootloader / Secure Boot work. Classic lockout risk.
+  Both already require VM rehearsal; this is the VM they rehearse in.
+- The deterministic (non-AI) personal assistant + Friday: developed, snapshotted, rolled back in
+  disposable VMs. Friday is ~3 months out; a rough VM means friction on every experiment.
+
+## Stack (DECIDED 2026-07-13)
+Forest-native: QEMU/KVM as the engine, driven by a Rust `faelight-vm` tool. NO libvirt daemon,
+NO GUI (virt-manager). Full firmware boot via OVMF/UEFI.
+Rejected: the enterprise stack (libvirt + virt-manager) -- GUI + stateful daemon + XML clash with
+the forest's TUI/CLI/Nix-reproducible philosophy, and it is the very layer 027 already retired
+once (dead nixos-lab code still sits unwired in faelight-shell/commands/mod.rs).
+Reference, not template: Quickemu (bash QEMU wrapper) -- mine it for WHAT (snapshot command shape:
+create/apply/delete/info; hardware-optimal qemu flags), not HOW (we are going Rust).
+
+## Reality today
+- `vm` = a 286-line shell script at faelight/packages/faelight/scripts/vm (INT-077). fsh forwards
+  ALL args to it (INT-079 G3: the script is the single source of truth for subcommands).
+- Guest = nix/hosts/vm/base.nix + login-mirror.nix (tuigreet) or login-regreet.nix, built by
+  `nixos-rebuild build-vm --flake .#faelight-vm`. 8 GiB / 4 cores / KVM (accel=kvm:tcg -cpu max).
+- Works: build (+regreet mode), up, ssh, down, status, debug. Process guards, flock launch-lock,
+  stale-state janitor, qcow2 persistence.
+- DEADWOOD FOUND (2026-07-15): nix/hosts/vm/configuration.nix (269 lines) is imported by NOTHING
+  -- an orphan duplicating base.nix from before the INT-024 base/login split. Cleanup candidate.
+
+## Gates
+- [x] FULL BOOT CHAIN: the VM boots OVMF -> systemd-boot -> generation entry -> kernel -> greetd,
+      like metal (was kernel-direct, skipping firmware AND bootloader entirely)
+      <!-- evidence: commit 5adb7134, nix/hosts/vm/base.nix useBootLoader+useEFIBoot. 2026-07-15
+      DEMONSTRATED: launcher -kernel/-initrd/-append count=0, pflash lines=2 (OVMF_CODE.fd +
+      writable NIX_EFI_VARS). Guest: /sys/firmware/efi EXISTS (kernel creates it only on real UEFI
+      boot). Guest bootctl: "Firmware UEFI 2.70 (EDK II 1.00)", "Current Boot Loader systemd-boot
+      260.1", "Loader /boot/EFI/systemd/systemd-bootx64.efi", "Current Entry
+      nixos-generation-1.conf". Reached tuigreet login through the full chain. -->
+- [ ] `vm snapshot <tag>` -- snapshot the qcow2 (qemu-img snapshot -c; VM down = simplest reliable)
+- [ ] `vm rollback <tag>` -- restore a named snapshot (-a)
+- [ ] `vm snapshots` -- list (-l); delete (-d)
+- [ ] `vm up` reports the GUEST is up, not just that the port bound
+- [ ] Performance: profile build eval-vs-realize; skip rebuild when nix/hosts/vm/ is unchanged
+- [ ] Rust `faelight-vm` crate exists, entered organically (new capability built in Rust first)
+- [ ] (consider) snapshots tagged with the active intent, per the original vision
+
+## Findings from the first full-chain boot (2026-07-15) -- prerequisites others need
+- INT-059 Secure Boot: guest reports `Secure Boot: disabled (unsupported)`. This OVMF is plain
+  OVMF_CODE.fd -- Secure Boot rehearsal needs the `OVMF_CODE.secboot.fd` variant wired in.
+- INT-059 Measured Boot: guest reports `TPM2 Support: no`. Needs swtpm (software TPM) emulation.
+- `vm up` says "ssh ready after 2s" -- FALSE SIGNAL. qemu binds the host forward port on launch,
+  before the guest exists. The up-check tests the wrong thing. Fix in the Rust tool.
+- Baseline: `vm build` 324.9s (5.4 min). First boot writes the bootloader to the ESP (slower once).
+
+## Approach: architecture and performance are SEPARATE efforts
+1. ARCHITECTURE -- organic Rust migration. Build NEW capabilities (snapshots) in Rust as the START
+   of a faelight-vm crate; port bash pieces as they are touched. NEVER big-bang-rewrite working
+   bash into Rust that does the same thing -- that is motion, not progress.
+2. PERFORMANCE -- Nix/qemu tuning, NOT a language fix. A Rust rewrite makes nothing faster.
+   Levers: eval-vs-realize profiling, skip-rebuild-when-unchanged, guest weight. (KVM is already
+   on -- verified in the launcher, so that box is ticked.)
+
+## Honest constraint: VM-for-logic, metal-for-visual
+The VM proves lifecycle LOGIC and CORRECTNESS (systemd ordering, boot sequence, shutdown ordering,
+hangs). Final VISUAL flicker-tuning needs REAL hardware -- the VM's virtio GPU is not the
+Framework 16 AMD 780M display path. INT-049 must plan around this split.
+
+## Canonical
+027 is THE VM intent. Scattered VM references (INT-024 mode flavours, INT-077 script, INT-079
+launch hardening) point here. INT-157 (nixosTest regression testing) is a SEPARATE tool for a
+separate job: ephemeral test VMs, kernel-direct by design. The test driver is not the dev VM and
+must not become it.
+
+## The Rule
+"The VM is the safe forest. Boot it like metal, break it freely, roll it back." 🌲
