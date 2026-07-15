@@ -8,6 +8,20 @@ REPO="${FAELIGHT_REPO:-$HOME/0-core}"
 FLAKE="$REPO#faelight-vm"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/faelight-vm"
 PORT=2222
+# INT-159 (2026-07-15): the module's launcher hardcodes i440fx (-machine accel=kvm:tcg) and offers
+# no way to set the machine type -- but it passes $QEMU_OPTS straight through to qemu, and qemu
+# MERGES a second -machine over the first. PROVEN on a live guest: both -machine accel=kvm:tcg and
+# -machine q35,smm=on present, /dev/kvm still OPEN (KVM survived, no TCG fallback).
+# q35 + smm=on is REQUIRED by the Secure Boot firmware (OVMF_CODE.ms.fd is built SMM_REQUIRE=TRUE);
+# the pflash secure property is what makes the vars store SMM-protected.
+# With base.nix pointing efi.firmware at .ms CODE + plain VARS (no keys enrolled), this yields
+# `Secure Boot: disabled (setup)` in the guest -- setup mode, the door INT-059 needs to enroll
+# our own PK/KEK/db. Without these opts the .ms firmware cannot come up at all.
+# Do NOT prepend an inherited $QEMU_OPTS -- fsh word-splits `VAR="a b" cmd` assignments and can
+# leave a truncated value in the session env (a stray QEMU_OPTS="-machine" cost an hour on
+# 2026-07-15: it produced `-machine -machine q35,smm=on` and qemu died with
+# `unsupported machine type: "-machine"`). This script owns the value outright.
+export QEMU_OPTS="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on"
 GUEST_USER=christian
 LOG="$STATE/vm.log"
 PIDFILE="$STATE/vm.pid"

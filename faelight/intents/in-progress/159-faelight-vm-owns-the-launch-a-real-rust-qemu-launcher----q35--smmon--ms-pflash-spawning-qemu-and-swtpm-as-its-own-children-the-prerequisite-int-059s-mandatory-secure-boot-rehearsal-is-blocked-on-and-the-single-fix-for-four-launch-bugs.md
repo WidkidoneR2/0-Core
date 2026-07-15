@@ -78,8 +78,8 @@ needs to know about the processes it spawns.
 This also RESTORES INT-027's organic rule -- no working bash gets big-bang rewritten after all.
 
 ## Gates (revised)
-- [ ] vm script sets QEMU_OPTS (q35 + smm=on + pflash secure) so `vm up` gets setup mode by default
-- [ ] guest `bootctl status` reports `Secure Boot: disabled (setup)` through the plain `vm up`
+- [x] vm script sets QEMU_OPTS (q35 + smm=on + pflash secure) so `vm up` gets setup mode by default <!-- evidence: deployed gen 372, 2026-07-15. the script now owns QEMU_OPTS outright -- it does NOT prepend an inherited value. The launcher's line 92 (`$QEMU_OPTS \`, unquoted) word-splits it into real qemu args; qemu MERGES the second -machine over the module's built-in accel=kvm:tcg and KVM survives -->
+- [x] guest `bootctl status` reports `Secure Boot: disabled (setup)` through the plain `vm up` <!-- evidence: deployed gen 372, 2026-07-15. PROVEN: bare `vm up` -> 'guest is UP after 12s' -> `vm ssh 'bootctl status'` -> 'Secure Boot: disabled (setup)'. Was 'disabled (unsupported)'. SETUP MODE = no PK enrolled = the door sbctl needs to enroll our own PK/KEK/db (INT-059). No env var, no launcher rewrite -->
 - [ ] virtualisation.tpm.enable = true; guest reports TPM2 Support: yes
 - [ ] `vm down` kills qemu AND swtpm AND any wrapper -- matched by /proc ancestry or fd, NOT by
       name. (A zombie swtpm survived vm down holding the launch lock; vm_pids only greps
@@ -90,16 +90,16 @@ This also RESTORES INT-027's organic rule -- no working bash gets big-bang rewri
       HELD" and offers nothing -- it took a custom /proc fd-walker to find the holder)
 
 ## Gates (SUPERSEDED -- kept for the record; the launcher rewrite is not needed)
-- [ ] faelight-vm spawns qemu directly: `-machine q35,smm=on,accel=kvm` (not the module's i440fx)
-- [ ] pflash unit 0 = OVMF_CODE.ms.fd readonly; unit 1 = a writable per-VM copy of the vars
-- [ ] TESTED: which VARS pair with .ms CODE? (.ms VARS = MS keys pre-enrolled = USER mode = wrong
+- (superseded) faelight-vm spawns qemu directly: `-machine q35,smm=on,accel=kvm` (not the module's i440fx)
+- (superseded) pflash unit 0 = OVMF_CODE.ms.fd readonly; unit 1 = a writable per-VM copy of the vars
+- (superseded) TESTED: which VARS pair with .ms CODE? (.ms VARS = MS keys pre-enrolled = USER mode = wrong
       for us; we need SETUP mode so sbctl can enroll OUR keys.) Open question -- do NOT assume.
-- [ ] guest `bootctl status` reports `Secure Boot: disabled (setup mode)` -- the actual gate
-- [ ] swtpm spawned as a CHILD of faelight-vm, torn down with the VM; guest reports TPM2: yes
-- [ ] `vm down` kills qemu AND swtpm AND any wrapper -- verified by /proc, not by name-matching
-- [ ] `vm unlock` exists; cmd_up cleans BEFORE it locks
-- [ ] the bash script still forwards -- `vm up/down` unchanged for the user (INT-079 G3 holds)
-- [ ] existing snapshots still work (disk + EFI vars stay atomic across the launcher change)
+- (superseded) guest `bootctl status` reports `Secure Boot: disabled (setup mode)` -- the actual gate
+- (superseded) swtpm spawned as a CHILD of faelight-vm, torn down with the VM; guest reports TPM2: yes
+- (superseded) `vm down` kills qemu AND swtpm AND any wrapper -- verified by /proc, not by name-matching
+- (superseded) `vm unlock` exists; cmd_up cleans BEFORE it locks
+- (superseded) the bash script still forwards -- `vm up/down` unchanged for the user (INT-079 G3 holds)
+- (superseded) existing snapshots still work (disk + EFI vars stay atomic across the launcher change)
 
 ## Honest note: this BREAKS the organic rule, deliberately
 INT-027's rule was "build NEW capability in Rust; port bash as it is touched; NEVER big-bang-rewrite
@@ -111,6 +111,20 @@ should be argued, not glossed:
   four patches that each work around the same missing structure.
 - Scope discipline: this intent owns LAUNCH (qemu + swtpm + lock). It does NOT rewrite vm build,
   vm ssh, vm gui, or vm status. Those keep working; port them only when touched.
+
+## The hour this cost, and why (2026-07-15) -- an fsh trap worth INT-143's attention
+Four consecutive VM boots failed with `qemu-system-x86_64: unsupported machine type: "-machine"`.
+Root cause: an earlier attempt to test the flag ran `QEMU_OPTS="-machine q35,smm=on" vm up` at the
+fsh prompt. fsh does NOT support `VAR="a b" cmd` inline assignment -- it WORD-SPLIT the value,
+errored on the remainder ("command not found: q35,smm=on\""), and SILENTLY LEFT QEMU_OPTS="-machine"
+in the session environment. The script's `${QEMU_OPTS:-}` then prepended that fragment, producing
+`-machine -machine q35,smm=on`, and qemu read the second -machine as the FIRST one's value.
+The damage surfaced an hour later, in a different tool, as a firmware failure. `unset QEMU_OPTS`
+fixed it instantly.
+LESSON for INT-143: fsh's builtins that shadow real binaries (`bash`, `env`, `time`, and inline
+VAR= assignment) do not merely fail -- they can POISON THE SESSION and misattribute the blame.
+`bash script.sh` drops into interactive bash and never runs the script. `env VAR=x cmd` prints the
+environment. A silent wrong result is worse than a clean error.
 
 ## Reference
 INT-027 (complete) holds the full evidence: launcher analysis, the boot-chain proof, the zombie-swtpm
