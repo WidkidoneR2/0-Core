@@ -37,6 +37,16 @@
     # does NOT affect the metal framework16 config. Framework 16 has ample RAM to spare.
     memorySize = 8192;  # 8 GiB
     cores = 4;
+    # INT-027 (2026-07-15): FULL BOOT CHAIN. Without these, build-vm boots the guest
+    # KERNEL-DIRECT (qemu -kernel/-initrd), skipping firmware AND the bootloader entirely --
+    # so the systemd-boot declared above never actually runs, and the VM cannot rehearse
+    # bootloader / Secure Boot / early-boot work (INT-049 lifecycle, INT-059 Lanzaboote,
+    # INT-078 Everglow). useBootLoader builds a real ESP + installs systemd-boot into the
+    # disk and boots FROM it; useEFIBoot boots via OVMF/UEFI firmware instead of SeaBIOS.
+    # Result: OVMF -> systemd-boot -> kernel -> initrd -> systemd -> greetd, like metal.
+    # Costs a few seconds of boot (firmware + bootloader stages) -- that is the point.
+    useBootLoader = true;
+    useEFIBoot = true;
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
     ];
