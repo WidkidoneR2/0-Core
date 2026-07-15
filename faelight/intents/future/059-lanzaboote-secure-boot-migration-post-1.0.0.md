@@ -79,3 +79,17 @@ Note: the VM's OVMF already has WRITABLE EFI vars (NIX_EFI_VARS pflash, unit 1),
 `vm snapshot` captures that .fd alongside the disk -- so an enroll-keys-then-lock-yourself-out
 rehearsal can be rolled back honestly. That was designed for exactly this.
 Also in the option tree: boot.loader.limine -- the other route this intent wants to compare.
+
+## VM prerequisite is BIGGER than expected (2026-07-15, tested)
+The two prereqs are NOT symmetric:
+- TPM2: solved. `virtualisation.tpm.enable = true` works (module spawns swtpm). One line.
+- SECURE BOOT: NOT solvable in `nixos-rebuild build-vm`. The module has no useSecureBoot, plain
+  OVMF is built without SB support, and the generated launcher uses i440fx (`-machine
+  accel=kvm:tcg`) with no SMM -- which .ms/SB firmware requires (SMM_REQUIRE=TRUE, needs
+  `-machine q35,smm=on`). Tried .ms CODE + plain VARS: the VM did not boot at all.
+So this intent's MANDATORY VM-rehearsal gate now DEPENDS on INT-027 building a real qemu launcher
+(q35, smm=on, .ms pflash). That is the sequencing: faelight-vm launcher -> SB-capable VM ->
+rehearsal (enroll own keys in setup mode, deliberate lockout, recovery) -> metal.
+Caution banked: a zombie swtpm survived `vm down` and held the launch lock invisibly (see 027).
+Any SB rehearsal will lean on swtpm -- the launcher must own its children.
+

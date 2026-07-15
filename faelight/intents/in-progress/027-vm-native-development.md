@@ -98,5 +98,42 @@ must not become it.
 - Friday misreads deliberate guard-test failures as problems ("failed 3 times today") and suggested
   clap/derive fixes for a crate with no clap. Noise, not signal.
 
+## The launcher fork: NixOS's module CANNOT do Secure Boot (2026-07-15, learned by trying)
+Attempted the INT-059 prerequisites (secboot firmware + TPM2) as a config change in base.nix.
+TPM2 worked (`virtualisation.tpm.enable` exists -- the module spawns swtpm, wires the socket,
+runs tpm2_startup). SECURE BOOT DID NOT, and the reason is structural:
+- `virtualisation.useSecureBoot` DOES NOT EXIST in the qemu-vm module. Only efi.firmware /
+  efi.variables are pointable.
+- Plain pkgs.OVMF ships ONLY OVMF.fd / OVMF_CODE.fd / OVMF_VARS.fd -- built WITHOUT Secure Boot
+  support. That is why the guest says "unsupported", not a config oversight.
+- pkgs.OVMFFull adds OVMF_CODE.ms.fd + OVMF_VARS.ms.fd. BUT OVMFFull.fd.firmware/.variables STILL
+  resolve to the PLAIN files -- pointing efi.OVMF at OVMFFull alone changes nothing.
+- Pointing efi.firmware at OVMF_CODE.ms.fd + plain VARS: VM DID NOT BOOT (guest never initialized
+  the display; wait-ready timed out -- correctly). Reverted, VM healthy in ~12s.
+- ROOT CAUSE: the generated launcher runs `-machine accel=kvm:tcg -cpu max` -- i440fx, NO q35, NO
+  smm. Secure Boot OVMF (.ms) is built SMM_REQUIRE=TRUE and needs `-machine q35,smm=on` plus a
+  pflash cfi.pflash01 secure property. The module offers no way to set the machine type. This is
+  very likely WHY it has no useSecureBoot option.
+CONSEQUENCE: INT-059's mandatory VM rehearsal (enroll our own PK/KEK/db in setup mode, deliberate
+lockout, Forest Recovery Protocol) CANNOT be done on `nixos-rebuild build-vm`. faelight-vm must
+OWN the qemu invocation: q35 + smm=on + .ms CODE/VARS pflash. The "build the real launcher" fork
+is no longer a preference -- it is a requirement. (Also open: whether .ms CODE needs .ms VARS, or
+whether an empty-key setup-mode vars file is producible. Untested.)
+
+## Four bugs, one root cause: the tool tracks a NAME, not its CHILDREN (2026-07-15)
+1. [FIXED] `vm up` reported the PORT, not the guest -- a 9s lie (see gate above).
+2. `cmd_up` calls vm_lock BEFORE vm_clean_stale -- the janitor built to clear stale state can
+   never run when a stale LOCK is what blocks you. The guard outranks its own cleanup.
+3. `vm_pids` matches only `qemu-system-x86_64`. A ZOMBIE SWTPM (pid 127635) survived the failed
+   secboot attempt, inherited the launcher's lock fd, and held it after qemu died. `vm down` could
+   not see it, the janitor could not clean it, and `vm debug` reported "qemu alive: 0 / lock HELD"
+   -- the symptom with no way to learn more. It took a custom /proc fd-walker to find. The VM was
+   NOT down; a whole process was invisible to every diagnostic the tool has.
+4. No `vm unlock` escape hatch. A stale lock is a dead end without hand-editing state.
+All four are the same root cause: the script tracks a PROCESS NAME instead of owning what it
+spawned. A Rust launcher that spawns qemu AND swtpm knows both PIDs and can tear both down. This
+is the strongest argument yet for the launcher port -- not philosophy, four real bugs pointing the
+same direction.
+
 ## The Rule
 "The VM is the safe forest. Boot it like metal, break it freely, roll it back." 🌲
