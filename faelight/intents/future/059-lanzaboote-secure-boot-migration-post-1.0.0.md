@@ -80,6 +80,33 @@ Note: the VM's OVMF already has WRITABLE EFI vars (NIX_EFI_VARS pflash, unit 1),
 rehearsal can be rolled back honestly. That was designed for exactly this.
 Also in the option tree: boot.loader.limine -- the other route this intent wants to compare.
 
+## CORRECTION (2026-07-15, same day): the above is WRONG -- Secure Boot IS reachable
+The finding below ("the module CANNOT do Secure Boot, therefore faelight-vm must own the qemu
+invocation") was based on a BAD TEST. That attempt changed efi.firmware to OVMF_CODE.ms.fd while
+leaving the machine type at the module's default i440fx -- which has no SMM. The .ms firmware is
+built SMM_REQUIRE=TRUE, so of course it could not come up. The test proved we forgot a flag, not
+that the module has a limit.
+WHAT IS ACTUALLY TRUE (proven by boot, 2026-07-15):
+- The generated launcher ends with `$QEMU_OPTS \` then `"$@"` -- TWO pass-through seams the module
+  hands you. QEMU_OPTS is unquoted, so it word-splits into real args.
+- qemu MERGES a second -machine over the built-in one. PROVEN by /proc on a live guest:
+    -machine accel=kvm:tcg          (from the module)
+    -machine q35,smm=on             (from QEMU_OPTS)
+    /dev/kvm OPEN  -> KVM SURVIVED
+  The machine type is reachable WITHOUT owning the launch, and virtualization is not lost.
+- efi.firmware = "${pkgs.OVMFFull.fd}/FV/OVMF_CODE.ms.fd" + efi.variables = ".../OVMF_VARS.fd"
+  (plain vars = NO keys = SETUP MODE) + QEMU_OPTS="-machine q35,smm=on -global
+  driver=cfi.pflash01,property=secure,value=on"
+  -> guest bootctl: `Secure Boot: disabled (setup)`.  Was `disabled (unsupported)`.
+  SETUP MODE IS THE GATE -- it is the state sbctl needs to enroll our OWN PK/KEK/db (INT-059).
+- Still true and worth keeping: OVMFFull.fd.firmware/.variables resolve to the PLAIN files, so the
+  .ms paths must be named EXPLICITLY; and there is no `useSecureBoot` option. But neither blocks us.
+- Also learned from the guest's own bootctl: systemd-boot advertises "Enroll SecureBoot keys" and
+  "Boot counting" as features -- the loader can enroll keys itself (relevant to INT-059).
+CONSEQUENCE: INT-159 loses its main justification. Owning the launch is NOT required for INT-059's
+rehearsal. What remains real is child-ownership (the zombie swtpm), which is a much smaller job.
+Leaving the original text below verbatim -- the wrong turn is part of the record.
+
 ## VM prerequisite is BIGGER than expected (2026-07-15, tested)
 The two prereqs are NOT symmetric:
 - TPM2: solved. `virtualisation.tpm.enable = true` works (module spawns swtpm). One line.

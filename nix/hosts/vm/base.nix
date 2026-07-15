@@ -47,6 +47,13 @@
     # Costs a few seconds of boot (firmware + bootloader stages) -- that is the point.
     useBootLoader = true;
     useEFIBoot = true;
+    # INT-159 (2026-07-15): .ms CODE is Secure-Boot-capable (built SMM_REQUIRE=TRUE).
+    # Plain VARS = NO keys enrolled = SETUP MODE, which is what sbctl needs (INT-059).
+    # OVMF_VARS.ms.fd would arrive with Microsoft's keys = user mode = wrong for us.
+    # Requires -machine q35,smm=on, injected via QEMU_OPTS (PROVEN reachable: qemu merges
+    # a second -machine over the module's accel=kvm:tcg, and KVM survives -- /dev/kvm open).
+    efi.firmware = "${pkgs.OVMFFull.fd}/FV/OVMF_CODE.ms.fd";
+    efi.variables = "${pkgs.OVMFFull.fd}/FV/OVMF_VARS.fd";
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
     ];
