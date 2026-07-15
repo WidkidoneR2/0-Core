@@ -63,3 +63,19 @@ OVERLAP: INT-078 (Everglow, build-own boot manager) contemplates REPLACING this 
 059 (adopt Lanzaboote) vs 078 (build own) is an either/or to resolve before boot work -- see 078.
 TIMING: Christian -- ~1-2 weeks out. Sequenced AFTER the 027 VM foundation exists (need the OVMF
 proving ground first).
+
+## DEC-140 (2026-07-15): CLEARED TO PROCEED -- this is the adopted trust tier
+Resolved: INT-078 (Everglow) does NOT replace this layer. 078 is deferred to its EFI-app tier
+post-1.0; Lanzaboote is the trust chain. Proceed.
+The MANDATORY VM-rehearsal gate above is now ACTIONABLE: as of 2026-07-15 the INT-027 faelight-vm
+boots the real chain (OVMF -> systemd-boot -> nixos-generation-1.conf -> kernel -> greetd),
+verified by the guest itself (/sys/firmware/efi exists; bootctl reports "Firmware UEFI 2.70
+(EDK II 1.00)", "Current Boot Loader systemd-boot 260.1").
+TWO VM PREREQUISITES remain, found by booting it (guest bootctl, 2026-07-15):
+- `Secure Boot: disabled (unsupported)` -- the VM loads plain OVMF_CODE.fd. Key enrollment
+  rehearsal needs the OVMF_CODE.secboot.fd variant wired into the launcher.
+- `TPM2 Support: no` / `Measured UKI: no` -- Measured Boot needs swtpm emulation.
+Note: the VM's OVMF already has WRITABLE EFI vars (NIX_EFI_VARS pflash, unit 1), and INT-027's
+`vm snapshot` captures that .fd alongside the disk -- so an enroll-keys-then-lock-yourself-out
+rehearsal can be rolled back honestly. That was designed for exactly this.
+Also in the option tree: boot.loader.limine -- the other route this intent wants to compare.

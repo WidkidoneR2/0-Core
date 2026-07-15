@@ -71,3 +71,22 @@ Secure-Boot layer -- likely NOT both. Decide deliberately (build-own = maximal c
 scope; adopt-Lanzaboote = faster, proven, less control). Do not drift into building both.
 VM: all of this (own boot manager OR Lanzaboote) is rehearsed in the INT-027 faelight-vm with
 OVMF + Secure Boot emulation BEFORE metal -- boot-manager work is the classic lockout risk.
+
+## DEC-140 (2026-07-15): DEFERRED, and shrunk to the EFI-app tier only
+Resolved: Everglow does NOT compete with INT-059. The value separates into tiers (see DEC-140).
+- The METADATA tier (boot notes, commit awareness, provenance, timeline, labels) does NOT need an
+  EFI app -- BLS Type #1 entries are plain text and `title` is just a string. It renders in the
+  systemd-boot running today, works on top of Lanzaboote, and is testable in userspace. Build early,
+  separately.
+- The TRUST tier is Lanzaboote (INT-059). Adopted. Everglow does not replace it.
+- THIS intent = the EFI-app tier only: boot UI, search, diff, diagnostics page,
+  recovery-without-booting, theme engine. Months. Post-1.0. Deferred, NOT cancelled -- adopting
+  Lanzaboote does not foreclose it.
+Christian's own crate split already drew this line: faelight-generation / faelight-uki /
+faelight-secureboot / faelight-cli are ALL userspace; only faelight-boot is EFI. Those userspace
+crates may be built early and independently of the EFI app.
+REJECTED (DEC-140): the EFI plugin architecture -- plugins inside a trusted boot core either sit in
+the verification path (the TCB moved, it did not shrink) or load unsigned code pre-OS. Contradicts
+this intent's own "minimize the trusted computing base" note.
+NOTE: automatic rollback via boot counting is NOT free -- verified 2026-07-15, no such option exists
+anywhere under boot.loader in NixOS. systemd-boot supports +tries; NixOS never emits them.
