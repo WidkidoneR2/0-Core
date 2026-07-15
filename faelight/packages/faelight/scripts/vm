@@ -127,12 +127,14 @@ cmd_up(){
   info "Launching VM (headless, detached; log -> $LOG)..."
   ( cd "$STATE" && exec setsid "$L" >"$LOG" 2>&1 </dev/null ) &
   echo $! >"$PIDFILE"
-  local i
-  for i in $(seq 1 60); do
-    if port_open; then ok "VM up -- ssh ready on port $PORT (after ${i}s)"; return 0; fi
-    sleep 1
-  done
-  err "VM did not open port $PORT within 60s -- check $LOG"; exit 1
+  # INT-027 (2026-07-15): the old loop trusted port_open -- a LIE, measured at 9 seconds.
+  # qemu binds the host forward port the instant it starts, so the loop matched on its FIRST
+  # iteration and claimed "ssh ready after 2s" while the guest was still in OVMF; the guest's
+  # sshd did not actually answer until 11s. It proved qemu launched, not that the guest was up.
+  # Rust `faelight-vm wait-ready` reads the SSH BANNER instead: only a live guest sshd sends
+  # "SSH-2.0-...". qemu with no guest listener accepts the connection and closes it -- 0 bytes.
+  # Truth over speed.
+  fvm wait-ready --port "$PORT" --timeout 120
 }
 
 cmd_ssh(){

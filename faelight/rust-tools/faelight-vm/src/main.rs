@@ -13,7 +13,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const C_OK: &str = "\x1b[38;2;64;224;208m";
 const C_ERR: &str = "\x1b[38;2;255;130;168m";
@@ -230,6 +230,46 @@ fn cmd_prune(days: i64, all: bool, dry: bool) {
     if dry { info(&format!("{} would be pruned (dry run)", victims.len())); }
 }
 
+/// Is the GUEST's sshd actually accepting? (INT-027, 2026-07-15)
+///
+/// The bash `port_open` (>/dev/tcp/127.0.0.1/$PORT) is a LIE: qemu's user-mode
+/// networking binds the host forward port the instant qemu starts, so it goes true
+/// while the guest is still in OVMF. It proves qemu launched, not that the guest is up.
+/// Since useBootLoader/useEFIBoot those are ~40s apart.
+///
+/// The honest test: read the SSH BANNER. Only a live sshd sends "SSH-2.0-...".
+/// qemu with no guest listener accepts the TCP connection and closes it -- zero bytes.
+fn ssh_ready(port: u16) -> bool {
+    use std::io::Read;
+    use std::net::{Shutdown, SocketAddr, TcpStream};
+    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    let Ok(mut s) = TcpStream::connect_timeout(&addr, Duration::from_millis(800)) else {
+        return false; // nothing listening at all
+    };
+    let _ = s.set_read_timeout(Some(Duration::from_millis(1200)));
+    let mut buf = [0u8; 64];
+    let n = s.read(&mut buf).unwrap_or(0);
+    let _ = s.shutdown(Shutdown::Both);
+    n > 0 && buf[..n].starts_with(b"SSH-")
+}
+
+/// Poll until the guest's sshd answers, or give up. Truth over speed.
+fn cmd_wait_ready(port: u16, timeout_s: u64, quiet: bool) {
+    let start = SystemTime::now();
+    for i in 1..=timeout_s {
+        if ssh_ready(port) {
+            let secs = start.elapsed().map(|d| d.as_secs()).unwrap_or(i);
+            if !quiet { ok(&format!("guest is UP {C_DIM}(sshd answered on port {port} after {secs}s){C_RST}")); }
+            return;
+        }
+        if !quiet && i == 5 { info("waiting for the guest to boot (OVMF -> systemd-boot -> kernel -> sshd)..."); }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    err(&format!(
+        "guest did not answer ssh within {timeout_s}s.\n    The port may be bound by qemu while the guest is stuck -- check the console/log."
+    ));
+}
+
 fn usage() -> ! {
     println!("faelight-vm -- snapshot/rollback for the proving ground (INT-027)
 
@@ -237,6 +277,9 @@ fn usage() -> ! {
   vm rollback <tag>     restore a snapshot (auto-snapshots current state first)
   vm snapshots          list snapshots
   vm delete <tag>       delete a snapshot
+  vm wait-ready         block until the GUEST's sshd answers (reads the SSH banner --
+                        the port alone is a lie: qemu binds it before the guest boots)
+                        [--port N] [--timeout N] [--quiet]
   vm prune [--days N]   remove auto-* snapshots older than N days (default {PRUNE_DAYS})
            [--all]      remove ALL auto-* regardless of age
            [--dry-run]  show what would go, touch nothing
@@ -255,6 +298,13 @@ fn main() {
         ["rollback", tag] => cmd_rollback(tag),
         ["snapshots"] | ["list"] => cmd_list(),
         ["delete", tag] => cmd_delete(tag),
+        ["wait-ready", rest @ ..] => {
+            let port = rest.iter().position(|s| *s == "--port")
+                .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(2222);
+            let timeout = rest.iter().position(|s| *s == "--timeout")
+                .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(120);
+            cmd_wait_ready(port, timeout, rest.contains(&"--quiet"));
+        }
         ["prune", rest @ ..] => {
             let all = rest.contains(&"--all");
             let dry = rest.contains(&"--dry-run");
