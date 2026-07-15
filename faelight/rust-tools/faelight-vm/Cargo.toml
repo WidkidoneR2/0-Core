@@ -1,0 +1,12 @@
+[package]
+name = "faelight-vm"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "faelight-vm"
+path = "src/main.rs"
+
+[dependencies]

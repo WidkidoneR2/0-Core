@@ -1907,6 +1907,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-vm"
+version = "0.1.0"
+
+[[package]]
 name = "faelight-wallpaper"
 version = "0.1.0"
 dependencies = [

@@ -269,8 +269,25 @@ faelight vm -- smooth VM workflow (INT-077)
   vm status   image / running / disk
   vm debug    read-only diagnostic (live state, guard, lock, stale-state)
   vm gui      launch with a SPICE window (remote-viewer) + shared clipboard
+
+Snapshots (INT-027 -- Rust faelight-vm; VM must be DOWN):
+  vm snapshot <tag>   snapshot disk + OVMF EFI vars (both or neither)
+  vm rollback <tag>   restore a snapshot (auto-snapshots current state first)
+  vm snapshots        list snapshots
+  vm delete <tag>     delete a snapshot
+  vm prune [--all]    remove auto-* snapshots (>14d default; --dry-run to look)
 Console = SSH (host $PORT -> guest 22). Guest: $GUEST_USER / pw faelight.
 EOF
+}
+
+# INT-027: snapshot/rollback live in the Rust `faelight-vm` tool, not here.
+# The START of the organic bash->Rust migration: NEW capability built in Rust; this
+# script stays the single front door (INT-079 G3) and forwards these verbs to it.
+# Rust owns the state logic (disk qcow2 + OVMF EFI vars must move together).
+fvm(){
+  command -v faelight-vm >/dev/null 2>&1 || {
+    err "faelight-vm not on PATH -- run: dep  (it ships with faelight-forest)"; exit 1; }
+  faelight-vm "$@"
 }
 
 case "${1:-}" in
@@ -281,6 +298,12 @@ case "${1:-}" in
   gui)    shift; cmd_gui    "$@";;
   status) shift; cmd_status "$@";;
   debug)  shift; cmd_debug  "$@";;
+  # --- INT-027: forwarded to the Rust faelight-vm ---
+  snapshot|snap)   shift; fvm snapshot  "$@";;
+  rollback)        shift; fvm rollback  "$@";;
+  snapshots|snaps) shift; fvm snapshots "$@";;
+  delete)          shift; fvm delete    "$@";;
+  prune)           shift; fvm prune     "$@";;
   ""|-h|--help|help) usage;;
   *) err "unknown subcommand: $1"; usage; exit 2;;
 esac
