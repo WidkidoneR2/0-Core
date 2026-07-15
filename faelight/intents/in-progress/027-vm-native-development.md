@@ -52,7 +52,7 @@ create/apply/delete/info; hardware-optimal qemu flags), not HOW (we are going Ru
 - [x] `vm snapshot <tag>` -- snapshots the qcow2 AND the OVMF EFI vars (both or neither; atomic) <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: 'bootchain-works' created, CROSS-CHECKED via qemu-img snapshot -l directly (ID 1, 07:40:42); EFI vars copy landed 541k. Guards proven: reserved 'auto-' prefix REFUSED, bad tag REFUSED, duplicate REFUSED, live-VM REFUSED ('VM is RUNNING (PIDs: 42857)... image would tear') -- all exit 1 -->
 - [x] `vm rollback <tag>` -- restores disk + EFI vars; auto-snapshots current state first <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: wrote /etc/faelight-damage in the guest -> vm down -> vm rollback bootchain-works -> vm up -> 'cat: /etc/faelight-damage: No such file or directory'. Damage GONE. auto-pre-rollback-1784119319 created first (disk + EFI vars), undo command printed -->
 - [x] `vm snapshots` list / `vm delete` / `vm prune` (auto-* only, >14d default, --all, --dry-run) <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: deployed `vm snapshots` lists both, correctly typed manual vs auto; prune --all --dry-run found nothing (manual tags protected -- deliberate, never auto-pruned) -->
-- [ ] `vm up` reports the GUEST is up, not just that the port bound
+- [x] `vm up` reports the GUEST is up, not just that the port bound <!-- evidence: commit a3be3943, deployed gen 369. 2026-07-15 MEASURED cold start: port_open said 'ssh ready after 2s' while the guest's sshd did not answer until 11s -- a NINE-SECOND LIE (qemu's user-mode net binds the host forward port the instant qemu starts, so the loop matched on iteration 1 while the guest was still in OVMF). Rust `faelight-vm wait-ready` reads the SSH BANNER instead (only a live sshd sends 'SSH-2.0-...'; qemu with no guest accepts and closes, 0 bytes). DEPLOYED PROOF: 'vm down ; vm up' -> 'guest is UP (sshd answered on port 2222 after 12s)'. Negative case: with no VM, wait-ready refused to claim ready (exit 1). Second organic port to Rust. -->
 - [ ] Performance: profile build eval-vs-realize; skip rebuild when nix/hosts/vm/ is unchanged
 - [x] Rust `faelight-vm` crate exists, entered ORGANICALLY -- snapshots built in Rust; zero working bash rewritten <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: faelight/rust-tools/faelight-vm/{Cargo.toml,src/main.rs}; auto-registered via the rust-tools/* workspace glob; crane ships the binary with faelight-forest -- ZERO nix edits. Script forwards 5 verbs via fvm() (INT-079 G3 holds). which faelight-vm -> /run/current-system/sw/bin/faelight-vm -->
 - [ ] (consider) snapshots tagged with the active intent, per the original vision
@@ -85,6 +85,11 @@ separate job: ephemeral test VMs, kernel-direct by design. The test driver is no
 must not become it.
 
 ## Lessons banked (2026-07-15)
+- BOOT LOG WENT EMPTY after useEFIBoot. vm.log was 401 bytes pre-boot-chain; now 0. The serial
+  console no longer reaches qemu stdout -- OVMF owns the console early and the handoff changed.
+  This is boot-stage OBSERVABILITY we lost, and INT-049's lifecycle work will need it back
+  (watching each stage is the whole point). Fix candidate: -serial on the qemu line, or
+  console= kernel params reconciled with the firmware path. Not chased today.
 - NIX FLAKES ONLY SEE GIT-TRACKED FILES. The first dep after creating the crate shipped no binary --
   the crate dir was untracked, so the flake never saw it ("Git tree is dirty" was the tell).
   `git add` BEFORE `dep` for new files. The script's PATH guard caught it cleanly.
