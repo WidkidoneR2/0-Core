@@ -49,12 +49,12 @@ create/apply/delete/info; hardware-optimal qemu flags), not HOW (we are going Ru
       boot). Guest bootctl: "Firmware UEFI 2.70 (EDK II 1.00)", "Current Boot Loader systemd-boot
       260.1", "Loader /boot/EFI/systemd/systemd-bootx64.efi", "Current Entry
       nixos-generation-1.conf". Reached tuigreet login through the full chain. -->
-- [ ] `vm snapshot <tag>` -- snapshot the qcow2 (qemu-img snapshot -c; VM down = simplest reliable)
-- [ ] `vm rollback <tag>` -- restore a named snapshot (-a)
-- [ ] `vm snapshots` -- list (-l); delete (-d)
+- [x] `vm snapshot <tag>` -- snapshots the qcow2 AND the OVMF EFI vars (both or neither; atomic) <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: 'bootchain-works' created, CROSS-CHECKED via qemu-img snapshot -l directly (ID 1, 07:40:42); EFI vars copy landed 541k. Guards proven: reserved 'auto-' prefix REFUSED, bad tag REFUSED, duplicate REFUSED, live-VM REFUSED ('VM is RUNNING (PIDs: 42857)... image would tear') -- all exit 1 -->
+- [x] `vm rollback <tag>` -- restores disk + EFI vars; auto-snapshots current state first <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: wrote /etc/faelight-damage in the guest -> vm down -> vm rollback bootchain-works -> vm up -> 'cat: /etc/faelight-damage: No such file or directory'. Damage GONE. auto-pre-rollback-1784119319 created first (disk + EFI vars), undo command printed -->
+- [x] `vm snapshots` list / `vm delete` / `vm prune` (auto-* only, >14d default, --all, --dry-run) <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: deployed `vm snapshots` lists both, correctly typed manual vs auto; prune --all --dry-run found nothing (manual tags protected -- deliberate, never auto-pruned) -->
 - [ ] `vm up` reports the GUEST is up, not just that the port bound
 - [ ] Performance: profile build eval-vs-realize; skip rebuild when nix/hosts/vm/ is unchanged
-- [ ] Rust `faelight-vm` crate exists, entered organically (new capability built in Rust first)
+- [x] Rust `faelight-vm` crate exists, entered ORGANICALLY -- snapshots built in Rust; zero working bash rewritten <!-- evidence: commit 63b31e57 (crate+wiring), deployed gen 368. 2026-07-15 DEMONSTRATED: faelight/rust-tools/faelight-vm/{Cargo.toml,src/main.rs}; auto-registered via the rust-tools/* workspace glob; crane ships the binary with faelight-forest -- ZERO nix edits. Script forwards 5 verbs via fvm() (INT-079 G3 holds). which faelight-vm -> /run/current-system/sw/bin/faelight-vm -->
 - [ ] (consider) snapshots tagged with the active intent, per the original vision
 
 ## Findings from the first full-chain boot (2026-07-15) -- prerequisites others need
@@ -83,6 +83,15 @@ Framework 16 AMD 780M display path. INT-049 must plan around this split.
 launch hardening) point here. INT-157 (nixosTest regression testing) is a SEPARATE tool for a
 separate job: ephemeral test VMs, kernel-direct by design. The test driver is not the dev VM and
 must not become it.
+
+## Lessons banked (2026-07-15)
+- NIX FLAKES ONLY SEE GIT-TRACKED FILES. The first dep after creating the crate shipped no binary --
+  the crate dir was untracked, so the flake never saw it ("Git tree is dirty" was the tell).
+  `git add` BEFORE `dep` for new files. The script's PATH guard caught it cleanly.
+- Snapshots are tied to the CURRENT backing file. `vm build` after a guest-config change makes a new
+  store path -- old snapshots become meaningless. Warn-on-mismatch: TODO.
+- Friday misreads deliberate guard-test failures as problems ("failed 3 times today") and suggested
+  clap/derive fixes for a crate with no clap. Noise, not signal.
 
 ## The Rule
 "The VM is the safe forest. Boot it like metal, break it freely, roll it back." 🌲
