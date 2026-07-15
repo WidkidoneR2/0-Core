@@ -54,6 +54,11 @@
     # a second -machine over the module's accel=kvm:tcg, and KVM survives -- /dev/kvm open).
     efi.firmware = "${pkgs.OVMFFull.fd}/FV/OVMF_CODE.ms.fd";
     efi.variables = "${pkgs.OVMFFull.fd}/FV/OVMF_VARS.fd";
+    # INT-159 gate 3: swtpm. The module spawns it, wires the socket, runs tpm2_startup.
+    # Measured Boot (INT-059) needs a TPM to measure into; guest reported "TPM2 Support: no".
+    # CAUTION (INT-027): a zombie swtpm survived `vm down` holding the launch lock invisibly --
+    # vm_pids only greps qemu-system-x86_64. That is gate 4 of this intent.
+    tpm.enable = true;
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
     ];

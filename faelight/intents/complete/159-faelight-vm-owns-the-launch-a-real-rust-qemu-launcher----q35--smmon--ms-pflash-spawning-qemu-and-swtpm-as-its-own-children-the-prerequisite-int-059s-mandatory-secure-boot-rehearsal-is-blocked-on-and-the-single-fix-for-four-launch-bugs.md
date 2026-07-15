@@ -3,7 +3,7 @@ id: 159
 date: 2026-07-15
 type: future
 title: "faelight-vm owns the launch: a real Rust qemu launcher -- q35 + smm=on + .ms pflash, spawning qemu AND swtpm as its own children. The prerequisite INT-059's mandatory Secure Boot rehearsal is blocked on, and the single fix for four launch bugs."
-status: in-progress
+status: complete
 tags: [vm, faelight-vm, qemu, secureboot, rust, 059, 027]
 ---
 
@@ -80,14 +80,11 @@ This also RESTORES INT-027's organic rule -- no working bash gets big-bang rewri
 ## Gates (revised)
 - [x] vm script sets QEMU_OPTS (q35 + smm=on + pflash secure) so `vm up` gets setup mode by default <!-- evidence: deployed gen 372, 2026-07-15. the script now owns QEMU_OPTS outright -- it does NOT prepend an inherited value. The launcher's line 92 (`$QEMU_OPTS \`, unquoted) word-splits it into real qemu args; qemu MERGES the second -machine over the module's built-in accel=kvm:tcg and KVM survives -->
 - [x] guest `bootctl status` reports `Secure Boot: disabled (setup)` through the plain `vm up` <!-- evidence: deployed gen 372, 2026-07-15. PROVEN: bare `vm up` -> 'guest is UP after 12s' -> `vm ssh 'bootctl status'` -> 'Secure Boot: disabled (setup)'. Was 'disabled (unsupported)'. SETUP MODE = no PK enrolled = the door sbctl needs to enroll our own PK/KEK/db (INT-059). No env var, no launcher rewrite -->
-- [ ] virtualisation.tpm.enable = true; guest reports TPM2 Support: yes
-- [ ] `vm down` kills qemu AND swtpm AND any wrapper -- matched by /proc ancestry or fd, NOT by
-      name. (A zombie swtpm survived vm down holding the launch lock; vm_pids only greps
-      qemu-system-x86_64, so nothing could see it.)
-- [ ] cmd_up cleans stale state BEFORE it locks (today the guard outranks its own janitor)
-- [ ] `vm unlock` exists as an escape hatch
-- [ ] vm debug can SEE a non-qemu child holding the lock (today it reports "qemu alive: 0 / lock
-      HELD" and offers nothing -- it took a custom /proc fd-walker to find the holder)
+- [x] virtualisation.tpm.enable = true; guest reports TPM2 Support: yes <!-- evidence: nix/hosts/vm/base.nix tpm.enable, 2026-07-15. PROVEN: bare `vm up` -> guest `bootctl status` reports 'Secure Boot: disabled (setup)' AND 'TPM2 Support: yes'. One line -- the module spawns swtpm, wires the socket, runs tpm2_startup. The VM can now do BOTH halves of INT-059's rehearsal: enroll our own keys (setup mode) and measure boot (TPM2). -->
+- [x] `vm down` kills qemu AND swtpm AND any wrapper -- scoped by the state dir, not by name <!-- evidence: deployed gen 375, 2026-07-15. deployed `vm down` -> 'stopped qemu (98059)' + 'stopped swtpm (98069)' + 'stopped launcher (98074)' + 'all faelight-vm processes gone'. cmd_down now forwards to `fvm kill`. TRAP FOUND LIVE: matching on exe.starts_with("qemu-system") made qemu INVISIBLE -- makeWrapper means the real ELF is `.qemu-system-x86_64-wrapped`, which starts with a DOT. `procs` listed swtpm on a live VM and no qemu; `kill` would have ORPHANED the VM. `ss -ltnp` gave it away (comm was '.qemu-system-x8'). Fixed to substring matching -- the banked forest rule about wrapped binaries needing -f, not -x -->
+- [x] cmd_up cleans stale state BEFORE it locks -- done, but THE GATE'S PREMISE WAS WRONG <!-- evidence: deployed gen 375, 2026-07-15. reorder is deployed (vm_clean_stale then vm_lock) and is defensible tidiness, but it fixes NOTHING. An flock is RELEASED WHEN ITS HOLDER DIES, so a 'stale lock' that blocks you cannot exist -- if vm_lock refuses, a LIVE process holds it (the zombie swtpm, exactly what happened). And vm_clean_stale only clears spice.sock and vm.pid; it never touches the lock. The real fixes were gate 4 (kill sees swtpm) and gate 6 (unlock escape hatch). Recorded rather than claimed -->
+- [x] `vm unlock` exists as an escape hatch <!-- evidence: deployed gen 375, 2026-07-15. orphaned lock with no holder -> 'orphaned lock cleared'. LIVE VM -> refuses, naming every holder: 'pid 80415 (swtpm) still HOLDS the lock', 'refusing to unlock a live VM. Run: vm down' (exit 1). Also removed a FALSE advice line: `procs` used to say 'vm.lock exists but NOBODY holds it -- orphaned' after every clean shutdown. An flock releases when its holder dies; the FILE always survives. That advice would fire every time and train the user to ignore the tool -->
+- [x] vm debug SEES every child and every lock holder <!-- evidence: deployed gen 375, 2026-07-15. deployed `vm debug` on a live VM -> 'faelight-vm processes : 3 (qemu=1)' listing PID 98870 qemu / 98880 swtpm / 98885 launcher, each marked '<- HOLDS THE LOCK'. Was: 'qemu (faelight-vm) alive : 1' and nothing about swtpm. Also warns when qemu is gone but swtpm survives -- that zombie owns the tpm socket, so the NEXT launch dies at set -e before qemu starts -->
 
 ## Gates (SUPERSEDED -- kept for the record; the launcher rewrite is not needed)
 - (superseded) faelight-vm spawns qemu directly: `-machine q35,smm=on,accel=kvm` (not the module's i440fx)

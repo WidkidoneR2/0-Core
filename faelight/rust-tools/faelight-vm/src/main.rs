@@ -270,6 +270,119 @@ fn cmd_wait_ready(port: u16, timeout_s: u64, quiet: bool) {
     ));
 }
 
+/// A process belonging to THIS VM -- qemu or any of its siblings (INT-159, 2026-07-15).
+///
+/// The bash script matched on the NAME `qemu-system-x86_64` alone. That is why a zombie swtpm
+/// (pid 79844) survived `vm down`, inherited the launcher's lock fd, and held it invisibly:
+/// swtpm is not qemu, so vm_pids could not see it, the janitor could not clean it, and vm debug
+/// reported "qemu alive: 0 / lock HELD" -- the symptom with no way to learn more.
+/// Scope is the STATE DIR in the cmdline, not the name: qemu carries file=<state>/faelight-vm.qcow2,
+/// swtpm carries --tpmstate dir=<state>/faelight-vm-swtpm. Anything else in there is ours too.
+struct VmProc {
+    pid: u32,
+    kind: String,
+    cmd: String,
+    holds_lock: bool,
+}
+
+fn lock_path() -> PathBuf { state_dir().join("vm.lock") }
+
+/// Does this pid hold an fd on the launch lock? (An flock dies with its holder --
+/// a HELD lock with no live holder is an orphaned file, safe to remove.)
+fn holds_lock(pid: u32) -> bool {
+    let Ok(target) = fs::canonicalize(lock_path()) else { return false };
+    let Ok(rd) = fs::read_dir(format!("/proc/{pid}/fd")) else { return false };
+    rd.flatten().any(|f| fs::read_link(f.path()).map(|l| l == target).unwrap_or(false))
+}
+
+fn vm_procs() -> Vec<VmProc> {
+    let state = state_dir().to_string_lossy().to_string();
+    let mut out = Vec::new();
+    let Ok(rd) = fs::read_dir("/proc") else { return out };
+    for e in rd.flatten() {
+        let Some(pid) = e.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue };
+        let Ok(raw) = fs::read(e.path().join("cmdline")) else { continue };
+        let cmd = String::from_utf8_lossy(&raw).replace('\0', " ").trim().to_string();
+        if cmd.is_empty() || !cmd.contains(&state) { continue }
+        let exe = fs::read_link(e.path().join("exe")).unwrap_or_default();
+        let exe = exe.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        // CONTAINS, not starts_with: NixOS makeWrapper means the real ELF is
+        // `.qemu-system-x86_64-wrapped` -- it starts with a DOT. starts_with("qemu-system")
+        // made qemu INVISIBLE here while unwrapped swtpm matched fine (2026-07-15: `procs`
+        // listed swtpm on a live VM and no qemu; `kill` would have orphaned the VM).
+        // This is the banked forest rule: wrapped binaries need -f/substring matching, not
+        // exact-name matching. `ss -ltnp` gave it away -- comm was ".qemu-system-x8".
+        let kind = if exe.contains("qemu-system") { "qemu" }
+                   else if exe.contains("swtpm") { "swtpm" }
+                   else if cmd.contains("run-faelight-vm-vm") { "launcher" }
+                   else { continue };
+        out.push(VmProc { pid, kind: kind.into(), cmd, holds_lock: holds_lock(pid) });
+    }
+    out.sort_by_key(|p| p.pid);
+    out
+}
+
+fn cmd_procs() {
+    let procs = vm_procs();
+    if procs.is_empty() {
+        ok("no faelight-vm processes running");
+        // NOTE: do NOT advise `vm unlock` just because vm.lock exists. An flock is released when
+        // its holder DIES -- the FILE always survives. "file present, nobody holding" is the
+        // NORMAL state after every clean `vm down`. Advising a fix here would fire every single
+        // time and train the user to ignore the tool. `vm debug` tests the flock itself and
+        // correctly reports "free". Only a live holder matters, and cmd_procs lists those above.
+        return;
+    }
+    println!("  {C_DIM}PID      KIND      LOCK{C_RST}");
+    for p in &procs {
+        let l = if p.holds_lock { format!("{C_OK}HOLDS{C_RST}") } else { format!("{C_DIM}-{C_RST}") };
+        println!("  {:<8} {:<9} {}", p.pid, p.kind, l);
+        println!("      {C_DIM}{}{C_RST}", &p.cmd.chars().take(96).collect::<String>());
+    }
+    println!("\n  {C_DIM}{} process(es){C_RST}", procs.len());
+}
+
+/// Kill everything this VM spawned -- qemu AND swtpm AND the wrapper. Not by name.
+fn cmd_kill() {
+    let procs = vm_procs();
+    if procs.is_empty() { ok("nothing to kill"); return }
+    for p in &procs {
+        let r = Command::new("kill").args(["-TERM", &p.pid.to_string()]).status();
+        match r {
+            Ok(s) if s.success() => ok(&format!("stopped {} (pid {})", p.kind, p.pid)),
+            _ => eprintln!("  {C_ERR}✗{C_RST} failed to stop {} (pid {})", p.kind, p.pid),
+        }
+    }
+    std::thread::sleep(Duration::from_millis(600));
+    let left = vm_procs();
+    if left.is_empty() { ok("all faelight-vm processes gone"); }
+    else {
+        for p in &left {
+            let _ = Command::new("kill").args(["-KILL", &p.pid.to_string()]).status();
+            info(&format!("SIGKILL sent to stubborn {} (pid {})", p.kind, p.pid));
+        }
+    }
+}
+
+/// The escape hatch that did not exist. Refuses if a LIVE process holds the lock.
+fn cmd_unlock() {
+    let holders: Vec<&VmProc> = Vec::new();
+    let procs = vm_procs();
+    let live: Vec<&VmProc> = procs.iter().filter(|p| p.holds_lock).collect();
+    let _ = holders;
+    if !live.is_empty() {
+        for p in &live {
+            eprintln!("  {C_ERR}✗{C_RST} pid {} ({}) still HOLDS the lock -- not a stale lock.", p.pid, p.kind);
+        }
+        err("refusing to unlock a live VM. Run: vm down");
+    }
+    if !lock_path().exists() { ok("no lock file -- nothing to clear"); return }
+    match fs::remove_file(lock_path()) {
+        Ok(_) => ok("orphaned lock cleared"),
+        Err(e) => err(&format!("could not remove lock: {e}")),
+    }
+}
+
 fn usage() -> ! {
     println!("faelight-vm -- snapshot/rollback for the proving ground (INT-027)
 
@@ -277,6 +390,10 @@ fn usage() -> ! {
   vm rollback <tag>     restore a snapshot (auto-snapshots current state first)
   vm snapshots          list snapshots
   vm delete <tag>       delete a snapshot
+  vm procs              list EVERY process this VM spawned (qemu, swtpm, launcher) + who
+                        holds the launch lock -- scoped by state dir, not by process name
+  vm kill               stop them ALL (qemu AND swtpm AND wrapper)
+  vm unlock             clear an ORPHANED lock (refuses if a live process holds it)
   vm wait-ready         block until the GUEST's sshd answers (reads the SSH banner --
                         the port alone is a lie: qemu binds it before the guest boots)
                         [--port N] [--timeout N] [--quiet]
@@ -305,6 +422,9 @@ fn main() {
                 .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(120);
             cmd_wait_ready(port, timeout, rest.contains(&"--quiet"));
         }
+        ["procs"] => cmd_procs(),
+        ["kill"] => cmd_kill(),
+        ["unlock"] => cmd_unlock(),
         ["prune", rest @ ..] => {
             let all = rest.contains(&"--all");
             let dry = rest.contains(&"--dry-run");
