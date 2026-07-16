@@ -36,6 +36,16 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       craneLib = crane.mkLib pkgs;
+
+      # INT-112: the RISK.toml gate. A LET BINDING, not an outputs member -- Nix attrsets are
+      # not recursive, so a hook defined in outputs cannot see a name defined beside it.
+      # The script is a real file (nix/lib/risk-gate.sh) rather than a string inside a string:
+      # shell escapes and Nix antiquotation do not mix.
+      riskGate = pkgs.writeShellApplication {
+        name = "risk-gate";
+        runtimeInputs = [ pkgs.gnugrep pkgs.coreutils pkgs.nix ];
+        text = builtins.readFile ./nix/lib/risk-gate.sh;
+      };
       # INT-027 (2026-07-15): src = ./. meant ANY repo change -- including a MARKDOWN
       # file -- churned the faelight-forest hash and forced a full ~170s workspace
       # rebuild. PROVEN: appending one blank line to faelight/rust-tools/README.md moved
@@ -283,6 +293,17 @@
           hooks = {
             rustfmt.enable = true;      # sandboxed, reproducible, unskippable
             ripsecrets.enable = true;   # secret scan (overlaps gitleaks) -- sandboxed
+
+            # INT-112 gate 3: structure stops merely COMMUNICATING risk and starts ENFORCING
+            # it. Reads RISK.toml; only critical-tier dirs cost anything.
+            risk-gate = {
+              enable = true;
+              name = "risk-gate";
+              description = "INT-112: critical-tier dirs must pass their required checks";
+              entry = "${riskGate}/bin/risk-gate";
+              pass_filenames = true;
+              stages = [ "pre-commit" ];
+            };
           };
         };
       };
