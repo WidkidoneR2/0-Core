@@ -7,14 +7,20 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/desktop/mango.nix
-    # INT-059: the VM is the PROVING GROUND -- lanzaboote lands HERE first. Metal
-    # (nix/hosts/framework16) stays on plain systemd-boot until a deliberate lockout
-    # has been rehearsed AND recovered in here.
+    ../../modules/desktop/greetd.nix  # INT-061 Phase 2: SafeShell + (for login-mirror) tuigreet
+    # INT-059: the VM was the PROVING GROUND and it did its job -- lanzaboote landed here
+    # first, was rehearsed twice, and INT-161 took it to metal on 2026-07-16. framework16
+    # now runs lanzaboote with custom keys and Secure Boot enforcing (commit f0d0a08e).
+    # The old text here said metal "stays on plain systemd-boot until a deliberate lockout
+    # has been rehearsed AND recovered in here" -- that rehearsal happened (INT-160 gate 7,
+    # rescue USB, on real hardware) and metal followed. Kept as the proving ground for the
+    # next boot-chain change.
     inputs.lanzaboote.nixosModules.lanzaboote
   ];
 
   # INT-059: lanzaboote REPLACES the systemd-boot module, so systemd-boot must be forced off
-  # here. framework16 keeps systemd-boot.enable = true -- metal is untouched.
+  # here. (framework16 now does the same -- INT-161, 2026-07-16. The old comment claiming
+  # "framework16 keeps systemd-boot.enable = true -- metal is untouched" is no longer true.)
   boot.loader.systemd-boot.enable = lib.mkForce false;
   boot.lanzaboote = {
     enable = true;
@@ -167,17 +173,10 @@
     Type=Application
   '';
 
-  # INT-056 Phase 2: SafeShell fallback session -- the anti-lockout safety net.
-  # A bare fsh login on the VT, NO compositor/Wayland. If every compositor
-  # session fails to launch (bad GPU lib, broken config), the greeter still
-  # offers "Shell" -> a working login shell to repair the system from.
-  # Tested VM-first per 056's Rule before it graduates to metal.
-  environment.etc."greetd/sessions/safeshell.desktop".text = ''
-    [Desktop Entry]
-    Name=SafeShell
-    Exec=fsh
-    Type=Application
-  '';
+  # INT-056 Phase 2 SafeShell: now from modules/desktop/greetd.nix (safeShell, default true).
+  # It graduated to metal and the metal copy was byte-identical -- so it is one definition
+  # now, imported by both, rather than two that happened to agree. Both VM login variants
+  # (mirror + regreet) get the net, since this import is in base.
 
   systemd.tmpfiles.rules = [
     # Create the 0-core path chain christian-owned so fsh can create state.db.

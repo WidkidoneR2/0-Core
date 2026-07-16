@@ -5,6 +5,7 @@
     ../../modules/desktop/pinnacle.nix
     ../../modules/desktop/mango.nix
     ../../modules/desktop/miracle.nix
+    ../../modules/desktop/greetd.nix           # INT-061 Phase 2
     inputs.lanzaboote.nixosModules.lanzaboote  # INT-161
   ];
 
@@ -118,29 +119,16 @@
 
   services.mullvad-vpn.enable = true;
 
-  # greetd -- display manager with session picker
-  services.greetd = {
-    enable = true;
-    settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember-session --sessions /etc/greetd/sessions --greeting \"Welcome to Faelight Forest\" --theme 'border=green;title=lightgreen;greet=lightgreen;text=lightcyan;time=lightgreen;prompt=lightcyan;input=lightgreen;action=lightyellow;button=white;container=black' --cmd mango";
-      user = "greeter";
-    };
-  };
+  # greetd -- display manager with session picker. INT-061 Phase 2: the service, the
+  # tuigreet command and the SafeShell entry now live in modules/desktop/greetd.nix so
+  # metal and the VM cannot drift. They already had: this host said button=white while
+  # hosts/vm/login-mirror.nix -- which called itself an "exact replica" -- said
+  # button=lightmagenta. Metal's value won; both now read it from one place.
+  faelight.desktop.greetd.enable = true;
 
-  # INT-056: SafeShell rescue session -- the anti-lockout safety net.
-  # A bare fsh login on the VT, NO compositor/Wayland. If every compositor
-  # session (mango/pinnacle/miracle) fails to launch, the greeter still
-  # offers "SafeShell" -> a working login shell to repair the system from.
-  # Makes the 2026-06-09 24h-lockout structurally impossible to repeat.
-  # VM-proven (base.nix Phase 2: BadCompositor failed, SafeShell survived)
-  # before graduating here. Adds a session OPTION only -- default --cmd mango
-  # flow is unchanged.
-  environment.etc."greetd/sessions/safeshell.desktop".text = ''
-    [Desktop Entry]
-    Name=SafeShell
-    Exec=fsh
-    Type=Application
-  '';
+  # INT-056 SafeShell rescue session: now provided by modules/desktop/greetd.nix
+  # (faelight.desktop.greetd.safeShell, default true). Identical entry, one definition,
+  # shared with the VM instead of copied into it.
 
 
   services.openssh = {
