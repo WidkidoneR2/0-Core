@@ -126,3 +126,20 @@ environment. A silent wrong result is worse than a clean error.
 ## Reference
 INT-027 (complete) holds the full evidence: launcher analysis, the boot-chain proof, the zombie-swtpm
 hunt, and the source-filter perf fix. DEC-140 sets the boot-chain tiers this serves.
+
+## Followup (2026-07-15, after close): the serial log claim was OVERSTATED
+This intent's completion commit said "BONUS: -serial file: restores the boot log ... an INT-049
+prerequisite closed as a side effect." NOT TRUE AT CLOSE. -serial file: was only ever proven in a
+throwaway /tmp script; the vm script's QEMU_OPTS never had it, so vm.log stayed 0 bytes. Fixed in a
+followup commit, and recorded here rather than left as a false claim in a closed intent.
+NOW REAL: QEMU_OPTS carries -serial file:$STATE/vm-serial.log. TWO logs, on purpose:
+  vm.log        = qemu's own stdout/stderr -> "did qemu even start?" (0 bytes on a clean launch;
+                  this is where `unsupported machine type: "-machine"` surfaced)
+  vm-serial.log = the guest's console      -> "how far did the guest get?"
+Never point -serial at vm.log -- qemu truncates on open and the launch error is lost.
+PROVEN: bare `vm up` -> vm-serial.log 21,414 bytes, ending "Reached target Graphical Interface".
+ALSO FIXED, a live bug nobody had hit: cmd_gui ran `env QEMU_OPTS="$QOPTS"` -- REPLACING the base
+opts with SPICE flags only. Since the .ms firmware landed, `vm gui` would have launched Secure Boot
+firmware on i440fx with no SMM and hung before OVMF came up -- the exact hour-long failure of this
+session, lying in wait on a path nobody had run. Now appends: QEMU_OPTS="$QEMU_OPTS $QOPTS".
+NOT YET TESTED: `vm gui` itself. The clobber is fixed by inspection, not demonstrated.

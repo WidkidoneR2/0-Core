@@ -21,9 +21,18 @@ PORT=2222
 # leave a truncated value in the session env (a stray QEMU_OPTS="-machine" cost an hour on
 # 2026-07-15: it produced `-machine -machine q35,smm=on` and qemu died with
 # `unsupported machine type: "-machine"`). This script owns the value outright.
-export QEMU_OPTS="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on"
+# INT-159 followup: -serial file: gives the GUEST CONSOLE its own log. The serial log went from
+# 401 bytes to 0 when useEFIBoot landed (OVMF owns the console early; the handoff changed), and
+# boot-stage observability is exactly what INT-049's lifecycle work needs back. PROVEN 2026-07-15:
+# with -serial file:, a full boot logged 20,608 bytes through to "Reached target Graphical Interface".
+# TWO logs on purpose -- they answer different questions:
+#   vm.log        = qemu's own stdout/stderr  -> "did qemu even start?" (launch errors land here)
+#   vm-serial.log = the guest's console       -> "how far did the guest get?"
+# Never point -serial at vm.log: qemu truncates on open and you would lose the launch error.
+export QEMU_OPTS="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on -serial file:$STATE/vm-serial.log"
 GUEST_USER=christian
 LOG="$STATE/vm.log"
+SERIAL_LOG="$STATE/vm-serial.log"   # guest console (INT-159 followup)
 PIDFILE="$STATE/vm.pid"
 SPICE_SOCK="$STATE/spice.sock"
 LOCKFILE="$STATE/vm.lock"
@@ -195,7 +204,11 @@ cmd_gui(){
   # (a window stuck at boot) -- that GL scaffolding was INT-077 Gate-6
   # Pinnacle render work, which belongs to real hardware (INT-067), not here.
   local QOPTS="-vga qxl -spice unix=on,addr=$SPICE_SOCK,disable-ticketing=on -device virtio-serial-pci -chardev spicevmc,id=vdagent,name=vdagent -device virtserialport,chardev=vdagent,name=com.redhat.spice.0"
-  ( cd "$STATE" && exec setsid env QEMU_OPTS="$QOPTS" "$L" >"$LOG" 2>&1 </dev/null ) &
+  # INT-159 followup: APPEND to the base opts, do not replace them. This line used to set
+  # QEMU_OPTS="$QOPTS" (SPICE flags only), silently dropping -machine q35,smm=on -- so `vm gui`
+  # would launch the .ms Secure Boot firmware on i440fx with no SMM and hang before OVMF came up.
+  # Exactly the failure that cost an hour on 2026-07-15, lying in wait on a path nobody had run.
+  ( cd "$STATE" && exec setsid env QEMU_OPTS="$QEMU_OPTS $QOPTS" "$L" >"$LOG" 2>&1 </dev/null ) &
   echo $! >"$PIDFILE"
   local i
   for i in $(seq 1 30); do [ -S "$SPICE_SOCK" ] && break; sleep 1; done
