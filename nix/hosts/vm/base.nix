@@ -8,6 +8,7 @@
     ./hardware-configuration.nix
     ../../modules/desktop/mango.nix
     ../../modules/desktop/greetd.nix  # INT-061 Phase 2: SafeShell + (for login-mirror) tuigreet
+    ../../profiles/base.nix           # INT-061 LAYER 2
     # INT-059: the VM was the PROVING GROUND and it did its job -- lanzaboote landed here
     # first, was rehearsed twice, and INT-161 took it to metal on 2026-07-16. framework16
     # now runs lanzaboote with custom keys and Secure Boot enforcing (commit f0d0a08e).
@@ -36,16 +37,24 @@
   };
   boot.loader.efi.canTouchEfiVariables = true;
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  # INT-061 LAYER 2: experimental-features, auto-optimise-store, max-jobs and cores now come
+  # from profiles/base.nix -- they were byte-identical here and in framework16.
 
-  # Build performance + storage: parallel builds use all threads;
-  # auto-optimise-store hardlinks identical store paths to reclaim disk.
-  nix.settings.auto-optimise-store = true;
-  nix.settings.max-jobs = "auto";
-  nix.settings.cores = 0;
-
-  # INT-043 Phase 4: Cachix binary cache (pull side) in the GUEST, mirroring
-  # hosts/framework16. Additive -- keeps cache.nixos.org default.
+  # INT-043 Phase 4: Cachix binary cache (pull side) in the GUEST. Additive -- keeps
+  # cache.nixos.org default.
+  #
+  # STALE AND ACTIVELY USELESS -- found 2026-07-16. This block used to claim it was
+  # "mirroring hosts/framework16". IT IS NOT. framework16 left Cachix for a self-hosted
+  # Attic on 2026-07-07, and hosts/framework16/configuration.nix:38 records exactly why:
+  # Cachix's "multi-tenant content-dedup refused to serve our crane paths (proven
+  # 2026-07-07)". So this VM asks a cache that was MEASURED not to serve this repo's paths.
+  # It gets nothing, and every VM build pays for it.
+  # NOT FIXED HERE, because the fix is not a copy-paste: framework16 points at
+  # 127.0.0.1:8080, and 127.0.0.1 inside the VM means the VM, not the host. Under QEMU user
+  # networking the host is 10.0.2.2 -- untested, so it gets its own intent instead of a
+  # guess. THIRD "mirrors framework16" comment found false in one evening: the others were
+  # vm/login-mirror.nix ("exact replica" of a tuigreet theme that had drifted) and
+  # vm/base.nix:11 ("metal stays on plain systemd-boot").
   nix.settings.extra-substituters = [ "https://faelight-forest.cachix.org" ];
   nix.settings.extra-trusted-public-keys = [
     "faelight-forest.cachix.org-1:IFKABeIAWapKtYNrjD/f3hIFBAUrsQcxA/m1pheT2yM="

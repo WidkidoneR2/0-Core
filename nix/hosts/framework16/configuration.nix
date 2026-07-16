@@ -6,6 +6,7 @@
     ../../modules/desktop/mango.nix
     ../../modules/desktop/miracle.nix
     ../../modules/desktop/greetd.nix           # INT-061 Phase 2
+    ../../profiles/base.nix                    # INT-061 LAYER 2
     inputs.lanzaboote.nixosModules.lanzaboote  # INT-161
   ];
 
@@ -28,13 +29,8 @@
   # would silently go from 15 entries on the ESP to all 110 generations, and /boot is 4G.
   boot.loader.efi.canTouchEfiVariables = true;
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
-  # Build performance + storage (2026-06-24): parallel builds use all 16 threads;
-  # auto-optimise-store hardlinks identical store paths to reclaim disk.
-  nix.settings.auto-optimise-store = true;
-  nix.settings.max-jobs = "auto";
-  nix.settings.cores = 0;
+  # INT-061 LAYER 2: experimental-features, auto-optimise-store, max-jobs and cores moved to
+  # profiles/base.nix -- they were byte-identical here and in vm/base.nix.
 
   # INT-043: Attic self-hosted binary cache (pull side). Additive -- keeps
   # cache.nixos.org default (Attic priority 41 vs nixos.org 40, so nixos.org is
