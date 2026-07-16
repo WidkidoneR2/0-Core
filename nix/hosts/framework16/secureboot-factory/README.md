@@ -20,13 +20,34 @@ media.
                    Matches the firmware menu's "Enroll PK signature list: [PKCS7]
                    framework-laptopAMDPK". Step 0 ("Erase all secure boot settings") destroys this.
     KEK.esl  2.8k  Key Exchange Keys -- authorise db changes.
-    db.esl   7.4k  Signature database. THREE certs, decoded 2026-07-16:
-                     Microsoft Windows Production PCA 2011    expires Oct 19 2026
-                     Microsoft Corporation UEFI CA 2011       EXPIRED Jun 27 2026
-                     frame.work-LaptopAMDDB                   expires Oct 14 2120
-                   This is why --firmware-builtin was the wrong flag: it enrols FROM dbDefault, so it
-                   would have pulled both Microsoft CAs back in. INT-161 uses --custom with only the
-                   frame.work-LaptopAMDDB cert.
+    db.esl   7.4k  Signature database. FIVE certs, decoded 2026-07-16:
+                     [0] Microsoft Windows Production PCA 2011      expires Oct 19 2026
+                     [1] Microsoft Corporation UEFI CA 2011         EXPIRED Jun 27 2026
+                     [2] frame.work-LaptopAMDDB                     expires Oct 14 2120
+                     [3] Microsoft UEFI CA 2023                     expires Jun 13 2038
+                     [4] Microsoft Option ROM UEFI CA 2023          expires Oct 26 2038
+                   (An earlier version of this file said THREE. That was wrong -- it described
+                   dbDefault while claiming to describe db.esl. They are different variables.)
+
+## db vs dbDefault -- they are NOT the same, and the difference decided the flag
+
+    dbDefault  = the FACTORY default set. THREE certs: the two 2011 Microsoft CAs + frame.work-
+                 LaptopAMDDB. Frozen at manufacture.
+    db         = what is ACTUALLY ENROLLED right now. FIVE certs: those three PLUS Microsoft UEFI CA
+                 2023 and Microsoft Option ROM UEFI CA 2023.
+
+Framework pushed the 2023 CAs into db via a firmware update. dbDefault was never updated.
+
+THIS IS WHY --firmware-builtin WOULD HAVE BEEN A DOWNGRADE, not just a compromise. It enrols FROM
+dbDefault, so it would have given us both 2011 Microsoft CAs (one already expired) and DROPPED both
+2023 replacements. Worse than the machine's current state.
+
+INT-161 uses --custom with only the frame.work-LaptopAMDDB cert. All four Microsoft certs go.
+
+Cert [4], "Microsoft Option ROM UEFI CA 2023", is the OpROM signer. Framework ships it -- but PCR 2
+is EMPTY on this machine (measured, zero EV_EFI_BOOT_SERVICES_DRIVER events), so nothing is being
+validated against it. The cert list and the TPM eventlog agree: no option ROM enters this boot
+chain.
 
     No dbx.esl -- the revocation list is EMPTY on this machine. Not an omission.
 
