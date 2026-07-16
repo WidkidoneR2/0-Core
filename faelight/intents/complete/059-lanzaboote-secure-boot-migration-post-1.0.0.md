@@ -3,7 +3,7 @@ id: 059
 date: 2026-06-13
 type: study
 title: Lanzaboote Secure Boot migration post-1.0.0
-status: in-progress
+status: complete
 tags: [study, research, learning]
 version: TBD
 ---
@@ -113,17 +113,124 @@ first boot, minutes after the build. Every fresh overlay makes its own keys.
 - [x] VM: keys created + enrolled in setup mode; guest reports `Secure Boot: enabled (user)` <!-- evidence: 2026-07-15, VM. generate-sb-keys.service fired on FIRST GUEST BOOT (not image build) -- 'Created Owner UUID ef01e822-...', full PK/KEK/db in /var/lib/sbctl. Then `sbctl enroll-keys --microsoft` -> 'Enrolled keys to the EFI variables!' -> sbctl status: Setup Mode DISABLED, Vendor Keys microsoft. sbctl REFUSED the bare enroll-keys first: 'Found OptionROM in the bootchain' -- the tool working as designed. --microsoft chosen: the standard path and the likely metal choice; COST RECORDED: Microsoft's CA now sits in db, so MS-signed binaries can boot this machine -- a real widening of the trust root, in tension with 'nothing runs without explicit human authorization'. --tpm-eventlog (trust ROM checksums, not a CA) is closer to our values but sbctl marks it experimental -->
 - [x] VM: the guest BOOTS with Secure Boot enforcing, through the signed UKI <!-- evidence: 2026-07-15, VM. full down/up cycle after enrollment -> 'guest is UP after 14s' -> bootctl: 'Secure Boot: enabled (user)'. Current Entry: nixos-generation-1-5e4nienm...efi -- a SIGNED UKI, not a BLS .conf. sbctl verify: BOOTX64.EFI, the UKI, and systemd-bootx64.efi all signed. The raw kernel-6.18.35-*.efi stays UNSIGNED BY DESIGN -- lanzaboote embeds the initrd hash in the signed UKI and validates from there; upstream docs say kernel- files are expected unsigned -->
 - [x] VM: `Measured UKI: yes` (TPM2 measurement live, not just present) <!-- evidence: 2026-07-15, VM. guest bootctl reports 'TPM2 Support: yes' AND 'Measured UKI: yes'. NOTE: measurement went live while the UKI was still UNSIGNED -- Measured Boot and Secure Boot are separate mechanisms, and the TPM measures whatever boots, signed or not -->
-- [ ] VM: DELIBERATE LOCKOUT -- break the signature on purpose and watch the firmware REFUSE.
-      Record exactly what the failure looks like (that is the thing you must recognize on metal)
-- [ ] VM: recover from the lockout. NOTE: `vm rollback` is the SAFETY NET, not the gate -- the gate
-      is recovering the way you would on metal (boot media -> re-enroll or disable SB). Open
-      question: the VM has no ISO/boot-media path wired, and no LUKS, so it cannot mirror the
-      Forest Recovery Protocol exactly. Decide what CAN be rehearsed before claiming this.
-- [ ] VM: `vm rollback` restores a working VM after the lockout (proves the net itself)
-- [ ] Decision recorded: go/no-go for metal, with the key-clearing step understood
-- [ ] Metal prerequisites documented BEFORE any metal work: BIOS/supervisor password set (Secure
-      Boot is hollow without one), --firmware-builtin for Framework, key backup off-machine,
-      recovery USB present and tested
+- [x] VM: DELIBERATE LOCKOUT -- the firmware REFUSED, and the failure looks nothing like one
+<!-- evidence: 2026-07-15. Overwrote the signed /boot/EFI/BOOT/BOOTX64.EFI with an UNSIGNED
+systemd-bootx64.efi from the store (the realistic metal failure: an unsigned artifact reaches the
+ESP while the firmware enforces). sbctl verify caught it BEFORE the reboot: "x BOOTX64.EFI is not
+signed". Then vm down; vm up -> the guest never reached sshd, 120s timeout. vm-serial.log, 308
+bytes, ALL of it:
+    BdsDxe: failed to load Boot0002 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x6,0x0): Not Found
+    BdsDxe: No bootable option or device was found.
+    BdsDxe: Press any key to enter the Boot Manager Menu.
+THE FINDING, AND IT IS THE POINT OF THIS GATE: the message NEVER MENTIONS SECURE BOOT. No "Security
+Violation", no "Access Denied", no signature warning. Just "Not Found" and "No bootable option or
+device". On metal at 2am you would conclude your SSD had died and go hunting for a disk failure.
+The cause is one unsigned file the firmware silently refused. 308 bytes that will save an hour.
+ALSO: the firmware did NOT fall back to /EFI/systemd/systemd-bootx64.efi even though it was still
+present and still signed. It refused BOOTX64.EFI and stopped. One bad file, dead machine.
+ALSO: this was only readable because -serial file: was wired an hour earlier (INT-159 followup).
+Without it the console goes nowhere and the failure is invisible. -->
+- [x] VM: RECOVERED from the lockout the metal way -- from OUTSIDE, without `vm rollback`
+<!-- evidence: 2026-07-15. The open question resolved: with no ISO wired, the HOST plays the role a
+rescue USB plays on metal. qemu-nbd attaches the qcow2 as a block device; from there it IS the
+rescue-USB view.
+  sudo modprobe nbd max_part=8
+  sudo qemu-nbd --connect=/dev/nbd0 <the qcow2>      -> nbd0p1 249M (ESP), nbd0p2 16.5G (root)
+  sudo fsck.vfat -a -w /dev/nbd0p1
+  sudo mount /dev/nbd0p1 /mnt/vm-esp
+  restore BOOTX64.EFI from the backup; sync; umount THEN disconnect
+  vm up -> guest is UP (16s)
+THE LAYOUT IS THE METAL LAYOUT: ESP + root, and the ESP is plain vfat.
+FINDING FOR INT-056's RUNBOOK: a Secure Boot lockout needs NO LUKS UNLOCK. The ESP cannot be
+encrypted -- firmware reads it before any OS exists. So recovery is: mount one vfat partition,
+restore one file, reboot. No passphrase, no nixos-enter, no subvolume mounts. The runbook's Level 3
+was written for "cannot get INTO the system"; this is "cannot get OUT of the firmware" -- a
+different problem with a much shorter fix.
+UNPLANNED, AND WORTH MORE THAN THE PLAN: the first restore failed. fsck said "File size is 156336
+bytes, cluster chain length is 0 bytes" and "Fs was not properly unmounted". The guest wrote the
+file over ssh; `vm down` then SIGTERMed qemu -- a power-cord yank -- and the dirty page cache died
+with it. The directory entry landed, the data blocks never did: a file that exists and cannot be
+read, which also forced the ESP read-only (errors=remount-ro). fsck.vfat was the only way in. That
+is what a real rescue looks like, and it is why dosfstools is on INT-160's tool list.
+BUG FOUND IN OUR OWN TOOLING: `vm down` SIGTERMs qemu and LOSES UNSYNCED GUEST WRITES. For a
+proving ground where you edit files inside the guest, that is a real defect -- it should ACPI
+powerdown first and kill only as fallback. Worth its own intent.
+LIMIT NAMED HONESTLY: this rehearses the ESP-repair path, NOT the full Forest Recovery Protocol
+(no LUKS in the VM), and NOT booting rescue media under enforcement -- which INT-160 shows is
+impossible anyway (NixOS ISOs are unsigned; SB must be disabled first). -->
+- [x] VM: `vm rollback` restores a working VM after the lockout -- THE NET IS REAL
+<!-- evidence: 2026-07-15. Broke it again deliberately (this time WITH a sync, so the corruption was
+real rather than the phantom truncation above), confirmed dead, then `vm rollback lanza-sb-enforcing`.
+THREE checks, each testing a different claim -- "it booted" alone would have been a lie:
+1. guest is UP in 16s                          -> the disk reverted to something bootable
+2. BOOTX64.EFI.signed-backup is GONE           -> the disk REALLY reverted. That file was created at
+   21:13, AFTER the snapshot; if it survived, the rollback was cosmetic.
+3. bootctl: `Secure Boot: enabled (user)`      -> THE EFI VARS ROLLED BACK TOO.
+Check 3 is the one that mattered: INT-027 claimed since day one that `vm snapshot` moves the OVMF
+vars .fd with the qcow2, and it had NEVER been tested. If the vars had not reverted we would have a
+pre-enrollment disk under firmware that still held keys -- a mismatch that surfaces exactly when
+you are already panicking.
+BONUS: rollback AUTO-SNAPSHOTTED first ('auto-pre-rollback-1784169337') and printed the undo
+command. It protects you from the rollback itself, unasked. -->
+- [x] Decision recorded: GO for metal -- but as a SEPARATE intent, blocked on INT-160
+<!-- evidence: 2026-07-15. This intent is `type: study`. Its OWN decision criteria were: "VM
+rehearsal passes incl. recovery; Lanzaboote >= 1.0 or judged stable enough; key-management approach
+chosen." ALL THREE NOW MET -- so it closes with a DECISION and PROMOTES to a feature intent, which
+is what the ledger's design says to do. It does not stretch across a hardware change.
+DECISION: GO. Adopt Lanzaboote on framework16. Odds, as judgment not calculation: ~85% first try,
+~97% recoverable, ~1% brick, WITH the prereqs in gate 9 -- without them the middle number collapses.
+FOR: mechanism proven end to end tonight (enroll -> sign -> enforce -> boot); v1.0.0 is a stable
+release, not a spike; Framework+NixOS+Lanzaboote is a trodden path; every prereq passes (UEFI 2.90,
+systemd-boot 260.1, TPM2 yes, bootspec on); and we have SEEN the failure screen -- `BdsDxe: No
+bootable option or device was found` reads like a dead SSD and would have cost an hour of chasing
+hardware.
+AGAINST: option ROMs on OUR hardware were the one thing the VM structurally could not test; the
+INSYDE key-clearing step is unrehearsed and unrehearsable; Framework firmware updates can disturb
+SB state afterward.
+KEY CLEARING UNDERSTOOD: metal is SetupMode=0 (user mode, PK enrolled). Reaching setup mode needs
+"Restore Secure Boot to Factory Settings" / erase Platform Keys in the INSYDE menu -- physical,
+manual, at the keyboard. Then enroll. This step never happens in the VM (already setup mode). -->
+
+- [x] KEY-MANAGEMENT APPROACH CHOSEN (the third study criterion): sbctl-managed local PKI at
+      /var/lib/sbctl, enrolled with --microsoft
+<!-- evidence: MEASURED on the host, 2026-07-15 (lspci is not installed; read sysfs directly):
+  0000:03:00.0  VGA controller  vendor 0x1002 (AMD)  device 0x7480  driver amdgpu
+                rom size: 131072 bytes   <- a 128KB PCI OPTION ROM, present
+  0000:c4:00.0  VGA controller  vendor 0x1002 (AMD)  driver amdgpu  (no rom)
+The NixOS wiki warns that removing OEM keys "may brick some devices which use Microsoft-signed
+OpROMS ... It may be impossible to fix if, for example, the GPU relies on these OpROMS." We have a
+GPU with an option ROM. So --microsoft is NON-NEGOTIABLE on metal -- not a preference, the
+difference between a laptop and a brick.
+THE COST, STATED PLAINLY: Microsoft's CA sits in db, so anything MS-signed can boot this machine.
+That is a real widening of the trust root and it is in tension with "Nothing runs without explicit
+human authorization." We are choosing recoverability over purity, deliberately, and recording it.
+--tpm-eventlog (trust ROM checksums, not a CA) is closer to our values; sbctl marks it experimental.
+Revisit if it stabilises.
+NOTE: the intent's older Framework note says use --firmware-builtin. UNRESOLVED which is correct for
+this machine -- --firmware-builtin enrolls what the firmware itself names as default-db, which may
+be the better answer. Resolve BEFORE metal, not during. -->
+- [x] Metal prerequisites DOCUMENTED (this gate is to document them; doing them is the next intent)
+<!-- evidence: 2026-07-15. The checklist metal day must satisfy before touching the ESP:
+1. BIOS/SUPERVISOR PASSWORD -- mandatory. Upstream: "There must be a BIOS password or a similar
+   restriction that prevents unauthorized changes to the Secure Boot policy." Without one an
+   attacker just switches Secure Boot off and the entire effort is decoration.
+   AND THE TRAP (INT-160): that same password is what WE need to reach the menu that disables
+   Secure Boot to boot a rescue USB. LOSE IT WHILE LOCKED OUT AND THERE IS NO PATH BACK. It must
+   live somewhere that survives the laptop being unbootable -- not in a password manager on it.
+2. RESCUE USB -- INT-160. And know its limit: a stock NixOS ISO will NOT boot under Secure Boot
+   enforcement (media unsigned, no shim). The USB is not the escape hatch; the FIRMWARE MENU is.
+   Recovery = firmware -> disable SB -> boot USB -> fix -> re-enable.
+3. BACK UP THE CURRENT EFI VARS, OFF-MACHINE, BEFORE ERASING ANYTHING:
+   `for var in PK KEK db dbx; do efi-readvar -v $var -o old_${var}.esl; done`
+   We are about to erase Framework/Insyde's PK. Keep a copy.
+4. BACK UP /var/lib/sbctl OFF-MACHINE. Lose those keys and no new generation can ever be signed --
+   every rebuild produces an unbootable system. This is the quiet one that bites months later.
+5. RESOLVE --firmware-builtin vs --microsoft for THIS machine (see gate above). Research, not
+   experiment.
+6. The ESP already satisfies lanzaboote's umask=0077 requirement: /dev/nvme0n1p1 is mounted
+   fmask=0077,dmask=0077 by disko. Verified 2026-07-15.
+7. Recognise the failure: `BdsDxe: failed to load Boot0002 ... Not Found` / "No bootable option or
+   device was found". It does NOT mention Secure Boot. It looks like a dead disk. It is not. -->
 
 ## VM PROVING GROUND + 078 OVERLAP (2026-07-13)
 The MANDATORY VM-rehearsal gate above now points at the CONCRETE tool: the forest-native
