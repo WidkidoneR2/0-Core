@@ -3,7 +3,7 @@ id: 158
 date: 2026-07-13
 type: future
 title: "Evidence-backed gates: formalize the gate-evidence convention already used in strong intents (133-style <!-- evidence: commit/file/log --> after each [x]) into a consistent, light standard. Convention not rebuild."
-status: planned
+status: complete
 tags: [intent-system, gates, evidence, ledger, convention, discipline]
 ---
 
@@ -52,13 +52,54 @@ grows a tooling ambition (e.g. cicomplete prompting "evidence for each gate?"), 
 SEPARATE, later decision -- keep THIS intent to the convention only.
 
 ## Success criteria
-- [ ] the evidence convention is written down in a durable, discoverable place (docs/templates/
+- [x] the evidence convention is written down in a durable, discoverable place (docs/templates/
       a CONVENTIONS note) -- format: gate + `<!-- evidence: commit/file/log/demonstrated -->`
-- [ ] new intents completed after this adopt the convention (spot-check a few closes carry
+<!-- evidence: BOTH places named in this gate, 2026-07-16.
+     1. docs/CONVENTIONS.md -- new file. The WHY: the format, the three limits, the exemplars,
+        and the measured cost of not doing it (the 2026-07-16 audit).
+     2. THE TEMPLATE ITSELF -- faelight/engine/src/domains/intent/mod.rs:1633. This is the part
+        that matters. A CONVENTIONS.md is durable but nobody opens it; the template is where you
+        are standing EVERY time you file an intent. The convention now propagates BY
+        CONSTRUCTION rather than by memory -- the same principle that made greetd a real mirror
+        the same evening (INT-061 Phase 2): one definition, imported, instead of copies
+        maintained by vigilance.
+     A note on scope: this intent fences out "rebuilding inta/cistart/cicomplete tooling: it
+     WORKS." Editing a template STRING is not rebuilding the ledger engine. The template IS
+     documentation that happens to live in Rust. -->
+- [x] new intents completed after this adopt the convention (spot-check a few closes carry
       evidence pointers)
-- [ ] the convention explicitly states: forward-only (no retrofit), soft (not enforced), light
+<!-- evidence: this gate was ALREADY SATISFIED before the convention was written, which is why
+     158 is formalization and not invention. Every intent closed on 2026-07-16 carries evidence
+     blocks naming commits, file:line, or command output:
+       INT-160  7/7  rescue USB -- gate 7 walked on real hardware, rollback landed 378->377
+       INT-161  9/9  Secure Boot -- bootctl status, efivar reads, sbctl output, commit f0d0a08e
+       INT-112  6/6  RISK.toml -- risk-gate run BOTH directions by eye, commits b7342957/c97d40f7
+       INT-061       every phase -- store-path comparisons proving the deploy was a no-op
+     Fifteen hours of dogfooding before the rule existed. -->
+- [x] the convention explicitly states: forward-only (no retrofit), soft (not enforced), light
       (trivial gates exempt)
-- [ ] this intent's OWN gates carry evidence (dogfood the convention on itself)
+<!-- evidence: all three appear in BOTH docs/CONVENTIONS.md ("The three limits") and the
+     template comment at mod.rs:1633, verbatim:
+       FORWARD-ONLY (never retrofit old intents -- busywork, no payoff)
+       SOFT (a discipline, not gate-police; nothing enforces this)
+       LIGHT (trivial self-evident gates need no artifact)
+     Deliberately NOT built: a validator that rejects an evidence-less gate. The tooling to do it
+     exists as of today -- INT-119 repaired the pre-commit hook (d9b9b4d7) and INT-112 shipped a
+     working RISK.toml gate (c97d40f7), so a "gate [x] with no evidence" check is buildable in an
+     hour. This intent says SOFT, and enforcement would contradict its own scope. If it ever
+     grows a tooling ambition, that is a SEPARATE decision -- as this intent's Sequencing section
+     already says. -->
+- [x] this intent's OWN gates carry evidence (dogfood the convention on itself)
+<!-- evidence: demonstrated -- you are reading it. Four gates, four receipts, each naming a file,
+     a commit, or a command output.
+     And the template was proven by RUNNING it, not by reading the diff: after `dep` (gen 386),
+     `core intent new future study` created INT-167 and the file was BORN carrying the evidence
+     convention in its Success Criteria section. Then deleted -- it existed only to prove the
+     deployed binary does what the source claims.
+     That distinction is the whole intent. INT-110's checklist warns about exactly this: "the
+     command runs the Nix-DEPLOYED binary, not target/debug. A cargo build alone shows green
+     while the live command still fails." A gate you have only watched pass might be doing
+     nothing. -->
 
 ## Relationship
 - Origin: Christian's "Evidence section" idea (2026-07-13 brainstorm) -- recon revealed the

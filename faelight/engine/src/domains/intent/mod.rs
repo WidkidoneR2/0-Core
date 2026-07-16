@@ -1630,7 +1630,15 @@ pub fn create(
 ## Vision\n[Describe the goal and desired outcome]\n\n\
 ## The Problem\n[What problem does this solve?]\n\n\
 ## The Solution\n[High-level approach]\n\n\
-## Success Criteria\n- [ ] ...\n",
+## Success Criteria\n- [ ] ...\n\n\
+<!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.\n\
+     When you tick a gate, put the proof in an HTML comment on the line after it: a commit\n\
+     hash, a file:line, a log or artifact path, or \"demonstrated: what + how\". Prose counts.\n\
+     FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).\n\
+     SOFT (a discipline, not gate-police; nothing enforces this).\n\
+     LIGHT (trivial self-evident gates need no artifact).\n\
+     Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.\n\
+     See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->\n",
         id, date, type_tag, title, status, tags_str
     );
 
