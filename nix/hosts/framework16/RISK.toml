@@ -16,3 +16,19 @@ There is NO supervisor password on this firmware, so the menu is always reachabl
 
 [history]
 lockout = "2026-06-09 -- 24 hours locked out by a greetd change. The reason every rule here exists."
+
+# ---------------------------------------------------------------------------
+# The tier legend (INT-112). Four levels, and only ONE of them costs anything.
+#
+#   critical  A mistake can leave a machine that will not boot or will not log in.
+#             `requires` runs before the commit lands. TWO dirs qualify: this one,
+#             and nix/modules/desktop/ (greetd.nix).
+#   system    A mistake degrades the machine -- slower builds, a lost test surface --
+#             but it still boots and you still get in. No hook cost.
+#   user      A mistake costs a tool or a prompt. Move fast. No hook cost.
+#   data      Nothing reads it at boot. No hook cost.
+#
+# A tier that contains everything is not a tier. Enforcement is rare so that it stays
+# real: a gate that fires on every commit is a gate people route around with
+# --no-verify, and that is precisely how INT-113 and INT-119 both died.
+# ---------------------------------------------------------------------------
