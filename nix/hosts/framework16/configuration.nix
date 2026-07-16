@@ -165,6 +165,11 @@
     pkgs.rustc
     inputs.attic.packages.${system}.attic-client  # INT-043: attic CLI (replaced pkgs.cachix)
     pkgs.virt-viewer  # INT-077: SPICE client (remote-viewer) for `vm gui`
+    pkgs.sbctl  # INT-161: Secure Boot key management. Lanzaboote's own docs list this
+                # ("For debugging and troubleshooting Secure Boot"). NOT already present from 059 --
+                # that was the VM config. A locked-out machine cannot `nix shell nixpkgs#sbctl`
+                # without a network, and sbctl verify is the pre-reboot check that catches a lockout
+                # before it happens.
   ];
 
   faelight.desktop.pinnacle.enable = true;
