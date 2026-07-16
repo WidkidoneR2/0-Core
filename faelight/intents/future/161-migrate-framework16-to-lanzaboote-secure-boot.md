@@ -39,7 +39,7 @@ the prerequisites below. Read 059 before starting this -- especially its DIVERGE
    (059 proved from source: lanzaboote SHA-256s the kernel into a .linuxh PE section inside the
    SIGNED UKI, so the kernel needs no signature of its own; sbctl only looks for PE signature
    tables and cannot see it).
-4. sudo sbctl enroll-keys --firmware-builtin   (RESOLVED 2026-07-16 -- see below; --microsoft is the fallback)
+4. sudo sbctl enroll-keys --custom   (RESOLVED 2026-07-16 -- see below. NOT --microsoft, NOT --firmware-builtin)
 5. Reboot. Want: `Secure Boot: enabled (user)`, `Measured UKI: yes`.
 
 ## RESOLVED 2026-07-16: --firmware-builtin. NOT --microsoft. (This section was WRONG.)
@@ -81,15 +81,46 @@ WHAT --firmware-builtin ACTUALLY DOES -- DHowett again, and read the footnote:
 A Framework engineer wrote sbctl's --firmware-builtin. It enrols Framework's OWN certs -- the ones
 signing the firmware's UEFI binaries and fwupd -- without putting Microsoft's CA in db.
 
-THE DECISION: `sudo sbctl enroll-keys --firmware-builtin`
-We do NOT have to trade recoverability for purity. That trade was the premise of the old section and
-the premise was false. Framework's keys stay trusted (firmware binaries, fwupd); Microsoft's CA does
-not enter db; "Nothing runs without explicit human authorization" survives intact.
-VERIFY AFTER ENROLLING: `sbctl status` -> Vendor Keys should read the Framework certs ONCE.
-CachyOS reports --firmware-builtin producing DUPLICATE db entries on some ASUS/Gigabyte boards,
-which the firmware then rejects as a Secure Boot Violation. Not INSYDE, not reported on Framework --
-but check rather than assume, since checking is free and this whole section exists because someone
-did not.
+SECOND CORRECTION, same day: --firmware-builtin IS ALSO WRONG. We read the actual certificates
+instead of trusting the reasoning, and they say otherwise. dbDefault on THIS machine holds THREE:
+    mfg_cert-0  CN=Microsoft Windows Production PCA 2011    notAfter Oct 19 2026
+    mfg_cert-1  CN=Microsoft Corporation UEFI CA 2011       notAfter Jun 27 2026  <- ALREADY EXPIRED
+    mfg_cert-2  CN=frame.work-LaptopAMDDB                   notAfter Oct 14 2120
+Extracted with:
+    sudo dd if=/sys/firmware/efi/efivars/dbDefault-8be4df61-... of=/tmp/dbDefault.esl bs=1 skip=4
+    nix shell nixpkgs#efitools -c sig-list-to-certs /tmp/dbDefault.esl /tmp/mfg_cert
+    nix shell nixpkgs#openssl -c openssl x509 -in /tmp/mfg_cert-N.der -inform der -noout -subject -dates
+And sbctl agrees independently: `sbctl status` -> "Vendor Keys: microsoft builtin-db builtin-KEK
+builtin-PK".
+sbctl(8) on the flag: "-f, --firmware-builtin: Enroll signatures FROM dbDefault, KEKDefault or
+PKDefault." Framework's firmware-default db CONTAINS Microsoft. So --firmware-builtin would enroll
+BOTH Microsoft CAs *plus* Framework -- MORE Microsoft than --microsoft, not less. The exact opposite
+of the reason it was chosen.
+
+THE ACTUAL DECISION: `sudo sbctl enroll-keys --custom`
+sbctl(8): "-c, --custom: Enroll custom KEK and db certificates from /var/lib/sbctl/keys/custom/KEK/,
+/var/lib/sbctl/keys/custom/db/, respectively."
+So: place ONLY frame.work-LaptopAMDDB (already extracted to /tmp/mfg_cert-2.der) into
+/var/lib/sbctl/keys/custom/db/, then enroll --custom. Result: own PK/KEK/db + Framework's db cert.
+ZERO Microsoft. Framework's firmware binaries and fwupd stay trusted; the cert runs to 2120; nothing
+expired goes in; and with PCR 2 empty nothing needs Microsoft's CA anyway.
+This is EXACTLY what Framework 16 owner Quentin described running: "only my own keys (and the
+Framework frame.work-LaptopAMDDB key in db)".
+
+THE DRY RUN -- do this BEFORE enrolling for real (Christian's rule: all green, tested several times):
+    sbctl enroll-keys --custom --export esl
+sbctl(8): "--export: Export the keys we intend to enroll as EFI Signature Lists (esl), or EFI
+Authenticated Variables (auth) into the current working directory." UNRESOLVED: whether --export
+exports INSTEAD of enrolling or exports AND enrolls. READ THE SOURCE BEFORE RUNNING IT. (The machine
+is in user mode, so the firmware should reject a real enrollment anyway -- but "should" is not a
+plan.) Then decode the exported esl with sig-list-to-certs + openssl and confirm: own certs +
+frame.work-LaptopAMDDB, no Microsoft.
+
+VERIFY AFTER ENROLLING: `sbctl status` -> Vendor Keys should NOT say microsoft. CachyOS reports
+--firmware-builtin producing DUPLICATE db entries on some ASUS/Gigabyte boards, rejected by the
+firmware as a Secure Boot Violation. Not INSYDE, not reported on Framework, and we are not using
+that flag now -- but check rather than assume.
+FALLBACKS, in order: --firmware-builtin (Framework + Microsoft, still recoverable), then --microsoft.
 FALLBACK IF IT REFUSES: --microsoft still works and is still recoverable. It is the second choice
 now, not the only one.
 
@@ -107,9 +138,10 @@ machine. That is a real widening of the trust root and it is in tension with 0-C
 "Nothing runs without explicit human authorization." We are choosing RECOVERABILITY OVER PURITY,
 deliberately. --tpm-eventlog (trust ROM checksums rather than a CA) is philosophically closer;
 sbctl marks it experimental. Revisit if it stabilises.
-RESOLVED 2026-07-16 -- see the section above. 059's older Framework note was RIGHT and this
-section was wrong: --firmware-builtin is the answer for this machine, confirmed by measurement
-(PCR 2 empty) and by Framework owners running the same GPU module on custom keys only.
+RESOLVED 2026-07-16 -- see the section above. BOTH were wrong. The answer is --custom: own keys
+plus frame.work-LaptopAMDDB alone, because Framework's dbDefault CONTAINS Microsoft's CAs, so
+--firmware-builtin would enroll them too. Confirmed by measurement (PCR 2 empty) and by Framework
+owners running the same RX 7700S module on custom keys only.
 
 ## PREREQUISITES -- all of them, before touching the ESP
 1. BIOS/SUPERVISOR PASSWORD SET. Upstream is blunt: without one an attacker simply switches Secure
@@ -189,7 +221,7 @@ rescue USB that had never been built, let alone booted. It is now rehearsed on t
 the recovery leg of the odds is real rather than aspirational. The remaining risk lives in the
 gates below -- the unresolved --microsoft question and the five unmet prerequisites. -->
 - [x] --firmware-builtin vs --microsoft resolved by research for THIS hardware
-<!-- evidence: 2026-07-16. VERDICT: --firmware-builtin. Resolved by MEASUREMENT plus field evidence,
+<!-- evidence: 2026-07-16. VERDICT: --custom (own keys + frame.work-LaptopAMDDB only). Resolved by MEASUREMENT plus field evidence,
 not by argument -- see the RESOLVED section above for the full case.
 The short version: the TPM eventlog on this laptop has ZERO EV_EFI_BOOT_SERVICES_DRIVER events (the
 sbctl FAQ's own marker for option ROM in the bootchain), and all 47 undecoded events sit in PCR 0/1
