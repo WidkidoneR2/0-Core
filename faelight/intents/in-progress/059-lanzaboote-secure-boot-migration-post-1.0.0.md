@@ -3,7 +3,7 @@ id: 059
 date: 2026-06-13
 type: study
 title: Lanzaboote Secure Boot migration post-1.0.0
-status: planned
+status: in-progress
 tags: [study, research, learning]
 version: TBD
 ---
@@ -51,6 +51,46 @@ Recovery Protocol recovery — before bare metal.
 - nix-community/lanzaboote (docs/getting-started)
 - NixOS wiki: Lanzaboote, Secure Boot
 - Framework community: "secureboot setup mode" thread
+
+## STATE OF PLAY (2026-07-15) -- two corrections and the real gates
+CORRECTION 1: "migrate framework16 from GRUB to systemd-boot" is STALE. Hop 1 is ALREADY DONE.
+The host runs systemd-boot 260.1 today (verified: `bootctl status` -> "Current Boot Loader:
+Product: systemd-boot 260.1"; /boot/loader/entries/*.conf are BLS Type #1 entries, which GRUB does
+not use). This intent was written 2026-06-13; the migration happened since. Only hop 2 (Lanzaboote)
+and hop 3 (key enrollment) remain.
+
+CORRECTION 2: this intent had ZERO markdown gates -- prose only. Per INT-130, cicomplete enforces
+gates, so as written it could never close. Gates added below.
+
+METAL STATE, measured 2026-07-15 (efivars, ground truth):
+  SetupMode  = 0   <- PK IS ENROLLED. The firmware is in USER MODE, not setup mode.
+  SecureBoot = 0   <- Secure Boot is merely SWITCHED OFF, not absent.
+  Firmware: UEFI 2.90 (INSYDE Corp. 0.773)   TPM2 Support: YES (a real TPM -- measured boot is live)
+CONSEQUENCE: enrolling our own keys on metal REQUIRES first clearing the existing keys in the UEFI
+menu ("Restore Secure Boot to Factory Settings" / "Erase all Secure Boot Settings") to drop the
+firmware into setup mode. That is a PHYSICAL, at-the-keyboard, unscriptable step.
+GAP TO NAME HONESTLY: the VM is ALREADY in setup mode (no PK), so the rehearsal will NOT exercise
+the key-clearing step. The rehearsal proves enrollment, lockout, and recovery -- not that dance
+with the INSYDE menu.
+`sbctl` is NOT installed (nixpkgs has 0.18; it is not in systemPackages). Needed either way.
+
+## Gates
+- [ ] `sbctl` in systemPackages; Lanzaboote wired as a flake input, applied to the VM ONLY
+- [ ] VM: sbctl create-keys + enroll-keys succeed in setup mode; guest reports
+      `Secure Boot: enabled (user)` -- was `disabled (setup)`
+- [ ] VM: the guest BOOTS with Secure Boot enforcing, through the signed UKI
+- [ ] VM: `Measured UKI: yes` (TPM2 measurement live, not just present)
+- [ ] VM: DELIBERATE LOCKOUT -- break the signature on purpose and watch the firmware REFUSE.
+      Record exactly what the failure looks like (that is the thing you must recognize on metal)
+- [ ] VM: recover from the lockout. NOTE: `vm rollback` is the SAFETY NET, not the gate -- the gate
+      is recovering the way you would on metal (boot media -> re-enroll or disable SB). Open
+      question: the VM has no ISO/boot-media path wired, and no LUKS, so it cannot mirror the
+      Forest Recovery Protocol exactly. Decide what CAN be rehearsed before claiming this.
+- [ ] VM: `vm rollback` restores a working VM after the lockout (proves the net itself)
+- [ ] Decision recorded: go/no-go for metal, with the key-clearing step understood
+- [ ] Metal prerequisites documented BEFORE any metal work: BIOS/supervisor password set (Secure
+      Boot is hollow without one), --firmware-builtin for Framework, key backup off-machine,
+      recovery USB present and tested
 
 ## VM PROVING GROUND + 078 OVERLAP (2026-07-13)
 The MANDATORY VM-rehearsal gate above now points at the CONCRETE tool: the forest-native
