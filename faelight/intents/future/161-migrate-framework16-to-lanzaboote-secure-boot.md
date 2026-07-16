@@ -49,13 +49,23 @@ the prerequisites below. Read 059 before starting this -- especially its DIVERGE
    db is present; "locked" means changes require KEK authorization. Consistent with SetupMode=0 and
    with "Enroll PK signature list: [PKCS7] framework-laptopAMDPK". It should read differently after
    step 0.
-   UNRESOLVED AND IT DECIDES WHETHER STEP 0 IS EVEN POSSIBLE: the three options above read
-   "Disabled". Is that their VALUE (toggles currently off, selectable, changeable) or are they GREYED
-   OUT (unselectable)? If greyed, something gates the Secure Boot menu -- and "locked" would be why.
-   An INSYDE BIOS on other hardware gates Secure Boot config behind a supervisor password ("To
-   enable, set the Supervisor Password"); this intent declared that hypothesis dead on the grounds
-   that the options are visible, but VISIBLE IS NOT SELECTABLE. Settle it by trying to select one --
-   changing nothing -- before planning metal day around it.
+   ANSWERED 2026-07-16 by selecting it and changing nothing: "Erase all secure boot settings" IS
+   SELECTABLE and is a TOGGLE -- it offers Enable / Disable. Not greyed out. The
+   INSYDE-password-gating hypothesis is now dead on evidence rather than on reasoning: there is no
+   supervisor password on this firmware AND the Secure Boot options are selectable anyway.
+
+   STEP 0, FULLY SPECIFIED -- no unknowns left in it:
+       1. sudo systemctl reboot --firmware-setup
+       2. "Erase all secure boot settings" -> Enabled
+       3. Save & Exit
+       4. reboot
+       5. VERIFY, three ways, do not trust one:
+            efivars   -> SetupMode=1
+            sbctl status -> Setup Mode: Enabled | Vendor Keys: none
+            the menu  -> "Enroll PK signature list" no longer shows [PKCS7] framework-laptopAMDPK
+   NOT VERIFIED: whether the toggle self-clears after firing (common INSYDE behaviour) or stays
+   Enabled and re-fires every boot. Check it on the way past. If it stays on, turn it off before
+   enrolling -- an erase that repeats every boot would wipe our keys as fast as we enrol them.
    THERE IS NO SUPERVISOR PASSWORD OPTION. See PREREQUISITES -- this kills prereq 1 and changes the
    risk profile.
    "User customized security: No" is INSYDE's own state indicator; it should read Yes once our keys
