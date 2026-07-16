@@ -115,7 +115,6 @@ pub fn check(cmd: &str) -> Option<String> {
     None
 }
 
-
 /// INT-134: read the user-managed guard allow/deny list from state.db.
 /// Returns true if `word` is present with the given kind ("allow" or "deny").
 /// Opens the db read-only itself so check()'s signature stays unchanged. Best-effort:

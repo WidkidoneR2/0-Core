@@ -238,8 +238,14 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let passed = scored.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = scored.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = scored.iter().filter(|r| r.status == Status::Fail).count() as u32;
-    let unknown = scored.iter().filter(|r| r.status == Status::Unknown).count() as u32;
-    let blocked = scored.iter().filter(|r| r.status == Status::Blocked).count() as u32;
+    let unknown = scored
+        .iter()
+        .filter(|r| r.status == Status::Unknown)
+        .count() as u32;
+    let blocked = scored
+        .iter()
+        .filter(|r| r.status == Status::Blocked)
+        .count() as u32;
     // INT-342: emit health_check_failed events for each failing check
     for check in scored.iter().filter(|r| r.status == Status::Fail) {
         let _ = crate::domains::friday::events::emit(
@@ -257,7 +263,11 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-148: Unknown (couldn't-run) and Blocked checks are excluded from the ratio --
     // "couldn't determine" and "blocked" are not failures and must not drag health down.
     let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
-    let health = if determinable > 0 { (passed * 100) / determinable } else { 0 };
+    let health = if determinable > 0 {
+        (passed * 100) / determinable
+    } else {
+        0
+    };
 
     // Run integrity quick scan (safe auto-fixes only)
     let (integrity_pct, int_fixed, int_proposed, int_alerts) =

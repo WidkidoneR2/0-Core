@@ -205,8 +205,10 @@ mod tests {
 
     #[test]
     fn untracked_file_is_cold() {
-        assert!(cold_fix("error: getting status of '/nix/store/x-source/foo.rs': No such file")
-            .is_some());
+        assert!(
+            cold_fix("error: getting status of '/nix/store/x-source/foo.rs': No such file")
+                .is_some()
+        );
     }
 
     #[test]

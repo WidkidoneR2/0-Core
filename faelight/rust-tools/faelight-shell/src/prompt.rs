@@ -408,7 +408,12 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     if cfg!(debug_assertions) {
         line1.push_str(&format!(
             " {}",
-            fc_bold(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2, "[DEBUG BUILD]")
+            fc_bold(
+                C_PROMPT_FAIL.0,
+                C_PROMPT_FAIL.1,
+                C_PROMPT_FAIL.2,
+                "[DEBUG BUILD]"
+            )
         ));
     }
     // ── Line 2: health · intent · commits ───────────────────────────────

@@ -61,10 +61,10 @@ fn split_intent(subject: &str) -> (Option<String>, String) {
 #[allow(dead_code)]
 struct Commit {
     hash: String,
-    date: String,   // strict ISO (%aI)
+    date: String, // strict ISO (%aI)
     author: String,
     subject: String,
-    refs: String,    // ref names (%D), may be empty
+    refs: String, // ref names (%D), may be empty
 }
 
 impl Commit {
@@ -78,10 +78,7 @@ impl Commit {
 /// text can't collide with the delimiter.
 fn load_commits() -> Vec<Commit> {
     let out = Command::new("git")
-        .args([
-            "log",
-            "--pretty=format:%H%x1f%aI%x1f%an%x1f%s%x1f%D",
-        ])
+        .args(["log", "--pretty=format:%H%x1f%aI%x1f%an%x1f%s%x1f%D"])
         .output();
 
     let out = match out {
@@ -181,18 +178,31 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, commits: &[Co
         // Detail view takes over the screen when active.
         if let Some((hash, body)) = &detail {
             let _ = terminal.draw(|f| draw_detail(f, hash, body, detail_scroll, status.as_deref()));
-            if let Ok(Event::Key(KeyEvent { code, modifiers, .. })) = event::read() {
+            if let Ok(Event::Key(KeyEvent {
+                code, modifiers, ..
+            })) = event::read()
+            {
                 match (code, modifiers) {
-                    (KeyCode::Esc, _) | (KeyCode::Char('q'), _) => { detail = None; detail_scroll = 0; status = None; }
+                    (KeyCode::Esc, _) | (KeyCode::Char('q'), _) => {
+                        detail = None;
+                        detail_scroll = 0;
+                        status = None;
+                    }
                     (KeyCode::Char('c'), KeyModifiers::CONTROL) => return,
-                    (KeyCode::Down, _) | (KeyCode::Char('j'), _) => detail_scroll = detail_scroll.saturating_add(1),
-                    (KeyCode::Up, _) | (KeyCode::Char('k'), _) => detail_scroll = detail_scroll.saturating_sub(1),
+                    (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
+                        detail_scroll = detail_scroll.saturating_add(1)
+                    }
+                    (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
+                        detail_scroll = detail_scroll.saturating_sub(1)
+                    }
                     (KeyCode::PageDown, _) => detail_scroll = detail_scroll.saturating_add(10),
                     (KeyCode::PageUp, _) => detail_scroll = detail_scroll.saturating_sub(10),
                     (KeyCode::Char('y'), _) => {
                         status = Some(if copy_to_clipboard(hash) {
                             format!("copied {}", &hash[..hash.len().min(8)])
-                        } else { "copy failed (wl-copy?)".to_string() });
+                        } else {
+                            "copy failed (wl-copy?)".to_string()
+                        });
                     }
                     _ => {}
                 }
@@ -202,7 +212,10 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, commits: &[Co
 
         let _ = terminal.draw(|f| draw_ui(f, &filtered, &mut list_state, &search, searching));
 
-        if let Ok(Event::Key(KeyEvent { code, modifiers, .. })) = event::read() {
+        if let Ok(Event::Key(KeyEvent {
+            code, modifiers, ..
+        })) = event::read()
+        {
             // Search-input mode (mirrors cheatsheet_tui): typing edits the query live.
             if searching {
                 match code {
@@ -275,18 +288,36 @@ fn draw_ui(
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(0), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ])
         .split(f.area());
 
     // Title bar (shows active search + filtered count)
     let mut title_spans = vec![
-        Span::styled("  faelight-glog ", Style::default().fg(rgb(theme::NEON_GREEN)).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("· {} commits", commits.len()), Style::default().fg(rgb(theme::MUTED_GRAY))),
+        Span::styled(
+            "  faelight-glog ",
+            Style::default()
+                .fg(rgb(theme::NEON_GREEN))
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("· {} commits", commits.len()),
+            Style::default().fg(rgb(theme::MUTED_GRAY)),
+        ),
     ];
     if searching || !search.is_empty() {
         title_spans.push(Span::styled(
             format!("  /{}", search),
-            Style::default().fg(rgb(theme::NEON_CYAN)).add_modifier(if searching { Modifier::BOLD } else { Modifier::DIM }),
+            Style::default()
+                .fg(rgb(theme::NEON_CYAN))
+                .add_modifier(if searching {
+                    Modifier::BOLD
+                } else {
+                    Modifier::DIM
+                }),
         ));
     }
     let title = Paragraph::new(Line::from(title_spans));
@@ -299,26 +330,58 @@ fn draw_ui(
             let arch = is_arch_era(&c.date);
             // Era-dim: Arch-era commits render muted + [arch] marker; NixOS-era full candy-neon.
             let (int_color, subj_color, ref_color, subj_mod) = if arch {
-                (rgb(theme::MUTED_GRAY), rgb(theme::MUTED_GRAY), rgb(theme::MUTED_GRAY), Modifier::DIM)
+                (
+                    rgb(theme::MUTED_GRAY),
+                    rgb(theme::MUTED_GRAY),
+                    rgb(theme::MUTED_GRAY),
+                    Modifier::DIM,
+                )
             } else {
-                (rgb(theme::NEON_AMBER), rgb(theme::FOG_WHITE), rgb(theme::NEON_GREEN), Modifier::empty())
+                (
+                    rgb(theme::NEON_AMBER),
+                    rgb(theme::FOG_WHITE),
+                    rgb(theme::NEON_GREEN),
+                    Modifier::empty(),
+                )
             };
 
-            let mut spans = vec![
-                Span::styled(format!("{} ", c.short_hash()), Style::default().fg(rgb(theme::MUTED_GRAY))),
-            ];
+            let mut spans = vec![Span::styled(
+                format!("{} ", c.short_hash()),
+                Style::default().fg(rgb(theme::MUTED_GRAY)),
+            )];
             if arch {
-                spans.push(Span::styled("[arch] ", Style::default().fg(rgb(theme::MUTED_GRAY)).add_modifier(Modifier::DIM)));
+                spans.push(Span::styled(
+                    "[arch] ",
+                    Style::default()
+                        .fg(rgb(theme::MUTED_GRAY))
+                        .add_modifier(Modifier::DIM),
+                ));
             }
             let (intent, rest) = split_intent(&c.subject);
             if let Some(tok) = intent {
-                spans.push(Span::styled(tok, Style::default().fg(int_color).add_modifier(if arch { Modifier::DIM } else { Modifier::BOLD })));
-                spans.push(Span::styled(rest, Style::default().fg(subj_color).add_modifier(subj_mod)));
+                spans.push(Span::styled(
+                    tok,
+                    Style::default().fg(int_color).add_modifier(if arch {
+                        Modifier::DIM
+                    } else {
+                        Modifier::BOLD
+                    }),
+                ));
+                spans.push(Span::styled(
+                    rest,
+                    Style::default().fg(subj_color).add_modifier(subj_mod),
+                ));
             } else {
-                spans.push(Span::styled(c.subject.clone(), Style::default().fg(subj_color).add_modifier(subj_mod)));
+                spans.push(Span::styled(
+                    c.subject.clone(),
+                    Style::default().fg(subj_color).add_modifier(subj_mod),
+                ));
             }
             if !c.refs.is_empty() {
-                spans.push(Span::styled(format!("  ({})", c.refs), Style::default().fg(ref_color)));
+                spans.push(Span::styled(
+                    format!("  ({})", c.refs),
+                    Style::default().fg(ref_color),
+                ));
             }
             ListItem::new(Line::from(spans))
         })
@@ -344,26 +407,31 @@ fn draw_ui(
     f.render_widget(footer, chunks[2]);
 }
 
-
-fn draw_detail(
-    f: &mut ratatui::Frame,
-    hash: &str,
-    body: &str,
-    scroll: u16,
-    status: Option<&str>,
-) {
+fn draw_detail(f: &mut ratatui::Frame, hash: &str, body: &str, scroll: u16, status: Option<&str>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(0), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ])
         .split(f.area());
 
     // Header: full hash in amber + optional status (e.g. "copied") in green.
     let mut head = vec![
         Span::styled("  commit ", Style::default().fg(rgb(theme::MUTED_GRAY))),
-        Span::styled(hash.to_string(), Style::default().fg(rgb(theme::NEON_AMBER)).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            hash.to_string(),
+            Style::default()
+                .fg(rgb(theme::NEON_AMBER))
+                .add_modifier(Modifier::BOLD),
+        ),
     ];
     if let Some(s) = status {
-        head.push(Span::styled(format!("   {}", s), Style::default().fg(rgb(theme::NEON_GREEN))));
+        head.push(Span::styled(
+            format!("   {}", s),
+            Style::default().fg(rgb(theme::NEON_GREEN)),
+        ));
     }
     f.render_widget(Paragraph::new(Line::from(head)), chunks[0]);
 

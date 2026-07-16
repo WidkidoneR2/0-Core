@@ -294,6 +294,10 @@
           inherit pkgs;
           nixCats = inputs.nixcats;
         };
+        # INT-119 REPAIR (2026-07-16): git-hooks.nix installs .git/hooks/pre-commit via THIS
+        # shellHook. Without sourcing it the checks above are inert -- defined, never run.
+        # See the shellHook below for the full finding.
+        preCommitHook = self.checks.${system}.pre-commit-check.shellHook;
       in pkgs.mkShell {
         name = "friday-dev";
         buildInputs = (with pkgs; [
@@ -331,6 +335,24 @@
           jq
         ]) ++ [ forestNvim ];
         shellHook = ''
+          # INT-119 REPAIR 2026-07-16. THE HOOK WAS NEVER INSTALLED.
+          # flake.nix said rustfmt was "sandboxed, reproducible, unskippable". Measured:
+          #   ls .git/hooks/pre-commit  -> No such file or directory
+          #   cargo fmt --all -- --check -> 114 unformatted files
+          # Nothing was ever skipped because nothing ever ran. ~30 commits landed on
+          # 2026-07-16 alone with zero complaints.
+          # THE SAME BUG TWICE: INT-113 retired faelight-hooks on 2026-07-10 for being
+          # "dead weight: never installed into .git/hooks" (see input comment above).
+          # INT-119 replaced it with a mechanism that is ALSO never installed into
+          # .git/hooks -- the identical defect, re-shipped under a new number, with
+          # "unskippable" written in the comment.
+          # git-hooks.nix installs the hook by sourcing pre-commit-check.shellHook into a
+          # devShell. That line did not exist. The check was defined, the input imported,
+          # the comment confident -- and the one line that does the work was missing.
+          # It also blocked the anti-lockout gate: `nix flake check` dies on rustfmt before
+          # reaching checks.framework16-boot (INT-061's VM boot test), so the boot-critical
+          # lanzaboote change on 2026-07-16 reached metal with nothing checking it.
+          ${preCommitHook}
           echo "🌲 Faelight Forest -- friday-dev shell"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "  rustc: $(rustc --version)"

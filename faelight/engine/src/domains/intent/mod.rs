@@ -387,11 +387,24 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
 pub fn validate_issues() -> (usize, Vec<String>) {
     const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
     const VALID_STATUS: &[&str] = &[
-        "planned", "in-progress", "complete", "cancelled", "deferred", "resolved", "decided",
+        "planned",
+        "in-progress",
+        "complete",
+        "cancelled",
+        "deferred",
+        "resolved",
+        "decided",
     ];
     const FOLDERS: &[&str] = &[
-        "complete", "future", "in-progress", "cancelled", "deferred",
-        "decisions", "experiments", "incidents", "philosophy",
+        "complete",
+        "future",
+        "in-progress",
+        "cancelled",
+        "deferred",
+        "decisions",
+        "experiments",
+        "incidents",
+        "philosophy",
     ];
 
     let base = faelight_core::paths::intents_dir();
@@ -401,7 +414,9 @@ pub fn validate_issues() -> (usize, Vec<String>) {
 
     for folder in FOLDERS {
         let dir = base.join(folder);
-        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("md") {
@@ -411,7 +426,9 @@ pub fn validate_issues() -> (usize, Vec<String>) {
             if name == "README.md" {
                 continue;
             }
-            let Ok(content) = fs::read_to_string(&path) else { continue };
+            let Ok(content) = fs::read_to_string(&path) else {
+                continue;
+            };
             // Only the FRONTMATTER decides. A `content.contains("type: index")` here skipped
             // any charter that merely QUOTED the string -- including INT-135's own, which
             // documents this exemption. The validator could not see the intent that built it.
@@ -437,7 +454,14 @@ pub fn validate_issues() -> (usize, Vec<String>) {
             let field = |k: &str| -> Option<String> {
                 fm.lines()
                     .find(|l| l.trim_start().starts_with(&format!("{}:", k)))
-                    .map(|l| l.splitn(2, ':').nth(1).unwrap_or("").trim().trim_matches('"').to_string())
+                    .map(|l| {
+                        l.splitn(2, ':')
+                            .nth(1)
+                            .unwrap_or("")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
                     .filter(|v| !v.is_empty())
             };
 
@@ -455,7 +479,11 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 // Record dirs legitimately carry several statuses (decisions/121 is
                 // 'complete', decisions/136 is 'decided'). Only lifecycle dirs map 1:1.
                 if LIFECYCLE.contains(folder) {
-                    let want = if *folder == "future" { "planned" } else { folder };
+                    let want = if *folder == "future" {
+                        "planned"
+                    } else {
+                        folder
+                    };
                     if st != want {
                         issues.push(format!("status '{}' != directory: {}/{}", st, folder, name));
                     }
@@ -466,11 +494,16 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 if let Some(prefix) = name.split('-').next() {
                     if prefix != id {
                         issues.push(format!(
-                            "id '{}' != filename prefix '{}': {}/{}", id, prefix, folder, name
+                            "id '{}' != filename prefix '{}': {}/{}",
+                            id, prefix, folder, name
                         ));
                     }
                 }
-                let ns = if LIFECYCLE.contains(folder) { "lifecycle" } else { folder };
+                let ns = if LIFECYCLE.contains(folder) {
+                    "lifecycle"
+                } else {
+                    folder
+                };
                 *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
         }
@@ -1322,13 +1355,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
                         });
                         if let Some(pkg) = pkg {
                             let lock = std::process::Command::new("cargo")
-                                .args([
-                                    "update",
-                                    "-p",
-                                    &pkg,
-                                    "--precise",
-                                    &new,
-                                ])
+                                .args(["update", "-p", &pkg, "--precise", &new])
                                 .current_dir(&ctx.core_root)
                                 .output();
                             match lock {
@@ -1367,7 +1394,13 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
 // Order matters: this IS the wizard menu. Matches rust-tools/intent's numbering so
 // muscle memory survives the retirement. 1=decisions, 2=experiments, 3=philosophy,
 // 4=future, 5=incidents.
-pub const CATEGORIES: &[&str] = &["decisions", "experiments", "philosophy", "future", "incidents"];
+pub const CATEGORIES: &[&str] = &[
+    "decisions",
+    "experiments",
+    "philosophy",
+    "future",
+    "incidents",
+];
 
 /// (template, type_tag, default_tags, default_status). `type` is SINGULAR -- what the
 /// document IS. The wizard used to write `type: decisions` (the plural folder name) while
@@ -1489,7 +1522,9 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
 
     let title = prompt("Title: ").unwrap_or_default();
     if title.is_empty() {
-        return Err(crate::errors::CoreError::Runtime("title is required".into()));
+        return Err(crate::errors::CoreError::Runtime(
+            "title is required".into(),
+        ));
     }
 
     let status = prompt(&format!("Status [{}]: ", def_status))
@@ -1508,16 +1543,24 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
         sug.sort();
         sug.truncate(5);
         if !sug.is_empty() {
-            println!("  {} from active work: {}", "💡".normal(), sug.join(", ").dimmed());
+            println!(
+                "  {} from active work: {}",
+                "💡".normal(),
+                sug.join(", ").dimmed()
+            );
         }
     }
 
     let tags_in = prompt(&format!("Tags [{}]: ", def_tags)).unwrap_or_default();
-    let tags: Vec<String> = if tags_in.is_empty() { def_tags } else { &tags_in }
-        .split(',')
-        .map(|t| t.trim().to_string())
-        .filter(|t| !t.is_empty())
-        .collect();
+    let tags: Vec<String> = if tags_in.is_empty() {
+        def_tags
+    } else {
+        &tags_in
+    }
+    .split(',')
+    .map(|t| t.trim().to_string())
+    .filter(|t| !t.is_empty())
+    .collect();
 
     let path = create(category, type_tag, &title, &status, &tags)?;
     println!();
@@ -1545,7 +1588,9 @@ pub fn create(
     let title: String = title.chars().filter(|c| !c.is_control()).collect();
     let title = title.trim();
     if title.is_empty() {
-        return Err(crate::errors::CoreError::Runtime("title is empty after sanitizing".into()));
+        return Err(crate::errors::CoreError::Runtime(
+            "title is empty after sanitizing".into(),
+        ));
     }
     let id = next_id(category);
     let date = std::process::Command::new("date")
@@ -1564,7 +1609,9 @@ pub fn create(
         .collect();
 
     let filename = format!("{:03}-{}.md", id, slug);
-    let path = faelight_core::paths::intents_dir().join(category).join(&filename);
+    let path = faelight_core::paths::intents_dir()
+        .join(category)
+        .join(&filename);
     if path.exists() {
         return Err(crate::errors::CoreError::Runtime(format!(
             "refusing to overwrite {}",
@@ -1605,12 +1652,7 @@ fn prompt(label: &str) -> Option<String> {
     Some(line.trim().to_string())
 }
 
-pub fn new_intent(
-    ctx: &AppContext,
-    category: &str,
-    template: &str,
-    title: &str,
-) -> CoreResult<()> {
+pub fn new_intent(ctx: &AppContext, category: &str, template: &str, title: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[

@@ -22,31 +22,54 @@ const C_RST: &str = "\x1b[0m";
 const AUTO: &str = "auto-";
 const PRUNE_DAYS: i64 = 14;
 
-fn ok(m: &str) { println!("  {C_OK}✓{C_RST} {m}"); }
-fn info(m: &str) { println!("  {C_DIM}→ {m}{C_RST}"); }
-fn err(m: &str) -> ! { eprintln!("  {C_ERR}✗{C_RST} {m}"); std::process::exit(1); }
+fn ok(m: &str) {
+    println!("  {C_OK}✓{C_RST} {m}");
+}
+fn info(m: &str) {
+    println!("  {C_DIM}→ {m}{C_RST}");
+}
+fn err(m: &str) -> ! {
+    eprintln!("  {C_ERR}✗{C_RST} {m}");
+    std::process::exit(1);
+}
 
 fn state_dir() -> PathBuf {
     std::env::var("XDG_STATE_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state"))
+        .unwrap_or_else(|_| {
+            PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state")
+        })
         .join("faelight-vm")
 }
-fn disk() -> PathBuf { state_dir().join("faelight-vm.qcow2") }
-fn efivars() -> PathBuf { state_dir().join("faelight-vm-efi-vars.fd") }
-fn efivars_for(tag: &str) -> PathBuf { state_dir().join(format!("faelight-vm-efi-vars.fd.{tag}")) }
+fn disk() -> PathBuf {
+    state_dir().join("faelight-vm.qcow2")
+}
+fn efivars() -> PathBuf {
+    state_dir().join("faelight-vm-efi-vars.fd")
+}
+fn efivars_for(tag: &str) -> PathBuf {
+    state_dir().join(format!("faelight-vm-efi-vars.fd.{tag}"))
+}
 
 /// Scan /proc for a live faelight-vm qemu. The port check is a FALSE signal
 /// (qemu binds the forward port before the guest boots) -- process truth only.
 fn vm_pids() -> Vec<u32> {
     let mut out = Vec::new();
-    let Ok(rd) = fs::read_dir("/proc") else { return out };
+    let Ok(rd) = fs::read_dir("/proc") else {
+        return out;
+    };
     for e in rd.flatten() {
         let name = e.file_name();
-        let Some(pid) = name.to_str().and_then(|s| s.parse::<u32>().ok()) else { continue };
-        let Ok(raw) = fs::read(e.path().join("cmdline")) else { continue };
+        let Some(pid) = name.to_str().and_then(|s| s.parse::<u32>().ok()) else {
+            continue;
+        };
+        let Ok(raw) = fs::read(e.path().join("cmdline")) else {
+            continue;
+        };
         let cmd = String::from_utf8_lossy(&raw).replace('\0', " ");
-        if cmd.contains("qemu-system") && cmd.contains("faelight-vm") { out.push(pid); }
+        if cmd.contains("qemu-system") && cmd.contains("faelight-vm") {
+            out.push(pid);
+        }
     }
     out
 }
@@ -64,23 +87,35 @@ fn require_down(action: &str) {
 
 fn require_disk() {
     if !disk().exists() {
-        err(&format!("No VM disk at {}. Run: vm build && vm up", disk().display()));
+        err(&format!(
+            "No VM disk at {}. Run: vm build && vm up",
+            disk().display()
+        ));
     }
 }
 
 fn valid_tag(tag: &str, allow_auto: bool) -> Result<(), String> {
-    if tag.is_empty() { return Err("empty tag".into()); }
-    if !allow_auto && tag.starts_with(AUTO) {
-        return Err(format!("'{AUTO}' is a reserved prefix (tool-made safety snapshots). Pick another tag."));
+    if tag.is_empty() {
+        return Err("empty tag".into());
     }
-    if !tag.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)) {
+    if !allow_auto && tag.starts_with(AUTO) {
+        return Err(format!(
+            "'{AUTO}' is a reserved prefix (tool-made safety snapshots). Pick another tag."
+        ));
+    }
+    if !tag
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    {
         return Err(format!("bad tag '{tag}': use letters, digits, - _ . only"));
     }
     Ok(())
 }
 
 fn qemu_img(args: &[&str]) -> Result<String, String> {
-    let out = Command::new("qemu-img").args(args).output()
+    let out = Command::new("qemu-img")
+        .args(args)
+        .output()
         .map_err(|e| format!("qemu-img not runnable: {e}"))?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
@@ -91,20 +126,30 @@ fn qemu_img(args: &[&str]) -> Result<String, String> {
 fn backing_file() -> String {
     qemu_img(&["info", &disk().to_string_lossy()])
         .ok()
-        .and_then(|s| s.lines().find(|l| l.starts_with("backing file:"))
-            .map(|l| l.trim_start_matches("backing file:").trim().to_string()))
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("backing file:"))
+                .map(|l| l.trim_start_matches("backing file:").trim().to_string())
+        })
         .unwrap_or_else(|| "(none)".into())
 }
 
 /// (id, tag, "YYYY-MM-DD")
 fn snapshots() -> Vec<(String, String, String)> {
-    let Ok(out) = qemu_img(&["snapshot", "-l", &disk().to_string_lossy()]) else { return vec![] };
+    let Ok(out) = qemu_img(&["snapshot", "-l", &disk().to_string_lossy()]) else {
+        return vec![];
+    };
     let mut v = Vec::new();
     for line in out.lines() {
         let t: Vec<&str> = line.split_whitespace().collect();
-        if t.len() < 3 || t[0] == "ID" || line.starts_with("Snapshot list") { continue }
-        let date = t.iter().find(|s| s.len() == 10 && s.matches('-').count() == 2)
-            .map(|s| s.to_string()).unwrap_or_else(|| "?".into());
+        if t.len() < 3 || t[0] == "ID" || line.starts_with("Snapshot list") {
+            continue;
+        }
+        let date = t
+            .iter()
+            .find(|s| s.len() == 10 && s.matches('-').count() == 2)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "?".into());
         v.push((t[0].to_string(), t[1].to_string(), date));
     }
     v
@@ -120,11 +165,17 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146097 + doe - 719468
 }
 fn today_days() -> i64 {
-    (SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) / 86400) as i64
+    (SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+        / 86400) as i64
 }
 fn age_days(date: &str) -> Option<i64> {
     let p: Vec<i64> = date.split('-').filter_map(|s| s.parse().ok()).collect();
-    if p.len() != 3 { return None }
+    if p.len() != 3 {
+        return None;
+    }
     Some(today_days() - days_from_civil(p[0], p[1], p[2]))
 }
 
@@ -132,9 +183,13 @@ fn age_days(date: &str) -> Option<i64> {
 fn do_snapshot(tag: &str, auto: bool) {
     require_down("snapshot");
     require_disk();
-    if let Err(e) = valid_tag(tag, auto) { err(&e); }
+    if let Err(e) = valid_tag(tag, auto) {
+        err(&e);
+    }
     if snapshots().iter().any(|(_, t, _)| t == tag) {
-        err(&format!("snapshot '{tag}' already exists. Delete it first: vm delete {tag}"));
+        err(&format!(
+            "snapshot '{tag}' already exists. Delete it first: vm delete {tag}"
+        ));
     }
     if let Err(e) = qemu_img(&["snapshot", "-c", tag, &disk().to_string_lossy()]) {
         err(&format!("disk snapshot failed: {e}"));
@@ -147,7 +202,9 @@ fn do_snapshot(tag: &str, auto: bool) {
     } else {
         info("no EFI vars file yet (VM never booted?) -- disk only");
     }
-    ok(&format!("snapshot '{tag}' created {C_DIM}(disk + EFI vars){C_RST}"));
+    ok(&format!(
+        "snapshot '{tag}' created {C_DIM}(disk + EFI vars){C_RST}"
+    ));
 }
 
 fn cmd_rollback(tag: &str) {
@@ -157,7 +214,10 @@ fn cmd_rollback(tag: &str) {
         err(&format!("no snapshot '{tag}'. See: vm snapshots"));
     }
     // Safety net, same pattern as cistart/cicomplete auto-checkpoints. Pruned by `vm prune`.
-    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let auto_tag = format!("{AUTO}pre-rollback-{stamp}");
     info(&format!("auto-snapshotting current state as '{auto_tag}'"));
     do_snapshot(&auto_tag, true);
@@ -173,7 +233,9 @@ fn cmd_rollback(tag: &str) {
     } else {
         info("no EFI vars saved for this tag -- firmware state left as-is");
     }
-    ok(&format!("rolled back to '{tag}' {C_DIM}(disk + EFI vars){C_RST}"));
+    ok(&format!(
+        "rolled back to '{tag}' {C_DIM}(disk + EFI vars){C_RST}"
+    ));
     info(&format!("undo: vm rollback {auto_tag}"));
 }
 
@@ -182,12 +244,25 @@ fn cmd_list() {
     let snaps = snapshots();
     println!("  {C_DIM}disk:    {}{C_RST}", disk().display());
     println!("  {C_DIM}backing: {}{C_RST}", backing_file());
-    if snaps.is_empty() { info("no snapshots yet -- create one: vm snapshot <tag>"); return }
+    if snaps.is_empty() {
+        info("no snapshots yet -- create one: vm snapshot <tag>");
+        return;
+    }
     println!("\n  {C_DIM}ID   TAG                              DATE         AGE   KIND{C_RST}");
     for (id, tag, date) in &snaps {
-        let age = age_days(date).map(|d| format!("{d}d")).unwrap_or_else(|| "?".into());
-        let kind = if tag.starts_with(AUTO) { format!("{C_DIM}auto{C_RST}") } else { "manual".into() };
-        let efi = if efivars_for(tag).exists() { "" } else { "  ⚠ no EFI vars" };
+        let age = age_days(date)
+            .map(|d| format!("{d}d"))
+            .unwrap_or_else(|| "?".into());
+        let kind = if tag.starts_with(AUTO) {
+            format!("{C_DIM}auto{C_RST}")
+        } else {
+            "manual".into()
+        };
+        let efi = if efivars_for(tag).exists() {
+            ""
+        } else {
+            "  ⚠ no EFI vars"
+        };
         println!("  {id:<4} {tag:<32} {date}   {age:<5} {kind}{efi}");
     }
     println!("\n  {C_DIM}{} snapshot(s){C_RST}", snaps.len());
@@ -196,7 +271,9 @@ fn cmd_list() {
 fn cmd_delete(tag: &str) {
     require_down("delete a snapshot on");
     require_disk();
-    if !snapshots().iter().any(|(_, t, _)| t == tag) { err(&format!("no snapshot '{tag}'")); }
+    if !snapshots().iter().any(|(_, t, _)| t == tag) {
+        err(&format!("no snapshot '{tag}'"));
+    }
     if let Err(e) = qemu_img(&["snapshot", "-d", tag, &disk().to_string_lossy()]) {
         err(&format!("delete failed: {e}"));
     }
@@ -207,16 +284,25 @@ fn cmd_delete(tag: &str) {
 /// Prune ONLY auto-* snapshots. Manual tags are deliberate -- never auto-removed.
 fn cmd_prune(days: i64, all: bool, dry: bool) {
     require_disk();
-    let victims: Vec<_> = snapshots().into_iter()
+    let victims: Vec<_> = snapshots()
+        .into_iter()
         .filter(|(_, t, _)| t.starts_with(AUTO))
         .filter(|(_, _, d)| all || age_days(d).map(|a| a >= days).unwrap_or(false))
         .collect();
     if victims.is_empty() {
-        ok(&format!("nothing to prune {C_DIM}(auto-snapshots {}){C_RST}",
-            if all { "none exist".into() } else { format!("all newer than {days}d") }));
+        ok(&format!(
+            "nothing to prune {C_DIM}(auto-snapshots {}){C_RST}",
+            if all {
+                "none exist".into()
+            } else {
+                format!("all newer than {days}d")
+            }
+        ));
         return;
     }
-    if !dry { require_down("prune snapshots on"); }
+    if !dry {
+        require_down("prune snapshots on");
+    }
     for (_, tag, date) in &victims {
         if dry {
             println!("  {C_DIM}would prune{C_RST} {tag} {C_DIM}({date}){C_RST}");
@@ -227,7 +313,9 @@ fn cmd_prune(days: i64, all: bool, dry: bool) {
             ok(&format!("pruned {tag} {C_DIM}({date}){C_RST}"));
         }
     }
-    if dry { info(&format!("{} would be pruned (dry run)", victims.len())); }
+    if dry {
+        info(&format!("{} would be pruned (dry run)", victims.len()));
+    }
 }
 
 /// Is the GUEST's sshd actually accepting? (INT-027, 2026-07-15)
@@ -259,10 +347,16 @@ fn cmd_wait_ready(port: u16, timeout_s: u64, quiet: bool) {
     for i in 1..=timeout_s {
         if ssh_ready(port) {
             let secs = start.elapsed().map(|d| d.as_secs()).unwrap_or(i);
-            if !quiet { ok(&format!("guest is UP {C_DIM}(sshd answered on port {port} after {secs}s){C_RST}")); }
+            if !quiet {
+                ok(&format!(
+                    "guest is UP {C_DIM}(sshd answered on port {port} after {secs}s){C_RST}"
+                ));
+            }
             return;
         }
-        if !quiet && i == 5 { info("waiting for the guest to boot (OVMF -> systemd-boot -> kernel -> sshd)..."); }
+        if !quiet && i == 5 {
+            info("waiting for the guest to boot (OVMF -> systemd-boot -> kernel -> sshd)...");
+        }
         std::thread::sleep(Duration::from_secs(1));
     }
     err(&format!(
@@ -285,38 +379,72 @@ struct VmProc {
     holds_lock: bool,
 }
 
-fn lock_path() -> PathBuf { state_dir().join("vm.lock") }
+fn lock_path() -> PathBuf {
+    state_dir().join("vm.lock")
+}
 
 /// Does this pid hold an fd on the launch lock? (An flock dies with its holder --
 /// a HELD lock with no live holder is an orphaned file, safe to remove.)
 fn holds_lock(pid: u32) -> bool {
-    let Ok(target) = fs::canonicalize(lock_path()) else { return false };
-    let Ok(rd) = fs::read_dir(format!("/proc/{pid}/fd")) else { return false };
-    rd.flatten().any(|f| fs::read_link(f.path()).map(|l| l == target).unwrap_or(false))
+    let Ok(target) = fs::canonicalize(lock_path()) else {
+        return false;
+    };
+    let Ok(rd) = fs::read_dir(format!("/proc/{pid}/fd")) else {
+        return false;
+    };
+    rd.flatten().any(|f| {
+        fs::read_link(f.path())
+            .map(|l| l == target)
+            .unwrap_or(false)
+    })
 }
 
 fn vm_procs() -> Vec<VmProc> {
     let state = state_dir().to_string_lossy().to_string();
     let mut out = Vec::new();
-    let Ok(rd) = fs::read_dir("/proc") else { return out };
+    let Ok(rd) = fs::read_dir("/proc") else {
+        return out;
+    };
     for e in rd.flatten() {
-        let Some(pid) = e.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue };
-        let Ok(raw) = fs::read(e.path().join("cmdline")) else { continue };
-        let cmd = String::from_utf8_lossy(&raw).replace('\0', " ").trim().to_string();
-        if cmd.is_empty() || !cmd.contains(&state) { continue }
+        let Some(pid) = e.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else {
+            continue;
+        };
+        let Ok(raw) = fs::read(e.path().join("cmdline")) else {
+            continue;
+        };
+        let cmd = String::from_utf8_lossy(&raw)
+            .replace('\0', " ")
+            .trim()
+            .to_string();
+        if cmd.is_empty() || !cmd.contains(&state) {
+            continue;
+        }
         let exe = fs::read_link(e.path().join("exe")).unwrap_or_default();
-        let exe = exe.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        let exe = exe
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
         // CONTAINS, not starts_with: NixOS makeWrapper means the real ELF is
         // `.qemu-system-x86_64-wrapped` -- it starts with a DOT. starts_with("qemu-system")
         // made qemu INVISIBLE here while unwrapped swtpm matched fine (2026-07-15: `procs`
         // listed swtpm on a live VM and no qemu; `kill` would have orphaned the VM).
         // This is the banked forest rule: wrapped binaries need -f/substring matching, not
         // exact-name matching. `ss -ltnp` gave it away -- comm was ".qemu-system-x8".
-        let kind = if exe.contains("qemu-system") { "qemu" }
-                   else if exe.contains("swtpm") { "swtpm" }
-                   else if cmd.contains("run-faelight-vm-vm") { "launcher" }
-                   else { continue };
-        out.push(VmProc { pid, kind: kind.into(), cmd, holds_lock: holds_lock(pid) });
+        let kind = if exe.contains("qemu-system") {
+            "qemu"
+        } else if exe.contains("swtpm") {
+            "swtpm"
+        } else if cmd.contains("run-faelight-vm-vm") {
+            "launcher"
+        } else {
+            continue;
+        };
+        out.push(VmProc {
+            pid,
+            kind: kind.into(),
+            cmd,
+            holds_lock: holds_lock(pid),
+        });
     }
     out.sort_by_key(|p| p.pid);
     out
@@ -335,18 +463,29 @@ fn cmd_procs() {
     }
     println!("  {C_DIM}PID      KIND      LOCK{C_RST}");
     for p in &procs {
-        let l = if p.holds_lock { format!("{C_OK}HOLDS{C_RST}") } else { format!("{C_DIM}-{C_RST}") };
+        let l = if p.holds_lock {
+            format!("{C_OK}HOLDS{C_RST}")
+        } else {
+            format!("{C_DIM}-{C_RST}")
+        };
         println!("  {:<8} {:<9} {}", p.pid, p.kind, l);
-        println!("      {C_DIM}{}{C_RST}", &p.cmd.chars().take(96).collect::<String>());
+        println!(
+            "      {C_DIM}{}{C_RST}",
+            &p.cmd.chars().take(96).collect::<String>()
+        );
     }
     println!("\n  {C_DIM}{} process(es){C_RST}", procs.len());
 }
 
 /// Kill everything this VM spawned -- qemu AND swtpm AND the wrapper. Not by name.
 /// qemu's HMP monitor socket -- the ONLY channel that can press the guest's power button.
-fn monitor_path() -> PathBuf { state_dir().join("monitor.sock") }
+fn monitor_path() -> PathBuf {
+    state_dir().join("monitor.sock")
+}
 
-fn qemu_alive() -> bool { vm_procs().iter().any(|p| p.kind == "qemu") }
+fn qemu_alive() -> bool {
+    vm_procs().iter().any(|p| p.kind == "qemu")
+}
 
 /// Send `system_powerdown` -- a virtual ACPI power-button press. The guest's systemd
 /// then runs a REAL shutdown: flush page cache, unmount, halt. qemu exits on its own.
@@ -354,7 +493,9 @@ fn qemu_alive() -> bool { vm_procs().iter().any(|p| p.kind == "qemu") }
 fn monitor_powerdown() -> bool {
     use std::io::Write;
     use std::os::unix::net::UnixStream;
-    let Ok(mut s) = UnixStream::connect(monitor_path()) else { return false };
+    let Ok(mut s) = UnixStream::connect(monitor_path()) else {
+        return false;
+    };
     let _ = s.set_write_timeout(Some(Duration::from_millis(1500)));
     s.write_all(b"system_powerdown\n").is_ok()
 }
@@ -376,7 +517,10 @@ fn monitor_powerdown() -> bool {
 /// it and we fall back to the yank -- data loss included. This makes the common case
 /// correct; it cannot make the pathological case safe.
 fn cmd_down(timeout_s: u64) {
-    if vm_procs().is_empty() { ok("nothing to stop"); return }
+    if vm_procs().is_empty() {
+        ok("nothing to stop");
+        return;
+    }
 
     if !qemu_alive() {
         info("no qemu running -- clearing leftovers");
@@ -398,10 +542,14 @@ fn cmd_down(timeout_s: u64) {
     info("ACPI powerdown sent -- waiting for the guest to flush and halt...");
     for i in 1..=timeout_s {
         if !qemu_alive() {
-            ok(&format!("guest shut down cleanly {C_DIM}({i}s -- writes flushed){C_RST}"));
+            ok(&format!(
+                "guest shut down cleanly {C_DIM}({i}s -- writes flushed){C_RST}"
+            ));
             // swtpm/launcher hold no guest data; a zombie swtpm owns the tpm socket and
             // poisons the NEXT launch (INT-159), so clear them unconditionally.
-            if !vm_procs().is_empty() { cmd_kill(); }
+            if !vm_procs().is_empty() {
+                cmd_kill();
+            }
             let _ = fs::remove_file(monitor_path());
             return;
         }
@@ -414,21 +562,35 @@ fn cmd_down(timeout_s: u64) {
 
 fn cmd_kill() {
     let procs = vm_procs();
-    if procs.is_empty() { ok("nothing to kill"); return }
+    if procs.is_empty() {
+        ok("nothing to kill");
+        return;
+    }
     for p in &procs {
-        let r = Command::new("kill").args(["-TERM", &p.pid.to_string()]).status();
+        let r = Command::new("kill")
+            .args(["-TERM", &p.pid.to_string()])
+            .status();
         match r {
             Ok(s) if s.success() => ok(&format!("stopped {} (pid {})", p.kind, p.pid)),
-            _ => eprintln!("  {C_ERR}✗{C_RST} failed to stop {} (pid {})", p.kind, p.pid),
+            _ => eprintln!(
+                "  {C_ERR}✗{C_RST} failed to stop {} (pid {})",
+                p.kind, p.pid
+            ),
         }
     }
     std::thread::sleep(Duration::from_millis(600));
     let left = vm_procs();
-    if left.is_empty() { ok("all faelight-vm processes gone"); }
-    else {
+    if left.is_empty() {
+        ok("all faelight-vm processes gone");
+    } else {
         for p in &left {
-            let _ = Command::new("kill").args(["-KILL", &p.pid.to_string()]).status();
-            info(&format!("SIGKILL sent to stubborn {} (pid {})", p.kind, p.pid));
+            let _ = Command::new("kill")
+                .args(["-KILL", &p.pid.to_string()])
+                .status();
+            info(&format!(
+                "SIGKILL sent to stubborn {} (pid {})",
+                p.kind, p.pid
+            ));
         }
     }
 }
@@ -441,11 +603,17 @@ fn cmd_unlock() {
     let _ = holders;
     if !live.is_empty() {
         for p in &live {
-            eprintln!("  {C_ERR}✗{C_RST} pid {} ({}) still HOLDS the lock -- not a stale lock.", p.pid, p.kind);
+            eprintln!(
+                "  {C_ERR}✗{C_RST} pid {} ({}) still HOLDS the lock -- not a stale lock.",
+                p.pid, p.kind
+            );
         }
         err("refusing to unlock a live VM. Run: vm down");
     }
-    if !lock_path().exists() { ok("no lock file -- nothing to clear"); return }
+    if !lock_path().exists() {
+        ok("no lock file -- nothing to clear");
+        return;
+    }
     match fs::remove_file(lock_path()) {
         Ok(_) => ok("orphaned lock cleared"),
         Err(e) => err(&format!("could not remove lock: {e}")),
@@ -453,7 +621,8 @@ fn cmd_unlock() {
 }
 
 fn usage() -> ! {
-    println!("faelight-vm -- snapshot/rollback for the proving ground (INT-027)
+    println!(
+        "faelight-vm -- snapshot/rollback for the proving ground (INT-027)
 
   vm snapshot <tag>     snapshot disk + EFI vars (VM must be down)
   vm rollback <tag>     restore a snapshot (auto-snapshots current state first)
@@ -471,7 +640,8 @@ fn usage() -> ! {
            [--dry-run]  show what would go, touch nothing
 
   Snapshots move BOTH the disk and the OVMF EFI vars -- both or neither.
-  Manual tags are never auto-pruned. '{AUTO}' is reserved for the tool.");
+  Manual tags are never auto-pruned. '{AUTO}' is reserved for the tool."
+    );
     std::process::exit(0)
 }
 
@@ -485,10 +655,18 @@ fn main() {
         ["snapshots"] | ["list"] => cmd_list(),
         ["delete", tag] => cmd_delete(tag),
         ["wait-ready", rest @ ..] => {
-            let port = rest.iter().position(|s| *s == "--port")
-                .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(2222);
-            let timeout = rest.iter().position(|s| *s == "--timeout")
-                .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(120);
+            let port = rest
+                .iter()
+                .position(|s| *s == "--port")
+                .and_then(|i| rest.get(i + 1))
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(2222);
+            let timeout = rest
+                .iter()
+                .position(|s| *s == "--timeout")
+                .and_then(|i| rest.get(i + 1))
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(120);
             cmd_wait_ready(port, timeout, rest.contains(&"--quiet"));
         }
         ["procs"] => cmd_procs(),
@@ -498,8 +676,11 @@ fn main() {
         ["prune", rest @ ..] => {
             let all = rest.contains(&"--all");
             let dry = rest.contains(&"--dry-run");
-            let days = rest.iter().position(|s| *s == "--days")
-                .and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok())
+            let days = rest
+                .iter()
+                .position(|s| *s == "--days")
+                .and_then(|i| rest.get(i + 1))
+                .and_then(|s| s.parse().ok())
                 .unwrap_or(PRUNE_DAYS);
             cmd_prune(days, all, dry);
         }

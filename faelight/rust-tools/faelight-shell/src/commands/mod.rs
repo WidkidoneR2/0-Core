@@ -530,12 +530,8 @@ fn execute_impl(
             // environment (INT-134). Source: references of /run/current-system/sw, each a
             // /nix/store/<hash>-<name>-<version> path. Optional filter matches the name.
             let filter = args.first().copied().unwrap_or("");
-            let paths = nix_query_lines(&[
-                "nix-store",
-                "-q",
-                "--references",
-                "/run/current-system/sw",
-            ]);
+            let paths =
+                nix_query_lines(&["nix-store", "-q", "--references", "/run/current-system/sw"]);
             if paths.is_empty() {
                 return CommandResult::Error(
                     "packages: could not read /run/current-system/sw references".to_string(),
@@ -554,14 +550,16 @@ fn execute_impl(
             names.sort();
             names.dedup();
             if names.is_empty() {
-                return CommandResult::Output(format!(
-                    "  no packages matching '{}'", filter
-                ));
+                return CommandResult::Output(format!("  no packages matching '{}'", filter));
             }
             let header = if filter.is_empty() {
                 format!("  \u{1f4e6} Installed packages ({})\n", names.len())
             } else {
-                format!("  \u{1f4e6} Installed packages matching '{}' ({})\n", filter, names.len())
+                format!(
+                    "  \u{1f4e6} Installed packages matching '{}' ({})\n",
+                    filter,
+                    names.len()
+                )
             };
             let mut out = header;
             out.push_str(&"\u{2500}".repeat(44));
@@ -604,16 +602,24 @@ fn execute_impl(
                         let kernel = g["kernelVersion"].as_str().unwrap_or("?");
                         let rev = g["configurationRevision"].as_str().unwrap_or("?");
                         let cur = g["current"].as_bool().unwrap_or(false);
-                        let mut out = format!("  \u{2744} Generation {}{}\n", n, if cur { "  (current)" } else { "" });
+                        let mut out = format!(
+                            "  \u{2744} Generation {}{}\n",
+                            n,
+                            if cur { "  (current)" } else { "" }
+                        );
                         out.push_str(&"\u{2500}".repeat(44));
                         out.push_str(&format!("\n  date    : {}", date));
                         out.push_str(&format!("\n  nixos   : {}", ver));
                         out.push_str(&format!("\n  kernel  : {}", kernel));
                         out.push_str(&format!("\n  config  : {}", rev));
                         if cur {
-                            out.push_str("\n\n  this is the current generation -- nothing to roll back to.");
+                            out.push_str(
+                                "\n\n  this is the current generation -- nothing to roll back to.",
+                            );
                         } else {
-                            out.push_str("\n\n  to roll back to this generation (deliberate, sudo):");
+                            out.push_str(
+                                "\n\n  to roll back to this generation (deliberate, sudo):",
+                            );
                             out.push_str(&format!(
                                 "\n    sudo nix-env --switch-generation {} -p /nix/var/nix/profiles/system", n
                             ));
@@ -626,11 +632,19 @@ fn execute_impl(
 
             // generations [all] -- browse.
             let show_all = sub == "all";
-            let limit = if show_all { gens.len() } else { 15.min(gens.len()) };
+            let limit = if show_all {
+                gens.len()
+            } else {
+                15.min(gens.len())
+            };
             let mut out = format!(
                 "  \u{2744} NixOS Generations ({} total{})\n",
                 gens.len(),
-                if show_all { String::new() } else { format!(", showing {}", limit) }
+                if show_all {
+                    String::new()
+                } else {
+                    format!(", showing {}", limit)
+                }
             );
             out.push_str(&"\u{2500}".repeat(52));
             for g in gens.iter().take(limit) {
@@ -1308,7 +1322,8 @@ fn execute_impl(
                             out.push_str(&format!("\n  {}={}", k, short));
                         }
                         out.push_str(&format!(
-                            "\n\n  ✅ {} var(s) restored into the fsh environment", restored
+                            "\n\n  ✅ {} var(s) restored into the fsh environment",
+                            restored
                         ));
                     }
                     CommandResult::Output(out)
@@ -1490,7 +1505,9 @@ fn execute_impl(
             };
             let doc: toml::Value = match toml::from_str(&contents) {
                 Ok(v) => v,
-                Err(e) => return CommandResult::Error(format!("env-import: invalid manifest: {}", e)),
+                Err(e) => {
+                    return CommandResult::Error(format!("env-import: invalid manifest: {}", e))
+                }
             };
             let name = doc
                 .get("name")
@@ -1539,10 +1556,7 @@ fn execute_impl(
             // audit-log [n]  -- show the immutable command audit trail (INT-134).
             // Reads shell_history_audit: append-only, DB-enforced (delete/update blocked
             // by triggers). This surfaces the tamper-proof record we capture on every command.
-            let n: i64 = args
-                .first()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(20);
+            let n: i64 = args.first().and_then(|s| s.parse().ok()).unwrap_or(20);
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
@@ -1556,7 +1570,9 @@ fn execute_impl(
                 Err(e) => return CommandResult::Error(format!("audit-log: {}", e)),
             };
             let rows: Vec<(i64, String, i64)> = stmt
-                .query_map(rusqlite::params![n], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .query_map(rusqlite::params![n], |r| {
+                    Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                })
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default();
             let total: i64 = conn
@@ -2083,7 +2099,8 @@ fn execute_impl(
                 } else if count > 1 {
                     errors.push(format!(
                         "  ambiguous: '{}' (expected 1, found {}) -- fix: add more context",
-                        truncate_safe(old, 60), count
+                        truncate_safe(old, 60),
+                        count
                     ));
                 }
             }
@@ -3475,8 +3492,9 @@ fn execute_impl(
                         // Only search text files (check extension)
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                         let text_exts = [
-                            "rs", "nix", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml", "yml",
-                            "html", "css", "js", "ts", "lua", "conf", "desktop", "service", "lock",
+                            "rs", "nix", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml",
+                            "yml", "html", "css", "js", "ts", "lua", "conf", "desktop", "service",
+                            "lock",
                         ];
                         if !text_exts.contains(&ext) {
                             continue;
@@ -6924,20 +6942,39 @@ fn pkg_search(args: &[&str]) -> CommandResult {
     let mut rows: Vec<(String, String, String)> = Vec::new();
     for (attr, v) in map.iter() {
         let name = attr.rsplit('.').next().unwrap_or(attr).to_string();
-        let ver = v.get("version").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let desc = v.get("description").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let ver = v
+            .get("version")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let desc = v
+            .get("description")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
         rows.push((name, ver, desc));
     }
     rows.sort();
     rows.dedup();
-    let mut lines = vec![format!("  \u{1f50d} nixpkgs matches for '{}' ({})", term, rows.len())];
+    let mut lines = vec![format!(
+        "  \u{1f50d} nixpkgs matches for '{}' ({})",
+        term,
+        rows.len()
+    )];
     lines.push("\u{2500}".repeat(52));
     for (name, ver, desc) in rows.iter().take(40) {
-        let d = if desc.len() > 60 { format!("{}...", &desc[..57]) } else { desc.clone() };
+        let d = if desc.len() > 60 {
+            format!("{}...", &desc[..57])
+        } else {
+            desc.clone()
+        };
         lines.push(format!("  {:<28} {:<14} {}", name, ver, d));
     }
     if rows.len() > 40 {
-        lines.push(format!("\n  ... {} more (narrow the term)", rows.len() - 40));
+        lines.push(format!(
+            "\n  ... {} more (narrow the term)",
+            rows.len() - 40
+        ));
     }
     CommandResult::Output(lines.join("\n"))
 }
@@ -11208,7 +11245,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let krate = match args.get(1) {
                 Some(c) => *c,
                 None => return CommandResult::Error(
-                    "  dev deps <crate>  -- what pulls <crate> into the build (e.g. dev deps libc)".to_string()),
+                    "  dev deps <crate>  -- what pulls <crate> into the build (e.g. dev deps libc)"
+                        .to_string(),
+                ),
             };
             let out = std::process::Command::new("cargo")
                 .args(["tree", "--invert", "--package", krate])
@@ -11220,7 +11259,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     let tree = tree.trim_end();
                     if tree.is_empty() {
                         return CommandResult::Output(format!(
-                            "  {} is not in the workspace dependency tree", krate));
+                            "  {} is not in the workspace dependency tree",
+                            krate
+                        ));
                     }
                     let mut s = format!("  \u{1f333} why is '{}' in the build?\n", krate);
                     s.push_str(&"\u{2500}".repeat(52));
@@ -11246,7 +11287,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                         }
                         return CommandResult::Output(format!(
                             "  '{}' is ambiguous -- pick a version:\n    {}\n  e.g. dev deps {}",
-                            krate, vers.join("\n    "), vers[0]));
+                            krate,
+                            vers.join("\n    "),
+                            vers[0]
+                        ));
                     }
                     // cargo says "package ID specification ... did not match" when the crate
                     // isn't a dependency -- surface that as a clean not-found, not a raw error.
@@ -11273,12 +11317,16 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                         hits.dedup();
                         if hits.is_empty() {
                             CommandResult::Output(format!(
-                                "  {} is not a dependency of this workspace", krate))
+                                "  {} is not a dependency of this workspace",
+                                krate
+                            ))
                         } else {
                             let shown: Vec<String> = hits.iter().take(8).cloned().collect();
                             CommandResult::Output(format!(
                                 "  no crate named '{}' -- did you mean:\n    {}",
-                                krate, shown.join("\n    ")))
+                                krate,
+                                shown.join("\n    ")
+                            ))
                         }
                     } else {
                         CommandResult::Error(format!("  dev deps: {}", err.trim()))
@@ -11295,7 +11343,8 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let query = args[1..].join(" ");
             if query.trim().is_empty() {
                 return CommandResult::Error(
-                    "  dev search <query>  -- search crates.io (e.g. dev search tui)".to_string());
+                    "  dev search <query>  -- search crates.io (e.g. dev search tui)".to_string(),
+                );
             }
             let out = std::process::Command::new("cargo")
                 .args(["search", "--limit", "20", &query])
@@ -11304,7 +11353,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Ok(o) if o.status.success() => o,
                 Ok(o) => {
                     let err = String::from_utf8_lossy(&o.stderr);
-                    return CommandResult::Error(format!("  dev search: cargo search failed: {}", err.trim()));
+                    return CommandResult::Error(format!(
+                        "  dev search: cargo search failed: {}",
+                        err.trim()
+                    ));
                 }
                 Err(e) => return CommandResult::Error(format!("  dev search: {}", e)),
             };
@@ -11333,7 +11385,11 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 return CommandResult::Output(format!("  no crates matching '{}'", query));
             }
             let _ = std::fs::write("/tmp/fsh-crate-search.json", text.as_bytes());
-            let mut lines = vec![format!("  \u{1f4e6} crates.io matches for '{}' ({})", query, rows.len())];
+            let mut lines = vec![format!(
+                "  \u{1f4e6} crates.io matches for '{}' ({})",
+                query,
+                rows.len()
+            )];
             lines.push("\u{2500}".repeat(52));
             for (name, ver, desc) in rows.iter() {
                 // char-safe truncation (byte-slicing panics mid-UTF8).
@@ -11348,7 +11404,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             if !more_note.is_empty() {
                 lines.push(format!("\n  {}  (narrow the query)", more_note));
             }
-            lines.push("\n  \u{2192} dev doc <crate> for docs, dev graph <crate> for deps".to_string());
+            lines.push(
+                "\n  \u{2192} dev doc <crate> for docs, dev graph <crate> for deps".to_string(),
+            );
             CommandResult::Output(lines.join("\n"))
         }
         "graph" => {
@@ -11357,7 +11415,11 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // trees explode, so default to depth 2 with a --full escape hatch. (INT-134, Lane 3)
             let want = args.get(1).copied().unwrap_or("");
             let full = args.iter().any(|a| *a == "--full");
-            let target = if want.is_empty() || want == "--full" { "" } else { want };
+            let target = if want.is_empty() || want == "--full" {
+                ""
+            } else {
+                want
+            };
 
             let mut cargo_args: Vec<String> = vec!["tree".to_string()];
             if !target.is_empty() {
@@ -11379,9 +11441,18 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     if tree.is_empty() {
                         return CommandResult::Output("  (no dependency tree)".to_string());
                     }
-                    let label = if target.is_empty() { "workspace" } else { target };
-                    let depth_note = if full { "full depth" } else { "depth 2 -- dev graph <crate> --full for all" };
-                    let mut s = format!("  \u{1f333} dependency tree: {} ({})\n", label, depth_note);
+                    let label = if target.is_empty() {
+                        "workspace"
+                    } else {
+                        target
+                    };
+                    let depth_note = if full {
+                        "full depth"
+                    } else {
+                        "depth 2 -- dev graph <crate> --full for all"
+                    };
+                    let mut s =
+                        format!("  \u{1f333} dependency tree: {} ({})\n", label, depth_note);
                     s.push_str(&"\u{2500}".repeat(52));
                     s.push('\n');
                     s.push_str(tree);
@@ -11406,7 +11477,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     }
                     if err.contains("did not match") || err.contains("not found") {
                         return CommandResult::Output(format!(
-                            "  {} is not in this workspace (try: dev workspace)", target));
+                            "  {} is not in this workspace (try: dev workspace)",
+                            target
+                        ));
                     }
                     CommandResult::Error(format!("  dev graph: {}", err.trim()))
                 }
@@ -11460,12 +11533,20 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok());
             let meta = match meta {
                 Some(m) => m,
-                None => return CommandResult::Error("  dev workspace: cargo metadata failed".to_string()),
+                None => {
+                    return CommandResult::Error(
+                        "  dev workspace: cargo metadata failed".to_string(),
+                    )
+                }
             };
             let members: std::collections::HashSet<String> = meta
                 .get("workspace_members")
                 .and_then(|m| m.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             // Collect (name, version, manifest_dir) for each workspace member.
             let mut crates: Vec<(String, String, String)> = meta
@@ -11474,7 +11555,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .map(|pkgs| {
                     pkgs.iter()
                         .filter(|pkg| {
-                            pkg.get("id").and_then(|v| v.as_str()).map(|id| members.contains(id)).unwrap_or(false)
+                            pkg.get("id")
+                                .and_then(|v| v.as_str())
+                                .map(|id| members.contains(id))
+                                .unwrap_or(false)
                         })
                         .filter_map(|pkg| {
                             let name = pkg.get("name")?.as_str()?.to_string();
@@ -11494,10 +11578,17 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             if want.is_empty() {
                 // list mode
                 let mut out = String::new();
-                out.push_str(&format!("\n  {} workspace crates ({})\n", "📦".normal(), crates.len()));
+                out.push_str(&format!(
+                    "\n  {} workspace crates ({})\n",
+                    "📦".normal(),
+                    crates.len()
+                ));
                 out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
                 for (name, version, dir) in &crates {
-                    let short = dir.strip_prefix(core_root).unwrap_or(dir).trim_start_matches('/');
+                    let short = dir
+                        .strip_prefix(core_root)
+                        .unwrap_or(dir)
+                        .trim_start_matches('/');
                     out.push_str(&format!(
                         "  {} {:<24} {:<10} {}\n",
                         "→".bright_cyan(),
@@ -11506,15 +11597,25 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                         short.dimmed()
                     ));
                 }
-                out.push_str(&format!("\n  {} dev workspace <name> to jump\n", "→".dimmed()));
+                out.push_str(&format!(
+                    "\n  {} dev workspace <name> to jump\n",
+                    "→".dimmed()
+                ));
                 return CommandResult::Output(out);
             }
             // jump mode
             match crates.iter().find(|(name, _, _)| name == want) {
                 Some((name, _, dir)) => match std::env::set_current_dir(dir) {
                     Ok(_) => {
-                        let _ = std::process::Command::new("zoxide").args(["add", dir]).status();
-                        CommandResult::Output(format!("  {} {} ({})", "📦".normal(), name.bright_cyan(), dir.dimmed()))
+                        let _ = std::process::Command::new("zoxide")
+                            .args(["add", dir])
+                            .status();
+                        CommandResult::Output(format!(
+                            "  {} {} ({})",
+                            "📦".normal(),
+                            name.bright_cyan(),
+                            dir.dimmed()
+                        ))
                     }
                     Err(e) => CommandResult::Error(format!("  dev workspace: cd {}: {}", dir, e)),
                 },
@@ -11558,7 +11659,11 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     let members: std::collections::HashSet<String> = meta
                         .get("workspace_members")
                         .and_then(|m| m.as_array())
-                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
                         .unwrap_or_default();
                     meta.get("packages")
                         .and_then(|p| p.as_array())
@@ -11584,7 +11689,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .status();
                 match status {
                     Ok(s) if s.success() => CommandResult::Empty,
-                    Ok(_) => CommandResult::Error(format!("  dev doc: cargo doc failed for {}", target)),
+                    Ok(_) => {
+                        CommandResult::Error(format!("  dev doc: cargo doc failed for {}", target))
+                    }
                     Err(e) => CommandResult::Error(format!("  dev doc: {}", e)),
                 }
             } else {

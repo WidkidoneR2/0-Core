@@ -34,8 +34,8 @@ pub fn check_services() -> CheckResult {
     // Probe reachability ONCE; if the bus is unavailable, report honestly rather than crying wolf.
     let bus_reachable = Command::new("systemctl")
         .args(["--user", "show-environment"])
-        .output()                        // .output() captures stdout; .status() would leak the
-        .map(|o| o.status.success())     // env dump to the terminal. Same reachability check.
+        .output() // .output() captures stdout; .status() would leak the
+        .map(|o| o.status.success()) // env dump to the terminal. Same reachability check.
         .unwrap_or(false);
 
     if !bus_reachable {
@@ -187,7 +187,14 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let out = Command::new("cargo")
-            .args(["doc", "-p", "core", "--no-deps", "--manifest-path", &manifest])
+            .args([
+                "doc",
+                "-p",
+                "core",
+                "--no-deps",
+                "--manifest-path",
+                &manifest,
+            ])
             .output();
         let _ = tx.send(out);
     });
@@ -201,10 +208,7 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
             let warns: u32 = stderr
                 .lines()
                 .find(|l| l.contains("generated") && l.contains("warning"))
-                .and_then(|l| {
-                    l.split_whitespace()
-                        .find_map(|w| w.parse::<u32>().ok())
-                })
+                .and_then(|l| l.split_whitespace().find_map(|w| w.parse::<u32>().ok()))
                 .unwrap_or(0);
             if warns == 0 {
                 CheckResult {
@@ -1579,7 +1583,8 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
             id: "nix_hygiene".into(),
             name: "Nix Hygiene".into(),
             status: Status::Pass,
-            message: "Nix code clean -- no dead code or anti-patterns (tuned deadnix + statix)".into(),
+            message: "Nix code clean -- no dead code or anti-patterns (tuned deadnix + statix)"
+                .into(),
             fix: None,
         }
     } else {
@@ -1591,7 +1596,10 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
                 "{} Nix hygiene finding(s): {} dead-code, {} anti-pattern",
                 total, dead_count, statix_count
             ),
-            fix: Some("Run `deadnix --no-lambda-pattern-names nix/` and `statix check nix/` to see them".into()),
+            fix: Some(
+                "Run `deadnix --no-lambda-pattern-names nix/` and `statix check nix/` to see them"
+                    .into(),
+            ),
         }
     }
 }

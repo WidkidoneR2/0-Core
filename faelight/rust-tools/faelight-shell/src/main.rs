@@ -19,9 +19,9 @@ mod output;
 mod pty_exec;
 mod registry;
 mod safety_guard;
-mod triage;
 #[cfg(test)]
 mod tests;
+mod triage;
 use colored::Colorize;
 mod completion;
 mod config;
@@ -1374,12 +1374,22 @@ fn repl_main() -> Result<()> {
                             // pipe support, so route piped sub-commands through sh -c (same
                             // fallback the has_redirect branch below uses).
                             let has_pipe_in_lcmd = {
-                                let mut in_q = false; let mut qc = ' '; let mut found = false;
+                                let mut in_q = false;
+                                let mut qc = ' ';
+                                let mut found = false;
                                 for ch in lcmd_trim.chars() {
                                     match ch {
-                                        '"' | '\'' if !in_q => { in_q = true; qc = ch; }
-                                        c if in_q && c == qc => { in_q = false; }
-                                        '|' if !in_q => { found = true; break; }
+                                        '"' | '\'' if !in_q => {
+                                            in_q = true;
+                                            qc = ch;
+                                        }
+                                        c if in_q && c == qc => {
+                                            in_q = false;
+                                        }
+                                        '|' if !in_q => {
+                                            found = true;
+                                            break;
+                                        }
                                         _ => {}
                                     }
                                 }

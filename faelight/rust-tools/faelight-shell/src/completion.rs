@@ -545,7 +545,10 @@ impl<'a> ForestHelper<'a> {
         // (INT-134, Lane 2). Reads /tmp/fsh-pkg-search.json ONLY -- never the network, so no
         // TAB stall. Empty until you have run `pkg-search <term>` at least once; then falls
         // through silently (returns nothing, never errors).
-        if let Some(rest) = line.strip_prefix("pkg-search ").or_else(|| line.strip_prefix("pkgsearch ")) {
+        if let Some(rest) = line
+            .strip_prefix("pkg-search ")
+            .or_else(|| line.strip_prefix("pkgsearch "))
+        {
             let partial = rest.split_whitespace().last().unwrap_or("");
             let mut names: Vec<String> = Vec::new();
             if let Ok(src) = std::fs::read_to_string("/tmp/fsh-pkg-search.json") {
