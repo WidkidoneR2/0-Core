@@ -230,9 +230,51 @@ Secure Boot chain. Separately, the FAQ's brick scenario is conditioned on having
 machine has one. And a Framework 16 owner with the SAME RX 7700S module runs custom keys with no
 Microsoft through firmware updates without incident, with Framework staff on record that Microsoft
 keys are not required.
-This gate CORRECTED the intent rather than confirming it: the "--microsoft IS NON-NEGOTIABLE.
-Measured, not assumed." section was not measured -- it inferred a bootchain fact from a sysfs file.
-The gate did its job. -->
+This gate CORRECTED the intent TWICE rather than confirming it: "--microsoft IS NON-NEGOTIABLE.
+Measured, not assumed." was not measured -- it inferred a bootchain fact from a sysfs file. Then
+--firmware-builtin was ALSO wrong, because Framework's dbDefault CONTAINS Microsoft's CAs.
+
+REHEARSED END TO END IN THE VM, 2026-07-16, with the REAL Framework cert -- not argued, run:
+  1. vm rollback lanza-unsigned-keys-made   (keys created, ESP unsigned, Setup Mode Enabled, Vendor
+                                             Keys: none -- the state metal reaches after step 0)
+  2. openssl x509 -in mfg_cert-2.der -inform der -out framework-db.pem -outform pem
+     -> /var/lib/sbctl/keys/custom/db/framework-db.pem
+     PEM, not DER -- /var/lib/sbctl/keys/{PK,KEK,db}/*.pem set the convention.
+  3. vm snapshot lanza-custom-ready
+  4. sudo /run/current-system/bin/switch-to-configuration boot
+     -> "not signed. Replacing it with a signed binary" x2.
+     SIGN BEFORE ENROLLING. Enroll first, reboot, and you are locked out.
+  5. sudo sbctl verify -> BOOTX64.EFI OK, UKI OK, systemd-bootx64.efi OK, raw kernel NOT signed
+     (correct -- 059 proved from pe.rs:101-122 that the kernel hash lives in the signed UKI's
+     .linuxh section; sbctl only reads PE signature tables and cannot see it)
+  6. sudo sbctl enroll-keys --custom --yes-this-might-brick-my-machine
+     -> "Enrolling keys to EFI variables... With custom keys... Enrolled keys to the EFI variables!"
+  7. sudo sbctl status -> Setup Mode: Disabled | Vendor Keys: custom      <- NOT microsoft
+  8. reboot -> bootctl status -> "Secure Boot: enabled (user)" | "Measured UKI: yes"
+  vm snapshot lanza-custom-enforcing
+
+THE DRY RUN IS REAL -- metal day's safety valve. `enroll-keys --custom --export esl` prints
+"Exporting keys to EFI files... With custom keys... Exporting as esl files... Exported files!" and
+enrolls NOTHING: verified Setup Mode still Enabled, Vendor Keys still none, while db.esl/KEK.esl/
+PK.esl appeared on disk. Decoding the exported db.esl proved the CONTENT before firmware saw it:
+    sig-list-to-certs db.esl dbcheck
+    dbcheck-0  CN=Database Key              (own db key, GUID matches sbctl status)
+    dbcheck-1  CN=frame.work-LaptopAMDDB    (GUID 88a69775-... -- sbctl gives custom certs their own)
+Exactly two certs. No Microsoft Windows PCA. No Microsoft UEFI CA.
+RUN THE DRY RUN ON METAL BEFORE THE REAL ENROLLMENT.
+
+WHY --yes-this-might-brick-my-machine WAS NEEDED IN THE VM AND SHOULD NOT BE ON METAL. The
+controlled experiment -- same tool, two machines, one variable:
+    VM (qemu):    EventNum 14, PCRIndex 2, EV_EFI_BOOT_SERVICES_DRIVER, ImageLength 154528 -> REFUSES
+    Metal (FW16): zero EV_EFI_BOOT_SERVICES_DRIVER, PCR 2 EMPTY                            -> should not
+The VM refusal is a QEMU artifact and it CONFIRMS the metal reading. sbctl names only three escape
+flags -- --microsoft, --tpm-eventlog, --yes-this-might-brick-my-machine -- and --custom is NOT among
+them, so the VM needs the pair.
+PREDICTION FOR METAL: plain `sbctl enroll-keys --custom` works with no override. IF IT REFUSES
+ANYWAY, STOP. The eventlog and sbctl would be disagreeing, and that needs understanding, not a flag.
+
+AND sbctl IS SAFE BY DEFAULT: at the OptionROM check it aborted having enrolled NOTHING (Vendor Keys
+none, Setup Mode unchanged). It will not brick you by accident. -->
 - [ ] All 5 prerequisites above satisfied, each verified not assumed
 - [ ] Supervisor password set AND recorded somewhere that survives an unbootable laptop
 - [ ] EFI vars + /var/lib/sbctl backed up OFF-MACHINE, restore path tested
