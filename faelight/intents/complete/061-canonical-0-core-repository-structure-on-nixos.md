@@ -234,6 +234,7 @@ metal ship (2026-06-29) followed exactly this: VM-proven, staged, rescue-armed.
 ### State
 061 stays in-progress (correctly partial). v2 spec adds the nix/+faelight/ two-domain
 upgrade. Do NOT cicomplete until the gated/deferred phases land.
+[SUPERSEDED 2026-07-16 -- they landed. See the final section at the bottom of this file.]
 
 ## Progress (2026-07-02): Phase 6 hardcoded-path refactor -- SWEEP COMPLETE
 The cross-cutting refactor flagged above as "Understood, not batch-swept" is now
@@ -315,9 +316,104 @@ Both path classes (state.db/VERSION/runtime AND Arch-era numbered) grepped to ze
 Full workspace builds clean (33 tools now, was 34). Health 100% (tool count honest).
 
 ### RESTRUCTURE still remaining (the bulk -- unchanged from above)
+[ALL DONE as of 2026-07-16. This list is kept as the record of what was outstanding.]
 - Move remaining Faelight dirs -> faelight/: registry, meta, schema, runtime,
   intents, engine, rust-tools (data dirs = accessor repoint + git mv; code dirs
   also need Cargo.toml members path updates).
 - Then nix/ half: profiles, modules, hosts -> LOCKOUT-CLASS, VM-proof required,
   Phase 2 still gated by INT-054 login-test finding.
 - labs/ -> stays (or the docs/labs top-level, per v2 tree).
+
+## FINAL (2026-07-16): 061 IS DONE. Every phase. Measured, not claimed.
+
+This file has been wrong in BOTH directions, which is why it needed auditing rather than
+trusting. It UNDER-reported (claiming the tree was "still in the CURRENT layout" long after
+faelight/ and nix/ were real, and calling the Phase 3 harness blocked when it exists and
+passes) and it OVER-reported (calling Phase 1 "substantially complete" when nix/profiles/ --
+the charter's LAYER 2 -- had never been created at all).
+
+### Phase-by-phase, as measured on 2026-07-16
+
+Phase 1 -- domains + homes. DONE. faelight/ holds engine, rust-tools, packages, registry,
+  policy, intents, runtime, meta, schema. nix/ holds modules, hosts, home, tests. home/ vs
+  users/ resolved to nix/home/christian/ and the move happened.
+  THE GAP WAS profiles/. It did not exist. Built 2026-07-16 (commit eaba44f2):
+  nix/profiles/base.nix, holding FOUR settings and only four, because only four were
+  measured duplicated byte-for-byte across hosts (experimental-features,
+  auto-optimise-store, max-jobs, cores -- framework16:31/35/36/37 = vm/base.nix:39/43/44/45).
+  DELIBERATELY NOT BUILT: desktop.nix / laptop.nix / development.nix / security.nix. The
+  charter names them. Each would have exactly ONE consumer today -- one laptop, one VM, one
+  rescue image. A profile with one consumer is ceremony, not structure. They get built when
+  a second machine needs them, which is when they start being true. The charter was written
+  for a fleet that does not exist yet.
+
+Phase 2 -- greetd isolation. DONE ON METAL, commit 328b2e4c. LOCKOUT-CLASS, and it was
+  gated exactly as the hard rule demands: nix flake check first, then dep.
+  BUILT BECAUSE THE DRIFT WAS MEASURED, not because the charter said so.
+  hosts/vm/login-mirror.nix:4 claimed "Exact replica of hosts/framework16's login (line
+  108)". It was not: its tuigreet --theme said button=lightmagenta where metal said
+  button=white. The VM built to MIRROR metal's login was testing a different greeter than
+  metal runs. Nobody chose that -- it is what two hand-maintained copies of one string do.
+  (It also said "line 108"; the block had moved to 122.)
+  nix/modules/desktop/greetd.nix now owns the service, the tuigreet command and SafeShell.
+  Metal's button=white won. PROVEN BY EVAL: framework16 and faelight-vm produce the
+  byte-identical tuigreet command from the real flake. SafeShell verified present on both
+  framework16 and faelight-vm-regreet.
+  AND THE METAL DEPLOY WAS A PROVABLE NO-OP: the running greetd.toml store path
+  (260hc277bwfsh...) was UNCHANGED after dep. Same derivation -> same store path -> greetd
+  never restarted. The login layer was untouched while its definition collapsed from three
+  drifting copies into one module.
+
+Phase 3 -- tests harness. DONE, and the file above was wrong to call it blocked.
+  nix/tests/framework16.nix exists, is wired into flake.nix checks, imports the REAL
+  hosts/framework16/configuration.nix, and passes. It was never blocked by the INT-054
+  login-test finding -- it asserts greetd.service is configured, not that a compositor
+  gets a seat, which is the part the VM genuinely cannot do.
+  BUT IT WAS NOT ACTUALLY GUARDING ANYTHING, and that was the real find: `nix flake check`
+  died on the rustfmt hook before ever reaching it (see INT-119). Repaired 2026-07-16,
+  commit d9b9b4d7 -- the hook had never been installed into .git/hooks, so ~30 commits that
+  day alone landed unchecked, INCLUDING the lockout-class lanzaboote change (INT-161).
+  Also cleaned: nix/tests/ had FOUR files and checks had TWO entries. boot.nix booted an
+  EMPTY machine (`nodes.machine = _: {}`) and asserted that echo echoes -- it could not fail
+  for any reason connected to this repo. friday-service.nix imported
+  ../modules/services/friday.nix, WHICH DOES NOT EXIST. Both deleted (fb7d0bee); archived/
+  deleted too (48f73dda -- its script hardcoded an Arch-era ~/.cargo path that does not
+  exist on NixOS, so it could not run even if called; git is the archive). nix/tests/ is now
+  one file that is actually run.
+
+Phase 4 -- system/user re-scoping. ALREADY DONE. nix/home/christian/ holds
+  faelight-bar.nix and faelight-notify.nix as systemd.user.services, imported by home.nix.
+  Decision #5's authority boundary is satisfied. Nobody had recorded it.
+  NOTE on the charter's modules/forest/friday.nix "SYSTEM service": there is no
+  friday.service on this machine (`systemctl status friday` -> Unit could not be found) and
+  no friday reference in framework16's config. Friday today is an ENGINE invoked by tools,
+  not a daemon. The persistent daemon is INT-039 (friday-daemon), still [planned]. The
+  charter wrote the destination as though it were the present -- the same error this file
+  made everywhere else. modules/forest/ gets built when 039 gives it something to hold.
+
+Phase 5 -- packages. DONE. faelight/packages/ exists; nix/modules/forest wiring is not
+  needed while there is nothing in forest/ to wire.
+
+Phase 6 -- hardcoded-path sweep + moves. DONE, and verified by exhaustive grep rather than
+  claim (see the 2026-07-02b section above). paths.rs is the single authority.
+
+### modules/system/ and modules/security/ -- deliberately NOT built
+The charter wants nix/modules/system/{boot,networking,locale}.nix and
+nix/modules/security/{luks,firewall,hardening}.nix. Same reasoning as the unbuilt profiles:
+those settings live in framework16's configuration.nix and have exactly one consumer. The
+charter's decision #7 justified system/ so "services never becomes a junk drawer" -- but
+nix/modules/services/ holds one file (atticd.nix), so there is no junk drawer to prevent
+yet. Splitting a 194-line host config into six single-consumer modules would make the tree
+look more architectural while making nothing more true. THE CHARTER'S OWN RULE cuts this
+way: "If you cannot point at the layer in the tree, it is not 0-Core -- it is just files."
+Layers you can point at: nix/ vs faelight/ (the dependency seam), profiles/ (LAYER 2),
+modules/desktop/ (four compositor+login modules, all multi-consumer), hosts/, home/, tests/.
+That is the philosophy made visible. The rest is filing.
+
+### The honest scorecard
+DONE: the two-domain split, paths.rs authority, faelight/ moves, nix/home, greetd isolation
+  on metal, the VM harness (now actually running), profiles/ LAYER 2.
+NOT DONE, ON PURPOSE, EACH WITH A REASON: four profiles with one consumer each; modules/
+  system+security+forest with one consumer each or nothing to hold; the tests/ subdirectory
+  mirror (one test file does not need four directories).
+The tree now IS the philosophy. Where it is flat, it is flat because flat is true.
