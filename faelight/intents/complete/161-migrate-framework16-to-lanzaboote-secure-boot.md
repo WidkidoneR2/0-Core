@@ -3,7 +3,7 @@ id: 161
 date: 2026-07-15
 type: future
 title: "Migrate framework16 to Lanzaboote Secure Boot"
-status: planned
+status: complete
 tags: [faelight, secureboot, lanzaboote, metal, blocked]
 depends_on: [160]
 ---
@@ -405,7 +405,21 @@ secure boot to factory settings", which restores Framework's factory keys FROM T
 STORAGE -- no file, no USB, no network. Our .esl copies exist in case that option fails or does
 something other than what its name says. The firmware is the primary restore path; these files are
 the backup to the backup. -->
-- [ ] Firmware in setup mode (SetupMode=1 in efivars -- verify, do not assume the menu worked)
+- [x] Firmware in setup mode (SetupMode=1 in efivars -- verify, do not assume the menu worked)
+<!-- evidence: 2026-07-16. IT TOOK TWO TRIPS, and the gate's own wording is why that got caught.
+FIRST TRIP: set "Erase all secure boot settings" -> Enabled, exited, machine rebooted. sbctl still
+read Setup Mode: Disabled, Vendor Keys: microsoft builtin-db builtin-KEK builtin-PK. Nothing had
+happened. Read the firmware directly rather than argue with sbctl:
+    sudo od -An -t u1 /sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c
+    -> 6 0 0 0 0     (four attribute bytes, then the value: 0 = user mode)
+`who -b` confirmed the machine HAD rebooted since. So the toggle was set and did not fire -- the save
+never happened. INSYDE arms on save and fires on the next boot; exiting without saving discards it
+silently.
+SECOND TRIP: same toggle, then Exit Saving Changes -> reboot ->
+    -> 6 0 0 0 1     SetupMode = 1
+Confirmed a second, independent way: sbctl status -> Setup Mode: Enabled | Vendor Keys: none.
+Framework's PK is erased.
+"VERIFY, DO NOT ASSUME THE MENU WORKED" earned its place. The menu looked identical both times. -->
 <!-- 2026-07-16: the option to fire is "Erase all secure boot settings" (currently Disabled). NOT
 "Restore Secure Boot to Factory Settings" -- that never existed on this firmware.
 THREE independent confirmations afterwards, do not trust one:
@@ -414,10 +428,67 @@ THREE independent confirmations afterwards, do not trust one:
   3. the INSYDE menu: "Enroll PK signature list" should no longer show [PKCS7] framework-laptopAMDPK
 And "User customized security" (No today) should read Yes once OUR keys are enrolled -- the firmware's
 own account, independent of sbctl. -->
-- [ ] sbctl verify clean before the reboot that enforces
-- [ ] Boots with `Secure Boot: enabled (user)` and `Measured UKI: yes`
-- [ ] A generation rebuild + reboot AFTER enrollment still boots (the real test is the second one,
+- [x] sbctl verify clean before the reboot that enforces
+<!-- evidence: 2026-07-16, run in setup mode BEFORE enrolling:
+    OK /boot/EFI/BOOT/BOOTX64.EFI is signed
+    OK 15 x /boot/EFI/Linux/nixos-generation-368 369 370 371 372 373 374 375 376 377 378 379 380 381 382-*.efi are signed
+    OK /boot/EFI/systemd/systemd-bootx64.efi is signed
+    -- /boot/EFI/nixos/kernel-6.18.35-*.efi is NOT signed        <- CORRECT. See below.
+THE KERNEL MARK IS NOT A FAILURE and it is not a kernel problem -- a different kernel (CachyOS or
+otherwise) would show the identical mark. It is lanzaboote's architecture, proven from source in 059
+(rust/tool/shared/src/pe.rs:101-122): the UKI is a STUB that loads the kernel and initrd from the ESP
+at boot, and their SHA-256 hashes live in the stub's .linuxh PE section. The stub is signed, so the
+hashes are signed. Chain: firmware verifies BOOTX64.EFI -> verifies the UKI stub -> the stub checks
+the kernel against the signed .linuxh before handing over. Change one byte of that kernel and the
+stub refuses it. sbctl verify only looks for PE SIGNATURE TABLES; it cannot see a hash inside another
+binary's section, so it reports the mark. A tool looking in the wrong place.
+The proof is empirical, not just architectural: this machine boots with Secure Boot ENFORCING and
+that mark present. So did the VM, twice. If it mattered, none of it would boot. -->
+- [x] Boots with `Secure Boot: enabled (user)` and `Measured UKI: yes`
+<!-- evidence: 2026-07-16. `sudo sbctl enroll-keys --custom` -- NO override flag, exactly as the
+gate-2 prediction said:
+    Enrolling keys to EFI variables...
+    With custom keys...OK
+    Enrolled keys to the EFI variables!
+    sbctl status -> Setup Mode: Disabled | Vendor Keys: custom      <- NOT microsoft
+THE PREDICTION HELD ON METAL. The VM refuses this exact command (qemu has EV_EFI_BOOT_SERVICES_DRIVER
+at PCR 2); this machine has PCR 2 empty and sbctl did not refuse. tpm2 eventlog and sbctl -- two
+independent tools -- agree there is no option ROM in this boot chain.
+
+VERIFIED WHAT ACTUALLY LANDED, by reading the efivar rather than trusting the tool:
+    sudo dd if=/sys/firmware/efi/efivars/db-d719b2cb-3d3a-4596-a3bc-dad00e67656f \
+            of=/tmp/db-now.esl bs=1 skip=4
+    sig-list-to-certs -> exactly TWO certs:
+      CN=Database Key            GUID 3915cfcc-...   (ours)
+      CN=frame.work-LaptopAMDDB  GUID 88a69775-...   (Framework's)
+2.5k -- byte-identical to what the dry run previewed. Microsoft's GUID 77fa9abd is ABSENT. All FOUR
+Microsoft certs are gone from db.
+BUG WORTH KNOWING: `sbctl list-enrolled-keys` displayed "frame.work-LaptopAMDKEK" in DB. That is a
+DISPLAY BUG -- the firmware holds LaptopAMDDB. Read the efivar; don't trust the listing.
+
+REBOOT -> bootctl status:
+    Firmware: UEFI 2.90 (INSYDE Corp. 0.773)
+    Secure Boot: enabled (user)
+    Measured UKI: yes
+INSYDE AUTO-ENABLED ENFORCEMENT on enrollment -- the menu's separate "Enforce secure boot" toggle did
+NOT need flipping, same as OVMF. One less step than expected. -->
+- [x] A generation rebuild + reboot AFTER enrollment still boots (the real test is the second one,
       not the first -- signing must keep working)
+<!-- evidence: 2026-07-16. `dep` under LIVE Secure Boot enforcement built generation 383:
+    Installing Lanzaboote to "/boot"...
+    Collecting garbage...
+    Successfully installed Lanzaboote.
+THE TELL IS WHAT IT DID NOT SAY. The first deploy printed "not signed. Replacing it with a signed
+binary" twice. This one did not -- because the files were ALREADY correctly signed with the enrolled
+key. Lanzaboote signed a new generation while the firmware was enforcing, and sbctl verify came back
+clean with 383 present.
+REBOOT -> gen 383 -> bootctl status -> Secure Boot: enabled (user) | Measured UKI: yes.
+Booting a generation BUILT AFTER ENROLLMENT. That is the quiet failure ruled out: signing keeps
+working, so every future dep produces a bootable system.
+Also confirmed: configurationLimit is doing its job -- 368 rolled off the ESP as 383 rolled on. Still
+fifteen UKIs. Without carrying boot.lanzaboote.configurationLimit over from the systemd-boot option
+(which stops applying once that module is forced off), all 112 generations would accumulate in a 4G
+/boot. -->
 
 ## Reference
 - INT-059 (complete) -- the rehearsal, the divergences, the decision
