@@ -5,14 +5,26 @@
     ../../modules/desktop/pinnacle.nix
     ../../modules/desktop/mango.nix
     ../../modules/desktop/miracle.nix
+    inputs.lanzaboote.nixosModules.lanzaboote  # INT-161
   ];
 
-  # --- Boot (UEFI + systemd-boot). LUKS unlock & filesystems come from disko. ---
-  boot.loader.systemd-boot.enable = true;
+  # --- Boot (UEFI + Lanzaboote/Secure Boot). LUKS unlock & filesystems come from disko. ---
+  # INT-161: lanzaboote REPLACES the systemd-boot module -- it installs its own signed copy of
+  # systemd-boot plus a signed UKI per generation. mkForce because the line below is `= true` in
+  # plain assignment and lanzaboote's assertion refuses to coexist.
+  boot.loader.systemd-boot.enable = lib.mkForce false;
+  boot.lanzaboote = {
+    enable = true;
+    pkiBundle = "/var/lib/sbctl";  # sbctl's default since 0.15. Keys live OUTSIDE the repo.
+    configurationLimit = 15;       # carried over from systemd-boot's -- see note below.
+  };
+
   boot.plymouth.enable = true;
   boot.plymouth.theme = "bgrt";
 
-  boot.loader.systemd-boot.configurationLimit = 15;
+  # INT-161: boot.loader.systemd-boot.configurationLimit STOPS APPLYING once the module is forced
+  # off -- lanzaboote reads boot.lanzaboote.configurationLimit instead. Without carrying it over we
+  # would silently go from 15 entries on the ESP to all 110 generations, and /boot is 4G.
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
