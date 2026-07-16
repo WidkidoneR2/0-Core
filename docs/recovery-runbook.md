@@ -68,7 +68,7 @@ sudo nixos-rebuild switch --rollback
 **From the boot menu (no login needed):** reboot, select a previous generation.
 - systemd-boot: listed directly.
 - GRUB: under "NixOS — All configurations".
-> Confirm which: `rg boot.loader ~/0-core/hosts/framework16/*.nix`
+> Confirm which: `rg boot.loader ~/0-core/nix/hosts/framework16/*.nix`
 
 ## Level 3 — won't boot / fully locked out (USB rescue)
 
@@ -96,7 +96,7 @@ nixos-enter --root /mnt
 
 Inside the real system — fix and rebuild, or roll back:
 ```
-hx /home/christian/0-core/hosts/framework16/configuration.nix
+hx /home/christian/0-core/nix/hosts/framework16/configuration.nix
 nixos-rebuild switch --flake /home/christian/0-core#framework16
 # or undo the last change:
 nixos-rebuild switch --rollback
