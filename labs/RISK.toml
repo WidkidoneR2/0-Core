@@ -1,0 +1,7 @@
+# INT-112: risk metadata.
+risk = "data"
+reason = """
+Experimental, off the critical path by design -- the v2 charter puts labs/ at the bottom of
+the tree so it does not compete visually with canonical architecture. Nothing here is wired
+into a host. That is what makes it a lab.
+"""

@@ -1,0 +1,18 @@
+# INT-112: risk metadata. Read by the pre-commit hook; readable by you.
+risk = "critical"
+requires = ["framework16-boot"]
+reason = """
+The real laptop. Boot chain, disko/LUKS layout, lanzaboote + Secure Boot, the christian
+account. This is the ONLY directory where a mistake can leave a machine that will not boot
+or will not log in. INT-161 put Secure Boot here with custom keys enforcing; a bad signature
+config is a firmware-level problem, not a rebuild-level one.
+Recovery if it happens anyway (all four rehearsed or measured, INT-160/161):
+  1. INSYDE menu -> "Restore secure boot to factory settings" (no file, no USB, no network)
+  2. INSYDE menu -> Secure Boot off
+  3. Rescue USB (INT-160 gate 7, walked on this hardware)
+  4. sbctl reset
+There is NO supervisor password on this firmware, so the menu is always reachable.
+"""
+
+[history]
+lockout = "2026-06-09 -- 24 hours locked out by a greetd change. The reason every rule here exists."

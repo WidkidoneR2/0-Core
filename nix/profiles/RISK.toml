@@ -1,0 +1,9 @@
+# INT-112: risk metadata.
+risk = "system"
+reason = """
+INT-061 LAYER 2 -- the OS registry. Shared by framework16 AND the VM, so a mistake here hits
+both. But these are nix.settings (experimental-features, auto-optimise-store, max-jobs,
+cores): break them and builds get slower or fail loudly. They cannot stop the machine
+booting or you logging in.
+Promote to critical if a profile ever carries boot, login, or disk settings.
+"""

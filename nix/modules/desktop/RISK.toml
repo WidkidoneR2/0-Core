@@ -1,0 +1,12 @@
+# INT-112: risk metadata. Read by the pre-commit hook; readable by you.
+risk = "critical"
+requires = ["framework16-boot"]
+reason = """
+greetd.nix lives here. Login is lockout-class: if the greeter does not come up, you do not
+get in, and no amount of correct configuration elsewhere helps.
+The compositor modules (mango/pinnacle/miracle) are LESS dangerous than greetd -- a
+compositor that fails to launch means picking another at the greeter, and SafeShell
+(Exec=fsh, from greetd.nix) catches the case where all of them fail. But they share this
+directory with greetd.nix, and a tier is per-directory. Marked critical for the whole dir
+rather than pretending the boundary is finer than the metadata.
+"""

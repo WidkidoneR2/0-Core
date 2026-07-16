@@ -1,0 +1,3 @@
+# INT-112: risk metadata.
+risk = "data"
+reason = "Human documentation. Nothing reads it at boot. Cannot break anything."

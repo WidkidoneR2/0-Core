@@ -1,0 +1,11 @@
+# INT-112: risk metadata.
+risk = "user"
+reason = """
+The PLATFORM half -- engine, rust-tools, intents, registry, policy, runtime. The whole
+0-Core dependency seam runs one way: nix/ (OS) depends on faelight/, never the reverse. So
+nothing in here can break the boot or the login.
+Break a tool and you lose the tool. Move fast here. This is where the work happens, and it
+is user-tier ON PURPOSE, not by neglect.
+Exception to watch: if fsh ever becomes the login shell (see nix/home/christian/RISK.toml),
+faelight/rust-tools/faelight-shell/ joins the lockout chain.
+"""

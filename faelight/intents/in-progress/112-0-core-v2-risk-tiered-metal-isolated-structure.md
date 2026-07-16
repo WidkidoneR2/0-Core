@@ -3,7 +3,7 @@ id: 112
 date: 2026-07-02
 type: future
 title: "0-Core v2 risk-tiered metal-isolated structure"
-status: planned
+status: in-progress
 tags: [structure, restructure, lockout, lanzaboote]
 priority: high
 ---
