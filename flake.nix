@@ -148,7 +148,16 @@
         ];
       };
 
+      # INT-160: rescue media. A SEPARATE host -- nothing here touches framework16, so this
+      # intent cannot brick anything. It builds an artifact.
+      nixosConfigurations.rescue = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit self system inputs; };
+        modules = [ ./nix/hosts/rescue/configuration.nix ];
+      };
       packages.${system} = {
+        # INT-160: `nix build .#rescue-iso` -> declarative, git-tracked rescue media.
+        rescue-iso = self.nixosConfigurations.rescue.config.system.build.isoImage;
         # INT-043: crane deps-only derivation -- the cacheable unit pushed to Cachix
         faelight-deps = faelightDeps;
         faelight-forest = craneLib.buildPackage (faelightCommonArgs // {

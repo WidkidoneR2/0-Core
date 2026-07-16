@@ -3,7 +3,7 @@ id: 160
 date: 2026-07-15
 type: future
 title: "Faelight Forest Rescue USB Built 1.0"
-status: planned
+status: in-progress
 tags: [faelight forest, usb, wtf, rescue, help]
 priority: high
 blocks: [161]
@@ -77,8 +77,26 @@ an ISO via the QEMU_OPTS `-cdrom` seam and watch. This also closes INT-059 gate 
 ("the VM has no ISO/boot-media path wired").
 
 ## Gates
-- [ ] ISO builds from the flake: nixos-minimal + the tool list above, each tool justified
-- [ ] docs/recovery-runbook.md is baked INTO the image (findable without network or the host)
+- [x] ISO builds from the flake: nixos-minimal + the tool list above, each tool justified
+<!-- evidence: 2026-07-16. nix/hosts/rescue/configuration.nix imports
+<nixpkgs>/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix (path VERIFIED by find(1)
+against the store -- the first attempt used nixos/modules/installation-cd/... from memory and
+failed eval: "path ... does not exist"). Wired as nixosConfigurations.rescue +
+packages.rescue-iso. `nix build .#rescue-iso` -> result/iso/faelight-rescue.iso, 1.4G.
+Also fixed a real deprecation nixpkgs reported at eval: isoImage.isoBaseName -> image.baseName.
+BOOTED IN THE VM, not just built: reached the NixOS installer and a `nixos@faelight-rescue`
+prompt -- that hostname is OURS, set in our config, so the thing that booted is our declarative
+ISO and not a stock one.
+SEPARATE HOST BY DESIGN: nothing here touches framework16. This intent cannot brick anything. -->
+- [x] docs/recovery-runbook.md is baked INTO the image (findable without network or the host)
+<!-- evidence: 2026-07-16. environment.etc."faelight/recovery-runbook.md".source points at
+docs/recovery-runbook.md. Verified in the built system closure:
+  /nix/store/w3wrg8qj...-nixos-system-faelight-rescue-26.05.../etc/faelight/
+  recovery-runbook.md -> /nix/store/kz8jvr63...-recovery-runbook.md
+Plus a users.motd printed at login that names the path AND inlines both recovery paths: the
+SHORT one (Secure Boot lockout -- mount /dev/nvme0n1p1, no LUKS needed) and the LONG one
+(runbook Level 3 -- cryptsetup open -> mount subvols -> nixos-enter), with the disk layout.
+A rescue tool you have to remember how to use is not a rescue tool. -->
 - [x] VERIFIED with the REAL media: the USB is refused under Secure Boot enforcement
 <!-- evidence: 2026-07-15. Christian's actual nixos-minimal-25.11 stick. Inspected first: its EFI
 partition holds ONLY an unsigned GRUB BOOTX64.EFI + refind_x64.efi + grub.cfg -- NO shimx64.efi,
@@ -104,6 +122,33 @@ does now, via QEMU_OPTS + usb-storage, no launcher change needed. -->
       Boot lockout needs (see below)
 - [ ] Level 3 walked end to end from the USB: LUKS unlock -> mount @root/@nix/@home ->
       nixos-enter -> rollback a generation. The runbook's own path, demonstrated once.
+
+## THE CONTROLLED EXPERIMENT (2026-07-16) -- the recovery model, isolated and proven
+Same ISO. Same attach (`-drive ...,readonly=on` + `-device usb-storage,bootindex=0` via the
+QEMU_OPTS seam). ONE variable changed: whether Secure Boot was enforcing.
+
+SB ENFORCING (snapshot lanza-sb-enforcing), Christian's real nixos-minimal-25.11 stick:
+    BdsDxe: loading Boot0003 "UEFI QEMU QEMU USB HARDDRIVE 1-0000:00:1d.7-2" ...
+    BdsDxe: failed to load Boot0003 ...: Access Denied -- rejected probably by Secure Boot
+    BdsDxe: loading Boot0002 "UEFI Misc Device" ...
+    BdsDxe: starting Boot0002 "UEFI Misc Device" ...        <- FELL THROUGH to the signed disk
+
+SB NOT ENFORCING (snapshot lanza-signed-not-enrolled), our faelight-rescue.iso:
+    BdsDxe: loading Boot0003 "UEFI QEMU QEMU USB HARDDRIVE 1-0000:00:1d.7-2" ...
+    BdsDxe: starting Boot0003 "UEFI QEMU QEMU USB HARDDRIVE 1-0000:00:1d.7-2" ...   <- BOOTS
+    Loading graphical boot menu...
+    -> NixOS installer -> nixos@faelight-rescue
+
+"failed to load ... Access Denied" -> "starting". One variable. This IS the recovery model this
+intent rests on, demonstrated rather than argued:
+    firmware menu -> DISABLE Secure Boot -> boot the USB -> fix -> re-enable
+And the fall-through is the trap: with SB on, plugging in the USB does NOTHING VISIBLE. The
+machine boots normally, as if the port were dead.
+
+HONEST LIMIT: this used `vm rollback` to reach the non-enforcing state, NOT the firmware menu.
+Navigating an actual firmware menu to toggle Secure Boot is STILL UNTESTED (see the next gate) --
+and on metal that menu is the whole escape hatch. The serial log ends at "Loading graphical boot
+menu" because GRUB hands off to VGA there; the rest went to the screen.
 
 ## FINDING FOR INT-056's RUNBOOK (2026-07-15, proven in the VM)
 A Secure Boot lockout does NOT need a LUKS unlock. The ESP CANNOT be encrypted -- firmware must
