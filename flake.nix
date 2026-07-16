@@ -13,6 +13,12 @@
   # INT-043: Attic self-hosted binary cache (replaces Cachix -- Cachix's multi-tenant
   # content-dedup refused to serve our crane deps closure; Attic is single-tenant/ours
   # with configurable upstream-skip, so it actually serves the closure).
+  # INT-059: Lanzaboote v1.0.0 -- Secure Boot + Measured Boot for NixOS. Pinned to the RELEASE
+  # TAG, not master (the intent's own rule, and upstream's advice). v1.0.0 satisfies this intent's
+  # decision criterion ("Lanzaboote >= 1.0 or judged stable enough") -- it is no longer a spike.
+  # nixpkgs.follows keeps the closure from doubling.
+  inputs.lanzaboote.url = "github:nix-community/lanzaboote/v1.0.0";
+  inputs.lanzaboote.inputs.nixpkgs.follows = "nixpkgs";
   inputs.attic.url = "github:zhaofengli/attic";
   inputs.attic.inputs.nixpkgs.follows = "nixpkgs";
   # INT-122: nixCats -- real-Lua-packaged-by-Nix neovim (migrating off nixvim).

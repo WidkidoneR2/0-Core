@@ -74,12 +74,45 @@ the key-clearing step. The rehearsal proves enrollment, lockout, and recovery --
 with the INSYDE menu.
 `sbctl` is NOT installed (nixpkgs has 0.18; it is not in systemPackages). Needed either way.
 
+## HOW THE build-vm CHICKEN-AND-EGG RESOLVED (2026-07-15) -- upstream built this path
+First `vm build` with lanzaboote DIED:
+  Failed to install generation 1: Get stub name: Failed to read public key from
+  /var/lib/sbctl/keys/db/db.pem: No such file or directory  -> Failed to install bootloader
+  -> Kernel panic - not syncing: Attempted to kill init!
+Upstream's order is `sbctl create-keys` on a RUNNING system, then rebuild. build-vm has no
+running-system step -- it bakes the ESP inside a sandboxed builder VM. Setting
+`autoGenerateKeys.enable = true` fixed it, and the SOURCE says why (nix/modules/lanzaboote.nix):
+  allowUnsigned = ... default = cfg.autoGenerateKeys.enable;
+    "Whether to allow installing unsigned artifacts to the ESP. This is useful for installing
+     Lanzaboote where the key is generated during the first boot."
+So autoGenerateKeys flips allowUnsigned, which passes `--allow-unsigned true` to lzbt install.
+THE WORKING SEQUENCE (all three legs proven in the VM):
+  1. `vm build`  -> ESP installed UNSIGNED (no keys exist yet). sbctl verify: 4 x NOT SIGNED.
+  2. `vm up`     -> generate-sb-keys.service fires (wantedBy multi-user.target,
+                    ConditionPathExists=!/var/lib/sbctl) -> PK/KEK/db created IN THE GUEST.
+  3. `sudo /run/current-system/bin/switch-to-configuration boot` -> reinstalls, now SIGNED.
+  4. `sudo sbctl enroll-keys --microsoft` -> PK enrolled, setup mode exits.
+  5. reboot -> `Secure Boot: enabled (user)`. It boots.
+The keys are NOT baked into the image -- generate-sb-keys ran at 20:50:48 on the guest's own
+first boot, minutes after the build. Every fresh overlay makes its own keys.
+
+## DIVERGENCES FROM METAL -- what this rehearsal does NOT prove
+1. KEY CLEARING: the VM was already in setup mode (no PK). Metal is SetupMode=0 (user mode) and
+   needs "Restore Secure Boot to Factory Settings" in the INSYDE menu first -- physical, manual,
+   unrehearsable here.
+2. OPTION ROMs: sbctl found an OptionROM in the VM's bootchain (qemu's virtio ROMs). The
+   Framework 16's are DIFFERENT hardware -- dGPU module, expansion cards. --microsoft worked here;
+   it may or may not be the right answer there.
+3. THE FLAG ITSELF: the intent's Framework note says use `--firmware-builtin` (enroll the keys the
+   firmware names as default-db). We used `--microsoft`. Metal will NOT be a byte-for-byte replay.
+4. NO LUKS in the VM, and no boot media wired -- so the Forest Recovery Protocol cannot be
+   mirrored exactly (see gate 6).
+
 ## Gates
-- [ ] `sbctl` in systemPackages; Lanzaboote wired as a flake input, applied to the VM ONLY
-- [ ] VM: sbctl create-keys + enroll-keys succeed in setup mode; guest reports
-      `Secure Boot: enabled (user)` -- was `disabled (setup)`
-- [ ] VM: the guest BOOTS with Secure Boot enforcing, through the signed UKI
-- [ ] VM: `Measured UKI: yes` (TPM2 measurement live, not just present)
+- [x] `sbctl` in systemPackages; Lanzaboote wired as a flake input, applied to the VM ONLY <!-- evidence: 2026-07-15, VM. flake input github:nix-community/lanzaboote/v1.0.0 (e8c096a) with nixpkgs.follows; module imported in nix/hosts/vm/base.nix ONLY; systemd-boot forced off there; sbctl 0.18 merged into the existing systemPackages list. framework16/configuration.nix still says systemd-boot.enable = true -- metal untouched. v1.0.0 MEETS this intent's own decision criterion ('Lanzaboote >= 1.0'), so this is no longer a spike -->
+- [x] VM: keys created + enrolled in setup mode; guest reports `Secure Boot: enabled (user)` <!-- evidence: 2026-07-15, VM. generate-sb-keys.service fired on FIRST GUEST BOOT (not image build) -- 'Created Owner UUID ef01e822-...', full PK/KEK/db in /var/lib/sbctl. Then `sbctl enroll-keys --microsoft` -> 'Enrolled keys to the EFI variables!' -> sbctl status: Setup Mode DISABLED, Vendor Keys microsoft. sbctl REFUSED the bare enroll-keys first: 'Found OptionROM in the bootchain' -- the tool working as designed. --microsoft chosen: the standard path and the likely metal choice; COST RECORDED: Microsoft's CA now sits in db, so MS-signed binaries can boot this machine -- a real widening of the trust root, in tension with 'nothing runs without explicit human authorization'. --tpm-eventlog (trust ROM checksums, not a CA) is closer to our values but sbctl marks it experimental -->
+- [x] VM: the guest BOOTS with Secure Boot enforcing, through the signed UKI <!-- evidence: 2026-07-15, VM. full down/up cycle after enrollment -> 'guest is UP after 14s' -> bootctl: 'Secure Boot: enabled (user)'. Current Entry: nixos-generation-1-5e4nienm...efi -- a SIGNED UKI, not a BLS .conf. sbctl verify: BOOTX64.EFI, the UKI, and systemd-bootx64.efi all signed. The raw kernel-6.18.35-*.efi stays UNSIGNED BY DESIGN -- lanzaboote embeds the initrd hash in the signed UKI and validates from there; upstream docs say kernel- files are expected unsigned -->
+- [x] VM: `Measured UKI: yes` (TPM2 measurement live, not just present) <!-- evidence: 2026-07-15, VM. guest bootctl reports 'TPM2 Support: yes' AND 'Measured UKI: yes'. NOTE: measurement went live while the UKI was still UNSIGNED -- Measured Boot and Secure Boot are separate mechanisms, and the TPM measures whatever boots, signed or not -->
 - [ ] VM: DELIBERATE LOCKOUT -- break the signature on purpose and watch the firmware REFUSE.
       Record exactly what the failure looks like (that is the thing you must recognize on metal)
 - [ ] VM: recover from the lockout. NOTE: `vm rollback` is the SAFETY NET, not the gate -- the gate

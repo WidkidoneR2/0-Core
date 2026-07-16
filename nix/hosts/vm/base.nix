@@ -4,9 +4,30 @@
   # (mirror = tuigreet, regreet = cage+ReGreet). The login layer is a
   # separate module the flake selects. greetd.enable + the session command
   # live in the login modules, not here.
-  imports = [ ./hardware-configuration.nix ../../modules/desktop/mango.nix ];
+  imports = [
+    ./hardware-configuration.nix
+    ../../modules/desktop/mango.nix
+    # INT-059: the VM is the PROVING GROUND -- lanzaboote lands HERE first. Metal
+    # (nix/hosts/framework16) stays on plain systemd-boot until a deliberate lockout
+    # has been rehearsed AND recovered in here.
+    inputs.lanzaboote.nixosModules.lanzaboote
+  ];
 
-  boot.loader.systemd-boot.enable = true;
+  # INT-059: lanzaboote REPLACES the systemd-boot module, so systemd-boot must be forced off
+  # here. framework16 keeps systemd-boot.enable = true -- metal is untouched.
+  boot.loader.systemd-boot.enable = lib.mkForce false;
+  boot.lanzaboote = {
+    enable = true;
+    pkiBundle = "/var/lib/sbctl";   # current sbctl default (older docs say /etc/secureboot)
+    # INT-059: upstream's order is `sbctl create-keys` on a RUNNING system, then rebuild with
+    # lanzaboote. build-vm has no running-system step -- it bakes the ESP inside a sandboxed
+    # builder VM, which died with:
+    #   Failed to install generation 1: Get stub name: Failed to read public key from
+    #   /var/lib/sbctl/keys/db/db.pem: No such file or directory
+    # v1.0.0 added autoGenerateKeys for exactly this gap. UNPROVEN here -- testing whether the
+    # keys it makes survive into the image or evaporate with the builder VM.
+    autoGenerateKeys.enable = true;
+  };
   boot.loader.efi.canTouchEfiVariables = true;
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -104,6 +125,8 @@
   environment.variables.LIBGL_ALWAYS_SOFTWARE = "1";
 
   environment.systemPackages = [
+    # INT-059: sbctl -- create/enroll Secure Boot keys and verify signatures INSIDE the guest.
+    pkgs.sbctl
     inputs.pinnacle.packages.${system}.pinnacle
     pkgs.git
     pkgs.vim
