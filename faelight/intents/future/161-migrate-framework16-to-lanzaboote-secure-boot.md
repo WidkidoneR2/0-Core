@@ -335,7 +335,43 @@ ANYWAY, STOP. The eventlog and sbctl would be disagreeing, and that needs unders
 
 AND sbctl IS SAFE BY DEFAULT: at the OptionROM check it aborted having enrolled NOTHING (Vendor Keys
 none, Setup Mode unchanged). It will not brick you by accident. -->
-- [ ] All 5 prerequisites above satisfied, each verified not assumed
+- [x] All 5 prerequisites above satisfied, each verified not assumed
+<!-- evidence: 2026-07-16, one by one:
+  1. SUPERVISOR PASSWORD -- VOID. No such option exists on INSYDE 0.773. Read off the real menu, not
+     inferred. Recorded in gate 4. The upside is large: this intent's own brick scenario ("LOSE IT
+     WHILE LOCKED OUT AND THERE IS NO PATH BACK") cannot happen -- there is no password to lose.
+  2. RESCUE USB PRESENT AND BOOTED -- INT-160, 7/7, both recovery paths walked on this hardware.
+     Gate 1.
+  3. EFI VARS BACKED UP OFF-MACHINE -- DONE, and over-satisfied. Exported with
+     `sbctl --disable-landlock export-enrolled-keys --dir ~/sb-backup --format esl` -> PK/KEK/db
+     (no dbx; the revocation list is empty on this machine). Now in THREE places: the laptop, the
+     repo at nix/hosts/framework16/secureboot-factory/ (legitimate -- they are PUBLIC X.509 certs,
+     and GitHub survives this laptop being a brick), and FORESTBACKUP.
+     PROVEN BY ROUND TRIP, not by copying: wrote to the stick, unmounted, REMOUNTED, decoded PK.esl
+     off the stick -> subject=CN=frame.work-LaptopAMDPK. The bytes survived. A backup you have not
+     read back is not a backup.
+  4. /var/lib/sbctl BACKED UP OFF-MACHINE -- RELOCATED, NOT SKIPPED. See below.
+  5. ESP umask=0077 -- /dev/nvme0n1p1 mounted fmask=0077,dmask=0077 by disko. Verified 2026-07-15.
+
+PREREQ 4 WAS A BROKEN PREREQUISITE AND THIS GATE COULD NEVER HAVE CLOSED HONESTLY WITH IT IN PLACE.
+The section header says "before touching the ESP". But /var/lib/sbctl DOES NOT EXIST until `sbctl
+create-keys` -- which is STEP 2 of this very migration. You cannot back up a directory that step 2
+creates, before step 0. It is not a prerequisite; it is STEP 2.5:
+    0. Erase all secure boot settings -> setup mode
+    1. Wire lanzaboote into framework16
+    2. sbctl create-keys
+    2.5 PLUG IN FORESTBACKUP -> cp -a /var/lib/sbctl -> read back -> unplug     <-- HERE
+    3. nixos-rebuild switch + sbctl verify
+    4. sbctl enroll-keys --custom
+    5. reboot
+FORESTBACKUP is proven working for that moment (see prereq 3's round trip). The stick is /dev/sda,
+ext4, uuid 270e8ed3-3bba-44af-be76-735921610c31.
+AND IT IS BELT-AND-BRACES, not the disaster the old text described. Losing /var/lib/sbctl means: the
+running generation still boots (already signed), new generations cannot be signed -> boot the good
+generation -> firmware -> "Erase all secure boot settings" -> create-keys -> re-enrol -> sign. Twenty
+minutes of annoyance. NOT a brick. That is only true because there is no supervisor password and the
+firmware menu is unconditionally reachable -- both of which were unknown when the old text was
+written. -->
 - [x] Supervisor password: DOES NOT EXIST ON THIS FIRMWARE. Gate rewritten, not ticked.
 <!-- evidence: 2026-07-16. Christian entered the real INSYDE 0.773 menu and read every Secure Boot
 option. There is NO supervisor password option. Framework's knowledge base claims one lives under
@@ -350,7 +386,25 @@ largest single risk in this migration does not exist on this hardware.
 It also killed a live worry: an INSYDE BIOS elsewhere gates Secure Boot config behind the supervisor
 password, which would have made step 0 unreachable. Here the options are present and readable with
 none set. Tested, dead. -->
-- [ ] EFI vars + /var/lib/sbctl backed up OFF-MACHINE, restore path tested
+- [x] EFI vars backed up OFF-MACHINE, round trip proven. /var/lib/sbctl -> step 2.5 (see gate 3).
+<!-- evidence: 2026-07-16.
+EFI VARS: PK.esl / KEK.esl / db.esl, in three places -- laptop, GitHub, FORESTBACKUP. Round trip
+proven: written to the stick, unmounted, remounted, decoded -> CN=frame.work-LaptopAMDPK. The repo
+copy carries a README recording what each file is and why public certs belong in a repo while
+private keys never do.
+The intent proposed `for var in PK KEK db dbx; do efi-readvar -v $var -o old_${var}.esl; done`. That
+was never going to work -- efi-readvar only knows the standard SB variables and fails on the
+*Default ones ("variable dbDefault is not a UEFI secure boot variable"). sbctl export-enrolled-keys
+is the right tool. Note the landlock chicken-and-egg in sbctl 0.18: pass --disable-landlock BEFORE
+the subcommand and do NOT pre-create the output directory.
+"RESTORE PATH TESTED" -- honest scope. What is tested is that the files read back correctly off the
+stick. What is NOT tested is re-enrolling them into firmware by hand, because that would require
+erasing the PK to have something to restore, which is metal day itself.
+That is acceptable, and the reason is a finding rather than an excuse: the INSYDE menu has "Restore
+secure boot to factory settings", which restores Framework's factory keys FROM THE FIRMWARE'S OWN
+STORAGE -- no file, no USB, no network. Our .esl copies exist in case that option fails or does
+something other than what its name says. The firmware is the primary restore path; these files are
+the backup to the backup. -->
 - [ ] Firmware in setup mode (SetupMode=1 in efivars -- verify, do not assume the menu worked)
 <!-- 2026-07-16: the option to fire is "Erase all secure boot settings" (currently Disabled). NOT
 "Restore Secure Boot to Factory Settings" -- that never existed on this firmware.
