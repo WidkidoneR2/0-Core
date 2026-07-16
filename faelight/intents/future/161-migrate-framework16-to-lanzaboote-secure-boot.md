@@ -86,15 +86,35 @@ METAL DAY, NOT DURING.
 5. The ESP already meets lanzaboote's umask=0077 requirement: /dev/nvme0n1p1 is mounted
    fmask=0077,dmask=0077 by disko. Verified 2026-07-15.
 
-## RECOGNISE THE FAILURE -- this is what a Secure Boot rejection looks like
-    BdsDxe: failed to load Boot0002 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x6,0x0): Not Found
+## RECOGNISE THE FAILURE (corrected 2026-07-15 -- an earlier version of this section was WRONG)
+MEASURED under OVMF with Secure Boot enforcing. A VALID but UNSIGNED bootloader gives:
+    BdsDxe: failed to load Boot0002 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x6,0x0):
+            Access Denied -- rejected probably by Secure Boot
     BdsDxe: No bootable option or device was found.
-    BdsDxe: Press any key to enter the Boot Manager Menu.
-IT DOES NOT MENTION SECURE BOOT. No "Security Violation", no "Access Denied", no signature warning.
-It reads exactly like a dead SSD -- you would go hunting for a disk failure. It is one unsigned
-file the firmware silently refused. Recorded from the VM lockout, 2026-07-15.
-Also observed: the firmware did NOT fall back to a still-signed /EFI/systemd/systemd-bootx64.efi.
-One bad file, dead machine.
+OVMF NAMES SECURE BOOT. An earlier version of this section claimed the failure never mentions
+Secure Boot and reads like a dead SSD -- that came from a TRUNCATED file (our own `vm down` SIGTERM
+bug), which gives "Not Found" instead. Two different failures:
+    valid but UNSIGNED   -> "Access Denied -- rejected probably by Secure Boot"
+    TRUNCATED / corrupt  -> "Not Found"
+Both end with the SAME tail ("No bootable option or device was found. Press any key to enter the
+Boot Manager Menu."). The diagnostic is the line ABOVE it -- read it, do not glance at it.
+
+*** THIS IS OVMF / EDK II. THIS MACHINE RUNS INSYDE Corp. 0.773. ***
+Different firmware. It may word this differently, or say nothing at all. There is no serial console
+on this laptop -- you get whatever INSYDE paints on screen, if anything. DO NOT ARRIVE AT METAL DAY
+EXPECTING THIS EXACT STRING. Expect a refusal; the wording is unknown until we see it.
+
+THE ONE THAT WILL ACTUALLY BITE YOU (measured with the real nixos-minimal-25.11 USB):
+With Secure Boot enforcing, the firmware tried the USB FIRST (bootindex=0), refused it with Access
+Denied, and SILENTLY FELL THROUGH to the signed disk -- booting normally. So on metal: plug in the
+rescue USB with SB on, select it, and NOTHING VISIBLE HAPPENS. Your machine just boots. You will
+reseat it, try another port, suspect the stick. The cause is the firmware declining unsigned media
+and moving to the next boot entry.
+THEREFORE: DISABLE SECURE BOOT IN THE FIRMWARE MENU **BEFORE** EXPECTING THE USB TO DO ANYTHING.
+
+DISCIPLINE: run `sudo sbctl verify` BEFORE every reboot. In the VM it flagged the broken file every
+single time, before the reboot that would have bricked it. The diagnosis is available in advance,
+for free.
 
 ## RECOVERY, if it happens (proven in the VM; the USB plays the host's role)
 A Secure Boot lockout needs NO LUKS UNLOCK. The ESP cannot be encrypted -- firmware must read it

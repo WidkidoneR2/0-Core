@@ -88,11 +88,23 @@ an ISO via the QEMU_OPTS `-cdrom` seam and watch. This also closes INT-059 gate 
 ## Gates
 - [ ] ISO builds from the flake: nixos-minimal + the tool list above, each tool justified
 - [ ] docs/recovery-runbook.md is baked INTO the image (findable without network or the host)
-- [ ] VERIFY the documented answer in the VM: boot the ISO with SB enforcing our keys (-cdrom via
-      the QEMU_OPTS seam). Upstream says it will be REFUSED (media unsigned, no shim) -- expect the
-      same `BdsDxe: No bootable option or device was found` we saw on 2026-07-15. Documentation is
-      not demonstration; this is cheap and the VM is already in that exact firmware state. If it
-      DOES boot, the docs are stale and that is worth knowing more.
+- [x] VERIFIED with the REAL media: the USB is refused under Secure Boot enforcement
+<!-- evidence: 2026-07-15. Christian's actual nixos-minimal-25.11 stick. Inspected first: its EFI
+partition holds ONLY an unsigned GRUB BOOTX64.EFI + refind_x64.efi + grub.cfg -- NO shimx64.efi,
+nothing Microsoft-signed to chain through. Confirms the wiki on his own media.
+Then booted it: dd'd the stick to a file (he is NOT in the `disk` group, so qemu cannot read
+/dev/sda directly -- see the config note below), attached read-only via the QEMU_OPTS seam as
+`-drive file=$ISO,format=raw,readonly=on,if=none,id=usbstick -device usb-storage,drive=usbstick,
+bootindex=0` so the firmware would try the USB FIRST. Serial log:
+    BdsDxe: loading Boot0003 "UEFI QEMU QEMU USB HARDDRIVE 1-0000:00:1d.7-2" ...
+    BdsDxe: failed to load Boot0003 ...: Access Denied -- rejected probably by Secure Boot
+    BdsDxe: loading Boot0002 "UEFI Misc Device" ...
+    BdsDxe: starting Boot0002 "UEFI Misc Device" ...
+REFUSED -- and then it FELL THROUGH to the signed disk and booted normally. That fall-through is the
+finding that matters: on metal, plugging in this USB with SB enforcing does NOTHING VISIBLE. The
+machine boots as if the port were dead. Recovery MUST start at the firmware menu.
+This also closes INT-059's gate 6 open question ("the VM has no ISO/boot-media path wired") -- it
+does now, via QEMU_OPTS + usb-storage, no launcher change needed. -->
 - [ ] Firmware-menu recovery rehearsed in the VM: enter OVMF setup, DISABLE Secure Boot, boot the
       ISO, mount the ESP. This is the ACTUAL metal recovery path now -- the USB alone is not one.
       (Needs `vm gui`, which was fixed by inspection on 2026-07-15 and never tested.)

@@ -96,6 +96,41 @@ THE WORKING SEQUENCE (all three legs proven in the VM):
 The keys are NOT baked into the image -- generate-sb-keys ran at 20:50:48 on the guest's own
 first boot, minutes after the build. Every fresh overlay makes its own keys.
 
+## CORRECTION (2026-07-15, later the same session) -- the gate 5 finding above was WRONG
+The claim "the failure NEVER MENTIONS SECURE BOOT / reads like a dead SSD" is FALSE, and the error
+was ours. That first lockout produced "Not Found" because `vm down` had SIGTERMed qemu and left the
+file TRUNCATED (fsck: "File size is 156336 bytes, cluster chain length is 0 bytes"). The firmware
+was not refusing an unsigned binary -- it was failing to READ one. "Not Found" is the honest answer
+to that. Our own tooling bug manufactured a misleading failure, and it got generalised into a law.
+
+REPRODUCED PROPERLY (valid, complete, unsigned BOOTX64.EFI, synced to disk, sbctl verify confirming
+"x not signed" BEFORE the reboot):
+    BdsDxe: loading Boot0002 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x6,0x0)
+    BdsDxe: failed to load Boot0002 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x6,0x0):
+            Access Denied -- rejected probably by Secure Boot
+    BdsDxe: No bootable option or device was found.
+    BdsDxe: Press any key to enter the Boot Manager Menu.
+OVMF NAMES SECURE BOOT EXPLICITLY. It is MORE helpful than claimed, not less.
+
+THREE SIGNATURES, ALL MEASURED UNDER OVMF + SB ENFORCING:
+  valid but UNSIGNED        -> "Access Denied -- rejected probably by Secure Boot"
+  TRUNCATED / corrupt file  -> "Not Found"
+  unsigned USB + signed disk -> "Access Denied" on the USB, then FALLS THROUGH and boots the disk
+NOTE: the TAIL is identical in both failures ("No bootable option or device was found. Press any
+key to enter the Boot Manager Menu."). The diagnostic is the line ABOVE it. Glance at the screen
+and the two are indistinguishable.
+
+CAVEAT THAT MATTERS FOR METAL: this is OVMF / EDK II wording. The Framework 16 runs INSYDE Corp.
+0.773. Different firmware, possibly different wording -- or silence. There is no serial console on
+a laptop; you get whatever INSYDE paints on screen. WE KNOW WHAT OVMF SAYS. WE DO NOT KNOW WHAT
+INSYDE SAYS. This does not transfer.
+
+WHAT SURVIVES, and it is the more useful finding: with Secure Boot enforcing, the firmware tried an
+unsigned USB at bootindex=0, refused it, and SILENTLY FELL THROUGH to the signed disk -- booting
+normally. On metal that means plugging in the rescue USB and selecting it does NOTHING VISIBLE. The
+machine just boots. You would reseat the stick, try another port, re-flash the ISO -- and the cause
+is that the firmware declined an unsigned binary and moved to the next entry.
+
 ## DIVERGENCES FROM METAL -- what this rehearsal does NOT prove
 1. KEY CLEARING: the VM was already in setup mode (no PK). Metal is SetupMode=0 (user mode) and
    needs "Restore Secure Boot to Factory Settings" in the INSYDE menu first -- physical, manual,
