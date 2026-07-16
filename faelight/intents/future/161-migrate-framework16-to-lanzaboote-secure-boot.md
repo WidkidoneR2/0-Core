@@ -22,10 +22,31 @@ restores disk AND EFI vars. Odds recorded there: ~85% first try, ~97% recoverabl
 the prerequisites below. Read 059 before starting this -- especially its DIVERGENCES section.
 
 ## THE SEQUENCE (proven in the VM; metal differs at step 0 and 4)
-0. METAL ONLY -- unrehearsable: metal is SetupMode=0 (USER MODE, a PK is already enrolled by
-   Framework/Insyde). Enter the INSYDE firmware menu and "Restore Secure Boot to Factory Settings"
-   / erase Platform Keys to reach SETUP MODE. Physical, manual, cannot be scripted, and the VM
-   never exercised it (it was already in setup mode). Set the supervisor password while here.
+0. METAL ONLY. RECONNAISSANCE DONE 2026-07-16 -- the real INSYDE 0.773 menu, read by eye.
+   (`sudo systemctl reboot --firmware-setup` WORKS on metal; bootctl confirms "Boot into FW:
+   supported". No ESC/F2 timing game.) What is ACTUALLY there:
+       Secure Boot status .............. Disabled
+       User customized security ........ No
+       Enforce secure boot ............. Disabled
+       Erase all secure boot settings .. Disabled      <-- THIS IS STEP 0
+       Enroll PK signature list ........ [PKCS7] framework-laptopAMDPK
+       Clear TPM ....................... not enabled
+       TPM operation ................... no operation
+       TPM state ....................... all hierarchies enabled, owned
+       USB boot ........................ Enabled
+   STEP 0 IS "ERASE ALL SECURE BOOT SETTINGS". It is NOT "Restore Secure Boot to Factory Settings" --
+   that phrase was this intent's invention and does not exist on this firmware.
+   THERE IS NO SUPERVISOR PASSWORD OPTION. See PREREQUISITES -- this kills prereq 1 and changes the
+   risk profile.
+   "User customized security: No" is INSYDE's own state indicator; it should read Yes once our keys
+   are enrolled -- gate 6 confirmed in the firmware's own words, independent of sbctl.
+   "Enroll PK signature list: [PKCS7] framework-laptopAMDPK" independently confirms SetupMode=0.
+   "TPM state: all hierarchies enabled, owned" is why Measured UKI works.
+   "USB boot: Enabled" means the INT-160 rescue path is armed.
+   ASK BEFORE FIRING: is "Erase all secure boot settings" a TOGGLE (flip to Enabled, save, reboot) or
+   an ACTION that fires on select? That is the exact moment the PK dies. And is "Enroll PK signature
+   list" selectable -- if it can enrol a DIFFERENT PK from the menu, that is a FOURTH path to setup
+   mode alongside erase, the rescue USB, and post-enrollment `sbctl reset`.
 1. Wire lanzaboote into nix/hosts/framework16/configuration.nix exactly as 059 did for the VM:
    import inputs.lanzaboote.nixosModules.lanzaboote; boot.loader.systemd-boot.enable = mkForce
    false; boot.lanzaboote = { enable = true; pkiBundle = "/var/lib/sbctl"; }. The flake input and
@@ -144,11 +165,20 @@ plus frame.work-LaptopAMDDB alone, because Framework's dbDefault CONTAINS Micros
 owners running the same RX 7700S module on custom keys only.
 
 ## PREREQUISITES -- all of them, before touching the ESP
-1. BIOS/SUPERVISOR PASSWORD SET. Upstream is blunt: without one an attacker simply switches Secure
-   Boot off and this entire effort is decoration.
-   AND THE TRAP: that same password is what YOU need to reach the menu that disables Secure Boot to
-   boot a rescue USB. LOSE IT WHILE LOCKED OUT AND THERE IS NO PATH BACK. Store it somewhere that
-   survives this laptop being unbootable -- NOT in a password manager on this laptop.
+1. BIOS/SUPERVISOR PASSWORD -- VOID. THERE IS NO SUPERVISOR PASSWORD OPTION IN THIS FIRMWARE.
+   Read off the real INSYDE 0.773 menu 2026-07-16, not inferred. Framework's own knowledge base
+   describes a "Set Supervisor Password" under Security settings; it is not present on this machine.
+   (An INSYDE BIOS on unrelated hardware gates Secure Boot config behind that password -- "To enable,
+   set the Supervisor Password" -- raising the worry that step 0 might be unreachable without one. IT
+   IS NOT: the Secure Boot options are all present and readable, unguarded. Hypothesis dead.)
+   COST: the security property. Physical access defeats Secure Boot -- someone can enter the menu and
+   switch it off. That is exactly why upstream calls the password mandatory. Honest scope: this
+   migration defends the boot chain against REMOTE modification, not against someone holding the
+   laptop.
+   BENEFIT, and it is the bigger half: THE TRAP IS GONE. The old text read "LOSE IT WHILE LOCKED OUT
+   AND THERE IS NO PATH BACK" -- this intent's own stated brick scenario, the largest single risk in
+   the migration. There is no password to lose. The firmware menu is UNCONDITIONALLY reachable.
+   Recovery gets strictly more robust.
 2. INT-160 rescue USB present AND booted once, before it is needed.
 3. EFI VARS BACKED UP OFF-MACHINE, before erasing anything:
      for var in PK KEK db dbx; do efi-readvar -v $var -o old_${var}.esl; done
@@ -276,9 +306,30 @@ ANYWAY, STOP. The eventlog and sbctl would be disagreeing, and that needs unders
 AND sbctl IS SAFE BY DEFAULT: at the OptionROM check it aborted having enrolled NOTHING (Vendor Keys
 none, Setup Mode unchanged). It will not brick you by accident. -->
 - [ ] All 5 prerequisites above satisfied, each verified not assumed
-- [ ] Supervisor password set AND recorded somewhere that survives an unbootable laptop
+- [x] Supervisor password: DOES NOT EXIST ON THIS FIRMWARE. Gate rewritten, not ticked.
+<!-- evidence: 2026-07-16. Christian entered the real INSYDE 0.773 menu and read every Secure Boot
+option. There is NO supervisor password option. Framework's knowledge base claims one lives under
+Security settings; it is not on this machine. The gate cannot be satisfied as written, so it records
+the finding rather than pretending.
+COST: physical access defeats Secure Boot. Upstream calls the password mandatory for that reason.
+Honest scope -- this defends against REMOTE boot chain modification, not against someone holding the
+laptop.
+BENEFIT, larger: this intent's own brick scenario is GONE. "LOSE IT WHILE LOCKED OUT AND THERE IS NO
+PATH BACK" -- there is no password to lose. The firmware menu is unconditionally reachable. The
+largest single risk in this migration does not exist on this hardware.
+It also killed a live worry: an INSYDE BIOS elsewhere gates Secure Boot config behind the supervisor
+password, which would have made step 0 unreachable. Here the options are present and readable with
+none set. Tested, dead. -->
 - [ ] EFI vars + /var/lib/sbctl backed up OFF-MACHINE, restore path tested
 - [ ] Firmware in setup mode (SetupMode=1 in efivars -- verify, do not assume the menu worked)
+<!-- 2026-07-16: the option to fire is "Erase all secure boot settings" (currently Disabled). NOT
+"Restore Secure Boot to Factory Settings" -- that never existed on this firmware.
+THREE independent confirmations afterwards, do not trust one:
+  1. efivars: SetupMode=1
+  2. sbctl status: Setup Mode: Enabled | Vendor Keys: none
+  3. the INSYDE menu: "Enroll PK signature list" should no longer show [PKCS7] framework-laptopAMDPK
+And "User customized security" (No today) should read Yes once OUR keys are enrolled -- the firmware's
+own account, independent of sbctl. -->
 - [ ] sbctl verify clean before the reboot that enforces
 - [ ] Boots with `Secure Boot: enabled (user)` and `Measured UKI: yes`
 - [ ] A generation rebuild + reboot AFTER enrollment still boots (the real test is the second one,
