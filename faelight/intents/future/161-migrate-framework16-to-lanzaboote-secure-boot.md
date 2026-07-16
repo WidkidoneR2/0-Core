@@ -119,7 +119,24 @@ DISCIPLINE: run `sudo sbctl verify` BEFORE every reboot. In the VM it flagged th
 before the reboot that would have bricked it. The diagnosis is available in advance, for free.
 
 ## Gates
-- [ ] INT-160 complete: rescue USB built AND booted on this machine
+- [x] INT-160 complete: rescue USB built AND booted on this machine
+<!-- evidence: 2026-07-16. INT-160 CLOSED 7/7, commit 12d3fe14. Not "an ISO exists" -- the whole
+chain demonstrated on this laptop's own INSYDE firmware:
+  - dd to the stick: 1423278080 bytes, 127s. Confirmed two ways (label nixos-minimal-25.11 ->
+    26.05, our nixpkgs pin; sda1 1.5G -> 1.3G).
+  - Booted the Framework 16 to [nixos@faelight-rescue:~]$ -- our hostname, our declarative image.
+  - THE SHORT PATH (what a Secure Boot lockout actually needs): mount -o ro /dev/nvme0n1p1 ->
+    BOOTX64.EFI, 154112 bytes. The live systemd-boot, read from rescue media, no LUKS unlock.
+  - THE LONG PATH (runbook Level 3): luksOpen -> mount @root/@home/@nix + ESP -> nixos-enter ->
+    nixos-rebuild switch --rollback. Entered on generation 378, came back running 377 (current).
+    The rollback LANDED.
+And the runbook it carries was BROKEN and got fixed first (commit 1fa30b2f): two pre-061 paths
+pointed at ~/0-core/hosts/framework16/, which no longer exists. Found by reading it before walking
+it.
+WHAT THIS CHANGES FOR THIS INTENT: 059 recorded ~97% recoverable, but that number rested on a
+rescue USB that had never been built, let alone booted. It is now rehearsed on this hardware, and
+the recovery leg of the odds is real rather than aspirational. The remaining risk lives in the
+gates below -- the unresolved --microsoft question and the five unmet prerequisites. -->
 - [ ] --firmware-builtin vs --microsoft resolved by research for THIS hardware
 - [ ] All 5 prerequisites above satisfied, each verified not assumed
 - [ ] Supervisor password set AND recorded somewhere that survives an unbootable laptop
