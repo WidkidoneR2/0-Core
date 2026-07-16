@@ -34,8 +34,28 @@ the prerequisites below. Read 059 before starting this -- especially its DIVERGE
        TPM operation ................... no operation
        TPM state ....................... all hierarchies enabled, owned
        USB boot ........................ Enabled
-   STEP 0 IS "ERASE ALL SECURE BOOT SETTINGS". It is NOT "Restore Secure Boot to Factory Settings" --
-   that phrase was this intent's invention and does not exist on this firmware.
+   CORRECTED 2026-07-16, same day, on a fuller read of the menu. An earlier version of this line
+   claimed "Restore Secure Boot to Factory Settings" did not exist and was this intent's invention.
+   THAT WAS FALSE -- it is right there. THREE SEPARATE OPTIONS exist, and conflating them is how the
+   error happened:
+       Erase all secure boot settings ......... wipes the keys -> SETUP MODE. This is STEP 0.
+       Restore secure boot to factory settings  puts FRAMEWORK'S FACTORY KEYS BACK. THE UNDO BUTTON.
+       Enforce secure boot .................... the enforcement toggle.
+   "RESTORE SECURE BOOT TO FACTORY SETTINGS" IS A FIRMWARE-SIDE UNDO FOR STEP 0. It is the strongest
+   recovery path we have, because it depends on NO file we kept, NO rescue USB, and NO network -- the
+   firmware restores its own factory keys from its own storage. That makes the EFI-vars backup
+   belt-and-braces rather than load-bearing.
+   Also read: "Secure boot database is installed and locked" -- the user-mode indicator. Framework's
+   db is present; "locked" means changes require KEK authorization. Consistent with SetupMode=0 and
+   with "Enroll PK signature list: [PKCS7] framework-laptopAMDPK". It should read differently after
+   step 0.
+   UNRESOLVED AND IT DECIDES WHETHER STEP 0 IS EVEN POSSIBLE: the three options above read
+   "Disabled". Is that their VALUE (toggles currently off, selectable, changeable) or are they GREYED
+   OUT (unselectable)? If greyed, something gates the Secure Boot menu -- and "locked" would be why.
+   An INSYDE BIOS on other hardware gates Secure Boot config behind a supervisor password ("To
+   enable, set the Supervisor Password"); this intent declared that hypothesis dead on the grounds
+   that the options are visible, but VISIBLE IS NOT SELECTABLE. Settle it by trying to select one --
+   changing nothing -- before planning metal day around it.
    THERE IS NO SUPERVISOR PASSWORD OPTION. See PREREQUISITES -- this kills prereq 1 and changes the
    risk profile.
    "User customized security: No" is INSYDE's own state indicator; it should read Yes once our keys
