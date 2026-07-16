@@ -114,12 +114,53 @@ finding that matters: on metal, plugging in this USB with SB enforcing does NOTH
 machine boots as if the port were dead. Recovery MUST start at the firmware menu.
 This also closes INT-059's gate 6 open question ("the VM has no ISO/boot-media path wired") -- it
 does now, via QEMU_OPTS + usb-storage, no launcher change needed. -->
-- [ ] Firmware-menu recovery rehearsed in the VM: enter OVMF setup, DISABLE Secure Boot, boot the
-      ISO, mount the ESP. This is the ACTUAL metal recovery path now -- the USB alone is not one.
-      (Needs `vm gui`, which was fixed by inspection on 2026-07-15 and never tested.)
-- [ ] Written to a real USB and BOOTED on the Framework 16 -- before it is needed, not during
-- [ ] From the USB: mount /dev/nvme0n1p1 (the ESP) and read it. That is the ONLY step a Secure
+- [x] The recovery MODEL proven in the VM, and its limit stated honestly
+<!-- evidence: 2026-07-16. ORIGINAL GATE WAS BAD and is rewritten here rather than quietly ticked.
+It read: "enter OVMF setup, DISABLE Secure Boot, boot the ISO, mount the ESP." That tests OVMF.
+OVMF is not this laptop's firmware. What it actually measured: in OVMF with `Secure Boot Mode:
+Standard` and a PK enrolled, clearing "Attempt Secure Boot" (Device Manager -> Secure Boot
+Configuration) is INERT -- the X clears and PERSISTS across reboots, but `Current Secure Boot
+State` stays Enabled, bootctl still reports "Secure Boot: enabled (user)", and the firmware still
+refused the USB on three identical cycles. The toggle is not greyed out; it simply does not take
+effect. That is an EDK II behaviour and it does NOT transfer: the Framework 16 runs INSYDE Corp.
+0.773, and Framework 16s disable Secure Boot from the INSYDE menu routinely -- it is how people
+boot Linux installers on them.
+WHAT THE VM DID PROVE (the controlled experiment above): same ISO, same bootindex=0, ONE variable.
+SB enforcing -> "Access Denied -- rejected probably by Secure Boot" -> fell through to the signed
+disk. SB not enforcing -> "starting Boot0003" -> NixOS installer. The MODEL holds:
+    firmware menu -> disable Secure Boot -> boot USB -> fix -> re-enable
+WHAT NO VM CAN PROVE: that INSYDE's menu toggles Secure Boot. That belongs to INT-161, where the
+firmware is real, and is recorded there as a prereq to verify BEFORE enrolling any keys.
+Useful method notes banked: `systemctl reboot --firmware-setup` beats catching an ESC window
+(bootctl already reports "Boot into FW: supported"); ESC on the OVMF front page EXITS and boots
+rather than backing up; `vm ssh` cannot answer while the guest is in firmware (qemu binds the
+forward port regardless -- INT-027's known false signal); and a serial log from a firmware TUI is
+full of ANSI escapes, so `strings <log> | tail -30`, never `tail`. -->
+- [x] Written to a real USB and BOOTED on the Framework 16 -- before it is needed, not during
+<!-- evidence: 2026-07-16, REAL HARDWARE. Written with
+  sudo dd if=/nix/store/...-faelight-rescue.iso/iso/faelight-rescue.iso of=/dev/sda \
+          bs=4M status=progress conv=fsync
+-> 1423278080 bytes, 128s, 11.1 MB/s. TWO independent confirmations the write landed rather than
+one claim: the stick's label went nixos-minimal-25.11 -> nixos-minimal-26.05 (our nixpkgs pin,
+not the old installer), and sda1 went 1.5G -> 1.3G (our smaller image).
+Then it BOOTED the Framework 16 -- INSYDE firmware, real hardware, not qemu -- to
+`[nixos@faelight-rescue:~]$`. That hostname is set in nix/hosts/rescue/configuration.nix: the
+thing that booted is OUR declarative ISO. The motd printed at login as designed, naming both
+recovery paths and the disk layout.
+INT-056's Level 3 opened with "Boot the NixOS installer USB." As of this gate that sentence
+refers to an artifact that exists and has demonstrably booted this machine. -->
+- [x] From the USB: mount /dev/nvme0n1p1 (the ESP) and read it. That is the ONLY step a Secure
       Boot lockout needs (see below)
+<!-- evidence: 2026-07-16, from the rescue USB running on the Framework 16:
+    sudo mount -o ro /dev/nvme0n1p1 /mnt/esp
+    ls -la /mnt/esp/EFI/BOOT/    -> BOOTX64.EFI, 154112 bytes
+That is the LIVE systemd-boot on the real ESP -- same 154112 bytes as the file used throughout the
+INT-059/162 work. Mounted READ-ONLY (read first, touch nothing) and with NO LUKS unlock, which is
+the finding this gate exists to prove: the ESP cannot be encrypted because firmware must read it
+before any OS exists.
+Every link of the Secure Boot lockout recovery is now demonstrated on Christian's own firmware:
+media boots -> ESP mounts -> the file is readable. The repair step (restore/re-sign BOOTX64.EFI)
+was separately proven from the host with qemu-nbd during INT-059. -->
 - [ ] Level 3 walked end to end from the USB: LUKS unlock -> mount @root/@nix/@home ->
       nixos-enter -> rollback a generation. The runbook's own path, demonstrated once.
 
