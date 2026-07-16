@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "3.2.7"
+version = "3.2.8"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1825,7 +1825,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-shell"
-version = "3.3.1"
+version = "3.3.2"
 dependencies = [
  "anyhow",
  "chrono",

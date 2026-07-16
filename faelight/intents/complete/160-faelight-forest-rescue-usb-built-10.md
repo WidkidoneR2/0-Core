@@ -3,7 +3,7 @@ id: 160
 date: 2026-07-15
 type: future
 title: "Faelight Forest Rescue USB Built 1.0"
-status: in-progress
+status: complete
 tags: [faelight forest, usb, wtf, rescue, help]
 priority: high
 blocks: [161]
@@ -161,8 +161,29 @@ before any OS exists.
 Every link of the Secure Boot lockout recovery is now demonstrated on Christian's own firmware:
 media boots -> ESP mounts -> the file is readable. The repair step (restore/re-sign BOOTX64.EFI)
 was separately proven from the host with qemu-nbd during INT-059. -->
-- [ ] Level 3 walked end to end from the USB: LUKS unlock -> mount @root/@nix/@home ->
+- [x] Level 3 walked end to end from the USB: LUKS unlock -> mount @root/@nix/@home ->
       nixos-enter -> rollback a generation. The runbook's own path, demonstrated once.
+<!-- evidence: 2026-07-16, REAL HARDWARE, from the rescue USB. Booted the Framework 16 from the
+stick and walked docs/recovery-runbook.md Level 3 exactly as written: cryptsetup luksOpen
+/dev/nvme0n1p2 cryptroot -> mount -o subvol=@root/@home/@nix (compress=zstd,noatime) +
+/dev/nvme0n1p1 -> nixos-enter --root /mnt -> nixos-rebuild switch --rollback.
+PROOF, measured after returning to the real system:
+    377   2026-07-15 19:05:30   (current)
+    378   2026-07-15 23:07:47
+He entered rescue on generation 378. He came back running 377. The rollback LANDED.
+The endpoint proves the chain: `nixos-rebuild switch --rollback` cannot run inside nixos-enter
+unless the LUKS unlock took, all four mounts succeeded, and the chroot came up. Every link held.
+WHAT THIS GATE IS FOR, and why it is not a duplicate of gate 6: gate 6 proved the ESP is READABLE
+from rescue media (plain vfat, no passphrase) -- that recovers a Secure Boot lockout, which is
+"cannot get OUT of the firmware". Gate 7 is the other failure: "cannot get INTO the system". It
+needs the LUKS unlock, the btrfs subvolumes, and a working chroot, and it ends in a REPAIR rather
+than a read. Different failure, different fix, both now demonstrated.
+THE RUNBOOK IT WALKED WAS FIXED FIRST (commit 1fa30b2f): lines 71 and 99 pointed at
+~/0-core/hosts/framework16/ -- a path INT-061 moved to nix/hosts/ -- so the media whose whole job
+is working when nothing else does was telling him, at 3am, to edit a file that does not exist.
+Found by READING the runbook before walking it. Walking a runbook with a dead path proves nothing.
+INT-056's Level 3 opened with "Boot the NixOS installer USB, then: nixos-enter --root /mnt". As of
+this gate, that is no longer documentation. It is a rehearsed procedure on media that exists. -->
 
 ## THE CONTROLLED EXPERIMENT (2026-07-16) -- the recovery model, isolated and proven
 Same ISO. Same attach (`-drive ...,readonly=on` + `-device usb-storage,bootindex=0` via the
