@@ -343,6 +343,75 @@ fn cmd_procs() {
 }
 
 /// Kill everything this VM spawned -- qemu AND swtpm AND the wrapper. Not by name.
+/// qemu's HMP monitor socket -- the ONLY channel that can press the guest's power button.
+fn monitor_path() -> PathBuf { state_dir().join("monitor.sock") }
+
+fn qemu_alive() -> bool { vm_procs().iter().any(|p| p.kind == "qemu") }
+
+/// Send `system_powerdown` -- a virtual ACPI power-button press. The guest's systemd
+/// then runs a REAL shutdown: flush page cache, unmount, halt. qemu exits on its own.
+/// Talks to QEMU, not the guest, so it works when sshd is dead or the guest is in OVMF.
+fn monitor_powerdown() -> bool {
+    use std::io::Write;
+    use std::os::unix::net::UnixStream;
+    let Ok(mut s) = UnixStream::connect(monitor_path()) else { return false };
+    let _ = s.set_write_timeout(Some(Duration::from_millis(1500)));
+    s.write_all(b"system_powerdown\n").is_ok()
+}
+
+/// Stop the VM the way a power button does, not the way a power CORD does.
+///
+/// THE BUG THIS FIXES (measured 2026-07-15, INT-059 rehearsal):
+/// `vm down` forwarded straight to `cmd_kill`, i.e. SIGTERM to qemu. qemu's SIGTERM
+/// handler EXITS -- it does not press the guest's power button. The guest is killed
+/// mid-write and its dirty page cache dies with it.
+/// Reproduced minimally: cp a 154112-byte file onto the guest's ESP (no sync), `vm down`,
+/// `vm up` -> "ls: cannot access bugtest.bin: No such file or directory". Not truncated --
+/// GONE, directory entry and all. Earlier the same session it truncated a REAL file
+/// (fsck: "File size is 156336 bytes, cluster chain length is 0 bytes"), which then made
+/// the ESP remount read-only AND got misdiagnosed as a Secure Boot rejection for an hour.
+/// vfat has no journal: an unflushed write is simply lost.
+///
+/// LIMIT, stated honestly: ACPI only works if the guest RESPONDS. A hung kernel ignores
+/// it and we fall back to the yank -- data loss included. This makes the common case
+/// correct; it cannot make the pathological case safe.
+fn cmd_down(timeout_s: u64) {
+    if vm_procs().is_empty() { ok("nothing to stop"); return }
+
+    if !qemu_alive() {
+        info("no qemu running -- clearing leftovers");
+        cmd_kill();
+        return;
+    }
+    if !monitor_path().exists() {
+        info("no monitor socket -- this VM launched before the graceful path existed");
+        info("falling back to kill: UNSYNCED GUEST WRITES MAY BE LOST. Relaunch to get it.");
+        cmd_kill();
+        return;
+    }
+    if !monitor_powerdown() {
+        info("monitor socket unreachable -- falling back to kill (unsynced writes may be lost)");
+        cmd_kill();
+        return;
+    }
+
+    info("ACPI powerdown sent -- waiting for the guest to flush and halt...");
+    for i in 1..=timeout_s {
+        if !qemu_alive() {
+            ok(&format!("guest shut down cleanly {C_DIM}({i}s -- writes flushed){C_RST}"));
+            // swtpm/launcher hold no guest data; a zombie swtpm owns the tpm socket and
+            // poisons the NEXT launch (INT-159), so clear them unconditionally.
+            if !vm_procs().is_empty() { cmd_kill(); }
+            let _ = fs::remove_file(monitor_path());
+            return;
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    eprintln!("  {C_ERR}✗{C_RST} guest ignored ACPI for {timeout_s}s -- KILLING IT. Unsynced writes may be lost.");
+    cmd_kill();
+    let _ = fs::remove_file(monitor_path());
+}
+
 fn cmd_kill() {
     let procs = vm_procs();
     if procs.is_empty() { ok("nothing to kill"); return }
@@ -423,6 +492,7 @@ fn main() {
             cmd_wait_ready(port, timeout, rest.contains(&"--quiet"));
         }
         ["procs"] => cmd_procs(),
+        ["down"] => cmd_down(25),
         ["kill"] => cmd_kill(),
         ["unlock"] => cmd_unlock(),
         ["prune", rest @ ..] => {

@@ -29,12 +29,17 @@ PORT=2222
 #   vm.log        = qemu's own stdout/stderr  -> "did qemu even start?" (launch errors land here)
 #   vm-serial.log = the guest's console       -> "how far did the guest get?"
 # Never point -serial at vm.log: qemu truncates on open and you would lose the launch error.
-export QEMU_OPTS="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on -serial file:$STATE/vm-serial.log"
+# INT-162 (2026-07-15): -monitor gives `vm down` a way to press the guest's POWER BUTTON.
+# Without it, `vm down` SIGTERMs qemu -- qemu's handler exits without telling the guest, so the
+# guest's dirty page cache is lost. A 154112-byte file cp'd to the ESP VANISHED across down/up.
+# The socket is the only channel that reaches qemu when the guest's sshd is dead or it is in OVMF.
+export QEMU_OPTS="-machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on -serial file:$STATE/vm-serial.log -monitor unix:$STATE/monitor.sock,server,nowait"
 GUEST_USER=christian
 LOG="$STATE/vm.log"
 SERIAL_LOG="$STATE/vm-serial.log"   # guest console (INT-159 followup)
 PIDFILE="$STATE/vm.pid"
 SPICE_SOCK="$STATE/spice.sock"
+MONITOR_SOCK="$STATE/monitor.sock"  # qemu HMP -- lets `vm down` do ACPI, not a cord-yank
 LOCKFILE="$STATE/vm.lock"
 SSH_OPTS=(-t -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
 
@@ -151,6 +156,7 @@ cmd_up(){
   if [ -n "$(vm_pids)" ]; then err "A faelight-vm is ALREADY running (PIDs: $(vm_pids | tr '\n' ' ')). Run: vm down  first."; exit 1; fi
   if port_open; then ok "VM already up (port $PORT listening)"; return 0; fi
   info "Launching VM (headless, detached; log -> $LOG)..."
+  rm -f "$MONITOR_SOCK"   # qemu will not bind over a stale socket file
   ( cd "$STATE" && exec setsid "$L" >"$LOG" 2>&1 </dev/null ) &
   echo $! >"$PIDFILE"
   # INT-027 (2026-07-15): the old loop trusted port_open -- a LIE, measured at 9 seconds.
@@ -179,9 +185,12 @@ cmd_down(){
   # qemu ever started -- one zombie poisoned every subsequent boot.
   # It also matches by SUBSTRING: makeWrapper means the real ELF is `.qemu-system-x86_64-wrapped`,
   # which starts with a DOT -- an exact/prefix match misses qemu entirely.
-  fvm kill
+  # `fvm down` (not `kill`): ACPI powerdown -> wait -> kill only as fallback. `vm down` used to
+  # forward straight to kill and silently lose unsynced guest writes.  `fvm kill` is still the
+  # deliberate yank -- it just is not the default any more.
+  fvm down
   kill_viewer
-  rm -f "$PIDFILE" "$SPICE_SOCK"
+  rm -f "$PIDFILE" "$SPICE_SOCK" "$MONITOR_SOCK"
   info "Disk state persists at $STATE/*.qcow2 (delete for a clean boot; deeper reset -> INT-027)."
 }
 
