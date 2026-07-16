@@ -39,10 +39,61 @@ the prerequisites below. Read 059 before starting this -- especially its DIVERGE
    (059 proved from source: lanzaboote SHA-256s the kernel into a .linuxh PE section inside the
    SIGNED UKI, so the kernel needs no signature of its own; sbctl only looks for PE signature
    tables and cannot see it).
-4. sudo sbctl enroll-keys --microsoft   (see NON-NEGOTIABLE below)
+4. sudo sbctl enroll-keys --firmware-builtin   (RESOLVED 2026-07-16 -- see below; --microsoft is the fallback)
 5. Reboot. Want: `Secure Boot: enabled (user)`, `Measured UKI: yes`.
 
-## --microsoft IS NON-NEGOTIABLE HERE. Measured, not assumed.
+## RESOLVED 2026-07-16: --firmware-builtin. NOT --microsoft. (This section was WRONG.)
+The heading below used to read "--microsoft IS NON-NEGOTIABLE HERE. Measured, not assumed." It was
+NOT measured. It read a ROM FILE EXISTING IN SYSFS and concluded the ROM was in the boot chain.
+Those are different facts, and the difference is the whole argument.
+
+THE ACTUAL MEASUREMENT (sbctl's own FAQ names the test; run on this laptop 2026-07-16):
+    sudo cp /sys/kernel/security/tpm0/binary_bios_measurements /tmp/eventlog
+    sudo chown christian /tmp/eventlog
+    nix shell nixpkgs#tpm2-tools -c tpm2 eventlog /tmp/eventlog | grep "EventType:" | sort | uniq -c
+  EV_EFI_BOOT_SERVICES_DRIVER ................ ABSENT. Zero. <- the FAQ's marker for OpROM
+  EV_EFI_BOOT_SERVICES_APPLICATION ........... 3 (bootloader + UKI, expected)
+  Unknown event type ......................... 47  -> ALL PCR 0 (34) and PCR 1 (13). NONE in PCR 2.
+PCR 0 is firmware code, PCR 1 is firmware configuration -- INSYDE vendor events, where they belong.
+PCR 2 is where OPTION ROM CODE measures. IT IS EMPTY.
+The dGPU's 128KB ROM exists on the card and NEVER ENTERS THE SECURE BOOT CHAIN on this machine.
+
+AND THE BRICK SCENARIO HAS A CONDITION THIS INTENT MISSED. sbctl's FAQ, verbatim:
+  "If you don't have any iGPU but your nvidia card has Option ROM that fails to validate, you
+   might not have any way to display graphics. This would prevent you from turning off secure boot."
+IF YOU DON'T HAVE ANY iGPU. This machine has one: 0000:c4:00.0 (Radeon 780M in the 7840HS, no ROM).
+0000:03:00.0 (device 0x7480, Navi 33 = the RX 7700S module) is the one with the ROM. Worst case the
+dGPU does not initialise and the display still reaches the firmware menu.
+
+FIELD EVIDENCE ON THIS EXACT HARDWARE (community.frame.work):
+  - DHowett (Framework): "Secure boot doesn't require Microsoft's keys."
+  - Matt_Hartley (Framework): "This is the correct answer. You do not need to do anything special."
+  - Quentin, Framework 16: own keys + Framework's frame.work-LaptopAMDDB key only -- "everything
+    works perfectly, including the BIOS menus and even the recent firmware update."
+  - Anselm_Schuler, Framework 16, thread tagged graphics-module-amd-rx7700s -- THE SAME GPU MODULE:
+    custom keys, NO Microsoft, empty dbx. Took a firmware update. "The machine didn't get bricked."
+
+WHAT --firmware-builtin ACTUALLY DOES -- DHowett again, and read the footnote:
+  "You can find the Framework certificates in the NVRAM variables dbDefault, KEKDefault and
+   PKDefault. I know[1] that sbctl has support for enrolling the manufacturer's default
+   certificates when you set up your own key management."
+   [1] having written that support
+A Framework engineer wrote sbctl's --firmware-builtin. It enrols Framework's OWN certs -- the ones
+signing the firmware's UEFI binaries and fwupd -- without putting Microsoft's CA in db.
+
+THE DECISION: `sudo sbctl enroll-keys --firmware-builtin`
+We do NOT have to trade recoverability for purity. That trade was the premise of the old section and
+the premise was false. Framework's keys stay trusted (firmware binaries, fwupd); Microsoft's CA does
+not enter db; "Nothing runs without explicit human authorization" survives intact.
+VERIFY AFTER ENROLLING: `sbctl status` -> Vendor Keys should read the Framework certs ONCE.
+CachyOS reports --firmware-builtin producing DUPLICATE db entries on some ASUS/Gigabyte boards,
+which the firmware then rejects as a Secure Boot Violation. Not INSYDE, not reported on Framework --
+but check rather than assume, since checking is free and this whole section exists because someone
+did not.
+FALLBACK IF IT REFUSES: --microsoft still works and is still recoverable. It is the second choice
+now, not the only one.
+
+## (superseded) the original reasoning, kept for the record
 Read from sysfs on this host, 2026-07-15 (lspci is not installed):
   0000:03:00.0  VGA controller  vendor 0x1002 (AMD)  device 0x7480  driver amdgpu
                 rom size: 131072 bytes    <- a 128KB PCI OPTION ROM, present
@@ -56,9 +107,9 @@ machine. That is a real widening of the trust root and it is in tension with 0-C
 "Nothing runs without explicit human authorization." We are choosing RECOVERABILITY OVER PURITY,
 deliberately. --tpm-eventlog (trust ROM checksums rather than a CA) is philosophically closer;
 sbctl marks it experimental. Revisit if it stabilises.
-UNRESOLVED: 059's older Framework note says use --firmware-builtin (enroll what the firmware itself
-names as default-db). That may be the better answer for this machine. RESOLVE BY RESEARCH BEFORE
-METAL DAY, NOT DURING.
+RESOLVED 2026-07-16 -- see the section above. 059's older Framework note was RIGHT and this
+section was wrong: --firmware-builtin is the answer for this machine, confirmed by measurement
+(PCR 2 empty) and by Framework owners running the same GPU module on custom keys only.
 
 ## PREREQUISITES -- all of them, before touching the ESP
 1. BIOS/SUPERVISOR PASSWORD SET. Upstream is blunt: without one an attacker simply switches Secure
@@ -137,7 +188,19 @@ WHAT THIS CHANGES FOR THIS INTENT: 059 recorded ~97% recoverable, but that numbe
 rescue USB that had never been built, let alone booted. It is now rehearsed on this hardware, and
 the recovery leg of the odds is real rather than aspirational. The remaining risk lives in the
 gates below -- the unresolved --microsoft question and the five unmet prerequisites. -->
-- [ ] --firmware-builtin vs --microsoft resolved by research for THIS hardware
+- [x] --firmware-builtin vs --microsoft resolved by research for THIS hardware
+<!-- evidence: 2026-07-16. VERDICT: --firmware-builtin. Resolved by MEASUREMENT plus field evidence,
+not by argument -- see the RESOLVED section above for the full case.
+The short version: the TPM eventlog on this laptop has ZERO EV_EFI_BOOT_SERVICES_DRIVER events (the
+sbctl FAQ's own marker for option ROM in the bootchain), and all 47 undecoded events sit in PCR 0/1
+(firmware code + config); PCR 2, where OpROM measures, is EMPTY. The dGPU's ROM never enters the
+Secure Boot chain. Separately, the FAQ's brick scenario is conditioned on having NO iGPU -- this
+machine has one. And a Framework 16 owner with the SAME RX 7700S module runs custom keys with no
+Microsoft through firmware updates without incident, with Framework staff on record that Microsoft
+keys are not required.
+This gate CORRECTED the intent rather than confirming it: the "--microsoft IS NON-NEGOTIABLE.
+Measured, not assumed." section was not measured -- it inferred a bootchain fact from a sysfs file.
+The gate did its job. -->
 - [ ] All 5 prerequisites above satisfied, each verified not assumed
 - [ ] Supervisor password set AND recorded somewhere that survives an unbootable laptop
 - [ ] EFI vars + /var/lib/sbctl backed up OFF-MACHINE, restore path tested
