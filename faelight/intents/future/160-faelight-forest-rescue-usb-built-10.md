@@ -48,7 +48,30 @@ Tools, each with a reason:
 - The recovery runbook ITSELF baked into the image -- docs belong ON the media, not on the machine
   that will not boot
 
-## THE OPEN QUESTION THIS MUST ANSWER FIRST
+## ANSWERED (2026-07-15, upstream docs -- no test needed, and it changes the plan)
+A stock NixOS ISO will NOT boot under Secure Boot enforcement. The NixOS wiki states plainly that
+the installation media's EFI bootloader is not signed and does not use a signed shim, so Secure
+Boot must be disabled to boot it. This is a known gap, not an oversight: the nixos-shim project
+(RaitoBezarius/nixos-shim) exists specifically to build NixOS installer images that boot on Secure
+Boot systems with only Microsoft keys -- still pending shim-review approval. Not solved yet.
+
+CONSEQUENCE -- the USB is NOT the escape hatch, the FIRMWARE MENU is:
+  metal recovery = enter firmware -> DISABLE Secure Boot -> boot USB -> fix -> re-enable
+The USB is useless while Secure Boot enforces. It is still worth building -- every non-SB failure
+(panicking kernel, unbootable generation, botched disko, LUKS header damage, dying NVMe) is a case
+where SB is irrelevant and the USB is the only tool. But it does NOT rescue a Secure Boot lockout
+on its own.
+
+THE TRAP THIS EXPOSES -- the BIOS password cuts BOTH ways:
+Upstream is blunt that a BIOS password is mandatory ("There must be a BIOS password or a similar
+restriction that prevents unauthorized changes to the Secure Boot policy") -- without one, an
+attacker simply switches Secure Boot off and the entire effort is decoration.
+BUT: we need that same password to reach the menu that disables Secure Boot to boot the rescue USB.
+LOSE THE BIOS PASSWORD WHILE LOCKED OUT AND THERE IS NO PATH BACK. That is the real brick scenario,
+and it is not the one we were worried about. The password must be recorded somewhere that survives
+the laptop being unbootable -- not in a password manager on the laptop.
+
+## ORIGINAL OPEN QUESTION (kept for the record -- answered above)
 Will a stock NixOS ISO boot on a machine with Secure Boot ENFORCING our own keys?
 Unknown. NixOS ISOs are not signed by our PK, and whether they carry a Microsoft-signed shim is
 unverified. PROVEN 2026-07-15 in the VM: one unsigned BOOTX64.EFI under enforcement produced
@@ -65,9 +88,14 @@ an ISO via the QEMU_OPTS `-cdrom` seam and watch. This also closes INT-059 gate 
 ## Gates
 - [ ] ISO builds from the flake: nixos-minimal + the tool list above, each tool justified
 - [ ] docs/recovery-runbook.md is baked INTO the image (findable without network or the host)
-- [ ] TESTED UNDER SECURE BOOT: boot the ISO in the VM while SB enforces our keys (-cdrom via
-      QEMU_OPTS). Record what happens -- this answers whether the USB survives what INT-059 does
-      to metal, and it is the whole reason this intent blocks metal day
+- [ ] VERIFY the documented answer in the VM: boot the ISO with SB enforcing our keys (-cdrom via
+      the QEMU_OPTS seam). Upstream says it will be REFUSED (media unsigned, no shim) -- expect the
+      same `BdsDxe: No bootable option or device was found` we saw on 2026-07-15. Documentation is
+      not demonstration; this is cheap and the VM is already in that exact firmware state. If it
+      DOES boot, the docs are stale and that is worth knowing more.
+- [ ] Firmware-menu recovery rehearsed in the VM: enter OVMF setup, DISABLE Secure Boot, boot the
+      ISO, mount the ESP. This is the ACTUAL metal recovery path now -- the USB alone is not one.
+      (Needs `vm gui`, which was fixed by inspection on 2026-07-15 and never tested.)
 - [ ] Written to a real USB and BOOTED on the Framework 16 -- before it is needed, not during
 - [ ] From the USB: mount /dev/nvme0n1p1 (the ESP) and read it. That is the ONLY step a Secure
       Boot lockout needs (see below)
