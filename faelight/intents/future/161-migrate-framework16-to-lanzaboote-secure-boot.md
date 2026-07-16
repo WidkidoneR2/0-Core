@@ -5,19 +5,9 @@ type: future
 title: "Migrate framework16 to Lanzaboote Secure Boot"
 status: planned
 tags: [faelight, secureboot, lanzaboote, metal, blocked]
+depends_on: [160]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
 
 ## BLOCKED ON INT-160 (rescue USB). Do not start this without one.
 Not superstition. INT-160 established that a stock NixOS ISO will NOT boot under Secure Boot

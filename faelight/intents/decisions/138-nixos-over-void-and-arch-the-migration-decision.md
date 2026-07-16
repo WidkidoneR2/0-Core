@@ -5,6 +5,7 @@ type: decisions
 title: "NixOS over Void and Arch: the migration decision"
 status: complete
 tags: [nixos, arch, void, migration, friday, foundational]
+priority: high
 ---
 
 ## Recorded late, on purpose

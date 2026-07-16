@@ -5,6 +5,7 @@ type: future
 title: "0-Core v2 risk-tiered metal-isolated structure"
 status: planned
 tags: [structure, restructure, lockout, lanzaboote]
+priority: high
 ---
 
 ## Vision

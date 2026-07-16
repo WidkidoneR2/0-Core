@@ -5,6 +5,7 @@ type: future
 title: "Faelight-Update evaluation to keep or to make it work on NixOS"
 status: planned
 tags: [faelight-update, nix, fsh, faelight]
+priority: high
 ---
 
 ## Why

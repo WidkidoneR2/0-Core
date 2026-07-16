@@ -3,9 +3,25 @@ id: 110
 date: 2026-07-02
 type: future
 title: "v2 structure (the metal-isolated risk-tiered vision)"
-status: planned
+status: cancelled
 tags: [structure, 0-core]
+cancelled_date: 2026-07-15
 ---
+## Cancelled
+Cancelled 2026-07-15 -- duplicate of INT-112 "0-Core v2 risk-tiered metal-isolated structure",
+which is the real intent: 95 lines, 6 gates, and it BUILDS ON INT-061 explicitly. This one is a
+title plus an untouched template, filed 2026-07-02.
+
+NOTHING IS LOST. 110's only real content was the POST-RESTRUCTURE CHECKLIST (fsh-test path debt),
+and that text already lives in INT-112 at lines 82-93 VERBATIM -- checked before cancelling, key
+sentence and all ("INT-061's restructure moved dirs under faelight/ and left 17 fsh-test failures
+with stale pre-061 paths"). Someone appended the same checklist to both files and only 112 ever
+grew a body.
+
+Found during a 2026-07-15 ledger triage prompted by "we are creating more intents than getting
+intents done." The triage disproved the premise (192 total, 134 complete, velocity accelerating at
+40.7/month) but surfaced this and three other title-only intents: 145 (11 lines, empty template)
+and 010/013/014 (0 gates, 16-19 lines). A title is not an intent.
 
 ## Vision
 [Describe the goal and desired outcome]

@@ -5,19 +5,10 @@ type: future
 title: "Faelight Forest Rescue USB Built 1.0"
 status: planned
 tags: [faelight forest, usb, wtf, rescue, help]
+priority: high
+blocks: [161]
 ---
 
-## Vision
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
 
 ## Why this exists
 INT-056's Forest Recovery Protocol is COMPLETE and its runbook (docs/recovery-runbook.md) opens
