@@ -3,7 +3,7 @@ id: 172
 date: 2026-07-17
 type: fix
 title: "fsh drops the rest of the line after 2> -- `cmd 2>/dev/null | grep x` runs UNFILTERED, `cmd > f` writes no file. Third sighting 2026-07-17, silent every time"
-status: in-progress
+status: complete
 tags: [fsh, parser, redirect, pipes, 171, 143, regression]
 ---
 
