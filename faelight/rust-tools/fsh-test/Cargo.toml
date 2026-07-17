@@ -10,3 +10,6 @@ faelight-core = { path = "../faelight-core" }
 rusqlite = { version = "0.31", features = ["bundled"] }
 colored = "2"
 chrono = "0.4"
+# INT-172: pty support, to drive the interactive REPL rather than `fsh -c`.
+# Already in Cargo.lock at four versions (rustyline pulls it) -- no new crate.
+nix = { version = "0.31.1", features = ["term"] }

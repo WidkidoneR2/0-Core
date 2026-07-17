@@ -119,18 +119,93 @@ twice already, in Arch and in early Nix.
 
       All three original failures reproduce. No hole in the trace. The mechanism in the CORRECTION
       section at the foot of this file is confirmed, not inferred. -->
-- [ ] Whatever the fix: `echo hello 2>/dev/null | grep -c hello` -> 1, on the DEPLOYED binary
+- [x] Whatever the fix: `echo hello 2>/dev/null | grep -c hello` -> 1, on the DEPLOYED binary
       (INT-110: a cargo build alone shows green while the live command still fails)
-- [ ] `cmd > f 2>&1` writes the file, with BOTH streams in it
-- [ ] `cmd 2>/tmp/err | grep x` works  <!-- PREMISE CORRECTED 2026-07-17: this gate STANDS -- it is a good
+      <!-- evidence: 2026-07-17, DEPLOYED binary gen 396
+      /nix/store/xcn9bfr4glpcaj4izrkyg4radkpn2arf-faelight-forest-9.2.0/bin/faelight-shell
+      driven through a PTY, so the INTERACTIVE REPL is what answered. This matters: `fsh -c`
+      NEVER had this bug, and fsh-test only speaks `-c` -- see gate 7. Fix: commit 976862c6.
+        echo hello 2>/dev/null | grep -c hello   -> `1`   (gate 1, same day: `hello`)
+        echo hello | grep -c hello               -> `1`   control, unchanged
+      -->
+- [x] `cmd > f 2>&1` writes the file, with BOTH streams in it
+      <!-- evidence: 2026-07-17, DEPLOYED binary gen 396
+      /nix/store/xcn9bfr4glpcaj4izrkyg4radkpn2arf-faelight-forest-9.2.0/bin/faelight-shell
+      driven through a PTY, so the INTERACTIVE REPL is what answered. This matters: `fsh -c`
+      NEVER had this bug, and fsh-test only speaks `-c` -- see gate 7. Fix: commit 976862c6.
+        ls /tmp/definitely-not-here /tmp > /tmp/g4-out.txt 2>&1
+        -> FILE CREATED, 15902 bytes, and it CONTAINS "No such file" -- so BOTH streams
+           landed, not merely the file appearing. At gate 1 this created NO FILE AT ALL.
+      The 2>&1-to-file code always existed and was UNREACHABLE; deleting the arms that
+      intercepted the line is what let sh do the job instead.
+      -->
+- [x] `cmd 2>/tmp/err | grep x` works  <!-- PREMISE CORRECTED 2026-07-17: this gate STANDS -- it is a good
       test -- but the reason given for it below is WRONG. `2>/tmp/err` DOES match today, via a third
       catch-all clause this intent's text did not know about. It breaks for a different reason. See
       the CORRECTION section at the foot of this file. --> -- a spelling that has NEVER been in the contains() list. If
       the fix only handles the two known spellings, it is the same fix that already failed twice
-- [ ] `cmd 2>&1 | grep x` works (order swapped)
-- [ ] Regression tests that FAIL on today's fsh, per INT-158 and INT-143's discipline
-- [ ] The fix names its relationship to INT-171 in a comment: holding patch, or the consolidation
+      <!-- evidence: 2026-07-17, DEPLOYED binary gen 396
+      /nix/store/xcn9bfr4glpcaj4izrkyg4radkpn2arf-faelight-forest-9.2.0/bin/faelight-shell
+      driven through a PTY, so the INTERACTIVE REPL is what answered. This matters: `fsh -c`
+      NEVER had this bug, and fsh-test only speaks `-c` -- see gate 7. Fix: commit 976862c6.
+        echo hello 2>/tmp/g4-err | grep -c hello  -> `1`
+      AND THE TELL: no file named 'g4-err | grep -c hello' was created. `g4-err` was a fresh
+      name. At gate 1 the same shape left a file literally named 'g1-err | grep -c hello'.
+      The pipeline no longer becomes a path.
+      -->
+- [x] `cmd 2>&1 | grep x` works (order swapped)
+      <!-- evidence: 2026-07-17, DEPLOYED binary gen 396
+      /nix/store/xcn9bfr4glpcaj4izrkyg4radkpn2arf-faelight-forest-9.2.0/bin/faelight-shell
+      driven through a PTY, so the INTERACTIVE REPL is what answered. This matters: `fsh -c`
+      NEVER had this bug, and fsh-test only speaks `-c` -- see gate 7. Fix: commit 976862c6.
+        echo hello 2>&1 | grep -c hello   -> `1`
+      -->
+- [x] Regression tests that FAIL on today's fsh, per INT-158 and INT-143's discipline
+      <!-- evidence: 2026-07-17. THE GATE AS WRITTEN WAS IMPOSSIBLE, and finding out why is the most
+      important thing this intent produced.
+      fsh-test's run_fsh() invokes `fsh -c`. MEASURED: `fsh -c` NEVER HAD THIS BUG. Only the
+      interactive REPL did. Same binary, same day, opposite results:
+          fsh -c 'echo hello 2>/dev/null | grep -c hello'  -> 1       CORRECT
+          the same line typed at the prompt                -> hello   WRONG
+      So no fsh-test case could EVER have failed on it. 83/83 green never meant "fsh works" -- it
+      meant "the -c path works". fsh has two front doors and only one was ever tested.
+      BUILT INSTEAD: faelight/rust-tools/fsh-test/src/repl.rs -- a pty driver. fsh asks isatty(); with
+      a plain pipe it answers "no terminal" and the REPL never exists. A pty is how you make it believe
+      a human is there. nix 0.31.1 (`features = ["term"]`) was ALREADY in Cargo.lock four times over,
+      because rustyline pulls it -- so this added ZERO new crates. Five tests, new Category::Repl:
+        repl_pipe_control_no_redirect        repl_stdout_redirect_with_2to1
+        repl_stderr_null_then_pipe           repl_pipeline_never_becomes_a_filename
+        repl_2to1_then_pipe
+      WATCHED IT FAIL FIRST, per INT-158. Built a shell from 976862c6^ (the commit before the fix),
+      saved it as /tmp/fsh-broken, restored the tree, then ran the suite against each:
+          RED   /tmp/fsh-broken            85 / 88   -- ALL 83 ORIGINAL TESTS PASSED.
+                                                        Only the new REPL tests failed:
+                                                          repl_stderr_null_then_pipe
+                                                            expected "1" got "hello"
+                                                          repl_stdout_redirect_with_2to1
+                                                            no file created (os error 2)
+                                                          repl_pipeline_never_becomes_a_filename
+                                                            ["fsh_test_g7err | grep -c hello"]
+          GREEN target/debug/faelight-shell 88 / 88
+      The old suite is 100% green on a demonstrably broken shell. That is the receipt.
+      repl_pipeline_never_becomes_a_filename is the July 12 fossil turned into an assertion. A file
+      named 'pi.err | python3 -c "..."' sat in /tmp for five days, holding 201 bytes of swallowed
+      stderr from real work that never ran. This test is the reason that cannot happen unnoticed again.
+      ONE TEST BUG, found by running red then green: the filename check did not clear leftovers, so it
+      failed against a FIXED shell because the RED run had just created the file it looks for. Fixed --
+      it now clears /tmp/fsh_test_g7err* first. The test caught its own flaw by being run twice.
+      KNOWN COST: ~5s per REPL test (fsh's banner spawns `nixos-rebuild list-generations --json` on
+      every start), so the suite goes from ~1.5s to ~26s. Recorded, not hidden. -->
+- [x] The fix names its relationship to INT-171 in a comment: holding patch, or the consolidation
       itself. A fifth parser patched without saying so is how there came to be five
+      <!-- evidence: commit 976862c6. The comment is IN THE CODE, and it says this is NEITHER:
+      "RELATION TO INT-171: this is neither a holding patch nor the consolidation. The `2>`
+       handling stops PARSING and becomes a ROUTER -- one boolean saying 'this line has a 2>,
+       give it to sh whole'. 171's inventory goes from five parsers to four parsers and a
+       router. A deletion makes 171's job SMALLER."
+      That inverts this intent's own argument against Option A, which was that every patch
+      makes 171 bigger. True of a patch. False of a deletion: 73 lines out, 50 in, and most
+      of the 50 is this comment. -->
 
 ## The Rule
 "Every previous fix was real. Each taught ONE parser. The others were never in the room." 🌲
@@ -185,9 +260,20 @@ destroyed by the CALLER. main.rs:2366-2400:
             (working_line[..idx].trim().to_string(), false, Some(after))
         } else { (line_stripped.clone(), false, None) };
 
-THE DEFECT IS `working_line[..idx]`. PREFIX TRUNCATION. Every arm takes the text LEFT of the `2>`
-token as the whole command and throws away everything to its right -- including the pipe. Nothing
-here parses past the redirect target. The intent's "IT IS A MISSING PARSER" reading is right in
+THE DEFECT IS `working_line[..idx]`. PREFIX TRUNCATION. The two `find(" 2>...")` arms take the text
+LEFT of the `2>` token as the whole command and throw away everything to its right -- including the
+pipe. Nothing there parses past the redirect target.
+
+CORRECTION TO THE CORRECTION (2026-07-17, later the same day): this paragraph first said "EVERY arm".
+That was WRONG, and gate 7's red run disproved it. The `2>&1` arm does NOT truncate -- it does
+`working_line.replace(" 2>&1", "")`, which removes the TOKEN and keeps the REST, so the pipe survives;
+`detect_redirect(&cleaned)` then finds no `>` and hands back the whole line, so `c2` keeps it too.
+PROVEN: on a binary built from 976862c6^, `repl_2to1_then_pipe` (`echo hello 2>&1 | grep -c hello`)
+PASSED. That shape was never broken. So gate 6 was testing something that already worked, and the
+three real failures were TWO truncations plus ONE no-file -- and the no-file case dies from the
+`(c2, _)` stdout-target discard plus the hardcoded `.stdout(inherit)`, not from truncation at all.
+The fix is unaffected; the description of the defect was over-general. Written down rather than
+quietly edited, because a correction that hides its own correction is the disease this file is about. The intent's "IT IS A MISSING PARSER" reading is right in
 SPIRIT and points at the WRONG LINE.
 
 ### The three failures, traced from source (2026-07-17)
@@ -205,7 +291,8 @@ SPIRIT and points at the WRONG LINE.
    in /tmp. Predicted from source, then observed, character for character. And .unwrap_or(Stdio::inherit())
    means any failure silently inherits instead of reporting.
 
-3. `ls /tmp > /tmp/out.txt 2>&1`  -- THREE throw-aways in one path:
+3. `ls /tmp > /tmp/out.txt 2>&1`  -- THREE throw-aways in one path (and note: NOT truncation --
+   this arm uses replace(), see the correction above):
    (a) detect_redirect checks 2> BEFORE the > arm ("Match 2>/dev/null and 2>file FIRST"), so
        __stderr__ wins and the > arm never runs;
    (b) `let (c2, _) = detect_redirect(&cleaned)` discards the stdout target into `_`;

@@ -1,6 +1,8 @@
 //! fsh-test -- permanent regression suite for faelight-shell
 //! INT-304 Phase 1: port fsh_audit.sh 75 tests to Rust
 
+mod repl;
+
 use colored::*;
 use std::process::{Command, Stdio};
 use std::time::Instant;
@@ -8,6 +10,7 @@ use std::time::Instant;
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 enum Category {
+    Repl,
     Tilde,
     Pipes,
     Vocabulary,
@@ -20,6 +23,7 @@ enum Category {
 impl std::fmt::Display for Category {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Category::Repl => write!(f, "repl"),
             Category::Tilde => write!(f, "tilde"),
             Category::Pipes => write!(f, "pipes"),
             Category::Vocabulary => write!(f, "vocabulary"),
@@ -448,6 +452,87 @@ fn all_tests() -> Vec<TestResult> {
         run_fsh("echo test > /tmp/fsh_test_redirect.txt")?;
         expect_contains(&run_fsh("cat /tmp/fsh_test_redirect.txt")?, "test")
     }));
+    // ---- INT-172: REPL tests. These drive a real pty, NOT `fsh -c`.
+    // Every one of them PASSES on `fsh -c` even against a broken shell -- which
+    // is exactly why fsh-test was 83/83 green for three months while the shell we
+    // type into was turning pipelines into filenames.
+    results.push(test(
+        "repl_pipe_control_no_redirect",
+        Category::Repl,
+        || {
+            let out = repl::run_repl("echo hello | grep -c hello")?;
+            expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
+        },
+    ));
+    results.push(test("repl_stderr_null_then_pipe", Category::Repl, || {
+        // The simplest possible case. Printed `hello` on gen 395.
+        let out = repl::run_repl("echo hello 2>/dev/null | grep -c hello")?;
+        expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
+    }));
+    results.push(test("repl_2to1_then_pipe", Category::Repl, || {
+        let out = repl::run_repl("echo hello 2>&1 | grep -c hello")?;
+        expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
+    }));
+    results.push(test(
+        "repl_stdout_redirect_with_2to1",
+        Category::Repl,
+        || {
+            // `cmd > f 2>&1` wrote NO FILE. The code that would have written both
+            // streams existed and was UNREACHABLE -- detect_redirect intercepted the
+            // line before it could ever run.
+            let _ = std::fs::remove_file("/tmp/fsh_test_g7out.txt");
+            let _ = repl::run_repl("ls /tmp/fsh_test_nope /tmp > /tmp/fsh_test_g7out.txt 2>&1")?;
+            let body = std::fs::read_to_string("/tmp/fsh_test_g7out.txt")
+                .map_err(|e| format!("no file created: {}", e))?;
+            if body.contains("No such file") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "file exists ({} bytes) but stderr was not merged",
+                    body.len()
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_pipeline_never_becomes_a_filename",
+        Category::Repl,
+        || {
+            // INT-172's signature. `2>FILE | cmd` put the WHOLE remainder into
+            // File::create(), because a pipeline is a legal Linux filename. A real one
+            // was found in /tmp dated 2026-07-12 13:00:25, left by actual work:
+            //   'pi.err | python3 -c "import sys,json; ...print(len(d),paths)"'
+            // The python never ran. This test is that fossil, made into an assertion.
+            // Clear leftovers FIRST. A previous run against a broken shell leaves
+            // exactly the file this test looks for, so without this the test fails
+            // against a FIXED shell. Found 2026-07-17 by the red/green run itself:
+            // green reported "the pipeline became a filename" on a binary that had
+            // stopped doing that an hour earlier.
+            for e in std::fs::read_dir("/tmp")
+                .map_err(|e| e.to_string())?
+                .flatten()
+            {
+                if e.file_name()
+                    .to_string_lossy()
+                    .starts_with("fsh_test_g7err")
+                {
+                    let _ = std::fs::remove_file(e.path());
+                }
+            }
+            let _ = repl::run_repl("echo hello 2>/tmp/fsh_test_g7err | grep -c hello")?;
+            let junk: Vec<String> = std::fs::read_dir("/tmp")
+                .map_err(|e| e.to_string())?
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n.starts_with("fsh_test_g7err") && n.contains('|'))
+                .collect();
+            if junk.is_empty() {
+                Ok(())
+            } else {
+                Err(format!("the pipeline became a filename: {:?}", junk))
+            }
+        },
+    ));
     results.push(test("nested_subshell", Category::Regression, || {
         expect_eq(&run_fsh("echo $(echo $(echo deep))")?, "deep")
     }));
