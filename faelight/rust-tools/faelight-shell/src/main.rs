@@ -1884,9 +1884,23 @@ fn repl_main() -> Result<()> {
                         let before_eq = &trimmed[..eq_pos];
                         let after_eq = trimmed[eq_pos + 1..].trim();
                         let no_space_before = !before_eq.contains(' ');
-                        let value_is_quoted = (after_eq.starts_with('"')
-                            && after_eq.ends_with('"'))
-                            || (after_eq.starts_with('\'') && after_eq.ends_with('\''));
+                        // INT-143: `starts_with('"') && ends_with('"')` is TRUE for
+                        //     QEMU_OPTS="-machine q35,smm=on" echo "$QEMU_OPTS"
+                        // -- the LINE merely begins and ends with a quote. That misread an inline
+                        // VAR=x cmd as a STANDALONE assignment, stored `-machine q35,smm=on" echo "`
+                        // as the value, and never ran echo. Proven 2026-07-16 on the debug binary.
+                        // Require the opening quote's MATCHING PARTNER to be the last character:
+                        // `"a b"` is standalone; `"a b" cmd` is not.
+                        let value_is_quoted = {
+                            let mut cs = after_eq.chars();
+                            match cs.next() {
+                                Some(q @ ('"' | '\'')) => {
+                                    after_eq[1..].find(q).map(|i| i + 1)
+                                        == Some(after_eq.len().saturating_sub(1))
+                                }
+                                _ => false,
+                            }
+                        };
                         let no_space_after = !after_eq.contains(' ');
                         // INT-100: a value that is a complete command substitution
                         // $( ... ) counts as a single standalone value even though it
@@ -1953,7 +1967,36 @@ fn repl_main() -> Result<()> {
                         let mut rest = trimmed;
                         loop {
                             // Match WORD=value at start (no spaces around =, WORD is [A-Z_][A-Z0-9_]*)
-                            let maybe_var = rest.split_whitespace().next().unwrap_or("");
+                            // INT-143 BUG A: this was `rest.split_whitespace().next()`, which does
+                            // not know what a quote is. `FOO="a b" cmd` -> first token `FOO="a`,
+                            // so the value was truncated to `a` and the remainder `b"` was then run
+                            // AS A COMMAND ("command not found: b\"").
+                            // THE INCIDENT (2026-07-15): QEMU_OPTS="-machine q35,smm=on" vm up left
+                            // QEMU_OPTS="-machine" behind. An hour later the vm script's
+                            // ${QEMU_OPTS:-} prepended that fragment, producing `-machine -machine
+                            // q35,smm=on`. FOUR VM boots failed. The blame went to the firmware, the
+                            // launcher, and the Secure Boot config in turn. None were at fault.
+                            // Scan for the first token QUOTE-AWARE, the same way tokenize_args
+                            // (commands/mod.rs) and tokenize (exec.rs) already do -- a space inside
+                            // quotes does not end the token.
+                            let maybe_var = {
+                                let mut end = 0usize;
+                                let mut in_quote = false;
+                                let mut quote_char = ' ';
+                                for (i, ch) in rest.char_indices() {
+                                    match ch {
+                                        '"' | '\'' if !in_quote => {
+                                            in_quote = true;
+                                            quote_char = ch;
+                                        }
+                                        c if in_quote && c == quote_char => in_quote = false,
+                                        ' ' if !in_quote => break,
+                                        _ => {}
+                                    }
+                                    end = i + ch.len_utf8();
+                                }
+                                &rest[..end]
+                            };
                             if let Some(eq) = maybe_var.find('=') {
                                 let name = &maybe_var[..eq];
                                 let valid = !name.is_empty()
@@ -1979,6 +2022,20 @@ fn repl_main() -> Result<()> {
                             break;
                         }
                         if !temp_vars.is_empty() {
+                            // INT-143 BUG B, and it is the worse of the two: fsh set these vars and
+                            // NEVER UNSET THEM. `FOO=1 echo hi` left FOO=1 in the session forever.
+                            // Proven 2026-07-16: `FOO143=1 echo scoping_test; echo [$FOO143]` -> [1].
+                            // POSIX says VAR=x cmd scopes VAR TO THAT COMMAND. That is why `unset
+                            // QEMU_OPTS` fixed the 2026-07-15 incident instantly -- the value should
+                            // never have outlived the command that carried it.
+                            // Bug A truncated the value; bug B made it PERMANENT. The disaster needed
+                            // both. Capture the prior values here, before anything is overwritten.
+                            let saved: Vec<(String, Option<String>, Option<String>)> = temp_vars
+                                .iter()
+                                .map(|(k, _)| {
+                                    (k.clone(), std::env::var(k).ok(), shell_vars.get(k).cloned())
+                                })
+                                .collect();
                             // Set vars in environment
                             for (k, v) in &temp_vars {
                                 std::env::set_var(k, v);
@@ -1996,13 +2053,37 @@ fn repl_main() -> Result<()> {
                                 }
                                 continue 'segments;
                             }
-                            let rest = expand_vars(rest, &shell_vars, last_exit_code);
+                            // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
+                            let rest_expanded = expand_vars(rest, &shell_vars, last_exit_code);
                             let result = exec::execute_with_context(
-                                &rest,
+                                &rest_expanded,
                                 &db,
                                 &core_root,
                                 &cfg.before_rules,
                             );
+                            // INT-143 BUG B: the command is done -- put the environment back exactly
+                            // as it was. A var that did not exist before is REMOVED, not left empty;
+                            // a var that had a value gets that value back. This runs whether the
+                            // command succeeded or failed, because a FAILED command has even less
+                            // business mutating durable state. The intent's words: "Silent state
+                            // mutation on a FAILED command is indefensible."
+                            // NOTE the standalone path above returns before reaching here -- a bare
+                            // `FOO=1` with no command SHOULD persist. That is a different statement
+                            // and it keeps its old behaviour.
+                            for (k, prev_env, prev_shell) in &saved {
+                                match prev_env {
+                                    Some(prev) => std::env::set_var(k, prev),
+                                    None => std::env::remove_var(k),
+                                }
+                                match prev_shell {
+                                    Some(prev) => {
+                                        shell_vars.insert(k.clone(), prev.clone());
+                                    }
+                                    None => {
+                                        shell_vars.remove(k);
+                                    }
+                                }
+                            }
                             match result {
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::Error(e) => {
