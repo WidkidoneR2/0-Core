@@ -2367,29 +2367,43 @@ fn repl_main() -> Result<()> {
                     let (line_stripped, redirect_info) = detect_redirect(line);
                     if let Some((ref redirect_target, is_append)) = redirect_info {
                         // Check for stderr redirect (2> or 2>&1) — use original line
-                        let working_line = if redirect_target == "__stderr__" {
-                            line
-                        } else {
-                            line_stripped.as_str()
-                        };
-                        let (cmd_part, stderr_to_stdout, stderr_file) =
-                            if working_line.contains(" 2>&1") {
-                                let cleaned = working_line.replace(" 2>&1", "").trim().to_string();
-                                // Also strip any stdout redirect
-                                let (c2, _) = detect_redirect(&cleaned);
-                                (c2, true, None)
-                            } else if let Some(idx) = working_line.find(" 2>/dev/null") {
-                                (
-                                    working_line[..idx].trim().to_string(),
-                                    false,
-                                    Some("/dev/null".to_string()),
-                                )
-                            } else if let Some(idx) = working_line.find(" 2>") {
-                                let after = working_line[idx + 3..].trim().to_string();
-                                (working_line[..idx].trim().to_string(), false, Some(after))
-                            } else {
-                                (line_stripped.clone(), false, None)
-                            };
+                        // INT-172 RESTORATION (2026-07-17): hand `sh` the WHOLE line for any `2>`.
+                        // This code used to hand-parse `2>` and it TRUNCATED THE LINE. Every arm did
+                        //     cmd_part = working_line[..idx]
+                        // which takes the text LEFT of the `2>` token as the entire command and throws
+                        // away everything to its right -- INCLUDING THE PIPE. Measured on the deployed
+                        // binary 2026-07-17 (INT-172 gate 1):
+                        //     echo hello 2>/dev/null | grep -c hello   -> `hello`  (POSIX: 1)
+                        //     echo X > /tmp/o.txt 2>&1                 -> terminal, NO FILE
+                        //     echo hello 2>/tmp/err | grep -c hello    -> left a file named
+                        //                                                 'err | grep -c hello'
+                        // working_line[idx+3..] became the FILENAME. The pipeline became a path.
+                        //
+                        // THIS IS NOT A NEW FIX. It is a RESTORATION of nine lines deleted at 91f8f65f
+                        // on 2026-04-05 ("native stderr redirect -- no more sh fallback"), which read:
+                        //     // Delegate to sh for reliable redirect handling
+                        //     Command::new("sh").arg("-c").arg(line).status();
+                        // It was reliable. 159 lines replaced 9, and it has been silently corrupting
+                        // commands ever since -- born broken, never once repaired across 103 days and
+                        // two distros. `git log -S 'detect_redirect'` is the receipt. See INT-172.
+                        //
+                        // WHY THIS IS CORRECT: the branch below ALREADY spawns `sh -c`. fsh was never
+                        // avoiding a subprocess -- it was calling sh with a MANGLED argument. sh has a
+                        // real parser. Give it the untouched line and the redirect AND the pipe both
+                        // work, at zero new cost. detect_redirect's `2>` arm returns the line whole,
+                        // so line_stripped IS the whole line here.
+                        //
+                        // RELATION TO INT-171: this is neither a holding patch nor the consolidation.
+                        // The `2>` handling stops PARSING and becomes a ROUTER -- one boolean saying
+                        // "this line has a 2>, give it to sh whole". 171's inventory goes from five
+                        // parsers to four parsers and a router. A deletion makes 171's job SMALLER.
+                        //
+                        // KNOWN LIMIT, recorded not hidden (INT-143's convention): fsh BUILTINS plus
+                        // `2>` go to sh, and sh does not know `d` or `intl`. That is ALREADY true today
+                        // -- this branch never called try_builtin -- so it is a ceiling, not a
+                        // regression. Closing it means routing through try_builtin with real fd
+                        // plumbing, which is INT-171's job, not this one.
+                        let cmd_part = line_stripped.clone();
                         // INT-245 #10: caught by detect_redirect — no target after > or >>
                         if redirect_target == "__redirect_error_no_target__" {
                             eprintln!("fsh: parse error: redirect missing target file");
@@ -2401,19 +2415,12 @@ fn repl_main() -> Result<()> {
                         // Open output file
                         // For stderr-only redirects, handle without opening stdout file
                         if is_stderr_only {
-                            let stderr_stdio = if let Some(ref sf_path) = stderr_file {
-                                std::fs::File::create(sf_path)
-                                    .map(std::process::Stdio::from)
-                                    .unwrap_or(std::process::Stdio::inherit())
-                            } else {
-                                std::process::Stdio::inherit()
-                            };
                             let _ = std::process::Command::new("sh")
                                 .arg("-c")
                                 .arg(&cmd_part)
                                 .stdin(std::process::Stdio::inherit())
                                 .stdout(std::process::Stdio::inherit())
-                                .stderr(stderr_stdio)
+                                .stderr(std::process::Stdio::inherit())
                                 .envs(std::env::vars())
                                 .status();
                             continue 'segments;
@@ -2432,8 +2439,6 @@ fn repl_main() -> Result<()> {
                         };
                         match file {
                             Ok(f) => {
-                                use std::os::fd::FromRawFd;
-                                use std::os::unix::io::IntoRawFd;
                                 // INT-143: ASK whether this is a builtin -- do not find out by
                                 // running it. This line used to be commands::execute(), which for a
                                 // NON-builtin fell through to run_external -> `sh -c <line>`, which
@@ -2504,46 +2509,18 @@ fn repl_main() -> Result<()> {
                                     if !cmd_part.trim().is_empty() {
                                         let mut cmd = std::process::Command::new("sh");
                                         cmd.arg("-c").arg(cmd_part.trim());
-                                        if stderr_to_stdout {
-                                            // 2>&1: open file twice for both stdout and stderr
-                                            let fd = f.into_raw_fd();
-                                            let stdout_f =
-                                                unsafe { std::fs::File::from_raw_fd(fd) };
-                                            // Reopen same file for stderr
-                                            let stderr_f = if is_append {
-                                                std::fs::OpenOptions::new()
-                                                    .append(true)
-                                                    .create(true)
-                                                    .open(redirect_target)
-                                            } else {
-                                                std::fs::OpenOptions::new()
-                                                    .write(true)
-                                                    .create(true)
-                                                    .open(redirect_target)
-                                            };
-                                            if let Ok(sf) = stderr_f {
-                                                let _ = cmd
-                                                    .stdout(std::process::Stdio::from(stdout_f))
-                                                    .stderr(std::process::Stdio::from(sf))
-                                                    .status();
-                                            }
-                                        } else if let Some(ref sf_path) = stderr_file {
-                                            // 2>file: stderr to different file
-                                            let sf = std::fs::File::create(sf_path).ok();
-                                            let _ = cmd
-                                                .stdout(std::process::Stdio::from(f))
-                                                .stderr(
-                                                    sf.map(std::process::Stdio::from)
-                                                        .unwrap_or(std::process::Stdio::inherit()),
-                                                )
-                                                .status();
-                                        } else {
-                                            // Normal stdout redirect
-                                            let _ = cmd
-                                                .stdout(std::process::Stdio::from(f))
-                                                .stderr(std::process::Stdio::inherit())
-                                                .status();
-                                        }
+                                        // INT-172 (2026-07-17): the `if stderr_to_stdout` and `else if stderr_file`
+                                        // branches that stood here were UNREACHABLE and are deleted. detect_redirect
+                                        // returns __stderr__ for ANY line containing ` 2>` (its clause 2 precedes the
+                                        // `>>` and `>` clauses), and is_stderr_only early-returns above. So this path
+                                        // is only ever reached by lines with `>` and NO `2>`, where stderr_to_stdout is
+                                        // always false and stderr_file always None. The 2>&1-to-file code was written
+                                        // on purpose, looked correct, and could never run -- which is exactly why
+                                        // `cmd > f 2>&1` wrote no file. That behavior now comes from sh, above.
+                                        let _ = cmd
+                                            .stdout(std::process::Stdio::from(f))
+                                            .stderr(std::process::Stdio::inherit())
+                                            .status();
                                     }
                                 } // end else external
                             }
