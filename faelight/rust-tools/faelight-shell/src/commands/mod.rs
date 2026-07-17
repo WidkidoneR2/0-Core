@@ -3923,6 +3923,18 @@ fn execute_impl(
                 Err(e) => CommandResult::Error(format!("cat: {}: {}", file, e)),
             }
         }
+        // INT-143 case 2: `env FOO=1 cmd` printed fsh's environment table and NEVER RAN cmd.
+        // Proven 2026-07-16: `env FOO=1 echo real_env_would_print_this` -> the table. Real env
+        // is right there at coreutils-9.11/bin/env; fsh was shadowing it and eating the command.
+        // Third arm today with this shape, after python3 and bash.
+        // NO ARGS -> fsh's own curated table (HOME/USER/PATH + FSH_FOCUS). That is fsh's to
+        // define and it is genuinely more useful than a raw dump. Keep it.
+        // WITH ARGS -> that is coreutils env: `env VAR=x cmd`, `env -u VAR cmd`, `env -i cmd`.
+        // fsh has no business interpreting any of those. Fall through to run_external.
+        // Guarding on args.is_empty() rather than sniffing for '=' is deliberate: a sniff is a
+        // second parser that drifts. "No args = ours, any args = theirs" cannot drift.
+        "env" if !args.is_empty() && allow_external => run_external(line, db),
+        "env" if !args.is_empty() => CommandResult::NotBuiltin,
         "env" => {
             let mut out = String::new();
             out.push_str(&format!("{}\n", "🌲 Shell Environment".cyan().bold()));
