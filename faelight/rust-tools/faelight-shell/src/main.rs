@@ -2353,13 +2353,37 @@ fn repl_main() -> Result<()> {
                             Ok(f) => {
                                 use std::os::fd::FromRawFd;
                                 use std::os::unix::io::IntoRawFd;
-                                // Try fsh builtins first
-                                let builtin_result = commands::execute(&cmd_part, &db, &core_root);
+                                // INT-143: ASK whether this is a builtin -- do not find out by
+                                // running it. This line used to be commands::execute(), which for a
+                                // NON-builtin fell through to run_external -> `sh -c <line>`, which
+                                // RAN THE COMMAND. It returned Empty, `_ => None` read that as "not
+                                // a builtin", and the else-branch below SPAWNED IT AGAIN.
+                                // EVERY external `cmd > file` RAN TWICE. Proven 2026-07-16:
+                                //     rm -rf /tmp/dirtest; mkdir /tmp/dirtest > /tmp/mk.txt
+                                //     -> mkdir: cannot create directory ...: File exists
+                                // The dir did not exist. Run 1 made it; run 2 failed. `curl -X POST
+                                // > log` posted twice. `git push > out` pushed twice.
+                                // try_builtin() answers NotBuiltin instead of spawning.
+                                let builtin_result =
+                                    commands::try_builtin(&cmd_part, &db, &core_root);
+                                let is_builtin =
+                                    !matches!(builtin_result, commands::CommandResult::NotBuiltin);
                                 let builtin_out = match builtin_result {
                                     commands::CommandResult::Output(o) => Some(o),
                                     commands::CommandResult::Value(v) => Some(v.render()),
                                     _ => None,
                                 };
+                                // INT-143: a builtin that PRINTED instead of returning (ls, d) gives
+                                // Empty and no captured output. It has ALREADY RUN. Spawning an
+                                // external twin here is the double-execution bug -- so stop.
+                                // KNOWN LIMIT, recorded not hidden: `ls > file` still leaks its
+                                // pretty listing to the terminal, because fsh's ls builtin prints
+                                // directly. The file now gets nothing rather than /bin/ls's output.
+                                // Fixing THAT means every print-directly builtin returning a String
+                                // instead -- a refactor across 227 match arms. See INT-143's ceiling.
+                                if is_builtin && builtin_out.is_none() {
+                                    continue 'segments;
+                                }
                                 if let Some(out) = builtin_out {
                                     use std::io::Write;
                                     if is_append {
@@ -2383,12 +2407,22 @@ fn repl_main() -> Result<()> {
                                         }
                                     }
                                 } else {
-                                    let parts: Vec<&str> = cmd_part.trim().splitn(2, ' ').collect();
-                                    if !parts.is_empty() {
-                                        let mut cmd = std::process::Command::new(parts[0]);
-                                        if parts.len() > 1 {
-                                            cmd.args(parts[1].split_whitespace());
-                                        }
+                                    // INT-143: hand it to `sh -c` whole, exactly as run_external
+                                    // does. This used to be:
+                                    //     let parts = cmd_part.trim().splitn(2, ' ').collect();
+                                    //     Command::new(parts[0]).args(parts[1].split_whitespace())
+                                    // which WORD-SPLIT the arguments and kept the quote characters
+                                    // as literal text. Measured 2026-07-16:
+                                    //     printf 'a b' > /tmp/q1.txt   -> file contains:  'a
+                                    // printf received two tokens, `'a` and `b'`, and warned about
+                                    // "excess arguments". That silently mangled a .gitignore edit
+                                    // earlier the same day and nobody noticed until we looked.
+                                    // A shell's argument parsing is sh's job and sh is correct at
+                                    // it. We already trust it in run_external -- trust it here too,
+                                    // instead of maintaining a second, worse parser.
+                                    if !cmd_part.trim().is_empty() {
+                                        let mut cmd = std::process::Command::new("sh");
+                                        cmd.arg("-c").arg(cmd_part.trim());
                                         if stderr_to_stdout {
                                             // 2>&1: open file twice for both stdout and stderr
                                             let fd = f.into_raw_fd();
@@ -2973,6 +3007,21 @@ fn repl_main() -> Result<()> {
                         commands::CommandResult::Error(e) => {
                             eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
                             last_exit_code = Some(1);
+                            None
+                        }
+                        // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by
+                        // exec::execute_with_context, which dispatches through commands::execute
+                        // (exec.rs:554), and execute() always passes allow_external: true -- so the
+                        // NotBuiltin arm in execute_impl cannot fire on this path. Only
+                        // try_builtin() can produce this variant.
+                        // Handled as Empty rather than todo!() or unreachable!(): BOTH PANIC, and a
+                        // panic here closes the shell. The codebase already knows this -- see
+                        // truncate_safe in commands/mod.rs, written so a multibyte anchor "never
+                        // panics the shell via an out-of-bounds byte slice (a panic here closes
+                        // fsh)". If a future refactor ever routes try_builtin through here, the
+                        // honest failure is a silent no-op, not a dead terminal.
+                        commands::CommandResult::NotBuiltin => {
+                            last_exit_code = Some(0);
                             None
                         }
                     };

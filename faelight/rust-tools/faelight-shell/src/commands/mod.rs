@@ -20,6 +20,21 @@ pub enum CommandResult {
     Empty,
     Error(String),
     Exit,
+    /// INT-143: "this command is not an fsh builtin" -- an ANSWER, not an action.
+    ///
+    /// Only `try_builtin()` can return this. `execute()` never does, so every existing
+    /// caller is unaffected BY CONSTRUCTION (not by the compiler -- most call sites match
+    /// with a `_` arm and would silently swallow a new variant).
+    ///
+    /// WHY IT EXISTS. `execute()` conflated ASKING with DOING: the only way to find out
+    /// whether a line was a builtin was to run it. main.rs's redirect path did exactly
+    /// that -- called execute(), got Empty, concluded "not a builtin", and spawned the
+    /// command A SECOND TIME. Measured 2026-07-16:
+    ///     rm -rf /tmp/dirtest; mkdir /tmp/dirtest > /tmp/mk.txt
+    ///     -> mkdir: cannot create directory '/tmp/dirtest': File exists
+    /// The directory did not exist. The FIRST execution created it; the second failed.
+    /// Every external `cmd > file` ran twice. `curl -X POST > log` posted twice.
+    NotBuiltin,
 }
 
 // ── Security Layer — log every command ───────────────────────────────────────
@@ -185,8 +200,35 @@ pub fn colorize_line(line: &str) -> String {
     }
     result
 }
+/// Run a command line: builtin if we have one, otherwise hand it to the system.
+/// NEVER returns NotBuiltin -- behaviour is byte-for-byte what it has always been.
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(line, db, core_root, &[])
+    execute_impl(line, db, core_root, &[], true)
+}
+
+/// INT-143: ASK whether this line is an fsh builtin, WITHOUT running it if it is not.
+///
+/// Same dispatch as `execute()` -- same aliases, same plugins, same 227 match arms -- but the
+/// fallthrough returns `NotBuiltin` instead of calling `run_external`. A caller that must decide
+/// "builtin or spawn?" can now ask, instead of guessing from a side effect.
+///
+/// A builtin that DOES match still runs. That is intended: there is no way to know whether `cmd`
+/// is a builtin without consulting the same match, and builtins are ours -- running one is the
+/// point. What this prevents is running an EXTERNAL command as a side effect of asking.
+///
+/// THIS IS NOT A PURE PREDICATE, AND SAYING SO WOULD BE A LIE. It suppresses every
+/// `run_external` call (five sites, all guarded). It does NOT suppress arms that spawn a
+/// process directly -- `gt` (Command::new("git")), `friday chat` (Command::new("friday-chat")),
+/// and others still act when probed. Making it pure would mean auditing all 227 arms, which is
+/// a different intent.
+/// What it is FOR: letting a caller distinguish "no arm matched" from "an arm matched and
+/// returned nothing". Those were indistinguishable before, and conflating them made main.rs
+/// run every redirected external command twice.
+/// Those direct-spawn arms were ALREADY broken for redirects before this change (`gt > f` tried
+/// to spawn a `gt` binary that does not exist, so the file got nothing). This does not make them
+/// worse. It fixes what it can prove and names what it cannot.
+pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
+    execute_impl(line, db, core_root, &[], false)
 }
 
 fn execute_impl(
@@ -194,6 +236,10 @@ fn execute_impl(
     db: &ForestDb,
     core_root: &str,
     expanded_names: &[&str],
+    // INT-143: false = probe. The fallthrough answers NotBuiltin instead of spawning.
+    // Threaded through the alias/plugin recursion below, or a probe would quietly become a
+    // real run one expansion deep -- the same bug, hidden one level down.
+    allow_external: bool,
 ) -> CommandResult {
     fn tokenize_args(s: &str) -> Vec<String> {
         let mut tokens: Vec<String> = Vec::new();
@@ -293,7 +339,7 @@ fn execute_impl(
             };
             let mut next = expanded_names.to_vec();
             next.push(cmd.as_str());
-            return execute_impl(&expanded, db, core_root, &next);
+            return execute_impl(&expanded, db, core_root, &next, allow_external);
         }
         // already expanded in this chain -> fall through and run as a command
     }
@@ -315,7 +361,7 @@ fn execute_impl(
                 };
                 let mut next = expanded_names.to_vec();
                 next.push(cmd.as_str());
-                return execute_impl(&expanded, db, core_root, &next);
+                return execute_impl(&expanded, db, core_root, &next, allow_external);
             }
         }
     }
@@ -402,6 +448,8 @@ fn execute_impl(
                 args.get(1).copied().unwrap_or(""),
                 args.get(2).copied().unwrap_or(""),
             ),
+            // INT-143: honour the probe here too -- see try_builtin.
+            _ if !allow_external => CommandResult::NotBuiltin,
             _ => run_external(line, db),
         },
         "plan" => semantic_plan_cmd(if args.is_empty() {
@@ -430,7 +478,12 @@ fn execute_impl(
             } else {
                 format!("core {} {}", cmd, sub)
             };
-            run_external(&full, db)
+            // INT-143: these arms shell out to `core`. A probe must not.
+            if !allow_external {
+                CommandResult::NotBuiltin
+            } else {
+                run_external(&full, db)
+            }
         }
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
@@ -476,6 +529,14 @@ fn execute_impl(
         "chart" => chart_cmd(db, args),
         "select" => sql_query_cmd(db, core_root, line),
         "git" if args.is_empty() => git_status(core_root),
+        // INT-143: THIS ARM CAUSED A REGRESSION and it is why every run_external site is
+        // guarded, not just the fallthrough. `git` has its OWN arm that calls run_external --
+        // so try_builtin("git status") RAN git, printed to the terminal, and returned Empty.
+        // main.rs read "it matched an arm" as "it is a builtin", skipped the file write, and
+        // `git status --short > /tmp/gs.txt` left the file EMPTY. Caught by testing the debug
+        // binary before deploying it, which is the entire reason for testing the debug binary
+        // before deploying it.
+        "git" if !allow_external => CommandResult::NotBuiltin,
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
         "pick" => pick_cmd(db, core_root, args),
@@ -3179,6 +3240,10 @@ fn execute_impl(
                     .iter()
                     .any(|a| a.starts_with('-') && !a.starts_with("--"));
             if is_unix_find {
+                // INT-143: `find` with unix-style args is handed to the real find.
+                if !allow_external {
+                    return CommandResult::NotBuiltin;
+                }
                 return run_external(line, db);
             }
             // Forest find: fd wrapper with @shortcuts and pattern-first syntax
@@ -4141,8 +4206,17 @@ fn execute_impl(
             std::io::stdout().flush().ok();
             CommandResult::Empty
         }
+        // INT-143: a probe (try_builtin) stops here and ANSWERS. Nothing is spawned.
+        _ if !allow_external => CommandResult::NotBuiltin,
         _ => run_external(line, db),
     };
+
+    // INT-143: a probe is a question, not a command. Do not write it to the security log --
+    // try_builtin runs BEFORE the real execution, so logging here would double-count every
+    // redirected command and poison the very event log INT-167 wants to be able to trust.
+    if matches!(result, CommandResult::NotBuiltin) {
+        return result;
+    }
 
     // Security layer — log every command
     let result_str = match &result {
