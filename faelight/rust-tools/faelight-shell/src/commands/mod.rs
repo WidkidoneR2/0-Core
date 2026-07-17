@@ -582,7 +582,19 @@ fn execute_impl(
             None => history_table(db),
         },
         "history-search" | "hs" | "hsearch" => history_search_cmd(db, args),
-        "zsh" | "bash" => shell_handoff_cmd(line),
+        // INT-143 case 1, the one that cost real time on 2026-07-15: `bash script.sh` dropped
+        // into INTERACTIVE bash and the script NEVER RAN. It returned "successfully" in ~7s
+        // having done nothing, and the missing output was misread as a qemu failure -- the
+        // session chased a ghost. shell_handoff_cmd keeps only the FIRST WORD of the line
+        // (split_whitespace().next()) and never calls .args(), so every argument was swallowed.
+        // Same shape as python3 above: a builtin shadows a real binary and eats its arguments.
+        // NO ARGS -> the handoff is what you meant. Keep it, banner and all -- it is good UX and
+        // it harms nothing.
+        // WITH ARGS -> not a handoff. Fall through to run_external -> `sh -c "bash script.sh"`,
+        // which runs the script, with the right quoting, exactly as bash itself would.
+        // The `if args.is_empty()` shape is not invented here -- `git` four lines below does the
+        // same thing, and has all along.
+        "zsh" | "bash" if args.is_empty() => shell_handoff_cmd(line),
         "hstats" => history_stats(db),
         "histogram" => histogram_cmd(db, args),
         "hpattern" => history_pattern(db),
@@ -4831,6 +4843,10 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
+/// Hand the terminal to another shell, interactively. NO-ARG ONLY -- the dispatch arm guards it
+/// with `if args.is_empty()`, because this function IGNORES arguments by construction: it keeps the
+/// first word and drops the rest. `bash script.sh` used to land here and silently never run the
+/// script (INT-143). With args, dispatch now falls through to run_external instead.
 fn shell_handoff_cmd(line: &str) -> CommandResult {
     let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
     println!();
