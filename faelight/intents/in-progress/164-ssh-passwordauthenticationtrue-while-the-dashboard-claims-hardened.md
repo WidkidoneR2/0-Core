@@ -3,7 +3,7 @@ id: 164
 date: 2026-07-16
 type: fix
 title: "SSH: PasswordAuthentication=true while the dashboard claims hardened"
-status: planned
+status: in-progress
 tags: [fix, bugfix]
 ---
 

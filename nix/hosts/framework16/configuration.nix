@@ -102,7 +102,25 @@
   ];
 
   # Security services
-  services.fail2ban.enable = true;
+  # INT-164: fail2ban is OFF, and it is off because it CANNOT DO ITS JOB, not to save cycles.
+  # It had exactly one jail -- the sshd jail NixOS creates automatically. sshd was removed
+  # (see below), the jail went with it, and `fail2ban-client status` proved the result:
+  #     Number of jail: 0
+  # A running fail2ban with zero jails is a daemon watching an empty room -- and the health
+  # dashboard was printing "fail2ban OK" for it, because the check asks `systemctl is-active`
+  # and is-active is not is-protecting. That is the same disease as the "SSH hardened OK" this
+  # intent was filed for, one layer over.
+  #
+  # AND IT CANNOT ACQUIRE A JAIL, because nothing on this laptop is reachable. Measured
+  # 2026-07-17, `ss -tlnp` minus loopback, the COMPLETE list of listening sockets:
+  #     atticd    127.0.0.1:8080       loopback -- this machine only
+  #     dnsmasq   192.168.122.1:53     libvirt's virbr0 -- VM guests only, not the LAN
+  # That is all of it. Zero network-reachable services. fail2ban is not guarding a house with
+  # no doors; it is guarding an empty lot. The firewall stays and does real work.
+  #
+  # TO BRING IT BACK: one line, the day something actually listens on 0.0.0.0. Re-enable it
+  # WITH the jail that thing needs -- not bare, which is how it ended up with zero.
+  # services.fail2ban.enable = true;
 
   # Hardware services
   services.fwupd.enable = true;
@@ -127,11 +145,34 @@
   # shared with the VM instead of copied into it.
 
 
-  services.openssh = {
-    enable = true;
-    settings.PasswordAuthentication = true;
-    settings.PermitRootLogin = "no";
-  };
+  # INT-164: sshd is OFF, and the reason is measured, not assumed.
+  # This laptop is WiFi-only behind NAT and Christian sits in front of it. sshd ran for months
+  # and NEVER HAD A SINGLE CONVERSATION -- proven 2026-07-17 against the ENTIRE journal, not a
+  # window: "Accepted" appears ZERO times in 1667 lines. fail2ban: Total failed 0, Total banned 0
+  # (an internet-reachable host collects thousands of failed bot attempts PER DAY -- zero-ever is
+  # the proof port 22 was never reachable from outside the house). ss -tnp :22 empty, who empty,
+  # `last` shows only reboots. The only connections ever logged: 192.168.1.1 twice (his own router
+  # probing the LAN, never authenticated) and ::1 once (our own test, which failed and got
+  # rate-limited by sshd's srclimit_penalise -- the defenses working).
+  #
+  # WHY IT WAS EVER ON: it came along with the VM work (7300ace1, "INT-328: vm user + ssh + git").
+  # But `vm ssh` reaches INTO the guest -- that needs the ssh CLIENT, which stays. The DAEMON was
+  # never the thing doing the work.
+  #
+  # WHY OFF BEATS HARDENED: `sshd -T` showed TWO password doors, not one --
+  #   passwordauthentication yes  AND  kbdinteractiveauthentication yes + usepam yes
+  # so PasswordAuthentication=false alone would NOT have closed password login; PAM still offers a
+  # prompt via keyboard-interactive. That is the classic half-fix. And there is no
+  # ~/.ssh/authorized_keys at all -- key auth was NEVER available, so disabling passwords would have
+  # locked SSH out entirely while the dashboard kept saying "hardened". Hardening this would mean
+  # maintaining a door into a room nobody enters. INT-143's lesson, applied to a service: the cure
+  # is deletion. Code that is not there cannot be wrong.
+  #
+  # TO TURN IT BACK ON, do it deliberately and in this order: (1) put a real pubkey in
+  # ~/.ssh/authorized_keys, (2) prove `ssh -o BatchMode=yes christian@localhost` works -- BatchMode
+  # refuses password fallback, so success means the KEY works alone, (3) THEN enable with
+  # PasswordAuthentication=false AND KbdInteractiveAuthentication=false. Both. Not one.
+  services.openssh.enable = false;
 
   # Declarative /etc/faelight/VERSION from meta/VERSION (INT-031 de-Arch).
   # faelight-login reads this; faelight-release no longer writes it.
