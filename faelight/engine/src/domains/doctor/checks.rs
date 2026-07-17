@@ -508,58 +508,148 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     }
 }
 
+/// Read ONE sshd_config directive, honestly.
+///
+/// INT-164: the old check used `cfg.contains("PasswordAuthentication no")`, which is a substring
+/// match on the whole file. It would be satisfied by a COMMENTED line -- `#PasswordAuthentication no`
+/// -- i.e. by a setting explicitly turned OFF. Latent rather than live here (NixOS generates the
+/// full effective config with no commented defaults, measured: 20 lines, gen 392), but a check that
+/// can be fooled by a `#` is not a check.
+/// Directive match, not substring. Comments skipped. Case-insensitive, as sshd itself is.
+fn sshd_setting(cfg: &str, key: &str) -> Option<String> {
+    cfg.lines()
+        .map(str::trim)
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+        .find_map(|l| {
+            let mut it = l.split_whitespace();
+            let k = it.next()?;
+            if k.eq_ignore_ascii_case(key) {
+                it.next().map(|v| v.to_ascii_lowercase())
+            } else {
+                None
+            }
+        })
+}
+
+/// Which authentication doors an sshd_config leaves OPEN. Separated from the check so it can be
+/// TESTED against a real config instead of read and believed -- the `||` bug below looked fine to
+/// every reader it ever had.
+///
+/// TWO PASSWORD DOORS, NOT ONE. `sshd -T` proved it 2026-07-17: PasswordAuthentication=no ALONE does
+/// not close password login while KbdInteractiveAuthentication=yes and UsePAM=yes -- PAM still
+/// offers a prompt. Setting only the first is the classic half-fix, and the old check called the
+/// result "hardened".
+///
+/// OpenSSH defaults BOTH password doors to `yes`. An ABSENT directive is therefore an OPEN door.
+/// unwrap_or("yes") is the honest reading, not a pessimistic one: a config-file check cannot prove
+/// a negative, so it fails safe rather than fails flattering.
+fn ssh_open_doors(cfg: &str) -> Vec<&'static str> {
+    let mut open = vec![];
+    if sshd_setting(cfg, "PasswordAuthentication").unwrap_or_else(|| "yes".into()) == "yes" {
+        open.push("password");
+    }
+    if sshd_setting(cfg, "KbdInteractiveAuthentication").unwrap_or_else(|| "yes".into()) == "yes" {
+        open.push("keyboard-interactive");
+    }
+    if sshd_setting(cfg, "PermitRootLogin").unwrap_or_else(|| "yes".into()) == "yes" {
+        open.push("root login");
+    }
+    open
+}
+
+/// INT-164: report FACTS, not a verdict. A fact cannot lie; a verdict can.
+///
+/// WHAT THIS CHECK USED TO SAY, and why it was wrong -- measured 2026-07-17:
+///   1. `PermitRootLogin no || PasswordAuthentication no` -- ONE `||` where an `&&` belongs. It read
+///      the RIGHT two settings and accepted EITHER. PermitRootLogin was `no`, so it printed
+///      "SSH hardened OK" while `PasswordAuthentication yes` sat on the line above it. That is the
+///      bug this intent was filed for, and it would have lied about ANY sshd, including one enabled
+///      later for a real reason.
+///   2. fail2ban: `systemctl is-active` -- but IS-ACTIVE IS NOT IS-PROTECTING. After sshd was
+///      removed, `fail2ban-client status` reported `Number of jail: 0` and this check went right on
+///      printing "fail2ban OK". A daemon watching an empty room.
+///   3. `if details > 0 { Pass }` -- ANY ONE of three made the WHOLE check green. A firewall alone
+///      earned "Security Hardening: Pass" no matter what else was open.
+///
+/// WHAT IT SAYS NOW: what it can actually see, named. "sshd off" is a fact. "sshd: password auth ON"
+/// is a fact. "Firewall" is a fact. The STATUS is a real conjunction, not a count.
+/// It does NOT claim key-only, because a config-file read cannot prove the negative -- an absent
+/// directive means OpenSSH's DEFAULT, and for both password doors that default is `yes`. Absent is
+/// therefore read as OPEN. Fail safe, not fail flattering.
 pub fn check_security_hardening() -> CheckResult {
-    let mut details = 0;
-    // NixOS: check native nftables firewall instead of UFW
-    let ufw_active = Command::new("systemctl")
+    let firewall_active = Command::new("systemctl")
         .args(["is-active", "firewall"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active")
         .unwrap_or(false);
-    if ufw_active {
-        details += 1;
+
+    let sshd_path = PathBuf::from("/etc/ssh/sshd_config");
+    let sshd_cfg = if sshd_path.exists() {
+        fs::read_to_string(&sshd_path).ok()
+    } else {
+        None
+    };
+
+    let mut facts: Vec<String> = vec![];
+    let mut ssh_warn: Option<String> = None;
+
+    facts.push(if firewall_active {
+        "Firewall \u{2705}".to_string()
+    } else {
+        "Firewall \u{274C}".to_string()
+    });
+
+    match &sshd_cfg {
+        // No sshd_config at all -> the daemon is off. Nothing to harden. This is the strongest
+        // state there is, and INT-164 is why this machine is in it.
+        None => facts.push("sshd off".to_string()),
+        Some(cfg) => {
+            let open = ssh_open_doors(cfg);
+            if open.is_empty() {
+                facts.push("sshd: key-only".to_string());
+            } else {
+                let msg = format!("sshd: {} ON", open.join(" + "));
+                facts.push(msg.clone());
+                ssh_warn = Some(msg);
+            }
+        }
     }
+
+    // fail2ban is a FACT, never a tick. Counting jails needs root, and this check runs as the user
+    // -- so it reports only what it can prove: the process is up. It does NOT claim protection,
+    // because on 2026-07-17 it was up with ZERO jails and this line said "fail2ban OK".
     let f2b_active = Command::new("systemctl")
         .args(["is-active", "fail2ban"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active")
         .unwrap_or(false);
     if f2b_active {
-        details += 1;
+        facts.push("fail2ban running".to_string());
     }
-    let sshd = PathBuf::from("/etc/ssh/sshd_config");
-    let ssh_ok = sshd.exists()
-        && fs::read_to_string(&sshd)
-            .map(|c| c.contains("PermitRootLogin no") || c.contains("PasswordAuthentication no"))
-            .unwrap_or(false);
-    if ssh_ok {
-        details += 1;
-    }
-    let mut active = vec![];
-    if ufw_active {
-        active.push("Firewall ✅");
-    }
-    if f2b_active {
-        active.push("fail2ban ✅");
-    }
-    if ssh_ok {
-        active.push("SSH hardened ✅");
-    }
-    if !ufw_active {
-        active.push("Firewall ❌");
-    }
+
+    // A REAL CONJUNCTION. Not `details > 0`.
+    let status = if !firewall_active {
+        Status::Fail
+    } else if ssh_warn.is_some() {
+        Status::Warn
+    } else {
+        Status::Pass
+    };
 
     CheckResult {
         id: "security".into(),
         name: "Security Hardening".into(),
-        status: if details > 0 {
-            Status::Pass
-        } else {
-            Status::Fail
-        },
-        message: format!("Security: {}", active.join("  ")),
-        fix: if !ufw_active {
+        status,
+        message: format!("Security: {}", facts.join("  ")),
+        fix: if !firewall_active {
             Some("Enable firewall: networking.firewall.enable = true in configuration.nix".into())
+        } else if let Some(w) = &ssh_warn {
+            Some(format!(
+                "{} -- set PasswordAuthentication = false AND KbdInteractiveAuthentication = false \
+                 (both: PAM offers a password prompt via keyboard-interactive), or disable sshd \
+                 entirely with services.openssh.enable = false",
+                w
+            ))
         } else {
             None
         },
@@ -1601,5 +1691,141 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
                     .into(),
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod int164_security_tests {
+    use super::*;
+
+    /// The EXACT config that was live on generation 392, verbatim from
+    /// /nix/var/nix/profiles/system-392-link/etc/ssh/sshd_config on 2026-07-17.
+    /// The old check called this "SSH hardened OK".
+    const GEN_392: &str = "\
+AuthorizedPrincipalsFile none
+GatewayPorts no
+KbdInteractiveAuthentication yes
+LogLevel VERBOSE
+PasswordAuthentication yes
+PermitRootLogin no
+PrintMotd no
+StrictModes yes
+UseDns no
+UsePAM yes
+X11Forwarding no
+AddressFamily any
+Port 22
+";
+
+    #[test]
+    fn gen_392_config_is_not_hardened() {
+        // THE REGRESSION. The old check was:
+        //     c.contains("PermitRootLogin no") || c.contains("PasswordAuthentication no")
+        // PermitRootLogin IS "no" here, so the old check returned TRUE and printed
+        // "SSH hardened OK" -- while password auth AND keyboard-interactive were both wide open.
+        // This test FAILS on the old logic and passes on the new. That is the whole point.
+        let open = ssh_open_doors(GEN_392);
+        assert!(
+            open.contains(&"password"),
+            "PasswordAuthentication yes must register as an open door"
+        );
+        assert!(
+            open.contains(&"keyboard-interactive"),
+            "KbdInteractiveAuthentication yes is the SECOND password door -- the half-fix this \
+             intent exists to prevent"
+        );
+        assert!(
+            !open.contains(&"root login"),
+            "PermitRootLogin no was the ONE thing set correctly, and the old check let it vouch \
+             for everything else"
+        );
+    }
+
+    /// THE OLD LOGIC, preserved verbatim so the bug can be DEMONSTRATED rather than described.
+    /// This is exactly what checks.rs:533 did before INT-164:
+    ///     c.contains("PermitRootLogin no") || c.contains("PasswordAuthentication no")
+    fn old_check_said_hardened(cfg: &str) -> bool {
+        cfg.contains("PermitRootLogin no") || cfg.contains("PasswordAuthentication no")
+    }
+
+    #[test]
+    fn the_old_check_called_gen_392_hardened_and_it_was_wrong() {
+        // WATCH THE GATE FAIL FIRST. The tests above prove the NEW function is right; on their own
+        // they do not prove the OLD one was wrong, because the old one is gone. This one does.
+        //
+        // The old check returned TRUE for the config that was LIVE on generation 392 -- and the
+        // dashboard printed "SSH hardened OK" on the strength of it, for months.
+        assert!(
+            old_check_said_hardened(GEN_392),
+            "the old check really did pass this config -- that is the bug"
+        );
+        // And the machine it vouched for had BOTH password doors wide open.
+        let open = ssh_open_doors(GEN_392);
+        assert_eq!(open, vec!["password", "keyboard-interactive"]);
+        // ONE `||` between an honest dashboard and a lying one. PermitRootLogin was the single
+        // thing set correctly, and the `||` let it vouch for everything else.
+    }
+
+    #[test]
+    fn the_old_check_would_pass_a_config_with_nothing_set() {
+        // Worse than gen 392: the old check would ALSO have passed a config where the setting is
+        // explicitly COMMENTED OUT, because contains() does not care about a leading `#`.
+        // Latent on NixOS (which generates the full effective config, no comments) -- but this is
+        // what "it looked rigorous" bought.
+        let commented = "#PasswordAuthentication no\nPermitRootLogin yes\n";
+        assert!(
+            old_check_said_hardened(commented),
+            "the old check passed a DISABLED line"
+        );
+        assert!(
+            ssh_open_doors(commented).contains(&"root login"),
+            "meanwhile root login was open"
+        );
+    }
+
+    #[test]
+    fn a_genuinely_key_only_config_is_clean() {
+        let cfg =
+            "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n";
+        assert!(ssh_open_doors(cfg).is_empty());
+    }
+
+    #[test]
+    fn half_fix_is_caught() {
+        // The trap: close the door you know about, leave the one you do not.
+        let cfg =
+            "PasswordAuthentication no\nKbdInteractiveAuthentication yes\nPermitRootLogin no\n";
+        assert_eq!(ssh_open_doors(cfg), vec!["keyboard-interactive"]);
+    }
+
+    #[test]
+    fn absent_directive_is_an_open_door() {
+        // OpenSSH defaults both to yes. Silence is not safety.
+        assert_eq!(
+            ssh_open_doors("Port 22\n"),
+            vec!["password", "keyboard-interactive", "root login"]
+        );
+    }
+
+    #[test]
+    fn commented_setting_does_not_count_as_set() {
+        // The latent bug in the old check: contains() matched a DISABLED line.
+        let cfg =
+            "#PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n";
+        assert_eq!(ssh_open_doors(cfg), vec!["password"]);
+    }
+
+    #[test]
+    fn directive_match_is_not_substring_match() {
+        assert_eq!(
+            sshd_setting("PermitRootLogin no\n", "PermitRootLogin"),
+            Some("no".into())
+        );
+        assert_eq!(sshd_setting("PermitRootLogin no\n", "RootLogin"), None);
+        // sshd itself is case-insensitive on directive names.
+        assert_eq!(
+            sshd_setting("permitrootlogin NO\n", "PermitRootLogin"),
+            Some("no".into())
+        );
     }
 }
