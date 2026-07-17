@@ -3,7 +3,7 @@ id: 143
 date: 2026-07-11
 type: future
 title: "fsh guards bare python3 (no-arg REPL trap)"
-status: planned
+status: in-progress
 tags: [fsh, papercut, python, lane-0]
 ---
 
