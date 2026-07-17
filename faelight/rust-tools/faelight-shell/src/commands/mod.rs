@@ -489,7 +489,27 @@ fn execute_impl(
         "checkpoint" | "cpc" => checkpoint(db),
         "let" => scripting_let_cmd(db, core_root, args),
         "run" => scripting_run_cmd(db, core_root, args),
-        "python" | "py" | "python3" => run_python_cmd(args),
+        // INT-143: `python3` IS python3. It is NOT a builtin and fsh must stop claiming it.
+        // Removed from this arm entirely -- it now falls through to run_external, which is
+        // `sh -c <line>` with stdin/stdout/stderr INHERITED. That single change fixes all of:
+        //   python3                -> a real REPL (inherited stdio; `bash` has always proven
+        //                             this works -- shell_handoff_cmd does the same thing)
+        //   python3 --version      -> Python 3.13.13   (was: NameError: name 'version' is not
+        //                             defined -- the flag was being EVALUATED AS SOURCE)
+        //   python3 -c "print(6*7)" -> 42              (was: SyntaxError: invalid syntax)
+        //   python3 -i             -> a REPL           (was: NameError -- and this was the
+        //                             workaround the OLD guard's own error message told you to
+        //                             use. It had never been run.)
+        //   python3 x.py > f       -> correct redirect (try_builtin answers NotBuiltin, so
+        //                             main.rs spawns it ONCE with the file as stdout)
+        // Measured 2026-07-16: every one of those worked in bash and failed in fsh. The cause
+        // was run_python_cmd joining ALL args and running `python3 -c "<args>"`, so any flag
+        // became Python source. That is 143's thesis verbatim: "A BUILTIN SHADOWS A REAL BINARY
+        // AND SWALLOWS ITS ARGUMENTS."
+        // WHY DELETING BEATS FIXING: a pass-through arm would be code that can drift. No arm at
+        // all cannot. run_external is already correct, already tested, already used by every
+        // other external command. The 227-arm match should not claim a name it does not improve.
+        "python" | "py" => run_python_cmd(args),
         "js" | "node" => run_js_cmd(args),
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
@@ -13472,13 +13492,19 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
     }
 }
 
+/// `py` / `python` -- fsh's CONVENIENCE wrapper. Not python3; see the dispatch arm.
+///
+/// INT-143: this function used to own `python3` too, and it broke every flag: it joins all args
+/// and runs `python3 -c "<args>"`, so `--version` became the Python program `--version`. `python3`
+/// is now a plain external command. What stays here is fsh's own sugar -- run a snippet without
+/// typing -c, run a file, expand ~ -- under names that are fsh's to define.
 fn run_python_cmd(args: &[&str]) -> CommandResult {
     if args.is_empty() {
-        // INT-134/143: bare `python3`/`python`/`py` with no script arg used to drop
-        // silently into the interactive REPL, which looks like a hang in fsh. Guard it:
-        // name what happened and how to actually run Python. Explicit > opaque.
+        // INT-143: `py`/`python` are fsh vocabulary and take an argument. Bare `python3` is a
+        // REPL and always should have been -- it is a pass-through now, so this message is
+        // finally TRUE. The old one pointed at `python3 -i`, which this same function broke.
         return CommandResult::Error(
-            "python: no script argument -- bare `python3` drops into the interactive REPL (looks like a hang).\n  \u{2192} run a script:  python <file.py>\n  \u{2192} run a snippet: run python \"print(1+1)\"\n  \u{2192} real REPL:     python3 -i   (explicit interactive)".to_string()
+            "py: no script argument.\n  \u{2192} run a file:    py <file.py>\n  \u{2192} run a snippet: py \"print(1+1)\"\n  \u{2192} a real REPL:   python3   (fsh passes python3 straight through)".to_string()
         );
     }
     // run python <code> or run python <file.py>
