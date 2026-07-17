@@ -612,7 +612,11 @@ fn execute_impl(
         "peek" | "preview" => preview_cmd(args),
         "exec" => exec_cmd(args),
         "realpath" | "rp" => realpath_cmd(args),
-        "time" => time_cmd(line, args),
+        // INT-143 case 3: `time` must be able to time fsh's OWN commands.
+        // `time` sits before the fallthrough, so it needs its own allow_external handling --
+        // otherwise `time cmd > file` runs twice. That lesson cost a git regression earlier.
+        "time" if !args.is_empty() && !allow_external => CommandResult::NotBuiltin,
+        "time" => time_cmd(line, args, db, core_root),
         "reload" => reload_fsh(),
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
@@ -7813,17 +7817,35 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 |r| r.get(0),
             )
             .ok();
-        println!(
-            "  {} command not found: {}",
-            "✗".bright_red(),
-            typed_cmd.bright_red()
-        );
+        // INT-143, and this is the most dangerous bug of the session: this printed
+        // "command not found" and returned CommandResult::Empty -- which means SUCCESS.
+        // PROVEN on the deployed binary 2026-07-16:
+        //     nosuchcommand123 && echo "DANGER_THIS_RAN"
+        //     -> command not found: nosuchcommand123
+        //     -> DANGER_THIS_RAN            <-- IT RAN ANYWAY
+        //     false && echo "SHOULD_NOT_PRINT"   -> correctly silent
+        // So `&&` honoured a real failure and ignored a TYPO. `mkae build && rm -rf dist` would
+        // have deleted dist. `$?` said 0 for a command that never existed.
+        // The message was always honest. The TYPE was the lie -- the same shape as every other
+        // bug tonight. main.rs decides `&&` with `!matches!(result, Error(_))` (main.rs:1441),
+        // so returning Error is what makes the chain stop.
+        // The text moves into the Error payload rather than being println!'d, because main.rs
+        // prints an Error payload -- printing here AND returning Error would show it twice.
+        let mut msg = format!("command not found: {}", typed_cmd.bright_red());
         if let Some(s) = suggestion {
-            println!("  {} did you mean: {}", "→".bright_cyan(), s.bright_cyan());
+            msg.push_str(&format!(
+                "\n  {} did you mean: {}",
+                "\u{2192}".bright_cyan(),
+                s.bright_cyan()
+            ));
         } else if let Some(a) = alias_suggestion {
-            println!("  {} did you mean: {}", "→".bright_cyan(), a.bright_cyan());
+            msg.push_str(&format!(
+                "\n  {} did you mean: {}",
+                "\u{2192}".bright_cyan(),
+                a.bright_cyan()
+            ));
         }
-        return CommandResult::Empty;
+        return CommandResult::Error(msg);
     }
     let status = std::process::Command::new("sh")
         .arg("-c")
@@ -7892,24 +7914,25 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
                             |r| r.get(0)
                         ).ok();
+                        // INT-143: was `return CommandResult::Empty;` -- SUCCESS, for a
+                        // command that exited 127. Put the message in the payload and return the
+                        // failure. main.rs prints an Error payload, so it still shows once.
+                        let mut msg = format!("command not found: {}", typed_cmd.bright_red());
                         if let Some(s) = suggestion {
-                            println!(
-                                "  {} command not found: {}",
-                                "✗".bright_red(),
-                                typed_cmd.bright_red()
-                            );
-                            println!("  {} did you mean: {}", "→".bright_cyan(), s.bright_cyan());
+                            msg.push_str(&format!(
+                                "\n  {} did you mean: {}",
+                                "\u{2192}".bright_cyan(),
+                                s.bright_cyan()
+                            ));
                         } else if let Some(a) = alias_suggestion {
-                            println!(
-                                "  {} command not found: {}",
-                                "✗".bright_red(),
-                                typed_cmd.bright_red()
-                            );
-                            println!("  {} did you mean: {}", "→".bright_cyan(), a.bright_cyan());
-                        } else {
-                            return CommandResult::Error(format!("  exited with code {}", code));
+                            msg.push_str(&format!(
+                                "\n  {} did you mean: {}",
+                                "\u{2192}".bright_cyan(),
+                                a.bright_cyan()
+                            ));
                         }
-                        return CommandResult::Empty;
+                        record_failure(db, line, code);
+                        return CommandResult::Error(msg);
                     }
                 }
                 record_failure(db, line, code);
@@ -10358,40 +10381,79 @@ fn realpath_cmd(args: &[&str]) -> CommandResult {
         }
     }
 }
-fn time_cmd(line: &str, args: &[&str]) -> CommandResult {
+/// INT-143 case 3: `time` times whatever you typed -- builtin, alias, or external.
+///
+/// THE BUG: this delegated everything to `sh -c`, and sh has never heard of fsh's 303 command
+/// names OR its 285 aliases. Measured 2026-07-16:
+///     time echo works_on_binaries -> 2ms (exit 0)                      -- sh found /bin/echo
+///     time git --version          -> 3ms (exit 0)                      -- on PATH
+///     time d                      -> sh: d: command not found, exit 127 -- an fsh ALIAS
+///     time hs                     -> sh: hs: command not found, exit 127 -- an fsh BUILTIN
+/// The intent's text said "time cmd -> exit 127" flatly. Wrong: it worked for anything on PATH and
+/// failed for everything that was fsh's own. The measurement corrected the intent.
+///
+/// THE FIX IS ONE LINE, AND IT DELETES CODE: hand the line to execute(). fsh's own dispatch
+/// ALREADY resolves aliases (with INT-057's cycle guard), resolves plugins, runs builtins, and
+/// falls through to run_external -> `sh -c` for real binaries. time does not need to know which
+/// kind of thing it is timing -- that is execute()'s entire job. The previous version of this fix
+/// probed with try_builtin and kept a separate sh path; it worked for builtins and still failed for
+/// aliases, because the expansion happened inside the probe and was thrown away. Rewritten.
+///
+/// What is lost: spawn_sh_with_leak_check's unclosed-heredoc warning, which only ever applied to
+/// the sh path. run_external uses `sh -c` with inherited stdio, so a heredoc still WORKS -- it just
+/// does not get the warning. A warning on a path nobody times is not worth a second dispatcher.
+fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> CommandResult {
     if args.is_empty() {
         return CommandResult::Error("time: missing command".to_string());
     }
-    // Reconstruct the command without "time " prefix
     let cmd_line = line.trim().trim_start_matches("time").trim().to_string();
+
     let start = std::time::Instant::now();
-    let output = crate::db::spawn_sh_with_leak_check(&cmd_line);
+    let result = execute(&cmd_line, db, core_root);
     let elapsed = start.elapsed();
+
     let ms = elapsed.as_millis();
     let display = if ms >= 1000 {
         format!("{:.2}s", elapsed.as_secs_f64())
     } else {
         format!("{}ms", ms)
     };
-    match output {
-        Ok(status) => {
-            let code = status.code().unwrap_or(0);
-            println!();
-            println!(
-                "  {} {} (exit {})",
-                "⏱".to_string(),
-                display.bright_cyan().bold(),
-                code.to_string().dimmed()
-            );
-            CommandResult::Empty
+
+    // execute() returns the output rather than printing it, so print it here -- the timing line
+    // goes last, the way it always has.
+    let code = match &result {
+        CommandResult::Error(e) => {
+            eprintln!("  {} {}", "\u{2717}".bright_red(), e);
+            1
         }
-        Err(e) => CommandResult::Error(format!("time: {}", e)),
+        CommandResult::Output(o) => {
+            if !o.is_empty() {
+                println!("{}", o);
+            }
+            0
+        }
+        CommandResult::Value(v) => {
+            println!("{}", v.render());
+            0
+        }
+        _ => 0,
+    };
+
+    println!();
+    println!(
+        "  {} {} (exit {})",
+        "\u{23F1}".to_string(),
+        display.bright_cyan().bold(),
+        code.to_string().dimmed()
+    );
+
+    // `time exit` should still leave the shell.
+    if matches!(result, CommandResult::Exit) {
+        return CommandResult::Exit;
     }
+    CommandResult::Empty
 }
-// INT-081: resolve the fsh binary the NixOS way. On Nix the running binary lives at an
-// immutable store path, so current_exe() re-execs the SAME old binary after a rebuild.
-// Resolve /run/current-system/sw/bin/faelight-shell FIRST (the freshly-deployed generation),
-// matching the proven /tmp/fsh-reload-signal handler in main.rs. current_exe() is last resort.
+
 fn resolve_fsh_binary() -> String {
     let home = std::env::var("HOME").unwrap_or_default();
     let user = std::env::var("USER").unwrap_or_default();
