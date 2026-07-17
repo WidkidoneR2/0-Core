@@ -99,7 +99,26 @@ twice already, in Arch and in early Nix.
       feels like backsliding is FIRST SIGHTINGS, not repeats.
       The history was the argument. It argued something other than this intent expected -- see the
       CORRECTION section at the foot of this file. -->
-- [ ] Reproduce all three failures on the DEPLOYED binary before touching anything
+- [x] Reproduce all three failures on the DEPLOYED binary before touching anything
+      <!-- gate 1 evidence: 2026-07-17, reproduced on the DEPLOYED binary (gen 395), /tmp only,
+      no code touched. Every prediction was made FROM SOURCE first, then observed:
+
+        rm -f /tmp/g1-out.txt
+        echo hello 2>/dev/null | grep -c hello        -> `hello`   (POSIX: 1)  PIPE AMPUTATED
+        echo REDIRECT_TEST > /tmp/g1-out.txt 2>&1     -> `REDIRECT_TEST` on the terminal,
+                                                         and /tmp/g1-out.txt WAS NEVER CREATED
+        echo hello 2>/tmp/g1-err | grep -c hello      -> `hello`   (POSIX: 1)  PIPE AMPUTATED
+
+      Then, listing /tmp with python and printing repr() of each name:
+
+        'g1-err | grep -c hello'  |  0 bytes
+
+      A FILE WHOSE NAME IS A COMMAND. working_line[idx+3..] = `/tmp/g1-err | grep -c hello` went
+      straight into File::create() as a path, because that is a legal Linux filename. Predicted from
+      reading main.rs:2366-2400 BEFORE the run, then observed character for character.
+
+      All three original failures reproduce. No hole in the trace. The mechanism in the CORRECTION
+      section at the foot of this file is confirmed, not inferred. -->
 - [ ] Whatever the fix: `echo hello 2>/dev/null | grep -c hello` -> 1, on the DEPLOYED binary
       (INT-110: a cargo build alone shows green while the live command still fails)
 - [ ] `cmd > f 2>&1` writes the file, with BOTH streams in it
@@ -180,8 +199,10 @@ SPIRIT and points at the WRONG LINE.
 
 2. `cmd 2>/tmp/log | grep x`
    third arm -> after = working_line[idx+3..] = `/tmp/log | grep x` -- and that ENTIRE STRING
-   becomes the FILENAME. File::create("/tmp/log | grep x") is a LEGAL Linux filename, so it likely
-   SUCCEEDS and leaves a file named `log | grep x` sitting in /tmp. And .unwrap_or(Stdio::inherit())
+   becomes the FILENAME. File::create("/tmp/log | grep x") is a LEGAL Linux filename, and it
+   SUCCEEDS. CONFIRMED ON THE DEPLOYED BINARY 2026-07-17 (gate 1):
+   `echo hello 2>/tmp/g1-err | grep -c hello` left a file named 'g1-err | grep -c hello' (0 bytes)
+   in /tmp. Predicted from source, then observed, character for character. And .unwrap_or(Stdio::inherit())
    means any failure silently inherits instead of reporting.
 
 3. `ls /tmp > /tmp/out.txt 2>&1`  -- THREE throw-aways in one path:
