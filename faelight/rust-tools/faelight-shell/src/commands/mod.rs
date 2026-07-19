@@ -231,6 +231,40 @@ pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult 
     execute_impl(line, db, core_root, &[], false)
 }
 
+/// The single quote-aware tokenizer for the whole shell (INT-171 gate 1).
+/// Splits on spaces, respecting single and double quotes. Both the command
+/// dispatcher (execute_impl) and the ExecContext builder (exec.rs) call THIS --
+/// it replaces two byte-for-byte-identical nested copies that drifted apart in
+/// spirit if never in bytes. There is now ONE tokenizer. Prove it: grep "fn tokenize".
+pub fn tokenize(s: &str) -> Vec<String> {
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut in_quote = false;
+    let mut quote_char = ' ';
+    for ch in s.chars() {
+        match ch {
+            '"' | '\'' if !in_quote => {
+                in_quote = true;
+                quote_char = ch;
+            }
+            c if in_quote && c == quote_char => {
+                in_quote = false;
+            }
+            ' ' if !in_quote => {
+                if !current.is_empty() {
+                    tokens.push(current.clone());
+                    current.clear();
+                }
+            }
+            c => current.push(c),
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
+}
+
 fn execute_impl(
     line: &str,
     db: &ForestDb,
@@ -241,34 +275,6 @@ fn execute_impl(
     // real run one expansion deep -- the same bug, hidden one level down.
     allow_external: bool,
 ) -> CommandResult {
-    fn tokenize_args(s: &str) -> Vec<String> {
-        let mut tokens: Vec<String> = Vec::new();
-        let mut current = String::new();
-        let mut in_quote = false;
-        let mut quote_char = ' ';
-        for ch in s.chars() {
-            match ch {
-                '"' | '\'' if !in_quote => {
-                    in_quote = true;
-                    quote_char = ch;
-                }
-                c if in_quote && c == quote_char => {
-                    in_quote = false;
-                }
-                ' ' if !in_quote => {
-                    if !current.is_empty() {
-                        tokens.push(current.clone());
-                        current.clear();
-                    }
-                }
-                c => current.push(c),
-            }
-        }
-        if !current.is_empty() {
-            tokens.push(current);
-        }
-        tokens
-    }
     let trimmed_line = line.trim();
     let cmd = trimmed_line
         .splitn(2, ' ')
@@ -276,7 +282,7 @@ fn execute_impl(
         .unwrap_or("")
         .to_lowercase();
     let rest_str = trimmed_line.splitn(2, ' ').nth(1).unwrap_or("");
-    let owned_args: Vec<String> = tokenize_args(rest_str);
+    let owned_args: Vec<String> = tokenize(rest_str);
     let args_vec: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
     let args = args_vec.as_slice();
 
