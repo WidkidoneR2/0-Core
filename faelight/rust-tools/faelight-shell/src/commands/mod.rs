@@ -276,14 +276,19 @@ fn execute_impl(
     allow_external: bool,
 ) -> CommandResult {
     let trimmed_line = line.trim();
-    let cmd = trimmed_line
-        .splitn(2, ' ')
-        .next()
-        .unwrap_or("")
-        .to_lowercase();
-    let rest_str = trimmed_line.splitn(2, ' ').nth(1).unwrap_or("");
-    let owned_args: Vec<String> = tokenize(rest_str);
-    let args_vec: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
+    // INT-171 gate 2: the command word goes through the SAME quote-aware tokenizer
+    // as its arguments. Previously `cmd` came from a raw `splitn(2, ' ')` while `args`
+    // came from tokenize() -- two parsing rules in one function. So `"echo" hi` looked
+    // up the literal command `"echo"` (quotes included), failed, fired a wrong Friday
+    // suggestion, and only ran because sh -c rescued the whole line downstream.
+    // This is INT-143's main.rs:1973 lesson (inline-var extraction) carried to the
+    // command word it never reached: scan the first token quote-aware, like tokenize does.
+    let owned_args: Vec<String> = tokenize(trimmed_line);
+    let cmd = owned_args
+        .first()
+        .map(|s| s.to_lowercase())
+        .unwrap_or_default();
+    let args_vec: Vec<&str> = owned_args.iter().skip(1).map(|s| s.as_str()).collect();
     let args = args_vec.as_slice();
 
     // !! — repeat last command
