@@ -1,7 +1,7 @@
 ---
 id: 173
 date: 2026-07-18
-type: fsh
+type: infrastructure
 title: "Complete fsh-test drives the REPL, not just -c"
 status: in-progress
 tags: [fsh, faelight-shell, fsh-test]
