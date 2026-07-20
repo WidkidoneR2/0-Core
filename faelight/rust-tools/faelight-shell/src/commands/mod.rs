@@ -265,6 +265,52 @@ pub fn tokenize(s: &str) -> Vec<String> {
     tokens
 }
 
+// ── INT-171 gate 2: the split_whitespace rule ──────────────────────────────
+// A user COMMAND WORD (the thing that gets dispatched, looked up, or aliased) is
+// extracted in exactly ONE place: command_word() below. The five sites that needed
+// the user's command word to ACT on it route through here (main.rs alias-expansion,
+// forest-route, forest-detect; run_external not-found; the builtin not-found check).
+//
+// Other split_whitespace() calls in this tree are NOT command-word extraction and
+// are left as-is by design:
+//   - output/telemetry parsing (ip/mac rows, history labels, failure counters,
+//     frequency histograms, the `explain` display) -- operates on results, not input.
+//   - completion (completing a partial the user is TYPING, never dispatched).
+//   - classify-only checks (`== "jobs"`, `== "flow"`, shell-construct keywords,
+//     the guard allow/deny compare, dangerous-command classification). These only
+//     COMPARE the token; a quoted word fails the compare and falls through safely.
+// A future split_whitespace().next() used to DISPATCH a user command is a bug --
+// it will mis-read a quoted command. Call command_word() instead.
+// ───────────────────────────────────────────────────────────────────────────
+/// The command word of a user-typed line: its first token, quote-aware.
+///
+/// This is the ONE place a command word is extracted from a user line. Every
+/// dispatch/lookup that needs "what command did the user type" calls this, so a
+/// quoted command word (`"ll" foo`) resolves to `ll`, not `"ll"`. A bare
+/// `split_whitespace().next()` on a user line elsewhere is a bug -- it mis-reads
+/// a quoted command and silently misses the alias/builtin lookup. INT-171 gate 2.
+pub fn command_word(line: &str) -> String {
+    tokenize(line.trim()).into_iter().next().unwrap_or_default()
+}
+
+#[cfg(test)]
+mod command_word_tests {
+    use super::command_word;
+
+    // command_word() is the ONE quote-aware command-word extractor. This guards its
+    // contract so a future edit that drops quote-awareness fails here, not silently in
+    // the five dispatch sites that route through it. INT-171 gate 2.
+    #[test]
+    fn extracts_first_token_quote_aware() {
+        assert_eq!(command_word("git status"), "git"); // unquoted unchanged
+        assert_eq!(command_word("  ls -la "), "ls"); // leading/trailing ws trimmed
+        assert_eq!(command_word("\"ll\" foo"), "ll"); // double quotes stripped
+        assert_eq!(command_word("'echo' hi"), "echo"); // single quotes stripped
+        assert_eq!(command_word(""), ""); // empty -> empty (matches old unwrap_or(""))
+        assert_eq!(command_word("   "), ""); // whitespace-only -> empty
+    }
+}
+
 fn execute_impl(
     line: &str,
     db: &ForestDb,
@@ -7773,7 +7819,10 @@ fn record_failure(db: &ForestDb, cmd: &str, exit_code: i32) {
 }
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
-    let cmd_name = line.split_whitespace().next().unwrap_or("");
+    // INT-171 gate 2: quote-aware command word so the not-found suggestion sees the
+    // real command (`"deploy"` -> deploy), not the quoted literal.
+    let cmd_name = command_word(line);
+    let cmd_name = cmd_name.as_str();
     if !cmd_name.is_empty() && !cmd_name.contains('/') && !cmd_in_path(cmd_name) {
         let typed_cmd = cmd_name.to_lowercase();
         let known: &[&str] = &[
@@ -7873,7 +7922,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 let code = s.code().unwrap_or(1);
                 // INT-233 -- command not found: suggest nearest known alternative
                 if code == 127 {
-                    let typed_cmd = line.split_whitespace().next().unwrap_or("").to_lowercase();
+                    // INT-171 gate 2: quote-aware command word for the builtin not-found check.
+                    let typed_cmd = command_word(line).to_lowercase();
                     if !typed_cmd.is_empty() {
                         let known: &[&str] = &[
                             "deploy",

@@ -1417,7 +1417,9 @@ fn repl_main() -> Result<()> {
                                 || lcmd_trim.contains("2>");
                             if has_redirect {
                                 // INT-089: a forest builtin/alias here is invisible to sh.
-                                let cmd_word = lcmd_trim.split_whitespace().next().unwrap_or("");
+                                // INT-171 gate 2: quote-aware command word for forest routing.
+                                let cmd_word = commands::command_word(lcmd_trim);
+                                let cmd_word = cmd_word.as_str();
                                 let forest_word = completion::is_fsh_only_word(cmd_word);
                                 let status = std::process::Command::new("sh")
                                     .arg("-c")
@@ -2226,7 +2228,9 @@ fn repl_main() -> Result<()> {
                     let line = line.as_str();
 
                     // Expand aliases before pipeline parsing
-                    let first_word = line.split_whitespace().next().unwrap_or("").to_lowercase();
+                    // INT-171 gate 2: command word is quote-aware (`"ll" foo` -> ll), so the
+                    // alias lookup below resolves a quoted command instead of missing it.
+                    let first_word = commands::command_word(line).to_lowercase();
                     // BUG-298-4: bypass bat alias for cat when redirect OR bat-unsupported flags
                     // Flags bat doesn't support: -A (show-all), -v, -e, -t, -n, -b
                     let cat_with_redirect = first_word == "cat" && {
@@ -2251,7 +2255,9 @@ fn repl_main() -> Result<()> {
                     let line = line.as_str();
                     // INT-265: Forest pipeline detection
                     {
-                        let first = line.split_whitespace().next().unwrap_or("");
+                        // INT-171 gate 2: quote-aware command word for forest-pipeline detection.
+                        let first = commands::command_word(line);
+                        let first = first.as_str();
                         let forest_sources = [
                             "from",
                             "list",
