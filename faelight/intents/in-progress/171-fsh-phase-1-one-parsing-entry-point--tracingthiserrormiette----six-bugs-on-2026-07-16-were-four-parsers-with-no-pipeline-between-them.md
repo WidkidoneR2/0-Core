@@ -131,8 +131,18 @@ does not reintroduce the double-run (measured 3 ways, append-counter = 1 tick), 
 CommandResult::NotBuiltin routes around it. The test stays green because there is no bug, not
 because it is blind. "pre-171 parser" read as "pre-143 broken behavior" -- the only binary
 where these fail; interpretation agreed 2026-07-19. -->
-- [ ] `tracing` spans cover lexer / parse / expansion / dispatch / execution, and ONE typed command
+- [x] `tracing` spans cover lexer / parse / expansion / dispatch / execution, and ONE typed command
       can be traced end to end. Owner agreed with INT-167 first, in writing
+<!-- RESOLVED 2026-07-20 by ownership decision (the written agreement this gate required). Tracing is
+INT-167's, not 171's: 167's principle 2 ("EVERY FUNCTION GETS TRACING -- ENTER parser.parse / ENTER
+lexer.next ... a tree shell_start->parser->lexer->tokenize") IS this gate, verbatim in intent. 167
+sequences ENTER/EXIT spans at its P2, built ON TOP OF its P0 substrate (a real per-command
+correlation_id, one payload format, libdebug). That P0 does not exist yet -- correlation_id is still
+the inert empty-string column. Building spans in 171 now would sit on an inert foundation, which is
+167's own explicitly-named anti-pattern ("building more on an inert foundation makes the lie bigger").
+DE-SCOPED to 167 (recorded in 167's Relationship section same day). 171 does NOT build tracing; it
+completes on its parser-consolidation and error-typing gates. Gates 5 (thiserror) and 6 (miette)
+remain real work -- this de-scope does not complete 171. -->
 - [ ] `thiserror` types the errors that control flow depends on. The 968c7be5 class -- a result whose
       TYPE contradicts its MESSAGE -- is unrepresentable, not merely fixed
 - [ ] `miette` renders one real fsh syntax error with a caret under the offending character

@@ -204,6 +204,11 @@ get tedious. P4 when a specific bug proves the need -- not before.
 - INT-157 (fsh VM testing) is the complement: 157 PROVES correctness from outside, DevBox EXPLAINS
   behaviour from inside. Both are deferred until after Friday.
 - INT-039 (friday-daemon) will want the same event spine.
+- INT-171 gate 4 (tracing spans through the parser: lexer/parse/expansion/dispatch/execution, one
+  command traced end to end) was ASSIGNED HERE by ownership decision 2026-07-20. It is this intent's
+  principle 2, sequenced at P2 on the P0 correlation_id substrate. 171 de-scoped it rather than build
+  spans on P0's not-yet-real foundation. When 167 reaches P2, "trace one typed command end to end"
+  is a P2 deliverable inherited from 171 gate 4.
 
 ## The Rule
 "Everything emits events. But an event that never varies is not instrumentation -- it is a comment
