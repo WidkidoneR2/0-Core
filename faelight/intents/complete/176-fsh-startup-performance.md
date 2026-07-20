@@ -3,7 +3,7 @@ id: 176
 date: 2026-07-18
 type: improvement
 title: "Fsh startup performance"
-status: in-progress
+status: complete
 tags: [fsh, faelight-shell, startup, performance]
 ---
 
