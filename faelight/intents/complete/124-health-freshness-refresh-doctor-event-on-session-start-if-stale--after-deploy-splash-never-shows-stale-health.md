@@ -59,4 +59,15 @@ Data is correct; the splash reads a pre-change snapshot.
 - Three health surfaces exist (events table = splash, ~/.cache/faelight/health-status
   = deploy gate, live = `d`); keep them consistent, don't add a fourth.
 
+## INT-176 UPDATE (2026-07-20) -- the blocking refresh was made non-blocking
+- INT-176 measured this refresh's stale-path cost: `core doctor run` = ~696ms (the full
+  34-check scan), blocking the first-post-reboot prompt because refresh_health_if_stale used
+  `.output()` (spawn AND WAIT). 176 changed it to a detached `.spawn()`: the doctor run now
+  happens in the BACKGROUND, the prompt renders immediately, the event updates async.
+- THE TRADEOFF 124 CHOSE WAS REVERSED, honestly. 124 blocked the prompt to guarantee the splash
+  never shows a pre-boot health number. 176 decided that for ONE launch after a reboot, a briefly-
+  stale splash (self-corrects seconds later) beats a ~700ms block felt every reboot. 124's
+  mechanism (stale = older than boot; cheap common path) is UNCHANGED -- only the stale-path
+  action went from blocking to background. Measured: ~1260ms -> ~555ms. Commit 109ac07a, gen 404.
+
 ---
