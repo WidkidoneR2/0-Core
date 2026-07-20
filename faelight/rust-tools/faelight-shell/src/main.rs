@@ -78,11 +78,20 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::ForestDb) {
         return;
     }
 
-    // Stale (or no event) -- refresh silently: write the event, suppress the dashboard.
+    // Stale (or no event) -- refresh in the BACKGROUND so the prompt never blocks.
+    // INT-176: this used to be .output() (spawn AND WAIT), which blocked the first
+    // post-reboot prompt on the full ~696ms `core doctor run` health scan. Now we
+    // spawn-and-detach: the doctor run writes its event async, the banner shows the
+    // last-known health for that one launch, and the prompt renders immediately.
+    // Reverses INT-124's fresh-at-splash blocking (recorded in both intents): a
+    // one-launch-stale health number is invisible; a 700ms block is felt every reboot.
     let _ = std::process::Command::new("core")
         .args(["doctor", "run"])
         .env("NO_COLOR", "1")
-        .output();
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
 }
 
 fn expand_braces(s: &str) -> String {
