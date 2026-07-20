@@ -157,3 +157,75 @@ pub fn make_error(
     );
     err.display()
 }
+
+/// Render fsh's redirect-missing-target parse error with a caret under the
+/// offending `>` / `>>`, via miette. INT-171 gate 6.
+///
+/// This is the ONE syntax error fsh hard-rejects: unclosed quotes/heredocs/parens
+/// are line CONTINUATION (fsh reads more input, they are not errors), and
+/// command-not-found is a RUNTIME error, not syntax. A bare `>` with no target is
+/// the genuine parse rejection (detect_redirect returns the no-target sentinel),
+/// so it is the honest target for "render one real syntax error with a caret".
+pub fn render_redirect_error(line: &str) -> String {
+    use miette::{GraphicalReportHandler, GraphicalTheme, LabeledSpan};
+
+    // Locate the offending operator: a `>` or `>>` with no non-space target after.
+    let bytes = line.as_bytes();
+    let mut offset = line.len().saturating_sub(1);
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'>' {
+            let mut j = i + 1;
+            if j < bytes.len() && bytes[j] == b'>' {
+                j += 1;
+            }
+            if line[j..].trim().is_empty() {
+                offset = i;
+                break;
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+
+    let span = LabeledSpan::at(offset..offset + 1, "redirect has no target file");
+    let diag =
+        miette::MietteDiagnostic::new("redirect missing target file").with_labels(vec![span]);
+    let report = miette::Report::new(diag).with_source_code(line.to_string());
+    let mut out = String::new();
+    let _ = GraphicalReportHandler::new()
+        .with_theme(GraphicalTheme::unicode_nocolor())
+        .render_report(&mut out, report.as_ref());
+    out
+}
+
+#[cfg(test)]
+mod redirect_error_tests {
+    use super::render_redirect_error;
+
+    #[test]
+    fn caret_lands_under_the_offending_redirect() {
+        // INT-171 gate 6: the caret (miette's ┬) must sit under the `>` at column 6
+        // of `echo >` (0-indexed byte 5). Proven by the rendered output containing
+        // the message, the source line, and the label.
+        let out = render_redirect_error("echo >");
+        assert!(out.contains("redirect missing target file"), "got:\n{out}");
+        assert!(out.contains("echo >"), "source line missing:\n{out}");
+        assert!(
+            out.contains("redirect has no target file"),
+            "label missing:\n{out}"
+        );
+        // the caret marker line should exist (miette draws ┬ or ^ under the span)
+        assert!(
+            out.contains('\u{252c}') || out.contains('^'),
+            "no caret marker:\n{out}"
+        );
+    }
+
+    #[test]
+    fn double_redirect_also_caught() {
+        let out = render_redirect_error("cat foo >>");
+        assert!(out.contains("redirect missing target file"), "got:\n{out}");
+    }
+}

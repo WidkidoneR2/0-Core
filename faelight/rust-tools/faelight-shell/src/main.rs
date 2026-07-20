@@ -2414,7 +2414,9 @@ fn repl_main() -> Result<()> {
                         let cmd_part = line_stripped.clone();
                         // INT-245 #10: caught by detect_redirect — no target after > or >>
                         if redirect_target == "__redirect_error_no_target__" {
-                            eprintln!("fsh: parse error: redirect missing target file");
+                            // INT-171 gate 6: render the parse error with a caret under the
+                            // offending `>` via miette, instead of a bare one-line message.
+                            eprint!("{}", crate::error::render_redirect_error(line));
                             last_exit_code = Some(2);
                             continue 'segments;
                         }
