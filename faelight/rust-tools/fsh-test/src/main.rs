@@ -602,6 +602,107 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
 
+    // ---- INT-171 gate 3: the six INT-143 regressions, as REPL tests.
+    // Each of these six bugs lived in fsh's INTERACTIVE dispatch. NONE is
+    // observable through `fsh -c`, which hands the whole line to /bin/sh --
+    // proven 2026-07-19: `fsh -c 'nosuchcmd && echo X'` returns sh's own
+    // "command not found", never touching fsh's dispatch. So a run_fsh() test
+    // for any of these would pass on a completely broken fsh. They MUST drive
+    // the REPL. Commit hashes are the INT-143 fixes each one guards.
+    results.push(test("repl_143_redirect_runs_once", Category::Repl, || {
+        // bfe25bc9: `cmd > file` ran every external command TWICE. No visible
+        // stdout tell -- the second run's effect is the evidence. A fresh mkdir
+        // succeeds once; a second run errors "File exists" to stderr, so merge
+        // it into the file with 2>&1 (the REPL handles that since INT-172).
+        // Clear state FIRST: a failed run never reaches cleanup, and a broken
+        // shell leaves exactly the dir/file a fixed shell must start without.
+        let _ = std::fs::remove_file("/tmp/fsh_test_143once.txt");
+        let _ = std::fs::remove_dir("/tmp/fsh_test_143once_dir");
+        let _ = repl::run_repl("mkdir /tmp/fsh_test_143once_dir > /tmp/fsh_test_143once.txt 2>&1")?;
+        if !std::path::Path::new("/tmp/fsh_test_143once_dir").is_dir() {
+            return Err("mkdir did not run: dir absent".to_string());
+        }
+        let body = std::fs::read_to_string("/tmp/fsh_test_143once.txt")
+            .map_err(|e| format!("no redirect file: {}", e))?;
+        if body.trim().is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "command ran twice -- stderr captured: {:?}",
+                body.trim()
+            ))
+        }
+    }));
+    results.push(test("repl_143_typo_and_no_leak", Category::Repl, || {
+        // 968c7be5: a typo followed by `&&` reported SUCCESS and RAN the next
+        // command. `mkae build && rm -rf dist` would have deleted dist. The
+        // not-found must break the chain, so LEAKED143 must NOT appear.
+        let out = repl::run_repl("nosuchcmd143zzz && echo LEAKED143")?;
+        if out.iter().any(|l| l.contains("LEAKED143")) {
+            Err(format!("&& ran after a failed command: {:?}", out))
+        } else {
+            Ok(())
+        }
+    }));
+    results.push(test("repl_143_python3_keeps_flags", Category::Repl, || {
+        // c5086945: fsh's python3 arm joined all args into `python3 -c "<args>"`,
+        // so `--version` was evaluated as Python source -> NameError. The arm was
+        // deleted; python3 now falls through to run_external untouched.
+        let out = repl::run_repl("python3 --version")?;
+        if out.iter().any(|l| l.contains("Python 3")) {
+            Ok(())
+        } else {
+            Err(format!(
+                "python3 --version did not report a version: {:?}",
+                out
+            ))
+        }
+    }));
+    results.push(test("repl_143_bash_runs_script", Category::Repl, || {
+        // 5cba096d: `bash script.sh` dropped into interactive bash and the script
+        // never ran. Guarded to `if args.is_empty()` -- with args it falls through
+        // to the real bash.
+        std::fs::write("/tmp/fsh_test_143.sh", "echo MARKER143RAN\n").map_err(|e| e.to_string())?;
+        let out = repl::run_repl("bash /tmp/fsh_test_143.sh")?;
+        if out.iter().any(|l| l.contains("MARKER143RAN")) {
+            Ok(())
+        } else {
+            Err(format!("bash did not run the script: {:?}", out))
+        }
+    }));
+    results.push(test("repl_143_env_passthrough", Category::Repl, || {
+        // 56aa0798: `env VAR=x cmd` printed fsh's environment table instead of
+        // running cmd. Guarded to `if args.is_empty()` -- with args it is coreutils
+        // env. Assert cmd RAN and the table did NOT print.
+        let out = repl::run_repl("env G3TEST143=xyz echo env_ran143")?;
+        let ran = out.iter().any(|l| l.contains("env_ran143"));
+        let table = out.iter().any(|l| l.contains("Environment"));
+        if ran && !table {
+            Ok(())
+        } else {
+            Err(format!(
+                "env did not pass through (ran={}, table={}): {:?}",
+                ran, table, out
+            ))
+        }
+    }));
+    results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
+        // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
+        // NEVER unset, leaking into the session. POSIX scopes it to that command
+        // only. One REPL line, two effects: cmd sees a prefix, the next echo must
+        // show the var GONE. If it leaks, the bracket holds the value.
+        let out = repl::run_repl("G3SCOPE143=leaked echo scope_ok143; echo [$G3SCOPE143]")?;
+        let ran = out.iter().any(|l| l.contains("scope_ok143"));
+        let leaked = out.iter().any(|l| l.contains("leaked"));
+        if ran && !leaked {
+            Ok(())
+        } else {
+            Err(format!(
+                "inline var leaked or cmd failed (ran={}, leaked={}): {:?}",
+                ran, leaked, out
+            ))
+        }
+    }));
     results
 }
 
