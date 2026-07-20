@@ -686,6 +686,40 @@ fn all_tests() -> Vec<TestResult> {
             ))
         }
     }));
+    // ---- INT-173: interactive behaviours invisible through `fsh -c`. Neither
+    // fsh-builtin dispatch nor alias expansion is exercised by any -c test (sh has
+    // neither fsh's builtins nor fsh's aliases), and neither was covered by the
+    // 172/171 REPL tests. These two close that gap. Probed on gen 402 before writing.
+    results.push(test("repl_173_builtin_dispatch", Category::Repl, || {
+        // fsh's own `type` builtin prints "forest builtin / handled natively by fsh".
+        // sh's `type` prints nothing like it, so this output PROVES fsh dispatched
+        // its builtin -- invisible through `-c`, which would run sh's `type`.
+        let out = repl::run_repl("type pwd")?;
+        let joined = out.join("\n");
+        if joined.contains("forest builtin") {
+            Ok(())
+        } else {
+            Err(format!(
+                "fsh builtin dispatch not seen (expected 'forest builtin'): {joined:?}"
+            ))
+        }
+    }));
+    results.push(test(
+        "repl_173_alias_expands_at_prompt",
+        Category::Repl,
+        || {
+            // Aliases are SESSION-SCOPED in fsh: set + use must share ONE line. This is
+            // fsh's REPL alias path -- `-c` hands to sh, which does not expand aliases in
+            // non-interactive mode and has none of fsh's aliases anyway.
+            let out = repl::run_repl("alias grtxyz='echo ALIAS_OK_173'; grtxyz")?;
+            let joined = out.join("\n");
+            if joined.contains("ALIAS_OK_173") {
+                Ok(())
+            } else {
+                Err(format!("alias did not expand at the prompt: {joined:?}"))
+            }
+        },
+    ));
     results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
         // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
         // NEVER unset, leaking into the session. POSIX scopes it to that command

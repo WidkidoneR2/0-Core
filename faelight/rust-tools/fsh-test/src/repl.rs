@@ -11,6 +11,17 @@
 //! said nothing about the shell we actually type into, and it could not have: no
 //! test written against -c could ever fail on that bug.
 //!
+//! INT-171 gate 3 (2026-07-19) escalated this from one bug to a CLASS. All six
+//! INT-143 regression bugs -- double-exec on redirect, typo-&&-leak, python3 flag
+//! stripping, bash-script non-exec, env passthrough, inline-var scope -- are
+//! INVISIBLE through `fsh -c`: run through /bin/sh, every one returns the correct
+//! answer. Six bugs, all in the door the suite did not knock on. The finding is
+//! not "a bug slipped through" -- it is "an entire category of fsh behaviour was
+//! untested." The six repl_143_* tests below are the fix; INT-173 formalises the
+//! rule (see The Rule in that intent): interactive behaviour is tested through the
+//! REPL door; `-c` tests are for the `-c`/sh path, which is real (INT-190 boot
+//! depends on it) but is NOT fsh's dispatch.
+//!
 //! A pty is how you make fsh believe a human is there. fsh asks isatty(); with a
 //! plain pipe it answers "no terminal" and takes another path, and the REPL --
 //! rustyline, the highlighter, the prompt -- never exists at all. This module
