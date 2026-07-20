@@ -97,19 +97,46 @@ DECIDE ONE OWNER before starting. Two intents adding tracing to the same binary 
 both were written to prevent.
 
 ## Success Criteria
-- [ ] ONE tokenizer exists. Prove it: grep the tree, exactly one quote-aware tokenizer function, and
+- [x] ONE tokenizer exists. Prove it: grep the tree, exactly one quote-aware tokenizer function, and
       the duplicate is DELETED (not deprecated)
+<!-- DONE 2026-07-19, commit 3abc454e, deployed gen 397. Promoted one copy to
+`pub fn tokenize` at module level in commands/mod.rs; deleted the nested tokenize_args
+(execute_impl) and tokenize (exec.rs::from_line), repointed both callers. `grep -rn "fn
+tokenize" src/` returns exactly one function. pty receipt on the deployed binary: 5/5
+quote-aware cases pass, 172 stayed fixed. -22 lines net. -->
 - [ ] No code outside the parsing entry point calls split_whitespace() on a user-typed line. Prove
       it with the grep, and with each remaining call site justified in a comment
-- [ ] The six INT-143 regressions have tests that FAIL on the pre-171 parser and pass after --
+<!-- PARTIAL 2026-07-19. The quoted-command-word half is DONE: commit 992ff02b, deployed
+gen 398 -- execute_impl now derives cmd from tokenize(trimmed_line), not a raw splitn(2,' ').
+Proven: `"echo" hi` -> hi on the deployed binary. BUT the FULL criterion is NOT met: `grep
+-rn split_whitespace src/` shows ~90 sites, most benign (completion, nl, semantic -- non-command
+text) but several parse a user command word outside the entry point (main.rs 2229/2254/2859/3089,
+commands/mod.rs 7776/7876/8693). Each must be routed through the entry point OR justified in a
+comment. That sweep is the remaining work for this gate. DO NOT tick until it is done. -->
+- [x] The six INT-143 regressions have tests that FAIL on the pre-171 parser and pass after --
       demonstrated, not declared (INT-158)
+<!-- DONE 2026-07-19, commit 6bff0f91, deployed gen 399, fsh-test 94/94. Six Category::Repl
+tests (repl_143_*) drive the REAL REPL via pty -- NOT `fsh -c`, which bypasses fsh dispatch to
+/bin/sh and would pass on a broken shell. Five proven by surgically reintroducing each bug and
+watching ONLY its test go red (python3/bash/env/typo-&&/var-scope). The sixth (double-exec,
+bfe25bc9) proven BY CONSTRUCTION: the fix is type-level robust -- swapping try_builtin->execute
+does not reintroduce the double-run (measured 3 ways, append-counter = 1 tick), because
+CommandResult::NotBuiltin routes around it. The test stays green because there is no bug, not
+because it is blind. "pre-171 parser" read as "pre-143 broken behavior" -- the only binary
+where these fail; interpretation agreed 2026-07-19. -->
 - [ ] `tracing` spans cover lexer / parse / expansion / dispatch / execution, and ONE typed command
       can be traced end to end. Owner agreed with INT-167 first, in writing
 - [ ] `thiserror` types the errors that control flow depends on. The 968c7be5 class -- a result whose
       TYPE contradicts its MESSAGE -- is unrepresentable, not merely fixed
 - [ ] `miette` renders one real fsh syntax error with a caret under the offending character
-- [ ] 18/18 existing tests still pass; fsh still boots, still logs in, still deploys
-- [ ] NOTHING from INT-168/169/170 landed here. If a change needs an AST, it is 169s change
+- [x] 18/18 existing tests still pass; fsh still boots, still logs in, still deploys
+<!-- DONE 2026-07-19. The suite has grown 18 -> 94; all 94 pass on the deployed binary at
+gen 399. fsh booted, logged in, and deployed cleanly across gens 397/398/399 during this work. -->
+- [x] NOTHING from INT-168/169/170 landed here. If a change needs an AST, it is 169s change
+<!-- DONE 2026-07-19. No reedline (168), no AST/logos/chumsky (169), no plugin runtime (170).
+The AST was fenced to 169 explicitly: value.rs:292 PipeOp was confirmed to be the structured-DATA
+pipeline (INT-162), not a command-AST seed, and the "make redirect emit a Redirect variant" idea
+was scrapped after reading source. Gates 1-3 consolidated the EXISTING parser only. -->
 
 ## The Rule
 "fsh already had a correct tokenizer. Twice. The bugs were the code that did not call it. Adding a
