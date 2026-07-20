@@ -3,7 +3,7 @@ id: 171
 date: 2026-07-16
 type: arch
 title: "fsh Phase 1: ONE parsing entry point + tracing/thiserror/miette -- six bugs on 2026-07-16 were four parsers with no pipeline between them"
-status: in-progress
+status: complete
 tags: [fsh, architecture, parser, tracing, diagnostics, phase1, 134]
 ---
 
