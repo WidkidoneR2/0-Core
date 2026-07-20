@@ -104,15 +104,22 @@ both were written to prevent.
 (execute_impl) and tokenize (exec.rs::from_line), repointed both callers. `grep -rn "fn
 tokenize" src/` returns exactly one function. pty receipt on the deployed binary: 5/5
 quote-aware cases pass, 172 stayed fixed. -22 lines net. -->
-- [ ] No code outside the parsing entry point calls split_whitespace() on a user-typed line. Prove
+- [x] No code outside the parsing entry point calls split_whitespace() on a user-typed line. Prove
       it with the grep, and with each remaining call site justified in a comment
-<!-- PARTIAL 2026-07-19. The quoted-command-word half is DONE: commit 992ff02b, deployed
-gen 398 -- execute_impl now derives cmd from tokenize(trimmed_line), not a raw splitn(2,' ').
-Proven: `"echo" hi` -> hi on the deployed binary. BUT the FULL criterion is NOT met: `grep
--rn split_whitespace src/` shows ~90 sites, most benign (completion, nl, semantic -- non-command
-text) but several parse a user command word outside the entry point (main.rs 2229/2254/2859/3089,
-commands/mod.rs 7776/7876/8693). Each must be routed through the entry point OR justified in a
-comment. That sweep is the remaining work for this gate. DO NOT tick until it is done. -->
+<!-- DONE 2026-07-20, commit c1fc7d69. Full triage: `grep -rn split_whitespace src/` = 92 sites;
+filtered to split_whitespace().next() on a line-like variable = 27 candidates; classified each by
+what it does with the token. Result: 5 sites extract a USER COMMAND WORD to dispatch/look-up
+(main.rs alias-expansion 2229, forest-route 1420, forest-detect 2254; commands/mod.rs run_external
+not-found 7776, builtin not-found 7876) -- all routed through the new command_word(line), the ONE
+quote-aware extractor. The rest are justified in a rule-block above command_word(): output/telemetry
+parsing, completion (a partial being typed, never dispatched), and classify-only checks that compare
+the token and fall through safely on a quoted word.
+HONEST SCOPE: this is CONSOLIDATION, not a live-bug fix. A probe of the pre-change deployed binary
+confirmed quoted commands already resolved (quotes are stripped upstream of dispatch), so no site was
+reaching a mis-parse in practice. The value is structural -- one home means the INT-143 quote-blind
+bug cannot return piecemeal. A contract unit test (command_word_tests) guards quote-awareness, proven
+red-under-revert / green-on-restore. cargo test 19/19, fsh-test 94/94. A REPL test that was green on
+the pre-change binary (proved nothing) was removed. -->
 - [x] The six INT-143 regressions have tests that FAIL on the pre-171 parser and pass after --
       demonstrated, not declared (INT-158)
 <!-- DONE 2026-07-19, commit 6bff0f91, deployed gen 399, fsh-test 94/94. Six Category::Repl
