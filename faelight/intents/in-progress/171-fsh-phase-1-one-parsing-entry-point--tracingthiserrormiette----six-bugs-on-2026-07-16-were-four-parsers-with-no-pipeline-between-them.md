@@ -143,9 +143,27 @@ the inert empty-string column. Building spans in 171 now would sit on an inert f
 DE-SCOPED to 167 (recorded in 167's Relationship section same day). 171 does NOT build tracing; it
 completes on its parser-consolidation and error-typing gates. Gates 5 (thiserror) and 6 (miette)
 remain real work -- this de-scope does not complete 171. -->
-- [ ] `thiserror` types the errors that control flow depends on. The 968c7be5 class -- a result whose
+- [x] `thiserror` types the errors that control flow depends on. The 968c7be5 class -- a result whose
       TYPE contradicts its MESSAGE -- is unrepresentable, not merely fixed
-- [ ] `miette` renders one real fsh syntax error with a caret under the offending character
+<!-- DONE 2026-07-20, commit e6f95dfc, deployed gen 401. Added thiserror + FlowError (thiserror enum)
+for the flow-critical not-found error (CommandNotFound), the 968c7be5 case: both not-found sites build
+their message FROM the typed variant via display_colored(), so message can't drift from kind. Added
+CommandResult::is_failure() as the SINGLE source of truth for the &&/|| decision, replacing the inline
+!matches!(result, Error(_)) that a mis-typed result could contradict. HONEST SCOPE: consolidation +
+typing the one flow-critical error, NOT a live-bug fix -- probe confirmed the &&/|| decision already
+correct on the deployed binary (not-found, false, failing builtins all stop the chain). NAMED LIMIT:
+makes the flow-decision contradiction unrepresentable; does not stop println!-an-error-then-return-non-
+Error in the ~280 non-flow string-error sites. 2 contract tests proven red-under-break/green-on-restore.
+cargo test 23/23, fsh-test 94/94. -->
+- [x] `miette` renders one real fsh syntax error with a caret under the offending character
+<!-- DONE 2026-07-20, commit 6e86cfd4, deployed gen 401. Added miette (fancy). render_redirect_error()
+draws a caret under the offending `>` for the redirect-missing-target parse error, wired into the
+__redirect_error_no_target__ path. HONEST TARGET: unclosed quotes/heredocs/parens are NOT errors
+(is_complete_command returns incomplete, the REPL reads MORE input -- continuation, like bash's >
+prompt), and not-found is runtime, not syntax. A bare `>` with no target is the ONE genuine syntax
+rejection fsh produces (exit 2, command refused) -- the honest target, chosen after reading the
+continuation loop rather than the superficially-obvious unclosed-quote. PROVEN on the real REPL:
+`echo >` renders the caret under the `>`. 2 unit tests. cargo test 23/23, fsh-test 94/94. -->
 - [x] 18/18 existing tests still pass; fsh still boots, still logs in, still deploys
 <!-- DONE 2026-07-19. The suite has grown 18 -> 94; all 94 pass on the deployed binary at
 gen 399. fsh booted, logged in, and deployed cleanly across gens 397/398/399 during this work. -->
