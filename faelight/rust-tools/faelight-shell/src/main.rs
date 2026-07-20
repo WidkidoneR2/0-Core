@@ -1439,8 +1439,10 @@ fn repl_main() -> Result<()> {
                                 }
                             } else {
                                 let chain_result = commands::execute(lcmd_trim, &db, &core_root);
-                                last_success =
-                                    !matches!(chain_result, commands::CommandResult::Error(_));
+                                // INT-171 gate 5: the &&/|| success signal comes from the
+                                // ONE definition of failure, not an inline matches! that a future
+                                // mis-typed result could contradict (the 968c7be5 class).
+                                last_success = !chain_result.is_failure();
                                 // INT-097: if this command is followed by || , a failure here is
                                 // EXPECTED (it's why the next command runs) -- don't print its error.
                                 let failure_consumed_by_or =

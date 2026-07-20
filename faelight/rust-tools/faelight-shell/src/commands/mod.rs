@@ -37,6 +37,20 @@ pub enum CommandResult {
     NotBuiltin,
 }
 
+impl CommandResult {
+    /// The SINGLE source of truth for "did this command fail" -- the signal that
+    /// `&&`/`||` chaining depends on. INT-171 gate 5.
+    ///
+    /// Bug 968c7be5 was a failure that returned a non-Error variant, so a scattered
+    /// inline `!matches!(result, Error(_))` read it as success and `&&` proceeded.
+    /// Defining failure ONCE, here, means a future variant that should count as a
+    /// failure is fixed in this method -- not hunted across every chain site. The
+    /// flow decision can no longer be re-derived inconsistently at a call site.
+    pub fn is_failure(&self) -> bool {
+        matches!(self, CommandResult::Error(_))
+    }
+}
+
 // ── Security Layer — log every command ───────────────────────────────────────
 /// Truncate a string to at most `max` bytes WITHOUT splitting a UTF-8 char.
 /// Used in abort/error messages so a multibyte anchor (em-dash, box-drawing char)
@@ -300,6 +314,20 @@ mod command_word_tests {
     // command_word() is the ONE quote-aware command-word extractor. This guards its
     // contract so a future edit that drops quote-awareness fails here, not silently in
     // the five dispatch sites that route through it. INT-171 gate 2.
+    #[test]
+    fn is_failure_is_single_source_of_flow_truth() {
+        use super::CommandResult;
+        // The signal &&/|| depend on: ONLY Error is a failure. INT-171 gate 5.
+        // Bug 968c7be5 was a failure returning a non-Error variant; this pins the
+        // contract so a variant that should count as failure is fixed HERE, and a
+        // success variant can never read as failure.
+        assert!(CommandResult::Error("boom".to_string()).is_failure());
+        assert!(!CommandResult::Empty.is_failure());
+        assert!(!CommandResult::Output("ok".to_string()).is_failure());
+        assert!(!CommandResult::NotBuiltin.is_failure());
+        assert!(!CommandResult::Exit.is_failure());
+    }
+
     #[test]
     fn extracts_first_token_quote_aware() {
         assert_eq!(command_word("git status"), "git"); // unquoted unchanged
@@ -7891,7 +7919,10 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         // so returning Error is what makes the chain stop.
         // The text moves into the Error payload rather than being println!'d, because main.rs
         // prints an Error payload -- printing here AND returning Error would show it twice.
-        let mut msg = format!("command not found: {}", typed_cmd.bright_red());
+        // INT-171 gate 5: the not-found message comes FROM the typed error, so it
+        // cannot drift from the CommandNotFound kind. This is the 968c7be5 site.
+        let mut msg =
+            crate::error::FlowError::CommandNotFound(typed_cmd.to_string()).display_colored();
         if let Some(s) = suggestion {
             msg.push_str(&format!(
                 "\n  {} did you mean: {}",
@@ -7978,7 +8009,11 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                         // INT-143: was `return CommandResult::Empty;` -- SUCCESS, for a
                         // command that exited 127. Put the message in the payload and return the
                         // failure. main.rs prints an Error payload, so it still shows once.
-                        let mut msg = format!("command not found: {}", typed_cmd.bright_red());
+                        // INT-171 gate 5: the not-found message comes FROM the typed error, so it
+                        // cannot drift from the CommandNotFound kind. This is the 968c7be5 site.
+                        let mut msg =
+                            crate::error::FlowError::CommandNotFound(typed_cmd.to_string())
+                                .display_colored();
                         if let Some(s) = suggestion {
                             msg.push_str(&format!(
                                 "\n  {} did you mean: {}",

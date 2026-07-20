@@ -6,6 +6,50 @@
 // "An error that disappears is an error that repeats."
 
 use std::time::{SystemTime, UNIX_EPOCH};
+use thiserror::Error;
+
+/// Errors that CONTROL FLOW depends on -- typed so the message derives from the
+/// variant via #[error(...)] and cannot drift from it. INT-171 gate 5.
+///
+/// The 968c7be5 class was "a result whose TYPE contradicts its MESSAGE": a
+/// not-found command printed a failure message but returned a success-typed
+/// result, so `&&` proceeded. A FlowError's Display comes FROM its variant, so a
+/// CommandNotFound cannot carry a message that says anything but "not found".
+/// Started with the one error the `&&`/`||` decision most depends on; extend to
+/// redirect/builtin failures as they prove flow-critical.
+#[derive(Debug, Clone, Error)]
+pub enum FlowError {
+    #[error("command not found: {0}")]
+    CommandNotFound(String),
+}
+
+impl FlowError {
+    /// The colored presentation of this error. Presentation lives WITH the type,
+    /// so the two not-found call sites cannot drift from each other or from the
+    /// #[error] message. INT-171 gate 5.
+    pub fn display_colored(&self) -> String {
+        use colored::Colorize;
+        match self {
+            FlowError::CommandNotFound(cmd) => {
+                format!("command not found: {}", cmd.bright_red())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod flow_error_tests {
+    use super::FlowError;
+
+    #[test]
+    fn command_not_found_message_derives_from_type() {
+        // The message comes FROM the variant via #[error(...)], so it cannot
+        // contradict the kind -- the 968c7be5 "type contradicts message" class is
+        // unrepresentable for this typed error. INT-171 gate 5.
+        let e = FlowError::CommandNotFound("frobnicate".to_string());
+        assert_eq!(e.to_string(), "command not found: frobnicate");
+    }
+}
 
 /// A structured shell error — code, message, suggestion, context
 #[derive(Debug, Clone)]
