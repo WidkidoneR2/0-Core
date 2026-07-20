@@ -3,7 +3,7 @@ id: 168
 date: 2026-07-16
 type: arch
 title: "fsh line editor: reedline replaces rustyline -- a swap, not an addition (they own the same keystroke loop)"
-status: planned
+status: in-progress
 tags: [fsh, reedline, rustyline, line-editor, ux, phase2]
 ---
 
