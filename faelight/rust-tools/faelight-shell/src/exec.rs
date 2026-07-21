@@ -292,9 +292,26 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
     // ── INT-233: Knowledge engine query on failure ────────────────────────────
     // After every failed command, search knowledge base for known fixes
     if status == "error" {
-        let error_msg = match result {
-            CommandResult::Error(e) => e.clone(),
-            _ => String::new(),
+        // INT-185: prefer the REAL captured stderr (from run_external's tee, stashed in
+        // shell_state.last_stderr) over fsh's own "exited N" status string. This is what lets
+        // Branch 1 match real fingerprints (error[E0716] etc) from actual command output.
+        // Falls back to the CommandResult::Error payload for builtins (no external stderr).
+        let error_msg = {
+            let stashed: Option<String> = db
+                .conn
+                .query_row(
+                    "SELECT value FROM shell_state WHERE key = 'last_stderr'",
+                    [],
+                    |r| r.get(0),
+                )
+                .ok();
+            match stashed {
+                Some(s) if !s.trim().is_empty() => s,
+                _ => match result {
+                    CommandResult::Error(e) => e.clone(),
+                    _ => String::new(),
+                },
+            }
         };
         let cmd_lower = ctx.cmd.to_lowercase();
         // INT-097: search/filter tools exit non-zero to mean "no match / no result",
@@ -392,9 +409,17 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                 if let Ok(rows) = rows {
                     for row in rows.flatten() {
                         let (id, resolution, confidence, descr) = row;
+                        // INT-185: word-boundary match, NOT substring. The token "current"
+                        // (from a resolved path like /run/current-system/) must NOT match
+                        // "concurrent" inside a description. Split descr into whole words with
+                        // the SAME rule the token builder uses, then require exact word membership.
+                        let descr_words: std::collections::HashSet<&str> = descr
+                            .split(|c: char| !c.is_alphanumeric() && c != '0')
+                            .filter(|w| !w.is_empty())
+                            .collect();
                         let hits = search_tokens
                             .iter()
-                            .filter(|t| descr.contains(t.as_str()))
+                            .filter(|t| descr_words.contains(t.as_str()))
                             .count();
                         if hits >= 2 {
                             let better = match &best {

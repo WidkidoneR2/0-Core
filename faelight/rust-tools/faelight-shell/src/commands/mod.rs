@@ -7938,13 +7938,57 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         }
         return CommandResult::Error(msg);
     }
-    let status = std::process::Command::new("sh")
+    // INT-185: capture the child's stderr so the knowledge engine (postexec) can read the
+    // REAL error, not fsh's "exited N" status string. stdin/stdout stay inherited (normal
+    // output + interactive programs unaffected); only stderr is piped and TEE'd back live.
+    let mut child = match std::process::Command::new("sh")
         .arg("-c")
         .arg(line)
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status();
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = db.conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', '')",
+                [],
+            );
+            return CommandResult::Error(format!("  failed to execute: {}", e));
+        }
+    };
+    // Threaded tee: read child stderr in a thread, writing each chunk to the real terminal
+    // LIVE (so the user still sees errors as they happen) AND into a capture buffer. Reading
+    // concurrently with wait() avoids a pipe-fill deadlock on large stderr.
+    let child_stderr = child.stderr.take();
+    let tee = std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        let mut captured: Vec<u8> = Vec::new();
+        if let Some(mut es) = child_stderr {
+            let mut buf = [0u8; 4096];
+            let mut real = std::io::stderr();
+            loop {
+                match es.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        let _ = real.write_all(&buf[..n]);
+                        let _ = real.flush();
+                        captured.extend_from_slice(&buf[..n]);
+                    }
+                }
+            }
+        }
+        captured
+    });
+    let status = child.wait();
+    let captured_stderr = tee.join().unwrap_or_default();
+    // Always overwrite last_stderr (empty on success) so it is never STALE for an external
+    // command. postexec reads this as the real error_msg for the INT-233 knowledge lookup.
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', ?1)",
+        rusqlite::params![String::from_utf8_lossy(&captured_stderr).to_string()],
+    );
     match status {
         Ok(s) => {
             if s.success() {
