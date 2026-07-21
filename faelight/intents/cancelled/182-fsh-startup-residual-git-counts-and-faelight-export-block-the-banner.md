@@ -3,7 +3,7 @@ id: 182
 date: 2026-07-20
 type: improvement
 title: "fsh startup residual: git-counts + faelight-export still block the banner (~555ms)"
-status: planned
+status: cancelled
 tags: [fsh, faelight-shell, startup, performance]
 ---
 
@@ -49,3 +49,6 @@ script (fsh mangles its own $(...) probes -- see 176's measurement lesson).
 ## The Rule
 "176 proved the slow thing was one unmeasured blocking call. This finishes the sweep: measure the
 rest, move what can wait off the path the human is standing on." 🌲
+
+## Gate Check
+🚫 182 -- cancelled: MEASURED 2026-07-20, premise was wrong. The named culprits are trivial: faelight-export 1ms, git rev-list --count 4ms, core journal 7ms. The real startup cost was refresh_health_if_stale's doctor run (643ms) -- already fixed by INT-176 (detached .spawn, commit 109ac07a, verified present in source this session). Real fsh startup now ~570ms baseline (config + 285 aliases + db open + banner render), down from ~1260ms pre-176. Christian confirms it feels fast now; 176 fixed the felt problem. The ~570ms residual is fsh's inherent init cost, not the git-counts/faelight-export the intent named (5ms total) -- no surgery warranted. If startup ever feels slow again, profile fsh's internal phases, don't touch the calls this intent named. -- approved by: christian 2026-07-20
