@@ -428,10 +428,31 @@ fn execute_impl(
                     Err(e) => CommandResult::Error(format!("spine parse error: {e:?}")),
                 };
             }
+            Some("audit") => {
+                // db -> iterator adapter over the pure audit engine (spine::audit). Reads
+                // distinct real commands, excluding TIMING:/SUGGEST: bookkeeping rows (not user
+                // language). Passes ALL matching rows (NOT SELECT DISTINCT): the engine needs
+                // total_entries (volume) AND does its own dedup for unique_inputs (shape).
+                // On-demand only; parses+lowers every row, so it is never on the hot path.
+                let mut stmt = match db.conn.prepare(
+                    "SELECT command FROM shell_history \
+                     WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%'",
+                ) {
+                    Ok(s) => s,
+                    Err(e) => return CommandResult::Error(format!("spine audit: db error: {e}")),
+                };
+                let rows = match stmt.query_map([], |row| row.get::<_, String>(0)) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        return CommandResult::Error(format!("spine audit: query error: {e}"))
+                    }
+                };
+                let commands = rows.filter_map(|r| r.ok());
+                let report = crate::spine::audit::audit_history(commands);
+                return CommandResult::Output(report.render());
+            }
             _ => {
-                return CommandResult::Error(
-                    "usage: spine parse <line>  (more subcommands coming)".to_string(),
-                );
+                return CommandResult::Error("usage: spine parse <line> | spine audit".to_string());
             }
         }
     }
