@@ -3,7 +3,7 @@ id: 177
 date: 2026-07-19
 type: study
 title: "promkit: evaluate as reedline alternative for INT-168 interactive input"
-status: in-progress
+status: complete
 tags: [fsh, promkit, reedline, input, int-168]
 ---
 
