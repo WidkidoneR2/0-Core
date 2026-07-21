@@ -213,3 +213,38 @@ get tedious. P4 when a specific bug proves the need -- not before.
 ## The Rule
 "Everything emits events. But an event that never varies is not instrumentation -- it is a comment
 that compiles. Make the foundation honest before building the cathedral." 🌲
+
+
+## DEVBOX TUI DESIGN (captured 2026-07-20) -- Christian's spec
+Reference aesthetic: ArchTUI (https://gitlab.com/live4thamuzik/ArchTUI) -- a Rust TUI frontend
+(ratatui-style) + modular backend for installing/administering Arch. GPLv3. DevBox borrows the
+split-panel look, not the code.
+
+LAYOUT (top to bottom):
+- TOP: a SPLIT PANEL, two panes side by side.
+  - LEFT pane:  ~33.3% of width.
+  - RIGHT pane: the remaining ~66.6%.
+- MIDDLE: a ROW OF THREE RECTANGLES (buttons/panels) below the split panel:
+  - LEFT rectangle:   "Config Test"
+  - MIDDLE rectangle: "Edit Config"
+  - RIGHT rectangle:  "Start Rebuild"
+- BOTTOM: a HELPERS row underneath the three rectangles (keybind hints / actions).
+
+ASCII sketch of the intent:
++-------------------+-------------------------------------+
+|                   |                                     |
+|  LEFT pane 33.3%  |  RIGHT pane (~66.6%)                |
+|                   |                                     |
++-------------------+------------------+------------------+
+|  Config Test      |  Edit Config     |  Start Rebuild   |
++-------------------+------------------+------------------+
+|  helpers row (keybinds / hints)                        |
++--------------------------------------------------------+
+
+NOTES / OPEN QUESTIONS for when this is built:
+- What goes in the LEFT (33.3%) pane vs the RIGHT (~66.6%) pane? (Likely: left = a list/nav/status,
+  right = main content/output -- TBD, Christian to confirm.)
+- The three rectangles map to DevBox's core actions: test the config, edit it, trigger a rebuild.
+- Ties to 167's existing scope: DevBox as the debugging platform, and fsh's dead instrumentation
+  columns (correlation_id + source_tool). The TUI is the FRONT of that platform.
+- Framework: ratatui (matches ArchTUI's approach and the forest's Rust-TUI tools like faelight-fm).
