@@ -20,6 +20,9 @@ pub mod parser;
 pub mod render;
 
 #[cfg(test)]
+mod proptests;
+
+#[cfg(test)]
 mod tests {
     use super::ast::*;
 
