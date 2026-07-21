@@ -3,7 +3,7 @@ id: 178
 date: 2026-07-19
 type: study
 title: "inquire: evaluate as prompt-building option for INT-168 / Friday interaction"
-status: in-progress
+status: complete
 tags: [fsh, inquire, reedline, input, int-168]
 ---
 
