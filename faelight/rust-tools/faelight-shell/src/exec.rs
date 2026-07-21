@@ -313,11 +313,25 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             return;
         }
         let error_lower = error_msg.to_lowercase();
-        // Tokenize error + command into meaningful keywords
-        // Filter noise words, try each token against knowledge base
+        // INT-183: Friday's post-failure lesson lookup must fire on RELEVANCE, not on a single
+        // loose token. Old logic matched any one token via LIKE %token% against error_signature
+        // OR description -- so the generic word "error" hit error_signature "error[E0716]", and
+        // "subcommand" (in any clap usage text) hit the clap lesson's description. Both fired a
+        // 99% hint at unrelated commands. Two branches now, both requiring the lesson to actually
+        // apply:
+        //   Branch 1 (entries WITH an error_signature): fire only if the ACTUAL error output
+        //     CONTAINS that signature fingerprint (e.g. "error[e0716]"). A sqlite "unable to open
+        //     database" error does not contain "error[e0716]" -> silent.
+        //   Branch 2 (entries WITHOUT a signature, matched by description prose): require 2+
+        //     DISTINCT meaningful token hits in the description -- one word like "subcommand" is
+        //     not enough. Generic error-words are noise-filtered so they never count.
         let noise: &[&str] = &[
             "the", "a", "an", "is", "in", "of", "to", "with", "and", "or", "not", "for", "at",
             "by", "on", "as", "it", "be", "this", "that", "was", "are",
+            // INT-183: generic error-words -- appear in almost every failure, match almost every
+            // lesson; must never count as a meaningful, relevance-bearing token.
+            "error", "failed", "failure", "cannot", "unable", "warning", "panicked", "panic",
+            "exited", "code", "err", "errors",
         ];
         let full_text = format!("{} {}", cmd_lower, error_lower);
         let tokens: Vec<String> = full_text
@@ -325,38 +339,79 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             .filter(|t| t.len() >= 3 && !noise.contains(t))
             .map(|t| t.to_string())
             .collect();
-        // Use command name as fallback token
-        let search_tokens: Vec<String> = if tokens.is_empty() {
-            vec![cmd_lower.clone()]
-        } else {
-            tokens.into_iter().take(5).collect()
-        };
-        // Try each token against knowledge base (search_tokens built above)
-        // Try each token against knowledge_entries table (search id + description + resolution)
-        let mut lesson: Option<(String, String, f64)> = None;
-        for token in &search_tokens {
-            let result = db
-                .conn
-                .query_row(
-                    "SELECT id, resolution, confidence FROM knowledge_entries
-                 WHERE (LOWER(COALESCE(error_signature,'')) LIKE ?1
-                     OR LOWER(COALESCE(description,'')) LIKE ?1)
-                 AND confidence >= 0.85
+        // Deduplicate while preserving order (distinct meaningful tokens).
+        let mut search_tokens: Vec<String> = Vec::new();
+        for t in tokens {
+            if !search_tokens.contains(&t) {
+                search_tokens.push(t);
+            }
+        }
+        search_tokens.truncate(8);
+
+        // Branch 1: an entry whose error_signature fingerprint is actually PRESENT in the error.
+        // INSTR(error_lower, sig) > 0 means the real output contains the signature.
+        let mut lesson: Option<(String, String, f64)> = db
+            .conn
+            .query_row(
+                "SELECT id, resolution, confidence FROM knowledge_entries
+                 WHERE COALESCE(error_signature,'') != ''
+                   AND confidence >= 0.85
+                   AND INSTR(?1, LOWER(error_signature)) > 0
                  ORDER BY confidence DESC, success_count DESC
                  LIMIT 1",
-                    rusqlite::params![format!("%{}%", token)],
-                    |r| {
-                        Ok((
-                            r.get::<_, String>(0)?,
-                            r.get::<_, String>(1)?,
-                            r.get::<_, f64>(2)?,
-                        ))
-                    },
-                )
-                .ok();
-            if result.is_some() {
-                lesson = result;
-                break;
+                rusqlite::params![error_lower],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, f64>(2)?,
+                    ))
+                },
+            )
+            .ok();
+
+        // Branch 2: no signature match -- fall back to description prose, but require 2+ distinct
+        // meaningful token hits so a single loose word cannot fire a hint.
+        if lesson.is_none() && !search_tokens.is_empty() {
+            let mut best: Option<(String, String, f64, usize)> = None;
+            let mut stmt = db.conn.prepare(
+                "SELECT id, resolution, confidence, LOWER(COALESCE(description,'')) as descr
+                 FROM knowledge_entries
+                 WHERE COALESCE(error_signature,'') = ''
+                   AND confidence >= 0.85",
+            );
+            if let Ok(ref mut stmt) = stmt {
+                let rows = stmt.query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, f64>(2)?,
+                        r.get::<_, String>(3)?,
+                    ))
+                });
+                if let Ok(rows) = rows {
+                    for row in rows.flatten() {
+                        let (id, resolution, confidence, descr) = row;
+                        let hits = search_tokens
+                            .iter()
+                            .filter(|t| descr.contains(t.as_str()))
+                            .count();
+                        if hits >= 2 {
+                            let better = match &best {
+                                None => true,
+                                Some((_, _, bc, bh)) => {
+                                    hits > *bh || (hits == *bh && confidence > *bc)
+                                }
+                            };
+                            if better {
+                                best = Some((id, resolution, confidence, hits));
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some((id, resolution, confidence, _hits)) = best {
+                lesson = Some((id, resolution, confidence));
             }
         }
         if let Some((id, resolution, confidence)) = lesson {
