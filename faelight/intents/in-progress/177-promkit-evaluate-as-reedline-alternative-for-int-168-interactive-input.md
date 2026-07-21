@@ -38,16 +38,27 @@ strong candidate for fsh's INTERACTIVE-SELECTION UI needs elsewhere: a `forest s
 decision (narrowing it toward reedline) and FILES it as a candidate for picker/menu work.
 
 ## Success Criteria
-- [ ] promkit researched as it actually is -- version, license, maintenance, real component
+- [x] promkit researched as it actually is -- version, license, maintenance, real component
+      <!-- DONE 2026-07-20. promkit v0.12.1, MIT, 464 stars, 1074 commits, actively maintained
+(latest release Mar 2026). Components read from the README directly: Readline, Confirm, Password,
+Form, Listbox, QuerySelector, Checkbox, Tree, JSON, Text. Not judged from the tagline. -->
       list -- not from its tagline. (Done 2026-07-20: v0.12.1, MIT, 464 stars, active;
       README read directly.)
-- [ ] promkit categorized against fsh's 168 need (persistent line-editor loop) vs what
+- [x] promkit categorized against fsh's 168 need (persistent line-editor loop) vs what
+      <!-- DONE 2026-07-20. VERDICT: promkit is a PROMPT TOOLKIT (one-shot .prompt().run() ->
+value), not a persistent line editor. reedline owns the always-on keystroke loop (history,
+completion, hinting, multiline) -- a different category. Projects on promkit (jnv, sig, logu) are
+interactive TUI tools, not shells. promkit is NOT the reedline alternative. -->
       promkit provides (one-shot prompts + selection widgets). Verdict recorded with the
       reasoning.
-- [ ] The verdict feeds the 168 decision explicitly: promkit is OUT as the line editor
+- [x] The verdict feeds the 168 decision explicitly: promkit is OUT as the line editor
+      <!-- DONE 2026-07-20. promkit removed from the 168 line-editor decision (narrows toward
+reedline). Filed as a candidate for fsh's interactive-selection UI instead: forest-start picker
+(INT-013), keybinding tester (INT-156), launcher menus. Right tool, different job. -->
       (168 narrows toward reedline), noted as a candidate for interactive-selection UI
       (INT-013 / INT-156 / launcher work) instead.
-- [ ] Each gate carries evidence per INT-158.
+- [x] Each gate carries evidence per INT-158.
+      <!-- DONE 2026-07-20. Research + verdict recorded with version/license/component evidence. -->
 
 ## The Rule
 "Evaluate the tool for what it IS, not what the intent title guessed. 'Wrong tool for this
