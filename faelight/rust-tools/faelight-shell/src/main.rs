@@ -34,6 +34,7 @@ mod schema;
 mod scripting;
 mod semantic;
 mod session;
+mod spine;
 mod triggers;
 mod value;
 use expand::*;
