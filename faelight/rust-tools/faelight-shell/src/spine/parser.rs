@@ -9,7 +9,7 @@
 //! new parse method hanging off this same recursive-descent structure -- parse_command
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
-use super::ast::{Command, Node, NodeKind, Span, Spanned, Word};
+use super::ast::{AstNode, Command, Span, Spanned, Word};
 use super::lexer::{lex, LexError, SpannedToken, TokenKind};
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
@@ -39,7 +39,7 @@ impl Parser {
         self.tokens.get(self.pos)
     }
 
-    /// Consume and return the current token's data we need (kind copied, text/span cloned),
+    /// Consume and return the current token (cloned -- borrow-checker + tiny data),
     /// advancing the cursor. Returns None at end of stream.
     fn advance(&mut self) -> Option<SpannedToken> {
         let t = self.tokens.get(self.pos).cloned();
@@ -57,21 +57,22 @@ impl Parser {
     ///
     /// This is the LEAF of the recursive descent. Later, pipeline/list parsing sits above
     /// this and calls it for each command between `|` / `&&` / `;`. Each Word token becomes
-    /// a Word of a single Literal part today; at roadmap step 3 ($VAR) this is exactly where
-    /// a Word grows multiple parts.
-    fn parse_command(&mut self) -> Result<Node, ParseError> {
-        let mut words: Vec<Word> = Vec::new();
-        let mut span: Option<Span> = None;
+    /// a `Spanned<Word>` -- the word carries its own token span (spans everywhere), and its
+    /// single Literal part today; at roadmap step 3 ($VAR) this is where a Word grows
+    /// multiple parts.
+    fn parse_command(&mut self) -> Result<Spanned<AstNode>, ParseError> {
+        let mut words: Vec<Spanned<Word>> = Vec::new();
+        let mut cmd_span: Option<Span> = None;
 
         while let Some(tok) = self.peek() {
             match tok.kind {
                 TokenKind::Word => {
                     let t = self.advance().expect("peek was Some");
-                    let tspan = t.span;
-                    words.push(Word::literal(t.text));
-                    span = Some(match span {
-                        None => tspan,
-                        Some(s) => s.merge(tspan),
+                    let wspan = t.span;
+                    words.push(Spanned::new(wspan, Word::literal(t.text)));
+                    cmd_span = Some(match cmd_span {
+                        None => wspan,
+                        Some(s) => s.merge(wspan),
                     });
                 }
                 // Whitespace never reaches the parser (lexer skips it). When operators
@@ -83,11 +84,11 @@ impl Parser {
             }
         }
 
-        match span {
+        match cmd_span {
             None => Err(ParseError::Empty),
             Some(sp) => Ok(Spanned::new(
                 sp,
-                NodeKind::Command(Command {
+                AstNode::Command(Command {
                     words,
                     redirects: vec![],
                 }),
@@ -95,9 +96,9 @@ impl Parser {
         }
     }
 
-    /// Top-level parse: the whole line -> one Node. Today a single command; later this
+    /// Top-level parse: the whole line -> one node. Today a single command; later this
     /// dispatches into pipeline/list parsing that recurses down to parse_command.
-    fn parse_line(&mut self) -> Result<Node, ParseError> {
+    fn parse_line(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         if self.is_at_end() {
             return Err(ParseError::Empty);
         }
@@ -105,8 +106,8 @@ impl Parser {
     }
 }
 
-/// Parse a source line into an AST node. Public entry: lex, then parse.
-pub fn parse(source: &str) -> Result<Node, ParseError> {
+/// Parse a source line into a spanned AST node. Public entry: lex, then parse.
+pub fn parse(source: &str) -> Result<Spanned<AstNode>, ParseError> {
     let tokens = lex(source).map_err(ParseError::Lex)?;
     let mut parser = Parser::new(tokens);
     parser.parse_line()
@@ -115,12 +116,11 @@ pub fn parse(source: &str) -> Result<Node, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spine::ast::{NodeKind, WordPart};
+    use crate::spine::ast::{AstNode, WordPart};
 
     #[test]
     fn parse_bare_command_matches_hand_built_shape() {
-        // `ls -la /tmp` -> the EXACT shape Increment 1 hand-built. Closes the loop:
-        // the parser now PRODUCES what the AST shape test asserted.
+        // `ls -la /tmp` -> a Command of three spanned words, each a single Literal part.
         let node = parse("ls -la /tmp").expect("parses");
         assert_eq!(
             node.span,
@@ -128,20 +128,24 @@ mod tests {
             "node span covers the whole line"
         );
 
-        match node.value {
-            NodeKind::Command(cmd) => {
+        match node.node {
+            AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 3);
                 assert!(cmd.redirects.is_empty());
+                // per-word spans now present
+                assert_eq!(cmd.words[0].span, Span::new(0, 2));
+                assert_eq!(cmd.words[1].span, Span::new(3, 6));
+                assert_eq!(cmd.words[2].span, Span::new(7, 11));
                 assert_eq!(
-                    cmd.words[0].parts,
+                    cmd.words[0].node.parts,
                     vec![WordPart::Literal("ls".to_string())]
                 );
                 assert_eq!(
-                    cmd.words[1].parts,
+                    cmd.words[1].node.parts,
                     vec![WordPart::Literal("-la".to_string())]
                 );
                 assert_eq!(
-                    cmd.words[2].parts,
+                    cmd.words[2].node.parts,
                     vec![WordPart::Literal("/tmp".to_string())]
                 );
             }
@@ -151,13 +155,14 @@ mod tests {
     #[test]
     fn parse_single_word() {
         let node = parse("pwd").expect("parses");
-        match node.value {
-            NodeKind::Command(cmd) => {
+        match node.node {
+            AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 1);
                 assert_eq!(
-                    cmd.words[0].parts,
+                    cmd.words[0].node.parts,
                     vec![WordPart::Literal("pwd".to_string())]
                 );
+                assert_eq!(cmd.words[0].span, Span::new(0, 3));
             }
         }
         assert_eq!(node.span, Span::new(0, 3));
@@ -171,17 +176,16 @@ mod tests {
 
     #[test]
     fn parse_preserves_case() {
-        // RFC section 9 rides-with: the spine does NOT lowercase (from_line does; the new
-        // path must not). Prove GitHub != github.
+        // RFC section 9 rides-with: the spine does NOT lowercase. GitHub stays GitHub.
         let node = parse("GitHub Clone").expect("parses");
-        match node.value {
-            NodeKind::Command(cmd) => {
+        match node.node {
+            AstNode::Command(cmd) => {
                 assert_eq!(
-                    cmd.words[0].parts,
+                    cmd.words[0].node.parts,
                     vec![WordPart::Literal("GitHub".to_string())]
                 );
                 assert_eq!(
-                    cmd.words[1].parts,
+                    cmd.words[1].node.parts,
                     vec![WordPart::Literal("Clone".to_string())]
                 );
             }

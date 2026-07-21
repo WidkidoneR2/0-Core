@@ -1,12 +1,11 @@
-//! INT-169 spine: AST pretty-printer. Renders a parsed Node as an indented tree with
-//! spans, for the `spine parse` debug builtin and future introspection tooling (the
-//! debugger / "explain this parse" surfaces the RFC anticipates). Display only -- never
-//! executes anything.
+//! INT-169 spine: AST pretty-printer. Renders a parsed node as an indented tree with
+//! spans, for the `spine parse` debug builtin and future introspection tooling. Display
+//! only -- never executes anything.
 
-use super::ast::{Node, NodeKind, WordPart};
+use super::ast::{AstNode, Spanned, WordPart};
 
 /// Render a parsed node as an indented tree. Each line shows the construct and its span.
-pub fn render(node: &Node) -> String {
+pub fn render(node: &Spanned<AstNode>) -> String {
     let mut out = String::new();
     render_node(node, 0, &mut out);
     out
@@ -16,9 +15,9 @@ fn indent(level: usize) -> String {
     "  ".repeat(level)
 }
 
-fn render_node(node: &Node, level: usize, out: &mut String) {
-    match &node.value {
-        NodeKind::Command(cmd) => {
+fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
+    match &node.node {
+        AstNode::Command(cmd) => {
             out.push_str(&format!(
                 "{}Command @[{},{})\n",
                 indent(level),
@@ -26,9 +25,8 @@ fn render_node(node: &Node, level: usize, out: &mut String) {
                 node.span.end
             ));
             for word in &cmd.words {
-                // A Word has no span of its own yet (parser builds it from a token whose
-                // span is folded into the Command span); we show its parts.
                 let rendered: Vec<String> = word
+                    .node
                     .parts
                     .iter()
                     .map(|p| match p {
@@ -36,8 +34,10 @@ fn render_node(node: &Node, level: usize, out: &mut String) {
                     })
                     .collect();
                 out.push_str(&format!(
-                    "{}Word  {}\n",
+                    "{}Word @[{},{})  {}\n",
                     indent(level + 1),
+                    word.span.start,
+                    word.span.end,
                     rendered.join(" ")
                 ));
             }

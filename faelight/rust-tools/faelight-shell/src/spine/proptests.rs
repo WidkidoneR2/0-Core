@@ -10,7 +10,7 @@
 
 #![cfg(test)]
 
-use super::ast::{NodeKind, WordPart};
+use super::ast::{AstNode, WordPart};
 use super::parser::parse;
 use proptest::prelude::*;
 
@@ -113,10 +113,10 @@ proptest! {
         if let Ok(node) = parse(&input) {
             prop_assert!(node.span.start <= node.span.end, "node span reversed");
             prop_assert!(node.span.end <= input.len(), "node span past input end");
-            match &node.value {
-                NodeKind::Command(cmd) => {
+            match &node.node {
+                AstNode::Command(cmd) => {
                     for word in &cmd.words {
-                        for part in &word.parts {
+                        for part in &word.node.parts {
                             let WordPart::Literal(text) = part;
                             // The literal text must appear in the input (it came from a
                             // token slice of it). Non-empty for a real word.
@@ -142,8 +142,8 @@ proptest! {
     fn word_count_matches_tokens(input in shell_line()) {
         if let Ok(node) = parse(&input) {
             let expected = input.split_whitespace().count();
-            match &node.value {
-                NodeKind::Command(cmd) => {
+            match &node.node {
+                AstNode::Command(cmd) => {
                     prop_assert_eq!(cmd.words.len(), expected,
                         "word count != whitespace-split count for {:?}", input);
                 }
