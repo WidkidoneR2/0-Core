@@ -291,7 +291,24 @@
         pre-commit-check = inputs.git-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            rustfmt.enable = true;      # sandboxed, reproducible, unskippable
+            # INT-184: rustfmt formats AND auto-stages, so a commit lands first-try instead of
+            # the reformat-then-fail-then-retry dance. Stock `rustfmt.enable = true` fails the
+            # commit whenever it reformats anything, leaving the formatted files staged-but-
+            # uncommitted -- you re-add and commit again every time. This custom hook formats the
+            # whole workspace, re-stages the tracked files it changed, and exits 0, so the commit
+            # succeeds the first time with formatted code. Same reproducible-sandbox spirit as
+            # riskGate above (writeShellScript path as the entry).
+            rustfmt-autostage = {
+              enable = true;
+              name = "rustfmt (format + auto-stage)";
+              entry = toString (pkgs.writeShellScript "rustfmt-autostage" ''
+                ${pkgs.rustfmt}/bin/cargo-fmt fmt --all
+                ${pkgs.git}/bin/git add -u
+              '');
+              files = "\\.rs$";
+              pass_filenames = false;
+              stages = [ "pre-commit" ];
+            };
             ripsecrets.enable = true;   # secret scan (overlaps gitleaks) -- sandboxed
 
             # INT-112 gate 3: structure stops merely COMMUNICATING risk and starts ENFORCING

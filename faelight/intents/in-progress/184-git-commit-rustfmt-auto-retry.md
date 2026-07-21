@@ -3,7 +3,7 @@ id: 184
 date: 2026-07-20
 type: improvement
 title: "git commit: auto-retry after rustfmt reformats (the commit-doesn't-land trap)"
-status: planned
+status: in-progress
 tags: [fsh, git, workflow, rustfmt, tooling]
 ---
 
