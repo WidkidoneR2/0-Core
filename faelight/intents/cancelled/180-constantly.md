@@ -27,3 +27,6 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Gate Check
+🚫 180 -- cancelled: Accidental stub -- malformed frontmatter from a stray inta paste (title/status/tags captured chat prose). Never a real intent. The exact blind-typing failure INT-181 fixes. -- approved by: christian 2026-07-20
