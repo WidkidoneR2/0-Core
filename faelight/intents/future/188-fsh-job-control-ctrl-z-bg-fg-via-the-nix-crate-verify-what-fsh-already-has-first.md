@@ -2,7 +2,7 @@
 id: 188
 date: 2026-07-21
 type: feature
-title: "fsh job control: Ctrl+Z / bg / fg via the nix crate -- verify what fsh already has first"
+title: "fsh job control: Ctrl+Z, bg, fg via the nix crate -- verify what fsh already has first"
 status: planned
 tags: [fsh, job-control, signals, nix, tokio, process-groups]
 ---
