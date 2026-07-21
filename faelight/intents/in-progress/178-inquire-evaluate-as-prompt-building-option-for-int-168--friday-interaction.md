@@ -42,15 +42,27 @@ the picker/menu intents (INT-013 forest-start picker, INT-156 keybinding tester,
 menus), inquire is the leading candidate; promkit is the alternative.
 
 ## Success Criteria
-- [ ] inquire researched as it actually is -- version, license, adoption, real prompt list --
+- [x] inquire researched as it actually is -- version, license, adoption, real prompt list --
+      <!-- DONE 2026-07-20. inquire v0.9.1, MIT, ~8.2M all-time downloads (the de-facto standard
+Rust prompt lib), actively maintained. Prompts from docs.rs: Text, Editor, DateSelect, Select,
+MultiSelect, CustomType, Password. Not judged from the tagline. -->
       not from its tagline. (Done 2026-07-20: v0.9.1, MIT, ~8.2M downloads, active; prompt list
       from docs.rs.)
-- [ ] inquire categorized against fsh's 168 need (persistent line-editor loop) vs what inquire
+- [x] inquire categorized against fsh's 168 need (persistent line-editor loop) vs what inquire
+      <!-- DONE 2026-07-20. VERDICT: inquire is a PROMPT LIBRARY (one-shot ask-and-return), not a
+persistent line editor. No keystroke loop, no shell history, no always-on REPL input. Same category
+as promkit. crates.io separates shell-builders (shellfish, shrust) from prompt libs (inquire,
+promkit) -- the ecosystem draws the same line. inquire is NOT the reedline alternative. -->
       provides (one-shot prompts). Verdict recorded with reasoning.
-- [ ] The verdict feeds 168 explicitly: inquire is OUT as the line editor (168 stands on
+- [x] The verdict feeds 168 explicitly: inquire is OUT as the line editor (168 stands on
+      <!-- DONE 2026-07-20. inquire out as the line editor. Of the three floated candidates
+(reedline, promkit, inquire), reedline is the ONLY one that owns a keystroke loop -- so 168 stands
+on reedline, now an earned choice not a guess. inquire filed as the LEADING interactive-selection
+candidate (INT-013 picker, INT-156 keybind tester, launcher, Friday prompts); promkit second. -->
       reedline -- the only one of the three candidates that owns a keystroke loop), noted as the
       LEADING candidate for interactive-selection UI (INT-013 / INT-156 / launcher).
-- [ ] Each gate carries evidence per INT-158.
+- [x] Each gate carries evidence per INT-158.
+      <!-- DONE 2026-07-20. Research + verdict recorded with version/adoption/prompt-list evidence. -->
 
 ## The Rule
 "Two evaluations, same finding: the 'alternatives' solve a different problem. That is not
