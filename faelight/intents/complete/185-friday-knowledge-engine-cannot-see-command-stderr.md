@@ -3,7 +3,7 @@ id: 185
 date: 2026-07-20
 type: fix
 title: "Friday's knowledge engine matches fsh's status string, not command stderr -- signature lessons can never legitimately fire"
-status: in-progress
+status: complete
 tags: [fsh, friday, knowledge, stderr, int-233, int-183]
 ---
 
