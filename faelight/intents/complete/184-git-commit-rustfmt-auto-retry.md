@@ -3,7 +3,7 @@ id: 184
 date: 2026-07-20
 type: improvement
 title: "git commit: rustfmt auto-stages at commit time (kills the reformat-then-fail trap)"
-status: in-progress
+status: complete
 tags: [fsh, git, workflow, rustfmt, tooling]
 ---
 
