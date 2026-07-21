@@ -195,6 +195,7 @@
     pkgs.eza
     pkgs.fd
     pkgs.ripgrep
+    pkgs.sd            # INT-179: sed with sane syntax (find/replace, literal by default)
     pkgs.zoxide
     pkgs.brightnessctl
     pkgs.wireplumber

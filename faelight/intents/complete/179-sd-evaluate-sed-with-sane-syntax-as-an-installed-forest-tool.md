@@ -3,7 +3,7 @@ id: 179
 date: 2026-07-19
 type: future
 title: "sd: evaluate sed-with-sane-syntax as an installed forest tool"
-status: planned
+status: complete
 tags: [sd, tools, cli]
 ---
 
@@ -17,7 +17,22 @@ tags: [sd, tools, cli]
 [High-level approach]
 
 ## Success Criteria
-- [ ] ...
+- [x] Decision made: ADOPT or reject, on Christian's own evaluation.
+      <!-- DONE. Christian evaluated sd directly and decided ADOPT (sed-with-sane-syntax,
+      genuinely helpful). Verdict banked in the DECISION block below. -->
+- [x] sd installed as a system package (not already present -- verified first).
+      <!-- DONE 2026-07-21, deployed gen 408. Verify-first confirmed sd was NOT installed
+      (which sd -> not found pre-dep). Added pkgs.sd to nix/hosts/framework16/configuration.nix
+      (line 198, alongside its siblings bat/eza/fd/ripgrep/zoxide). No alias -- sd is already the
+      terse ergonomic name (Christian's call). -->
+- [x] sd is on PATH and FUNCTIONAL on the deployed system (installed AND works, not just present).
+      <!-- DONE 2026-07-21, deployed gen 408. which sd -> /run/current-system/sw/bin/sd.
+      Proven working by hand: `echo "hello world" | sd hello goodbye` -> "goodbye world" (literal
+      replace); `echo "foo123bar456" | sd '[0-9]+' 'N'` -> "fooNbarN" (regex replace). Installed
+      and functional. -->
+- [x] Each gate carries evidence per INT-158.
+      <!-- DONE. Commit for the package add + this tick; deployed gen 408; by-hand functional proof
+      above. -->
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit
