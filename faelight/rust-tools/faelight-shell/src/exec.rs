@@ -586,3 +586,10 @@ pub fn execute_with_context(
 
     result
 }
+
+#[allow(dead_code)]
+fn int184_fmt_probe() -> i32 {
+    let x = 1;
+    let y = 2;
+    x + y
+}
