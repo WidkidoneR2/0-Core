@@ -411,6 +411,31 @@ fn execute_impl(
             return CommandResult::Output(out);
         }
     }
+    // INT-169: `spine parse <line>` -- debug builtin. Runs a line through the new parser
+    // spine and pretty-prints the AST. Display only, NEVER executes. The visible tool to
+    // eyeball what the spine produces. NOTE: args are already tokenize()'d (quotes stripped),
+    // so `spine parse` sees bare words -- exact for roadmap step 1 (bare commands); when
+    // quotes become meaningful (step 2) this will need the raw line instead of rejoined args.
+    if cmd == "spine" {
+        match args.first().copied() {
+            Some("parse") => {
+                let line_to_parse = args.get(1..).unwrap_or(&[]).join(" ");
+                if line_to_parse.trim().is_empty() {
+                    return CommandResult::Error("usage: spine parse <line>".to_string());
+                }
+                return match crate::spine::parser::parse(&line_to_parse) {
+                    Ok(node) => CommandResult::Output(crate::spine::render::render(&node)),
+                    Err(e) => CommandResult::Error(format!("spine parse error: {e:?}")),
+                };
+            }
+            _ => {
+                return CommandResult::Error(
+                    "usage: spine parse <line>  (more subcommands coming)".to_string(),
+                );
+            }
+        }
+    }
+
     // Alias resolution — check before dispatch
     if let Some(aliased) = db.get_alias(&cmd) {
         // INT-057: don't re-expand an alias already expanded in this chain.
