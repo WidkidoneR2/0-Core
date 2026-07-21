@@ -436,8 +436,26 @@ pub fn expand_subshells(line: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
+    // INT-174: track quote state. Single quotes are LITERAL -- `$(...)` inside them
+    // must NOT be executed (POSIX: single quotes suppress all expansion). Double
+    // quotes still allow command substitution, so only in_single gates expansion.
+    let mut in_single = false;
+    let mut in_double = false;
     while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
+        // Update quote state before deciding whether to expand.
+        if chars[i] == '\'' && !in_double {
+            in_single = !in_single;
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if chars[i] == '"' && !in_single {
+            in_double = !in_double;
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if !in_single && chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
             i += 2;
             let mut depth = 1usize;
             let mut inner = String::new();
