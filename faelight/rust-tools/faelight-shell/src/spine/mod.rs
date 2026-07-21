@@ -21,6 +21,9 @@ pub mod render;
 mod proptests;
 
 #[cfg(test)]
+mod golden;
+
+#[cfg(test)]
 mod tests {
     use super::ast::*;
 
