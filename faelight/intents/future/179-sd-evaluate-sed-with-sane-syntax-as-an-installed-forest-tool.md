@@ -27,3 +27,10 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+
+## DECISION (2026-07-20): ADOPT -- Christian evaluated sd himself
+- Christian has looked at sd directly and decided it earns a place in the forest: sed-with-sane-
+  syntax, genuinely helpful. Verdict is ADOPT.
+- Remaining work is the INSTALL, not the evaluation: add sd to the system packages, alias it if
+  desired, confirm it deploys. Deferred to a fresh session (decision banked here so it is not lost).
