@@ -3,7 +3,7 @@ id: 174
 date: 2026-07-18
 type: fix
 title: "Fix expand_subshells executes inside single quotes"
-status: in-progress
+status: complete
 tags: [fsh, quotes, faelight-shell]
 ---
 
