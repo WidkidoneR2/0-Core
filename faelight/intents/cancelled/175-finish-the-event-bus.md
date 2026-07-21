@@ -3,7 +3,7 @@ id: 175
 date: 2026-07-18
 type: future
 title: "Finish the event bus."
-status: planned
+status: cancelled
 tags: [bus, fsh, faelight-shell]
 ---
 
@@ -27,3 +27,6 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Gate Check
+🚫 175 -- cancelled: faelight-daemon (the event bus this refers to) is Arch-era prototype code, untouched since the NixOS migration -- it was the prototype for friday-daemon (INT-039). 'Finish the event bus' had a false premise: there is no NixOS event bus to finish, only a dead Arch relic. Overtaken by the migration (cf INT-159 precedent). If a live event bus is wanted on NixOS later, it belongs with friday-daemon (039), built native -- with faelight-daemon as salvage/reference, not the thing to finish. Deferred to that decision. -- approved by: christian 2026-07-20
