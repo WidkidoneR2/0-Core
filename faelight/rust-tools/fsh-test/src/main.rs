@@ -705,6 +705,28 @@ fn all_tests() -> Vec<TestResult> {
         }
     }));
     results.push(test(
+        "repl_174_single_quote_no_subshell",
+        Category::Repl,
+        || {
+            // INT-174: single quotes suppress $() ; double quotes still expand it.
+            // Both directions in one test -- fails if single-quoted expands OR if
+            // double-quoted stops expanding. Uses `echo INNER174` for determinism.
+            let lit = repl::run_repl("echo '$(echo INNER174)'")?.join("\n");
+            let exp = repl::run_repl("echo \"$(echo INNER174)\"")?.join("\n");
+            if !lit.contains("$(echo INNER174)") {
+                return Err(format!(
+                    "single-quoted $() expanded (should be literal): {lit:?}"
+                ));
+            }
+            if !exp.contains("INNER174") || exp.contains("$(echo") {
+                return Err(format!(
+                    "double-quoted $() did not expand (regression): {exp:?}"
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
         "repl_173_alias_expands_at_prompt",
         Category::Repl,
         || {
