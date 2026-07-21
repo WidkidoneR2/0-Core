@@ -3,7 +3,7 @@ id: 183
 date: 2026-07-20
 type: fix
 title: "Friday fires false high-confidence hints at unrelated input (99% on irrelevant matches)"
-status: in-progress
+status: complete
 tags: [fsh, friday, confidence, noise]
 ---
 
