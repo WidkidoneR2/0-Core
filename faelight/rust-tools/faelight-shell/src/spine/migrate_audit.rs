@@ -157,16 +157,6 @@ impl MigrationAudit {
 }
 
 impl MigrationReport {
-    /// The migration criterion: safe to flip when every command is Equivalent or an approved
-    /// SafeImprovement -- i.e. no feature gaps and no unexpected differences. (Unlowerable spine
-    /// plans also block: they are commands the spine can't even attempt.)
-    pub fn flip_ready(&self) -> bool {
-        self.feature_gap == 0
-            && self.unexpected == 0
-            && self.spine_unlowerable == 0
-            && self.spine_parse_error == 0
-    }
-
     pub fn render(&self) -> String {
         let mut out = String::new();
         out.push_str("Migration Audit (spine vs legacy)\n\n");
@@ -243,19 +233,63 @@ impl MigrationReport {
             &self.spine_parse_error_examples,
         );
 
-        out.push_str(if self.flip_ready() {
-            "Flip readiness: READY -- every command equivalent or an approved improvement.\n"
-        } else {
-            "Flip readiness: NOT READY -- resolve feature gaps and unexpected differences.\n"
-        });
+        // A single boolean throws away the context this audit exists to produce. Report the
+        // evidence and a recommendation; leave the decision to informed judgement.
+        out.push_str("Migration assessment\n\n");
+        out.push_str(&format!(
+            "Language feature gaps:   {}\n",
+            if self.feature_gap == 0 {
+                "none".to_string()
+            } else {
+                self.feature_gap.to_string()
+            }
+        ));
+        out.push_str(&format!("Unexpected differences:  {}\n", self.unexpected));
+        if self.spine_parse_error > 0 {
+            out.push_str(&format!(
+                "Rows the spine could not parse: {} (outside the comparison domain -- not a\n  language gap; legacy accepted them)\n",
+                self.spine_parse_error
+            ));
+        }
+        out.push('\n');
+        out.push_str(&format!(
+            "Recommendation: {}\n",
+            if flip_ready(self) {
+                "no observed blocker -- every applicable command is equivalent or an approved improvement"
+            } else {
+                "manual review of the differences above before enabling spine execution"
+            }
+        ));
         out
     }
 }
 
+/// POLICY (prescriptive), separate from the descriptive MigrationReport -- the same split as
+/// KnownDifference vs migration_status, applied one level up. The report records what was
+/// observed; this decides what it means for the flip, and only this changes as the migration
+/// progresses.
+///
+/// Criteria: no language feature gaps, and no unexpected differences among APPLICABLE commands.
+/// Deliberately NOT gated on spine_parse_error: those are arbitrary history rows (fragments of
+/// pasted blocks), and a row that was never a shell line is not evidence about the shell
+/// language. The audit's question is "can the spine replace execution for the commands this
+/// shell actually executes?", not "is every history row understood?".
+pub fn flip_ready(report: &MigrationReport) -> bool {
+    report.feature_gap == 0 && report.unexpected == 0 && report.spine_unlowerable == 0
+}
+
 fn push_example(bucket: &mut Vec<String>, cmd: &str) {
     const MAX: usize = 10;
+    const MAX_LEN: usize = 100;
     if bucket.len() < MAX {
-        bucket.push(cmd.to_string());
+        // Truncate on a char boundary -- an example is for direction, and some history rows are
+        // entire flattened scripts that make the report unreadable.
+        let shown: String = cmd.chars().take(MAX_LEN).collect();
+        if shown.len() < cmd.len() {
+            bucket.push(format!("{shown}..."));
+        } else {
+            bucket.push(shown);
+        }
     }
 }
 
@@ -304,7 +338,7 @@ mod tests {
         assert_eq!(r.safe_improvement, 1);
         assert_eq!(r.feature_gap, 1);
         assert_eq!(r.unexpected, 0);
-        assert!(!r.flip_ready(), "a feature gap blocks readiness");
+        assert!(!flip_ready(&r), "a feature gap blocks readiness");
     }
 
     #[test]
@@ -316,6 +350,6 @@ mod tests {
             spine: Ok(plan(&["pwd"])),
         });
         let r = audit.finish();
-        assert!(r.flip_ready());
+        assert!(flip_ready(&r));
     }
 }

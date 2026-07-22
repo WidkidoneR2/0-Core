@@ -14,7 +14,7 @@
 //! two argv vectors alone you CANNOT justify "this difference is quoting" -- it could be
 //! escaping, a tokenizer bug, whitespace. So the comparator takes the SOURCE LINE as evidence
 //! and only classifies a difference the source DIRECTLY supports (source has a quote char +
-//! argv differs -> QuoteHandling). It never reparses; it uses the source the way a human
+//! argv differs -> QuotedWordParsing). It never reparses; it uses the source the way a human
 //! debugger would -- as metadata to explain an observed divergence. No heuristic beyond what
 //! the source directly supports; anything unexplained is honestly Unexpected.
 //!
@@ -39,10 +39,18 @@ pub enum KnownDifference {
     /// var names are case-sensitive on Unix -- so legacy silently CORRUPTS the variable name.
     /// Evidence: case-only argv difference where argv[0] contains '='. (A real bug the spine fixes.)
     EnvironmentAssignmentCase,
-    /// Legacy's tokenizer strips quotes and joins quoted spans; the spine (pre-step-2) treats
-    /// quotes as literal characters. Evidence: argv differs AND the source contains a quote
-    /// character. (A capability gap -- the spine is not yet correct here.)
-    QuoteHandling,
+    /// QUOTED-WORD BOUNDARY PARSING specifically: single quotes, double quotes, adjacent
+    /// quoted/unquoted segments, empty quoted strings. Implemented at roadmap step 2, so a
+    /// remaining divergence here means LEGACY is the one getting it wrong (it drops empty
+    /// quoted args entirely, and splits `VAR="a b"` on the raw space before tokenizing).
+    ///
+    /// Deliberately NARROWER than "quote handling", which is a family: escapes inside double
+    /// quotes, escaped quotes, escaped backslashes, and line continuations are NOT implemented.
+    /// Naming the fact after the implemented subset is what makes promoting it to
+    /// SafeImprovement defensible. Evidence: argv differs, the source contains a quote
+    /// character, and NO backslash (a backslash means escaping may be involved, which the
+    /// spine does not model -- those fall through to Unexpected until there is a precise rule).
+    QuotedWordParsing,
 }
 
 /// Which executor-observable field diverged (for an Unexpected difference).
@@ -149,8 +157,10 @@ pub fn compare_execution_semantics(
     // Otherwise the argv differs in shape. Use the SOURCE as evidence: if it contains a quote
     // character, this matches our known quote-handling capability gap. This is classification
     // from directly-supported evidence, NOT reparsing.
-    if source.contains('"') || source.contains('\'') {
-        return ComparisonResult::Known(KnownDifference::QuoteHandling);
+    let has_quote = source.contains('"') || source.contains('\'');
+    let has_backslash = source.contains('\\');
+    if has_quote && !has_backslash {
+        return ComparisonResult::Known(KnownDifference::QuotedWordParsing);
     }
 
     // No evidence-backed explanation -> honestly Unexpected.
@@ -186,7 +196,12 @@ pub fn migration_status(result: &ComparisonResult) -> MigrationStatus {
         ComparisonResult::Known(KnownDifference::EnvironmentAssignmentCase) => {
             MigrationStatus::SafeImprovement
         }
-        ComparisonResult::Known(KnownDifference::QuoteHandling) => MigrationStatus::FeatureGap,
+        // Step 2 implemented quoted-word parsing, so a divergence in THIS narrow fact now
+        // means legacy is wrong, not that the spine is behind. The FACT never changed meaning
+        // -- only the policy moved, which is exactly what the fact/policy split is for.
+        ComparisonResult::Known(KnownDifference::QuotedWordParsing) => {
+            MigrationStatus::SafeImprovement
+        }
         ComparisonResult::Unexpected(_) => MigrationStatus::Unexpected,
     }
 }
@@ -247,12 +262,12 @@ mod tests {
     }
 
     #[test]
-    fn quoted_divergence_with_quote_in_source_is_quote_handling() {
+    fn quoted_divergence_without_backslash_is_quoted_word_parsing() {
         let legacy = plan(&["git", "commit", "-m", "message here"]);
         let spine = plan(&["git", "commit", "-m", "\"message", "here\""]);
         assert_eq!(
             compare_execution_semantics("git commit -m \"message here\"", &legacy, &spine),
-            ComparisonResult::Known(KnownDifference::QuoteHandling)
+            ComparisonResult::Known(KnownDifference::QuotedWordParsing)
         );
     }
 
@@ -266,6 +281,20 @@ mod tests {
             compare_execution_semantics("SHELL=/bin/zsh /usr/bin/niri-session", &legacy, &spine),
             ComparisonResult::Known(KnownDifference::EnvironmentAssignmentCase)
         );
+    }
+
+    #[test]
+    fn quote_plus_backslash_is_unexpected_not_classified() {
+        // The evidence rule excludes backslash: escaping is NOT implemented, and a backslash
+        // means the divergence may involve it. Without a precise rule we must not claim
+        // QuotedWordParsing (which now asserts the spine is CORRECT). Honest fallback:
+        // Unexpected, so the data can name the next fact.
+        let legacy = plan(&["echo", "a\\\"b"]);
+        let spine = plan(&["echo", "a\\", "b"]);
+        match compare_execution_semantics("echo \"a\\\"b\"", &legacy, &spine) {
+            ComparisonResult::Unexpected(d) => assert_eq!(d.field, DifferenceField::Argv),
+            other => panic!("backslash must not be classified as quoting: {other:?}"),
+        }
     }
 
     #[test]
@@ -292,8 +321,8 @@ mod tests {
             MigrationStatus::SafeImprovement
         );
         assert_eq!(
-            migration_status(&ComparisonResult::Known(KnownDifference::QuoteHandling)),
-            MigrationStatus::FeatureGap
+            migration_status(&ComparisonResult::Known(KnownDifference::QuotedWordParsing)),
+            MigrationStatus::SafeImprovement
         );
     }
 }
