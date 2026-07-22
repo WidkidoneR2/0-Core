@@ -563,7 +563,13 @@ fn execute_impl(
                     let ctx = crate::exec::ExecContext::from_line(source, db);
                     let legacy = crate::spine::migrate::plan_from_legacy(&ctx);
                     let spine = match crate::spine::parser::parse(source) {
-                        Ok(node) => crate::spine::plan::lower(&node),
+                        // No environment: `spine migrate` compares PARSERS on the same input.
+                        // Expanding here would make every variable-using command diverge from the
+                        // legacy plan as an artifact of the audit's own fidelity gap.
+                        Ok(node) => crate::spine::plan::lower(
+                            &node,
+                            &crate::spine::plan::LowerContext::default(),
+                        ),
                         Err(_) => {
                             // Counted, not silently dropped: legacy accepted this line.
                             audit.spine_parse_error(source);
@@ -606,7 +612,13 @@ fn execute_impl(
                         return CommandResult::Error(format!("spine exec: parse error: {e:?}"))
                     }
                 };
-                let plan = match crate::spine::plan::lower(&node) {
+                // No resolver yet: fsh's session vars live in main.rs's REPL loop and are not
+                // reachable from here, so `$NAME` renders in source form. Wiring a real
+                // VarResolver is the next step and is what actually starts expanding.
+                let plan = match crate::spine::plan::lower(
+                    &node,
+                    &crate::spine::plan::LowerContext::default(),
+                ) {
                     Ok(p) => p,
                     Err(e) => {
                         // A capability boundary, not a fault: the parser is allowed to run

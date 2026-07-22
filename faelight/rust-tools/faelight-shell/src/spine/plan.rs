@@ -75,11 +75,45 @@ pub enum LowerError {
     InvalidPlan { message: String, span: Span },
 }
 
+/// What the expansion phase needs from the world, and NOTHING else.
+///
+/// ★ plan.rs stays PURE: it knows the CAPABILITY it needs, not where the values live. It never
+/// sees a HashMap, a ForestDb, or the REPL loop. The caller implements this over whatever it
+/// has -- fsh's session `shell_vars` plus `std::env` plus the loop's exit code. Shell variables
+/// are process/session state, NOT persistent forest knowledge, which is exactly why they must
+/// not be pushed into ForestDb to solve reachability.
+///
+/// Semantics must MATCH legacy expand_vars exactly (main.rs): session vars first, then process
+/// env, and an UNSET variable expands to the EMPTY STRING (`unwrap_or_default`), which is not
+/// the same as "no environment available" -- see LowerContext.
+pub trait VarResolver {
+    /// `None` means UNSET -- the caller renders that as an empty string, per shell semantics.
+    fn resolve(&self, name: &str) -> Option<String>;
+    /// For `$?`. Recognition of `$?` is not implemented yet; this is here so the contract is
+    /// complete when the scanner learns it.
+    fn last_exit(&self) -> Option<i32>;
+    /// For `$$`. Same note as last_exit.
+    fn pid(&self) -> u32;
+}
+
+/// What `lower` is allowed to consult. Explicit rather than ambient.
+#[derive(Default, Clone, Copy)]
+pub struct LowerContext<'a> {
+    /// `None` = NO ENVIRONMENT AVAILABLE, so variables render in SOURCE FORM (`$NAME`).
+    ///
+    /// ⚠️ This is NOT the same as "unset". An unset variable expands to an empty string; an
+    /// absent environment means expansion cannot be performed at all. `spine migrate` replays
+    /// historical commands with no shell state, and its comparison is explicitly PARSER
+    /// equivalence -- expanding there would make every variable-using command diverge from the
+    /// legacy plan purely as an artifact of the audit's own fidelity gap.
+    pub vars: Option<&'a dyn VarResolver>,
+}
+
 /// Expand one word to its final OsString. TODAY: a word is all-Literal, so this concatenates
 /// the literal parts. This is the EXPANSION seam -- when WordPart::Variable lands (step 3),
 /// `$HOME` resolves HERE, and the lowering boundary above does not change. The match is
 /// exhaustive so the compiler flags this function the moment a new WordPart variant exists.
-fn expand_word(word: &Word) -> OsString {
+fn expand_word(word: &Word, ctx: &LowerContext) -> OsString {
     let mut out = String::new();
     for part in &word.parts {
         match part {
@@ -89,10 +123,17 @@ fn expand_word(word: &Word) -> OsString {
             // the migration audit stable while the AST becomes structurally richer. The
             // variable-expansion milestone replaces this with real resolution -- and THAT is
             // when the audit is expected to move.
-            WordPart::Variable(name) => {
-                out.push('$');
-                out.push_str(name);
-            }
+            WordPart::Variable(name) => match ctx.vars {
+                // Resolve, matching legacy expand_vars: session vars then process env, and an
+                // UNSET name expands to the empty string.
+                Some(r) => out.push_str(&r.resolve(name).unwrap_or_default()),
+                // No environment: render the SOURCE FORM back out, so argv is byte-identical to
+                // the pre-expansion behaviour and the migration audit stays comparable.
+                None => {
+                    out.push('$');
+                    out.push_str(name);
+                }
+            },
         }
     }
     OsString::from(out)
@@ -103,10 +144,14 @@ fn expand_word(word: &Word) -> OsString {
 ///
 /// Command -> Ok(plan). Future constructs (Pipeline, Sequence) -> Err(UnsupportedConstruct)
 /// until the ExecutionGraph / IO model exists -- honest, not a panic and not a fake plan.
-pub fn lower(ast: &Spanned<AstNode>) -> Result<ExecutionPlan, LowerError> {
+pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
         AstNode::Command(cmd) => {
-            let argv: Vec<OsString> = cmd.words.iter().map(|w| expand_word(&w.node)).collect();
+            let argv: Vec<OsString> = cmd
+                .words
+                .iter()
+                .map(|w| expand_word(&w.node, ctx))
+                .collect();
             Ok(ExecutionPlan {
                 argv,
                 cwd: None,
@@ -151,7 +196,7 @@ mod tests {
     #[test]
     fn bare_command_lowers_to_argv() {
         let node = parse("git add -A").expect("parses");
-        let plan = lower(&node).expect("lowers");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
             vec![
@@ -168,7 +213,7 @@ mod tests {
     #[test]
     fn single_word_lowers() {
         let node = parse("pwd").expect("parses");
-        let plan = lower(&node).expect("lowers");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(plan.argv, vec![OsString::from("pwd")]);
     }
 
@@ -176,17 +221,102 @@ mod tests {
     fn case_preserved_through_lowering() {
         // The rides-with fix survives all the way to argv: GitHub stays GitHub.
         let node = parse("GitHub Clone").expect("parses");
-        let plan = lower(&node).expect("lowers");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
             vec![OsString::from("GitHub"), OsString::from("Clone")]
         );
     }
 
+    /// A resolver over a fixed map, matching legacy expand_vars semantics: a miss is UNSET.
+    struct FakeVars(std::collections::HashMap<&'static str, &'static str>);
+    impl VarResolver for FakeVars {
+        fn resolve(&self, name: &str) -> Option<String> {
+            self.0.get(name).map(|s| s.to_string())
+        }
+        fn last_exit(&self) -> Option<i32> {
+            Some(0)
+        }
+        fn pid(&self) -> u32 {
+            1234
+        }
+    }
+
+    #[test]
+    fn no_environment_renders_variables_in_source_form() {
+        // The audit's situation. argv must be byte-identical to the pre-resolver behaviour.
+        let node = parse("echo $HOME").expect("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("$HOME")]
+        );
+    }
+
+    #[test]
+    fn resolver_expands_and_unset_becomes_empty() {
+        let mut m = std::collections::HashMap::new();
+        m.insert("MY_VAR", "hello");
+        let vars = FakeVars(m);
+        let ctx = LowerContext { vars: Some(&vars) };
+
+        let node = parse("echo $MY_VAR").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(plan.argv[1], OsString::from("hello"));
+
+        // Legacy uses unwrap_or_default: an UNSET variable is the empty string, NOT the source
+        // form. That distinction is the whole reason LowerContext.vars is an Option.
+        let node = parse("echo $NOPE").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(plan.argv[1], OsString::from(""));
+    }
+
+    #[test]
+    fn single_quoted_dollar_is_never_expanded() {
+        // The INT-172/174 bug class, made impossible by construction: inside single quotes the
+        // scanner produced a Literal, so there is no Variable part for any resolver to touch.
+        let mut m = std::collections::HashMap::new();
+        m.insert("MY_VAR", "hello");
+        let vars = FakeVars(m);
+        let ctx = LowerContext { vars: Some(&vars) };
+
+        let node = parse("echo '$MY_VAR'").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.argv[1],
+            OsString::from("$MY_VAR"),
+            "single quotes suppress expansion"
+        );
+
+        // Double quotes DO expand, matching POSIX and legacy's INT-245 behaviour.
+        let node = parse("echo \"$MY_VAR\"").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.argv[1],
+            OsString::from("hello"),
+            "double quotes expand"
+        );
+    }
+
+    #[test]
+    fn mixed_word_concatenates_literal_and_variable() {
+        let mut m = std::collections::HashMap::new();
+        m.insert("BAR", "xyz");
+        let vars = FakeVars(m);
+        let ctx = LowerContext { vars: Some(&vars) };
+        let node = parse("echo foo$BAR/baz").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.argv[1],
+            OsString::from("fooxyz/baz"),
+            "one word, three parts"
+        );
+    }
+
     #[test]
     fn argv_as_utf8_round_trips_and_reports_bad_bytes() {
         let node = parse("git add -A").expect("parses");
-        let plan = lower(&node).expect("lowers");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(plan.argv_as_utf8().unwrap(), vec!["git", "add", "-A"]);
 
         // A non-UTF-8 argument can still be SPAWNED, but must not reach a builtin silently.
@@ -208,6 +338,9 @@ mod tests {
     fn expand_word_concatenates_literals() {
         // A word is the smallest unit expansion produces; today all-literal -> its bytes.
         let w = Word::literal("/tmp/testscript.sh");
-        assert_eq!(expand_word(&w), OsString::from("/tmp/testscript.sh"));
+        assert_eq!(
+            expand_word(&w, &LowerContext::default()),
+            OsString::from("/tmp/testscript.sh")
+        );
     }
 }

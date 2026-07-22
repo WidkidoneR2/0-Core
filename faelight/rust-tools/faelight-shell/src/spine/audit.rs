@@ -163,7 +163,9 @@ fn audit_one(raw: &str) -> Outcome {
         Ok(n) => n,
         Err(_) => return Outcome::ParseFailure,
     };
-    match lower(&node) {
+    // No environment, deliberately: `spine audit` measures parse+lower CAPABILITY over the
+    // history corpus, not runtime values. Variables render in source form.
+    match lower(&node, &super::plan::LowerContext::default()) {
         Err(LowerError::UnsupportedConstruct { kind, .. }) => {
             Outcome::Unsupported(kind.to_string())
         }
