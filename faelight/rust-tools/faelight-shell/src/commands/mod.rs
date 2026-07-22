@@ -7924,7 +7924,82 @@ fn explain_exit_code(code: i32) -> &'static str {
     }
 }
 
-fn record_failure(db: &ForestDb, cmd: &str, exit_code: i32) {
+/// Spawn a configured command with INT-185's stderr tee, record `last_stderr`, and wait.
+///
+/// ★ THE BOUNDARY IS A CONFIGURED `Command`, NOT TEXT. A text-taking helper would quietly
+/// rebuild the string-reinspection architecture the spine exists to replace -- the caller must
+/// have already decided what to run. Two callers, two honest constructions:
+///   run_external  -- `sh -c <line>`: DELEGATE what fsh has not modelled (pipes, &&, redirects).
+///   execute_plan  -- `argv[0]` + args: EXECUTE what the AST has modelled. No sh, no re-parse.
+///
+/// stdin/stdout stay inherited (normal output and interactive programs unaffected); only stderr
+/// is piped and TEE'd -- written to the real terminal live AND captured, so the knowledge engine
+/// (postexec, INT-233) reads the REAL error text instead of fsh's "exited N" status string.
+/// Reading in a thread concurrently with wait() avoids a pipe-fill deadlock on large stderr.
+/// `last_stderr` is ALWAYS overwritten (empty on success) so it can never be stale.
+///
+/// Returns the raw wait() result. Classification is the CALLER's job, because the two paths
+/// detect the same situation differently: `sh` reports a missing command as exit 127, while a
+/// direct spawn fails with io::ErrorKind::NotFound before any process exists.
+fn spawn_with_tee(
+    mut cmd: std::process::Command,
+    db: &ForestDb,
+) -> std::io::Result<std::process::ExitStatus> {
+    cmd.stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = db.conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', '')",
+                [],
+            );
+            return Err(e);
+        }
+    };
+
+    let child_stderr = child.stderr.take();
+    let tee = std::thread::spawn(move || {
+        use std::io::{Read, Write};
+        let mut captured: Vec<u8> = Vec::new();
+        if let Some(mut es) = child_stderr {
+            let mut buf = [0u8; 4096];
+            let mut real = std::io::stderr();
+            loop {
+                match es.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        let _ = real.write_all(&buf[..n]);
+                        let _ = real.flush();
+                        captured.extend_from_slice(&buf[..n]);
+                    }
+                }
+            }
+        }
+        captured
+    });
+
+    let status = child.wait();
+    let captured_stderr = tee.join().unwrap_or_default();
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', ?1)",
+        rusqlite::params![String::from_utf8_lossy(&captured_stderr).to_string()],
+    );
+    status
+}
+
+/// Record a failed command for the failure-frequency counters Friday reads.
+///
+/// ⚠️ Takes the COMMAND WORD, not the line. It used to take the line and extract the word
+/// itself with `cmd.split_whitespace().next()` -- a fifth tokenizer, and a quote-blind one:
+/// `"my command" foo` was filed under `"my`, so a quoted command never accumulated toward its
+/// own count. INT-171 consolidated dispatch to one entry point and its own note warned that a
+/// future `split_whitespace().next()` on a user command is a bug; this one survived the sweep
+/// because it LABELS rather than dispatches. Callers now pass `command_word(line)` (sh path) or
+/// `argv[0]` (spine path) -- no reconstruction, and no re-parsing inside telemetry.
+fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -7932,7 +8007,7 @@ fn record_failure(db: &ForestDb, cmd: &str, exit_code: i32) {
     let cwd = std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_default();
-    let first = cmd.split_whitespace().next().unwrap_or(cmd);
+    let first = cmd_word;
     let _ = db.conn.execute(
         "INSERT INTO command_failures (command, exit_code, cwd, timestamp) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![first, exit_code, cwd, ts],
@@ -8042,57 +8117,12 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         }
         return CommandResult::Error(msg);
     }
-    // INT-185: capture the child's stderr so the knowledge engine (postexec) can read the
-    // REAL error, not fsh's "exited N" status string. stdin/stdout stay inherited (normal
-    // output + interactive programs unaffected); only stderr is piped and TEE'd back live.
-    let mut child = match std::process::Command::new("sh")
-        .arg("-c")
-        .arg(line)
-        .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            let _ = db.conn.execute(
-                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', '')",
-                [],
-            );
-            return CommandResult::Error(format!("  failed to execute: {}", e));
-        }
-    };
-    // Threaded tee: read child stderr in a thread, writing each chunk to the real terminal
-    // LIVE (so the user still sees errors as they happen) AND into a capture buffer. Reading
-    // concurrently with wait() avoids a pipe-fill deadlock on large stderr.
-    let child_stderr = child.stderr.take();
-    let tee = std::thread::spawn(move || {
-        use std::io::{Read, Write};
-        let mut captured: Vec<u8> = Vec::new();
-        if let Some(mut es) = child_stderr {
-            let mut buf = [0u8; 4096];
-            let mut real = std::io::stderr();
-            loop {
-                match es.read(&mut buf) {
-                    Ok(0) | Err(_) => break,
-                    Ok(n) => {
-                        let _ = real.write_all(&buf[..n]);
-                        let _ = real.flush();
-                        captured.extend_from_slice(&buf[..n]);
-                    }
-                }
-            }
-        }
-        captured
-    });
-    let status = child.wait();
-    let captured_stderr = tee.join().unwrap_or_default();
-    // Always overwrite last_stderr (empty on success) so it is never STALE for an external
-    // command. postexec reads this as the real error_msg for the INT-233 knowledge lookup.
-    let _ = db.conn.execute(
-        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', ?1)",
-        rusqlite::params![String::from_utf8_lossy(&captured_stderr).to_string()],
-    );
+    // INT-185's stderr tee now lives in spawn_with_tee, shared with the spine's plan
+    // executor. This path delegates the UNMODELLED line to sh; the spine path spawns argv
+    // directly. Different responsibilities, one telemetry implementation.
+    let mut cmd = std::process::Command::new("sh");
+    cmd.arg("-c").arg(line);
+    let status = spawn_with_tee(cmd, db);
     match status {
         Ok(s) => {
             if s.success() {
@@ -8175,11 +8205,11 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                                 a.bright_cyan()
                             ));
                         }
-                        record_failure(db, line, code);
+                        record_failure(db, &command_word(line), code);
                         return CommandResult::Error(msg);
                     }
                 }
-                record_failure(db, line, code);
+                record_failure(db, &command_word(line), code);
                 CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
             }
         }
