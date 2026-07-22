@@ -645,14 +645,8 @@ fn execute_impl(
                 // TODO: allow_external is a bare bool at four call sites and will read as
                 // meaningless as this grows. An ExecutionMode { TextShell, SpinePlan } enum
                 // would make each site self-documenting. Naming cleanup, not a semantic change.
-                let argv = match plan.argv_as_utf8() {
-                    Ok(v) => v,
-                    Err(e) => return CommandResult::Error(format!("spine exec: {e}")),
-                };
-                return match execute_impl(&argv, &raw, db, core_root, &[], ExecutionMode::Spine) {
-                    CommandResult::NotBuiltin => execute_plan(&plan, db),
-                    result => result,
-                };
+                // One implementation, shared with exec::execute_spine.
+                return execute_plan_dispatch(&plan, &raw, db, core_root);
             }
             _ => {
                 return CommandResult::Error(
@@ -8209,6 +8203,47 @@ fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
 /// operator handling. If those are missing the failure belongs upstream, where it can be seen.
 ///
 /// Not wired into the live path. Reached only via `spine exec`, an opt-in builtin.
+/// INT-169: run a plan -- builtins first, then a direct spawn. The single implementation both
+/// the `spine exec` debug builtin and `exec::execute_spine` call, so there is one answer to
+/// "what does running a plan mean" rather than two that can drift.
+///
+/// `ExecutionMode::Spine` is load-bearing twice over: it suppresses every `run_external` call
+/// (so an unrecognised command answers `NotBuiltin` instead of being handed to `sh -c`), and it
+/// suppresses text-world transforms (history, alias, plugin expansion) so argv stays
+/// authoritative. Because nothing can rewrite argv beneath us, falling back to `execute_plan`
+/// with the SAME plan is correct by construction rather than by a smarter fallback.
+///
+/// `source` is provenance only -- carried for the handful of builtins that need the original
+/// text. It is never re-parsed here.
+pub fn execute_plan_dispatch(
+    plan: &crate::spine::plan::ExecutionPlan,
+    source: &str,
+    db: &ForestDb,
+    core_root: &str,
+) -> CommandResult {
+    let argv = match plan.argv_as_utf8() {
+        Ok(v) => v,
+        Err(e) => return CommandResult::Error(format!("  {e}")),
+    };
+    match execute_impl(&argv, source, db, core_root, &[], ExecutionMode::Spine) {
+        CommandResult::NotBuiltin => {
+            // Honest diagnostic rather than a bare "command not found": if argv[0] is a known
+            // alias, the command DOES exist -- the spine path simply does not expand aliases yet
+            // (a text-world transform). Reporting that as not-found would hide a capability gap
+            // behind a lie.
+            if let Some(target) = argv.first().and_then(|a| db.get_alias(a)) {
+                return CommandResult::Error(format!(
+                    "  {} is an alias ({}) -- the spine path does not expand aliases yet",
+                    argv.first().map(String::as_str).unwrap_or(""),
+                    target
+                ));
+            }
+            execute_plan(plan, db)
+        }
+        result => result,
+    }
+}
+
 fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
     use crate::spine::plan::{Environment, IoPlan};
 

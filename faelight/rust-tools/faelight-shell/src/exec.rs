@@ -41,6 +41,54 @@ pub struct ExecContext {
 
 impl ExecContext {
     /// Build an ExecContext from a raw input line
+    /// Build a context from a PLAN plus the source line that produced it (INT-169).
+    ///
+    /// ★ THE INVARIANT MADE EXPLICIT:  old: text -> context.  new: plan + source -> context.
+    /// Structurally identical to `from_line` so preexec/postexec cannot tell which path built
+    /// it -- except in the two places where they SHOULD differ:
+    ///
+    ///   `cmd`  -- argv[0] NOT lowercased. from_line lowercases because its `cmd` doubles as a
+    ///             dispatch LOOKUP key; here `cmd` is the EXECUTION IDENTITY. Those were
+    ///             accidentally coupled. Consequence to expect, not a regression: postexec sites
+    ///             that compare `ctx.cmd` directly against "fg" / "d" / "deploy" will not match a
+    ///             capitalised invocation on this path. Where that breaks is exactly where the
+    ///             old lookup identity and execution identity were conflated.
+    ///   `cwd`   -- honours `plan.cwd` when the plan specifies one; otherwise the current dir,
+    ///             same as from_line.
+    ///
+    /// `raw` stays the SOURCE line on both paths: it is provenance -- history entries, the
+    /// `LIKE '{raw}%'` frequency lookups, event payloads, and before-run rule matching. It is a
+    /// human-readable label, never re-parsed.
+    pub fn from_plan(
+        plan: &crate::spine::plan::ExecutionPlan,
+        source: &str,
+        db: &ForestDb,
+    ) -> Self {
+        let raw = source.trim().to_string();
+        let cwd = plan
+            .cwd
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let mut argv = plan.argv.iter().map(|a| a.to_string_lossy().to_string());
+        let cmd = argv.next().unwrap_or_default();
+        let args: Vec<String> = argv.collect();
+        let intent = db.get_focus_intent();
+        ExecContext {
+            raw: raw.clone(),
+            expanded: raw,
+            cmd,
+            args,
+            cwd,
+            intent,
+            timestamp,
+            in_pipeline: false,
+        }
+    }
+
     pub fn from_line(line: &str, db: &ForestDb) -> Self {
         let raw = line.trim().to_string();
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -589,6 +637,86 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 /// Main execution pipeline — the single entry point for all command execution
 ///
 /// parse → preexec → dispatch → postexec → result
+/// What the spine needs from the live shell session, supplied by the REPL that owns it.
+///
+/// Session variables and the last exit code are PROCESS state, not persistent forest knowledge,
+/// so they are passed in rather than pushed into ForestDb. `commands/mod.rs` never sees them:
+/// builtins are not the owner of shell session state.
+pub struct ShellContext<'a> {
+    pub shell_vars: &'a std::collections::HashMap<String, String>,
+    pub last_exit_code: Option<i32>,
+}
+
+impl crate::spine::plan::VarResolver for ShellContext<'_> {
+    /// Matches legacy `expand_vars` exactly: session vars first, then process env. `None` here
+    /// means UNSET, which the caller renders as the empty string.
+    fn resolve(&self, name: &str) -> Option<String> {
+        self.shell_vars
+            .get(name)
+            .cloned()
+            .or_else(|| std::env::var(name).ok())
+    }
+    fn last_exit(&self) -> Option<i32> {
+        self.last_exit_code
+    }
+    fn pid(&self) -> u32 {
+        std::process::id()
+    }
+}
+
+/// INT-169: execute an already-decided plan, with the same hooks the text path gets.
+///
+/// ★ THE PLAN ARRIVES DECIDED. This does NOT parse -- the executor must not secretly own
+/// parsing, or the eventual flip would be dishonest about where decisions are made. `source` is
+/// carried alongside purely as provenance (history, telemetry, before-run rule matching).
+///
+/// Mirrors `execute_with_context` deliberately: same preexec (which can BLOCK), same postexec
+/// (INT-185/233 knowledge engine), so the spine path cannot silently lose the safety gate or the
+/// telemetry that the text path has.
+///
+/// ⚠️ KNOWN, not blocking: preexec matches before-run rules against RAW TEXT, not against the
+/// plan. That keeps working here because `source` is the same line, but it means the safety layer
+/// is text-matching rather than plan-inspecting. Making policy plan-aware is a later hardening
+/// step and deliberately not forced into this migration.
+pub fn execute_spine(
+    plan: &crate::spine::plan::ExecutionPlan,
+    source: &str,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> CommandResult {
+    let ctx = ExecContext::from_plan(plan, source, db);
+    if let Some(block_reason) = preexec(&ctx, db, core_root, rules) {
+        return CommandResult::Error(block_reason);
+    }
+    let result = commands::execute_plan_dispatch(plan, source, db, core_root);
+    postexec(&ctx, &result, db);
+    result
+}
+
+/// Debug/test convenience: parse and lower a line, then execute the resulting plan.
+///
+/// Kept SEPARATE from `execute_spine` so the real seam stays visible -- the flip will supply a
+/// plan, not a string. Only this wrapper knows how a plan comes into existence.
+pub fn execute_spine_source(
+    source: &str,
+    shell: &ShellContext,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> CommandResult {
+    let node = match crate::spine::parser::parse(source) {
+        Ok(n) => n,
+        Err(e) => return CommandResult::Error(format!("spine: parse error: {e:?}")),
+    };
+    let ctx = crate::spine::plan::LowerContext { vars: Some(shell) };
+    let plan = match crate::spine::plan::lower(&node, &ctx) {
+        Ok(p) => p,
+        Err(e) => return CommandResult::Error(format!("spine: cannot lower yet: {e:?}")),
+    };
+    execute_spine(&plan, source, db, core_root, rules)
+}
+
 pub fn execute_with_context(
     line: &str,
     db: &ForestDb,

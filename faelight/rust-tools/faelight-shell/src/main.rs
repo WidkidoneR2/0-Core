@@ -2190,6 +2190,62 @@ fn repl_main() -> Result<()> {
                         }
                         continue;
                     }
+                    // INT-169 DEBUG ENTRY: run one line through the SPINE path end to end --
+                    // parse, lower with the real session variables, then execute with the SAME
+                    // preexec/postexec hooks the text path gets.
+                    //
+                    // DELIBERATELY OPT-IN. The REPL still routes every normal command through
+                    // the text path. Whether to route user commands through the spine is a
+                    // MIGRATION decision, separate from proving the path works, and the first
+                    // real flip should be a one-line routing change rather than a discovery
+                    // exercise.
+                    //
+                    // PLACED HERE ON PURPOSE: above expand_vars, so the line arrives UNEXPANDED
+                    // and the spine's own resolver actually does the work. Below it, $MY_VAR
+                    // would already be a literal and the test would prove nothing -- the same
+                    // way `spine parse` cannot demonstrate variable recognition.
+                    //
+                    // Hyphenated because `spine exec` (with a space) is caught by the builtin
+                    // dispatch in commands/mod.rs, which has no session state. Two entry points,
+                    // two capabilities: `spine exec` = no vars, no hooks; `spine-exec` = the
+                    // full path. The former becomes redundant once the flip lands.
+                    if let Some(rest) = trimmed.strip_prefix("spine-exec ") {
+                        let source = rest.trim();
+                        if source.is_empty() {
+                            println!("  usage: spine-exec <command>");
+                            continue;
+                        }
+                        let shell = exec::ShellContext {
+                            shell_vars: &shell_vars,
+                            last_exit_code,
+                        };
+                        match exec::execute_spine_source(
+                            source,
+                            &shell,
+                            &db,
+                            &core_root,
+                            &cfg.before_rules,
+                        ) {
+                            commands::CommandResult::Output(out) => println!("{}", out),
+                            commands::CommandResult::Value(v) => println!("{}", v.render()),
+                            commands::CommandResult::Error(e) => {
+                                eprintln!("{} {}", "x".bright_red(), e);
+                                last_exit_code = Some(1);
+                            }
+                            commands::CommandResult::Empty => last_exit_code = Some(0),
+                            // Named rather than a catch-all: a `_` arm would silently swallow
+                            // Exit, so `spine-exec exit` would print instead of leaving the shell.
+                            commands::CommandResult::Exit => break 'repl,
+                            commands::CommandResult::NotBuiltin => {
+                                // Unreachable in practice -- execute_plan_dispatch converts
+                                // NotBuiltin into a direct spawn or an alias diagnostic. Handled
+                                // honestly rather than panicking, since a panic here kills fsh.
+                                eprintln!("  spine-exec: no arm matched and no spawn attempted");
+                                last_exit_code = Some(1);
+                            }
+                        }
+                        continue;
+                    }
                     // Phase 10 — expand $VARS before alias resolution
                     // INT-285 BUG 2 FIX: shell control structures bypass fsh expansion
                     // for/while/until/if/case go to sh with variables unexpanded
