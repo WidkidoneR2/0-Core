@@ -217,7 +217,14 @@ pub fn colorize_line(line: &str) -> String {
 /// Run a command line: builtin if we have one, otherwise hand it to the system.
 /// NEVER returns NotBuiltin -- behaviour is byte-for-byte what it has always been.
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(&tokenize(line.trim()), line, db, core_root, &[], true)
+    execute_impl(
+        &tokenize(line.trim()),
+        line,
+        db,
+        core_root,
+        &[],
+        ExecutionMode::Text,
+    )
 }
 
 /// INT-143: ASK whether this line is an fsh builtin, WITHOUT running it if it is not.
@@ -242,7 +249,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
 /// to spawn a `gt` binary that does not exist, so the file got nothing). This does not make them
 /// worse. It fixes what it can prove and names what it cannot.
 pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(&tokenize(line.trim()), line, db, core_root, &[], false)
+    execute_impl(
+        &tokenize(line.trim()),
+        line,
+        db,
+        core_root,
+        &[],
+        ExecutionMode::Probe,
+    )
 }
 
 /// The single quote-aware tokenizer for the whole shell (INT-171 gate 1).
@@ -339,6 +353,41 @@ mod command_word_tests {
     }
 }
 
+/// Which world is calling execute_impl, and therefore which phases are allowed to run.
+///
+/// ★ REPLACES the bare `allow_external: bool` (INT-169). The bool encoded exactly one
+/// distinction -- what the fallthrough does -- and could not express the one that matters now:
+/// whether TEXT TRANSFORMS may run at all. A plan arrives AFTER parsing and expansion; the
+/// executor consumes decisions, it does not reinterpret them. Letting alias/plugin expansion run
+/// beneath a supplied argv would make execute_impl a second planner and would silently rewrite
+/// the command identity out from under the caller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionMode {
+    /// Interactive text path. History, alias and plugin expansion all run; an unrecognised
+    /// command falls through to `run_external` (which delegates the line to sh).
+    Text,
+    /// INT-143 probe (`try_builtin`): ASK whether this line is a builtin without spawning.
+    /// Text transforms STILL run -- aliases are part of the honest answer to "would this hit a
+    /// builtin?" -- but the fallthrough answers `NotBuiltin` instead of spawning.
+    Probe,
+    /// INT-169 plan-driven path. argv is AUTHORITATIVE: no history expansion, no alias
+    /// expansion, no plugin expansion. The fallthrough answers `NotBuiltin` so the caller can
+    /// spawn the plan directly. Because nothing rewrites argv here, that fallback cannot spawn
+    /// a stale command -- correctness by construction rather than by a smarter fallback.
+    Spine,
+}
+
+impl ExecutionMode {
+    /// May text-world transforms (history, alias, plugin expansion) run?
+    fn allows_text_transforms(self) -> bool {
+        matches!(self, ExecutionMode::Text | ExecutionMode::Probe)
+    }
+    /// May an unrecognised command be handed to `run_external`?
+    fn allows_external(self) -> bool {
+        matches!(self, ExecutionMode::Text)
+    }
+}
+
 /// ⚠️ MIGRATION BOUNDARY (INT-169). This function RECEIVES its execution arguments; it no
 /// longer derives them. Two callers supply argv from different worlds:
 ///   TEXT path  -- tokenize(line) -> argv. History expansion (`!!`), alias expansion and any
@@ -357,8 +406,10 @@ fn execute_impl(
     // INT-143: false = probe. The fallthrough answers NotBuiltin instead of spawning.
     // Threaded through the alias/plugin recursion below, or a probe would quietly become a
     // real run one expansion deep -- the same bug, hidden one level down.
-    allow_external: bool,
+    mode: ExecutionMode,
 ) -> CommandResult {
+    // Kept so the guard sites below read unchanged; the mode is the source of truth.
+    let allow_external = mode.allows_external();
     let trimmed_line = line.trim();
     // INT-171 gate 2: the command word goes through the SAME quote-aware tokenizer
     // as its arguments. Previously `cmd` came from a raw `splitn(2, ' ')` while `args`
@@ -384,7 +435,9 @@ fn execute_impl(
     let args = args_vec.as_slice();
 
     // !! — repeat last command
-    if line.trim() == "!!" {
+    // TEXT-WORLD ONLY: a plan whose argv is ["!!"] is nonsense, and expanding it here would be
+    // the executor re-planning what it was handed.
+    if mode.allows_text_transforms() && line.trim() == "!!" {
         match db.get_last_command() {
             Some(last) => {
                 println!("  {}", last.dimmed());
@@ -584,7 +637,7 @@ fn execute_impl(
                     Ok(v) => v,
                     Err(e) => return CommandResult::Error(format!("spine exec: {e}")),
                 };
-                return match execute_impl(&argv, &raw, db, core_root, &[], false) {
+                return match execute_impl(&argv, &raw, db, core_root, &[], ExecutionMode::Spine) {
                     CommandResult::NotBuiltin => execute_plan(&plan, db),
                     result => result,
                 };
@@ -599,46 +652,20 @@ fn execute_impl(
     }
 
     // Alias resolution — check before dispatch
-    if let Some(aliased) = db.get_alias(&cmd) {
-        // INT-057: don't re-expand an alias already expanded in this chain.
-        // A self-referential alias (df = df -h) would otherwise recurse
-        // forever -> stack overflow -> SIGSEGV.
-        if !expanded_names.contains(&cmd.as_str()) {
-            let expanded = if args.is_empty() {
-                aliased.clone()
-            } else {
-                format!("{} {}", aliased, args.join(" "))
-            };
-            let mut next = expanded_names.to_vec();
-            next.push(cmd.as_str());
-            // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
-            // point the new text appears, which is where text-world work belongs.
-            return execute_impl(
-                &tokenize(expanded.trim()),
-                &expanded,
-                db,
-                core_root,
-                &next,
-                allow_external,
-            );
-        }
-        // already expanded in this chain -> fall through and run as a command
-    }
-
-    // Plugin resolution — after final cmd parse
-    {
-        let plugins = db.load_plugins();
-        if let Some((_, expand, _)) = plugins
-            .iter()
-            .find(|(name, _, _)| name.as_str() == cmd.as_str())
-        {
-            // INT-057: same cycle guard as aliases -- a self-referential plugin
-            // would otherwise recurse forever -> stack overflow.
+    // TEXT-WORLD ONLY (INT-169). Alias AND plugin expansion both reassemble a command by string
+    // concatenation and re-tokenize, so both are text transforms by construction, and both are
+    // skipped when argv is authoritative. This is why blocker 6 (alias expansion in the spine)
+    // stays honestly unstarted instead of half-working by accident.
+    if mode.allows_text_transforms() {
+        if let Some(aliased) = db.get_alias(&cmd) {
+            // INT-057: don't re-expand an alias already expanded in this chain.
+            // A self-referential alias (df = df -h) would otherwise recurse
+            // forever -> stack overflow -> SIGSEGV.
             if !expanded_names.contains(&cmd.as_str()) {
                 let expanded = if args.is_empty() {
-                    expand.clone()
+                    aliased.clone()
                 } else {
-                    format!("{} {}", expand, args.join(" "))
+                    format!("{} {}", aliased, args.join(" "))
                 };
                 let mut next = expanded_names.to_vec();
                 next.push(cmd.as_str());
@@ -650,13 +677,44 @@ fn execute_impl(
                     db,
                     core_root,
                     &next,
-                    allow_external,
+                    mode,
                 );
             }
+            // already expanded in this chain -> fall through and run as a command
         }
-    }
 
-    // INT-278: friday chat -- intercept before alias expansion
+        // Plugin resolution — after final cmd parse
+        {
+            let plugins = db.load_plugins();
+            if let Some((_, expand, _)) = plugins
+                .iter()
+                .find(|(name, _, _)| name.as_str() == cmd.as_str())
+            {
+                // INT-057: same cycle guard as aliases -- a self-referential plugin
+                // would otherwise recurse forever -> stack overflow.
+                if !expanded_names.contains(&cmd.as_str()) {
+                    let expanded = if args.is_empty() {
+                        expand.clone()
+                    } else {
+                        format!("{} {}", expand, args.join(" "))
+                    };
+                    let mut next = expanded_names.to_vec();
+                    next.push(cmd.as_str());
+                    // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
+                    // point the new text appears, which is where text-world work belongs.
+                    return execute_impl(
+                        &tokenize(expanded.trim()),
+                        &expanded,
+                        db,
+                        core_root,
+                        &next,
+                        mode,
+                    );
+                }
+            }
+        }
+    } // end text-world transforms
+      // INT-278: friday chat -- intercept before alias expansion
     if cmd == "friday" && args.first().copied() == Some("chat") {
         let rest = args.get(1..).unwrap_or(&[]).join(" ");
         if rest.is_empty() {
