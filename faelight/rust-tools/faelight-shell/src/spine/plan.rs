@@ -117,6 +117,32 @@ pub fn lower(ast: &Spanned<AstNode>) -> Result<ExecutionPlan, LowerError> {
     }
 }
 
+impl ExecutionPlan {
+    /// argv as UTF-8 strings, for the BUILTIN dispatch path only.
+    ///
+    /// ★ WHY THIS IS FALLIBLE AND LIVES HERE. argv is OsString because a shell must be able to
+    /// SPAWN a non-UTF-8 path (`/tmp/\xfffile`) -- and execute_plan does exactly that, never
+    /// touching UTF-8. Builtins are the opposite: they are string logic (comparing literals,
+    /// parsing numbers, matching subcommands), and there is nothing correct a builtin can do
+    /// with a non-UTF-8 argument. So the conversion is not a compromise at that boundary, it is
+    /// the honest statement that argv reaching a builtin must be valid UTF-8.
+    ///
+    /// The SPINE owns this decision because the spine is the new structured path; the legacy
+    /// path already paid the tokenization cost in String. Failure is LOUD and names the
+    /// offending argument -- a silent to_string_lossy() here would become exactly the kind of
+    /// hidden compatibility layer this rebuild exists to remove.
+    pub fn argv_as_utf8(&self) -> Result<Vec<String>, String> {
+        self.argv
+            .iter()
+            .map(|a| {
+                a.to_str()
+                    .map(str::to_string)
+                    .ok_or_else(|| format!("argument is not valid UTF-8: {:?}", a))
+            })
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,6 +180,27 @@ mod tests {
         assert_eq!(
             plan.argv,
             vec![OsString::from("GitHub"), OsString::from("Clone")]
+        );
+    }
+
+    #[test]
+    fn argv_as_utf8_round_trips_and_reports_bad_bytes() {
+        let node = parse("git add -A").expect("parses");
+        let plan = lower(&node).expect("lowers");
+        assert_eq!(plan.argv_as_utf8().unwrap(), vec!["git", "add", "-A"]);
+
+        // A non-UTF-8 argument can still be SPAWNED, but must not reach a builtin silently.
+        use std::os::unix::ffi::OsStringExt;
+        let bad = ExecutionPlan {
+            argv: vec![OsString::from("cat"), OsString::from_vec(vec![0xff, 0xfe])],
+            cwd: None,
+            env: Environment::Inherit,
+            io: IoPlan::Simple,
+        };
+        let err = bad.argv_as_utf8().expect_err("must refuse, not mangle");
+        assert!(
+            err.contains("not valid UTF-8"),
+            "error names the problem: {err}"
         );
     }
 

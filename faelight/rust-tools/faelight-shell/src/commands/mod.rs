@@ -563,7 +563,31 @@ fn execute_impl(
                         ));
                     }
                 };
-                return execute_plan(&plan, db);
+                // Builtins first, then the direct executor. `allow_external: false` is the
+                // load-bearing argument: it suppresses every run_external call, so a command
+                // this dispatch does not recognise answers NotBuiltin instead of being handed
+                // to `sh -c`. Without it the spine path would quietly end at
+                //     plan -> argv -> text -> sh -c -> shell parser -> process
+                // and the builtin case would prove the new path while the external case proved
+                // the old one -- an invisible escape hatch under a passing test.
+                //
+                // ⚠️ PRECISE CLAIM, per INT-143's own note: this guarantees NO sh and NO
+                // re-parse. It does NOT guarantee no subprocess -- 26 arms spawn a named binary
+                // directly (`gt` -> Command::new("git"), `friday chat` -> Command::new(...)).
+                // That is a builtin doing its job, the same construction execute_plan uses, and
+                // it is not what the gate is protecting against.
+                //
+                // TODO: allow_external is a bare bool at four call sites and will read as
+                // meaningless as this grows. An ExecutionMode { TextShell, SpinePlan } enum
+                // would make each site self-documenting. Naming cleanup, not a semantic change.
+                let argv = match plan.argv_as_utf8() {
+                    Ok(v) => v,
+                    Err(e) => return CommandResult::Error(format!("spine exec: {e}")),
+                };
+                return match execute_impl(&argv, &raw, db, core_root, &[], false) {
+                    CommandResult::NotBuiltin => execute_plan(&plan, db),
+                    result => result,
+                };
             }
             _ => {
                 return CommandResult::Error(
