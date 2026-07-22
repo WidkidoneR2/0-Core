@@ -3269,21 +3269,32 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-201 — Track last command exit status for faelight-term indicator
                     {
-                        // Update last_exit_code from output content
-                        if let Some(ref out) = cmd_output {
-                            if out.starts_with("✗")
-                                || out.contains("error")
-                                || out.contains("not found")
-                            {
-                                last_exit_code = Some(1);
-                            } else {
-                                last_exit_code = Some(0);
-                            }
-                        }
-                        let exit_ok = match &cmd_output {
-                            Some(out) => !out.starts_with("✗") && !out.contains("error"),
-                            None => last_exit_code.map(|c| c == 0).unwrap_or(true),
-                        };
+                        // FIXED: this block used to RE-DERIVE success by scanning the output
+                        // text for the cross-mark prefix / "error" / "not found", and then
+                        // OVERWROTE last_exit_code with that guess. The guess was a SECOND
+                        // SOURCE OF TRUTH and was wrong in BOTH directions: a successful
+                        // command whose legitimate output mentions the word "error" (e.g. a
+                        // report COUNTING parse errors) was recorded as a failure, and a
+                        // genuinely failed builtin whose message lacks those words was recorded
+                        // as a success. That corrupted term_commands.exit_code, which Friday's
+                        // three-failures-in-a-row detector reads -- the shell was learning from
+                        // fabricated observations.
+                        //
+                        // The verdict is ALREADY correct: the CommandResult match above sets
+                        // last_exit_code (Output/Empty/NotBuiltin -> 0, Error -> 1). This block
+                        // now only CONSUMES it. The faelight-term cache write is kept; only the
+                        // re-derivation is gone.
+                        //
+                        // KNOWN GAP, recorded not hidden: four arms of that match never set
+                        // last_exit_code at all (both Value arms, and the two arms that spawn
+                        // `sh` for pipelines and discard its status), so on those paths the
+                        // value carries over from the previous command. The string scan was
+                        // crudely papering over that; removing it makes the staleness VISIBLE
+                        // rather than guessed. Fixing it touches pipeline execution semantics
+                        // (is pipeline status the last command? the first failure?) and belongs
+                        // in its own intent with its own verification -- deliberately NOT
+                        // bundled with a telemetry-corruption fix.
+                        let exit_ok = last_exit_code.map(|c| c == 0).unwrap_or(true);
                         let status_val = if exit_ok { "success" } else { "failure" };
                         let cache_dir =
                             std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
