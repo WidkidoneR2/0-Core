@@ -168,6 +168,121 @@ condition matched 17,293 rows when tested STANDALONE while returning zero inside
 the CTE. A dry run that reports an alarming number should be suspected of
 measuring itself before it is believed about the data.
 
+### ★ THE EXECUTED FORM DIFFERS FOR MULTIPLE INDEPENDENT REASONS
+
+Found 2026-07-22 while sampling the unpaired remainder. Alias expansion is only
+ONE of the transformations between what was typed and what ran:
+
+    identity           ls              -> ls
+    alias expansion    c               -> clear
+    path resolution    intent list     -> /run/current-system/sw/bin/intent list
+    plugin / wrapper   fg commit       -> ~/0-core/scripts/faelight-git commit   (suspected)
+
+The near-identical counts are the tell: `intent list` 322 / resolved form 321,
+`fg commit` 374 / resolved form 370, `deploy faelight-shell` 242 / resolved 195.
+Those are pairs, not separate commands.
+
+★ WHAT THIS MEANS FOR THE SCHEMA: the record does NOT need to encode WHY the two
+forms differ. It needs to record the two endpoints faithfully -- what the user
+entered, and what was ultimately executed. The transformation mechanism can be
+inferred later, or logged separately if it earns its place. Encoding the reason in
+the primary record would bake in today's list of transformations and break when a
+new one appears (as one just did).
+
+### ⚠️ THE PAIRING IS NOT EXPRESSIBLE AS A SET QUERY
+
+Four SQL attempts produced four different wrong answers (49.9% unpaired, 67.7%,
+zero alias pairs, then `c` itself landing in the unpaired bucket despite matching
+17,293 times standalone). The cause was the same each time: CASE-arm ordering and
+correlated-subquery behaviour inside CTEs, not the data.
+
+The reason is structural. Pairing is a STREAMING algorithm:
+
+    read a row -> decide whether the FOLLOWING row belongs to the same command
+                -> if yes consume both, else consume one -> continue
+
+SQL can emulate parts of that with window functions, but with multiple pairing
+rules it stops being the natural tool. The next step is a small streaming
+ANALYZER (not a migration tool) that walks rows in order, classifies each pair by
+known transformation, and leaves anything it cannot explain in an UNKNOWN bucket
+rather than forcing it into one. The unknowns are where the next insight is.
+
+### ★★ STREAMING ANALYZER RESULT, 2026-07-22 -- every row accounted for
+
+A small read-only Python analyzer that walks rows in id order and CONSUMES pairs
+classified 109,042 of 109,042 command rows (5,333 bookkeeping rows held out as a
+separate stream):
+
+    pair: alias                        19,926
+    pair: identical                    15,793
+    pair: path resolution               1,388
+    pair: wrapper (program rewritten)     353
+    ---------------------------------------
+    PAIRS                              37,460   (74,920 rows)
+    unpaired (single write)            34,122
+    accounted for                     109,042 of 109,042
+
+⚠️ READ THE 69% / 31% SPLIT CAREFULLY. Those percentages describe the CURRENT
+IMPLEMENTATION, not the conceptual model. Their value is that they show WHERE the
+shell currently bypasses part of the lifecycle -- `cd` (a state-changing builtin),
+`exit` (postexec skips it by design), and the prefix handlers that `continue`
+before execute_with_context. They do not define how the system should behave.
+
+### ★★★ THE EXECUTED LINE IS A TRANSFORMATION PIPELINE, NOT A SINGLE REWRITE
+
+The unexplained bucket produced a FIFTH transformation -- tilde and variable
+expansion in the ARGUMENTS, which the classifier missed because it only compared
+program names:
+
+    cd ~/0-core           -> cd /home/christian/0-core        2,137
+    git -C ~/0-core add   -> git -C /home/christian/0-core      100
+    sqlite3 ~/0-core/...  -> sqlite3 /home/christian/0-core/...  98
+    echo $HOME            -> echo /home/christian                83
+
+And a COMPOSED case that matched no single rule:
+
+    d -> core doctor run                                        575
+
+because `d`'s alias is the fully-resolved `/run/current-system/sw/bin/core doctor
+run` -- alias expansion AND path resolution, composed. The classifier saw the
+composite and matched neither half.
+
+★ THE ARCHITECTURAL CONCLUSION: the executed line is the CUMULATIVE RESULT of a
+pipeline, not one rewrite:
+
+    typed
+      |
+      +-- alias expansion
+      +-- plugin / wrapper resolution
+      +-- path resolution
+      +-- tilde expansion
+      +-- variable expansion
+      +-- (command substitution, globs, ... whatever the shell learns next)
+      |
+    executed
+
+So the schema must record the ENDPOINTS, not enumerate the transformations.
+Encoding the reason would mean extending an enum forever -- and the list has
+already grown twice in one session, from one mechanism to five. `typed` and
+`executed` are stable; the pipeline between them is an implementation detail free
+to change without a schema migration.
+
+★ THIS SETTLES THE SCHEMA QUESTION. A command lifecycle has exactly two
+observable endpoints, and that stays true as the pipeline grows. That stability is
+the sign it models something fundamental rather than tracking today's
+implementation -- which is precisely why one-row-per-command wins over an event
+log or an event_kind column.
+
+### ⚠️ METHODOLOGICAL LESSON (applies beyond this intent)
+
+The streaming analyzer succeeded where four SQL attempts each produced a different
+"truth" because it MODELLED THE PROCESS RATHER THAN THE DATA. The shell processes
+commands sequentially with state; the analyzer did the same. The SQL attempts tried
+to infer that state from sets of rows, which is why they disagreed with each other.
+
+RULE: when analyzing shell execution history, a streaming model aligns with the
+system; a purely relational one fights it.
+
 ### Migration of existing rows
 
 The 114k existing rows are TELEMETRY, not user-authored data, so rewriting them is
