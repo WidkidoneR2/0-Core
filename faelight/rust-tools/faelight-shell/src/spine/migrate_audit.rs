@@ -71,6 +71,11 @@ pub struct MigrationReport {
     /// Spine parse/lower produced no plan at all (couldn't even attempt comparison) -- distinct
     /// from a feature gap (which is a classified UnsupportedConstruct). Bounded examples.
     pub spine_unlowerable: usize,
+    /// The spine could not PARSE what legacy accepted (since step 2: an unterminated quote --
+    /// legacy's tokenizer silently consumes to end of line, the spine reports a lex error).
+    /// A real behavioral difference, and counted so no entry vanishes from the denominator.
+    pub spine_parse_error: usize,
+    pub spine_parse_error_examples: Vec<String>,
 
     pub safe_improvement_examples: Vec<String>,
     pub feature_gap_examples: Vec<String>,
@@ -96,6 +101,13 @@ impl MigrationAudit {
             SkipReason::Empty => self.report.skipped_empty += 1,
             SkipReason::Multiline => self.report.skipped_multiline += 1,
         }
+    }
+
+    /// Record a source the spine could not parse at all. Counted, never silently dropped.
+    pub fn spine_parse_error(&mut self, source: &str) {
+        self.report.seen += 1;
+        self.report.spine_parse_error += 1;
+        push_example(&mut self.report.spine_parse_error_examples, source);
     }
 
     /// Observe one (source, legacy plan, spine result). The engine classifies and records.
@@ -149,7 +161,10 @@ impl MigrationReport {
     /// SafeImprovement -- i.e. no feature gaps and no unexpected differences. (Unlowerable spine
     /// plans also block: they are commands the spine can't even attempt.)
     pub fn flip_ready(&self) -> bool {
-        self.feature_gap == 0 && self.unexpected == 0 && self.spine_unlowerable == 0
+        self.feature_gap == 0
+            && self.unexpected == 0
+            && self.spine_unlowerable == 0
+            && self.spine_parse_error == 0
     }
 
     pub fn render(&self) -> String {
@@ -196,6 +211,12 @@ impl MigrationReport {
         if self.spine_unlowerable > 0 {
             out.push_str(&format!("Spine unlowerable: {}\n", self.spine_unlowerable));
         }
+        if self.spine_parse_error > 0 {
+            out.push_str(&format!(
+                "Spine parse error: {}  (legacy accepted these)\n",
+                self.spine_parse_error
+            ));
+        }
         out.push('\n');
 
         let mut section = |title: &str, examples: &[String]| {
@@ -216,6 +237,10 @@ impl MigrationReport {
         section(
             "Unexpected examples (INVESTIGATE):",
             &self.unexpected_examples,
+        );
+        section(
+            "Spine parse-error examples:",
+            &self.spine_parse_error_examples,
         );
 
         out.push_str(if self.flip_ready() {

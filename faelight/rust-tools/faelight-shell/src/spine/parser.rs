@@ -9,7 +9,7 @@
 //! new parse method hanging off this same recursive-descent structure -- parse_command
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
-use super::ast::{AstNode, Command, Span, Spanned, Word};
+use super::ast::{AstNode, Command, Span, Spanned, Word, WordPart};
 use super::lexer::{lex, LexError, SpannedToken, TokenKind};
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
@@ -69,17 +69,21 @@ impl Parser {
                 TokenKind::Word => {
                     let t = self.advance().expect("peek was Some");
                     let wspan = t.span;
-                    words.push(Spanned::new(wspan, Word::literal(t.text)));
+                    // Each lexical segment becomes a WordPart. Today every segment maps to a
+                    // Literal regardless of its quote context. At step 3 an unquoted or
+                    // double-quoted segment may yield SEVERAL parts (Literal + Variable) while
+                    // a single-quoted segment stays one Literal -- and that is a change HERE,
+                    // in the mapping, not in the lexer.
+                    let parts: Vec<WordPart> = t
+                        .segments
+                        .into_iter()
+                        .map(|seg| WordPart::Literal(seg.text))
+                        .collect();
+                    words.push(Spanned::new(wspan, Word { parts }));
                     cmd_span = Some(match cmd_span {
                         None => wspan,
                         Some(s) => s.merge(wspan),
                     });
-                }
-                // Whitespace never reaches the parser (lexer skips it). When operators
-                // arrive at later roadmap steps, the command loop breaks on them here so
-                // the caller (pipeline/list parser) can handle the operator.
-                TokenKind::Whitespace => {
-                    self.pos += 1; // defensive: skip if one ever leaks through
                 }
             }
         }

@@ -116,11 +116,18 @@ proptest! {
             match &node.node {
                 AstNode::Command(cmd) => {
                     for word in &cmd.words {
+                        prop_assert!(word.span.start <= word.span.end, "word span reversed");
+                        prop_assert!(word.span.end <= input.len(), "word span past input end");
+                        // Slicing on the span must not panic -> byte offsets land on char
+                        // boundaries. NOTE: since step 2 the word's TEXT is not this slice
+                        // (quote characters are consumed), so we check the span, not equality.
+                        let _ = &input[word.span.start..word.span.end];
+                        prop_assert!(!word.node.parts.is_empty(), "a word has at least one part");
                         for part in &word.node.parts {
-                            let WordPart::Literal(text) = part;
-                            // The literal text must appear in the input (it came from a
-                            // token slice of it). Non-empty for a real word.
-                            prop_assert!(!text.is_empty(), "empty literal part");
+                            // An EMPTY literal is legitimate since step 2: `echo ""` is a real
+                            // empty argument. Only Literal is produced today; the dormant
+                            // variants arrive at their roadmap steps.
+                            prop_assert!(matches!(part, WordPart::Literal(_)), "only Literal today");
                         }
                     }
                 }
@@ -136,16 +143,22 @@ proptest! {
         prop_assert_eq!(a, b);
     }
 
-    /// Property: word count matches the whitespace-split token count. The parser is a
-    /// bare-command splitter today; it must produce exactly one word per non-whitespace run.
+    /// Property: quoting can MERGE whitespace-separated chunks into one word, but can never
+    /// SPLIT one. So words <= whitespace chunks always. And for quote-free input the parser
+    /// is still exactly a whitespace splitter, so equality still holds there -- keeping the
+    /// strong step-1 guarantee on the case where it is still true.
     #[test]
     fn word_count_matches_tokens(input in shell_line()) {
         if let Ok(node) = parse(&input) {
-            let expected = input.split_whitespace().count();
+            let chunks = input.split_whitespace().count();
             match &node.node {
                 AstNode::Command(cmd) => {
-                    prop_assert_eq!(cmd.words.len(), expected,
-                        "word count != whitespace-split count for {:?}", input);
+                    prop_assert!(cmd.words.len() <= chunks,
+                        "more words than whitespace chunks for {:?}", input);
+                    if !input.contains('"') && !input.contains('\'') {
+                        prop_assert_eq!(cmd.words.len(), chunks,
+                            "quote-free input must split exactly on whitespace: {:?}", input);
+                    }
                 }
             }
         }

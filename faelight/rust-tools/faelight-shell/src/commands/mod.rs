@@ -419,7 +419,16 @@ fn execute_impl(
     if cmd == "spine" {
         match args.first().copied() {
             Some("parse") => {
-                let line_to_parse = args.get(1..).unwrap_or(&[]).join(" ");
+                // Step 2: quotes are meaningful, so rejoining tokenize()'d args (quotes
+                // already stripped) would hide exactly what we want to inspect. Take the RAW
+                // line and strip only the `spine parse` prefix.
+                let line_to_parse = trimmed_line
+                    .strip_prefix("spine")
+                    .map(str::trim_start)
+                    .and_then(|s| s.strip_prefix("parse"))
+                    .map(str::trim_start)
+                    .unwrap_or("")
+                    .to_string();
                 if line_to_parse.trim().is_empty() {
                     return CommandResult::Error("usage: spine parse <line>".to_string());
                 }
@@ -484,7 +493,11 @@ fn execute_impl(
                     let legacy = crate::spine::migrate::plan_from_legacy(&ctx);
                     let spine = match crate::spine::parser::parse(source) {
                         Ok(node) => crate::spine::plan::lower(&node),
-                        Err(_) => continue,
+                        Err(_) => {
+                            // Counted, not silently dropped: legacy accepted this line.
+                            audit.spine_parse_error(source);
+                            continue;
+                        }
                     };
                     audit.observe(crate::spine::migrate_audit::AuditObservation {
                         source,

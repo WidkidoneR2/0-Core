@@ -67,10 +67,13 @@ const BARE_GOLDENS: &[(&str, &str)] = &[
 /// pipes/redirects/&& before the builtin ever sees them). These are EXPECTED to change as
 /// roadmap steps 2-8 land; a flip here is the signal a construct works on real input.
 const FUTURE_GOLDENS: &[(&str, &str)] = &[
-    // step 2 (quoted literals): "message here" will become ONE word, quotes consumed.
+    // step 2 LANDED (2026-07-22): "message here" is now ONE word, quotes consumed, and the
+    // word span covers the quote characters. This golden FLIPPED -- the proof step 2 works
+    // against a real command from history. It is now CORRECT behavior, so it is a true
+    // regression and belongs in BARE_GOLDENS; left here until the tiers are re-sorted.
     (
         "git commit -m \"message here\"",
-        "Command @[0,28)\n  Word @[0,3)  Literal \"git\"\n  Word @[4,10)  Literal \"commit\"\n  Word @[11,13)  Literal \"-m\"\n  Word @[14,22)  Literal \"\\\"message\"\n  Word @[23,28)  Literal \"here\\\"\"\n  redirects: []\n",
+        "Command @[0,28)\n  Word @[0,3)  Literal \"git\"\n  Word @[4,10)  Literal \"commit\"\n  Word @[11,13)  Literal \"-m\"\n  Word @[14,28)  Literal \"message here\"\n  redirects: []\n",
     ),
     // step 6 (pipelines): `|` becomes a Pipeline node above two Commands.
     (
