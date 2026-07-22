@@ -14,7 +14,10 @@
 
 pub mod ast;
 pub mod audit;
+pub mod compare;
 pub mod lexer;
+pub mod migrate;
+pub mod migrate_audit;
 pub mod parser;
 pub mod plan;
 pub mod render;

@@ -1,0 +1,296 @@
+//! INT-169 spine: the migration audit engine. See docs/rfc-169-parser-spine.md. Increment 10
+//! Phase 2. Answers "how migration-ready is the spine against real usage?" -- how much of what
+//! the shell executes today the spine would execute IDENTICALLY, or differ from only in ways
+//! we've explicitly accepted.
+//!
+//! ★ THE ENGINE DOES NOT KNOW HOW PLANS ARE PRODUCED (Christian). It only OBSERVES plans and
+//! classifies them via compare_execution_semantics + migration_status. Production of the legacy
+//! plan (from_line + plan_from_legacy, which needs ForestDb) and the spine plan (parse + lower)
+//! happens in the builtin, near the shell where ForestDb naturally lives. Coupling the analysis
+//! layer to the legacy execution implementation (a ForestDb handle) would be backwards. So the
+//! caller hands over an AuditObservation; the engine judges. Same engine can later observe
+//! fixtures, fuzz-generated plans, or another parser -- unchanged.
+//!
+//! ★ THE ENGINE OWNS THE FAILURE CASE (Christian): AuditObservation.spine is a Result -- a spine
+//! lowering that returns UnsupportedConstruct IS migration data (a feature gap), so the engine
+//! classifies it rather than the caller inventing a special case.
+//!
+//! ★ MIGRATION-SAFE != CORRECT: "safe to flip a command" means the spine would NOT CHANGE its
+//! behavior except where intended -- not that the behavior is correct. A command both models
+//! handle wrong-but-identically is flip-safe (no regression); correctness comes later as
+//! constructs land. Flip-readiness = zero feature gaps AND zero unexpected differences (every
+//! command is Equivalent or an approved SafeImprovement).
+
+use super::compare::{compare_execution_semantics, migration_status, MigrationStatus};
+use super::plan::{ExecutionPlan, LowerError};
+
+/// One unit of work handed to the engine. The caller produces both plans (however it likes) and
+/// the engine judges. `spine` is a Result so the engine owns the "spine could not lower" case.
+pub struct AuditObservation<'a> {
+    pub source: &'a str,
+    pub legacy: ExecutionPlan,
+    pub spine: Result<ExecutionPlan, LowerError>,
+}
+
+/// The migration readiness report. Talks about MIGRATION (spine vs legacy), not parsing.
+/// Why a history entry was not applicable to comparison. NOT failures -- these are OUTSIDE the
+/// current audit model, which compares SINGLE-COMMAND inputs. A future mode could understand
+/// pasted blocks and scripts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkipReason {
+    /// Empty or whitespace-only entry.
+    Empty,
+    /// A multi-line entry (pasted heredoc, script block). Not a shell LINE -- the audit's unit
+    /// of comparison is one command, so comparing it would measure a newline-tokenization
+    /// difference rather than anything about the language.
+    Multiline,
+}
+
+/// Is this history entry applicable to single-command comparison? None = comparable.
+pub fn applicability(source: &str) -> Option<SkipReason> {
+    if source.trim().is_empty() {
+        return Some(SkipReason::Empty);
+    }
+    if source.contains('\n') {
+        return Some(SkipReason::Multiline);
+    }
+    None
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct MigrationReport {
+    /// Every history entry the caller offered (the denominator).
+    pub seen: usize,
+    pub skipped_empty: usize,
+    pub skipped_multiline: usize,
+    pub compared: usize,
+    pub equivalent: usize,
+    pub safe_improvement: usize,
+    pub feature_gap: usize,
+    pub unexpected: usize,
+    /// Spine parse/lower produced no plan at all (couldn't even attempt comparison) -- distinct
+    /// from a feature gap (which is a classified UnsupportedConstruct). Bounded examples.
+    pub spine_unlowerable: usize,
+
+    pub safe_improvement_examples: Vec<String>,
+    pub feature_gap_examples: Vec<String>,
+    pub unexpected_examples: Vec<String>,
+}
+
+/// Accumulator. Feed it observations; it classifies each and tallies.
+#[derive(Debug, Default)]
+pub struct MigrationAudit {
+    report: MigrationReport,
+}
+
+impl MigrationAudit {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record an entry that is outside the comparison domain. The caller checks applicability()
+    /// first so it need not produce plans for these.
+    pub fn skip(&mut self, reason: SkipReason) {
+        self.report.seen += 1;
+        match reason {
+            SkipReason::Empty => self.report.skipped_empty += 1,
+            SkipReason::Multiline => self.report.skipped_multiline += 1,
+        }
+    }
+
+    /// Observe one (source, legacy plan, spine result). The engine classifies and records.
+    pub fn observe(&mut self, obs: AuditObservation) {
+        self.report.seen += 1;
+        self.report.compared += 1;
+
+        let spine_plan = match obs.spine {
+            Ok(p) => p,
+            Err(LowerError::UnsupportedConstruct { kind: _, span: _ }) => {
+                // Spine parsed but cannot lower this construct yet -- a migration feature gap.
+                self.report.feature_gap += 1;
+                push_example(&mut self.report.feature_gap_examples, obs.source);
+                return;
+            }
+            Err(LowerError::InvalidPlan {
+                message: _,
+                span: _,
+            }) => {
+                // Spine produced no usable plan -- can't compare. Its own bucket.
+                self.report.spine_unlowerable += 1;
+                return;
+            }
+        };
+
+        let result = compare_execution_semantics(obs.source, &obs.legacy, &spine_plan);
+        match migration_status(&result) {
+            MigrationStatus::Equivalent => self.report.equivalent += 1,
+            MigrationStatus::SafeImprovement => {
+                self.report.safe_improvement += 1;
+                push_example(&mut self.report.safe_improvement_examples, obs.source);
+            }
+            MigrationStatus::FeatureGap => {
+                self.report.feature_gap += 1;
+                push_example(&mut self.report.feature_gap_examples, obs.source);
+            }
+            MigrationStatus::Unexpected => {
+                self.report.unexpected += 1;
+                push_example(&mut self.report.unexpected_examples, obs.source);
+            }
+        }
+    }
+
+    pub fn finish(self) -> MigrationReport {
+        self.report
+    }
+}
+
+impl MigrationReport {
+    /// The migration criterion: safe to flip when every command is Equivalent or an approved
+    /// SafeImprovement -- i.e. no feature gaps and no unexpected differences. (Unlowerable spine
+    /// plans also block: they are commands the spine can't even attempt.)
+    pub fn flip_ready(&self) -> bool {
+        self.feature_gap == 0 && self.unexpected == 0 && self.spine_unlowerable == 0
+    }
+
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        out.push_str("Migration Audit (spine vs legacy)\n\n");
+        out.push_str(&format!("History entries seen:     {}\n", self.seen));
+        out.push_str(&format!("Applicable to comparison: {}\n", self.compared));
+        let skipped = self.skipped_empty + self.skipped_multiline;
+        out.push_str(&format!("Skipped:                  {skipped}\n"));
+        if self.skipped_empty > 0 {
+            out.push_str(&format!("  empty:     {}\n", self.skipped_empty));
+        }
+        if self.skipped_multiline > 0 {
+            out.push_str(&format!("  multiline: {}\n", self.skipped_multiline));
+        }
+        out.push_str("  (excluded: Increment 10 compares single-command inputs)\n\n");
+        let pct = |n: usize| -> String {
+            if self.compared == 0 {
+                "  0.0%".to_string()
+            } else {
+                format!("{:5.1}%", (n as f64) * 100.0 / (self.compared as f64))
+            }
+        };
+        out.push_str(&format!(
+            "Equivalent:        {:>7}  {}\n",
+            self.equivalent,
+            pct(self.equivalent)
+        ));
+        out.push_str(&format!(
+            "Safe improvements: {:>7}  {}\n",
+            self.safe_improvement,
+            pct(self.safe_improvement)
+        ));
+        out.push_str(&format!(
+            "Feature gaps:      {:>7}  {}\n",
+            self.feature_gap,
+            pct(self.feature_gap)
+        ));
+        out.push_str(&format!(
+            "Unexpected:        {:>7}  {}\n",
+            self.unexpected,
+            pct(self.unexpected)
+        ));
+        if self.spine_unlowerable > 0 {
+            out.push_str(&format!("Spine unlowerable: {}\n", self.spine_unlowerable));
+        }
+        out.push('\n');
+
+        let mut section = |title: &str, examples: &[String]| {
+            if !examples.is_empty() {
+                out.push_str(title);
+                out.push('\n');
+                for ex in examples {
+                    out.push_str(&format!("  {ex}\n"));
+                }
+                out.push('\n');
+            }
+        };
+        section(
+            "Safe-improvement examples:",
+            &self.safe_improvement_examples,
+        );
+        section("Feature-gap examples:", &self.feature_gap_examples);
+        section(
+            "Unexpected examples (INVESTIGATE):",
+            &self.unexpected_examples,
+        );
+
+        out.push_str(if self.flip_ready() {
+            "Flip readiness: READY -- every command equivalent or an approved improvement.\n"
+        } else {
+            "Flip readiness: NOT READY -- resolve feature gaps and unexpected differences.\n"
+        });
+        out
+    }
+}
+
+fn push_example(bucket: &mut Vec<String>, cmd: &str) {
+    const MAX: usize = 10;
+    if bucket.len() < MAX {
+        bucket.push(cmd.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::plan::{Environment, IoPlan};
+    use super::*;
+    use std::ffi::OsString;
+
+    fn plan(argv: &[&str]) -> ExecutionPlan {
+        ExecutionPlan {
+            argv: argv.iter().map(OsString::from).collect(),
+            cwd: None,
+            env: Environment::Inherit,
+            io: IoPlan::Simple,
+        }
+    }
+
+    #[test]
+    fn equivalent_and_improvement_and_gap_tally() {
+        let mut audit = MigrationAudit::new();
+        // equivalent
+        audit.observe(AuditObservation {
+            source: "git add -A",
+            legacy: plan(&["git", "add", "-A"]),
+            spine: Ok(plan(&["git", "add", "-A"])),
+        });
+        // safe improvement (legacy lowercased argv[0])
+        audit.observe(AuditObservation {
+            source: "GitHub clone",
+            legacy: plan(&["github", "clone"]),
+            spine: Ok(plan(&["GitHub", "clone"])),
+        });
+        // feature gap (spine couldn't lower)
+        audit.observe(AuditObservation {
+            source: "cat f | grep x",
+            legacy: plan(&["cat", "f", "|", "grep", "x"]),
+            spine: Err(LowerError::UnsupportedConstruct {
+                kind: "pipeline",
+                span: super::super::ast::Span::new(0, 1),
+            }),
+        });
+        let r = audit.finish();
+        assert_eq!(r.compared, 3);
+        assert_eq!(r.equivalent, 1);
+        assert_eq!(r.safe_improvement, 1);
+        assert_eq!(r.feature_gap, 1);
+        assert_eq!(r.unexpected, 0);
+        assert!(!r.flip_ready(), "a feature gap blocks readiness");
+    }
+
+    #[test]
+    fn all_equivalent_is_flip_ready() {
+        let mut audit = MigrationAudit::new();
+        audit.observe(AuditObservation {
+            source: "pwd",
+            legacy: plan(&["pwd"]),
+            spine: Ok(plan(&["pwd"])),
+        });
+        let r = audit.finish();
+        assert!(r.flip_ready());
+    }
+}

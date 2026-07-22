@@ -451,8 +451,53 @@ fn execute_impl(
                 let report = crate::spine::audit::audit_history(commands);
                 return CommandResult::Output(report.render());
             }
+            Some("migrate") => {
+                // INT-169 Increment 10 Phase 2: migration-readiness audit. Produces BOTH plans
+                // per real command (legacy via the real from_line + plan_from_legacy; spine via
+                // parse + lower) and feeds observations to the PURE audit engine, which never
+                // knows how the plans were produced. On-demand only -- runs from_line (a db
+                // read) per unique command. Distinct from `spine audit`: that measures the
+                // spine alone, this measures spine VS legacy.
+                let mut stmt = match db.conn.prepare(
+                    "SELECT DISTINCT command FROM shell_history \
+                     WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%'",
+                ) {
+                    Ok(s) => s,
+                    Err(e) => return CommandResult::Error(format!("spine migrate: db error: {e}")),
+                };
+                let rows = match stmt.query_map([], |row| row.get::<_, String>(0)) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        return CommandResult::Error(format!("spine migrate: query error: {e}"))
+                    }
+                };
+                let sources: Vec<String> = rows.filter_map(|r| r.ok()).collect();
+
+                let mut audit = crate::spine::migrate_audit::MigrationAudit::new();
+                for source in &sources {
+                    // Applicability first: skipped entries need no plans produced.
+                    if let Some(reason) = crate::spine::migrate_audit::applicability(source) {
+                        audit.skip(reason);
+                        continue;
+                    }
+                    let ctx = crate::exec::ExecContext::from_line(source, db);
+                    let legacy = crate::spine::migrate::plan_from_legacy(&ctx);
+                    let spine = match crate::spine::parser::parse(source) {
+                        Ok(node) => crate::spine::plan::lower(&node),
+                        Err(_) => continue,
+                    };
+                    audit.observe(crate::spine::migrate_audit::AuditObservation {
+                        source,
+                        legacy,
+                        spine,
+                    });
+                }
+                return CommandResult::Output(audit.finish().render());
+            }
             _ => {
-                return CommandResult::Error("usage: spine parse <line> | spine audit".to_string());
+                return CommandResult::Error(
+                    "usage: spine parse <line> | spine audit | spine migrate".to_string(),
+                );
             }
         }
     }
