@@ -217,7 +217,7 @@ pub fn colorize_line(line: &str) -> String {
 /// Run a command line: builtin if we have one, otherwise hand it to the system.
 /// NEVER returns NotBuiltin -- behaviour is byte-for-byte what it has always been.
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(line, db, core_root, &[], true)
+    execute_impl(&tokenize(line.trim()), line, db, core_root, &[], true)
 }
 
 /// INT-143: ASK whether this line is an fsh builtin, WITHOUT running it if it is not.
@@ -242,7 +242,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
 /// to spawn a `gt` binary that does not exist, so the file got nothing). This does not make them
 /// worse. It fixes what it can prove and names what it cannot.
 pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(line, db, core_root, &[], false)
+    execute_impl(&tokenize(line.trim()), line, db, core_root, &[], false)
 }
 
 /// The single quote-aware tokenizer for the whole shell (INT-171 gate 1).
@@ -339,7 +339,17 @@ mod command_word_tests {
     }
 }
 
+/// ⚠️ MIGRATION BOUNDARY (INT-169). This function RECEIVES its execution arguments; it no
+/// longer derives them. Two callers supply argv from different worlds:
+///   TEXT path  -- tokenize(line) -> argv. History expansion (`!!`), alias expansion and any
+///                 other text transformation happen ABOVE this call, where text still exists.
+///   SPINE path -- plan.argv, already decided by parse -> lower. No text parsing on the way in.
+/// `original_line` is NOT the canonical command representation -- it is kept for the handful of
+/// builtins that genuinely need the source text (grep, time, select, semantic verbs) and for the
+/// run_external escapes that delegate an unmodelled line to sh.
+/// Do NOT reintroduce tokenization inside this function.
 fn execute_impl(
+    argv: &[String],
     line: &str,
     db: &ForestDb,
     core_root: &str,
@@ -357,7 +367,15 @@ fn execute_impl(
     // suggestion, and only ran because sh -c rescued the whole line downstream.
     // This is INT-143's main.rs:1973 lesson (inline-var extraction) carried to the
     // command word it never reached: scan the first token quote-aware, like tokenize does.
-    let owned_args: Vec<String> = tokenize(trimmed_line);
+    // The execution arguments are SUPPLIED (see the migration boundary note above), not parsed
+    // here. Named so a future cleanup pass reads "this function receives its argv" rather than
+    // "someone forgot to tokenize".
+    let owned_args: &[String] = argv;
+    // Lookup key only -- lowercased on purpose so `INTL` and `intl` reach the same builtin. This
+    // is NOT the "stop lowercasing the command name" rides-with fix, which concerns the name that
+    // gets EXECUTED and RECORDED. Lookup identity and execution identity are different things:
+    //   lookup:    "EcHo" -> "echo"   (wanted)
+    //   execution: "EcHo" -> "EcHo"   (preserve)
     let cmd = owned_args
         .first()
         .map(|s| s.to_lowercase())
@@ -569,7 +587,16 @@ fn execute_impl(
             };
             let mut next = expanded_names.to_vec();
             next.push(cmd.as_str());
-            return execute_impl(&expanded, db, core_root, &next, allow_external);
+            // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
+            // point the new text appears, which is where text-world work belongs.
+            return execute_impl(
+                &tokenize(expanded.trim()),
+                &expanded,
+                db,
+                core_root,
+                &next,
+                allow_external,
+            );
         }
         // already expanded in this chain -> fall through and run as a command
     }
@@ -591,7 +618,16 @@ fn execute_impl(
                 };
                 let mut next = expanded_names.to_vec();
                 next.push(cmd.as_str());
-                return execute_impl(&expanded, db, core_root, &next, allow_external);
+                // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
+                // point the new text appears, which is where text-world work belongs.
+                return execute_impl(
+                    &tokenize(expanded.trim()),
+                    &expanded,
+                    db,
+                    core_root,
+                    &next,
+                    allow_external,
+                );
             }
         }
     }
