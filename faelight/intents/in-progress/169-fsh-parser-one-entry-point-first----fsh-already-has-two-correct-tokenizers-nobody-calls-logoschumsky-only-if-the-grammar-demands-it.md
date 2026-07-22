@@ -100,9 +100,13 @@ built behind the discipline that makes it not-a-gamble.
       <!-- DONE 2026-07-21 -- answered YES. Evidence: the bug class (172 redirect, 174 quote-context,
       143/171 four-tokenizer divergence) + recon finding (tokenizer exists, no parse/AST layer;
       ExecContext = cmd+args, from_line = splitn(2,' ')). The absence of the layer IS the limitation. -->
-- [ ] RFC first: what problem, why logos+handwritten, alternatives (chumsky/fully-handwritten) & why not,
+- [x] RFC first: what problem, why logos+handwritten, alternatives (chumsky/fully-handwritten) & why not,
       trade-offs, how it fits fsh's philosophy. Written before code. (Largely drafted in the 2026-07-21
       discussion -- capture it as the RFC.)
+      <!-- DONE 2026-07-21 -- docs/rfc-169-parser-spine.md, commit 86951398. Problem, decision,
+      alternatives (chumsky + fully-handwritten, and why not), AST design, lexer design, execution
+      interface, 9-step roadmap, first construct, rides-with fixes, Appendix A. Written before any
+      spine code was cut. -->
 - [ ] logos added + the hybrid lexer stands up: regular tokens via logos, custom stateful layer for
       strings/heredocs/$()/${}/interpolation. Demonstrated tokenizing a real line into typed tokens.
 - [ ] ONE CONSTRUCT end-to-end as proof-of-shape: a simple command -> logos+lexer tokens -> handwritten
@@ -110,8 +114,38 @@ built behind the discipline that makes it not-a-gamble.
 - [ ] AST types defined (Command / Pipeline / Redirect / Assignment to start) + ExecContext holds the AST.
 - [ ] The rides-with fixes: stop lowercasing cmd; SystemTime not u64; unique execution ID (lights up 167's
       correlation_id).
-- [ ] fsh still boots, logs in, deploys at EVERY step. No big-bang.
+- [x] fsh still boots, logs in, deploys at EVERY step. No big-bang.
+      <!-- DONE -- demonstrated across generations 411-421 (11 deploys this session). Every increment
+      went to the daily driver and the shell kept booting, logging in, and deploying. The old from_line
+      path stayed live throughout; nothing calls spine::plan::lower() on the live path. -->
 - [ ] Each gate carries evidence per INT-158.
+
+## PROGRESS 2026-07-21/22 -- the foundation is built, execution is NOT flipped
+
+Built and deployed (all behind the old path, which still executes everything):
+  src/spine/{ast,lexer,parser,render,plan,compare,migrate,migrate_audit,audit,golden,proptests}.rs
+  - AST FROZEN (core-frozen, Redirect internals RESERVED): Span, Spanned<T>, AstNode, Command with
+    per-word spans, Word, WordPart. Commit 25773f30.
+  - ExecutionPlan FROZEN: argv Vec<OsString>, cwd, Environment enum, IoPlan reserved, lower() ->
+    Result. Commit dbc94af2.
+  - Tested three ways: unit, proptest torture (5 properties), goldens from real history. 49 tests.
+  - `spine parse` and `spine migrate` builtins live.
+  - Roadmap step 1 (bare commands), step 2 (quoted literals), and variable RECOGNITION landed.
+
+Measured against 24,675 real single-line commands from shell_history:
+  98.6% equivalent, 1.4% safe improvement, 0 language feature gaps, 3 unexpected (all paste debris).
+  Found three real legacy bugs: cmd-word lowercasing corrupts case-sensitive env-assignment prefixes
+  (SHELL= -> shell=); tokenize DROPS empty quoted args (`echo ""`); splitn mangles `VAR="a b"`.
+
+⚠️ SCOPE CORRECTION found while measuring: the audit compares PARSERS on the same input string. The
+live shell expands variables, subshells, globs and aliases BEFORE the legacy parser runs -- the spine
+inverts that order (parse, then expand by walking words). Only recognition exists; nothing expands.
+So parser equivalence is demonstrated; EXECUTION equivalence is not.
+
+⚠️ GATE DISCREPANCY to resolve: the hybrid-lexer gate says "regular tokens via logos", but step 2
+replaced logos on the word path with the hand-written stateful scanner (a regex alternation cannot
+express quoting -- `foo"bar baz"` is one word). logos is currently an unused dependency. Either the
+gate's wording needs revisiting or logos returns for the operator tokens at steps 5-7.
 
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
