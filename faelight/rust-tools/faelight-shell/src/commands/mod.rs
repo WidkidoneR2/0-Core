@@ -507,9 +507,50 @@ fn execute_impl(
                 }
                 return CommandResult::Output(audit.finish().render());
             }
+            Some("exec") => {
+                // INT-169 proof-of-shape: the COMPLETE VERTICAL, source to process, driven
+                // entirely by the spine. parse -> AST -> lower -> ExecutionPlan -> argv ->
+                // Command -> spawn. No sh anywhere on this path, so the AST is the authority
+                // on what runs rather than a suggestion sh gets to reinterpret.
+                //
+                // OPT-IN ONLY. The live path is untouched: every normal command still goes
+                // through from_line and run_external. This is reached only by typing it.
+                //
+                // Deliberately boring. No expansion, substitution, globs, aliases or
+                // pipelines -- a plan arrives already-expanded or it does not arrive. If
+                // `echo hello` misbehaves there is exactly one place it can have gone wrong.
+                let raw = trimmed_line
+                    .strip_prefix("spine")
+                    .map(str::trim_start)
+                    .and_then(|s| s.strip_prefix("exec"))
+                    .map(str::trim_start)
+                    .unwrap_or("")
+                    .to_string();
+                if raw.trim().is_empty() {
+                    return CommandResult::Error("usage: spine exec <command>".to_string());
+                }
+                let node = match crate::spine::parser::parse(&raw) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        return CommandResult::Error(format!("spine exec: parse error: {e:?}"))
+                    }
+                };
+                let plan = match crate::spine::plan::lower(&node) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        // A capability boundary, not a fault: the parser is allowed to run
+                        // ahead of the executor.
+                        return CommandResult::Error(format!(
+                            "spine exec: cannot lower this construct yet: {e:?}"
+                        ));
+                    }
+                };
+                return execute_plan(&plan, db);
+            }
             _ => {
                 return CommandResult::Error(
-                    "usage: spine parse <line> | spine audit | spine migrate".to_string(),
+                    "usage: spine parse <line> | spine exec <command> | spine audit | spine migrate"
+                        .to_string(),
                 );
             }
         }
@@ -8022,6 +8063,67 @@ fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
         .unwrap_or(0);
     if count == 3 {
         println!("  🌳 Friday: {} failed 3 times today -- consider adding an alias or checking the command", first);
+    }
+}
+
+/// INT-169: execute an ExecutionPlan by spawning argv[0] DIRECTLY. No `sh`, no re-parsing.
+///
+/// This is the moment the spine stops being observational. `run_external` hands an unmodelled
+/// LINE to sh, which then re-parses and re-expands it -- sh is the final authority on quoting,
+/// operators and expansion. Here the AST is the authority: whatever the parser and lowering
+/// decided IS what gets spawned. If the plan is wrong, the command is wrong, and there is
+/// nowhere to hide.
+///
+/// Deliberately narrow. It executes exactly what a plan contains: argv, cwd, environment
+/// intent. It must NOT compensate for incomplete planning -- no splitting, no expansion, no
+/// operator handling. If those are missing the failure belongs upstream, where it can be seen.
+///
+/// Not wired into the live path. Reached only via `spine exec`, an opt-in builtin.
+fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
+    use crate::spine::plan::{Environment, IoPlan};
+
+    let Some(program) = plan.argv.first() else {
+        return CommandResult::Error("  empty plan: nothing to execute".to_string());
+    };
+
+    let mut cmd = std::process::Command::new(program);
+    cmd.args(&plan.argv[1..]);
+
+    if let Some(dir) = plan.cwd.as_ref() {
+        cmd.current_dir(dir);
+    }
+
+    // Matched exhaustively so a new variant is a compile error here, not a silent no-op.
+    match &plan.env {
+        Environment::Inherit => {}
+        Environment::Replace(vars) => {
+            cmd.env_clear();
+            for (k, v) in vars {
+                cmd.env(k, v);
+            }
+        }
+    }
+    match plan.io {
+        // No redirects, no pipe wiring: spawn_with_tee's inherited stdin/stdout is exactly this.
+        IoPlan::Simple => {}
+    }
+
+    let word = program.to_string_lossy().to_string();
+    match spawn_with_tee(cmd, db) {
+        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) => {
+            let code = s.code().unwrap_or(1);
+            record_failure(db, &word, code);
+            CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+        }
+        // A direct spawn reports a missing command HERE, before any process exists -- unlike the
+        // sh path, which sees it as exit 127. Same situation for the user, different detection,
+        // which is precisely why classification stayed with the caller.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            record_failure(db, &word, 127);
+            CommandResult::Error(crate::error::FlowError::CommandNotFound(word).display_colored())
+        }
+        Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
     }
 }
 
