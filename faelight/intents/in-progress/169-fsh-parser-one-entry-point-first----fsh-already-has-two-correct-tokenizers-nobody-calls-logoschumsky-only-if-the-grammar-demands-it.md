@@ -109,8 +109,21 @@ built behind the discipline that makes it not-a-gamble.
       spine code was cut. -->
 - [ ] logos added + the hybrid lexer stands up: regular tokens via logos, custom stateful layer for
       strings/heredocs/$()/${}/interpolation. Demonstrated tokenizing a real line into typed tokens.
-- [ ] ONE CONSTRUCT end-to-end as proof-of-shape: a simple command -> logos+lexer tokens -> handwritten
+- [x] ONE CONSTRUCT end-to-end as proof-of-shape: a simple command -> logos+lexer tokens -> handwritten
       parse -> AST node -> execute, with the OLD path live beside it and the SAME REPL tests passing.
+      <!-- DONE 2026-07-22 gen 427. The vertical: source -> custom stateful scanner (logos
+      replaced on the word path at step 2) -> handwritten recursive-descent parse -> AST ->
+      lower() -> ExecutionPlan -> argv -> std::process::Command -> process. NO sh, NO re-parse.
+      Two opt-in entry points, live path untouched: spine exec (builtin) and spine-exec (REPL
+      prefix handler, with session vars + preexec/postexec hooks).
+      PROVEN on metal: spine-exec echo MY_VAR resolved to hello from real session state; the
+      single-quoted form stayed literal while a resolver held that name -- the INT-174 bug class
+      impossible by construction rather than avoided by convention; spine exec help reached a
+      builtin; printf with a per-arg format proved quoting survives to argv as ONE argument; a
+      failing command fired Friday's counter through postexec, so the hooks are not bypassed.
+      OLD PATH LIVE THROUGHOUT: fsh-test 97/97 including all five REPL redirect tests and the
+      INT-143 double-execution guards, plus 77 unit tests. Commits 12487484, c668dfce, d5dbffd0,
+      97359732, c445345f, f9dca926. -->
 - [ ] AST types defined (Command / Pipeline / Redirect / Assignment to start) + ExecContext holds the AST.
 - [ ] The rides-with fixes: stop lowercasing cmd; SystemTime not u64; unique execution ID (lights up 167's
       correlation_id).
