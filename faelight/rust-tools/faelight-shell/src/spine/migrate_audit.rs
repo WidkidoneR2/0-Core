@@ -15,6 +15,19 @@
 //! lowering that returns UnsupportedConstruct IS migration data (a feature gap), so the engine
 //! classifies it rather than the caller inventing a special case.
 //!
+//! ★★ COMPARISON SCOPE (part of the audit's SPECIFICATION, not a disclaimer): this compares the
+//! LEGACY PARSER and the SPINE PARSER given the same input string. The live shell performs
+//! variable, command-substitution, glob, and alias expansion BEFORE invoking the legacy parser
+//! (main.rs: expand_vars -> expand_subshells -> expand_globs -> alias -> execute -> from_line);
+//! those phases are NOT modelled here. So the supported claims are exactly:
+//!   parser equivalence     -- YES, measured.
+//!   execution equivalence  -- NOT yet demonstrated.
+//!   expansion equivalence  -- future work.
+//! Note the two models run their phases in OPPOSITE ORDER: legacy is raw -> expand (string
+//! munging) -> parse; the spine is raw -> parse -> expand (word walking). That inversion is the
+//! RFC's thesis -- legacy expands before it knows what is quoted -- and comparing the two orders
+//! is what the variable-expansion milestone will test.
+//!
 //! ★ MIGRATION-SAFE != CORRECT: "safe to flip a command" means the spine would NOT CHANGE its
 //! behavior except where intended -- not that the behavior is correct. A command both models
 //! handle wrong-but-identically is flip-safe (no regression); correctness comes later as
@@ -236,6 +249,9 @@ impl MigrationReport {
         // A single boolean throws away the context this audit exists to produce. Report the
         // evidence and a recommendation; leave the decision to informed judgement.
         out.push_str("Migration assessment\n\n");
+        out.push_str(
+            "Scope: compares the legacy and spine PARSERS on the same input string. The live\n               shell expands variables, command substitutions, globs, and aliases BEFORE the\n               legacy parser runs; those phases are not modelled here.\n\n",
+        );
         out.push_str(&format!(
             "Language feature gaps:   {}\n",
             if self.feature_gap == 0 {

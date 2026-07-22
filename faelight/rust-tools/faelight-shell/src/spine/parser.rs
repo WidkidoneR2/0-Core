@@ -10,7 +10,7 @@
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
 use super::ast::{AstNode, Command, Span, Spanned, Word, WordPart};
-use super::lexer::{lex, LexError, SpannedToken, TokenKind};
+use super::lexer::{lex, LexError, QuoteContext, SpannedToken, TokenKind, WordSegment};
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,11 +74,8 @@ impl Parser {
                     // double-quoted segment may yield SEVERAL parts (Literal + Variable) while
                     // a single-quoted segment stays one Literal -- and that is a change HERE,
                     // in the mapping, not in the lexer.
-                    let parts: Vec<WordPart> = t
-                        .segments
-                        .into_iter()
-                        .map(|seg| WordPart::Literal(seg.text))
-                        .collect();
+                    let parts: Vec<WordPart> =
+                        t.segments.iter().flat_map(parts_from_segment).collect();
                     words.push(Spanned::new(wspan, Word { parts }));
                     cmd_span = Some(match cmd_span {
                         None => wspan,
@@ -108,6 +105,59 @@ impl Parser {
         }
         self.parse_command()
     }
+}
+
+/// Map one lexical segment to word parts. THE MAPPING IS WHERE QUOTE CONTEXT IS INTERPRETED --
+/// the lexer only recorded which delimiter enclosed the text. A single-quoted segment is one
+/// Literal, always: a `$` inside it is ordinary text, and no later stage can mistake it for a
+/// live substitution. Unquoted and double-quoted segments are scanned for variable SITES.
+fn parts_from_segment(seg: &WordSegment) -> Vec<WordPart> {
+    match seg.context {
+        QuoteContext::Single => vec![WordPart::Literal(seg.text.clone())],
+        QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(&seg.text),
+    }
+}
+
+/// Split text into alternating Literal / Variable parts. RECOGNITION ONLY -- nothing is
+/// evaluated here, and the resulting plan still renders `$NAME` back out, so behaviour is
+/// unchanged (see plan::expand_word). Evaluation is the separate variable-expansion milestone.
+///
+/// Recognises the plain `$NAME` form with a POSIX-shaped name. Deliberately NOT yet: `${NAME}`,
+/// `${NAME:-default}`, `$?`, `$$`, positional `$1`. A `$` not starting a valid name is literal.
+fn recognise_variables(text: &str) -> Vec<WordPart> {
+    let mut parts: Vec<WordPart> = Vec::new();
+    let mut literal = String::new();
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        if chars[i] == '$' {
+            let start = i + 1;
+            if start < chars.len() && (chars[start].is_ascii_alphabetic() || chars[start] == '_') {
+                let mut j = start;
+                while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '_') {
+                    j += 1;
+                }
+                if !literal.is_empty() {
+                    parts.push(WordPart::Literal(std::mem::take(&mut literal)));
+                }
+                parts.push(WordPart::Variable(chars[start..j].iter().collect()));
+                i = j;
+                continue;
+            }
+        }
+        literal.push(chars[i]);
+        i += 1;
+    }
+
+    if !literal.is_empty() {
+        parts.push(WordPart::Literal(literal));
+    }
+    // An all-empty segment (`echo ""`) must still yield one part -- it is a real empty argument.
+    if parts.is_empty() {
+        parts.push(WordPart::Literal(String::new()));
+    }
+    parts
 }
 
 /// Parse a source line into a spanned AST node. Public entry: lex, then parse.

@@ -31,6 +31,7 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
                     .iter()
                     .map(|p| match p {
                         WordPart::Literal(s) => format!("Literal {s:?}"),
+                        WordPart::Variable(n) => format!("Variable {n:?}"),
                     })
                     .collect();
                 out.push_str(&format!(

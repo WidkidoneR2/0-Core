@@ -90,10 +90,13 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
         "a && b",
         "Command @[0,6)\n  Word @[0,1)  Literal \"a\"\n  Word @[2,4)  Literal \"&&\"\n  Word @[5,6)  Literal \"b\"\n  redirects: []\n",
     ),
-    // steps 3-4 (variables + mixed words): `foo$BAR` splits into Literal(foo)+Variable(BAR).
+    // VARIABLE RECOGNITION LANDED (2026-07-22): `foo$BAR` is now Literal("foo") + Variable("BAR").
+    // This golden FLIPPED -- proof the parser recognises expansion sites. NOTE only the RENDER
+    // changed: expand_word renders Variable back to `$BAR`, so argv is byte-identical and the
+    // migration audit is unaffected. It will move again at the variable-EXPANSION milestone.
     (
         "echo foo$BAR",
-        "Command @[0,12)\n  Word @[0,4)  Literal \"echo\"\n  Word @[5,12)  Literal \"foo$BAR\"\n  redirects: []\n",
+        "Command @[0,12)\n  Word @[0,4)  Literal \"echo\"\n  Word @[5,12)  Literal \"foo\" Variable \"BAR\"\n  redirects: []\n",
     ),
 ];
 

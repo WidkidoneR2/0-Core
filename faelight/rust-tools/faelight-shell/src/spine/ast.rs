@@ -141,7 +141,11 @@ impl Word {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WordPart {
     Literal(String),
-    // Variable(String)                 -- roadmap step 3
+    /// A variable reference SITE, recognised but not evaluated. The AST records that `$HOME`
+    /// occurred; what it evaluates to is the expansion phase's business. Produced only from
+    /// Unquoted and Double segments -- inside single quotes a `$` is literal text, which is
+    /// what makes the INT-172/174 bug class impossible by construction.
+    Variable(String),
     // CommandSub(Box<Spanned<AstNode>>) -- roadmap step 8
     // Arithmetic(Box<Spanned<AstNode>>) -- later
 }

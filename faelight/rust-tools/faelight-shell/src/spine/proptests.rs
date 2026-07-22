@@ -127,7 +127,12 @@ proptest! {
                             // An EMPTY literal is legitimate since step 2: `echo ""` is a real
                             // empty argument. Only Literal is produced today; the dormant
                             // variants arrive at their roadmap steps.
-                            prop_assert!(matches!(part, WordPart::Literal(_)), "only Literal today");
+                            // Literal and Variable are both produced now; the dormant variants
+                            // arrive at their own milestones.
+                            prop_assert!(matches!(
+                                part,
+                                WordPart::Literal(_) | WordPart::Variable(_)
+                            ));
                         }
                     }
                 }

@@ -84,7 +84,15 @@ fn expand_word(word: &Word) -> OsString {
     for part in &word.parts {
         match part {
             WordPart::Literal(s) => out.push_str(s),
-            // WordPart::Variable(name) => out.push_str(&resolve_var(name)),  // step 3
+            // RECOGNITION MILESTONE: a variable SITE is recognised but NOT evaluated, so it
+            // renders back to its source form and argv is byte-identical to before. This keeps
+            // the migration audit stable while the AST becomes structurally richer. The
+            // variable-expansion milestone replaces this with real resolution -- and THAT is
+            // when the audit is expected to move.
+            WordPart::Variable(name) => {
+                out.push('$');
+                out.push_str(name);
+            }
         }
     }
     OsString::from(out)
