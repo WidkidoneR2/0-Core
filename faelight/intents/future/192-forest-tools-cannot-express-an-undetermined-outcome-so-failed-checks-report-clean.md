@@ -178,6 +178,15 @@ expectation is that a handful need real care and the rest resolve in a line each
 is a claim about the system, and an undocumented one will be re-litigated -- or
 silently invalidated when the file stops being optional.
 
+### What is genuinely new here
+
+Not the shared-crate mechanics -- those already exist. The AXIS.
+
+The forest measures "is it working" (tests, fsh-test) and "is it healthy" (the
+doctor's 34 checks). It has never measured **"do I actually know?"**. Health at
+100% with a silently-dead deadwood check is the system being CONFIDENT rather than
+CORRECT, and no existing instrument would catch it.
+
 ## Success Criteria
 
 - [ ] Every site is ENUMERATED, not grepped -- including the shapes the first
@@ -194,4 +203,11 @@ silently invalidated when the file stops being optional.
 - [ ] The doctor can distinguish "checked, clean" from "could not check", and says so
 - [ ] Verified by breaking a check on purpose (rename config.fsh) and confirming the
       report says UNDETERMINED rather than clean
-- [ ] Decided: shared crate vs per-tool convention, with the 36-tool adoption surface in mind
+- [x] Decided: shared crate vs per-tool convention, with the adoption surface in mind
+<!-- 2026-07-23 recon: the forest ALREADY has a shared library. faelight-core/src/lib.rs exists and
+28 tools already depend on it via { path = "../faelight-core" }, inside a real Cargo workspace. It
+is a clean crate, not a junk drawer: canvas, error, glyph, paths, theme, wayland; 51-line lib.rs of
+pure declarations. So this does NOT introduce the forest's first shared contract -- that already
+happened. Home: faelight_core::observe (or inside the existing error module). Adoption is one `use`
+line for 28 tools, not a Cargo.toml change plus a rebuild-surface argument. The remaining question
+is aesthetic (new module vs extend error), not architectural. -->
