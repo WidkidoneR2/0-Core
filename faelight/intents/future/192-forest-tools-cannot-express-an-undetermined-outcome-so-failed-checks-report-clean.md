@@ -128,12 +128,65 @@ faelight-git and others -- belongs with faelightd, whose design notes already li
 That layer CONSUMES this contract; it does not replace it. Tools must be able to
 say "undetermined" whether or not the daemon is running.
 
+### Judgment scaffold for gate 2 (fill this in -- do not skip it)
+
+The per-site judgment is the hardest gate, not because it is difficult but because
+it is 15+ separate readings of surrounding code. Tedium invites shortcuts, and a
+shortcut here REPRODUCES THE ORIGINAL BUG: an answer produced without looking.
+
+Two axes, deliberately separated, because they fail independently:
+
+  A. CAN THIS ERROR FIRE IN A HEALTHY SYSTEM?
+     optional file genuinely absent  -> empty is the TRUTH
+     file that should always exist   -> empty is a LIE
+
+  B. CAN THE CONSUMER TELL?
+     TUI list, empty renders visibly, human is looking  -> VISIBLE
+     a number feeding a score or an automated decision  -> INVISIBLE
+
+Four quadrants. Only one is urgent:
+
+                     | VISIBLE            | INVISIBLE
+    -----------------+--------------------+---------------------------
+    empty is TRUTH   | fine, leave it     | fine, but document why
+    empty is a LIE   | low -- user sees   | ★ URGENT -- the lie propagates
+
+So the 15 sites are NOT 15 equal decisions. Sort by quadrant first; the
+expectation is that a handful need real care and the rest resolve in a line each.
+
+    site                                    | A: truth or lie? | B: visible? | verdict + reason
+    ----------------------------------------+------------------+-------------+------------------
+    deadwood/main.rs:286 check_dead_aliases  |                  |             |
+    deadwood/main.rs:408                     |                  |             |
+    deadwood/main.rs:461                     |                  |             |
+    deadwood/main.rs:517                     |                  |             |
+    shell/git_tui.rs:132                     |                  |             |
+    shell/history_tui.rs:134                 |                  |             |
+    shell/triggers.rs:70                     |                  |             |
+    shell/cheatsheet_tui.rs:774              |                  |             |
+    shell/config.rs:207                      |                  |             |
+    shell/db.rs:185                          |                  |             |
+    shell/db.rs:353                          |                  |             |
+    docs/toolgen.rs:563                      |                  |             |
+    release/learning.rs:56                   |                  |             |
+    update/cargo_checker.rs:24,30            | LIE (check ran, failed) | INVISIBLE (summary) | ★ the founding case
+    update/neovim_checker.rs:120             |                  |             |
+    update/flake_checker.rs:38,50            |                  |             |
+    (+ whatever enumeration adds)            |                  |             |
+
+⚠️ A "verdict" of TRUTH still needs its REASON recorded. "This file is optional"
+is a claim about the system, and an undocumented one will be re-litigated -- or
+silently invalidated when the file stops being optional.
+
 ## Success Criteria
 
 - [ ] Every site is ENUMERATED, not grepped -- including the shapes the first
       pattern missed (unwrap_or_default, .ok()?, unwrap_or(0), bool and count returns)
-- [ ] Each site is JUDGED individually: genuine-zero vs undetermined. A blanket
-      sweep is explicitly rejected
+- [ ] Each site is JUDGED individually against the two-axis scaffold above, with the
+      REASON recorded (including for sites judged fine). A blanket sweep is explicitly
+      rejected -- it would be the same class of error as the bug itself
+- [ ] Sites sorted by quadrant BEFORE any are fixed, so effort lands on
+      "empty is a lie AND nobody can see it" first
 - [ ] The tri-state is expressed in the TYPE SYSTEM, so a collapse fails to compile
       rather than relying on discipline
 - [ ] HIGH-severity sites first: anything feeding the health score or an automated decision
