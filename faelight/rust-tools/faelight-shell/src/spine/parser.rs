@@ -9,7 +9,7 @@
 //! new parse method hanging off this same recursive-descent structure -- parse_command
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
-use super::ast::{AstNode, Command, Span, Spanned, Word, WordPart};
+use super::ast::{AstNode, Command, Span, Spanned, SpecialParam, Word, WordPart};
 use super::lexer::{lex, LexError, QuoteContext, SpannedToken, TokenKind, WordSegment};
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
@@ -131,33 +131,104 @@ fn recognise_variables(text: &str) -> Vec<WordPart> {
     let mut i = 0usize;
 
     while i < chars.len() {
-        if chars[i] == '$' {
-            let start = i + 1;
-            if start < chars.len() && (chars[start].is_ascii_alphabetic() || chars[start] == '_') {
+        if chars[i] != '$' {
+            literal.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        // DISPATCH ON WHAT FOLLOWS `$`. Every expansion form lives in this one match, so adding
+        // a form is adding an arm rather than another nested if:
+        //     $?         -> SpecialParam(LastExit)
+        //     $$         -> SpecialParam(Pid)
+        //     ${NAME}    -> Variable(NAME)      (braces are SYNTAX, not semantics)
+        //     $NAME      -> Variable(NAME)
+        //     anything else -> a literal dollar sign
+        match chars.get(i + 1).copied() {
+            Some('?') => {
+                flush(&mut parts, &mut literal);
+                parts.push(WordPart::SpecialParam(SpecialParam::LastExit));
+                i += 2;
+            }
+            Some('$') => {
+                flush(&mut parts, &mut literal);
+                parts.push(WordPart::SpecialParam(SpecialParam::Pid));
+                i += 2;
+            }
+            Some('{') => match brace_identifier(&chars, i) {
+                Some((name, next_i)) => {
+                    flush(&mut parts, &mut literal);
+                    parts.push(WordPart::Variable(name));
+                    i = next_i;
+                }
+                // NOT a plain ${NAME} -- so `${VAR:-default}`, `${#VAR}`, `${VAR/a/b}` and an
+                // unterminated brace all stay LITERAL. The spine does not implement those forms,
+                // so it does not pretend to understand them.
+                //
+                // Legacy differs here, and this is deliberate divergence rather than an
+                // oversight: expand_vars reads the whole brace body as a NAME, looks up a
+                // variable literally called "VAR:-default", finds nothing, and substitutes the
+                // EMPTY STRING. That is a legacy bug. Leaving the text intact is the honest
+                // "I do not understand this yet", and it makes the difference VISIBLE in the
+                // migration audit instead of silently wrong.
+                None => {
+                    literal.push('$');
+                    i += 1;
+                }
+            },
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                let start = i + 1;
                 let mut j = start;
                 while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '_') {
                     j += 1;
                 }
-                if !literal.is_empty() {
-                    parts.push(WordPart::Literal(std::mem::take(&mut literal)));
-                }
+                flush(&mut parts, &mut literal);
                 parts.push(WordPart::Variable(chars[start..j].iter().collect()));
                 i = j;
-                continue;
+            }
+            _ => {
+                literal.push('$');
+                i += 1;
             }
         }
-        literal.push(chars[i]);
-        i += 1;
     }
 
-    if !literal.is_empty() {
-        parts.push(WordPart::Literal(literal));
-    }
+    flush(&mut parts, &mut literal);
     // An all-empty segment (`echo ""`) must still yield one part -- it is a real empty argument.
     if parts.is_empty() {
         parts.push(WordPart::Literal(String::new()));
     }
     parts
+}
+
+/// Close off any pending literal run before pushing a non-literal part.
+fn flush(parts: &mut Vec<WordPart>, literal: &mut String) {
+    if !literal.is_empty() {
+        parts.push(WordPart::Literal(std::mem::take(literal)));
+    }
+}
+
+/// `${NAME}` where NAME is a POSIX identifier. Returns the name and the index just past the
+/// closing brace, or None if the braces do not contain EXACTLY an identifier -- which is what
+/// keeps `${VAR:-default}` and friends as literal text rather than a fabricated lookup.
+fn brace_identifier(chars: &[char], dollar: usize) -> Option<(String, usize)> {
+    let start = dollar + 2;
+    let mut j = start;
+    while j < chars.len() && chars[j] != '}' {
+        j += 1;
+    }
+    if j >= chars.len() {
+        return None;
+    }
+    let name: String = chars[start..j].iter().collect();
+    let mut cs = name.chars();
+    let first = cs.next()?;
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return None;
+    }
+    if !cs.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return None;
+    }
+    Some((name, j + 1))
 }
 
 /// Parse a source line into a spanned AST node. Public entry: lex, then parse.

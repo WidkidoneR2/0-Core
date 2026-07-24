@@ -26,7 +26,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::ast::{AstNode, Span, Spanned, Word, WordPart};
+use super::ast::{AstNode, Span, Spanned, SpecialParam, Word, WordPart};
 
 /// The executor's input: an intent-to-run-in-context, not a bare argv. Even when cwd/env/io
 /// are empty today, the contract acknowledges that execution IS contextual (what directory,
@@ -123,6 +123,19 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> OsString {
             // the migration audit stable while the AST becomes structurally richer. The
             // variable-expansion milestone replaces this with real resolution -- and THAT is
             // when the audit is expected to move.
+            // Special parameters are the shell's own values, not name lookups -- each has its
+            // own resolver method. With no environment they render back to source form, exactly
+            // like Variable, so the audit stays comparable.
+            WordPart::SpecialParam(sp) => match ctx.vars {
+                Some(r) => match sp {
+                    SpecialParam::LastExit => out.push_str(&r.last_exit().unwrap_or(0).to_string()),
+                    SpecialParam::Pid => out.push_str(&r.pid().to_string()),
+                },
+                None => out.push_str(match sp {
+                    SpecialParam::LastExit => "$?",
+                    SpecialParam::Pid => "$$",
+                }),
+            },
             WordPart::Variable(name) => match ctx.vars {
                 // Resolve, matching legacy expand_vars: session vars then process env, and an
                 // UNSET name expands to the empty string.
@@ -269,6 +282,75 @@ mod tests {
         let node = parse("echo $NOPE").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(plan.argv[1], OsString::from(""));
+    }
+
+    #[test]
+    fn braces_are_syntax_not_semantics() {
+        // ${HOME} and $HOME must produce the SAME AST -- braces are parser syntax.
+        let mut m = std::collections::HashMap::new();
+        m.insert("HOME", "/home/christian");
+        let vars = FakeVars(m);
+        let ctx = LowerContext { vars: Some(&vars) };
+
+        let a = lower(&parse("echo $HOME").unwrap(), &ctx).unwrap();
+        let b = lower(&parse("echo ${HOME}").unwrap(), &ctx).unwrap();
+        assert_eq!(a.argv, b.argv);
+        assert_eq!(a.argv[1], OsString::from("/home/christian"));
+    }
+
+    #[test]
+    fn special_params_use_their_own_resolver_methods() {
+        // $? and $$ are NOT name lookups -- FakeVars answers 0 and 1234 from last_exit()/pid(),
+        // and its variable map is empty, so a Variable("?") model would have produced "".
+        let vars = FakeVars(std::collections::HashMap::new());
+        let ctx = LowerContext { vars: Some(&vars) };
+
+        let plan = lower(&parse("echo $?").unwrap(), &ctx).unwrap();
+        assert_eq!(plan.argv[1], OsString::from("0"));
+
+        let plan = lower(&parse("echo $$").unwrap(), &ctx).unwrap();
+        assert_eq!(plan.argv[1], OsString::from("1234"));
+
+        // Mixed into a word, concatenated with literals.
+        let plan = lower(&parse("echo exit=$?").unwrap(), &ctx).unwrap();
+        assert_eq!(plan.argv[1], OsString::from("exit=0"));
+    }
+
+    #[test]
+    fn unsupported_brace_forms_stay_literal_even_when_the_name_resolves() {
+        // ★ THE DELIBERATE DIVERGENCE. Legacy reads the whole brace body as a NAME, looks up a
+        // variable literally called "VAR:-default", finds nothing, and substitutes EMPTY. The
+        // spine does not implement default-expansion, so it does not pretend to: the text stays
+        // intact. Note VAR *is* set here -- so this is not "resolver missed it", it is the
+        // parser declining to claim it understood the form.
+        let mut m = std::collections::HashMap::new();
+        m.insert("VAR", "real");
+        let vars = FakeVars(m);
+        let ctx = LowerContext { vars: Some(&vars) };
+
+        for src in ["echo ${VAR:-default}", "echo ${#VAR}", "echo ${VAR/a/b}"] {
+            let plan = lower(&parse(src).unwrap(), &ctx).unwrap();
+            let got = plan.argv[1].to_string_lossy().to_string();
+            assert!(
+                got.starts_with("${"),
+                "{src} must stay literal, got {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn lone_and_unterminated_dollars_stay_literal() {
+        let vars = FakeVars(std::collections::HashMap::new());
+        let ctx = LowerContext { vars: Some(&vars) };
+        for (src, want) in [
+            ("echo $", "$"),
+            ("echo ${VAR", "${VAR"),
+            ("echo $1", "$1"), // positional params not modelled yet
+            ("echo 100$", "100$"),
+        ] {
+            let plan = lower(&parse(src).unwrap(), &ctx).unwrap();
+            assert_eq!(plan.argv[1], OsString::from(want), "for input {src:?}");
+        }
     }
 
     #[test]

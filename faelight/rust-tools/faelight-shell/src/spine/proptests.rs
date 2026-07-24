@@ -132,6 +132,7 @@ proptest! {
                             prop_assert!(matches!(
                                 part,
                                 WordPart::Literal(_) | WordPart::Variable(_)
+                                    | WordPart::SpecialParam(_)
                             ));
                         }
                     }

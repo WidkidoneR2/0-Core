@@ -146,8 +146,24 @@ pub enum WordPart {
     /// Unquoted and Double segments -- inside single quotes a `$` is literal text, which is
     /// what makes the INT-172/174 bug class impossible by construction.
     Variable(String),
+    /// A special shell parameter -- `$?`, `$$`. NOT a Variable: these are not NAME LOOKUPS,
+    /// which is exactly why VarResolver has `last_exit()` and `pid()` as distinct methods.
+    /// Modelling them as `Variable("?")` would force every resolver to special-case a name that
+    /// can never be set, and would invent a fake variable namespace. Room here for `$#`, `$@`,
+    /// `$*` and the positional parameters when they land.
+    SpecialParam(SpecialParam),
     // CommandSub(Box<Spanned<AstNode>>) -- roadmap step 8
     // Arithmetic(Box<Spanned<AstNode>>) -- later
+}
+
+/// The shell's special parameters -- values the shell itself owns, addressed with `$` but never
+/// settable as variables. Each maps to its own VarResolver method rather than a name lookup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecialParam {
+    /// `$?` -- the previous command's exit status.
+    LastExit,
+    /// `$$` -- the shell's process id.
+    Pid,
 }
 
 /// A redirection. RESERVED -- internals designed at roadmap step 5 (fd:Option<u32>,
