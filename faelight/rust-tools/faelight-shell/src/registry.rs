@@ -162,12 +162,6 @@ impl Registry {
         self.entries.get(name)
     }
 
-    pub fn set_description(&mut self, name: &str, description: &str) {
-        if let Some(entry) = self.entries.get_mut(name) {
-            entry.description = description.to_string();
-        }
-    }
-
     /// Populate registry from all known sources
     pub fn populate(&mut self, db: &crate::db::ForestDb, core_root: &str) {
         // ── Builtins ─────────────────────────────────────────────────────────

@@ -6119,18 +6119,42 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             "\n{}\n",
             "  ╭─ 🔖 Aliases ──────────────────────────────────────".bright_cyan()
         ));
+        // INT-194: mark aliases that shadow a builtin. The creation-time warning only helps
+        // from now on -- aliases already in config.fsh predate it, and someone inheriting a
+        // config would never see one. Marking them HERE is what makes known collisions
+        // "visible rather than discovered accidentally": no new command, no startup nagging
+        // about a settled declarative choice, shown exactly when you are looking at aliases.
+        let mut shadow_count = 0usize;
         for (name, cmd) in &aliases {
-            out.push_str(&format!(
-                "  │  {:<15} = {}\n",
-                name.bright_cyan(),
-                cmd.dimmed()
-            ));
+            if crate::registry::builtin_description(name).is_some() {
+                shadow_count += 1;
+                out.push_str(&format!(
+                    "  │  {:<15} = {}  {}\n",
+                    name.bright_cyan(),
+                    cmd.dimmed(),
+                    "shadows builtin".yellow()
+                ));
+            } else {
+                out.push_str(&format!(
+                    "  │  {:<15} = {}\n",
+                    name.bright_cyan(),
+                    cmd.dimmed()
+                ));
+            }
         }
         out.push_str(
             &"  ╰────────────────────────────────────────────────────"
                 .dimmed()
                 .to_string(),
         );
+        if shadow_count > 0 {
+            out.push_str(&format!(
+                "\n  {} {} alias{} shadow a builtin of the same name",
+                "⚠".yellow(),
+                shadow_count,
+                if shadow_count == 1 { "" } else { "es" }
+            ));
+        }
         return CommandResult::Output(out);
     }
 

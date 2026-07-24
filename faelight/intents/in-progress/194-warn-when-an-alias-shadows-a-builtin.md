@@ -3,7 +3,7 @@ id: 194
 date: 2026-07-24
 type: feature
 title: "warn when an alias shadows a builtin"
-status: planned
+status: in-progress
 tags: [feature, fsh, aliases, ergonomics, discoverability]
 ---
 
