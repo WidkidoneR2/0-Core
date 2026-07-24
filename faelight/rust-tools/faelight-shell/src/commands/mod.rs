@@ -6168,13 +6168,37 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         return CommandResult::Error("Usage: alias name=command".to_string());
     }
 
+    // INT-194: warn when an alias shadows a builtin. NOT a precedence change -- aliases taking
+    // precedence over builtins is standard shell behaviour (bash: aliases -> functions ->
+    // builtins -> PATH), and changing it would break every alias that deliberately overrides one.
+    // The problem is SILENCE: `gc` = `git commit -m` shadows the `gc` table builtin, which in
+    // turn silently broke `gc5` = `gc | first 5` (written expecting the builtin). Nothing
+    // anywhere reported that a builtin had been displaced.
+    //
+    // The check reads registry::BUILTINS -- the ONE source, and the scope is stated there:
+    // user-facing builtins with a description and usage, the ones `help` and the cheatsheet
+    // show. Those are exactly the ones a user could lose without noticing.
+    let shadowed = crate::registry::builtin_description(&name);
+
     if db.add_alias(&name, &command) {
-        CommandResult::Output(format!(
+        let mut out = format!(
             "  {} alias {} = {}",
             "✅".green(),
             name.bright_cyan(),
             command.dimmed()
-        ))
+        );
+        if let Some(desc) = shadowed {
+            out.push_str(&format!(
+                "\n  {} alias {} shadows the builtin {} ({})\n  {} the alias wins; {} to restore the builtin",
+                "⚠️".yellow(),
+                name.bright_cyan(),
+                name.bright_white(),
+                desc.dimmed(),
+                "→".dimmed(),
+                format!("unalias {}", name).bright_cyan()
+            ));
+        }
+        CommandResult::Output(out)
     } else {
         CommandResult::Error(format!("Failed to save alias: {}", name))
     }

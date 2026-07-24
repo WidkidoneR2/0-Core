@@ -84,6 +84,69 @@ pub struct Registry {
 }
 
 #[allow(dead_code)]
+/// THE registered builtins: name, description, usage.
+///
+/// ONE SOURCE, deliberately. fsh has at least SEVEN separate builtin-name lists
+/// (completion.rs, four in commands/mod.rs, a `vocab_builtins`, and one in the separate
+/// faelight-deadwood tool) -- the same shape as INT-143's four tokenizers, one layer up.
+/// Anything needing to ask "is this a builtin?" should read THIS, not add an eighth.
+///
+/// SCOPE, stated so it is not mistaken for completeness: these are the USER-FACING builtins --
+/// the ones with a description and a usage string, the ones `help` and the cheatsheet show.
+/// The dispatch match in commands/mod.rs has far more arms, but many are subcommand strings
+/// rather than command names. A consumer needing every dispatchable arm needs a different
+/// question answered.
+pub const BUILTINS: &[(&str, &str, &str)] = &[
+    ("d", "Run health check", "d"),
+    ("health", "System health and status", "health"),
+    ("events", "Recent forest events", "events [today|domain]"),
+    ("decisions", "Open decisions from ledger", "decisions"),
+    ("intents", "Active intents", "intents"),
+    ("tools", "Tool deployment status", "tools"),
+    ("version", "Forest version", "version"),
+    ("gc", "Git commits as structured table", "gc [n]"),
+    ("ps", "Running processes as table", "ps"),
+    ("history", "Command history as table", "history [n]"),
+    ("ht", "History table shortcut", "ht"),
+    (
+        "last_error",
+        "Show last structured error",
+        "last_error [explain|suggest]",
+    ),
+    ("errors", "Session error log", "errors [n]"),
+    ("which", "Show command source", "which <cmd>"),
+    ("describe", "Describe a command", "describe <cmd>"),
+    (
+        "command",
+        "Command registry queries",
+        "command [list|info <cmd>]",
+    ),
+    ("cd", "Change directory", "cd <path>"),
+    ("pwd", "Print working directory", "pwd"),
+    ("ls", "List directory", "ls [path]"),
+    ("help", "Show available commands", "help"),
+    ("exit", "Exit the shell", "exit"),
+    ("theme", "Switch prompt theme", "theme <name>"),
+    ("clear", "Clear the terminal", "clear"),
+    ("echo", "Output text", "echo <text>"),
+    ("cat", "View file contents", "cat <file>"),
+    ("find", "Find files", "find <pattern>"),
+    ("ports", "Show open ports", "ports"),
+    ("services", "Show running services", "services"),
+];
+
+/// Is `name` a registered builtin? Returns its description if so.
+///
+/// Cheap: a linear scan of a small const. Deliberately NOT `Registry::populate()`, which reads
+/// the db AND scans core_root for scripts and binaries -- the wrong cost for one name lookup,
+/// and it needs a core_root the caller may not have.
+pub fn builtin_description(name: &str) -> Option<&'static str> {
+    BUILTINS
+        .iter()
+        .find(|(n, _, _)| *n == name)
+        .map(|(_, desc, _)| *desc)
+}
+
 impl Registry {
     pub fn new() -> Self {
         Self {
@@ -108,44 +171,7 @@ impl Registry {
     /// Populate registry from all known sources
     pub fn populate(&mut self, db: &crate::db::ForestDb, core_root: &str) {
         // ── Builtins ─────────────────────────────────────────────────────────
-        let builtins: &[(&str, &str, &str)] = &[
-            ("d", "Run health check", "d"),
-            ("health", "System health and status", "health"),
-            ("events", "Recent forest events", "events [today|domain]"),
-            ("decisions", "Open decisions from ledger", "decisions"),
-            ("intents", "Active intents", "intents"),
-            ("tools", "Tool deployment status", "tools"),
-            ("version", "Forest version", "version"),
-            ("gc", "Git commits as structured table", "gc [n]"),
-            ("ps", "Running processes as table", "ps"),
-            ("history", "Command history as table", "history [n]"),
-            ("ht", "History table shortcut", "ht"),
-            (
-                "last_error",
-                "Show last structured error",
-                "last_error [explain|suggest]",
-            ),
-            ("errors", "Session error log", "errors [n]"),
-            ("which", "Show command source", "which <cmd>"),
-            ("describe", "Describe a command", "describe <cmd>"),
-            (
-                "command",
-                "Command registry queries",
-                "command [list|info <cmd>]",
-            ),
-            ("cd", "Change directory", "cd <path>"),
-            ("pwd", "Print working directory", "pwd"),
-            ("ls", "List directory", "ls [path]"),
-            ("help", "Show available commands", "help"),
-            ("exit", "Exit the shell", "exit"),
-            ("theme", "Switch prompt theme", "theme <name>"),
-            ("clear", "Clear the terminal", "clear"),
-            ("echo", "Output text", "echo <text>"),
-            ("cat", "View file contents", "cat <file>"),
-            ("find", "Find files", "find <pattern>"),
-            ("ports", "Show open ports", "ports"),
-            ("services", "Show running services", "services"),
-        ];
+        let builtins = BUILTINS;
         for (name, desc, usage) in builtins {
             self.register(CommandEntry::builtin(name, desc, usage));
         }
