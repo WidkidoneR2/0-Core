@@ -1,7 +1,7 @@
 [package]
 name = "faelight-shell"
 license = "MIT"
-version = "3.5.3"
+version = "3.6.0"
 edition = "2021"
 description = "The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
 
