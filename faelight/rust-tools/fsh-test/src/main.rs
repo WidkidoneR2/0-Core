@@ -742,6 +742,79 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "repl_193_nested_alias_preserves_quoting",
+        Category::Repl,
+        || {
+            // INT-193: execute_impl rebuilds the line as args.join(" ") from ALREADY
+            // TOKENIZED args, so a quoted multi-word argument becomes N bare ones. Only
+            // NESTED chains reach it -- a direct alias resolves to a non-alias command
+            // word first. printf %s. prints one arg as "a b." and two as "a.b.", which
+            // echo cannot distinguish (it joins with a space).
+            // RED ON HEAD as of gen 431. Proven by hand before this test existed.
+            let out = repl::run_repl("alias zzq1='printf %s.'; alias zzq2='zzq1'; zzq2 \"a b\"")?;
+            let joined = out.join("\n");
+            if joined.contains("a.b.") {
+                return Err(format!("nested alias split a quoted argument: {joined:?}"));
+            }
+            if !joined.contains("a b.") {
+                return Err(format!("expected one argument 'a b.': {joined:?}"));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_193_direct_alias_preserves_quoting",
+        Category::Repl,
+        || {
+            // Control. A DIRECT alias never reaches the executor-side expansion, so this
+            // passes today and must KEEP passing -- it guards the path already correct.
+            let out = repl::run_repl("alias zzq3='printf %s.'; zzq3 \"a b\"")?;
+            let joined = out.join("\n");
+            if !joined.contains("a b.") || joined.contains("a.b.") {
+                return Err(format!(
+                    "direct alias mangled a quoted argument: {joined:?}"
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_193_alias_chain_resolves",
+        Category::Repl,
+        || {
+            // Chains work BY ACCIDENT today (one pass at the prompt, the rest in the
+            // executor). Consolidation must preserve them DELIBERATELY.
+            let out = repl::run_repl(
+                "alias zza='zzb'; alias zzb='zzc'; alias zzc='echo CHAIN_OK_193'; zza",
+            )?;
+            let joined = out.join("\n");
+            if joined.contains("CHAIN_OK_193") {
+                Ok(())
+            } else {
+                Err(format!("alias chain did not resolve: {joined:?}"))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_193_redirect_from_alias_value",
+        Category::Repl,
+        || {
+            // The redirect operator arrives FROM the alias value, not the typed line.
+            // Expansion runs BEFORE detect_redirect, and moving expansion must not
+            // change that. Clears its file FIRST (INT-172 hygiene rule). The marker also
+            // appears in the alias confirmation line, so that line is filtered out --
+            // and the file is read with sed, since `cat` is aliased to bat here.
+            // otherwise this passes even when the redirect is broken.
+            let out = repl::run_repl("rm -f /tmp/zz193r.txt; alias zzr='echo ZR193 >'; zzr /tmp/zz193r.txt; sed -n 1p /tmp/zz193r.txt")?;
+            let ok = out.iter().any(|l| l.contains("ZR193") && !l.contains("alias"));
+            if ok {
+                Ok(())
+            } else {
+                Err(format!("redirect from alias value lost: {out:?}"))
+            }
+        },
+    ));
     results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
         // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
         // NEVER unset, leaking into the session. POSIX scopes it to that command
