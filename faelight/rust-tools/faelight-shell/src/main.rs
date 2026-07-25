@@ -2310,15 +2310,8 @@ fn repl_main() -> Result<()> {
                     };
                     let line = if cat_with_redirect {
                         line.to_string()
-                    } else if let Some(aliased) = db.get_alias(&first_word) {
-                        let rest: String = line
-                            .split_once(' ')
-                            .map(|x| x.1)
-                            .map(|s| format!(" {}", s))
-                            .unwrap_or_default();
-                        format!("{}{}", aliased, rest)
                     } else {
-                        line.to_string()
+                        commands::expand_aliases(line, &db)
                     };
                     let line = line.as_str();
                     // INT-265: Forest pipeline detection
@@ -2526,8 +2519,19 @@ fn repl_main() -> Result<()> {
                                 // The dir did not exist. Run 1 made it; run 2 failed. `curl -X POST
                                 // > log` posted twice. `git push > out` pushed twice.
                                 // try_builtin() answers NotBuiltin instead of spawning.
-                                let builtin_result =
-                                    commands::try_builtin(&cmd_part, &db, &core_root);
+                                // INT-193 / BUG-298-4: the cat bypass means "use the REAL cat
+                                // for this invocation". It used to skip only the bat alias at the
+                                // prompt; the executor then re-expanded cat anyway, so the probe
+                                // answered NotBuiltin and /bin/cat ran BY ACCIDENT. With a single
+                                // owner the probe now sees `cat` unexpanded and matches fsh's cat
+                                // BUILTIN, whose returned string picks up a trailing newline --
+                                // measured 9 bytes in, 10 out. Skipping the probe here is the
+                                // bypass finally saying what it always meant.
+                                let builtin_result = if cat_with_redirect {
+                                    commands::CommandResult::NotBuiltin
+                                } else {
+                                    commands::try_builtin(&cmd_part, &db, &core_root)
+                                };
                                 let is_builtin =
                                     !matches!(builtin_result, commands::CommandResult::NotBuiltin);
                                 let builtin_out = match builtin_result {

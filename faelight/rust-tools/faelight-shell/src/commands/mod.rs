@@ -248,6 +248,40 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
 /// Those direct-spawn arms were ALREADY broken for redirects before this change (`gt > f` tried
 /// to spawn a `gt` binary that does not exist, so the file got nothing). This does not make them
 /// worse. It fixes what it can prove and names what it cannot.
+/// INT-193: THE SINGLE OWNER of alias expansion.
+///
+/// Works on RAW TEXT, never on tokenized args. The remainder is copied verbatim via
+/// `split_once`, so a quoted multi-word argument survives intact. The executor-side
+/// expansion this replaces rebuilt the line from ALREADY-TOKENIZED args with
+/// `args.join(" ")`, which silently split one quoted argument into several.
+///
+/// Iterative, not recursive: each round produces a new String, so a loop with an owned
+/// guard is simpler than threading borrowed names through recursive calls.
+///
+/// The INT-057 cycle guard lives here now. A self-referential alias expands once and
+/// then stops, so it cannot recurse forever.
+pub fn expand_aliases(line: &str, db: &ForestDb) -> String {
+    let mut current = line.to_string();
+    let mut seen: Vec<String> = Vec::new();
+    loop {
+        let first = command_word(&current).to_lowercase();
+        if first.is_empty() || seen.contains(&first) {
+            break;
+        }
+        let Some(aliased) = db.get_alias(&first) else {
+            break;
+        };
+        let rest: String = current
+            .split_once(' ')
+            .map(|x| x.1)
+            .map(|s| format!(" {}", s))
+            .unwrap_or_default();
+        seen.push(first);
+        current = format!("{}{}", aliased, rest);
+    }
+    current
+}
+
 pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     execute_impl(
         &tokenize(line.trim()),
@@ -663,31 +697,13 @@ fn execute_impl(
     // skipped when argv is authoritative. This is why blocker 6 (alias expansion in the spine)
     // stays honestly unstarted instead of half-working by accident.
     if mode.allows_text_transforms() {
-        if let Some(aliased) = db.get_alias(&cmd) {
-            // INT-057: don't re-expand an alias already expanded in this chain.
-            // A self-referential alias (df = df -h) would otherwise recurse
-            // forever -> stack overflow -> SIGSEGV.
-            if !expanded_names.contains(&cmd.as_str()) {
-                let expanded = if args.is_empty() {
-                    aliased.clone()
-                } else {
-                    format!("{} {}", aliased, args.join(" "))
-                };
-                let mut next = expanded_names.to_vec();
-                next.push(cmd.as_str());
-                // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
-                // point the new text appears, which is where text-world work belongs.
-                return execute_impl(
-                    &tokenize(expanded.trim()),
-                    &expanded,
-                    db,
-                    core_root,
-                    &next,
-                    mode,
-                );
-            }
-            // already expanded in this chain -> fall through and run as a command
-        }
+        // INT-193: alias expansion USED to happen here, a SECOND time, and this is where
+        // quoting died: `args` are already tokenized, so `args.join(" ")` reassembled a
+        // quoted multi-word argument as several bare ones. It now has a single owner in the
+        // input phase (`expand_aliases`), called at the prompt before this executor sees the
+        // line. Do NOT reintroduce it here -- INT-195: no stage may re-derive syntax a
+        // previous stage already computed. Plugin expansion below is a SEPARATE question,
+        // deliberately left to INT-170; it keeps its own INT-057 guard.
 
         // Plugin resolution — after final cmd parse
         {

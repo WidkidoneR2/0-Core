@@ -743,6 +743,45 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_193_expansion_happens_exactly_once",
+        Category::Repl,
+        || {
+            // THE INVARIANT. The original reproducer: with two owners this printed the
+            // marker TWICE, because the prompt expanded once and the executor expanded
+            // again from an empty guard. One owner means one expansion.
+            let out = repl::run_repl("alias echo='echo MARK193'; echo")?;
+            if out.iter().any(|l| l.contains("MARK193 MARK193")) {
+                return Err(format!("alias expanded twice: {out:?}"));
+            }
+            let seen = out.iter().any(|l| {
+                l.contains("MARK193") && !l.trim_start().starts_with('[') && !l.contains("alias")
+            });
+            if seen {
+                Ok(())
+            } else {
+                Err(format!("marker never printed at all: {out:?}"))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_193_self_referential_alias_survives",
+        Category::Repl,
+        || {
+            // INT-057 was a STABILITY intent: a self-referential alias recursed forever
+            // and took the terminal with it. That guard moved into expand_aliases with
+            // the expansion. It expands once, stops, and runs the result as a command.
+            let out = repl::run_repl("alias zzloop='zzloop -h'; zzloop")?;
+            let joined = out.join("\n").to_lowercase();
+            if joined.contains("not found") || joined.contains("no such") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "self-referential alias did not terminate cleanly: {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
         "repl_193_nested_alias_preserves_quoting",
         Category::Repl,
         || {
