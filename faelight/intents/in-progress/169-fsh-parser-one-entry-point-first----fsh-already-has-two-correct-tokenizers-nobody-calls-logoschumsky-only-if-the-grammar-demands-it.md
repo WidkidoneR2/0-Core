@@ -60,6 +60,11 @@ place -- the last 5% of lexer control is not needed.
 - Store SystemTime, not a raw u64 unix timestamp.
 - Give each execution a unique ID (UUID or incrementing) -- this also lights up the DEAD correlation_id
   column (INT-167), finally making cross-layer tracing real.
+  DECIDED 2026-07-25, from an outside architecture review: a MONOTONIC COUNTER,
+  not a UUID, for as long as execution is intra-process. `exec_id=42` on every
+  log line reads and correlates well locally; UUIDs and trace IDs earn their
+  cost only if remote execution or distributed tracing arrives, and can be
+  introduced then. This settles the 'UUID or incrementing' choice above.
 
 ## Scoped OUT of 169 (separate sequenced intents -- do NOT smuggle in)
 - tree-sitter = for SYNTAX HIGHLIGHTING (editor side), NOT the parser. chumsky/handwritten owns execution
