@@ -797,6 +797,27 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_193_cat_redirect_output_matches_source",
+        Category::Repl,
+        || {
+            // BUG-298-4 bypasses alias expansion for `cat` under a redirect. THE CONTRACT,
+            // not the mechanism: the redirected output must be byte-identical to the
+            // source. Says nothing about bat or builtins, so it stays valid if the
+            // implementation changes again. Clears its files FIRST (INT-172 hygiene).
+            // The success token also appears in the echoed command text, so the `[n/N]`
+            // progress lines are filtered -- otherwise this passes no matter what.
+            let out = repl::run_repl("rm -f /tmp/zz193c_src.txt /tmp/zz193c_out.txt; printf CATSRC193 > /tmp/zz193c_src.txt; cat /tmp/zz193c_src.txt > /tmp/zz193c_out.txt; cmp -s /tmp/zz193c_src.txt /tmp/zz193c_out.txt && echo CMP_OK_193")?;
+            let ok = out
+                .iter()
+                .any(|l| l.contains("CMP_OK_193") && !l.trim_start().starts_with('['));
+            if ok {
+                Ok(())
+            } else {
+                Err(format!("redirected cat output did not match source: {out:?}"))
+            }
+        },
+    ));
+    results.push(test(
         "repl_193_redirect_from_alias_value",
         Category::Repl,
         || {
