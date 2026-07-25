@@ -71,6 +71,31 @@ single expansion and proves nothing. `postexec` records `ctx.raw` from the OUTER
 DIRECTLY -- so a second expansion happens entirely below the postexec boundary
 and never reaches history. That evidence was silent, not negative.
 
+### SECOND SYMPTOM, PROVEN 2026-07-25: expansion DESTROYS QUOTING
+`cin` = `core intent new`. Two lines carrying an identical quoted title:
+    cin future arch "every stage consumes the previous stage output, ..."
+        -> error: unexpected argument 'stage' found
+    core intent new future arch "every stage consumes the previous stage output, ..."
+        -> created intents/future/195-....md
+Same arguments. One path through alias expansion, one not. The alias path lost
+the quoting.
+MECHANISM, found by reading both sites rather than reasoning about them:
+  - Site 1 (main.rs) is INNOCENT. It takes the remainder with
+    `line.split_once(' ').map(|x| x.1)` off the RAW line and concatenates it
+    verbatim, so quotes survive that pass.
+  - Site 2 (execute_impl) builds `format!("{} {}", aliased, args.join(" "))`.
+    `args` are ALREADY TOKENIZED, so the quotes are gone before that line runs.
+    Joining them with spaces and re-tokenizing splits one quoted argument into N
+    bare ones. The comment directly above it says so: alias expansion produced
+    new text, so it is re-tokenized here.
+WHY cin HITS IT AND core intent new DOES NOT: after the REPL pass, cin has become
+`core ...`, and `core` is itself an alias, so site 2 fires. Typing `core`
+directly leaves the absolute path as the command word, which is not an alias, so
+site 2 never runs.
+NESTED CHAINS ARE THEREFORE WHERE QUOTES DIE. The gate below calling nested
+aliases "work by accident" is too generous: they work for argument-free chains
+and corrupt quoted arguments. Every c* and int* alias routing through `core` is
+affected.
 ## The Solution
 
 Consolidate to ONE owner. Not yet decided WHERE -- that is design work, and the
@@ -96,6 +121,12 @@ expansion into the input phase means the spine never needs to know aliases exist
 -- the architecture falls out of the fix rather than being the goal.
 
 ## Success Criteria
+- [ ] EXPANSION PRESERVES QUOTED ARGUMENTS. Reproducer, proven 2026-07-25:
+      `cin future arch "a b c"` must behave identically to
+      `core intent new future arch "a b c"`. Today the first fails and the
+      second succeeds. Consolidation probably fixes this, but exactly-once does
+      NOT guarantee it (a single-site implementation could still join and
+      re-tokenize), so it is gated separately
 
 - [ ] ★ INVARIANT: every alias expansion occurs exactly once. Verified from
       OUTSIDE the code: `alias echo="echo MARK"; echo` prints `MARK` exactly once
