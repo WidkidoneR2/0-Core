@@ -121,32 +121,72 @@ expansion into the input phase means the spine never needs to know aliases exist
 -- the architecture falls out of the fix rather than being the goal.
 
 ## Success Criteria
-- [ ] EXPANSION PRESERVES QUOTED ARGUMENTS. Reproducer, proven 2026-07-25:
+- [x] EXPANSION PRESERVES QUOTED ARGUMENTS. Reproducer, proven 2026-07-25:
       `cin future arch "a b c"` must behave identically to
       `core intent new future arch "a b c"`. Today the first fails and the
       second succeeds. Consolidation probably fixes this, but exactly-once does
       NOT guarantee it (a single-site implementation could still join and
       re-tokenize), so it is gated separately
+      <!-- DONE 2026-07-25 gen 432. repl_193_nested_alias_preserves_quoting was RED on gen 431
+      (a.b. for one quoted argument), GREEN after 9d533787. By hand on the deployed shell:
+      alias zzq1='printf %s.'; alias zzq2='zzq1'; zzq2 "a b" -> a b. -->
 
-- [ ] ★ INVARIANT: every alias expansion occurs exactly once. Verified from
+- [x] ★ INVARIANT: every alias expansion occurs exactly once. Verified from
       OUTSIDE the code: `alias echo="echo MARK"; echo` prints `MARK` exactly once
-- [ ] Exactly one code path performs alias expansion (enumerated, not grepped)
-- [ ] INT-057's protection still holds -- a self-referential alias does not
+      <!-- DONE 2026-07-25 gen 432. repl_193_expansion_happens_exactly_once holds the original
+      reproducer -- alias echo='echo MARK193'; echo must not print the marker twice. -->
+- [x] Exactly one code path performs alias expansion (enumerated, not grepped)
+      <!-- DONE 2026-07-25, ENUMERATED. ONE definition: commands::expand_aliases. ONE caller:
+      main.rs's prompt path where site 1 stood. execute_impl's block is DELETED, not disabled.
+      try_builtin has one caller and no longer expands, since Probe reached the block that is
+      gone. fsh -c is not a third path: both handlers spawn sh and never enter fsh execution. -->
+- [x] INT-057's protection still holds -- a self-referential alias does not
       recurse infinitely and does not crash the shell
-- [ ] Nested aliases still resolve. ⚠️ These currently work BY ACCIDENT: the REPL
+      <!-- DONE 2026-07-25 gen 432. repl_193_self_referential_alias_survives: zzloop='zzloop -h'
+      expands once, the guard stops it, terminates as command-not-found. The guard is an owned
+      Vec<String> inside expand_aliases, checked every round. -->
+- [x] Nested aliases still resolve. ⚠️ These currently work BY ACCIDENT: the REPL
       does one pass and `execute_impl` does the rest. Consolidation must preserve
       chains DELIBERATELY (`cistart` -> `core intent start` -> `core` is itself an
       alias to the absolute path) rather than let the behaviour emerge from
       having two sites
-- [ ] `try_builtin` (`ExecutionMode::Probe`) still answers the same question.
+      <!-- DONE 2026-07-25 gen 432. Now DELIBERATE: expand_aliases loops until the command word
+      is not an alias, so chains resolve in one owner rather than emerging from two.
+      repl_193_alias_chain_resolves proves a three-deep chain. -->
+- [x] `try_builtin` (`ExecutionMode::Probe`) still answers the same question.
       ⚠️ Text transforms are ON in Probe deliberately, because aliases are part of
       an honest answer to "would this line hit a builtin?". If expansion moves
       upstream, its callers must pass already-expanded text or the probe's ANSWER
       CHANGES MEANING -- and its caller is main.rs's redirect path, where INT-143's
       double-execution scars are
-- [ ] The `expanded_names` cycle guard moves with the expansion (it is currently an
+      <!-- DONE 2026-07-25. YES, WITH ONE DELIBERATE EXCEPTION. The precondition was already
+      met: cmd_part reaches try_builtin ALREADY EXPANDED (no `let line` rebinding between
+      main.rs 2323 and 2441), so removing the probe's expansion is a no-op for its answer.
+      EXCEPTION: `cat` under redirect is both an alias and a builtin. The probe used to expand
+      cat->bat and answer NotBuiltin, so /bin/cat ran BY ACCIDENT; unexpanded it matches the
+      builtin, whose returned string gained a trailing newline (9 bytes in, 10 out). BUG-298-4's
+      bypass now skips the builtin probe too. repl_193_cat_redirect_output_matches_source was
+      baselined GREEN before the fix and is GREEN after -- bounded and tested, not discovered. -->
+- [x] The `expanded_names` cycle guard moves with the expansion (it is currently an
       `execute_impl` parameter threaded through the recursion)
-- [ ] REPL and non-REPL execution share the same expansion logic
-- [ ] fsh-test still 97/97, including `repl_173_alias_expands_at_prompt`
-- [ ] Regression test added for the exactly-once invariant, so this cannot silently
+      <!-- DONE 2026-07-25. The ALIAS guard moved: an owned Vec<String> local to expand_aliases,
+      no longer threaded through execute_impl's recursion. The expanded_names PARAMETER stays,
+      because PLUGIN expansion uses the same INT-057 guard and plugins are untouched (INT-170). -->
+- [x] REPL and non-REPL execution share the same expansion logic
+      <!-- DONE 2026-07-25 -- and recon changed what this gate means. There IS no non-REPL fsh
+      execution: both -c handlers (main.rs 588, repl_main 651) spawn sh and exit, so fsh's parser,
+      dispatch and aliases never run there. Satisfied because exactly one expansion path exists
+      and every path that executes fsh commands goes through it. NOTE: the two -c handlers use
+      DIFFERENT matching rules (positional vs position-anywhere) -- the two-owner shape one layer
+      up, deliberately untouched because -c is login-shell compatibility. Its own intent. -->
+- [x] fsh-test still 97/97, including `repl_173_alias_expands_at_prompt`
+      <!-- DONE 2026-07-25 gen 432. 104/104 via bare fsh-test -- the DEPLOYED harness against the
+      DEPLOYED shell, per INT-110; cargo run does not count as the gate. Includes
+      repl_173_alias_expands_at_prompt. 97 became 104 because this intent added seven tests. -->
+- [x] Regression test added for the exactly-once invariant, so this cannot silently
       return
+      <!-- DONE 2026-07-25. Seven Category::Repl tests: expansion_happens_exactly_once,
+      nested_alias_preserves_quoting, direct_alias_preserves_quoting, alias_chain_resolves,
+      self_referential_alias_survives, redirect_from_alias_value,
+      cat_redirect_output_matches_source. Committed RED first (cdae8111, 999270fb) so the history
+      shows the bug reproduced before the fix -- INT-158's watch-it-fail-first. -->
