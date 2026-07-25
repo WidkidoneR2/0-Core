@@ -3,7 +3,7 @@ id: 193
 date: 2026-07-24
 type: fix
 title: "alias expansion has two owners so every alias expands twice"
-status: in-progress
+status: complete
 tags: [fix, bugfix, fsh, aliases, int-169, int-057]
 ---
 
