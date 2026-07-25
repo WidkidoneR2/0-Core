@@ -164,6 +164,14 @@ So parser equivalence is demonstrated; EXECUTION equivalence is not.
 replaced logos on the word path with the hand-written stateful scanner (a regex alternation cannot
 express quoting -- `foo"bar baz"` is one word). logos is currently an unused dependency. Either the
 gate's wording needs revisiting or logos returns for the operator tokens at steps 5-7.
+RESOLVED 2026-07-25 by an outside architecture review, which took the SECOND branch:
+"logos isn't the lexer -- it's the engine for the easy pieces. The shell lexer is
+still your state machine." So the split is by RESPONSIBILITY, not by coverage: the
+stateful scanner owns context-sensitive regions (quoting, heredocs, command sub,
+expansion) because that is where context-sensitivity lives and where the 172/174 bug
+class came from; logos owns the regular operator tokens at steps 5-7. logos sitting
+unused after step 2 is therefore EXPECTED MID-BUILD, not a failed gate. The gate's
+wording stands as written and needs no revision.
 
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
