@@ -25,6 +25,14 @@ struct Cli {
     /// Output a single summary line with counts (for the health dashboard)
     #[arg(long)]
     summary: bool,
+    /// Exit non-zero if this run found anything IT REPORTED. Orthogonal to --summary:
+    /// --summary chooses the output FORMAT, --strict chooses the EXIT SEMANTICS. The default
+    /// and plain --summary exits stay 0 after a successful run regardless of findings, because
+    /// the health doctor requires status.success() before parsing the summary line and would
+    /// otherwise report this tool as not installed. NOTE the INT-195 check is not part of the
+    /// summary totals, so --summary --strict gates on the six filesystem categories only.
+    #[arg(long)]
+    strict: bool,
     #[arg(long)]
     purge: bool,
     #[arg(long)]
@@ -91,6 +99,14 @@ fn main() {
         let total = aliases + baks + keybinds + registry + scripts + modules;
         // machine-readable single line: TOTAL|aliases|baks|keybinds|registry|scripts|modules
         println!("{total}|{aliases}|{baks}|{keybinds}|{registry}|{scripts}|{modules}");
+        // The INT-195 check is deliberately NOT in these positional totals: the health doctor
+        // parses this line by index, so an added field would silently shift what it reads. That
+        // means --summary --strict gates on the six filesystem categories only, while report mode
+        // gates on all seven. If INT-195 ever belongs here, that is a documented format version
+        // change, not a quiet extra field.
+        if cli.strict && total > 0 {
+            std::process::exit(1);
+        }
         return;
     }
 
@@ -105,58 +121,63 @@ fn main() {
     );
     println!();
     let run = |name: &str| cli.only.as_deref().map(|o| o == name).unwrap_or(true);
+    let mut reported = 0usize;
     if run("aliases") {
-        report("Dead aliases", check_dead_aliases(&root));
+        reported += report("Dead aliases", check_dead_aliases(&root));
     }
     if run("baks") {
-        report(
+        reported += report(
             &format!("Stale .bak files (>{} days)", cli.bak_age),
             check_stale_baks(&root, cli.bak_age),
         );
     }
     if run("keybinds") {
-        report("Dead keybinds (mango)", check_dead_keybinds(&root));
+        reported += report("Dead keybinds (mango)", check_dead_keybinds(&root));
     }
     if run("registry") {
-        report(
+        reported += report(
             "Registry orphans (deployable, no binary)",
             check_registry_orphans(&root),
         );
     }
     if run("scripts") {
-        report(
+        reported += report(
             "Orphaned scripts (referenced nowhere)",
             check_orphaned_scripts(&root),
         );
     }
     if run("modules") {
-        report(
+        reported += report(
             "Orphaned Nix modules (imported by no host)",
             check_orphaned_modules(&root),
         );
     }
     if run("cmdword") {
         let (found, exempt) = check_command_word_derivations(&root);
-        report(
+        reported += report(
             &format!("Command-word derivation candidates (INT-195) [{exempt} author-exempt]"),
             found,
         );
     }
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  A healthy forest sheds dead wood.".dimmed());
+    if cli.strict && reported > 0 {
+        std::process::exit(1);
+    }
 }
 
-fn report(title: &str, findings: Vec<Finding>) {
+fn report(title: &str, findings: Vec<Finding>) -> usize {
     if findings.is_empty() {
         println!("  [ok] {}: clean", title);
         println!();
-        return;
+        return 0;
     }
     println!("  {} ({} flagged)", title.bright_white(), findings.len());
     for f in &findings {
         println!("    [{}] {}", f.confidence.tag(), f.detail);
     }
     println!();
+    findings.len()
 }
 
 fn config_fsh(root: &Path) -> PathBuf {
