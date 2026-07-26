@@ -55,12 +55,27 @@ pub struct CommandLifecycle {
     pub source_rows: Vec<i64>,
 }
 
+/// Why a `TwoWrite` claim holds. ★ The CLAIM stays separate from the REASON for it -- the same
+/// discipline applied to transformations, and the reason `TwoWrite` is not two enum variants.
+/// A consumer that cares only "is this one lifecycle" reads the claim; a consumer auditing
+/// evidence quality reads the basis.
+#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+pub enum TwoWriteBasis {
+    /// The producer stamped both observations with the same execution identity. Not inference:
+    /// the rows say so.
+    ExecutionId,
+    /// Reconstructed from producer-shaped signals -- ordering, timestamp proximity, cwd equality,
+    /// and one-pass consumption. The only path available for rows written before the producer
+    /// emitted its execution identity.
+    Inferred,
+}
+
 /// Why these observations belong to one producer lifecycle.
 ///
 /// ⚠️ `SingleWrite` is not a degraded `TwoWrite`. A lifecycle is NOT inherently two rows: `exit`,
 /// state-changing builtins and the prefix handlers are intentionally single-write in the current
-/// producer. Modelling this as a pair would bake the legacy two-row storage accident into the very
-/// tool built to escape it.
+/// producer.
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum LifecycleEvidence {
@@ -73,7 +88,7 @@ pub enum LifecycleEvidence {
     /// ⚠️ `TwoWrite` means the classifier has evidence these observations are one PRODUCER
     /// lifecycle. It does NOT mean the classifier has explained every transformation between
     /// them -- that claim lives in `transformation`, and its absence must never demote this one.
-    TwoWrite,
+    TwoWrite { basis: TwoWriteBasis },
     /// The producer emitted a complete lifecycle in one observation.
     SingleWrite,
 }

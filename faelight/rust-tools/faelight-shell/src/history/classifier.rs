@@ -61,7 +61,12 @@ fn try_pair(typed: &HistoryRow, executed: &HistoryRow) -> Option<LifecycleEviden
     if (executed.timestamp - typed.timestamp).abs() > 2 {
         return None;
     }
-    Some(LifecycleEvidence::TwoWrite)
+    // INT-191: `Inferred`, explicitly. Rows written before the producer stamped an execution
+    // identity can only be reconstructed from producer-shaped signals, and the basis records that
+    // rather than letting a reconstructed claim look identical to a stated one.
+    Some(LifecycleEvidence::TwoWrite {
+        basis: TwoWriteBasis::Inferred,
+    })
 }
 
 /// Walk the stream in producer order, consuming what can be proven.
