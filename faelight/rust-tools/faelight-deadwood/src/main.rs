@@ -1047,6 +1047,54 @@ mod cmdword_check_tests {
         root
     }
 
+    /// As `fixture`, but writes to a named file so a test can prove the scope filter as well as
+    /// the detector.
+    fn fixture_file(name: &str, file: &str, body: &str) -> PathBuf {
+        assert!(
+            name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            "fixture name must be [A-Za-z0-9_]"
+        );
+        let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+        let _ = std::fs::remove_dir_all(&root);
+        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        std::fs::create_dir_all(&src).expect("fixture dir");
+        std::fs::write(src.join(file), body).expect("fixture file");
+        root
+    }
+
+    /// INT-195 gate 7 -- RETRO-VALIDATION against the violation this intent was written for.
+    ///
+    /// This is safety_guard.rs's exact pre-fix line. On `"rm" -rf /` it read `"rm`, which matched
+    /// no deny entry, no allow entry and no safe entry, and failed its own `first_word == "rm"`
+    /// test -- so the gate returned None and stayed silent while the executor, which IS
+    /// quote-aware, ran rm. Proven on the deployed shell at gen 432 before the fix.
+    ///
+    /// A check that would have missed the bug it exists to prevent is the wrong check, so this is
+    /// watched reporting before the check is trusted. The fixture is named safety_guard.rs so it
+    /// also proves the scope filter covers that file, and it keeps the original
+    /// `// Check first word only` comment, which proves an ordinary comment does not exempt.
+    #[test]
+    fn catches_the_original_safety_guard_derivation() {
+        let root = fixture_file(
+            "retro_safety_guard",
+            "safety_guard.rs",
+            "pub fn check(cmd: &str) -> Option<String> {\n    let trimmed = cmd.trim();\n    // Check first word only -- never match on arguments or paths\n    let first_word = trimmed.split_whitespace().next().unwrap_or(\"\");\n    let _ = first_word;\n    None\n}\n",
+        );
+        let (found, exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(exempt, 0, "an ordinary comment must not exempt");
+        assert_eq!(
+            found.len(),
+            1,
+            "the original safety_guard derivation must be reported"
+        );
+        assert!(
+            found[0].detail.contains("safety_guard.rs"),
+            "finding must name the file: {}",
+            found[0].detail
+        );
+    }
+
     const BARE: &str =
         "fn handle() {\n    let a = line.split_whitespace().next().unwrap_or(\"\");\n}\n";
 
