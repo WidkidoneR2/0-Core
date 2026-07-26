@@ -187,12 +187,24 @@ their PREREQUISITES rather than their similarity:
       `split_whitespace().next()` rather than every `split_whitespace()` (31 hits), drop comment lines (6 were the rule itself,
       already written in prose in two files), drop out-of-scope consumers, then resolve each
       remaining hit to its enclosing fn -- which classified most of them without reading bodies. -->
-- [ ] Each enumerated site either routes through command_word(), or is recorded
+- [x] Each enumerated site either routes through command_word(), or is recorded
       as a known exception with a stated reason
-- [ ] safety_guard.rs uses command_word(). Named explicitly because it is the
+      <!-- DONE 2026-07-25 gen 433. All 12 in-scope sites route through commands::command_word():
+      safety_guard::check, main.rs 1484/1532/2253/2939/1509/3072/3181/3233/3299, exec.rs postexec,
+      db.rs capture_snapshot. Commits ebe9dccf, 65eed5c5, 391b0a15, 7331b562. THREE recorded as
+      known exceptions with stated reasons, because converting them would be WRONG rather than
+      merely unnecessary: main.rs:1203 extracts a heredoc DELIMITER (for a cat heredoc the command
+      word is cat and the delimiter is EOF), commands/mod.rs:7301 parses an intent id out of
+      command OUTPUT, and value.rs:750 parses structured-data pipeline operators. -->
+- [x] safety_guard.rs uses command_word(). Named explicitly because it is the
       privileged consumer that motivated the scope, and because a guard that
       disagrees with the executor about what is running is the worst instance of
       the class
+      <!-- DONE 2026-07-25 gen 433, on the DEPLOYED binary per INT-110. WATCHED FAILING FIRST at
+      gen 432: rm -rf on a nonexistent path raised CHALLENGE and blocked, while the same line with
+      the command word quoted produced NO guard output at all and simply ran. After the fix, on the
+      deployed shell, BOTH forms raise CHALLENGE and block. Commit ebe9dccf. The first-word-only
+      design is unchanged; only the derivation moved. -->
 - [ ] A check exists that returns the violations, runnable on demand
 - [ ] The check runs somewhere it will be seen (pre-commit or fsh-test), not only
       by hand
