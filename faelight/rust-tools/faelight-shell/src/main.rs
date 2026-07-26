@@ -1196,6 +1196,7 @@ fn repl_main() -> Result<()> {
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
                     // Warn if delimiter is unquoted -- sh will expand backticks
+                    // deadwood: exempt -- heredoc delimiter extraction -- for `cat << EOF` the command word is cat and the delimiter is EOF; command_word() would return the wrong object
                     let delimiter = line
                         .split(" << ")
                         .nth(1)
@@ -3977,6 +3978,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
             // Only write if no conscious focus already set
             if db.get_focus_intent().is_none() {
                 // Extract INT-NNN from filename — only if first token is numeric
+                // deadwood: exempt -- focus INTENT IDENTIFIER extraction; the numeric id is ledger metadata read from the focus file, not shell input and not a command selector
                 if let Some(int_id) = focus.split_whitespace().next() {
                     if int_id.chars().all(|c| c.is_ascii_digit()) {
                         let intent_key = format!("INT-{}", int_id);

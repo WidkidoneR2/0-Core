@@ -5234,6 +5234,7 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 /// first word and drops the rest. `bash script.sh` used to land here and silently never run the
 /// script (INT-143). With args, dispatch now falls through to run_external instead.
 fn shell_handoff_cmd(line: &str) -> CommandResult {
+    // deadwood: exempt -- shell NAME for handoff, defaulting to zsh -- not a command word
     let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
     println!();
     println!("  {} Stepping out of the forest...", "🌲".to_string());
@@ -7297,6 +7298,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 let line = String::from_utf8_lossy(&output.stdout);
                 let line = line.trim();
                 if !line.is_empty() {
+                    // deadwood: exempt -- intent id parsed out of command OUTPUT, then INT- stripped -- structured output, not user input
                     let id = line
                         .split_whitespace()
                         .next()
@@ -7810,6 +7812,8 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 out.push_str(&format!("  {} Last shell command\n", "▶".bright_cyan()));
                 out.push_str(&format!("    {} {}\n", "cmd:".dimmed(), cmd.bright_white()));
                 out.push_str(&format!("    {} {}\n", "at:".dimmed(), dt.dimmed()));
+                // deadwood: exempt -- debug history classification; the token labels a PRIOR command's
+                // recorded output and is never used to select the current execution path
                 let first_tok = cmd.split_whitespace().next().unwrap_or("");
                 let classification = if db.get_alias(first_tok).is_some() {
                     "alias expanded"
@@ -9284,6 +9288,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             format!("{} → {}", cmd, aliased).bright_cyan()
         ));
         // Recurse one level to show what the alias points to
+        // deadwood: exempt -- reports what an alias resolves to -- display only, never selects execution
         let target_cmd = aliased.split_whitespace().next().unwrap_or("");
         if !target_cmd.is_empty() && target_cmd != cmd {
             out.push_str(&format!(
@@ -11712,6 +11717,8 @@ fn history_stats(db: &ForestDb) -> CommandResult {
     // Count first word of each command
     let mut counts: HashMap<String, usize> = HashMap::new();
     for cmd in &commands {
+        // deadwood: exempt -- history aggregation key; the first token is counted into a HashMap
+        // for statistics only and is never passed to dispatch
         let first = cmd.split_whitespace().next().unwrap_or("").to_string();
         if !first.is_empty() {
             *counts.entry(first).or_insert(0) += 1;
@@ -12095,6 +12102,8 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                         if let Ok(f) = full {
                             let listing = String::from_utf8_lossy(&f.stdout);
                             for line in listing.lines() {
+                                // deadwood: exempt -- parses cargo's package-listing OUTPUT; the first field identifies a
+                                // displayed crate entry and never controls shell execution
                                 if let Some(name) = line.split_whitespace().next() {
                                     if name.contains(krate) && name != krate {
                                         hits.push(name.to_string());
@@ -12761,6 +12770,8 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
         return CommandResult::Output("  Usage: why <command>\n  Example: why delete".to_string());
     }
     let si = crate::semantic::interpret(input);
+    // deadwood: exempt -- semantic interpretation of user text for explanation; the token feeds
+    // the analysis it prints and is never dispatched
     let first_word = input.split_whitespace().next().unwrap_or(input);
     let mut out = String::new();
     out.push_str(&format!(
@@ -14515,6 +14526,8 @@ fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for cmd in &commands {
         let key = match field {
+            // deadwood: exempt -- histogram grouping label for a reporting table; the token is a chart
+            // axis value and never reaches dispatch
             "command" => cmd.split_whitespace().next().unwrap_or(cmd).to_string(),
             _ => cmd.clone(),
         };

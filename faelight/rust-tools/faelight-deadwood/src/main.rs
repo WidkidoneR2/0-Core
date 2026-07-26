@@ -136,9 +136,10 @@ fn main() {
         );
     }
     if run("cmdword") {
+        let (found, exempt) = check_command_word_derivations(&root);
         report(
-            "Command-word derivations bypassing command_word() (INT-195)",
-            check_command_word_derivations(&root),
+            &format!("Command-word derivation candidates (INT-195) [{exempt} author-exempt]"),
+            found,
         );
     }
     println!("{}", "-".repeat(56).dimmed());
@@ -640,8 +641,17 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
 /// Text patterns were tried first and missed three distinct classes -- rustfmt-wrapped method
 /// chains, by-file scope exclusion, and alternate spellings such as splitn. An AST removes the
 /// first and third as categories rather than patching them case by case.
+/// A discovered derivation. `start_line` is the line where the candidate EXPRESSION begins,
+/// not where the method token appears -- for a wrapped chain those differ, and the expression
+/// start is the unit an author can attach a declaration to. Named rather than a bare tuple so
+/// that distinction is hard to regress.
+struct CommandWordCandidate {
+    start_line: usize,
+    method: String,
+}
+
 struct CommandWordVisitor {
-    hits: Vec<(usize, String)>,
+    hits: Vec<CommandWordCandidate>,
 }
 
 impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
@@ -657,7 +667,17 @@ impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
                     m.as_str(),
                     "split_whitespace" | "split_ascii_whitespace" | "splitn"
                 ) {
-                    self.hits.push((inner.method.span().start().line, m));
+                    // Report the start of the WHOLE derivation expression, not the inner
+                    // method ident. For a wrapped chain the ident's line has only continuation
+                    // lines above it, so an annotation would have to sit mid-chain where
+                    // rustfmt may move it. node.span() covers the full receiver chain, which
+                    // puts the reported line at the statement -- where a human writes the
+                    // declaration anyway, and where the bounded window can see it.
+                    use syn::spanned::Spanned;
+                    self.hits.push(CommandWordCandidate {
+                        start_line: node.span().start().line,
+                        method: m,
+                    });
                 }
             }
         }
@@ -665,7 +685,58 @@ impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
     }
 }
 
-fn check_command_word_derivations(root: &Path) -> Vec<Finding> {
+/// INT-195 phase B: resolve an author-declared exemption for a candidate.
+///
+/// DETECTION IS SYNTACTIC; EXEMPTION LOOKUP IS TEXTUAL. That asymmetry is deliberate, not a
+/// relapse into text matching: this never searches for violations, it resolves metadata for a
+/// candidate that already has a span. syn discards ordinary `//` comments, so the declaration
+/// cannot be an AST node -- and that is a useful constraint, keeping "what Rust means" separate
+/// from "what the project declares about that Rust" instead of overloading the compiler's
+/// attribute system with project architecture.
+///
+/// The window is BOUNDED and ADJACENT. Scanning upward until some comment appears would let an
+/// unrelated comment silently exempt code, which is the fragility annotations exist to remove.
+/// A blank line is allowed through; any other non-comment line ends the window.
+///
+/// SAFETY PROPERTY: a missing or misplaced annotation yields a FALSE POSITIVE -- a visible
+/// finding someone investigates. It can never silently erase a violation.
+fn exemption_for(lines: &[&str], line: usize) -> Option<String> {
+    const WINDOW: usize = 4;
+    let hit = line.saturating_sub(1);
+    let start = hit.saturating_sub(WINDOW);
+    for raw in lines[start..hit].iter().rev() {
+        let t = raw.trim();
+        if let Some(rest) = t.strip_prefix("//") {
+            if let Some(reason) = rest.trim().strip_prefix("deadwood: exempt") {
+                // Require a TOKEN BOUNDARY, not merely a string prefix. Without this,
+                // `deadwood: exempted` and `deadwood: exemptions` would both read as
+                // exemptions. Harmless while the vocabulary is one directive wide, and
+                // ambiguous the moment a second directive shares those eight characters --
+                // so the namespace gets closed before it can be entered wrongly.
+                if reason.is_empty()
+                    || reason.starts_with(|c: char| c == '-' || c == ':' || c.is_whitespace())
+                {
+                    return Some(
+                        reason
+                            .trim_matches(|c: char| c == '-' || c == ':' || c.is_whitespace())
+                            .to_string(),
+                    );
+                }
+            }
+            continue;
+        }
+        if t.is_empty() {
+            continue;
+        }
+        break;
+    }
+    None
+}
+
+/// Returns (reportable findings, count of author-exempted sites). The exempt count is surfaced
+/// in the report title on purpose: a silent exemption mechanism is how a check gets quietly
+/// neutered, and the number makes "exempted our way to zero" visible.
+fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
     // CLASSIFICATION, kept separate from discovery. The visitor answers only "is this a
     // whitespace-derived first token"; deciding whether that MATTERS is architectural knowledge
     // and lives here.
@@ -684,6 +755,7 @@ fn check_command_word_derivations(root: &Path) -> Vec<Finding> {
         "db.rs",
     ];
     let mut findings = Vec::new();
+    let mut exempted = 0usize;
     let src = root.join("faelight/rust-tools/faelight-shell/src");
     for entry in walkdir::WalkDir::new(&src)
         .into_iter()
@@ -703,12 +775,22 @@ fn check_command_word_derivations(root: &Path) -> Vec<Finding> {
         if !IN_SCOPE.iter().any(|f| rel.ends_with(f)) {
             continue;
         }
+        let file_lines: Vec<&str> = text.lines().collect();
         let mut v = CommandWordVisitor { hits: Vec::new() };
         syn::visit::visit_file(&mut v, &ast);
-        for (line, method) in v.hits {
+        for c in v.hits {
+            let (line, method) = (c.start_line, c.method);
+            if exemption_for(&file_lines, line).is_some() {
+                exempted += 1;
+                continue;
+            }
             findings.push(Finding {
                 confidence: Confidence::High,
-                detail: format!("{rel}:{line} derives a command word with .{method}().next() instead of command_word()"),
+                // The checker knows only that a first token is derived from whitespace. Whether
+                // that token IS a command word is the architectural judgement it cannot make --
+                // several known candidates derive a shell name, an intent id, or a heredoc
+                // delimiter. The wording claims exactly what the tool can see, no more.
+                detail: format!("{rel}:{line} derives a whitespace first token via .{method}().next(), not routed through command_word()"),
                 action: None,
             });
         }
@@ -719,7 +801,7 @@ fn check_command_word_derivations(root: &Path) -> Vec<Finding> {
     // string-building rather than execution-governing, so the boundary does not currently overlap
     // the rule. If an execution-path violation ever appears inside a macro, that is the evidence
     // that this boundary is too restrictive.
-    findings
+    (findings, exempted)
 }
 
 fn git_tree_clean(root: &Path) -> bool {
