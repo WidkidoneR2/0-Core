@@ -57,19 +57,23 @@ pub struct CommandLifecycle {
 
 /// Why these observations belong to one producer lifecycle.
 ///
-/// ⚠️ `SingleWrite` is not a degraded `Paired`. A lifecycle is NOT inherently two rows: `exit`,
+/// ⚠️ `SingleWrite` is not a degraded `TwoWrite`. A lifecycle is NOT inherently two rows: `exit`,
 /// state-changing builtins and the prefix handlers are intentionally single-write in the current
 /// producer. Modelling this as a pair would bake the legacy two-row storage accident into the very
 /// tool built to escape it.
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum LifecycleEvidence {
-    /// Two observations, shown to be endpoints of one execution.
+    /// One producer lifecycle, written as TWO observations.
     ///
-    /// ⚠️ `Paired` means the classifier has evidence these observations are one PRODUCER
+    /// ⚠️ Named for what the PRODUCER did, not for the storage shape -- the same reason this type
+    /// is not called `PairKind`. "Paired" would describe how the rows sit in a table; `TwoWrite`
+    /// describes how the lifecycle was emitted.
+    ///
+    /// ⚠️ `TwoWrite` means the classifier has evidence these observations are one PRODUCER
     /// lifecycle. It does NOT mean the classifier has explained every transformation between
     /// them -- that claim lives in `transformation`, and its absence must never demote this one.
-    Paired,
+    TwoWrite,
     /// The producer emitted a complete lifecycle in one observation.
     SingleWrite,
 }

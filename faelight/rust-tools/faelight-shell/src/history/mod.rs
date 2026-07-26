@@ -10,4 +10,5 @@
 //! Nothing here returns a `CommandResult` -- the history domain must not depend on a commands-layer
 //! type.
 
+pub mod classifier;
 pub mod model;
