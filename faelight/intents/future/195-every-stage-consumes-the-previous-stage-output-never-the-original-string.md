@@ -205,11 +205,39 @@ their PREREQUISITES rather than their similarity:
       the command word quoted produced NO guard output at all and simply ran. After the fix, on the
       deployed shell, BOTH forms raise CHALLENGE and block. Commit ebe9dccf. The first-word-only
       design is unchanged; only the derivation moved. -->
-- [ ] A check exists that returns the violations, runnable on demand
-- [ ] The check runs somewhere it will be seen (pre-commit or fsh-test), not only
+- [x] A check exists that returns the violations, runnable on demand
+      <!-- DONE 2026-07-26 gen 436. faelight-deadwood gained syntax-aware analysis: a syn 2 visitor
+      finds whitespace-derived first tokens, a coarse file filter narrows to in-scope files, and a
+      bounded adjacent `// deadwood: exempt` declaration resolves author intent. Commits a66171d1
+      (detector), f9a69e93 (declarations), 55f85558 (resolver tests). Runnable on demand via
+      `faelight-deadwood --only cmdword`. 36 raw hits narrowed to 10 candidates, every one already
+      classified in the census and none a genuine unfixed violation -- the check and the census
+      validate each other. Text searching was tried first and missed three classes: rustfmt-wrapped
+      chains, by-file scope exclusion, and alternate spellings such as splitn.
+      DOCUMENTED LIMIT: Rust macro bodies are not recursively analysed, so four sites inside
+      format!() are invisible. All four are string-building rather than execution-governing, so the
+      boundary does not currently overlap the rule; an execution-path violation inside a macro would
+      be the evidence that it is too restrictive. -->
+- [x] The check runs somewhere it will be seen (pre-commit or fsh-test), not only
       by hand
-- [ ] RETRO-VALIDATION: the check is confirmed to catch safety_guard.rs's
+      <!-- DONE 2026-07-26 gen 436. `--strict` exits non-zero on reported findings (e0e49049),
+      orthogonal to `--summary` so the health doctor's positional contract is untouched; fsh-test
+      invokes it through a DEADWOOD_BIN seam (ad5ea790). PROVEN BY DISAGREEMENT rather than by two
+      green runs: before deploying, the same case passed against the debug build at 105/105 and
+      FAILED against the deployed binary at 104/105, because gen 434 predates --strict entirely.
+      After deploying, bare fsh-test with no override reports 105/105 on gen 436. The check now runs
+      on the normal test path rather than when someone remembers to type it. -->
+- [x] RETRO-VALIDATION: the check is confirmed to catch safety_guard.rs's
       split_whitespace derivation, watched failing before it is trusted. A check
       that would have missed the violation it was written for is the wrong check.
       NOTE: the original wording named INT-172's detect_redirect, which is an
       OPERATOR scan and moved out of scope in the narrowing above
+      <!-- DONE 2026-07-26 (03d1dc93). Five resolver tests bound the mechanism from both sides: bare
+      derivation reported, adjacent declaration accepted, DISPLACED declaration rejected, prefix
+      collision (`deadwood: exempted`) rejected, and safety_guard.rs's EXACT pre-fix line reported.
+      The retro fixture is named safety_guard.rs so the scope filter is exercised as well as the
+      detector, keeps the original `// Check first word only` comment to prove an ordinary comment
+      does not exempt, and asserts the finding NAMES the file so a refactor cannot satisfy it with a
+      finding pointing elsewhere. Also watched failing by hand on the real tree: inserting one line
+      between a declaration and its candidate gave 9 author-exempt / 1 flagged / exit 1, and
+      removing it restored 10 author-exempt / clean / exit 0. -->
