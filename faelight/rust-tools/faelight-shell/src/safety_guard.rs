@@ -8,8 +8,16 @@
 pub fn check(cmd: &str) -> Option<String> {
     let lower = cmd.to_lowercase();
     let trimmed = cmd.trim();
-    // Check first word only -- never match on arguments or paths
-    let first_word = trimmed.split_whitespace().next().unwrap_or("");
+    // Check first word only -- never match on arguments or paths.
+    // INT-195: derive it through the CANONICAL quote-aware command_word(), never
+    // split_whitespace().next(). The old derivation read `"rm" -rf /` as `"rm`, which
+    // matched no deny entry, no allow entry, no safe entry, and failed the
+    // `first_word == "rm"` test -- so the gate stayed silent while the executor, which
+    // IS quote-aware, ran rm. Proven on gen 432 before the fix: the unquoted form was
+    // CHALLENGED and blocked, the quoted form produced no guard output at all.
+    // The first-word-only design is deliberate and unchanged; only the instrument moved.
+    let cmd_word = crate::commands::command_word(trimmed);
+    let first_word = cmd_word.as_str();
     // INT-134: user-managed command allow/deny lists (DB-backed, managed via `guard`).
     // Deny is checked FIRST and wins over everything (even the static safe list below).
     // Allow is checked next -- an explicitly vetted command skips the guard. Both match
