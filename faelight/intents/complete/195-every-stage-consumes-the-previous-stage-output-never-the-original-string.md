@@ -3,7 +3,7 @@ id: 195
 date: 2026-07-25
 type: arch
 title: "every stage consumes the previous stage output, never the original string"
-status: planned
+status: complete
 tags: [architecture, rust, design]
 ---
 
