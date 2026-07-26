@@ -1529,7 +1529,9 @@ fn repl_main() -> Result<()> {
                     }
                     // Phase 18b — Flow mode: earliest intercept
                     {
-                        let ftok = line.split_whitespace().next().unwrap_or("");
+                        // INT-195: canonical, quote-aware derivation -- see the census in 195.
+                        let ftok_owned = commands::command_word(line);
+                        let ftok = ftok_owned.as_str();
                         if ftok == "flow" {
                             let sub = line.split_whitespace().nth(1).unwrap_or("");
                             let arg = line.split_whitespace().nth(2).unwrap_or("");
@@ -2249,8 +2251,11 @@ fn repl_main() -> Result<()> {
                     // Phase 10 — expand $VARS before alias resolution
                     // INT-285 BUG 2 FIX: shell control structures bypass fsh expansion
                     // for/while/until/if/case go to sh with variables unexpanded
+                    // INT-195: canonical, quote-aware derivation. Bound first because a String
+                    // will not match &str literal patterns inside matches!.
+                    let shell_construct_word = commands::command_word(line);
                     let shell_construct = matches!(
-                        line.split_whitespace().next().unwrap_or(""),
+                        shell_construct_word.as_str(),
                         "for" | "while" | "until" | "if" | "case"
                     );
                     if shell_construct {
@@ -2936,7 +2941,9 @@ fn repl_main() -> Result<()> {
                     }
 
                     // Phase 8 — Job control commands
-                    let first_tok = line.split_whitespace().next().unwrap_or("");
+                    // INT-195: canonical, quote-aware derivation.
+                    let first_tok_owned = commands::command_word(line);
+                    let first_tok = first_tok_owned.as_str();
                     if first_tok == "jobs" {
                         job_table.list();
                         continue;
