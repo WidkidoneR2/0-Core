@@ -1481,7 +1481,12 @@ fn repl_main() -> Result<()> {
                     let line = segment.as_str();
                     // INT-322 Phase 4: auto-snapshot before destructive commands
                     {
-                        let _snap_tok = line.split_whitespace().next().unwrap_or("");
+                        // INT-195: canonical, quote-aware derivation. `"rmdir" /path` used to
+                        // present `"rmdir`, which is absent from the destructive list below, so NO
+                        // snapshot was captured. Witnessed on gen 432 against command_snapshots:
+                        // the bare form produced auto-rmdir, the quoted form produced no row.
+                        let snap_word = commands::command_word(line);
+                        let _snap_tok = snap_word.as_str();
                         let _is_destructive = [
                             "rm",
                             "rmdir",

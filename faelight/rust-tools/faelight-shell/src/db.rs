@@ -446,9 +446,19 @@ impl ForestDb {
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())
             .unwrap_or_default();
+        // INT-195: name the snapshot from the canonical quote-aware derivation, so a
+        // quoted command word is attributed as auto-rm rather than auto-"rm. This site
+        // governs ATTRIBUTION; main.rs's destructive-command check governs CREATION.
+        // In scope only because capture_snapshot is reached solely from the execution
+        // path -- if a second caller appears, revisit that.
+        let word = crate::commands::command_word(command);
         let name = format!(
             "auto-{}",
-            command.split_whitespace().next().unwrap_or("cmd")
+            if word.is_empty() {
+                "cmd"
+            } else {
+                word.as_str()
+            }
         );
         let _ = self.conn.execute(
             "INSERT INTO command_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)

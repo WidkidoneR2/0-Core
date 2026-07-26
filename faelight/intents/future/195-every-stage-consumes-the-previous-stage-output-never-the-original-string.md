@@ -38,6 +38,11 @@ BY ROLE, NOT BY FILE. commands/mod.rs is over 14,000 lines and holds the
 dispatcher, every builtin's body, and unrelated helpers. Scoping by filename turns
 eight real sites into twenty false positives. A function is in scope because of
 what it DECIDES, not because of where it lives.
+THE TEST, as a question to ask of any site: does this code derive the command word
+to influence EXECUTION, PROTECTION, or EXECUTION-DERIVED STATE? That question
+explains why safety_guard.rs is in scope and why db.rs's snapshot naming is in
+scope, while display-only builtins stay out. It is stronger than a list of
+filenames, which drifts.
 
 ## The Problem
 fsh's documented bug class is not "the parser was wrong". Twice the parser was
@@ -60,7 +65,7 @@ scope that bypass it, and make the check mechanical. The fix at each site is a
 call substitution, not new logic, because the correct implementation already
 exists -- which is INT-143's lesson applied rather than restated.
 
-## Census -- 8 in-scope sites (2026-07-25)
+## Census -- 9 in-scope sites (2026-07-25)
 Recorded BEFORE any code change, so later commits reference a written inventory
 instead of reconstructing this investigation. Classified by ROLE, because role
 determines both the risk and the order.
@@ -94,6 +99,13 @@ what it writes.
   main.rs:3169  fn handle()    INT-194 command-timing key, INSERTed into the db
   exec.rs:368   fn postexec()  derives from `cmd_lower`, so this site is ALSO flip
       blocker 8's "stop lowercasing the command name"
+  db.rs:451     fn capture_snapshot()
+      Names the auto-snapshot after the command word. In scope ONLY because
+      capture_snapshot is reached solely from main.rs:1500, i.e. only from the
+      execution path -- if a second caller appears, revisit this. Composes with
+      main.rs:1484: that site governs WHETHER a snapshot is created, this one governs
+      HOW it is attributed. Fix one and you get either no snapshot at all, or a
+      snapshot filed under auto-"rm.
 
 EXCLUDED, and why -- recorded so the next reader does not re-litigate them:
   - Display and reporting builtins that happen to live in commands/mod.rs:
@@ -104,7 +116,10 @@ EXCLUDED, and why -- recorded so the next reader does not re-litigate them:
     opportunistically; not a gate.
   - Not command words at all: print_welcome (an intent id), walk_dir (a SQL LIKE
     pattern), shell_handoff_cmd (a shell NAME, defaulting to zsh).
-  - completion.rs, db.rs, value.rs -- exempt consumers under the scope above.
+  - completion.rs and value.rs -- exempt consumers under the scope above.
+    db.rs was ORIGINALLY excluded here as a helper file. That was wrong: it scoped by
+    FILE, which is the mistake the by-role rule exists to prevent, made in the
+    opposite direction. db.rs:451 is in scope and is listed under TELEMETRY above.
 
 ## Narrowed 2026-07-25, and why (recorded, not silently rewritten)
 This intent was FILED covering four banned calls: ad-hoc splitting, a second
@@ -137,7 +152,7 @@ their PREREQUISITES rather than their similarity:
       enumerates the violations, gate 5 automates enforcement. -->
 - [x] Every execution-governing site that derives the command word independently
       is enumerated with file:line -- a census, not a fix
-      <!-- DONE 2026-07-25. Census section above: 8 in-scope sites with file:line and enclosing
+      <!-- DONE 2026-07-25. Census section above: 9 in-scope sites with file:line and enclosing
       function, classified GOVERNING / DISPATCH / BEHAVIOURAL / TELEMETRY, plus an EXCLUDED list
       with reasons so the exemptions are not re-litigated. Method: grep for
       `split_whitespace().next()` rather than every `split_whitespace()` (31 hits), drop comment lines (6 were the rule itself,
