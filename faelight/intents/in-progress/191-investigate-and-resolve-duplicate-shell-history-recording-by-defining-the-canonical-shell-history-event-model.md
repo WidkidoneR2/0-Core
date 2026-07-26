@@ -337,6 +337,71 @@ second row becomes ambiguous between "omitted because identical" and "execution
 never reached that stage". If provenance matters, record both events explicitly
 and let analysis collapse them.
 
+## Producer-side repair, 2026-07-26 -- prerequisite work, no gate ticked
+None of the criteria below moved. They are all about the history TABLE, and this
+work was upstream of it: the producer had to become honest before the table could
+be migrated, or the migration would faithfully preserve a false field and lock the
+mistake into the new model.
+
+WHAT WAS FOUND. `ExecContext` already declared the two-endpoint model -- `raw`
+documented as exactly what the user typed, `expanded` as the form after alias
+resolution -- but `from_line` took ONE argument and filled both fields with it,
+under a comment promising an update after alias resolution that never ran. Callers
+passed a line that had already crossed the execution boundary. So `postexec`
+writing `ctx.raw` was never misunderstanding the field; it was faithfully
+recording a value that arrived pre-corrupted. The struct never lacked the shape.
+The data flow had never caught up to it.
+
+⚠️ AND A NAMING TRAP WORTH RECORDING: `original_line` in the REPL loop is captured
+AFTER variable, subshell and glob expansion. Its name means "original relative to
+the pipeline rewriting that follows", not "what the user typed". Using it as `raw`
+would have committed this intent's own bug by trusting a variable name. The true
+user boundary is the segment as it stands before any expansion.
+
+WHAT CHANGED (commits 96d535dc, edf742bf):
+  - `from_line(raw, expanded, db)` and `execute_with_context(raw, expanded, ...)`.
+    Both REPL call sites now name their stages explicitly.
+  - `cmd` and `args` derive from EXPANDED. They are execution identity, and
+    preexec's protected-path predicate reads `cmd`.
+  - The catastrophic `rm -rf` guard became `blocks_catastrophic_rm(&ExecContext)`,
+    reading `cmd` and `expanded` itself so no caller can pass provenance where
+    execution text belongs. Six tests; the lock is typed `nuke` / expanded
+    `rm -rf /home` -> blocked, which launches no process.
+  - `spine migrate` passes `(source, source)`: an INTENTIONAL collapse, because
+    that audit compares parsers on identical unexpanded input.
+
+⚠️ THIS WAS NOT BEHAVIOUR-PRESERVING, and the intent should not pretend otherwise.
+Restored: postexec still records the executed form, now via `ctx.expanded`. Changed
+on purpose: `last_failed_command`, the failure log, and the prediction LIKE
+patterns now receive what the user typed rather than the expanded string they got
+by accident. Defensible -- provenance should answer what the user asked for -- but
+a change. The prediction patterns are the lowest-confidence of those, since they
+query a table that currently holds BOTH forms as separate rows; that path is due to
+be restructured by the migration phase below.
+
+★★ TWO REGRESSIONS WERE INTRODUCED BY THIS CHANGE AND CAUGHT BY AUDIT, NOT BY
+TESTS. Both compiled cleanly. `postexec` would have recorded the typed form,
+destroying the executed-form record by redefinition rather than deletion. And
+preexec's `rm -rf` scan silently began reading the typed line, so an alias
+expanding to a catastrophic command would have presented `cmd = rm` while the scan
+saw only the alias name and blocked nothing. A MEANING CHANGE PASSES THE COMPILER
+AND FAILS THE SYSTEM: the consumer audit had to precede any test run, and it is
+what caught a safety gate being disarmed.
+
+WHAT THE SPLIT BUYS. Collapse is still possible but can no longer be SILENT.
+Before, one string filling both fields was the default, and an intentional equality
+was indistinguishable from an accidental one. Now a caller has to write it, and the
+single place that does carries its justification in place.
+
+⏭ REMAINING PHASES, in order: introduce the record type; route both observations
+through one recorder; build the READ-ONLY analyzer producing paired / ambiguous /
+unchanged; create the new storage and migrate only proven pairs; move consumers off
+raw history and off `id + 1`; archive `shell_history`.
+⚠️ The migration must not INVENT data. Historical rows reliably yield typed,
+executed and timestamps; they may not yield duration, exit_code or cwd depending on
+which writer produced them. Distinguish KNOWN from UNKNOWN and leave unknowns empty
+-- filling them with guesses would recreate INT-189 in a different table.
+
 ## Success Criteria
 
 - [x] Every code path that writes to `shell_history` is enumerated (not grepped -- enumerated)
