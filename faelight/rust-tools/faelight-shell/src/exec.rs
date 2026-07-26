@@ -33,8 +33,15 @@ pub struct ExecContext {
     pub cwd: PathBuf,
     /// Active intent (INT-NNN) if any — from shell focus state
     pub intent: Option<String>,
-    /// Unix timestamp of execution
-    pub timestamp: u64,
+    /// Wall-clock time of execution.
+    /// INT-169 blocker 8: SystemTime, not a u64 of seconds -- the type now carries the
+    /// meaning instead of every consumer inferring it from this comment. Serialization to
+    /// Unix seconds happens at the database boundary, not here.
+    /// This is wall-clock IDENTITY ("when did this happen"), NOT elapsed time. A future
+    /// duration measurement needs its own monotonic field, because wall-clock can jump
+    /// backwards across NTP correction or suspend. They answer different questions and
+    /// must not share a name.
+    pub timestamp: SystemTime,
     /// Whether this command was executed via pipeline
     pub in_pipeline: bool,
 }
@@ -69,10 +76,7 @@ impl ExecContext {
             .cwd
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+        let timestamp = SystemTime::now();
         let mut argv = plan.argv.iter().map(|a| a.to_string_lossy().to_string());
         let cmd = argv.next().unwrap_or_default();
         let args: Vec<String> = argv.collect();
@@ -92,10 +96,7 @@ impl ExecContext {
     pub fn from_line(line: &str, db: &ForestDb) -> Self {
         let raw = line.trim().to_string();
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+        let timestamp = SystemTime::now();
 
         // INT-169 blocker 8: COMMAND IDENTITY IS STORED AS INVOKED. Case normalization is a
         // CONSUMER POLICY, not a property of the execution context. `cmd` used to be lowercased
@@ -334,7 +335,14 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             rusqlite::params![ctx.raw],
         );
         // Append to session failure log
-        let ts = ctx.timestamp as i64;
+        // Serialize wall-clock time as Unix seconds for SQLite. unwrap_or_default rather
+        // than unwrap: this is the one place a clock anomaly should be handled explicitly,
+        // and persistence should not panic because the wall clock misbehaved.
+        let ts = ctx
+            .timestamp
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
         let error_msg = match result {
             crate::commands::CommandResult::Error(e) => e.clone(),
             _ => "unknown error".to_string(),
