@@ -56,7 +56,7 @@ mod tests {
             args: args.iter().map(|s| s.to_string()).collect(),
             cwd: PathBuf::from("/home/christian"),
             intent: None,
-            timestamp: 0,
+            timestamp: std::time::SystemTime::UNIX_EPOCH,
             in_pipeline: false,
         }
     }
