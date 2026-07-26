@@ -195,25 +195,17 @@ fn preexec(
     let cmd = cmd.as_str();
     let expanded = ctx.expanded.as_str();
 
-    // ── Safety Rule 1: Catastrophic rm -rf protection ─────────────────────────
-    // Block any rm -rf targeting root, home, or core source directories
+    if let Some(reason) = blocks_catastrophic_rm(ctx) {
+        return Some(reason);
+    }
+    // ── Safety Rule 1b: forest source protection ──────────────────────────────
+    // The precondition is REPEATED rather than shared, deliberately. This is a separate policy
+    // that happens to apply under the same condition, and it depends on core_root and the paths::
+    // helpers -- folding it into the predicate above would make that predicate impure and
+    // environment-dependent, which is the wrong trade for the thing it protects.
     if cmd == "rm" {
         let expanded_lower = expanded.to_lowercase();
         if expanded_lower.contains("-rf") || expanded_lower.contains("-fr") {
-            // Absolute block — these targets are never safe
-            let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
-            for target in &blocked_targets {
-                // Match exact path — must be followed by space, end of string, or be standalone
-                let matches = expanded
-                    .split_whitespace()
-                    .any(|token| token == *target || token == &format!("{}/", target));
-                if matches {
-                    return Some(format!(
-                        "🛡  Blocked: rm -rf on protected path '{}' — this cannot be undone",
-                        target
-                    ));
-                }
-            }
             // Block rm -rf on core source directories
             let core_src = faelight_core::paths::rust_tools_dir()
                 .to_string_lossy()
@@ -236,7 +228,6 @@ fn preexec(
             }
         }
     }
-
     // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
     if cmd == "cp" || cmd == "mv" {
         // INT-097: was raw.contains("core") -- matched every path under ~/0-core,
@@ -796,6 +787,105 @@ pub fn execute_spine_source(
         Err(e) => return CommandResult::Error(format!("spine: cannot lower yet: {e:?}")),
     };
     execute_spine(&plan, source, db, core_root, rules)
+}
+
+/// INT-191: catastrophic `rm -rf` protection, evaluated over the EXECUTION CONTEXT.
+///
+/// ⚠️ THE SIGNATURE IS THE POINT. A `(cmd: &str, expanded: &str)` helper would be purer and would
+/// still be wrong, because the bug this guards against was never inside the policy -- it was a
+/// CALLER handing over the wrong lifecycle fact. Taking `&ExecContext` puts the boundary choice
+/// here, stated once, where no call site can pass provenance in place of execution text.
+///
+///   ctx.cmd      -- execution identity, derived from the expanded form
+///   ctx.expanded -- execution text, what will actually run
+///   ctx.raw      -- provenance, deliberately IGNORED here
+///
+/// The failure mode: an alias `nuke = rm -rf /home` yields cmd `rm` from the expanded form while
+/// `raw` is only `nuke`, so a scan of `raw` finds no -rf and blocks nothing. That state existed
+/// briefly during the endpoint split, compiled cleanly, and was caught by audit rather than by a
+/// test -- which is why it has one now.
+fn blocks_catastrophic_rm(ctx: &ExecContext) -> Option<String> {
+    if ctx.cmd.to_lowercase() != "rm" {
+        return None;
+    }
+    let expanded = ctx.expanded.as_str();
+    let lower = expanded.to_lowercase();
+    if !lower.contains("-rf") && !lower.contains("-fr") {
+        return None;
+    }
+    // Absolute block -- these targets are never safe
+    let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
+    for target in &blocked_targets {
+        // Match exact path -- must be followed by space, end of string, or be standalone
+        let matches = expanded
+            .split_whitespace()
+            .any(|token| token == *target || token == &format!("{}/", target));
+        if matches {
+            return Some(format!(
+                "🛡  Blocked: rm -rf on protected path '{}' — this cannot be undone",
+                target
+            ));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod catastrophic_rm_tests {
+    use super::{blocks_catastrophic_rm, ExecContext};
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    fn ctx(raw: &str, expanded: &str, cmd: &str) -> ExecContext {
+        ExecContext {
+            raw: raw.to_string(),
+            expanded: expanded.to_string(),
+            cmd: cmd.to_string(),
+            args: Vec::new(),
+            cwd: PathBuf::from("."),
+            intent: None,
+            timestamp: SystemTime::now(),
+            execution_id: 1,
+            in_pipeline: false,
+        }
+    }
+
+    /// THE REGRESSION LOCK. An alias whose expansion is catastrophic must block even though the
+    /// typed form is harmless. If a future edit points this policy back at `ctx.raw`, this fails --
+    /// without ever launching rm.
+    #[test]
+    fn uses_execution_boundary_not_typed_boundary() {
+        assert!(blocks_catastrophic_rm(&ctx("nuke", "rm -rf /home", "rm")).is_some());
+    }
+
+    #[test]
+    fn blocks_direct_form() {
+        assert!(blocks_catastrophic_rm(&ctx("rm -rf /home", "rm -rf /home", "rm")).is_some());
+    }
+
+    #[test]
+    fn blocks_reversed_flag_order() {
+        assert!(blocks_catastrophic_rm(&ctx("rm -fr /etc", "rm -fr /etc", "rm")).is_some());
+    }
+
+    /// The command word gates the policy: text that merely CONTAINS a dangerous string is not a
+    /// dangerous command.
+    #[test]
+    fn allows_unrelated_command_mentioning_rm() {
+        let c = ctx("echo rm -rf /home", "echo rm -rf /home", "echo");
+        assert!(blocks_catastrophic_rm(&c).is_none());
+    }
+
+    #[test]
+    fn allows_rm_without_recursive_force() {
+        assert!(blocks_catastrophic_rm(&ctx("rm file.txt", "rm file.txt", "rm")).is_none());
+    }
+
+    #[test]
+    fn allows_recursive_force_on_unprotected_path() {
+        let c = ctx("rm -rf /tmp/scratch", "rm -rf /tmp/scratch", "rm");
+        assert!(blocks_catastrophic_rm(&c).is_none());
+    }
 }
 
 pub fn execute_with_context(
