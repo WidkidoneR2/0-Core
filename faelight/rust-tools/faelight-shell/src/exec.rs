@@ -25,14 +25,47 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// observe it. Generating ids at the consumers would yield three observations rather than
 /// one execution -- the same split-authority problem this intent exists to remove.
 ///
-/// Process-local and deliberately not persisted. The purpose is correlating the events of
-/// one command within one running shell. Surviving restart is a different contract (locking,
-/// crash recovery, migration, cross-session semantics) and belongs to whoever needs it.
+/// Process-local and deliberately NOT unique across restarts: the counter begins at 1 in every
+/// shell process. That was the whole contract while the only consumer was in-memory correlation.
+///
+/// INT-191 claimed the extension this comment anticipated. `session_id()` below supplies the
+/// PROCESS BOUNDARY, and together they form the persistent lifecycle identity:
+///
+///     (session_id, execution_id)
+///
+/// ⚠️ NEITHER HALF IS AN IDENTITY ALONE. Persisting `execution_id` by itself would let two shells
+/// both claim 1, 2, 3 -- a key that looks unique and is not, which is the exact class of defect
+/// this intent exists to remove. A cross-session identity with stronger guarantees (locking, crash
+/// recovery, distributed coordination) remains a different contract and is still out of scope.
 /// Not derived from the timestamp: that field already means something else.
 static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 pub fn next_execution_id() -> u64 {
     NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// INT-191: WHO IS THIS SHELL INSTANCE?
+///
+/// Nothing owned that question before. `FSH_SESSION_ID` is read in three places and set in NONE --
+/// no .rs, .nix, .sh or .fsh file in the tree writes it -- which is why `term_commands` holds 42,376
+/// rows under the fallback string "unknown". That fallback turns "the variable is missing" into
+/// "there is a shared session called unknown"; absence should TRIGGER CREATION, not become a value.
+///
+/// Born once per process, from what is already on hand. A shell session needs collision resistance
+/// across concurrently running shells, not cryptographic uniqueness, so pid plus start time is
+/// sufficient and adds no dependency. Deliberately NOT placed in `session.rs`: that module owns
+/// `SessionMemory` and `Momentum` -- application state, a genuinely different concept -- and putting
+/// process identity there would be a name that sounds close becoming a second owner.
+static SESSION_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn session_id() -> &'static str {
+    SESSION_ID.get_or_init(|| {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        format!("{}-{}", std::process::id(), nanos)
+    })
 }
 
 #[allow(dead_code)]
@@ -63,6 +96,12 @@ pub struct ExecContext {
     /// shell process. Every event, hook, telemetry record and debug trace referring to
     /// this execution carries this id.
     pub execution_id: u64,
+    /// INT-191: which shell PROCESS produced this execution.
+    ///
+    /// ⚠️ Required because `execution_id` restarts at 1 in every shell. Persisted alone it would let
+    /// two sessions both claim 1, 2, 3 -- a key that looks unique and is not. The lifecycle identity
+    /// is the PAIR, `(session_id, execution_id)`, and storage keys on both.
+    pub session_id: &'static str,
     /// Whether this command was executed via pipeline
     pub in_pipeline: bool,
 }
@@ -116,6 +155,7 @@ impl ExecContext {
             intent,
             timestamp,
             execution_id: next_execution_id(),
+            session_id: session_id(),
             in_pipeline: false,
         }
     }
@@ -159,6 +199,7 @@ impl ExecContext {
             intent,
             timestamp,
             execution_id: next_execution_id(),
+            session_id: session_id(),
             in_pipeline: false,
         }
     }
@@ -848,6 +889,7 @@ mod preexec_boundary_tests {
             intent: None,
             timestamp: SystemTime::now(),
             execution_id: 1,
+            session_id: "test",
             in_pipeline: false,
         }
     }
@@ -906,6 +948,7 @@ mod catastrophic_rm_tests {
             intent: None,
             timestamp: SystemTime::now(),
             execution_id: 1,
+            session_id: "test",
             in_pipeline: false,
         }
     }
@@ -988,7 +1031,7 @@ pub fn execute_with_context(
 
 #[cfg(test)]
 mod execution_id_tests {
-    use super::next_execution_id;
+    use super::{next_execution_id, session_id};
 
     /// INT-169 blocker 8: one execution gets one id. If two collide, every consumer
     /// downstream is observing a different execution than it believes it is.
@@ -998,5 +1041,16 @@ mod execution_id_tests {
         let b = next_execution_id();
         assert_ne!(a, b, "two executions shared an id");
         assert!(b > a, "execution ids must increase: {a} then {b}");
+    }
+
+    /// INT-191: the primary key of `command_execution` is (session_id, execution_id), so the
+    /// session half must be STABLE for the life of the process. If it were regenerated per call,
+    /// two executions in one shell would land in different namespaces and the pair would stop
+    /// identifying anything.
+    #[test]
+    fn session_id_is_stable_within_the_process() {
+        assert_eq!(session_id(), session_id());
+        assert!(!session_id().is_empty());
+        assert!(session_id().contains('-'), "expected pid-nanos shape");
     }
 }

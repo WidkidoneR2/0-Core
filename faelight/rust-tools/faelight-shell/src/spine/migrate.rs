@@ -58,6 +58,7 @@ mod tests {
             intent: None,
             timestamp: std::time::SystemTime::UNIX_EPOCH,
             execution_id: crate::exec::next_execution_id(),
+            session_id: "test",
             in_pipeline: false,
         }
     }
