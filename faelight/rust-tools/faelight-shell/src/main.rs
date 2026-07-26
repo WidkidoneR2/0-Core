@@ -13,6 +13,7 @@ mod error;
 mod exec;
 mod git_tui;
 mod health_tui;
+mod history;
 mod history_tui;
 mod intent_tui;
 mod output;
