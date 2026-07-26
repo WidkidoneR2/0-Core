@@ -72,9 +72,9 @@ GOVERNING -- decides whether a protection activates. Blockers, not migrations.
       gate returns None and never fires.
   main.rs:1484  fn handle()
       INT-322 Phase 4 auto-snapshot before destructive commands. Same bypass, same
-      input: a quoted command word means no recovery snapshot is taken. BOTH
-      PROTECTIVE MECHANISMS FAIL ON THE SAME INPUT, which is why these two rank
-      above everything else here.
+      input: a quoted command word means no recovery snapshot is taken. Both
+      protective mechanisms are bypassed by the same quoted command-word input,
+      which is why these two rank above everything else here.
 
 DISPATCH -- decides what runs, or where it runs.
   main.rs:1532  fn handle()  flow mode, earliest intercept (`ftok == "flow"`)
@@ -83,7 +83,7 @@ DISPATCH -- decides what runs, or where it runs.
       expansion semantics rather than only which branch is taken.
   main.rs:2939  fn handle()  job control (`first_tok == "jobs"`)
 
-BEHAVIOURAL -- does not change what executes, but changes runtime behaviour.
+BEHAVIOURAL -- changes auxiliary runtime behaviour without changing what executes.
   main.rs:1504  fn handle()
       INT-307 Friday power switching on `cargo`. A mis-read costs a performance
       profile, not correctness.
@@ -111,7 +111,8 @@ This intent was FILED covering four banned calls: ad-hoc splitting, a second
 tokenizer, raw-text operator scans, and re-parsing. Scoping recon showed the
 first has a canonical replacement TODAY while the others do not -- the answer for
 operator and structure derivation is "the parser", and the parser does not own
-execution until the spine flips. An intent must not be made responsible for
+execution until it is driven from canonical parser output (INT-169's "spine
+flip"). An intent must not be made responsible for
 enforcing something the codebase cannot yet satisfy, so the clauses were split by
 their PREREQUISITES rather than their similarity:
   - THIS intent: nobody re-derives the command word. Enforceable now.
@@ -122,17 +123,26 @@ their PREREQUISITES rather than their similarity:
     intent.
 
 ## Success Criteria
-- [ ] The scope above is recorded where code can be checked against it: execution
+- [x] The scope above is recorded where code can be checked against it: execution
       path plus privileged execution consumers IN, independent consumers OUT,
       command_word() named as canonical, test bypasses requiring justification
+      <!-- DONE 2026-07-25. The Scope section above states all four clauses: what is IN
+      (execution path plus privileged execution consumers), what is OUT (independent
+      consumers of raw user text), commands::command_word() as THE canonical derivation,
+      and the test-bypass justification rule -- plus the by-role-not-by-file boundary that
+      made the census tractable. The intent document IS where code is checked against the
+      rule; automating that check is gate 5. Requiring gate 5 first would be circular --
+      you cannot know what to check until the scope is defined, but the scope would not
+      count as defined until the check existed. Gate 1 defines the contract, gate 2
+      enumerates the violations, gate 5 automates enforcement. -->
 - [x] Every execution-governing site that derives the command word independently
+      is enumerated with file:line -- a census, not a fix
       <!-- DONE 2026-07-25. Census section above: 8 in-scope sites with file:line and enclosing
       function, classified GOVERNING / DISPATCH / BEHAVIOURAL / TELEMETRY, plus an EXCLUDED list
-      with reasons so the exemptions are not re-litigated. Method: grep the narrow shape
-      split_whitespace().next() across src (31 hits), drop comment lines (6 were the rule itself,
+      with reasons so the exemptions are not re-litigated. Method: grep for
+      `split_whitespace().next()` rather than every `split_whitespace()` (31 hits), drop comment lines (6 were the rule itself,
       already written in prose in two files), drop out-of-scope consumers, then resolve each
       remaining hit to its enclosing fn -- which classified most of them without reading bodies. -->
-      is enumerated with file:line -- a census, not a fix
 - [ ] Each enumerated site either routes through command_word(), or is recorded
       as a known exception with a stated reason
 - [ ] safety_guard.rs uses command_word(). Named explicitly because it is the
