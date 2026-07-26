@@ -3,7 +3,7 @@ id: 189
 date: 2026-07-21
 type: fix
 title: "command success inferred from output text instead of execution result"
-status: planned
+status: complete
 tags: [fix, bugfix, telemetry, friday]
 ---
 
