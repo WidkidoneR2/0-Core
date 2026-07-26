@@ -97,10 +97,17 @@ impl ExecContext {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        // Parse cmd and args from raw line -- via the ONE shared tokenizer (INT-171 gate 1)
-        let mut parts = raw.splitn(2, ' ');
-        let cmd = parts.next().unwrap_or("").to_lowercase();
-        let args: Vec<String> = parts.next().map(commands::tokenize).unwrap_or_default();
+        // INT-169 blocker 8: COMMAND IDENTITY IS STORED AS INVOKED. Case normalization is a
+        // CONSUMER POLICY, not a property of the execution context. `cmd` used to be lowercased
+        // here because it doubled as a dispatch lookup key -- see from_plan's note on the two
+        // identities being accidentally coupled. It no longer does.
+        // The invariant, stated as a property rather than a function name so it survives renames:
+        // COMMAND IDENTITY AND ARGUMENT VECTOR ARE DERIVED FROM THE SAME TOKENIZATION RESULT.
+        // The previous code split the line with `splitn(2, ' ')` for the command word and
+        // tokenized only the remainder, so the two could disagree on quoted input.
+        let mut tokens = commands::tokenize(raw.trim()).into_iter();
+        let cmd = tokens.next().unwrap_or_default();
+        let args: Vec<String> = tokens.collect();
 
         // Read active intent from db if available
         let intent = db.get_focus_intent();
@@ -135,7 +142,10 @@ fn preexec(
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Option<String> {
-    let cmd = ctx.cmd.as_str();
+    // INT-169 blocker 8: ctx.cmd is now the invocation as typed, so protection predicates
+    // normalize HERE, where the policy is chosen, rather than relying on stored normalization.
+    let cmd = ctx.cmd.to_lowercase();
+    let cmd = cmd.as_str();
     let raw = ctx.raw.as_str();
 
     // ── Safety Rule 1: Catastrophic rm -rf protection ─────────────────────────
@@ -508,7 +518,9 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
     }
     // ── Suggest system -- INT-171 Phase 4 ─────────────────────────────────────
     if status == "ok" || status == "empty" {
-        let suggestion = match ctx.cmd.as_str() {
+        // INT-169 blocker 8: local comparison key. ctx.cmd stays what the user invoked.
+        let cmd_key = ctx.cmd.to_lowercase();
+        let suggestion = match cmd_key.as_str() {
             "fg" if ctx.args.first().map(|s| s.as_str()) == Some("commit") => {
                 Some("💡 Suggestion: run d — verify health after committing")
             }
@@ -612,11 +624,12 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                         occurrences
                     );
                     // Counterfactual — what would make this wrong
-                    let counterfactual = if ctx.cmd == "d" {
+                    let cmd_cf = ctx.cmd.to_lowercase();
+                    let counterfactual = if cmd_cf == "d" {
                         "already ran d recently"
-                    } else if ctx.cmd.starts_with("deploy") {
+                    } else if cmd_cf.starts_with("deploy") {
                         "build failed or different tool deployed"
-                    } else if ctx.cmd.starts_with("fg") {
+                    } else if cmd_cf.starts_with("fg") {
                         "already pushed or no changes staged"
                     } else {
                         "pattern recently changed or different context"
