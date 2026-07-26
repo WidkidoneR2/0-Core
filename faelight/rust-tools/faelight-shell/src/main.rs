@@ -1506,7 +1506,8 @@ fn repl_main() -> Result<()> {
                         }
                         // INT-307 Phase 2: Friday power switching on compilation
                         {
-                            let _compile_tok = line.split_whitespace().next().unwrap_or("");
+                            let _compile_tok_owned = commands::command_word(line);
+                            let _compile_tok = _compile_tok_owned.as_str();
                             let _is_compile = _compile_tok == "cargo"
                                 && (line.contains(" build")
                                     || line.contains(" check")
@@ -3068,11 +3069,9 @@ fn repl_main() -> Result<()> {
                     // Phase 20b: inject --cwd-file for yazi/fm before execute
                     let fm_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
                     let is_fm_cmd = {
-                        let fc = base_cmd
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or("")
-                            .to_lowercase();
+                        // INT-195: canonical command derivation. Lowercasing is intentionally
+                        // preserved until flip blocker 8 revisits normalization policy.
+                        let fc = commands::command_word(&base_cmd).to_lowercase();
                         fc == "yazi" || fc == "faelight-fm"
                     };
                     let base_cmd = if is_fm_cmd {
@@ -3178,7 +3177,8 @@ fn repl_main() -> Result<()> {
                     // Command timing intelligence — warn if command is unusually slow (INT-194)
                     {
                         let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
-                        let cmd_key = base_cmd.split_whitespace().next().unwrap_or(&base_cmd);
+                        let cmd_key_owned = commands::command_word(&base_cmd);
+                        let cmd_key = cmd_key_owned.as_str();
                         if elapsed_ms > 500 {
                             let _ = db.conn.execute(
                                 "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
@@ -3229,11 +3229,7 @@ fn repl_main() -> Result<()> {
                     // INT-194 — Prediction-aware suggestions (pattern detection)
                     // After each command, check if there is a strong "next command" pattern
                     {
-                        let cmd_key = base_cmd
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or(&base_cmd)
-                            .to_string();
+                        let cmd_key = commands::command_word(&base_cmd);
                         // Only suggest for meaningful commands, not builtins
                         let skip_suggest = matches!(
                             cmd_key.as_str(),
@@ -3295,11 +3291,7 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-296 Phase 5: Friday consecutive failure detection
                     {
-                        let fail_cmd = base_cmd
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or(&base_cmd)
-                            .to_string();
+                        let fail_cmd = commands::command_word(&base_cmd);
                         let consecutive: i64 = db
                             .conn
                             .query_row(

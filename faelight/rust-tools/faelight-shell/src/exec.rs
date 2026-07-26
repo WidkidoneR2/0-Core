@@ -365,7 +365,10 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         // INT-097: search/filter tools exit non-zero to mean "no match / no result",
         // which is NORMAL, not an error worth a Friday suggestion. Skip the knowledge
         // lookup for them unless they produced real stderr (a genuine error message).
-        let first_word = cmd_lower.split_whitespace().next().unwrap_or("");
+        // INT-195: canonical command derivation. Lowercasing is intentionally preserved
+        // until flip blocker 8 revisits telemetry key normalization policy.
+        let first_word_owned = crate::commands::command_word(&ctx.cmd).to_lowercase();
+        let first_word = first_word_owned.as_str();
         let no_match_tools = [
             "grep", "rg", "egrep", "fgrep", "ripgrep", "find", "fd", "diff", "test", "ag", "ack",
             "fsearch",
