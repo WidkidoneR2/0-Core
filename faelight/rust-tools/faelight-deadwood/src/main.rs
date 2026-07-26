@@ -1023,3 +1023,79 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
         );
     }
 }
+
+#[cfg(test)]
+mod cmdword_check_tests {
+    use super::check_command_word_derivations;
+    use std::path::PathBuf;
+
+    /// Build a throwaway tree matching the layout the check walks. Cheap inside the crate,
+    /// which is why the deterministic finding lives here rather than in fsh-test: a suite that
+    /// mutates real source to arrange a failure can leave the tree dirty when it fails.
+    fn fixture(name: &str, body: &str) -> PathBuf {
+        // Explicit contract: the helper builds a temp path from `name`, so `name` is not a
+        // place for arbitrary text. Cheap assertion now, rather than an awkward path later.
+        assert!(
+            name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            "fixture name must be [A-Za-z0-9_]"
+        );
+        let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+        let _ = std::fs::remove_dir_all(&root);
+        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        std::fs::create_dir_all(&src).expect("fixture dir");
+        std::fs::write(src.join("main.rs"), body).expect("fixture file");
+        root
+    }
+
+    const BARE: &str =
+        "fn handle() {\n    let a = line.split_whitespace().next().unwrap_or(\"\");\n}\n";
+
+    #[test]
+    fn unannotated_derivation_is_reported() {
+        let root = fixture("bare", BARE);
+        let (found, exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(found.len(), 1, "a bare derivation must be reported");
+        assert_eq!(exempt, 0);
+    }
+
+    #[test]
+    fn adjacent_annotation_exempts() {
+        let root = fixture(
+            "adjacent",
+            "fn handle() {\n    // deadwood: exempt -- fixture\n    let a = line.split_whitespace().next().unwrap_or(\"\");\n}\n",
+        );
+        let (found, exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(found.len(), 0, "an adjacent declaration must exempt");
+        assert_eq!(exempt, 1);
+    }
+
+    /// The one that matters: the resolver must FAIL CLOSED. A declaration separated from its
+    /// candidate by real code is not a declaration for that candidate.
+    #[test]
+    fn displaced_annotation_does_not_exempt() {
+        let root = fixture(
+            "displaced",
+            "fn handle() {\n    // deadwood: exempt -- fixture\n    let _x = 1;\n    let a = line.split_whitespace().next().unwrap_or(\"\");\n}\n",
+        );
+        let (found, exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(found.len(), 1, "a displaced declaration must not exempt");
+        assert_eq!(exempt, 0);
+    }
+
+    /// Prefix collision: a different directive sharing the first eight characters must not be
+    /// read as an exemption.
+    #[test]
+    fn prefix_collision_does_not_exempt() {
+        let root = fixture(
+            "collision",
+            "fn handle() {\n    // deadwood: exempted -- not this directive\n    let a = line.split_whitespace().next().unwrap_or(\"\");\n}\n",
+        );
+        let (found, exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(found.len(), 1, "deadwood: exempted must not exempt");
+        assert_eq!(exempt, 0);
+    }
+}
