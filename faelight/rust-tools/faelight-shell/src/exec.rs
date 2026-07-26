@@ -175,12 +175,7 @@ impl ExecContext {
 
 /// Preexec hook — runs before every command
 /// Returns None to allow execution, Some(message) to block
-fn preexec(
-    ctx: &ExecContext,
-    _db: &ForestDb,
-    core_root: &str,
-    rules: &[BeforeRunRule],
-) -> Option<String> {
+fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Option<String> {
     // INT-169 blocker 8: `ctx.cmd` preserves the CASE it was invoked with, so protection
     // predicates normalize HERE, where the policy is chosen, rather than relying on stored
     // normalization. (That was a statement about case, not about lifecycle stage.)
@@ -758,7 +753,7 @@ pub fn execute_spine(
     rules: &[BeforeRunRule],
 ) -> CommandResult {
     let ctx = ExecContext::from_plan(plan, source, db);
-    if let Some(block_reason) = preexec(&ctx, db, core_root, rules) {
+    if let Some(block_reason) = preexec(&ctx, core_root, rules) {
         return CommandResult::Error(block_reason);
     }
     let result = commands::execute_plan_dispatch(plan, source, db, core_root);
@@ -831,6 +826,71 @@ fn blocks_catastrophic_rm(ctx: &ExecContext) -> Option<String> {
 }
 
 #[cfg(test)]
+mod preexec_boundary_tests {
+    //! ⚠️ ONLY ASSERT BLOCKING HERE. `preexec` is NOT a pure predicate: Safety Rule 4 walks the
+    //! target directory, prints a summary and PROMPTS for confirmation. A blocking case returns
+    //! before reaching it; an allow case falls through and HANGS waiting for a keystroke. Negative
+    //! cases belong on the pure predicates instead -- see catastrophic_rm_tests.
+    use super::{preexec, ExecContext};
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    /// A context where the TYPED form is harmless and the EXECUTED form is not -- the shape an
+    /// alias produces. Every policy inside preexec must judge on `expanded`; any that reads `raw`
+    /// sees only the harmless name and waves the command through.
+    fn aliased(raw: &str, expanded: &str, cmd: &str) -> ExecContext {
+        ExecContext {
+            raw: raw.to_string(),
+            expanded: expanded.to_string(),
+            cmd: cmd.to_string(),
+            args: Vec::new(),
+            cwd: PathBuf::from("."),
+            intent: None,
+            timestamp: SystemTime::now(),
+            execution_id: 1,
+            in_pipeline: false,
+        }
+    }
+
+    /// Catastrophic target policy, reached through preexec rather than the predicate directly --
+    /// this proves the WIRING, not just the rule.
+    #[test]
+    fn blocks_aliased_catastrophic_rm() {
+        let ctx = aliased("nuke", "rm -rf /home", "rm");
+        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+    }
+
+    /// Forest-source protection. Still inline in preexec and therefore untested until now: a
+    /// future edit could repoint it at `ctx.raw` and nothing would object.
+    #[test]
+    fn blocks_aliased_rm_on_forest_source() {
+        let intents = faelight_core::paths::intents_dir()
+            .to_string_lossy()
+            .to_string();
+        let ctx = aliased("cleanup", &format!("rm -rf {}", intents), "rm");
+        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+    }
+
+    /// Self-overwrite protection for cp/mv, same exposure.
+    #[test]
+    fn blocks_aliased_copy_over_core_binary() {
+        let ctx = aliased(
+            "install",
+            "cp /tmp/thing /home/christian/.cargo/bin/core",
+            "cp",
+        );
+        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+    }
+
+    /// The negative direction matters as much: a harmless execution must not be blocked just
+    /// because the typed form looked alarming.
+    #[test]
+    fn allows_harmless_execution_with_alarming_typed_form() {
+        let ctx = aliased("rm -rf /home", "echo pretend", "echo");
+        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_none());
+    }
+}
+#[cfg(test)]
 mod catastrophic_rm_tests {
     use super::{blocks_catastrophic_rm, ExecContext};
     use std::path::PathBuf;
@@ -876,6 +936,17 @@ mod catastrophic_rm_tests {
         assert!(blocks_catastrophic_rm(&c).is_none());
     }
 
+    /// THE TRUE INVERSE OF THE LOCK. cmd is `rm` and the EXECUTED target is harmless, while
+    /// the TYPED form names a blocked path. A version reading `raw` finds /home and blocks; the
+    /// correct version reads `expanded`, finds only /tmp/scratch, and allows. This fails if the
+    /// fields are swapped the other way -- which a cmd-gated negative case cannot detect, because
+    /// it never reaches any path scan.
+    #[test]
+    fn allows_safe_execution_when_typed_form_names_a_blocked_path() {
+        let c = ctx("rm -rf /home", "rm -rf /tmp/scratch", "rm");
+        assert!(blocks_catastrophic_rm(&c).is_none());
+    }
+
     #[test]
     fn allows_rm_without_recursive_force() {
         assert!(blocks_catastrophic_rm(&ctx("rm file.txt", "rm file.txt", "rm")).is_none());
@@ -902,7 +973,7 @@ pub fn execute_with_context(
     let ctx = ExecContext::from_line(raw, expanded, db);
 
     // Preexec — can block execution
-    if let Some(block_reason) = preexec(&ctx, db, core_root, rules) {
+    if let Some(block_reason) = preexec(&ctx, core_root, rules) {
         return CommandResult::Error(block_reason);
     }
 
