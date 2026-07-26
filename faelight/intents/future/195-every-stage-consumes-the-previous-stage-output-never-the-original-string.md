@@ -34,6 +34,11 @@ TESTS: a test may bypass the canonical helper when it deliberately generates
 malformed input or checks equivalence between implementations, but it must say so
 in a comment -- otherwise the next reader treats it as precedent.
 
+BY ROLE, NOT BY FILE. commands/mod.rs is over 14,000 lines and holds the
+dispatcher, every builtin's body, and unrelated helpers. Scoping by filename turns
+eight real sites into twenty false positives. A function is in scope because of
+what it DECIDES, not because of where it lives.
+
 ## The Problem
 fsh's documented bug class is not "the parser was wrong". Twice the parser was
 RIGHT and something downstream ignored it: INT-143 was four tokenizers with no
@@ -55,6 +60,52 @@ scope that bypass it, and make the check mechanical. The fix at each site is a
 call substitution, not new logic, because the correct implementation already
 exists -- which is INT-143's lesson applied rather than restated.
 
+## Census -- 8 in-scope sites (2026-07-25)
+Recorded BEFORE any code change, so later commits reference a written inventory
+instead of reconstructing this investigation. Classified by ROLE, because role
+determines both the risk and the order.
+
+GOVERNING -- decides whether a protection activates. Blockers, not migrations.
+  safety_guard.rs:12  fn check()
+      The safety gate. `"rm" -rf /` presents first_word `"rm`, which matches no
+      deny, allow or safe entry and fails the `first_word == "rm"` test, so the
+      gate returns None and never fires.
+  main.rs:1484  fn handle()
+      INT-322 Phase 4 auto-snapshot before destructive commands. Same bypass, same
+      input: a quoted command word means no recovery snapshot is taken. BOTH
+      PROTECTIVE MECHANISMS FAIL ON THE SAME INPUT, which is why these two rank
+      above everything else here.
+
+DISPATCH -- decides what runs, or where it runs.
+  main.rs:1532  fn handle()  flow mode, earliest intercept (`ftok == "flow"`)
+  main.rs:2253  fn handle()  shell control structures (for/while/until/if/case).
+      Routes the line to sh WITH VARIABLES UNEXPANDED, so a mis-read changes
+      expansion semantics rather than only which branch is taken.
+  main.rs:2939  fn handle()  job control (`first_tok == "jobs"`)
+
+BEHAVIOURAL -- does not change what executes, but changes runtime behaviour.
+  main.rs:1504  fn handle()
+      INT-307 Friday power switching on `cargo`. A mis-read costs a performance
+      profile, not correctness.
+
+TELEMETRY -- wrong derivation produces wrong DATA. Lower operational risk, but not
+cosmetic: record_failure was fixed for exactly this reason, because Friday reads
+what it writes.
+  main.rs:3169  fn handle()    INT-194 command-timing key, INSERTed into the db
+  exec.rs:368   fn postexec()  derives from `cmd_lower`, so this site is ALSO flip
+      blocker 8's "stop lowercasing the command name"
+
+EXCLUDED, and why -- recorded so the next reader does not re-litigate them:
+  - Display and reporting builtins that happen to live in commands/mod.rs:
+    debug_cmd, explain_cmd, history_stats, dev_cmd, histogram_cmd,
+    semantic_ambiguous_cmd, semantic_why_cmd. Separate consumers by role.
+    NOTE explain_cmd reports what an alias resolves to, so a quote-blind read is
+    user-facing misinformation about the user's own aliases. Worth fixing
+    opportunistically; not a gate.
+  - Not command words at all: print_welcome (an intent id), walk_dir (a SQL LIKE
+    pattern), shell_handoff_cmd (a shell NAME, defaulting to zsh).
+  - completion.rs, db.rs, value.rs -- exempt consumers under the scope above.
+
 ## Narrowed 2026-07-25, and why (recorded, not silently rewritten)
 This intent was FILED covering four banned calls: ad-hoc splitting, a second
 tokenizer, raw-text operator scans, and re-parsing. Scoping recon showed the
@@ -74,7 +125,13 @@ their PREREQUISITES rather than their similarity:
 - [ ] The scope above is recorded where code can be checked against it: execution
       path plus privileged execution consumers IN, independent consumers OUT,
       command_word() named as canonical, test bypasses requiring justification
-- [ ] Every execution-governing site that derives the command word independently
+- [x] Every execution-governing site that derives the command word independently
+      <!-- DONE 2026-07-25. Census section above: 8 in-scope sites with file:line and enclosing
+      function, classified GOVERNING / DISPATCH / BEHAVIOURAL / TELEMETRY, plus an EXCLUDED list
+      with reasons so the exemptions are not re-litigated. Method: grep the narrow shape
+      split_whitespace().next() across src (31 hits), drop comment lines (6 were the rule itself,
+      already written in prose in two files), drop out-of-scope consumers, then resolve each
+      remaining hit to its enclosing fn -- which classified most of them without reading bodies. -->
       is enumerated with file:line -- a census, not a fix
 - [ ] Each enumerated site either routes through command_word(), or is recorded
       as a known exception with a stated reason
