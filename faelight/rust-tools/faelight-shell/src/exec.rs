@@ -18,6 +18,23 @@ use std::time::{SystemTime, UNIX_EPOCH};
 // ── ExecContext ───────────────────────────────────────────────────────────────
 /// A typed description of every command execution.
 /// Replaces raw string passing throughout the shell.
+/// INT-169 blocker 8: THE ONLY SOURCE OF EXECUTION IDS.
+///
+/// The invariant is not the counter, it is the single point: an execution receives exactly
+/// one id when its context is created, BEFORE preexec, dispatch, postexec or telemetry
+/// observe it. Generating ids at the consumers would yield three observations rather than
+/// one execution -- the same split-authority problem this intent exists to remove.
+///
+/// Process-local and deliberately not persisted. The purpose is correlating the events of
+/// one command within one running shell. Surviving restart is a different contract (locking,
+/// crash recovery, migration, cross-session semantics) and belongs to whoever needs it.
+/// Not derived from the timestamp: that field already means something else.
+static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+pub fn next_execution_id() -> u64 {
+    NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ExecContext {
@@ -42,6 +59,10 @@ pub struct ExecContext {
     /// backwards across NTP correction or suspend. They answer different questions and
     /// must not share a name.
     pub timestamp: SystemTime,
+    /// Monotonic process-local execution identity. Unique within the lifetime of this
+    /// shell process. Every event, hook, telemetry record and debug trace referring to
+    /// this execution carries this id.
+    pub execution_id: u64,
     /// Whether this command was executed via pipeline
     pub in_pipeline: bool,
 }
@@ -89,6 +110,7 @@ impl ExecContext {
             cwd,
             intent,
             timestamp,
+            execution_id: next_execution_id(),
             in_pipeline: false,
         }
     }
@@ -121,6 +143,7 @@ impl ExecContext {
             cwd,
             intent,
             timestamp,
+            execution_id: next_execution_id(),
             in_pipeline: false,
         }
     }
@@ -762,4 +785,19 @@ pub fn execute_with_context(
     postexec(&ctx, &result, db);
 
     result
+}
+
+#[cfg(test)]
+mod execution_id_tests {
+    use super::next_execution_id;
+
+    /// INT-169 blocker 8: one execution gets one id. If two collide, every consumer
+    /// downstream is observing a different execution than it believes it is.
+    #[test]
+    fn execution_ids_are_unique_and_increasing() {
+        let a = next_execution_id();
+        let b = next_execution_id();
+        assert_ne!(a, b, "two executions shared an id");
+        assert!(b > a, "execution ids must increase: {a} then {b}");
+    }
 }

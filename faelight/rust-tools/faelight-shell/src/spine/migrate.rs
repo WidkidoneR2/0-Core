@@ -57,6 +57,7 @@ mod tests {
             cwd: PathBuf::from("/home/christian"),
             intent: None,
             timestamp: std::time::SystemTime::UNIX_EPOCH,
+            execution_id: crate::exec::next_execution_id(),
             in_pipeline: false,
         }
     }
