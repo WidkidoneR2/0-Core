@@ -442,8 +442,6 @@ fn execute_impl(
     // real run one expansion deep -- the same bug, hidden one level down.
     mode: ExecutionMode,
 ) -> CommandResult {
-    // Kept so the guard sites below read unchanged; the mode is the source of truth.
-    let allow_external = mode.allows_external();
     let trimmed_line = line.trim();
     // INT-171 gate 2: the command word goes through the SAME quote-aware tokenizer
     // as its arguments. Previously `cmd` came from a raw `splitn(2, ' ')` while `args`
@@ -751,6 +749,40 @@ fn execute_impl(
             return CommandResult::Output(out);
         }
     }
+    execute_dispatch(&cmd, args, line, db, core_root, mode)
+}
+
+/// INT-169 commit 4 of 4: the dispatch table, lifted out of `execute_impl` so the function
+/// that ROUTES is not the same function that IS the routing table. `execute_impl` keeps the
+/// pre-dispatch policy -- `!!` expansion, semantic safety recording, the friday-chat
+/// interception, the spine debug entry points -- and hands normalised inputs to this.
+///
+/// ⚠️ THE SECURITY LOG MOVED WITH THE MATCH, DELIBERATELY, AND THIS IS NOT AN ENDORSEMENT.
+/// 91 arms inside this match use `return`, which today exits before `emit_command` is ever
+/// reached -- so those commands are not logged. That coupling already existed; it was simply
+/// hidden across a function boundary. Extracting the match alone would have silently turned
+/// 91 unlogged paths into logged ones, which is a change to observability wearing the costume
+/// of a refactor. Taking the whole tail preserves the behaviour exactly and makes the shape
+/// visible instead. Whether every command path SHOULD emit a security log is a real question
+/// and its own change, with its own evidence.
+///
+/// `cmd` is rebound as an owned String so the ~3,877 lines below are byte-identical to what
+/// they were inside `execute_impl`. One allocation per command, and no arm surgery.
+///
+/// The parameter list is the finding, not an accident of the cut. The compiler proved the match
+/// needs neither `owned_args` nor `expanded_names` -- the latter being INT-057's cycle guard,
+/// whose absence here confirms alias and plugin recursion lives entirely in the pre-dispatch
+/// block and never reaches the dispatch table.
+fn execute_dispatch(
+    cmd: &str,
+    args: &[&str],
+    line: &str,
+    db: &ForestDb,
+    core_root: &str,
+    mode: ExecutionMode,
+) -> CommandResult {
+    let cmd = cmd.to_string();
+    let allow_external = mode.allows_external();
     let result = match cmd.as_str() {
         "on" => on_cmd(db, args),
         "help" | "h" => help(),
