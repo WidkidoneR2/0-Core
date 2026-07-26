@@ -592,7 +592,12 @@ fn execute_impl(
                         audit.skip(reason);
                         continue;
                     }
-                    let ctx = crate::exec::ExecContext::from_line(source, db);
+                    // INT-191: raw and expanded are the same string here BY DESIGN, and the
+                    // reason is already stated below -- this audit compares PARSERS on the same
+                    // input and deliberately performs no expansion. Behaviour-preserving: before
+                    // the split one argument filled both fields. This path also never reaches
+                    // postexec, so it writes no history record.
+                    let ctx = crate::exec::ExecContext::from_line(source, source, db);
                     let legacy = crate::spine::migrate::plan_from_legacy(&ctx);
                     let spine = match crate::spine::parser::parse(source) {
                         // No environment: `spine migrate` compares PARSERS on the same input.

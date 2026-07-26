@@ -103,6 +103,11 @@ impl ExecContext {
         let args: Vec<String> = argv.collect();
         let intent = db.get_focus_intent();
         ExecContext {
+            // INT-191: the spine receives `source` BEFORE any text transformation -- both spine
+            // entry points sit above alias expansion and the spine performs no expansions of its
+            // own. So raw and expanded are intentionally IDENTICAL here: that is a true fact about
+            // today's spine, not a distinction that was lost. Revisit when the flip moves routing
+            // below interpretation.
             raw: raw.clone(),
             expanded: raw,
             cmd,
@@ -115,8 +120,13 @@ impl ExecContext {
         }
     }
 
-    pub fn from_line(line: &str, db: &ForestDb) -> Self {
-        let raw = line.trim().to_string();
+    pub fn from_line(raw_line: &str, expanded_line: &str, db: &ForestDb) -> Self {
+        // INT-191: TWO ENDPOINTS, not one string doing double duty. `raw` is what crossed the
+        // USER boundary; `expanded` is what crossed the EXECUTION boundary. The caller owns that
+        // distinction because only the caller knows which stage it is standing at -- this
+        // constructor must never try to recover one from the other.
+        let raw = raw_line.trim().to_string();
+        let expanded = expanded_line.trim().to_string();
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let timestamp = SystemTime::now();
 
@@ -128,7 +138,12 @@ impl ExecContext {
         // COMMAND IDENTITY AND ARGUMENT VECTOR ARE DERIVED FROM THE SAME TOKENIZATION RESULT.
         // The previous code split the line with `splitn(2, ' ')` for the command word and
         // tokenized only the remainder, so the two could disagree on quoted input.
-        let mut tokens = commands::tokenize(raw.trim()).into_iter();
+        // INT-191: tokenize the EXPANDED form. `cmd` and `args` are EXECUTION identity -- what
+        // actually runs -- and preexec's protected-path predicate reads `cmd`. Deriving them from
+        // `raw` would describe the typed line while the shell ran something else, a worse version
+        // of the bug this split fixes. The invariant above is unchanged; only the boundary that
+        // tokenization consumes is now explicit rather than incidental.
+        let mut tokens = commands::tokenize(expanded.trim()).into_iter();
         let cmd = tokens.next().unwrap_or_default();
         let args: Vec<String> = tokens.collect();
 
@@ -136,8 +151,8 @@ impl ExecContext {
         let intent = db.get_focus_intent();
 
         ExecContext {
-            raw: raw.clone(),
-            expanded: raw, // will be updated after alias resolution
+            raw,
+            expanded,
             cmd,
             args,
             cwd,
@@ -166,22 +181,30 @@ fn preexec(
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Option<String> {
-    // INT-169 blocker 8: ctx.cmd is now the invocation as typed, so protection predicates
-    // normalize HERE, where the policy is chosen, rather than relying on stored normalization.
+    // INT-169 blocker 8: `ctx.cmd` preserves the CASE it was invoked with, so protection
+    // predicates normalize HERE, where the policy is chosen, rather than relying on stored
+    // normalization. (That was a statement about case, not about lifecycle stage.)
+    //
+    // INT-191: EXECUTION POLICY INSPECTS THE EXECUTION BOUNDARY. `cmd`, `args` and `expanded` all
+    // describe what will actually run; `raw` is provenance only -- exactly what crossed the user
+    // boundary. Mixing them is unsafe: before the endpoint split both fields held the same string,
+    // so scanning `raw` happened to be scanning the executed line. Once they differ, an alias like
+    // `nuke = rm -rf /home` gives cmd = "rm" from the executed form while `raw` is just `nuke`,
+    // and a scan of `raw` finds no -rf and blocks nothing.
     let cmd = ctx.cmd.to_lowercase();
     let cmd = cmd.as_str();
-    let raw = ctx.raw.as_str();
+    let expanded = ctx.expanded.as_str();
 
     // ── Safety Rule 1: Catastrophic rm -rf protection ─────────────────────────
     // Block any rm -rf targeting root, home, or core source directories
     if cmd == "rm" {
-        let raw_lower = raw.to_lowercase();
-        if raw_lower.contains("-rf") || raw_lower.contains("-fr") {
+        let expanded_lower = expanded.to_lowercase();
+        if expanded_lower.contains("-rf") || expanded_lower.contains("-fr") {
             // Absolute block — these targets are never safe
             let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
             for target in &blocked_targets {
                 // Match exact path — must be followed by space, end of string, or be standalone
-                let matches = raw
+                let matches = expanded
                     .split_whitespace()
                     .any(|token| token == *target || token == &format!("{}/", target));
                 if matches {
@@ -204,7 +227,7 @@ fn preexec(
                 core_engine.as_str(),
                 core_intents.as_str(),
             ] {
-                if raw.contains(protected) {
+                if expanded.contains(protected) {
                     return Some(format!(
                         "🛡  Blocked: rm -rf on forest source '{}' — use git to manage removals",
                         protected
@@ -218,12 +241,12 @@ fn preexec(
     if cmd == "cp" || cmd == "mv" {
         // INT-097: was raw.contains("core") -- matched every path under ~/0-core,
         // blocking legit copies. Now block only when the DESTINATION is a core binary.
-        let dest = raw.split_whitespace().last().unwrap_or("");
+        let dest = expanded.split_whitespace().last().unwrap_or("");
         let protected = ["scripts/core", ".cargo/bin/core", "/bin/core"];
         let hits_core_binary = dest.ends_with("/core")
             || dest == "core"
             || protected.iter().any(|p| dest.ends_with(p));
-        if hits_core_binary && !raw.contains("deploy") {
+        if hits_core_binary && !expanded.contains("deploy") {
             return Some(
                 "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string(),
             );
@@ -232,7 +255,12 @@ fn preexec(
 
     // ── Config Rules: evaluate before_run rules from config.fsh ────────────
     for rule in rules {
-        if rule.matches(&ctx.raw) {
+        // INT-191: the EXECUTED form, which is what this saw before the endpoint split -- `raw`
+        // held the expanded line then. Matching the typed form instead would make a Block rule
+        // bypassable by any alias. ⚠️ Whether config rules SHOULD match typed, executed, or both is
+        // a genuine open question with its own contract (Block is a safety predicate; Warn and
+        // Suggest are advisory), and it is deliberately NOT decided inside this repair.
+        if rule.matches(&ctx.expanded) {
             match &rule.action {
                 RuleAction::Block => {
                     return Some(format!("🛡  Blocked: {}", rule.message));
@@ -249,8 +277,8 @@ fn preexec(
 
     // ── Safety Rule 4: Smarter DELETE confirmation for rm -rf (INT-194) ──────
     if cmd == "rm" {
-        let raw_lower = raw.to_lowercase();
-        if raw_lower.contains("-rf") || raw_lower.contains("-fr") {
+        let expanded_lower = expanded.to_lowercase();
+        if expanded_lower.contains("-rf") || expanded_lower.contains("-fr") {
             let target = ctx
                 .args
                 .iter()
@@ -295,7 +323,7 @@ fn preexec(
                     format!("{:.1} KB", total_bytes as f64 / 1024.0)
                 };
                 println!();
-                println!("  {} {}", "⚠️ ".normal(), raw.bright_red());
+                println!("  {} {}", "⚠️ ".normal(), expanded.bright_red());
                 println!(
                     "  {} {} files, {}",
                     "→".bright_yellow(),
@@ -345,7 +373,13 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 
     // Log to shell_history
     if status != "exit" {
-        if let Err(e) = db.save_history_entry(&ctx.raw) {
+        // INT-191: `ctx.expanded`, not `ctx.raw`. This write has ALWAYS recorded the executed
+        // form -- before the endpoint split it simply arrived under the name `raw`, because one
+        // argument filled both fields. Now that `raw` truthfully means "exactly what the user
+        // typed", leaving this as `raw` would make BOTH history writers record the typed line and
+        // silently destroy the executed-form record. The two entries are intentionally different:
+        // the input boundary writes raw, completed execution writes expanded.
+        if let Err(e) = db.save_history_entry(&ctx.expanded) {
             eprintln!("warning: failed to save history: {}", e);
         }
     }
@@ -765,13 +799,17 @@ pub fn execute_spine_source(
 }
 
 pub fn execute_with_context(
-    line: &str,
+    raw: &str,
+    expanded: &str,
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> CommandResult {
-    // Build execution context
-    let ctx = ExecContext::from_line(line, db);
+    // INT-191: this signature is where the lifecycle used to collapse. One `line` fed both the
+    // context and the dispatcher, so `ExecContext.raw` -- documented as "exactly what the user
+    // typed" -- received a value that had already crossed the execution boundary. postexec was
+    // never wrong; it was faithfully recording what it was handed.
+    let ctx = ExecContext::from_line(raw, expanded, db);
 
     // Preexec — can block execution
     if let Some(block_reason) = preexec(&ctx, db, core_root, rules) {
@@ -779,7 +817,7 @@ pub fn execute_with_context(
     }
 
     // Dispatch — call existing execute() (unchanged)
-    let result = commands::execute(line, db, core_root);
+    let result = commands::execute(expanded, db, core_root);
 
     // Postexec — observe the result
     postexec(&ctx, &result, db);

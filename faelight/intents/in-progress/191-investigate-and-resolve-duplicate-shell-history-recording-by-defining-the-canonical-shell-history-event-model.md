@@ -3,7 +3,7 @@ id: 191
 date: 2026-07-22
 type: fix
 title: "investigate and resolve duplicate shell history recording by defining the canonical shell history event model"
-status: planned
+status: in-progress
 tags: [fix, bugfix, telemetry, friday, data-model]
 ---
 

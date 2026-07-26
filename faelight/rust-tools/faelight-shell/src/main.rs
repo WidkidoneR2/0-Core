@@ -1480,6 +1480,16 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     let line = segment.as_str();
+                    // INT-191: the USER BOUNDARY, captured once and never mutated. Everything
+                    // below rebinds `line` -- vars, subshells, globs, then aliases -- and Rust
+                    // shadowing creates NEW bindings rather than rewriting this one, so this value
+                    // survives intact to the execution boundary.
+                    // ⚠️ Deliberately NOT named `original_line`: that name is already taken at ~2472
+                    // by a value captured AFTER all four expansions, and its drift from "original"
+                    // to "original relative to what follows" is the exact confusion this records
+                    // against. `raw` means exactly what the user typed, including any FOO=1 prefix,
+                    // because that is what the ExecContext field it feeds is documented to hold.
+                    let raw_line = segment.to_string();
                     // INT-322 Phase 4: auto-snapshot before destructive commands
                     {
                         // INT-195: canonical, quote-aware derivation. `"rmdir" /path` used to
@@ -2106,7 +2116,11 @@ fn repl_main() -> Result<()> {
                             }
                             // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
                             let rest_expanded = expand_vars(rest, &shell_vars, last_exit_code);
+                            // INT-191: `raw_line` is the whole segment INCLUDING the FOO=1
+                            // prefix, because the field is documented as exactly what the user
+                            // typed and the assignment is part of that.
                             let result = exec::execute_with_context(
+                                &raw_line,
                                 &rest_expanded,
                                 &db,
                                 &core_root,
@@ -3156,6 +3170,7 @@ fn repl_main() -> Result<()> {
                     };
                     let _cmd_timer_start = std::time::Instant::now();
                     let cmd_output: Option<String> = match exec::execute_with_context(
+                        &raw_line,
                         &base_cmd,
                         &db,
                         &core_root,
