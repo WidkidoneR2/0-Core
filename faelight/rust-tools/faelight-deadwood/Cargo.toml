@@ -10,3 +10,10 @@ colored = "2.2"
 walkdir = "2.4"
 regex = "1.10"
 once_cell = "1.19"
+# INT-195: source-structure analysis. faelight-deadwood now checks Rust SYNTAX as well as
+# filesystem structure. syn 2 and proc-macro2 are already in Cargo.lock (both syn majors are),
+# so this adds a direct dependency edge, not a new vendored parser. span-locations is NOT a
+# default feature and is enabled deliberately: without it Span::start() returns line 0, and a
+# check that says "main.rs contains a violation" against a 4,000-line file is not usable.
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }

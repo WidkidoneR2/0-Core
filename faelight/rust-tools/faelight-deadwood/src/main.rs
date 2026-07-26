@@ -135,6 +135,12 @@ fn main() {
             check_orphaned_modules(&root),
         );
     }
+    if run("cmdword") {
+        report(
+            "Command-word derivations bypassing command_word() (INT-195)",
+            check_command_word_derivations(&root),
+        );
+    }
     println!("{}", "-".repeat(56).dimmed());
     println!("{}", "  A healthy forest sheds dead wood.".dimmed());
 }
@@ -622,6 +628,97 @@ fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
             });
         }
     }
+    findings
+}
+
+/// INT-195: execution-governing code must derive the command word only through
+/// commands::command_word(). This is a SOURCE-structure check rather than a filesystem one --
+/// the tool's charter now covers both.
+///
+/// RULE DETECTION is kept separate from DIAGNOSTIC RENDERING: the visitor answers only
+/// "is this expression a prohibited derivation", and file:line formatting happens here.
+/// Text patterns were tried first and missed three distinct classes -- rustfmt-wrapped method
+/// chains, by-file scope exclusion, and alternate spellings such as splitn. An AST removes the
+/// first and third as categories rather than patching them case by case.
+struct CommandWordVisitor {
+    hits: Vec<(usize, String)>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
+    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        if node.method == "next" {
+            if let syn::Expr::MethodCall(inner) = node.receiver.as_ref() {
+                let m = inner.method.to_string();
+                // Generic .split() is NOT matched: it splits on ':', '=', ',', '::' and
+                // predicates all over the codebase, and 21 of the first run's 36 findings came
+                // from it -- almost none in this problem class. The signal is the whitespace
+                // family, which is what a command-word derivation actually looks like.
+                if matches!(
+                    m.as_str(),
+                    "split_whitespace" | "split_ascii_whitespace" | "splitn"
+                ) {
+                    self.hits.push((inner.method.span().start().line, m));
+                }
+            }
+        }
+        syn::visit::visit_expr_method_call(self, node);
+    }
+}
+
+fn check_command_word_derivations(root: &Path) -> Vec<Finding> {
+    // CLASSIFICATION, kept separate from discovery. The visitor answers only "is this a
+    // whitespace-derived first token"; deciding whether that MATTERS is architectural knowledge
+    // and lives here.
+    //
+    // TEMPORARY COARSE FILTER. INT-195 is defined by ROLE, not file. This list intentionally
+    // OVER-APPROXIMATES the scope until per-function role annotations exist -- commands/mod.rs
+    // holds the dispatcher AND every builtin body, so display-only builtins inside it are still
+    // reported. Phase B does not "add suppressions"; it replaces this approximation with
+    // author-declared architectural intent at the site that knows its own role.
+    const IN_SCOPE: &[&str] = &[
+        "main.rs",
+        "commands/mod.rs",
+        "exec.rs",
+        "expand.rs",
+        "safety_guard.rs",
+        "db.rs",
+    ];
+    let mut findings = Vec::new();
+    let src = root.join("faelight/rust-tools/faelight-shell/src");
+    for entry in walkdir::WalkDir::new(&src)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let p = entry.path();
+        if p.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(p) else {
+            continue;
+        };
+        let Ok(ast) = syn::parse_file(&text) else {
+            continue;
+        };
+        let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
+        if !IN_SCOPE.iter().any(|f| rel.ends_with(f)) {
+            continue;
+        }
+        let mut v = CommandWordVisitor { hits: Vec::new() };
+        syn::visit::visit_file(&mut v, &ast);
+        for (line, method) in v.hits {
+            findings.push(Finding {
+                confidence: Confidence::High,
+                detail: format!("{rel}:{line} derives a command word with .{method}().next() instead of command_word()"),
+                action: None,
+            });
+        }
+    }
+    // Rust macro bodies are not recursively analyzed. Findings apply to ordinary Rust syntax;
+    // code embedded inside macro token streams is outside the current analysis. Verified against
+    // the INT-195 census: four sites inside format!() are not reported, and all four are
+    // string-building rather than execution-governing, so the boundary does not currently overlap
+    // the rule. If an execution-path violation ever appears inside a macro, that is the evidence
+    // that this boundary is too restrictive.
     findings
 }
 
