@@ -44,6 +44,20 @@ struct TestResult {
     error: Option<String>,
 }
 
+/// INT-195 gate 6: invoke faelight-deadwood through the same seam pattern run_fsh uses for the
+/// shell. DEADWOOD_BIN lets one test prove the debug build before a deploy and the deployed
+/// artifact after -- the two-binaries discipline the rest of this work relies on.
+fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
+    let bin = std::env::var("DEADWOOD_BIN")
+        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-deadwood".to_string());
+    Command::new(&bin)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("cannot invoke {bin}: {e}"))
+}
+
 fn run_fsh(input: &str) -> Result<String, String> {
     let fsh = std::env::var("FSH_BIN")
         .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
@@ -435,6 +449,36 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
     }));
+    results.push(test(
+        "deadwood_strict_gate_passes",
+        Category::Regression,
+        || {
+            // INT-195 gate 6: the architectural invariant runs somewhere it is SEEN, not only
+            // when someone types it. Asserts the PUBLIC CONTRACT -- a clean tree exits zero
+            // under --strict -- and deliberately does NOT arrange a finding by mutating source,
+            // because a suite that edits the tree to create a failure can leave it dirty when
+            // it fails. The failing direction is covered by the deadwood crate's fixture tests,
+            // where constructing a finding is cheap and self-contained.
+            let out = run_deadwood(&["--strict"])?;
+            if out.status.success() {
+                return Ok(());
+            }
+            let flagged: Vec<String> = String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .filter(|l| l.contains("[HIGH]") || l.contains("flagged"))
+                .map(|l| l.trim().to_string())
+                .collect();
+            Err(format!(
+                "faelight-deadwood --strict exited {:?}: {}",
+                out.status.code(),
+                if flagged.is_empty() {
+                    String::from_utf8_lossy(&out.stderr).trim().to_string()
+                } else {
+                    flagged.join(" | ")
+                }
+            ))
+        },
+    ));
     results.push(test("fsh_binary_exists", Category::Regression, || {
         expect_contains(
             &run_fsh("ls /run/current-system/sw/bin/faelight-shell")?,
