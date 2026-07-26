@@ -89,6 +89,31 @@ execution semantics and needs its own answers first:
 INT-143's double-execution scars are on this path, so it needs its own
 verification rather than riding along with an unrelated repair.
 
+## Pipeline exit-status semantics -- the decision, recorded
+Almost none of this was a choice. The intent asked which rule fsh should adopt --
+last command, first failure, or something else -- and the code answered it three
+different ways before the question needed deciding.
+PATHS THAT SPAWN `sh`: no rule to pick. `sh` already reported the last command's
+status, per POSIX. The bug was discarding the answer given by the shell that
+actually ran the pipeline. Inheriting it is conformant by construction.
+THE NATIVE RUST PIPELINE: children are pushed in `pipe_parts` order, so the final
+`wait()` is the last stage -- again the POSIX answer, already present in the data
+structure and merely thrown away. `pipe_ok` is NOT that answer: it tracks whether
+the pipeline could be ASSEMBLED, and stays true when `grep` simply finds nothing.
+THE IN-PROCESS VALUE PIPELINE: infallible BY TYPE. `apply_pipeline` returns
+`Value`, not `Result`, so it has no way to report failure. Zero is not a chosen
+policy, it is the only coherent answer the signature permits. Recorded at the site,
+because if that signature ever becomes fallible a silent zero over a real error
+would be this bug returning.
+SO THE ANSWER IS: last stage, everywhere, inherited rather than invented -- and
+the single genuine decision was about NON-PARTICIPANTS, not about the rule.
+`last_exit_code` is owned by the execution the USER INVOKED. Children used for
+cleanup, telemetry, notifications or recovery do not participate. Two sites are
+documented exceptions under that rule: the waits reaping children of a pipeline
+that could not be assembled (the `sh` fallback owns the outcome instead), and the
+backgrounded `faelight-notify` toast, whose status cannot describe a command that
+has already finished.
+
 ## Success Criteria
 
 - [x] Output-text inference of command success removed; the CommandResult verdict is the only source
@@ -99,6 +124,25 @@ verification rather than riding along with an unrelated repair.
 <!-- 4 `spine migrate` rows corrected 1 -> 0; verified before/after (0|2 + 1|4 -> 0|6). `spine parse` exit 1 left untouched: bare `spine parse` genuinely returns CommandResult::Error -->
 - [x] Verified on metal: a successful audit no longer registers as a failure
 <!-- demonstrated gen 421: `spine migrate` returns exit 0, no cross-mark in the prompt indicator, no Friday failure line -->
-- [ ] Decide pipeline exit-status semantics (last command / first failure / other) and record the decision
-- [ ] All four unset `CommandResult` arms assign `last_exit_code` from a real source
-- [ ] Pipeline exit status verified end-to-end without reintroducing INT-143 double execution
+- [x] Decide pipeline exit-status semantics (last command / first failure / other) and record the decision
+<!-- DONE 2026-07-26. Recorded in the section above. The finding is that no rule needed choosing:
+sh already reports the last command's status, the native pipeline's children are in left-to-right
+order so its final wait IS the last stage, and the in-process value pipeline is infallible by type.
+The real decision was about non-participants -- cleanup, telemetry and notification children do not
+own last_exit_code -- and two sites are documented exceptions under that rule. -->
+- [x] All four unset `CommandResult` arms assign `last_exit_code` from a real source
+<!-- DONE 2026-07-26, commit c7189284 -- and the count was low. The audit found ELEVEN sites across
+four execution APIs: Output.status from output(), ExitStatus from status(), ExitStatus from wait()
+for every child in the native pipeline, and the io::Result<ExitStatus> returned by
+spawn_sh_with_leak_check. Two audit patterns proved incomplete on the way: `let _ = ...status()`
+finds one SYNTAX SHAPE rather than discarded results, and `if let Ok(out) = ...output()` discards
+the status just as thoroughly while never matching it -- hiding two further sites. -->
+- [x] Pipeline exit status verified end-to-end without reintroducing INT-143 double execution
+<!-- DONE 2026-07-26 on the debug build, both directions. `echo hi | grep zzz` now shows the failure
+indicator where it previously reported the PREVIOUS command's success; `echo hi | grep hi` stays
+clean, which proves the last stage is read rather than every pipeline being flagged. The probe was
+chosen deliberately: `false | cat` would have been WRONG, since sh reports the last command and cat
+succeeds. Double execution: fsh-test 105/105 including repl_143_redirect_runs_once, which is the
+specific INT-143 guard on these paths. 82 unit tests pass. HONEST COVERAGE: the launcher branches
+(db-browse, the friday-chat variants) were repaired by invariant reasoning plus compiler and suite
+coverage, NOT by individually exercising their interactive flows. -->
