@@ -65,10 +65,21 @@ scope that bypass it, and make the check mechanical. The fix at each site is a
 call substitution, not new logic, because the correct implementation already
 exists -- which is INT-143's lesson applied rather than restated.
 
-## Census -- 9 in-scope sites (2026-07-25)
-Recorded BEFORE any code change, so later commits reference a written inventory
-instead of reconstructing this investigation. Classified by ROLE, because role
-determines both the risk and the order.
+## Census -- 12 in-scope sites (2026-07-25, regenerated)
+METHOD CORRECTION, recorded rather than quietly fixed: the first pass searched for a
+single-line spelling of .split_whitespace().next() and therefore MISSED rustfmt-wrapped
+method chains. It enumerated what a line-oriented grep could see, which is not the same
+as what exists. The census was regenerated with a whitespace-spanning pattern before any
+further classification, and grew from 9 to 12. DISCOVERY and CLASSIFICATION are separate
+steps: the pattern answers where the derivations are, mechanically and reproducibly;
+which ones are in scope remains a documented architectural judgement.
+The ORIGINAL census was recorded before any code change, so later commits could
+reference a written inventory rather than reconstruct the investigation; this
+regeneration happened mid-migration, with six sites already converted. Classified by
+ROLE, because role determines both the risk and the order.
+LINE NUMBERS ARE INDICATIVE ONLY. They drift as fixes land -- 1504 is now 1509, 3169 is
+now 3181, safety_guard 12 is now 13. Sites are identified unambiguously by enclosing
+FUNCTION plus the exact expression, not by line.
 
 GOVERNING -- decides whether a protection activates. Blockers, not migrations.
   safety_guard.rs:12  fn check()
@@ -92,6 +103,10 @@ BEHAVIOURAL -- changes auxiliary runtime behaviour without changing what execute
   main.rs:1504  fn handle()
       INT-307 Friday power switching on `cargo`. A mis-read costs a performance
       profile, not correctness.
+  main.rs:3072  fn handle()
+      Decides is_fm_cmd (yazi, faelight-fm) to inject --cwd-file. Does not gate
+      execution and does not dispatch elsewhere; it changes HOW a known command is
+      launched. Also lowercases, so the fix preserves normalization.
 
 TELEMETRY -- wrong derivation produces wrong DATA. Lower operational risk, but not
 cosmetic: record_failure was fixed for exactly this reason, because Friday reads
@@ -99,6 +114,11 @@ what it writes.
   main.rs:3169  fn handle()    INT-194 command-timing key, INSERTed into the db
   exec.rs:368   fn postexec()  derives from `cmd_lower`, so this site is ALSO flip
       blocker 8's "stop lowercasing the command name"
+  main.rs:3233  fn handle()  INT-194 prediction-aware suggestions. Execution-derived
+      state under the scope test above.
+  main.rs:3299  fn handle()  INT-296 consecutive-failure detection. The clearest of the
+      late finds: derive command identity, then store and query execution-derived
+      history -- identical in class to record_failure.
   db.rs:451     fn capture_snapshot()
       Names the auto-snapshot after the command word. In scope ONLY because
       capture_snapshot is reached solely from main.rs:1500, i.e. only from the
@@ -116,6 +136,15 @@ EXCLUDED, and why -- recorded so the next reader does not re-litigate them:
     opportunistically; not a gate.
   - Not command words at all: print_welcome (an intent id), walk_dir (a SQL LIKE
     pattern), shell_handoff_cmd (a shell NAME, defaulting to zsh).
+  - INTENTIONAL TOKENIZATION THAT MUST NOT BE CONVERTED -- the check will flag these
+    forever, so each carries its reason and gate 5 needs suppression-with-reason rather
+    than a bare hit list:
+      main.rs:1203       heredoc DELIMITER extraction. For cat << EOF the command word
+                         is cat and the delimiter is EOF. command_word() would return
+                         the wrong semantic object.
+      commands/mod.rs:7301  intent id parsed from intent-show OUTPUT, then INT- stripped.
+                         Structured command output, not user command input.
+      value.rs:750       parse_pipe_op, INT-162's structured-data pipeline operators.
   - completion.rs and value.rs -- exempt consumers under the scope above.
     db.rs was ORIGINALLY excluded here as a helper file. That was wrong: it scoped by
     FILE, which is the mistake the by-role rule exists to prevent, made in the
