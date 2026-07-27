@@ -36,11 +36,6 @@ INT-143 and is mandatory here.
 AFTER INT-171. 171 gives ONE parsing entry point; swapping the editor while four parsers still exist
 means a regression could come from either change and you would not know which. One variable at a time.
 
-NOT PRE-OCTOBER. October is ~10 weeks out (2026-07-16), fsh targets 98%, and fsh is both the daily
-driver and the demo. A line-editor swap is weeks of papercuts by nature -- every muscle-memory
-keybinding relearned or reconfigured. That is a bad thing to be doing in the run-up. This intent is
-filed because it is right, not because it is next.
-
 ## What must not regress -- the real gate list
 - Ctrl-C, Ctrl-D, Ctrl-L, arrows, tab-completion, reverse-search
 - 285 aliases still expand at the prompt

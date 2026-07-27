@@ -479,6 +479,30 @@ concept genuinely remains its own; and only THEN judge the duplication gate, who
 real question is "are two tables storing the same fact?" rather than "do two tables
 exist?"
 
+## What `command_execution` represents -- decided 2026-07-26
+USER-VISIBLE EXECUTIONS ONLY. Command substitution is an EXPANSION-PHASE
+operation and must NOT create child lifecycle records unless a future explicit
+expansion-tracing model is introduced.
+
+The temptation is real: once a lifecycle table exists with a stable identity, any
+internal invocation can be given a row. Resist it. `echo "branch: $(git branch
+--show-current)"` is ONE command the user typed. Recording the substitution as a
+sibling would pollute history with text nobody entered, inflate execution counts,
+make duration attribution ambiguous, and break the single-lifecycle property the
+schema was chosen for -- and nested substitutions would demand a TREE this table
+does not model.
+
+If expansion tracing earns its place later it is a DIFFERENT concept -- an
+expansion trace or a child-event stream -- not substitutions pretending to be
+commands. The rule that keeps this honest is the same one that produced the
+schema: record what actually occurred at the boundary where you know it, and do
+not let a convenient table become the place hidden work accumulates.
+
+⚠️ The child execution still needs correctness guarantees even without a row: no
+mutation of parent shell state, no alias re-expansion from raw text, no bypass of
+the safety guards, deterministic capture. That argues for a SHARED INTERNAL
+EXECUTOR, not for lifecycle rows.
+
 ## Success Criteria
 
 - [x] Every code path that writes to `shell_history` is enumerated (not grepped -- enumerated)

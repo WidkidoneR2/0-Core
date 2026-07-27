@@ -110,6 +110,57 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 break;
             }
 
+            // INT-169 blocker 4, step 1a: `$(` opens a NESTED SYNTACTIC REGION. Whitespace
+            // inside it must not terminate the word -- the same reason quotes are handled here.
+            // This is BOUNDARY DETECTION, not interpretation: the scanner never learns what the
+            // substitution means, only that this range of characters is one region. Step 1b will
+            // preserve it structurally; today it is consumed as text so the word is correct.
+            //
+            // Depth-counted, because `$(echo "$(git branch)")` nests. Quote-aware INSIDE the
+            // region, because a `)` within quotes does not close it.
+            if ch == '$'
+                && context != QuoteContext::Single
+                && idx + 1 < n
+                && chars[idx + 1].1 == '('
+            {
+                let mut depth = 1usize;
+                let mut j = idx + 2;
+                let mut inner_quote: Option<char> = None;
+                while j < n {
+                    let c2 = chars[j].1;
+                    match inner_quote {
+                        Some(q) if c2 == q => inner_quote = None,
+                        Some(_) => {}
+                        None if c2 == '"' || c2 == '\'' => inner_quote = Some(c2),
+                        None if c2 == '(' => depth += 1,
+                        None if c2 == ')' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
+                        None => {}
+                    }
+                    j += 1;
+                }
+                if depth != 0 || j >= n {
+                    // Unterminated, spanned from the opener -- same shape as an unclosed quote.
+                    return Err(LexError {
+                        text: source[pos..].to_string(),
+                        span: Span::new(pos, source.len()),
+                    });
+                }
+                let close = chars[j].0;
+                let after_close = close + chars[j].1.len_utf8();
+                for k in idx..=j {
+                    seg_text.push(chars[k].1);
+                    text.push(chars[k].1);
+                }
+                word_end = after_close;
+                idx = j + 1;
+                continue;
+            }
+
             if ch == '"' || ch == '\'' {
                 let this = if ch == '"' {
                     QuoteContext::Double
@@ -285,6 +336,74 @@ mod tests {
         let err = lex("echo \"unclosed").expect_err("unterminated quote must error");
         assert_eq!(err.span.start, 5, "points at the opening quote");
         assert_eq!(err.span.end, 14);
+    }
+
+    /// INT-169 blocker 4, the FAILING CASE that justifies the scanner change.
+    ///
+    /// `$(...)` is a nested syntactic region: the whitespace inside it must NOT terminate the
+    /// word, exactly as inside quotes. Recording this as a test rather than probing through the
+    /// shell, because two shell probes gave two different confounds -- quotes reaching the lexer,
+    /// then fsh expanding the substitution before the builtin ever saw it. `lex` is a pure
+    /// function; ask it directly.
+    ///
+    /// ⚠️ EXPECTED TO FAIL TODAY. The scanner has no `$(` branch, so it splits on the inner
+    /// spaces and produces four words instead of two.
+    #[test]
+    fn command_substitution_is_one_word() {
+        let toks = lex("echo $(echo a b)").expect("lexes");
+        assert_eq!(
+            toks.len(),
+            2,
+            "`$(...)` is a nested region: inner whitespace must not split the word, got {:?}",
+            toks.iter().map(|t| t.text.clone()).collect::<Vec<_>>()
+        );
+        assert_eq!(toks[0].text, "echo");
+        assert_eq!(toks[1].text, "$(echo a b)");
+    }
+
+    /// A `)` inside quotes does not close the region -- the scanner tracks quote state while
+    /// counting depth, or `$(echo ")")` would terminate at the wrong paren.
+    #[test]
+    fn command_substitution_ignores_parens_inside_quotes() {
+        let toks = lex(r#"echo $(echo ")")"#).expect("lexes");
+        assert_eq!(
+            toks.len(),
+            2,
+            "{:?}",
+            toks.iter().map(|t| &t.text).collect::<Vec<_>>()
+        );
+        assert_eq!(toks[1].text, r#"$(echo ")")"#);
+    }
+
+    /// Depth counting, not first-close-wins. `$(echo $(pwd))` is the forcing case for nesting.
+    #[test]
+    fn command_substitution_can_nest() {
+        let toks = lex("echo $(echo $(pwd))").expect("lexes");
+        assert_eq!(
+            toks.len(),
+            2,
+            "{:?}",
+            toks.iter().map(|t| &t.text).collect::<Vec<_>>()
+        );
+        assert_eq!(toks[1].text, "$(echo $(pwd))");
+    }
+
+    /// Single quotes own the region: `$(` inside them is ordinary text, so the branch must be
+    /// gated on quote context or the scanner would claim syntax the shell says is literal.
+    #[test]
+    fn single_quoted_command_substitution_is_literal() {
+        let toks = lex("echo '$(echo a b)'").expect("lexes");
+        assert_eq!(toks.len(), 2);
+        assert_eq!(toks[1].text, "$(echo a b)");
+        assert_eq!(toks[1].segments[0].context, QuoteContext::Single);
+    }
+
+    /// Unterminated `$(` errors from the OPENER, the same shape as an unclosed quote, rather
+    /// than inventing a second convention for the same class of failure.
+    #[test]
+    fn unterminated_command_substitution_errors_from_the_opener() {
+        let err = lex("echo $(echo a").expect_err("unterminated substitution must error");
+        assert_eq!(err.span.start, 5, "points at the $ that opened it");
     }
 
     #[test]
