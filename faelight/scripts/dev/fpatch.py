@@ -11,6 +11,37 @@ Every guard here exists because a real edit failed without it.
 from pathlib import Path
 
 
+def patch_between(path, start_marker, end_marker, new_lines, context=2):
+    """Replace a span located by two SHORT markers, without transcribing its body.
+
+    Every anchor failure so far came from re-typing text that was already in the file -- a
+    continuation line's indent, an em dash, an arm duplicated by an earlier edit. This mode makes
+    that impossible: the markers are short and unique, the body is never quoted, and the span is
+    replaced by index.
+
+    `start_marker` matches the FIRST line of the span (substring). `end_marker` matches the first
+    line AFTER it (prefix). Both must be unique in the file.
+    """
+    p = Path(path)
+    lines = p.read_text().split("\n")
+
+    starts = [n for n, l in enumerate(lines) if start_marker in l]
+    ends = [n for n, l in enumerate(lines) if l.startswith(end_marker)]
+    assert len(starts) == 1, f"{path}: start marker matched {len(starts)} lines, need 1"
+    assert len(ends) == 1, f"{path}: end marker matched {len(ends)} lines, need 1"
+    lo, hi = starts[0], ends[0]
+    assert hi > lo, f"{path}: end marker is at or above the start marker"
+
+    print(f"--- {path}: replacing lines {lo + 1}..{hi} ---")
+    for i in range(max(0, lo - context), min(len(lines), hi + context)):
+        mark = ">>" if lo <= i < hi else "  "
+        print(f"{mark} {i + 1}: {lines[i]}")
+
+    lines[lo:hi] = new_lines
+    p.write_text("\n".join(lines))
+    print(f"OK {path}: {hi - lo} line(s) replaced by {len(new_lines)}")
+
+
 def patch(path, old, new, count=1, context=2):
     p = Path(path)
     s = p.read_text()
