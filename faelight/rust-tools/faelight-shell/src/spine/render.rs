@@ -33,6 +33,11 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
                         WordPart::Literal(s) => format!("Literal {s:?}"),
                         WordPart::Variable(n) => format!("Variable {n:?}"),
                         WordPart::SpecialParam(p) => format!("SpecialParam {p:?}"),
+                        // Shown, not erased, and not recursed into: this renderer has no
+                        // AST-traversal policy and inventing one here would be a second.
+                        WordPart::CommandSub(node) => {
+                            format!("CommandSub @[{},{})", node.span.start, node.span.end)
+                        }
                     })
                     .collect();
                 out.push_str(&format!(

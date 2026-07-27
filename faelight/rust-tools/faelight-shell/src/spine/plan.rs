@@ -113,11 +113,23 @@ pub struct LowerContext<'a> {
 /// the literal parts. This is the EXPANSION seam -- when WordPart::Variable lands (step 3),
 /// `$HOME` resolves HERE, and the lowering boundary above does not change. The match is
 /// exhaustive so the compiler flags this function the moment a new WordPart variant exists.
-fn expand_word(word: &Word, ctx: &LowerContext) -> OsString {
+fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> {
     let mut out = String::new();
     for part in &word.parts {
         match part {
             WordPart::Literal(s) => out.push_str(s),
+            // INT-169 blocker 4: a CAPABILITY BOUNDARY, which is why this function became
+            // fallible. The parser understands `$(...)` and the AST preserves it; the executor
+            // cannot run one yet. Rendering it back to text would be the one thing that must not
+            // happen -- it would make the parser's guarantee false and let a later stage run
+            // something other than what was written. The `-> OsString` signature encoded an
+            // assumption that held only while every WordPart was expandable.
+            WordPart::CommandSub(node) => {
+                return Err(LowerError::UnsupportedConstruct {
+                    kind: "command substitution",
+                    span: node.span,
+                })
+            }
             // RECOGNITION MILESTONE: a variable SITE is recognised but NOT evaluated, so it
             // renders back to its source form and argv is byte-identical to before. This keeps
             // the migration audit stable while the AST becomes structurally richer. The
@@ -149,7 +161,7 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> OsString {
             },
         }
     }
-    OsString::from(out)
+    Ok(OsString::from(out))
 }
 
 /// Lower a parsed AST node to the executor's ExecutionPlan. Spine side (the legacy adapter
@@ -164,7 +176,7 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
                 .words
                 .iter()
                 .map(|w| expand_word(&w.node, ctx))
-                .collect();
+                .collect::<Result<Vec<_>, _>>()?;
             Ok(ExecutionPlan {
                 argv,
                 cwd: None,
@@ -416,12 +428,26 @@ mod tests {
         );
     }
 
+    /// INT-169 blocker 4: the boundary in one test. PARSING SUCCEEDS -- `$(...)` is valid shell
+    /// syntax and the AST carries it -- while LOWERING REFUSES, because the executor cannot run a
+    /// substitution yet. The failure is a capability report, not a fault.
+    #[test]
+    fn command_substitution_parses_but_does_not_lower() {
+        let ast = parse("echo $(pwd)").expect("valid syntax parses");
+        match lower(&ast, &LowerContext::default()) {
+            Err(LowerError::UnsupportedConstruct { kind, .. }) => {
+                assert_eq!(kind, "command substitution");
+            }
+            other => panic!("expected UnsupportedConstruct, got {other:?}"),
+        }
+    }
+
     #[test]
     fn expand_word_concatenates_literals() {
         // A word is the smallest unit expansion produces; today all-literal -> its bytes.
         let w = Word::literal("/tmp/testscript.sh");
         assert_eq!(
-            expand_word(&w, &LowerContext::default()),
+            expand_word(&w, &LowerContext::default()).unwrap(),
             OsString::from("/tmp/testscript.sh")
         );
     }

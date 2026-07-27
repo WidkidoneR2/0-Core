@@ -152,7 +152,13 @@ pub enum WordPart {
     /// can never be set, and would invent a fake variable namespace. Room here for `$#`, `$@`,
     /// `$*` and the positional parameters when they land.
     SpecialParam(SpecialParam),
-    // CommandSub(Box<Spanned<AstNode>>) -- roadmap step 8
+    /// A command substitution: an EMBEDDED SHELL PROGRAM, parsed rather than stored as text.
+    ///
+    /// ⚠️ The span inside this node is relative to the SUBSTITUTION'S OWN SOURCE, not the outer
+    /// line -- a nested parse is its own coordinate system. Rendering a diagnostic against the
+    /// original line would need offsetting by the substitution's start, and the information to do
+    /// that is preserved on the lexer's `CommandSub` segment. Recorded, not yet needed.
+    CommandSub(Box<Spanned<AstNode>>),
     // Arithmetic(Box<Spanned<AstNode>>) -- later
 }
 

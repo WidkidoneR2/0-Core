@@ -74,8 +74,14 @@ impl Parser {
                     // double-quoted segment may yield SEVERAL parts (Literal + Variable) while
                     // a single-quoted segment stays one Literal -- and that is a change HERE,
                     // in the mapping, not in the lexer.
-                    let parts: Vec<WordPart> =
-                        t.segments.iter().flat_map(parts_from_segment).collect();
+                    // INT-169 blocker 4, step 1b-ii: `?` rather than `flat_map`. A command
+                    // substitution is an embedded shell PROGRAM, so if it fails to parse the
+                    // OUTER parse must fail too -- degrading it to text would erase a syntax
+                    // error and let a later stage run something other than what was written.
+                    let mut parts: Vec<WordPart> = Vec::new();
+                    for seg in &t.segments {
+                        parts.extend(parts_from_segment(seg)?);
+                    }
                     words.push(Spanned::new(wspan, Word { parts }));
                     cmd_span = Some(match cmd_span {
                         None => wspan,
@@ -111,12 +117,12 @@ impl Parser {
 /// the lexer only recorded which delimiter enclosed the text. A single-quoted segment is one
 /// Literal, always: a `$` inside it is ordinary text, and no later stage can mistake it for a
 /// live substitution. Unquoted and double-quoted segments are scanned for variable SITES.
-fn parts_from_segment(seg: &WordSegment) -> Vec<WordPart> {
+fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
     match seg {
-        WordSegment::Text { text, context, .. } => match context {
+        WordSegment::Text { text, context, .. } => Ok(match context {
             QuoteContext::Single => vec![WordPart::Literal(text.clone())],
             QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(text),
-        },
+        }),
         // INT-169 blocker 4, step 1b-i: BEHAVIOUR-PRESERVING PLACEHOLDER. The scanner now hands
         // over the region structurally, but this reconstructs the raw text so the AST is byte for
         // byte what it was before the enum landed -- which is what lets the existing tests prove
@@ -124,7 +130,10 @@ fn parts_from_segment(seg: &WordSegment) -> Vec<WordPart> {
         // into `WordPart::CommandSub` and `Result` propagation, because an embedded shell program
         // that fails to parse must not be silently degraded into text.
         WordSegment::CommandSub { source, .. } => {
-            vec![WordPart::Literal(format!("$({source})"))]
+            // Recursion terminates by construction: the inner source of a `$(...)` is strictly
+            // shorter than the text that contained it, so each call operates on a smaller region.
+            let inner = parse(source)?;
+            Ok(vec![WordPart::CommandSub(Box::new(inner))])
         }
     }
 }
