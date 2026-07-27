@@ -55,12 +55,24 @@ pub enum Environment {
 }
 
 /// The IO graph -- RESERVED. Redirects, pipelines, and fd wiring get designed at roadmap steps
-/// 5/6 (they depend on AST Redirect + Pipeline, which are themselves reserved/unbuilt). Today a
-/// single placeholder variant: Simple = no IO transformations.
+/// 5/6 (they depend on AST Redirect + Pipeline, which are themselves reserved/unbuilt).
+///
+/// Today there are two EXECUTION INTENTS, and Capture is deliberately not a redirect: it does not
+/// consume the reserved design space above, because nothing about it describes an fd graph.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IoPlan {
     /// No redirects, no pipe wiring -- stdin/stdout/stderr inherited from the shell.
     Simple,
+    /// INT-169 blocker 4: stdout becomes a VALUE for whoever asked for the execution, rather than
+    /// going to the terminal. Command substitution is the caller.
+    ///
+    /// ⚠️ stderr stays INHERITED, which is what a shell does: `$(cmd)` captures stdout while
+    /// errors still reach the terminal. Piping it would swallow them.
+    ///
+    /// ⚠️ The trailing newline is NOT stripped here. `$(pwd)` yielding a path without its newline
+    /// is command-substitution SEMANTICS and belongs to the phase that asked; this variant means
+    /// only "stdout is a value".
+    Capture,
 }
 
 /// Why an AST node could not be lowered to a single ExecutionPlan. Carries a span -- the AST's

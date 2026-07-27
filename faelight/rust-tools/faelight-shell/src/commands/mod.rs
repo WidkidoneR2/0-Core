@@ -8373,27 +8373,56 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
             }
         }
     }
-    match plan.io {
-        // No redirects, no pipe wiring: spawn_with_tee's inherited stdin/stdout is exactly this.
-        IoPlan::Simple => {}
-    }
-
     let word = program.to_string_lossy().to_string();
-    match spawn_with_tee(cmd, db) {
-        Ok(s) if s.success() => CommandResult::Empty,
-        Ok(s) => {
-            let code = s.code().unwrap_or(1);
-            record_failure(db, &word, code);
-            CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+    match plan.io {
+        // INT-169 blocker 4: stdout is a VALUE, so this cannot go through spawn_with_tee, whose
+        // documented contract is terminal output plus stderr telemetry -- correct for Simple only.
+        // stderr stays inherited: a shell lets `$(cmd)`'s errors reach the terminal.
+        IoPlan::Capture => {
+            cmd.stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::inherit());
+            match cmd.output() {
+                Ok(o) if o.status.success() => {
+                    CommandResult::Output(String::from_utf8_lossy(&o.stdout).to_string())
+                }
+                Ok(o) => {
+                    let code = o.status.code().unwrap_or(1);
+                    record_failure(db, &word, code);
+                    CommandResult::Error(format!(
+                        "  exited {} -- {}",
+                        code,
+                        explain_exit_code(code)
+                    ))
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    record_failure(db, &word, 127);
+                    CommandResult::Error(
+                        crate::error::FlowError::CommandNotFound(word).display_colored(),
+                    )
+                }
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+            }
         }
-        // A direct spawn reports a missing command HERE, before any process exists -- unlike the
-        // sh path, which sees it as exit 127. Same situation for the user, different detection,
-        // which is precisely why classification stayed with the caller.
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            record_failure(db, &word, 127);
-            CommandResult::Error(crate::error::FlowError::CommandNotFound(word).display_colored())
-        }
-        Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+        // No redirects, no pipe wiring: spawn_with_tee's inherited stdin/stdout is exactly this.
+        IoPlan::Simple => match spawn_with_tee(cmd, db) {
+            Ok(s) if s.success() => CommandResult::Empty,
+            Ok(s) => {
+                let code = s.code().unwrap_or(1);
+                record_failure(db, &word, code);
+                CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+            }
+            // A direct spawn reports a missing command HERE, before any process exists -- unlike the
+            // sh path, which sees it as exit 127. Same situation for the user, different detection,
+            // which is precisely why classification stayed with the caller.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                record_failure(db, &word, 127);
+                CommandResult::Error(
+                    crate::error::FlowError::CommandNotFound(word).display_colored(),
+                )
+            }
+            Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+        },
     }
 }
 
