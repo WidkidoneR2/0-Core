@@ -162,10 +162,29 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> 
             // something other than what was written. The `-> OsString` signature encoded an
             // assumption that held only while every WordPart was expandable.
             WordPart::CommandSub(node) => {
-                return Err(LowerError::UnsupportedConstruct {
+                // The capability, not the outcome. `None` means this lowering environment cannot
+                // run commands at all -- an audit replaying history, or the raw diagnostic door.
+                // That is a different fact from a command that ran and failed, which arrives below
+                // as InvalidPlan.
+                let runner = ctx.runner.ok_or(LowerError::UnsupportedConstruct {
                     kind: "command substitution",
                     span: node.span,
-                })
+                })?;
+                // Lowered through the substitution entry point, so the plan ASKS for capture
+                // rather than being lowered normally and retrofitted. The IO intent originates
+                // from the syntax that needs it.
+                let nested = lower_substitution(node, ctx)?;
+                let captured =
+                    runner
+                        .run_capture(&nested)
+                        .map_err(|message| LowerError::InvalidPlan {
+                            message,
+                            span: node.span,
+                        })?;
+                // Trailing newlines are stripped HERE, not by IoPlan::Capture. The plan says only
+                // that stdout is a value; that a shell drops the newline from `$(pwd)` is command
+                // substitution SEMANTICS, and this is the phase that owns them.
+                out.push_str(captured.trim_end_matches('\n'));
             }
             // RECOGNITION MILESTONE: a variable SITE is recognised but NOT evaluated, so it
             // renders back to its source form and argv is byte-identical to before. This keeps
@@ -207,6 +226,27 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> 
 /// Command -> Ok(plan). Future constructs (Pipeline, Sequence) -> Err(UnsupportedConstruct)
 /// until the ExecutionGraph / IO model exists -- honest, not a panic and not a fake plan.
 pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan, LowerError> {
+    lower_with_io(ast, ctx, IoPlan::Simple)
+}
+
+/// Lower a COMMAND SUBSTITUTION: the same lowering, asking for captured output.
+///
+/// ★ A separate entry point rather than a flag on LowerContext, because the context describes what
+/// capabilities are AVAILABLE while this describes what the SYNTAX requires. A context flag would
+/// also apply to the outer command, claiming the whole line captures.
+fn lower_substitution(
+    ast: &Spanned<AstNode>,
+    ctx: &LowerContext,
+) -> Result<ExecutionPlan, LowerError> {
+    lower_with_io(ast, ctx, IoPlan::Capture)
+}
+
+/// The shared lowering. The two entry points above differ by exactly the thing that differs.
+fn lower_with_io(
+    ast: &Spanned<AstNode>,
+    ctx: &LowerContext,
+    io: IoPlan,
+) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
         AstNode::Command(cmd) => {
             let argv: Vec<OsString> = cmd
@@ -218,7 +258,7 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
                 argv,
                 cwd: None,
                 env: Environment::Inherit,
-                io: IoPlan::Simple,
+                io,
             })
         }
     }
@@ -302,6 +342,40 @@ mod tests {
         fn pid(&self) -> u32 {
             1234
         }
+    }
+
+    /// A runner over a fixed answer. Parallel to FakeVars: deterministic, no shell, no process.
+    /// It ALSO asserts the plan it receives, because the IO intent reaching the runner is the
+    /// thing argv cannot show.
+    struct FakeRunner(&'static str);
+    impl CommandRunner for FakeRunner {
+        fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String> {
+            assert_eq!(
+                plan.io,
+                IoPlan::Capture,
+                "a substitution must be lowered asking for capture"
+            );
+            Ok(self.0.to_string())
+        }
+    }
+
+    /// The whole contract in one test: the nested program is lowered with capture intent, run
+    /// through the capability, and its trailing newline dropped -- `$(pwd)` yields a path, not a
+    /// path plus a line break.
+    #[test]
+    fn command_substitution_expands_through_the_runner() {
+        let runner = FakeRunner("/home/christian\n");
+        let ctx = LowerContext {
+            vars: None,
+            runner: Some(&runner),
+        };
+        let node = parse("echo $(pwd)").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("/home/christian")]
+        );
+        assert_eq!(plan.io, IoPlan::Simple, "the OUTER plan is not a capture");
     }
 
     #[test]
