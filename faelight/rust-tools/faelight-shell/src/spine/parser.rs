@@ -112,9 +112,20 @@ impl Parser {
 /// Literal, always: a `$` inside it is ordinary text, and no later stage can mistake it for a
 /// live substitution. Unquoted and double-quoted segments are scanned for variable SITES.
 fn parts_from_segment(seg: &WordSegment) -> Vec<WordPart> {
-    match seg.context {
-        QuoteContext::Single => vec![WordPart::Literal(seg.text.clone())],
-        QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(&seg.text),
+    match seg {
+        WordSegment::Text { text, context, .. } => match context {
+            QuoteContext::Single => vec![WordPart::Literal(text.clone())],
+            QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(text),
+        },
+        // INT-169 blocker 4, step 1b-i: BEHAVIOUR-PRESERVING PLACEHOLDER. The scanner now hands
+        // over the region structurally, but this reconstructs the raw text so the AST is byte for
+        // byte what it was before the enum landed -- which is what lets the existing tests prove
+        // the refactor changed nothing. Step 1b-ii replaces THIS ARM ONLY, with a recursive parse
+        // into `WordPart::CommandSub` and `Result` propagation, because an embedded shell program
+        // that fails to parse must not be silently degraded into text.
+        WordSegment::CommandSub { source, .. } => {
+            vec![WordPart::Literal(format!("$({source})"))]
+        }
     }
 }
 

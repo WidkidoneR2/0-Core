@@ -42,11 +42,24 @@ pub enum QuoteContext {
 /// A contiguous region of a word with uniform lexical rules. `foo"bar"` is one word of two
 /// segments. Text is the CONTENT (enclosing quote characters consumed); span covers that
 /// content in the source.
+///
+/// INT-169 blocker 4, step 1b: a word can also contain a NESTED SYNTACTIC REGION. `$(...)` is not
+/// text with uniform lexical rules -- its contents are a shell program -- so it is a VARIANT rather
+/// than a `Text` segment wearing a special context. The scanner still does not interpret it: it
+/// records that this range was one region and hands the inner source on.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WordSegment {
-    pub text: String,
-    pub span: Span,
-    pub context: QuoteContext,
+pub enum WordSegment {
+    /// Ordinary text. `text` is the CONTENT (enclosing quote characters consumed); `span` covers
+    /// that content in the source.
+    Text {
+        text: String,
+        span: Span,
+        context: QuoteContext,
+    },
+    /// A command substitution region. `source` is the INNER text WITHOUT the `$(` and `)`
+    /// delimiters, because the parser should not re-strip syntax the scanner already recognised.
+    /// `span` covers the inner source, not the delimiters.
+    CommandSub { source: String, span: Span },
 }
 
 /// Raw token kinds. Only `Word` exists today; operators and $-constructs arrive at their
@@ -152,10 +165,27 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 }
                 let close = chars[j].0;
                 let after_close = close + chars[j].1.len_utf8();
+                // INT-169 blocker 4, step 1b-i: the region becomes its OWN segment. Pending text
+                // is flushed first so segment order matches source order. The token's flat `text`
+                // still receives the RAW form including delimiters, so word-level behaviour is
+                // unchanged and every step-1a test still holds.
+                if !seg_text.is_empty() {
+                    segments.push(WordSegment::Text {
+                        text: std::mem::take(&mut seg_text),
+                        span: Span::new(seg_start, pos),
+                        context,
+                    });
+                }
+                segments.push(WordSegment::CommandSub {
+                    source: (idx + 2..j).map(|k| chars[k].1).collect(),
+                    span: Span::new(chars[idx + 2].0, close),
+                });
                 for k in idx..=j {
-                    seg_text.push(chars[k].1);
                     text.push(chars[k].1);
                 }
+                // ⚠️ seg_start MUST advance: the next Text segment begins after the region, and
+                // leaving it behind would give that segment a span reaching back over this one.
+                seg_start = after_close;
                 word_end = after_close;
                 idx = j + 1;
                 continue;
@@ -170,7 +200,7 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 if context == QuoteContext::Unquoted {
                     // Opening delimiter: close any pending unquoted run first.
                     if !seg_text.is_empty() {
-                        segments.push(WordSegment {
+                        segments.push(WordSegment::Text {
                             text: std::mem::take(&mut seg_text),
                             span: Span::new(seg_start, pos),
                             context: QuoteContext::Unquoted,
@@ -186,7 +216,7 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 if context == this {
                     // Closing delimiter. An EMPTY quoted segment is kept -- `echo ""` is a
                     // real empty argument, not nothing.
-                    segments.push(WordSegment {
+                    segments.push(WordSegment::Text {
                         text: std::mem::take(&mut seg_text),
                         span: Span::new(seg_start, pos),
                         context,
@@ -216,7 +246,7 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
         }
 
         if !seg_text.is_empty() {
-            segments.push(WordSegment {
+            segments.push(WordSegment::Text {
                 text: std::mem::take(&mut seg_text),
                 span: Span::new(seg_start, word_end),
                 context: QuoteContext::Unquoted,
@@ -238,6 +268,31 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
 mod tests {
     use super::*;
 
+    // INT-169 blocker 4, step 1b-i: test-only accessors. NOT production API -- adding real
+    // accessors would let `WordSegment` keep pretending to be a struct, which is the shape the
+    // enum exists to end. These PANIC naming the actual variant, so a test that silently began
+    // receiving a CommandSub fails loudly instead of quietly asserting nothing.
+    fn seg_text(seg: &WordSegment) -> &str {
+        match seg {
+            WordSegment::Text { text, .. } => text,
+            other => panic!("expected a Text segment, got {other:?}"),
+        }
+    }
+
+    fn seg_context(seg: &WordSegment) -> QuoteContext {
+        match seg {
+            WordSegment::Text { context, .. } => *context,
+            other => panic!("expected a Text segment, got {other:?}"),
+        }
+    }
+
+    fn seg_span(seg: &WordSegment) -> Span {
+        match seg {
+            WordSegment::Text { span, .. } => *span,
+            other => panic!("expected a Text segment, got {other:?}"),
+        }
+    }
+
     #[test]
     fn lex_bare_command() {
         let toks = lex("ls -la /tmp").expect("bare command lexes");
@@ -250,7 +305,7 @@ mod tests {
         assert_eq!(toks[2].text, "/tmp");
         assert_eq!(toks[2].span, Span::new(7, 11));
         assert_eq!(toks[0].segments.len(), 1);
-        assert_eq!(toks[0].segments[0].context, QuoteContext::Unquoted);
+        assert_eq!(seg_context(&toks[0].segments[0]), QuoteContext::Unquoted);
     }
 
     #[test]
@@ -287,8 +342,12 @@ mod tests {
         );
         assert_eq!(toks[3].span, Span::new(14, 28), "span covers the quotes");
         assert_eq!(toks[3].segments.len(), 1);
-        assert_eq!(toks[3].segments[0].context, QuoteContext::Double);
-        assert_eq!(toks[3].segments[0].span, Span::new(15, 27), "content span");
+        assert_eq!(seg_context(&toks[3].segments[0]), QuoteContext::Double);
+        assert_eq!(
+            seg_span(&toks[3].segments[0]),
+            Span::new(15, 27),
+            "content span"
+        );
     }
 
     #[test]
@@ -298,12 +357,12 @@ mod tests {
         assert_eq!(toks.len(), 1);
         assert_eq!(toks[0].text, "foobar bazqux");
         assert_eq!(toks[0].segments.len(), 3);
-        assert_eq!(toks[0].segments[0].context, QuoteContext::Unquoted);
-        assert_eq!(toks[0].segments[0].text, "foo");
-        assert_eq!(toks[0].segments[1].context, QuoteContext::Double);
-        assert_eq!(toks[0].segments[1].text, "bar baz");
-        assert_eq!(toks[0].segments[2].context, QuoteContext::Unquoted);
-        assert_eq!(toks[0].segments[2].text, "qux");
+        assert_eq!(seg_context(&toks[0].segments[0]), QuoteContext::Unquoted);
+        assert_eq!(seg_text(&toks[0].segments[0]), "foo");
+        assert_eq!(seg_context(&toks[0].segments[1]), QuoteContext::Double);
+        assert_eq!(seg_text(&toks[0].segments[1]), "bar baz");
+        assert_eq!(seg_context(&toks[0].segments[2]), QuoteContext::Unquoted);
+        assert_eq!(seg_text(&toks[0].segments[2]), "qux");
     }
 
     #[test]
@@ -311,7 +370,7 @@ mod tests {
         let toks = lex("echo 'a b'").expect("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "a b");
-        assert_eq!(toks[1].segments[0].context, QuoteContext::Single);
+        assert_eq!(seg_context(&toks[1].segments[0]), QuoteContext::Single);
     }
 
     #[test]
@@ -328,7 +387,7 @@ mod tests {
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "");
         assert_eq!(toks[1].segments.len(), 1, "the empty quoted region is kept");
-        assert_eq!(toks[1].segments[0].context, QuoteContext::Double);
+        assert_eq!(seg_context(&toks[1].segments[0]), QuoteContext::Double);
     }
 
     #[test]
@@ -395,7 +454,7 @@ mod tests {
         let toks = lex("echo '$(echo a b)'").expect("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "$(echo a b)");
-        assert_eq!(toks[1].segments[0].context, QuoteContext::Single);
+        assert_eq!(seg_context(&toks[1].segments[0]), QuoteContext::Single);
     }
 
     /// Unterminated `$(` errors from the OPENER, the same shape as an unclosed quote, rather
