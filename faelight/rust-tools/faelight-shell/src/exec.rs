@@ -391,15 +391,10 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
 fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
     // Phase 0: record to shell_history with context
     // Future: INT-177 observability, INT-176 failure memory
-    let status = match result {
-        CommandResult::Error(_) => "error",
-        CommandResult::Exit => "exit",
-        CommandResult::Empty => "empty",
-        _ => "ok",
-    };
+    let status = execution_state(result);
 
     // Log to shell_history
-    if status != "exit" {
+    if status != crate::db::EXEC_EXIT {
         // INT-191: `ctx.expanded`, not `ctx.raw`. This write has ALWAYS recorded the executed
         // form -- before the endpoint split it simply arrived under the name `raw`, because one
         // argument filled both fields. Now that `raw` truthfully means "exactly what the user
@@ -413,7 +408,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 
     // ── Failure Memory — INT-176 ──────────────────────────────────────────────
     // Store last failed command so last_command retry/explain/fix can use it
-    if status == "error" {
+    if status == crate::db::EXEC_ERROR {
         let _ = db.conn.execute(
             "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_failed_command', ?1)",
             rusqlite::params![ctx.raw],
@@ -441,7 +436,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 
     // ── INT-233: Knowledge engine query on failure ────────────────────────────
     // After every failed command, search knowledge base for known fixes
-    if status == "error" {
+    if status == crate::db::EXEC_ERROR {
         // INT-185: prefer the REAL captured stderr (from run_external's tee, stashed in
         // shell_state.last_stderr) over fsh's own "exited N" status string. This is what lets
         // Branch 1 match real fingerprints (error[E0716] etc) from actual command output.
@@ -609,7 +604,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         }
     }
     // ── Suggest system -- INT-171 Phase 4 ─────────────────────────────────────
-    if status == "ok" || status == "empty" {
+    if status == crate::db::EXEC_OK || status == crate::db::EXEC_EMPTY {
         // INT-169 blocker 8: local comparison key. ctx.cmd stays what the user invoked.
         let cmd_key = ctx.cmd.to_lowercase();
         let suggestion = match cmd_key.as_str() {
@@ -1002,22 +997,86 @@ mod catastrophic_rm_tests {
     }
 }
 
+/// INT-191: the SQLite boundary for a wall-clock instant. `unwrap_or_default` rather than a panic,
+/// for the same reason as elsewhere in this file: persistence must not die because the clock
+/// misbehaved.
+fn unix_seconds(t: SystemTime) -> i64 {
+    t.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64
+}
+
+/// INT-191: what an execution produced, plus WHICH execution produced it.
+///
+/// The identity has to leave this function because the exit code does not exist yet when it
+/// returns -- main.rs decides the final code in the pipeline arms afterwards. Returning it beats
+/// hoisting generation to the caller, because `from_line` is also used by the `spine migrate`
+/// audit, and that path would then have to supply an execution id for something that never
+/// executes.
+pub struct ExecutionOutcome {
+    pub execution_id: u64,
+    pub result: CommandResult,
+}
+
+/// INT-191: the ONE mapping from a `CommandResult` to a lifecycle state.
+///
+/// ⚠️ Four copies of this existed -- postexec's own match plus one at each caller -- which is the
+/// shape this intent exists to remove: several owners of one meaning, free to drift. Lifecycle
+/// state answers "what KIND of outcome occurred". The exit code answers "what status should history
+/// show", a different question that stays with the caller that knows it.
+pub fn execution_state(result: &CommandResult) -> &'static str {
+    match result {
+        CommandResult::Exit => crate::db::EXEC_EXIT,
+        CommandResult::Error(_) => crate::db::EXEC_ERROR,
+        CommandResult::Empty => crate::db::EXEC_EMPTY,
+        _ => crate::db::EXEC_OK,
+    }
+}
+
 pub fn execute_with_context(
     raw: &str,
     expanded: &str,
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
-) -> CommandResult {
+) -> ExecutionOutcome {
     // INT-191: this signature is where the lifecycle used to collapse. One `line` fed both the
     // context and the dispatcher, so `ExecContext.raw` -- documented as "exactly what the user
     // typed" -- received a value that had already crossed the execution boundary. postexec was
     // never wrong; it was faithfully recording what it was handed.
     let ctx = ExecContext::from_line(raw, expanded, db);
+    // INT-191: the lifecycle record opens HERE, before anything can return. postexec cannot own it:
+    // it never runs for a blocked command, and it deliberately skips `exit`. Those are precisely
+    // the events worth having, so recording only after an outcome would lose them.
+    let started_at = unix_seconds(ctx.timestamp);
+    if let Err(e) = db.begin_command_execution(&crate::db::ExecutionStart {
+        session_id: ctx.session_id,
+        execution_id: ctx.execution_id,
+        typed_text: &ctx.raw,
+        cwd: &ctx.cwd.to_string_lossy(),
+        intent_id: ctx.intent.as_deref(),
+        started_at,
+    }) {
+        eprintln!("warning: failed to open command_execution record: {e}");
+    }
 
     // Preexec — can block execution
     if let Some(block_reason) = preexec(&ctx, core_root, rules) {
-        return CommandResult::Error(block_reason);
+        // A block is a lifecycle OUTCOME, not an absence: no executed text because the command
+        // never reached expansion, no exit code because no process ran.
+        if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {
+            session_id: ctx.session_id,
+            execution_id: ctx.execution_id,
+            executed_text: None,
+            state: crate::db::EXEC_BLOCKED,
+            exit_code: None,
+            duration_ms: None,
+            finished_at: unix_seconds(SystemTime::now()),
+        }) {
+            eprintln!("warning: failed to close blocked command_execution record: {e}");
+        }
+        return ExecutionOutcome {
+            execution_id: ctx.execution_id,
+            result: CommandResult::Error(block_reason),
+        };
     }
 
     // Dispatch — call existing execute() (unchanged)
@@ -1026,7 +1085,10 @@ pub fn execute_with_context(
     // Postexec — observe the result
     postexec(&ctx, &result, db);
 
-    result
+    ExecutionOutcome {
+        execution_id: ctx.execution_id,
+        result,
+    }
 }
 
 #[cfg(test)]

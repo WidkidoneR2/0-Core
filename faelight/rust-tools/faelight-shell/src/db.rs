@@ -9,6 +9,57 @@ pub struct ForestDb {
     pub core_root: String,
 }
 
+/// INT-191: the SQLite boundary for an execution id.
+///
+/// ⚠️ Saturates rather than panicking -- telemetry must never take the shell down -- but LOGS,
+/// because a silent narrowing is a data mutation. Note i64::MAX is itself a valid integer, so
+/// without the log a saturated value would be indistinguishable from a real one.
+fn clamp_execution_id(id: u64) -> i64 {
+    i64::try_from(id).unwrap_or_else(|_| {
+        eprintln!("warning: execution_id {id} exceeds SQLite INTEGER range, saturating");
+        i64::MAX
+    })
+}
+
+/// INT-191: the lifecycle states of a command execution. Constants because callers would
+/// otherwise write bare literals and recreate the drift problem at smaller scale, in a table
+/// meant to be authoritative.
+pub const EXEC_STARTED: &str = "started";
+pub const EXEC_OK: &str = "ok";
+pub const EXEC_ERROR: &str = "error";
+pub const EXEC_EXIT: &str = "exit";
+pub const EXEC_EMPTY: &str = "empty";
+pub const EXEC_BLOCKED: &str = "blocked";
+
+/// INT-191: the facts known when an execution BEGINS.
+///
+/// ⚠️ A named-field struct rather than loose parameters: `session_id`, `typed_text` and `cwd`
+/// are all `&str`, so as positional arguments any two could be swapped with the compiler
+/// silent -- and a swapped identity is precisely the defect class this table exists to end.
+pub struct ExecutionStart<'a> {
+    pub session_id: &'a str,
+    pub execution_id: u64,
+    pub typed_text: &'a str,
+    pub cwd: &'a str,
+    pub intent_id: Option<&'a str>,
+    pub started_at: i64,
+}
+
+/// INT-191: the facts known only when an execution ENDS.
+///
+/// ⚠️ Separate from `ExecutionStart` because they have different OWNERS. postexec knows the
+/// executed form; only the caller knows the final exit code, since the pipeline arms decide it
+/// after `execute_with_context` returns. One `save_` method would hide that boundary.
+pub struct ExecutionCompletion<'a> {
+    pub session_id: &'a str,
+    pub execution_id: u64,
+    pub executed_text: Option<&'a str>,
+    pub state: &'a str,
+    pub exit_code: Option<i32>,
+    pub duration_ms: Option<u64>,
+    pub finished_at: i64,
+}
+
 impl ForestDb {
     pub fn open() -> Result<Self> {
         // INT-061: derive both core_root and the db path from the single path
@@ -74,6 +125,40 @@ impl ForestDb {
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
+        // INT-191: the command lifecycle table. `shell_history` carries THREE concepts at once --
+        // submission ("the user entered this"), execution ("the producer ran this"), and enrichment
+        // ("attach exit/duration to the thing we tracked") -- and the enrichment lands on the wrong
+        // one: measured 2026-07-26, the table says `c` exited 0 in 96ms when the process that ran
+        // was `clear`. 50,293 rows carry completion metadata and at least 15,957 of them are bare
+        // alias names, which is a floor rather than the rate.
+        //
+        // This table is born correct instead of being repaired. The key is the PAIR: `execution_id`
+        // restarts at 1 in every shell process, so alone it is not an identity -- two sessions would
+        // both claim 1, 2, 3. `session_id` supplies the process boundary.
+        //
+        // ⚠️ NULLABLE ON PURPOSE. `executed_text` is null when the command never reached expansion
+        // (blocked by the safety guard). `exit_code` is null when the lifecycle had no process exit.
+        // `finished_at` is null while running -- and a row left in state `started` is EVIDENCE that
+        // the shell died mid-command, not a gap to be filled in later.
+        //
+        // No trigger. INT-134's trigger suits immutable auditing of an existing write stream; here
+        // the point is the opposite -- define the lifecycle owner and let storage follow it.
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS command_execution (
+                session_id      TEXT    NOT NULL,
+                execution_id    INTEGER NOT NULL,
+                typed_text      TEXT    NOT NULL,
+                executed_text   TEXT,
+                execution_state TEXT    NOT NULL,
+                exit_code       INTEGER,
+                duration_ms     INTEGER,
+                started_at      INTEGER NOT NULL,
+                finished_at     INTEGER,
+                cwd             TEXT,
+                intent_id       TEXT,
+                PRIMARY KEY (session_id, execution_id)
+            );",
+        );
         // INT-134: immutable command audit log. A separate append-only table
         // captures every REAL command (internal SUGGEST:/TIMING:/doctor-test rows
         // excluded). Auto-populated by an AFTER INSERT trigger on shell_history, so
@@ -289,6 +374,59 @@ impl ForestDb {
             "UPDATE shell_history SET exit_code = ?1, duration_ms = ?2 WHERE id = ?3",
             rusqlite::params![exit_code, duration_ms.map(|d| d as i64), id],
         );
+    }
+
+    /// INT-191: record that an execution BEGAN. Errors are returned rather than swallowed --
+    /// `update_history_completion` above is documented best-effort, but this table is meant to be
+    /// authoritative, so a caller that cannot write must be able to say so.
+    ///
+    /// ⚠️ Plain INSERT, not INSERT OR REPLACE. `(session_id, execution_id)` should never collide;
+    /// if it somehow does, the ORIGINAL row survives and the write fails loudly, rather than
+    /// evidence being silently overwritten by whatever came second.
+    pub fn begin_command_execution(&self, start: &ExecutionStart) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO command_execution
+                 (session_id, execution_id, typed_text, execution_state, started_at, cwd, intent_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                start.session_id,
+                clamp_execution_id(start.execution_id),
+                start.typed_text,
+                EXEC_STARTED,
+                start.started_at,
+                start.cwd,
+                start.intent_id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// INT-191: attach the facts known only at the END of an execution.
+    ///
+    /// ⚠️ A row left in state `started` is EVIDENCE -- the shell died mid-command -- so this method
+    /// never inserts. If no `begin` happened, nothing is updated and the absence is itself true.
+    pub fn complete_command_execution(&self, done: &ExecutionCompletion) -> rusqlite::Result<()> {
+        let changed = self.conn.execute(
+            "UPDATE command_execution
+                SET executed_text = ?1, execution_state = ?2, exit_code = ?3,
+                    duration_ms = ?4, finished_at = ?5
+              WHERE session_id = ?6 AND execution_id = ?7",
+            rusqlite::params![
+                done.executed_text,
+                done.state,
+                done.exit_code,
+                done.duration_ms.map(|d| d as i64),
+                done.finished_at,
+                done.session_id,
+                clamp_execution_id(done.execution_id),
+            ],
+        )?;
+        // ⚠️ Zero rows updated is NOT benign: it means begin never ran, the session mismatched, the
+        // id was wrong, or the write was lost. Completion must not float unattached to a lifecycle.
+        if changed != 1 {
+            return Err(rusqlite::Error::StatementChangedRows(changed));
+        }
+        Ok(())
     }
 
     pub fn get_last_command(&self) -> Option<String> {

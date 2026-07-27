@@ -2150,7 +2150,37 @@ fn repl_main() -> Result<()> {
                                     }
                                 }
                             }
-                            match result {
+                            // INT-191: this path opened a lifecycle too -- `execute_with_context`
+                            // inserts before preexec -- so it must close one. Completing BEFORE the
+                            // match is safe here, unlike the REPL site: none of these arms sets
+                            // `last_exit_code`, so nothing is learned by waiting. The exit code
+                            // mirrors what the REPL match means for the same variants rather than
+                            // reading a stale value.
+                            let execution_id = result.execution_id;
+                            let exec_state = exec::execution_state(&result.result);
+                            let exec_code = match &result.result {
+                                commands::CommandResult::Exit => None,
+                                commands::CommandResult::Error(_) => Some(1),
+                                _ => Some(0),
+                            };
+                            if let Err(e) =
+                                db.complete_command_execution(&crate::db::ExecutionCompletion {
+                                    session_id: exec::session_id(),
+                                    execution_id,
+                                    executed_text: Some(&rest_expanded),
+                                    state: exec_state,
+                                    exit_code: exec_code,
+                                    duration_ms: None,
+                                    finished_at: std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs()
+                                        as i64,
+                                })
+                            {
+                                eprintln!("warning: failed to close command_execution record: {e}");
+                            }
+                            match result.result {
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::Error(e) => {
                                     eprintln!("  {} {}", colored::Colorize::bright_red("✗"), e);
@@ -3170,14 +3200,40 @@ fn repl_main() -> Result<()> {
                         }
                     };
                     let _cmd_timer_start = std::time::Instant::now();
-                    let cmd_output: Option<String> = match exec::execute_with_context(
+                    let execution = exec::execute_with_context(
                         &raw_line,
                         &base_cmd,
                         &db,
                         &core_root,
                         &cfg.before_rules,
-                    ) {
-                        commands::CommandResult::Exit => break 'repl,
+                    );
+                    let execution_id = execution.execution_id;
+                    // INT-191: the state is derived from a BORROW, because the match below MOVES
+                    // `execution.result` and the outcome would be unavailable afterwards.
+                    let exec_state = exec::execution_state(&execution.result);
+                    let cmd_output: Option<String> = match execution.result {
+                        commands::CommandResult::Exit => {
+                            // INT-191: `break` escapes before the completion below, so this arm
+                            // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
+                            // never sets `last_exit_code`, so passing it would record the PREVIOUS
+                            // command's result, which is the stale-value bug INT-189 removed.
+                            // EXEC_EXIT already carries the meaning; no process exited.
+                            if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {
+                                session_id: exec::session_id(),
+                                execution_id,
+                                executed_text: Some(&base_cmd),
+                                state: crate::db::EXEC_EXIT,
+                                exit_code: None,
+                                duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
+                                finished_at: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64,
+                            }) {
+                                eprintln!("warning: failed to close exit command_execution record: {e}");
+                            }
+                            break 'repl;
+                        }
                         commands::CommandResult::Value(v)
                             if !pipeline_ops.is_empty() && !has_external_op =>
                         {
@@ -3280,6 +3336,23 @@ fn repl_main() -> Result<()> {
                             None
                         }
                     };
+                    // INT-191: close the lifecycle HERE, where the exit code finally exists.
+                    // postexec could not do it: the pipeline arms above decide the code after
+                    // `execute_with_context` has already returned.
+                    if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {
+                        session_id: exec::session_id(),
+                        execution_id,
+                        executed_text: Some(&base_cmd),
+                        state: exec_state,
+                        exit_code: last_exit_code,
+                        duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
+                        finished_at: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs() as i64,
+                    }) {
+                        eprintln!("warning: failed to close command_execution record: {e}");
+                    }
                     // Command timing intelligence — warn if command is unusually slow (INT-194)
                     {
                         let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
