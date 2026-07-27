@@ -402,6 +402,83 @@ executed and timestamps; they may not yield duration, exit_code or cwd depending
 which writer produced them. Distinguish KNOWN from UNKNOWN and leave unknowns empty
 -- filling them with guesses would recreate INT-189 in a different table.
 
+## Execution lifecycle producer, 2026-07-26 -- prerequisite complete, no gate ticked
+The remaining criteria are phrased around the MIGRATION OUTCOME, not around the
+existence of a replacement producer. That distinction is why none of them move.
+
+THE CORRUPTION, MEASURED RATHER THAN SUSPECTED. `last_history_id` is captured from
+the SUBMISSION insert at main.rs:1171, and `postexec` DISCARDS the id of the row it
+writes, so the completion update at the top of the next REPL iteration lands on the
+typed row. Live: `shell_history` says `c` exited 0 in 96ms while the process that
+ran was `clear`. 50,293 rows carry completion metadata and at least 15,957 are bare
+alias names -- a FLOOR, not the rate, since the alias test cannot see the
+`cd ~/0-core` class, which misattributes identically via tilde expansion.
+⚠️ A migration would have preserved this faithfully. The producer had to be
+repaired before the table could be reconstructed.
+
+THREE CONCEPTS IN ONE TABLE. `shell_history` carries SUBMISSION (the user entered
+this, written before safety checks and before segment splitting), EXECUTION (the
+producer ran this, written per segment), and ENRICHMENT (attach exit and duration
+to the anchored row). For `a; b` the counts do not even match: one submission, two
+executions. The classifier was being asked to infer a boundary the producer never
+recorded.
+
+THE IDENTITY EXISTS BEFORE THE DATA. That inversion is the whole change. The old
+design derived both command identity and ordering from SQLite insertion order --
+`id + 1`, `last_history_id`, `ORDER BY id DESC` -- which is why every consumer
+eventually had to guess. Now `execute_with_context` opens a row before anything can
+return, and storage is a PROJECTION of a lifecycle rather than a lifecycle inferred
+from storage.
+
+⚠️ THE KEY IS THE PAIR, and the recon caught this before it was written.
+`execution_id` is an AtomicU64 starting at 1 in EVERY shell process -- its own doc
+says so. Persisting it alone would have let two sessions both claim 1, 2, 3 and
+silently overwrite each other: a key that looks unique and is not, which is the
+exact defect class this intent exists to remove. `session_id` supplies the process
+boundary. Nothing owned that question before -- `FSH_SESSION_ID` is read in three
+places and set in NONE, which is why `term_commands` holds 42,376 rows under the
+fallback string "unknown". Absence should TRIGGER CREATION, not become a value.
+
+POSTEXEC CANNOT BE THE OWNER. Established by recon, not assumed: it never runs for
+a blocked command, because `execute_with_context` returns early when preexec
+blocks, and it deliberately skips `exit`. Those are the two events most worth
+recording. So the row opens at context creation and closes wherever the outcome
+becomes known.
+
+TWO PHASES BECAUSE THERE ARE TWO OWNERS. postexec knows the executed form; only the
+caller knows the final exit code, since the pipeline arms repaired in INT-189
+decide it after `execute_with_context` has already returned. `begin` and `complete`
+are separate methods for that reason -- one `save` would have hidden the boundary.
+`ExecutionOutcome` carries the identity back out rather than hoisting generation to
+the caller, because `from_line` is also used by the `spine migrate` audit, and that
+path would then have to supply an execution id for something that never executes.
+
+★ THE NULLS MEAN THINGS. `executed_text` is null when the command never reached
+expansion. `exit_code` is null for `exit`, deliberately: that arm never sets
+`last_exit_code`, so passing it would record the PREVIOUS command's result -- the
+stale-value bug INT-189 removed. `duration_ms` is null on the VAR=value path
+because it has no timer, and inventing one is the guess the migration rule forbids.
+A row left in state `started` is EVIDENCE the shell died mid-command. Completion
+refuses to update zero rows, so it cannot float unattached to a lifecycle.
+
+PROVEN ON METAL, which the unit suite cannot do: `gs` recorded `typed_text='gs'`
+with `executed_text='git status'`; a failing command closed as `error` with
+`exit_code=1` ON ITS OWN ROW; `exit` closed with `exit_code=None`; execution ids
+1..4 monotonic under one session; nothing left in `started`.
+
+🔎 AND THE TABLE IMMEDIATELY MADE SOMETHING VISIBLE: `git status` printed output but
+classified as `empty`, so `CommandResult::Empty` conflates "nothing happened" with
+"output went straight to the terminal rather than being captured". That is INT-192's
+thesis inside fsh's own types. Follow-up, not a regression.
+
+⏭ NEXT IS CONSUMER MIGRATION, not more producer work: inventory every
+`shell_history` READ and classify it (submission/display, execution analytics,
+suggestions/learning, audit, compatibility); move the EXECUTION consumers first,
+starting with the daemon's `id + 1` join; let `shell_history` keep only whatever
+concept genuinely remains its own; and only THEN judge the duplication gate, whose
+real question is "are two tables storing the same fact?" rather than "do two tables
+exist?"
+
 ## Success Criteria
 
 - [x] Every code path that writes to `shell_history` is enumerated (not grepped -- enumerated)
