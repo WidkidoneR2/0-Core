@@ -797,6 +797,62 @@ pub fn execute_spine(
     result
 }
 
+/// INT-169 blocker 4: the shell-side half of `spine::plan::CommandRunner`.
+///
+/// Everything the spine refuses to know lives here: a database, a core root, and a process. The
+/// trait passes an `ExecutionPlan` and gets back a string, so the spine never learns any of it.
+///
+/// ⚠️ THREE KNOWN GAPS, recorded rather than discovered later:
+///
+/// 1. BUILTINS DO NOT HONOUR `IoPlan::Capture`. Dispatch tries builtins first, and one that
+///    returns `Output(s)` captures correctly -- but a builtin that `println!`s directly and
+///    returns `Empty` leaks to the terminal and captures nothing. The missing invariant belongs to
+///    the execution layer: if a plan requests capture, no branch may write to the terminal.
+///
+/// 2. THE SAFETY GUARD DOES NOT RUN ON A NESTED COMMAND. `execute_plan_dispatch` performs no
+///    preexec. Routing through `execute_spine` instead would fix that and break INT-191's ruling,
+///    because its postexec writes a `command_execution` row and a substitution is not a user
+///    command. Closing this properly needs the ExecContext/plan unification that IS blocker 2.
+///    Bounded meanwhile: only the opt-in `spine exec` door reaches here, and the OUTER command is
+///    still guarded.
+///
+/// 3. PROVENANCE IS EMPTY, and the fix is NOT to hand the trait a string. Dispatch carries
+///    `source` for the few builtins wanting original text, and a plan does not contain one.
+///    The trait refusing text is correct -- source text is not execution identity. This
+///    belongs to the blocker 2 family: once ExecutionPlan carries execution identity, the
+///    missing field arrives without reopening the string-based seam this closes.
+struct SpineCommandRunner<'a> {
+    db: &'a ForestDb,
+    core_root: &'a str,
+}
+
+impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
+    fn run_capture(&self, plan: &crate::spine::plan::ExecutionPlan) -> Result<String, String> {
+        // Matched exhaustively, and each arm for a stated reason -- no catch-all, because a
+        // future variant should be a compile error here rather than a generic message.
+        match commands::execute_plan_dispatch(plan, "", self.db, self.core_root) {
+            CommandResult::Output(s) => Ok(s),
+            // Produced nothing, so substituted nothing. Correct, not an error.
+            CommandResult::Empty => Ok(String::new()),
+            CommandResult::Error(e) => Err(e),
+            // Stringifying a structured Value here would make this adapter invent display
+            // semantics for a layer it does not own. What `$(tt)` should mean is a Lane 5
+            // question about structured pipelines, not something to settle by accident.
+            CommandResult::Value(_) => {
+                Err("nested command produced a structured value, not text".to_string())
+            }
+            // A substitution that tries to terminate the shell is a FAILED capture, not an empty
+            // one -- swallowing it as `Ok("")` would make `$(exit)` silently expand to nothing.
+            CommandResult::Exit => Err("nested command attempted to exit the shell".to_string()),
+            // A contract violation rather than a normal outcome: dispatch already falls back to
+            // execute_plan, so it should never hand this back.
+            CommandResult::NotBuiltin => {
+                Err("nested dispatch returned NotBuiltin, which it should never do".to_string())
+            }
+        }
+    }
+}
+
 /// Debug/test convenience: parse and lower a line, then execute the resulting plan.
 ///
 /// Kept SEPARATE from `execute_spine` so the real seam stays visible -- the flip will supply a
@@ -812,12 +868,15 @@ pub fn execute_spine_source(
         Ok(n) => n,
         Err(e) => return CommandResult::Error(format!("spine: parse error: {e:?}")),
     };
-    // INT-169 blocker 4: `runner: None` is a deliberate answer, not an omission. This is the
-    // `spine exec` debug door -- a raw diagnostic path that is CORRECT to refuse what it cannot
-    // do rather than quietly acquiring new powers. The live routing decision belongs to the flip.
+    // INT-169 blocker 4: this door DOES get a runner, and the earlier `None` here was a
+    // mis-application of the scorecard's ruling. That ruling says `spine exec` is correct to sit
+    // ABOVE alias expansion and refuse aliases -- a statement about the INPUT PHASE, not about
+    // which constructs the spine may execute. Command substitution is now one the spine supports,
+    // and refusing it here would leave the capability with no consumer at all.
+    let runner = SpineCommandRunner { db, core_root };
     let ctx = crate::spine::plan::LowerContext {
         vars: Some(shell),
-        runner: None,
+        runner: Some(&runner),
     };
     let plan = match crate::spine::plan::lower(&node, &ctx) {
         Ok(p) => p,
