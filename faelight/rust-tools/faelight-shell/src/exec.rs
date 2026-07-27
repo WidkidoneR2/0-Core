@@ -812,7 +812,13 @@ pub fn execute_spine_source(
         Ok(n) => n,
         Err(e) => return CommandResult::Error(format!("spine: parse error: {e:?}")),
     };
-    let ctx = crate::spine::plan::LowerContext { vars: Some(shell) };
+    // INT-169 blocker 4: `runner: None` is a deliberate answer, not an omission. This is the
+    // `spine exec` debug door -- a raw diagnostic path that is CORRECT to refuse what it cannot
+    // do rather than quietly acquiring new powers. The live routing decision belongs to the flip.
+    let ctx = crate::spine::plan::LowerContext {
+        vars: Some(shell),
+        runner: None,
+    };
     let plan = match crate::spine::plan::lower(&node, &ctx) {
         Ok(p) => p,
         Err(e) => return CommandResult::Error(format!("spine: cannot lower yet: {e:?}")),

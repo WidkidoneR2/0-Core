@@ -108,6 +108,24 @@ pub trait VarResolver {
     fn pid(&self) -> u32;
 }
 
+/// The capability to RUN a nested command and receive its output as a value.
+///
+/// ★ Same inversion as VarResolver, for the same reason: plan.rs knows the capability it needs,
+/// not where the values live. Running a command needs a process, a database and the REPL's world,
+/// and this file must see none of them. The caller implements this over whatever it has.
+///
+/// ⚠️ Takes an `ExecutionPlan`, never source text. A runner accepting a string would rebuild the
+/// string-reinspection architecture the spine exists to remove -- the caller has already decided
+/// what to run, and the plan IS that decision.
+///
+/// ⚠️ Returns plan.rs-owned types only. A `CommandResult` here would drag a commands-layer type
+/// into the pure phase and defeat the boundary this trait exists to protect.
+pub trait CommandRunner {
+    /// `Err` carries a message the caller may render. It means the execution FAILED, which is a
+    /// different fact from the capability being absent -- see `LowerContext.runner`.
+    fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String>;
+}
+
 /// What `lower` is allowed to consult. Explicit rather than ambient.
 #[derive(Default, Clone, Copy)]
 pub struct LowerContext<'a> {
@@ -119,6 +137,13 @@ pub struct LowerContext<'a> {
     /// equivalence -- expanding there would make every variable-using command diverge from the
     /// legacy plan purely as an artifact of the audit's own fidelity gap.
     pub vars: Option<&'a dyn VarResolver>,
+    /// `None` = NO EXECUTION CAPABILITY, so a command substitution cannot be performed at all.
+    ///
+    /// ⚠️ Exactly the distinction `vars` draws: this is not "the command failed", it is "this
+    /// lowering environment cannot run commands". `spine migrate` replays historical commands with
+    /// no shell and must never execute one as a side effect of an audit; the parser-fidelity
+    /// comparison would also be meaningless if replaying history ran processes.
+    pub runner: Option<&'a dyn CommandRunner>,
 }
 
 /// Expand one word to its final OsString. TODAY: a word is all-Literal, so this concatenates
@@ -295,7 +320,10 @@ mod tests {
         let mut m = std::collections::HashMap::new();
         m.insert("MY_VAR", "hello");
         let vars = FakeVars(m);
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
 
         let node = parse("echo $MY_VAR").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");
@@ -314,7 +342,10 @@ mod tests {
         let mut m = std::collections::HashMap::new();
         m.insert("HOME", "/home/christian");
         let vars = FakeVars(m);
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
 
         let a = lower(&parse("echo $HOME").unwrap(), &ctx).unwrap();
         let b = lower(&parse("echo ${HOME}").unwrap(), &ctx).unwrap();
@@ -327,7 +358,10 @@ mod tests {
         // $? and $$ are NOT name lookups -- FakeVars answers 0 and 1234 from last_exit()/pid(),
         // and its variable map is empty, so a Variable("?") model would have produced "".
         let vars = FakeVars(std::collections::HashMap::new());
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
 
         let plan = lower(&parse("echo $?").unwrap(), &ctx).unwrap();
         assert_eq!(plan.argv[1], OsString::from("0"));
@@ -350,7 +384,10 @@ mod tests {
         let mut m = std::collections::HashMap::new();
         m.insert("VAR", "real");
         let vars = FakeVars(m);
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
 
         for src in ["echo ${VAR:-default}", "echo ${#VAR}", "echo ${VAR/a/b}"] {
             let plan = lower(&parse(src).unwrap(), &ctx).unwrap();
@@ -365,7 +402,10 @@ mod tests {
     #[test]
     fn lone_and_unterminated_dollars_stay_literal() {
         let vars = FakeVars(std::collections::HashMap::new());
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
         for (src, want) in [
             ("echo $", "$"),
             ("echo ${VAR", "${VAR"),
@@ -384,7 +424,10 @@ mod tests {
         let mut m = std::collections::HashMap::new();
         m.insert("MY_VAR", "hello");
         let vars = FakeVars(m);
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
 
         let node = parse("echo '$MY_VAR'").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");
@@ -409,7 +452,10 @@ mod tests {
         let mut m = std::collections::HashMap::new();
         m.insert("BAR", "xyz");
         let vars = FakeVars(m);
-        let ctx = LowerContext { vars: Some(&vars) };
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+        };
         let node = parse("echo foo$BAR/baz").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
