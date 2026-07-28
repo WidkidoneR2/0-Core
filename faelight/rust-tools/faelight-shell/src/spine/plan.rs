@@ -293,7 +293,15 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
                     _ => GlobPart::Literal(ch),
                 })
                 .collect();
-            return Ok(resolver.expand(&pattern));
+            let matches = resolver.expand(&pattern);
+            // ⚠️ A pattern that matched NOTHING keeps the word as written. Returning the empty
+            // result directly would DELETE the argument, which is what `spine-exec echo
+            // nomatch*.xyz` did before this line existed -- it printed nothing at all. The trait
+            // says the caller decides what empty means, and this is the caller deciding: bash's
+            // default is nullglob off, so an unmatched pattern is ordinary text.
+            if !matches.is_empty() {
+                return Ok(matches);
+            }
         }
     }
     Ok(vec![OsString::from(out)])
@@ -501,6 +509,32 @@ mod tests {
             );
             assert_eq!(plan.argv.len(), 2, "{source} stays one argument");
         }
+    }
+
+    /// A resolver that found NOTHING must not delete the argument either. Distinct from the test
+    /// below: there the capability is absent, here it ran and matched nothing. Both keep the word,
+    /// and only this one was missing -- which is why `spine-exec echo nomatch*.xyz` printed an
+    /// empty line on real metal while every unit test passed.
+    #[test]
+    fn a_pattern_that_matches_nothing_survives_as_text() {
+        struct EmptyGlob;
+        impl GlobResolver for EmptyGlob {
+            fn expand(&self, _pattern: &[GlobPart]) -> Vec<OsString> {
+                Vec::new()
+            }
+        }
+        let empty = EmptyGlob;
+        let ctx = LowerContext {
+            vars: None,
+            runner: None,
+            glob: Some(&empty),
+        };
+        let node = parse("echo nomatch*.xyz").expect("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("nomatch*.xyz")]
+        );
     }
 
     /// No capability means DO NOT EXPAND -- not "drop the argument". An audit replaying history has
