@@ -26,7 +26,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::ast::{AstNode, Span, Spanned, SpecialParam, Word, WordPart};
+use super::ast::{AstNode, QuoteContext, Span, Spanned, SpecialParam, Word, WordPart};
 
 /// The executor's input: an intent-to-run-in-context, not a bare argv. Even when cwd/env/io
 /// are empty today, the contract acknowledges that execution IS contextual (what directory,
@@ -126,6 +126,34 @@ pub trait CommandRunner {
     fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String>;
 }
 
+/// One position in a pathname pattern.
+///
+/// ★ STRUCTURED, NOT AN ESCAPED STRING, and the reason is the matcher: it understands `*` and `?`
+/// and NOTHING else -- no escape sequences at all. Building a pattern string with quoted
+/// metacharacters backslash-escaped would invent an escape language it never had, and `\*` would
+/// read as a backslash followed by a wildcard. Here quoting is expressed by WHICH VARIANT a
+/// character becomes, which is the same principle as the rest of this blocker: represent the
+/// distinction rather than encode it in text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GlobPart {
+    /// Matches exactly this character. A `*` that arrived from quoted text lands here.
+    Literal(char),
+    /// `?` -- exactly one character.
+    Any,
+    /// `*` -- zero or more characters.
+    Many,
+}
+
+/// The capability to match a pathname pattern against the filesystem.
+///
+/// ★ Third of the same shape, after VarResolver and CommandRunner, which is what makes the seam a
+/// pattern rather than something invented once. plan.rs knows the capability, never `read_dir`.
+pub trait GlobResolver {
+    /// Sorted matches, or empty when nothing matched. The CALLER decides what an empty result
+    /// means -- this reports what the filesystem said, not what the shell should do about it.
+    fn expand(&self, pattern: &[GlobPart]) -> Vec<OsString>;
+}
+
 /// What `lower` is allowed to consult. Explicit rather than ambient.
 #[derive(Default, Clone, Copy)]
 pub struct LowerContext<'a> {
@@ -144,6 +172,13 @@ pub struct LowerContext<'a> {
     /// no shell and must never execute one as a side effect of an audit; the parser-fidelity
     /// comparison would also be meaningless if replaying history ran processes.
     pub runner: Option<&'a dyn CommandRunner>,
+    /// `None` = NO FILESYSTEM EXPANSION AVAILABLE.
+    ///
+    /// ⚠️ The audit is why this is a capability at all. `spine migrate` replays ~25,000 historical
+    /// commands; a line containing `*.rs` must not read the current directory, or the result would
+    /// depend on WHEN AND WHERE the audit ran rather than on what the command was -- and an audit
+    /// would perform thousands of directory reads as a side effect of measuring.
+    pub glob: Option<&'a dyn GlobResolver>,
 }
 
 /// Expand one AST word to the argv entries it produces -- ZERO, ONE, or MANY.
@@ -162,9 +197,25 @@ pub struct LowerContext<'a> {
 /// exhaustive so the compiler flags this function the moment a new WordPart variant exists.
 fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerError> {
     let mut out = String::new();
+    // Char indices in `out` where an UNQUOTED metacharacter landed. Recording positions rather
+    // than building the pattern inline is what lets every other arm stay untouched: a variable,
+    // special parameter or substitution appends to `out` as before, and its characters reach the
+    // pattern automatically as literals. Building the pattern in this arm alone would have made
+    // `$HOME/*` produce a pattern of just `/*`, matching against the wrong thing entirely.
+    let mut active: Vec<usize> = Vec::new();
     for part in &word.parts {
         match part {
-            WordPart::Literal { text, .. } => out.push_str(text),
+            // Two accumulators, walked together: `out` is the literal text, `pattern` is the
+            // same characters with metacharacters ACTIVE only where they were unquoted. A `*`
+            // from `'*'` or `"*"` becomes GlobPart::Literal, so it can never match a filename.
+            WordPart::Literal { text, quoted } => {
+                for ch in text.chars() {
+                    if *quoted == QuoteContext::Unquoted && (ch == '*' || ch == '?') {
+                        active.push(out.chars().count());
+                    }
+                    out.push(ch);
+                }
+            }
             // INT-169 blocker 4: a CAPABILITY BOUNDARY, which is why this function became
             // fallible. The parser understands `$(...)` and the AST preserves it; the executor
             // cannot run one yet. Rendering it back to text would be the one thing that must not
@@ -225,6 +276,24 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
                     out.push_str(name);
                 }
             },
+        }
+    }
+    // ⚠️ Only LITERAL parts can contribute an active metacharacter. A variable, special
+    // parameter or substitution whose VALUE contains `*` does not glob here, though a real shell
+    // would expand `x='*'; echo $x`. Conservative on purpose: the spine does not pretend to
+    // understand what it has not built, and the divergence is stated rather than discovered.
+    if !active.is_empty() {
+        if let Some(resolver) = ctx.glob {
+            let pattern: Vec<GlobPart> = out
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| match (active.contains(&i), ch) {
+                    (true, '*') => GlobPart::Many,
+                    (true, '?') => GlobPart::Any,
+                    _ => GlobPart::Literal(ch),
+                })
+                .collect();
+            return Ok(resolver.expand(&pattern));
         }
     }
     Ok(vec![OsString::from(out)])
@@ -363,6 +432,89 @@ mod tests {
     /// A runner over a fixed answer. Parallel to FakeVars: deterministic, no shell, no process.
     /// It ALSO asserts the plan it receives, because the IO intent reaching the runner is the
     /// thing argv cannot show.
+    /// Records the patterns it is asked to expand. No filesystem: the thing under test is what
+    /// LOWERING SENDS, not what a directory happens to contain, so this must not depend on the
+    /// machine running it.
+    struct FakeGlob(std::cell::RefCell<Vec<Vec<GlobPart>>>);
+    impl GlobResolver for FakeGlob {
+        fn expand(&self, pattern: &[GlobPart]) -> Vec<OsString> {
+            self.0.borrow_mut().push(pattern.to_vec());
+            vec![OsString::from("matched.txt")]
+        }
+    }
+
+    /// THE BOUNDARY DECISION, asserted on the pattern rather than the result. The matcher and the
+    /// filesystem adapter may both change; what must never change is that lowering sends a
+    /// STRUCTURED pattern in which quoting has already decided which characters are active.
+    #[test]
+    fn quoting_decides_which_characters_reach_the_globber_as_wildcards() {
+        let cases = [
+            ("echo *", vec![GlobPart::Many]),
+            (
+                "echo a?c",
+                vec![
+                    GlobPart::Literal('a'),
+                    GlobPart::Any,
+                    GlobPart::Literal('c'),
+                ],
+            ),
+        ];
+        for (source, expected) in cases {
+            let fake = FakeGlob(std::cell::RefCell::new(Vec::new()));
+            let ctx = LowerContext {
+                vars: None,
+                runner: None,
+                glob: Some(&fake),
+            };
+            let node = parse(source).expect("parses");
+            let plan = lower(&node, &ctx).expect("lowers");
+            assert_eq!(
+                fake.0.borrow().len(),
+                1,
+                "{source} should reach the globber once"
+            );
+            assert_eq!(fake.0.borrow()[0], expected, "{source} pattern");
+            assert_eq!(
+                plan.argv,
+                vec![OsString::from("echo"), OsString::from("matched.txt")],
+                "{source} argv comes from the resolver"
+            );
+        }
+    }
+
+    /// A quoted metacharacter is INERT: it never reaches the globber at all, so the word cannot
+    /// match a filename no matter what the directory contains.
+    #[test]
+    fn quoted_metacharacters_never_reach_the_globber() {
+        for source in ["echo \'*\'", "echo \"*\"", "echo \'a?c\'"] {
+            let fake = FakeGlob(std::cell::RefCell::new(Vec::new()));
+            let ctx = LowerContext {
+                vars: None,
+                runner: None,
+                glob: Some(&fake),
+            };
+            let node = parse(source).expect("parses");
+            let plan = lower(&node, &ctx).expect("lowers");
+            assert!(
+                fake.0.borrow().is_empty(),
+                "{source} must not be treated as a pattern"
+            );
+            assert_eq!(plan.argv.len(), 2, "{source} stays one argument");
+        }
+    }
+
+    /// No capability means DO NOT EXPAND -- not "drop the argument". An audit replaying history has
+    /// no filesystem, and a word must survive as the text that was written.
+    #[test]
+    fn without_a_globber_an_active_pattern_stays_literal() {
+        let node = parse("echo *.rs").expect("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("*.rs")]
+        );
+    }
+
     struct FakeRunner(&'static str);
     impl CommandRunner for FakeRunner {
         fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String> {
@@ -384,6 +536,7 @@ mod tests {
         let ctx = LowerContext {
             vars: None,
             runner: Some(&runner),
+            glob: None,
         };
         let node = parse("echo $(pwd)").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");
@@ -413,6 +566,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
 
         let node = parse("echo $MY_VAR").expect("parses");
@@ -435,6 +589,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
 
         let a = lower(&parse("echo $HOME").unwrap(), &ctx).unwrap();
@@ -451,6 +606,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
 
         let plan = lower(&parse("echo $?").unwrap(), &ctx).unwrap();
@@ -477,6 +633,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
 
         for src in ["echo ${VAR:-default}", "echo ${#VAR}", "echo ${VAR/a/b}"] {
@@ -495,6 +652,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
         for (src, want) in [
             ("echo $", "$"),
@@ -517,6 +675,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
 
         let node = parse("echo '$MY_VAR'").expect("parses");
@@ -545,6 +704,7 @@ mod tests {
         let ctx = LowerContext {
             vars: Some(&vars),
             runner: None,
+            glob: None,
         };
         let node = parse("echo foo$BAR/baz").expect("parses");
         let plan = lower(&node, &ctx).expect("lowers");

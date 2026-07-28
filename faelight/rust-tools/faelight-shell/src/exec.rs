@@ -821,6 +821,197 @@ pub fn execute_spine(
 ///    The trait refusing text is correct -- source text is not execution identity. This
 ///    belongs to the blocker 2 family: once ExecutionPlan carries execution identity, the
 ///    missing field arrives without reopening the string-based seam this closes.
+/// INT-169 blocker 5: the shell-side half of `spine::plan::GlobResolver`.
+///
+/// ⚠️ cwd comes from the PROCESS. `ShellContext` carries only shell_vars and last_exit_code, and
+/// exec.rs already falls back to `current_dir()` elsewhere, so this matches the existing execution
+/// model rather than inventing a second source of truth. Giving ShellContext a cwd later becomes an
+/// intentional migration point instead of a silent inconsistency.
+///
+/// ⚠️ NO TILDE EXPANSION. Legacy expands a leading `~/` before globbing; the spine has no tilde
+/// phase yet, so `~/x*` will not match here. Stated rather than smuggled in, because tilde is its
+/// own expansion and belongs with the others.
+struct SpineGlobResolver {
+    cwd: std::path::PathBuf,
+}
+
+/// The legacy matcher's algorithm over a STRUCTURED pattern.
+///
+/// ★ Identical two-pointer walk with backtracking, so behaviour matches `expand::glob_match` -- but
+/// it can do what that one cannot: tell a wildcard from a literal asterisk. `GlobPart::Many` is a
+/// wildcard; `GlobPart::Literal('*')` matches an actual `*` in a filename, which is what makes
+/// `'*'` and `"*"` inert.
+fn glob_parts_match(pattern: &[crate::spine::plan::GlobPart], name: &str) -> bool {
+    use crate::spine::plan::GlobPart;
+    let n: Vec<char> = name.chars().collect();
+    let (mut pi, mut ni) = (0usize, 0usize);
+    let mut star_pi = usize::MAX;
+    let mut star_ni = 0usize;
+    while ni < n.len() {
+        let here = pattern.get(pi);
+        let consumes = match here {
+            Some(GlobPart::Literal(c)) => *c == n[ni],
+            Some(GlobPart::Any) => true,
+            _ => false,
+        };
+        if consumes {
+            pi += 1;
+            ni += 1;
+        } else if matches!(here, Some(GlobPart::Many)) {
+            star_pi = pi;
+            star_ni = ni;
+            pi += 1;
+        } else if star_pi != usize::MAX {
+            pi = star_pi + 1;
+            star_ni += 1;
+            ni = star_ni;
+        } else {
+            return false;
+        }
+    }
+    while matches!(pattern.get(pi), Some(GlobPart::Many)) {
+        pi += 1;
+    }
+    pi == pattern.len()
+}
+
+impl crate::spine::plan::GlobResolver for SpineGlobResolver {
+    fn expand(&self, pattern: &[crate::spine::plan::GlobPart]) -> Vec<std::ffi::OsString> {
+        use crate::spine::plan::GlobPart;
+        // A pattern may name a directory: `src/*.rs`. Split at the LAST literal separator -- the
+        // prefix must be literal text (a wildcard spanning directories is `**`, which neither this
+        // matcher nor the legacy one implements), and the remainder is the filename pattern.
+        let sep = pattern
+            .iter()
+            .rposition(|p| matches!(p, GlobPart::Literal('/')));
+        let (prefix, file_pattern) = match sep {
+            Some(i) => {
+                let dir: String = pattern[..i]
+                    .iter()
+                    .map(|p| match p {
+                        GlobPart::Literal(c) => *c,
+                        GlobPart::Any => '?',
+                        GlobPart::Many => '*',
+                    })
+                    .collect();
+                (dir, &pattern[i + 1..])
+            }
+            None => (String::new(), pattern),
+        };
+        let dir = if prefix.is_empty() {
+            self.cwd.clone()
+        } else if prefix.starts_with('/') {
+            std::path::PathBuf::from(&prefix)
+        } else {
+            self.cwd.join(&prefix)
+        };
+
+        let mut matches: Vec<String> = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy().to_string();
+                if glob_parts_match(file_pattern, &name_str) {
+                    matches.push(if prefix.is_empty() {
+                        name_str
+                    } else {
+                        format!("{prefix}/{name_str}")
+                    });
+                }
+            }
+        }
+        // Sorted, matching legacy. An empty result is reported as empty: what the shell does about
+        // a pattern that matched nothing is the caller's decision, not this adapter's.
+        matches.sort();
+        matches.into_iter().map(std::ffi::OsString::from).collect()
+    }
+}
+
+#[cfg(test)]
+mod glob_matcher_tests {
+    use super::glob_parts_match;
+    use crate::spine::plan::GlobPart;
+
+    /// Build a pattern the way lowering would for fully UNQUOTED text, so the two matchers are
+    /// being asked the same question.
+    fn unquoted(pattern: &str) -> Vec<GlobPart> {
+        pattern
+            .chars()
+            .map(|c| match c {
+                '*' => GlobPart::Many,
+                '?' => GlobPart::Any,
+                _ => GlobPart::Literal(c),
+            })
+            .collect()
+    }
+
+    /// ★ THE EXTRACTION'S WHOLE PURPOSE: the structured matcher must answer identically to the
+    /// legacy one on every pattern that contains no quoted metacharacter. If these ever disagree,
+    /// the spine and the legacy path would glob differently and the migration audit would report a
+    /// divergence caused by this rewrite rather than by the spine.
+    #[test]
+    fn agrees_with_the_legacy_matcher_on_unquoted_patterns() {
+        let patterns = [
+            "*", "*.rs", "a*", "*a", "a*b", "?", "a?c", "??", "*?", "?*", "a**b", "", "abc", "*.*",
+            "a*b*c",
+        ];
+        // ⚠️ Names containing `*` or `?` are EXCLUDED, and that is a finding rather than a
+        // convenience: see `diverges_from_legacy_where_legacy_is_wrong` below. On every name that
+        // does not contain a metacharacter, the two matchers must agree exactly.
+        let names = [
+            "", "a", "abc", "a.rs", "main.rs", "ab", "aab", "abcb", "a.b.c", "aXb", "a.b",
+        ];
+        for p in patterns {
+            for n in names {
+                assert_eq!(
+                    glob_parts_match(&unquoted(p), n),
+                    crate::expand::glob_match(p, n),
+                    "pattern {p:?} against {n:?}"
+                );
+            }
+        }
+    }
+
+    /// ★ A DELIBERATE DIVERGENCE, recorded so it is a decision rather than a surprise.
+    ///
+    /// `expand::glob_match` tests `p[pi] == n[ni]` BEFORE testing whether the pattern character is
+    /// a wildcard. So when a filename genuinely contains `*` or `?`, the pattern's metacharacter
+    /// facing the same character degrades into a literal one-for-one match. `*?` against `*` then
+    /// consumes the star literally, leaves `?` unmatched, and answers false.
+    ///
+    /// The correct answer is true: `*` matches zero characters and `?` matches the `*` in the name.
+    /// Bash agrees. The structured matcher answers correctly because a wildcard is a VARIANT here
+    /// and can never be compared as text.
+    ///
+    /// This follows the precedent set for `${VAR:-default}` in the variable milestone: where legacy
+    /// is wrong, the spine is correct and the difference stays VISIBLE in the migration audit.
+    /// Copying the bug to keep the audit quiet would make it measure agreement instead of
+    /// correctness.
+    #[test]
+    fn diverges_from_legacy_where_legacy_is_wrong() {
+        assert!(
+            glob_parts_match(&unquoted("*?"), "*"),
+            "a wildcard then one character should match a single-star filename"
+        );
+        assert!(
+            !crate::expand::glob_match("*?", "*"),
+            "legacy gets this wrong, which is why the equivalence test excludes such names"
+        );
+    }
+
+    /// What the legacy matcher CANNOT express, and the reason the structured form exists: a
+    /// literal asterisk matches only an actual asterisk, never everything.
+    #[test]
+    fn a_literal_star_is_not_a_wildcard() {
+        let pattern = vec![GlobPart::Literal('*')];
+        assert!(glob_parts_match(&pattern, "*"));
+        assert!(!glob_parts_match(&pattern, "anything"));
+        assert!(!glob_parts_match(&pattern, ""));
+        // And the legacy matcher disagrees, which is exactly the bug this replaces.
+        assert!(crate::expand::glob_match("*", "anything"));
+    }
+}
+
 struct SpineCommandRunner<'a> {
     db: &'a ForestDb,
     core_root: &'a str,
@@ -874,9 +1065,15 @@ pub fn execute_spine_source(
     // which constructs the spine may execute. Command substitution is now one the spine supports,
     // and refusing it here would leave the capability with no consumer at all.
     let runner = SpineCommandRunner { db, core_root };
+    // INT-169 blocker 5: a live execution door with a runner but no globber would be incoherent --
+    // substitutions could run while pathname expansion silently could not.
+    let glob = SpineGlobResolver {
+        cwd: std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    };
     let ctx = crate::spine::plan::LowerContext {
         vars: Some(shell),
         runner: Some(&runner),
+        glob: Some(&glob),
     };
     let plan = match crate::spine::plan::lower(&node, &ctx) {
         Ok(p) => p,
