@@ -808,6 +808,69 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_169_alias_body_reaches_the_expansion_pipeline",
+        Category::Repl,
+        || {
+            // INT-169 blocker 6: THE ORDERING INVARIANT. expand_aliases used to run LAST, after
+            // vars, substitutions and globs, so an alias BODY was a separate unexpanded language
+            // fragment -- `alias t='echo [$HOME]'; t` printed [$HOME] literally. Measured on the
+            // deployed shell before the fix. The body now enters the same pipeline as typed text.
+            //
+            // The glob fixture is CREATED HERE rather than assuming a repo file, so the test does
+            // not depend on which directory the harness runs in.
+            let out = repl::run_repl(
+                "touch /tmp/zz-glob-169.md; alias zzvar='echo [$HOME]'; zzvar; \
+                 alias zzsub='echo [$(echo INNER)]'; zzsub; \
+                 alias zzglob='echo /tmp/zz-glob-169*.md'; zzglob",
+            )?;
+            let joined = out.join("\n");
+            // ⚠️ ASSERT ON A STANDALONE OUTPUT LINE, not anywhere in the transcript. The harness
+            // captures the ECHOED INPUT too, so `alias zzvar='echo [$HOME]'` puts the literal
+            // `$HOME` in the text whatever the shell does -- a `contains` check could never pass.
+            // Unexpanded output appears as a line that IS the source form; expanded output does
+            // not. The definition line trims to `alias zzvar='...'`, which never equals it.
+            let has_line = |want: &str| out.iter().any(|l| l.trim() == want);
+            if has_line("[$HOME]") {
+                return Err(format!("alias body skipped variable expansion: {joined:?}"));
+            }
+            if has_line("[$(echo INNER)]") || !joined.contains("[INNER]") {
+                return Err(format!(
+                    "alias body skipped command substitution: {joined:?}"
+                ));
+            }
+            // BOTH halves: the resolved path present AND the pattern gone. Presence alone could
+            // be a coincidence; absence of the star is what proves the glob was expanded.
+            if has_line("/tmp/zz-glob-169*.md") || !joined.contains("/tmp/zz-glob-169.md") {
+                return Err(format!("alias body skipped glob expansion: {joined:?}"));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_169_alias_reordering_kept_the_raw_text_boundary",
+        Category::Repl,
+        || {
+            // The OTHER half of the contract, and the reason this is a separate test. INT-193
+            // made alias expansion work on RAW TEXT so a quoted remainder survives; moving the
+            // call earlier must not quietly abandon that.
+            //
+            // ⚠️ `printf %s.` with the DOT, matching the INT-193 tests beside this one, and the
+            // first draft here proved why: bare `printf %s` emits no trailing newline, so the
+            // PROMPT lands on the same line and a whole-line equality check fails on correct
+            // output. The dot makes a split remainder read `a.b.` and a preserved one `a b.`,
+            // which is unambiguous regardless of what follows on the line.
+            let out = repl::run_repl("alias zzq='printf %s.'; zzq \"a b\"")?;
+            let joined = out.join("\n");
+            if joined.contains("a b.") && !joined.contains("a.b.") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "alias expansion split a quoted remainder: {joined:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
         "repl_193_self_referential_alias_survives",
         Category::Repl,
         || {

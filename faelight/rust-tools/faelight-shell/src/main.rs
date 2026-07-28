@@ -2362,24 +2362,20 @@ fn repl_main() -> Result<()> {
                         };
                         continue;
                     }
-                    let line = expand_vars(line, &shell_vars, last_exit_code);
-                    // Subshell expansion
-                    let line = expand_subshells(&line);
-                    // Glob expansion — expand *.rs, *.md etc
-                    // INT-097: failglob -- if any unquoted glob matched nothing,
-                    // report it clearly and skip the command (no cryptic literal-* OS error,
-                    // no bogus Friday suggestion via the error path).
-                    let unmatched = find_unmatched_globs(&line);
-                    if !unmatched.is_empty() {
-                        for pat in &unmatched {
-                            println!("  no matches for pattern: {}", pat);
-                        }
-                        last_exit_code = Some(1);
-                        continue;
-                    }
-                    let line = expand_globs(&line);
-                    let line = line.as_str();
-
+                    // INT-169 blocker 6: MOVED ABOVE THE EXPANSIONS. This ran last, AFTER
+                    // vars, substitutions and globs -- so an alias BODY was a separate,
+                    // entirely unexpanded language fragment. Measured on the deployed shell:
+                    // `alias t='echo [$HOME]'; t` printed [$HOME] literally, and the same for
+                    // $(...) and *.md. The typed line was expanded before the alias was even
+                    // known, and the body it produced was never expanded at all.
+                    //
+                    // ⚠️ Placed BELOW the two sh -c escape hatches on purpose: shell
+                    // constructs and heredocs both inspect the RAW line and delegate before
+                    // any processing, so moving above them would change what they catch.
+                    //
+                    // ⚠️ The cat_with_redirect decision travels WITH the call because the
+                    // bypass mechanism IS not-expanding: leaving it below would leave nothing
+                    // to bypass and would reintroduce BUG-298-4.
                     // Expand aliases before pipeline parsing
                     // INT-171 gate 2: command word is quote-aware (`"ll" foo` -> ll), so the
                     // alias lookup below resolves a quoted command instead of missing it.
@@ -2399,6 +2395,24 @@ fn repl_main() -> Result<()> {
                         commands::expand_aliases(line, &db)
                     };
                     let line = line.as_str();
+                    let line = expand_vars(line, &shell_vars, last_exit_code);
+                    // Subshell expansion
+                    let line = expand_subshells(&line);
+                    // Glob expansion — expand *.rs, *.md etc
+                    // INT-097: failglob -- if any unquoted glob matched nothing,
+                    // report it clearly and skip the command (no cryptic literal-* OS error,
+                    // no bogus Friday suggestion via the error path).
+                    let unmatched = find_unmatched_globs(&line);
+                    if !unmatched.is_empty() {
+                        for pat in &unmatched {
+                            println!("  no matches for pattern: {}", pat);
+                        }
+                        last_exit_code = Some(1);
+                        continue;
+                    }
+                    let line = expand_globs(&line);
+                    let line = line.as_str();
+
                     // INT-265: Forest pipeline detection
                     {
                         // INT-171 gate 2: quote-aware command word for forest-pipeline detection.
