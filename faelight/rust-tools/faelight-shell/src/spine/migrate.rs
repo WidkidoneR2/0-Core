@@ -44,6 +44,13 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    // ⚠️ `raw` and `expanded` are intentionally EMPTY, and that is different from the stale
+    // fixtures INT-169 blocker 2 had to repair. Those claimed an execution had arguments in its
+    // display text and none in its argument vector -- contradictory, a state no path can produce.
+    // This one is merely INCOMPLETE: the adapter reads argv-shaped fields only, so supplying
+    // execution text would invent a second execution identity for no consumer. Do not "fix" it by
+    // filling those in; cmd and args ARE the identity here.
+    //
     // Hand-build an ExecContext with just the fields the adapter reads (cmd, args, cwd). The
     // adapter never touches intent (the only db-dependent field), so no db is needed here. That
     // from_line ACTUALLY produces these values (lowercased cmd, quote-stripped args) is proven

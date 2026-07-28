@@ -1015,10 +1015,28 @@ mod glob_matcher_tests {
 struct SpineCommandRunner<'a> {
     db: &'a ForestDb,
     core_root: &'a str,
+    /// INT-169 blocker 2: needed because a nested command must face the SAME policy gate as a
+    /// typed one. Held rather than rediscovered, so "which rules are active" cannot drift between
+    /// the two paths.
+    rules: &'a [BeforeRunRule],
 }
 
 impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
     fn run_capture(&self, plan: &crate::spine::plan::ExecutionPlan) -> Result<String, String> {
+        // INT-169 blocker 2: THE POLICY GATE, which a substitution previously walked straight
+        // past. `execute_plan_dispatch` performs no preexec, so `$(rm -rf /somewhere)` reached a
+        // process without ever meeting the guard that a typed `rm -rf /somewhere` cannot avoid.
+        // A protection that applies everywhere except inside `$()` is worse than none, because it
+        // is trusted.
+        //
+        // ⚠️ preexec ONLY. No postexec, and that asymmetry is deliberate: postexec records the
+        // COMPLETION OF AN EXECUTION, and INT-191 ruled that a substitution is an expansion rather
+        // than a user command, so it must not create a `command_execution` row. Blocking is a
+        // decision about whether to evaluate an expression; it is not a shell lifecycle event.
+        let ctx = crate::exec::ExecContext::from_plan(plan, "", self.db);
+        if let Some(reason) = preexec(&ctx, self.core_root, self.rules) {
+            return Err(reason);
+        }
         // Matched exhaustively, and each arm for a stated reason -- no catch-all, because a
         // future variant should be a compile error here rather than a generic message.
         match commands::execute_plan_dispatch(plan, "", self.db, self.core_root) {
@@ -1064,7 +1082,11 @@ pub fn execute_spine_source(
     // ABOVE alias expansion and refuse aliases -- a statement about the INPUT PHASE, not about
     // which constructs the spine may execute. Command substitution is now one the spine supports,
     // and refusing it here would leave the capability with no consumer at all.
-    let runner = SpineCommandRunner { db, core_root };
+    let runner = SpineCommandRunner {
+        db,
+        core_root,
+        rules,
+    };
     // INT-169 blocker 5: a live execution door with a runner but no globber would be incoherent --
     // substitutions could run while pathname expansion silently could not.
     let glob = SpineGlobResolver {
@@ -1101,18 +1123,53 @@ fn blocks_catastrophic_rm(ctx: &ExecContext) -> Option<String> {
     if ctx.cmd.to_lowercase() != "rm" {
         return None;
     }
-    let expanded = ctx.expanded.as_str();
-    let lower = expanded.to_lowercase();
-    if !lower.contains("-rf") && !lower.contains("-fr") {
+    // INT-169 blocker 2 / INT-196: STRUCTURE, NOT TEXT. This predicate used to read
+    // `ctx.expanded`, lowercase it, substring-search for the flags and then `split_whitespace()`
+    // the result -- taking an argument vector, flattening it, and re-parsing it. Two consequences,
+    // both real:
+    //
+    //   1. It did not fire AT ALL where `expanded` was unavailable. A command substitution builds
+    //      its context from a plan with no source line, so `"".contains("-rf")` was false and the
+    //      most dangerous policy in the shell silently passed everything inside `$()`.
+    //   2. A SUBSTRING SEARCH ONLY EVER CAUGHT ADJACENT FLAGS. `rm -r -f /home` was never blocked,
+    //      because the text contains neither "-rf" nor "-fr". So was `rm -rR -f /`.
+    //
+    // Reading `args` fixes both and makes the rule independent of whitespace, quoting, ordering,
+    // and any future textual form of `expanded`.
+    let mut recursive = false;
+    let mut force = false;
+    for arg in &ctx.args {
+        // A flag-shaped argument only. `--` ends option parsing, and a bare `-` is stdin.
+        if !arg.starts_with('-') || arg == "--" || arg == "-" {
+            continue;
+        }
+        // ⚠️ SHORT options are a BUNDLE OF LETTERS; LONG options are a NAME. Scanning letters in
+        // a long option makes its spelling matter: `--verbose` contains an `r`, so
+        // `rm --verbose --force /home` would block a command that requested nothing recursive.
+        // A false positive in a guard is its own damage -- it teaches people to distrust the block.
+        if let Some(name) = arg.strip_prefix("--") {
+            let name = name.split('=').next().unwrap_or(name);
+            recursive |= name == "recursive";
+            force |= name == "force";
+        } else {
+            let letters = arg.trim_start_matches('-');
+            recursive |= letters.contains('r') || letters.contains('R');
+            force |= letters.contains('f');
+        }
+    }
+    // Both, gathered ACROSS arguments -- `-rf`, `-fr`, `-rRfF` and `-r -f` are the same command.
+    if !recursive || !force {
         return None;
     }
     // Absolute block -- these targets are never safe
     let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
     for target in &blocked_targets {
-        // Match exact path -- must be followed by space, end of string, or be standalone
-        let matches = expanded
-            .split_whitespace()
-            .any(|token| token == *target || token == &format!("{}/", target));
+        // An ARGUMENT is the target, not a token in a rebuilt string: a path containing a space
+        // survives here where the old split could not represent it at all.
+        let matches = ctx
+            .args
+            .iter()
+            .any(|a| a == *target || a.strip_suffix('/') == Some(*target));
         if matches {
             return Some(format!(
                 "🛡  Blocked: rm -rf on protected path '{}' — this cannot be undone",
@@ -1136,12 +1193,17 @@ mod preexec_boundary_tests {
     /// A context where the TYPED form is harmless and the EXECUTED form is not -- the shape an
     /// alias produces. Every policy inside preexec must judge on `expanded`; any that reads `raw`
     /// sees only the harmless name and waves the command through.
-    fn aliased(raw: &str, expanded: &str, cmd: &str) -> ExecContext {
+    /// ⚠️ Takes ARGV, like `catastrophic_rm_tests::ctx` and for the reason that module records.
+    /// This helper previously set `args: Vec::new()` while putting arguments in `expanded`, and
+    /// when the catastrophic-rm policy became structural THAT MADE THIS MODULE HANG rather than
+    /// fail: the command stopped being blocked, fell through to the confirmation prompt Safety
+    /// Rule 4 raises, and waited forever. The module doc above predicted exactly that.
+    fn aliased(raw: &str, argv: &[&str]) -> ExecContext {
         ExecContext {
             raw: raw.to_string(),
-            expanded: expanded.to_string(),
-            cmd: cmd.to_string(),
-            args: Vec::new(),
+            expanded: argv.join(" "),
+            cmd: argv.first().copied().unwrap_or_default().to_string(),
+            args: argv.iter().skip(1).map(|s| s.to_string()).collect(),
             cwd: PathBuf::from("."),
             intent: None,
             timestamp: SystemTime::now(),
@@ -1155,7 +1217,7 @@ mod preexec_boundary_tests {
     /// this proves the WIRING, not just the rule.
     #[test]
     fn blocks_aliased_catastrophic_rm() {
-        let ctx = aliased("nuke", "rm -rf /home", "rm");
+        let ctx = aliased("nuke", &["rm", "-rf", "/home"]);
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
     }
 
@@ -1166,7 +1228,7 @@ mod preexec_boundary_tests {
         let intents = faelight_core::paths::intents_dir()
             .to_string_lossy()
             .to_string();
-        let ctx = aliased("cleanup", &format!("rm -rf {}", intents), "rm");
+        let ctx = aliased("cleanup", &["rm", "-rf", intents.as_str()]);
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
     }
 
@@ -1175,8 +1237,7 @@ mod preexec_boundary_tests {
     fn blocks_aliased_copy_over_core_binary() {
         let ctx = aliased(
             "install",
-            "cp /tmp/thing /home/christian/.cargo/bin/core",
-            "cp",
+            &["cp", "/tmp/thing", "/home/christian/.cargo/bin/core"],
         );
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
     }
@@ -1185,7 +1246,7 @@ mod preexec_boundary_tests {
     /// because the typed form looked alarming.
     #[test]
     fn allows_harmless_execution_with_alarming_typed_form() {
-        let ctx = aliased("rm -rf /home", "echo pretend", "echo");
+        let ctx = aliased("rm -rf /home", &["echo", "pretend"]);
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_none());
     }
 }
@@ -1195,12 +1256,23 @@ mod catastrophic_rm_tests {
     use std::path::PathBuf;
     use std::time::SystemTime;
 
-    fn ctx(raw: &str, expanded: &str, cmd: &str) -> ExecContext {
+    /// Builds a context the way PRODUCTION does: `cmd`, `args` and `expanded` all derive from one
+    /// argv, exactly as `from_plan` derives them from `plan.argv`.
+    ///
+    /// ★ THE HELPER IS ITSELF A REGRESSION LOCK. The previous version took `expanded` and `cmd`
+    /// separately and left `args` EMPTY, which is a state no execution path can reach -- a command
+    /// word with arguments in its display text but none in its argument vector. That was harmless
+    /// while the predicate only read text, and became dangerous the moment it read structure.
+    /// Impossible states in tests are where false confidence comes from.
+    ///
+    /// `raw` stays separate on purpose: it is PROVENANCE, and the whole point of several of these
+    /// tests is that it may legitimately disagree with execution identity.
+    fn ctx(raw: &str, argv: &[&str]) -> ExecContext {
         ExecContext {
             raw: raw.to_string(),
-            expanded: expanded.to_string(),
-            cmd: cmd.to_string(),
-            args: Vec::new(),
+            expanded: argv.join(" "),
+            cmd: argv.first().copied().unwrap_or_default().to_string(),
+            args: argv.iter().skip(1).map(|s| s.to_string()).collect(),
             cwd: PathBuf::from("."),
             intent: None,
             timestamp: SystemTime::now(),
@@ -1215,24 +1287,24 @@ mod catastrophic_rm_tests {
     /// without ever launching rm.
     #[test]
     fn uses_execution_boundary_not_typed_boundary() {
-        assert!(blocks_catastrophic_rm(&ctx("nuke", "rm -rf /home", "rm")).is_some());
+        assert!(blocks_catastrophic_rm(&ctx("nuke", &["rm", "-rf", "/home"])).is_some());
     }
 
     #[test]
     fn blocks_direct_form() {
-        assert!(blocks_catastrophic_rm(&ctx("rm -rf /home", "rm -rf /home", "rm")).is_some());
+        assert!(blocks_catastrophic_rm(&ctx("rm -rf /home", &["rm", "-rf", "/home"])).is_some());
     }
 
     #[test]
     fn blocks_reversed_flag_order() {
-        assert!(blocks_catastrophic_rm(&ctx("rm -fr /etc", "rm -fr /etc", "rm")).is_some());
+        assert!(blocks_catastrophic_rm(&ctx("rm -fr /etc", &["rm", "-fr", "/etc"])).is_some());
     }
 
     /// The command word gates the policy: text that merely CONTAINS a dangerous string is not a
     /// dangerous command.
     #[test]
     fn allows_unrelated_command_mentioning_rm() {
-        let c = ctx("echo rm -rf /home", "echo rm -rf /home", "echo");
+        let c = ctx("echo rm -rf /home", &["echo", "rm", "-rf", "/home"]);
         assert!(blocks_catastrophic_rm(&c).is_none());
     }
 
@@ -1243,18 +1315,77 @@ mod catastrophic_rm_tests {
     /// it never reaches any path scan.
     #[test]
     fn allows_safe_execution_when_typed_form_names_a_blocked_path() {
-        let c = ctx("rm -rf /home", "rm -rf /tmp/scratch", "rm");
+        let c = ctx("rm -rf /home", &["rm", "-rf", "/tmp/scratch"]);
         assert!(blocks_catastrophic_rm(&c).is_none());
+    }
+
+    /// ★ NEWLY BLOCKED, and stated as a decision rather than left as a side effect. The old
+    /// predicate substring-searched the flattened text for "-rf" or "-fr", so SEPARATED flags were
+    /// never caught -- `rm -r -f /home` ran. Reading the argument vector gathers the letters across
+    /// arguments, so the same command is the same command however it was written.
+    /// ★ A FALSE POSITIVE IS DAMAGE TOO. A long option is a NAME, not a bundle of letters:
+    /// `--verbose` contains an `r` and would otherwise pair with `--force` to block a command that
+    /// asked for nothing recursive. A guard that fires on safe commands teaches people to ignore it.
+    #[test]
+    fn long_option_spelling_does_not_imply_recursion() {
+        let c = ctx(
+            "rm --verbose --force /home",
+            &["rm", "--verbose", "--force", "/home"],
+        );
+        assert!(blocks_catastrophic_rm(&c).is_none());
+        // But the real long forms still block.
+        let c = ctx(
+            "rm --recursive --force /home",
+            &["rm", "--recursive", "--force", "/home"],
+        );
+        assert!(blocks_catastrophic_rm(&c).is_some());
+    }
+
+    #[test]
+    fn blocks_flags_written_separately() {
+        assert!(
+            blocks_catastrophic_rm(&ctx("rm -r -f /home", &["rm", "-r", "-f", "/home"])).is_some()
+        );
+        assert!(
+            blocks_catastrophic_rm(&ctx("rm -f -r /etc", &["rm", "-f", "-r", "/etc"])).is_some()
+        );
+        assert!(blocks_catastrophic_rm(&ctx("rm -rR -f /", &["rm", "-rR", "-f", "/"])).is_some());
+    }
+
+    /// Short bundles and long names contribute to the SAME decision, so a command written half
+    /// each way is still the same command.
+    #[test]
+    fn mixed_short_and_long_flags_are_recognised() {
+        let c = ctx("rm -r --force /home", &["rm", "-r", "--force", "/home"]);
+        assert!(blocks_catastrophic_rm(&c).is_some());
+        let c = ctx(
+            "rm --recursive -f /etc",
+            &["rm", "--recursive", "-f", "/etc"],
+        );
+        assert!(blocks_catastrophic_rm(&c).is_some());
+    }
+
+    /// A target containing a space is ONE argument. The old predicate rebuilt a string and split it
+    /// on whitespace, so such a path could not be represented at all -- structure can.
+    #[test]
+    fn a_target_with_a_space_is_still_one_argument() {
+        let c = ctx("rm -rf x", &["rm", "-rf", "/home/my files"]);
+        assert!(
+            blocks_catastrophic_rm(&c).is_none(),
+            "not a protected target"
+        );
+        let c = ctx("rm -rf x", &["rm", "-rf", "/home"]);
+        assert!(blocks_catastrophic_rm(&c).is_some());
     }
 
     #[test]
     fn allows_rm_without_recursive_force() {
-        assert!(blocks_catastrophic_rm(&ctx("rm file.txt", "rm file.txt", "rm")).is_none());
+        assert!(blocks_catastrophic_rm(&ctx("rm file.txt", &["rm", "file.txt"])).is_none());
     }
 
     #[test]
     fn allows_recursive_force_on_unprotected_path() {
-        let c = ctx("rm -rf /tmp/scratch", "rm -rf /tmp/scratch", "rm");
+        let c = ctx("rm -rf /tmp/scratch", &["rm", "-rf", "/tmp/scratch"]);
         assert!(blocks_catastrophic_rm(&c).is_none());
     }
 }
