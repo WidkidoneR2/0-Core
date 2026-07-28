@@ -26,18 +26,10 @@
 
 use super::ast::Span;
 
-/// The lexical context a region of a word was written in. NOT an interpretation -- just
-/// which delimiter (if any) enclosed the text. Expansion rules are applied later, by the
-/// phase that owns them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QuoteContext {
-    /// Bare text, no enclosing quotes.
-    Unquoted,
-    /// Inside '...' -- fully literal once expansion exists.
-    Single,
-    /// Inside "..." -- allows expansion once expansion exists.
-    Double,
-}
+/// Re-exported: `QuoteContext` lives in `ast` because the AST RECORDS it as a fact about how a
+/// word was written, and each expansion phase derives its own rule from that fact. The lexer
+/// still discovers it. This keeps every existing `lexer::QuoteContext` import valid.
+pub use super::ast::QuoteContext;
 
 /// A contiguous region of a word with uniform lexical rules. `foo"bar"` is one word of two
 /// segments. Text is the CONTENT (enclosing quote characters consumed); span covers that

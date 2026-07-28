@@ -53,7 +53,10 @@ mod tests {
         assert!(cmd.redirects.is_empty(), "no redirects yet");
         assert_eq!(
             cmd.words[0].node.parts,
-            vec![WordPart::Literal("ls".to_string())],
+            vec![WordPart::Literal {
+                text: "ls".to_string(),
+                quoted: crate::spine::ast::QuoteContext::Unquoted,
+            }],
             "first word is the single literal 'ls'"
         );
         assert!(
@@ -82,7 +85,13 @@ mod tests {
     #[test]
     fn word_literal_helper() {
         let w = Word::literal("hello");
-        assert_eq!(w.parts, vec![WordPart::Literal("hello".to_string())]);
+        assert_eq!(
+            w.parts,
+            vec![WordPart::Literal {
+                text: "hello".to_string(),
+                quoted: crate::spine::ast::QuoteContext::Unquoted,
+            }]
+        );
         assert!(w.is_all_literal());
     }
 }

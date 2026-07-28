@@ -154,7 +154,7 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> 
     let mut out = String::new();
     for part in &word.parts {
         match part {
-            WordPart::Literal(s) => out.push_str(s),
+            WordPart::Literal { text, .. } => out.push_str(text),
             // INT-169 blocker 4: a CAPABILITY BOUNDARY, which is why this function became
             // fallible. The parser understands `$(...)` and the AST preserves it; the executor
             // cannot run one yet. Rendering it back to text would be the one thing that must not

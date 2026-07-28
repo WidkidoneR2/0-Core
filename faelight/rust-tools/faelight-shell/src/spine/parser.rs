@@ -120,8 +120,11 @@ impl Parser {
 fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
     match seg {
         WordSegment::Text { text, context, .. } => Ok(match context {
-            QuoteContext::Single => vec![WordPart::Literal(text.clone())],
-            QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(text),
+            QuoteContext::Single => vec![WordPart::Literal {
+                text: text.clone(),
+                quoted: QuoteContext::Single,
+            }],
+            QuoteContext::Unquoted | QuoteContext::Double => recognise_variables(text, *context),
         }),
         // INT-169 blocker 4, step 1b-i: BEHAVIOUR-PRESERVING PLACEHOLDER. The scanner now hands
         // over the region structurally, but this reconstructs the raw text so the AST is byte for
@@ -144,7 +147,7 @@ fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
 ///
 /// Recognises the plain `$NAME` form with a POSIX-shaped name. Deliberately NOT yet: `${NAME}`,
 /// `${NAME:-default}`, `$?`, `$$`, positional `$1`. A `$` not starting a valid name is literal.
-fn recognise_variables(text: &str) -> Vec<WordPart> {
+fn recognise_variables(text: &str, quoted: QuoteContext) -> Vec<WordPart> {
     let mut parts: Vec<WordPart> = Vec::new();
     let mut literal = String::new();
     let chars: Vec<char> = text.chars().collect();
@@ -165,18 +168,18 @@ fn recognise_variables(text: &str) -> Vec<WordPart> {
         //     anything else -> a literal dollar sign
         match chars.get(i + 1).copied() {
             Some('?') => {
-                flush(&mut parts, &mut literal);
+                flush(&mut parts, &mut literal, quoted);
                 parts.push(WordPart::SpecialParam(SpecialParam::LastExit));
                 i += 2;
             }
             Some('$') => {
-                flush(&mut parts, &mut literal);
+                flush(&mut parts, &mut literal, quoted);
                 parts.push(WordPart::SpecialParam(SpecialParam::Pid));
                 i += 2;
             }
             Some('{') => match brace_identifier(&chars, i) {
                 Some((name, next_i)) => {
-                    flush(&mut parts, &mut literal);
+                    flush(&mut parts, &mut literal, quoted);
                     parts.push(WordPart::Variable(name));
                     i = next_i;
                 }
@@ -201,7 +204,7 @@ fn recognise_variables(text: &str) -> Vec<WordPart> {
                 while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '_') {
                     j += 1;
                 }
-                flush(&mut parts, &mut literal);
+                flush(&mut parts, &mut literal, quoted);
                 parts.push(WordPart::Variable(chars[start..j].iter().collect()));
                 i = j;
             }
@@ -212,18 +215,24 @@ fn recognise_variables(text: &str) -> Vec<WordPart> {
         }
     }
 
-    flush(&mut parts, &mut literal);
+    flush(&mut parts, &mut literal, quoted);
     // An all-empty segment (`echo ""`) must still yield one part -- it is a real empty argument.
     if parts.is_empty() {
-        parts.push(WordPart::Literal(String::new()));
+        parts.push(WordPart::Literal {
+            text: String::new(),
+            quoted,
+        });
     }
     parts
 }
 
 /// Close off any pending literal run before pushing a non-literal part.
-fn flush(parts: &mut Vec<WordPart>, literal: &mut String) {
+fn flush(parts: &mut Vec<WordPart>, literal: &mut String, quoted: QuoteContext) {
     if !literal.is_empty() {
-        parts.push(WordPart::Literal(std::mem::take(literal)));
+        parts.push(WordPart::Literal {
+            text: std::mem::take(literal),
+            quoted,
+        });
     }
 }
 
@@ -283,15 +292,24 @@ mod tests {
                 assert_eq!(cmd.words[2].span, Span::new(7, 11));
                 assert_eq!(
                     cmd.words[0].node.parts,
-                    vec![WordPart::Literal("ls".to_string())]
+                    vec![WordPart::Literal {
+                        text: "ls".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
                 assert_eq!(
                     cmd.words[1].node.parts,
-                    vec![WordPart::Literal("-la".to_string())]
+                    vec![WordPart::Literal {
+                        text: "-la".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
                 assert_eq!(
                     cmd.words[2].node.parts,
-                    vec![WordPart::Literal("/tmp".to_string())]
+                    vec![WordPart::Literal {
+                        text: "/tmp".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
             }
         }
@@ -305,12 +323,43 @@ mod tests {
                 assert_eq!(cmd.words.len(), 1);
                 assert_eq!(
                     cmd.words[0].node.parts,
-                    vec![WordPart::Literal("pwd".to_string())]
+                    vec![WordPart::Literal {
+                        text: "pwd".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
                 assert_eq!(cmd.words[0].span, Span::new(0, 3));
             }
         }
         assert_eq!(node.span, Span::new(0, 3));
+    }
+
+    /// INT-169 blocker 5: QUOTING SURVIVES PARSING. A shell expands `*` as a pathname pattern
+    /// but treats `'*'` and `"*"` as literal text, so the AST has to record which was written.
+    ///
+    /// ★ This asserts the FACT, not merely that the three differ. The contract is that the AST
+    /// remembers WHY they differ, because pathname expansion, field splitting and quote removal
+    /// will each derive their own rule from the same fact. It deliberately does not mention
+    /// globbing: the guarantee is about the parser, and it held before any glob code existed.
+    #[test]
+    fn quoting_survives_into_word_parts() {
+        let cases = [
+            ("echo *", QuoteContext::Unquoted),
+            ("echo '*'", QuoteContext::Single),
+            ("echo \"*\"", QuoteContext::Double),
+        ];
+        for (source, expected) in cases {
+            let ast = parse(source).expect("parses");
+            let AstNode::Command(cmd) = &ast.node;
+            assert_eq!(
+                cmd.words[1].node.parts,
+                vec![WordPart::Literal {
+                    text: "*".to_string(),
+                    quoted: expected,
+                }],
+                "{source} must record its quoting"
+            );
+        }
     }
 
     #[test]
@@ -327,11 +376,17 @@ mod tests {
             AstNode::Command(cmd) => {
                 assert_eq!(
                     cmd.words[0].node.parts,
-                    vec![WordPart::Literal("GitHub".to_string())]
+                    vec![WordPart::Literal {
+                        text: "GitHub".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
                 assert_eq!(
                     cmd.words[1].node.parts,
-                    vec![WordPart::Literal("Clone".to_string())]
+                    vec![WordPart::Literal {
+                        text: "Clone".to_string(),
+                        quoted: QuoteContext::Unquoted,
+                    }]
                 );
             }
         }

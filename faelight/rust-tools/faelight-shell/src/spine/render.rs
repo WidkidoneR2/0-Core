@@ -30,7 +30,7 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
                     .parts
                     .iter()
                     .map(|p| match p {
-                        WordPart::Literal(s) => format!("Literal {s:?}"),
+                        WordPart::Literal { text, .. } => format!("Literal {text:?}"),
                         WordPart::Variable(n) => format!("Variable {n:?}"),
                         WordPart::SpecialParam(p) => format!("SpecialParam {p:?}"),
                         // Shown, not erased, and not recursed into: this renderer has no

@@ -129,11 +129,14 @@ proptest! {
                             // variants arrive at their roadmap steps.
                             // Literal and Variable are both produced now; the dormant variants
                             // arrive at their own milestones.
-                            prop_assert!(matches!(
+                            // Bound first, then asserted: prop_assert! stringifies its condition into a
+                            // format string, so braces inside the PATTERN would be read as placeholders.
+                            let is_known_part = matches!(
                                 part,
-                                WordPart::Literal(_) | WordPart::Variable(_)
+                                WordPart::Literal { .. } | WordPart::Variable(_)
                                     | WordPart::SpecialParam(_)
-                            ));
+                            );
+                            prop_assert!(is_known_part);
                         }
                     }
                 }

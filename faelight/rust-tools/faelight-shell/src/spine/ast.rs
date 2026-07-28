@@ -52,6 +52,19 @@ impl Span {
     }
 }
 
+/// The lexical context a region of a word was written in. NOT an interpretation -- just
+/// which delimiter (if any) enclosed the text. Expansion rules are applied later, by the
+/// phase that owns them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuoteContext {
+    /// Bare text, no enclosing quotes.
+    Unquoted,
+    /// Inside '...' -- fully literal once expansion exists.
+    Single,
+    /// Inside "..." -- allows expansion once expansion exists.
+    Double,
+}
+
 /// Any value carried with its source span. RFC section 4.2. FROZEN.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<T> {
@@ -119,14 +132,21 @@ impl Word {
     /// A word made of a single literal part -- the only kind built today (roadmap step 1).
     pub fn literal(s: impl Into<String>) -> Word {
         Word {
-            parts: vec![WordPart::Literal(s.into())],
+            // Built programmatically, so no delimiters were involved: Unquoted is the honest
+            // provenance. A constructor for PARSED source would carry the parser's context.
+            parts: vec![WordPart::Literal {
+                text: s.into(),
+                quoted: QuoteContext::Unquoted,
+            }],
         }
     }
 
     /// True if every part is a `Literal` (no expansion needed). Convenience for the
     /// early roadmap steps and tests; expansion will use richer inspection later.
     pub fn is_all_literal(&self) -> bool {
-        self.parts.iter().all(|p| matches!(p, WordPart::Literal(_)))
+        self.parts
+            .iter()
+            .all(|p| matches!(p, WordPart::Literal { .. }))
     }
 }
 
@@ -140,7 +160,17 @@ impl Word {
 /// over-design.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WordPart {
-    Literal(String),
+    /// Text as written, with HOW it was written.
+    ///
+    /// ★ `quoted` is a FACT, not a policy. The parser records which delimiter enclosed the text
+    /// and nothing more; each expansion phase derives its own rule from it. `*`, `"*"` and `'*'`
+    /// are three different words to a shell -- only the first is a pathname pattern -- and
+    /// collapsing them to one Literal made that undecidable at expansion time.
+    ///
+    /// ⚠️ Deliberately NOT a set of permission flags. `allow_globs` or `allow_splitting` would
+    /// encode semantics for expansions that do not exist yet, which is the over-design the note
+    /// above forbids. A fact cannot be wrong; a policy about an unbuilt phase can.
+    Literal { text: String, quoted: QuoteContext },
     /// A variable reference SITE, recognised but not evaluated. The AST records that `$HOME`
     /// occurred; what it evaluates to is the expansion phase's business. Produced only from
     /// Unquoted and Double segments -- inside single quotes a `$` is literal text, which is
