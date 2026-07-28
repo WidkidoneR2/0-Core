@@ -183,6 +183,17 @@ get tedious. P4 when a specific bug proves the need -- not before.
 ## Success Criteria
 - [ ] P0: correlation_id carries a REAL per-command id -- prove it with a query returning one
       command's full event story, multiple distinct ids in the table
+      <!-- UNBLOCKED 2026-07-29 by INT-169 and INT-191: THE ID NOW EXISTS. ExecContext carries
+      `execution_id`, a process-local monotonic AtomicU64 shared by all three constructors, so
+      every hook and event for one typed line can already name the same execution.
+      ⚠️ AND IT IS NOT SUFFICIENT ALONE -- INT-191 proved that. It restarts at 1 in EVERY shell
+      process, so persisting it by itself would let two concurrent sessions both claim 1, 2, 3: a
+      key that looks unique and is not. The lifecycle identity is the PAIR, (session_id,
+      execution_id), and `command_execution` already keys on both. Whatever P0 writes into
+      correlation_id must carry the pair, not the counter.
+      So P0 is now WIRING, not design: the id exists, the pairing is settled, and nothing writes
+      it. INT-169's rides-with gate stays OPEN until this lands, deliberately, so the dependency
+      keeps its reason. -->
 - [ ] P0: source_tool populated by every emitter -- the 99.6%-empty number goes to ~0
 - [ ] P0: ONE payload format, and every domain emits it. Written down, and old rows either migrated
       or explicitly declared legacy with a cutoff timestamp

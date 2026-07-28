@@ -132,6 +132,20 @@ built behind the discipline that makes it not-a-gamble.
 - [ ] AST types defined (Command / Pipeline / Redirect / Assignment to start) + ExecContext holds the AST.
 - [ ] The rides-with fixes: stop lowercasing cmd; SystemTime not u64; unique execution ID (lights up 167's
       correlation_id).
+      <!-- NOT TICKED, and deliberately: three of four are done and deploy-validated, but the
+      parenthetical is part of the acceptance condition, not commentary. Ticking would make the
+      ledger say every prerequisite holds while one stated invariant does not.
+      DONE: command identity preserves invocation case (ae081b82) -- case normalization moved to
+      the consumers that need a lookup key, because identity and lookup were accidentally coupled.
+      DONE: ExecContext.timestamp is SystemTime, with conversion to unix seconds at the DATABASE
+      boundary rather than in the type (3e0f2f46).
+      DONE: one process-local AtomicU64 across all three constructors, so every event, hook and
+      trace referring to an execution carries the same id. INT-191 then found it insufficient
+      ALONE -- it restarts at 1 in each shell -- so persistence keys on (session_id, execution_id).
+      Deploy-validated gen 438, fsh-test 105/105.
+      DEFERRED to INT-167: events.correlation_id is still a dead column. The id now EXISTS to put
+      in it; nothing writes it. That is 167's contract, not the spine's, and this gate stays open
+      until it lands so the dependency keeps its reason. -->
 - [x] fsh still boots, logs in, deploys at EVERY step. No big-bang.
       <!-- DONE -- demonstrated across generations 411-421 (11 deploys this session). Every increment
       went to the daily driver and the shell kept booting, logging in, and deploying. The old from_line
@@ -172,6 +186,55 @@ expansion) because that is where context-sensitivity lives and where the 172/174
 class came from; logos owns the regular operator tokens at steps 5-7. logos sitting
 unused after step 2 is therefore EXPECTED MID-BUILD, not a failed gate. The gate's
 wording stands as written and needs no revision.
+
+## PROGRESS 2026-07-26/29 -- expansion and policy: blockers 4, 5 and 2
+Six of nine flip blockers now done (1, 2, 3, 4, 5, 9), all with the same qualifier: implemented and
+DEMONSTRATED, opt-in path only, not the default shell path. What remains is routing (6) and
+dual-execution comparison (7) -- and those two ARE the flip.
+
+COMMAND SUBSTITUTION (blocker 4). `$(...)` is lexed as a nested REGION, parsed into a nested AST,
+lowered through its own entry point so the plan ASKS for captured output, run through a
+`CommandRunner` capability, and spliced back into the surrounding word. No layer re-scans text.
+Three things it deliberately did NOT do: no `WordPart::Glob`-style syntax variant for something
+that is not syntax; no escaped-string pattern; no lifecycle row, because INT-191 ruled a
+substitution is an EXPANSION, not a user command -- recording it would pollute history with text
+nobody typed and inflate execution counts.
+
+PATHNAME EXPANSION (blocker 5), which needed two prerequisites nobody had asked for.
+First, QUOTING HAD TO SURVIVE PARSING: `*`, `'*'` and `"*"` all collapsed to the same Literal, so
+glob eligibility could not be decided at expansion time at all. `WordPart::Literal` now carries the
+`QuoteContext` as a FACT -- not a set of permission flags, because flags would encode policy for
+expansions that do not exist yet, which this intent's own AST note forbids. Second, EXPANSION HAD TO
+BE ONE-TO-MANY: a glob is not one word in, one argv entry out. The same signature now serves brace
+expansion and sequences when they land. Only then did the glob itself arrive, as a third capability
+alongside variables and substitution -- and the deciding argument was the audit: `spine migrate`
+replays ~25,000 historical commands, and lowering that touched the filesystem would make an audit's
+result depend on when and where it ran.
+
+EXECUTION POLICY (blocker 2), and the scorecard entry for it was wrong. `from_plan` already existed,
+deriving cmd and args from `plan.argv` with no tokenizing. What was missing was the POLICY half: a
+nested command walked straight past preexec, so a substitution reached a process without meeting the
+guard a typed command cannot avoid. Adding the call was a HALF FIX and would have been worse than
+the gap -- the nested context has no source line, so the catastrophic-rm predicate substring-searched
+an EMPTY string and silently passed everything, while the gate now looked closed. The real fix is
+INT-196's thesis applied to the guard itself: the predicate takes an argument vector and must not
+flatten it into text and re-parse it. It now reads `cmd` and `args` directly, which closed two
+pre-existing holes as well -- separated flags (`rm -r -f /home`) were NEVER blocked by a substring
+search, and a path containing a space could not be represented at all.
+
+⚠️ THREE LIVE PROOFS WERE INVALID AND WERE RE-RUN. main.rs has THREE spine doors at three points in
+the pipeline: `spine-exec` (hyphen) is intercepted BEFORE expand_vars, expand_subshells and
+expand_globs, while `spine exec` (space) and `spine parse` are ordinary builtins dispatched AFTER all
+of them. Probes through the wrong door measure LEGACY expansion and look identical when they
+succeed. Blocker 4's original proof was measuring `expand_subshells`; blocker 5's was measuring
+`expand_globs`. Both were re-verified through the hyphenated door, and blocker 1's was too. A debug
+door's NAME is not evidence of where it sits.
+
+★ AND THE STRONGEST EVIDENCE IN ALL OF IT WAS A HANG, not a passing test. A stale test fixture set an
+empty argument vector while putting arguments in the display text -- a state no execution path can
+produce. When the policy became structural it correctly found nothing to block, fell through to a
+confirmation prompt, and waited forever. Narrowing the test filter would have hidden a live
+regression behind a green run.
 
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
