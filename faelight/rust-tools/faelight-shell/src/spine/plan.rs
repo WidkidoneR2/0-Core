@@ -146,11 +146,21 @@ pub struct LowerContext<'a> {
     pub runner: Option<&'a dyn CommandRunner>,
 }
 
-/// Expand one word to its final OsString. TODAY: a word is all-Literal, so this concatenates
+/// Expand one AST word to the argv entries it produces -- ZERO, ONE, or MANY.
+///
+/// ★ The cardinality is the shell's actual algorithm, not a concession to globbing. `*.rs`
+/// becomes several words, a glob matching nothing becomes none, and brace expansion and
+/// sequences will want the same shape. Returning one OsString encoded an assumption that held
+/// only while every expansion was one-to-one.
+///
+/// TODAY every word still yields exactly one entry, so argv is byte-identical -- the
+/// representation changes here and the behaviour changes in the pathname-expansion step.
+///
+/// Historical note: a word was all-Literal, so this concatenates
 /// the literal parts. This is the EXPANSION seam -- when WordPart::Variable lands (step 3),
 /// `$HOME` resolves HERE, and the lowering boundary above does not change. The match is
 /// exhaustive so the compiler flags this function the moment a new WordPart variant exists.
-fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> {
+fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerError> {
     let mut out = String::new();
     for part in &word.parts {
         match part {
@@ -217,7 +227,7 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<OsString, LowerError> 
             },
         }
     }
-    Ok(OsString::from(out))
+    Ok(vec![OsString::from(out)])
 }
 
 /// Lower a parsed AST node to the executor's ExecutionPlan. Spine side (the legacy adapter
@@ -249,11 +259,17 @@ fn lower_with_io(
 ) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
         AstNode::Command(cmd) => {
+            // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
+            // explicit rather than flat_map because Result inside flat_map hides the types at
+            // exactly the point a reader needs to see them.
             let argv: Vec<OsString> = cmd
                 .words
                 .iter()
                 .map(|w| expand_word(&w.node, ctx))
-                .collect::<Result<Vec<_>, _>>()?;
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .flatten()
+                .collect();
             Ok(ExecutionPlan {
                 argv,
                 cwd: None,
@@ -580,7 +596,7 @@ mod tests {
         let w = Word::literal("/tmp/testscript.sh");
         assert_eq!(
             expand_word(&w, &LowerContext::default()).unwrap(),
-            OsString::from("/tmp/testscript.sh")
+            vec![OsString::from("/tmp/testscript.sh")]
         );
     }
 }
