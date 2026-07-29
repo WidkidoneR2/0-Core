@@ -80,6 +80,11 @@ pub struct MigrationReport {
     pub equivalent: usize,
     pub safe_improvement: usize,
     pub feature_gap: usize,
+    /// The spine IMPLEMENTS the construct; this audit withheld the capability it needs.
+    /// INT-169: `spine migrate` lowers with no runner ON PURPOSE, because measuring parse
+    /// capability must not execute twenty-five thousand historical substitutions. Counting
+    /// those as feature gaps made the migration read as less complete than it is.
+    pub missing_capability: usize,
     pub unexpected: usize,
     /// Spine parse/lower produced no plan at all (couldn't even attempt comparison) -- distinct
     /// from a feature gap (which is a classified UnsupportedConstruct). Bounded examples.
@@ -92,6 +97,7 @@ pub struct MigrationReport {
 
     pub safe_improvement_examples: Vec<String>,
     pub feature_gap_examples: Vec<String>,
+    pub missing_capability_examples: Vec<String>,
     pub unexpected_examples: Vec<String>,
 }
 
@@ -134,6 +140,14 @@ impl MigrationAudit {
                 // Spine parsed but cannot lower this construct yet -- a migration feature gap.
                 self.report.feature_gap += 1;
                 push_example(&mut self.report.feature_gap_examples, obs.source);
+                return;
+            }
+            Err(LowerError::MissingCapability { kind: _, span: _ }) => {
+                // NOT a feature gap. Beside spine_unlowerable and spine_parse_error, which
+                // exist for the same reason: keep it visible, keep it out of the denominator's
+                // wrong bucket.
+                self.report.missing_capability += 1;
+                push_example(&mut self.report.missing_capability_examples, obs.source);
                 return;
             }
             Err(LowerError::InvalidPlan {
@@ -222,6 +236,11 @@ impl MigrationReport {
         }
         out.push('\n');
 
+        out.push_str(&format!(
+            "Not exercised:     {:>7}  {}\n",
+            self.missing_capability,
+            pct(self.missing_capability)
+        ));
         let mut section = |title: &str, examples: &[String]| {
             if !examples.is_empty() {
                 out.push_str(title);
@@ -237,6 +256,10 @@ impl MigrationReport {
             &self.safe_improvement_examples,
         );
         section("Feature-gap examples:", &self.feature_gap_examples);
+        section(
+            "Not-exercised examples (spine supports these; audit withholds the runner):",
+            &self.missing_capability_examples,
+        );
         section(
             "Unexpected examples (INVESTIGATE):",
             &self.unexpected_examples,
@@ -271,9 +294,9 @@ impl MigrationReport {
         out.push_str(&format!(
             "Recommendation: {}\n",
             if flip_ready(self) {
-                "no observed blocker -- every applicable command is equivalent or an approved improvement"
+                "no observed blocker WITHIN THE COMPARISON DOMAIN -- every applicable command is equivalent or an approved improvement"
             } else {
-                "manual review of the differences above before enabling spine execution"
+                "manual review of the comparison-domain differences above before enabling spine execution"
             }
         ));
         out

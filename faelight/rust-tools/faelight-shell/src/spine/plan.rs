@@ -84,6 +84,18 @@ pub enum LowerError {
     /// A validly-parsed construct the executor cannot run YET (a capability boundary, not a
     /// fault -- the parser is allowed to run ahead of the executor).
     UnsupportedConstruct { kind: &'static str, span: Span },
+    /// A construct the spine DOES implement, refused because this lowering environment did
+    /// not supply the capability it needs. INT-169: distinct from the above, and the
+    /// distinction is the whole point -- `spine migrate` lowers with no runner on purpose,
+    /// since measuring parse capability must not execute twenty-five thousand historical
+    /// substitutions. Reporting those as unsupported constructs made the migration look less
+    /// complete than it is: eighty command substitutions counted as language the spine lacks,
+    /// when the spine has had them since blocker 4 and the audit simply withheld the runner.
+    ///
+    /// ⚠️ Only the RUNNER errors. An absent VarResolver renders the source form and an absent
+    /// GlobResolver keeps the pattern as text, because both can degrade honestly -- a
+    /// substitution's VALUE cannot be invented, so there is nothing to fall back to.
+    MissingCapability { kind: &'static str, span: Span },
     /// A construct that lowered to something the executor would reject. May never be
     /// constructed; the span is kept because the type should embody the source-pointing promise.
     InvalidPlan { message: String, span: Span },
@@ -229,7 +241,7 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
                 // run commands at all -- an audit replaying history, or the raw diagnostic door.
                 // That is a different fact from a command that ran and failed, which arrives below
                 // as InvalidPlan.
-                let runner = ctx.runner.ok_or(LowerError::UnsupportedConstruct {
+                let runner = ctx.runner.ok_or(LowerError::MissingCapability {
                     kind: "command substitution",
                     span: node.span,
                 })?;
@@ -783,16 +795,18 @@ mod tests {
     }
 
     /// INT-169 blocker 4: the boundary in one test. PARSING SUCCEEDS -- `$(...)` is valid shell
-    /// syntax and the AST carries it -- while LOWERING REFUSES, because the executor cannot run a
-    /// substitution yet. The failure is a capability report, not a fault.
+    /// syntax and the AST carries it -- while LOWERING REFUSES, because THIS CONTEXT SUPPLIED NO
+    /// RUNNER. ⚠️ Not because the executor lacks substitution: it has had one since blocker 4.
+    /// The comment here used to say it could not run one yet, and the error said the same, which
+    /// is how eighty command substitutions came to be reported as language the spine lacks.
     #[test]
     fn command_substitution_parses_but_does_not_lower() {
         let ast = parse("echo $(pwd)").expect("valid syntax parses");
         match lower(&ast, &LowerContext::default()) {
-            Err(LowerError::UnsupportedConstruct { kind, .. }) => {
+            Err(LowerError::MissingCapability { kind, .. }) => {
                 assert_eq!(kind, "command substitution");
             }
-            other => panic!("expected UnsupportedConstruct, got {other:?}"),
+            other => panic!("expected MissingCapability, got {other:?}"),
         }
     }
 

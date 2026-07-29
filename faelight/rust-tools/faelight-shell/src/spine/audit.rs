@@ -52,6 +52,13 @@ pub struct AuditReport {
     /// to build next.
     pub unsupported_examples: Vec<String>,
 
+    /// Constructs the spine implements but this audit could not exercise, because it lowers
+    /// with NO capabilities on purpose -- supplying a runner would execute every historical
+    /// command substitution just to measure it. Counted apart from `unsupported`, which would
+    /// otherwise read as language the spine lacks.
+    pub missing_capability: usize,
+    pub missing_capability_examples: Vec<String>,
+
     /// Plans that lowered but failed a well-formedness check (a real bug -- lowering produced
     /// something the executor would reject).
     pub malformed_plans: usize,
@@ -121,6 +128,11 @@ pub fn audit_history(commands: impl Iterator<Item = String>) -> AuditReport {
                 *report.unsupported.entry(kind).or_insert(0) += 1;
                 push_example(&mut report.unsupported_examples, &raw);
             }
+            Ok(Outcome::MissingCapability(_kind)) => {
+                report.parse_success += 1;
+                report.missing_capability += 1;
+                push_example(&mut report.missing_capability_examples, &raw);
+            }
             Ok(Outcome::Malformed(_reason)) => {
                 report.parse_success += 1;
                 report.malformed_plans += 1;
@@ -153,6 +165,9 @@ enum Outcome {
     /// Valid shell the parser positively identified and declined -- not malformed input.
     RefusedOperator(OperatorKind),
     Unsupported(String),
+    /// The spine CAN lower this; this audit supplied no capability for it. Distinct from
+    /// Unsupported, which means the executor has no such construct at all.
+    MissingCapability(String),
     Malformed(String),
     Ok,
 }
@@ -174,6 +189,12 @@ fn audit_one(raw: &str) -> Outcome {
     match lower(&node, &super::plan::LowerContext::default()) {
         Err(LowerError::UnsupportedConstruct { kind, .. }) => {
             Outcome::Unsupported(kind.to_string())
+        }
+        // Same distinction, second report: the spine HAS command substitution -- this audit
+        // supplies no capabilities, so it cannot exercise it. Calling that unsupported was the
+        // same mislabel migrate_audit carried.
+        Err(LowerError::MissingCapability { kind, .. }) => {
+            Outcome::MissingCapability(kind.to_string())
         }
         Err(LowerError::InvalidPlan { message, .. }) => Outcome::Malformed(message),
         Ok(plan) => match validate_plan(&plan) {
@@ -253,6 +274,19 @@ impl AuditReport {
             out.push_str("Top unsupported examples:\n");
             for ex in &self.unsupported_examples {
                 out.push_str(&format!("  {ex}\n"));
+            }
+
+            if self.missing_capability > 0 {
+                out.push_str("Not exercised -- capability withheld by this audit:\n");
+                out.push_str(&format!("  {}\n", self.missing_capability));
+                out.push_str(
+                    "  note: the spine implements these; the audit lowers with no runner so it\n",
+                );
+                out.push_str("  never executes historical commands to measure them.\n");
+                for ex in &self.missing_capability_examples {
+                    out.push_str(&format!("    {ex}\n"));
+                }
+                out.push('\n');
             }
             out.push('\n');
         }
