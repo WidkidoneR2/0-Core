@@ -3929,6 +3929,14 @@ fn repl_main() -> Result<()> {
                 })
                 .unwrap_or_default();
         println!();
+        // INT-169: MIGRATION, not compatibility. A green suite proves a command behaved the
+        // same; it cannot say whether the spine ran it or the router declined and legacy did.
+        // Printed once per session and only on request, so normal use stays quiet.
+        if std::env::var_os("FSH_SPINE_METRICS").is_some() {
+            if let Some(report) = exec::spine_routing_report() {
+                println!("{report}");
+            }
+        }
         println!("  🌲 Session complete");
         println!(
             "  {} commands  ·  {} deploys  ·  {} commits  ·  {}",

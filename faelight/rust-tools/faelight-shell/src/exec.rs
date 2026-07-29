@@ -1130,6 +1130,41 @@ pub fn execute_spine_source(
 ///
 /// ⚠️ This must never be `execute_spine_source(...).into()`. That function turns a refusal into an
 /// error string, so a router built on it would swallow every piped command instead of declining it.
+/// INT-169: ROUTING COUNTERS. A green test suite proves COMPATIBILITY -- a command behaves the same
+/// whether the spine ran it or the router declined and legacy did. It does not prove MIGRATION.
+/// These answer the second question, and they are split by REASON because a single total hides the
+/// work queue: a parse decline is a grammar gap, a capability decline is a lowering feature, and an
+/// unsupported construct is an intentional boundary.
+static SPINE_CLAIMED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static SPINE_DECLINED_PARSE: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+static SPINE_DECLINED_CAPABILITY: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+static SPINE_DECLINED_CONSTRUCT: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+fn bump(c: &std::sync::atomic::AtomicUsize) {
+    c.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// One line per session, not per command. `None` when the spine never saw anything.
+pub fn spine_routing_report() -> Option<String> {
+    let get = |c: &std::sync::atomic::AtomicUsize| c.load(std::sync::atomic::Ordering::Relaxed);
+    let (claimed, parse, cap, cons) = (
+        get(&SPINE_CLAIMED),
+        get(&SPINE_DECLINED_PARSE),
+        get(&SPINE_DECLINED_CAPABILITY),
+        get(&SPINE_DECLINED_CONSTRUCT),
+    );
+    if claimed + parse + cap + cons == 0 {
+        return None;
+    }
+    Some(format!(
+        "  spine routing: claimed {claimed} · declined {} (parse {parse}, capability {cap}, construct {cons})",
+        parse + cap + cons
+    ))
+}
+
 pub fn try_execute_spine_source(
     source: &str,
     shell: &ShellContext,
@@ -1138,15 +1173,32 @@ pub fn try_execute_spine_source(
     rules: &[BeforeRunRule],
 ) -> Option<CommandResult> {
     match lower_spine_source(source, shell, db, core_root, rules) {
-        Ok(plan) => Some(execute_spine(&plan, source, db, core_root, rules)),
-        Err(SpineAttemptError::Parse(_)) => None,
+        Ok(plan) => {
+            bump(&SPINE_CLAIMED);
+            Some(execute_spine(&plan, source, db, core_root, rules))
+        }
+        Err(SpineAttemptError::Parse(_)) => {
+            bump(&SPINE_DECLINED_PARSE);
+            None
+        }
         Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::MissingCapability {
             ..
-        }))
-        | Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::UnsupportedConstruct {
+        })) => {
+            bump(&SPINE_DECLINED_CAPABILITY);
+            None
+        }
+        Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::UnsupportedConstruct {
             ..
-        })) => None,
-        Err(e) => Some(CommandResult::Error(format!("spine: {e:?}"))),
+        })) => {
+            bump(&SPINE_DECLINED_CONSTRUCT);
+            None
+        }
+        // ⚠️ NOT a decline. The spine ACCEPTED ownership and produced a spine-owned error, so it
+        // counts as claimed -- a defect to investigate, not a fallback to celebrate.
+        Err(e) => {
+            bump(&SPINE_CLAIMED);
+            Some(CommandResult::Error(format!("spine: {e:?}")))
+        }
     }
 }
 
