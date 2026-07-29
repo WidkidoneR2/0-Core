@@ -5,12 +5,28 @@
 //!
 //!   BARE_GOLDENS  -- commands the parser handles CORRECTLY today. True regressions:
 //!                    these must NOT change unless we break bare-command parsing.
-//!   FUTURE_GOLDENS -- real commands with quotes / pipes / redirects / vars that parse
-//!                    IMPERFECTLY today (the lexer splits on whitespace, so `"a b"` is not
-//!                    yet one word, `|` is just a literal, etc). These capture CURRENT
-//!                    behavior as a baseline that is EXPECTED to change as roadmap steps
-//!                    2-8 land -- a golden here flipping is the signal a construct works
-//!                    against real input.
+//!   FUTURE_GOLDENS -- real commands whose syntax the spine is expected to OWN eventually.
+//!                    They parse imperfectly today and the pinned render is a baseline; a
+//!                    golden here flipping is the signal a roadmap step works against real
+//!                    input.
+//!
+//!   FUTURE_REFUSALS -- real shell the spine RECOGNISES and intentionally does not own yet.
+//!                    ⚠️ Do not fold these back into FUTURE_GOLDENS. They are not the same
+//!                    kind of future state, and merging them would undo INT-169's boundary.
+//!
+//! ★ AN UNSUPPORTED CONSTRUCT HAS THREE STATES, and the middle one is what makes an
+//! incremental shell replacement possible at all:
+//!
+//!   1. INVISIBLE BUG        the scanner treats the syntax as data, so `echo a | grep a`
+//!                           becomes five words and LOWERS -- the shell claiming a command
+//!                           it cannot run.
+//!   2. EXPLICIT REFUSAL     the lexer identifies it and the parser declines ownership.
+//!                           This is where operators sit today.
+//!   3. OWNED IMPLEMENTATION the parser builds the node and lowering decides execution.
+//!
+//! A hybrid shell cannot jump from "legacy owns everything" to "spine owns everything".
+//! It goes through "the spine can say which commands are not its own", and these two
+//! corpora record which fragments are in which state.
 //!
 //! Expected output is the exact `render()` of the parsed AST, captured as ground-truth
 //! from the real parser (not hand-written). If render's format changes intentionally,
@@ -18,7 +34,8 @@
 
 #![cfg(test)]
 
-use super::parser::parse;
+use super::lexer::OperatorKind;
+use super::parser::{parse, ParseError};
 use super::render::render;
 
 /// (input, expected rendered AST). Parser handles these correctly today.
@@ -67,37 +84,34 @@ const BARE_GOLDENS: &[(&str, &str)] = &[
 /// pipes/redirects/&& before the builtin ever sees them). These are EXPECTED to change as
 /// roadmap steps 2-8 land; a flip here is the signal a construct works on real input.
 const FUTURE_GOLDENS: &[(&str, &str)] = &[
-    // step 2 LANDED (2026-07-22): "message here" is now ONE word, quotes consumed, and the
-    // word span covers the quote characters. This golden FLIPPED -- the proof step 2 works
-    // against a real command from history. It is now CORRECT behavior, so it is a true
-    // regression and belongs in BARE_GOLDENS; left here until the tiers are re-sorted.
     (
         "git commit -m \"message here\"",
         "Command @[0,28)\n  Word @[0,3)  Literal \"git\"\n  Word @[4,10)  Literal \"commit\"\n  Word @[11,13)  Literal \"-m\"\n  Word @[14,28)  Literal \"message here\"\n  redirects: []\n",
     ),
-    // step 6 (pipelines): `|` becomes a Pipeline node above two Commands.
-    (
-        "ls faelight | grep vm",
-        "Command @[0,21)\n  Word @[0,2)  Literal \"ls\"\n  Word @[3,11)  Literal \"faelight\"\n  Word @[12,13)  Literal \"|\"\n  Word @[14,18)  Literal \"grep\"\n  Word @[19,21)  Literal \"vm\"\n  redirects: []\n",
-    ),
-    // step 5 (redirections, the 172 territory): `2>` becomes a Redirect, not a word.
-    (
-        "cat log 2> /dev/null",
-        "Command @[0,20)\n  Word @[0,3)  Literal \"cat\"\n  Word @[4,7)  Literal \"log\"\n  Word @[8,10)  Literal \"2>\"\n  Word @[11,20)  Literal \"/dev/null\"\n  redirects: []\n",
-    ),
-    // step 7 (lists): `&&` becomes a Sequence/And node above two Commands.
-    (
-        "a && b",
-        "Command @[0,6)\n  Word @[0,1)  Literal \"a\"\n  Word @[2,4)  Literal \"&&\"\n  Word @[5,6)  Literal \"b\"\n  redirects: []\n",
-    ),
-    // VARIABLE RECOGNITION LANDED (2026-07-22): `foo$BAR` is now Literal("foo") + Variable("BAR").
-    // This golden FLIPPED -- proof the parser recognises expansion sites. NOTE only the RENDER
-    // changed: expand_word renders Variable back to `$BAR`, so argv is byte-identical and the
-    // migration audit is unaffected. It will move again at the variable-EXPANSION milestone.
     (
         "echo foo$BAR",
         "Command @[0,12)\n  Word @[0,4)  Literal \"echo\"\n  Word @[5,12)  Literal \"foo\" Variable \"BAR\"\n  redirects: []\n",
     ),
+];
+
+/// Inputs the spine now DECLINES, with the operator it declined on.
+///
+/// ★ A SECOND KIND OF FUTURE STATE, and the reason these left FUTURE_GOLDENS. That corpus
+/// records `current AST -> future AST`: a construct lands and the pinned render changes.
+/// Operators do not move that way. They go `accidental AST -> explicit refusal -> owned AST`,
+/// and the middle state is not noise -- it is the whole point of INT-169's operator tokens.
+/// Before them `|` was ordinary word content, so `ls faelight | grep vm` produced a five-word
+/// Command and LOWERED, which is a shell claiming a command it cannot run.
+///
+/// These flip BACK when pipelines, redirects and boolean chains actually land.
+///
+/// ⚠️ `2>` is deliberately not one token: it lexes as Word("2") then RedirectOut, so the
+/// refusal is correct while whether redirects own numeric fd prefixes stays a later grammar
+/// decision.
+const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
+    ("ls faelight | grep vm", OperatorKind::Pipe),
+    ("cat log 2> /dev/null", OperatorKind::RedirectOut),
+    ("a && b", OperatorKind::And),
 ];
 
 #[cfg(test)]
@@ -132,6 +146,26 @@ mod tests {
                 &got, expected,
                 "\nFUTURE golden changed for input {input:?} -- if a construct landed, update the golden.\n--- expected ---\n{expected}\n--- got ---\n{got}\n"
             );
+        }
+    }
+
+    /// ★ THE MIGRATION CONTRACT, and a different question from either golden corpus. The goldens
+    /// ask "did the supported language change?"; this asks "can the spine prove a command is
+    /// outside its ownership WITHOUT lowering or executing it?"
+    ///
+    /// That distinction is what makes the legacy fallback safe. A router may only fall back on a
+    /// refusal that happened before anything ran -- `lower()` cannot serve, because it executes
+    /// command substitutions before it can discover what it does not support, and legacy would
+    /// then run them a second time.
+    #[test]
+    fn refused_constructs_never_reach_lowering() {
+        for (input, want) in FUTURE_REFUSALS {
+            match parse(input) {
+                Err(ParseError::UnsupportedOperator { kind, .. }) => {
+                    assert_eq!(kind, *want, "{input:?} was declined as the wrong construct")
+                }
+                other => panic!("{input:?} crossed the ownership boundary: {other:?}"),
+            }
         }
     }
 

@@ -10,7 +10,9 @@
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
 use super::ast::{AstNode, Command, Span, Spanned, SpecialParam, Word, WordPart};
-use super::lexer::{lex, LexError, QuoteContext, SpannedToken, TokenKind, WordSegment};
+use super::lexer::{
+    lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
+};
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +21,21 @@ pub enum ParseError {
     Lex(LexError),
     /// Nothing to parse (empty / whitespace-only input).
     Empty,
+    /// A shell operator the spine's grammar does not cover. INT-169: THE REFUSAL BOUNDARY.
+    ///
+    /// ★ NOT "unexpected". The parser knows perfectly well the lexer can produce operators -- this
+    /// is valid shell that belongs to a grammar this parser does not implement. That is a different
+    /// diagnostic from malformed input, and conflating them would make the eventual router unable to
+    /// tell "not mine" from "broken".
+    ///
+    /// ⚠️ Also distinct from `LowerError::UnsupportedConstruct`, despite the family resemblance.
+    /// That one means "I understand this AST shape but cannot execute it"; this one means "this
+    /// token stream is outside my grammar". `echo a | b` may one day parse into a Pipeline and
+    /// STILL be refused at lowering -- different stages, different errors.
+    ///
+    /// Carries the operator identity, not just a span, because a refusal that cannot say WHICH
+    /// construct it declined is a worse diagnostic and a weaker test.
+    UnsupportedOperator { kind: OperatorKind, span: Span },
     // grows as the grammar does: UnexpectedToken(Span), Unterminated(Span), ...
 }
 
@@ -66,6 +83,15 @@ impl Parser {
 
         while let Some(tok) = self.peek() {
             match tok.kind {
+                // INT-169: DECLINE OWNERSHIP, and do not advance. The spine parser is not learning
+                // pipelines here -- it is learning where its language ENDS. The token is left in
+                // place because refusing is not consuming.
+                TokenKind::Operator(kind) => {
+                    return Err(ParseError::UnsupportedOperator {
+                        kind,
+                        span: tok.span,
+                    })
+                }
                 TokenKind::Word => {
                     let t = self.advance().expect("peek was Some");
                     let wspan = t.span;
@@ -359,6 +385,55 @@ mod tests {
                 }],
                 "{source} must record its quoting"
             );
+        }
+    }
+
+    /// ★ THE REFUSAL BOUNDARY, which is the whole point of the operator tokens. The spine does not
+    /// implement pipelines, redirects, boolean chains, sequences or background execution -- and
+    /// before this it could not SAY so, because those characters were ordinary word content. A
+    /// router built on the old parser would have claimed every one of these.
+    #[test]
+    fn the_parser_declines_shell_it_does_not_implement() {
+        for (source, want) in [
+            ("echo hi | grep h", OperatorKind::Pipe),
+            ("ls > out.txt", OperatorKind::RedirectOut),
+            ("ls >> out.txt", OperatorKind::RedirectAppend),
+            ("wc -l < in.txt", OperatorKind::RedirectIn),
+            ("a && b", OperatorKind::And),
+            ("a || b", OperatorKind::Or),
+            ("a ; b", OperatorKind::Sequence),
+            ("sleep 5 &", OperatorKind::Background),
+        ] {
+            match parse(source) {
+                Err(ParseError::UnsupportedOperator { kind, .. }) => {
+                    assert_eq!(kind, want, "{source} declined as the wrong construct")
+                }
+                other => panic!("{source} was not declined: {other:?}"),
+            }
+        }
+    }
+
+    /// The refusal points at the OPERATOR, not at the whole command. The input is not malformed --
+    /// it is valid shell belonging to a grammar this parser does not implement -- so the span marks
+    /// the ownership boundary rather than blaming the line.
+    #[test]
+    fn the_refusal_points_at_the_operator() {
+        let source = "echo hi | grep h";
+        match parse(source) {
+            Err(ParseError::UnsupportedOperator { span, .. }) => {
+                assert_eq!(&source[span.start..span.end], "|");
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    /// ⚠️ THE INVERSE, and the one that keeps the boundary honest: a QUOTED operator is an argument,
+    /// so these must still parse. A refusal that fired here would hand perfectly good commands to
+    /// the legacy path forever and nobody would notice.
+    #[test]
+    fn a_quoted_operator_is_still_ours() {
+        for source in ["echo \"|\"", "echo \'&&\'", "echo \">\""] {
+            assert!(parse(source).is_ok(), "{source} should parse");
         }
     }
 

@@ -22,7 +22,8 @@ use std::collections::HashSet;
 use std::ffi::OsString;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use super::parser::parse;
+use super::lexer::OperatorKind;
+use super::parser::{parse, ParseError};
 use super::plan::{lower, ExecutionPlan, LowerError};
 
 /// The result of auditing a history corpus. Two metrics kept distinct: VOLUME (every entry --
@@ -86,16 +87,6 @@ fn validate_plan(plan: &ExecutionPlan) -> Option<String> {
     None
 }
 
-/// HEURISTIC. Intentionally dumb: exact-match a bare operator token in argv. No quoting
-/// reconstruction, no syntax inference, no attempt at correctness -- the parser owns meaning.
-/// This only reports "I saw something suspicious" so the audit is honest that operator-shaped
-/// input exists that the AST does not yet model. Removed once operators are real (steps 5-7).
-fn looks_operator_shaped(argv: &[OsString]) -> bool {
-    const OPERATORS: &[&str] = &["|", "||", "&&", ";", ">", ">>", "<", "2>"];
-    argv.iter()
-        .any(|a| a.to_str().is_some_and(|s| OPERATORS.contains(&s)))
-}
-
 /// Audit a corpus of raw command strings. Pure: no I/O, no database -- feed it any iterator.
 pub fn audit_history(commands: impl Iterator<Item = String>) -> AuditReport {
     let mut report = AuditReport::default();
@@ -136,13 +127,18 @@ pub fn audit_history(commands: impl Iterator<Item = String>) -> AuditReport {
                 report.malformed_plans += 1;
                 push_example(&mut report.malformed_examples, &raw);
             }
-            Ok(Outcome::Ok { operator_shaped }) => {
+            // INT-169: a REFUSAL is not a parse failure in the ordinary sense. It is valid shell
+            // the spine declines to own, and the flip decision needs that counted separately from
+            // malformed input -- "how much of real history can we not take" is a different
+            // question from "how much of it is broken".
+            Ok(Outcome::RefusedOperator(_)) => {
+                report.parse_failure += 1;
+                report.operator_shaped += 1;
+                push_example(&mut report.operator_shaped_examples, &raw);
+            }
+            Ok(Outcome::Ok) => {
                 report.parse_success += 1;
                 report.lower_success += 1;
-                if operator_shaped {
-                    report.operator_shaped += 1;
-                    push_example(&mut report.operator_shaped_examples, &raw);
-                }
             }
         }
     }
@@ -152,15 +148,23 @@ pub fn audit_history(commands: impl Iterator<Item = String>) -> AuditReport {
 
 enum Outcome {
     ParseFailure,
+    /// Valid shell the parser positively identified and declined -- not malformed input.
+    RefusedOperator(OperatorKind),
     Unsupported(String),
     Malformed(String),
-    Ok { operator_shaped: bool },
+    Ok,
 }
 
 /// The parse -> lower -> validate pipeline for a single command.
 fn audit_one(raw: &str) -> Outcome {
     let node = match parse(raw) {
         Ok(n) => n,
+        // ★ RE-SOURCED FROM A FACT. This used to collapse every parse error into one bucket, and
+        // "operator-shaped" was then INFERRED afterwards by inspecting a lowered argv -- the only
+        // evidence available while `|` was ordinary word content. The parser now says so directly,
+        // and an inference that survives alongside the fact it was standing in for becomes the
+        // inert instrumentation INT-167 keeps finding.
+        Err(ParseError::UnsupportedOperator { kind, .. }) => return Outcome::RefusedOperator(kind),
         Err(_) => return Outcome::ParseFailure,
     };
     // No environment, deliberately: `spine audit` measures parse+lower CAPABILITY over the
@@ -172,9 +176,7 @@ fn audit_one(raw: &str) -> Outcome {
         Err(LowerError::InvalidPlan { message, .. }) => Outcome::Malformed(message),
         Ok(plan) => match validate_plan(&plan) {
             Some(reason) => Outcome::Malformed(reason),
-            None => Outcome::Ok {
-                operator_shaped: looks_operator_shaped(&plan.argv),
-            },
+            None => Outcome::Ok,
         },
     }
 }
@@ -294,13 +296,22 @@ mod tests {
     }
 
     #[test]
-    fn heuristic_flags_operator_shaped_but_still_lowers() {
-        // `ls | grep x` parses as 4 literal words today and LOWERS (wrongly) -- the heuristic
-        // must flag it as operator-shaped WITHOUT it being a failure. Orthogonal categories.
+    fn operator_shaped_commands_are_refused_before_lowering() {
+        // HISTORY, kept because it explains why this test exists: `ls | grep x` used to parse as
+        // FOUR LITERAL WORDS and LOWER -- wrongly -- because `|` was ordinary word content. The
+        // heuristic existed to flag that from the outside, compensating for a language boundary
+        // the parser did not have.
+        //
+        // INT-169 gave the lexer operator tokens, so the parser now REFUSES before lowering and
+        // the heuristic became confirmation rather than inference. This asserts the old failure
+        // mode cannot return: a command the spine cannot execute must not reach a plan.
         let r = audit_history(vec!["ls | grep x".to_string()].into_iter());
-        assert_eq!(r.lower_success, 1, "lowers today (| is a literal word)");
-        assert_eq!(r.operator_shaped, 1, "but flagged operator-shaped");
-        assert_eq!(r.parse_failure, 0);
+        assert_eq!(
+            r.lower_success, 0,
+            "must not lower a command it cannot execute"
+        );
+        assert_eq!(r.parse_failure, 1, "the parser declines it");
+        assert_eq!(r.operator_shaped, 1, "and the heuristic still flags it");
         assert_eq!(r.panics, 0);
     }
 

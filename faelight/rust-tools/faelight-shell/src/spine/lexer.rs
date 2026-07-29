@@ -54,11 +54,56 @@ pub enum WordSegment {
     CommandSub { source: String, span: Span },
 }
 
-/// Raw token kinds. Only `Word` exists today; operators and $-constructs arrive at their
-/// roadmap steps (and those, being structurally regular, are where logos returns).
+/// A shell operator, recorded as WHAT WAS SEEN rather than as a judgement about it.
+///
+/// ★ Deliberately NOT `Unsupported(char)`. The lexer has no authority over ownership: it reports
+/// that a pipe occurred, and the PARSER decides whether a pipe is part of its grammar. Same
+/// separation as `QuoteContext` -- facts in the scanner, policy above it. It also means no consumer
+/// ever has to know that `>>` is two characters; that belongs here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatorKind {
+    Pipe,
+    Or,
+    And,
+    /// A lone `&`. ⚠️ INCLUDED DELIBERATELY, though it stretches the "smallest useful set" rule:
+    /// omitting it is not neutral. `sleep 5 &` would then lex as three WORDS, parse cleanly, and
+    /// execute `sleep` with `&` as a literal argument. An incomplete refusal is a mis-execution.
+    Background,
+    RedirectOut,
+    RedirectAppend,
+    RedirectIn,
+    Sequence,
+}
+
+/// Raw token kinds. `Word` and now `Operator`; `$`-constructs arrive at their roadmap steps.
+///
+/// ⚠️ Operators exist so the spine can REFUSE, not so it can execute them. Nothing here implies a
+/// pipeline or redirect will ever be run by this path -- see the parser's UnsupportedConstruct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     Word,
+    Operator(OperatorKind),
+}
+
+/// The operator starting at `i`, and how many CHARS it spans. `None` for anything else.
+///
+/// ⚠️ Called ONLY in unquoted context. `echo "|"` is data, and the caller's state machine is the
+/// only thing that knows the difference -- which is precisely why a stateless pattern matcher
+/// cannot own this and logos stays deferred.
+fn operator_at(chars: &[(usize, char)], i: usize) -> Option<(OperatorKind, usize)> {
+    let c = chars.get(i)?.1;
+    let next = chars.get(i + 1).map(|x| x.1);
+    Some(match (c, next) {
+        ('>', Some('>')) => (OperatorKind::RedirectAppend, 2),
+        ('&', Some('&')) => (OperatorKind::And, 2),
+        ('|', Some('|')) => (OperatorKind::Or, 2),
+        ('|', _) => (OperatorKind::Pipe, 1),
+        ('&', _) => (OperatorKind::Background, 1),
+        ('>', _) => (OperatorKind::RedirectOut, 1),
+        ('<', _) => (OperatorKind::RedirectIn, 1),
+        (';', _) => (OperatorKind::Sequence, 1),
+        _ => return None,
+    })
 }
 
 /// A token with its owned content, span, and lexical segments -- what the parser consumes.
@@ -112,6 +157,17 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
             let after = pos + ch.len_utf8();
 
             if context == QuoteContext::Unquoted && ch.is_whitespace() {
+                break;
+            }
+
+            // INT-169: an operator is a BOUNDARY INTERRUPT, handled exactly like whitespace above --
+            // break, let the existing word emission run, then consume the operator after it. That
+            // deliberately avoids adding a second way for a word to end; there is one such path and
+            // this gives it one more reason to fire.
+            //
+            // ⚠️ Unquoted only. `echo "|"` and `echo '|'` are data, and `$(...)` never reaches here
+            // because its whole region is consumed above.
+            if context == QuoteContext::Unquoted && operator_at(&chars, idx).is_some() {
                 break;
             }
 
@@ -245,12 +301,31 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
             });
         }
 
-        out.push(SpannedToken {
-            kind: TokenKind::Word,
-            text,
-            span: Span::new(word_start, word_end),
-            segments,
-        });
+        // ⚠️ GUARDED ON SEGMENTS, NOT TEXT. A line beginning with an operator, or the boundary in
+        // `echo hi|grep`, would otherwise emit an empty Word. It cannot be a text check: `echo ""`
+        // is a real empty argument and legitimately produces an empty token WITH a segment.
+        if !segments.is_empty() {
+            out.push(SpannedToken {
+                kind: TokenKind::Word,
+                text,
+                span: Span::new(word_start, word_end),
+                segments,
+            });
+        }
+
+        // The word ended because an operator was found; emit it and resume.
+        if let Some((op, len)) = operator_at(&chars, idx) {
+            let start = chars[idx].0;
+            let last = chars[idx + len - 1];
+            let end = last.0 + last.1.len_utf8();
+            out.push(SpannedToken {
+                kind: TokenKind::Operator(op),
+                text: source[start..end].to_string(),
+                span: Span::new(start, end),
+                segments: Vec::new(),
+            });
+            idx += len;
+        }
     }
 
     Ok(out)
@@ -283,6 +358,95 @@ mod tests {
             WordSegment::Text { span, .. } => *span,
             other => panic!("expected a Text segment, got {other:?}"),
         }
+    }
+
+    /// INT-169: OPERATORS ARE TOKENS. The spine does not execute a pipe -- it must be able to SEE
+    /// one in order to decline the command, and until this existed `|` was an ordinary character
+    /// inside a word, so `echo hi | grep h` parsed happily into five words and the router would
+    /// have claimed a command it cannot run.
+    #[test]
+    fn operators_become_their_own_tokens() {
+        let toks = lex("echo hi | grep h").expect("lexes");
+        assert_eq!(toks.len(), 5);
+        assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Pipe));
+        assert_eq!(toks[2].text, "|");
+        assert_eq!(toks[3].text, "grep");
+    }
+
+    /// ADJACENCY, which is where a whitespace-based split would quietly fail. Shell users do not
+    /// add spaces around pipes, and `hi|grep` must be three tokens rather than one word.
+    #[test]
+    fn an_operator_splits_a_word_without_whitespace() {
+        let toks = lex("echo hi|grep h").expect("lexes");
+        assert_eq!(
+            toks.iter().map(|t| t.text.clone()).collect::<Vec<_>>(),
+            vec!["echo", "hi", "|", "grep", "h"]
+        );
+        assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Pipe));
+    }
+
+    /// ★ QUOTES PROTECT OPERATORS, which is the whole reason recognition lives inside the scanner's
+    /// state machine rather than in a stateless matcher: only the scanner knows the current region.
+    #[test]
+    fn a_quoted_operator_is_data() {
+        for source in ["echo \"|\"", "echo \'|\'", "echo \">>\"", "echo \'&&\'"] {
+            let toks = lex(source).expect("lexes");
+            assert_eq!(toks.len(), 2, "{source} must stay two words");
+            assert!(
+                toks.iter().all(|t| t.kind == TokenKind::Word),
+                "{source} produced an operator token"
+            );
+        }
+    }
+
+    /// LONGEST MATCH. `>>` is one operator, not two, and the parser must never learn that.
+    #[test]
+    fn multi_character_operators_win_over_their_prefixes() {
+        for (source, want) in [
+            ("echo a >> b", OperatorKind::RedirectAppend),
+            ("echo a > b", OperatorKind::RedirectOut),
+            ("a && b", OperatorKind::And),
+            ("a || b", OperatorKind::Or),
+            ("a | b", OperatorKind::Pipe),
+        ] {
+            let toks = lex(source).expect("lexes");
+            let ops: Vec<_> = toks.iter().filter(|t| t.kind != TokenKind::Word).collect();
+            assert_eq!(ops.len(), 1, "{source}");
+            assert_eq!(ops[0].kind, TokenKind::Operator(want), "{source}");
+        }
+    }
+
+    /// ⚠️ THE CASE THAT WOULD HAVE BEEN A FALSE OWNERSHIP CLAIM. A lone `&` was nearly left out as
+    /// "not the smallest useful set"; omitting it means `sleep 5 &` lexes as three words, parses
+    /// cleanly, and runs `sleep` with `&` as a literal argument. An incomplete refusal executes.
+    #[test]
+    fn a_lone_ampersand_is_an_operator() {
+        let toks = lex("sleep 5 &").expect("lexes");
+        assert_eq!(toks.len(), 3);
+        assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Background));
+    }
+
+    /// An operator inside a command substitution belongs to the NESTED program, and the region is
+    /// consumed whole before the operator check ever sees those characters.
+    #[test]
+    fn an_operator_inside_a_substitution_is_not_ours() {
+        let toks = lex("echo $(echo a | b)").expect("lexes");
+        assert_eq!(
+            toks.len(),
+            2,
+            "{:?}",
+            toks.iter().map(|t| &t.text).collect::<Vec<_>>()
+        );
+        assert!(toks.iter().all(|t| t.kind == TokenKind::Word));
+    }
+
+    /// A leading operator must not emit an empty Word first -- the reason the word emission is
+    /// guarded on SEGMENTS rather than on text.
+    #[test]
+    fn a_leading_operator_emits_no_empty_word() {
+        let toks = lex("| grep h").expect("lexes");
+        assert_eq!(toks[0].kind, TokenKind::Operator(OperatorKind::Pipe));
+        assert_eq!(toks.len(), 3);
     }
 
     #[test]
