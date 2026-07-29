@@ -870,6 +870,54 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    // ⚠️ THE SHAPE FOUR EXISTING REDIRECT TESTS MISS. repl_pipe_control_no_redirect,
+    // repl_stdout_redirect_with_2to1, repl_pipeline_never_becomes_a_filename and
+    // repl_143_redirect_runs_once were all green while `echo hi | cat > f` wrote the literal text
+    // `hi | cat` into the file -- because none of them starts a redirected pipeline with a BUILTIN.
+    // The builtin probe matched `echo` and took the rest of the line as ARGUMENTS.
+    //
+    // Follows repl_193_cat_redirect_output_matches_source's shape for reasons that comment records:
+    // clears its files FIRST (INT-172 hygiene), reads back WITHOUT `cat` (aliased to bat here), and
+    // filters the `[n/N]` progress lines, because the success token also appears in the echoed
+    // command text -- without that filter these pass no matter what the shell does.
+    results.push(test(
+        "repl_builtin_first_pipeline_with_redirect",
+        Category::Repl,
+        || {
+            // grep -qx is a WHOLE-LINE match: if the bug returns and the file holds
+            // `zzpipe | cat`, it does not match and no token is printed.
+            let out = repl::run_repl(
+                "rm -f /tmp/zzbp.txt; echo zzpipe | cat > /tmp/zzbp.txt; grep -qx zzpipe /tmp/zzbp.txt && echo BP_OK_169",
+            )?;
+            if out
+                .iter()
+                .any(|l| l.contains("BP_OK_169") && !l.trim_start().starts_with('['))
+            {
+                Ok(())
+            } else {
+                Err(format!("builtin-first pipeline did not reach the file: {out:?}"))
+            }
+        },
+    ));
+    // The gate must not be too broad: a plain builtin redirect has NO pipe and must still be
+    // handled by the builtin, because sh cannot see fsh builtins like `d` or `intl`.
+    results.push(test(
+        "repl_plain_builtin_redirect_still_works",
+        Category::Repl,
+        || {
+            let out = repl::run_repl(
+                "rm -f /tmp/zzpb.txt; echo zzplain > /tmp/zzpb.txt; grep -qx zzplain /tmp/zzpb.txt && echo PB_OK_169",
+            )?;
+            if out
+                .iter()
+                .any(|l| l.contains("PB_OK_169") && !l.trim_start().starts_with('['))
+            {
+                Ok(())
+            } else {
+                Err(format!("plain builtin redirect broke: {out:?}"))
+            }
+        },
+    ));
     results.push(test(
         "repl_193_self_referential_alias_survives",
         Category::Repl,

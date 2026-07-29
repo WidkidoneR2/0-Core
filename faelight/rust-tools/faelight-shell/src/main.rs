@@ -2681,7 +2681,21 @@ fn repl_main() -> Result<()> {
                                 // BUILTIN, whose returned string picks up a trailing newline --
                                 // measured 9 bytes in, 10 out. Skipping the probe here is the
                                 // bypass finally saying what it always meant.
-                                let builtin_result = if cat_with_redirect {
+                                // ⚠️ A PIPELINE IS NOT A BUILTIN INVOCATION. `echo hi | cat > f` wrote the literal
+                                // text `hi | cat` into the file: try_builtin matched `echo`, which took the rest
+                                // of the line as ARGUMENTS and dutifully printed them. External-first pipelines
+                                // were fine (`uname | cat > f` works) only because nothing matched here and the
+                                // line fell through to `sh -c` below, where a real parser handles the pipe.
+                                //
+                                // It never errored -- it wrote something PLAUSIBLE -- so it corrupted output read
+                                // by other commands rather than failing visibly. Live since the redirect branch
+                                // was written; not a routing regression (FSH_SPINE=0 reproduces it).
+                                //
+                                // The detection already existed: `in_quotes` above means "no unquoted pipe", and
+                                // the logical-chain branch has made the same check since INT-109. This is that
+                                // check, in the one branch that lacked it.
+                                let line_has_pipe = !in_quotes;
+                                let builtin_result = if cat_with_redirect || line_has_pipe {
                                     commands::CommandResult::NotBuiltin
                                 } else {
                                     commands::try_builtin(&cmd_part, &db, &core_root)
