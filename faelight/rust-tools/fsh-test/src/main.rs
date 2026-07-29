@@ -880,6 +880,35 @@ fn all_tests() -> Vec<TestResult> {
     // clears its files FIRST (INT-172 hygiene), reads back WITHOUT `cat` (aliased to bat here), and
     // filters the `[n/N]` progress lines, because the success token also appears in the echoed
     // command text -- without that filter these pass no matter what the shell does.
+    // ⚠️ A QUOTED `>` IS DATA, NOT AN OPERATOR. detect_redirect used `rfind(" > ")` with no quote
+    // state, so `echo "a > b"` split at the QUOTED arrow: the command became `echo "a`, the target
+    // became `b"`, and a file named `b"` appeared in the working directory while the command
+    // printed nothing.
+    //
+    // ★ THE PIPE IS LOAD-BEARING IN THIS TEST, not incidental. With routing on, `echo "a > b"` is
+    // CLAIMED by the spine and never reaches detect_redirect at all -- so a test without the pipe
+    // would pass on a broken binary and could never be witnessed red. The pipe makes the router
+    // DECLINE, forcing the legacy path regardless of the toggle.
+    //
+    // ★ AND NO REAL REDIRECT HERE, also deliberate: `rfind` takes the LAST match, so
+    // `echo "a > b" > file` finds the genuine arrow and behaves correctly. The bug only bites when
+    // the quoted arrow is the last one.
+    results.push(test(
+        "repl_quoted_redirect_is_not_an_operator",
+        Category::Repl,
+        || {
+            let out = repl::run_repl("echo \"zzq > zzmark\" | cat")?;
+            // Exact line match: the echoed command contains quotes and `| cat`, so it cannot
+            // satisfy this by accident.
+            if out.iter().any(|l| l.trim() == "zzq > zzmark") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "quoted redirect was treated as an operator: {out:?}"
+                ))
+            }
+        },
+    ));
     results.push(test(
         "repl_builtin_first_pipeline_with_redirect",
         Category::Repl,

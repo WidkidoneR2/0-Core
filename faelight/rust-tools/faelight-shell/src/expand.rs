@@ -370,6 +370,39 @@ pub fn split_into_commands(buf: &str) -> Vec<String> {
     commands
 }
 
+/// The last occurrence of `needle` that is NOT inside quotes. INT-169 follow-up: `rfind` scanned
+/// the whole line, so `echo "a > b"` split at the QUOTED `>` -- the command became `echo "a`, the
+/// target became `b"`, and a file named `b"` appeared in the working directory while the command
+/// printed nothing. Same for `echo 'x >> y'`.
+///
+/// ⚠️ TRACKS BOTH QUOTE KINDS. The pipe scan in main.rs tracks only `"`, which is enough there but
+/// would leave `'x >> y'` broken here.
+///
+/// ★ Found only after the spine router was disabled: `echo "a > b"` has no unquoted pipe and parses
+/// cleanly, so the router CLAIMED it and it never reached this function. The flip was masking a
+/// legacy defect rather than fixing it -- and every command the router DECLINES still comes here.
+fn rfind_unquoted(line: &str, needle: &str) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let n = needle.len();
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut found = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double => in_single = !in_single,
+            b'"' if !in_single => in_double = !in_double,
+            _ => {}
+        }
+        if !in_single && !in_double && i + n <= bytes.len() && &bytes[i..i + n] == needle.as_bytes()
+        {
+            found = Some(i);
+        }
+        i += 1;
+    }
+    found
+}
+
 pub fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     // INT-245 #10: detect malformed redirects BEFORE permissive pattern matching.
     // A bare `>` or `>>` with no target file is a parse error, not a literal `>`.
@@ -393,7 +426,7 @@ pub fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
         return (line.to_string(), Some(("__stderr__".to_string(), false)));
     }
     // Match >> before > (order matters)
-    if let Some(idx) = line.rfind(" >> ") {
+    if let Some(idx) = rfind_unquoted(line, " >> ") {
         let path = line[idx + 4..].trim().to_string();
         // Only treat as redirect if path looks like a file (not a number/comparison)
         if !path.is_empty()
@@ -407,7 +440,7 @@ pub fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
             return (cmd, Some((path, true)));
         }
     }
-    if let Some(idx) = line.rfind(" > ") {
+    if let Some(idx) = rfind_unquoted(line, " > ") {
         let path = line[idx + 3..].trim().to_string();
         // Only treat as redirect if:
         // - path is not empty
