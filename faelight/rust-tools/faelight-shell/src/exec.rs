@@ -1066,29 +1066,33 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
 ///
 /// Kept SEPARATE from `execute_spine` so the real seam stays visible -- the flip will supply a
 /// plan, not a string. Only this wrapper knows how a plan comes into existence.
-pub fn execute_spine_source(
+/// Why the spine did not produce a plan. Two PHASES, kept apart deliberately: `LowerError` has
+/// the right boundary today and must not learn about parsing.
+#[derive(Debug)]
+pub enum SpineAttemptError {
+    Parse(crate::spine::parser::ParseError),
+    Lower(crate::spine::plan::LowerError),
+}
+
+/// Parse and lower one source line with the FULL capability set. ★ ONE construction path, shared by
+/// the explicit `spine-exec` door and the router below -- a second copy of the runner/globber setup
+/// is how the two would silently drift apart.
+fn lower_spine_source(
     source: &str,
     shell: &ShellContext,
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
-) -> CommandResult {
-    let node = match crate::spine::parser::parse(source) {
-        Ok(n) => n,
-        Err(e) => return CommandResult::Error(format!("spine: parse error: {e:?}")),
-    };
-    // INT-169 blocker 4: this door DOES get a runner, and the earlier `None` here was a
-    // mis-application of the scorecard's ruling. That ruling says `spine exec` is correct to sit
-    // ABOVE alias expansion and refuse aliases -- a statement about the INPUT PHASE, not about
-    // which constructs the spine may execute. Command substitution is now one the spine supports,
-    // and refusing it here would leave the capability with no consumer at all.
+) -> Result<crate::spine::plan::ExecutionPlan, SpineAttemptError> {
+    let node = crate::spine::parser::parse(source).map_err(SpineAttemptError::Parse)?;
+    // INT-169 blocker 4: substitutions need a runner, and refusing one here would leave the
+    // capability with no consumer. Blocker 5: a door with a runner but no globber would be
+    // incoherent -- substitutions could run while pathname expansion silently could not.
     let runner = SpineCommandRunner {
         db,
         core_root,
         rules,
     };
-    // INT-169 blocker 5: a live execution door with a runner but no globber would be incoherent --
-    // substitutions could run while pathname expansion silently could not.
     let glob = SpineGlobResolver {
         cwd: std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
     };
@@ -1097,11 +1101,53 @@ pub fn execute_spine_source(
         runner: Some(&runner),
         glob: Some(&glob),
     };
-    let plan = match crate::spine::plan::lower(&node, &ctx) {
-        Ok(p) => p,
-        Err(e) => return CommandResult::Error(format!("spine: cannot lower yet: {e:?}")),
-    };
-    execute_spine(&plan, source, db, core_root, rules)
+    crate::spine::plan::lower(&node, &ctx).map_err(SpineAttemptError::Lower)
+}
+
+/// The EXPLICIT door (`spine-exec <cmd>`). You asked for the spine, so every failure is reported
+/// rather than hidden -- that is the difference from the router, and the reason both exist.
+pub fn execute_spine_source(
+    source: &str,
+    shell: &ShellContext,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> CommandResult {
+    match lower_spine_source(source, shell, db, core_root, rules) {
+        Ok(plan) => execute_spine(&plan, source, db, core_root, rules),
+        Err(e) => CommandResult::Error(format!("spine: {e:?}")),
+    }
+}
+
+/// INT-169 blocker 6: THE ROUTER. `None` means NOT MINE -- the caller hands the ORIGINAL source to
+/// the legacy path, exactly as if routing did not exist.
+///
+/// ★ REFUSALS FALL BACK; DEFECTS SURFACE. A parse error means this is not spine syntax (a pipe, a
+/// redirect, a heredoc) and legacy owns it. `MissingCapability` and `UnsupportedConstruct` are the
+/// same answer from the next phase down. But `InvalidPlan` means the spine ACCEPTED ownership and
+/// built something internally inconsistent -- falling back there would make legacy an accidental
+/// recovery mechanism and erase the only evidence of a spine bug.
+///
+/// ⚠️ This must never be `execute_spine_source(...).into()`. That function turns a refusal into an
+/// error string, so a router built on it would swallow every piped command instead of declining it.
+pub fn try_execute_spine_source(
+    source: &str,
+    shell: &ShellContext,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> Option<CommandResult> {
+    match lower_spine_source(source, shell, db, core_root, rules) {
+        Ok(plan) => Some(execute_spine(&plan, source, db, core_root, rules)),
+        Err(SpineAttemptError::Parse(_)) => None,
+        Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::MissingCapability {
+            ..
+        }))
+        | Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::UnsupportedConstruct {
+            ..
+        })) => None,
+        Err(e) => Some(CommandResult::Error(format!("spine: {e:?}"))),
+    }
 }
 
 /// INT-191: catastrophic `rm -rf` protection, evaluated over the EXECUTION CONTEXT.

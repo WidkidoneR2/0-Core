@@ -223,7 +223,32 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
             // same characters with metacharacters ACTIVE only where they were unquoted. A `*`
             // from `'*'` or `"*"` becomes GlobPart::Literal, so it can never match a filename.
             WordPart::Literal { text, quoted } => {
-                for ch in text.chars() {
+                // INT-169 blocker 6: TILDE, and it belongs HERE rather than in an exclusion. The
+                // router claimed `echo ~` and printed a literal tilde, because the spine had no
+                // tilde phase while legacy expands one below the routing point. The command
+                // succeeded against the wrong path -- a semantic regression, not a crash.
+                //
+                // The rule is POSITION-SENSITIVE, which is why this cannot be a character scan
+                // over the joined text: `~` expands at WORD START only (`a~b` is literal), when
+                // UNQUOTED, and only before `/` or end of word. `out.is_empty()` is what word
+                // start means here, since `out` accumulates across every part.
+                //
+                // HOME comes from the SAME resolver as `$HOME`. Never `std::env::var` -- with no
+                // resolver the tilde stays literal and the audit stays deterministic, exactly as
+                // variables and globs already behave.
+                let mut rest: &str = text;
+                if out.is_empty()
+                    && *quoted == QuoteContext::Unquoted
+                    && (text == "~" || text.starts_with("~/"))
+                {
+                    if let Some(home) = ctx.vars.and_then(|r| r.resolve("HOME")) {
+                        // Pushed WITHOUT recording glob-active positions: an expanded home path
+                        // is a value, not a pattern.
+                        out.push_str(&home);
+                        rest = &text[1..];
+                    }
+                }
+                for ch in rest.chars() {
                     if *quoted == QuoteContext::Unquoted && (ch == '*' || ch == '?') {
                         active.push(out.chars().count());
                     }
@@ -473,6 +498,87 @@ mod tests {
             self.0.borrow_mut().push(pattern.to_vec());
             vec![OsString::from("matched.txt")]
         }
+    }
+
+    /// ★ THE TILDE CONTRACT. Not a feature test -- a POSITION-AND-QUOTE test, because the router
+    /// claimed `echo ~` and printed a literal tilde while legacy expanded it below the routing
+    /// point. The command succeeded against the wrong path: a silent semantic regression, which is
+    /// the class of bug this whole migration exists to make impossible.
+    #[test]
+    fn tilde_expands_only_at_word_start_and_only_unquoted() {
+        let mut m = std::collections::HashMap::new();
+        m.insert("HOME", "/home/test");
+        let vars = FakeVars(m);
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+            glob: None,
+        };
+        for (source, want) in [
+            ("echo ~", "/home/test"),
+            ("echo ~/project", "/home/test/project"),
+            // NOT word start -- a tilde inside a word is ordinary text.
+            ("echo a~b", "a~b"),
+            // Quoted -- the AST kept QuoteContext, and this is what it is for.
+            ("echo \"~\"", "~"),
+            ("echo \'~\'", "~"),
+            // Not a home reference: `~user` is another shell's feature the spine has not built.
+            ("echo ~nobody", "~nobody"),
+        ] {
+            let node = parse(source).expect("parses");
+            let plan = lower(&node, &ctx).expect("lowers");
+            assert_eq!(
+                plan.argv,
+                vec![OsString::from("echo"), OsString::from(want)],
+                "{source}"
+            );
+        }
+    }
+
+    /// ⚠️ NO RESOLVER MEANS NO EXPANSION -- and specifically NOT a fallback to the host
+    /// environment. `spine migrate` lowers this way over real history, so reading the process HOME
+    /// here would make an audit's result depend on which machine ran it.
+    #[test]
+    fn tilde_without_a_resolver_stays_literal() {
+        let node = parse("echo ~/project").expect("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("~/project")]
+        );
+    }
+
+    /// The interaction that proves the SHAPE rather than the feature: the home path arrives as a
+    /// VALUE while the pattern after it stays active. A tilde fix that made the whole word literal
+    /// would pass every test above and break this one.
+    #[test]
+    fn a_tilde_prefix_does_not_disarm_a_later_glob() {
+        let mut m = std::collections::HashMap::new();
+        m.insert("HOME", "/home/test");
+        let vars = FakeVars(m);
+        let fake = FakeGlob(std::cell::RefCell::new(Vec::new()));
+        let ctx = LowerContext {
+            vars: Some(&vars),
+            runner: None,
+            glob: Some(&fake),
+        };
+        let node = parse("echo ~/docs/*.md").expect("parses");
+        lower(&node, &ctx).expect("lowers");
+        let seen = fake.0.borrow();
+        assert_eq!(seen.len(), 1, "the word reached the globber");
+        let rendered: String = seen[0]
+            .iter()
+            .map(|p| match p {
+                GlobPart::Literal(c) => *c,
+                GlobPart::Many => '*',
+                GlobPart::Any => '?',
+            })
+            .collect();
+        assert_eq!(rendered, "/home/test/docs/*.md");
+        assert!(
+            matches!(seen[0][seen[0].len() - 4], GlobPart::Many),
+            "the star stayed ACTIVE after tilde expansion: {rendered}"
+        );
     }
 
     /// THE BOUNDARY DECISION, asserted on the pattern rather than the result. The matcher and the

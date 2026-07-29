@@ -2395,6 +2395,55 @@ fn repl_main() -> Result<()> {
                         commands::expand_aliases(line, &db)
                     };
                     let line = line.as_str();
+                    // INT-169 blocker 6: THE ROUTING POINT. Placed HERE, above expand_vars,
+                    // because the spine performs variable, substitution and glob expansion
+                    // ITSELF -- routing below these would hand it text legacy had already
+                    // transformed, making its three capabilities dead code and rebuilding the
+                    // string re-inspection the spine exists to end. Aliases are already
+                    // resolved above, which is what the alias-order move earlier today was for.
+                    //
+                    // `None` means NOT MINE: fall through with the source untouched, exactly as
+                    // if routing did not exist. Legacy must receive what it would have received.
+                    let spine_on = std::env::var_os("FSH_SPINE").is_some();
+                    let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
+                    if spine_trace && !spine_on {
+                        eprintln!("  [spine-router] disabled (set FSH_SPINE=1 to route)");
+                    }
+                    if spine_on {
+                        let shell = exec::ShellContext {
+                            shell_vars: &shell_vars,
+                            last_exit_code,
+                        };
+                        if let Some(result) = exec::try_execute_spine_source(
+                            line,
+                            &shell,
+                            &db,
+                            &core_root,
+                            &cfg.before_rules,
+                        ) {
+                            if spine_trace {
+                                eprintln!("  [spine-router] claimed: {line}");
+                            }
+                            match result {
+                                commands::CommandResult::Output(out) => println!("{}", out),
+                                commands::CommandResult::Value(v) => println!("{}", v.render()),
+                                commands::CommandResult::Error(e) => {
+                                    eprintln!("{} {}", "x".bright_red(), e);
+                                    last_exit_code = Some(1);
+                                }
+                                commands::CommandResult::Empty => last_exit_code = Some(0),
+                                commands::CommandResult::Exit => break 'repl,
+                                commands::CommandResult::NotBuiltin => {
+                                    eprintln!("  spine: no arm matched and no spawn attempted");
+                                    last_exit_code = Some(1);
+                                }
+                            }
+                            continue;
+                        }
+                        if spine_trace {
+                            eprintln!("  [spine-router] declined: {line}");
+                        }
+                    }
                     let line = expand_vars(line, &shell_vars, last_exit_code);
                     // Subshell expansion
                     let line = expand_subshells(&line);
