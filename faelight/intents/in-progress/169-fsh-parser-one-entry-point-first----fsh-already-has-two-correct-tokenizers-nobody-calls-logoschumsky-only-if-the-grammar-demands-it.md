@@ -236,6 +236,56 @@ produce. When the policy became structural it correctly found nothing to block, 
 confirmation prompt, and waited forever. Narrowing the test filter would have hidden a live
 regression behind a green run.
 
+## PROGRESS 2026-07-29 -- THE SPINE IS CONNECTED (blockers 2, 6; operators; tilde)
+Seven of nine flip blockers done. What remains is blocker 7, and its name promises something it
+cannot deliver -- see below.
+
+EXECUTION POLICY (blocker 2). A nested command walked past the only policy gate: `run_capture`
+called dispatch, which performs no preexec, so a substitution reached a process without meeting the
+guard a typed command cannot avoid. Adding the call was a HALF FIX and would have been worse than
+the gap -- the nested context has no source line, so the catastrophic-rm predicate substring-searched
+an EMPTY string and silently passed everything while the gate LOOKED closed. The real fix is
+INT-196's thesis applied to the guard: it takes an argument vector and must not flatten it into text
+and re-parse it. Reading `cmd` and `args` directly closed two pre-existing holes as well -- separated
+flags (`rm -r -f /home`) were NEVER blocked by a substring search, and a path containing a space
+could not be represented at all.
+
+THE SPINE CAN NOW SAY NO. `TokenKind` had ONE variant, so `|` was ordinary word content and
+`echo hi | grep h` parsed happily into five words and LOWERED -- a shell claiming a command it cannot
+run. That mattered because routing needs something safe to route on, and neither candidate was:
+`lower()` EXECUTES substitutions before it can discover what it does not support, so try-then-fall-
+back would run one twice (the INT-143 class); `parse()` is pure but refused NOTHING. One refuses
+nothing; the other executes before it refuses. The lexer now emits operator tokens and the parser
+declines with a span. ★ This added OWNERSHIP VISIBILITY, not shell features -- nothing here implies a
+pipeline will ever be executed by this path. An unsupported construct has THREE states, and the
+middle one is what makes incremental replacement possible at all: invisible bug, then EXPLICIT
+REFUSAL, then owned implementation.
+
+THE ROUTER (blocker 6). After alias expansion and before `expand_vars`, a typed line is offered to
+the spine: parse, lower with the full capability set, execute. NONE MEANS NOT MINE, and legacy
+receives the original source exactly as if routing did not exist. Placement is the whole design --
+routing below the legacy expansions would hand the spine already-transformed text and make its three
+capabilities dead code. REFUSALS FALL BACK; DEFECTS SURFACE: parse errors and capability boundaries
+go to legacy, but an invalid plan is REPORTED, because legacy must never be a recovery mechanism for
+a spine bug. Behind `FSH_SPINE`, off by default.
+
+★ THE TRACE FOUND A SILENT REGRESSION WITHIN MINUTES. Three probes had been spent trying to DEDUCE
+which engine ran a command and every one was ambiguous. Four lines behind `FSH_SPINE_TRACE` turned
+"did the behaviour differ?" into "which engine owned it?" -- and immediately showed the router
+claiming `echo ~` and printing a literal tilde, because legacy expands one BELOW the routing point
+and the spine had no tilde phase. No error, no crash, plausible output, wrong path. fsh-test has
+SEVENTEEN tilde tests and not one would have caught it: they exercise the legacy path. Fixed in the
+spine rather than by a router exception -- tilde is a word expansion and the spine owns word
+expansion -- at word start only, unquoted only, HOME through the same resolver as the dollar form,
+and the home arrives as a VALUE so a glob after it stays active.
+
+MEASUREMENT. `spine migrate` now reports ZERO unexpected differences (was eight) and ZERO feature
+gaps (was eighty) across 19,696 comparable commands, 99.5% equivalent. The eight became zero when
+the AST learned to record whether a variable was written `$HOME` or `${HOME}` -- the information was
+not wrong, it was absent. The eighty were never gaps: they are command substitutions the spine has
+executed since blocker 4, which the audit cannot exercise because it lowers with no runner ON
+PURPOSE. `LowerError` now distinguishes a construct it cannot run from a capability it was not given.
+
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
 structure. The spine is not a better parser. It is a single AST every path must go through, built one
