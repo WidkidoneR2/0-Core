@@ -286,6 +286,36 @@ not wrong, it was absent. The eighty were never gaps: they are command substitut
 executed since blocker 4, which the audit cannot exercise because it lowers with no runner ON
 PURPOSE. `LowerError` now distinguishes a construct it cannot run from a capability it was not given.
 
+## STATUS 2026-07-29 -- THE SPINE IS THE DEFAULT PATH. 169 IS NOW *WAITING*, NOT WORKING.
+`FSH_SPINE` stopped being an opt-in and became an escape hatch: unset routes to the spine,
+`FSH_SPINE=0` restores legacy. Deployed gen 446, fsh-test 107/107 with routing on by default.
+
+WHAT THE FLIP RESTS ON. The existing 107-test suite passes end to end through the router --
+aliases, pipelines, redirects, heredocs, tilde expansion, SIGPIPE, the double-execution guards,
+the recursion protection -- because fsh-test spawns the shell as a child and inherits the
+environment, so one variable turned the whole compatibility contract into a spine integration test.
+The migration audit reports ZERO unexpected differences and ZERO feature gaps across 19,696
+comparable commands. Routing counters at the ownership boundary show the spine claiming what it
+owns and declining exactly what it has refused since operator tokens landed. Both directions of the
+toggle are proven: with the variable unset a tilde is claimed and expands, a pipeline is declined
+and legacy runs it; with `FSH_SPINE=0` every command traces as disabled.
+
+⚠️ ONE VISIBLE BEHAVIOUR CHANGE, stated rather than discovered: legacy never expanded a BARE tilde,
+so `echo ~` printed the character. The spine expands it, which is what bash does. A correction
+rather than a regression, in the same family as legacy dropping empty quoted arguments -- but users
+notice output changes even when the new answer is the right one.
+
+★ WHY THIS INTENT IS NOT CLOSING. Four gates are honestly unmet: logos is still an unused dependency
+and the operator work argued it may never earn its place, since recognition must live inside the
+scanner's quote state machine; `from_line` still has callers; the rides-with gate waits on INT-167's
+correlation_id; and blocker 7 plus SIX legacy deletions remain. The deletions are what make the flip
+PAY OFF, and their precondition was never "the audit says ready" -- it is the flip having HELD IN
+REAL DAILY USE with the old path present and reversible.
+
+★★ SO THE STATE CHANGED FROM WORKING TO WAITING. Nothing productive comes from writing more spine
+code this week; what 169 needs is TIME with the default on and counters accumulating real numbers.
+That does not block the other fsh intents -- most of them were waiting on this flip to unblock them.
+
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
 structure. The spine is not a better parser. It is a single AST every path must go through, built one
