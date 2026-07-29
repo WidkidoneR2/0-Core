@@ -2404,10 +2404,16 @@ fn repl_main() -> Result<()> {
                     //
                     // `None` means NOT MINE: fall through with the source untouched, exactly as
                     // if routing did not exist. Legacy must receive what it would have received.
-                    let spine_on = std::env::var_os("FSH_SPINE").is_some();
+                    // INT-169: DEFAULT ON. The variable is now an ESCAPE HATCH, not an opt-in --
+                    // `FSH_SPINE=0` restores legacy routing instantly, and generation rollback remains.
+                    // Flipped once the evidence stopped improving from testing: 107/107 through the
+                    // router, the migration audit at zero unexpected and zero feature gaps, and the
+                    // counters showing the spine claims what it owns and declines what it refuses.
+                    // What remains is answerable only by real use, which needs the default to be on.
+                    let spine_on = std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
                     let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
                     if spine_trace && !spine_on {
-                        eprintln!("  [spine-router] disabled (set FSH_SPINE=1 to route)");
+                        eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
                     }
                     if spine_on {
                         let shell = exec::ShellContext {
