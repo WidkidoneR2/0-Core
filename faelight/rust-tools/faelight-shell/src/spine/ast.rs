@@ -158,6 +158,20 @@ impl Word {
 /// expansion, process substitution, or globbing until those features are actually
 /// implemented -- the architecture already has room; naming every future variant now is
 /// over-design.
+/// How a variable reference was WRITTEN. INT-169: a fact about the source, not a formatting
+/// preference -- the same reason `QuoteContext` exists on a Literal.
+///
+/// `$HOME` and `${HOME}` mean the same thing to a resolver and are DIFFERENT TEXT, and until this
+/// existed the AST kept only the name. Anything reconstructing source could then emit just one of
+/// the two spellings: the migration audit lowers with no resolver, rendered `$HOME` for both, and
+/// counted every braced reference as a divergence against a legacy tokenizer that had preserved the
+/// braces. The information was not wrong, it was absent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariableSyntax {
+    Bare,
+    Braced,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WordPart {
     /// Text as written, with HOW it was written.
@@ -171,11 +185,14 @@ pub enum WordPart {
     /// encode semantics for expansions that do not exist yet, which is the over-design the note
     /// above forbids. A fact cannot be wrong; a policy about an unbuilt phase can.
     Literal { text: String, quoted: QuoteContext },
-    /// A variable reference SITE, recognised but not evaluated. The AST records that `$HOME`
-    /// occurred; what it evaluates to is the expansion phase's business. Produced only from
+    /// A variable reference SITE, recognised but not evaluated. The AST records the name AND the
+    /// spelling (`$HOME` vs `${HOME}`); what it evaluates to is the expansion phase's business. Produced only from
     /// Unquoted and Double segments -- inside single quotes a `$` is literal text, which is
     /// what makes the INT-172/174 bug class impossible by construction.
-    Variable(String),
+    Variable {
+        name: String,
+        syntax: VariableSyntax,
+    },
     /// A special shell parameter -- `$?`, `$$`. NOT a Variable: these are not NAME LOOKUPS,
     /// which is exactly why VarResolver has `last_exit()` and `pid()` as distinct methods.
     /// Modelling them as `Variable("?")` would force every resolver to special-case a name that

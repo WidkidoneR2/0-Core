@@ -2,7 +2,7 @@
 //! spans, for the `spine parse` debug builtin and future introspection tooling. Display
 //! only -- never executes anything.
 
-use super::ast::{AstNode, Spanned, WordPart};
+use super::ast::{AstNode, Spanned, VariableSyntax, WordPart};
 
 /// Render a parsed node as an indented tree. Each line shows the construct and its span.
 pub fn render(node: &Spanned<AstNode>) -> String {
@@ -31,7 +31,12 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
                     .iter()
                     .map(|p| match p {
                         WordPart::Literal { text, .. } => format!("Literal {text:?}"),
-                        WordPart::Variable(n) => format!("Variable {n:?}"),
+                        // Bare renders unchanged so existing goldens do not move; only the
+                        // braced form is annotated, because that is the fact that was missing.
+                        WordPart::Variable { name, syntax } => match syntax {
+                            VariableSyntax::Bare => format!("Variable {name:?}"),
+                            VariableSyntax::Braced => format!("Variable {name:?} (braced)"),
+                        },
                         WordPart::SpecialParam(p) => format!("SpecialParam {p:?}"),
                         // Shown, not erased, and not recursed into: this renderer has no
                         // AST-traversal policy and inventing one here would be a second.

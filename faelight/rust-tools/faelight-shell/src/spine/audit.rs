@@ -19,7 +19,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use super::lexer::OperatorKind;

@@ -26,7 +26,9 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::ast::{AstNode, QuoteContext, Span, Spanned, SpecialParam, Word, WordPart};
+use super::ast::{
+    AstNode, QuoteContext, Span, Spanned, SpecialParam, VariableSyntax, Word, WordPart,
+};
 
 /// The executor's input: an intent-to-run-in-context, not a bare argv. Even when cwd/env/io
 /// are empty today, the contract acknowledges that execution IS contextual (what directory,
@@ -265,16 +267,26 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
                     SpecialParam::Pid => "$$",
                 }),
             },
-            WordPart::Variable(name) => match ctx.vars {
+            WordPart::Variable { name, syntax } => match ctx.vars {
                 // Resolve, matching legacy expand_vars: session vars then process env, and an
                 // UNSET name expands to the empty string.
                 Some(r) => out.push_str(&r.resolve(name).unwrap_or_default()),
                 // No environment: render the SOURCE FORM back out, so argv is byte-identical to
                 // the pre-expansion behaviour and the migration audit stays comparable.
-                None => {
-                    out.push('$');
-                    out.push_str(name);
-                }
+                // ⚠️ Reproduce what was WRITTEN. This said "the source form" while emitting
+                // `$NAME` for BOTH spellings, so every `${NAME}` in real history counted as a
+                // divergence against a legacy tokenizer that had simply kept the text.
+                None => match syntax {
+                    VariableSyntax::Bare => {
+                        out.push('$');
+                        out.push_str(name);
+                    }
+                    VariableSyntax::Braced => {
+                        out.push_str("${");
+                        out.push_str(name);
+                        out.push('}');
+                    }
+                },
             },
         }
     }

@@ -9,7 +9,7 @@
 //! new parse method hanging off this same recursive-descent structure -- parse_command
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
-use super::ast::{AstNode, Command, Span, Spanned, SpecialParam, Word, WordPart};
+use super::ast::{AstNode, Command, Span, Spanned, SpecialParam, VariableSyntax, Word, WordPart};
 use super::lexer::{
     lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
 };
@@ -206,7 +206,10 @@ fn recognise_variables(text: &str, quoted: QuoteContext) -> Vec<WordPart> {
             Some('{') => match brace_identifier(&chars, i) {
                 Some((name, next_i)) => {
                     flush(&mut parts, &mut literal, quoted);
-                    parts.push(WordPart::Variable(name));
+                    parts.push(WordPart::Variable {
+                        name,
+                        syntax: VariableSyntax::Braced,
+                    });
                     i = next_i;
                 }
                 // NOT a plain ${NAME} -- so `${VAR:-default}`, `${#VAR}`, `${VAR/a/b}` and an
@@ -231,7 +234,10 @@ fn recognise_variables(text: &str, quoted: QuoteContext) -> Vec<WordPart> {
                     j += 1;
                 }
                 flush(&mut parts, &mut literal, quoted);
-                parts.push(WordPart::Variable(chars[start..j].iter().collect()));
+                parts.push(WordPart::Variable {
+                    name: chars[start..j].iter().collect(),
+                    syntax: VariableSyntax::Bare,
+                });
                 i = j;
             }
             _ => {

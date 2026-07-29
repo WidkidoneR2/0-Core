@@ -133,7 +133,7 @@ proptest! {
                             // format string, so braces inside the PATTERN would be read as placeholders.
                             let is_known_part = matches!(
                                 part,
-                                WordPart::Literal { .. } | WordPart::Variable(_)
+                                WordPart::Literal { .. } | WordPart::Variable { .. }
                                     | WordPart::SpecialParam(_)
                             );
                             prop_assert!(is_known_part);
