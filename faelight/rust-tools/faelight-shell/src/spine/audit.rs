@@ -131,8 +131,11 @@ pub fn audit_history(commands: impl Iterator<Item = String>) -> AuditReport {
             // the spine declines to own, and the flip decision needs that counted separately from
             // malformed input -- "how much of real history can we not take" is a different
             // question from "how much of it is broken".
+            // ⚠️ NOT counted as a parse failure. A refusal is valid shell the spine declines; a
+            // failure is input nothing can parse. Folding them together made the headline read
+            // "12,128 failures" when ~11,385 of those were the boundary working correctly, and
+            // that is precisely the distinction the router runs on.
             Ok(Outcome::RefusedOperator(_)) => {
-                report.parse_failure += 1;
                 report.operator_shaped += 1;
                 push_example(&mut report.operator_shaped_examples, &raw);
             }
@@ -215,17 +218,21 @@ impl AuditReport {
         }
         out.push('\n');
 
-        // HEURISTIC -- explicitly non-authoritative, its own category, never folded into
-        // failures or coverage. Orthogonal to lowering (a command is often both).
+        // AUTHORITATIVE, not a heuristic. This used to be a guess made by inspecting a lowered
+        // argv, because while `|` was ordinary word content there was no better evidence. The
+        // parser now returns UnsupportedOperator, so this counts a fact and every clause of the
+        // old note ("heuristic", "not modeled by the AST", "parsed as literal words", "may include
+        // false positives") became false the moment operators became tokens.
         if self.operator_shaped > 0 {
-            out.push_str("Operator-like tokens observed (heuristic):\n");
+            out.push_str("Declined -- valid shell outside the spine grammar:\n");
             out.push_str(&format!("  {}\n", self.operator_shaped));
             out.push_str(
-                "  note: heuristic scan only; flags operator-shaped input NOT yet modeled by\n",
+                "  note: the parser identified a pipe, redirect, boolean, sequence or background\n",
             );
             out.push_str(
-                "  the AST (parsed as literal words today). May include false positives.\n",
+                "  operator and declined ownership BEFORE lowering. These are correct commands\n",
             );
+            out.push_str("  that the legacy path continues to run.\n");
             if !self.operator_shaped_examples.is_empty() {
                 out.push_str("  examples:\n");
                 for ex in &self.operator_shaped_examples {
@@ -310,8 +317,11 @@ mod tests {
             r.lower_success, 0,
             "must not lower a command it cannot execute"
         );
-        assert_eq!(r.parse_failure, 1, "the parser declines it");
-        assert_eq!(r.operator_shaped, 1, "and the heuristic still flags it");
+        assert_eq!(r.operator_shaped, 1, "counted as a refusal");
+        // ⚠️ A refusal is NOT a parse failure. Valid shell the spine declines is a different
+        // fact from input nobody can read, and folding them together made the audit headline
+        // report ~11,385 correct routing decisions as syntax errors.
+        assert_eq!(r.parse_failure, 0, "declined, not malformed");
         assert_eq!(r.panics, 0);
     }
 
