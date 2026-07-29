@@ -90,7 +90,13 @@ never look the same. Today they do.
   actually being read.
 - ⚠️ NOT prettier errors. The objective is failures that are immediately understandable, safe, and
   actionable. Formatting is the means.
-- ⚠️ Stable error codes are a LATER phase. A code with no catalogue behind it is decoration.
+- ⚠️ ERROR CODES ARE NOT THE GOAL AND MAY NEVER BE NEEDED. Christian, 2026-07-29: the
+  message should carry the diagnostic, so nobody has to look a code up. A code needs a catalogue
+  behind it -- a second artifact to maintain and a second one to go stale. fpatch proved the point
+  the same day: showing the anchor in repr plus the nearest lines made every failure
+  self-explaining with no identifier at all.
+- THE PURPOSE, in Christian's words: to simplify the terminal he lives in, and to build for
+  beyond tomorrow. Not prettier errors -- fewer moments spent reconstructing what a tool meant.
 - ★ START WITH `fpatch`, because that is where the problem was measured and where the next
   occurrence is certain.
 
