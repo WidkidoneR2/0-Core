@@ -8307,7 +8307,7 @@ fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
 /// intent. It must NOT compensate for incomplete planning -- no splitting, no expansion, no
 /// operator handling. If those are missing the failure belongs upstream, where it can be seen.
 ///
-/// Not wired into the live path. Reached only via `spine exec`, an opt-in builtin.
+/// Reached by the `spine exec` builtin AND, since INT-169 blocker 6, by the router itself.
 /// INT-169: run a plan -- builtins first, then a direct spawn. The single implementation both
 /// the `spine exec` debug builtin and `exec::execute_spine` call, so there is one answer to
 /// "what does running a plan mean" rather than two that can drift.
@@ -8331,20 +8331,18 @@ pub fn execute_plan_dispatch(
         Err(e) => return CommandResult::Error(format!("  {e}")),
     };
     match execute_impl(&argv, source, db, core_root, &[], ExecutionMode::Spine) {
-        CommandResult::NotBuiltin => {
-            // Honest diagnostic rather than a bare "command not found": if argv[0] is a known
-            // alias, the command DOES exist -- the spine path simply does not expand aliases yet
-            // (a text-world transform). Reporting that as not-found would hide a capability gap
-            // behind a lie.
-            if let Some(target) = argv.first().and_then(|a| db.get_alias(a)) {
-                return CommandResult::Error(format!(
-                    "  {} is an alias ({}) -- the spine path does not expand aliases yet",
-                    argv.first().map(String::as_str).unwrap_or(""),
-                    target
-                ));
-            }
-            execute_plan(plan, db)
-        }
+        // INT-169 blocker 6: NO ALIAS LOOKUP HERE. This branch used to answer "argv[0] is a
+        // known alias -- the spine path does not expand aliases yet", which was true while
+        // nothing upstream expanded aliases for the spine. Aliases are now expanded ABOVE the
+        // routing point, so by the time a plan arrives INT-193's cycle guard has already run
+        // and argv is what the shell intends to execute. Consulting the alias table again
+        // intercepted the exact state a self-referential alias must reach: expand once, stop,
+        // then fail as an ordinary missing command.
+        //
+        // ⚠️ Do not restore it. A second alias engine beside expand_aliases is the split-brain
+        // INT-193 existed to end, and the contract above forbids compensating here for a
+        // text-world transform.
+        CommandResult::NotBuiltin => execute_plan(plan, db),
         result => result,
     }
 }
