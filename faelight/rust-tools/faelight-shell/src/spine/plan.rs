@@ -404,10 +404,37 @@ fn lower_with_io(
         // a Vec whose ORDER is the wiring -- the shape `lower_substitution` already uses for
         // `$()`. Until it exists, refusing keeps the router honest: it declines, legacy runs
         // the pipe, and no half-executed pipeline can reach a process.
-        AstNode::Pipeline(pl) => Err(LowerError::UnsupportedConstruct {
-            kind: "pipeline",
-            span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
-        }),
+        //
+        // ⚠️⚠️ TWO REFUSALS THAT LOOK ALIKE AND ARE NOT. A FOREST pipeline (`ps | where cpu > 0`)
+        // must be declined FOREVER -- `where`, `sort` and `first` are Christian's query verbs, not
+        // programs, and `value::apply_pipeline` in legacy is their only implementation. A SHELL
+        // pipeline is declined only until execution exists. Reporting both as "pipeline" would hide
+        // the first inside the second and, once pipes run, the spine would try to SPAWN `where`.
+        //
+        // ★ The vocabulary is asked for, never copied -- `value::is_value_verb` is the single owner
+        // and a drift test proves it agrees with the parser that builds the ops.
+        AstNode::Pipeline(pl) => {
+            // Skipped: stage 0 PRODUCES the value, so it is a command even in a forest pipeline.
+            // `parse_pipeline` skips it for exactly this reason.
+            let forest = pl.stages.iter().skip(1).any(|st| {
+                // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot
+                // be known here, and a computed verb is not something the forest DSL accepts
+                // either. Erring toward "shell" is safe -- the spine still refuses below.
+                matches!(
+                    st.node.words.first().map(|w| w.node.parts.as_slice()),
+                    Some([crate::spine::ast::WordPart::Literal { text, .. }])
+                        if crate::value::is_value_verb(text)
+                )
+            });
+            Err(LowerError::UnsupportedConstruct {
+                kind: if forest {
+                    "forest value pipeline (legacy owns these)"
+                } else {
+                    "pipeline"
+                },
+                span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
+            })
+        }
         AstNode::Command(cmd) => {
             // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
             // execute them. Refusing here is not a formality -- without it a parsed redirect would

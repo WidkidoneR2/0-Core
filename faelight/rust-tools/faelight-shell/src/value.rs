@@ -644,6 +644,30 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
     }
 }
 
+/// The forest's pipeline vocabulary -- the verbs that make a `|` mean DATA FLOW rather than a
+/// process pipe. INT-200: extracted so the spine can ask whether a pipeline is its own to execute.
+///
+/// ★ WHY A CONST AND NOT A SECOND MATCH: `parse_pipe_op` below dispatches on structural patterns
+/// (`["sort", "by", field]`), which cannot be reduced to a name lookup without losing arity. So the
+/// name list cannot literally share code with it -- but it CAN share a proof, and
+/// `value_verbs_match_the_parser` below is that proof. Add a verb to one and the test fails.
+///
+/// ⚠️ THE SPINE MUST NOT KEEP ITS OWN COPY. A second vocabulary is the two-owners failure INT-193
+/// existed to end; it would drift the first time a verb is added here.
+pub const VALUE_VERBS: &[&str] = &[
+    "where", "select", "sort", "first", "last", "count", "take", "skip", "unique", "as", "filter",
+    "get", "watch", "group", "join", "map", "reduce", "flatten", "to-text",
+];
+
+/// Does this word begin a VALUE operation rather than a command? Pure, and first-word only.
+///
+/// ★ FIRST WORD IS ENOUGH FOR THE OWNERSHIP QUESTION even though `parse_pipe_op` needs the whole
+/// segment to build the op. "Is this stage mine?" and "what exactly does it do?" are different
+/// questions, and the cheaper one is the one the router needs.
+pub fn is_value_verb(first: &str) -> bool {
+    VALUE_VERBS.contains(&first)
+}
+
 /// Parse a pipeline string like "where score < 70 | sort score | first 5"
 pub fn parse_pipeline(s: &str) -> Vec<PipeOp> {
     s.split('|')
@@ -756,6 +780,69 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
             } else {
                 None
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod pipeline_vocabulary_tests {
+    use super::*;
+
+    /// ★ THE DRIFT GUARD, and the reason the const is allowed to exist. Each sample is run through
+    /// BOTH the real parser and the predicate; they must agree. A verb added to `parse_pipe_op`
+    /// without being added to `VALUE_VERBS` fails here, because the parser will build a real op
+    /// while the predicate still calls the stage external.
+    ///
+    /// ⚠️ This asserts AGREEMENT, not correctness of either side alone -- which is the honest thing
+    /// a cross-check can promise.
+    #[test]
+    fn value_verbs_match_the_parser() {
+        for sample in [
+            "where score < 70",
+            "select name score",
+            "sort score",
+            "sort by score descending",
+            "first 5",
+            "last 3",
+            "count",
+            "take 2",
+            "skip 2",
+            "unique",
+            "as json",
+            "filter contains x",
+            "get name",
+            "watch",
+            "group domain",
+            "join ports on pid",
+            "map score * 2",
+            "reduce sum score",
+            "flatten",
+            "to-text",
+        ] {
+            let first = sample.split_whitespace().next().unwrap();
+            let parsed = parse_pipe_op(sample);
+            let is_external = matches!(parsed, Some(PipeOp::External(_)));
+            assert!(
+                is_value_verb(first),
+                "{sample:?} parses as a value op but {first:?} is missing from VALUE_VERBS"
+            );
+            assert!(
+                !is_external,
+                "{sample:?} was treated as an external command"
+            );
+        }
+    }
+
+    /// The inverse, and the one that keeps the predicate from swallowing real commands. These are
+    /// ordinary programs and must stay external, or the spine would decline pipelines it owns.
+    #[test]
+    fn ordinary_commands_are_not_value_verbs() {
+        for sample in ["grep foo", "wc -l", "head -5", "sort_by_hand", "counter"] {
+            let first = sample.split_whitespace().next().unwrap();
+            assert!(
+                !is_value_verb(first),
+                "{first:?} must not be treated as a forest verb"
+            );
         }
     }
 }

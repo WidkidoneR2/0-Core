@@ -164,10 +164,22 @@ impl MigrationAudit {
 
         let spine_plan = match obs.spine {
             Ok(p) => p,
-            Err(LowerError::UnsupportedConstruct { kind: _, span: _ }) => {
+            Err(LowerError::UnsupportedConstruct { kind, .. }) => {
                 // Spine parsed but cannot lower this construct yet -- a migration feature gap.
                 self.report.feature_gap += 1;
                 push_example(&mut self.report.feature_gap_examples, obs.source);
+                // INT-200: SAY WHICH CONSTRUCT. `kind` was bound and dropped, so a forest
+                // value pipeline and a shell pipeline the spine cannot execute yet counted
+                // identically -- and those need opposite responses. A forest pipeline is
+                // declined FOREVER (legacy's `apply_pipeline` is the only implementation of
+                // those verbs); a shell pipeline is declined only until execution lands.
+                // Third time this session an observation layer knew the reason and would
+                // not say it.
+                *self
+                    .report
+                    .declined_by_reason
+                    .entry(format!("unlowerable: {kind}"))
+                    .or_insert(0) += 1;
                 return;
             }
             Err(LowerError::MissingCapability { kind: _, span: _ }) => {
