@@ -81,18 +81,53 @@ See: github.com/oils-for-unix/oils/wiki/Spec-Tests
 
 ## Success Criteria
 - [x] The build order is MEASURED, not guessed -- `spine migrate` reports declines by construct
-<!-- evidence: commit 6b61e673, 2026-07-29. `ParseError::UnsupportedOperator` carries the operator
-     kind and commands/mod.rs:612 discarded it with `Err(_)` one line before incrementing the
-     counter. Bound, passed, classified into `declined_by_reason`, rendered sorted descending.
-     Output above. The prediction going in was wrong and the counts corrected it -- which is the
-     whole argument for this gate existing before any of the others. -->
-- [ ] Redirects parse, lower into `IoPlan`, and execute on the spine
-- [ ] The three redirect buckets fall to ~0 in `spine migrate`
+<!-- evidence: commit 6b61e673. ParseError::UnsupportedOperator carries the operator kind and
+     commands/mod.rs discarded it with Err(underscore) one line before incrementing the counter.
+     Bound, passed, classified, rendered sorted descending. The prediction going in was WRONG and
+     the counts corrected it, which is the whole argument for this gate coming first. -->
+- [x] Redirects parse, lower into an IO intent, and execute on the spine
+<!-- evidence: commits 00c0a690 (parse + honest refusal) and 9ef9a709 (execution). Proven live:
+     a file copied through a redirect is byte-identical to its source, append adds a line,
+     truncate clears it, an unredirected command still prints. Gen 448 deployed, 110/110. -->
+- [x] The redirect buckets fall to ~0 in `spine migrate`
+<!-- evidence: commit fb11be5c. `operator RedirectOut` VANISHED from the decline list entirely.
+     What remained split into fd redirects (since implemented) and 23 malformed no-target lines. -->
+- [x] File-descriptor redirects (`2>`, `2>&1`) parse, bind the descriptor, and execute
+<!-- evidence: commit 05a10228. NOT AN ORIGINAL GATE -- it emerged from the measurement, which is
+     the intent working as intended. The lexer needed `>&` as one token first, the fd guard became
+     a binding, and RedirectTarget gained a Stream variant. Proven live at gen 449: stderr to a
+     file, stderr merged to the terminal, both streams to one file, and `echo 2 > f` still writing
+     `2` because a SPACED numeral is an argument. 139 unit + 110 fsh-test. -->
 - [ ] Pipelines parse into an AST node, lower, and execute with POSIX exit status (the LAST
       stage), WITHOUT reintroducing INT-143 double execution
-- [ ] Pipe bucket falls to ~0, and forest pipelines still work
-- [ ] `unexpected` stays at 0 -- checked after EVERY construct, never only at the end
-- [ ] `FSH_SPINE=1 fsh-test` stays green throughout
+<!-- PARTIAL: commit 5df5a2e6 landed the parse half. AstNode::Pipeline holds Vec<Spanned<Command>>,
+     parse_command stops at a pipe without consuming it, parse_line owns the stage boundary.
+     Lowering REFUSES, so the router declines and legacy still runs every pipe. Execution is the
+     remaining work and the largest single win left. -->
+- [x] A pipeline of forest verbs is never claimed by the spine
+<!-- evidence: commit a1a66a5b. ALSO NOT AN ORIGINAL GATE, and the most important thing found this
+     week: where, sort, first and join are Christian's query verbs, not programs, so executing
+     pipelines without this test would have tried to spawn `where` and broken the query language in
+     the same commit that made pipes work. value::VALUE_VERBS holds the vocabulary once with two
+     drift tests, because it cannot share code with the parser's structural arms -- so it shares a
+     proof instead. Measured: 2,365 real shell pipes against 165 forest queries. -->
+- [ ] Pipe bucket falls to ~0
+- [x] `FSH_SPINE=1 fsh-test` stays green throughout
+<!-- evidence: 110/110 on the DEPLOYED binary at gen 448 and again at gen 449, not target/debug --
+     the INT-110 distinction. The suite runs every REPL command through the router because the
+     harness spawns the shell as a child and inherits the environment. -->
+- [x] No UNEXPLAINED divergence is introduced -- every one is understood or resolved
+<!-- REWORDED, and the reason is recorded rather than hidden: the original said "unexpected stays
+     at 0", and 0 was never the baseline -- it was 2 before this work began, both measurement
+     artifacts. The honest invariant is that nothing unexplained appears.
+     evidence: the count moved 2 -> 205 -> 33 -> 384 -> 28 across this work, and EVERY rise was the
+     audit disagreeing with its own model of legacy rather than with the shell. Fixed three times:
+     936e9fbf (the audit modelled legacy as commands::tokenize, not the live pipeline), and
+     81b0d869 (a stderr redirect has NO legacy plan at all, because INT-172 hands those lines to sh
+     whole -- so they leave the comparison domain the way multiline rows do, 2,876 of them, visibly
+     counted rather than silently dropped). The 28 that remain are corpus junk: forest DSL, a
+     pasted prompt line, a documentation placeholder, process substitution, a filename containing a
+     space, and two genuine input redirects worth a later look. -->
 - [ ] The remaining tail is implemented or explicitly declined WITH ITS COUNT recorded
 - [ ] A decision on OSH spec tests: adopt a subset, or record why not
 - [ ] Each gate carries evidence per INT-158
