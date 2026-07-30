@@ -399,6 +399,15 @@ fn lower_with_io(
     io: IoPlan,
 ) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
+        // INT-200: a pipeline is not ONE process, and ExecutionPlan describes exactly one.
+        // Rather than stretching the type, lowering refuses here; `lower_pipeline` will return
+        // a Vec whose ORDER is the wiring -- the shape `lower_substitution` already uses for
+        // `$()`. Until it exists, refusing keeps the router honest: it declines, legacy runs
+        // the pipe, and no half-executed pipeline can reach a process.
+        AstNode::Pipeline(pl) => Err(LowerError::UnsupportedConstruct {
+            kind: "pipeline",
+            span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
+        }),
         AstNode::Command(cmd) => {
             // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
             // execute them. Refusing here is not a formality -- without it a parsed redirect would

@@ -109,7 +109,8 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
 /// refusal is correct while whether redirects own numeric fd prefixes stays a later grammar
 /// decision.
 const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
-    ("ls faelight | grep vm", OperatorKind::Pipe),
+    // `ls faelight | grep vm` left this table in INT-200 -- the parser now BUILDS a Pipeline
+    // for it, so it is no longer a refusal. Lowering declines it instead, one layer down.
     ("a && b", OperatorKind::And),
 ];
 

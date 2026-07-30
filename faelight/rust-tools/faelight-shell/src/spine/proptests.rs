@@ -114,6 +114,19 @@ proptest! {
             prop_assert!(node.span.start <= node.span.end, "node span reversed");
             prop_assert!(node.span.end <= input.len(), "node span past input end");
             match &node.node {
+                // ★ SPANS MATTER JUST AS MUCH INSIDE A PIPELINE, so this checks the stages
+                // rather than skipping them -- a stage's word spans must still land on char
+                // boundaries, and a third-stage span bug would otherwise go unseen.
+                AstNode::Pipeline(pl) => {
+                    for stage in &pl.stages {
+                        prop_assert!(stage.span.start <= stage.span.end, "stage span reversed");
+                        prop_assert!(stage.span.end <= input.len(), "stage span past input end");
+                        for word in &stage.node.words {
+                            prop_assert!(word.span.end <= input.len(), "word span past input end");
+                            let _ = &input[word.span.start..word.span.end];
+                        }
+                    }
+                }
                 AstNode::Command(cmd) => {
                     for word in &cmd.words {
                         prop_assert!(word.span.start <= word.span.end, "word span reversed");
@@ -169,6 +182,15 @@ proptest! {
                     // exact guarantee on the case where the parser really is a whitespace
                     // splitter, rather than weakening it into something that cannot fail.
             match &node.node {
+                // ⚠️ A PIPELINE CANNOT SATISFY THIS ARITHMETIC and must not be forced to. Each
+                // `|` is a whitespace chunk that becomes NO word, so counting stages against
+                // chunks would fail on valid input. The property is about a single command's
+                // word split; for a pipeline the honest statement is the inequality alone.
+                AstNode::Pipeline(pl) => {
+                    let words: usize = pl.stages.iter().map(|s| s.node.words.len()).sum();
+                    prop_assert!(words <= chunks,
+                        "more words than whitespace chunks for {:?}", input);
+                }
                 AstNode::Command(cmd) => {
                     prop_assert!(cmd.words.len() <= chunks,
                         "more words than whitespace chunks for {:?}", input);

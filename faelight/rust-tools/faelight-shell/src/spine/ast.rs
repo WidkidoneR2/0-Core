@@ -92,11 +92,29 @@ impl<T> Spanned<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AstNode {
     Command(Command),
-    // Pipeline(Pipeline)   -- roadmap step 6 (composition, not a "statement")
+    Pipeline(Pipeline),
     // Sequence(Sequence)   -- roadmap step 7
     // If(IfNode)           -- roadmap step 9
     // While(WhileNode)     -- roadmap step 9
     // Function(Function)   -- roadmap step 9
+}
+
+/// A pipeline: two or more commands whose stdout chains into the next stdin. RFC roadmap step 6.
+///
+/// ★ COMPOSITION, NOT A STATEMENT -- the phrase the frozen variant list used when reserving this
+/// slot, and it decides the shape. A pipeline holds COMMANDS, not AstNodes, so `a | b | c` cannot
+/// nest an `if` inside a stage and the type stays a linear chain rather than a general tree. If a
+/// construct ever needs to appear mid-pipeline, that is a new variant, not a loosening of this one.
+///
+/// ⚠️ INVARIANT: at least TWO stages. A single command is `AstNode::Command`, never a one-stage
+/// Pipeline -- otherwise every consumer would need to handle two spellings of the same thing, and
+/// the audit would report a construct change where the user typed none.
+///
+/// Each stage is individually spanned, so a failure in the third stage of a five-stage pipeline can
+/// point at the third stage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Pipeline {
+    pub stages: Vec<Spanned<Command>>,
 }
 
 /// A command: structured words plus redirects. RFC sections 4.4 / 4.5. Boundary FROZEN.

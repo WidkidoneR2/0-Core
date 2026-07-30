@@ -344,8 +344,11 @@ mod tests {
         //
         // INT-169 gave the lexer operator tokens, so the parser now REFUSES before lowering and
         // the heuristic became confirmation rather than inference. This asserts the old failure
+        // ⚠️ THE PROBE MOVED FROM A PIPE TO `&&` (INT-200). A pipe is OWNED now, so it would
+        // lower successfully and this test would assert the opposite of its own thesis. The
+        // thesis is unchanged: whatever the spine cannot execute must not reach a plan.
         // mode cannot return: a command the spine cannot execute must not reach a plan.
-        let r = audit_history(vec!["ls | grep x".to_string()].into_iter());
+        let r = audit_history(vec!["ls && grep x".to_string()].into_iter());
         assert_eq!(
             r.lower_success, 0,
             "must not lower a command it cannot execute"

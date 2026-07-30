@@ -67,6 +67,10 @@ mod tests {
         let node: Spanned<AstNode> = Spanned::new(full_span, AstNode::Command(cmd));
         match node.node {
             AstNode::Command(c) => assert_eq!(c.words.len(), 3),
+            // The node is hand-built two lines above, so a pipeline is impossible here.
+            // Named rather than wildcarded: a `_` arm would silently absorb the next variant
+            // too, and the compiler pointing at this line is the value of an exhaustive match.
+            AstNode::Pipeline(_) => unreachable!("constructed as a Command directly above"),
         }
         assert_eq!(node.span.len(), 11, "span length in bytes");
     }

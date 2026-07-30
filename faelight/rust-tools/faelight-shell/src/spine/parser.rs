@@ -10,8 +10,8 @@
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
 use super::ast::{
-    AstNode, Command, Redirect, RedirectOp, Span, Spanned, SpecialParam, VariableSyntax, Word,
-    WordPart,
+    AstNode, Command, Pipeline, Redirect, RedirectOp, Span, Spanned, SpecialParam, VariableSyntax,
+    Word, WordPart,
 };
 use super::lexer::{
     lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
@@ -89,7 +89,7 @@ impl Parser {
     /// a `Spanned<Word>` -- the word carries its own token span (spans everywhere), and its
     /// single Literal part today; at roadmap step 3 ($VAR) this is where a Word grows
     /// multiple parts.
-    fn parse_command(&mut self) -> Result<Spanned<AstNode>, ParseError> {
+    fn parse_command(&mut self) -> Result<Spanned<Command>, ParseError> {
         let mut words: Vec<Spanned<Word>> = Vec::new();
         let mut redirects: Vec<Spanned<Redirect>> = Vec::new();
         let mut cmd_span: Option<Span> = None;
@@ -162,6 +162,10 @@ impl Parser {
                 }
                 // INT-169: DECLINE OWNERSHIP for everything else, and do not advance. The spine
                 // parser is not learning pipelines here -- it is learning where its language ENDS.
+                // ★ A PIPE ENDS THIS COMMAND, it does not end the parse. Left UNCONSUMED so
+                // parse_line owns the stage boundary -- the parser that builds a stage should
+                // not also decide what follows it.
+                TokenKind::Operator(OperatorKind::Pipe) => break,
                 TokenKind::Operator(kind) => {
                     return Err(ParseError::UnsupportedOperator {
                         kind,
@@ -195,20 +199,47 @@ impl Parser {
 
         match cmd_span {
             None => Err(ParseError::Empty),
-            Some(sp) => Ok(Spanned::new(
-                sp,
-                AstNode::Command(Command { words, redirects }),
-            )),
+            Some(sp) => Ok(Spanned::new(sp, Command { words, redirects })),
         }
     }
 
-    /// Top-level parse: the whole line -> one node. Today a single command; later this
-    /// dispatches into pipeline/list parsing that recurses down to parse_command.
+    /// Top-level parse: the whole line -> one node. Owns the STAGE BOUNDARY -- `parse_command`
+    /// builds a single stage and stops at a pipe without consuming it, so the decision about what
+    /// follows a command lives here rather than inside the thing being built.
+    ///
+    /// ★ ONE STAGE YIELDS `Command`, NOT A ONE-STAGE PIPELINE. Wrapping every command would give
+    /// consumers two spellings of the same thing and make the audit report a construct change where
+    /// the user typed none.
+    ///
+    /// ⚠️ A trailing or doubled pipe (`ls |`, `a || b` mis-lexed) leaves a stage with no words.
+    /// `parse_command` already answers `Empty` for that, and it propagates -- the parser declines
+    /// rather than inventing an empty stage the executor would have to interpret.
     fn parse_line(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         if self.is_at_end() {
             return Err(ParseError::Empty);
         }
-        self.parse_command()
+        let first = self.parse_command()?;
+        if !matches!(
+            self.peek().map(|t| t.kind),
+            Some(TokenKind::Operator(OperatorKind::Pipe))
+        ) {
+            let span = first.span;
+            return Ok(Spanned::new(span, AstNode::Command(first.node)));
+        }
+        let mut stages = vec![first];
+        while matches!(
+            self.peek().map(|t| t.kind),
+            Some(TokenKind::Operator(OperatorKind::Pipe))
+        ) {
+            self.advance().expect("peek was Some");
+            stages.push(self.parse_command()?);
+        }
+        let span = stages
+            .first()
+            .expect("at least one stage")
+            .span
+            .merge(stages.last().expect("at least one stage").span);
+        Ok(Spanned::new(span, AstNode::Pipeline(Pipeline { stages })))
     }
 }
 
@@ -377,6 +408,22 @@ mod tests {
     use super::*;
     use crate::spine::ast::{AstNode, WordPart};
 
+    /// INT-200: `AstNode` gained `Pipeline`, so every `let AstNode::Command(c) = …` in these tests
+    /// became a refutable binding and every `match` became non-exhaustive. These cases assert
+    /// COMMAND shape and are not about pipelines, so they say so once here rather than each growing
+    /// an arm that panics.
+    ///
+    /// ⚠️ Deliberately PANICS on a pipeline instead of returning Option. A test that silently
+    /// skipped when the parse changed shape would go green while proving nothing.
+    fn as_command(node: Spanned<AstNode>) -> Command {
+        match node.node {
+            AstNode::Command(c) => c,
+            AstNode::Pipeline(p) => {
+                panic!("expected a single Command, got {} stages", p.stages.len())
+            }
+        }
+    }
+
     #[test]
     fn parse_bare_command_matches_hand_built_shape() {
         // `ls -la /tmp` -> a Command of three spanned words, each a single Literal part.
@@ -388,6 +435,7 @@ mod tests {
         );
 
         match node.node {
+            AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 3);
                 assert!(cmd.redirects.is_empty());
@@ -424,6 +472,7 @@ mod tests {
     fn parse_single_word() {
         let node = parse("pwd").expect("parses");
         match node.node {
+            AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 1);
                 assert_eq!(
@@ -455,7 +504,9 @@ mod tests {
         ];
         for (source, expected) in cases {
             let ast = parse(source).expect("parses");
-            let AstNode::Command(cmd) = &ast.node;
+            let AstNode::Command(cmd) = &ast.node else {
+                panic!("{source} should parse as a Command")
+            };
             assert_eq!(
                 cmd.words[1].node.parts,
                 vec![WordPart::Literal {
@@ -474,7 +525,7 @@ mod tests {
     #[test]
     fn the_parser_declines_shell_it_does_not_implement() {
         for (source, want) in [
-            ("echo hi | grep h", OperatorKind::Pipe),
+            // `| ` left this list in INT-200: it is OWNED now, not refused.
             ("a && b", OperatorKind::And),
             ("a || b", OperatorKind::Or),
             ("a ; b", OperatorKind::Sequence),
@@ -502,7 +553,7 @@ mod tests {
             ("wc -l < in.txt", RedirectOp::Read, "in.txt"),
         ] {
             let node = parse(source).unwrap_or_else(|e| panic!("{source} should parse: {e:?}"));
-            let AstNode::Command(cmd) = node.node;
+            let cmd = as_command(node);
             assert_eq!(cmd.redirects.len(), 1, "{source}");
             let r = &cmd.redirects[0].node;
             assert_eq!(r.op, op, "{source}");
@@ -530,7 +581,7 @@ mod tests {
         }
         // ...but a SPACED numeral is an ordinary argument, not an fd.
         let node = parse("echo 2 > f").expect("spaced numeral parses");
-        let AstNode::Command(cmd) = node.node;
+        let cmd = as_command(node);
         assert_eq!(cmd.words.len(), 2, "echo and 2");
         assert_eq!(cmd.redirects.len(), 1);
     }
@@ -539,11 +590,14 @@ mod tests {
     /// it is valid shell belonging to a grammar this parser does not implement -- so the span marks
     /// the ownership boundary rather than blaming the line.
     #[test]
+    /// ⚠️ The example moved from a pipe to `&&` (INT-200): a pipe now PARSES into a Pipeline,
+    /// so it no longer demonstrates a refusal. The property under test is unchanged -- the span
+    /// marks the operator, not the line.
     fn the_refusal_points_at_the_operator() {
-        let source = "echo hi | grep h";
+        let source = "a && b";
         match parse(source) {
             Err(ParseError::UnsupportedOperator { span, .. }) => {
-                assert_eq!(&source[span.start..span.end], "|");
+                assert_eq!(&source[span.start..span.end], "&&");
             }
             other => panic!("expected a refusal, got {other:?}"),
         }
@@ -570,6 +624,7 @@ mod tests {
         // RFC section 9 rides-with: the spine does NOT lowercase. GitHub stays GitHub.
         let node = parse("GitHub Clone").expect("parses");
         match node.node {
+            AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(
                     cmd.words[0].node.parts,
