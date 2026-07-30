@@ -607,9 +607,9 @@ fn execute_impl(
                             &node,
                             &crate::spine::plan::LowerContext::default(),
                         ),
-                        Err(_) => {
+                        Err(e) => {
                             // Counted, not silently dropped: legacy accepted this line.
-                            audit.spine_parse_error(source);
+                            audit.spine_parse_error(source, &e);
                             continue;
                         }
                     };

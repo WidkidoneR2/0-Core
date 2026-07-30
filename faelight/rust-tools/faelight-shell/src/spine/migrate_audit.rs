@@ -94,6 +94,16 @@ pub struct MigrationReport {
     /// A real behavioral difference, and counted so no entry vanishes from the denominator.
     pub spine_parse_error: usize,
     pub spine_parse_error_examples: Vec<String>,
+    /// INT-169: WHY each line was declined, counted by construct.
+    ///
+    /// ★ The bare total was a dead end. 6,223 declines is the remaining migration work, but a
+    /// single number cannot say WHAT TO BUILD -- and the parser already knew, because
+    /// ParseError::UnsupportedOperator carries the operator. The call site discarded it with
+    /// `Err(_)` one line before incrementing the counter.
+    ///
+    /// Rendered, this sorts six months of real history into a BUILD ORDER: pipes, redirects,
+    /// forest pipelines, boolean chains. Biggest bucket first, measured rather than guessed.
+    pub declined_by_reason: std::collections::BTreeMap<String, usize>,
 
     pub safe_improvement_examples: Vec<String>,
     pub feature_gap_examples: Vec<String>,
@@ -123,10 +133,18 @@ impl MigrationAudit {
     }
 
     /// Record a source the spine could not parse at all. Counted, never silently dropped.
-    pub fn spine_parse_error(&mut self, source: &str) {
+    pub fn spine_parse_error(&mut self, source: &str, why: &crate::spine::parser::ParseError) {
         self.report.seen += 1;
         self.report.spine_parse_error += 1;
         push_example(&mut self.report.spine_parse_error_examples, source);
+        let reason = match why {
+            crate::spine::parser::ParseError::UnsupportedOperator { kind, .. } => {
+                format!("operator {kind:?}")
+            }
+            crate::spine::parser::ParseError::Lex(_) => "lex error".to_string(),
+            crate::spine::parser::ParseError::Empty => "empty".to_string(),
+        };
+        *self.report.declined_by_reason.entry(reason).or_insert(0) += 1;
     }
 
     /// Observe one (source, legacy plan, spine result). The engine classifies and records.
@@ -233,6 +251,17 @@ impl MigrationReport {
                 "Spine parse error: {}  (legacy accepted these)\n",
                 self.spine_parse_error
             ));
+        }
+        // ★ THE BUILD ORDER, from six months of real history. A bare decline total says how
+        // much work remains; this says WHICH work, sorted by what actually gets typed.
+        if !self.declined_by_reason.is_empty() {
+            out.push_str("Declined by construct:\n");
+            let mut rows: Vec<_> = self.declined_by_reason.iter().collect();
+            rows.sort_by(|a, b| b.1.cmp(a.1));
+            for (reason, count) in rows {
+                out.push_str(&format!("  {count:>7}  {reason}\n"));
+            }
+            out.push('\n');
         }
         out.push('\n');
 
