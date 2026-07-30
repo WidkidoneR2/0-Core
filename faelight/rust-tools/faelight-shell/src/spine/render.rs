@@ -84,25 +84,29 @@ fn render_command(
         // step 5" and printed only a count -- true when the field was permanently empty, stale
         // the moment the parser started filling it.
         for r in &cmd.redirects {
-            let t: Vec<String> = r
-                .node
-                .target
-                .parts
-                .iter()
-                .map(|p| match p {
-                    WordPart::Literal { text, .. } => text.clone(),
-                    WordPart::Variable { name, .. } => format!("${name}"),
-                    WordPart::SpecialParam(s) => format!("{s:?}"),
-                    WordPart::CommandSub(_) => "$(...)".to_string(),
-                })
-                .collect();
+            // INT-200: a target is a FILE or a STREAM, and the renderer says which. `2>&1`
+            // showing as `1` would read as a filename in every golden captured from it.
+            let t = match &r.node.target {
+                super::ast::RedirectTarget::Stream(n) => format!("&{n}"),
+                super::ast::RedirectTarget::File(w) => w
+                    .parts
+                    .iter()
+                    .map(|p| match p {
+                        WordPart::Literal { text, .. } => text.clone(),
+                        WordPart::Variable { name, .. } => format!("${name}"),
+                        WordPart::SpecialParam(s) => format!("{s:?}"),
+                        WordPart::CommandSub(_) => "$(...)".to_string(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(""),
+            };
             out.push_str(&format!(
                 "{}Redirect @[{},{})  {:?} -> {}\n",
                 indent(level + 1),
                 r.span.start,
                 r.span.end,
                 r.node.op,
-                t.join("")
+                t
             ));
         }
     }

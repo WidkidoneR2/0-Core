@@ -61,6 +61,23 @@ pub enum Environment {
 ///
 /// Today there are two EXECUTION INTENTS, and Capture is deliberately not a redirect: it does not
 /// consume the reserved design space above, because nothing about it describes an fd graph.
+/// Where a command's stderr goes once the redirects have been read in order.
+///
+/// ★ RESOLVED, NOT RECORDED. `2>&1` means "wherever stdout points AT THIS POINT IN THE LINE", so
+/// lowering walks left to right and emits `Stdout` only when stdout was ALREADY redirected. That is
+/// what makes `cmd > out 2>&1` (both to the file) differ from `cmd 2>&1 > out` (stderr to the
+/// terminal) without the plan carrying an ordered list -- the ordering is consumed by the phase
+/// that reads the syntax, which is where facts about what was written belong.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StderrTarget {
+    /// Untouched -- the shell's own stderr.
+    Inherit,
+    /// Its own file. `(path, append)`, same shape as stdout.
+    File(std::path::PathBuf, bool),
+    /// Share stdout's destination. The executor must DUP, never re-open.
+    Stdout,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IoPlan {
     /// No redirects, no pipe wiring -- stdin/stdout/stderr inherited from the shell.
@@ -89,6 +106,10 @@ pub enum IoPlan {
         stdin: Option<std::path::PathBuf>,
         /// (path, append) -- `>>` is the same wiring with a different open mode.
         stdout: Option<(std::path::PathBuf, bool)>,
+        /// INT-200: where stderr goes, RESOLVED. Three states rather than an Option because
+        /// `cmd > f 2>&1` must open `f` ONCE and DUP the descriptor -- opening it twice gives
+        /// two independent file offsets and the streams overwrite each other.
+        stderr: StderrTarget,
     },
 }
 
@@ -449,47 +470,96 @@ fn lower_with_io(
             // INT-200, STEP 2: redirects become an IO intent. Targets are expanded HERE, using
             // the same `expand_word` every argv word goes through, so `> $LOG` and `> ~/out.txt`
             // work by construction rather than by a second implementation.
+            //
+            // ★ LEFT TO RIGHT, AND THE ORDER IS THE SEMANTICS. `2>&1` copies wherever stdout points
+            // AT THAT MOMENT, so this loop resolves it against the stdout seen so far rather than
+            // the final one.
             let mut stdin_path: Option<std::path::PathBuf> = None;
             let mut stdout_path: Option<(std::path::PathBuf, bool)> = None;
+            let mut stderr = StderrTarget::Inherit;
             for r in &cmd.redirects {
-                let expanded = expand_word(&r.node.target, ctx)?;
-                // ⚠️ AMBIGUOUS REDIRECT. `> *.txt` matching two files has no correct answer, and
-                // bash refuses it by name. This is InvalidPlan rather than UnsupportedConstruct
-                // ON PURPOSE: a refusal falls back to legacy, and legacy would guess. A DEFECT
-                // surfaces. Picking a file to overwrite is worse than stopping.
-                let [one] = expanded.as_slice() else {
-                    return Err(LowerError::InvalidPlan {
-                        message: format!(
-                            "ambiguous redirect: target expanded to {} words",
-                            expanded.len()
-                        ),
-                        span: r.span,
-                    });
-                };
-                let path = std::path::PathBuf::from(one);
-                match r.node.op {
-                    crate::spine::ast::RedirectOp::Read => stdin_path = Some(path),
-                    crate::spine::ast::RedirectOp::Write => stdout_path = Some((path, false)),
-                    crate::spine::ast::RedirectOp::Append => stdout_path = Some((path, true)),
+                let append = matches!(r.node.op, crate::spine::ast::RedirectOp::Append);
+                // Which stream is being redirected. `None` means the operator's default: stdin for
+                // a read, stdout for a write.
+                let fd = r.node.fd.unwrap_or(
+                    if matches!(r.node.op, crate::spine::ast::RedirectOp::Read) {
+                        0
+                    } else {
+                        1
+                    },
+                );
+                match &r.node.target {
+                    crate::spine::ast::RedirectTarget::Stream(n) => {
+                        // Only `2>&1` exists in six months of history -- zero `1>&2`, zero anything
+                        // else. Refusing the rest is honest: legacy already handles them via sh, and
+                        // building a descriptor graph for no users is the opposite of measured work.
+                        if fd == 2 && *n == 1 {
+                            stderr = if stdout_path.is_some() {
+                                StderrTarget::Stdout
+                            } else {
+                                // stdout is still the terminal HERE, so stderr stays there too --
+                                // even if a later `> out` moves stdout. This is the case bash users
+                                // trip over, and getting it wrong is silent.
+                                StderrTarget::Inherit
+                            };
+                        } else {
+                            return Err(LowerError::UnsupportedConstruct {
+                                kind: "descriptor duplication other than 2>&1",
+                                span: r.span,
+                            });
+                        }
+                    }
+                    crate::spine::ast::RedirectTarget::File(w) => {
+                        let expanded = expand_word(w, ctx)?;
+                        // ⚠️ AMBIGUOUS REDIRECT. `> *.txt` matching two files has no correct answer,
+                        // and bash refuses it by name. This is InvalidPlan rather than
+                        // UnsupportedConstruct ON PURPOSE: a refusal falls back to legacy, and
+                        // legacy would guess. A DEFECT surfaces. Picking a file to overwrite is
+                        // worse than stopping.
+                        let [one] = expanded.as_slice() else {
+                            return Err(LowerError::InvalidPlan {
+                                message: format!(
+                                    "ambiguous redirect: target expanded to {} words",
+                                    expanded.len()
+                                ),
+                                span: r.span,
+                            });
+                        };
+                        let path = std::path::PathBuf::from(one);
+                        match fd {
+                            0 => stdin_path = Some(path),
+                            1 => stdout_path = Some((path, append)),
+                            2 => stderr = StderrTarget::File(path, append),
+                            _ => {
+                                return Err(LowerError::UnsupportedConstruct {
+                                    kind: "redirect of a descriptor other than 0, 1 or 2",
+                                    span: r.span,
+                                })
+                            }
+                        }
+                    }
                 }
             }
             // ⚠️ `$(cmd > f)` asks for capture AND a file. Both claim stdout, and the enum cannot
             // express both -- correctly, since the answer is genuinely undecided. Refuse rather
             // than silently letting one win.
-            let io = if stdin_path.is_some() || stdout_path.is_some() {
-                if io != IoPlan::Simple {
-                    return Err(LowerError::UnsupportedConstruct {
-                        kind: "redirect inside a capture",
-                        span: ast.span,
-                    });
-                }
-                IoPlan::Files {
-                    stdin: stdin_path,
-                    stdout: stdout_path,
-                }
-            } else {
-                io
-            };
+            let io =
+                if stdin_path.is_some() || stdout_path.is_some() || stderr != StderrTarget::Inherit
+                {
+                    if io != IoPlan::Simple {
+                        return Err(LowerError::UnsupportedConstruct {
+                            kind: "redirect inside a capture",
+                            span: ast.span,
+                        });
+                    }
+                    IoPlan::Files {
+                        stdin: stdin_path,
+                        stdout: stdout_path,
+                        stderr,
+                    }
+                } else {
+                    io
+                };
             // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
             // explicit rather than flat_map because Result inside flat_map hides the types at
             // exactly the point a reader needs to see them.

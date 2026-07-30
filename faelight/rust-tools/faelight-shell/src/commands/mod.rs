@@ -617,6 +617,10 @@ fn execute_impl(
                                 crate::spine::plan::IoPlan::Files {
                                     stdin: None,
                                     stdout: Some((std::path::PathBuf::from(target), *append)),
+                                    // Legacy's `2>` lines never reach here -- INT-172 routes
+                                    // every one of them to sh whole -- so the modelled legacy
+                                    // plan never redirects stderr.
+                                    stderr: crate::spine::plan::StderrTarget::Inherit,
                                 },
                             )
                         }
@@ -8239,7 +8243,12 @@ fn explain_exit_code(code: i32) -> &'static str {
 fn spawn_with_tee(
     mut cmd: std::process::Command,
     db: &ForestDb,
+    sink: Option<std::fs::File>,
 ) -> std::io::Result<std::process::ExitStatus> {
+    // ★ `sink` IS WHERE THE TEE WRITES. `None` is the terminal, which every caller wanted until
+    // `2> file` existed. Passing a file makes stderr redirection work WITHOUT losing the capture,
+    // so the knowledge engine still reads real error text from a command whose stderr went to a
+    // log -- telemetry a plain spawn would have given up for the 40% of history that redirects.
     // INT-200: stdin and stdout are the CALLER's, which is what the doc above already claimed.
     // They were set here unconditionally, so a caller attaching a redirect file to stdout had it
     // silently clobbered. Only stderr belongs to this function -- the tee is its whole purpose.
@@ -8262,7 +8271,10 @@ fn spawn_with_tee(
         let mut captured: Vec<u8> = Vec::new();
         if let Some(mut es) = child_stderr {
             let mut buf = [0u8; 4096];
-            let mut real = std::io::stderr();
+            let mut real: Box<dyn Write + Send> = match sink {
+                Some(f) => Box::new(f),
+                None => Box::new(std::io::stderr()),
+            };
             loop {
                 match es.read(&mut buf) {
                     Ok(0) | Err(_) => break,
@@ -8517,7 +8529,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
         IoPlan::Simple => {
             cmd.stdin(std::process::Stdio::inherit())
                 .stdout(std::process::Stdio::inherit());
-            match spawn_with_tee(cmd, db) {
+            match spawn_with_tee(cmd, db, None) {
                 Ok(s) if s.success() => CommandResult::Empty,
                 Ok(s) => {
                     let code = s.code().unwrap_or(1);
@@ -8549,7 +8561,11 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
         // `cargo build > log` exactly as it does from a plain command. Giving this arm its own
         // spawn would have been simpler and would have silently dropped that telemetry for the
         // 40% of history that redirects.
-        IoPlan::Files { stdin, stdout } => {
+        IoPlan::Files {
+            stdin,
+            stdout,
+            stderr: stderr_target,
+        } => {
             match stdin {
                 Some(path) => match std::fs::File::open(path) {
                     Ok(f) => {
@@ -8568,7 +8584,10 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     cmd.stdin(std::process::Stdio::inherit());
                 }
             }
-            match stdout {
+            // ★ THE HANDLE IS KEPT, not just handed over. `Stdio::from(f)` CONSUMES the file,
+            // so a later `2>&1` would have nothing to clone -- hence the clone happens here, while
+            // the original is still in hand, and the copy is what goes to the child.
+            let stdout_file: Option<std::fs::File> = match stdout {
                 Some((path, append)) => {
                     let opened = std::fs::OpenOptions::new()
                         .write(true)
@@ -8578,7 +8597,17 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                         .open(path);
                     match opened {
                         Ok(f) => {
-                            cmd.stdout(std::process::Stdio::from(f));
+                            let for_child = match f.try_clone() {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    return CommandResult::Error(format!(
+                                        "  cannot open {}: {e}",
+                                        path.display()
+                                    ))
+                                }
+                            };
+                            cmd.stdout(std::process::Stdio::from(for_child));
+                            Some(f)
                         }
                         Err(e) => {
                             return CommandResult::Error(format!(
@@ -8590,9 +8619,49 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 }
                 None => {
                     cmd.stdout(std::process::Stdio::inherit());
+                    None
                 }
-            }
-            match spawn_with_tee(cmd, db) {
+            };
+            // ★ THE DUP, AND WHY IT IS A CLONE RATHER THAN A SECOND OPEN. `cmd > f 2>&1` must
+            // share ONE open file between both streams: opening `f` twice gives two independent
+            // write offsets and the streams overwrite each other instead of interleaving. So the
+            // stdout handle is cloned -- same description, same offset -- which is exactly what
+            // dup(2) does in a real shell.
+            //
+            // ⚠️ Reopening the path here would look right and produce truncated, jumbled output
+            // only when both streams are busy. Silent, and only under load.
+            let stderr_sink: Option<std::fs::File> = match stderr_target {
+                crate::spine::plan::StderrTarget::Inherit => None,
+                crate::spine::plan::StderrTarget::File(path, append) => {
+                    match std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .append(*append)
+                        .truncate(!*append)
+                        .open(path)
+                    {
+                        Ok(f) => Some(f),
+                        Err(e) => {
+                            return CommandResult::Error(format!(
+                                "  cannot write {}: {e}",
+                                path.display()
+                            ))
+                        }
+                    }
+                }
+                crate::spine::plan::StderrTarget::Stdout => match &stdout_file {
+                    Some(f) => match f.try_clone() {
+                        Ok(c) => Some(c),
+                        Err(e) => {
+                            return CommandResult::Error(format!("  cannot share stdout: {e}"))
+                        }
+                    },
+                    // Lowering only emits Stdout when stdout was ALREADY redirected, so this is
+                    // unreachable -- but inheriting is the honest answer if it ever is not.
+                    None => None,
+                },
+            };
+            match spawn_with_tee(cmd, db, stderr_sink) {
                 Ok(s) if s.success() => CommandResult::Empty,
                 Ok(s) => {
                     let code = s.code().unwrap_or(1);
@@ -8714,7 +8783,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     cmd.arg("-c").arg(line);
     cmd.stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit());
-    let status = spawn_with_tee(cmd, db);
+    // sh inherits stderr; only a spine plan can redirect it.
+    let status = spawn_with_tee(cmd, db, None);
     match status {
         Ok(s) => {
             if s.success() {

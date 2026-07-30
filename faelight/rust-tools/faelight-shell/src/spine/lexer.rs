@@ -69,6 +69,15 @@ pub enum OperatorKind {
     /// omitting it is not neutral. `sleep 5 &` would then lex as three WORDS, parse cleanly, and
     /// execute `sleep` with `&` as a literal argument. An incomplete refusal is a mis-execution.
     Background,
+    /// `>&` -- DESCRIPTOR DUPLICATION, and a token in its own right. INT-200: without this the
+    /// scanner reads `2>&1` as RedirectOut followed by Background, which is not a redirect
+    /// followed by a background job -- it is one operator meaning "send this stream where that
+    /// one goes". The fd guard hides that today by refusing first; the moment the guard becomes
+    /// a binding, the parser would look for a target word and find an operator.
+    ///
+    /// ⚠️ Two-character match, so a lone `&` is untouched and `sleep 5 &` still lexes as
+    /// Background exactly as before.
+    RedirectDup,
     RedirectOut,
     RedirectAppend,
     RedirectIn,
@@ -95,6 +104,7 @@ fn operator_at(chars: &[(usize, char)], i: usize) -> Option<(OperatorKind, usize
     let next = chars.get(i + 1).map(|x| x.1);
     Some(match (c, next) {
         ('>', Some('>')) => (OperatorKind::RedirectAppend, 2),
+        ('>', Some('&')) => (OperatorKind::RedirectDup, 2),
         ('&', Some('&')) => (OperatorKind::And, 2),
         ('|', Some('|')) => (OperatorKind::Or, 2),
         ('|', _) => (OperatorKind::Pipe, 1),
@@ -424,6 +434,52 @@ mod tests {
         let toks = lex("sleep 5 &").expect("lexes");
         assert_eq!(toks.len(), 3);
         assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Background));
+    }
+
+    /// ★ `>&` IS ONE OPERATOR, and the reason this test sits beside the lone-ampersand case: they
+    /// are the two halves of the same distinction. Without the two-character arm, `2>&1` scans as
+    /// RedirectOut followed by Background -- which reads as "redirect, then background the job" and
+    /// is not what anyone wrote. It is descriptor duplication: send this stream where that one goes.
+    ///
+    /// ⚠️ The fd guard in the parser hides this today by refusing first. The moment that guard
+    /// becomes a BINDING, the parser consumes `>`, looks for a target word, and finds an operator --
+    /// so this must be a token before fd redirects can be built at all.
+    #[test]
+    fn a_dup_redirect_is_one_operator_not_two() {
+        let toks = lex("ls 2>&1").expect("lexes");
+        let ops: Vec<_> = toks.iter().filter(|t| t.kind != TokenKind::Word).collect();
+        assert_eq!(
+            ops.len(),
+            1,
+            "2>&1 is ONE operator, not RedirectOut plus Background"
+        );
+        assert_eq!(ops[0].kind, TokenKind::Operator(OperatorKind::RedirectDup));
+        // The numeral and the destination stay separate WORDS -- binding them is the parser's job,
+        // and the lexer deliberately does not know that `2` names a stream.
+        assert_eq!(toks.len(), 4, "ls, 2, >&, 1");
+    }
+
+    /// The inverse, and the one that proves the two-character match did not swallow the lone form:
+    /// a `&` NOT preceded by `>` is still Background, so `sleep 5 &` is unchanged.
+    #[test]
+    fn a_dup_arm_does_not_swallow_a_lone_ampersand() {
+        let toks = lex("ls > f & sleep 5 &").expect("lexes");
+        let ops: Vec<_> = toks
+            .iter()
+            .filter_map(|t| match t.kind {
+                TokenKind::Operator(k) => Some(k),
+                TokenKind::Word => None,
+            })
+            .collect();
+        assert_eq!(
+            ops,
+            vec![
+                OperatorKind::RedirectOut,
+                OperatorKind::Background,
+                OperatorKind::Background
+            ],
+            "a space between > and & keeps them separate operators"
+        );
     }
 
     /// An operator inside a command substitution belongs to the NESTED program, and the region is

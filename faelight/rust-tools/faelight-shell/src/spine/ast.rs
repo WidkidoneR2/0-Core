@@ -254,7 +254,22 @@ pub struct Redirect {
     /// The target as WRITTEN, unexpanded. A redirect target is a word like any other: `> $LOG` and
     /// `> out*.txt` are the expansion phase's business, not the parser's -- the same fact/policy
     /// split that keeps QuoteContext and VariableSyntax in the AST.
-    pub target: Word,
+    pub target: RedirectTarget,
+}
+
+/// WHERE a redirection points. INT-200: `2>&1` names a STREAM, not a file, and a `Word` cannot
+/// say so -- it would arrive as the literal text "1" and be opened as a filename.
+///
+/// ★ TWO VARIANTS BECAUSE TWO IS WHAT EXISTS. Six months of history contains exactly `2>` and
+/// `2>&1` -- zero `1>`, zero `N>>`, zero descriptors above 2. An arbitrary-descriptor model would
+/// be designing for a shell nobody here uses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RedirectTarget {
+    /// A filename, still UNEXPANDED -- `> $LOG` and `> ~/out.txt` are expansion's business.
+    File(Word),
+    /// A descriptor named by `>&`, as in `2>&1`. Held as a number because that is what was
+    /// written; which stream it MEANS is lowering's decision, not the parser's.
+    Stream(u32),
 }
 
 /// WHICH redirection, named by what it DOES rather than by its spelling. The parser never learns

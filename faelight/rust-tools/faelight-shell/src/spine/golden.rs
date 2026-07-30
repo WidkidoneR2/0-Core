@@ -118,7 +118,7 @@ const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
 /// against an explicit file descriptor is recognised and deliberately left to legacy -- INT-172
 /// routes it to sh, where it works -- and it is counted separately in the audit so that "stderr
 /// redirects we decline on purpose" never reads as "redirects we cannot do".
-const FUTURE_FD_REFUSALS: &[&str] = &["cat log 2> /dev/null", "make 1>> build.log"];
+const FUTURE_FD_REFUSALS: &[&str] = &["cat log 3>&2", "make 4> build.log"];
 
 #[cfg(test)]
 mod tests {
@@ -173,18 +173,23 @@ mod tests {
                 other => panic!("{input:?} crossed the ownership boundary: {other:?}"),
             }
         }
+    }
 
-        /// The same ownership boundary, for the refusal that has no operator identity. Kept as its own
-        /// test rather than widened into the one above, because a table pairing input with OperatorKind
-        /// cannot express a variant that has none -- and loosening the assertion to "any Err" would stop
-        /// proving WHICH refusal happened, which is the property both tests exist for.
-        #[test]
-        fn fd_redirects_are_refused_with_their_own_identity() {
-            for input in FUTURE_FD_REFUSALS {
-                match parse(input) {
-                    Err(ParseError::FdRedirect { .. }) => {}
-                    other => panic!("{input:?} must decline as FdRedirect: {other:?}"),
-                }
+    /// ⚠️ THE CORPUS MOVED (INT-200): `2>` and `2>&1` are OWNED now, so what is left here is the
+    /// descriptors nobody in this history has ever typed -- zero `3>`, zero `1>&2`, zero anything
+    /// above 2. Keeping the old entries would have made a passing test out of behaviour that
+    /// changed.
+    ///
+    /// ★ AND THE BOUNDARY MOVED WITH THEM: these now PARSE and are declined at LOWERING, because
+    /// the parser can build the shape while only the executor knows it has no wiring for it.
+    /// Asserting the parse alone would prove nothing, so the plan is what is checked.
+    #[test]
+    fn unused_descriptors_are_declined_at_lowering() {
+        for input in FUTURE_FD_REFUSALS {
+            let node = parse(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e:?}"));
+            match crate::spine::plan::lower(&node, &crate::spine::plan::LowerContext::default()) {
+                Err(crate::spine::plan::LowerError::UnsupportedConstruct { .. }) => {}
+                other => panic!("{input:?} must be declined at lowering: {other:?}"),
             }
         }
     }

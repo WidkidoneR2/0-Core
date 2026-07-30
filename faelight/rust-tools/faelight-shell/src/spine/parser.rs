@@ -10,8 +10,8 @@
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
 use super::ast::{
-    AstNode, Command, Pipeline, Redirect, RedirectOp, Span, Spanned, SpecialParam, VariableSyntax,
-    Word, WordPart,
+    AstNode, Command, Pipeline, Redirect, RedirectOp, RedirectTarget, Span, Spanned, SpecialParam,
+    VariableSyntax, Word, WordPart,
 };
 use super::lexer::{
     lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
@@ -100,31 +100,36 @@ impl Parser {
 
         while let Some(tok) = self.peek() {
             match tok.kind {
-                // INT-200: REDIRECTS ARE OURS NOW. `>`, `>>` and `<` were 2,487 of the 6,224
-                // declined lines -- 40% of everything the spine could not own -- and they need no
-                // process chaining, only stdio wired to a file.
+                // INT-200: REDIRECTS ARE OURS. `>`, `>>`, `<` and now `>&`.
                 TokenKind::Operator(
                     op @ (OperatorKind::RedirectOut
                     | OperatorKind::RedirectAppend
-                    | OperatorKind::RedirectIn),
+                    | OperatorKind::RedirectIn
+                    | OperatorKind::RedirectDup),
                 ) => {
-                    // ⚠️ THE fd TRAP. The lexer does NOT make `2>` one token -- it yields Word("2")
-                    // then RedirectOut. Consuming this blindly would read `cat log 2> /dev/null` as
-                    // `cat log 2` with stdout redirected, silently turning the fd into an ARGUMENT.
+                    // ⚠️ THE fd TRAP, NOW A BINDING RATHER THAN A REFUSAL -- and the danger it was
+                    // guarding against is still here. The lexer does not make `2>` one token; it
+                    // yields Word("2") then the operator. Consuming blindly reads
+                    // `cat log 2> /dev/null` as `cat log 2` with stdout redirected, silently turning
+                    // the descriptor into an ARGUMENT.
                     //
-                    // ★ SPANS DISTINGUISH IT, which is what spans-everywhere is for. `2>` leaves no
-                    // gap between the word and the operator; `echo 2 > f` does, and that one is a
-                    // legitimate command echoing a number. So: refuse only a bare numeral written
-                    // ADJACENT to the operator. `2>` stays with legacy, where INT-172 routes it to
-                    // sh and it works.
-                    let fd_prefixed = words.last().is_some_and(|w| {
+                    // ★ ADJACENCY DECIDES IT, which is what spans-everywhere is for. `2>` leaves no
+                    // gap; `echo 2 > f` does, and that one really is echoing a number. So a bare
+                    // numeral touching the operator is CONSUMED as the descriptor -- popped from
+                    // `words`, because it was never an argument.
+                    let fd = if words.last().is_some_and(|w| {
                         w.span.end == tok.span.start
                             && matches!(w.node.parts.as_slice(), [WordPart::Literal { text, .. }]
                                 if !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()))
-                    });
-                    if fd_prefixed {
-                        return Err(ParseError::FdRedirect { span: tok.span });
-                    }
+                    }) {
+                        let w = words.pop().expect("checked just above");
+                        match &w.node.parts[..] {
+                            [WordPart::Literal { text, .. }] => text.parse::<u32>().ok(),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
                     let opspan = tok.span;
                     self.advance().expect("peek was Some");
                     // A redirect with no target is a syntax error legacy already reports well
@@ -146,44 +151,66 @@ impl Parser {
                     for seg in &target_tok.segments {
                         parts.extend(parts_from_segment(seg)?);
                     }
-                    // ⚠️ A COMPARISON IS NOT A REDIRECT, and this is a DELIBERATE DIVERGENCE
-                    // FROM BASH. `echo test > 0.5` creates a file called `0.5` in bash; legacy
-                    // refuses it, prints `test > 0.5` as text, and that refusal is what makes
-                    // `ps | where cpu > 0.5` work at all. Christian's query verbs are the reason
-                    // the rule exists, so the spine adopts it rather than being POSIX-correct and
-                    // breaking the language the shell was built for.
-                    //
-                    // ★ REFUSING matches legacy's OUTPUT without copying its mechanism: the router
-                    // declines, legacy treats the operator as an ordinary word, and the line prints.
-                    // Teaching the spine to demote an operator back into a word would be a second
-                    // implementation of a rule that already has one.
-                    //
-                    // ⚠️ FIRST CHARACTER ONLY, matching legacy exactly -- `> 5abc` is refused too,
-                    // even though it is a plausible filename. Same rule, same blind spot, no new
-                    // divergence. Proven live: all three of `> 0.5`, `>= x` and `> 5abc` print as
-                    // text under FSH_SPINE=0 and create no files.
-                    if let Some(WordPart::Literal { text, .. }) = parts.first() {
-                        if text
-                            .chars()
-                            .next()
-                            .is_some_and(|c| c.is_ascii_digit() || c == '=')
-                        {
-                            return Err(ParseError::ComparisonNotRedirect {
-                                span: opspan.merge(tspan),
-                            });
+                    let target = if op == OperatorKind::RedirectDup {
+                        // `2>&1` names a STREAM. A non-numeric target after `>&` is shell fsh does
+                        // not model (`2>&-` closes a descriptor), so it is declined rather than
+                        // guessed at.
+                        match parts.as_slice() {
+                            [WordPart::Literal { text, .. }]
+                                if text.chars().all(|c| c.is_ascii_digit()) =>
+                            {
+                                match text.parse::<u32>() {
+                                    Ok(n) => RedirectTarget::Stream(n),
+                                    Err(_) => {
+                                        return Err(ParseError::MissingRedirectTarget {
+                                            kind: op,
+                                            span: opspan.merge(tspan),
+                                        })
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(ParseError::MissingRedirectTarget {
+                                    kind: op,
+                                    span: opspan.merge(tspan),
+                                })
+                            }
                         }
-                    }
+                    } else {
+                        // ⚠️ A COMPARISON IS NOT A REDIRECT -- a DELIBERATE DIVERGENCE FROM BASH,
+                        // which would create a file named `0.5`. Legacy refuses it, prints the line
+                        // as text, and that refusal is why `ps | where cpu > 0.5` works at all.
+                        //
+                        // ★ SCOPED TO FILE TARGETS ONLY, and that scoping is load-bearing: `2>&1`
+                        // has the target `1`, which starts with a digit. Applying this guard to a
+                        // stream target would refuse the single most common fd form in the corpus.
+                        if let Some(WordPart::Literal { text, .. }) = parts.first() {
+                            if text
+                                .chars()
+                                .next()
+                                .is_some_and(|c| c.is_ascii_digit() || c == '=')
+                            {
+                                return Err(ParseError::ComparisonNotRedirect {
+                                    span: opspan.merge(tspan),
+                                });
+                            }
+                        }
+                        RedirectTarget::File(Word { parts })
+                    };
+                    // `>&` is an OUTPUT redirection whose destination happens to be a stream, so the
+                    // op stays Write and the TARGET carries the difference. A separate Dup op would
+                    // encode the same fact twice.
                     let rop = match op {
-                        OperatorKind::RedirectOut => RedirectOp::Write,
                         OperatorKind::RedirectAppend => RedirectOp::Append,
-                        _ => RedirectOp::Read,
+                        OperatorKind::RedirectIn => RedirectOp::Read,
+                        _ => RedirectOp::Write,
                     };
                     redirects.push(Spanned::new(
                         opspan.merge(tspan),
                         Redirect {
-                            fd: None,
+                            fd,
                             op: rop,
-                            target: Word { parts },
+                            target,
                         },
                     ));
                     cmd_span = Some(match cmd_span {
@@ -590,7 +617,11 @@ mod tests {
             assert_eq!(r.op, op, "{source}");
             assert_eq!(r.fd, None, "{source} has no explicit fd");
             assert_eq!(
-                r.target.parts,
+                match &r.target {
+                    RedirectTarget::File(w) => w.parts.clone(),
+                    RedirectTarget::Stream(n) =>
+                        panic!("{source} is a file redirect, got stream {n}"),
+                },
                 vec![WordPart::Literal {
                     text: target.to_string(),
                     quoted: QuoteContext::Unquoted
@@ -600,21 +631,53 @@ mod tests {
         }
     }
 
-    /// ★ THE fd TRAP, and the reason spans exist. The lexer yields Word("2") then RedirectOut for
-    /// `2>`, so a parser that consumed redirects blindly would read `cat log 2> /dev/null` as
-    /// `cat log 2` with stdout redirected -- the fd silently becoming an ARGUMENT. Adjacency is
-    /// what distinguishes it: `2>` has no gap, `echo 2 > f` does and is a real command.
+    /// ★ THE fd TRAP, NOW PROVEN AS A BINDING RATHER THAN A REFUSAL -- and this is the assertion
+    /// that must never be loosened. The lexer yields Word("2") then the operator, so a parser that
+    /// consumed the operator without claiming the numeral would read `cat log 2> /dev/null` as
+    /// `cat log 2` with STDOUT redirected: the descriptor silently becomes an argument, the wrong
+    /// stream is captured, and nothing errors.
+    ///
+    /// ⚠️ So the test asserts BOTH halves: the fd landed on the redirect AND the numeral left argv.
+    /// Checking only the first would still pass if `2` were duplicated into the arguments.
     #[test]
-    fn an_fd_prefixed_redirect_is_refused_not_mis_parsed() {
-        match parse("cat log 2> /dev/null") {
-            Err(ParseError::FdRedirect { .. }) => {}
-            other => panic!("2> must be declined, not mis-parsed: {other:?}"),
-        }
-        // ...but a SPACED numeral is an ordinary argument, not an fd.
+    fn an_fd_prefixed_redirect_binds_the_descriptor() {
+        let node = parse("cat log 2> /dev/null").expect("parses");
+        let cmd = as_command(node);
+        assert_eq!(
+            cmd.words.len(),
+            2,
+            "the descriptor must NOT survive as an argument"
+        );
+        assert_eq!(cmd.redirects.len(), 1);
+        let r = &cmd.redirects[0].node;
+        assert_eq!(r.fd, Some(2), "stderr, not the default stdout");
+        assert_eq!(r.op, RedirectOp::Write);
+
+        // ...and a SPACED numeral is an ordinary argument, not a descriptor. Adjacency is the whole
+        // distinction, so both sides of it are asserted here rather than in separate tests.
         let node = parse("echo 2 > f").expect("spaced numeral parses");
         let cmd = as_command(node);
         assert_eq!(cmd.words.len(), 2, "echo and 2");
         assert_eq!(cmd.redirects.len(), 1);
+        assert_eq!(cmd.redirects[0].node.fd, None, "no descriptor was written");
+    }
+
+    /// `2>&1` -- the most common fd form in six months of history, and the one that needs the
+    /// lexer's `>&` token. Without it the scanner produces RedirectOut then Background and the
+    /// parser looks for a target word where an operator sits.
+    #[test]
+    fn a_dup_redirect_binds_both_descriptors() {
+        let node = parse("ls /nope 2>&1").expect("parses");
+        let cmd = as_command(node);
+        assert_eq!(cmd.words.len(), 2, "ls and the path -- no stray numerals");
+        assert_eq!(cmd.redirects.len(), 1);
+        let r = &cmd.redirects[0].node;
+        assert_eq!(r.fd, Some(2), "stderr is the stream being redirected");
+        assert_eq!(
+            r.target,
+            RedirectTarget::Stream(1),
+            "the destination is a STREAM, not a file named 1"
+        );
     }
 
     /// The refusal points at the OPERATOR, not at the whole command. The input is not malformed --
