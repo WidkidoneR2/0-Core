@@ -57,6 +57,10 @@ pub enum SkipReason {
     /// of comparison is one command, so comparing it would measure a newline-tokenization
     /// difference rather than anything about the language.
     Multiline,
+    /// A stderr redirect. Legacy delegates the WHOLE line to `sh` (INT-172), so it produces no
+    /// plan of its own -- there is nothing to compare, and counting it as a divergence measured
+    /// the audit's own model rather than the shell.
+    StderrDelegated,
 }
 
 /// Is this history entry applicable to single-command comparison? None = comparable.
@@ -67,6 +71,18 @@ pub fn applicability(source: &str) -> Option<SkipReason> {
     if source.contains('\n') {
         return Some(SkipReason::Multiline);
     }
+    // INT-200: A STDERR REDIRECT HAS NO LEGACY PLAN TO COMPARE AGAINST. INT-172's repair was to
+    // hand every `2>` line to `sh` WHOLE, so legacy never builds an argv for one -- and once the
+    // spine learned fd redirects, every such row read as a divergence. 384 of them.
+    //
+    // ★ ASKED, NOT COPIED: `detect_redirect` owns the rule, and re-deriving `2>` here would be a
+    // second implementation that drifts the first time either changes.
+    if matches!(
+        crate::expand::detect_redirect(source).1,
+        Some((ref t, _)) if t == "__stderr__"
+    ) {
+        return Some(SkipReason::StderrDelegated);
+    }
     None
 }
 
@@ -76,6 +92,7 @@ pub struct MigrationReport {
     pub seen: usize,
     pub skipped_empty: usize,
     pub skipped_multiline: usize,
+    pub skipped_stderr: usize,
     pub compared: usize,
     pub equivalent: usize,
     pub safe_improvement: usize,
@@ -129,6 +146,7 @@ impl MigrationAudit {
         match reason {
             SkipReason::Empty => self.report.skipped_empty += 1,
             SkipReason::Multiline => self.report.skipped_multiline += 1,
+            SkipReason::StderrDelegated => self.report.skipped_stderr += 1,
         }
     }
 
@@ -235,13 +253,19 @@ impl MigrationReport {
         out.push_str("Migration Audit (spine vs legacy)\n\n");
         out.push_str(&format!("History entries seen:     {}\n", self.seen));
         out.push_str(&format!("Applicable to comparison: {}\n", self.compared));
-        let skipped = self.skipped_empty + self.skipped_multiline;
+        let skipped = self.skipped_empty + self.skipped_multiline + self.skipped_stderr;
         out.push_str(&format!("Skipped:                  {skipped}\n"));
         if self.skipped_empty > 0 {
             out.push_str(&format!("  empty:     {}\n", self.skipped_empty));
         }
         if self.skipped_multiline > 0 {
             out.push_str(&format!("  multiline: {}\n", self.skipped_multiline));
+        }
+        if self.skipped_stderr > 0 {
+            out.push_str(&format!(
+                "  stderr-delegated: {} (legacy hands these to sh whole -- no plan to compare)\n",
+                self.skipped_stderr
+            ));
         }
         out.push_str("  (excluded: Increment 10 compares single-command inputs)\n\n");
         let pct = |n: usize| -> String {
