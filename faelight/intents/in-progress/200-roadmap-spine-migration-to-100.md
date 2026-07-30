@@ -79,6 +79,41 @@ encodes exactly the accumulated weirdness fsh keeps discovering one bug at a tim
 subset converts bug-by-bug discovery into a measured percentage.
 See: github.com/oils-for-unix/oils/wiki/Spec-Tests
 
+## MEASURED STATE (gen 449, 2026-07-30)
+
+Applicable to comparison: 22,546 Equivalent: 19,867 88.1%
+Skipped: 9,860 Safe improvements: 16
+multiline: 6,984 Feature gaps: 2,515 11.2%
+stderr-delegated: 2,876 Unexpected: 28 0.1%
+Spine parse errors: 722
+
+Declined by construct:
+2367 unlowerable: pipeline <- the remaining prize
+377 operator And
+180 operator Sequence
+148 unlowerable: forest value pipeline (legacy owns these)
+45 operator Background · 42 lex error · 30 operator Or
+26 comparison, not a redirect -- DELIBERATE DIVERGENCE
+21 redirect with no target (malformed input)
+
+HOW TO READ THIS. Equivalence is 88.1% rather than the 99.5% earlier in this work, and that is a
+DENOMINATOR effect rather than a regression: pipelines became comparable, so the applicable count
+grew by thousands while the equivalent count also rose. Two numbers matter more than the percentage.
+
+UNEXPECTED IS 28, and every one is corpus junk rather than a defect: forest query lines, a pasted
+prompt captured as a command, source-code fragments, a documentation placeholder in angle brackets,
+process substitution which neither engine models, a filename containing a space, and two genuine
+input redirects worth a later look. That number moved 2, 205, 33, 384, 28 across this work and every
+rise was the audit disagreeing with its own model of legacy rather than with the shell.
+
+STDERR-DELEGATED IS NOT A GAP. Legacy hands every such line to sh whole, so it builds no plan of its
+own and there is nothing to compare -- those rows leave the comparison domain the way multiline
+entries do, counted visibly rather than dropped.
+
+THE DECLINE LIST IS THE WORK QUEUE, sorted. Pipelines are 2,367 of it. Everything below the boolean
+chain is a tail of under 350, and the deliberate-divergence and malformed-input rows are not work at
+all -- they are the shell behaving as designed.
+
 ## Success Criteria
 - [x] The build order is MEASURED, not guessed -- `spine migrate` reports declines by construct
 <!-- evidence: commit 6b61e673. ParseError::UnsupportedOperator carries the operator kind and
