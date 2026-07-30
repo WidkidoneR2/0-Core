@@ -45,6 +45,10 @@ pub enum ParseError {
     /// spine deliberately leaves to legacy* from *redirects it fails to handle* -- and 2,230
     /// declines looked like unfinished work when most of them are the guard behaving correctly.
     FdRedirect { span: Span },
+    /// A `>` whose target begins with a digit or `=`, which fsh reads as a COMPARISON rather
+    /// than a redirect. Legacy refuses it so `where cpu > 0.5` works; the spine matches that,
+    /// and the audit counts it separately so a deliberate divergence never reads as a gap.
+    ComparisonNotRedirect { span: Span },
     /// A redirect with no target after it. Legacy already reports this well (INT-245's bare-redirect
     /// guard), so the spine declines rather than inventing a second message for the same mistake.
     MissingRedirectTarget { kind: OperatorKind, span: Span },
@@ -141,6 +145,33 @@ impl Parser {
                     let mut parts: Vec<WordPart> = Vec::new();
                     for seg in &target_tok.segments {
                         parts.extend(parts_from_segment(seg)?);
+                    }
+                    // ⚠️ A COMPARISON IS NOT A REDIRECT, and this is a DELIBERATE DIVERGENCE
+                    // FROM BASH. `echo test > 0.5` creates a file called `0.5` in bash; legacy
+                    // refuses it, prints `test > 0.5` as text, and that refusal is what makes
+                    // `ps | where cpu > 0.5` work at all. Christian's query verbs are the reason
+                    // the rule exists, so the spine adopts it rather than being POSIX-correct and
+                    // breaking the language the shell was built for.
+                    //
+                    // ★ REFUSING matches legacy's OUTPUT without copying its mechanism: the router
+                    // declines, legacy treats the operator as an ordinary word, and the line prints.
+                    // Teaching the spine to demote an operator back into a word would be a second
+                    // implementation of a rule that already has one.
+                    //
+                    // ⚠️ FIRST CHARACTER ONLY, matching legacy exactly -- `> 5abc` is refused too,
+                    // even though it is a plausible filename. Same rule, same blind spot, no new
+                    // divergence. Proven live: all three of `> 0.5`, `>= x` and `> 5abc` print as
+                    // text under FSH_SPINE=0 and create no files.
+                    if let Some(WordPart::Literal { text, .. }) = parts.first() {
+                        if text
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_ascii_digit() || c == '=')
+                        {
+                            return Err(ParseError::ComparisonNotRedirect {
+                                span: opspan.merge(tspan),
+                            });
+                        }
                     }
                     let rop = match op {
                         OperatorKind::RedirectOut => RedirectOp::Write,

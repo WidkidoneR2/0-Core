@@ -142,6 +142,12 @@ impl MigrationAudit {
             // the spine deliberately leaves to legacy -- INT-172 routes it to sh, where it
             // works -- so counting it beside "redirects we cannot do" made 2,230 declines read
             // as unfinished work when most are the fd guard behaving correctly.
+            // A DELIBERATE DIVERGENCE, counted apart so it never reads as a gap: fsh refuses
+            // a redirect whose target starts with a digit or `=`, because that is how
+            // `where cpu > 0.5` stays a comparison. Bash would create the file.
+            crate::spine::parser::ParseError::ComparisonNotRedirect { .. } => {
+                "comparison, not a redirect (> 0.5) -- deliberate divergence".to_string()
+            }
             crate::spine::parser::ParseError::FdRedirect { .. } => {
                 "redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
             }
