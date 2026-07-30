@@ -224,4 +224,29 @@ pub enum SpecialParam {
 /// an empty placeholder so `Command.redirects` is a real (always-empty) field from day
 /// one, not something bolted on later.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Redirect;
+pub struct Redirect {
+    /// WHICH stream. `None` means the operator's default -- stdout for the write forms, stdin for
+    /// the read form. INT-200: reserved by ast.rs from day one and still not populated, because
+    /// the lexer does not treat `2>` as one token -- it yields Word("2") then RedirectOut. A parser
+    /// that ignored that would read `cat log 2> /dev/null` as `cat log 2` with stdout redirected,
+    /// silently turning the fd into an ARGUMENT. The parser REFUSES that shape instead, so `2>`
+    /// stays with legacy where INT-172 already routes it to sh correctly.
+    pub fd: Option<u32>,
+    pub op: RedirectOp,
+    /// The target as WRITTEN, unexpanded. A redirect target is a word like any other: `> $LOG` and
+    /// `> out*.txt` are the expansion phase's business, not the parser's -- the same fact/policy
+    /// split that keeps QuoteContext and VariableSyntax in the AST.
+    pub target: Word,
+}
+
+/// WHICH redirection, named by what it DOES rather than by its spelling. The parser never learns
+/// that append is two characters; the lexer owns that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectOp {
+    /// `>` -- truncate and write.
+    Write,
+    /// `>>` -- append.
+    Append,
+    /// `<` -- read.
+    Read,
+}

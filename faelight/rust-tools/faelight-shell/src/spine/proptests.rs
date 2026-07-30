@@ -165,8 +165,8 @@ proptest! {
                     prop_assert!(cmd.words.len() <= chunks,
                         "more words than whitespace chunks for {:?}", input);
                     if !input.contains('"') && !input.contains('\'') {
-                        prop_assert_eq!(cmd.words.len(), chunks,
-                            "quote-free input must split exactly on whitespace: {:?}", input);
+                        prop_assert_eq!(cmd.words.len() + cmd.redirects.len() * 2, chunks,
+                            "quote-free input: words plus redirect pairs must equal chunks: {:?}", input);
                     }
                 }
             }

@@ -9,7 +9,10 @@
 //! new parse method hanging off this same recursive-descent structure -- parse_command
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
-use super::ast::{AstNode, Command, Span, Spanned, SpecialParam, VariableSyntax, Word, WordPart};
+use super::ast::{
+    AstNode, Command, Redirect, RedirectOp, Span, Spanned, SpecialParam, VariableSyntax, Word,
+    WordPart,
+};
 use super::lexer::{
     lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
 };
@@ -79,13 +82,80 @@ impl Parser {
     /// multiple parts.
     fn parse_command(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         let mut words: Vec<Spanned<Word>> = Vec::new();
+        let mut redirects: Vec<Spanned<Redirect>> = Vec::new();
         let mut cmd_span: Option<Span> = None;
 
         while let Some(tok) = self.peek() {
             match tok.kind {
-                // INT-169: DECLINE OWNERSHIP, and do not advance. The spine parser is not learning
-                // pipelines here -- it is learning where its language ENDS. The token is left in
-                // place because refusing is not consuming.
+                // INT-200: REDIRECTS ARE OURS NOW. `>`, `>>` and `<` were 2,487 of the 6,224
+                // declined lines -- 40% of everything the spine could not own -- and they need no
+                // process chaining, only stdio wired to a file.
+                TokenKind::Operator(
+                    op @ (OperatorKind::RedirectOut
+                    | OperatorKind::RedirectAppend
+                    | OperatorKind::RedirectIn),
+                ) => {
+                    // ⚠️ THE fd TRAP. The lexer does NOT make `2>` one token -- it yields Word("2")
+                    // then RedirectOut. Consuming this blindly would read `cat log 2> /dev/null` as
+                    // `cat log 2` with stdout redirected, silently turning the fd into an ARGUMENT.
+                    //
+                    // ★ SPANS DISTINGUISH IT, which is what spans-everywhere is for. `2>` leaves no
+                    // gap between the word and the operator; `echo 2 > f` does, and that one is a
+                    // legitimate command echoing a number. So: refuse only a bare numeral written
+                    // ADJACENT to the operator. `2>` stays with legacy, where INT-172 routes it to
+                    // sh and it works.
+                    let fd_prefixed = words.last().is_some_and(|w| {
+                        w.span.end == tok.span.start
+                            && matches!(w.node.parts.as_slice(), [WordPart::Literal { text, .. }]
+                                if !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()))
+                    });
+                    if fd_prefixed {
+                        return Err(ParseError::UnsupportedOperator {
+                            kind: op,
+                            span: tok.span,
+                        });
+                    }
+                    let opspan = tok.span;
+                    self.advance().expect("peek was Some");
+                    // A redirect with no target is a syntax error legacy already reports well
+                    // (INT-245's bare-redirect guard). Refuse rather than inventing a second
+                    // message for the same mistake.
+                    let target_tok = match self.peek() {
+                        Some(t) if t.kind == TokenKind::Word => {
+                            self.advance().expect("peek was Some")
+                        }
+                        _ => {
+                            return Err(ParseError::UnsupportedOperator {
+                                kind: op,
+                                span: opspan,
+                            })
+                        }
+                    };
+                    let tspan = target_tok.span;
+                    let mut parts: Vec<WordPart> = Vec::new();
+                    for seg in &target_tok.segments {
+                        parts.extend(parts_from_segment(seg)?);
+                    }
+                    let rop = match op {
+                        OperatorKind::RedirectOut => RedirectOp::Write,
+                        OperatorKind::RedirectAppend => RedirectOp::Append,
+                        _ => RedirectOp::Read,
+                    };
+                    redirects.push(Spanned::new(
+                        opspan.merge(tspan),
+                        Redirect {
+                            fd: None,
+                            op: rop,
+                            target: Word { parts },
+                        },
+                    ));
+                    cmd_span = Some(match cmd_span {
+                        None => opspan.merge(tspan),
+                        Some(s) => s.merge(tspan),
+                    });
+                }
+                // INT-169: DECLINE OWNERSHIP for everything else, and do not advance. The spine
+                // parser is not learning pipelines here -- it is learning where its language ENDS.
                 TokenKind::Operator(kind) => {
                     return Err(ParseError::UnsupportedOperator {
                         kind,
@@ -121,10 +191,7 @@ impl Parser {
             None => Err(ParseError::Empty),
             Some(sp) => Ok(Spanned::new(
                 sp,
-                AstNode::Command(Command {
-                    words,
-                    redirects: vec![],
-                }),
+                AstNode::Command(Command { words, redirects }),
             )),
         }
     }
@@ -402,9 +469,6 @@ mod tests {
     fn the_parser_declines_shell_it_does_not_implement() {
         for (source, want) in [
             ("echo hi | grep h", OperatorKind::Pipe),
-            ("ls > out.txt", OperatorKind::RedirectOut),
-            ("ls >> out.txt", OperatorKind::RedirectAppend),
-            ("wc -l < in.txt", OperatorKind::RedirectIn),
             ("a && b", OperatorKind::And),
             ("a || b", OperatorKind::Or),
             ("a ; b", OperatorKind::Sequence),
@@ -417,6 +481,52 @@ mod tests {
                 other => panic!("{source} was not declined: {other:?}"),
             }
         }
+    }
+
+    /// ⚠️ REDIRECTS LEFT THIS LIST DELIBERATELY (INT-200). They are no longer declined at PARSE
+    /// time -- the parser builds them into `Command.redirects`. They are still declined at
+    /// LOWERING, which is a different boundary and has its own test. The distinction matters: a
+    /// construct the parser understands but the executor cannot run is a capability gap, not a
+    /// grammar gap, and the audit counts them differently.
+    #[test]
+    fn redirects_parse_into_structure_rather_than_being_refused() {
+        for (source, op, target) in [
+            ("ls > out.txt", RedirectOp::Write, "out.txt"),
+            ("ls >> out.txt", RedirectOp::Append, "out.txt"),
+            ("wc -l < in.txt", RedirectOp::Read, "in.txt"),
+        ] {
+            let node = parse(source).unwrap_or_else(|e| panic!("{source} should parse: {e:?}"));
+            let AstNode::Command(cmd) = node.node;
+            assert_eq!(cmd.redirects.len(), 1, "{source}");
+            let r = &cmd.redirects[0].node;
+            assert_eq!(r.op, op, "{source}");
+            assert_eq!(r.fd, None, "{source} has no explicit fd");
+            assert_eq!(
+                r.target.parts,
+                vec![WordPart::Literal {
+                    text: target.to_string(),
+                    quoted: QuoteContext::Unquoted
+                }],
+                "{source} target is kept UNEXPANDED -- a redirect target is a word like any other"
+            );
+        }
+    }
+
+    /// ★ THE fd TRAP, and the reason spans exist. The lexer yields Word("2") then RedirectOut for
+    /// `2>`, so a parser that consumed redirects blindly would read `cat log 2> /dev/null` as
+    /// `cat log 2` with stdout redirected -- the fd silently becoming an ARGUMENT. Adjacency is
+    /// what distinguishes it: `2>` has no gap, `echo 2 > f` does and is a real command.
+    #[test]
+    fn an_fd_prefixed_redirect_is_refused_not_mis_parsed() {
+        match parse("cat log 2> /dev/null") {
+            Err(ParseError::UnsupportedOperator { .. }) => {}
+            other => panic!("2> must be declined, not mis-parsed: {other:?}"),
+        }
+        // ...but a SPACED numeral is an ordinary argument, not an fd.
+        let node = parse("echo 2 > f").expect("spaced numeral parses");
+        let AstNode::Command(cmd) = node.node;
+        assert_eq!(cmd.words.len(), 2, "echo and 2");
+        assert_eq!(cmd.redirects.len(), 1);
     }
 
     /// The refusal points at the OPERATOR, not at the whole command. The input is not malformed --

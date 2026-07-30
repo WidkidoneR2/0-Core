@@ -385,6 +385,22 @@ fn lower_with_io(
 ) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
         AstNode::Command(cmd) => {
+            // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
+            // execute them. Refusing here is not a formality -- without it a parsed redirect would
+            // lower to IoPlan::Simple and the command would run with the redirect SILENTLY
+            // DROPPED: output to the terminal, no file, no error. That is the exact
+            // silent-corruption shape two of today's bugs had.
+            //
+            // ★ The refusal is also the correct BEHAVIOUR meanwhile: the router declines, legacy
+            // runs the redirect as it always has, and `spine migrate` moves these lines from
+            // "operator RedirectOut" into the feature-gap bucket -- which is honest, because they
+            // now parse and merely cannot execute.
+            if let Some(first) = cmd.redirects.first() {
+                return Err(LowerError::UnsupportedConstruct {
+                    kind: "redirect",
+                    span: first.span,
+                });
+            }
             // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
             // explicit rather than flat_map because Result inside flat_map hides the types at
             // exactly the point a reader needs to see them.

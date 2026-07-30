@@ -3,7 +3,7 @@ id: 200
 date: 2026-07-29
 type: future
 title: "RoadMap Spine-migration to 100%"
-status: planned
+status: in-progress
 tags: [fsh, spine, pipes, OSH]
 ---
 
