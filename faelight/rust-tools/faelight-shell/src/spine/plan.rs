@@ -27,7 +27,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use super::ast::{
-    AstNode, QuoteContext, Span, Spanned, SpecialParam, VariableSyntax, Word, WordPart,
+    AstNode, Command, QuoteContext, Span, Spanned, SpecialParam, VariableSyntax, Word, WordPart,
 };
 
 /// The executor's input: an intent-to-run-in-context, not a bare argv. Even when cwd/env/io
@@ -406,6 +406,54 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
 /// ★ A separate entry point rather than a flag on LowerContext, because the context describes what
 /// capabilities are AVAILABLE while this describes what the SYNTAX requires. A context flag would
 /// also apply to the outer command, claiming the whole line captures.
+/// Does any stage after the first name a forest VALUE verb? ★ Shared by `lower_pipeline` and the
+/// refusal arm so the ownership question has one answer, not two.
+///
+/// Stage 0 is skipped because it PRODUCES the value -- it is a command even in a forest pipeline,
+/// which is exactly why `value::parse_pipeline` skips it too.
+fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
+    pl.stages.iter().skip(1).any(|st| {
+        // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot be known
+        // here, and a computed verb is not something the forest DSL accepts either.
+        matches!(
+            st.node.words.first().map(|w| w.node.parts.as_slice()),
+            Some([WordPart::Literal { text, .. }]) if crate::value::is_value_verb(text)
+        )
+    })
+}
+
+/// Lower a PIPELINE into one plan per stage. INT-200.
+///
+/// ★ THE VEC'S ORDER IS THE WIRING. `ExecutionPlan` describes exactly one process, and rather than
+/// stretch it into a graph, the sequence carries the composition -- stage N's stdout feeds stage
+/// N+1's stdin. A single command yields a one-element vector, so the caller has one shape to handle.
+///
+/// ⚠️ A FOREST PIPELINE IS REFUSED FOREVER, not until some later increment. `where`, `sort` and
+/// `first` are query verbs with no programs behind them; claiming one would spawn `where` and fail.
+///
+/// ⚠️ Each stage lowers with `IoPlan::Simple`, so its OWN redirects still apply -- the executor
+/// treats pipe wiring as a DEFAULT that a stage's redirect overrides, which is what bash does.
+pub fn lower_pipeline(
+    ast: &Spanned<AstNode>,
+    ctx: &LowerContext,
+) -> Result<Vec<ExecutionPlan>, LowerError> {
+    match &ast.node {
+        AstNode::Command(cmd) => Ok(vec![lower_command(ast.span, cmd, ctx, IoPlan::Simple)?]),
+        AstNode::Pipeline(pl) => {
+            if is_forest_pipeline(pl) {
+                return Err(LowerError::UnsupportedConstruct {
+                    kind: "forest value pipeline (legacy owns these)",
+                    span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
+                });
+            }
+            pl.stages
+                .iter()
+                .map(|st| lower_command(st.span, &st.node, ctx, IoPlan::Simple))
+                .collect()
+        }
+    }
+}
+
 fn lower_substitution(
     ast: &Spanned<AstNode>,
     ctx: &LowerContext,
@@ -414,6 +462,135 @@ fn lower_substitution(
 }
 
 /// The shared lowering. The two entry points above differ by exactly the thing that differs.
+/// Lower ONE command. Split out of `lower_with_io` so a pipeline can lower each stage:
+/// stages are `Spanned<Command>` while the entry points take `Spanned<AstNode>`, so they
+/// cannot call each other directly.
+fn lower_command(
+    span: Span,
+    cmd: &Command,
+    ctx: &LowerContext,
+    io: IoPlan,
+) -> Result<ExecutionPlan, LowerError> {
+    // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
+    // execute them. Refusing here is not a formality -- without it a parsed redirect would
+    // lower to IoPlan::Simple and the command would run with the redirect SILENTLY
+    // DROPPED: output to the terminal, no file, no error. That is the exact
+    // silent-corruption shape two of today's bugs had.
+    //
+    // ★ The refusal is also the correct BEHAVIOUR meanwhile: the router declines, legacy
+    // runs the redirect as it always has, and `spine migrate` moves these lines from
+    // "operator RedirectOut" into the feature-gap bucket -- which is honest, because they
+    // now parse and merely cannot execute.
+    // INT-200, STEP 2: redirects become an IO intent. Targets are expanded HERE, using
+    // the same `expand_word` every argv word goes through, so `> $LOG` and `> ~/out.txt`
+    // work by construction rather than by a second implementation.
+    //
+    // ★ LEFT TO RIGHT, AND THE ORDER IS THE SEMANTICS. `2>&1` copies wherever stdout points
+    // AT THAT MOMENT, so this loop resolves it against the stdout seen so far rather than
+    // the final one.
+    let mut stdin_path: Option<std::path::PathBuf> = None;
+    let mut stdout_path: Option<(std::path::PathBuf, bool)> = None;
+    let mut stderr = StderrTarget::Inherit;
+    for r in &cmd.redirects {
+        let append = matches!(r.node.op, crate::spine::ast::RedirectOp::Append);
+        // Which stream is being redirected. `None` means the operator's default: stdin for
+        // a read, stdout for a write.
+        let fd = r.node.fd.unwrap_or(
+            if matches!(r.node.op, crate::spine::ast::RedirectOp::Read) {
+                0
+            } else {
+                1
+            },
+        );
+        match &r.node.target {
+            crate::spine::ast::RedirectTarget::Stream(n) => {
+                // Only `2>&1` exists in six months of history -- zero `1>&2`, zero anything
+                // else. Refusing the rest is honest: legacy already handles them via sh, and
+                // building a descriptor graph for no users is the opposite of measured work.
+                if fd == 2 && *n == 1 {
+                    stderr = if stdout_path.is_some() {
+                        StderrTarget::Stdout
+                    } else {
+                        // stdout is still the terminal HERE, so stderr stays there too --
+                        // even if a later `> out` moves stdout. This is the case bash users
+                        // trip over, and getting it wrong is silent.
+                        StderrTarget::Inherit
+                    };
+                } else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        kind: "descriptor duplication other than 2>&1",
+                        span: r.span,
+                    });
+                }
+            }
+            crate::spine::ast::RedirectTarget::File(w) => {
+                let expanded = expand_word(w, ctx)?;
+                // ⚠️ AMBIGUOUS REDIRECT. `> *.txt` matching two files has no correct answer,
+                // and bash refuses it by name. This is InvalidPlan rather than
+                // UnsupportedConstruct ON PURPOSE: a refusal falls back to legacy, and
+                // legacy would guess. A DEFECT surfaces. Picking a file to overwrite is
+                // worse than stopping.
+                let [one] = expanded.as_slice() else {
+                    return Err(LowerError::InvalidPlan {
+                        message: format!(
+                            "ambiguous redirect: target expanded to {} words",
+                            expanded.len()
+                        ),
+                        span: r.span,
+                    });
+                };
+                let path = std::path::PathBuf::from(one);
+                match fd {
+                    0 => stdin_path = Some(path),
+                    1 => stdout_path = Some((path, append)),
+                    2 => stderr = StderrTarget::File(path, append),
+                    _ => {
+                        return Err(LowerError::UnsupportedConstruct {
+                            kind: "redirect of a descriptor other than 0, 1 or 2",
+                            span: r.span,
+                        })
+                    }
+                }
+            }
+        }
+    }
+    // ⚠️ `$(cmd > f)` asks for capture AND a file. Both claim stdout, and the enum cannot
+    // express both -- correctly, since the answer is genuinely undecided. Refuse rather
+    // than silently letting one win.
+    let io = if stdin_path.is_some() || stdout_path.is_some() || stderr != StderrTarget::Inherit {
+        if io != IoPlan::Simple {
+            return Err(LowerError::UnsupportedConstruct {
+                kind: "redirect inside a capture",
+                span: span,
+            });
+        }
+        IoPlan::Files {
+            stdin: stdin_path,
+            stdout: stdout_path,
+            stderr,
+        }
+    } else {
+        io
+    };
+    // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
+    // explicit rather than flat_map because Result inside flat_map hides the types at
+    // exactly the point a reader needs to see them.
+    let argv: Vec<OsString> = cmd
+        .words
+        .iter()
+        .map(|w| expand_word(&w.node, ctx))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+    Ok(ExecutionPlan {
+        argv,
+        cwd: None,
+        env: Environment::Inherit,
+        io,
+    })
+}
+
 fn lower_with_io(
     ast: &Spanned<AstNode>,
     ctx: &LowerContext,
@@ -456,128 +633,7 @@ fn lower_with_io(
                 span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
             })
         }
-        AstNode::Command(cmd) => {
-            // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
-            // execute them. Refusing here is not a formality -- without it a parsed redirect would
-            // lower to IoPlan::Simple and the command would run with the redirect SILENTLY
-            // DROPPED: output to the terminal, no file, no error. That is the exact
-            // silent-corruption shape two of today's bugs had.
-            //
-            // ★ The refusal is also the correct BEHAVIOUR meanwhile: the router declines, legacy
-            // runs the redirect as it always has, and `spine migrate` moves these lines from
-            // "operator RedirectOut" into the feature-gap bucket -- which is honest, because they
-            // now parse and merely cannot execute.
-            // INT-200, STEP 2: redirects become an IO intent. Targets are expanded HERE, using
-            // the same `expand_word` every argv word goes through, so `> $LOG` and `> ~/out.txt`
-            // work by construction rather than by a second implementation.
-            //
-            // ★ LEFT TO RIGHT, AND THE ORDER IS THE SEMANTICS. `2>&1` copies wherever stdout points
-            // AT THAT MOMENT, so this loop resolves it against the stdout seen so far rather than
-            // the final one.
-            let mut stdin_path: Option<std::path::PathBuf> = None;
-            let mut stdout_path: Option<(std::path::PathBuf, bool)> = None;
-            let mut stderr = StderrTarget::Inherit;
-            for r in &cmd.redirects {
-                let append = matches!(r.node.op, crate::spine::ast::RedirectOp::Append);
-                // Which stream is being redirected. `None` means the operator's default: stdin for
-                // a read, stdout for a write.
-                let fd = r.node.fd.unwrap_or(
-                    if matches!(r.node.op, crate::spine::ast::RedirectOp::Read) {
-                        0
-                    } else {
-                        1
-                    },
-                );
-                match &r.node.target {
-                    crate::spine::ast::RedirectTarget::Stream(n) => {
-                        // Only `2>&1` exists in six months of history -- zero `1>&2`, zero anything
-                        // else. Refusing the rest is honest: legacy already handles them via sh, and
-                        // building a descriptor graph for no users is the opposite of measured work.
-                        if fd == 2 && *n == 1 {
-                            stderr = if stdout_path.is_some() {
-                                StderrTarget::Stdout
-                            } else {
-                                // stdout is still the terminal HERE, so stderr stays there too --
-                                // even if a later `> out` moves stdout. This is the case bash users
-                                // trip over, and getting it wrong is silent.
-                                StderrTarget::Inherit
-                            };
-                        } else {
-                            return Err(LowerError::UnsupportedConstruct {
-                                kind: "descriptor duplication other than 2>&1",
-                                span: r.span,
-                            });
-                        }
-                    }
-                    crate::spine::ast::RedirectTarget::File(w) => {
-                        let expanded = expand_word(w, ctx)?;
-                        // ⚠️ AMBIGUOUS REDIRECT. `> *.txt` matching two files has no correct answer,
-                        // and bash refuses it by name. This is InvalidPlan rather than
-                        // UnsupportedConstruct ON PURPOSE: a refusal falls back to legacy, and
-                        // legacy would guess. A DEFECT surfaces. Picking a file to overwrite is
-                        // worse than stopping.
-                        let [one] = expanded.as_slice() else {
-                            return Err(LowerError::InvalidPlan {
-                                message: format!(
-                                    "ambiguous redirect: target expanded to {} words",
-                                    expanded.len()
-                                ),
-                                span: r.span,
-                            });
-                        };
-                        let path = std::path::PathBuf::from(one);
-                        match fd {
-                            0 => stdin_path = Some(path),
-                            1 => stdout_path = Some((path, append)),
-                            2 => stderr = StderrTarget::File(path, append),
-                            _ => {
-                                return Err(LowerError::UnsupportedConstruct {
-                                    kind: "redirect of a descriptor other than 0, 1 or 2",
-                                    span: r.span,
-                                })
-                            }
-                        }
-                    }
-                }
-            }
-            // ⚠️ `$(cmd > f)` asks for capture AND a file. Both claim stdout, and the enum cannot
-            // express both -- correctly, since the answer is genuinely undecided. Refuse rather
-            // than silently letting one win.
-            let io =
-                if stdin_path.is_some() || stdout_path.is_some() || stderr != StderrTarget::Inherit
-                {
-                    if io != IoPlan::Simple {
-                        return Err(LowerError::UnsupportedConstruct {
-                            kind: "redirect inside a capture",
-                            span: ast.span,
-                        });
-                    }
-                    IoPlan::Files {
-                        stdin: stdin_path,
-                        stdout: stdout_path,
-                        stderr,
-                    }
-                } else {
-                    io
-                };
-            // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
-            // explicit rather than flat_map because Result inside flat_map hides the types at
-            // exactly the point a reader needs to see them.
-            let argv: Vec<OsString> = cmd
-                .words
-                .iter()
-                .map(|w| expand_word(&w.node, ctx))
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter()
-                .flatten()
-                .collect();
-            Ok(ExecutionPlan {
-                argv,
-                cwd: None,
-                env: Environment::Inherit,
-                io,
-            })
-        }
+        AstNode::Command(cmd) => lower_command(ast.span, cmd, ctx, io),
     }
 }
 
