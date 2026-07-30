@@ -138,6 +138,16 @@ impl MigrationAudit {
         self.report.spine_parse_error += 1;
         push_example(&mut self.report.spine_parse_error_examples, source);
         let reason = match why {
+            // INT-200: SEPARATED FROM THE ORDINARY OPERATOR REFUSAL. A stderr redirect is one
+            // the spine deliberately leaves to legacy -- INT-172 routes it to sh, where it
+            // works -- so counting it beside "redirects we cannot do" made 2,230 declines read
+            // as unfinished work when most are the fd guard behaving correctly.
+            crate::spine::parser::ParseError::FdRedirect { .. } => {
+                "redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
+            }
+            crate::spine::parser::ParseError::MissingRedirectTarget { kind, .. } => {
+                format!("redirect with no target ({kind:?})")
+            }
             crate::spine::parser::ParseError::UnsupportedOperator { kind, .. } => {
                 format!("operator {kind:?}")
             }

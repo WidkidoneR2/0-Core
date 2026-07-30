@@ -39,6 +39,15 @@ pub enum ParseError {
     /// Carries the operator identity, not just a span, because a refusal that cannot say WHICH
     /// construct it declined is a worse diagnostic and a weaker test.
     UnsupportedOperator { kind: OperatorKind, span: Span },
+    /// A redirect written against an explicit file descriptor (`2>`, `1>>`). INT-200: the same
+    /// argument the comment above makes for operator identity, one level down. This was reported as
+    /// an ordinary RedirectOut refusal, so the audit could not distinguish *stderr redirects the
+    /// spine deliberately leaves to legacy* from *redirects it fails to handle* -- and 2,230
+    /// declines looked like unfinished work when most of them are the guard behaving correctly.
+    FdRedirect { span: Span },
+    /// A redirect with no target after it. Legacy already reports this well (INT-245's bare-redirect
+    /// guard), so the spine declines rather than inventing a second message for the same mistake.
+    MissingRedirectTarget { kind: OperatorKind, span: Span },
     // grows as the grammar does: UnexpectedToken(Span), Unterminated(Span), ...
 }
 
@@ -110,10 +119,7 @@ impl Parser {
                                 if !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()))
                     });
                     if fd_prefixed {
-                        return Err(ParseError::UnsupportedOperator {
-                            kind: op,
-                            span: tok.span,
-                        });
+                        return Err(ParseError::FdRedirect { span: tok.span });
                     }
                     let opspan = tok.span;
                     self.advance().expect("peek was Some");
@@ -125,7 +131,7 @@ impl Parser {
                             self.advance().expect("peek was Some")
                         }
                         _ => {
-                            return Err(ParseError::UnsupportedOperator {
+                            return Err(ParseError::MissingRedirectTarget {
                                 kind: op,
                                 span: opspan,
                             })
@@ -519,7 +525,7 @@ mod tests {
     #[test]
     fn an_fd_prefixed_redirect_is_refused_not_mis_parsed() {
         match parse("cat log 2> /dev/null") {
-            Err(ParseError::UnsupportedOperator { .. }) => {}
+            Err(ParseError::FdRedirect { .. }) => {}
             other => panic!("2> must be declined, not mis-parsed: {other:?}"),
         }
         // ...but a SPACED numeral is an ordinary argument, not an fd.

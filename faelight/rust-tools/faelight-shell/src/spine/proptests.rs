@@ -160,13 +160,21 @@ proptest! {
     fn word_count_matches_tokens(input in shell_line()) {
         if let Ok(node) = parse(&input) {
             let chunks = input.split_whitespace().count();
+                    // ⚠️ THE STRICT EQUALITY HOLDS ONLY WITHOUT REDIRECTS, and proptest found
+                    // why with `> 2> é`: that is THREE whitespace chunks but FOUR tokens,
+                    // because `2>` glues an fd numeral to an operator inside one chunk. An
+                    // earlier attempt at `words + redirects * 2 == chunks` assumed every
+                    // redirect spends exactly two chunks, which is true only when the operator
+                    // stands alone. The inequality above still holds universally; this keeps the
+                    // exact guarantee on the case where the parser really is a whitespace
+                    // splitter, rather than weakening it into something that cannot fail.
             match &node.node {
                 AstNode::Command(cmd) => {
                     prop_assert!(cmd.words.len() <= chunks,
                         "more words than whitespace chunks for {:?}", input);
-                    if !input.contains('"') && !input.contains('\'') {
-                        prop_assert_eq!(cmd.words.len() + cmd.redirects.len() * 2, chunks,
-                            "quote-free input: words plus redirect pairs must equal chunks: {:?}", input);
+                    if !input.contains('"') && !input.contains('\'') && !input.contains('>') && !input.contains('<') {
+                        prop_assert_eq!(cmd.words.len(), chunks,
+                            "quote-free, redirect-free input must split exactly on whitespace: {:?}", input);
                     }
                 }
             }

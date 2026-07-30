@@ -7,3 +7,4 @@
 cc 45b0c0b357bc5fca9cb9253bcbec9ba92cbb7907ac535d0976f6af88d8906ccd # shrinks to input = "\"a b\""
 cc 87cc5d059be2c11dae8a70daaf4e5ad91daf1ded634fd45cb813bb864ef42237 # shrinks to input = "\"\"\"\"\" \"a\\\"b\""
 cc ad6d085a3d7fefd7990e35738fce84abda23ddc177bb9005d1be10c6a3c1804e # shrinks to input = "> abc"
+cc 2200d448424366c963cfa40084f215651b7e6464eaa6026ee7e38feaeb55b516 # shrinks to input = "> 2> é"

@@ -110,9 +110,14 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
 /// decision.
 const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
     ("ls faelight | grep vm", OperatorKind::Pipe),
-    ("cat log 2> /dev/null", OperatorKind::RedirectOut),
     ("a && b", OperatorKind::And),
 ];
+
+/// INT-200: refusals that carry NO OperatorKind, so they cannot live in the table above. A redirect
+/// against an explicit file descriptor is recognised and deliberately left to legacy -- INT-172
+/// routes it to sh, where it works -- and it is counted separately in the audit so that "stderr
+/// redirects we decline on purpose" never reads as "redirects we cannot do".
+const FUTURE_FD_REFUSALS: &[&str] = &["cat log 2> /dev/null", "make 1>> build.log"];
 
 #[cfg(test)]
 mod tests {
@@ -165,6 +170,20 @@ mod tests {
                     assert_eq!(kind, *want, "{input:?} was declined as the wrong construct")
                 }
                 other => panic!("{input:?} crossed the ownership boundary: {other:?}"),
+            }
+        }
+
+        /// The same ownership boundary, for the refusal that has no operator identity. Kept as its own
+        /// test rather than widened into the one above, because a table pairing input with OperatorKind
+        /// cannot express a variant that has none -- and loosening the assertion to "any Err" would stop
+        /// proving WHICH refusal happened, which is the property both tests exist for.
+        #[test]
+        fn fd_redirects_are_refused_with_their_own_identity() {
+            for input in FUTURE_FD_REFUSALS {
+                match parse(input) {
+                    Err(ParseError::FdRedirect { .. }) => {}
+                    other => panic!("{input:?} must decline as FdRedirect: {other:?}"),
+                }
             }
         }
     }
