@@ -20,8 +20,11 @@ use crate::exec::ExecContext;
 
 /// Build an ExecutionPlan from a legacy ExecContext -- a faithful snapshot of what the current
 /// shell would execute. argv = [lowercased cmd] ++ tokenized args. cwd is the concrete dir
-/// legacy captured; env/io are Inherit/Simple (legacy models neither env-assignment nor IO here).
-pub fn plan_from_legacy(ctx: &ExecContext) -> ExecutionPlan {
+/// legacy captured; env is Inherit. The CALLER supplies `io`, because a redirect is stripped
+/// from the line BEFORE tokenizing in the live shell -- so an audit that leaves it in argv is
+/// comparing against a legacy the shell does not have. INT-200: that mismatch turned every
+/// redirect the spine learned into a false 'unexpected', 2 -> 205 in one run.
+pub fn plan_from_legacy(ctx: &ExecContext, io: IoPlan) -> ExecutionPlan {
     let mut argv: Vec<OsString> = Vec::with_capacity(1 + ctx.args.len());
     if !ctx.cmd.is_empty() {
         argv.push(OsString::from(&ctx.cmd));
@@ -35,7 +38,7 @@ pub fn plan_from_legacy(ctx: &ExecContext) -> ExecutionPlan {
         // evaluated in the same process context.
         cwd: Some(ctx.cwd.clone()),
         env: Environment::Inherit,
-        io: IoPlan::Simple,
+        io,
     }
 }
 
@@ -43,6 +46,13 @@ pub fn plan_from_legacy(ctx: &ExecContext) -> ExecutionPlan {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    /// These tests fix argv shape, not IO. INT-200 gave the adapter an `io` parameter because the
+    /// AUDIT must model the redirect legacy already stripped; nothing here exercises that, so a
+    /// one-line wrapper keeps the cases reading about the thing they actually assert.
+    fn plan_from_legacy_simple(ctx: &ExecContext) -> ExecutionPlan {
+        plan_from_legacy(ctx, IoPlan::Simple)
+    }
 
     // ⚠️ `raw` and `expanded` are intentionally EMPTY, and that is different from the stale
     // fixtures INT-169 blocker 2 had to repair. Those claimed an execution had arguments in its
@@ -72,7 +82,7 @@ mod tests {
 
     #[test]
     fn bare_command_maps_cmd_and_args_to_argv() {
-        let plan = plan_from_legacy(&ctx("git", &["add", "-A"]));
+        let plan = plan_from_legacy_simple(&ctx("git", &["add", "-A"]));
         assert_eq!(
             plan.argv,
             vec![
@@ -91,7 +101,7 @@ mod tests {
         // The adapter is faithful: it does NOT lowercase. Legacy's from_line is what lowercases
         // the cmd word -- so a context whose cmd is already "github" yields argv[0] "github",
         // and args keep their case. The adapter mirrors the context exactly.
-        let plan = plan_from_legacy(&ctx("github", &["Clone"]));
+        let plan = plan_from_legacy_simple(&ctx("github", &["Clone"]));
         assert_eq!(plan.argv[0], OsString::from("github"));
         assert_eq!(plan.argv[1], OsString::from("Clone"));
     }
@@ -99,7 +109,7 @@ mod tests {
     #[test]
     fn empty_cmd_yields_only_args() {
         // Defensive: an empty cmd word (blank line through from_line) produces no argv[0].
-        let plan = plan_from_legacy(&ctx("", &[]));
+        let plan = plan_from_legacy_simple(&ctx("", &[]));
         assert!(plan.argv.is_empty());
     }
 
@@ -107,7 +117,7 @@ mod tests {
     fn quoted_arg_already_joined_is_one_argv_element() {
         // tokenize (in from_line) strips quotes and joins quoted spaces into ONE arg. The
         // adapter receives that already-joined arg and maps it 1:1 -- "message here" stays one.
-        let plan = plan_from_legacy(&ctx("git", &["commit", "-m", "message here"]));
+        let plan = plan_from_legacy_simple(&ctx("git", &["commit", "-m", "message here"]));
         assert_eq!(plan.argv[3], OsString::from("message here"));
         assert_eq!(plan.argv.len(), 4);
     }

@@ -597,8 +597,33 @@ fn execute_impl(
                     // input and deliberately performs no expansion. Behaviour-preserving: before
                     // the split one argument filled both fields. This path also never reaches
                     // postexec, so it writes no history record.
-                    let ctx = crate::exec::ExecContext::from_line(source, source, db);
-                    let legacy = crate::spine::migrate::plan_from_legacy(&ctx);
+                    // INT-200: MODEL LEGACY AS IT ACTUALLY RUNS. The live shell calls
+                    // detect_redirect BEFORE tokenizing, so a redirect never reaches argv. Building
+                    // the context from the raw line left `>` and the path as ARGUMENTS, and once the
+                    // spine learned redirects every one of them read as a divergence -- unexpected
+                    // went 2 -> 205 in a single run, all of them the audit disagreeing with itself.
+                    //
+                    // ⚠️ Two sentinels are NOT file targets: `__stderr__` (any `2>` spelling, which
+                    // INT-172 routes to sh whole) and the bare-redirect parse error. Both keep the
+                    // line intact and Simple io, because that is what legacy does with them.
+                    let (stripped, redirect) = crate::expand::detect_redirect(source);
+                    let (legacy_line, legacy_io) = match &redirect {
+                        Some((target, append))
+                            if target != "__stderr__"
+                                && target != "__redirect_error_no_target__" =>
+                        {
+                            (
+                                stripped.as_str(),
+                                crate::spine::plan::IoPlan::Files {
+                                    stdin: None,
+                                    stdout: Some((std::path::PathBuf::from(target), *append)),
+                                },
+                            )
+                        }
+                        _ => (source.as_str(), crate::spine::plan::IoPlan::Simple),
+                    };
+                    let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
+                    let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
                     let spine = match crate::spine::parser::parse(source) {
                         // No environment: `spine migrate` compares PARSERS on the same input.
                         // Expanding here would make every variable-using command diverge from the
