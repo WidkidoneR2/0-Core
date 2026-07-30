@@ -8215,9 +8215,10 @@ fn spawn_with_tee(
     mut cmd: std::process::Command,
     db: &ForestDb,
 ) -> std::io::Result<std::process::ExitStatus> {
-    cmd.stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::piped());
+    // INT-200: stdin and stdout are the CALLER's, which is what the doc above already claimed.
+    // They were set here unconditionally, so a caller attaching a redirect file to stdout had it
+    // silently clobbered. Only stderr belongs to this function -- the tee is its whole purpose.
+    cmd.stderr(std::process::Stdio::piped());
 
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -8320,6 +8321,21 @@ fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
 ///
 /// `source` is provenance only -- carried for the handful of builtins that need the original
 /// text. It is never re-parsed here.
+/// Does `program` resolve to a real file we could spawn? PURE -- it looks, it does not run.
+///
+/// ★ Needed because `try_builtin` is NOT a predicate: a matching builtin EXECUTES. So the only way
+/// to ask "is there a real command behind this name?" without side effects is to look at the
+/// filesystem ourselves.
+fn program_on_path(program: &str) -> bool {
+    let direct = std::path::Path::new(program);
+    if program.contains('/') {
+        return direct.is_file();
+    }
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(program).is_file()))
+        .unwrap_or(false)
+}
+
 pub fn execute_plan_dispatch(
     plan: &crate::spine::plan::ExecutionPlan,
     source: &str,
@@ -8330,6 +8346,23 @@ pub fn execute_plan_dispatch(
         Ok(v) => v,
         Err(e) => return CommandResult::Error(format!("  {e}")),
     };
+    // ⚠️ UNDER A REDIRECT, PREFER THE REAL COMMAND. fsh's builtins are RENDERERS as much as
+    // commands -- its `cat` returns line-numbered, ANSI-dimmed text for source files -- and writing
+    // a rendering into a file is a category error, not a formatting quirk. `cat main.rs > out.rs`
+    // would have produced a numbered, colour-escaped document.
+    //
+    // ★ This is BUG-298-4's `cat_with_redirect` rule generalised: legacy bypasses the builtin for
+    // `cat` under a redirect precisely so real cat's bytes reach the file. Every builtin has the
+    // same hazard; only cat had been caught.
+    //
+    // ⚠️ The PATH check must be pure. try_builtin cannot answer "is this a builtin?" without
+    // running it, so the question is inverted: is there a real binary? If yes it wins. If no, the
+    // builtin path below still handles fsh-only commands like `intl > f`, exactly as legacy does.
+    if matches!(plan.io, crate::spine::plan::IoPlan::Files { .. })
+        && argv.first().is_some_and(|p| program_on_path(p))
+    {
+        return execute_plan(plan, db);
+    }
     match execute_impl(&argv, source, db, core_root, &[], ExecutionMode::Spine) {
         // INT-169 blocker 6: NO ALIAS LOOKUP HERE. This branch used to answer "argv[0] is a
         // known alias -- the spine path does not expand aliases yet", which was true while
@@ -8343,6 +8376,59 @@ pub fn execute_plan_dispatch(
         // INT-193 existed to end, and the contract above forbids compensating here for a
         // text-world transform.
         CommandResult::NotBuiltin => execute_plan(plan, db),
+        // ⚠️ INT-200: A BUILTIN MUST STILL HONOUR THE PLAN'S REDIRECT. Returning the result
+        // unchanged sent `echo one > f` to the TERMINAL and created no file -- the builtin matched
+        // here and the plan's `io` was only ever read by execute_plan, the EXTERNAL arm below.
+        // Claimed, plausible, wrong, silent: the same shape as the two bugs fixed earlier today.
+        //
+        // ★ This is parity with legacy, not a new idea -- its redirect branch calls try_builtin and
+        // writes the returned Output to the file. Same behaviour, now owned by the plan.
+        CommandResult::Output(text)
+            if matches!(plan.io, crate::spine::plan::IoPlan::Files { .. }) =>
+        {
+            let crate::spine::plan::IoPlan::Files { stdout, .. } = &plan.io else {
+                unreachable!("guarded by the match arm above")
+            };
+            match stdout {
+                Some((path, append)) => {
+                    use std::io::Write;
+                    let opened = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .append(*append)
+                        .truncate(!*append)
+                        .open(path);
+                    match opened {
+                        Ok(mut f) => {
+                            // A builtin's returned text has no trailing newline; the terminal path
+                            // adds one when printing, so the file must too or `>` and `>>` would
+                            // produce a file whose lines run together.
+                            let body = if text.ends_with('\n') {
+                                text
+                            } else {
+                                text + "\n"
+                            };
+                            match f.write_all(body.as_bytes()) {
+                                Ok(()) => CommandResult::Empty,
+                                Err(e) => CommandResult::Error(format!(
+                                    "  cannot write {}: {e}",
+                                    path.display()
+                                )),
+                            }
+                        }
+                        Err(e) => {
+                            CommandResult::Error(format!("  cannot write {}: {e}", path.display()))
+                        }
+                    }
+                }
+                // Input redirect only: a builtin does not read stdin, so its output still returns.
+                None => CommandResult::Output(text),
+            }
+        }
+        // ⚠️ KNOWN LIMIT, RECORDED NOT HIDDEN, and identical to legacy's: a builtin that PRINTS
+        // rather than returning (ls, d) yields Empty and has ALREADY written to the terminal, so
+        // `ls > file` leaks its listing and the file stays empty. Fixing it means 227 match arms
+        // returning String -- INT-143 measured that and declined it too.
         result => result,
     }
 }
@@ -8372,7 +8458,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
         }
     }
     let word = program.to_string_lossy().to_string();
-    match plan.io {
+    match &plan.io {
         // INT-169 blocker 4: stdout is a VALUE, so this cannot go through spawn_with_tee, whose
         // documented contract is terminal output plus stderr telemetry -- correct for Simple only.
         // stderr stays inherited: a shell lets `$(cmd)`'s errors reach the terminal.
@@ -8402,25 +8488,105 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
             }
         }
-        // No redirects, no pipe wiring: spawn_with_tee's inherited stdin/stdout is exactly this.
-        IoPlan::Simple => match spawn_with_tee(cmd, db) {
-            Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => {
-                let code = s.code().unwrap_or(1);
-                record_failure(db, &word, code);
-                CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+        // No redirects, no pipe wiring: inherit both, which is what a plain command wants.
+        IoPlan::Simple => {
+            cmd.stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit());
+            match spawn_with_tee(cmd, db) {
+                Ok(s) if s.success() => CommandResult::Empty,
+                Ok(s) => {
+                    let code = s.code().unwrap_or(1);
+                    record_failure(db, &word, code);
+                    CommandResult::Error(format!(
+                        "  exited {} -- {}",
+                        code,
+                        explain_exit_code(code)
+                    ))
+                }
+                // A direct spawn reports a missing command HERE, before any process exists -- unlike the
+                // sh path, which sees it as exit 127. Same situation for the user, different detection,
+                // which is precisely why classification stayed with the caller.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    record_failure(db, &word, 127);
+                    CommandResult::Error(
+                        crate::error::FlowError::CommandNotFound(word).display_colored(),
+                    )
+                }
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
             }
-            // A direct spawn reports a missing command HERE, before any process exists -- unlike the
-            // sh path, which sees it as exit 127. Same situation for the user, different detection,
-            // which is precisely why classification stayed with the caller.
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                record_failure(db, &word, 127);
-                CommandResult::Error(
-                    crate::error::FlowError::CommandNotFound(word).display_colored(),
-                )
+        }
+        // INT-200: stdout and/or stdin attached to FILES. Paths arrive already expanded --
+        // lowering resolved `> $LOG` and `> ~/out.txt` through the same expand_word every argv
+        // word uses, so no second implementation exists to drift.
+        //
+        // ★ STILL spawn_with_tee, which is why its stdio moved to the callers: a redirected
+        // command keeps INT-185's stderr tee, so the knowledge engine reads real error text from
+        // `cargo build > log` exactly as it does from a plain command. Giving this arm its own
+        // spawn would have been simpler and would have silently dropped that telemetry for the
+        // 40% of history that redirects.
+        IoPlan::Files { stdin, stdout } => {
+            match stdin {
+                Some(path) => match std::fs::File::open(path) {
+                    Ok(f) => {
+                        cmd.stdin(std::process::Stdio::from(f));
+                    }
+                    // A missing input file is the USER's error and must be reported, not swallowed
+                    // into an inherited stdin that would silently read the terminal instead.
+                    Err(e) => {
+                        return CommandResult::Error(format!(
+                            "  cannot read {}: {e}",
+                            path.display()
+                        ))
+                    }
+                },
+                None => {
+                    cmd.stdin(std::process::Stdio::inherit());
+                }
             }
-            Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
-        },
+            match stdout {
+                Some((path, append)) => {
+                    let opened = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .append(*append)
+                        .truncate(!*append)
+                        .open(path);
+                    match opened {
+                        Ok(f) => {
+                            cmd.stdout(std::process::Stdio::from(f));
+                        }
+                        Err(e) => {
+                            return CommandResult::Error(format!(
+                                "  cannot write {}: {e}",
+                                path.display()
+                            ))
+                        }
+                    }
+                }
+                None => {
+                    cmd.stdout(std::process::Stdio::inherit());
+                }
+            }
+            match spawn_with_tee(cmd, db) {
+                Ok(s) if s.success() => CommandResult::Empty,
+                Ok(s) => {
+                    let code = s.code().unwrap_or(1);
+                    record_failure(db, &word, code);
+                    CommandResult::Error(format!(
+                        "  exited {} -- {}",
+                        code,
+                        explain_exit_code(code)
+                    ))
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    record_failure(db, &word, 127);
+                    CommandResult::Error(
+                        crate::error::FlowError::CommandNotFound(word).display_colored(),
+                    )
+                }
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+            }
+        }
     }
 }
 
@@ -8521,6 +8687,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // directly. Different responsibilities, one telemetry implementation.
     let mut cmd = std::process::Command::new("sh");
     cmd.arg("-c").arg(line);
+    cmd.stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit());
     let status = spawn_with_tee(cmd, db);
     match status {
         Ok(s) => {

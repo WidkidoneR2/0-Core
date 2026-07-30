@@ -75,6 +75,21 @@ pub enum IoPlan {
     /// is command-substitution SEMANTICS and belongs to the phase that asked; this variant means
     /// only "stdout is a value".
     Capture,
+    /// INT-200: stdin and/or stdout attached to FILES. Paths are already EXPANDED -- `> $LOG`
+    /// and `> ~/out.txt` are resolved during lowering, because a redirect target is a word like any
+    /// other and the executor must never see an unexpanded one.
+    ///
+    /// ⚠️ Both optional and both in one variant, because `cmd < in > out` is one command with two
+    /// redirects. Repeats are LAST-ONE-WINS, matching bash: `> a > b` truncates both and writes b.
+    ///
+    /// ⚠️ stderr is deliberately absent. `2>` needs a file descriptor, the lexer does not tokenise
+    /// it as one unit, and the parser refuses that shape -- so there is no way to reach here with a
+    /// stderr redirect, and inventing a field for it would be room for a phase that does not exist.
+    Files {
+        stdin: Option<std::path::PathBuf>,
+        /// (path, append) -- `>>` is the same wiring with a different open mode.
+        stdout: Option<(std::path::PathBuf, bool)>,
+    },
 }
 
 /// Why an AST node could not be lowered to a single ExecutionPlan. Carries a span -- the AST's
@@ -395,12 +410,50 @@ fn lower_with_io(
             // runs the redirect as it always has, and `spine migrate` moves these lines from
             // "operator RedirectOut" into the feature-gap bucket -- which is honest, because they
             // now parse and merely cannot execute.
-            if let Some(first) = cmd.redirects.first() {
-                return Err(LowerError::UnsupportedConstruct {
-                    kind: "redirect",
-                    span: first.span,
-                });
+            // INT-200, STEP 2: redirects become an IO intent. Targets are expanded HERE, using
+            // the same `expand_word` every argv word goes through, so `> $LOG` and `> ~/out.txt`
+            // work by construction rather than by a second implementation.
+            let mut stdin_path: Option<std::path::PathBuf> = None;
+            let mut stdout_path: Option<(std::path::PathBuf, bool)> = None;
+            for r in &cmd.redirects {
+                let expanded = expand_word(&r.node.target, ctx)?;
+                // ⚠️ AMBIGUOUS REDIRECT. `> *.txt` matching two files has no correct answer, and
+                // bash refuses it by name. This is InvalidPlan rather than UnsupportedConstruct
+                // ON PURPOSE: a refusal falls back to legacy, and legacy would guess. A DEFECT
+                // surfaces. Picking a file to overwrite is worse than stopping.
+                let [one] = expanded.as_slice() else {
+                    return Err(LowerError::InvalidPlan {
+                        message: format!(
+                            "ambiguous redirect: target expanded to {} words",
+                            expanded.len()
+                        ),
+                        span: r.span,
+                    });
+                };
+                let path = std::path::PathBuf::from(one);
+                match r.node.op {
+                    crate::spine::ast::RedirectOp::Read => stdin_path = Some(path),
+                    crate::spine::ast::RedirectOp::Write => stdout_path = Some((path, false)),
+                    crate::spine::ast::RedirectOp::Append => stdout_path = Some((path, true)),
+                }
             }
+            // ⚠️ `$(cmd > f)` asks for capture AND a file. Both claim stdout, and the enum cannot
+            // express both -- correctly, since the answer is genuinely undecided. Refuse rather
+            // than silently letting one win.
+            let io = if stdin_path.is_some() || stdout_path.is_some() {
+                if io != IoPlan::Simple {
+                    return Err(LowerError::UnsupportedConstruct {
+                        kind: "redirect inside a capture",
+                        span: ast.span,
+                    });
+                }
+                IoPlan::Files {
+                    stdin: stdin_path,
+                    stdout: stdout_path,
+                }
+            } else {
+                io
+            };
             // Collected, then FLATTENED: one AST word may produce several argv entries. Kept
             // explicit rather than flat_map because Result inside flat_map hides the types at
             // exactly the point a reader needs to see them.
