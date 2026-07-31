@@ -423,7 +423,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             .unwrap_or_default()
             .as_secs() as i64;
         let error_msg = match result {
-            crate::commands::CommandResult::Error(e) => e.clone(),
+            crate::commands::CommandResult::Error(e, _) => e.clone(),
             _ => "unknown error".to_string(),
         };
         let log_key = format!("failure_log_{}", ts);
@@ -453,7 +453,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             match stashed {
                 Some(s) if !s.trim().is_empty() => s,
                 _ => match result {
-                    CommandResult::Error(e) => e.clone(),
+                    CommandResult::Error(e, _) => e.clone(),
                     _ => String::new(),
                 },
             }
@@ -790,7 +790,7 @@ pub fn execute_spine(
 ) -> CommandResult {
     let ctx = ExecContext::from_plan(plan, source, db);
     if let Some(block_reason) = preexec(&ctx, core_root, rules) {
-        return CommandResult::Error(block_reason);
+        return CommandResult::Error(block_reason, 1);
     }
     let result = commands::execute_plan_dispatch(plan, source, db, core_root);
     postexec(&ctx, &result, db);
@@ -1043,7 +1043,7 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
             CommandResult::Output(s) => Ok(s),
             // Produced nothing, so substituted nothing. Correct, not an error.
             CommandResult::Empty => Ok(String::new()),
-            CommandResult::Error(e) => Err(e),
+            CommandResult::Error(e, _) => Err(e),
             // Stringifying a structured Value here would make this adapter invent display
             // semantics for a layer it does not own. What `$(tt)` should mean is a Lane 5
             // question about structured pipelines, not something to settle by accident.
@@ -1129,7 +1129,7 @@ pub fn execute_spine_source(
             [one] => execute_spine(one, source, db, core_root, rules),
             many => crate::commands::execute_pipeline_plans(many, db),
         },
-        Err(e) => CommandResult::Error(format!("spine: {e:?}")),
+        Err(e) => CommandResult::Error(format!("spine: {e:?}"), 1),
     }
 }
 
@@ -1217,7 +1217,7 @@ pub fn try_execute_spine_source(
         // counts as claimed -- a defect to investigate, not a fallback to celebrate.
         Err(e) => {
             bump(&SPINE_CLAIMED);
-            Some(CommandResult::Error(format!("spine: {e:?}")))
+            Some(CommandResult::Error(format!("spine: {e:?}"), 1))
         }
     }
 }
@@ -1536,7 +1536,7 @@ pub struct ExecutionOutcome {
 pub fn execution_state(result: &CommandResult) -> &'static str {
     match result {
         CommandResult::Exit => crate::db::EXEC_EXIT,
-        CommandResult::Error(_) => crate::db::EXEC_ERROR,
+        CommandResult::Error(_, _) => crate::db::EXEC_ERROR,
         CommandResult::Empty => crate::db::EXEC_EMPTY,
         _ => crate::db::EXEC_OK,
     }
@@ -1586,7 +1586,7 @@ pub fn execute_with_context(
         }
         return ExecutionOutcome {
             execution_id: ctx.execution_id,
-            result: CommandResult::Error(block_reason),
+            result: CommandResult::Error(block_reason, 1),
         };
     }
 

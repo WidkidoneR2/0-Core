@@ -18,7 +18,16 @@ pub enum CommandResult {
     Output(String),
     Value(crate::value::Value),
     Empty,
-    Error(String),
+    /// INT-169: the message AND the real exit status. The code was previously formatted
+    /// INTO the message and then discarded, so `$?` reported 1 for every failure while the
+    /// shell printed the true code one line above -- `ls /nonexistent` displayed "exited 2"
+    /// and set 1. Recovering it by parsing the string back out would be the
+    /// string-reinspection the spine exists to delete, so it travels as data.
+    ///
+    /// ⚠️ WIDENED RATHER THAN JOINED BY A NEW VARIANT ON PURPOSE: 18 of the 28 match sites
+    /// carry a `_` arm and would have swallowed a new variant silently. Widening makes every
+    /// one of the 327 sites a COMPILE ERROR -- completeness proven, not audited.
+    Error(String, i32),
     Exit,
     /// INT-143: "this command is not an fsh builtin" -- an ANSWER, not an action.
     ///
@@ -47,7 +56,7 @@ impl CommandResult {
     /// failure is fixed in this method -- not hunted across every chain site. The
     /// flow decision can no longer be re-derived inconsistently at a call site.
     pub fn is_failure(&self) -> bool {
-        matches!(self, CommandResult::Error(_))
+        matches!(self, CommandResult::Error(_, _))
     }
 }
 
@@ -369,7 +378,7 @@ mod command_word_tests {
         // Bug 968c7be5 was a failure returning a non-Error variant; this pins the
         // contract so a variant that should count as failure is fixed HERE, and a
         // success variant can never read as failure.
-        assert!(CommandResult::Error("boom".to_string()).is_failure());
+        assert!(CommandResult::Error("boom".to_string(), 1).is_failure());
         assert!(!CommandResult::Empty.is_failure());
         assert!(!CommandResult::Output("ok".to_string()).is_failure());
         assert!(!CommandResult::NotBuiltin.is_failure());
@@ -475,7 +484,7 @@ fn execute_impl(
                 println!("  {}", last.dimmed());
                 return execute(&last, db, core_root);
             }
-            None => return CommandResult::Error("No previous command in history".to_string()),
+            None => return CommandResult::Error("No previous command in history".to_string(), 1),
         }
     }
 
@@ -533,11 +542,11 @@ fn execute_impl(
                     .unwrap_or("")
                     .to_string();
                 if line_to_parse.trim().is_empty() {
-                    return CommandResult::Error("usage: spine parse <line>".to_string());
+                    return CommandResult::Error("usage: spine parse <line>".to_string(), 1);
                 }
                 return match crate::spine::parser::parse(&line_to_parse) {
                     Ok(node) => CommandResult::Output(crate::spine::render::render(&node)),
-                    Err(e) => CommandResult::Error(format!("spine parse error: {e:?}")),
+                    Err(e) => CommandResult::Error(format!("spine parse error: {e:?}"), 1),
                 };
             }
             Some("audit") => {
@@ -551,12 +560,14 @@ fn execute_impl(
                      WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%'",
                 ) {
                     Ok(s) => s,
-                    Err(e) => return CommandResult::Error(format!("spine audit: db error: {e}")),
+                    Err(e) => {
+                        return CommandResult::Error(format!("spine audit: db error: {e}"), 1)
+                    }
                 };
                 let rows = match stmt.query_map([], |row| row.get::<_, String>(0)) {
                     Ok(r) => r,
                     Err(e) => {
-                        return CommandResult::Error(format!("spine audit: query error: {e}"))
+                        return CommandResult::Error(format!("spine audit: query error: {e}"), 1)
                     }
                 };
                 let commands = rows.filter_map(|r| r.ok());
@@ -591,12 +602,14 @@ fn execute_impl(
                      WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%'",
                 ) {
                     Ok(s) => s,
-                    Err(e) => return CommandResult::Error(format!("spine migrate: db error: {e}")),
+                    Err(e) => {
+                        return CommandResult::Error(format!("spine migrate: db error: {e}"), 1)
+                    }
                 };
                 let rows = match stmt.query_map([], |row| row.get::<_, String>(0)) {
                     Ok(r) => r,
                     Err(e) => {
-                        return CommandResult::Error(format!("spine migrate: query error: {e}"))
+                        return CommandResult::Error(format!("spine migrate: query error: {e}"), 1)
                     }
                 };
                 let sources: Vec<String> = rows.filter_map(|r| r.ok()).collect();
@@ -704,12 +717,12 @@ fn execute_impl(
                     .unwrap_or("")
                     .to_string();
                 if raw.trim().is_empty() {
-                    return CommandResult::Error("usage: spine exec <command>".to_string());
+                    return CommandResult::Error("usage: spine exec <command>".to_string(), 1);
                 }
                 let node = match crate::spine::parser::parse(&raw) {
                     Ok(n) => n,
                     Err(e) => {
-                        return CommandResult::Error(format!("spine exec: parse error: {e:?}"))
+                        return CommandResult::Error(format!("spine exec: parse error: {e:?}"), 1)
                     }
                 };
                 // No resolver yet: fsh's session vars live in main.rs's REPL loop and are not
@@ -723,9 +736,10 @@ fn execute_impl(
                     Err(e) => {
                         // A capability boundary, not a fault: the parser is allowed to run
                         // ahead of the executor.
-                        return CommandResult::Error(format!(
-                            "spine exec: cannot lower this construct yet: {e:?}"
-                        ));
+                        return CommandResult::Error(
+                            format!("spine exec: cannot lower this construct yet: {e:?}"),
+                            1,
+                        );
                     }
                 };
                 // Builtins first, then the direct executor. `allow_external: false` is the
@@ -751,8 +765,8 @@ fn execute_impl(
             _ => {
                 return CommandResult::Error(
                     "usage: spine parse <line> | spine exec <command> | spine audit | spine migrate"
-                        .to_string(),
-                );
+                        .to_string()
+                , 1);
             }
         }
     }
@@ -988,7 +1002,7 @@ fn execute_dispatch(
                 // INT-299: fsh -c "cmd" — delegate to sh, mirrors external behavior
                 let cmd = args.get(1).copied().unwrap_or("");
                 if cmd.is_empty() {
-                    CommandResult::Error("fsh -c: missing command".to_string())
+                    CommandResult::Error("fsh -c: missing command".to_string(), 1)
                 } else {
                     let out = std::process::Command::new("sh").arg("-c").arg(cmd).output();
                     match out {
@@ -999,7 +1013,7 @@ fn execute_dispatch(
                             }
                             CommandResult::Output(s.trim_end().to_string())
                         }
-                        Err(e) => CommandResult::Error(format!("fsh -c: {}", e)),
+                        Err(e) => CommandResult::Error(format!("fsh -c: {}", e), 1),
                     }
                 }
             }
@@ -1032,7 +1046,7 @@ fn execute_dispatch(
         "pick" => pick_cmd(db, core_root, args),
         "compare" => compare_cmd(core_root, args),
         "where_old_disabled" => {
-            CommandResult::Error("use with pipe: tools | where score < 70".to_string())
+            CommandResult::Error("use with pipe: tools | where score < 70".to_string(), 1)
         }
         "tools-table" | "tt" => tools_table(db, core_root),
         "events-table" | "et" => events_table(db, args),
@@ -1102,6 +1116,7 @@ fn execute_dispatch(
             if paths.is_empty() {
                 return CommandResult::Error(
                     "packages: could not read /run/current-system/sw references".to_string(),
+                    1,
                 );
             }
             // Strip /nix/store/<hash>- prefix -> name-version. Hash is 32 chars + one dash.
@@ -1146,12 +1161,12 @@ fn execute_dispatch(
                 .output();
             let json = match out_raw {
                 Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
-                Err(e) => return CommandResult::Error(format!("generations: {}", e)),
+                Err(e) => return CommandResult::Error(format!("generations: {}", e), 1),
             };
             let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&json);
             let gens = match parsed {
                 Ok(g) => g,
-                Err(e) => return CommandResult::Error(format!("generations: parse: {}", e)),
+                Err(e) => return CommandResult::Error(format!("generations: parse: {}", e), 1),
             };
             if gens.is_empty() {
                 return CommandResult::Output("  no generations found".to_string());
@@ -1162,7 +1177,9 @@ fn execute_dispatch(
             if let Ok(n) = sub.parse::<u64>() {
                 let found = gens.iter().find(|g| g["generation"].as_u64() == Some(n));
                 match found {
-                    None => return CommandResult::Error(format!("generations: {} not found", n)),
+                    None => {
+                        return CommandResult::Error(format!("generations: {} not found", n), 1)
+                    }
                     Some(g) => {
                         let date = g["date"].as_str().unwrap_or("?");
                         let ver = g["nixosVersion"].as_str().unwrap_or("?");
@@ -1249,7 +1266,7 @@ fn execute_dispatch(
         "which" => {
             let cmd = args.first().copied().unwrap_or("");
             if cmd.is_empty() {
-                return CommandResult::Error("which: missing argument".to_string());
+                return CommandResult::Error("which: missing argument".to_string(), 1);
             }
             let mut out = String::new();
 
@@ -1362,7 +1379,7 @@ fn execute_dispatch(
             }
 
             if out.is_empty() {
-                CommandResult::Error(format!("which: {} not found", cmd))
+                CommandResult::Error(format!("which: {} not found", cmd), 1)
             } else {
                 CommandResult::Output(out.trim_end().to_string())
             }
@@ -1391,7 +1408,7 @@ fn execute_dispatch(
             // query file.rs 900:     -- line 900 to end
             // query file.rs pattern  -- lines containing pattern
             if args.is_empty() {
-                return CommandResult::Error("usage: query <file> [range|pattern]\n  query file.rs 100:150\n  query file.rs :50\n  query file.rs 900:\n  query file.rs fn_main".to_string());
+                return CommandResult::Error("usage: query <file> [range|pattern]\n  query file.rs 100:150\n  query file.rs :50\n  query file.rs 900:\n  query file.rs fn_main".to_string(), 1);
             }
             let filepath = args[0];
             let expanded = if filepath.starts_with("~/") {
@@ -1402,7 +1419,7 @@ fn execute_dispatch(
             };
             let content_str = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("query: {}: {}", filepath, e)),
+                Err(e) => return CommandResult::Error(format!("query: {}: {}", filepath, e), 1),
             };
             let file_lines: Vec<&str> = content_str.lines().collect();
             let total = file_lines.len();
@@ -1488,7 +1505,7 @@ fn execute_dispatch(
             // goto main.rs:362:5        -- open at line (col ignored)
             // goto "fn expand_subshells" -- find and open at pattern
             if args.is_empty() {
-                return CommandResult::Error("usage: goto <file:line> or goto \"fn name\"\n  goto main.rs:362\n  goto main.rs:362:5\n  goto \"fn expand_subshells\"".to_string());
+                return CommandResult::Error("usage: goto <file:line> or goto \"fn name\"\n  goto main.rs:362\n  goto main.rs:362:5\n  goto \"fn expand_subshells\"".to_string(), 1);
             }
             let spec = args.join(" ");
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
@@ -1523,7 +1540,7 @@ fn execute_dispatch(
                     .status();
                 return match status {
                     Ok(_) => CommandResult::Empty,
-                    Err(e) => CommandResult::Error(format!("goto: {}", e)),
+                    Err(e) => CommandResult::Error(format!("goto: {}", e), 1),
                 };
             }
             // Pattern search across common source files
@@ -1589,10 +1606,10 @@ fn execute_dispatch(
                         .status();
                     match status {
                         Ok(_) => CommandResult::Empty,
-                        Err(e) => CommandResult::Error(format!("goto: {}", e)),
+                        Err(e) => CommandResult::Error(format!("goto: {}", e), 1),
                     }
                 }
-                _ => CommandResult::Error(format!("goto: '{}' not found", spec)),
+                _ => CommandResult::Error(format!("goto: '{}' not found", spec), 1),
             }
         }
         "session" => {
@@ -1603,7 +1620,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("session: db error: {}", e)),
+                Err(e) => return CommandResult::Error(format!("session: db error: {}", e), 1),
             };
             // Ensure fsh_sessions table exists
             let _ = conn.execute_batch(
@@ -1673,7 +1690,7 @@ fn execute_dispatch(
                             name, cwd, cmds.len(), env_map.len(),
                             if intent.is_empty() { String::new() } else { format!("\n  → intent: {}", intent) }
                         )),
-                        Err(e) => CommandResult::Error(format!("session save: {}", e))
+                        Err(e) => CommandResult::Error(format!("session save: {}", e), 1)
                     }
                 }
                 "load" => {
@@ -1684,7 +1701,7 @@ fn execute_dispatch(
                         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
                     ).ok();
                     match row {
-                        None => CommandResult::Error(format!("session: '{}' not found. Use: session list", name)),
+                        None => CommandResult::Error(format!("session: '{}' not found. Use: session list", name), 1),
                         Some((dir, intent, cmds_json, env_json)) => {
                             let _ = std::env::set_current_dir(&dir);
                             // INT-134: restore the captured environment so the session is reproducible.
@@ -1721,7 +1738,7 @@ fn execute_dispatch(
                         "SELECT name, directory, intent, updated_at FROM fsh_sessions ORDER BY updated_at DESC"
                     ) {
                         Ok(s) => s,
-                        Err(e) => return CommandResult::Error(format!("session list: {}", e)),
+                        Err(e) => return CommandResult::Error(format!("session list: {}", e), 1),
                     };
                     let rows: Vec<(String, String, String, i64)> = stmt.query_map(
                         [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
@@ -1747,7 +1764,7 @@ fn execute_dispatch(
                 "delete" => {
                     let name = args.get(1).copied().unwrap_or("");
                     if name.is_empty() {
-                        return CommandResult::Error("usage: session delete <name>".to_string());
+                        return CommandResult::Error("usage: session delete <name>".to_string(), 1);
                     }
                     let deleted = conn.execute(
                         "DELETE FROM fsh_sessions WHERE name = ?1",
@@ -1756,12 +1773,12 @@ fn execute_dispatch(
                     if deleted > 0 {
                         CommandResult::Output(format!("  ✅ Session '{}' deleted", name))
                     } else {
-                        CommandResult::Error(format!("session: '{}' not found", name))
+                        CommandResult::Error(format!("session: '{}' not found", name), 1)
                     }
                 }
                 _ => CommandResult::Error(
                     "usage: session save <name> | session load <name> | session list | session delete <name>".to_string()
-                )
+                , 1)
             }
         }
         "history-replay" => {
@@ -1774,13 +1791,13 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
+                Err(e) => return CommandResult::Error(format!("history-replay: {}", e), 1),
             };
             let mut stmt = match conn
                 .prepare("SELECT id, command FROM shell_history ORDER BY id DESC LIMIT ?1")
             {
                 Ok(s) => s,
-                Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
+                Err(e) => return CommandResult::Error(format!("history-replay: {}", e), 1),
             };
             let rows: Vec<(i64, String)> = stmt
                 .query_map(rusqlite::params![n as i64], |r| Ok((r.get(0)?, r.get(1)?)))
@@ -1805,7 +1822,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-save: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-save: {}", e), 1),
             };
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
@@ -1846,7 +1863,7 @@ fn execute_dispatch(
                     name,
                     keys.len()
                 )),
-                Err(e) => CommandResult::Error(format!("env-save: {}", e)),
+                Err(e) => CommandResult::Error(format!("env-save: {}", e), 1),
             }
         }
         "env-load" => {
@@ -1855,7 +1872,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-load: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-load: {}", e), 1),
             };
             let row: Option<(String, i64)> = conn
                 .query_row(
@@ -1865,7 +1882,7 @@ fn execute_dispatch(
                 )
                 .ok();
             match row {
-                None => CommandResult::Error(format!("env-load: snapshot '{}' not found", name)),
+                None => CommandResult::Error(format!("env-load: snapshot '{}' not found", name), 1),
                 Some((vars_json, ts)) => {
                     let dt = chrono::DateTime::from_timestamp(ts, 0)
                         .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
@@ -1904,7 +1921,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-rollback: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-rollback: {}", e), 1),
             };
             let row: Option<(String, String, i64)> = conn
                 .query_row(
@@ -1916,6 +1933,7 @@ fn execute_dispatch(
             match row {
                 None => CommandResult::Error(
                     "env-rollback: no snapshots to roll back to. Use: env-save <name>".to_string(),
+                    1,
                 ),
                 Some((name, vars_json, ts)) => {
                     let dt = chrono::DateTime::from_timestamp(ts, 0)
@@ -1944,7 +1962,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-diff: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-diff: {}", e), 1),
             };
             let vars_json: Option<String> = conn
                 .query_row(
@@ -1954,7 +1972,7 @@ fn execute_dispatch(
                 )
                 .ok();
             match vars_json {
-                None => CommandResult::Error(format!("env-diff: snapshot '{}' not found", name)),
+                None => CommandResult::Error(format!("env-diff: snapshot '{}' not found", name), 1),
                 Some(json) => {
                     let mut out = format!("  🔍 env-diff: current vs '{}'\n", name);
                     out.push_str(&"─".repeat(44));
@@ -2019,7 +2037,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-export: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-export: {}", e), 1),
             };
             let row: Option<(String, i64)> = conn
                 .query_row(
@@ -2029,10 +2047,13 @@ fn execute_dispatch(
                 )
                 .ok();
             match row {
-                None => CommandResult::Error(format!(
-                    "env-export: snapshot '{}' not found. Use: env-save <name>",
-                    name
-                )),
+                None => CommandResult::Error(
+                    format!(
+                        "env-export: snapshot '{}' not found. Use: env-save <name>",
+                        name
+                    ),
+                    1,
+                ),
                 Some((vars_json, ts)) => {
                     let parsed: Result<serde_json::Map<String, serde_json::Value>, _> =
                         serde_json::from_str(&vars_json);
@@ -2054,7 +2075,7 @@ fn execute_dispatch(
                             "  📤 Exported '{}' -> {}\n  → {} var(s). Shareable/committable TOML manifest.\n  → import elsewhere with: env-import {}",
                             name, path, vars.len(), path
                         )),
-                        Err(e) => CommandResult::Error(format!("env-export: write failed: {}", e)),
+                        Err(e) => CommandResult::Error(format!("env-export: write failed: {}", e), 1),
                     }
                 }
             }
@@ -2064,16 +2085,18 @@ fn execute_dispatch(
             // After import, apply with: env-load <name>
             let path = match args.first().copied() {
                 Some(p) => p,
-                None => return CommandResult::Error("usage: env-import <path>".to_string()),
+                None => return CommandResult::Error("usage: env-import <path>".to_string(), 1),
             };
             let contents = match std::fs::read_to_string(path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-import: read failed: {}", e)),
+                Err(e) => {
+                    return CommandResult::Error(format!("env-import: read failed: {}", e), 1)
+                }
             };
             let doc: toml::Value = match toml::from_str(&contents) {
                 Ok(v) => v,
                 Err(e) => {
-                    return CommandResult::Error(format!("env-import: invalid manifest: {}", e))
+                    return CommandResult::Error(format!("env-import: invalid manifest: {}", e), 1)
                 }
             };
             let name = doc
@@ -2094,7 +2117,7 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("env-import: {}", e)),
+                Err(e) => return CommandResult::Error(format!("env-import: {}", e), 1),
             };
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
@@ -2116,7 +2139,7 @@ fn execute_dispatch(
                     "  📥 Imported manifest -> snapshot '{}' ({} vars)\n  → apply with: env-load {}",
                     name, n_vars, name
                 )),
-                Err(e) => CommandResult::Error(format!("env-import: {}", e)),
+                Err(e) => CommandResult::Error(format!("env-import: {}", e), 1),
             }
         }
         "audit-log" => {
@@ -2127,14 +2150,14 @@ fn execute_dispatch(
             let db_path = faelight_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("audit-log: {}", e)),
+                Err(e) => return CommandResult::Error(format!("audit-log: {}", e), 1),
             };
             let mut stmt = match conn.prepare(
                 "SELECT audit_id, command, timestamp FROM shell_history_audit
                  ORDER BY audit_id DESC LIMIT ?1",
             ) {
                 Ok(s) => s,
-                Err(e) => return CommandResult::Error(format!("audit-log: {}", e)),
+                Err(e) => return CommandResult::Error(format!("audit-log: {}", e), 1),
             };
             let rows: Vec<(i64, String, i64)> = stmt
                 .query_map(rusqlite::params![n], |r| {
@@ -2177,6 +2200,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: make directory <name> [in <path>]".to_string(),
+                    1,
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();
@@ -2187,7 +2211,7 @@ fn execute_dispatch(
                 args.to_vec()
             };
             if rest.is_empty() {
-                return CommandResult::Error("usage: make directory <name>".to_string());
+                return CommandResult::Error("usage: make directory <name>".to_string(), 1);
             }
             // Handle "make directory <name> in <path>"
             let in_pos = rest.iter().position(|a| *a == "in");
@@ -2219,7 +2243,7 @@ fn execute_dispatch(
                     );
                     CommandResult::Output(format!("  ✅ created {}", dir_name))
                 }
-                Err(e) => CommandResult::Error(format!("make: {}", e)),
+                Err(e) => CommandResult::Error(format!("make: {}", e), 1),
             }
         }
         "launch" => {
@@ -2227,7 +2251,7 @@ fn execute_dispatch(
             // Human word for xdg-open -- opens file in default application
             // Forest-aware: .rs/.py files open in $EDITOR, URLs open browser
             if args.is_empty() {
-                return CommandResult::Error("usage: launch <file|url>".to_string());
+                return CommandResult::Error("usage: launch <file|url>".to_string(), 1);
             }
             let home = std::env::var("HOME").unwrap_or_default();
             let target = if args[0].starts_with("~/") {
@@ -2261,8 +2285,8 @@ fn execute_dispatch(
                     );
                     CommandResult::Empty
                 }
-                Ok(_) => CommandResult::Error(format!("launch: {} failed", handler)),
-                Err(e) => CommandResult::Error(format!("launch: {}: {}", handler, e)),
+                Ok(_) => CommandResult::Error(format!("launch: {} failed", handler), 1),
+                Err(e) => CommandResult::Error(format!("launch: {}: {}", handler, e), 1),
             }
         }
         "rename" => {
@@ -2272,6 +2296,7 @@ fn execute_dispatch(
             if args.len() < 2 {
                 return CommandResult::Error(
                     "usage: rename <file> <new-name> [overwrite]".to_string(),
+                    1,
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();
@@ -2307,14 +2332,18 @@ fn execute_dispatch(
             {
                 return CommandResult::Error(
                     "rename: protected path involved. Use mv directly if you are sure.".to_string(),
+                    1,
                 );
             }
             // Overwrite protection
             if std::path::Path::new(&dst_path).exists() && !overwrite {
-                return CommandResult::Error(format!(
-                    "rename: {} already exists. Add 'overwrite' to replace it.",
-                    dst_path
-                ));
+                return CommandResult::Error(
+                    format!(
+                        "rename: {} already exists. Add 'overwrite' to replace it.",
+                        dst_path
+                    ),
+                    1,
+                );
             }
             // Warn if file referenced in recent commits
             let src_filename = src
@@ -2346,7 +2375,7 @@ fn execute_dispatch(
                     let verb = if is_same_dir { "renamed" } else { "moved" };
                     CommandResult::Output(format!("  ✅ {} {} → {}", verb, src_path, dst_path))
                 }
-                Err(e) => CommandResult::Error(format!("rename: {}", e)),
+                Err(e) => CommandResult::Error(format!("rename: {}", e), 1),
             }
         }
         "replace" => {
@@ -2356,6 +2385,7 @@ fn execute_dispatch(
             if args.len() < 2 {
                 return CommandResult::Error(
                     "usage: replace <old> <new> [--type ext] [--dry-run]".to_string(),
+                    1,
                 );
             }
             let old_name = args[0];
@@ -2489,7 +2519,7 @@ fn execute_dispatch(
                 return CommandResult::Error(
                     "usage: rspatch <file> --anchor <text> --new <text> [--mode replace|after|before]\n\
                      example: rspatch main.rs --anchor 'fn main()' --new 'fn helper() {}' --mode after".to_string()
-                );
+                , 1);
             }
             let filepath = args[0];
             let expanded = if filepath.starts_with("~/") {
@@ -2523,7 +2553,7 @@ fn execute_dispatch(
             }
             let anchor = match anchor_text {
                 Some(t) => t,
-                None => return CommandResult::Error("rspatch: --anchor required".to_string()),
+                None => return CommandResult::Error("rspatch: --anchor required".to_string(), 1),
             };
             let new_content = match new_text {
                 Some(t) => {
@@ -2565,14 +2595,14 @@ fn execute_dispatch(
                     }
                     out
                 }
-                None => return CommandResult::Error("rspatch: --new required".to_string()),
+                None => return CommandResult::Error("rspatch: --new required".to_string(), 1),
             };
             let content = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
                 Err(_) => return CommandResult::Error(format!(
                     "rspatch: file not found: {}\n  why: file does not exist or is not readable\n  fix: check path with: ls {}",
                     filepath, filepath
-                )),
+                ), 1),
             };
             // Validate anchor uniqueness
             let count = content.matches(anchor.as_str()).count();
@@ -2580,13 +2610,13 @@ fn execute_dispatch(
                 return CommandResult::Error(format!(
                     "rspatch: anchor not found in {}\n  what:  anchor text does not exist in file\n  anchor: {}\n  fix:   run fsearch '{}' to verify exact text",
                     filepath, truncate_safe(&anchor, 60), truncate_safe(&anchor, 20)
-                ));
+                ), 1);
             }
             if count > 1 {
                 return CommandResult::Error(format!(
                     "rspatch: anchor matches {} times -- must be unique\n  what:  anchor text is ambiguous\n  anchor: {}\n  fix:   use a longer, more specific anchor string",
                     count, truncate_safe(&anchor, 60)
-                ));
+                ), 1);
             }
             // Apply transformation based on mode
             let patched = match mode {
@@ -2594,10 +2624,13 @@ fn execute_dispatch(
                 "after" => content.replacen(&anchor, &format!("{}\n{}", anchor, new_content), 1),
                 "before" => content.replacen(&anchor, &format!("{}\n{}", new_content, anchor), 1),
                 _ => {
-                    return CommandResult::Error(format!(
-                        "rspatch: unknown mode '{}' -- use replace|after|before",
-                        mode
-                    ))
+                    return CommandResult::Error(
+                        format!(
+                            "rspatch: unknown mode '{}' -- use replace|after|before",
+                            mode
+                        ),
+                        1,
+                    )
                 }
             };
             match std::fs::write(&expanded, &patched) {
@@ -2608,7 +2641,7 @@ fn execute_dispatch(
                     mode,
                     truncate_safe(&anchor, 40)
                 )),
-                Err(e) => CommandResult::Error(format!("rspatch: write failed: {}", e)),
+                Err(e) => CommandResult::Error(format!("rspatch: write failed: {}", e), 1),
             }
         }
         "patch-multi" => {
@@ -2619,6 +2652,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: patch-multi <file> <old1> -- <new1> [<old2> -- <new2> ...]".to_string(),
+                    1,
                 );
             }
             let filepath = args[0];
@@ -2648,11 +2682,13 @@ fn execute_dispatch(
                 })
                 .collect();
             if pairs.is_empty() {
-                return CommandResult::Error("patch-multi: no replacement pairs found\n  format: patch-multi file.rs 'old1' -- 'new1' 'old2' -- 'new2'".to_string());
+                return CommandResult::Error("patch-multi: no replacement pairs found\n  format: patch-multi file.rs 'old1' -- 'new1' 'old2' -- 'new2'".to_string(), 1);
             }
             let content_str = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("patch-multi: {}: {}", filepath, e)),
+                Err(e) => {
+                    return CommandResult::Error(format!("patch-multi: {}: {}", filepath, e), 1)
+                }
             };
             // Validate all replacements first (all-or-nothing)
             let mut errors: Vec<String> = Vec::new();
@@ -2694,7 +2730,7 @@ fn execute_dispatch(
                     filepath,
                     pairs.len()
                 )),
-                Err(e) => CommandResult::Error(format!("patch-multi: write failed: {}", e)),
+                Err(e) => CommandResult::Error(format!("patch-multi: write failed: {}", e), 1),
             }
         }
         "fdiff" => {
@@ -2702,7 +2738,7 @@ fn execute_dispatch(
             // diff main.rs HEAD~3   -- diff against older commit
             // diff main.rs --stat   -- summary only
             if args.is_empty() {
-                return CommandResult::Error("usage: diff <file> [ref] [--stat]".to_string());
+                return CommandResult::Error("usage: diff <file> [ref] [--stat]".to_string(), 1);
             }
             let filepath = args[0];
             let mut git_ref = "HEAD";
@@ -2729,7 +2765,7 @@ fn execute_dispatch(
                     let stdout = String::from_utf8_lossy(&o.stdout);
                     let stderr = String::from_utf8_lossy(&o.stderr);
                     if !stderr.is_empty() {
-                        return CommandResult::Error(format!("diff: {}", stderr.trim()));
+                        return CommandResult::Error(format!("diff: {}", stderr.trim()), 1);
                     }
                     if stdout.trim().is_empty() {
                         use colored::Colorize;
@@ -2744,7 +2780,7 @@ fn execute_dispatch(
                         CommandResult::Empty
                     }
                 }
-                Err(e) => CommandResult::Error(format!("diff: {}", e)),
+                Err(e) => CommandResult::Error(format!("diff: {}", e), 1),
             }
         }
         "show" => {
@@ -2841,7 +2877,7 @@ fn execute_dispatch(
                 line.to_string()
             }
             if args.is_empty() {
-                return CommandResult::Error("usage: show <file> [range|pattern]\n  show file.rs 46:80\n  show file.rs fn_main\n  show file.rs :20".to_string());
+                return CommandResult::Error("usage: show <file> [range|pattern]\n  show file.rs 46:80\n  show file.rs fn_main\n  show file.rs :20".to_string(), 1);
             }
             let filepath = args[0];
             let expanded = if filepath.starts_with("~/") {
@@ -2852,7 +2888,7 @@ fn execute_dispatch(
             };
             let content_str = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("show: {}: {}", filepath, e)),
+                Err(e) => return CommandResult::Error(format!("show: {}: {}", filepath, e), 1),
             };
             let file_lines: Vec<&str> = content_str.lines().collect();
             let total = file_lines.len();
@@ -3001,10 +3037,11 @@ fn execute_dispatch(
                     return CommandResult::Error(
                         "db: write operations require --write flag (not yet implemented)"
                             .to_string(),
+                        1,
                     );
                 }
                 match db.conn.prepare(args[0]) {
-                    Err(e) => return CommandResult::Error(format!("db: SQL error: {}", e)),
+                    Err(e) => return CommandResult::Error(format!("db: SQL error: {}", e), 1),
                     Ok(mut stmt) => {
                         let col_count = stmt.column_count();
                         let col_names: Vec<String> = (0..col_count)
@@ -3164,7 +3201,7 @@ fn execute_dispatch(
                     };
                     CommandResult::Output(format_table(&headers, &rows))
                 }
-                Err(e) => CommandResult::Error(e),
+                Err(e) => CommandResult::Error(e, 1),
             }
         }
         "copy" | "cp-forest" => {
@@ -3172,6 +3209,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: copy <source> to <destination> [overwrite]".to_string(),
+                    1,
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();
@@ -3199,6 +3237,7 @@ fn execute_dispatch(
                 if args.len() < 2 {
                     return CommandResult::Error(
                         "usage: copy <source> to <destination> [overwrite]".to_string(),
+                        1,
                     );
                 }
                 (
@@ -3212,16 +3251,22 @@ fn execute_dispatch(
             let protected = ["rust-tools/", "intents/", "scripts/", "docs/", "engine/"];
             let is_protected = protected.iter().any(|p| dst_path.contains(p));
             if is_protected {
-                return CommandResult::Error(format!(
-                    "copy: {} is a protected path. Use cp directly if you are sure.",
-                    dst_path
-                ));
+                return CommandResult::Error(
+                    format!(
+                        "copy: {} is a protected path. Use cp directly if you are sure.",
+                        dst_path
+                    ),
+                    1,
+                );
             }
             if std::path::Path::new(&dst_path).exists() && !overwrite {
-                return CommandResult::Error(format!(
-                    "copy: {} already exists. Add 'overwrite' to replace it.",
-                    dst_path
-                ));
+                return CommandResult::Error(
+                    format!(
+                        "copy: {} already exists. Add 'overwrite' to replace it.",
+                        dst_path
+                    ),
+                    1,
+                );
             }
             match std::fs::copy(&src_path, &dst_path) {
                 Ok(_) => {
@@ -3231,7 +3276,7 @@ fn execute_dispatch(
                     );
                     CommandResult::Output(format!("  ✅ copied {} → {}", src_path, dst_path))
                 }
-                Err(e) => CommandResult::Error(format!("copy: {}", e)),
+                Err(e) => CommandResult::Error(format!("copy: {}", e), 1),
             }
         }
         "move" | "mv-forest" => {
@@ -3239,6 +3284,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: move <source> to <destination> [overwrite]".to_string(),
+                    1,
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();
@@ -3265,6 +3311,7 @@ fn execute_dispatch(
                 if args.len() < 2 {
                     return CommandResult::Error(
                         "usage: move <source> to <destination> [overwrite]".to_string(),
+                        1,
                     );
                 }
                 (
@@ -3280,15 +3327,19 @@ fn execute_dispatch(
                 .iter()
                 .any(|p| src_path.contains(p) || dst_path.contains(p));
             if is_protected {
-                return CommandResult::Error(format!(
-                    "move: protected path involved. Use mv directly if you are sure."
-                ));
+                return CommandResult::Error(
+                    format!("move: protected path involved. Use mv directly if you are sure."),
+                    1,
+                );
             }
             if std::path::Path::new(&dst_path).exists() && !overwrite {
-                return CommandResult::Error(format!(
-                    "move: {} already exists. Add 'overwrite' to replace it.",
-                    dst_path
-                ));
+                return CommandResult::Error(
+                    format!(
+                        "move: {} already exists. Add 'overwrite' to replace it.",
+                        dst_path
+                    ),
+                    1,
+                );
             }
             match std::fs::rename(&src_path, &dst_path) {
                 Ok(_) => {
@@ -3298,7 +3349,7 @@ fn execute_dispatch(
                     );
                     CommandResult::Output(format!("  ✅ moved {} → {}", src_path, dst_path))
                 }
-                Err(e) => CommandResult::Error(format!("move: {}", e)),
+                Err(e) => CommandResult::Error(format!("move: {}", e), 1),
             }
         }
         "list" => {
@@ -3341,11 +3392,11 @@ fn execute_dispatch(
             };
             let path = std::path::Path::new(&target);
             if !path.exists() {
-                return CommandResult::Error(format!("list: {} does not exist", target));
+                return CommandResult::Error(format!("list: {} does not exist", target), 1);
             }
             let entries = match std::fs::read_dir(path) {
                 Ok(e) => e,
-                Err(e) => return CommandResult::Error(format!("list: {}", e)),
+                Err(e) => return CommandResult::Error(format!("list: {}", e), 1),
             };
             let mut items: Vec<std::path::PathBuf> =
                 entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
@@ -3394,7 +3445,7 @@ fn execute_dispatch(
         "read" => {
             // read <file> (INT-266)
             if args.is_empty() {
-                return CommandResult::Error("usage: read <file>".to_string());
+                return CommandResult::Error("usage: read <file>".to_string(), 1);
             }
             let home = std::env::var("HOME").unwrap_or_default();
             let filepath = if args[0].starts_with("~/") {
@@ -3405,7 +3456,7 @@ fn execute_dispatch(
             let meta = std::fs::metadata(&filepath);
             let content = match std::fs::read_to_string(&filepath) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("read: {}: {}", filepath, e)),
+                Err(e) => return CommandResult::Error(format!("read: {}: {}", filepath, e), 1),
             };
             let mut out = String::new();
             // Metadata header
@@ -3466,6 +3517,7 @@ fn execute_dispatch(
             if args.len() < 3 {
                 return CommandResult::Error(
                     "usage: write <content> to <file> [overwrite|append]".to_string(),
+                    1,
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();
@@ -3473,6 +3525,7 @@ fn execute_dispatch(
             if to_pos.is_none() {
                 return CommandResult::Error(
                     "usage: write <content> to <file> [overwrite|append]".to_string(),
+                    1,
                 );
             }
             let pos = to_pos.unwrap();
@@ -3493,13 +3546,19 @@ fn execute_dispatch(
             };
             let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
             if protected.iter().any(|p| dst_path.contains(p)) {
-                return CommandResult::Error(format!("write: {} is a protected path.", dst_path));
+                return CommandResult::Error(
+                    format!("write: {} is a protected path.", dst_path),
+                    1,
+                );
             }
             if std::path::Path::new(&dst_path).exists() && !overwrite && !append {
-                return CommandResult::Error(format!(
-                    "write: {} already exists. Add 'overwrite' or 'append'.",
-                    dst_path
-                ));
+                return CommandResult::Error(
+                    format!(
+                        "write: {} already exists. Add 'overwrite' or 'append'.",
+                        dst_path
+                    ),
+                    1,
+                );
             }
             let result = if append {
                 use std::io::Write;
@@ -3531,7 +3590,7 @@ fn execute_dispatch(
                     let action = if append { "appended to" } else { "wrote" };
                     CommandResult::Output(format!("  ✅ {} {}", action, dst_path))
                 }
-                Err(e) => CommandResult::Error(format!("write: {}", e)),
+                Err(e) => CommandResult::Error(format!("write: {}", e), 1),
             }
         }
         "terminate" if !args.is_empty() => {
@@ -3546,10 +3605,10 @@ fn execute_dispatch(
                 .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                 .unwrap_or_default();
             if pid_result.trim().is_empty() {
-                return CommandResult::Error(format!(
-                    "terminate: no process matching '{}'",
-                    target
-                ));
+                return CommandResult::Error(
+                    format!("terminate: no process matching '{}'", target),
+                    1,
+                );
             }
             let pids: Vec<&str> = pid_result.trim().lines().collect();
             println!(
@@ -3568,7 +3627,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: delete <path> [--force]\n  delete moves to ~/.local/share/forest-trash/ by default\n  --force skips trash for permanent delete".to_string()
-                );
+                , 1);
             }
             let force = args.contains(&"--force");
             let target_arg = args
@@ -3577,7 +3636,7 @@ fn execute_dispatch(
                 .copied()
                 .unwrap_or("");
             if target_arg.is_empty() {
-                return CommandResult::Error("delete: no path specified".to_string());
+                return CommandResult::Error("delete: no path specified".to_string(), 1);
             }
             let home = std::env::var("HOME").unwrap_or_default();
             let expanded = if target_arg.starts_with("~/") {
@@ -3587,7 +3646,7 @@ fn execute_dispatch(
             };
             let target = std::path::PathBuf::from(&expanded);
             if !target.exists() {
-                return CommandResult::Error(format!("delete: path not found: {}", expanded));
+                return CommandResult::Error(format!("delete: path not found: {}", expanded), 1);
             }
             // Source-tree warning
             let source_dirs = ["rust-tools", "intents", "scripts", "docs", "engine", "meta"];
@@ -3633,7 +3692,7 @@ fn execute_dispatch(
                         );
                         CommandResult::Output(format!("  deleted: {}", expanded))
                     }
-                    Err(e) => CommandResult::Error(format!("delete: {}", e)),
+                    Err(e) => CommandResult::Error(format!("delete: {}", e), 1),
                 }
             } else {
                 let trash_dir = format!("{}/.local/share/forest-trash", home);
@@ -3699,10 +3758,13 @@ fn execute_dispatch(
                                     file_name
                                 ))
                             }
-                            Err(e) => CommandResult::Error(format!(
-                                "delete: could not move to trash: {}\n  try delete --force",
-                                e
-                            )),
+                            Err(e) => CommandResult::Error(
+                                format!(
+                                    "delete: could not move to trash: {}\n  try delete --force",
+                                    e
+                                ),
+                                1,
+                            ),
                         }
                     }
                 }
@@ -3714,6 +3776,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: gt <git-command> [args]\n  gt is the forest word for git".to_string(),
+                    1,
                 );
             }
             let status = std::process::Command::new("git")
@@ -3724,7 +3787,7 @@ fn execute_dispatch(
                 .status();
             match status {
                 Ok(_) => CommandResult::Empty,
-                Err(e) => CommandResult::Error(format!("gt: git not available: {}", e)),
+                Err(e) => CommandResult::Error(format!("gt: git not available: {}", e), 1),
             }
         }
         "find" => {
@@ -3758,7 +3821,7 @@ fn execute_dispatch(
                 return CommandResult::Error(
                     "usage: find <pattern> [@rust|@intents|@scripts|@docs|path] [--type f|d] [--ext ext]
        find /path -name pattern  (Unix find passthrough)".to_string()
-                );
+                , 1);
             }
             let home = std::env::var("HOME").unwrap_or_default();
             let mut pattern = String::new();
@@ -3818,7 +3881,7 @@ fn execute_dispatch(
                 }
             }
             if pattern.is_empty() {
-                return CommandResult::Error("find: pattern required".to_string());
+                return CommandResult::Error("find: pattern required".to_string(), 1);
             }
             // Check if fd is available
             let fd_path = std::process::Command::new("which")
@@ -3924,6 +3987,7 @@ fn execute_dispatch(
             if args.is_empty() {
                 return CommandResult::Error(
                     "usage: search <pattern> [--type ext] [--file name]".to_string(),
+                    1,
                 );
             }
             // INT-249b: collect all positional args before flags as pattern phrase
@@ -4014,6 +4078,7 @@ fn execute_dispatch(
             if pattern_parts.is_empty() {
                 return CommandResult::Error(
                     "usage: fsearch <pattern> [--type ext] [--file name]".to_string(),
+                    1,
                 );
             }
             let pattern = pattern_parts.join(" ").to_lowercase();
@@ -4125,10 +4190,10 @@ fn execute_dispatch(
                         }
                     }
                 } else {
-                    return CommandResult::Error(format!(
-                        "fsearch: could not read file {}",
-                        cwd.display()
-                    ));
+                    return CommandResult::Error(
+                        format!("fsearch: could not read file {}", cwd.display()),
+                        1,
+                    );
                 }
             } else {
                 walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
@@ -4145,7 +4210,7 @@ fn execute_dispatch(
             if args.len() < 5 {
                 return CommandResult::Error(
                     "usage: patch <file> --old <text> --new <text>\n  patch file.rs --old \"old code\" --new \"new code\"".to_string()
-                );
+                , 1);
             }
             let filepath = args[0];
             let expanded = if filepath.starts_with("~/") {
@@ -4175,15 +4240,15 @@ fn execute_dispatch(
             }
             let old_text = match old_text {
                 Some(t) => t,
-                None => return CommandResult::Error("patch: --old text required".to_string()),
+                None => return CommandResult::Error("patch: --old text required".to_string(), 1),
             };
             let new_text = match new_text {
                 Some(t) => t,
-                None => return CommandResult::Error("patch: --new text required".to_string()),
+                None => return CommandResult::Error("patch: --new text required".to_string(), 1),
             };
             let content_str = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("patch: {}: {}", filepath, e)),
+                Err(e) => return CommandResult::Error(format!("patch: {}: {}", filepath, e), 1),
             };
             let count = content_str.matches(old_text.as_str()).count();
             if count == 0 {
@@ -4192,14 +4257,14 @@ fn execute_dispatch(
                     filepath,
                     truncate_safe(&old_text, 60),
                     truncate_safe(&old_text, 20)
-                ));
+                ), 1);
             }
             if count > 1 {
                 return CommandResult::Error(format!(
                     "patch: --old text matches {} times -- must be unique\n  what:  --old text is ambiguous (expected 1, found {})\n  text:  {}\n  fix:   add more surrounding context to make it unique",
                     count, count,
                     truncate_safe(&old_text, 60)
-                ));
+                ), 1);
             }
             let patched = content_str.replacen(&old_text, &new_text, 1);
             match std::fs::write(&expanded, &patched) {
@@ -4208,13 +4273,13 @@ fn execute_dispatch(
                     "✅".to_string(),
                     filepath
                 )),
-                Err(e) => CommandResult::Error(format!("patch: write failed: {}", e)),
+                Err(e) => CommandResult::Error(format!("patch: write failed: {}", e), 1),
             }
         }
         "type" => {
             let cmd = args.first().copied().unwrap_or("");
             if cmd.is_empty() {
-                return CommandResult::Error("type: missing argument".to_string());
+                return CommandResult::Error("type: missing argument".to_string(), 1);
             }
             let mut out = String::new();
             out.push_str(&format!(
@@ -4362,7 +4427,7 @@ fn execute_dispatch(
         "cat" => {
             let file = args.first().copied().unwrap_or("");
             if file.is_empty() {
-                return CommandResult::Error("cat: missing filename".to_string());
+                return CommandResult::Error("cat: missing filename".to_string(), 1);
             }
             let home = std::env::var("HOME").unwrap_or_default();
             let path = if file.starts_with("~/") {
@@ -4394,7 +4459,7 @@ fn execute_dispatch(
                         CommandResult::Output(content)
                     }
                 }
-                Err(e) => CommandResult::Error(format!("cat: {}: {}", file, e)),
+                Err(e) => CommandResult::Error(format!("cat: {}: {}", file, e), 1),
             }
         }
         // INT-143 case 2: `env FOO=1 cmd` printed fsh's environment table and NEVER RAN cmd.
@@ -4475,7 +4540,7 @@ fn execute_dispatch(
         }
         "save" => {
             if args.is_empty() {
-                return CommandResult::Error("usage: save <name>".to_string());
+                return CommandResult::Error("usage: save <name>".to_string(), 1);
             }
             let name = args[0];
             // Only save if last_output has real content
@@ -4503,7 +4568,7 @@ fn execute_dispatch(
                     last.len(),
                     name
                 )),
-                Err(e) => CommandResult::Error(format!("save: {}", e)),
+                Err(e) => CommandResult::Error(format!("save: {}", e), 1),
             }
         }
         "how" => {
@@ -4542,7 +4607,7 @@ fn execute_dispatch(
                  ORDER BY timestamp DESC LIMIT 10",
             ) {
                 Ok(s) => s,
-                Err(e) => return CommandResult::Error(format!("how: db error: {}", e)),
+                Err(e) => return CommandResult::Error(format!("how: db error: {}", e), 1),
             };
 
             let rows: Vec<String> =
@@ -4615,7 +4680,7 @@ fn execute_dispatch(
             );
             match result {
                 Ok(out) => CommandResult::Output(out),
-                Err(_) => CommandResult::Error(format!("No saved slot named '{}'", name)),
+                Err(_) => CommandResult::Error(format!("No saved slot named '{}'", name), 1),
             }
         }
         "cd" => cd(args),
@@ -4636,7 +4701,7 @@ fn execute_dispatch(
                     let combined = format!("{}{}", out, err);
                     CommandResult::Output(combined.trim_end().to_string())
                 }
-                Err(_) => CommandResult::Error("core doctor run failed".to_string()),
+                Err(_) => CommandResult::Error("core doctor run failed".to_string(), 1),
             }
         }
         "edit" => {
@@ -4666,7 +4731,7 @@ fn execute_dispatch(
                             execute(&edited, db, core_root)
                         }
                     }
-                    Err(e) => CommandResult::Error(format!("edit: {}", e)),
+                    Err(e) => CommandResult::Error(format!("edit: {}", e), 1),
                 };
             }
             let spec: String = args.join(" ");
@@ -4714,7 +4779,7 @@ fn execute_dispatch(
                 .status();
             match status {
                 Ok(_) => CommandResult::Empty,
-                Err(e) => CommandResult::Error(format!("edit: {}", e)),
+                Err(e) => CommandResult::Error(format!("edit: {}", e), 1),
             }
         }
         "clear" | "c" | "cls" => {
@@ -4738,7 +4803,7 @@ fn execute_dispatch(
 
     // Security layer — log every command
     let result_str = match &result {
-        CommandResult::Error(_) => "error",
+        CommandResult::Error(_, _) => "error",
         CommandResult::Exit => "exit",
         CommandResult::Empty => "empty",
         _ => "ok",
@@ -4971,7 +5036,7 @@ fn open_cmd(args: &[&str]) -> CommandResult {
     use crate::value::Value;
     let file = match args.first() {
         Some(f) => f,
-        None => return CommandResult::Error("open: missing filename".to_string()),
+        None => return CommandResult::Error("open: missing filename".to_string(), 1),
     };
     let home = std::env::var("HOME").unwrap_or_default();
     let path = if file.starts_with("~/") {
@@ -4986,7 +5051,7 @@ fn open_cmd(args: &[&str]) -> CommandResult {
         .to_lowercase();
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(e) => return CommandResult::Error(format!("open: {}: {}", file, e)),
+        Err(e) => return CommandResult::Error(format!("open: {}: {}", file, e), 1),
     };
     match ext.as_str() {
         "json" => match serde_json::from_str::<serde_json::Value>(&content) {
@@ -5090,7 +5155,7 @@ fn from_cmd(args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
     if args.is_empty() {
-        return CommandResult::Error("usage: from <file>".to_string());
+        return CommandResult::Error("usage: from <file>".to_string(), 1);
     }
     let home = std::env::var("HOME").unwrap_or_default();
     let filepath = if args[0].starts_with("~/") {
@@ -5112,13 +5177,16 @@ fn from_cmd(args: &[&str]) -> CommandResult {
                 .collect();
             CommandResult::Value(Value::Table(rows))
         }
-        Err(e) => CommandResult::Error(format!("from: {}: {}", filepath, e)),
+        Err(e) => CommandResult::Error(format!("from: {}: {}", filepath, e), 1),
     }
 }
 fn to_cmd(args: &[&str]) -> CommandResult {
     match args.first().copied().unwrap_or("") {
-        "json" => CommandResult::Error("to json: pipe a table — e.g. tools | to json".to_string()),
-        fmt => CommandResult::Error(format!("to: unknown format '{}' — try: json", fmt)),
+        "json" => CommandResult::Error(
+            "to json: pipe a table — e.g. tools | to json".to_string(),
+            1,
+        ),
+        fmt => CommandResult::Error(format!("to: unknown format '{}' — try: json", fmt), 1),
     }
 }
 fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
@@ -5252,7 +5320,10 @@ fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
 
 fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let pattern = if args.is_empty() {
-        return CommandResult::Error("usage: hs <pattern>  — search command history".to_string());
+        return CommandResult::Error(
+            "usage: hs <pattern>  — search command history".to_string(),
+            1,
+        );
     } else {
         args.join(" ")
     };
@@ -5261,7 +5332,7 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         "SELECT command, MAX(timestamp) as ts, COUNT(*) as freq FROM shell_history WHERE command LIKE ?1 AND command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' AND LENGTH(command) < 120 GROUP BY command ORDER BY freq DESC, ts DESC LIMIT 20"
     ) {
         Ok(s) => s,
-        Err(e) => return CommandResult::Error(e.to_string()),
+        Err(e) => return CommandResult::Error(e.to_string(), 1),
     };
     let results: Vec<(String, i64, i64)> = stmt
         .query_map(rusqlite::params![&like], |r| {
@@ -5411,7 +5482,7 @@ fn history_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
         "SELECT command, timestamp, exit_code FROM shell_history WHERE intent_id = ?1 ORDER BY timestamp ASC"
     ) {
         Ok(s) => s,
-        Err(_) => return CommandResult::Error("history for: database error".to_string()),
+        Err(_) => return CommandResult::Error("history for: database error".to_string(), 1),
     };
     let rows: Vec<(String, i64, Option<i32>)> = stmt
         .query_map(rusqlite::params![id], |r| {
@@ -5470,7 +5541,7 @@ fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
         "SELECT command, COUNT(*) as cnt FROM shell_history WHERE intent_id = ?1 GROUP BY command ORDER BY cnt DESC LIMIT 5"
     ) {
         Ok(s) => s,
-        Err(_) => return CommandResult::Error("history stats: database error".to_string()),
+        Err(_) => return CommandResult::Error("history stats: database error".to_string(), 1),
     };
     let top: Vec<(String, i64)> = stmt
         .query_map(rusqlite::params![id], |r| Ok((r.get(0)?, r.get(1)?)))
@@ -6281,7 +6352,7 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         if let Some(cmd) = db.get_alias(name) {
             return CommandResult::Output(format!("  {} = {}", name.bright_cyan(), cmd.dimmed()));
         }
-        return CommandResult::Error(format!("No alias: {}", name));
+        return CommandResult::Error(format!("No alias: {}", name), 1);
     }
 
     // Parse: alias name=command OR alias name command
@@ -6302,11 +6373,11 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             args[1..].join(" ").trim_matches('"').to_string(),
         )
     } else {
-        return CommandResult::Error("Usage: alias name=command".to_string());
+        return CommandResult::Error("Usage: alias name=command".to_string(), 1);
     };
 
     if name.is_empty() || command.is_empty() {
-        return CommandResult::Error("Usage: alias name=command".to_string());
+        return CommandResult::Error("Usage: alias name=command".to_string(), 1);
     }
 
     // INT-194: warn when an alias shadows a builtin. NOT a precedence change -- aliases taking
@@ -6341,14 +6412,14 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         }
         CommandResult::Output(out)
     } else {
-        CommandResult::Error(format!("Failed to save alias: {}", name))
+        CommandResult::Error(format!("Failed to save alias: {}", name), 1)
     }
 }
 
 fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let name = match args.first() {
         Some(n) => *n,
-        None => return CommandResult::Error("Usage: unalias <name>".to_string()),
+        None => return CommandResult::Error("Usage: unalias <name>".to_string(), 1),
     };
 
     if db.remove_alias(name) {
@@ -6358,7 +6429,7 @@ fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             name.bright_cyan()
         ))
     } else {
-        CommandResult::Error(format!("Alias not found: {}", name))
+        CommandResult::Error(format!("Alias not found: {}", name), 1)
     }
 }
 
@@ -6630,7 +6701,7 @@ fn power_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             if !valid.contains(&profile) {
                 return CommandResult::Error(format!(
                     "  power set: invalid profile '{}' -- use: performance, balanced, power-saver", profile
-                ));
+                ), 1);
             }
             let status = std::process::Command::new("powerprofilesctl")
                 .args(["set", profile])
@@ -6648,7 +6719,7 @@ fn power_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     };
                     CommandResult::Output(format!("  {} {} -- profile set to {}", "✅".normal(), icon, profile))
                 }
-                _ => CommandResult::Error(format!("  power set: failed -- is power-profiles-daemon running?")),
+                _ => CommandResult::Error(format!("  power set: failed -- is power-profiles-daemon running?"), 1),
             }
         }
         "auto" => {
@@ -6755,12 +6826,12 @@ fn store_cmd(args: &[&str]) -> CommandResult {
             let target = match args.get(1) {
                 Some(t) => *t,
                 None => return CommandResult::Error(
-                    "  store why <path|name> -- what keeps a store path alive + its size".to_string()),
+                    "  store why <path|name> -- what keeps a store path alive + its size".to_string(), 1),
             };
             // Resolve target -> a concrete /nix/store path.
             let path = match store_resolve(target) {
                 Ok(p) => p,
-                Err(msg) => return CommandResult::Error(msg),
+                Err(msg) => return CommandResult::Error(msg, 1),
             };
             let mut out = String::new();
             out.push_str(&format!("  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  {}\n", path));
@@ -6815,12 +6886,12 @@ fn store_cmd(args: &[&str]) -> CommandResult {
                 Ok(o) if o.status.success() => o,
                 Ok(o) => return CommandResult::Error(format!(
                     "store big: nix path-info failed: {}",
-                    String::from_utf8_lossy(&o.stderr).trim())),
-                Err(e) => return CommandResult::Error(format!("store big: {}", e)),
+                    String::from_utf8_lossy(&o.stderr).trim()), 1),
+                Err(e) => return CommandResult::Error(format!("store big: {}", e), 1),
             };
             let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
                 Ok(v) => v,
-                Err(e) => return CommandResult::Error(format!("store big: parse: {}", e)),
+                Err(e) => return CommandResult::Error(format!("store big: parse: {}", e), 1),
             };
             // nix 2.34: top-level object keyed by store path -> { narSize, ... }.
             let map = match json.as_object() {
@@ -6871,7 +6942,9 @@ fn store_reclaim() -> CommandResult {
             .filter(|l| l.starts_with("/nix/store"))
             .map(|s| s.to_string())
             .collect(),
-        Err(e) => return CommandResult::Error(format!("  store reclaim: nix-store failed: {}", e)),
+        Err(e) => {
+            return CommandResult::Error(format!("  store reclaim: nix-store failed: {}", e), 1)
+        }
     };
     let n = dead_paths.len();
     if n == 0 {
@@ -7221,7 +7294,7 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
                     CommandResult::Output(out.trim_end().to_string())
                 }
             }
-            Err(_) => CommandResult::Error("search: rg not found".to_string()),
+            Err(_) => CommandResult::Error("search: rg not found".to_string(), 1),
         };
     }
     let query = args.join(" ").to_lowercase();
@@ -7323,9 +7396,10 @@ fn compare_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
     match Command::new(&bin).args(&cmd_args).status() {
         Ok(_) => CommandResult::Output(String::new()),
-        Err(_) => {
-            CommandResult::Error("faelight-diff not found -- run: deploy faelight-diff".to_string())
-        }
+        Err(_) => CommandResult::Error(
+            "faelight-diff not found -- run: deploy faelight-diff".to_string(),
+            1,
+        ),
     }
 }
 fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
@@ -7382,7 +7456,9 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .spawn()
             {
                 Ok(c) => c,
-                Err(_) => return CommandResult::Error("sk not found -- install skim".to_string()),
+                Err(_) => {
+                    return CommandResult::Error("sk not found -- install skim".to_string(), 1)
+                }
             };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
@@ -7417,7 +7493,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 500"
                 ) {
                     Ok(s) => s,
-                    Err(_) => return CommandResult::Error("Cannot read history".to_string()),
+                    Err(_) => return CommandResult::Error("Cannot read history".to_string(), 1),
                 };
                 stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
                     .map(|rows| rows.filter_map(|r| r.ok()).collect())
@@ -7439,7 +7515,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .spawn()
             {
                 Ok(c) => c,
-                Err(_) => return CommandResult::Error("sk not found".to_string()),
+                Err(_) => return CommandResult::Error("sk not found".to_string(), 1),
             };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
@@ -7471,7 +7547,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let rg_out = Command::new("rg").args(["--files", &search_dir]).output();
             let items = match rg_out {
                 Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
-                Err(_) => return CommandResult::Error("rg not found".to_string()),
+                Err(_) => return CommandResult::Error("rg not found".to_string(), 1),
             };
             let mut child = match Command::new("sk")
                 .args(["--prompt=pick file> ", "--height=50%", "--reverse"])
@@ -7480,7 +7556,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 .spawn()
             {
                 Ok(c) => c,
-                Err(_) => return CommandResult::Error("sk not found".to_string()),
+                Err(_) => return CommandResult::Error("sk not found".to_string(), 1),
             };
             if let Some(stdin) = child.stdin.as_mut() {
                 let _ = stdin.write_all(items.as_bytes());
@@ -7518,10 +7594,10 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 fn devshell_list(args: &[&str]) -> CommandResult {
     if let Some(&sub) = args.first() {
         if sub != "list" {
-            return CommandResult::Error(format!(
-                "unknown devshell subcommand '{}' (try: devshell list)",
-                sub
-            ));
+            return CommandResult::Error(
+                format!("unknown devshell subcommand '{}' (try: devshell list)", sub),
+                1,
+            );
         }
     }
     let cwd = std::env::current_dir().unwrap_or_default();
@@ -7532,15 +7608,18 @@ fn devshell_list(args: &[&str]) -> CommandResult {
     let out = match output {
         Ok(o) if o.status.success() => o,
         _ => {
-            return CommandResult::Error(format!(
-                "no flake found in {} (nix flake show failed)",
-                cwd.display()
-            ))
+            return CommandResult::Error(
+                format!(
+                    "no flake found in {} (nix flake show failed)",
+                    cwd.display()
+                ),
+                1,
+            )
         }
     };
     let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
         Ok(v) => v,
-        Err(_) => return CommandResult::Error("could not parse nix flake output".to_string()),
+        Err(_) => return CommandResult::Error("could not parse nix flake output".to_string(), 1),
     };
     let system = format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS);
     let shells = json.get("devShells").and_then(|d| d.get(system.as_str()));
@@ -7562,7 +7641,10 @@ fn pkg_search(args: &[&str]) -> CommandResult {
     // Caches results to /tmp/fsh-pkg-search.json so completion can read them without a network hit.
     let term = args.join(" ");
     if term.trim().is_empty() {
-        return CommandResult::Error("pkg-search <term>  -- e.g. pkg-search ripgrep".to_string());
+        return CommandResult::Error(
+            "pkg-search <term>  -- e.g. pkg-search ripgrep".to_string(),
+            1,
+        );
     }
     let out = std::process::Command::new("nix")
         .args(["search", "nixpkgs", &term, "--json"])
@@ -7571,13 +7653,16 @@ fn pkg_search(args: &[&str]) -> CommandResult {
         Ok(o) if o.status.success() => o,
         Ok(o) => {
             let err = String::from_utf8_lossy(&o.stderr);
-            return CommandResult::Error(format!("pkg-search: nix search failed: {}", err.trim()));
+            return CommandResult::Error(
+                format!("pkg-search: nix search failed: {}", err.trim()),
+                1,
+            );
         }
-        Err(e) => return CommandResult::Error(format!("pkg-search: {}", e)),
+        Err(e) => return CommandResult::Error(format!("pkg-search: {}", e), 1),
     };
     let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
         Ok(v) => v,
-        Err(e) => return CommandResult::Error(format!("pkg-search: parse: {}", e)),
+        Err(e) => return CommandResult::Error(format!("pkg-search: parse: {}", e), 1),
     };
     let map = match json.as_object() {
         Some(m) if !m.is_empty() => m,
@@ -7634,7 +7719,7 @@ fn devshell_enter(args: &[&str]) -> CommandResult {
     // starts inside friday-dev, so a hard nix-shell block would make enter unusable.
     let cwd = std::env::current_dir().unwrap_or_default();
     if !cwd.join("flake.nix").exists() {
-        return CommandResult::Error(format!("devshell: no flake.nix in {}", cwd.display()));
+        return CommandResult::Error(format!("devshell: no flake.nix in {}", cwd.display()), 1);
     }
     let fsh = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
@@ -7647,7 +7732,7 @@ fn devshell_enter(args: &[&str]) -> CommandResult {
     cmd.args(["--command", &fsh]).current_dir(&cwd);
     match cmd.status() {
         Ok(_) => CommandResult::Empty,
-        Err(e) => CommandResult::Error(format!("devshell enter: {}", e)),
+        Err(e) => CommandResult::Error(format!("devshell enter: {}", e), 1),
     }
 }
 
@@ -7665,7 +7750,7 @@ fn cache(args: &[&str]) -> CommandResult {
                     let err = String::from_utf8_lossy(&o.stderr).to_string();
                     CommandResult::Output(format!("{}{}", out, err).trim_end().to_string())
                 }
-                Err(e) => CommandResult::Error(format!("cache status: {}", e)),
+                Err(e) => CommandResult::Error(format!("cache status: {}", e), 1),
             }
         }
         "push" => {
@@ -7676,10 +7761,10 @@ fn cache(args: &[&str]) -> CommandResult {
                 .status();
             match status {
                 Ok(_) => CommandResult::Empty,
-                Err(e) => CommandResult::Error(format!("cache push: {}", e)),
+                Err(e) => CommandResult::Error(format!("cache push: {}", e), 1),
             }
         }
-        _ => CommandResult::Error("usage: cache <status|push>".to_string()),
+        _ => CommandResult::Error("usage: cache <status|push>".to_string(), 1),
     }
 }
 
@@ -7701,7 +7786,7 @@ fn cd(args: &[&str]) -> CommandResult {
                 .status();
             CommandResult::Empty
         }
-        Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e)),
+        Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e), 1),
     }
 }
 
@@ -8052,10 +8137,13 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
             CommandResult::Output(out)
         }
-        _ => CommandResult::Error(format!(
-            "  debug: unknown '{}'\n  usage: debug last | debug reactions | debug preexec",
-            sub
-        )),
+        _ => CommandResult::Error(
+            format!(
+                "  debug: unknown '{}'\n  usage: debug last | debug reactions | debug preexec",
+                sub
+            ),
+            1,
+        ),
     }
 }
 
@@ -8164,7 +8252,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
                     .status();
                 CommandResult::Empty
             }
-            Err(e) => CommandResult::Error(format!("z: {}", e)),
+            Err(e) => CommandResult::Error(format!("z: {}", e), 1),
         };
     }
     let query = args.join(" ");
@@ -8175,7 +8263,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
         Ok(output) if output.status.success() => {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if path.is_empty() {
-                return CommandResult::Error(format!("z: no match for '{}'", query));
+                return CommandResult::Error(format!("z: no match for '{}'", query), 1);
             }
             match std::env::set_current_dir(&path) {
                 Ok(_) => {
@@ -8184,14 +8272,17 @@ fn z_jump(args: &[&str]) -> CommandResult {
                         .status();
                     CommandResult::Empty
                 }
-                Err(e) => CommandResult::Error(format!("z: {}: {}", path, e)),
+                Err(e) => CommandResult::Error(format!("z: {}: {}", path, e), 1),
             }
         }
-        _ => CommandResult::Error(format!(
-            "  z: no match for '{}'
+        _ => CommandResult::Error(
+            format!(
+                "  z: no match for '{}'
   hint: use cd first — zoxide will learn it",
-            query
-        )),
+                query
+            ),
+            1,
+        ),
     }
 }
 
@@ -8226,10 +8317,13 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 name.bright_green()
             ))
         }
-        Some(name) => CommandResult::Error(format!(
-            "  theme: unknown theme '{}'\n  available: forest, minimal, friday, classic",
-            name
-        )),
+        Some(name) => CommandResult::Error(
+            format!(
+                "  theme: unknown theme '{}'\n  available: forest, minimal, friday, classic",
+                name
+            ),
+            1,
+        ),
     }
 }
 
@@ -8415,7 +8509,7 @@ pub fn execute_plan_dispatch(
 ) -> CommandResult {
     let argv = match plan.argv_as_utf8() {
         Ok(v) => v,
-        Err(e) => return CommandResult::Error(format!("  {e}")),
+        Err(e) => return CommandResult::Error(format!("  {e}"), 1),
     };
     // ⚠️ UNDER A REDIRECT, PREFER THE REAL COMMAND. fsh's builtins are RENDERERS as much as
     // commands -- its `cat` returns line-numbered, ANSI-dimmed text for source files -- and writing
@@ -8481,15 +8575,16 @@ pub fn execute_plan_dispatch(
                             };
                             match f.write_all(body.as_bytes()) {
                                 Ok(()) => CommandResult::Empty,
-                                Err(e) => CommandResult::Error(format!(
-                                    "  cannot write {}: {e}",
-                                    path.display()
-                                )),
+                                Err(e) => CommandResult::Error(
+                                    format!("  cannot write {}: {e}", path.display()),
+                                    1,
+                                ),
                             }
                         }
-                        Err(e) => {
-                            CommandResult::Error(format!("  cannot write {}: {e}", path.display()))
-                        }
+                        Err(e) => CommandResult::Error(
+                            format!("  cannot write {}: {e}", path.display()),
+                            1,
+                        ),
                     }
                 }
                 // Input redirect only: a builtin does not read stdin, so its output still returns.
@@ -8534,7 +8629,7 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
     for (idx, plan) in plans.iter().enumerate() {
         let is_last = idx + 1 == plans.len();
         let Some(program) = plan.argv.first() else {
-            return CommandResult::Error("  empty stage in pipeline".to_string());
+            return CommandResult::Error("  empty stage in pipeline".to_string(), 1);
         };
         let mut cmd = std::process::Command::new(program);
         cmd.args(&plan.argv[1..]);
@@ -8550,7 +8645,10 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                     cmd.stdin(std::process::Stdio::from(f));
                 }
                 Err(e) => {
-                    return CommandResult::Error(format!("  cannot read {}: {e}", path.display()))
+                    return CommandResult::Error(
+                        format!("  cannot read {}: {e}", path.display()),
+                        1,
+                    )
                 }
             },
             (None, Some(prev)) => {
@@ -8583,10 +8681,10 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                         cmd.stdout(std::process::Stdio::from(f));
                     }
                     Err(e) => {
-                        return CommandResult::Error(format!(
-                            "  cannot write {}: {e}",
-                            path.display()
-                        ))
+                        return CommandResult::Error(
+                            format!("  cannot write {}: {e}", path.display()),
+                            1,
+                        )
                     }
                 }
             }
@@ -8611,7 +8709,7 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                 for mut c in children {
                     let _ = c.wait();
                 }
-                return CommandResult::Error(format!("  {}: {e}", program.to_string_lossy()));
+                return CommandResult::Error(format!("  {}: {e}", program.to_string_lossy()), 1);
             }
         }
     }
@@ -8627,9 +8725,12 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
         Some(s) => {
             let code = s.code().unwrap_or(1);
             record_failure(db, "pipeline", code);
-            CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+            CommandResult::Error(
+                format!("  exited {} -- {}", code, explain_exit_code(code)),
+                1,
+            )
         }
-        None => CommandResult::Error("  pipeline: no stage completed".to_string()),
+        None => CommandResult::Error("  pipeline: no stage completed".to_string(), 1),
     }
 }
 
@@ -8637,7 +8738,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
     use crate::spine::plan::{Environment, IoPlan};
 
     let Some(program) = plan.argv.first() else {
-        return CommandResult::Error("  empty plan: nothing to execute".to_string());
+        return CommandResult::Error("  empty plan: nothing to execute".to_string(), 1);
     };
 
     let mut cmd = std::process::Command::new(program);
@@ -8673,19 +8774,19 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 Ok(o) => {
                     let code = o.status.code().unwrap_or(1);
                     record_failure(db, &word, code);
-                    CommandResult::Error(format!(
-                        "  exited {} -- {}",
-                        code,
-                        explain_exit_code(code)
-                    ))
+                    CommandResult::Error(
+                        format!("  exited {} -- {}", code, explain_exit_code(code)),
+                        1,
+                    )
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     record_failure(db, &word, 127);
                     CommandResult::Error(
                         crate::error::FlowError::CommandNotFound(word).display_colored(),
+                        1,
                     )
                 }
-                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e), 1),
             }
         }
         // No redirects, no pipe wiring: inherit both, which is what a plain command wants.
@@ -8697,11 +8798,10 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 Ok(s) => {
                     let code = s.code().unwrap_or(1);
                     record_failure(db, &word, code);
-                    CommandResult::Error(format!(
-                        "  exited {} -- {}",
-                        code,
-                        explain_exit_code(code)
-                    ))
+                    CommandResult::Error(
+                        format!("  exited {} -- {}", code, explain_exit_code(code)),
+                        1,
+                    )
                 }
                 // A direct spawn reports a missing command HERE, before any process exists -- unlike the
                 // sh path, which sees it as exit 127. Same situation for the user, different detection,
@@ -8710,9 +8810,10 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     record_failure(db, &word, 127);
                     CommandResult::Error(
                         crate::error::FlowError::CommandNotFound(word).display_colored(),
+                        1,
                     )
                 }
-                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e), 1),
             }
         }
         // INT-200: stdout and/or stdin attached to FILES. Paths arrive already expanded --
@@ -8737,10 +8838,10 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     // A missing input file is the USER's error and must be reported, not swallowed
                     // into an inherited stdin that would silently read the terminal instead.
                     Err(e) => {
-                        return CommandResult::Error(format!(
-                            "  cannot read {}: {e}",
-                            path.display()
-                        ))
+                        return CommandResult::Error(
+                            format!("  cannot read {}: {e}", path.display()),
+                            1,
+                        )
                     }
                 },
                 None => {
@@ -8763,20 +8864,20 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                             let for_child = match f.try_clone() {
                                 Ok(c) => c,
                                 Err(e) => {
-                                    return CommandResult::Error(format!(
-                                        "  cannot open {}: {e}",
-                                        path.display()
-                                    ))
+                                    return CommandResult::Error(
+                                        format!("  cannot open {}: {e}", path.display()),
+                                        1,
+                                    )
                                 }
                             };
                             cmd.stdout(std::process::Stdio::from(for_child));
                             Some(f)
                         }
                         Err(e) => {
-                            return CommandResult::Error(format!(
-                                "  cannot write {}: {e}",
-                                path.display()
-                            ))
+                            return CommandResult::Error(
+                                format!("  cannot write {}: {e}", path.display()),
+                                1,
+                            )
                         }
                     }
                 }
@@ -8805,10 +8906,10 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     {
                         Ok(f) => Some(f),
                         Err(e) => {
-                            return CommandResult::Error(format!(
-                                "  cannot write {}: {e}",
-                                path.display()
-                            ))
+                            return CommandResult::Error(
+                                format!("  cannot write {}: {e}", path.display()),
+                                1,
+                            )
                         }
                     }
                 }
@@ -8816,7 +8917,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     Some(f) => match f.try_clone() {
                         Ok(c) => Some(c),
                         Err(e) => {
-                            return CommandResult::Error(format!("  cannot share stdout: {e}"))
+                            return CommandResult::Error(format!("  cannot share stdout: {e}"), 1)
                         }
                     },
                     // Lowering only emits Stdout when stdout was ALREADY redirected, so this is
@@ -8829,19 +8930,19 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 Ok(s) => {
                     let code = s.code().unwrap_or(1);
                     record_failure(db, &word, code);
-                    CommandResult::Error(format!(
-                        "  exited {} -- {}",
-                        code,
-                        explain_exit_code(code)
-                    ))
+                    CommandResult::Error(
+                        format!("  exited {} -- {}", code, explain_exit_code(code)),
+                        1,
+                    )
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     record_failure(db, &word, 127);
                     CommandResult::Error(
                         crate::error::FlowError::CommandNotFound(word).display_colored(),
+                        1,
                     )
                 }
-                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+                Err(e) => CommandResult::Error(format!("  failed to execute: {}", e), 1),
             }
         }
     }
@@ -8937,7 +9038,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 a.bright_cyan()
             ));
         }
-        return CommandResult::Error(msg);
+        return CommandResult::Error(msg, 1);
     }
     // INT-185's stderr tee now lives in spawn_with_tee, shared with the spine's plan
     // executor. This path delegates the UNMODELLED line to sh; the spine path spawns argv
@@ -9031,14 +9132,17 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             ));
                         }
                         record_failure(db, &command_word(line), code);
-                        return CommandResult::Error(msg);
+                        return CommandResult::Error(msg, 1);
                     }
                 }
                 record_failure(db, &command_word(line), code);
-                CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+                CommandResult::Error(
+                    format!("  exited {} -- {}", code, explain_exit_code(code)),
+                    1,
+                )
             }
         }
-        Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
+        Err(e) => CommandResult::Error(format!("  failed to execute: {}", e), 1),
     }
 }
 
@@ -9753,7 +9857,7 @@ fn failure_history_cmd(db: &ForestDb, _args: &[&str]) -> CommandResult {
 fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     let cmd = args.first().copied().unwrap_or("");
     if cmd.is_empty() {
-        return CommandResult::Error("explain: missing command name".to_string());
+        return CommandResult::Error("explain: missing command name".to_string(), 1);
     }
     let home = std::env::var("HOME").unwrap_or_default();
     let mut out = String::new();
@@ -9961,7 +10065,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     let cmd = args.first().copied().unwrap_or("");
     if cmd.is_empty() {
-        return CommandResult::Error("where: missing command name".to_string());
+        return CommandResult::Error("where: missing command name".to_string(), 1);
     }
     let home = std::env::var("HOME").unwrap_or_default();
     let mut out = String::new();
@@ -10041,7 +10145,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
 fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
     let name = args.first().copied().unwrap_or("");
     if name.is_empty() {
-        return CommandResult::Error("describe: missing command name".to_string());
+        return CommandResult::Error("describe: missing command name".to_string(), 1);
     }
     let mut reg = crate::registry::Registry::new();
     reg.populate(db, core_root);
@@ -10123,7 +10227,7 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
         "info" => {
             let name = args.get(1).copied().unwrap_or("");
             if name.is_empty() {
-                return CommandResult::Error("command info: missing command name".to_string());
+                return CommandResult::Error("command info: missing command name".to_string(), 1);
             }
             describe_cmd(db, &[name], core_root)
         }
@@ -10134,7 +10238,7 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
                 count.to_string().bright_white()
             ))
         }
-        _ => CommandResult::Error(format!("command: unknown subcommand '{}'", sub)),
+        _ => CommandResult::Error(format!("command: unknown subcommand '{}'", sub), 1),
     }
 }
 
@@ -10718,7 +10822,7 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
         .status();
     match st {
         Ok(_) => CommandResult::Empty,
-        Err(e) => CommandResult::Error(format!("vm: {}", e)),
+        Err(e) => CommandResult::Error(format!("vm: {}", e), 1),
     }
 }
 
@@ -11201,7 +11305,10 @@ fn schema(args: &[&str]) -> CommandResult {
             Some(schema) => CommandResult::Output(crate::schema::render_table_schema(schema)),
             None => {
                 let known = registry.names().join(", ");
-                CommandResult::Error(format!("unknown table '{}' — known: {}", table_name, known))
+                CommandResult::Error(
+                    format!("unknown table '{}' — known: {}", table_name, known),
+                    1,
+                )
             }
         },
     }
@@ -11217,6 +11324,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::Error(
             "usage: grep <pattern> [file]  or  grep [-i] <pattern> [file]".to_string(),
+            1,
         );
     }
     // If any unrecognized flags present — fall through to system grep
@@ -11229,10 +11337,11 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => {
-                CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1)))
-            }
-            Err(e) => CommandResult::Error(format!("grep: {}", e)),
+            Ok(s) => CommandResult::Error(
+                format!("grep: exited with code {}", s.code().unwrap_or(1)),
+                1,
+            ),
+            Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
         };
     }
     let (case_insensitive, rest) = if args.first() == Some(&"-i") {
@@ -11241,7 +11350,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         (false, args)
     };
     if rest.is_empty() {
-        return CommandResult::Error("usage: grep <pattern> [file]".to_string());
+        return CommandResult::Error("usage: grep <pattern> [file]".to_string(), 1);
     }
     let pattern = rest[0].trim_matches('"').trim_matches('\'');
     // If pattern contains alternation (\|) or regex metacharacters, fall through to system grep
@@ -11253,10 +11362,11 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => {
-                CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1)))
-            }
-            Err(e) => CommandResult::Error(format!("grep: {}", e)),
+            Ok(s) => CommandResult::Error(
+                format!("grep: exited with code {}", s.code().unwrap_or(1)),
+                1,
+            ),
+            Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
         };
     }
     let file_arg = rest.get(1).copied();
@@ -11270,11 +11380,12 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         };
         match std::fs::read_to_string(&expanded) {
             Ok(content) => content.lines().map(|l| l.to_string()).collect(),
-            Err(e) => return CommandResult::Error(format!("grep: {}: {}", expanded, e)),
+            Err(e) => return CommandResult::Error(format!("grep: {}: {}", expanded, e), 1),
         }
     } else {
         return CommandResult::Error(
             "grep: pipe support coming — use grep <pattern> <file> for now".to_string(),
+            1,
         );
     };
 
@@ -11456,7 +11567,7 @@ fn realpath_cmd(args: &[&str]) -> CommandResult {
             // No arg — return cwd
             return match std::env::current_dir() {
                 Ok(p) => CommandResult::Output(p.to_string_lossy().to_string()),
-                Err(e) => CommandResult::Error(format!("realpath: {}", e)),
+                Err(e) => CommandResult::Error(format!("realpath: {}", e), 1),
             };
         }
     };
@@ -11504,7 +11615,7 @@ fn realpath_cmd(args: &[&str]) -> CommandResult {
 /// does not get the warning. A warning on a path nobody times is not worth a second dispatcher.
 fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> CommandResult {
     if args.is_empty() {
-        return CommandResult::Error("time: missing command".to_string());
+        return CommandResult::Error("time: missing command".to_string(), 1);
     }
     let cmd_line = line.trim().trim_start_matches("time").trim().to_string();
 
@@ -11522,7 +11633,7 @@ fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> Comman
     // execute() returns the output rather than printing it, so print it here -- the timing line
     // goes last, the way it always has.
     let code = match &result {
-        CommandResult::Error(e) => {
+        CommandResult::Error(e, _) => {
             eprintln!("  {} {}", "\u{2717}".bright_red(), e);
             1
         }
@@ -11599,12 +11710,12 @@ fn reload_fsh() -> CommandResult {
             println!("    was: {}", r.trim());
             println!("    new: {}", d.trim());
             let err = std::process::Command::new(&target).exec();
-            CommandResult::Error(format!("reload: {}: {}", target, err))
+            CommandResult::Error(format!("reload: {}: {}", target, err), 1)
         }
         _ => {
             println!("  🔄 Reloading fsh -> {} (no build marker to compare)", target);
             let err = std::process::Command::new(&target).exec();
-            CommandResult::Error(format!("reload: {}: {}", target, err))
+            CommandResult::Error(format!("reload: {}: {}", target, err), 1)
         }
     }
 }
@@ -11614,7 +11725,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     // Special case: exec fsh or exec faelight-shell → re-exec current binary
     let cmd = match args.first() {
         Some(c) => c,
-        None => return CommandResult::Error("exec: missing command".to_string()),
+        None => return CommandResult::Error("exec: missing command".to_string(), 1),
     };
     let is_self = matches!(*cmd, "fsh" | "faelight-shell" | "shell");
     let resolved = if is_self {
@@ -11645,12 +11756,12 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     let err = std::process::Command::new(&resolved)
         .args(&args[1..])
         .exec();
-    CommandResult::Error(format!("exec: {}: {}", cmd, err))
+    CommandResult::Error(format!("exec: {}: {}", cmd, err), 1)
 }
 fn source_cmd(args: &[&str]) -> CommandResult {
     let file = match args.first() {
         Some(f) => f,
-        None => return CommandResult::Error("source: missing filename".to_string()),
+        None => return CommandResult::Error("source: missing filename".to_string(), 1),
     };
     let home = std::env::var("HOME").unwrap_or_default();
     let path = if file.starts_with("~/") {
@@ -11672,7 +11783,7 @@ fn source_cmd(args: &[&str]) -> CommandResult {
                 lines.len()
             ))
         }
-        Err(e) => CommandResult::Error(format!("source: {}: {}", file, e)),
+        Err(e) => CommandResult::Error(format!("source: {}: {}", file, e), 1),
     }
 }
 fn tree_cmd(args: &[&str]) -> CommandResult {
@@ -11763,7 +11874,7 @@ fn stat_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let file = match args.first() {
         Some(f) => f,
-        None => return CommandResult::Error("stat: missing filename".to_string()),
+        None => return CommandResult::Error("stat: missing filename".to_string(), 1),
     };
     let path = if file.starts_with("~/") {
         file.replacen("~/", &format!("{}/", home), 1)
@@ -11772,7 +11883,7 @@ fn stat_cmd(args: &[&str]) -> CommandResult {
     };
     let meta = match std::fs::metadata(&path) {
         Ok(m) => m,
-        Err(e) => return CommandResult::Error(format!("stat: {}: {}", file, e)),
+        Err(e) => return CommandResult::Error(format!("stat: {}: {}", file, e), 1),
     };
     let size = meta.len();
     let kind = if meta.is_dir() {
@@ -11839,7 +11950,7 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let file = match args.first() {
         Some(f) => f,
-        None => return CommandResult::Error("preview: missing filename".to_string()),
+        None => return CommandResult::Error("preview: missing filename".to_string(), 1),
     };
     let path = if file.starts_with("~/") {
         file.replacen("~/", &format!("{}/", home), 1)
@@ -11848,7 +11959,7 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
     };
     let meta = match std::fs::metadata(&path) {
         Ok(m) => m,
-        Err(e) => return CommandResult::Error(format!("preview: {}: {}", file, e)),
+        Err(e) => return CommandResult::Error(format!("preview: {}: {}", file, e), 1),
     };
     let size = meta.len();
     let ext = std::path::Path::new(&path)
@@ -11886,7 +11997,7 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
                             );
                         CommandResult::Output(preview)
                     }
-                    Err(e) => CommandResult::Error(format!("preview: {}", e)),
+                    Err(e) => CommandResult::Error(format!("preview: {}", e), 1),
                 }
             }
         }
@@ -11960,7 +12071,7 @@ fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 
     let mut stmt = match db.conn.prepare(&query) {
         Ok(s) => s,
-        Err(e) => return CommandResult::Error(e.to_string()),
+        Err(e) => return CommandResult::Error(e.to_string(), 1),
     };
 
     let rows: Vec<HashMap<String, Value>> = stmt
@@ -12349,7 +12460,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     ))
                 }
             } else {
-                CommandResult::Error("Usage: on remove <id>".to_string())
+                CommandResult::Error("Usage: on remove <id>".to_string(), 1)
             }
         }
         // on enable/disable <id>
@@ -12358,7 +12469,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 crate::triggers::enable(db, n, true);
                 CommandResult::Output(format!("  {} Trigger #{} enabled.", "✅".green(), n))
             } else {
-                CommandResult::Error("Usage: on enable <id>".to_string())
+                CommandResult::Error("Usage: on enable <id>".to_string(), 1)
             }
         }
         ["disable", id] => {
@@ -12366,7 +12477,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 crate::triggers::enable(db, n, false);
                 CommandResult::Output(format!("  {} Trigger #{} disabled.", "○".dimmed(), n))
             } else {
-                CommandResult::Error("Usage: on disable <id>".to_string())
+                CommandResult::Error("Usage: on disable <id>".to_string(), 1)
             }
         }
         // on <trigger...> => <action...>
@@ -12378,7 +12489,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 if trigger.is_empty() || action.is_empty() {
                     return CommandResult::Error(
                         "Usage: on <trigger> => <action>  e.g. on health_drop 90 => notify \"health low\"".to_string()
-                    );
+                    , 1);
                 }
                 match crate::triggers::add(db, &trigger, &action) {
                     Ok(_) => CommandResult::Output(format!(
@@ -12387,12 +12498,12 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                         trigger.bright_cyan(),
                         action.bright_white()
                     )),
-                    Err(e) => CommandResult::Error(e),
+                    Err(e) => CommandResult::Error(e, 1),
                 }
             } else {
                 CommandResult::Error(
                     "Usage: on <trigger> => <action>\nTriggers: health_drop <n>, git_commit, event <domain>, run <cmd>".to_string()
-                )
+                , 1)
             }
         }
     }
@@ -12443,10 +12554,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .to_string()
             };
             if !std::path::Path::new(&manifest).exists() {
-                return CommandResult::Error(format!(
-                    "  dev test: no Cargo.toml found for '{}'",
-                    tool
-                ));
+                return CommandResult::Error(
+                    format!("  dev test: no Cargo.toml found for '{}'", tool),
+                    1,
+                );
             }
             println!(
                 "  {} running: cargo nextest run --manifest-path {}",
@@ -12460,8 +12571,8 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Ok(s) if s.success() => {
                     CommandResult::Output(format!("  {} all tests passed", "✅".normal()))
                 }
-                Ok(_) => CommandResult::Error("  dev test: tests failed".to_string()),
-                Err(e) => CommandResult::Error(format!("  dev test: {}", e)),
+                Ok(_) => CommandResult::Error("  dev test: tests failed".to_string(), 1),
+                Err(e) => CommandResult::Error(format!("  dev test: {}", e), 1),
             }
         }
         "watch" => {
@@ -12506,10 +12617,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Ok(_) => CommandResult::Output(
                     "  ⚠ unused dependencies found -- review above".to_string(),
                 ),
-                Err(e) => CommandResult::Error(format!(
-                    "  dev audit-deps: {} -- is cargo-udeps installed?",
-                    e
-                )),
+                Err(e) => CommandResult::Error(
+                    format!("  dev audit-deps: {} -- is cargo-udeps installed?", e),
+                    1,
+                ),
             }
         }
         "bench" => {
@@ -12533,6 +12644,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 None => return CommandResult::Error(
                     "  dev deps <crate>  -- what pulls <crate> into the build (e.g. dev deps libc)"
                         .to_string(),
+                    1,
                 ),
             };
             let out = std::process::Command::new("cargo")
@@ -12569,7 +12681,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                             }
                         }
                         if vers.is_empty() {
-                            return CommandResult::Error(format!("  dev deps: {}", err.trim()));
+                            return CommandResult::Error(format!("  dev deps: {}", err.trim()), 1);
                         }
                         return CommandResult::Output(format!(
                             "  '{}' is ambiguous -- pick a version:\n    {}\n  e.g. dev deps {}",
@@ -12617,10 +12729,10 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                             ))
                         }
                     } else {
-                        CommandResult::Error(format!("  dev deps: {}", err.trim()))
+                        CommandResult::Error(format!("  dev deps: {}", err.trim()), 1)
                     }
                 }
-                Err(e) => CommandResult::Error(format!("  dev deps: {}", e)),
+                Err(e) => CommandResult::Error(format!("  dev deps: {}", e), 1),
             }
         }
         "search" => {
@@ -12632,6 +12744,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             if query.trim().is_empty() {
                 return CommandResult::Error(
                     "  dev search <query>  -- search crates.io (e.g. dev search tui)".to_string(),
+                    1,
                 );
             }
             let out = std::process::Command::new("cargo")
@@ -12641,12 +12754,12 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Ok(o) if o.status.success() => o,
                 Ok(o) => {
                     let err = String::from_utf8_lossy(&o.stderr);
-                    return CommandResult::Error(format!(
-                        "  dev search: cargo search failed: {}",
-                        err.trim()
-                    ));
+                    return CommandResult::Error(
+                        format!("  dev search: cargo search failed: {}", err.trim()),
+                        1,
+                    );
                 }
-                Err(e) => return CommandResult::Error(format!("  dev search: {}", e)),
+                Err(e) => return CommandResult::Error(format!("  dev search: {}", e), 1),
             };
             let text = String::from_utf8_lossy(&out.stdout);
             let mut rows: Vec<(String, String, String)> = Vec::new();
@@ -12769,9 +12882,9 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                             target
                         ));
                     }
-                    CommandResult::Error(format!("  dev graph: {}", err.trim()))
+                    CommandResult::Error(format!("  dev graph: {}", err.trim()), 1)
                 }
-                Err(e) => CommandResult::Error(format!("  dev graph: {}", e)),
+                Err(e) => CommandResult::Error(format!("  dev graph: {}", e), 1),
             }
         }
         "geiger" => {
@@ -12824,6 +12937,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 None => {
                     return CommandResult::Error(
                         "  dev workspace: cargo metadata failed".to_string(),
+                        1,
                     )
                 }
             };
@@ -12905,12 +13019,17 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                             dir.dimmed()
                         ))
                     }
-                    Err(e) => CommandResult::Error(format!("  dev workspace: cd {}: {}", dir, e)),
+                    Err(e) => {
+                        CommandResult::Error(format!("  dev workspace: cd {}: {}", dir, e), 1)
+                    }
                 },
-                None => CommandResult::Error(format!(
-                    "  dev workspace: no crate named '{}' (try: dev workspace)",
-                    want
-                )),
+                None => CommandResult::Error(
+                    format!(
+                        "  dev workspace: no crate named '{}' (try: dev workspace)",
+                        want
+                    ),
+                    1,
+                ),
             }
         }
         "doc" => {
@@ -12977,10 +13096,11 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .status();
                 match status {
                     Ok(s) if s.success() => CommandResult::Empty,
-                    Ok(_) => {
-                        CommandResult::Error(format!("  dev doc: cargo doc failed for {}", target))
-                    }
-                    Err(e) => CommandResult::Error(format!("  dev doc: {}", e)),
+                    Ok(_) => CommandResult::Error(
+                        format!("  dev doc: cargo doc failed for {}", target),
+                        1,
+                    ),
+                    Err(e) => CommandResult::Error(format!("  dev doc: {}", e), 1),
                 }
             } else {
                 // external crate -> docs.rs (published latest; instant, no build).
@@ -13334,7 +13454,7 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     let cwd = std::env::current_dir().unwrap_or_default();
     let entries: Vec<_> = match std::fs::read_dir(&cwd) {
         Ok(e) => e.filter_map(|e| e.ok()).collect(),
-        Err(err) => return CommandResult::Error(format!("  fsh rename: {}", err)),
+        Err(err) => return CommandResult::Error(format!("  fsh rename: {}", err), 1),
     };
     // Simple glob matching: * matches anything
     let matches_pattern = |name: &str, pattern: &str| -> bool {
@@ -13951,7 +14071,7 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let (id1, id2) = match args {
         [a, b] => match (a.parse::<i64>(), b.parse::<i64>()) {
             (Ok(x), Ok(y)) => (x, y),
-            _ => return CommandResult::Error("Usage: snap-diff <id1> <id2>".to_string()),
+            _ => return CommandResult::Error("Usage: snap-diff <id1> <id2>".to_string(), 1),
         },
         _ => {
             // Default: diff last two snapshots
@@ -13991,11 +14111,11 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     let s1 = match fetch(id1) {
         Some(s) => s,
-        None => return CommandResult::Error(format!("Snapshot #{} not found", id1)),
+        None => return CommandResult::Error(format!("Snapshot #{} not found", id1), 1),
     };
     let s2 = match fetch(id2) {
         Some(s) => s,
-        None => return CommandResult::Error(format!("Snapshot #{} not found", id2)),
+        None => return CommandResult::Error(format!("Snapshot #{} not found", id2), 1),
     };
 
     println!();
@@ -14090,7 +14210,7 @@ fn sql_query_cmd(db: &ForestDb, core_root: &str, line: &str) -> CommandResult {
             println!("  {} {}", "→".dimmed(), pipeline.dimmed());
             execute(&pipeline, db, core_root)
         }
-        Err(e) => CommandResult::Error(format!("Query error: {}", e)),
+        Err(e) => CommandResult::Error(format!("Query error: {}", e), 1),
     }
 }
 
@@ -14423,10 +14543,10 @@ fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
     let full = args.join(" ");
     let (name, expr) = match full.split_once('=') {
         Some((n, e)) => (n.trim(), e.trim()),
-        None => return CommandResult::Error("Usage: let <name> = <expression>".to_string()),
+        None => return CommandResult::Error("Usage: let <name> = <expression>".to_string(), 1),
     };
     if name.is_empty() || expr.is_empty() {
-        return CommandResult::Error("Usage: let <name> = <expression>".to_string());
+        return CommandResult::Error("Usage: let <name> = <expression>".to_string(), 1);
     }
     let result = execute(expr, db, core_root);
     let val = match result {
@@ -14453,7 +14573,7 @@ fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
 fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     let file = match args.first() {
         Some(f) => f,
-        None => return CommandResult::Error("pv: missing filename".to_string()),
+        None => return CommandResult::Error("pv: missing filename".to_string(), 1),
     };
     let home = std::env::var("HOME").unwrap_or_default();
     let path = if file.starts_with("~/") {
@@ -14463,7 +14583,7 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     };
     let p = std::path::Path::new(&path);
     if !p.exists() {
-        return CommandResult::Error(format!("pv: {}: not found", file));
+        return CommandResult::Error(format!("pv: {}: not found", file), 1);
     }
     // Directory — show tree
     if p.is_dir() {
@@ -14608,7 +14728,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
     let db_path = faelight_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
-        Err(e) => return CommandResult::Error(format!("guard: {}", e)),
+        Err(e) => return CommandResult::Error(format!("guard: {}", e), 1),
     };
     let _ = conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS fsh_guard_list (
@@ -14624,7 +14744,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
                 "SELECT kind, word FROM fsh_guard_list ORDER BY kind, word",
             ) {
                 Ok(s) => s,
-                Err(e) => return CommandResult::Error(format!("guard list: {}", e)),
+                Err(e) => return CommandResult::Error(format!("guard list: {}", e), 1),
             };
             let rows: Vec<(String, String)> = stmt
                 .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
@@ -14652,7 +14772,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
             let action = args.get(1).copied().unwrap_or("");
             let word = args.get(2).copied().unwrap_or("");
             if word.is_empty() {
-                return CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub));
+                return CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub), 1);
             }
             match action {
                 "add" => {
@@ -14665,7 +14785,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
                             word, sub,
                             if sub == "allow" { "  ⚠ this command will now SKIP the safety guard." } else { "" }
                         )),
-                        Err(e) => CommandResult::Error(format!("guard {}: {}", sub, e)),
+                        Err(e) => CommandResult::Error(format!("guard {}: {}", sub, e), 1),
                     }
                 }
                 "remove" | "rm" => {
@@ -14676,15 +14796,15 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
                     if n > 0 {
                         CommandResult::Output(format!("  🛡  '{}' removed from {} list.", word, sub))
                     } else {
-                        CommandResult::Error(format!("guard {}: '{}' not in {} list", sub, word, sub))
+                        CommandResult::Error(format!("guard {}: '{}' not in {} list", sub, word, sub), 1)
                     }
                 }
-                _ => CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub)),
+                _ => CommandResult::Error(format!("usage: cmdguard {} add|remove <cmd>", sub), 1),
             }
         }
         _ => CommandResult::Error(
-            "usage: cmdguard list | cmdguard deny add|remove <cmd> | cmdguard allow add|remove <cmd>".to_string(),
-        ),
+            "usage: cmdguard list | cmdguard deny add|remove <cmd> | cmdguard allow add|remove <cmd>".to_string()
+        , 1),
     }
 }
 
@@ -14701,7 +14821,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
         // finally TRUE. The old one pointed at `python3 -i`, which this same function broke.
         return CommandResult::Error(
             "py: no script argument.\n  \u{2192} run a file:    py <file.py>\n  \u{2192} run a snippet: py \"print(1+1)\"\n  \u{2192} a real REPL:   python3   (fsh passes python3 straight through)".to_string()
-        );
+        , 1);
     }
     // run python <code> or run python <file.py>
     let first = args[0];
@@ -14722,7 +14842,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
             .status();
         return match status {
             Ok(_) => CommandResult::Empty,
-            Err(e) => CommandResult::Error(format!("python: {}", e)),
+            Err(e) => CommandResult::Error(format!("python: {}", e), 1),
         };
     }
     // Inline code — join all args as code
@@ -14743,7 +14863,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
                 CommandResult::Output(stdout)
             }
         }
-        Err(e) => CommandResult::Error(format!("python: {}", e)),
+        Err(e) => CommandResult::Error(format!("python: {}", e), 1),
     }
 }
 fn run_js_cmd(args: &[&str]) -> CommandResult {
@@ -14763,7 +14883,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
     {
         "deno"
     } else {
-        return CommandResult::Error("js: node or deno not found in PATH".to_string());
+        return CommandResult::Error("js: node or deno not found in PATH".to_string(), 1);
     };
     if args.is_empty() {
         let _ = std::process::Command::new(runtime)
@@ -14812,7 +14932,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
                 CommandResult::Output(stdout)
             }
         }
-        Err(e) => CommandResult::Error(format!("js: {}", e)),
+        Err(e) => CommandResult::Error(format!("js: {}", e), 1),
     }
 }
 fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
@@ -14873,12 +14993,12 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 )),
             }
         }
-        _ => CommandResult::Error(format!("undo: unknown subcommand '{}' — try: list", sub)),
+        _ => CommandResult::Error(format!("undo: unknown subcommand '{}' — try: list", sub), 1),
     }
 }
 fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     match args.first() {
-        None => CommandResult::Error("Usage: run <file.fsh> or run --list".to_string()),
+        None => CommandResult::Error("Usage: run <file.fsh> or run --list".to_string(), 1),
         Some(&"--list") => {
             // List .fsh scripts in core_root
             let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
@@ -14935,7 +15055,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             match ext {
                 "py" => {
                     if !std::path::Path::new(&expanded).exists() {
-                        return CommandResult::Error(format!("run: file not found: {}", path));
+                        return CommandResult::Error(format!("run: file not found: {}", path), 1);
                     }
                     let status = std::process::Command::new("python3")
                         .arg(&expanded)
@@ -14946,13 +15066,13 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                         .status();
                     return match status {
                         Ok(s) if s.success() => CommandResult::Empty,
-                        Ok(s) => CommandResult::Error(format!("run: python3 exited with {}", s)),
-                        Err(e) => CommandResult::Error(format!("run: {}", e)),
+                        Ok(s) => CommandResult::Error(format!("run: python3 exited with {}", s), 1),
+                        Err(e) => CommandResult::Error(format!("run: {}", e), 1),
                     };
                 }
                 "sh" => {
                     if !std::path::Path::new(&expanded).exists() {
-                        return CommandResult::Error(format!("run: file not found: {}", path));
+                        return CommandResult::Error(format!("run: file not found: {}", path), 1);
                     }
                     let status = std::process::Command::new("sh")
                         .arg(&expanded)
@@ -14963,8 +15083,8 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                         .status();
                     return match status {
                         Ok(s) if s.success() => CommandResult::Empty,
-                        Ok(s) => CommandResult::Error(format!("run: sh exited with {}", s)),
-                        Err(e) => CommandResult::Error(format!("run: {}", e)),
+                        Ok(s) => CommandResult::Error(format!("run: sh exited with {}", s), 1),
+                        Err(e) => CommandResult::Error(format!("run: {}", e), 1),
                     };
                 }
                 _ => {}
@@ -14992,7 +15112,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                     return crate::scripting::run_file(candidate, db, core_root, &script_args);
                 }
             }
-            CommandResult::Error(format!("run: file not found: {}", path))
+            CommandResult::Error(format!("run: file not found: {}", path), 1)
         }
     }
 }
@@ -15062,13 +15182,15 @@ fn chart_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let (table, field) = match args {
         [t, f] => (*t, *f),
         [f] => ("ps", *f),
-        _ => return CommandResult::Error("Usage: chart <field>  or  ps | chart cpu".to_string()),
+        _ => {
+            return CommandResult::Error("Usage: chart <field>  or  ps | chart cpu".to_string(), 1)
+        }
     };
 
     // Fetch data
     let data = match execute(table, db, "") {
         CommandResult::Value(v) => v,
-        _ => return CommandResult::Error(format!("Cannot chart: {}", table)),
+        _ => return CommandResult::Error(format!("Cannot chart: {}", table), 1),
     };
 
     render_chart(data, field)
@@ -15078,7 +15200,7 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
     use crate::value::Value;
     let rows = match data {
         Value::Table(r) => r,
-        _ => return CommandResult::Error("chart requires table input".to_string()),
+        _ => return CommandResult::Error("chart requires table input".to_string(), 1),
     };
 
     if rows.is_empty() {
@@ -15659,6 +15781,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
             let Some(tool) = args.get(1).copied() else {
                 return CommandResult::Error(
                     "usage: bump-versions <patch|minor|major> <tool>".to_string(),
+                    1,
                 );
             };
             return match apply_version_bump(core_root, tool, level) {
@@ -15670,7 +15793,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
                     new.bright_green(),
                     level.dimmed()
                 )),
-                Err(e) => CommandResult::Error(format!("bump failed: {}", e)),
+                Err(e) => CommandResult::Error(format!("bump failed: {}", e), 1),
             };
         }
     }
@@ -15751,10 +15874,13 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
     );
 
     if !std::path::Path::new(&layout_path).exists() {
-        return CommandResult::Error(format!(
-            "ADE layout not found: {}\nRun: core intent show 346",
-            layout_path
-        ));
+        return CommandResult::Error(
+            format!(
+                "ADE layout not found: {}\nRun: core intent show 346",
+                layout_path
+            ),
+            1,
+        );
     }
 
     println!("  {} Launching Forest ADE...", "🌲".normal());

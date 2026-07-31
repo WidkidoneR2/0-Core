@@ -1257,7 +1257,7 @@ fn repl_main() -> Result<()> {
                                 let result = commands::execute(&cmd, &db, &core_root);
                                 match result {
                                     commands::CommandResult::Output(s) => println!("{}", s),
-                                    commands::CommandResult::Error(e) => eprintln!("  x {}", e),
+                                    commands::CommandResult::Error(e, _) => eprintln!("  x {}", e),
                                     _ => {}
                                 }
                             } else {
@@ -1474,7 +1474,7 @@ fn repl_main() -> Result<()> {
                                     commands::CommandResult::Output(s) if !s.is_empty() => {
                                         println!("{}", s)
                                     }
-                                    commands::CommandResult::Error(s)
+                                    commands::CommandResult::Error(s, _)
                                         if !failure_consumed_by_or =>
                                     {
                                         eprintln!("{}", s)
@@ -1930,7 +1930,9 @@ fn repl_main() -> Result<()> {
                                             println!("{}", v.render())
                                         }
                                         commands::CommandResult::Output(o) => println!("{}", o),
-                                        commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
+                                        commands::CommandResult::Error(e, _) => {
+                                            eprintln!("  ✗ {}", e)
+                                        }
                                         _ => {}
                                     }
                                 } else {
@@ -2170,7 +2172,7 @@ fn repl_main() -> Result<()> {
                             let exec_state = exec::execution_state(&result.result);
                             let exec_code = match &result.result {
                                 commands::CommandResult::Exit => None,
-                                commands::CommandResult::Error(_) => Some(1),
+                                commands::CommandResult::Error(_, _) => Some(1),
                                 _ => Some(0),
                             };
                             if let Err(e) =
@@ -2192,7 +2194,7 @@ fn repl_main() -> Result<()> {
                             }
                             match result.result {
                                 commands::CommandResult::Exit => break 'repl,
-                                commands::CommandResult::Error(e) => {
+                                commands::CommandResult::Error(e, _) => {
                                     eprintln!("  {} {}", colored::Colorize::bright_red("✗"), e);
                                 }
                                 commands::CommandResult::Output(out) => println!("{}", out),
@@ -2320,7 +2322,7 @@ fn repl_main() -> Result<()> {
                         ) {
                             commands::CommandResult::Output(out) => println!("{}", out),
                             commands::CommandResult::Value(v) => println!("{}", v.render()),
-                            commands::CommandResult::Error(e) => {
+                            commands::CommandResult::Error(e, _) => {
                                 eprintln!("{} {}", "x".bright_red(), e);
                                 last_exit_code = Some(1);
                             }
@@ -2443,7 +2445,7 @@ fn repl_main() -> Result<()> {
                             match result {
                                 commands::CommandResult::Output(out) => println!("{}", out),
                                 commands::CommandResult::Value(v) => println!("{}", v.render()),
-                                commands::CommandResult::Error(e) => {
+                                commands::CommandResult::Error(e, _) => {
                                     eprintln!("{} {}", "x".bright_red(), e);
                                     last_exit_code = Some(1);
                                 }
@@ -2565,7 +2567,7 @@ fn repl_main() -> Result<()> {
                                     }
                                 }
                                 commands::CommandResult::Output(out) => println!("{}", out),
-                                commands::CommandResult::Error(e) => eprintln!("  x {}", e),
+                                commands::CommandResult::Error(e, _) => eprintln!("  x {}", e),
                                 _ => {}
                             }
                             continue 'segments;
@@ -2928,7 +2930,9 @@ fn repl_main() -> Result<()> {
                                         commands::execute(&cmd_str, &db, &core_root);
                                     match builtin_result {
                                         commands::CommandResult::Output(out) => println!("{}", out),
-                                        commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
+                                        commands::CommandResult::Error(e, _) => {
+                                            eprintln!("  ✗ {}", e)
+                                        }
                                         commands::CommandResult::Value(v) => {
                                             if !pipeline_ops.is_empty() && !has_external_op {
                                                 let result =
@@ -3408,7 +3412,7 @@ fn repl_main() -> Result<()> {
                             last_exit_code = Some(0);
                             None
                         }
-                        commands::CommandResult::Error(e) => {
+                        commands::CommandResult::Error(e, _) => {
                             eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
                             last_exit_code = Some(1);
                             None

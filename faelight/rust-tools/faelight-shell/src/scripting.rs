@@ -237,7 +237,7 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
                     println!("{}", o);
                     true
                 }
-                CommandResult::Error(e) => {
+                CommandResult::Error(e, _) => {
                     eprintln!("  {} {}", "✗".bright_red(), e);
                     false
                 }
@@ -475,7 +475,7 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
                 if all_ok {
                     return CommandResult::Output(format!("  {} trace complete", "✅".normal()));
                 } else {
-                    return CommandResult::Error("script failed — see trace above".to_string());
+                    return CommandResult::Error("script failed — see trace above".to_string(), 1);
                 }
             }
 
@@ -483,10 +483,10 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
             if ok {
                 CommandResult::Output(format!("  {} script complete", "✅".normal()))
             } else {
-                CommandResult::Error("script exited with error".to_string())
+                CommandResult::Error("script exited with error".to_string(), 1)
             }
         }
-        Err(e) => CommandResult::Error(format!("cannot read {}: {}", path, e)),
+        Err(e) => CommandResult::Error(format!("cannot read {}: {}", path, e), 1),
     }
 }
 
@@ -499,6 +499,6 @@ pub fn run_source(source: &str, db: &ForestDb, core_root: &str) -> CommandResult
     if ok {
         CommandResult::Empty
     } else {
-        CommandResult::Error("script exited with error".to_string())
+        CommandResult::Error("script exited with error".to_string(), 1)
     }
 }
