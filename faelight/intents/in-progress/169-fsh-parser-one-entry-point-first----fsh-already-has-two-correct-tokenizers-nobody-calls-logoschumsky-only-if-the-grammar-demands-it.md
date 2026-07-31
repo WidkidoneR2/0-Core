@@ -316,6 +316,27 @@ REAL DAILY USE with the old path present and reversible.
 code this week; what 169 needs is TIME with the default on and counters accumulating real numbers.
 That does not block the other fsh intents -- most of them were waiting on this flip to unblock them.
 
+## BLOCKER FOUND 2026-07-31 -- THE ROUTER NEVER SEES A BOOLEAN CHAIN
+
+Proven live with the router trace on: a boolean chain produces correct output and NO trace line at
+all, and a semicolon line produces TWO separate claims. main.rs splits the line on `;` (1294) and
+then on `&&`/`||` (1332), and when the split yields more than one part it runs its own executor
+(1333+) that tracks success and special-cases `cd`. The spine never receives a chain intact.
+
+So `&&` is not a missing construct -- it is a PARALLEL EXECUTION PATH THAT PREDATES THE SPINE, and
+the routing point sits below it. INT-200 built the Sequence AST and parser (7fa7056b) and they are
+correct, but they have no live consumer until the router moves above the splitter.
+
+WHY THIS BELONGS TO 169 rather than a new intent: 169 owns "connect the spine to fsh" and carries the
+removal list of legacy execution paths. This splitter IS one of those paths. Filing it separately
+would fragment ownership of the same seam.
+
+⚠️ SIZED BEFORE, DELIBERATELY DEFERRED. INT-134 investigated exactly this, found the referenced
+INT-267/322 were PHANTOM -- never filed -- and recorded: "the sh-routing fix landing -> major, since
+it changes fsh's execution model." Those 378 boolean chains ALREADY WORK; moving them buys ownership
+for milestone 2, not a fix. Judge it as a main.rs refactor of a working path, not as a spine feature.
+
+
 ## The Rule
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
 structure. The spine is not a better parser. It is a single AST every path must go through, built one

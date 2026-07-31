@@ -1349,7 +1349,17 @@ fn repl_main() -> Result<()> {
                                     continue;
                                 }
                             }
-                            // NOTE: && with fsh builtins requires INT-267 execution refactor
+                            // ⚠️ THIS BRANCH IS A PARALLEL EXECUTION PATH THAT PREDATES THE
+                            // SPINE. The line is split on `;` above, then on `&&`/`||` here, so
+                            // a boolean chain NEVER reaches the spine router -- it runs through
+                            // the loop below instead. Those commands work, but the spine cannot
+                            // own them until the routing point moves above this splitter.
+                            //
+                            // The old note here pointed at INT-267, which was never filed --
+                            // INT-134 confirmed it is a phantom from the Arch era and sized the
+                            // real fix as MAJOR, since it changes fsh's execution model. It is
+                            // tracked on INT-169, which owns the routing point.
+                            //
                             // Handle cd as a builtin (must affect parent process, not subprocess)
                             let lcmd_trim = lcmd.trim();
                             if lcmd_trim == "cd" || lcmd_trim.starts_with("cd ") {
