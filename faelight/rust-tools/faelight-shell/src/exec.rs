@@ -1070,6 +1070,12 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
 /// the right boundary today and must not learn about parsing.
 #[derive(Debug)]
 pub enum SpineAttemptError {
+    /// ⚠️ Read only through `Debug` today, which dead-code analysis does not count -- hence the
+    /// allow. The error is KEPT rather than discarded because the audit already renders decline
+    /// reasons from it, and a router that wanted to distinguish a lex error from an unsupported
+    /// operator would need exactly this. Dropping it to silence a warning would repeat the
+    /// mistake the whole decline-reason work existed to fix.
+    #[allow(dead_code)]
     Parse(crate::spine::parser::ParseError),
     Lower(crate::spine::plan::LowerError),
 }
@@ -1083,7 +1089,7 @@ fn lower_spine_source(
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
-) -> Result<crate::spine::plan::ExecutionPlan, SpineAttemptError> {
+) -> Result<Vec<crate::spine::plan::ExecutionPlan>, SpineAttemptError> {
     let node = crate::spine::parser::parse(source).map_err(SpineAttemptError::Parse)?;
     // INT-169 blocker 4: substitutions need a runner, and refusing one here would leave the
     // capability with no consumer. Blocker 5: a door with a runner but no globber would be
@@ -1101,7 +1107,10 @@ fn lower_spine_source(
         runner: Some(&runner),
         glob: Some(&glob),
     };
-    crate::spine::plan::lower(&node, &ctx).map_err(SpineAttemptError::Lower)
+    // INT-200: ONE SHAPE FOR THE CALLER. `lower_pipeline` returns a plan per stage and wraps a
+    // single command in a one-element vector, so the router branches on LENGTH rather than on
+    // which AST variant it happened to get.
+    crate::spine::plan::lower_pipeline(&node, &ctx).map_err(SpineAttemptError::Lower)
 }
 
 /// The EXPLICIT door (`spine-exec <cmd>`). You asked for the spine, so every failure is reported
@@ -1114,7 +1123,12 @@ pub fn execute_spine_source(
     rules: &[BeforeRunRule],
 ) -> CommandResult {
     match lower_spine_source(source, shell, db, core_root, rules) {
-        Ok(plan) => execute_spine(&plan, source, db, core_root, rules),
+        // Same branch as the router: `spine-exec ls | grep x` should run the pipeline, not
+        // report a shape it cannot handle.
+        Ok(plans) => match plans.as_slice() {
+            [one] => execute_spine(one, source, db, core_root, rules),
+            many => crate::commands::execute_pipeline_plans(many, db),
+        },
         Err(e) => CommandResult::Error(format!("spine: {e:?}")),
     }
 }
@@ -1173,9 +1187,15 @@ pub fn try_execute_spine_source(
     rules: &[BeforeRunRule],
 ) -> Option<CommandResult> {
     match lower_spine_source(source, shell, db, core_root, rules) {
-        Ok(plan) => {
+        Ok(plans) => {
             bump(&SPINE_CLAIMED);
-            Some(execute_spine(&plan, source, db, core_root, rules))
+            // A single command keeps its EXISTING path -- builtins, the redirect rules, the
+            // prefer-the-real-binary check. Only a genuine pipeline takes the chaining executor,
+            // so nothing about ordinary commands changes.
+            Some(match plans.as_slice() {
+                [one] => execute_spine(one, source, db, core_root, rules),
+                many => crate::commands::execute_pipeline_plans(many, db),
+            })
         }
         Err(SpineAttemptError::Parse(_)) => {
             bump(&SPINE_DECLINED_PARSE);

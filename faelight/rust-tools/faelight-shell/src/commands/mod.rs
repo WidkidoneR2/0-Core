@@ -8470,6 +8470,135 @@ pub fn execute_plan_dispatch(
     }
 }
 
+/// Execute a PIPELINE: one plan per stage, chained stdout to stdin. INT-200.
+///
+/// ★ THE VECTOR ORDER IS THE WIRING, which is why this takes a slice rather than a graph. Stage N's
+/// stdout feeds stage N+1's stdin, the first stage inherits stdin, and the last inherits stdout.
+///
+/// ⚠️ PIPE WIRING IS A DEFAULT THAT A STAGE'S OWN REDIRECT OVERRIDES -- bash behaviour. A non-last
+/// stage with `> f` sends its output to the file and the next stage reads nothing; a last stage with
+/// `> f` writes there instead of the terminal. Each plan already carries its own IoPlan, so this
+/// reads it rather than assuming.
+///
+/// ⚠️ EVERY CHILD IS WAITED ON, including when an earlier spawn fails. An unreaped child is a zombie
+/// and a still-open pipe write end can block the reader forever.
+/// Public entry for the pipeline executor. INT-200: `execute_pipeline` stays private beside the
+/// other plan-execution internals; this is the one door exec.rs uses, matching how
+/// `execute_plan_dispatch` already exposes single-plan execution.
+pub fn execute_pipeline_plans(
+    plans: &[crate::spine::plan::ExecutionPlan],
+    db: &ForestDb,
+) -> CommandResult {
+    execute_pipeline(plans, db)
+}
+
+fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) -> CommandResult {
+    use crate::spine::plan::IoPlan;
+    let mut children: Vec<std::process::Child> = Vec::new();
+    let mut prev_stdout: Option<std::process::ChildStdout> = None;
+
+    for (idx, plan) in plans.iter().enumerate() {
+        let is_last = idx + 1 == plans.len();
+        let Some(program) = plan.argv.first() else {
+            return CommandResult::Error("  empty stage in pipeline".to_string());
+        };
+        let mut cmd = std::process::Command::new(program);
+        cmd.args(&plan.argv[1..]);
+
+        // stdin: the previous stage's output, unless this stage redirects its own input.
+        let own_stdin = match &plan.io {
+            IoPlan::Files { stdin: Some(p), .. } => Some(p.clone()),
+            _ => None,
+        };
+        match (own_stdin, prev_stdout.take()) {
+            (Some(path), _) => match std::fs::File::open(&path) {
+                Ok(f) => {
+                    cmd.stdin(std::process::Stdio::from(f));
+                }
+                Err(e) => {
+                    return CommandResult::Error(format!("  cannot read {}: {e}", path.display()))
+                }
+            },
+            (None, Some(prev)) => {
+                cmd.stdin(std::process::Stdio::from(prev));
+            }
+            (None, None) => {
+                cmd.stdin(std::process::Stdio::inherit());
+            }
+        }
+
+        // stdout: this stage's own redirect wins; otherwise pipe onward, or inherit if last.
+        let own_stdout = match &plan.io {
+            IoPlan::Files {
+                stdout: Some((p, a)),
+                ..
+            } => Some((p.clone(), *a)),
+            _ => None,
+        };
+        let redirected = own_stdout.is_some();
+        match own_stdout {
+            Some((path, append)) => {
+                let opened = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .append(append)
+                    .truncate(!append)
+                    .open(&path);
+                match opened {
+                    Ok(f) => {
+                        cmd.stdout(std::process::Stdio::from(f));
+                    }
+                    Err(e) => {
+                        return CommandResult::Error(format!(
+                            "  cannot write {}: {e}",
+                            path.display()
+                        ))
+                    }
+                }
+            }
+            None if is_last => {
+                cmd.stdout(std::process::Stdio::inherit());
+            }
+            None => {
+                cmd.stdout(std::process::Stdio::piped());
+            }
+        }
+        cmd.stderr(std::process::Stdio::inherit());
+
+        match cmd.spawn() {
+            Ok(mut child) => {
+                if !is_last && !redirected {
+                    prev_stdout = child.stdout.take();
+                }
+                children.push(child);
+            }
+            Err(e) => {
+                // Reap what was already started before reporting -- see the zombie note above.
+                for mut c in children {
+                    let _ = c.wait();
+                }
+                return CommandResult::Error(format!("  {}: {e}", program.to_string_lossy()));
+            }
+        }
+    }
+
+    // INT-189's ruling: POSIX pipeline status is the LAST stage's, and `children` is in stage order
+    // by construction. Every child is waited on so none is left unreaped.
+    let mut last_status = None;
+    for mut child in children {
+        last_status = child.wait().ok();
+    }
+    match last_status {
+        Some(s) if s.success() => CommandResult::Empty,
+        Some(s) => {
+            let code = s.code().unwrap_or(1);
+            record_failure(db, "pipeline", code);
+            CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
+        }
+        None => CommandResult::Error("  pipeline: no stage completed".to_string()),
+    }
+}
+
 fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
     use crate::spine::plan::{Environment, IoPlan};
 
