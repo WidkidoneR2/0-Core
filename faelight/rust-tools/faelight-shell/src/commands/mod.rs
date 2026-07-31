@@ -628,19 +628,37 @@ fn execute_impl(
                     };
                     let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
                     let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
-                    let spine = match crate::spine::parser::parse(source) {
-                        // No environment: `spine migrate` compares PARSERS on the same input.
-                        // Expanding here would make every variable-using command diverge from the
-                        // legacy plan as an artifact of the audit's own fidelity gap.
-                        Ok(node) => crate::spine::plan::lower(
-                            &node,
-                            &crate::spine::plan::LowerContext::default(),
-                        ),
+                    let node = match crate::spine::parser::parse(source) {
+                        Ok(n) => n,
                         Err(e) => {
                             // Counted, not silently dropped: legacy accepted this line.
                             audit.spine_parse_error(source, &e);
                             continue;
                         }
+                    };
+                    // ⚠️ INT-200: `lower_pipeline`, NOT `lower`. The single-plan entry correctly
+                    // refuses a pipeline, so calling it here reported 2,371 declines for commands
+                    // the shell was already executing -- the audit measuring a door the router no
+                    // longer uses. FOURTH time the model diverged from the live path.
+                    //
+                    // No environment, deliberately: this compares PARSERS on the same input, and
+                    // expanding would make every variable-using command diverge as an artifact.
+                    let lowered = crate::spine::plan::lower_pipeline(
+                        &node,
+                        &crate::spine::plan::LowerContext::default(),
+                    );
+                    let spine = match lowered {
+                        // ★ A MULTI-STAGE PIPELINE IS OWNED, NOT COMPARED. Legacy builds no single
+                        // plan for one -- its live path routes a pipe to the native pipeline or to
+                        // sh, never through ExecContext -- so there is nothing to compare against,
+                        // exactly like a stderr redirect. Recording it as a WIN rather than a gap is
+                        // the difference between the report reading "2,371 gaps" and "2,371 owned".
+                        Ok(plans) if plans.len() > 1 => {
+                            audit.pipeline_owned(source);
+                            continue;
+                        }
+                        Ok(mut plans) => Ok(plans.remove(0)),
+                        Err(e) => Err(e),
                     };
                     audit.observe(crate::spine::migrate_audit::AuditObservation {
                         source,

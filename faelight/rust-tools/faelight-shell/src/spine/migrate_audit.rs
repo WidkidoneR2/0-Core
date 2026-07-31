@@ -93,6 +93,9 @@ pub struct MigrationReport {
     pub skipped_empty: usize,
     pub skipped_multiline: usize,
     pub skipped_stderr: usize,
+    /// Pipelines the spine LOWERS AND RUNS -- a positive category, see `pipeline_owned`.
+    pub pipeline_owned: usize,
+    pub pipeline_owned_examples: Vec<String>,
     pub compared: usize,
     pub equivalent: usize,
     pub safe_improvement: usize,
@@ -148,6 +151,18 @@ impl MigrationAudit {
             SkipReason::Multiline => self.report.skipped_multiline += 1,
             SkipReason::StderrDelegated => self.report.skipped_stderr += 1,
         }
+    }
+
+    /// Record a PIPELINE the spine lowers and executes. INT-200.
+    ///
+    /// ★ NOT A GAP AND NOT A SKIP -- a WIN with nothing to compare it against. Legacy builds no
+    /// single plan for a pipeline (its live path routes one to the native pipeline or to sh,
+    /// never through ExecContext), so a comparison would measure the audit's model rather than
+    /// the shell. Counted on its own so the report says `owned` where it used to say `gap`.
+    pub fn pipeline_owned(&mut self, source: &str) {
+        self.report.seen += 1;
+        self.report.pipeline_owned += 1;
+        push_example(&mut self.report.pipeline_owned_examples, source);
     }
 
     /// Record a source the spine could not parse at all. Counted, never silently dropped.
@@ -302,6 +317,12 @@ impl MigrationReport {
             out.push_str(&format!(
                 "Spine parse error: {}  (legacy accepted these)\n",
                 self.spine_parse_error
+            ));
+        }
+        if self.pipeline_owned > 0 {
+            out.push_str(&format!(
+                "Pipelines owned:   {:>7}  (spine runs these -- legacy has no single plan to compare)\n",
+                self.pipeline_owned
             ));
         }
         // ★ THE BUILD ORDER, from six months of real history. A bare decline total says how
