@@ -2322,9 +2322,12 @@ fn repl_main() -> Result<()> {
                         ) {
                             commands::CommandResult::Output(out) => println!("{}", out),
                             commands::CommandResult::Value(v) => println!("{}", v.render()),
-                            commands::CommandResult::Error(e, _) => {
+                            commands::CommandResult::Error(e, code) => {
                                 eprintln!("{} {}", "x".bright_red(), e);
-                                last_exit_code = Some(1);
+                                // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
+                                // printed "exited 2" while `$?` reported 1 -- the code was formatted into
+                                // the message and thrown away. It travels on the variant now.
+                                last_exit_code = Some(code);
                             }
                             commands::CommandResult::Empty => last_exit_code = Some(0),
                             // Named rather than a catch-all: a `_` arm would silently swallow
@@ -2445,9 +2448,12 @@ fn repl_main() -> Result<()> {
                             match result {
                                 commands::CommandResult::Output(out) => println!("{}", out),
                                 commands::CommandResult::Value(v) => println!("{}", v.render()),
-                                commands::CommandResult::Error(e, _) => {
+                                commands::CommandResult::Error(e, code) => {
                                     eprintln!("{} {}", "x".bright_red(), e);
-                                    last_exit_code = Some(1);
+                                    // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
+                                    // printed "exited 2" while `$?` reported 1 -- the code was formatted into
+                                    // the message and thrown away. It travels on the variant now.
+                                    last_exit_code = Some(code);
                                 }
                                 commands::CommandResult::Empty => last_exit_code = Some(0),
                                 commands::CommandResult::Exit => break 'repl,
@@ -3412,9 +3418,12 @@ fn repl_main() -> Result<()> {
                             last_exit_code = Some(0);
                             None
                         }
-                        commands::CommandResult::Error(e, _) => {
+                        commands::CommandResult::Error(e, code) => {
                             eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
-                            last_exit_code = Some(1);
+                            // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
+                            // printed "exited 2" while `$?` reported 1 -- the code was formatted into
+                            // the message and thrown away. It travels on the variant now.
+                            last_exit_code = Some(code);
                             None
                         }
                         // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by

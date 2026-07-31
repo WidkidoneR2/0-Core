@@ -8727,7 +8727,7 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
             record_failure(db, "pipeline", code);
             CommandResult::Error(
                 format!("  exited {} -- {}", code, explain_exit_code(code)),
-                1,
+                code,
             )
         }
         None => CommandResult::Error("  pipeline: no stage completed".to_string(), 1),
@@ -8776,7 +8776,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
-                        1,
+                        code,
                     )
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -8800,7 +8800,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
-                        1,
+                        code,
                     )
                 }
                 // A direct spawn reports a missing command HERE, before any process exists -- unlike the
@@ -8932,7 +8932,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
-                        1,
+                        code,
                     )
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -9138,7 +9138,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 record_failure(db, &command_word(line), code);
                 CommandResult::Error(
                     format!("  exited {} -- {}", code, explain_exit_code(code)),
-                    1,
+                    code,
                 )
             }
         }
@@ -11337,10 +11337,12 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => CommandResult::Error(
-                format!("grep: exited with code {}", s.code().unwrap_or(1)),
-                1,
-            ),
+            Ok(s) => {
+                // Bound ONCE so the printed number and the reported status come from
+                // the same value -- disagreeing is the bug being fixed here.
+                let code = s.code().unwrap_or(1);
+                CommandResult::Error(format!("grep: exited with code {}", code), code)
+            }
             Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
         };
     }
@@ -11362,10 +11364,12 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => CommandResult::Error(
-                format!("grep: exited with code {}", s.code().unwrap_or(1)),
-                1,
-            ),
+            Ok(s) => {
+                // Bound ONCE so the printed number and the reported status come from
+                // the same value -- disagreeing is the bug being fixed here.
+                let code = s.code().unwrap_or(1);
+                CommandResult::Error(format!("grep: exited with code {}", code), code)
+            }
             Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
         };
     }
