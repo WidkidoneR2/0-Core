@@ -1040,6 +1040,71 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    // ── INT-169 / logical chains: three REGRESSIONS, expected RED until the logical
+    // executor calls the canonical per-command path. main.rs splits `&&`/`||` at 1332 and runs
+    // its own reduced dispatch, which REPLICATES execution logic selectively -- `cd` got bespoke
+    // support (1365-1393) and works; variable expansion, alias resolution and `export` did not.
+    // These assert the CONTRACT (a chained command behaves like a standalone one), never the
+    // mechanism, so they stay valid whichever way the duplication is removed.
+    //
+    // The harness runs fsh in /tmp (repl.rs:112), so the prompt can never contain the home path --
+    // that is what makes the variable assertion meaningful rather than accidental.
+    results.push(test("repl_chain_expands_variables", Category::Repl, || {
+        let home = std::env::var("HOME").map_err(|e| format!("no HOME: {e}"))?;
+        let out = repl::run_repl("echo $HOME && echo CHAINVAR_DONE")?;
+        let joined = out.join("\n");
+        let expanded = out
+            .iter()
+            .any(|l| l.contains(&home) && !l.trim_start().starts_with('['));
+        let literal = out.iter().any(|l| l.contains("$HOME"));
+        if expanded && !literal {
+            Ok(())
+        } else if literal {
+            Err(format!(
+                "chained command did not expand $HOME -- got the LITERAL string, so any \
+                     command using a variable inside && runs against the wrong text: {joined:?}"
+            ))
+        } else {
+            Err(format!("expected {home:?} in the output, saw: {joined:?}"))
+        }
+    }));
+    results.push(test("repl_chain_resolves_aliases", Category::Repl, || {
+        // `uname` prints Linux, and neither word appears in the command text -- so a match
+        // cannot come from the command being echoed back.
+        let out = repl::run_repl("alias zzc1='uname'; zzc1 && echo CHAINALIAS_DONE")?;
+        let joined = out.join("\n");
+        if out.iter().any(|l| l.contains("Linux")) {
+            Ok(())
+        } else {
+            Err(format!(
+                "alias did not resolve inside a chain -- with 285 aliases configured, every \
+                     one of them fails this way when chained: {joined:?}"
+            ))
+        }
+    }));
+    results.push(test(
+        "repl_chain_runs_builtins_and_next_command_sees_the_effect",
+        Category::Repl,
+        || {
+            // Two assertions in one: the builtin RAN, and the following chained command OBSERVED
+            // its effect. Checking only the first would pass on a shell that accepted `export`
+            // and then discarded it.
+            let out = repl::run_repl("export ZZC2=zzvalue && echo $ZZC2")?;
+            let joined = out.join("\n");
+            let seen = out
+                .iter()
+                .any(|l| l.contains("zzvalue") && !l.contains("export"));
+            if seen {
+                Ok(())
+            } else {
+                Err(format!(
+                    "export did not take effect inside a chain -- the builtin either never ran or \
+                     the next command did not observe it: {joined:?}"
+                ))
+            }
+        },
+    ));
+
     results.push(test(
         "repl_193_redirect_from_alias_value",
         Category::Repl,
