@@ -1291,12 +1291,19 @@ fn repl_main() -> Result<()> {
                     }
                 }
                 // Phase 14 — multi-command: split on ; before execution
-                let segments = split_semicolons(&line);
+                // Phase 14 -- every command the shell runs is ONE entry here: semicolon
+                // parts, then boolean-chain parts within each. Flattened deliberately so a chained
+                // command takes the identical path a standalone one does.
+                let segments: Vec<(String, Option<bool>)> = split_semicolons(&line)
+                    .iter()
+                    .flat_map(|seg| split_logical(seg))
+                    .collect();
+                let mut prev_op: Option<bool> = None;
                 let segment_count = segments.len();
                 if segment_count > 2 {
                     println!("  {} {} commands", "○".bright_cyan(), segment_count);
                 }
-                'segments: for (seg_idx, segment) in segments.iter().enumerate() {
+                'segments: for (seg_idx, (segment, op)) in segments.iter().enumerate() {
                     // INT-307: restore power profile after compilation
                     if seg_idx == 0 {
                         if let Ok(prev) = db.conn.query_row(
@@ -1328,168 +1335,36 @@ fn repl_main() -> Result<()> {
                             segment.dimmed()
                         );
                     }
-                    // Handle && and || logical operators
-                    let logical_parts = split_logical(segment);
-                    if logical_parts.len() > 1 {
-                        let mut last_success = true;
-                        let mut prev_op: Option<bool> = None; // operator from previous command
-                                                              // fsh builtins that cannot run via sh -c
-                        for (lcmd, op) in &logical_parts {
-                            // Check if we should run based on PREVIOUS operator and result
-                            // Use continue (not break) so || chains after failed && still execute
-                            if let Some(is_and) = prev_op {
-                                if is_and && !last_success {
-                                    // && but previous failed: skip, keep last_success=false
-                                    prev_op = *op;
-                                    continue;
-                                }
-                                if !is_and && last_success {
-                                    // || but previous succeeded: skip, keep last_success=true
-                                    prev_op = *op;
-                                    continue;
-                                }
-                            }
-                            // ⚠️ THIS BRANCH IS A PARALLEL EXECUTION PATH THAT PREDATES THE
-                            // SPINE. The line is split on `;` above, then on `&&`/`||` here, so
-                            // a boolean chain NEVER reaches the spine router -- it runs through
-                            // the loop below instead. Those commands work, but the spine cannot
-                            // own them until the routing point moves above this splitter.
-                            //
-                            // The old note here pointed at INT-267, which was never filed --
-                            // INT-134 confirmed it is a phantom from the Arch era and sized the
-                            // real fix as MAJOR, since it changes fsh's execution model. It is
-                            // tracked on INT-169, which owns the routing point.
-                            //
-                            // Handle cd as a builtin (must affect parent process, not subprocess)
-                            let lcmd_trim = lcmd.trim();
-                            if lcmd_trim == "cd" || lcmd_trim.starts_with("cd ") {
-                                let target = lcmd_trim.strip_prefix("cd").unwrap_or("").trim();
-                                let home = std::env::var("HOME").unwrap_or_default();
-                                let path = if target.is_empty() || target == "~" {
-                                    std::path::PathBuf::from(&home)
-                                } else if target.starts_with("~/") {
-                                    std::path::PathBuf::from(format!("{}/{}", home, &target[2..]))
-                                } else if target == "-" {
-                                    std::path::PathBuf::from(
-                                        std::env::var("OLDPWD").unwrap_or(home),
-                                    )
-                                } else {
-                                    std::path::PathBuf::from(target)
-                                };
-                                if let Ok(()) = std::env::set_current_dir(&path) {
-                                    last_success = true;
-                                } else {
-                                    last_success = false;
-                                }
-                                if let Some(is_and) = op {
-                                    if *is_and && !last_success {
-                                        break;
-                                    }
-                                    if !*is_and && last_success {
-                                        break;
-                                    }
-                                }
-                                continue;
-                            }
-                            // INT-109: piped sub-command in a logical chain must run
-                            // as a pipeline, not as a single command. commands::execute has no
-                            // pipe support, so route piped sub-commands through sh -c (same
-                            // fallback the has_redirect branch below uses).
-                            let has_pipe_in_lcmd = {
-                                let mut in_q = false;
-                                let mut qc = ' ';
-                                let mut found = false;
-                                for ch in lcmd_trim.chars() {
-                                    match ch {
-                                        '"' | '\'' if !in_q => {
-                                            in_q = true;
-                                            qc = ch;
-                                        }
-                                        c if in_q && c == qc => {
-                                            in_q = false;
-                                        }
-                                        '|' if !in_q => {
-                                            found = true;
-                                            break;
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                found
-                            };
-                            if has_pipe_in_lcmd {
-                                let status = std::process::Command::new("/bin/sh")
-                                    .arg("-c")
-                                    .arg(lcmd_trim)
-                                    .stdin(std::process::Stdio::inherit())
-                                    .stdout(std::process::Stdio::inherit())
-                                    .stderr(std::process::Stdio::inherit())
-                                    .envs(std::env::vars())
-                                    .status();
-                                last_success = status.map(|s| s.success()).unwrap_or(false);
-                                prev_op = *op;
-                                continue;
-                            }
-                            // INT-322 Phase 1: route through fsh builtin dispatcher
-                            // Commands with redirects use sh -c (proper redirect + real system cmds)
-                            // Pure commands use fsh dispatcher (enables fg, deploy, cistart in chains)
-                            let has_redirect = lcmd_trim.contains(" > ")
-                                || lcmd_trim.contains(" >> ")
-                                || lcmd_trim.contains(">>")
-                                || lcmd_trim.contains("2>");
-                            if has_redirect {
-                                // INT-089: a forest builtin/alias here is invisible to sh.
-                                // INT-171 gate 2: quote-aware command word for forest routing.
-                                let cmd_word = commands::command_word(lcmd_trim);
-                                let cmd_word = cmd_word.as_str();
-                                let forest_word = completion::is_fsh_only_word(cmd_word);
-                                let status = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(lcmd_trim)
-                                    .stdin(std::process::Stdio::inherit())
-                                    .stdout(std::process::Stdio::inherit())
-                                    .stderr(std::process::Stdio::inherit())
-                                    .status();
-                                last_success = status.map(|s| s.success()).unwrap_or(false);
-                                // INT-089: error-message clarity (NOT changing execution). If a
-                                // forest word failed because the redirect routed it to sh, say so.
-                                if !last_success && forest_word {
-                                    eprintln!(
-                                        "  \u{1F332} fsh: '{}' is a forest word -- the redirect sent this line to sh, \n        which can't see fsh builtins/aliases. Run it on its own line (no redirect).",
-                                        cmd_word
-                                    );
-                                }
-                            } else {
-                                let chain_result = commands::execute(lcmd_trim, &db, &core_root);
-                                // INT-171 gate 5: the &&/|| success signal comes from the
-                                // ONE definition of failure, not an inline matches! that a future
-                                // mis-typed result could contradict (the 968c7be5 class).
-                                last_success = !chain_result.is_failure();
-                                // INT-097: if this command is followed by || , a failure here is
-                                // EXPECTED (it's why the next command runs) -- don't print its error.
-                                let failure_consumed_by_or =
-                                    !last_success && matches!(op, Some(false));
-                                // Print the result -- was silently discarded before
-                                match &chain_result {
-                                    commands::CommandResult::Output(s) if !s.is_empty() => {
-                                        println!("{}", s)
-                                    }
-                                    commands::CommandResult::Error(s, _)
-                                        if !failure_consumed_by_or =>
-                                    {
-                                        eprintln!("{}", s)
-                                    }
-                                    commands::CommandResult::Value(v) => println!("{:?}", v),
-                                    _ => {}
-                                }
-                                if matches!(chain_result, commands::CommandResult::Exit) {
-                                    break;
-                                }
-                            }
-                            prev_op = *op; // track for next iteration
+                    // INT-169: THE SKIP DECISION -- all that remains of the boolean-chain
+                    // branch that used to live here. It ran its OWN reduced dispatch, so a chained
+                    // command never reached variable expansion, alias resolution, `export`, the
+                    // spine router, or any of the ~1,100 lines below. `cd` had been hand-patched
+                    // into it and worked; nothing else was. Splitting on `&&` now happens ABOVE the
+                    // loop, so each part flows through the SAME path a standalone command does and
+                    // the duplication is gone rather than relocated.
+                    //
+                    // The operator belongs to the part BEFORE it, so the decision uses the PREVIOUS
+                    // part's operator against the previous result: `&&` runs on success, `||` on
+                    // failure. `prev_op` is updated before either branch, because the tail below has
+                    // its own early exits and would otherwise skip the update.
+                    //
+                    // ⚠️ `;` needs no special case: split_logical gives the last part of each
+                    // semicolon group `None`, so the chain resets at every boundary by construction.
+                    // ★ THE SINGLE SOURCE OF TRUTH FOR FLOW, inherited from INT-171 gate 5. That gate put it
+                    // in CommandResult::is_failure() after bug 968c7be5, where a failure returned a non-Error
+                    // variant and a scattered inline check read it as success. The method is gone -- this was
+                    // its only caller -- but the RULE it existed to enforce is not: whether a command failed
+                    // is decided in ONE place, and that place is now `last_exit_code`, which is also what `$?`
+                    // reports and what bash consults for the same decision. Do NOT re-derive success from a
+                    // result variant at another call site; that divergence IS the bug 968c7be5 was.
+                    if let Some(is_and) = prev_op {
+                        let succeeded = last_exit_code.unwrap_or(0) == 0;
+                        if is_and != succeeded {
+                            prev_op = *op;
+                            continue 'segments;
                         }
-                        continue;
                     }
+                    prev_op = *op;
                     let line = segment.as_str();
                     // INT-191: the USER BOUNDARY, captured once and never mutated. Everything
                     // below rebinds `line` -- vars, subshells, globs, then aliases -- and Rust

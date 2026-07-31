@@ -1180,65 +1180,6 @@ fn is_known_command(cmd: &str) -> bool {
     is_known_alias(cmd)
 }
 
-/// INT-089: is `cmd` a forest word that `sh` CANNOT see? True for fsh aliases, and for
-/// fsh builtins that are NOT on PATH (deploy, cistart, d, fg, ...). False for real PATH
-/// tools (git, cargo) -- those run fine via sh. Used to explain the redirect/pipe -> sh
-/// boundary clearly instead of the misleading "sh: <name>: command not found".
-pub(crate) fn is_fsh_only_word(cmd: &str) -> bool {
-    // aliases are always fsh-internal
-    if is_known_alias(cmd) {
-        return true;
-    }
-    // a forest builtin that is NOT resolvable on PATH is invisible to sh
-    let on_path = {
-        let path_env = std::env::var("PATH").unwrap_or_default();
-        path_env
-            .split(':')
-            .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
-    };
-    if on_path {
-        return false;
-    }
-    // forest-only builtin names that sh cannot reach
-    const FOREST_ONLY: &[&str] = &[
-        "cistart",
-        "cicomplete",
-        "dc",
-        "ds",
-        "deploy",
-        "d",
-        "fg",
-        "rebuild",
-        "rebuild-safe",
-        "rebuild-dry",
-        "rebuild-check",
-        "rollback",
-        "update-flake",
-        "intent",
-        "intents",
-        "project",
-        "experiment",
-        "vm",
-        "fm",
-        "fmd",
-        "faelight-fm",
-        "snapshot",
-        "where",
-        "fsearch",
-        "patch",
-        "query",
-        "rewind",
-        "dev",
-        "cheat",
-        "it",
-        "gt",
-        "db",
-        "ade",
-        "reload",
-    ];
-    FOREST_ONLY.contains(&cmd)
-}
-
 /// INT-092: is `cmd` a defined alias in state.db? Cached per-process to avoid
 /// a db hit on every keystroke. Green = the alias exists and will run.
 fn is_known_alias(cmd: &str) -> bool {
