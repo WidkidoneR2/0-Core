@@ -79,40 +79,43 @@ encodes exactly the accumulated weirdness fsh keeps discovering one bug at a tim
 subset converts bug-by-bug discovery into a measured percentage.
 See: github.com/oils-for-unix/oils/wiki/Spec-Tests
 
-## MEASURED STATE (gen 449, 2026-07-30)
+## MEASURED STATE (gen 451, 2026-07-31)
 
-Applicable to comparison: 22,546 Equivalent: 19,867 88.1%
-Skipped: 9,860 Safe improvements: 16
-multiline: 6,984 Feature gaps: 2,515 11.2%
-stderr-delegated: 2,876 Unexpected: 28 0.1%
-Spine parse errors: 722
+Applicable to comparison: 20,189 Equivalent: 19,877 98.5%
+Skipped: 9,888 Safe improvements: 16
+multiline: 7,006 Feature gaps: 148 0.7%
+stderr-delegated: 2,882 Unexpected: 28 0.1%
+Spine parse errors: 724 Pipelines owned: 2,372
 
 Declined by construct:
-2367 unlowerable: pipeline <- the remaining prize
-377 operator And
+378 operator And <- now the largest single item
 180 operator Sequence
-148 unlowerable: forest value pipeline (legacy owns these)
-45 operator Background · 42 lex error · 30 operator Or
-26 comparison, not a redirect -- DELIBERATE DIVERGENCE
+148 unlowerable: forest value pipeline (legacy owns these, permanently)
+45 operator Background · 30 operator Or · 42 lex error
+27 comparison, not a redirect -- DELIBERATE DIVERGENCE
 21 redirect with no target (malformed input)
 
-HOW TO READ THIS. Equivalence is 88.1% rather than the 99.5% earlier in this work, and that is a
-DENOMINATOR effect rather than a regression: pipelines became comparable, so the applicable count
-grew by thousands while the equivalent count also rose. Two numbers matter more than the percentage.
+THE REAL REMAINING WORK IS ABOUT 633 COMMANDS: boolean chains, sequences, background and the
+or-operator. Everything else in that list is legacy's by design, a deliberate divergence protecting
+the query language, or malformed input that was never a command.
 
-UNEXPECTED IS 28, and every one is corpus junk rather than a defect: forest query lines, a pasted
-prompt captured as a command, source-code fragments, a documentation placeholder in angle brackets,
-process substitution which neither engine models, a filename containing a space, and two genuine
-input redirects worth a later look. That number moved 2, 205, 33, 384, 28 across this work and every
-rise was the audit disagreeing with its own model of legacy rather than with the shell.
+PIPELINES OWNED IS A POSITIVE CATEGORY, not a gap and not a skip. Legacy builds no single plan for a
+pipeline -- its live path routes one to the native implementation or to sh, never through an
+execution context -- so there is nothing to compare against. But the spine LOWERS AND RUNS these, so
+counting them as gaps would have been the opposite of the truth. That distinction moved equivalence
+from 88.1 to 98.5 percent without a line of execution code changing.
 
-STDERR-DELEGATED IS NOT A GAP. Legacy hands every such line to sh whole, so it builds no plan of its
-own and there is nothing to compare -- those rows leave the comparison domain the way multiline
-entries do, counted visibly rather than dropped.
+HOW THE NUMBERS MOVED, and why a snapshot alone would mislead. Declines were 6,224 across nine
+constructs when this intent opened. Redirects, file-descriptor redirects and pipelines have since
+been implemented, and each one moved rows OUT of the decline list and INTO either equivalence or the
+owned category. The percentage dipped to 88.1 in between, which looked like a regression and was a
+denominator effect: pipelines became comparable, so thousands of rows entered the applicable count
+at once.
 
-THE DECLINE LIST IS THE WORK QUEUE, sorted. Pipelines are 2,367 of it. Everything below the boolean
-chain is a tail of under 350, and the deliberate-divergence and malformed-input rows are not work at
-all -- they are the shell behaving as designed.
+UNEXPECTED HELD AT 28 THROUGHOUT, which is the number that would have signalled real trouble. Its
+full history is 2, 205, 33, 384, 28 -- and every rise was the audit disagreeing with its own model of
+legacy rather than with the shell. Four times. A future reader seeing a spike should check the
+audit's model before treating it as a defect.
 
 ## Success Criteria
 - [x] The build order is MEASURED, not guessed -- `spine migrate` reports declines by construct
@@ -133,12 +136,19 @@ all -- they are the shell behaving as designed.
      a binding, and RedirectTarget gained a Stream variant. Proven live at gen 449: stderr to a
      file, stderr merged to the terminal, both streams to one file, and `echo 2 > f` still writing
      `2` because a SPACED numeral is an argument. 139 unit + 110 fsh-test. -->
-- [ ] Pipelines parse into an AST node, lower, and execute with POSIX exit status (the LAST
+- [x] Pipelines parse into an AST node, lower, and execute with POSIX exit status (the LAST
       stage), WITHOUT reintroducing INT-143 double execution
-<!-- PARTIAL: commit 5df5a2e6 landed the parse half. AstNode::Pipeline holds Vec<Spanned<Command>>,
-     parse_command stops at a pipe without consuming it, parse_line owns the stage boundary.
-     Lowering REFUSES, so the router declines and legacy still runs every pipe. Execution is the
-     remaining work and the largest single win left. -->
+<!-- evidence: commits 5df5a2e6 (parse) and f3695af8 (execute), deployed gen 450, 110/110 on the
+     deployed binary. Proven live: a three-stage chain counts correctly, exit status propagates from
+     the last stage, and a forest query pipeline still declines and renders its table.
+     THE WIRING: stdin from the previous stage or inherited, stdout piped except on the last stage,
+     and the last child carrying the status per INT-189's ruling. Pipe wiring is a DEFAULT that a
+     stage's own redirect overrides, which legacy never had to reconcile because it had no per-stage
+     IO plan. Every child is waited on even after a mid-pipeline spawn failure -- an unreaped child
+     with an open pipe end blocks the reader forever, and that failure mode hangs rather than errors.
+     NOT COPIED FROM LEGACY: its native pipeline opens with forty lines of hand-rolled quote-aware
+     tokenizing per stage, which is the five-parsers problem in the flesh. The process semantics were
+     borrowed; the tokenizer is what the spine exists to delete. -->
 - [x] A pipeline of forest verbs is never claimed by the spine
 <!-- evidence: commit a1a66a5b. ALSO NOT AN ORIGINAL GATE, and the most important thing found this
      week: where, sort, first and join are Christian's query verbs, not programs, so executing
@@ -146,7 +156,13 @@ all -- they are the shell behaving as designed.
      the same commit that made pipes work. value::VALUE_VERBS holds the vocabulary once with two
      drift tests, because it cannot share code with the parser's structural arms -- so it shares a
      proof instead. Measured: 2,365 real shell pipes against 165 forest queries. -->
-- [ ] Pipe bucket falls to ~0
+- [x] Pipe bucket falls to ~0
+<!-- evidence: commit 87d174ba. `unlowerable: pipeline` is GONE from the decline list entirely --
+     2,372 rows moved into a new `Pipelines owned` category. That required fixing the audit too: it
+     was calling the single-plan lowering entry, which correctly refuses a pipeline, so it reported
+     2,371 declines for commands the shell was already running. Fourth time the model diverged from
+     the live path, and the first where the divergence was an ENTRY POINT rather than a data shape.
+     Equivalence 88.1 -> 98.5 percent with no execution code changed. -->
 - [x] `FSH_SPINE=1 fsh-test` stays green throughout
 <!-- evidence: 110/110 on the DEPLOYED binary at gen 448 and again at gen 449, not target/debug --
      the INT-110 distinction. The suite runs every REPL command through the router because the
