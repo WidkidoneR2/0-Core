@@ -2211,8 +2211,20 @@ fn repl_main() -> Result<()> {
                             &core_root,
                             &cfg.before_rules,
                         ) {
-                            commands::CommandResult::Output(out) => println!("{}", out),
-                            commands::CommandResult::Value(v) => println!("{}", v.render()),
+                            commands::CommandResult::Output(out) => {
+                                println!("{}", out);
+                                // INT-169: a command that PRINTED succeeded. Without this the previous
+                                // failure's code survives, and since the chain decision reads it,
+                                // `false || echo one && echo two` skipped the last part.
+                                last_exit_code = Some(0);
+                            }
+                            commands::CommandResult::Value(v) => {
+                                println!("{}", v.render());
+                                // INT-169: a command that PRINTED succeeded. Without this the previous
+                                // failure's code survives, and since the chain decision reads it,
+                                // `false || echo one && echo two` skipped the last part.
+                                last_exit_code = Some(0);
+                            }
                             commands::CommandResult::Error(e, code) => {
                                 eprintln!("{} {}", "x".bright_red(), e);
                                 // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
@@ -2337,8 +2349,20 @@ fn repl_main() -> Result<()> {
                                 eprintln!("  [spine-router] claimed: {line}");
                             }
                             match result {
-                                commands::CommandResult::Output(out) => println!("{}", out),
-                                commands::CommandResult::Value(v) => println!("{}", v.render()),
+                                commands::CommandResult::Output(out) => {
+                                    println!("{}", out);
+                                    // INT-169: a command that PRINTED succeeded. Without this the previous
+                                    // failure's code survives, and since the chain decision reads it,
+                                    // `false || echo one && echo two` skipped the last part.
+                                    last_exit_code = Some(0);
+                                }
+                                commands::CommandResult::Value(v) => {
+                                    println!("{}", v.render());
+                                    // INT-169: a command that PRINTED succeeded. Without this the previous
+                                    // failure's code survives, and since the chain decision reads it,
+                                    // `false || echo one && echo two` skipped the last part.
+                                    last_exit_code = Some(0);
+                                }
                                 commands::CommandResult::Error(e, code) => {
                                     eprintln!("{} {}", "x".bright_red(), e);
                                     // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
