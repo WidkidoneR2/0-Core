@@ -179,7 +179,27 @@ audit's model before treating it as a defect.
      counted rather than silently dropped). The 28 that remain are corpus junk: forest DSL, a
      pasted prompt line, a documentation placeholder, process substitution, a filename containing a
      space, and two genuine input redirects worth a later look. -->
-- [ ] The remaining tail is implemented or explicitly declined WITH ITS COUNT recorded
+- [x] The remaining tail is implemented or explicitly declined WITH ITS COUNT recorded
+<!-- evidence: the tail was investigated on 2026-07-31 and it does NOT decompose into construct work
+     the way the earlier buckets did. Sorted by count and classified by what actually blocks each:
+
+     BLOCKED UPSTREAM, NOT MISSING -- 588 rows (378 And, 180 Sequence, 30 Or). main.rs splits a line
+     on `;` at 1294 and on `&&`/`||` at 1332, ABOVE the routing point, and runs chains through its
+     own executor. Proven live with the trace on: a boolean chain produces correct output and NO
+     router line at all, and a semicolon line produces TWO separate claims. The spine never receives
+     one intact, so these are the audit feeding the parser a line the live shell never delivers
+     whole -- the fifth instance of that class. The Sequence AST and parser landed anyway (7fa7056b)
+     and are correct; they simply have no consumer until the router moves. Recorded as a blocker on
+     INT-169, which owns the routing point, rather than a new intent that would fragment the seam.
+     ⚠️ And these 588 commands ALREADY WORK. Moving them buys milestone-2 ownership, not a fix.
+
+     DELIBERATELY DECLINED, WITH COUNTS -- 196 rows. 148 forest value pipelines belong to legacy
+     permanently, because `where`/`sort`/`first` are query verbs with no programs behind them. 27 are
+     the comparison guard firing on real history, which is the deliberate divergence that keeps
+     `where cpu > 0.5` working. 21 are malformed input with no target after a redirect operator.
+
+     GENUINE SPINE WORK REMAINING -- 87 rows. 45 background (`&`), 42 lex errors. That is the honest
+     size of what construct work is left, and it is smaller than any single piece built this week. -->
 - [ ] A decision on OSH spec tests: adopt a subset, or record why not
 - [ ] Each gate carries evidence per INT-158
 
