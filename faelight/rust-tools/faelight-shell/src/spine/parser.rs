@@ -10,8 +10,8 @@
 //! stays the leaf; pipeline/list parsing will sit ABOVE it and recurse down to it.
 
 use super::ast::{
-    AstNode, Command, Pipeline, Redirect, RedirectOp, RedirectTarget, Span, Spanned, SpecialParam,
-    VariableSyntax, Word, WordPart,
+    AstNode, Command, Pipeline, Redirect, RedirectOp, RedirectTarget, Sequence, SequenceOp, Span,
+    Spanned, SpecialParam, VariableSyntax, Word, WordPart,
 };
 use super::lexer::{
     lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
@@ -223,7 +223,20 @@ impl Parser {
                 // ★ A PIPE ENDS THIS COMMAND, it does not end the parse. Left UNCONSUMED so
                 // parse_line owns the stage boundary -- the parser that builds a stage should
                 // not also decide what follows it.
-                TokenKind::Operator(OperatorKind::Pipe) => break,
+                // ★ A CONNECTOR ENDS THIS COMMAND, it does not end the parse -- and it is left
+                // UNCONSUMED so the layer that owns the boundary decides what follows. A pipe
+                // belongs to `parse_pipeline`; `&&`, `||` and `;` belong to `parse_line`.
+                //
+                // ⚠️ WITHOUT THE THREE CONNECTORS HERE, `parse_command` refuses them through the
+                // catch-all below and the sequence layer never runs at all -- which is exactly
+                // what the refusal test caught: it stayed green because nothing reached the new
+                // code, not because the new code was right.
+                TokenKind::Operator(
+                    OperatorKind::Pipe
+                    | OperatorKind::And
+                    | OperatorKind::Or
+                    | OperatorKind::Sequence,
+                ) => break,
                 TokenKind::Operator(kind) => {
                     return Err(ParseError::UnsupportedOperator {
                         kind,
@@ -261,21 +274,18 @@ impl Parser {
         }
     }
 
-    /// Top-level parse: the whole line -> one node. Owns the STAGE BOUNDARY -- `parse_command`
-    /// builds a single stage and stops at a pipe without consuming it, so the decision about what
-    /// follows a command lives here rather than inside the thing being built.
+    /// Parse ONE PIPELINE. Owns the STAGE boundary -- `parse_command` builds a single stage and
+    /// stops at a pipe without consuming it, so the decision about what follows a command lives
+    /// here rather than inside the thing being built.
     ///
     /// ★ ONE STAGE YIELDS `Command`, NOT A ONE-STAGE PIPELINE. Wrapping every command would give
     /// consumers two spellings of the same thing and make the audit report a construct change where
     /// the user typed none.
     ///
-    /// ⚠️ A trailing or doubled pipe (`ls |`, `a || b` mis-lexed) leaves a stage with no words.
-    /// `parse_command` already answers `Empty` for that, and it propagates -- the parser declines
-    /// rather than inventing an empty stage the executor would have to interpret.
-    fn parse_line(&mut self) -> Result<Spanned<AstNode>, ParseError> {
-        if self.is_at_end() {
-            return Err(ParseError::Empty);
-        }
+    /// ⚠️ A trailing or doubled pipe (`ls |`) leaves a stage with no words. `parse_command` already
+    /// answers `Empty` for that, and it propagates -- the parser declines rather than inventing an
+    /// empty stage the executor would have to interpret.
+    fn parse_pipeline(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         let first = self.parse_command()?;
         if !matches!(
             self.peek().map(|t| t.kind),
@@ -298,6 +308,50 @@ impl Parser {
             .span
             .merge(stages.last().expect("at least one stage").span);
         Ok(Spanned::new(span, AstNode::Pipeline(Pipeline { stages })))
+    }
+
+    /// Top-level parse: the whole line -> one node. Owns the SEQUENCE boundary, one level above the
+    /// stage boundary, so each layer decides exactly one thing.
+    ///
+    /// ★ LEFT-ASSOCIATIVE AND FLAT, as bash is: `a && b && c` is ONE sequence of three items, not a
+    /// tree of two. Nesting would give the same line two spellings and force every consumer to walk
+    /// a structure the user never wrote.
+    ///
+    /// ★ A LONE PIPELINE STAYS A PIPELINE. Only a real connector produces a `Sequence`, for the same
+    /// reason a single command never becomes a one-stage pipeline.
+    ///
+    /// ⚠️ A TRAILING CONNECTOR (`ls &&`) leaves nothing to parse after it, and `parse_command`
+    /// answers `Empty` -- which propagates as a refusal rather than an empty item. Legacy reports
+    /// that case perfectly well; inventing a second diagnostic would be the mistake INT-245 warns
+    /// about.
+    fn parse_line(&mut self) -> Result<Spanned<AstNode>, ParseError> {
+        if self.is_at_end() {
+            return Err(ParseError::Empty);
+        }
+        let first = self.parse_pipeline()?;
+        let connector = |k: Option<TokenKind>| match k {
+            Some(TokenKind::Operator(OperatorKind::And)) => Some(SequenceOp::AndThen),
+            Some(TokenKind::Operator(OperatorKind::Or)) => Some(SequenceOp::OrElse),
+            Some(TokenKind::Operator(OperatorKind::Sequence)) => Some(SequenceOp::Always),
+            _ => None,
+        };
+        if connector(self.peek().map(|t| t.kind)).is_none() {
+            return Ok(first);
+        }
+        let start = first.span;
+        let mut rest: Vec<(SequenceOp, Spanned<AstNode>)> = Vec::new();
+        while let Some(op) = connector(self.peek().map(|t| t.kind)) {
+            self.advance().expect("peek was Some");
+            rest.push((op, self.parse_pipeline()?));
+        }
+        let span = start.merge(rest.last().expect("at least one item").1.span);
+        Ok(Spanned::new(
+            span,
+            AstNode::Sequence(Sequence {
+                first: Box::new(first),
+                rest,
+            }),
+        ))
     }
 }
 
@@ -592,10 +646,7 @@ mod tests {
     #[test]
     fn the_parser_declines_shell_it_does_not_implement() {
         for (source, want) in [
-            // `| ` left this list in INT-200: it is OWNED now, not refused.
-            ("a && b", OperatorKind::And),
-            ("a || b", OperatorKind::Or),
-            ("a ; b", OperatorKind::Sequence),
+            // `|`, `&&`, `||` and `;` all left this list -- OWNED now, not refused.
             ("sleep 5 &", OperatorKind::Background),
         ] {
             match parse(source) {
@@ -697,10 +748,10 @@ mod tests {
     /// so it no longer demonstrates a refusal. The property under test is unchanged -- the span
     /// marks the operator, not the line.
     fn the_refusal_points_at_the_operator() {
-        let source = "a && b";
+        let source = "sleep 5 &";
         match parse(source) {
             Err(ParseError::UnsupportedOperator { span, .. }) => {
-                assert_eq!(&source[span.start..span.end], "&&");
+                assert_eq!(&source[span.start..span.end], "&");
             }
             other => panic!("expected a refusal, got {other:?}"),
         }

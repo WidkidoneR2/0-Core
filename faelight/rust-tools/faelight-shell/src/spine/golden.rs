@@ -111,7 +111,8 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
 const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
     // `ls faelight | grep vm` left this table in INT-200 -- the parser now BUILDS a Pipeline
     // for it, so it is no longer a refusal. Lowering declines it instead, one layer down.
-    ("a && b", OperatorKind::And),
+    // `a && b` left this table in INT-200 -- the parser builds a Sequence for it now, and
+    // lowering declines it one layer down instead.
 ];
 
 /// INT-200: refusals that carry NO OperatorKind, so they cannot live in the table above. A redirect
