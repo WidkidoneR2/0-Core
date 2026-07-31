@@ -563,6 +563,22 @@ fn execute_impl(
                 let report = crate::spine::audit::audit_history(commands);
                 return CommandResult::Output(report.render());
             }
+            // INT-200: `spine conform` -- what bash ACTUALLY does, versus what fsh does.
+            //
+            // ★ THE HALF `spine migrate` CANNOT REACH. That compares parsers and never runs
+            // anything, so it measures coverage; this runs both shells and compares behaviour,
+            // which is the only way to measure correctness. Method borrowed from oils-for-unix,
+            // corpus deliberately not: their cases would import bash warts as requirements.
+            //
+            // ⚠️ Three verdicts, not two. A declared divergence is a PASS -- and a declared
+            // divergence that starts matching bash again is a FAILURE, because it means the
+            // deliberate behaviour was silently lost.
+            Some("conform") => {
+                let fsh_bin = std::env::current_exe()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| "faelight-shell".to_string());
+                return CommandResult::Output(crate::spine::conform::run(&fsh_bin));
+            }
             Some("migrate") => {
                 // INT-169 Increment 10 Phase 2: migration-readiness audit. Produces BOTH plans
                 // per real command (legacy via the real from_line + plan_from_legacy; spine via

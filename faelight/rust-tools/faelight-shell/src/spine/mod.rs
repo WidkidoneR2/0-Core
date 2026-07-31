@@ -15,6 +15,7 @@
 pub mod ast;
 pub mod audit;
 pub mod compare;
+pub mod conform;
 pub mod lexer;
 pub mod migrate;
 pub mod migrate_audit;
