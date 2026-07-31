@@ -1630,6 +1630,10 @@ fn repl_main() -> Result<()> {
                                     }
                                 }
                             }
+                            // INT-169: record the status rather than leaving the PREVIOUS command's.
+                            // the flow command completed. A stale code here is invisible today, but `&&`
+                            // is about to read this value to decide whether the next part runs.
+                            last_exit_code = Some(0);
                             continue 'segments;
                         }
                     }
@@ -1675,6 +1679,10 @@ fn repl_main() -> Result<()> {
                                 }
                             }
                         }
+                        // INT-169: record the status rather than leaving the PREVIOUS command's.
+                        // the friday message displayed. A stale code here is invisible today, but `&&`
+                        // is about to read this value to decide whether the next part runs.
+                        last_exit_code = Some(0);
                         continue 'segments;
                     }
                     // INT-203 fix -- route friday subcommands to core friday
@@ -1843,6 +1851,10 @@ fn repl_main() -> Result<()> {
                         } else {
                             println!("  \u{26a0}  Friday daemon not running -- start with: faelight-daemon &");
                         }
+                        // INT-169: record the status rather than leaving the PREVIOUS command's.
+                        // the friday query completed. A stale code here is invisible today, but `&&`
+                        // is about to read this value to decide whether the next part runs.
+                        last_exit_code = Some(0);
                         continue 'segments;
                     }
 
@@ -2125,6 +2137,10 @@ fn repl_main() -> Result<()> {
                                         v.dimmed()
                                     );
                                 }
+                                // INT-169: record the status rather than leaving the PREVIOUS command's.
+                                // the assignment succeeded. A stale code here is invisible today, but `&&`
+                                // is about to read this value to decide whether the next part runs.
+                                last_exit_code = Some(0);
                                 continue 'segments;
                             }
                             // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
@@ -2521,6 +2537,10 @@ fn repl_main() -> Result<()> {
                                 "_source".to_string()
                             };
                             let source_result = commands::execute(source_cmd, &db, &core_root);
+                            // INT-169: default to success, then let the Error arm below override with the
+                            // REAL code. Without this the whole branch left `$?` reporting the previous
+                            // command -- invisible today, load-bearing once `&&` reads it.
+                            last_exit_code = Some(0);
                             match source_result {
                                 commands::CommandResult::Value(v) => {
                                     let source_count = match &v {
@@ -2573,7 +2593,10 @@ fn repl_main() -> Result<()> {
                                     }
                                 }
                                 commands::CommandResult::Output(out) => println!("{}", out),
-                                commands::CommandResult::Error(e, _) => eprintln!("  x {}", e),
+                                commands::CommandResult::Error(e, code) => {
+                                    eprintln!("  x {}", e);
+                                    last_exit_code = Some(code);
+                                }
                                 _ => {}
                             }
                             continue 'segments;
@@ -2656,7 +2679,7 @@ fn repl_main() -> Result<()> {
                         // Open output file
                         // For stderr-only redirects, handle without opening stdout file
                         if is_stderr_only {
-                            let _ = std::process::Command::new("sh")
+                            let st = std::process::Command::new("sh")
                                 .arg("-c")
                                 .arg(&cmd_part)
                                 .stdin(std::process::Stdio::inherit())
@@ -2664,6 +2687,9 @@ fn repl_main() -> Result<()> {
                                 .stderr(std::process::Stdio::inherit())
                                 .envs(std::env::vars())
                                 .status();
+                            // INT-189: sh ran this; sh knows how it ended. Discarding the status left
+                            // `$?` reporting whatever failed before it.
+                            last_exit_code = Some(st.ok().and_then(|s| s.code()).unwrap_or(1));
                             continue 'segments;
                         }
                         let file = if is_append {
@@ -2734,6 +2760,10 @@ fn repl_main() -> Result<()> {
                                 // Fixing THAT means every print-directly builtin returning a String
                                 // instead -- a refactor across 227 match arms. See INT-143's ceiling.
                                 if is_builtin && builtin_out.is_none() {
+                                    // INT-169: record the status rather than leaving the PREVIOUS command's.
+                                    // INT-143: the builtin already ran and printed; it did not fail. A stale code here is invisible today, but `&&`
+                                    // is about to read this value to decide whether the next part runs.
+                                    last_exit_code = Some(0);
                                     continue 'segments;
                                 }
                                 if let Some(out) = builtin_out {
@@ -2934,9 +2964,14 @@ fn repl_main() -> Result<()> {
                                     let cmd_str = raw_cmd.trim().to_string();
                                     let builtin_result =
                                         commands::execute(&cmd_str, &db, &core_root);
+                                    // INT-169: default to success, then let the Error arm below override with the
+                                    // REAL code. Without this the whole branch left `$?` reporting the previous
+                                    // command -- invisible today, load-bearing once `&&` reads it.
+                                    last_exit_code = Some(0);
                                     match builtin_result {
                                         commands::CommandResult::Output(out) => println!("{}", out),
-                                        commands::CommandResult::Error(e, _) => {
+                                        commands::CommandResult::Error(e, code) => {
+                                            last_exit_code = Some(code);
                                             eprintln!("  ✗ {}", e)
                                         }
                                         commands::CommandResult::Value(v) => {
@@ -3008,7 +3043,15 @@ fn repl_main() -> Result<()> {
                                                         {
                                                             let _ = stdin.write_all(out.as_bytes());
                                                         }
-                                                        let _ = c.wait();
+                                                        // INT-189: `c` runs the REMAINING pipeline, so it is the LAST stage and its
+                                                        // status is the pipeline's. The earlier children are reaped below only to
+                                                        // avoid zombies -- their statuses are not the result.
+                                                        last_exit_code = Some(
+                                                            c.wait()
+                                                                .ok()
+                                                                .and_then(|s| s.code())
+                                                                .unwrap_or(1),
+                                                        );
                                                     }
                                                     for mut child in children {
                                                         let _ = child.wait();
@@ -3140,6 +3183,10 @@ fn repl_main() -> Result<()> {
   {} stream stopped",
                             "○".dimmed()
                         );
+                        // INT-169: record the status rather than leaving the PREVIOUS command's.
+                        // the stream ended normally. A stale code here is invisible today, but `&&`
+                        // is about to read this value to decide whether the next part runs.
+                        last_exit_code = Some(0);
                         continue 'segments;
                     }
 
