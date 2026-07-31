@@ -93,10 +93,45 @@ impl<T> Spanned<T> {
 pub enum AstNode {
     Command(Command),
     Pipeline(Pipeline),
-    // Sequence(Sequence)   -- roadmap step 7
+    Sequence(Sequence),
     // If(IfNode)           -- roadmap step 9
     // While(WhileNode)     -- roadmap step 9
     // Function(Function)   -- roadmap step 9
+}
+
+/// How one item in a sequence connects to the next. RFC roadmap step 7.
+///
+/// ★ ONE FAMILY, NOT THREE. The frozen variant list reserved a single `Sequence` slot for `&&`,
+/// `||` and `;`, and that was right: they differ only in whether the next item runs, which is a
+/// property of the CONNECTOR rather than of the construct.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SequenceOp {
+    /// `&&` -- run the next item only if this one SUCCEEDED.
+    AndThen,
+    /// `||` -- run the next item only if this one FAILED.
+    OrElse,
+    /// `;` -- run the next item regardless.
+    Always,
+}
+
+/// A sequence: items joined by `&&`, `||` or `;`. RFC roadmap step 7.
+///
+/// ★ STRUCTURALLY PAIRED, not two parallel vectors. N items and N-1 operators cannot desync when
+/// each operator is carried WITH the item it introduces -- a shape that makes the invariant
+/// impossible to violate rather than merely documented.
+///
+/// ⚠️ ITEMS ARE `Command` OR `Pipeline`, NEVER `Sequence`. `a && b | c` is legal and its second item
+/// is a pipeline, so this must hold AstNodes -- but a nested sequence is FLATTENED left-
+/// associatively as bash does, so `a && b && c` is one sequence of three, not a tree of two.
+///
+/// ⚠️⚠️ AND UNLIKE A PIPELINE, A SEQUENCE CANNOT BE LOWERED UP FRONT. `touch x.txt && ls *.txt`
+/// expands a glob in the second item, and doing that before `touch` runs would look at a world that
+/// does not exist yet. Pipeline stages are safe because they all spawn at once; a sequence is
+/// explicitly ordered, so each item must be lowered immediately BEFORE it runs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Sequence {
+    pub first: Box<Spanned<AstNode>>,
+    pub rest: Vec<(SequenceOp, Spanned<AstNode>)>,
 }
 
 /// A pipeline: two or more commands whose stdout chains into the next stdin. RFC roadmap step 6.

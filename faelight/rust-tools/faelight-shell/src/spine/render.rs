@@ -21,6 +21,23 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
         // ★ Stages are rendered by the SAME helper, not a parallel implementation. A pipeline is
         // composition: the stages are ordinary commands and must print identically to a standalone
         // one, or a golden captured from a pipeline would disagree with a golden captured alone.
+        // Items recurse through this same function -- a sequence item IS an AstNode, unlike a
+        // pipeline stage, so no helper is needed. The connector prints WITH the item it
+        // introduces, matching how the AST pairs them.
+        AstNode::Sequence(seq) => {
+            out.push_str(&format!(
+                "{}Sequence @[{},{})  {} items\n",
+                indent(level),
+                node.span.start,
+                node.span.end,
+                seq.rest.len() + 1
+            ));
+            render_node(&seq.first, level + 1, out);
+            for (op, item) in &seq.rest {
+                out.push_str(&format!("{}{:?}\n", indent(level + 1), op));
+                render_node(item, level + 1, out);
+            }
+        }
         AstNode::Pipeline(p) => {
             out.push_str(&format!(
                 "{}Pipeline @[{},{})  {} stages\n",

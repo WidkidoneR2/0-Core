@@ -439,6 +439,12 @@ pub fn lower_pipeline(
 ) -> Result<Vec<ExecutionPlan>, LowerError> {
     match &ast.node {
         AstNode::Command(cmd) => Ok(vec![lower_command(ast.span, cmd, ctx, IoPlan::Simple)?]),
+        // A sequence is not a pipeline and never becomes one: `a && b` is two executions
+        // decided by exit status, not two processes sharing a pipe.
+        AstNode::Sequence(seq) => Err(LowerError::UnsupportedConstruct {
+            kind: "sequence",
+            span: seq.first.span,
+        }),
         AstNode::Pipeline(pl) => {
             if is_forest_pipeline(pl) {
                 return Err(LowerError::UnsupportedConstruct {
@@ -634,6 +640,15 @@ fn lower_with_io(
             })
         }
         AstNode::Command(cmd) => lower_command(ast.span, cmd, ctx, io),
+        // ⚠️ A SEQUENCE CANNOT BE LOWERED HERE AND MUST NOT BE. `touch x && ls *.txt` expands
+        // the second item's glob, and doing that before `touch` runs looks at a world that does
+        // not exist yet. Pipeline stages are safe because they spawn together; a sequence is
+        // ordered, so each item is lowered immediately BEFORE it runs -- which no function
+        // returning a single plan can express. Refusing keeps the router honest meanwhile.
+        AstNode::Sequence(seq) => Err(LowerError::UnsupportedConstruct {
+            kind: "sequence",
+            span: seq.first.span,
+        }),
     }
 }
 

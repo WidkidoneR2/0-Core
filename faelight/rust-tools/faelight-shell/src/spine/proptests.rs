@@ -114,6 +114,16 @@ proptest! {
             prop_assert!(node.span.start <= node.span.end, "node span reversed");
             prop_assert!(node.span.end <= input.len(), "node span past input end");
             match &node.node {
+                // ⚠️ A SEQUENCE ITEM IS AN AstNode, so this recurses rather than reaching
+                // into stages. Spans matter just as much inside one -- a bad span in the
+                // third item of a chain would otherwise go unseen.
+                AstNode::Sequence(seq) => {
+                    prop_assert!(seq.first.span.end <= input.len(), "item span past end");
+                    for (_, item) in &seq.rest {
+                        prop_assert!(item.span.start <= item.span.end, "item span reversed");
+                        prop_assert!(item.span.end <= input.len(), "item span past end");
+                    }
+                }
                 // ★ SPANS MATTER JUST AS MUCH INSIDE A PIPELINE, so this checks the stages
                 // rather than skipping them -- a stage's word spans must still land on char
                 // boundaries, and a third-stage span bug would otherwise go unseen.
@@ -182,6 +192,9 @@ proptest! {
                     // exact guarantee on the case where the parser really is a whitespace
                     // splitter, rather than weakening it into something that cannot fail.
             match &node.node {
+                // A sequence consumes its connectors as whitespace chunks that become NO
+                // words, exactly as a pipe does, so only the inequality can hold.
+                AstNode::Sequence(_) => {}
                 // ⚠️ A PIPELINE CANNOT SATISFY THIS ARITHMETIC and must not be forced to. Each
                 // `|` is a whitespace chunk that becomes NO word, so counting stages against
                 // chunks would fail on valid input. The property is about a single command's

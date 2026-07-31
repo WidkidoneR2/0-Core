@@ -475,6 +475,9 @@ mod tests {
     /// skipped when the parse changed shape would go green while proving nothing.
     fn as_command(node: Spanned<AstNode>) -> Command {
         match node.node {
+            AstNode::Sequence(s) => {
+                panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
+            }
             AstNode::Command(c) => c,
             AstNode::Pipeline(p) => {
                 panic!("expected a single Command, got {} stages", p.stages.len())
@@ -493,6 +496,9 @@ mod tests {
         );
 
         match node.node {
+            AstNode::Sequence(s) => {
+                panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
+            }
             AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 3);
@@ -530,6 +536,9 @@ mod tests {
     fn parse_single_word() {
         let node = parse("pwd").expect("parses");
         match node.node {
+            AstNode::Sequence(s) => {
+                panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
+            }
             AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(cmd.words.len(), 1);
@@ -718,6 +727,9 @@ mod tests {
         // RFC section 9 rides-with: the spine does NOT lowercase. GitHub stays GitHub.
         let node = parse("GitHub Clone").expect("parses");
         match node.node {
+            AstNode::Sequence(s) => {
+                panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
+            }
             AstNode::Pipeline(p) => panic!("expected Command, got {} stages", p.stages.len()),
             AstNode::Command(cmd) => {
                 assert_eq!(

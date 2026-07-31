@@ -66,6 +66,8 @@ mod tests {
 
         let node: Spanned<AstNode> = Spanned::new(full_span, AstNode::Command(cmd));
         match node.node {
+            // Hand-built as a Command above, so neither composite is reachable.
+            AstNode::Sequence(_) => unreachable!("constructed as a Command directly above"),
             AstNode::Command(c) => assert_eq!(c.words.len(), 3),
             // The node is hand-built two lines above, so a pipeline is impossible here.
             // Named rather than wildcarded: a `_` arm would silently absorb the next variant
