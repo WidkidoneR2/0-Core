@@ -200,8 +200,39 @@ audit's model before treating it as a defect.
 
      GENUINE SPINE WORK REMAINING -- 87 rows. 45 background (`&`), 42 lex errors. That is the honest
      size of what construct work is left, and it is smaller than any single piece built this week. -->
-- [ ] A decision on OSH spec tests: adopt a subset, or record why not
+- [x] A decision on OSH spec tests: adopt a subset, or record why not
+<!-- evidence: DECIDED AND BUILT -- `spine conform`, spine/conform.rs. The decision is MINE THE
+     METHOD, NOT THE CORPUS. Their value is asking what a real shell actually does rather than what
+     a shell should do; importing their cases would drag in historical bash warts as requirements,
+     and fsh has deliberately diverged from bash at least twice. Bash is already on the box, so the
+     reference is real rather than transcribed, and the cases are fsh's own -- scoped to what the
+     spine owns: redirects, fd redirects, pipelines, exit status, quoting.
+
+     THREE VERDICTS, NOT TWO, and that is the design: agrees, diverges-as-declared, unexplained. A
+     declared divergence is a PASS, and a declared divergence that starts MATCHING bash again is a
+     FAILURE, because deliberate behaviour was silently lost. Only unexplained is a defect -- so a
+     NEW divergence announces itself the first time it appears.
+
+     ⚠️ AND IT FOUND A REAL DEFECT ON ITS FIRST RUN: 14 agree, 2 unexplained, both digit-guard
+     cases. The filesystem settled it -- fsh created the files exactly as bash did. THE DIGIT GUARD
+     WORKS AT THE INTERACTIVE PROMPT AND NOT THROUGH `fsh -c`. Same binary, two doors, two
+     behaviours: INT-173's two-doors problem in a new place, on behaviour proven live the day before
+     and therefore believed correct. Recorded below as open work rather than closed here. -->
 - [ ] Each gate carries evidence per INT-158
+
+## OPEN AFTER CONFORMANCE (found 2026-07-31, not yet fixed)
+
+1. **`fsh -c` does not apply the digit guard.** The interactive prompt refuses a digit-initial
+   redirect target so `where cpu > 0.5` stays a comparison; the `-c` path creates the file, as
+   bash does. Two doors, two behaviours. This is a real divergence inside fsh itself, not
+   between fsh and bash, and it is the kind INT-173 exists to catch.
+
+2. **The conformance harness cannot see file effects.** It compares stdout and exit status, and
+   both are empty with status zero whether a command wrote a file or printed nothing. A case
+   whose effect is a file must `cat` that file afterward so the effect reaches stdout. Cases
+   should also write only under `/tmp`, since the first run left two files in the repository.
+   ⚠️ Recorded rather than quietly fixed: a harness reporting an untrustworthy verdict is itself
+   a finding, and the second run should be able to show the difference.
 
 ## Relationship
 - Child of INT-169: 169 built the spine and connected it; 200 finishes the vocabulary.
