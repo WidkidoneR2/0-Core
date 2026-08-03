@@ -147,6 +147,31 @@ fn expand_braces(s: &str) -> String {
 /// INT-200: pub(crate) so the migration audit can split an entry the SAME way the REPL does.
 /// A second splitter in the audit would drift from this one the first time either changed --
 /// and the audit measuring a program the shell never runs is a mistake already made six times.
+/// Does this line address the REPL's own job state, rather than describing a program to run?
+///
+/// ★ ONE OWNER FOR THE RULE. INT-169's router claims any line the spine can parse, and `jobs`
+/// parses perfectly well as a command -- so it was claimed, dispatched, and died as
+/// "command not found" from the moment routing became the default. The table still filled and the
+/// prompt still counted, which is why it went unnoticed: job control was half-dead, not dead.
+///
+/// ⚠️ THE CONDITIONS ARE NOT A NAME LIST, and that is the whole subtlety. `fg commit` must reach
+/// the alias, and `kill <PID>` must reach the REAL kill -- INT-095 records what happens otherwise:
+/// a PID parsed as a job id made `vm down` a silent no-op and risked two VMs. So the predicate
+/// mirrors Phase 8's own guards, and Phase 8 CALLS THIS rather than repeating them. Two copies of
+/// one rule is the split-brain INT-193 existed to end.
+fn is_repl_state_command(line: &str) -> bool {
+    let first = commands::command_word(line);
+    let second = line.split_whitespace().nth(1).unwrap_or("");
+    match first.as_str() {
+        "jobs" => true,
+        // Job-control `fg` takes a job id or nothing; anything else is a different command.
+        "fg" => second.is_empty() || second.parse::<usize>().is_ok(),
+        // ONLY `kill %N` is a job-spec. Every other form belongs to the real kill.
+        "kill" => second.starts_with('%'),
+        _ => false,
+    }
+}
+
 pub(crate) fn split_semicolons(line: &str) -> Vec<String> {
     // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
     // The entire construct is passed to sh for execution as one unit
@@ -2331,7 +2356,12 @@ fn repl_main() -> Result<()> {
                     // router, the migration audit at zero unexpected and zero feature gaps, and the
                     // counters showing the spine claims what it owns and declines what it refuses.
                     // What remains is answerable only by real use, which needs the default to be on.
-                    let spine_on = std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
+                    // ⚠️ REPL-STATE COMMANDS ARE NOT ROUTABLE. `jobs`, `fg <n>` and `kill %n` read and mutate
+                    // the JobTable that lives in this loop, which spine dispatch has no path to -- so the
+                    // spine can PARSE them and can never RUN them. Excluded before the attempt rather than
+                    // handled inside it: the router's contract is that a claim means ownership.
+                    let spine_on = !is_repl_state_command(line)
+                        && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
                     let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
                     if spine_trace && !spine_on {
                         eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
@@ -3104,7 +3134,9 @@ fn repl_main() -> Result<()> {
                         let second = line.split_whitespace().nth(1).unwrap_or("");
                         // Only intercept as job control if second token is a number
                         // fg commit, fg push, etc. → fall through to execute_with_context
-                        if second.is_empty() || second.parse::<usize>().is_ok() {
+                        // ASKED, NOT REPEATED: the router's exclusion consults the same predicate, so the
+                        // rule that `fg commit` is NOT job control lives in exactly one place.
+                        if is_repl_state_command(line) {
                             let id = second.parse::<usize>().unwrap_or(1);
                             job_table.fg(id);
                             continue;
@@ -3117,7 +3149,9 @@ fn repl_main() -> Result<()> {
                         // job id. The old code parsed any number as a job id, so `kill <PID>`
                         // silently did nothing (corruption risk: vm down -> no-op -> two VMs).
                         let arg = line.split_whitespace().nth(1).unwrap_or("");
-                        if arg.starts_with('%') {
+                        // Same predicate as the router's exclusion. INT-095: only `kill %N` is a job-spec,
+                        // and a PID parsed as a job id made `vm down` a silent no-op.
+                        if is_repl_state_command(line) {
                             // job-spec: kill %N -> the in-shell job table
                             let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
                             if id > 0 {
