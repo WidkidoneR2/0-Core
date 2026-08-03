@@ -79,43 +79,36 @@ encodes exactly the accumulated weirdness fsh keeps discovering one bug at a tim
 subset converts bug-by-bug discovery into a measured percentage.
 See: github.com/oils-for-unix/oils/wiki/Spec-Tests
 
-## MEASURED STATE (gen 451, 2026-07-31)
-
-Applicable to comparison: 20,189 Equivalent: 19,877 98.5%
-Skipped: 9,888 Safe improvements: 16
-multiline: 7,006 Feature gaps: 148 0.7%
-stderr-delegated: 2,882 Unexpected: 28 0.1%
-Spine parse errors: 724 Pipelines owned: 2,372
-
+## MEASURED STATE (gen 453 + 4e939bf4, 2026-08-03)
+Applicable to comparison: 21,627   Equivalent: 21,289  98.4%
+Skipped: 9,990                     Safe improvements: 16
+  multiline: 7,081                 Feature gaps: 165  0.8%
+  stderr-delegated: 2,909          Unexpected: 29  0.1%
+Spine parse errors: 146            Pipelines owned: 2,438
 Declined by construct:
-378 operator And <- now the largest single item
-180 operator Sequence
-148 unlowerable: forest value pipeline (legacy owns these, permanently)
-45 operator Background · 30 operator Or · 42 lex error
-27 comparison, not a redirect -- DELIBERATE DIVERGENCE
-21 redirect with no target (malformed input)
-
-THE REAL REMAINING WORK IS ABOUT 633 COMMANDS: boolean chains, sequences, background and the
-or-operator. Everything else in that list is legacy's by design, a deliberate divergence protecting
-the query language, or malformed input that was never a command.
-
+  148 forest value pipeline (legacy's permanently)
+   50 operator Background  <- now the largest single item
+   42 lex error
+   27 comparison, not a redirect -- DELIBERATE DIVERGENCE
+   17 unlowerable: sequence (atomic control structures)
+   27 malformed or empty
+THE REAL REMAINING WORK IS ABOUT 109 COMMANDS: background, lex errors and the atomic control
+structures. Everything else in that list is legacy's by design, a deliberate divergence protecting
+the query language, or input that was never a command.
 PIPELINES OWNED IS A POSITIVE CATEGORY, not a gap and not a skip. Legacy builds no single plan for a
 pipeline -- its live path routes one to the native implementation or to sh, never through an
 execution context -- so there is nothing to compare against. But the spine LOWERS AND RUNS these, so
-counting them as gaps would have been the opposite of the truth. That distinction moved equivalence
-from 88.1 to 98.5 percent without a line of execution code changing.
-
+counting them as gaps would have been the opposite of the truth.
 HOW THE NUMBERS MOVED, and why a snapshot alone would mislead. Declines were 6,224 across nine
-constructs when this intent opened. Redirects, file-descriptor redirects and pipelines have since
-been implemented, and each one moved rows OUT of the decline list and INTO either equivalence or the
-owned category. The percentage dipped to 88.1 in between, which looked like a regression and was a
-denominator effect: pipelines became comparable, so thousands of rows entered the applicable count
-at once.
-
-UNEXPECTED HELD AT 28 THROUGHOUT, which is the number that would have signalled real trouble. Its
-full history is 2, 205, 33, 384, 28 -- and every rise was the audit disagreeing with its own model of
-legacy rather than with the shell. Four times. A future reader seeing a spike should check the
-audit's model before treating it as a defect.
+constructs when this intent opened, and are 311 now, of which 202 are deliberate. Redirects,
+file-descriptor redirects, pipelines and boolean chains have all been implemented or unblocked, and
+each moved rows OUT of the decline list into equivalence or the owned category. The percentage dipped
+to 88.1 in between, which looked like a regression and was a denominator effect: pipelines became
+comparable, so thousands of rows entered the applicable count at once.
+UNEXPECTED HELD AT 28-29 THROUGHOUT, which is the number that would have signalled real trouble. Its
+full history is 2, 205, 33, 384, 28, 70, 29 -- and EVERY rise was the audit disagreeing with its own
+model of legacy rather than with the shell. Six times. A future reader seeing a spike should check
+the audit's model, and the DENOMINATOR, before treating it as a defect.
 
 ## Success Criteria
 - [x] The build order is MEASURED, not guessed -- `spine migrate` reports declines by construct
@@ -180,26 +173,39 @@ audit's model before treating it as a defect.
      pasted prompt line, a documentation placeholder, process substitution, a filename containing a
      space, and two genuine input redirects worth a later look. -->
 - [x] The remaining tail is implemented or explicitly declined WITH ITS COUNT recorded
-<!-- evidence: the tail was investigated on 2026-07-31 and it does NOT decompose into construct work
-     the way the earlier buckets did. Sorted by count and classified by what actually blocks each:
-
-     BLOCKED UPSTREAM, NOT MISSING -- 588 rows (378 And, 180 Sequence, 30 Or). main.rs splits a line
-     on `;` at 1294 and on `&&`/`||` at 1332, ABOVE the routing point, and runs chains through its
-     own executor. Proven live with the trace on: a boolean chain produces correct output and NO
-     router line at all, and a semicolon line produces TWO separate claims. The spine never receives
-     one intact, so these are the audit feeding the parser a line the live shell never delivers
-     whole -- the fifth instance of that class. The Sequence AST and parser landed anyway (7fa7056b)
-     and are correct; they simply have no consumer until the router moves. Recorded as a blocker on
-     INT-169, which owns the routing point, rather than a new intent that would fragment the seam.
-     ⚠️ And these 588 commands ALREADY WORK. Moving them buys milestone-2 ownership, not a fix.
-
-     DELIBERATELY DECLINED, WITH COUNTS -- 196 rows. 148 forest value pipelines belong to legacy
-     permanently, because `where`/`sort`/`first` are query verbs with no programs behind them. 27 are
-     the comparison guard firing on real history, which is the deliberate divergence that keeps
-     `where cpu > 0.5` working. 21 are malformed input with no target after a redirect operator.
-
-     GENUINE SPINE WORK REMAINING -- 87 rows. 45 background (`&`), 42 lex errors. That is the honest
-     size of what construct work is left, and it is smaller than any single piece built this week. -->
+<!-- evidence: REWRITTEN 2026-08-03. The 2026-07-31 version of this gate said the 588 And/Sequence/Or
+     rows were BLOCKED UPSTREAM and would stay blocked "until the routing point moves". They are not
+     blocked any more, and the routing point never moved -- the SPLITTER did.
+     WHAT HAPPENED (7db111fa): main.rs split a line on `;` and `&&`/`||` and ran multi-part segments
+     through its own reduced dispatch, which predated the spine. That executor skipped variable
+     expansion, alias resolution, `export` and the router. It was not merely incomplete: it had been
+     hand-patched over time for whatever got noticed, so `cd` worked inside a chain and nothing else
+     did. Three live bugs from one defect, the variable case silent. The repair flattened the two
+     splitters into one list of command-and-operator pairs and deleted the parallel executor, so
+     every logical part now flows through the same path a standalone command does -- and that path
+     CONTAINS the routing point. Proven live: `echo one && echo two` produced NO router trace line
+     before, and TWO `claimed` lines after.
+     THEN THE AUDIT HAD TO CATCH UP (4e939bf4), because it was still feeding whole chained lines to a
+     parser the live shell no longer feeds whole -- 586 declines for commands already running, the
+     SIXTH instance of that class. A sequence is neither a skip nor an owned category: each part is
+     an ordinary command both engines handle, so the row is split and each part compared. Sequence
+     declines 586 -> 17, equivalent rows +1,353, and every control number held at baseline.
+     ⚠️ The first attempt split ABOVE the applicability check and manufactured 14,000 rows from
+     pasted code blocks. A jump in the denominator is the tell -- check it before reading any
+     percentage above it.
+     THE TAIL AS IT ACTUALLY STANDS (gen 453 + 4e939bf4), 109 rows of genuine spine work:
+       50  operator Background (`&`)  -- the largest single item, and INT-188 needs it anyway
+       42  lex error                  -- NEVER EXAMINED; could be junk or a real gap
+       17  unlowerable: sequence      -- the ATOMIC constructs (`if ...; then ...; fi`, `for`/`while`)
+                                         that split_semicolons deliberately keeps whole
+     DELIBERATELY DECLINED, WITH COUNTS -- 202 rows, none of them work:
+       148  forest value pipelines -- legacy's permanently; `where`/`sort`/`first` are query verbs
+        27  the comparison guard firing on real history -- the divergence that keeps `> 0.5` working
+        27  malformed or empty input that was never a command
+     ⚠️ AND THE HONEST CAVEAT ON THE 588: those commands ALREADY WORKED before the flatten. What
+     changed is that they are now owned by one execution path instead of two, and that three real
+     bugs came out with the duplication. Ownership was the milestone-2 goal; the bugs were the
+     reason it was worth doing now rather than in 2027. -->
 - [x] A decision on OSH spec tests: adopt a subset, or record why not
 <!-- evidence: DECIDED AND BUILT -- `spine conform`, spine/conform.rs. The decision is MINE THE
      METHOD, NOT THE CORPUS. Their value is asking what a real shell actually does rather than what
