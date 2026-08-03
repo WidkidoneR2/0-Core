@@ -1082,6 +1082,67 @@ fn all_tests() -> Vec<TestResult> {
             ))
         }
     }));
+    // ── INT-200 background: two REGRESSIONS, expected RED. main.rs:3144 detects a trailing
+    // `&` and hands the line to JobTable::spawn, which re-derives argv with splitn(2, ' ') and
+    // split_whitespace() -- a naive re-tokenizer running AFTER the shell already knew the real
+    // structure. Two bugs fall out of those five lines, and both are INT-195's invariant broken:
+    // every stage must consume the previous stage's output, never the original string.
+    results.push(test(
+        "repl_background_job_honours_its_redirect",
+        Category::Repl,
+        || {
+            // The redirect becomes ARGUMENTS: `uname > f &` spawns uname with argv [">", "f"].
+            // Real uname ignores unknown args, prints to the terminal and exits 0 -- so the failure
+            // is SILENT, which is why this asserts on the FILE and not on the output.
+            repl::run_repl("rm -f /tmp/zzbg1.txt")?;
+            repl::run_repl("uname > /tmp/zzbg1.txt &")?;
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let out = repl::run_repl("cat /tmp/zzbg1.txt")?;
+            let joined = out.join("\n");
+            if out
+                .iter()
+                .any(|l| l.contains("Linux") && !l.trim_start().starts_with('['))
+            {
+                Ok(())
+            } else {
+                Err(format!(
+                    "a backgrounded command lost its redirect -- the file was never written, and \
+                 the command still exited 0, so nothing reported the loss: {joined:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_background_job_keeps_quoted_arguments",
+        Category::Repl,
+        || {
+            // A quoted argument is split on spaces, so `sh -c "..."` receives only the first
+            // fragment as its script. This one at least fails loudly -- the child reports an
+            // unexpected EOF -- but the argv is wrong for every quoted background command.
+            // TWO SESSIONS, and the FILE carries the result between them: `&` must be the last
+            // thing on its line, and this harness submits exactly ONE line per call (proven: an input
+            // of "echo A\necho B" returned only A). The launching shell exits while the job runs,
+            // which also proves the job is genuinely detached rather than waited on.
+            repl::run_repl("rm -f /tmp/zzbg2.txt")?;
+            repl::run_repl("sh -c \"echo ZZBGQUOTED > /tmp/zzbg2.txt\" &")?;
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let out = repl::run_repl("cat /tmp/zzbg2.txt")?;
+            let joined = out.join("\n");
+            if out
+                .iter()
+                .any(|l| l.contains("ZZBGQUOTED") && !l.trim_start().starts_with('['))
+            {
+                Ok(())
+            } else {
+                Err(format!(
+                    "a backgrounded command lost its quoting -- the quoted script was split on \
+                 spaces, so the child received a fragment instead of the whole argument: \
+                 {joined:?}"
+                ))
+            }
+        },
+    ));
+
     results.push(test(
         "repl_chain_runs_builtins_and_next_command_sees_the_effect",
         Category::Repl,

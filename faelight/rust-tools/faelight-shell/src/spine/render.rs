@@ -18,6 +18,18 @@ fn indent(level: usize) -> String {
 fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
     match &node.node {
         AstNode::Command(cmd) => render_command(node.span, cmd, level, out),
+        // ★ The operand recurses through this same function, so a backgrounded command prints
+        // identically to a standalone one with a wrapper above it -- the property that keeps a
+        // golden captured either way agreeing.
+        AstNode::Background(inner) => {
+            out.push_str(&format!(
+                "{}Background @[{},{})\n",
+                indent(level),
+                node.span.start,
+                node.span.end
+            ));
+            render_node(inner, level + 1, out);
+        }
         // ★ Stages are rendered by the SAME helper, not a parallel implementation. A pipeline is
         // composition: the stages are ordinary commands and must print identically to a standalone
         // one, or a golden captured from a pipeline would disagree with a golden captured alone.

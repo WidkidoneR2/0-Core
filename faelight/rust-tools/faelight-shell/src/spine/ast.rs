@@ -94,6 +94,28 @@ pub enum AstNode {
     Command(Command),
     Pipeline(Pipeline),
     Sequence(Sequence),
+    /// `cmd &` -- run the wrapped subtree in the background. RFC roadmap step 8.
+    ///
+    /// ★ A WRAPPER, NOT A FLAG, and SequenceOp below is the precedent: backgrounding is a property
+    /// of HOW an item runs, not of WHICH construct it is. `cmd &`, `cmd > out &`, `a || b &` and
+    /// `(a; b) &` are one meaning with four operands. A `background: bool` on Command would leak
+    /// the moment the operand is not a command, which two of those already are.
+    ///
+    /// ⚠️ THE OPERAND IS THE WHOLE SUBTREE, so the parser must DECLINE to build this whenever it
+    /// cannot see the true operand. Today main.rs splits `a && b &` into `a` and `b &` before the
+    /// spine reads anything, so wrapping what arrives would background only the tail -- plausible
+    /// and wrong. The limitation stays STRUCTURAL rather than semantic: the AST never claims a
+    /// scope it did not observe.
+    ///
+    /// ★ AND THAT LOCALISES THE FUTURE FIX: if the splitter ever learns that `&` binds looser than
+    /// `&&`, nothing here changes -- the parser simply starts receiving a larger subtree to wrap.
+    ///
+    /// ⚠️ WHY THE SPINE AND NOT legacy's Phase 8: that block sits AFTER the redirect branch because
+    /// it cannot parse redirects, so `cmd > f &` never reaches it. Moving it up was tried on
+    /// 2026-08-03 and failed twice over -- the redirect arrived as argv (`uname: extra operand`)
+    /// and `jobs` broke, because the block below it stopped being reachable. Phase ordering
+    /// encodes what each phase CANNOT handle; only one structure parsing both operators fixes it.
+    Background(Box<Spanned<AstNode>>),
     // If(IfNode)           -- roadmap step 9
     // While(WhileNode)     -- roadmap step 9
     // Function(Function)   -- roadmap step 9

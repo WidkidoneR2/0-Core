@@ -114,6 +114,12 @@ proptest! {
             prop_assert!(node.span.start <= node.span.end, "node span reversed");
             prop_assert!(node.span.end <= input.len(), "node span past input end");
             match &node.node {
+                // ⚠️ RECURSES, for the same reason the sequence arm does: the operand is a whole
+                // AstNode, and a bad span inside a backgrounded pipeline would otherwise go unseen.
+                AstNode::Background(inner) => {
+                    prop_assert!(inner.span.start <= inner.span.end, "operand span reversed");
+                    prop_assert!(inner.span.end <= input.len(), "operand span past end");
+                }
                 // ⚠️ A SEQUENCE ITEM IS AN AstNode, so this recurses rather than reaching
                 // into stages. Spans matter just as much inside one -- a bad span in the
                 // third item of a chain would otherwise go unseen.
@@ -192,6 +198,9 @@ proptest! {
                     // exact guarantee on the case where the parser really is a whitespace
                     // splitter, rather than weakening it into something that cannot fail.
             match &node.node {
+                // `&` is a whitespace chunk that becomes NO word, exactly like a connector or a
+                // pipe, so only the inequality can hold here.
+                AstNode::Background(_) => {}
                 // A sequence consumes its connectors as whitespace chunks that become NO
                 // words, exactly as a pipe does, so only the inequality can hold.
                 AstNode::Sequence(_) => {}

@@ -438,6 +438,13 @@ pub fn lower_pipeline(
     ctx: &LowerContext,
 ) -> Result<Vec<ExecutionPlan>, LowerError> {
     match &ast.node {
+        // A backgrounded node is not a pipeline stage. `a | b &` backgrounds the WHOLE
+        // pipeline, so the wrapper must be removed by the caller before stages are lowered --
+        // never flattened into one, which would background a single stage and leave the rest.
+        AstNode::Background(inner) => Err(LowerError::UnsupportedConstruct {
+            kind: "background (unwrap it before lowering)",
+            span: inner.span,
+        }),
         AstNode::Command(cmd) => Ok(vec![lower_command(ast.span, cmd, ctx, IoPlan::Simple)?]),
         // A sequence is not a pipeline and never becomes one: `a && b` is two executions
         // decided by exit status, not two processes sharing a pipe.
@@ -603,6 +610,15 @@ fn lower_with_io(
     io: IoPlan,
 ) -> Result<ExecutionPlan, LowerError> {
     match &ast.node {
+        // ⚠️ INT-200: BACKGROUND IS AN EXECUTION MODE, NOT A PLAN SHAPE. An ExecutionPlan
+        // describes one FOREGROUND process the caller waits on; a background job is spawned,
+        // registered with the shell's JobTable and deliberately NOT waited on. Stretching this
+        // type to carry "do not wait" would put a scheduling decision inside a description of
+        // what to run -- so the router unwraps Background above lowering and lowers the OPERAND.
+        AstNode::Background(inner) => Err(LowerError::UnsupportedConstruct {
+            kind: "background (unwrap it before lowering)",
+            span: inner.span,
+        }),
         // INT-200: a pipeline is not ONE process, and ExecutionPlan describes exactly one.
         // Rather than stretching the type, lowering refuses here; `lower_pipeline` will return
         // a Vec whose ORDER is the wiring -- the shape `lower_substitution` already uses for

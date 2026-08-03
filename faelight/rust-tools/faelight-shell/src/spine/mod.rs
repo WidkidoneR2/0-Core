@@ -74,6 +74,7 @@ mod tests {
             // Named rather than wildcarded: a `_` arm would silently absorb the next variant
             // too, and the compiler pointing at this line is the value of an exhaustive match.
             AstNode::Pipeline(_) => unreachable!("constructed as a Command directly above"),
+            AstNode::Background(_) => unreachable!("constructed as a Command directly above"),
         }
         assert_eq!(node.span.len(), 11, "span length in bytes");
     }

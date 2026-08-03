@@ -325,6 +325,42 @@ impl Parser {
     /// that case perfectly well; inventing a second diagnostic would be the mistake INT-245 warns
     /// about.
     fn parse_line(&mut self) -> Result<Spanned<AstNode>, ParseError> {
+        let node = self.parse_sequence()?;
+        // INT-200: `&` binds LOOSEST -- it applies to everything parsed so far, which is why it
+        // is read here and not inside parse_command. bash treats it as a connector rather than a
+        // suffix, and OSH wraps the command in a Sentence; both make it a NODE, not a flag.
+        if matches!(
+            self.peek().map(|t| t.kind),
+            Some(TokenKind::Operator(OperatorKind::Background))
+        ) {
+            let amp = self.advance().expect("peek was Some");
+            // ⚠️ A trailing `&` after a `&&`/`||` list is REFUSED, not wrapped. Background applies
+            // to an entire subtree; if the splitter in main.rs has already separated the list,
+            // the correct operand is unavailable here and wrapping what DID arrive would
+            // background only the tail -- plausible output, wrong semantics. Declining keeps the
+            // limitation structural rather than semantic: the AST never claims a scope it did
+            // not observe. If the splitter ever learns that `&` binds looser than `&&`, this
+            // check simply stops firing and the parser is unchanged.
+            if matches!(node.node, AstNode::Sequence(_)) {
+                return Err(ParseError::UnsupportedOperator {
+                    kind: OperatorKind::Background,
+                    span: amp.span,
+                });
+            }
+            if !self.is_at_end() {
+                return Err(ParseError::UnsupportedOperator {
+                    kind: OperatorKind::Background,
+                    span: amp.span,
+                });
+            }
+            let span = node.span.merge(amp.span);
+            return Ok(Spanned::new(span, AstNode::Background(Box::new(node))));
+        }
+        Ok(node)
+    }
+
+    /// The `&&` / `||` / `;` layer, split out of parse_line so `&` can wrap its RESULT.
+    fn parse_sequence(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         if self.is_at_end() {
             return Err(ParseError::Empty);
         }
@@ -529,6 +565,10 @@ mod tests {
     /// skipped when the parse changed shape would go green while proving nothing.
     fn as_command(node: Spanned<AstNode>) -> Command {
         match node.node {
+            // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
+            // unwrap: these assert a bare Command, and silently looking through a Background
+            // would let the test pass while proving something else.
+            AstNode::Background(_) => panic!("expected a Command, got a backgrounded node"),
             AstNode::Sequence(s) => {
                 panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
             }
@@ -550,6 +590,10 @@ mod tests {
         );
 
         match node.node {
+            // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
+            // unwrap: these assert a bare Command, and silently looking through a Background
+            // would let the test pass while proving something else.
+            AstNode::Background(_) => panic!("expected a Command, got a backgrounded node"),
             AstNode::Sequence(s) => {
                 panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
             }
@@ -590,6 +634,10 @@ mod tests {
     fn parse_single_word() {
         let node = parse("pwd").expect("parses");
         match node.node {
+            // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
+            // unwrap: these assert a bare Command, and silently looking through a Background
+            // would let the test pass while proving something else.
+            AstNode::Background(_) => panic!("expected a Command, got a backgrounded node"),
             AstNode::Sequence(s) => {
                 panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
             }
@@ -778,6 +826,10 @@ mod tests {
         // RFC section 9 rides-with: the spine does NOT lowercase. GitHub stays GitHub.
         let node = parse("GitHub Clone").expect("parses");
         match node.node {
+            // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
+            // unwrap: these assert a bare Command, and silently looking through a Background
+            // would let the test pass while proving something else.
+            AstNode::Background(_) => panic!("expected a Command, got a backgrounded node"),
             AstNode::Sequence(s) => {
                 panic!("expected a Command, got a sequence of {}", s.rest.len() + 1)
             }
