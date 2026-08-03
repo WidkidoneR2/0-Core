@@ -190,7 +190,17 @@ impl MigrationAudit {
             crate::spine::parser::ParseError::UnsupportedOperator { kind, .. } => {
                 format!("operator {kind:?}")
             }
-            crate::spine::parser::ParseError::Lex(_) => "lex error".to_string(),
+            // INT-200: the KIND, not a shared label. This read "lex error" for every one of the
+            // 42 because the lexer built the same struct at both sites -- the classifier was not
+            // discarding a reason, there was none to discard.
+            crate::spine::parser::ParseError::Lex(e) => match e.kind {
+                crate::spine::lexer::LexErrorKind::UnterminatedQuote => {
+                    "lex: unterminated quote".to_string()
+                }
+                crate::spine::lexer::LexErrorKind::UnterminatedCommandSub => {
+                    "lex: unterminated $( )".to_string()
+                }
+            },
             crate::spine::parser::ParseError::Empty => "empty".to_string(),
         };
         *self.report.declined_by_reason.entry(reason).or_insert(0) += 1;

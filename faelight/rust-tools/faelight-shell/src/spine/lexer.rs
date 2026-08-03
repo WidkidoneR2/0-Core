@@ -131,8 +131,24 @@ pub struct SpannedToken {
 
 /// A lex error: the unlexable slice and where it was. Step 2 produces the first real one --
 /// an unterminated quote, spanned from its opening delimiter.
+/// Why a line could not be scanned. Two causes today, and the enum exists so a third arrives
+/// as a NAMED case rather than joining an anonymous pile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LexErrorKind {
+    /// A quote opened and the line ended before it closed.
+    UnterminatedQuote,
+    /// A `$(` opened and its closing paren never arrived.
+    UnterminatedCommandSub,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LexError {
+    /// WHICH failure. INT-200: both construction sites built the same two fields, so the
+    /// audit could only ever report "lex error" for all 42 of them -- not because the classifier
+    /// discarded the reason, but because the lexer never produced one. A refusal that cannot say
+    /// what it refused is honest and useless, which is the argument ParseError already makes one
+    /// layer up.
+    pub kind: LexErrorKind,
     pub text: String,
     pub span: Span,
 }
@@ -217,6 +233,7 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 if depth != 0 || j >= n {
                     // Unterminated, spanned from the opener -- same shape as an unclosed quote.
                     return Err(LexError {
+                        kind: LexErrorKind::UnterminatedCommandSub,
                         text: source[pos..].to_string(),
                         span: Span::new(pos, source.len()),
                     });
@@ -298,6 +315,7 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
         if context != QuoteContext::Unquoted {
             let at = open_quote_at.unwrap_or(word_start);
             return Err(LexError {
+                kind: LexErrorKind::UnterminatedQuote,
                 text: source[at..].to_string(),
                 span: Span::new(at, source.len()),
             });
