@@ -144,7 +144,10 @@ fn expand_braces(s: &str) -> String {
     result
 }
 
-fn split_semicolons(line: &str) -> Vec<String> {
+/// INT-200: pub(crate) so the migration audit can split an entry the SAME way the REPL does.
+/// A second splitter in the audit would drift from this one the first time either changed --
+/// and the audit measuring a program the shell never runs is a mistake already made six times.
+pub(crate) fn split_semicolons(line: &str) -> Vec<String> {
     // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
     // The entire construct is passed to sh for execution as one unit
     let trimmed = line.trim();

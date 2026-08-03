@@ -588,85 +588,116 @@ fn execute_impl(
                 let sources: Vec<String> = rows.filter_map(|r| r.ok()).collect();
 
                 let mut audit = crate::spine::migrate_audit::MigrationAudit::new();
-                for source in &sources {
-                    // Applicability first: skipped entries need no plans produced.
-                    if let Some(reason) = crate::spine::migrate_audit::applicability(source) {
+                for raw_entry in &sources {
+                    // ⚠️ APPLICABILITY BEFORE SPLITTING, NOT AFTER. A pasted code block is not
+                    // a shell line, and splitting it on `;`/`&&` first shattered it into
+                    // fragments that each looked like a command -- 14,000 invented rows, and
+                    // Rust source appearing in the unexpected list. Reject the ENTRY, then
+                    // split what survives.
+                    if let Some(reason) = crate::spine::migrate_audit::applicability(raw_entry) {
                         audit.skip(reason);
                         continue;
                     }
-                    // INT-191: raw and expanded are the same string here BY DESIGN, and the
-                    // reason is already stated below -- this audit compares PARSERS on the same
-                    // input and deliberately performs no expansion. Behaviour-preserving: before
-                    // the split one argument filled both fields. This path also never reaches
-                    // postexec, so it writes no history record.
-                    // INT-200: MODEL LEGACY AS IT ACTUALLY RUNS. The live shell calls
-                    // detect_redirect BEFORE tokenizing, so a redirect never reaches argv. Building
-                    // the context from the raw line left `>` and the path as ARGUMENTS, and once the
-                    // spine learned redirects every one of them read as a divergence -- unexpected
-                    // went 2 -> 205 in a single run, all of them the audit disagreeing with itself.
+                    // ⚠️ INT-200: SPLIT THE ENTRY THE WAY THE LIVE SHELL DOES. main.rs flattens
+                    // `;` and `&&`/`||` into separate segments and routes each one independently
+                    // (commit 7db111fa), so a chained entry is never delivered to the parser whole.
+                    // Feeding it whole here reported 586 "unlowerable: sequence" declines for
+                    // commands the shell was already running -- the SIXTH time this audit measured
+                    // a program the shell never sees, and the same shape as the pipeline case.
                     //
-                    // ⚠️ Two sentinels are NOT file targets: `__stderr__` (any `2>` spelling, which
-                    // INT-172 routes to sh whole) and the bare-redirect parse error. Both keep the
-                    // line intact and Simple io, because that is what legacy does with them.
-                    let (stripped, redirect) = crate::expand::detect_redirect(source);
-                    let (legacy_line, legacy_io) = match &redirect {
-                        Some((target, append))
-                            if target != "__stderr__"
-                                && target != "__redirect_error_no_target__" =>
-                        {
-                            (
-                                stripped.as_str(),
-                                crate::spine::plan::IoPlan::Files {
-                                    stdin: None,
-                                    stdout: Some((std::path::PathBuf::from(target), *append)),
-                                    // Legacy's `2>` lines never reach here -- INT-172 routes
-                                    // every one of them to sh whole -- so the modelled legacy
-                                    // plan never redirects stderr.
-                                    stderr: crate::spine::plan::StderrTarget::Inherit,
-                                },
-                            )
-                        }
-                        _ => (source.as_str(), crate::spine::plan::IoPlan::Simple),
-                    };
-                    let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
-                    let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
-                    let node = match crate::spine::parser::parse(source) {
-                        Ok(n) => n,
-                        Err(e) => {
-                            // Counted, not silently dropped: legacy accepted this line.
-                            audit.spine_parse_error(source, &e);
+                    // ★ ASKED, NOT RE-DERIVED: these are the same two functions main.rs calls. A
+                    // second splitter here would drift the first time either changes -- the rule
+                    // the detect_redirect call below already follows.
+                    //
+                    // ⚠️ A sequence is NOT a skip and NOT an owned category. A multiline row leaves
+                    // the domain because legacy builds no plan; a pipeline is owned because legacy
+                    // has no single plan to compare. But each part of `a && b` is an ordinary
+                    // command BOTH engines handle, so it is N ordinary comparisons.
+                    let parts: Vec<String> = crate::split_semicolons(raw_entry)
+                        .iter()
+                        .flat_map(|seg| crate::expand::split_logical(seg))
+                        .map(|(cmd, _op)| cmd)
+                        .collect();
+                    for source in &parts {
+                        // Applicability first: skipped entries need no plans produced.
+                        if let Some(reason) = crate::spine::migrate_audit::applicability(source) {
+                            audit.skip(reason);
                             continue;
                         }
-                    };
-                    // ⚠️ INT-200: `lower_pipeline`, NOT `lower`. The single-plan entry correctly
-                    // refuses a pipeline, so calling it here reported 2,371 declines for commands
-                    // the shell was already executing -- the audit measuring a door the router no
-                    // longer uses. FOURTH time the model diverged from the live path.
-                    //
-                    // No environment, deliberately: this compares PARSERS on the same input, and
-                    // expanding would make every variable-using command diverge as an artifact.
-                    let lowered = crate::spine::plan::lower_pipeline(
-                        &node,
-                        &crate::spine::plan::LowerContext::default(),
-                    );
-                    let spine = match lowered {
-                        // ★ A MULTI-STAGE PIPELINE IS OWNED, NOT COMPARED. Legacy builds no single
-                        // plan for one -- its live path routes a pipe to the native pipeline or to
-                        // sh, never through ExecContext -- so there is nothing to compare against,
-                        // exactly like a stderr redirect. Recording it as a WIN rather than a gap is
-                        // the difference between the report reading "2,371 gaps" and "2,371 owned".
-                        Ok(plans) if plans.len() > 1 => {
-                            audit.pipeline_owned(source);
-                            continue;
-                        }
-                        Ok(mut plans) => Ok(plans.remove(0)),
-                        Err(e) => Err(e),
-                    };
-                    audit.observe(crate::spine::migrate_audit::AuditObservation {
-                        source,
-                        legacy,
-                        spine,
-                    });
+                        // INT-191: raw and expanded are the same string here BY DESIGN, and the
+                        // reason is already stated below -- this audit compares PARSERS on the same
+                        // input and deliberately performs no expansion. Behaviour-preserving: before
+                        // the split one argument filled both fields. This path also never reaches
+                        // postexec, so it writes no history record.
+                        // INT-200: MODEL LEGACY AS IT ACTUALLY RUNS. The live shell calls
+                        // detect_redirect BEFORE tokenizing, so a redirect never reaches argv. Building
+                        // the context from the raw line left `>` and the path as ARGUMENTS, and once the
+                        // spine learned redirects every one of them read as a divergence -- unexpected
+                        // went 2 -> 205 in a single run, all of them the audit disagreeing with itself.
+                        //
+                        // ⚠️ Two sentinels are NOT file targets: `__stderr__` (any `2>` spelling, which
+                        // INT-172 routes to sh whole) and the bare-redirect parse error. Both keep the
+                        // line intact and Simple io, because that is what legacy does with them.
+                        let (stripped, redirect) = crate::expand::detect_redirect(source);
+                        let (legacy_line, legacy_io) = match &redirect {
+                            Some((target, append))
+                                if target != "__stderr__"
+                                    && target != "__redirect_error_no_target__" =>
+                            {
+                                (
+                                    stripped.as_str(),
+                                    crate::spine::plan::IoPlan::Files {
+                                        stdin: None,
+                                        stdout: Some((std::path::PathBuf::from(target), *append)),
+                                        // Legacy's `2>` lines never reach here -- INT-172 routes
+                                        // every one of them to sh whole -- so the modelled legacy
+                                        // plan never redirects stderr.
+                                        stderr: crate::spine::plan::StderrTarget::Inherit,
+                                    },
+                                )
+                            }
+                            _ => (&source[..], crate::spine::plan::IoPlan::Simple),
+                        };
+                        let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
+                        let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
+                        let node = match crate::spine::parser::parse(source) {
+                            Ok(n) => n,
+                            Err(e) => {
+                                // Counted, not silently dropped: legacy accepted this line.
+                                audit.spine_parse_error(source, &e);
+                                continue;
+                            }
+                        };
+                        // ⚠️ INT-200: `lower_pipeline`, NOT `lower`. The single-plan entry correctly
+                        // refuses a pipeline, so calling it here reported 2,371 declines for commands
+                        // the shell was already executing -- the audit measuring a door the router no
+                        // longer uses. FOURTH time the model diverged from the live path.
+                        //
+                        // No environment, deliberately: this compares PARSERS on the same input, and
+                        // expanding would make every variable-using command diverge as an artifact.
+                        let lowered = crate::spine::plan::lower_pipeline(
+                            &node,
+                            &crate::spine::plan::LowerContext::default(),
+                        );
+                        let spine = match lowered {
+                            // ★ A MULTI-STAGE PIPELINE IS OWNED, NOT COMPARED. Legacy builds no single
+                            // plan for one -- its live path routes a pipe to the native pipeline or to
+                            // sh, never through ExecContext -- so there is nothing to compare against,
+                            // exactly like a stderr redirect. Recording it as a WIN rather than a gap is
+                            // the difference between the report reading "2,371 gaps" and "2,371 owned".
+                            Ok(plans) if plans.len() > 1 => {
+                                audit.pipeline_owned(source);
+                                continue;
+                            }
+                            Ok(mut plans) => Ok(plans.remove(0)),
+                            Err(e) => Err(e),
+                        };
+                        audit.observe(crate::spine::migrate_audit::AuditObservation {
+                            source,
+                            legacy,
+                            spine,
+                        });
+                    }
                 }
                 return CommandResult::Output(audit.finish().render());
             }
