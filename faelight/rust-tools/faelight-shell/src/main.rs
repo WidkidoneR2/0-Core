@@ -1757,24 +1757,11 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
                     // INT-342: db-browse -- launch state.db TUI browser
-                    if line == "db-browse" || line.starts_with("db-browse ") {
-                        let table_arg = if line.len() > 10 {
-                            line[10..].trim().to_string()
-                        } else {
-                            String::new()
-                        };
-                        let mut cmd = std::process::Command::new("db-browse");
-                        if !table_arg.is_empty() {
-                            cmd.arg(&table_arg);
+                    if let Some(outcome) = engine.try_db_browse(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
-                        // this child's result IS the command result. Discarding it left the prompt
-                        // reporting the previous command.
-                        engine.set_last_exit(match cmd.status() {
-                            Ok(status) => Some(status.code().unwrap_or(1)),
-                            Err(_) => Some(1),
-                        });
-                        continue 'segments;
                     }
                     // INT-279 FQL: friday where/show/explain/recall direct queries
                     if line.starts_with("friday where ")
@@ -2360,45 +2347,17 @@ fn repl_main() -> Result<()> {
                             continue;
                         }
                         let shell = engine.shell_context();
-                        match exec::execute_spine_source(
+                        let result = exec::execute_spine_source(
                             source,
                             &shell,
                             engine.db(),
                             engine.core_root(),
                             engine.before_rules(),
-                        ) {
-                            commands::CommandResult::Output(out) => {
-                                println!("{}", out);
-                                // INT-169: a command that PRINTED succeeded. Without this the previous
-                                // failure's code survives, and since the chain decision reads it,
-                                // `false || echo one && echo two` skipped the last part.
-                                engine.set_last_exit(Some(0));
-                            }
-                            commands::CommandResult::Value(v) => {
-                                println!("{}", v.render());
-                                // INT-169: a command that PRINTED succeeded. Without this the previous
-                                // failure's code survives, and since the chain decision reads it,
-                                // `false || echo one && echo two` skipped the last part.
-                                engine.set_last_exit(Some(0));
-                            }
-                            commands::CommandResult::Error(e, code) => {
-                                eprintln!("{} {}", "x".bright_red(), e);
-                                // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
-                                // printed "exited 2" while `$?` reported 1 -- the code was formatted into
-                                // the message and thrown away. It travels on the variant now.
-                                engine.set_last_exit(Some(code));
-                            }
-                            commands::CommandResult::Empty => engine.set_last_exit(Some(0)),
-                            // Named rather than a catch-all: a `_` arm would silently swallow
-                            // Exit, so `spine-exec exit` would print instead of leaving the shell.
-                            commands::CommandResult::Exit => break 'repl,
-                            commands::CommandResult::NotBuiltin => {
-                                // Unreachable in practice -- execute_plan_dispatch converts
-                                // NotBuiltin into a direct spawn or an alias diagnostic. Handled
-                                // honestly rather than panicking, since a panic here kills fsh.
-                                eprintln!("  spine-exec: no arm matched and no spawn attempted");
-                                engine.set_last_exit(Some(1));
-                            }
+                        );
+                        if engine.absorb_result(result, "spine-exec")
+                            == crate::engine::SegmentOutcome::ExitShell
+                        {
+                            break 'repl;
                         }
                         continue;
                     }
@@ -2552,34 +2511,10 @@ fn repl_main() -> Result<()> {
                             if spine_trace {
                                 eprintln!("  [spine-router] claimed: {line}");
                             }
-                            match result {
-                                commands::CommandResult::Output(out) => {
-                                    println!("{}", out);
-                                    // INT-169: a command that PRINTED succeeded. Without this the previous
-                                    // failure's code survives, and since the chain decision reads it,
-                                    // `false || echo one && echo two` skipped the last part.
-                                    engine.set_last_exit(Some(0));
-                                }
-                                commands::CommandResult::Value(v) => {
-                                    println!("{}", v.render());
-                                    // INT-169: a command that PRINTED succeeded. Without this the previous
-                                    // failure's code survives, and since the chain decision reads it,
-                                    // `false || echo one && echo two` skipped the last part.
-                                    engine.set_last_exit(Some(0));
-                                }
-                                commands::CommandResult::Error(e, code) => {
-                                    eprintln!("{} {}", "x".bright_red(), e);
-                                    // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
-                                    // printed "exited 2" while `$?` reported 1 -- the code was formatted into
-                                    // the message and thrown away. It travels on the variant now.
-                                    engine.set_last_exit(Some(code));
-                                }
-                                commands::CommandResult::Empty => engine.set_last_exit(Some(0)),
-                                commands::CommandResult::Exit => break 'repl,
-                                commands::CommandResult::NotBuiltin => {
-                                    eprintln!("  spine: no arm matched and no spawn attempted");
-                                    engine.set_last_exit(Some(1));
-                                }
+                            if engine.absorb_result(result, "spine")
+                                == crate::engine::SegmentOutcome::ExitShell
+                            {
+                                break 'repl;
                             }
                             continue;
                         }
