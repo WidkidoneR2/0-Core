@@ -33,8 +33,16 @@ test, exit) means a broken editor never reaches metal -- that pattern caught a r
 INT-143 and is mandatory here.
 
 ## Sequencing
-AFTER INT-171. 171 gives ONE parsing entry point; swapping the editor while four parsers still exist
-means a regression could come from either change and you would not know which. One variable at a time.
+AFTER INT-201 (updated 2026-08-04). The original rule read AFTER INT-171 -- 171 gives ONE parsing
+entry point, and swapping the editor while four parsers still exist means a regression could come
+from either change and you would not know which. 171 is COMPLETE, so that precondition is satisfied.
+But the principle it encoded -- one variable at a time on the input path -- now points at INT-201.
+201 extracts a reusable executor from main.rs, restructuring the same ~233 lines of repl_main init
+that this intent edits: the Editor construction, the keybind handlers and the history load. Whichever
+lands second inherits a large merge, and a regression in that window could come from either change.
+The deeper reason is unchanged from when this rule was written: reedline touches exactly the area
+where the phase boundary is still unsettled -- prompt input, completion, history recall, Ctrl-C,
+multiline and paste -- and 201 is the work that settles it. One variable at a time.
 
 ## What must not regress -- the real gate list
 - Ctrl-C, Ctrl-D, Ctrl-L, arrows, tab-completion, reverse-search
