@@ -133,6 +133,25 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
 - [ ] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
 
+## Progress -- gate 3 underway (2026-08-05)
+Landed: `8a685fae` exit code into the engine · `d9f4d5fb` session variables + the view · `4cd5839c`
+ownership documented · `e3ff66b5` the first two handler extractions. Deployed gen 461, in daily use.
+
+`SegmentOutcome { Next, ExitShell }` exists with both variants constructed. Two variants because
+there are exactly two: twenty-five `continue 'segments` and four `break 'repl`, measured. The twelve
+`continue 'repl` sites all sit ABOVE the segments loop -- TUIs, safety guard, heredocs, the `?`
+query, parallel blocks -- so they are pre-execution guards the REPL keeps. There is no
+`break 'segments` anywhere, so "abandon this line" is not an outcome fsh has.
+
+Extracted so far: `try_db_browse` (the narrowest handler -- 19 lines, one escape, touches only
+`line`) and `absorb_result`, which collapsed two byte-identical result-handling blocks at the
+spine-exec door and the spine router into one, with the differing diagnostic string as a parameter.
+
+NEXT, in order: the remaining guard handlers between the friday block and `spine-exec` extract one at
+a time on the same `Option<SegmentOutcome>` shape. The tail from ~3474 waits -- it reads
+`execution_id`, `_cmd_timer_start`, `cmd_output` and `base_cmd`, and closes its own INT-191
+lifecycle record, which is where an eleven-argument function would come from.
+
 ## Scope guardrails
 - Do NOT delete the command registry (main.rs ~903). It is built on every startup and never read
   afterwards, but removing it is a DESIGN decision about abandoned wiring, not a refactor. Its one
