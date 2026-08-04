@@ -648,13 +648,27 @@ fn main() -> Result<()> {
     // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
     {
         let args: Vec<String> = std::env::args().collect();
-        if args.len() >= 3 && args[1] == "-c" {
-            let status = std::process::Command::new("sh")
-                .arg("-c")
-                .arg(&args[2])
-                .status()
-                .unwrap_or_else(|_| std::process::exit(1));
-            std::process::exit(status.code().unwrap_or(1));
+        // ⚠️ ONE HANDLER, MERGED FROM TWO (2026-08-03). A second copy lived in repl_main and
+        // differed in three ways that mattered: it searched the args for `-c` rather than
+        // requiring position 1, it used `/bin/sh` rather than PATH, and it exited 0 on a missing
+        // operand. The tolerant search is kept because `-l ... -c` is a legitimate POSIX
+        // invocation -- INT-299's comment cited `exec -l '$SHELL' -c ...` from a niri session that
+        // no longer exists, but removing a guard because today's config does not need it is how
+        // the next person gets locked out. `/bin/sh` is kept because on NixOS it is one of only
+        // two stable absolute paths.
+        //
+        // ⚠️⚠️ AND THIS DELEGATES TO sh, WHICH MEANS `fsh -c` IS NOT fsh: no aliases, no spine
+        // router, no digit guard, no job table. That is a DESIGN QUESTION still open, not an
+        // oversight -- see INT-200. It is why the conformance suite had to stop using this door.
+        if let Some(c_pos) = args.iter().position(|a| a == "-c") {
+            if let Some(cmd_str) = args.get(c_pos + 1) {
+                let status = std::process::Command::new("/bin/sh")
+                    .args(["-c", cmd_str])
+                    .status()
+                    .unwrap_or_else(|_| std::process::exit(1));
+                std::process::exit(status.code().unwrap_or(0));
+            }
+            std::process::exit(0);
         }
     }
     // INT-092 Phase 3: --refresh-cheatsheet rebuilds command_registry and exits.
@@ -707,21 +721,6 @@ fn main() -> Result<()> {
 
 fn repl_main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
-
-    // POSIX -c flag support — required for login shell compatibility
-    // niri-session does: exec bash -c "exec -l '$SHELL' -c '$0 -l $*'"
-    // We must handle: faelight-shell -c "command string"
-    if let Some(c_pos) = args.iter().position(|a| a == "-c") {
-        if let Some(cmd_str) = args.get(c_pos + 1) {
-            // Execute the command string via sh and exit
-            let status = std::process::Command::new("/bin/sh")
-                .args(["-c", cmd_str])
-                .status()
-                .unwrap_or_else(|_| std::process::exit(1));
-            std::process::exit(status.code().unwrap_or(0));
-        }
-        std::process::exit(0);
-    }
 
     // Phase 19 — Login shell support
     // If invoked as login shell (argv[0] starts with '-' or --login flag),
