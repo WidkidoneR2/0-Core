@@ -69,6 +69,12 @@ impl Engine {
         &self.core_root
     }
 
+    /// The before-run rules. Every `cfg` use inside the loop was this field, so the
+    /// engine takes them by partial move and the loop stops holding a config at all.
+    pub fn before_rules(&self) -> &[BeforeRunRule] {
+        &self.before_rules
+    }
+
     /// Lend the read-only view that variable resolution and the spine router need.
     ///
     /// ⚠️ BUILT PER CALL, DELIBERATELY. `ShellContext` is a snapshot: it borrows the variables and

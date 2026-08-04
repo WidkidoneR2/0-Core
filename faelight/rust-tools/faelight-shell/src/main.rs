@@ -828,11 +828,15 @@ fn repl_main() -> Result<()> {
     // Start in ~/0-core by default
     let _ = std::env::set_current_dir(&core_root);
 
+    // INT-201: the engine takes ownership of the resources from here down. core_root is
+    // computed first because it is derived from db, which moves.
+    let engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
+
     // INT-124: refresh health BEFORE the welcome header renders, so the splash
     // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
-    refresh_health_if_stale(&core_root, &db);
+    refresh_health_if_stale(engine.core_root(), engine.db());
     // Print welcome
-    print_welcome(&core_root, &db);
+    print_welcome(engine.core_root(), engine.db());
     // Write journal session-start entry
     let _ = std::process::Command::new("core")
         .args(["journal", "session-start"])
@@ -860,7 +864,7 @@ fn repl_main() -> Result<()> {
         .completion_show_all_if_ambiguous(true)
         .edit_mode(EditMode::Emacs)
         .build();
-    let helper = completion::ForestHelper::new(&db);
+    let helper = completion::ForestHelper::new(engine.db());
     let mut rl: Editor<completion::ForestHelper<'_>, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
     // Ctrl+L handled in REPL loop via clear command
@@ -901,10 +905,10 @@ fn repl_main() -> Result<()> {
 
     // INT-173 — build command registry on startup
     let mut registry = registry::Registry::new();
-    registry.populate(&db, &core_root);
+    registry.populate(engine.db(), engine.core_root());
 
     // Load history from state.db
-    db.load_history(&mut rl);
+    engine.db().load_history(&mut rl);
     // INT-250: bind Ctrl+R to a custom ConditionalEventHandler that sets a flag
     // and accepts the line. After readline returns, we check the flag and run TUI.
     use rustyline::{Cmd, KeyCode as RKeyCode, KeyEvent as RKeyEvent, Modifiers};
@@ -998,10 +1002,14 @@ fn repl_main() -> Result<()> {
     // Restore persisted variables from state.db
     {
         {
-            let _ = db.conn.execute_batch(
+            let _ = engine.db().conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         );
-            if let Ok(mut stmt) = db.conn.prepare("SELECT key, value FROM shell_persist") {
+            if let Ok(mut stmt) = engine
+                .db()
+                .conn
+                .prepare("SELECT key, value FROM shell_persist")
+            {
                 let rows: Vec<(String, String)> = stmt
                     .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
                     .map(|rows| rows.filter_map(|r| r.ok()).collect())
@@ -1024,7 +1032,9 @@ fn repl_main() -> Result<()> {
             .take()
             .map(|t| t.elapsed().as_millis() as u64);
         if let Some(id) = last_history_id.take() {
-            db.update_history_completion(id, last_exit_code, elapsed);
+            engine
+                .db()
+                .update_history_completion(id, last_exit_code, elapsed);
         }
         // INT-296: record CommandBlock to state.db
         if let Some(ref cmd) = last_history_id.as_ref().map(|_| ()).and(None::<String>) {
@@ -1035,7 +1045,7 @@ fn repl_main() -> Result<()> {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
             let session = std::env::var("FSH_SESSION_ID").unwrap_or_else(|_| "unknown".to_string());
-            let _ = db.conn.execute(
+            let _ = engine.db().conn.execute(
                 "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
                  SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIMIT 1",
                 rusqlite::params![session, cwd,
@@ -1057,7 +1067,7 @@ fn repl_main() -> Result<()> {
             job_count: job_table.job_count(),
         };
         print!("{}", prompt::OSC133_PROMPT_START);
-        prompt::render_context(&db, &ctx);
+        prompt::render_context(engine.db(), &ctx);
 
         // INT-045: re-evaluate direnv when the working directory changes
         if let Ok(cur_dir) = std::env::current_dir() {
@@ -1066,7 +1076,7 @@ fn repl_main() -> Result<()> {
                 last_dir = cur_dir;
             }
         }
-        let prompt_str = prompt::render_line(&db, last_exit_code);
+        let prompt_str = prompt::render_line(engine.db(), last_exit_code);
 
         // INT-249b: multi-line aware read - accumulates until command is complete
         // INT-099: run any queued paste-block command as if freshly typed.
@@ -1107,13 +1117,14 @@ fn repl_main() -> Result<()> {
                             }
                             // INT-258: Ctrl+D opens health TUI
                             if hhealth_triggered.swap(false, Ordering::SeqCst) {
-                                health_tui::run_health_tui(&core_root);
+                                health_tui::run_health_tui(engine.core_root());
                                 break Ok(String::new());
                             }
                             // INT-253: Ctrl+G opens git TUI
                             if hgit_triggered.swap(false, Ordering::SeqCst) {
-                                let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
-                                git_tui::run_git_tui(&core_root, active.as_deref());
+                                let active =
+                                    engine.db().get_focus_intent().map(|i| format!("INT-{}", i));
+                                git_tui::run_git_tui(engine.core_root(), active.as_deref());
                                 break Ok(String::new());
                             }
                             if !buffer.is_empty() {
@@ -1190,7 +1201,7 @@ fn repl_main() -> Result<()> {
                 // !! — expand to last command before saving history
                 // !<pattern> — search history for pattern and run
                 let line = if line.trim() == "!!" {
-                    match db.get_last_command() {
+                    match engine.db().get_last_command() {
                         Some(last) => {
                             println!("  {}", last.as_str());
                             last
@@ -1205,7 +1216,7 @@ fn repl_main() -> Result<()> {
                     && !line.trim().starts_with("!!")
                 {
                     let pattern = &line.trim()[1..];
-                    match db.get_command_matching(pattern) {
+                    match engine.db().get_command_matching(pattern) {
                         Some(found) => {
                             println!("  {}", found.as_str());
                             found
@@ -1248,18 +1259,18 @@ fn repl_main() -> Result<()> {
                     continue 'repl;
                 }
                 if line.trim() == "cheat" {
-                    cheatsheet_tui::run_cheatsheet_tui(&core_root);
+                    cheatsheet_tui::run_cheatsheet_tui(engine.core_root());
                     continue 'repl;
                 }
                 // INT-254: it opens intent ledger TUI
                 if line.trim() == "it" {
-                    intent_tui::run_intent_tui(&core_root);
+                    intent_tui::run_intent_tui(engine.core_root());
                     continue 'repl;
                 }
                 // INT-253: gt opens git TUI
                 if line.trim() == "gt" {
-                    let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
-                    git_tui::run_git_tui(&core_root, active.as_deref());
+                    let active = engine.db().get_focus_intent().map(|i| format!("INT-{}", i));
+                    git_tui::run_git_tui(engine.core_root(), active.as_deref());
                     continue 'repl;
                 }
                 let line = match line.trim() {
@@ -1294,7 +1305,7 @@ fn repl_main() -> Result<()> {
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 let line = expand_braces(&line);
-                match db.save_history_entry(&line) {
+                match engine.db().save_history_entry(&line) {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
                 }
@@ -1311,7 +1322,7 @@ fn repl_main() -> Result<()> {
                 if line.contains('\n') {
                     let exit = pty_exec::run_with_capture_and_scan(&line);
                     last_exit_code = Some(exit);
-                    match db.save_history_entry(&line) {
+                    match engine.db().save_history_entry(&line) {
                         Ok(id) => {
                             last_history_id = Some(id);
                         }
@@ -1376,11 +1387,12 @@ fn repl_main() -> Result<()> {
                             let mut answer = String::new();
                             let _ = std::io::stdin().read_line(&mut answer);
                             if answer.trim().to_lowercase() == "y" {
-                                let _ = db.conn.execute(
+                                let _ = engine.db().conn.execute(
                                     "INSERT INTO shell_history (command, timestamp) VALUES (?1, strftime('%s','now'))",
                                     rusqlite::params![cmd]
                                 );
-                                let result = commands::execute(&cmd, &db, &core_root);
+                                let result =
+                                    commands::execute(&cmd, engine.db(), engine.core_root());
                                 match result {
                                     commands::CommandResult::Output(s) => println!("{}", s),
                                     commands::CommandResult::Error(e, _) => eprintln!("  x {}", e),
@@ -1429,7 +1441,7 @@ fn repl_main() -> Result<()> {
                 'segments: for (seg_idx, (segment, op)) in segments.iter().enumerate() {
                     // INT-307: restore power profile after compilation
                     if seg_idx == 0 {
-                        if let Ok(prev) = db.conn.query_row(
+                        if let Ok(prev) = engine.db().conn.query_row(
                             "SELECT value FROM shell_state WHERE key = 'power_profile_prev'",
                             [],
                             |r| r.get::<_, String>(0),
@@ -1438,11 +1450,11 @@ fn repl_main() -> Result<()> {
                                 let _ = std::process::Command::new("powerprofilesctl")
                                     .args(["set", &prev])
                                     .status();
-                                let _ = db.conn.execute(
+                                let _ = engine.db().conn.execute(
                                     "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile', ?1)",
                                     rusqlite::params![prev],
                                 );
-                                let _ = db.conn.execute(
+                                let _ = engine.db().conn.execute(
                                     "DELETE FROM shell_state WHERE key = 'power_profile_prev'",
                                     [],
                                 );
@@ -1521,8 +1533,8 @@ fn repl_main() -> Result<()> {
                             || (_snap_tok == "git"
                                 && (line.contains(" push") || line.contains(" reset")));
                         if _is_destructive {
-                            let _iid = db.get_focus_intent();
-                            db.capture_snapshot(line, _iid.as_deref());
+                            let _iid = engine.db().get_focus_intent();
+                            engine.db().capture_snapshot(line, _iid.as_deref());
                         }
                         // INT-307 Phase 2: Friday power switching on compilation
                         {
@@ -1534,7 +1546,8 @@ fn repl_main() -> Result<()> {
                                     || line.contains(" test")
                                     || line.contains(" nextest"));
                             if _is_compile {
-                                let _prev = db
+                                let _prev = engine
+                                    .db()
                                     .conn
                                     .query_row(
                                         "SELECT value FROM shell_state WHERE key = 'power_profile'",
@@ -1542,7 +1555,7 @@ fn repl_main() -> Result<()> {
                                         |r| r.get::<_, String>(0),
                                     )
                                     .unwrap_or_else(|_| "balanced".to_string());
-                                let _ = db.conn.execute(
+                                let _ = engine.db().conn.execute(
                                 "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile_prev', ?1)",
                                 rusqlite::params![_prev],
                             );
@@ -1562,7 +1575,7 @@ fn repl_main() -> Result<()> {
                             let sub = line.split_whitespace().nth(1).unwrap_or("");
                             let arg = line.split_whitespace().nth(2).unwrap_or("");
                             {
-                                let fdb = &db;
+                                let fdb = engine.db();
                                 match sub {
                                     "focus" => {
                                         if arg.is_empty() {
@@ -1887,8 +1900,11 @@ fn repl_main() -> Result<()> {
                                     .into_iter()
                                     .map(|op| {
                                         if let value::PipeOp::Join { table, on } = op {
-                                            let right_result =
-                                                commands::execute(&table, &db, &core_root);
+                                            let right_result = commands::execute(
+                                                &table,
+                                                engine.db(),
+                                                engine.core_root(),
+                                            );
                                             if let commands::CommandResult::Value(
                                                 value::Value::Table(rows),
                                             ) = right_result
@@ -1902,7 +1918,7 @@ fn repl_main() -> Result<()> {
                                         }
                                     })
                                     .collect();
-                                match commands::execute(base, &db, &core_root) {
+                                match commands::execute(base, engine.db(), engine.core_root()) {
                                     commands::CommandResult::Value(v)
                                         if !pipeline_ops.is_empty() =>
                                     {
@@ -1919,7 +1935,7 @@ fn repl_main() -> Result<()> {
                             }
                             continue;
                         }
-                        let custom_patterns = nl::load_toml_patterns(&core_root);
+                        let custom_patterns = nl::load_toml_patterns(engine.core_root());
                         match nl::translate_with_custom(query, &custom_patterns) {
                             Some(t) => {
                                 print!("{}", nl::render_translation(&t));
@@ -1935,7 +1951,11 @@ fn repl_main() -> Result<()> {
                                     .to_lowercase();
                                 if answer == "y" || answer.is_empty() {
                                     println!();
-                                    match commands::execute(&t.pipeline, &db, &core_root) {
+                                    match commands::execute(
+                                        &t.pipeline,
+                                        engine.db(),
+                                        engine.core_root(),
+                                    ) {
                                         commands::CommandResult::Value(v) => {
                                             println!("{}", v.render())
                                         }
@@ -2149,9 +2169,9 @@ fn repl_main() -> Result<()> {
                             let result = exec::execute_with_context(
                                 &raw_line,
                                 &rest_expanded,
-                                &db,
-                                &core_root,
-                                &cfg.before_rules,
+                                engine.db(),
+                                engine.core_root(),
+                                engine.before_rules(),
                             );
                             // INT-143 BUG B: the command is done -- put the environment back exactly
                             // as it was. A var that did not exist before is REMOVED, not left empty;
@@ -2189,8 +2209,8 @@ fn repl_main() -> Result<()> {
                                 commands::CommandResult::Error(_, _) => Some(1),
                                 _ => Some(0),
                             };
-                            if let Err(e) =
-                                db.complete_command_execution(&crate::db::ExecutionCompletion {
+                            if let Err(e) = engine.db().complete_command_execution(
+                                &crate::db::ExecutionCompletion {
                                     session_id: exec::session_id(),
                                     execution_id,
                                     executed_text: Some(&rest_expanded),
@@ -2202,8 +2222,8 @@ fn repl_main() -> Result<()> {
                                         .unwrap_or_default()
                                         .as_secs()
                                         as i64,
-                                })
-                            {
+                                },
+                            ) {
                                 eprintln!("warning: failed to close command_execution record: {e}");
                             }
                             match result.result {
@@ -2279,7 +2299,7 @@ fn repl_main() -> Result<()> {
                             .or(env_val.as_ref())
                         {
                             let val = val.clone();
-                            let _ = db.conn.execute(
+                            let _ = engine.db().conn.execute(
                                 "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
                                 rusqlite::params![name, &val],
                             );
@@ -2330,9 +2350,9 @@ fn repl_main() -> Result<()> {
                         match exec::execute_spine_source(
                             source,
                             &shell,
-                            &db,
-                            &core_root,
-                            &cfg.before_rules,
+                            engine.db(),
+                            engine.core_root(),
+                            engine.before_rules(),
                         ) {
                             commands::CommandResult::Output(out) => {
                                 println!("{}", out);
@@ -2433,7 +2453,7 @@ fn repl_main() -> Result<()> {
                     let line = if cat_with_redirect {
                         line.to_string()
                     } else {
-                        commands::expand_aliases(line, &db)
+                        commands::expand_aliases(line, engine.db())
                     };
                     let line = line.as_str();
                     // INT-169 blocker 6: THE ROUTING POINT. Placed HERE, above expand_vars,
@@ -2487,9 +2507,9 @@ fn repl_main() -> Result<()> {
                         if let Some(attempt) = exec::try_spine_background_command(
                             line,
                             &shell,
-                            &db,
-                            &core_root,
-                            &cfg.before_rules,
+                            engine.db(),
+                            engine.core_root(),
+                            engine.before_rules(),
                         ) {
                             match attempt {
                                 Ok((command, label)) => {
@@ -2515,9 +2535,9 @@ fn repl_main() -> Result<()> {
                         if let Some(result) = exec::try_execute_spine_source(
                             line,
                             &shell,
-                            &db,
-                            &core_root,
-                            &cfg.before_rules,
+                            engine.db(),
+                            engine.core_root(),
+                            engine.before_rules(),
                         ) {
                             if spine_trace {
                                 eprintln!("  [spine-router] claimed: {line}");
@@ -2609,7 +2629,8 @@ fn repl_main() -> Result<()> {
                             } else {
                                 "_source".to_string()
                             };
-                            let source_result = commands::execute(source_cmd, &db, &core_root);
+                            let source_result =
+                                commands::execute(source_cmd, engine.db(), engine.core_root());
                             // INT-169: default to success, then let the Error arm below override with the
                             // REAL code. Without this the whole branch left `$?` reporting the previous
                             // command -- invisible today, load-bearing once `&&` reads it.
@@ -2815,7 +2836,11 @@ fn repl_main() -> Result<()> {
                                 let builtin_result = if cat_with_redirect || line_has_pipe {
                                     commands::CommandResult::NotBuiltin
                                 } else {
-                                    commands::try_builtin(&cmd_part, &db, &core_root)
+                                    commands::try_builtin(
+                                        &cmd_part,
+                                        engine.db(),
+                                        engine.core_root(),
+                                    )
                                 };
                                 let is_builtin =
                                     !matches!(builtin_result, commands::CommandResult::NotBuiltin);
@@ -3035,8 +3060,11 @@ fn repl_main() -> Result<()> {
                                 ];
                                 if vocab_builtins.contains(&cmd_name) && idx == 0 {
                                     let cmd_str = raw_cmd.trim().to_string();
-                                    let builtin_result =
-                                        commands::execute(&cmd_str, &db, &core_root);
+                                    let builtin_result = commands::execute(
+                                        &cmd_str,
+                                        engine.db(),
+                                        engine.core_root(),
+                                    );
                                     // INT-169: default to success, then let the Error arm below override with the
                                     // REAL code. Without this the whole branch left `$?` reporting the previous
                                     // command -- invisible today, load-bearing once `&&` reads it.
@@ -3086,8 +3114,8 @@ fn repl_main() -> Result<()> {
                                             };
                                             let builtin_out = match commands::execute(
                                                 &builtin_line,
-                                                &db,
-                                                &core_root,
+                                                engine.db(),
+                                                engine.core_root(),
                                             ) {
                                                 commands::CommandResult::Output(o) => Some(o),
                                                 commands::CommandResult::Value(v) => {
@@ -3232,7 +3260,7 @@ fn repl_main() -> Result<()> {
                                 now.dimmed()
                             );
                             println!("{}", "━".repeat(52).dimmed());
-                            match commands::execute(&base_cmd, &db, &core_root) {
+                            match commands::execute(&base_cmd, engine.db(), engine.core_root()) {
                                 commands::CommandResult::Value(v) => {
                                     let result = if !stream_ops.is_empty() {
                                         value::apply_pipeline(v, &stream_ops)
@@ -3373,7 +3401,8 @@ fn repl_main() -> Result<()> {
                         .into_iter()
                         .map(|op| {
                             if let value::PipeOp::Join { table, on } = op {
-                                let right_result = commands::execute(&table, &db, &core_root);
+                                let right_result =
+                                    commands::execute(&table, engine.db(), engine.core_root());
                                 if let commands::CommandResult::Value(value::Value::Table(rows)) =
                                     right_result
                                 {
@@ -3430,9 +3459,9 @@ fn repl_main() -> Result<()> {
                     let execution = exec::execute_with_context(
                         &raw_line,
                         &base_cmd,
-                        &db,
-                        &core_root,
-                        &cfg.before_rules,
+                        engine.db(),
+                        engine.core_root(),
+                        engine.before_rules(),
                     );
                     let execution_id = execution.execution_id;
                     // INT-191: the state is derived from a BORROW, because the match below MOVES
@@ -3445,19 +3474,28 @@ fn repl_main() -> Result<()> {
                             // never sets `last_exit_code`, so passing it would record the PREVIOUS
                             // command's result, which is the stale-value bug INT-189 removed.
                             // EXEC_EXIT already carries the meaning; no process exited.
-                            if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {
-                                session_id: exec::session_id(),
-                                execution_id,
-                                executed_text: Some(&base_cmd),
-                                state: crate::db::EXEC_EXIT,
-                                exit_code: None,
-                                duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
-                                finished_at: std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs() as i64,
-                            }) {
-                                eprintln!("warning: failed to close exit command_execution record: {e}");
+                            if let Err(e) =
+                                engine.db().complete_command_execution(
+                                    &crate::db::ExecutionCompletion {
+                                        session_id: exec::session_id(),
+                                        execution_id,
+                                        executed_text: Some(&base_cmd),
+                                        state: crate::db::EXEC_EXIT,
+                                        exit_code: None,
+                                        duration_ms: Some(
+                                            _cmd_timer_start.elapsed().as_millis() as u64
+                                        ),
+                                        finished_at: std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_secs()
+                                            as i64,
+                                    },
+                                )
+                            {
+                                eprintln!(
+                                    "warning: failed to close exit command_execution record: {e}"
+                                );
                             }
                             break 'repl;
                         }
@@ -3569,18 +3607,22 @@ fn repl_main() -> Result<()> {
                     // INT-191: close the lifecycle HERE, where the exit code finally exists.
                     // postexec could not do it: the pipeline arms above decide the code after
                     // `execute_with_context` has already returned.
-                    if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {
-                        session_id: exec::session_id(),
-                        execution_id,
-                        executed_text: Some(&base_cmd),
-                        state: exec_state,
-                        exit_code: last_exit_code,
-                        duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
-                        finished_at: std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs() as i64,
-                    }) {
+                    if let Err(e) =
+                        engine
+                            .db()
+                            .complete_command_execution(&crate::db::ExecutionCompletion {
+                                session_id: exec::session_id(),
+                                execution_id,
+                                executed_text: Some(&base_cmd),
+                                state: exec_state,
+                                exit_code: last_exit_code,
+                                duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
+                                finished_at: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64,
+                            })
+                    {
                         eprintln!("warning: failed to close command_execution record: {e}");
                     }
                     // Command timing intelligence — warn if command is unusually slow (INT-194)
@@ -3589,7 +3631,7 @@ fn repl_main() -> Result<()> {
                         let cmd_key_owned = commands::command_word(&base_cmd);
                         let cmd_key = cmd_key_owned.as_str();
                         if elapsed_ms > 500 {
-                            let _ = db.conn.execute(
+                            let _ = engine.db().conn.execute(
                                 "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
                                 rusqlite::params![
                                     format!("TIMING:{}:{}", cmd_key, elapsed_ms),
@@ -3599,7 +3641,7 @@ fn repl_main() -> Result<()> {
                                         .unwrap_or(0)
                                 ],
                             );
-                            let avg_ms: Option<f64> = db.conn.query_row(
+                            let avg_ms: Option<f64> = engine.db().conn.query_row(
                                 "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
                                  FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
                                 rusqlite::params![format!("TIMING:{}:%", cmd_key)],
@@ -3646,7 +3688,8 @@ fn repl_main() -> Result<()> {
                         );
                         if !skip_suggest {
                             // Find what command most often follows this one
-                            let next_cmd: Option<String> = db
+                            let next_cmd: Option<String> = engine
+                                .db()
                                 .conn
                                 .query_row(
                                     "SELECT next_cmd, COUNT(*) as freq
@@ -3665,7 +3708,8 @@ fn repl_main() -> Result<()> {
                                 .ok();
                             if let Some(suggestion) = next_cmd {
                                 // Only show if it appears often (check count >= 3)
-                                let freq: i64 = db
+                                let freq: i64 = engine
+                                    .db()
                                     .conn
                                     .query_row(
                                         "SELECT COUNT(*) FROM shell_history h1
@@ -3677,7 +3721,7 @@ fn repl_main() -> Result<()> {
                                     .unwrap_or(0);
                                 if freq >= 3 {
                                     // Check friday_hints setting -- off = silent learning
-                                    let hints_enabled = db.conn.query_row(
+                                    let hints_enabled = engine.db().conn.query_row(
                                         "SELECT value FROM shell_state WHERE key='config.friday_hints'",
                                         [],
                                         |r| r.get::<_, String>(0),
@@ -3701,7 +3745,8 @@ fn repl_main() -> Result<()> {
                     // INT-296 Phase 5: Friday consecutive failure detection
                     {
                         let fail_cmd = commands::command_word(&base_cmd);
-                        let consecutive: i64 = db
+                        let consecutive: i64 = engine
+                            .db()
                             .conn
                             .query_row(
                                 "SELECT COUNT(*) FROM (
@@ -3734,7 +3779,7 @@ fn repl_main() -> Result<()> {
                     // Store last output for `last` command (INT-194)
                     if let Some(ref out) = cmd_output {
                         if !out.is_empty() {
-                            let _ = db.conn.execute(
+                            let _ = engine.db().conn.execute(
                                 "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_output', ?1)",
                                 rusqlite::params![out],
                             );
@@ -3823,14 +3868,14 @@ fn repl_main() -> Result<()> {
                         let _ = std::fs::remove_file(&fm_cwd_file);
                     }
                     // Phase 17 — evaluate triggers after every command
-                    triggers::ensure_schema(&db);
-                    let health = db.health_score();
+                    triggers::ensure_schema(engine.db());
+                    let health = engine.db().health_score();
                     let trigger_ctx = triggers::TriggerContext {
                         last_command: base_cmd.clone(),
                         health_score: health,
                         last_domain: None,
                     };
-                    triggers::evaluate(&db, &trigger_ctx, &core_root);
+                    triggers::evaluate(engine.db(), &trigger_ctx, engine.core_root());
                     // INT-220 -- Send FridayEvent to daemon socket (fire and forget)
                     {
                         let cmd_str = base_cmd.clone();
@@ -3895,7 +3940,8 @@ fn repl_main() -> Result<()> {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
                                                     // INT-246: once per intent -- only speak when intent changed
-                                                    let current_intent = db
+                                                    let current_intent = engine
+                                                        .db()
                                                         .get_focus_intent()
                                                         .map(|i| format!("{}", i));
                                                     if current_intent == last_friday_intent
@@ -3932,7 +3978,8 @@ fn repl_main() -> Result<()> {
                     }
                     // 🌲 Forest speaks — surface insightd insights after every command
                     {
-                        let insight: Option<(i64, String, String, f64)> = db
+                        let insight: Option<(i64, String, String, f64)> = engine
+                            .db()
                             .conn
                             .query_row(
                                 "SELECT id, signal, detail, importance FROM forest_insights
@@ -3952,7 +3999,7 @@ fn repl_main() -> Result<()> {
                                 "forest:".bright_cyan().dimmed(),
                                 detail.bright_white()
                             );
-                            let _ = db.conn.execute(
+                            let _ = engine.db().conn.execute(
                                 "UPDATE forest_insights SET shown = 1 WHERE id = ?1",
                                 rusqlite::params![id],
                             );
@@ -3960,13 +4007,13 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-203 Phase 2 + INT-277: Friday proactive message with attention scoring
                     if _session_commands % 10 == 0 && _session_commands > 0 {
-                        let pattern: Option<(String, String, f64)> = db.conn.query_row(
+                        let pattern: Option<(String, String, f64)> = engine.db().conn.query_row(
                             "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.7 ORDER BY confidence DESC LIMIT 1",
                             [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
                         ).ok();
                         if let Some((trigger, action, conf)) = pattern {
                             // INT-277: compute attention score before speaking
-                            let seen_count: i64 = db.conn.query_row(
+                            let seen_count: i64 = engine.db().conn.query_row(
                                 "SELECT COUNT(*) FROM friday_attention WHERE event_type = 'pattern_match'",
                                 [], |r| r.get(0),
                             ).unwrap_or(0);
@@ -3992,7 +4039,7 @@ fn repl_main() -> Result<()> {
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap_or_default()
                                 .as_secs() as i64;
-                            let _ = db.conn.execute(
+                            let _ = engine.db().conn.execute(
                                 "INSERT INTO friday_attention (timestamp, event_type, event_detail, novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, threshold, spoke) VALUES (?1,'pattern_match',?2,?3,?4,?5,?6,?7,?8,0.6,?9)",
                                 rusqlite::params![now, format!("{} -> {}", trigger, action), novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, if spoke { 1 } else { 0 }],
                             );
@@ -4030,7 +4077,7 @@ fn repl_main() -> Result<()> {
         .args(["journal", "daily-summary"])
         .output();
     // Save session state on exit
-    session::SessionMemory::save(&core_root, None, &db);
+    session::SessionMemory::save(engine.core_root(), None, engine.db());
     // INT-208: Log session pattern with focus_score
     let _session_duration = _session_start.elapsed().as_secs() / 60;
     let now = std::time::SystemTime::now()
@@ -4041,7 +4088,7 @@ fn repl_main() -> Result<()> {
     let hour = chrono::Local::now().hour() as i64;
     // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
     let session_start_ts = now - (_session_duration as i64 * 60);
-    let distinct_intents: i64 = db.conn.query_row(
+    let distinct_intents: i64 = engine.db().conn.query_row(
         "SELECT COUNT(DISTINCT intent_id) FROM commit_patterns WHERE timestamp > ?1 AND intent_id != ''",
         rusqlite::params![session_start_ts],
         |r| r.get(0),
@@ -4051,7 +4098,7 @@ fn repl_main() -> Result<()> {
     } else {
         1.0 / distinct_intents as f64
     };
-    let _ = db.conn.execute_batch(
+    let _ = engine.db().conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS session_patterns (
             id TEXT PRIMARY KEY,
             day_of_week INTEGER,
@@ -4065,7 +4112,7 @@ fn repl_main() -> Result<()> {
             duration_minutes INTEGER
         );",
     );
-    let _ = db.conn.execute(
+    let _ = engine.db().conn.execute(
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
