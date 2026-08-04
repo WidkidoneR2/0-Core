@@ -57,6 +57,18 @@ impl Engine {
         }
     }
 
+    /// The forest database. A SHARED borrow is enough for every caller: not one db method
+    /// main.rs calls takes `&mut self` (all nine are `&self`, even the four that write), and
+    /// `conn` is public, so `engine.db().conn.execute(..)` needs no extra surface here.
+    pub fn db(&self) -> &ForestDb {
+        &self.db
+    }
+
+    /// The forest root, as `&str` because every consumer in the loop takes one.
+    pub fn core_root(&self) -> &str {
+        &self.core_root
+    }
+
     /// Lend the read-only view that variable resolution and the spine router need.
     ///
     /// ⚠️ BUILT PER CALL, DELIBERATELY. `ShellContext` is a snapshot: it borrows the variables and
