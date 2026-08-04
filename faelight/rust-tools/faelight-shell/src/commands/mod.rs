@@ -640,6 +640,19 @@ fn execute_impl(
                         // ⚠️ Two sentinels are NOT file targets: `__stderr__` (any `2>` spelling, which
                         // INT-172 routes to sh whole) and the bare-redirect parse error. Both keep the
                         // line intact and Simple io, because that is what legacy does with them.
+                        // ⚠️ THE `&` COMES OFF FIRST, and the order is load-bearing. detect_redirect scans the
+                        // raw line, so `uname > f &` would otherwise yield a target of `f &` rather than `f`,
+                        // and the modelled legacy plan would redirect to a filename nobody typed.
+                        //
+                        // ★ Legacy strips it the same way at its own Phase 8 before spawning, so this models
+                        // what actually runs rather than the text as typed -- the same correction the redirect
+                        // case needed when every `>` line read as a divergence (936e9fbf).
+                        let source_trimmed = source.trim_end();
+                        let source: &str = if source_trimmed.ends_with(" &") {
+                            source_trimmed[..source_trimmed.len() - 2].trim_end()
+                        } else {
+                            source
+                        };
                         let (stripped, redirect) = crate::expand::detect_redirect(source);
                         let (legacy_line, legacy_io) = match &redirect {
                             Some((target, append))
@@ -669,6 +682,20 @@ fn execute_impl(
                                 audit.spine_parse_error(source, &e);
                                 continue;
                             }
+                        };
+                        // ⚠️ INT-200: UNWRAP `Background` BEFORE LOWERING, because the audit and the runtime
+                        // were traversing different things. The router calls try_spine_background_command,
+                        // which unwraps and lowers the OPERAND; the audit called lower_pipeline on the WRAPPER,
+                        // which refuses by design -- so 56 commands the shell executes were counted as declines.
+                        // SEVENTH time this model diverged from the live path.
+                        //
+                        // ★ AND IT IS COMPARED, NOT DECLARED OWNED. A pipeline gets its own category because
+                        // legacy builds no single plan for one; a backgrounded command's operand is an ordinary
+                        // command BOTH engines model, so it belongs in `equivalent` -- a new positive bucket
+                        // here would be an explanation where a comparison was available.
+                        let node = match node.node {
+                            crate::spine::ast::AstNode::Background(inner) => *inner,
+                            other => crate::spine::ast::Spanned::new(node.span, other),
                         };
                         // ⚠️ INT-200: `lower_pipeline`, NOT `lower`. The single-plan entry correctly
                         // refuses a pipeline, so calling it here reported 2,371 declines for commands
