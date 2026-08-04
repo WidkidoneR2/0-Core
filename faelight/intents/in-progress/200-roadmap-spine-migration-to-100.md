@@ -79,36 +79,48 @@ encodes exactly the accumulated weirdness fsh keeps discovering one bug at a tim
 subset converts bug-by-bug discovery into a measured percentage.
 See: github.com/oils-for-unix/oils/wiki/Spec-Tests
 
-## MEASURED STATE (gen 453 + 4e939bf4, 2026-08-03)
-Applicable to comparison: 21,627   Equivalent: 21,289  98.4%
-Skipped: 9,990                     Safe improvements: 16
-  multiline: 7,081                 Feature gaps: 165  0.8%
-  stderr-delegated: 2,909          Unexpected: 29  0.1%
-Spine parse errors: 146            Pipelines owned: 2,438
+## MEASURED STATE (gen 457 + 90db9f84, 2026-08-03)
+Applicable to comparison: 21,735   Equivalent: 21,394  98.4%
+Skipped: 10,125                    Safe improvements: 16
+  multiline: 7,185                 Feature gaps: 167  0.8%
+  stderr-delegated: 2,940          Unexpected: 30  0.1%
+Spine parse errors: 107            Pipelines owned: 2,456
 Declined by construct:
   148 forest value pipeline (legacy's permanently)
-   50 operator Background  <- now the largest single item
-   42 lex error
+   39 lex: unterminated quote  ·  3 lex: unterminated $( )
    27 comparison, not a redirect -- DELIBERATE DIVERGENCE
-   17 unlowerable: sequence (atomic control structures)
-   27 malformed or empty
-THE REAL REMAINING WORK IS ABOUT 109 COMMANDS: background, lex errors and the atomic control
-structures. Everything else in that list is legacy's by design, a deliberate divergence protecting
-the query language, or input that was never a command.
+   19 unlowerable: sequence (atomic control structures)
+   23 redirect with no target (malformed)
+   11 operator Background (structural -- see below)
+    4 empty
+THE DECLINE LIST NOW CONTAINS NO ACCOUNTING ARTIFACTS, which is the first time that has been true.
+Every entry is legacy's by design, a deliberate divergence, malformed input, or a structural limit
+that is stated rather than merely unbuilt. What remains as genuine construct work is roughly 19 rows.
+THE ELEVEN BACKGROUND DECLINES ARE STRUCTURAL AND CORRECT. A trailing `&` after a boolean list has
+lost its true operand before the parser sees anything, because main.rs splits the list upstream, and
+wrapping what does arrive would background only the tail -- plausible output, wrong semantics. The
+parser declines instead. If the splitter ever learns that `&` binds looser than `&&`, that check
+simply stops firing and the parser is unchanged.
 PIPELINES OWNED IS A POSITIVE CATEGORY, not a gap and not a skip. Legacy builds no single plan for a
 pipeline -- its live path routes one to the native implementation or to sh, never through an
 execution context -- so there is nothing to compare against. But the spine LOWERS AND RUNS these, so
 counting them as gaps would have been the opposite of the truth.
+⚠️ AND BACKGROUND IS DELIBERATELY *NOT* SUCH A CATEGORY. Its operand is an ordinary single command
+that both engines model completely, so once the wrapper is unwrapped it belongs in equivalent
+alongside everything else. A second positive bucket would have been an explanation offered where a
+comparison was available -- 56 rows that briefly read as declines for commands the shell was already
+executing.
 HOW THE NUMBERS MOVED, and why a snapshot alone would mislead. Declines were 6,224 across nine
-constructs when this intent opened, and are 311 now, of which 202 are deliberate. Redirects,
-file-descriptor redirects, pipelines and boolean chains have all been implemented or unblocked, and
-each moved rows OUT of the decline list into equivalence or the owned category. The percentage dipped
-to 88.1 in between, which looked like a regression and was a denominator effect: pipelines became
-comparable, so thousands of rows entered the applicable count at once.
-UNEXPECTED HELD AT 28-29 THROUGHOUT, which is the number that would have signalled real trouble. Its
-full history is 2, 205, 33, 384, 28, 70, 29 -- and EVERY rise was the audit disagreeing with its own
-model of legacy rather than with the shell. Six times. A future reader seeing a spike should check
-the audit's model, and the DENOMINATOR, before treating it as a defect.
+constructs when this intent opened, and are 274 now, of which 245 are deliberate or malformed.
+Redirects, file-descriptor redirects, pipelines, boolean chains and background have all been
+implemented or unblocked, and each moved rows OUT of the decline list into equivalence or the owned
+category. The percentage dipped to 88.1 in between, which looked like a regression and was a
+denominator effect: pipelines became comparable, so thousands of rows entered the applicable count at
+once.
+UNEXPECTED HELD AT 28-30 THROUGHOUT, which is the number that would have signalled real trouble. Its
+full history is 2, 205, 33, 384, 28, 70, 29, 30 -- and EVERY rise was the audit disagreeing with its
+own model of legacy rather than with the shell. SEVEN times. A future reader seeing a spike should
+check the audit's model, and the DENOMINATOR, before treating it as a defect.
 
 ## Success Criteria
 - [x] The build order is MEASURED, not guessed -- `spine migrate` reports declines by construct
@@ -172,6 +184,35 @@ the audit's model, and the DENOMINATOR, before treating it as a defect.
      counted rather than silently dropped). The 28 that remain are corpus junk: forest DSL, a
      pasted prompt line, a documentation placeholder, process substitution, a filename containing a
      space, and two genuine input redirects worth a later look. -->
+- [x] Background (`cmd &`) parses, lowers, and executes on the spine, registered with the SAME
+      job table the REPL owns
+<!-- evidence: commits dd19eb9c (parse), 1462c970 (execute), 90db9f84 (audit), and the redirect
+     composition, deployed gen 457, 117/117 fsh-test.
+     NOT AN ORIGINAL GATE -- it emerged from the measurement, like the fd-redirect and forest-verb
+     gates above, which is the intent working as designed.
+     THE SHAPE: `AstNode::Background(Box<Spanned<AstNode>>)` WRAPS the operand rather than flagging
+     a command, because `cmd &`, `cmd > out &`, `a || b &` and `(a; b) &` are one meaning with four
+     operands -- a bool on Command would leak the moment the operand is not a command, which two of
+     those already are. The parser DECLINES whenever it cannot see the true operand, which keeps the
+     limitation structural rather than semantic: every Background node means "this entire subtree
+     runs in the background", and the AST never claims a scope it did not observe.
+     ⚠️ IT FIXED TWO LIVE BUGS, NOT JUST COVERAGE. Legacy re-derived argv with splitn and
+     split_whitespace, so `bash -c "foo bar" &` reached the child as fragments; and a redirected
+     background command never reached that path at all, because the redirect branch claims any line
+     containing `>` and continues six hundred lines earlier -- no file, no job, exit zero, nothing
+     reported. Both are now covered by fsh-test regressions.
+     ⚠️ AND THE CHEAP FIX WAS TRIED FIRST AND REVERTED, which is worth recording because it is the
+     obvious idea: moving legacy's background check above the redirect branch. It failed twice over
+     -- the redirect arrived as argv (`uname: extra operand`) and the block below it stopped being
+     reachable, breaking `jobs`. PHASE ORDERING ENCODES WHAT EACH PHASE CANNOT HANDLE, so moving a
+     phase up moves its blind spots up with it. Only one structure parsing both operators together
+     fixes it.
+     ★ THE IO WIRING WAS EXTRACTED, NOT COPIED: `configure_file_io` is the single owner of the
+     clone-not-reopen dup, truncate-versus-append, and missing-input-file rules, each learned from a
+     live bug. The spawn stayed with the callers, which is what lets the foreground path wait and the
+     background path register.
+     ⚠️ DEFERRED ON PURPOSE: a background job gets no stderr tee, so the knowledge engine sees
+     nothing from its failures. That matches legacy; giving them telemetry is its own decision. -->
 - [x] The remaining tail is implemented or explicitly declined WITH ITS COUNT recorded
 <!-- evidence: REWRITTEN 2026-08-03. The 2026-07-31 version of this gate said the 588 And/Sequence/Or
      rows were BLOCKED UPSTREAM and would stay blocked "until the routing point moves". They are not
@@ -193,19 +234,30 @@ the audit's model, and the DENOMINATOR, before treating it as a defect.
      ⚠️ The first attempt split ABOVE the applicability check and manufactured 14,000 rows from
      pasted code blocks. A jump in the denominator is the tell -- check it before reading any
      percentage above it.
-     THE TAIL AS IT ACTUALLY STANDS (gen 453 + 4e939bf4), 109 rows of genuine spine work:
-       50  operator Background (`&`)  -- the largest single item, and INT-188 needs it anyway
-       42  lex error                  -- NEVER EXAMINED; could be junk or a real gap
-       17  unlowerable: sequence      -- the ATOMIC constructs (`if ...; then ...; fi`, `for`/`while`)
-                                         that split_semicolons deliberately keeps whole
-     DELIBERATELY DECLINED, WITH COUNTS -- 202 rows, none of them work:
+     THE TAIL AS IT ACTUALLY STANDS (gen 457), and it is now smaller than any single piece built:
+       19  unlowerable: sequence -- the ATOMIC constructs (`if ...; then ...; fi`, `for`/`while`)
+                                    that split_semicolons deliberately keeps whole for sh
+     DELIBERATELY DECLINED, WITH COUNTS -- 255 rows, none of them work:
        148  forest value pipelines -- legacy's permanently; `where`/`sort`/`first` are query verbs
+        42  lex errors -- an odd quote or an unclosed `$(`; not commands
         27  the comparison guard firing on real history -- the divergence that keeps `> 0.5` working
-        27  malformed or empty input that was never a command
-     ⚠️ AND THE HONEST CAVEAT ON THE 588: those commands ALREADY WORKED before the flatten. What
-     changed is that they are now owned by one execution path instead of two, and that three real
-     bugs came out with the duplication. Ownership was the milestone-2 goal; the bugs were the
-     reason it was worth doing now rather than in 2027. -->
+        23  redirects with no target -- malformed input
+        11  background after a boolean list -- STRUCTURAL, the parser cannot see the true operand
+         4  empty
+     BACKGROUND LEFT THIS LIST ENTIRELY (2026-08-03). It was 50 rows and is now parsed, lowered and
+     executed: `AstNode::Background(Box<Spanned<AstNode>>)` wraps the operand rather than flagging a
+     command, because `cmd &`, `cmd > out &`, `a || b &` and `(a; b) &` are one meaning with four
+     operands and a bool on Command would leak the moment the operand is not a command. The router
+     unwraps it and hands a configured Command to the SAME JobTable the REPL owns -- a second
+     registry would have broken `jobs`, the completion notices and the prompt count.
+     ⚠️ AND IT FIXED TWO LIVE BUGS RATHER THAN MOVING COVERAGE. Legacy's `&` path re-derived argv by
+     splitting on spaces, so `bash -c "foo bar" &` reached the child as fragments; and a redirect
+     never reached that path at all, because the redirect branch claims any line containing `>` and
+     continues six hundred lines earlier -- no file, no job, exit zero, nothing reported.
+     ⚠️ ONE THING DEFERRED ON PURPOSE: a backgrounded command gets NO stderr tee, so the knowledge
+     engine sees nothing from its failures. That matches legacy exactly. Giving background jobs
+     telemetry is a real improvement and its own decision; smuggling it inside a redirect fix would
+     have made both harder to judge. -->
 - [x] A decision on OSH spec tests: adopt a subset, or record why not
 <!-- evidence: DECIDED AND BUILT -- `spine conform`, spine/conform.rs. The decision is MINE THE
      METHOD, NOT THE CORPUS. Their value is asking what a real shell actually does rather than what
