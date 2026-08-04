@@ -1129,10 +1129,19 @@ fn all_tests() -> Vec<TestResult> {
             // The redirect becomes ARGUMENTS: `uname > f &` spawns uname with argv [">", "f"].
             // Real uname ignores unknown args, prints to the terminal and exits 0 -- so the failure
             // is SILENT, which is why this asserts on the FILE and not on the output.
-            repl::run_repl("rm -f /tmp/zzbg1.txt")?;
-            repl::run_repl("uname > /tmp/zzbg1.txt &")?;
-            std::thread::sleep(std::time::Duration::from_millis(1500));
-            let out = repl::run_repl("cat /tmp/zzbg1.txt")?;
+            // ONE session: the job must be launched, given time, and read back by the same
+            // shell -- `cat` through a second `run_repl` returned an EMPTY capture, so the test
+            // reported red without ever observing the file. A test red for the wrong reason
+            // hides the transition it exists to detect.
+            //
+            // ⚠️ `sed -n 1p`, not `cat`: cat is aliased to bat, whose box-drawing output puts
+            // the content behind a `│` and makes a plain substring match unreliable.
+            let out = repl::run_repl_lines(&[
+                "rm -f /tmp/zzbg1.txt",
+                "uname > /tmp/zzbg1.txt &",
+                "sleep 2",
+                "sed -n 1p /tmp/zzbg1.txt",
+            ])?;
             let joined = out.join("\n");
             if out
                 .iter()
@@ -1158,10 +1167,19 @@ fn all_tests() -> Vec<TestResult> {
             // thing on its line, and this harness submits exactly ONE line per call (proven: an input
             // of "echo A\necho B" returned only A). The launching shell exits while the job runs,
             // which also proves the job is genuinely detached rather than waited on.
-            repl::run_repl("rm -f /tmp/zzbg2.txt")?;
-            repl::run_repl("sh -c \"echo ZZBGQUOTED > /tmp/zzbg2.txt\" &")?;
-            std::thread::sleep(std::time::Duration::from_millis(1500));
-            let out = repl::run_repl("cat /tmp/zzbg2.txt")?;
+            // ONE session: the job must be launched, given time, and read back by the same
+            // shell -- `cat` through a second `run_repl` returned an EMPTY capture, so the test
+            // reported red without ever observing the file. A test red for the wrong reason
+            // hides the transition it exists to detect.
+            //
+            // ⚠️ `sed -n 1p`, not `cat`: cat is aliased to bat, whose box-drawing output puts
+            // the content behind a `│` and makes a plain substring match unreliable.
+            let out = repl::run_repl_lines(&[
+                "rm -f /tmp/zzbg2.txt",
+                "sh -c \"echo ZZBGQUOTED > /tmp/zzbg2.txt\" &",
+                "sleep 2",
+                "sed -n 1p /tmp/zzbg2.txt",
+            ])?;
             let joined = out.join("\n");
             if out
                 .iter()

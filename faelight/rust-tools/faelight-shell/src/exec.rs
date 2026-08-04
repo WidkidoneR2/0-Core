@@ -1113,6 +1113,56 @@ fn lower_spine_source(
     crate::spine::plan::lower_pipeline(&node, &ctx).map_err(SpineAttemptError::Lower)
 }
 
+/// INT-200: the BACKGROUND door. Returns the built command for a `cmd &` line, or `None` when the
+/// line is not a background job at all.
+///
+/// ★ WHY A SIBLING RATHER THAN AN UNWRAP IN main.rs: `lower_spine_source` parses its own source and
+/// builds the runner, globber and capabilities internally, so main.rs could only reach them by
+/// re-rendering the AST back to text -- the string-reinspection the spine exists to end -- or by
+/// keeping a second copy of the capability setup, which is the drift INT-169 extracted that
+/// function to prevent. Instead this returns a CONFIGURED Command and main.rs hands it to the job
+/// table. exec.rs never learns what a JobTable is; main.rs never learns how to lower.
+///
+/// ⚠️ The OPERAND is lowered, not the wrapper. `AstNode::Background` refuses at both lowering
+/// entries on purpose -- an ExecutionPlan describes one FOREGROUND process, and "do not wait" is a
+/// scheduling decision that has no business inside a description of what to run.
+pub fn try_spine_background_command(
+    source: &str,
+    shell: &ShellContext,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> Option<Result<(std::process::Command, String), SpineAttemptError>> {
+    let node = crate::spine::parser::parse(source).ok()?;
+    let crate::spine::ast::AstNode::Background(inner) = node.node else {
+        return None;
+    };
+    let runner = SpineCommandRunner {
+        db,
+        core_root,
+        rules,
+    };
+    let glob = SpineGlobResolver {
+        cwd: std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    };
+    let ctx = crate::spine::plan::LowerContext {
+        vars: Some(shell),
+        runner: Some(&runner),
+        glob: Some(&glob),
+    };
+    // A pipeline cannot be backgrounded yet: it needs every stage spawned and only the LAST child
+    // registered, which is a different executor. Refuse rather than background one stage.
+    let plans = match crate::spine::plan::lower_pipeline(&inner, &ctx) {
+        Ok(p) if p.len() == 1 => p,
+        Ok(_) => return None,
+        Err(e) => return Some(Err(SpineAttemptError::Lower(e))),
+    };
+    // `None` means the plan carries a redirect, which background_command deliberately does
+    // not wire -- so the whole line declines and legacy runs it exactly as it does today.
+    // A partial claim would be worse than no claim: the job would run without its file.
+    Some(Ok(crate::commands::background_command(&plans[0])?))
+}
+
 /// The EXPLICIT door (`spine-exec <cmd>`). You asked for the spine, so every failure is reported
 /// rather than hidden -- that is the difference from the router, and the reason both exist.
 pub fn execute_spine_source(

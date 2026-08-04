@@ -8738,6 +8738,50 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
     }
 }
 
+/// INT-200: build a Command for a BACKGROUND job, plus the label `jobs` will display.
+///
+/// ★ WHY THIS EXISTS AT ALL: legacy's `&` path re-derives argv with `splitn(2, ' ')` and
+/// `split_whitespace()`, so `bash -c "foo bar" &` reaches the child as three fragments and the
+/// script is truncated. The spine already resolved the quoting, so passing its argv through is the
+/// whole fix -- INT-195's invariant, applied at the last place still violating it.
+///
+/// ⚠️ SIMPLE IO ONLY, DELIBERATELY. `execute_plan`'s Files arm is ~80 lines that open the target,
+/// CLONE the stdout handle for a `2>&1` dup, build a stderr sink and report each failure as a
+/// CommandResult -- rules each learned from a live bug. Reimplementing them here would be a second
+/// owner of the most dangerous wiring in the shell. So a redirected background job stays with
+/// legacy exactly as today, and composing the two means EXTRACTING that arm, not copying it.
+pub fn background_command(
+    plan: &crate::spine::plan::ExecutionPlan,
+) -> Option<(std::process::Command, String)> {
+    use crate::spine::plan::{Environment, IoPlan};
+    if !matches!(plan.io, IoPlan::Simple) {
+        return None;
+    }
+    let program = plan.argv.first()?;
+    let label = program.to_string_lossy().to_string();
+    let mut cmd = std::process::Command::new(program);
+    cmd.args(&plan.argv[1..]);
+    if let Some(dir) = plan.cwd.as_ref() {
+        cmd.current_dir(dir);
+    }
+    match &plan.env {
+        Environment::Inherit => {}
+        Environment::Replace(vars) => {
+            cmd.env_clear();
+            for (k, v) in vars {
+                cmd.env(k, v);
+            }
+        }
+    }
+    // Matches legacy's background stdio exactly: detached from input, output and errors still
+    // reaching the terminal. Changing it here would make a spine-claimed job behave differently
+    // from a legacy one, which is the divergence this work exists to remove.
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit());
+    Some((cmd, label))
+}
+
 fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
     use crate::spine::plan::{Environment, IoPlan};
 

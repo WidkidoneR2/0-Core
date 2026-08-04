@@ -68,13 +68,19 @@ pub struct AuditReport {
     pub panics: usize,
     pub panic_examples: Vec<String>,
 
-    /// HEURISTIC, non-authoritative: unique inputs whose lowered argv contains a bare operator
-    /// token (| || && ; > >> < 2>). This is NOT a parse result -- the parser currently treats
-    /// these as ordinary literal words, so they "lower successfully" to a semantically-wrong
-    /// argv. The heuristic exposes that blind spot: it flags operator-shaped input the AST does
-    /// not yet model. Orthogonal to lower_success (a command is often BOTH lowered AND
-    /// operator-shaped). May include false positives; the parser owns meaning, this only says
-    /// "I saw something suspicious."
+    /// AUTHORITATIVE: inputs the parser identified as valid shell it declines to own.
+    ///
+    /// ⚠️ THIS DOC ONCE SAID THE OPPOSITE -- "heuristic", "not modelled by the AST", "parsed as
+    /// literal words", "may include false positives" -- all true when `|` was ordinary word
+    /// content and operator-shape had to be INFERRED from a lowered argv. Every clause became
+    /// false when the lexer gained operator tokens, and the render block below already recorded
+    /// that while this doc kept claiming the old behaviour. Two comments in one file disagreeing
+    /// is how instrumentation goes quietly wrong.
+    ///
+    /// ★ AND ITS MEANING HAS NARROWED TO ONE CASE: every operator now PARSES, so the only
+    /// remaining source is a `&` whose operand the parser cannot see (`a && b &`, where main.rs
+    /// split the list upstream). If that number is ever large, the splitter changed -- not the
+    /// grammar.
     pub operator_shaped: usize,
     pub operator_shaped_examples: Vec<String>,
 }
@@ -335,30 +341,24 @@ mod tests {
         assert_eq!(r.operator_shaped, 0, "no operators in this corpus");
     }
 
+    /// CONTRACT: a construct the spine cannot execute never reaches a plan.
+    ///
+    /// ⚠️ THE PROBE HAS MOVED THREE TIMES -- pipe, then `&&`, then `&` -- because each was chosen
+    /// from what the spine had not implemented YET, and each became owned. This one is chosen from
+    /// what is refused BY DESIGN: `a && b &` cannot be backgrounded correctly because main.rs
+    /// splits the boolean list before the parser sees it, so the true operand is unavailable.
+    /// Wrapping what does arrive would background only the tail. That refusal outlives increments.
     #[test]
-    fn operator_shaped_commands_are_refused_before_lowering() {
-        // HISTORY, kept because it explains why this test exists: `ls | grep x` used to parse as
-        // FOUR LITERAL WORDS and LOWER -- wrongly -- because `|` was ordinary word content. The
-        // heuristic existed to flag that from the outside, compensating for a language boundary
-        // the parser did not have.
-        //
-        // INT-169 gave the lexer operator tokens, so the parser now REFUSES before lowering and
-        // the heuristic became confirmation rather than inference. This asserts the old failure
-        // ⚠️ THE PROBE MOVED FROM A PIPE TO `&&` (INT-200). A pipe is OWNED now, so it would
-        // lower successfully and this test would assert the opposite of its own thesis. The
-        // thesis is unchanged: whatever the spine cannot execute must not reach a plan.
-        // ⚠️ THE PROBE MOVED AGAIN (INT-200): `&&` is OWNED now, so it would lower and this
-        // test would assert the reverse of its own thesis. Background is still refused.
-        // mode cannot return: a command the spine cannot execute must not reach a plan.
-        let r = audit_history(vec!["sleep 5 &".to_string()].into_iter());
+    fn a_construct_the_spine_cannot_execute_never_reaches_a_plan() {
+        let r = audit_history(vec!["a && b &".to_string()].into_iter());
         assert_eq!(
             r.lower_success, 0,
             "must not lower a command it cannot execute"
         );
         assert_eq!(r.operator_shaped, 1, "counted as a refusal");
-        // ⚠️ A refusal is NOT a parse failure. Valid shell the spine declines is a different
-        // fact from input nobody can read, and folding them together made the audit headline
-        // report ~11,385 correct routing decisions as syntax errors.
+        // ⚠️ A refusal is NOT a parse failure. Valid shell the spine declines is a different fact
+        // from input nobody can read, and folding them together made the audit headline report
+        // ~11,385 correct routing decisions as syntax errors.
         assert_eq!(r.parse_failure, 0, "declined, not malformed");
         assert_eq!(r.panics, 0);
     }

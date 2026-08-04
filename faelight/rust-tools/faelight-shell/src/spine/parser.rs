@@ -235,14 +235,26 @@ impl Parser {
                     OperatorKind::Pipe
                     | OperatorKind::And
                     | OperatorKind::Or
-                    | OperatorKind::Sequence,
+                    | OperatorKind::Sequence
+                    // INT-200: `&` binds LOOSEST of all, so it is left for `parse_line`
+                    // exactly as the connectors are. Without this it fell to the catch-all
+                    // below and `parse_line`'s Background branch was unreachable -- the same
+                    // failure the comment above records for the three connectors, repeated.
+                    | OperatorKind::Background,
                 ) => break,
-                TokenKind::Operator(kind) => {
-                    return Err(ParseError::UnsupportedOperator {
-                        kind,
-                        span: tok.span,
-                    })
-                }
+                // ⚠️ NO CATCH-ALL, AND THAT IS THE GUARD. A `TokenKind::Operator(kind) => Err(…)`
+                // arm lived here until every operator became owned -- four redirect kinds above,
+                // five connector kinds just now -- at which point it went unreachable. Deleting it
+                // silently would have been the easy move and the wrong one: a TENTH OperatorKind
+                // added to the lexer would then fall through to `TokenKind::Word` below and be
+                // treated as ordinary text, which is exactly the mis-execution the lexer's own
+                // comment warns about for `&` ("an incomplete refusal is a mis-execution").
+                //
+                // ★ Instead the two arms above name every variant EXPLICITLY, so adding one to
+                // OperatorKind makes THIS MATCH non-exhaustive and the compiler demands a decision:
+                // does the new operator end a command, or belong inside one? Construction over
+                // vigilance -- the same reason `CommandResult::Error` was widened rather than
+                // joined by a variant that 18 wildcard arms would have swallowed.
                 TokenKind::Word => {
                     let t = self.advance().expect("peek was Some");
                     let wspan = t.span;
@@ -687,22 +699,34 @@ mod tests {
         }
     }
 
-    /// ★ THE REFUSAL BOUNDARY, which is the whole point of the operator tokens. The spine does not
-    /// implement pipelines, redirects, boolean chains, sequences or background execution -- and
-    /// before this it could not SAY so, because those characters were ordinary word content. A
-    /// router built on the old parser would have claimed every one of these.
+    /// CONTRACT: every operator the lexer can emit is ACCEPTED by the parser.
+    ///
+    /// ⚠️ THIS IS THE INVERSE OF THE TEST IT REPLACES, and the inversion is the point. The old one
+    /// asserted that the parser DECLINED constructs it did not implement -- true when operators
+    /// were new, and progressively less true as each was owned. Its probe moved from a pipe to
+    /// `&&` to `&` as the boundary receded, and with background parsed there was nowhere left to
+    /// move it: the parse-time refusal boundary no longer exists. Refusal now lives entirely at
+    /// LOWERING, which is a different phase with its own tests.
+    ///
+    /// ★ AND THE INVERSE IS THE STRONGER GUARD: this fails the moment a regression RE-REFUSES an
+    /// operator, which the old shape could never detect.
     #[test]
-    fn the_parser_declines_shell_it_does_not_implement() {
-        for (source, want) in [
-            // `|`, `&&`, `||` and `;` all left this list -- OWNED now, not refused.
-            ("sleep 5 &", OperatorKind::Background),
+    fn the_parser_accepts_every_operator_the_lexer_emits() {
+        for source in [
+            "echo hi | grep h",
+            "ls > out.txt",
+            "ls >> out.txt",
+            "wc -l < in.txt",
+            "ls 2>&1",
+            "a && b",
+            "a || b",
+            "a ; b",
+            "sleep 5 &",
         ] {
-            match parse(source) {
-                Err(ParseError::UnsupportedOperator { kind, .. }) => {
-                    assert_eq!(kind, want, "{source} declined as the wrong construct")
-                }
-                other => panic!("{source} was not declined: {other:?}"),
-            }
+            assert!(
+                parse(source).is_ok(),
+                "{source} must parse -- the parser owns every operator now"
+            );
         }
     }
 
@@ -788,20 +812,24 @@ mod tests {
         );
     }
 
-    /// The refusal points at the OPERATOR, not at the whole command. The input is not malformed --
-    /// it is valid shell belonging to a grammar this parser does not implement -- so the span marks
-    /// the ownership boundary rather than blaming the line.
+    /// CONTRACT: a refusal points at the exact source that caused it.
+    ///
+    /// ⚠️ THE PHASE MOVED, NOT THE CONTRACT. This used to check a PARSE refusal, but the parser
+    /// now accepts every operator the lexer emits, so the rejection it should point at is a
+    /// LOWERING one. The probe is a forest value pipeline because that is refused BY DESIGN --
+    /// `sort` and `first` are query verbs with no programs behind them -- rather than as a
+    /// staging point toward some later increment. A probe chosen from what is merely unfinished
+    /// becomes a moving target: this one has already been re-pointed twice.
     #[test]
-    /// ⚠️ The example moved from a pipe to `&&` (INT-200): a pipe now PARSES into a Pipeline,
-    /// so it no longer demonstrates a refusal. The property under test is unchanged -- the span
-    /// marks the operator, not the line.
-    fn the_refusal_points_at_the_operator() {
-        let source = "sleep 5 &";
-        match parse(source) {
-            Err(ParseError::UnsupportedOperator { span, .. }) => {
-                assert_eq!(&source[span.start..span.end], "&");
+    fn a_rejection_identifies_the_construct_that_caused_it() {
+        let node = parse("ps | sort cpu desc").expect("a forest pipeline PARSES");
+        let ctx = crate::spine::plan::LowerContext::default();
+        match crate::spine::plan::lower_pipeline(&node, &ctx) {
+            Err(crate::spine::plan::LowerError::UnsupportedConstruct { kind, span }) => {
+                assert!(kind.contains("forest"), "named the construct: {kind}");
+                assert!(span.start < span.end, "span points somewhere real");
             }
-            other => panic!("expected a refusal, got {other:?}"),
+            other => panic!("expected a lowering refusal, got {other:?}"),
         }
     }
 

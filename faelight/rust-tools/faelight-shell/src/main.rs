@@ -2363,14 +2363,60 @@ fn repl_main() -> Result<()> {
                     let spine_on = !is_repl_state_command(line)
                         && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
                     let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
+                    // ⚠️ TWO REASONS THE SPINE IS OFF, and saying the wrong one is worse than silence: the
+                    // env var is an escape hatch the user chose, while the exclusion is structural. This
+                    // printed "disabled by FSH_SPINE=0" for every `jobs` and `kill %n` with the variable
+                    // unset, which would send a future reader hunting an environment problem that is not
+                    // there.
                     if spine_trace && !spine_on {
-                        eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
+                        if is_repl_state_command(line) {
+                            eprintln!(
+                                "  [spine-router] excluded: REPL-state command -- legacy owns it"
+                            );
+                        } else {
+                            eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
+                        }
                     }
                     if spine_on {
                         let shell = exec::ShellContext {
                             shell_vars: &shell_vars,
                             last_exit_code,
                         };
+                        // INT-200: BACKGROUND IS TRIED FIRST, because it is the one construct whose result is
+                        // not a CommandResult -- it is a live child that must be REGISTERED rather than waited
+                        // on. exec.rs builds the configured Command; the job table lives here, so the handoff
+                        // happens here and neither side learns the other's job.
+                        //
+                        // ⚠️ A redirected background line yields None and falls through to legacy untouched.
+                        // Claiming it while dropping the redirect would be worse than the bug being fixed.
+                        if let Some(attempt) = exec::try_spine_background_command(
+                            line,
+                            &shell,
+                            &db,
+                            &core_root,
+                            &cfg.before_rules,
+                        ) {
+                            match attempt {
+                                Ok((command, label)) => {
+                                    if spine_trace {
+                                        eprintln!("  [spine-router] claimed (background): {line}");
+                                    }
+                                    match job_table.register(command, &label) {
+                                        Ok(_) => last_exit_code = Some(0),
+                                        Err(e) => {
+                                            eprintln!("{} {}", "x".bright_red(), e);
+                                            last_exit_code = Some(1);
+                                        }
+                                    }
+                                    continue 'segments;
+                                }
+                                Err(e) => {
+                                    eprintln!("{} spine: {e:?}", "x".bright_red());
+                                    last_exit_code = Some(1);
+                                    continue 'segments;
+                                }
+                            }
+                        }
                         if let Some(result) = exec::try_execute_spine_source(
                             line,
                             &shell,

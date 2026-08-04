@@ -30,20 +30,41 @@ impl JobTable {
         }
     }
 
-    /// Spawn a background job. Returns job id.
+    /// Spawn a background job from argv. Returns job id.
+    ///
+    /// ⚠️ THIS SHAPE CANNOT EXPRESS A REDIRECT -- it builds the Command itself and fixes all three
+    /// streams. That is fine for legacy's `cmd &` path, which has no IO plan to apply, but the
+    /// spine does. `register` below takes an already-built Command for exactly that reason; this
+    /// stays as the argv-shaped convenience over it so legacy's call site is untouched.
     pub fn spawn(&mut self, cmd: &str, args: &[String]) -> std::io::Result<usize> {
-        let child = std::process::Command::new(cmd)
+        let mut command = std::process::Command::new(cmd);
+        command
             .args(args)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .spawn()?;
+            .stderr(std::process::Stdio::inherit());
+        self.register(command, cmd)
+    }
 
+    /// Spawn an ALREADY-CONFIGURED command as a background job. Returns job id.
+    ///
+    /// ★ THE CALLER OWNS THE STDIO, which is the whole point: `cmd > log 2>&1 &` needs its streams
+    /// wired before the spawn, and a method that fixes them can never express one. Same boundary
+    /// `spawn_with_tee` had to adopt before redirects could work at all.
+    ///
+    /// ⚠️ `label` is DISPLAY ONLY -- what `jobs` lists and what the completion notice names. A
+    /// built Command cannot be asked for a tidy name, so the caller passes the one it already has.
+    pub fn register(
+        &mut self,
+        mut command: std::process::Command,
+        label: &str,
+    ) -> std::io::Result<usize> {
+        let child = command.spawn()?;
         let id = self.next_id;
         self.next_id += 1;
         self.jobs.push(Job {
             id,
-            cmd: cmd.to_string(),
+            cmd: label.to_string(),
             child,
             started: Instant::now(),
         });
@@ -51,7 +72,7 @@ impl JobTable {
             "  {} [{}] {} &",
             "○".bright_cyan(),
             id.to_string().bright_white(),
-            cmd.dimmed()
+            label.dimmed()
         );
         Ok(id)
     }
