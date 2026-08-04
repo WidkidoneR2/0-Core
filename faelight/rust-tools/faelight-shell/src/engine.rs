@@ -16,6 +16,7 @@ use crate::config::BeforeRunRule;
 use crate::db::ForestDb;
 use crate::exec::ShellContext;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// Everything required to execute one line, and nothing required to draw a prompt.
 ///
@@ -35,7 +36,12 @@ pub struct Engine {
 
     /// The forest database. A RESOURCE, not state: builtins read it, history and telemetry write
     /// through it, and the alias table lives in it.
-    db: ForestDb,
+    /// ⚠️ Rc, not a plain owner: the completion helper holds `&ForestDb` for the WHOLE
+    /// session (rustyline stores it), which pinned the engine as immutably borrowed and made
+    /// every `&mut self` method uncallable inside the loop. Rc states what was already true --
+    /// the database is a SHARED resource, not exclusively-owned execution state. Rc rather
+    /// than Arc because no thread in this crate ever takes the db.
+    db: Rc<ForestDb>,
 
     /// The forest root. A String rather than a PathBuf because every consumer here takes `&str`.
     core_root: String,
@@ -51,10 +57,15 @@ impl Engine {
         Self {
             shell_vars: HashMap::new(),
             last_exit_code: None,
-            db,
+            db: Rc::new(db),
             core_root,
             before_rules,
         }
+    }
+
+    /// A second handle to the database, for session-lived holders like the completion helper.
+    pub fn db_handle(&self) -> Rc<ForestDb> {
+        Rc::clone(&self.db)
     }
 
     /// The forest database. A SHARED borrow is enough for every caller: not one db method
@@ -73,6 +84,35 @@ impl Engine {
     /// engine takes them by partial move and the loop stops holding a config at all.
     pub fn before_rules(&self) -> &[BeforeRunRule] {
         &self.before_rules
+    }
+
+    /// The last command's exit status.
+    pub fn last_exit(&self) -> Option<i32> {
+        self.last_exit_code
+    }
+
+    /// Record the exit status of the command that just ran.
+    ///
+    /// ⚠️ 52 of the loop's 69 references to this field are WRITES -- it is the most-assigned
+    /// binding in `repl_main`, and `&&` / `||` decide the next segment from it, so a missed
+    /// write changes control flow rather than merely misreporting a status.
+    pub fn set_last_exit(&mut self, code: Option<i32>) {
+        self.last_exit_code = code;
+    }
+
+    /// Read one session variable. `None` means UNSET, matching `expand_vars`.
+    pub fn var(&self, name: &str) -> Option<&String> {
+        self.shell_vars.get(name)
+    }
+
+    /// Set one session variable.
+    pub fn set_var(&mut self, name: String, value: String) {
+        self.shell_vars.insert(name, value);
+    }
+
+    /// Unset one session variable, returning its previous value if it had one.
+    pub fn remove_var(&mut self, name: &str) -> Option<String> {
+        self.shell_vars.remove(name)
     }
 
     /// Lend the read-only view that variable resolution and the spine router need.

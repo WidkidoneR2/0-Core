@@ -830,7 +830,7 @@ fn repl_main() -> Result<()> {
 
     // INT-201: the engine takes ownership of the resources from here down. core_root is
     // computed first because it is derived from db, which moves.
-    let engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
+    let mut engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
 
     // INT-124: refresh health BEFORE the welcome header renders, so the splash
     // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
@@ -864,7 +864,10 @@ fn repl_main() -> Result<()> {
         .completion_show_all_if_ambiguous(true)
         .edit_mode(EditMode::Emacs)
         .build();
-    let helper = completion::ForestHelper::new(engine.db());
+    // INT-201: the helper takes its OWN handle. Borrowing it from the engine here would
+    // hold an immutable borrow for the entire session, since rustyline keeps the helper.
+    let db_handle = engine.db_handle();
+    let helper = completion::ForestHelper::new(&db_handle);
     let mut rl: Editor<completion::ForestHelper<'_>, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
     // Ctrl+L handled in REPL loop via clear command
@@ -992,7 +995,6 @@ fn repl_main() -> Result<()> {
     // Phase 17 — prompt context tracking
     #[allow(unused_assignments)]
     let mut last_duration_ms: Option<u64> = None;
-    let mut last_exit_code: Option<i32> = None;
     let mut last_dir: std::path::PathBuf = std::path::PathBuf::new();
     let mut last_history_id: Option<i64> = None;
     let mut last_command_start: Option<std::time::Instant> = None;
@@ -1034,7 +1036,7 @@ fn repl_main() -> Result<()> {
         if let Some(id) = last_history_id.take() {
             engine
                 .db()
-                .update_history_completion(id, last_exit_code, elapsed);
+                .update_history_completion(id, engine.last_exit(), elapsed);
         }
         // INT-296: record CommandBlock to state.db
         if let Some(ref cmd) = last_history_id.as_ref().map(|_| ()).and(None::<String>) {
@@ -1049,12 +1051,12 @@ fn repl_main() -> Result<()> {
                 "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
                  SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIMIT 1",
                 rusqlite::params![session, cwd,
-                    last_exit_code.unwrap_or(0),
+                    engine.last_exit().unwrap_or(0),
                     elapsed.map(|e| e as i64).unwrap_or(0)],
             );
         }
         // INT-296: OSC 133 D -- command end with exit code
-        let exit_for_osc = last_exit_code.unwrap_or(0);
+        let exit_for_osc = engine.last_exit().unwrap_or(0);
         print!("{}", prompt::osc133_command_end(exit_for_osc));
         last_duration_ms = elapsed;
         // Phase 8 — announce completed background jobs before prompt
@@ -1063,7 +1065,7 @@ fn repl_main() -> Result<()> {
         // Phase 17 — render two-line context above input
         let ctx = prompt::PromptContext {
             last_duration_ms,
-            last_exit_code,
+            last_exit_code: engine.last_exit(),
             job_count: job_table.job_count(),
         };
         print!("{}", prompt::OSC133_PROMPT_START);
@@ -1076,7 +1078,7 @@ fn repl_main() -> Result<()> {
                 last_dir = cur_dir;
             }
         }
-        let prompt_str = prompt::render_line(engine.db(), last_exit_code);
+        let prompt_str = prompt::render_line(engine.db(), engine.last_exit());
 
         // INT-249b: multi-line aware read - accumulates until command is complete
         // INT-099: run any queued paste-block command as if freshly typed.
@@ -1312,7 +1314,7 @@ fn repl_main() -> Result<()> {
                 // INT-246: safety_guard -- check BEFORE any execution path
                 if let Some(warning) = safety_guard::check(&line) {
                     if !safety_guard::challenge_gate(&warning) {
-                        last_exit_code = Some(1);
+                        engine.set_last_exit(Some(1));
                         continue 'repl;
                     }
                 }
@@ -1321,7 +1323,7 @@ fn repl_main() -> Result<()> {
                 // line-by-line scanning for INT-249 delimiter-leak warnings.
                 if line.contains('\n') {
                     let exit = pty_exec::run_with_capture_and_scan(&line);
-                    last_exit_code = Some(exit);
+                    engine.set_last_exit(Some(exit));
                     match engine.db().save_history_entry(&line) {
                         Ok(id) => {
                             last_history_id = Some(id);
@@ -1355,12 +1357,12 @@ fn repl_main() -> Result<()> {
                     // AND the chance to scan each line for delimiter-leak warnings.
                     if let Some(warning) = safety_guard::check(&line) {
                         if !safety_guard::challenge_gate(&warning) {
-                            last_exit_code = Some(1);
+                            engine.set_last_exit(Some(1));
                             continue 'repl;
                         }
                     }
                     let exit = pty_exec::run_with_capture_and_scan(&line);
-                    last_exit_code = Some(exit);
+                    engine.set_last_exit(Some(exit));
                     heredoc_handled = true;
                 }
                 if heredoc_handled {
@@ -1493,7 +1495,7 @@ fn repl_main() -> Result<()> {
                     // reports and what bash consults for the same decision. Do NOT re-derive success from a
                     // result variant at another call site; that divergence IS the bug 968c7be5 was.
                     if let Some(is_and) = prev_op {
-                        let succeeded = last_exit_code.unwrap_or(0) == 0;
+                        let succeeded = engine.last_exit().unwrap_or(0) == 0;
                         if is_and != succeeded {
                             prev_op = *op;
                             continue 'segments;
@@ -1644,7 +1646,7 @@ fn repl_main() -> Result<()> {
                             // INT-169: record the status rather than leaving the PREVIOUS command's.
                             // the flow command completed. A stale code here is invisible today, but `&&`
                             // is about to read this value to decide whether the next part runs.
-                            last_exit_code = Some(0);
+                            engine.set_last_exit(Some(0));
                             continue 'segments;
                         }
                     }
@@ -1693,7 +1695,7 @@ fn repl_main() -> Result<()> {
                         // INT-169: record the status rather than leaving the PREVIOUS command's.
                         // the friday message displayed. A stale code here is invisible today, but `&&`
                         // is about to read this value to decide whether the next part runs.
-                        last_exit_code = Some(0);
+                        engine.set_last_exit(Some(0));
                         continue 'segments;
                     }
                     // INT-203 fix -- route friday subcommands to core friday
@@ -1736,10 +1738,10 @@ fn repl_main() -> Result<()> {
                             }
                             // INT-189: foreground execution the user invoked; its status is the
                             // command's status.
-                            last_exit_code = match cmd.status() {
+                            engine.set_last_exit(match cmd.status() {
                                 Ok(status) => Some(status.code().unwrap_or(1)),
                                 Err(_) => Some(1),
-                            };
+                            });
                             continue 'segments;
                         }
                     }
@@ -1758,10 +1760,10 @@ fn repl_main() -> Result<()> {
                         // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
                         // this child's result IS the command result. Discarding it left the prompt
                         // reporting the previous command.
-                        last_exit_code = match cmd.status() {
+                        engine.set_last_exit(match cmd.status() {
                             Ok(status) => Some(status.code().unwrap_or(1)),
                             Err(_) => Some(1),
-                        };
+                        });
                         continue 'segments;
                     }
                     // INT-279 FQL: friday where/show/explain/recall direct queries
@@ -1775,19 +1777,21 @@ fn repl_main() -> Result<()> {
                                                                   // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
                                                                   // this child's result IS the command result. Discarding it left the prompt
                                                                   // reporting the previous command.
-                        last_exit_code = match std::process::Command::new("friday-chat")
-                            .args(["chat", &query])
-                            .output()
-                        {
-                            Ok(out) => {
-                                let result = String::from_utf8_lossy(&out.stdout).to_string();
-                                if !result.trim().is_empty() {
-                                    println!("{}", result.trim());
+                        engine.set_last_exit(
+                            match std::process::Command::new("friday-chat")
+                                .args(["chat", &query])
+                                .output()
+                            {
+                                Ok(out) => {
+                                    let result = String::from_utf8_lossy(&out.stdout).to_string();
+                                    if !result.trim().is_empty() {
+                                        println!("{}", result.trim());
+                                    }
+                                    Some(out.status.code().unwrap_or(1))
                                 }
-                                Some(out.status.code().unwrap_or(1))
-                            }
-                            Err(_) => Some(1),
-                        };
+                                Err(_) => Some(1),
+                            },
+                        );
                         continue 'segments;
                     }
                     // INT-278 -- friday chat: launch Friday Chat TUI (intercept first)
@@ -1796,7 +1800,7 @@ fn repl_main() -> Result<()> {
                         // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
                         // this child's result IS the command result. Discarding it left the prompt
                         // reporting the previous command.
-                        last_exit_code = if rest.is_empty() {
+                        engine.set_last_exit(if rest.is_empty() {
                             match std::process::Command::new("friday-chat").status() {
                                 Ok(status) => Some(status.code().unwrap_or(1)),
                                 Err(_) => Some(1),
@@ -1812,7 +1816,7 @@ fn repl_main() -> Result<()> {
                                 }
                                 Err(_) => Some(1),
                             }
-                        };
+                        });
                         continue 'segments;
                     }
                     if line.starts_with("friday")
@@ -1865,7 +1869,7 @@ fn repl_main() -> Result<()> {
                         // INT-169: record the status rather than leaving the PREVIOUS command's.
                         // the friday query completed. A stale code here is invisible today, but `&&`
                         // is about to read this value to decide whether the next part runs.
-                        last_exit_code = Some(0);
+                        engine.set_last_exit(Some(0));
                         continue 'segments;
                     }
 
@@ -2051,7 +2055,7 @@ fn repl_main() -> Result<()> {
                                     parts[1].trim_matches('\"').trim_matches('\'').to_string();
                                 // INT-100: expand $VAR first, then run $(...) subshells
                                 // so `NAME=$(cmd)` stores the command OUTPUT, not the literal.
-                                let expanded = expand_vars(&val, &shell_vars, last_exit_code);
+                                let expanded = expand_vars(&val, &shell_vars, engine.last_exit());
                                 let expanded = expand_subshells(&expanded);
                                 std::env::set_var(name, &expanded);
                                 shell_vars.insert(name.to_string(), expanded.clone());
@@ -2116,7 +2120,8 @@ fn repl_main() -> Result<()> {
                                         .trim_matches('\'')
                                         .to_string();
                                     // INT-100: also run $(...) subshells for inline KEY=$(x) cmd
-                                    let expanded = expand_vars(&val, &shell_vars, last_exit_code);
+                                    let expanded =
+                                        expand_vars(&val, &shell_vars, engine.last_exit());
                                     let expanded = expand_subshells(&expanded);
                                     temp_vars.push((name.to_string(), expanded));
                                     rest = rest[maybe_var.len()..].trim_start();
@@ -2158,11 +2163,11 @@ fn repl_main() -> Result<()> {
                                 // INT-169: record the status rather than leaving the PREVIOUS command's.
                                 // the assignment succeeded. A stale code here is invisible today, but `&&`
                                 // is about to read this value to decide whether the next part runs.
-                                last_exit_code = Some(0);
+                                engine.set_last_exit(Some(0));
                                 continue 'segments;
                             }
                             // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
-                            let rest_expanded = expand_vars(rest, &shell_vars, last_exit_code);
+                            let rest_expanded = expand_vars(rest, &shell_vars, engine.last_exit());
                             // INT-191: `raw_line` is the whole segment INCLUDING the FOO=1
                             // prefix, because the field is documented as exactly what the user
                             // typed and the assignment is part of that.
@@ -2247,7 +2252,7 @@ fn repl_main() -> Result<()> {
                                 .trim_matches('"')
                                 .trim_matches('\'')
                                 .to_string();
-                            let expanded = expand_vars(&val, &shell_vars, last_exit_code);
+                            let expanded = expand_vars(&val, &shell_vars, engine.last_exit());
                             println!(
                                 "  {} {} = {}",
                                 "→".bright_cyan(),
@@ -2270,7 +2275,7 @@ fn repl_main() -> Result<()> {
                         } else {
                             (rest.trim(), "")
                         };
-                        let expanded = expand_vars(val, &shell_vars, last_exit_code);
+                        let expanded = expand_vars(val, &shell_vars, engine.last_exit());
                         std::env::set_var(name, &expanded);
                         shell_vars.insert(name.to_string(), expanded.clone());
                         println!(
@@ -2345,7 +2350,7 @@ fn repl_main() -> Result<()> {
                         }
                         let shell = exec::ShellContext {
                             shell_vars: &shell_vars,
-                            last_exit_code,
+                            last_exit_code: engine.last_exit(),
                         };
                         match exec::execute_spine_source(
                             source,
@@ -2359,23 +2364,23 @@ fn repl_main() -> Result<()> {
                                 // INT-169: a command that PRINTED succeeded. Without this the previous
                                 // failure's code survives, and since the chain decision reads it,
                                 // `false || echo one && echo two` skipped the last part.
-                                last_exit_code = Some(0);
+                                engine.set_last_exit(Some(0));
                             }
                             commands::CommandResult::Value(v) => {
                                 println!("{}", v.render());
                                 // INT-169: a command that PRINTED succeeded. Without this the previous
                                 // failure's code survives, and since the chain decision reads it,
                                 // `false || echo one && echo two` skipped the last part.
-                                last_exit_code = Some(0);
+                                engine.set_last_exit(Some(0));
                             }
                             commands::CommandResult::Error(e, code) => {
                                 eprintln!("{} {}", "x".bright_red(), e);
                                 // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
                                 // printed "exited 2" while `$?` reported 1 -- the code was formatted into
                                 // the message and thrown away. It travels on the variant now.
-                                last_exit_code = Some(code);
+                                engine.set_last_exit(Some(code));
                             }
-                            commands::CommandResult::Empty => last_exit_code = Some(0),
+                            commands::CommandResult::Empty => engine.set_last_exit(Some(0)),
                             // Named rather than a catch-all: a `_` arm would silently swallow
                             // Exit, so `spine-exec exit` would print instead of leaving the shell.
                             commands::CommandResult::Exit => break 'repl,
@@ -2384,7 +2389,7 @@ fn repl_main() -> Result<()> {
                                 // NotBuiltin into a direct spawn or an alias diagnostic. Handled
                                 // honestly rather than panicking, since a panic here kills fsh.
                                 eprintln!("  spine-exec: no arm matched and no spawn attempted");
-                                last_exit_code = Some(1);
+                                engine.set_last_exit(Some(1));
                             }
                         }
                         continue;
@@ -2404,10 +2409,10 @@ fn repl_main() -> Result<()> {
                             .arg("-c")
                             .arg(line)
                             .status();
-                        last_exit_code = match status {
+                        engine.set_last_exit(match status {
                             Ok(s) => s.code(),
                             Err(_) => Some(1),
-                        };
+                        });
                         continue;
                     }
                     // BUG-298-2: heredoc — route << blocks to sh -c before
@@ -2417,10 +2422,10 @@ fn repl_main() -> Result<()> {
                             .arg("-c")
                             .arg(line)
                             .status();
-                        last_exit_code = match status {
+                        engine.set_last_exit(match status {
                             Ok(s) => s.code(),
                             Err(_) => Some(1),
-                        };
+                        });
                         continue;
                     }
                     // INT-169 blocker 6: MOVED ABOVE THE EXPANSIONS. This ran last, AFTER
@@ -2495,7 +2500,7 @@ fn repl_main() -> Result<()> {
                     if spine_on {
                         let shell = exec::ShellContext {
                             shell_vars: &shell_vars,
-                            last_exit_code,
+                            last_exit_code: engine.last_exit(),
                         };
                         // INT-200: BACKGROUND IS TRIED FIRST, because it is the one construct whose result is
                         // not a CommandResult -- it is a live child that must be REGISTERED rather than waited
@@ -2517,17 +2522,17 @@ fn repl_main() -> Result<()> {
                                         eprintln!("  [spine-router] claimed (background): {line}");
                                     }
                                     match job_table.register(command, &label) {
-                                        Ok(_) => last_exit_code = Some(0),
+                                        Ok(_) => engine.set_last_exit(Some(0)),
                                         Err(e) => {
                                             eprintln!("{} {}", "x".bright_red(), e);
-                                            last_exit_code = Some(1);
+                                            engine.set_last_exit(Some(1));
                                         }
                                     }
                                     continue 'segments;
                                 }
                                 Err(e) => {
                                     eprintln!("{} spine: {e:?}", "x".bright_red());
-                                    last_exit_code = Some(1);
+                                    engine.set_last_exit(Some(1));
                                     continue 'segments;
                                 }
                             }
@@ -2548,27 +2553,27 @@ fn repl_main() -> Result<()> {
                                     // INT-169: a command that PRINTED succeeded. Without this the previous
                                     // failure's code survives, and since the chain decision reads it,
                                     // `false || echo one && echo two` skipped the last part.
-                                    last_exit_code = Some(0);
+                                    engine.set_last_exit(Some(0));
                                 }
                                 commands::CommandResult::Value(v) => {
                                     println!("{}", v.render());
                                     // INT-169: a command that PRINTED succeeded. Without this the previous
                                     // failure's code survives, and since the chain decision reads it,
                                     // `false || echo one && echo two` skipped the last part.
-                                    last_exit_code = Some(0);
+                                    engine.set_last_exit(Some(0));
                                 }
                                 commands::CommandResult::Error(e, code) => {
                                     eprintln!("{} {}", "x".bright_red(), e);
                                     // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
                                     // printed "exited 2" while `$?` reported 1 -- the code was formatted into
                                     // the message and thrown away. It travels on the variant now.
-                                    last_exit_code = Some(code);
+                                    engine.set_last_exit(Some(code));
                                 }
-                                commands::CommandResult::Empty => last_exit_code = Some(0),
+                                commands::CommandResult::Empty => engine.set_last_exit(Some(0)),
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::NotBuiltin => {
                                     eprintln!("  spine: no arm matched and no spawn attempted");
-                                    last_exit_code = Some(1);
+                                    engine.set_last_exit(Some(1));
                                 }
                             }
                             continue;
@@ -2577,7 +2582,7 @@ fn repl_main() -> Result<()> {
                             eprintln!("  [spine-router] declined: {line}");
                         }
                     }
-                    let line = expand_vars(line, &shell_vars, last_exit_code);
+                    let line = expand_vars(line, &shell_vars, engine.last_exit());
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
@@ -2589,7 +2594,7 @@ fn repl_main() -> Result<()> {
                         for pat in &unmatched {
                             println!("  no matches for pattern: {}", pat);
                         }
-                        last_exit_code = Some(1);
+                        engine.set_last_exit(Some(1));
                         continue;
                     }
                     let line = expand_globs(&line);
@@ -2634,7 +2639,7 @@ fn repl_main() -> Result<()> {
                             // INT-169: default to success, then let the Error arm below override with the
                             // REAL code. Without this the whole branch left `$?` reporting the previous
                             // command -- invisible today, load-bearing once `&&` reads it.
-                            last_exit_code = Some(0);
+                            engine.set_last_exit(Some(0));
                             match source_result {
                                 commands::CommandResult::Value(v) => {
                                     let source_count = match &v {
@@ -2689,7 +2694,7 @@ fn repl_main() -> Result<()> {
                                 commands::CommandResult::Output(out) => println!("{}", out),
                                 commands::CommandResult::Error(e, code) => {
                                     eprintln!("  x {}", e);
-                                    last_exit_code = Some(code);
+                                    engine.set_last_exit(Some(code));
                                 }
                                 _ => {}
                             }
@@ -2765,7 +2770,7 @@ fn repl_main() -> Result<()> {
                             // INT-171 gate 6: render the parse error with a caret under the
                             // offending `>` via miette, instead of a bare one-line message.
                             eprint!("{}", crate::error::render_redirect_error(line));
-                            last_exit_code = Some(2);
+                            engine.set_last_exit(Some(2));
                             continue 'segments;
                         }
                         // If it's a pure stderr redirect, handle separately
@@ -2783,7 +2788,7 @@ fn repl_main() -> Result<()> {
                                 .status();
                             // INT-189: sh ran this; sh knows how it ended. Discarding the status left
                             // `$?` reporting whatever failed before it.
-                            last_exit_code = Some(st.ok().and_then(|s| s.code()).unwrap_or(1));
+                            engine.set_last_exit(Some(st.ok().and_then(|s| s.code()).unwrap_or(1)));
                             continue 'segments;
                         }
                         let file = if is_append {
@@ -2861,7 +2866,7 @@ fn repl_main() -> Result<()> {
                                     // INT-169: record the status rather than leaving the PREVIOUS command's.
                                     // INT-143: the builtin already ran and printed; it did not fail. A stale code here is invisible today, but `&&`
                                     // is about to read this value to decide whether the next part runs.
-                                    last_exit_code = Some(0);
+                                    engine.set_last_exit(Some(0));
                                     continue 'segments;
                                 }
                                 if let Some(out) = builtin_out {
@@ -2946,18 +2951,20 @@ fn repl_main() -> Result<()> {
                         });
                     if has_shell_construct {
                         // INT-189: sh ran this; sh knows how it ended. The status was discarded.
-                        last_exit_code = match std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(segment.as_str()) // use raw unexpanded segment
-                            .stdin(std::process::Stdio::inherit())
-                            .stdout(std::process::Stdio::inherit())
-                            .stderr(std::process::Stdio::inherit())
-                            .envs(std::env::vars())
-                            .status()
-                        {
-                            Ok(status) => Some(status.code().unwrap_or(1)),
-                            Err(_) => Some(1),
-                        };
+                        engine.set_last_exit(
+                            match std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg(segment.as_str()) // use raw unexpanded segment
+                                .stdin(std::process::Stdio::inherit())
+                                .stdout(std::process::Stdio::inherit())
+                                .stderr(std::process::Stdio::inherit())
+                                .envs(std::env::vars())
+                                .status()
+                            {
+                                Ok(status) => Some(status.code().unwrap_or(1)),
+                                Err(_) => Some(1),
+                            },
+                        );
                         continue 'segments;
                     }
                     if has_external_op {
@@ -3068,11 +3075,11 @@ fn repl_main() -> Result<()> {
                                     // INT-169: default to success, then let the Error arm below override with the
                                     // REAL code. Without this the whole branch left `$?` reporting the previous
                                     // command -- invisible today, load-bearing once `&&` reads it.
-                                    last_exit_code = Some(0);
+                                    engine.set_last_exit(Some(0));
                                     match builtin_result {
                                         commands::CommandResult::Output(out) => println!("{}", out),
                                         commands::CommandResult::Error(e, code) => {
-                                            last_exit_code = Some(code);
+                                            engine.set_last_exit(Some(code));
                                             eprintln!("  ✗ {}", e)
                                         }
                                         commands::CommandResult::Value(v) => {
@@ -3147,12 +3154,12 @@ fn repl_main() -> Result<()> {
                                                         // INT-189: `c` runs the REMAINING pipeline, so it is the LAST stage and its
                                                         // status is the pipeline's. The earlier children are reaped below only to
                                                         // avoid zombies -- their statuses are not the result.
-                                                        last_exit_code = Some(
+                                                        engine.set_last_exit(Some(
                                                             c.wait()
                                                                 .ok()
                                                                 .and_then(|s| s.code())
                                                                 .unwrap_or(1),
-                                                        );
+                                                        ));
                                                     }
                                                     for mut child in children {
                                                         let _ = child.wait();
@@ -3186,8 +3193,9 @@ fn repl_main() -> Result<()> {
                                 for mut child in children {
                                     final_status = child.wait().ok();
                                 }
-                                last_exit_code =
-                                    Some(final_status.and_then(|s| s.code()).unwrap_or(1));
+                                engine.set_last_exit(Some(
+                                    final_status.and_then(|s| s.code()).unwrap_or(1),
+                                ));
                                 continue 'segments;
                             }
                         }
@@ -3195,13 +3203,15 @@ fn repl_main() -> Result<()> {
                         // INT-189: reached when the native pipeline could not be ASSEMBLED. That
                         // failure explains why the fallback happened; it must not overwrite what the
                         // fallback actually did. The code comes from the execution that ran.
-                        last_exit_code = match crate::db::spawn_sh_with_leak_check(original_line) {
-                            Ok(status) => Some(status.code().unwrap_or(1)),
-                            Err(e) => {
-                                eprintln!("fsh: pipe error: {}", e);
-                                Some(1)
-                            }
-                        };
+                        engine.set_last_exit(
+                            match crate::db::spawn_sh_with_leak_check(original_line) {
+                                Ok(status) => Some(status.code().unwrap_or(1)),
+                                Err(e) => {
+                                    eprintln!("fsh: pipe error: {}", e);
+                                    Some(1)
+                                }
+                            },
+                        );
                         continue 'segments;
                     }
                     let base_cmd = if has_pipe {
@@ -3287,7 +3297,7 @@ fn repl_main() -> Result<()> {
                         // INT-169: record the status rather than leaving the PREVIOUS command's.
                         // the stream ended normally. A stale code here is invisible today, but `&&`
                         // is about to read this value to decide whether the next part runs.
-                        last_exit_code = Some(0);
+                        engine.set_last_exit(Some(0));
                         continue 'segments;
                     }
 
@@ -3438,12 +3448,12 @@ fn repl_main() -> Result<()> {
                         // io::Result<ExitStatus>; the call site used to discard it with `let _ =`,
                         // leaving `last_exit_code` carrying the PREVIOUS command's result on the
                         // most common pipeline form in the shell.
-                        last_exit_code = match crate::db::spawn_sh_with_leak_check(line) {
+                        engine.set_last_exit(match crate::db::spawn_sh_with_leak_check(line) {
                             Ok(status) => Some(status.code().unwrap_or(1)),
                             // sh could not be launched. Same reasoning as the pipeline arms below:
                             // leaving the code untouched recreates the stale-state bug.
                             Err(_) => Some(1),
-                        };
+                        });
                         continue 'segments;
                     }
                     // BUG-298-1: expand tilde in base_cmd before dispatch
@@ -3467,15 +3477,15 @@ fn repl_main() -> Result<()> {
                     // INT-191: the state is derived from a BORROW, because the match below MOVES
                     // `execution.result` and the outcome would be unavailable afterwards.
                     let exec_state = exec::execution_state(&execution.result);
-                    let cmd_output: Option<String> = match execution.result {
-                        commands::CommandResult::Exit => {
-                            // INT-191: `break` escapes before the completion below, so this arm
-                            // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
-                            // never sets `last_exit_code`, so passing it would record the PREVIOUS
-                            // command's result, which is the stale-value bug INT-189 removed.
-                            // EXEC_EXIT already carries the meaning; no process exited.
-                            if let Err(e) =
-                                engine.db().complete_command_execution(
+                    let cmd_output: Option<String> =
+                        match execution.result {
+                            commands::CommandResult::Exit => {
+                                // INT-191: `break` escapes before the completion below, so this arm
+                                // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
+                                // never sets `last_exit_code`, so passing it would record the PREVIOUS
+                                // command's result, which is the stale-value bug INT-189 removed.
+                                // EXEC_EXIT already carries the meaning; no process exited.
+                                if let Err(e) = engine.db().complete_command_execution(
                                     &crate::db::ExecutionCompletion {
                                         session_id: exec::session_id(),
                                         execution_id,
@@ -3491,119 +3501,118 @@ fn repl_main() -> Result<()> {
                                             .as_secs()
                                             as i64,
                                     },
-                                )
-                            {
-                                eprintln!(
+                                ) {
+                                    eprintln!(
                                     "warning: failed to close exit command_execution record: {e}"
                                 );
+                                }
+                                break 'repl;
                             }
-                            break 'repl;
-                        }
-                        commands::CommandResult::Value(v)
-                            if !pipeline_ops.is_empty() && !has_external_op =>
-                        {
-                            // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
-                            // in-process value pipeline cannot report failure. 0 is not a chosen
-                            // policy here, it is the only coherent answer the type permits.
-                            // ⚠️ If that signature ever becomes fallible, this arm must change with
-                            // it -- a silent 0 over a real error would be the INT-189 bug returning.
-                            let result = value::apply_pipeline(v, &pipeline_ops);
-                            last_exit_code = Some(0);
-                            Some(result.render())
-                        }
-                        commands::CommandResult::Value(_) if has_external_op => {
-                            // Pipeline contains external commands — pass full line to sh
-                            let sh_output = std::process::Command::new("sh")
-                                .arg("-c")
-                                .arg(original_line)
-                                .output();
-                            match sh_output {
-                                Ok(o) => {
-                                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                    if !stderr.is_empty() {
-                                        eprint!("{}", stderr);
+                            commands::CommandResult::Value(v)
+                                if !pipeline_ops.is_empty() && !has_external_op =>
+                            {
+                                // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
+                                // in-process value pipeline cannot report failure. 0 is not a chosen
+                                // policy here, it is the only coherent answer the type permits.
+                                // ⚠️ If that signature ever becomes fallible, this arm must change with
+                                // it -- a silent 0 over a real error would be the INT-189 bug returning.
+                                let result = value::apply_pipeline(v, &pipeline_ops);
+                                engine.set_last_exit(Some(0));
+                                Some(result.render())
+                            }
+                            commands::CommandResult::Value(_) if has_external_op => {
+                                // Pipeline contains external commands — pass full line to sh
+                                let sh_output = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(original_line)
+                                    .output();
+                                match sh_output {
+                                    Ok(o) => {
+                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                        if !stderr.is_empty() {
+                                            eprint!("{}", stderr);
+                                        }
+                                        // INT-189: sh ALREADY computed this. The status was sitting
+                                        // in `Output` beside stdout and stderr the whole time and was
+                                        // simply never read, so `last_exit_code` carried over stale from
+                                        // the previous command. Nothing is being decided here: the
+                                        // semantics are whatever /bin/sh reported. `.code()` is None
+                                        // only if sh ITSELF was signalled -- a signalled child already
+                                        // arrives as 128+N through sh's own status.
+                                        engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                                        Some(stdout)
                                     }
-                                    // INT-189: sh ALREADY computed this. The status was sitting
-                                    // in `Output` beside stdout and stderr the whole time and was
-                                    // simply never read, so `last_exit_code` carried over stale from
-                                    // the previous command. Nothing is being decided here: the
-                                    // semantics are whatever /bin/sh reported. `.code()` is None
-                                    // only if sh ITSELF was signalled -- a signalled child already
-                                    // arrives as 128+N through sh's own status.
-                                    last_exit_code = Some(o.status.code().unwrap_or(1));
-                                    Some(stdout)
-                                }
-                                Err(_) => {
-                                    // sh could not be launched at all. Leaving the code untouched
-                                    // would recreate the stale-state bug by another route.
-                                    last_exit_code = Some(1);
-                                    None
-                                }
-                            }
-                        }
-                        commands::CommandResult::Value(v) => {
-                            // INT-189: rendering a value is success; this arm previously left
-                            // `last_exit_code` carrying the previous command's result.
-                            last_exit_code = Some(0);
-                            Some(v.render())
-                        }
-                        commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
-                            // External command with pipe — reconstruct full pipeline and run via sh
-                            let sh_output = std::process::Command::new("sh")
-                                .arg("-c")
-                                .arg(original_line)
-                                .output();
-                            match sh_output {
-                                Ok(o) => {
-                                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                    if !stderr.is_empty() {
-                                        eprint!("{}", stderr);
+                                    Err(_) => {
+                                        // sh could not be launched at all. Leaving the code untouched
+                                        // would recreate the stale-state bug by another route.
+                                        engine.set_last_exit(Some(1));
+                                        None
                                     }
-                                    // INT-189: inherit sh's status -- see the note on the Value
-                                    // arm above. Same omission, same repair.
-                                    last_exit_code = Some(o.status.code().unwrap_or(1));
-                                    Some(stdout)
-                                }
-                                Err(_) => {
-                                    last_exit_code = Some(1);
-                                    Some(out)
                                 }
                             }
-                        }
-                        commands::CommandResult::Output(out) => {
-                            last_exit_code = Some(0);
-                            Some(out)
-                        }
-                        commands::CommandResult::Empty => {
-                            last_exit_code = Some(0);
-                            None
-                        }
-                        commands::CommandResult::Error(e, code) => {
-                            eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
-                            // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
-                            // printed "exited 2" while `$?` reported 1 -- the code was formatted into
-                            // the message and thrown away. It travels on the variant now.
-                            last_exit_code = Some(code);
-                            None
-                        }
-                        // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by
-                        // exec::execute_with_context, which dispatches through commands::execute
-                        // (exec.rs:554), and execute() always passes allow_external: true -- so the
-                        // NotBuiltin arm in execute_impl cannot fire on this path. Only
-                        // try_builtin() can produce this variant.
-                        // Handled as Empty rather than todo!() or unreachable!(): BOTH PANIC, and a
-                        // panic here closes the shell. The codebase already knows this -- see
-                        // truncate_safe in commands/mod.rs, written so a multibyte anchor "never
-                        // panics the shell via an out-of-bounds byte slice (a panic here closes
-                        // fsh)". If a future refactor ever routes try_builtin through here, the
-                        // honest failure is a silent no-op, not a dead terminal.
-                        commands::CommandResult::NotBuiltin => {
-                            last_exit_code = Some(0);
-                            None
-                        }
-                    };
+                            commands::CommandResult::Value(v) => {
+                                // INT-189: rendering a value is success; this arm previously left
+                                // `last_exit_code` carrying the previous command's result.
+                                engine.set_last_exit(Some(0));
+                                Some(v.render())
+                            }
+                            commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
+                                // External command with pipe — reconstruct full pipeline and run via sh
+                                let sh_output = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(original_line)
+                                    .output();
+                                match sh_output {
+                                    Ok(o) => {
+                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                        if !stderr.is_empty() {
+                                            eprint!("{}", stderr);
+                                        }
+                                        // INT-189: inherit sh's status -- see the note on the Value
+                                        // arm above. Same omission, same repair.
+                                        engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                                        Some(stdout)
+                                    }
+                                    Err(_) => {
+                                        engine.set_last_exit(Some(1));
+                                        Some(out)
+                                    }
+                                }
+                            }
+                            commands::CommandResult::Output(out) => {
+                                engine.set_last_exit(Some(0));
+                                Some(out)
+                            }
+                            commands::CommandResult::Empty => {
+                                engine.set_last_exit(Some(0));
+                                None
+                            }
+                            commands::CommandResult::Error(e, code) => {
+                                eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
+                                // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
+                                // printed "exited 2" while `$?` reported 1 -- the code was formatted into
+                                // the message and thrown away. It travels on the variant now.
+                                engine.set_last_exit(Some(code));
+                                None
+                            }
+                            // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by
+                            // exec::execute_with_context, which dispatches through commands::execute
+                            // (exec.rs:554), and execute() always passes allow_external: true -- so the
+                            // NotBuiltin arm in execute_impl cannot fire on this path. Only
+                            // try_builtin() can produce this variant.
+                            // Handled as Empty rather than todo!() or unreachable!(): BOTH PANIC, and a
+                            // panic here closes the shell. The codebase already knows this -- see
+                            // truncate_safe in commands/mod.rs, written so a multibyte anchor "never
+                            // panics the shell via an out-of-bounds byte slice (a panic here closes
+                            // fsh)". If a future refactor ever routes try_builtin through here, the
+                            // honest failure is a silent no-op, not a dead terminal.
+                            commands::CommandResult::NotBuiltin => {
+                                engine.set_last_exit(Some(0));
+                                None
+                            }
+                        };
                     // INT-191: close the lifecycle HERE, where the exit code finally exists.
                     // postexec could not do it: the pipeline arms above decide the code after
                     // `execute_with_context` has already returned.
@@ -3615,7 +3624,7 @@ fn repl_main() -> Result<()> {
                                 execution_id,
                                 executed_text: Some(&base_cmd),
                                 state: exec_state,
-                                exit_code: last_exit_code,
+                                exit_code: engine.last_exit(),
                                 duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
                                 finished_at: std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
@@ -3812,7 +3821,7 @@ fn repl_main() -> Result<()> {
                         // (is pipeline status the last command? the first failure?) and belongs
                         // in its own intent with its own verification -- deliberately NOT
                         // bundled with a telemetry-corruption fix.
-                        let exit_ok = last_exit_code.map(|c| c == 0).unwrap_or(true);
+                        let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
                         let status_val = if exit_ok { "success" } else { "failure" };
                         let cache_dir =
                             std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
@@ -3893,7 +3902,7 @@ fn repl_main() -> Result<()> {
                                 1
                             }
                         };
-                        last_exit_code = Some(exit_code);
+                        engine.set_last_exit(Some(exit_code));
                         let now_ts = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
