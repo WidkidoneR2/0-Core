@@ -89,9 +89,20 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      the command it is about to run is going to change.
      ⚠️ prev_op was flagged as coupling and is NOT here: it is per-line chain state, internal to
      executing one input line, so it stays local to the executor's own scope.
-     ⚠️ DELIBERATELY UNWIRED. Moving the loop turns ~82 `&db` sites into accessor calls -- mechanical,
+     ⚠️ DELIBERATELY UNWIRED. Moving the loop turns the `&db` sites into accessor calls -- mechanical,
      and it should not ride along with the design where a mistake would be invisible rather than a
-     compile error. -->
+     compile error.
+     ⚠️ COUNT CORRECTION (measured at b1a60bb7, after this comment was written): the loop holds
+     29 `&db` plus 41 method sites = 70, and 39 `core_root` -- not the ~82 and ~31 quoted from the
+     first census. The original figures were an estimate repeated from memory rather than a count.
+     ✅ THE WIRING LANDED at 3dbca455 (accessors) and 1abf3083 (77 sites). The loop no longer owns
+     the database, the forest root or a config: every `cfg` use inside it was `before_rules`, so the
+     engine takes those by partial move. Verified on a clean build, 138 unit tests, the full 132-case
+     interactive suite, and a behaviour probe covering exit status, pipelines, the INT-143 prefix
+     save/restore, a db-backed builtin, health and history recall.
+     ⚠️ NOT A GATE. The four state bindings below still have no owner -- that is the next gate, and
+     this increment sharpened it: the resource conversion produced ZERO borrow conflicts, so the
+     whole remaining tension is `last_exit_code` (77 sites) and `shell_vars` (18). -->
 - [ ] `last_exit_code`, `job_table`, `shell_vars` and `prev_op` each have a stated owner
 - [ ] One function executes one line, callable from outside main.rs
 - [ ] The REPL loop is a CLIENT of it -- no dispatch logic left inline
