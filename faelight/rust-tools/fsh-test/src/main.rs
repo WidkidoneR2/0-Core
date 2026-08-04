@@ -1103,7 +1103,13 @@ fn all_tests() -> Vec<TestResult> {
             Box::leak(format!("conform_{}", slug(line)).into_boxed_str()),
             Category::Repl,
             move || {
+                // ⚠️ RUN BASH IN /tmp, NOT THE REPO. The two declared-divergence cases are
+                // exactly the ones bash executes as redirects -- `echo test > 0.5` and
+                // `echo test >= x` -- so bash creates files named `0.5` and `=` wherever it runs.
+                // They landed in the repo root and were committed before anyone noticed. fsh is
+                // the shell that refuses them; the reference implementation is not.
                 let bash = std::process::Command::new("bash")
+                    .current_dir("/tmp")
                     .args(["-c", line])
                     .output()
                     .map_err(|e| format!("bash unavailable: {e}"))?;
