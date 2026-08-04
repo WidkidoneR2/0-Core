@@ -3,7 +3,7 @@ id: 201
 date: 2026-08-04
 type: arch
 title: "fsh execution engine: extract a reusable executor from main.rs -- nothing outside the REPL loop can run a command"
-status: planned
+status: in-progress
 tags: [fsh, architecture, refactor, execution]
 priority: medium
 ---
@@ -74,7 +74,24 @@ wrong. Execution semantics inherit the caller's cwd and environment exactly as g
 semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
 
 ## Success Criteria
-- [ ] The minimal execution context is NAMED as a type, with its fields justified one at a time
+- [x] The minimal execution context is NAMED as a type, with its fields justified one at a time
+<!-- evidence: src/engine.rs. `Engine` owns five fields, each traced to a census of the REPL loop
+     rather than chosen: shell_vars and last_exit_code are the only genuine mutable EXECUTION state
+     of eleven bindings counted (77 reads/writes for the exit code alone -- the dominant coupling,
+     and load-bearing because `&&` decides the next segment from it); db, core_root and before_rules
+     are RESOURCES a caller hands in. The other eight bindings are session furniture the executor
+     never reads. All five `cfg` uses in the loop were `cfg.before_rules`, so the engine takes the
+     rules and the loop stops needing the config.
+     ★ NOT A FOURTH "CONTEXT", and the naming is part of the design: ExecContext is per-command
+     provenance, ShellContext is the ephemeral read-only view variable resolution needs, and Engine
+     is the long-lived mutable OWNER that produces both. `shell_context()` builds the view per call
+     because it COPIES the exit code -- holding one across an execution would hand the spine a value
+     the command it is about to run is going to change.
+     ⚠️ prev_op was flagged as coupling and is NOT here: it is per-line chain state, internal to
+     executing one input line, so it stays local to the executor's own scope.
+     ⚠️ DELIBERATELY UNWIRED. Moving the loop turns ~82 `&db` sites into accessor calls -- mechanical,
+     and it should not ride along with the design where a mistake would be invisible rather than a
+     compile error. -->
 - [ ] `last_exit_code`, `job_table`, `shell_vars` and `prev_op` each have a stated owner
 - [ ] One function executes one line, callable from outside main.rs
 - [ ] The REPL loop is a CLIENT of it -- no dispatch logic left inline

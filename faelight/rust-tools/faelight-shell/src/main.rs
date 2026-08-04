@@ -9,6 +9,7 @@
 mod cheatsheet_tui;
 mod commands;
 mod db;
+mod engine;
 mod error;
 mod exec;
 mod git_tui;
