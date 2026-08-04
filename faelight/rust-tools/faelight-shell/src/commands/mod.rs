@@ -547,21 +547,23 @@ fn execute_impl(
                 let report = crate::spine::audit::audit_history(commands);
                 return CommandResult::Output(report.render());
             }
-            // INT-200: `spine conform` -- what bash ACTUALLY does, versus what fsh does.
+            // INT-200: `spine conform` MOVED (2026-08-03). It lives in fsh-test now, and the reason
+            // is the defect that ended it: this version invoked fsh with `-c`, and `fsh -c` hands the
+            // whole string to `sh`. It was comparing sh against bash and reporting the result as fsh
+            // conformance -- its two 'unexplained' findings were that door, not a defect in fsh.
             //
-            // ★ THE HALF `spine migrate` CANNOT REACH. That compares parsers and never runs
-            // anything, so it measures coverage; this runs both shells and compares behaviour,
-            // which is the only way to measure correctness. Method borrowed from oils-for-unix,
-            // corpus deliberately not: their cases would import bash warts as requirements.
-            //
-            // ⚠️ Three verdicts, not two. A declared divergence is a PASS -- and a declared
-            // divergence that starts matching bash again is a FAILURE, because it means the
-            // deliberate behaviour was silently lost.
+            // ★ AND IT BELONGED THERE ANYWAY. Its three-verdict rule -- a declared divergence that
+            // starts MATCHING bash again is a FAILURE -- is a statement about drift over time, which
+            // only means anything if something runs it repeatedly. As a typed command it ran once.
+            // fsh-test drives a real pty, so the cases now measure the shell people actually use.
             Some("conform") => {
-                let fsh_bin = std::env::current_exe()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| "faelight-shell".to_string());
-                return CommandResult::Output(crate::spine::conform::run(&fsh_bin));
+                return CommandResult::Output(
+                    "  conformance moved to fsh-test (INT-200, 2026-08-03)\n\
+                     \n  Run:  fsh-test --failed        # cases named conform_*\n\
+                     \n  This command compared `fsh -c` against bash, and `fsh -c` delegates to sh --\n\
+                     \n  so it measured sh, not fsh. The cases now run over a real pty.\n"
+                        .to_string(),
+                );
             }
             Some("migrate") => {
                 // INT-169 Increment 10 Phase 2: migration-readiness audit. Produces BOTH plans

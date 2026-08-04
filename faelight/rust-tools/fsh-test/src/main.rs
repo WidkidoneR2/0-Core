@@ -1082,6 +1082,93 @@ fn all_tests() -> Vec<TestResult> {
             ))
         }
     }));
+    // ── INT-200 CONFORMANCE: what bash actually does, versus what fsh does.
+    //
+    // ⚠️ MIGRATED FROM `spine conform` (2026-08-03), and the reason is the finding that prompted
+    // it: that harness invoked fsh with `-c`, and `fsh -c` delegates the whole string to `sh`. It
+    // was comparing sh against bash and calling the result fsh conformance. Its two "unexplained"
+    // results were that door, not a defect.
+    //
+    // ★ IT ALSO BELONGS HERE BY DESIGN, not just by convenience. Its three-verdict rule -- a
+    // declared divergence that starts MATCHING bash again is a FAILURE -- is a statement about
+    // drift over time, which only means something if something runs it repeatedly. It lived as a
+    // typed command, ran once, and never ran again. That is the fate of a regression suite with no
+    // CI home.
+    //
+    // ★ AND THE PTY IS THE POINT: fsh's real behaviour is what the interactive shell does, which is
+    // exactly what run_repl drives. File effects are observable here too, because a case can read
+    // the file back -- the limitation the old harness recorded and could not fix.
+    for (line, diverges) in CONFORMANCE_CASES {
+        results.push(test(
+            Box::leak(format!("conform_{}", slug(line)).into_boxed_str()),
+            Category::Repl,
+            move || {
+                let bash = std::process::Command::new("bash")
+                    .args(["-c", line])
+                    .output()
+                    .map_err(|e| format!("bash unavailable: {e}"))?;
+                let bash_out = String::from_utf8_lossy(&bash.stdout).trim().to_string();
+                let fsh_out = repl::run_repl(line)?.join("\n");
+                // ⚠️ WHAT IS EXCLUDED FROM THE COMPARISON, AND WHY. Every entry here is
+                // SHELL-GENERATED rather than command output, and the list is deliberately closed:
+                // anything not on it that fails a case means the case is wrong or a divergence
+                // needs declaring -- not that the filter needs another clause. A filter that grows
+                // to make cases green is the same mistake as measuring `sh` and calling it fsh.
+                //
+                //   1. OSC 133 shell-integration markers -- terminal protocol, like ANSI colour.
+                //      Already removed by strip_ansi; noted so nobody re-adds them as "output".
+                //   2. The prompt -- emitted to delimit interaction, not by the command under test.
+                //   3. Shell-generated EXECUTION SUMMARIES (`x exited N -- ...`) -- fsh reports on
+                //      the command it just ran; bash says nothing. Different voice, same execution.
+                //   4. The multi-command progress display (`○ N commands`, `[n/N] <text>`) -- and
+                //      this one MUST go, because it echoes the command text, which frequently
+                //      contains the expected output and would make a `contains` pass by accident.
+                fn is_shell_ui(line: &str) -> bool {
+                    let t = line.trim();
+                    t.is_empty()
+                        || t.contains("fsh❯")
+                        || t.starts_with('🔧')
+                        || t.starts_with('○')
+                        || t.starts_with('[')
+                        || t.starts_with("x ")
+                        || t.starts_with('✗')
+                        || t.starts_with("🌲")
+                        || t.starts_with("🌳")
+                }
+                let fsh_body: String = fsh_out
+                    .lines()
+                    .filter(|l| !is_shell_ui(l))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                // ⚠️ NO `is_empty()` SHORT-CIRCUIT. An earlier version read
+                // `bash_out.is_empty() || fsh_out.contains(&bash_out)`, which scored every case
+                // where bash prints nothing as a MATCH -- so a declared divergence like
+                // `echo test > 0.5` (bash writes a file and prints nothing) reported "now matches
+                // bash" every run. The check inverted itself, and it would have hidden a real
+                // digit-guard regression behind a permanent false alarm.
+                let same = if bash_out.is_empty() {
+                    fsh_body.trim().is_empty()
+                } else {
+                    fsh_body.contains(&bash_out)
+                };
+                match (diverges, same) {
+                    (None, true) => Ok(()),
+                    (Some(_), false) => Ok(()),
+                    (None, false) => Err(format!(
+                        "fsh disagrees with bash and nobody wrote down why -- bash: {bash_out:?}, \
+                         fsh: {fsh_out:?}"
+                    )),
+                    // ⚠️ THE SUBTLE FAILURE: a declared divergence that started matching bash
+                    // again means the deliberate behaviour was silently lost.
+                    (Some(why), true) => Err(format!(
+                        "this was declared to DIVERGE from bash and now matches it -- the \
+                         deliberate behaviour is gone: {why}"
+                    )),
+                }
+            },
+        ));
+    }
+
     // ── INT-285 / INT-200: a control structure containing `&&` must survive intact.
     //
     // ⚠️ THIS IS A REGRESSION FROM THE BOOLEAN-CHAIN FLATTEN (7db111fa), found four days after it
@@ -1351,6 +1438,69 @@ fn store_results(results: &[TestResult]) {
             ],
         );
     }
+}
+
+/// One conformance case: the line, and the reason fsh deliberately differs (or `None` if it must
+/// match bash exactly).
+///
+/// ⚠️ THE DIVERGENCE REASONS ARE THE ASSET HERE, not the harness. Each records a decision someone
+/// made on purpose, and a case that starts matching bash again means that decision was lost.
+/// Carried over verbatim from spine/conform.rs when the suite moved (2026-08-03).
+type ConformCase = (&'static str, Option<&'static str>);
+
+const CONFORMANCE_CASES: &[ConformCase] = &[
+    // --- pipelines: the construct the spine took over most recently ---
+    ("echo hi | grep h", None),
+    // ⚠️ DOUBLE-ESCAPED, matching the convention at pipe_with_grep above: the Rust literal must
+    // deliver a literal backslash-n to the shell. With single backslashes it is a real multi-line
+    // string, and run_repl submits ONE line -- the shell saw `printf 'a` and waited for a closing
+    // quote, so the capture held prompt redraw instead of output. That is what "..." was.
+    ("printf 'a\\nb\\nc\\n' | wc -l", None),
+    ("echo one | grep one | wc -c", None),
+    // POSIX says a pipeline's status is the LAST stage's. INT-189 settled this the hard way.
+    ("false | true", None),
+    ("true | false", None),
+    // --- redirects ---
+    ("echo written > /tmp/fsh_conform_a.txt; sed -n 1p /tmp/fsh_conform_a.txt", None),
+    ("echo one > /tmp/fsh_conform_b.txt; echo two >> /tmp/fsh_conform_b.txt; sed -n 1,2p /tmp/fsh_conform_b.txt", None),
+    // Truncation: the second write must REPLACE, not append.
+    ("echo one > /tmp/fsh_conform_c.txt; echo two > /tmp/fsh_conform_c.txt; sed -n 1p /tmp/fsh_conform_c.txt", None),
+    // --- file descriptors ---
+    // ★ THIS ONE SURVIVES `ls`->`eza` because the semantic under test is "stderr is suppressed":
+    // both shells print NOTHING on stdout whichever program the name resolves to.
+    ("ls /nonexistent 2>/dev/null", None),
+    // ⚠️ `sed`, NOT `ls`, AND THE REASON IS THE PRINCIPLE: fsh aliases `ls` to `eza`, so comparing
+    // its error text against bash's compares eza against ls -- the behaviour of a different program,
+    // not a shell semantic. The case is about whether `2>&1` sends stderr to the same file as
+    // stdout, so it uses a command both shells resolve identically.
+    ("sed -n 1p /nonexistent > /tmp/fsh_conform_d.txt 2>&1; sed -n 1p /tmp/fsh_conform_d.txt", None),
+    // ⚠️ ADJACENCY: a SPACED numeral is an argument, not a descriptor.
+    ("echo 2 > /tmp/fsh_conform_e.txt; sed -n 1p /tmp/fsh_conform_e.txt", None),
+    // --- quoting ---
+    ("echo \"a > b\"", None),
+    ("echo \"a|b\"", None),
+    // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
+    (
+        "echo test > 0.5",
+        Some(
+            "bash creates a file named 0.5; fsh treats a digit-initial target as a COMPARISON so \
+             `ps | where cpu > 0.5` keeps working. The query language depends on this.",
+        ),
+    ),
+    (
+        "echo test >= x",
+        Some("same rule, `=` instead of a digit -- `where score >= 70` must stay a comparison."),
+    ),
+];
+
+/// A stable test name from a case line: alphanumerics kept, everything else collapsed to `_`.
+fn slug(line: &str) -> String {
+    let mut s: String = line
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    s.truncate(40);
+    s
 }
 
 fn main() {
