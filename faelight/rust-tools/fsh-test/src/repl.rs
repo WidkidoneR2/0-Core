@@ -98,10 +98,25 @@ fn drain(rx: &mpsc::Receiver<Vec<u8>>, quiet: Duration) -> Vec<u8> {
     acc
 }
 
-/// Type `cmd` into a real interactive fsh over a pty; return the lines it printed.
+/// Type one line into a real interactive fsh over a pty; return the lines it printed.
 ///
 /// This is NOT `fsh -c`. That distinction is the entire reason this exists.
 pub fn run_repl(cmd: &str) -> Result<Vec<String>, String> {
+    run_repl_lines(&[cmd])
+}
+
+/// Type SEVERAL lines into ONE fsh session, in order, and return what the LAST one printed.
+///
+/// ★ WHY THIS EXISTS: a file outlives the shell, so a background job's EFFECT can be verified in a
+/// second session -- but REPL STATE cannot. A job table, an exported variable and the working
+/// directory all die with the process, so any test about them needs two commands in ONE session.
+/// That gap is why `jobs` could break for six generations with nothing noticing: the regression
+/// lived in exactly the class the harness could not express.
+///
+/// ⚠️ ONLY THE LAST COMMAND'S OUTPUT COMES BACK. The reader keeps everything after the LAST
+/// bracketed-paste-off marker, so earlier lines are setup, not assertions -- a test asserting on
+/// an earlier line would silently see nothing.
+pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
@@ -142,11 +157,15 @@ pub fn run_repl(cmd: &str) -> Result<Vec<String>, String> {
     std::thread::sleep(Duration::from_millis(2500));
     let _ = drain(&rx, Duration::from_millis(400));
 
-    master
-        .write_all(cmd.as_bytes())
-        .map_err(|e| e.to_string())?;
-    master.write_all(b"\n").map_err(|e| e.to_string())?;
-    std::thread::sleep(Duration::from_millis(1200));
+    // Each line is submitted and given time to run before the next -- a settle per line, not
+    // one at the end, because a later command may depend on an earlier one having finished.
+    for cmd in cmds {
+        master
+            .write_all(cmd.as_bytes())
+            .map_err(|e| e.to_string())?;
+        master.write_all(b"\n").map_err(|e| e.to_string())?;
+        std::thread::sleep(Duration::from_millis(1200));
+    }
     let raw = drain(&rx, Duration::from_millis(500));
 
     let _ = master.write_all(b"exit\n");

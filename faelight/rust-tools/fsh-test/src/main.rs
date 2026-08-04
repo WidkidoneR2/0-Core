@@ -1087,6 +1087,41 @@ fn all_tests() -> Vec<TestResult> {
     // split_whitespace() -- a naive re-tokenizer running AFTER the shell already knew the real
     // structure. Two bugs fall out of those five lines, and both are INT-195's invariant broken:
     // every stage must consume the previous stage's output, never the original string.
+    // ── INT-169: job control must survive ROUTING. `jobs` reads the JobTable that lives in
+    // the REPL loop, which spine dispatch has no path to -- so the router could parse it, claim
+    // it, and never run it. That is exactly what happened from gen 447 to gen 454: `jobs` printed
+    // "command not found" while the table still filled and the prompt still showed [1 job]. Only
+    // the inspection command was dead, which is why six generations went by without notice.
+    //
+    // ⚠️ THIS NEEDS ONE SESSION, not two. A background job dies with its shell, so unlike the
+    // redirect tests below there is no file to carry the result across -- which is the whole
+    // reason run_repl_lines exists.
+    results.push(test(
+        "repl_jobs_lists_a_running_job",
+        Category::Repl,
+        || {
+            let out = repl::run_repl_lines(&["sleep 20 &", "jobs"])?;
+            let joined = out.join("\n");
+            // The job table prints the command name; a failure prints "command not found: jobs".
+            // Asserting on the ABSENCE of the error as well as the presence of the listing, because
+            // an empty capture would otherwise read as a pass on the second condition alone.
+            let listed = out.iter().any(|l| l.contains("sleep"));
+            let not_found = out.iter().any(|l| l.contains("command not found"));
+            if listed && !not_found {
+                Ok(())
+            } else if not_found {
+                Err(format!(
+                "`jobs` was claimed by the router and never ran -- job control is half-dead: the \
+                 table fills and the prompt counts, but the user cannot inspect it: {joined:?}"
+            ))
+            } else {
+                Err(format!(
+                    "expected the running job to be listed, saw: {joined:?}"
+                ))
+            }
+        },
+    ));
+
     results.push(test(
         "repl_background_job_honours_its_redirect",
         Category::Repl,
