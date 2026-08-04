@@ -172,7 +172,35 @@ fn is_repl_state_command(line: &str) -> bool {
     }
 }
 
-pub(crate) fn split_semicolons(line: &str) -> Vec<String> {
+/// How a LINE becomes the segments the shell executes: semicolon parts, each further split on
+/// `&&`/`||` -- EXCEPT where the construct is atomic.
+///
+/// ★ ONE OWNER, TWO CALLERS. The REPL loop and the migration audit both need this, and when they
+/// each did it inline they both got it wrong the same way: `split_semicolons` deliberately keeps
+/// `if …; then …; fi`, `for …; do …; done` and piped whiles WHOLE (INT-285 BUG 2, because sh must
+/// receive them as one unit), and running `split_logical` over the result cut them at the `&&`
+/// anyway. `if true; then echo A && echo B; fi` became two fragments and sh reported a syntax
+/// error. Four days live, missed because every chain test used simple commands.
+///
+/// ⚠️ THE ATOMIC RULES ARE NOT REPEATED HERE. `split_semicolons_marked` reports what it protected;
+/// this only decides what to do about it. Teaching `split_logical` the same rules would be a
+/// second owner of a rule that already has a bug history.
+pub(crate) fn split_into_segments(line: &str) -> Vec<(String, Option<bool>)> {
+    split_semicolons_marked(line)
+        .into_iter()
+        .flat_map(|(seg, atomic)| {
+            if atomic {
+                // No operator: an atomic construct is one segment that always runs, and its
+                // internal `&&` belongs to sh, not to the shell's own chain logic.
+                vec![(seg, None)]
+            } else {
+                split_logical(&seg)
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn split_semicolons_marked(line: &str) -> Vec<(String, bool)> {
     // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
     // The entire construct is passed to sh for execution as one unit
     let trimmed = line.trim();
@@ -187,19 +215,25 @@ pub(crate) fn split_semicolons(line: &str) -> Vec<String> {
 do",
             ))
     {
-        return vec![trimmed.to_string()];
+        // TRUE = atomic: sh must receive this construct whole. The caller uses this to
+        // skip `split_logical`, which knows nothing about `then`/`fi`/`done`.
+        return vec![(trimmed.to_string(), true)];
     }
     // if/then/else/fi constructs are atomic -- never split at semicolons
     let is_if = trimmed.starts_with("if ");
     if is_if && (trimmed.contains("; then") || trimmed.contains(";then")) && trimmed.ends_with("fi")
     {
-        return vec![trimmed.to_string()];
+        // TRUE = atomic: sh must receive this construct whole. The caller uses this to
+        // skip `split_logical`, which knows nothing about `then`/`fi`/`done`.
+        return vec![(trimmed.to_string(), true)];
     }
     // piped while loops are atomic: "cmd | while ...; do ...; done"
     let has_piped_while =
         trimmed.contains("| while ") && trimmed.contains("; do") && trimmed.ends_with("done");
     if has_piped_while {
-        return vec![trimmed.to_string()];
+        // TRUE = atomic: sh must receive this construct whole. The caller uses this to
+        // skip `split_logical`, which knows nothing about `then`/`fi`/`done`.
+        return vec![(trimmed.to_string(), true)];
     }
     let mut segments = vec![];
     let mut current = String::new();
@@ -219,7 +253,7 @@ do",
             ';' if !in_quote => {
                 let seg = current.trim().to_string();
                 if !seg.is_empty() {
-                    segments.push(seg);
+                    segments.push((seg, false));
                 }
                 current.clear();
             }
@@ -228,10 +262,10 @@ do",
     }
     let seg = current.trim().to_string();
     if !seg.is_empty() {
-        segments.push(seg);
+        segments.push((seg, false));
     }
     if segments.is_empty() {
-        segments.push(line.trim().to_string());
+        segments.push((line.trim().to_string(), false));
     }
     segments
 }
@@ -1322,10 +1356,7 @@ fn repl_main() -> Result<()> {
                 // Phase 14 -- every command the shell runs is ONE entry here: semicolon
                 // parts, then boolean-chain parts within each. Flattened deliberately so a chained
                 // command takes the identical path a standalone one does.
-                let segments: Vec<(String, Option<bool>)> = split_semicolons(&line)
-                    .iter()
-                    .flat_map(|seg| split_logical(seg))
-                    .collect();
+                let segments: Vec<(String, Option<bool>)> = split_into_segments(&line);
                 let mut prev_op: Option<bool> = None;
                 let segment_count = segments.len();
                 if segment_count > 2 {

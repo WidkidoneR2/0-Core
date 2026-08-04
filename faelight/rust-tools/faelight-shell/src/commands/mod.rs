@@ -613,9 +613,11 @@ fn execute_impl(
                     // the domain because legacy builds no plan; a pipeline is owned because legacy
                     // has no single plan to compare. But each part of `a && b` is an ordinary
                     // command BOTH engines handle, so it is N ordinary comparisons.
-                    let parts: Vec<String> = crate::split_semicolons(raw_entry)
-                        .iter()
-                        .flat_map(|seg| crate::expand::split_logical(seg))
+                    // ⚠️ THE SAME HELPER THE REPL USES. When this site and the REPL each flattened inline,
+                    // both tore atomic constructs apart at the `&&` -- the audit fed sh-bound `if …; fi`
+                    // lines to the parser in halves and counted the fragments. One owner, no drift.
+                    let parts: Vec<String> = crate::split_into_segments(raw_entry)
+                        .into_iter()
                         .map(|(cmd, _op)| cmd)
                         .collect();
                     for source in &parts {

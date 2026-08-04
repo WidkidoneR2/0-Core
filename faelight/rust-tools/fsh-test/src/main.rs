@@ -1082,6 +1082,43 @@ fn all_tests() -> Vec<TestResult> {
             ))
         }
     }));
+    // ── INT-285 / INT-200: a control structure containing `&&` must survive intact.
+    //
+    // ⚠️ THIS IS A REGRESSION FROM THE BOOLEAN-CHAIN FLATTEN (7db111fa), found four days after it
+    // shipped. `split_semicolons` deliberately keeps `if …; then …; fi`, `for …; do …; done` and
+    // piped whiles ATOMIC -- they go to `sh` as one unit, which is INT-285 BUG 2's fix. The
+    // flatten then ran `split_logical` over EVERY segment including those, and it knows nothing
+    // about `then`/`fi`/`done`, so it cut the construct at the `&&` and each half reached sh as a
+    // fragment: "syntax error: unexpected end of file from `if'".
+    //
+    // ★ NOTHING CAUGHT IT because all three chain regressions use SIMPLE commands. The bug lived
+    // exactly where the tests did not look, which is the reason this one exists.
+    //
+    // The contract is behavioural on purpose -- both branches run, and no syntax error escapes --
+    // so it stays valid whichever way the splitters are eventually reshaped.
+    results.push(test(
+        "repl_control_structure_with_a_boolean_chain_stays_intact",
+        Category::Repl,
+        || {
+            let out = repl::run_repl("if true; then echo ZZIFA && echo ZZIFB; fi")?;
+            let joined = out.join("\n");
+            let a = out.iter().any(|l| l.contains("ZZIFA"));
+            let b = out.iter().any(|l| l.contains("ZZIFB"));
+            let torn = out.iter().any(|l| l.contains("syntax error"));
+            if a && b && !torn {
+                Ok(())
+            } else if torn {
+                Err(format!(
+                    "the construct was torn apart -- `split_logical` cut it at the `&&` and sh \
+                     received a fragment, so an `if` containing a boolean chain cannot run at \
+                     all: {joined:?}"
+                ))
+            } else {
+                Err(format!("expected both branches to run, saw: {joined:?}"))
+            }
+        },
+    ));
+
     // ── INT-200 background: two REGRESSIONS, expected RED. main.rs:3144 detects a trailing
     // `&` and hands the line to JobTable::spawn, which re-derives argv with splitn(2, ' ') and
     // split_whitespace() -- a naive re-tokenizer running AFTER the shell already knew the real
