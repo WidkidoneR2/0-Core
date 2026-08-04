@@ -22,7 +22,6 @@ use std::rc::Rc;
 ///
 /// ⚠️ EACH FIELD IS HERE FOR A MEASURED REASON (INT-201 gate 1). A census of the REPL loop found
 /// eleven bindings; eight of them are session furniture the executor never reads.
-#[allow(dead_code)]
 pub struct Engine {
     /// Session variables. OWNED and MUTABLE: `FOO=1 cmd` inserts here, and the prefix form must
     /// restore the previous value afterwards -- a failed command has no business mutating durable
@@ -51,7 +50,6 @@ pub struct Engine {
     before_rules: Vec<BeforeRunRule>,
 }
 
-#[allow(dead_code)]
 impl Engine {
     pub fn new(db: ForestDb, core_root: String, before_rules: Vec<BeforeRunRule>) -> Self {
         Self {
@@ -103,6 +101,11 @@ impl Engine {
     /// Read one session variable. `None` means UNSET, matching `expand_vars`.
     pub fn var(&self, name: &str) -> Option<&String> {
         self.shell_vars.get(name)
+    }
+
+    /// All session variables, for `expand_vars`, which takes the map itself.
+    pub fn vars(&self) -> &HashMap<String, String> {
+        &self.shell_vars
     }
 
     /// Set one session variable.

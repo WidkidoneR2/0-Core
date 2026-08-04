@@ -44,7 +44,7 @@ use expand::*;
 use anyhow::Result;
 use chrono::{Datelike, Timelike};
 use rustyline::{error::ReadlineError, CompletionType, Config, EditMode, Editor};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 /// Split a line on `;` separators, respecting quoted strings.
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
@@ -1000,26 +1000,29 @@ fn repl_main() -> Result<()> {
     let mut last_command_start: Option<std::time::Instant> = None;
 
     // Phase 10 — shell variable table
-    let mut shell_vars: HashMap<String, String> = HashMap::new();
     // Restore persisted variables from state.db
     {
         {
             let _ = engine.db().conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         );
-            if let Ok(mut stmt) = engine
+            // INT-201: collect first, insert after. The prepared statement borrows the engine's
+            // database and the Result temporary lives to the end of the block, so inserting
+            // inside it would need &mut engine while that borrow is still outstanding.
+            let persisted: Vec<(String, String)> = match engine
                 .db()
                 .conn
                 .prepare("SELECT key, value FROM shell_persist")
             {
-                let rows: Vec<(String, String)> = stmt
+                Ok(mut stmt) => stmt
                     .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
                     .map(|rows| rows.filter_map(|r| r.ok()).collect())
-                    .unwrap_or_default();
-                for (k, v) in rows {
-                    std::env::set_var(&k, &v);
-                    shell_vars.insert(k, v);
-                }
+                    .unwrap_or_default(),
+                Err(_) => Vec::new(),
+            };
+            for (k, v) in persisted {
+                std::env::set_var(&k, &v);
+                engine.set_var(k, v);
             }
         }
     }
@@ -2055,10 +2058,10 @@ fn repl_main() -> Result<()> {
                                     parts[1].trim_matches('\"').trim_matches('\'').to_string();
                                 // INT-100: expand $VAR first, then run $(...) subshells
                                 // so `NAME=$(cmd)` stores the command OUTPUT, not the literal.
-                                let expanded = expand_vars(&val, &shell_vars, engine.last_exit());
+                                let expanded = expand_vars(&val, engine.vars(), engine.last_exit());
                                 let expanded = expand_subshells(&expanded);
                                 std::env::set_var(name, &expanded);
-                                shell_vars.insert(name.to_string(), expanded.clone());
+                                engine.set_var(name.to_string(), expanded.clone());
                                 println!(
                                     "  {} {} = {}",
                                     "→".bright_cyan(),
@@ -2121,7 +2124,7 @@ fn repl_main() -> Result<()> {
                                         .to_string();
                                     // INT-100: also run $(...) subshells for inline KEY=$(x) cmd
                                     let expanded =
-                                        expand_vars(&val, &shell_vars, engine.last_exit());
+                                        expand_vars(&val, engine.vars(), engine.last_exit());
                                     let expanded = expand_subshells(&expanded);
                                     temp_vars.push((name.to_string(), expanded));
                                     rest = rest[maybe_var.len()..].trim_start();
@@ -2142,13 +2145,13 @@ fn repl_main() -> Result<()> {
                             let saved: Vec<(String, Option<String>, Option<String>)> = temp_vars
                                 .iter()
                                 .map(|(k, _)| {
-                                    (k.clone(), std::env::var(k).ok(), shell_vars.get(k).cloned())
+                                    (k.clone(), std::env::var(k).ok(), engine.var(k).cloned())
                                 })
                                 .collect();
                             // Set vars in environment
                             for (k, v) in &temp_vars {
                                 std::env::set_var(k, v);
-                                shell_vars.insert(k.clone(), v.clone());
+                                engine.set_var(k.clone(), v.clone());
                             }
                             if rest.is_empty() {
                                 // Standalone VAR=value — just set and confirm
@@ -2167,7 +2170,8 @@ fn repl_main() -> Result<()> {
                                 continue 'segments;
                             }
                             // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
-                            let rest_expanded = expand_vars(rest, &shell_vars, engine.last_exit());
+                            let rest_expanded =
+                                expand_vars(rest, engine.vars(), engine.last_exit());
                             // INT-191: `raw_line` is the whole segment INCLUDING the FOO=1
                             // prefix, because the field is documented as exactly what the user
                             // typed and the assignment is part of that.
@@ -2194,10 +2198,10 @@ fn repl_main() -> Result<()> {
                                 }
                                 match prev_shell {
                                     Some(prev) => {
-                                        shell_vars.insert(k.clone(), prev.clone());
+                                        engine.set_var(k.clone(), prev.clone());
                                     }
                                     None => {
-                                        shell_vars.remove(k);
+                                        let _ = engine.remove_var(k);
                                     }
                                 }
                             }
@@ -2252,14 +2256,14 @@ fn repl_main() -> Result<()> {
                                 .trim_matches('"')
                                 .trim_matches('\'')
                                 .to_string();
-                            let expanded = expand_vars(&val, &shell_vars, engine.last_exit());
+                            let expanded = expand_vars(&val, engine.vars(), engine.last_exit());
                             println!(
                                 "  {} {} = {}",
                                 "→".bright_cyan(),
                                 name.bright_white(),
                                 expanded.dimmed()
                             );
-                            shell_vars.insert(name, expanded);
+                            engine.set_var(name, expanded);
                         } else {
                             eprintln!("  {} usage: let <name> = <value>", "✗".bright_red());
                         }
@@ -2275,9 +2279,9 @@ fn repl_main() -> Result<()> {
                         } else {
                             (rest.trim(), "")
                         };
-                        let expanded = expand_vars(val, &shell_vars, engine.last_exit());
+                        let expanded = expand_vars(val, engine.vars(), engine.last_exit());
                         std::env::set_var(name, &expanded);
-                        shell_vars.insert(name.to_string(), expanded.clone());
+                        engine.set_var(name.to_string(), expanded.clone());
                         println!(
                             "  {} export {} = {}",
                             "→".bright_cyan(),
@@ -2289,7 +2293,7 @@ fn repl_main() -> Result<()> {
 
                     if let Some(rest) = trimmed.strip_prefix("unset ") {
                         let name = rest.trim();
-                        shell_vars.remove(name);
+                        let _ = engine.remove_var(name);
                         std::env::remove_var(name);
                         println!("  {} unset {}", "→".bright_cyan(), name.bright_white(),);
                         continue;
@@ -2298,9 +2302,9 @@ fn repl_main() -> Result<()> {
                     if let Some(rest) = trimmed.strip_prefix("persist ") {
                         let name = rest.trim();
                         let env_val = std::env::var(name).ok();
-                        if let Some(val) = shell_vars
-                            .get(name)
-                            .or_else(|| env_val.as_deref().map(|v| shell_vars.get(v)).flatten())
+                        if let Some(val) = engine
+                            .var(name)
+                            .or_else(|| env_val.as_deref().map(|v| engine.var(v)).flatten())
                             .or(env_val.as_ref())
                         {
                             let val = val.clone();
@@ -2348,10 +2352,7 @@ fn repl_main() -> Result<()> {
                             println!("  usage: spine-exec <command>");
                             continue;
                         }
-                        let shell = exec::ShellContext {
-                            shell_vars: &shell_vars,
-                            last_exit_code: engine.last_exit(),
-                        };
+                        let shell = engine.shell_context();
                         match exec::execute_spine_source(
                             source,
                             &shell,
@@ -2498,10 +2499,7 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     if spine_on {
-                        let shell = exec::ShellContext {
-                            shell_vars: &shell_vars,
-                            last_exit_code: engine.last_exit(),
-                        };
+                        let shell = engine.shell_context();
                         // INT-200: BACKGROUND IS TRIED FIRST, because it is the one construct whose result is
                         // not a CommandResult -- it is a live child that must be REGISTERED rather than waited
                         // on. exec.rs builds the configured Command; the job table lives here, so the handoff
@@ -2582,7 +2580,7 @@ fn repl_main() -> Result<()> {
                             eprintln!("  [spine-router] declined: {line}");
                         }
                     }
-                    let line = expand_vars(line, &shell_vars, engine.last_exit());
+                    let line = expand_vars(line, engine.vars(), engine.last_exit());
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
