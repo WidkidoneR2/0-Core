@@ -719,6 +719,44 @@ fn main() -> Result<()> {
     result
 }
 
+/// Everything the fsh LANGUAGE needs in order to execute correctly, and nothing an interactive
+/// session wants. INT-200.
+///
+/// ★ THE BOUNDARY THIS ENCODES: a shell start used to mean "begin an interactive session", with no
+/// other option available -- the clearest evidence being that startup changes the working directory
+/// to the forest root. Correct when you are opening a terminal; fatal for `fsh -c 'pwd'`, which
+/// must inherit the caller's directory. Splitting the two is what lets one binary mean one
+/// language without every non-interactive invocation paying for a prompt it will never draw.
+///
+/// ⚠️ THIS FUNCTION PRINTS NOTHING. It returns what it did and lets the caller announce it, because
+/// any non-program output from a non-interactive invocation belongs on stderr and only the front
+/// end knows which front end it is.
+///
+/// ⚠️ NOT HERE, ON PURPOSE: the cwd change, direnv, the welcome banner, the health refresh, session
+/// bookkeeping, the two startup subprocesses, the line editor, history and keybinds.
+struct RuntimeInit {
+    db: db::ForestDb,
+    cfg: config::ShellConfig,
+    applied: config::ApplyReport,
+    diagnostics: Vec<String>,
+}
+
+fn runtime_init() -> Result<RuntimeInit> {
+    let db = db::ForestDb::open()?;
+    config::ensure_default();
+    let cfg = config::load();
+    // ⚠️ ORDER IS LOAD-BEARING: `apply` WRITES shell_aliases, and the command registry READS it.
+    let applied = config::apply(&cfg, &db);
+    // Diagnostics, not control flow -- validate reports on the runtime, it does not change it.
+    let diagnostics = config::validate();
+    Ok(RuntimeInit {
+        db,
+        cfg,
+        applied,
+        diagnostics,
+    })
+}
+
 fn repl_main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
@@ -767,7 +805,16 @@ fn repl_main() -> Result<()> {
     // INT-045: direnv hook -- apply environment for the startup directory
     apply_direnv();
     // Connect to state.db
-    let db = db::ForestDb::open()?;
+    // INT-200: RUNTIME INIT, and it is deliberately everything the LANGUAGE needs and nothing
+    // the SESSION wants. Destructured immediately so the two hundred lines below keep using the
+    // same local names -- the diff stays in the init block instead of spreading through the
+    // whole function.
+    let RuntimeInit {
+        db,
+        cfg,
+        applied,
+        diagnostics,
+    } = runtime_init()?;
     // INT-096: record which fsh build this session launched from, so `reload` can tell
     // whether a newer build was deployed. The deploy symlink canonicalizes to a store path
     // whose hash changes on every rebuild -- that hash IS the build identity (current_exe()
@@ -779,10 +826,6 @@ fn repl_main() -> Result<()> {
     let _ = std::env::set_current_dir(&core_root);
     // Start in ~/0-core by default
     let _ = std::env::set_current_dir(&core_root);
-
-    // Phase 15 — load config.fsh
-    config::ensure_default();
-    let cfg = config::load();
 
     // INT-124: refresh health BEFORE the welcome header renders, so the splash
     // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
@@ -825,7 +868,6 @@ fn repl_main() -> Result<()> {
     // The announcement moved OUT of `apply` (INT-200): a runtime step must not emit UI, or a
     // non-interactive caller inherits it on stdout. Printed here, unchanged, so the interactive
     // banner is byte-identical to before.
-    let applied = config::apply(&cfg, &db);
     if applied.pruned > 0 {
         println!(
             "  {} reconciled - {} runtime alias{} pruned to config.fsh",
@@ -844,14 +886,15 @@ fn repl_main() -> Result<()> {
             if applied.settings == 1 { "" } else { "s" },
         );
     }
-    // INT-233 -- validate config.fsh on load, surface errors immediately
-    {
-        let errors = config::validate();
-        if !errors.is_empty() {
-            println!("  {} config.fsh syntax errors:", "⚠️".normal());
-            for e in &errors {
-                println!("{}", e);
-            }
+    // INT-233 -- validate config.fsh on load, surface errors immediately.
+    //
+    // ⚠️ THE INTERACTIVE FRONT END PRINTS THESE TO STDOUT, where the user is looking. A
+    // non-interactive invocation must send the same diagnostics to STDERR instead: stdout is
+    // program output, and a broken config must not appear in a caller's pipeline.
+    if !diagnostics.is_empty() {
+        println!("  {} config.fsh syntax errors:", "⚠️".normal());
+        for e in &diagnostics {
+            println!("{}", e);
         }
     }
 
