@@ -1160,7 +1160,16 @@ pub fn try_spine_background_command(
     // `None` means the plan carries a redirect, which background_command deliberately does
     // not wire -- so the whole line declines and legacy runs it exactly as it does today.
     // A partial claim would be worse than no claim: the job would run without its file.
-    Some(Ok(crate::commands::background_command(&plans[0])?))
+    // ⚠️ AN IO FAILURE SURFACES, it does not fall back. `None` here would send the line to
+    // legacy, which would then fail the same way with a worse message -- and a redirect
+    // target that cannot be opened is the user's problem to see, not a routing decision.
+    // Refusals fall back; defects surface. Same rule as InvalidPlan at the router.
+    Some(crate::commands::background_command(&plans[0]).map_err(|e| {
+        SpineAttemptError::Lower(crate::spine::plan::LowerError::InvalidPlan {
+            message: e,
+            span: node.span,
+        })
+    }))
 }
 
 /// The EXPLICIT door (`spine-exec <cmd>`). You asked for the spine, so every failure is reported

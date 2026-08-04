@@ -8774,19 +8774,24 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
 /// script is truncated. The spine already resolved the quoting, so passing its argv through is the
 /// whole fix -- INT-195's invariant, applied at the last place still violating it.
 ///
-/// ⚠️ SIMPLE IO ONLY, DELIBERATELY. `execute_plan`'s Files arm is ~80 lines that open the target,
-/// CLONE the stdout handle for a `2>&1` dup, build a stderr sink and report each failure as a
-/// CommandResult -- rules each learned from a live bug. Reimplementing them here would be a second
-/// owner of the most dangerous wiring in the shell. So a redirected background job stays with
-/// legacy exactly as today, and composing the two means EXTRACTING that arm, not copying it.
+/// ⚠️ REDIRECTS NOW WORK HERE, VIA THE SAME `configure_file_io` THE FOREGROUND PATH USES -- not a
+/// copy of it. The clone-not-reopen dup, truncate-versus-append and missing-input-file rules each
+/// came from a live bug, and one owner is the only way they stay fixed.
+///
+/// ⚠️ BUT NO TEE, AND THAT IS DELIBERATE. `configure_file_io` returns the stderr sink because
+/// `spawn_with_tee` pipes stderr to capture it for the knowledge engine while still writing the
+/// file. A background job is spawned and never waited on, so it has no tee to pipe INTO -- the sink
+/// is therefore attached to the command directly. That matches legacy's background path exactly,
+/// which also has no tee. Giving background jobs telemetry is a real improvement and its own
+/// decision; smuggling it inside a redirect fix would make both harder to judge.
 pub fn background_command(
     plan: &crate::spine::plan::ExecutionPlan,
-) -> Option<(std::process::Command, String)> {
+) -> Result<(std::process::Command, String), String> {
     use crate::spine::plan::{Environment, IoPlan};
-    if !matches!(plan.io, IoPlan::Simple) {
-        return None;
-    }
-    let program = plan.argv.first()?;
+    let program = plan
+        .argv
+        .first()
+        .ok_or_else(|| "  empty plan: nothing to execute".to_string())?;
     let label = program.to_string_lossy().to_string();
     let mut cmd = std::process::Command::new(program);
     cmd.args(&plan.argv[1..]);
@@ -8802,13 +8807,117 @@ pub fn background_command(
             }
         }
     }
-    // Matches legacy's background stdio exactly: detached from input, output and errors still
-    // reaching the terminal. Changing it here would make a spine-claimed job behave differently
-    // from a legacy one, which is the divergence this work exists to remove.
-    cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
-    Some((cmd, label))
+    match &plan.io {
+        // Legacy's background stdio: detached from input, output and errors still reaching the
+        // terminal. A spine-claimed job must behave identically to a legacy one.
+        IoPlan::Simple => {
+            cmd.stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit());
+        }
+        IoPlan::Files {
+            stdin,
+            stdout,
+            stderr: stderr_target,
+        } => {
+            let sink = configure_file_io(&mut cmd, stdin, stdout, stderr_target)?;
+            match sink {
+                Some(f) => {
+                    cmd.stderr(std::process::Stdio::from(f));
+                }
+                None => {
+                    cmd.stderr(std::process::Stdio::inherit());
+                }
+            }
+        }
+        // `$(cmd) &` has no meaning: capture wants the output as a value, background discards the
+        // wait. Refuse rather than pick one.
+        IoPlan::Capture => return Err("  cannot background a captured command".to_string()),
+    }
+    Ok((cmd, label))
+}
+/// Wire an `IoPlan::Files` onto a Command and hand back the stderr sink the tee needs.
+///
+/// ★ EXTRACTED SO BACKGROUND CAN REUSE IT (INT-200). These lines carry three rules that were each
+/// learned from a live bug: the dup is a CLONE and never a second open, truncate-versus-append is
+/// keyed on the `>>` flag, and a missing input file is the USER's error rather than a silently
+/// inherited stdin that would read the terminal. A second copy for the background path would have
+/// been a second place for each of them to rot.
+///
+/// ⚠️ THE SPAWN IS NOT HERE, deliberately. The foreground path waits on the child; the background
+/// path registers it with the job table. That difference belongs to the caller, and keeping it out
+/// of here is what makes the same wiring serve both.
+fn configure_file_io(
+    cmd: &mut std::process::Command,
+    stdin: &Option<std::path::PathBuf>,
+    stdout: &Option<(std::path::PathBuf, bool)>,
+    stderr_target: &crate::spine::plan::StderrTarget,
+) -> Result<Option<std::fs::File>, String> {
+    match stdin {
+        Some(path) => match std::fs::File::open(path) {
+            Ok(f) => {
+                cmd.stdin(std::process::Stdio::from(f));
+            }
+            // A missing input file is the USER's error and must be reported, not swallowed into an
+            // inherited stdin that would silently read the terminal instead.
+            Err(e) => return Err(format!("  cannot read {}: {e}", path.display())),
+        },
+        None => {
+            cmd.stdin(std::process::Stdio::inherit());
+        }
+    }
+    // ★ THE HANDLE IS KEPT, not just handed over. `Stdio::from(f)` CONSUMES the file, so a later
+    // `2>&1` would have nothing to clone -- hence the clone happens here, while the original is
+    // still in hand, and the copy is what goes to the child.
+    let stdout_file: Option<std::fs::File> = match stdout {
+        Some((path, append)) => {
+            let f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(*append)
+                .truncate(!*append)
+                .open(path)
+                .map_err(|e| format!("  cannot write {}: {e}", path.display()))?;
+            let for_child = f
+                .try_clone()
+                .map_err(|e| format!("  cannot open {}: {e}", path.display()))?;
+            cmd.stdout(std::process::Stdio::from(for_child));
+            Some(f)
+        }
+        None => {
+            cmd.stdout(std::process::Stdio::inherit());
+            None
+        }
+    };
+    // ★ THE DUP, AND WHY IT IS A CLONE RATHER THAN A SECOND OPEN. `cmd > f 2>&1` must share ONE
+    // open file between both streams: opening `f` twice gives two independent write offsets and the
+    // streams overwrite each other instead of interleaving. The clone is same description, same
+    // offset -- exactly what dup(2) does in a real shell.
+    //
+    // ⚠️ Reopening the path here would look right and produce jumbled output only when both streams
+    // are busy. Silent, and only under load.
+    let stderr_sink: Option<std::fs::File> = match stderr_target {
+        crate::spine::plan::StderrTarget::Inherit => None,
+        crate::spine::plan::StderrTarget::File(path, append) => Some(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(*append)
+                .truncate(!*append)
+                .open(path)
+                .map_err(|e| format!("  cannot write {}: {e}", path.display()))?,
+        ),
+        crate::spine::plan::StderrTarget::Stdout => match &stdout_file {
+            Some(f) => Some(
+                f.try_clone()
+                    .map_err(|e| format!("  cannot share stdout: {e}"))?,
+            ),
+            // Lowering only emits Stdout when stdout was ALREADY redirected, so this is
+            // unreachable -- but inheriting is the honest answer if it ever is not.
+            None => None,
+        },
+    };
+    Ok(stderr_sink)
 }
 
 fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
@@ -8907,100 +9016,9 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
             stdout,
             stderr: stderr_target,
         } => {
-            match stdin {
-                Some(path) => match std::fs::File::open(path) {
-                    Ok(f) => {
-                        cmd.stdin(std::process::Stdio::from(f));
-                    }
-                    // A missing input file is the USER's error and must be reported, not swallowed
-                    // into an inherited stdin that would silently read the terminal instead.
-                    Err(e) => {
-                        return CommandResult::Error(
-                            format!("  cannot read {}: {e}", path.display()),
-                            1,
-                        )
-                    }
-                },
-                None => {
-                    cmd.stdin(std::process::Stdio::inherit());
-                }
-            }
-            // ★ THE HANDLE IS KEPT, not just handed over. `Stdio::from(f)` CONSUMES the file,
-            // so a later `2>&1` would have nothing to clone -- hence the clone happens here, while
-            // the original is still in hand, and the copy is what goes to the child.
-            let stdout_file: Option<std::fs::File> = match stdout {
-                Some((path, append)) => {
-                    let opened = std::fs::OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .append(*append)
-                        .truncate(!*append)
-                        .open(path);
-                    match opened {
-                        Ok(f) => {
-                            let for_child = match f.try_clone() {
-                                Ok(c) => c,
-                                Err(e) => {
-                                    return CommandResult::Error(
-                                        format!("  cannot open {}: {e}", path.display()),
-                                        1,
-                                    )
-                                }
-                            };
-                            cmd.stdout(std::process::Stdio::from(for_child));
-                            Some(f)
-                        }
-                        Err(e) => {
-                            return CommandResult::Error(
-                                format!("  cannot write {}: {e}", path.display()),
-                                1,
-                            )
-                        }
-                    }
-                }
-                None => {
-                    cmd.stdout(std::process::Stdio::inherit());
-                    None
-                }
-            };
-            // ★ THE DUP, AND WHY IT IS A CLONE RATHER THAN A SECOND OPEN. `cmd > f 2>&1` must
-            // share ONE open file between both streams: opening `f` twice gives two independent
-            // write offsets and the streams overwrite each other instead of interleaving. So the
-            // stdout handle is cloned -- same description, same offset -- which is exactly what
-            // dup(2) does in a real shell.
-            //
-            // ⚠️ Reopening the path here would look right and produce truncated, jumbled output
-            // only when both streams are busy. Silent, and only under load.
-            let stderr_sink: Option<std::fs::File> = match stderr_target {
-                crate::spine::plan::StderrTarget::Inherit => None,
-                crate::spine::plan::StderrTarget::File(path, append) => {
-                    match std::fs::OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .append(*append)
-                        .truncate(!*append)
-                        .open(path)
-                    {
-                        Ok(f) => Some(f),
-                        Err(e) => {
-                            return CommandResult::Error(
-                                format!("  cannot write {}: {e}", path.display()),
-                                1,
-                            )
-                        }
-                    }
-                }
-                crate::spine::plan::StderrTarget::Stdout => match &stdout_file {
-                    Some(f) => match f.try_clone() {
-                        Ok(c) => Some(c),
-                        Err(e) => {
-                            return CommandResult::Error(format!("  cannot share stdout: {e}"), 1)
-                        }
-                    },
-                    // Lowering only emits Stdout when stdout was ALREADY redirected, so this is
-                    // unreachable -- but inheriting is the honest answer if it ever is not.
-                    None => None,
-                },
+            let stderr_sink = match configure_file_io(&mut cmd, stdin, stdout, stderr_target) {
+                Ok(sink) => sink,
+                Err(e) => return CommandResult::Error(e, 1),
             };
             match spawn_with_tee(cmd, db, stderr_sink) {
                 Ok(s) if s.success() => CommandResult::Empty,
