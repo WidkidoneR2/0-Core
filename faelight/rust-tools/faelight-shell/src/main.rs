@@ -822,7 +822,28 @@ fn repl_main() -> Result<()> {
     // Ctrl+L handled in REPL loop via clear command
 
     // Apply config aliases and settings
-    config::apply(&cfg, &db);
+    // The announcement moved OUT of `apply` (INT-200): a runtime step must not emit UI, or a
+    // non-interactive caller inherits it on stdout. Printed here, unchanged, so the interactive
+    // banner is byte-identical to before.
+    let applied = config::apply(&cfg, &db);
+    if applied.pruned > 0 {
+        println!(
+            "  {} reconciled - {} runtime alias{} pruned to config.fsh",
+            "✓".bright_green(),
+            applied.pruned,
+            if applied.pruned == 1 { "" } else { "es" }
+        );
+    }
+    if applied.aliases > 0 || applied.settings > 0 {
+        println!(
+            "  {} config.fsh — {} alias{}  {} setting{}",
+            "✓".bright_green(),
+            applied.aliases,
+            if applied.aliases == 1 { "" } else { "es" },
+            applied.settings,
+            if applied.settings == 1 { "" } else { "s" },
+        );
+    }
     // INT-233 -- validate config.fsh on load, surface errors immediately
     {
         let errors = config::validate();

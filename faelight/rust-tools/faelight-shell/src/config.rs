@@ -8,7 +8,6 @@
 //!   # comment                  — ignored
 
 use crate::db::ForestDb;
-use colored::*;
 
 /// A single before_run rule — condition + action
 #[derive(Debug, Clone)]
@@ -240,9 +239,23 @@ pub fn validate() -> Vec<String> {
 }
 
 /// Apply config to the running shell — register aliases and settings.
-pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
+/// What `apply` did to the shell's vocabulary, so the CALLER can decide whether to announce it.
+///
+/// ⚠️ `apply` used to `println!` both of these itself, which put UI inside a runtime step. That is
+/// invisible in an interactive shell and wrong everywhere else: under a non-interactive invocation
+/// it contaminates the program's own stdout, so `fsh -c 'echo hi' | wc -l` would have counted the
+/// config banner as output. THE RULE (INT-200): any non-program output from a non-interactive
+/// invocation belongs on stderr -- and deciding that is the front end's job, not this function's.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ApplyReport {
+    pub aliases: usize,
+    pub settings: usize,
+    pub pruned: usize,
+}
+
+pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     if cfg.aliases.is_empty() && cfg.settings.is_empty() {
-        return;
+        return ApplyReport::default();
     }
 
     let alias_count = cfg.aliases.len();
@@ -257,22 +270,14 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
     // remove any table alias not present in config.fsh so runtime `alias` cruft
     // cannot persist across shells. Guard: never prune when config parsed to zero
     // aliases -- a parse failure must not wipe the live set.
+    let mut pruned = 0usize;
     if !cfg.aliases.is_empty() {
         use std::collections::HashSet;
         let keep: HashSet<&str> = cfg.aliases.iter().map(|(n, _)| n.as_str()).collect();
-        let mut pruned = 0usize;
         for (name, _) in db.list_aliases() {
             if !keep.contains(name.as_str()) && db.remove_alias(&name) {
                 pruned += 1;
             }
-        }
-        if pruned > 0 {
-            println!(
-                "  {} reconciled - {} runtime alias{} pruned to config.fsh",
-                "✓".bright_green(),
-                pruned,
-                if pruned == 1 { "" } else { "es" }
-            );
         }
     }
 
@@ -285,14 +290,11 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
         );
     }
 
-    println!(
-        "  {} config.fsh — {} alias{}  {} setting{}",
-        "✓".bright_green(),
-        alias_count,
-        if alias_count == 1 { "" } else { "es" },
-        setting_count,
-        if setting_count == 1 { "" } else { "s" },
-    );
+    ApplyReport {
+        aliases: alias_count,
+        settings: setting_count,
+        pruned,
+    }
 }
 
 /// Create a default config.fsh if none exists.
