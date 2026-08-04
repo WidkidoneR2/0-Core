@@ -990,6 +990,10 @@ fn repl_main() -> Result<()> {
     );
 
     // Phase 8 — job table
+    // INT-201 ownership: owned by the shell session.
+    // Passed into line execution as Option<&mut JobTable> when executing a command
+    // line -- None for non-interactive callers, where a backgrounded job would die
+    // with the process. The parameter arrives with the executor extraction.
     let mut job_table = jobs::JobTable::new();
 
     // Phase 17 — prompt context tracking
@@ -1438,6 +1442,9 @@ fn repl_main() -> Result<()> {
                 // parts, then boolean-chain parts within each. Flattened deliberately so a chained
                 // command takes the identical path a standalone one does.
                 let segments: Vec<(String, Option<bool>)> = split_into_segments(&line);
+                // INT-201 ownership: owned by the current command line execution.
+                // Tracks &&/|| chaining state and is reset for each input line, so it is
+                // deliberately NOT engine state -- it never outlives one line.
                 let mut prev_op: Option<bool> = None;
                 let segment_count = segments.len();
                 if segment_count > 2 {

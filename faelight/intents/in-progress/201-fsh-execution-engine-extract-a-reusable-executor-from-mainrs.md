@@ -103,8 +103,31 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      ⚠️ NOT A GATE. The four state bindings below still have no owner -- that is the next gate, and
      this increment sharpened it: the resource conversion produced ZERO borrow conflicts, so the
      whole remaining tension is `last_exit_code` (77 sites) and `shell_vars` (18). -->
-- [ ] `last_exit_code`, `job_table`, `shell_vars` and `prev_op` each have a stated owner
-- [ ] One function executes one line, callable from outside main.rs
+- [x] `last_exit_code`, `job_table`, `shell_vars` and `prev_op` each have a stated owner
+<!-- evidence: two owners are ENFORCED, two are STATED, and the difference is deliberate.
+     ENFORCED BY THE COMPILER: `last_exit_code` and `shell_vars` are engine fields. Their local
+     bindings are DELETED, so no site can read a stale copy -- a missed conversion was an
+     unresolved name, not a silent divergence. 52 writes and 16 reads of the exit code, and six
+     mutations of the variable map, now go through set_last_exit / set_var / remove_var. Both
+     `ShellContext` literals became `engine.shell_context()`, so the view reports state the engine
+     actually holds. Both `#[allow(dead_code)]` attributes are removed and the build is
+     warning-free, which is the mechanical proof that every field and accessor has a real caller.
+     STATED AT THE DECLARATION: `prev_op` (main.rs ~1441, inside the loop) is per-line chain state
+     and is reset for each input line, so it is deliberately not engine state. `job_table`
+     (main.rs ~993, session scope) is owned by the session and will be passed into line execution
+     as Option<&mut JobTable> -- None for non-interactive callers, where a backgrounded job dies
+     with the process. Both now carry that reasoning as a comment where the binding lives.
+     ★ WHY THAT CLOSES THE GATE: an ownership gate exists to make ownership explicit and
+     verifiable, not to complete every downstream refactor. Requiring it to be encoded in the call
+     graph would merge two milestones -- establish ownership, and refactor execution -- and delay
+     credit for work that is done. The parameter arrives with the executor extraction, which is
+     the NEXT gate, and a future change that contradicts these comments is visible in review.
+     ⚠️ ONE DESIGN FINDING CAME OUT OF THIS: the database is now Rc, because the completion helper
+     borrows it for the whole session and pinned the engine as immutably borrowed. That is not a
+     borrow-checker workaround -- it states that the database is a SHARED resource while the
+     variables and exit code are state the engine owns outright. -->
+- [ ] Execute one command line via a function that accepts all per-execution state as
+      parameters, including `Option<&mut JobTable>`, callable from outside main.rs
 - [ ] The REPL loop is a CLIENT of it -- no dispatch logic left inline
 - [ ] fsh-test stays green throughout, including the conformance cases
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
