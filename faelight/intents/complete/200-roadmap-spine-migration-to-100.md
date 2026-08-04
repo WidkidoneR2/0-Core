@@ -3,7 +3,7 @@ id: 200
 date: 2026-07-29
 type: future
 title: "RoadMap Spine-migration to 100%"
-status: in-progress
+status: complete
 tags: [fsh, spine, pipes, OSH]
 ---
 
@@ -276,21 +276,31 @@ check the audit's model, and the DENOMINATOR, before treating it as a defect.
      WORKS AT THE INTERACTIVE PROMPT AND NOT THROUGH `fsh -c`. Same binary, two doors, two
      behaviours: INT-173's two-doors problem in a new place, on behaviour proven live the day before
      and therefore believed correct. Recorded below as open work rather than closed here. -->
-- [ ] Each gate carries evidence per INT-158
+- [x] Each gate carries evidence per INT-158
+<!-- evidence: the twelve blocks above. Same dogfood shape as INT-158's own final gate. -->
 
-## OPEN AFTER CONFORMANCE (found 2026-07-31, not yet fixed)
+## CLOSED AFTER CONFORMANCE (both items resolved 2026-08-03/04)
+1. **`fsh -c` does not apply the digit guard.** NOT FIXED, AND NO LONGER THIS INTENT'S. The cause
+   turned out to be larger than the guard: `fsh -c` hands the whole string to `sh`, so no alias,
+   router, guard or job table applies to it at all. Routing it through fsh needs a reusable executor
+   that does not exist -- the entire pipeline lives inside main.rs's REPL loop, coupled through
+   mutable session state. Re-homed to **INT-201**, which owns the extraction. `-c` stays on `sh`
+   meanwhile, with the reasoning recorded at the handler.
+2. **The conformance harness cannot see file effects.** FIXED. The suite moved into fsh-test and now
+   drives a real pty, so it measures the interactive shell rather than `sh` -- which is what it had
+   actually been comparing against bash all along. Cases read files back with `sed` rather than the
+   aliased `cat`, and both shells run under /tmp so the reference implementation stops creating
+   `0.5` and `=` in the repository. 15 cases, both declared divergences passing as divergences.
 
-1. **`fsh -c` does not apply the digit guard.** The interactive prompt refuses a digit-initial
-   redirect target so `where cpu > 0.5` stays a comparison; the `-c` path creates the file, as
-   bash does. Two doors, two behaviours. This is a real divergence inside fsh itself, not
-   between fsh and bash, and it is the kind INT-173 exists to catch.
-
-2. **The conformance harness cannot see file effects.** It compares stdout and exit status, and
-   both are empty with status zero whether a command wrote a file or printed nothing. A case
-   whose effect is a file must `cat` that file afterward so the effect reaches stdout. Cases
-   should also write only under `/tmp`, since the first run left two files in the repository.
-   ⚠️ Recorded rather than quietly fixed: a harness reporting an untrustworthy verdict is itself
-   a finding, and the second run should be able to show the difference.
+## WHAT "100%" TURNED OUT TO MEAN
+Not 100% of parseable shell -- 100% of what the spine can own without breaking the query language.
+Forest value pipelines are legacy's permanently, because `where`, `sort` and `first` are query verbs
+with no programs behind them. The honest end state is 98.4% equivalence with a decline list holding
+no accounting artifacts, which is what this intent reached.
+⚠️ THE VISION'S SECOND HALF IS NOT DONE AND IS NOT THIS INTENT'S TO FINISH: "the legacy execution
+path stops being load-bearing and INT-169's six deletions become possible." Legacy still runs the
+forest pipelines and the 19 atomic constructs. Those deletions belong to INT-169, and they need the
+executor extraction (INT-201) before the last of them is even reachable.
 
 ## Relationship
 - Child of INT-169: 169 built the spine and connected it; 200 finishes the vocabulary.
