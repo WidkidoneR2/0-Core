@@ -31,7 +31,7 @@ use nix::pty::openpty;
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn fsh_bin() -> String {
     std::env::var("FSH_BIN")
@@ -99,12 +99,33 @@ fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     (from..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
 }
 
-fn drain(rx: &mpsc::Receiver<Vec<u8>>, quiet: Duration) -> Vec<u8> {
-    let mut acc = Vec::new();
-    while let Ok(chunk) = rx.recv_timeout(quiet) {
-        acc.extend_from_slice(&chunk);
+/// Read until `needle` appears at or after `from`, or `limit` elapses.
+///
+/// THIS REPLACES A SLEEP WITH AN OBSERVATION. A sleep encodes a guess about how fast the machine
+/// is; this waits for the thing the guess was approximating and returns the instant it arrives.
+///
+/// ⚠️ None means the marker never came. Callers MUST treat that as a failure: an empty capture
+/// reads as a passing assertion about absence.
+fn wait_for(
+    rx: &mpsc::Receiver<Vec<u8>>,
+    acc: &mut Vec<u8>,
+    needle: &[u8],
+    from: usize,
+    limit: Duration,
+) -> Option<usize> {
+    let started = Instant::now();
+    loop {
+        if let Some(i) = find_from(acc, needle, from) {
+            return Some(i);
+        }
+        let left = limit.checked_sub(started.elapsed())?;
+        match rx.recv_timeout(left.min(Duration::from_millis(50))) {
+            Ok(chunk) => acc.extend_from_slice(&chunk),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            // the shell closed the pty: one last look, then give up
+            Err(mpsc::RecvTimeoutError::Disconnected) => return find_from(acc, needle, from),
+        }
     }
-    acc
 }
 
 /// Type one line into a real interactive fsh over a pty; return the lines it printed.
@@ -122,9 +143,9 @@ pub fn run_repl(cmd: &str) -> Result<Vec<String>, String> {
 /// That gap is why `jobs` could break for six generations with nothing noticing: the regression
 /// lived in exactly the class the harness could not express.
 ///
-/// ⚠️ ONLY THE LAST COMMAND'S OUTPUT COMES BACK. The reader keeps everything after the LAST
-/// bracketed-paste-off marker, so earlier lines are setup, not assertions -- a test asserting on
-/// an earlier line would silently see nothing.
+/// ⚠️ ONLY THE LAST COMMAND'S OUTPUT COMES BACK. The capture is the window between the LAST
+/// bracketed-paste-off marker and the `133;A` that follows it, so earlier lines are setup rather
+/// than assertions -- a test asserting on an earlier line would silently see nothing.
 pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
@@ -160,26 +181,68 @@ pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
         }
     });
 
-    // fsh spawns `nixos-rebuild list-generations --json` in its banner path on
-    // every start (main.rs:3795), so the first prompt is not instant. Let it
-    // settle, then throw the banner away.
-    std::thread::sleep(Duration::from_millis(2500));
-    let _ = drain(&rx, Duration::from_millis(400));
+    // WAIT FOR MARKERS, DO NOT SLEEP. `\x1b[?2004h` is bracketed-paste-on: the line editor
+    // announcing it is ready for input, which is exactly what every sleep here was
+    // approximating. Measured over four runs 2026-08-05, the first prompt arrives in
+    // 0.594-0.624s -- a thirty-millisecond spread -- so waiting for it is both faster than
+    // 2500ms and DETERMINISTIC, which a sleep can never be. The determinism is the point and
+    // the speed is a side effect.
+    //
+    // ⚠️ A TIMEOUT IS A FAILURE, not an empty capture.
+    const READY: &[u8] = b"\x1b[?2004h";
+    let mut raw: Vec<u8> = Vec::new();
+    wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20))
+        .ok_or_else(|| "fsh never reached its first prompt".to_string())?;
+    raw.clear(); // the banner belongs to no command
 
-    // Each line is submitted and given time to run before the next -- a settle per line, not
-    // one at the end, because a later command may depend on an earlier one having finished.
+    // Each line waits for the prompt to return before the next is sent, because a later command
+    // may depend on an earlier one having finished. The search starts at `mark` so the PREVIOUS
+    // prompt cannot satisfy this one.
+    //
+    // The limit is generous deliberately: some cases run a literal `sleep 2`. The win is that a
+    // fast command returns in milliseconds instead of always paying 1200ms -- not that slow
+    // commands get cut short.
     for cmd in cmds {
+        let mark = raw.len();
+        // PASTE THE LINE, DO NOT TYPE IT. fsh's highlighter repaints the whole line for every
+        // byte it receives, so a harness writing 37 characters at once pays 37 full redraws back
+        // to back. Measured 2026-08-05 on the debug binary: the same 37-character line takes
+        // 1.392s to reach the submit marker when written raw and 0.040s inside a bracketed paste,
+        // and pasted submit time is FLAT with length. A human typing pays those redraws one
+        // keystroke apart and never notices; this is not a bug being worked around, it is the
+        // difference between simulating a typist and delivering a line.
+        //
+        // The trailing newline sits OUTSIDE the paste-end marker, and rustyline submits on it.
+        master.write_all(b"\x1b[200~").map_err(|e| e.to_string())?;
         master
             .write_all(cmd.as_bytes())
             .map_err(|e| e.to_string())?;
-        master.write_all(b"\n").map_err(|e| e.to_string())?;
-        std::thread::sleep(Duration::from_millis(1200));
+        master
+            .write_all(b"\x1b[201~\n")
+            .map_err(|e| e.to_string())?;
+        wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30))
+            .ok_or_else(|| format!("timed out waiting for the prompt after: {cmd}"))?;
     }
-    let raw = drain(&rx, Duration::from_millis(500));
 
+    // ASK, THEN WAIT FOR THE ANSWER. This was a flat 300ms sleep before killing the child,
+    // which is a quarter of what a case costs now that nothing else sleeps. fsh exits in tens
+    // of milliseconds when told to; the kill remains as the deadline for the case where it
+    // does not. Teardown, not the per-line path -- so this is the speed gate's work rather
+    // than a correction to the one about fixed sleeps.
     let _ = master.write_all(b"exit\n");
-    std::thread::sleep(Duration::from_millis(300));
-    let _ = child.kill();
+    let deadline = Instant::now() + Duration::from_millis(500);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            _ => {
+                let _ = child.kill();
+                break;
+            }
+        }
+    }
     let _ = child.wait();
 
     // THE WINDOW IS BOUNDED BY TWO MARKERS, NOT BY A TIMEOUT. It runs from `?2004l`, which the
