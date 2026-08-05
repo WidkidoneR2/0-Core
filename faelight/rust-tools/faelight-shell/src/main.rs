@@ -2937,19 +2937,11 @@ fn repl_main() -> Result<()> {
                     }
 
                     // Phase 8 — Background job: detect trailing &
-                    let segment_trimmed = line.trim_end();
-                    if segment_trimmed.ends_with(" &") || segment_trimmed == "&" {
-                        let cmd_part = segment_trimmed.trim_end_matches(" &").trim();
-                        if !cmd_part.is_empty() {
-                            let mut parts = cmd_part.splitn(2, ' ');
-                            let cmd = parts.next().unwrap_or("").to_string();
-                            let args: Vec<String> = parts
-                                .next()
-                                .map(|a| a.split_whitespace().map(|s| s.to_string()).collect())
-                                .unwrap_or_default();
-                            let _ = job_table.spawn(&cmd, &args);
+                    if let Some(outcome) = engine.try_background(line, Some(&mut job_table)) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        continue;
                     }
 
                     // Phase 13 — Redirection: already done early, use redirect_early

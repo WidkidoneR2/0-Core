@@ -621,6 +621,38 @@ impl Engine {
         }
         Some(SegmentOutcome::Next)
     }
+    /// Background job -- the legacy trailing `&` path.
+    ///
+    /// MOVED VERBATIM from main.rs (INT-201). Three known defects are PRESERVED so that this
+    /// commit is a move and nothing else: the spawn Result is discarded, argv is re-derived
+    /// from text with splitn/split_whitespace (no quote awareness), and trim_end_matches
+    /// strips repetitions. Each is its own commit.
+    ///
+    /// WITHOUT A JOB TABLE this declines and the line falls through to normal execution --
+    /// correct for a non-interactive caller, which has no jobs to control.
+    pub fn try_background(
+        &mut self,
+        line: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> Option<SegmentOutcome> {
+        let segment_trimmed = line.trim_end();
+        if segment_trimmed.ends_with(" &") || segment_trimmed == "&" {
+            let jobs = jobs?;
+            let cmd_part = segment_trimmed.trim_end_matches(" &").trim();
+            if !cmd_part.is_empty() {
+                let mut parts = cmd_part.splitn(2, ' ');
+                let cmd = parts.next().unwrap_or("").to_string();
+                let args: Vec<String> = parts
+                    .next()
+                    .map(|a| a.split_whitespace().map(|s| s.to_string()).collect())
+                    .unwrap_or_default();
+                let _ = jobs.spawn(&cmd, &args);
+            }
+            return Some(SegmentOutcome::Next);
+        }
+        None
+    }
+
     /// `jobs` -- list background jobs.
     ///
     /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
