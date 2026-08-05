@@ -1662,97 +1662,17 @@ fn repl_main() -> Result<()> {
                     }
 
                     // INT-220 Gate 11 -- friday dismiss: negative learning
-                    if line == "friday dismiss" || line.starts_with("friday dismiss ") {
-                        let trigger = if line == "friday dismiss" {
-                            "null".to_string()
-                        } else {
-                            format!("\"{}\"", line[15..].trim().replace('"', "'"))
-                        };
-                        let home_dir = std::env::var("HOME").unwrap_or_default();
-                        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
-                        let dismiss_json = format!(
-                            r#"{{"id":3,"payload":{{"FridayDismiss":{{"pattern_trigger":{}}}}}}}"#,
-                            trigger
-                        );
-                        if std::path::Path::new(&sock_path).exists() {
-                            use std::io::{BufRead, BufReader, Write};
-                            if let Ok(mut stream) =
-                                std::os::unix::net::UnixStream::connect(&sock_path)
-                            {
-                                stream
-                                    .set_write_timeout(Some(std::time::Duration::from_millis(200)))
-                                    .ok();
-                                stream
-                                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
-                                    .ok();
-                                let _ = stream.write_all(dismiss_json.as_bytes());
-                                let _ = stream.write_all(b"\n");
-                                let mut reader = BufReader::new(&stream);
-                                let mut resp = String::new();
-                                if reader.read_line(&mut resp).is_ok()
-                                    && resp.contains("FridaySpeak")
-                                {
-                                    if let Some(msg) = resp.split("\"message\":\"").nth(1) {
-                                        if let Some(msg) = msg.split('"').next() {
-                                            if !msg.is_empty() && msg != "null" {
-                                                println!("  \u{1f332} Friday: {}", msg);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                    if let Some(outcome) = engine.try_friday_dismiss(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        // INT-169: record the status rather than leaving the PREVIOUS command's.
-                        // the friday message displayed. A stale code here is invisible today, but `&&`
-                        // is about to read this value to decide whether the next part runs.
-                        engine.set_last_exit(Some(0));
-                        continue 'segments;
                     }
                     // INT-203 fix -- route friday subcommands to core friday
-                    if line.starts_with("friday ") {
-                        let rest = line[7..].trim();
-                        let subcmds = [
-                            "status",
-                            "suggest",
-                            "observe",
-                            "extract-patterns",
-                            "update-personality",
-                            "seed-knowledge",
-                            "learning-loop",
-                            "vocabulary",
-                            "propose-intent",
-                            "phase2-init",
-                            "phase2-status",
-                            "plan",
-                            "temporal-models",
-                            "detect-temporal-patterns",
-                            "resolve-contradictions",
-                            "health-forecast",
-                            "interrupt-level",
-                            "cross-intent-patterns",
-                            "phase2-status-full",
-                        ];
-                        let is_sub = subcmds.iter().any(|s| rest == *s)
-                            || rest.starts_with("name-abstraction ")
-                            || rest.starts_with("ask ");
-                        if is_sub {
-                            let mut cmd = std::process::Command::new("core");
-                            cmd.arg("friday");
-                            if rest.starts_with("ask ") {
-                                cmd.arg("ask");
-                                cmd.arg(rest[4..].trim());
-                            } else {
-                                for a in rest.split_whitespace() {
-                                    cmd.arg(a);
-                                }
-                            }
-                            // INT-189: foreground execution the user invoked; its status is the
-                            // command's status.
-                            engine.set_last_exit(match cmd.status() {
-                                Ok(status) => Some(status.code().unwrap_or(1)),
-                                Err(_) => Some(1),
-                            });
-                            continue 'segments;
+                    if let Some(outcome) = engine.try_friday_subcommand(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
@@ -1764,32 +1684,11 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // INT-279 FQL: friday where/show/explain/recall direct queries
-                    if line.starts_with("friday where ")
-                        || line.starts_with("friday show ")
-                        || line.starts_with("friday explain ")
-                        || line.starts_with("friday trace ")
-                        || line.starts_with("friday recall ")
-                    {
-                        let query = line[7..].trim().to_string(); // strip "friday "
-                                                                  // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
-                                                                  // this child's result IS the command result. Discarding it left the prompt
-                                                                  // reporting the previous command.
-                        engine.set_last_exit(
-                            match std::process::Command::new("friday-chat")
-                                .args(["chat", &query])
-                                .output()
-                            {
-                                Ok(out) => {
-                                    let result = String::from_utf8_lossy(&out.stdout).to_string();
-                                    if !result.trim().is_empty() {
-                                        println!("{}", result.trim());
-                                    }
-                                    Some(out.status.code().unwrap_or(1))
-                                }
-                                Err(_) => Some(1),
-                            },
-                        );
-                        continue 'segments;
+                    if let Some(outcome) = engine.try_friday_query(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                        }
                     }
                     // INT-278 -- friday chat: launch Friday Chat TUI (intercept first)
                     if line.starts_with("friday chat") {

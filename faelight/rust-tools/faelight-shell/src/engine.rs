@@ -178,6 +178,140 @@ impl Engine {
         SegmentOutcome::Next
     }
 
+    /// INT-169 `friday dismiss [trigger]` -- tell the daemon to drop a pattern.
+    ///
+    /// ⚠️ Best-effort over the unix socket: if the daemon is absent or silent the command still
+    /// succeeds, because dismissing a suggestion nobody is making is not an error.
+    pub fn try_friday_dismiss(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if line != "friday dismiss" && !line.starts_with("friday dismiss ") {
+            return None;
+        }
+        let trigger = if line == "friday dismiss" {
+            "null".to_string()
+        } else {
+            format!("\"{}\"", line[15..].trim().replace('"', "'"))
+        };
+        let home_dir = std::env::var("HOME").unwrap_or_default();
+        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+        let dismiss_json = format!(
+            r#"{{"id":3,"payload":{{"FridayDismiss":{{"pattern_trigger":{}}}}}}}"#,
+            trigger
+        );
+        if std::path::Path::new(&sock_path).exists() {
+            use std::io::{BufRead, BufReader, Write};
+            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&sock_path) {
+                stream
+                    .set_write_timeout(Some(std::time::Duration::from_millis(200)))
+                    .ok();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                    .ok();
+                let _ = stream.write_all(dismiss_json.as_bytes());
+                let _ = stream.write_all(b"\n");
+                let mut reader = BufReader::new(&stream);
+                let mut resp = String::new();
+                if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
+                    if let Some(msg) = resp.split("\"message\":\"").nth(1) {
+                        if let Some(msg) = msg.split('"').next() {
+                            if !msg.is_empty() && msg != "null" {
+                                println!("  \u{1f332} Friday: {}", msg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // INT-169: record the status rather than leaving the PREVIOUS command's. A stale code here
+        // is invisible today, but `&&` is about to read this value to decide whether the next runs.
+        self.set_last_exit(Some(0));
+        Some(SegmentOutcome::Next)
+    }
+
+    /// `friday <subcommand>` -- delegate to `core friday ...`.
+    ///
+    /// ⚠️ `None` MEANS "KEEP LOOKING", NOT "THE PREFIX DID NOT MATCH". `friday ` matching but
+    /// naming no known subcommand deliberately falls through to the FQL guard below it, which is
+    /// why this cannot be written as an early-return-on-prefix.
+    pub fn try_friday_subcommand(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let rest = line.strip_prefix("friday ")?.trim();
+        const SUBCMDS: [&str; 19] = [
+            "status",
+            "suggest",
+            "observe",
+            "extract-patterns",
+            "update-personality",
+            "seed-knowledge",
+            "learning-loop",
+            "vocabulary",
+            "propose-intent",
+            "phase2-init",
+            "phase2-status",
+            "plan",
+            "temporal-models",
+            "detect-temporal-patterns",
+            "resolve-contradictions",
+            "health-forecast",
+            "interrupt-level",
+            "cross-intent-patterns",
+            "phase2-status-full",
+        ];
+        let is_sub = SUBCMDS.contains(&rest)
+            || rest.starts_with("name-abstraction ")
+            || rest.starts_with("ask ");
+        if !is_sub {
+            return None;
+        }
+        let mut cmd = std::process::Command::new("core");
+        cmd.arg("friday");
+        if let Some(q) = rest.strip_prefix("ask ") {
+            cmd.arg("ask");
+            cmd.arg(q.trim());
+        } else {
+            for a in rest.split_whitespace() {
+                cmd.arg(a);
+            }
+        }
+        // INT-189: foreground execution the user invoked; its status is the command's status.
+        self.set_last_exit(match cmd.status() {
+            Ok(status) => Some(status.code().unwrap_or(1)),
+            Err(_) => Some(1),
+        });
+        Some(SegmentOutcome::Next)
+    }
+
+    /// INT-279 FQL -- `friday where/show/explain/trace/recall <query>`.
+    pub fn try_friday_query(&mut self, line: &str) -> Option<SegmentOutcome> {
+        const VERBS: [&str; 5] = [
+            "friday where ",
+            "friday show ",
+            "friday explain ",
+            "friday trace ",
+            "friday recall ",
+        ];
+        if !VERBS.iter().any(|v| line.starts_with(v)) {
+            return None;
+        }
+        let query = line[7..].trim().to_string(); // strip "friday "
+                                                  // INT-189: .output() BLOCKS, so this child's result IS the command result. Discarding it
+                                                  // left the prompt reporting the previous command.
+        self.set_last_exit(
+            match std::process::Command::new("friday-chat")
+                .args(["chat", &query])
+                .output()
+            {
+                Ok(out) => {
+                    let result = String::from_utf8_lossy(&out.stdout).to_string();
+                    if !result.trim().is_empty() {
+                        println!("{}", result.trim());
+                    }
+                    Some(out.status.code().unwrap_or(1))
+                }
+                Err(_) => Some(1),
+            },
+        );
+        Some(SegmentOutcome::Next)
+    }
+
     /// The last command's exit status.
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code
