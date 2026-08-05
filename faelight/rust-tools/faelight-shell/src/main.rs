@@ -2582,6 +2582,35 @@ fn repl_main() -> Result<()> {
                     let has_external_op = pipeline_ops
                         .iter()
                         .any(|op| matches!(op, value::PipeOp::External(_)));
+
+                    // A BACKGROUNDED PIPELINE IS REFUSED, NOT HALF-RUN. The spine claims `cmd &` and runs it
+                    // correctly, but try_spine_background_command returns None for a MULTI-STAGE pipeline --
+                    // "a pipeline cannot be backgrounded yet: it needs every stage spawned and only the LAST
+                    // child registered, which is a different executor" -- and AstNode::Background refuses at
+                    // both lowering entries. So the line lands here, where the pipeline executor splits on
+                    // " | " and hands the final stage its arguments with the `&` still attached.
+                    //
+                    // Measured 2026-08-05 on the deployed shell: `echo hi | cat &` printed
+                    // `cat: '&': No such file or directory`, ran in the FOREGROUND, and registered no job,
+                    // while `sleep 4 &` was claimed by the spine and registered correctly. The boundary is
+                    // exactly "the spine will not background a pipeline".
+                    //
+                    // Refusing trades a confusing half-result for a stated limitation. The repair is the
+                    // spine learning to background a pipeline -- spawn every stage, register only the last
+                    // child -- which deletes both this branch and the decline that routes here.
+                    //
+                    // SAFE BY CONSTRUCTION: has_pipe is already `!in_quotes && contains(" | ")`, so
+                    // `echo "a | b" &` cannot reach it, and anything the spine CLAIMED left the segment
+                    // loop some four hundred lines above.
+                    if has_pipe && line.trim_end().ends_with(" &") {
+                        eprintln!(
+                            "{} backgrounding a pipeline is not supported yet -- the `&` would reach the last stage as an argument",
+                            "x".bright_red()
+                        );
+                        eprintln!("  the spine backgrounds a single command (`cmd &`); a PIPELINE cannot be backgrounded yet");
+                        engine.set_last_exit(Some(1));
+                        continue 'segments;
+                    }
                     // Native pipe execution -- no sh fallback for external pipe chains
                     // If any pipe stage is a shell construct (while/for/if/until), pass to sh
                     let has_shell_construct = has_pipe
