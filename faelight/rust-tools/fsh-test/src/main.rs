@@ -1114,7 +1114,9 @@ fn all_tests() -> Vec<TestResult> {
                     .output()
                     .map_err(|e| format!("bash unavailable: {e}"))?;
                 let bash_out = String::from_utf8_lossy(&bash.stdout).trim().to_string();
-                let fsh_out = repl::run_repl(line)?.join("\n");
+                let bash_status = bash.status.code();
+                let (fsh_lines, fsh_status) = repl::run_repl_lines_status(&[line], &[])?;
+                let fsh_out = fsh_lines.join("\n");
                 // ⚠️ WHAT IS EXCLUDED FROM THE COMPARISON, AND WHY. Every entry here is
                 // SHELL-GENERATED rather than command output, and the list is deliberately closed:
                 // anything not on it that fails a case means the case is wrong or a divergence
@@ -1152,23 +1154,47 @@ fn all_tests() -> Vec<TestResult> {
                 // `echo test > 0.5` (bash writes a file and prints nothing) reported "now matches
                 // bash" every run. The check inverted itself, and it would have hidden a real
                 // digit-guard regression behind a permanent false alarm.
-                let same = if bash_out.is_empty() {
+                let stdout_same = if bash_out.is_empty() {
                     fsh_body.trim().is_empty()
                 } else {
                     fsh_body.contains(&bash_out)
+                };
+                // ⚠️ A MISSING STATUS IS AN ERROR, NOT A SKIP. `133;D;<n>` lands inside the capture
+                // window for every shape measured, so its absence means the harness could not read
+                // something it should have. Treating unknown as "not comparable" would be the same
+                // silent weakening as growing is_shell_ui to make a case pass.
+                let fsh_code = fsh_status.ok_or_else(|| {
+                    format!(
+                        "fsh emitted no 133;D status marker, so conformance cannot be judged on \
+                         status: {fsh_out:?}"
+                    )
+                })?;
+                let status_same = bash_status == Some(fsh_code);
+                // ★ STATUS FOLDS INTO THE VERDICT rather than forming a second one. The corpus
+                // records ONE reason per case, not one per channel, so a declared divergence
+                // excuses the case as a whole. Splitting it would claim a precision the reasons
+                // do not carry. The messages below name which channel differed, so nothing hides.
+                let same = stdout_same && status_same;
+                let detail = match (stdout_same, status_same) {
+                    (false, false) => "stdout AND exit status",
+                    (false, true) => "stdout",
+                    (true, false) => "exit status",
+                    (true, true) => "nothing",
                 };
                 match (diverges, same) {
                     (None, true) => Ok(()),
                     (Some(_), false) => Ok(()),
                     (None, false) => Err(format!(
-                        "fsh disagrees with bash and nobody wrote down why -- bash: {bash_out:?}, \
-                         fsh: {fsh_out:?}"
+                        "fsh disagrees with bash on {detail} and nobody wrote down why -- \
+                         bash: {bash_out:?} (exit {bash_status:?}), \
+                         fsh: {fsh_out:?} (exit {fsh_code})"
                     )),
                     // ⚠️ THE SUBTLE FAILURE: a declared divergence that started matching bash
-                    // again means the deliberate behaviour was silently lost.
+                    // again -- in BOTH output and status -- means the deliberate behaviour was
+                    // silently lost.
                     (Some(why), true) => Err(format!(
-                        "this was declared to DIVERGE from bash and now matches it -- the \
-                         deliberate behaviour is gone: {why}"
+                        "this was declared to DIVERGE from bash and now matches it in output and \
+                         exit status -- the deliberate behaviour is gone: {why}"
                     )),
                 }
             },

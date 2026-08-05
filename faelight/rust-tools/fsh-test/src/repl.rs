@@ -162,6 +162,22 @@ pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
 /// ⚠️ ADDITIVE ON PURPOSE. Roughly forty call sites use run_repl/run_repl_lines; changing their
 /// signature would have churned all of them to express something almost none of them need.
 pub fn run_repl_lines_env(cmds: &[&str], env: &[(&str, &str)]) -> Result<Vec<String>, String> {
+    run_repl_lines_status(cmds, env).map(|(lines, _)| lines)
+}
+
+/// Same, and also the exit status of the LAST command.
+///
+/// ★ `133;D;<status>` is fsh telling the terminal what the command exited with, and it lands
+/// inside the window the capture already computes -- so this is a search through bytes we are
+/// holding, not new plumbing.
+///
+/// ⚠️ Option, not i32, and the distinction is the whole point. A command that takes the screen or
+/// ends the session may emit no `133;D` at all, and returning a manufactured 0 there would make a
+/// comparison look performed when it was not. Unknown must stay unknown.
+pub fn run_repl_lines_status(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+) -> Result<(Vec<String>, Option<i32>), String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
@@ -282,8 +298,8 @@ pub fn run_repl_lines_env(cmds: &[&str], env: &[(&str, &str)]) -> Result<Vec<Str
     // `?2004l`. The stray B/C/D tokens land inside the window and strip_ansi removes them,
     // since it handles OSC as well as CSI.
     //
-    // `133;D;<status>` still carries the exit code. Not consumed here -- giving cases
-    // exit-status assertions is its own change to what a test can express.
+    // `133;D;<status>` carries the exit code and lands INSIDE this window, so the status is read
+    // from the same bytes rather than captured separately.
     //
     // THE FALLBACK IS THE OLD BEHAVIOUR, ON PURPOSE: a command that takes the screen or ends
     // the session may emit no `133;A`, and an empty capture would read as a passing assertion
@@ -297,9 +313,20 @@ pub fn run_repl_lines_env(cmds: &[&str], env: &[(&str, &str)]) -> Result<Vec<Str
         }
         None => &raw[..],
     };
-    Ok(strip_ansi(tail)
+    const OSC_D: &[u8] = b"\x1b]133;D;";
+    let status = find_last(tail, OSC_D).and_then(|i| {
+        let from = i + OSC_D.len();
+        let digits: Vec<u8> = tail[from..]
+            .iter()
+            .copied()
+            .take_while(|b| b.is_ascii_digit())
+            .collect();
+        std::str::from_utf8(&digits).ok()?.parse::<i32>().ok()
+    });
+    let lines: Vec<String> = strip_ansi(tail)
         .split('\n')
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .collect())
+        .collect();
+    Ok((lines, status))
 }
