@@ -166,10 +166,19 @@ pub fn make_error(
 /// command-not-found is a RUNTIME error, not syntax. A bare `>` with no target is
 /// the genuine parse rejection (detect_redirect returns the no-target sentinel),
 /// so it is the honest target for "render one real syntax error with a caret".
+/// Render the missing-redirect-target diagnostic, locating the operator by SCANNING the text.
+///
+/// ⚠️ THIS ENTRY EXISTS FOR THE LEGACY PATH ONLY, and it is on its way out. The spine already
+/// knows where the operator is -- ParseError::MissingRedirectTarget carries a Span -- so the live
+/// router calls render_redirect_error_at with that span instead of re-deriving it here.
+/// Re-deriving a fact the parser established is the string re-inspection INT-195 exists to remove;
+/// this survives only until the legacy redirect executor goes, and dies with it.
 pub fn render_redirect_error(line: &str) -> String {
-    use miette::{GraphicalReportHandler, GraphicalTheme, LabeledSpan};
+    render_redirect_error_at(line, scan_missing_redirect_offset(line))
+}
 
-    // Locate the offending operator: a `>` or `>>` with no non-space target after.
+/// Locate the `>` or `>>` that has no target after it. Text-derived, hence private.
+fn scan_missing_redirect_offset(line: &str) -> usize {
     let bytes = line.as_bytes();
     let mut offset = line.len().saturating_sub(1);
     let mut i = 0;
@@ -188,7 +197,12 @@ pub fn render_redirect_error(line: &str) -> String {
             i += 1;
         }
     }
+    offset
+}
 
+/// Render the same diagnostic at a KNOWN offset -- the parser's span, not a rescan.
+pub fn render_redirect_error_at(line: &str, offset: usize) -> String {
+    use miette::{GraphicalReportHandler, GraphicalTheme, LabeledSpan};
     let span = LabeledSpan::at(offset..offset + 1, "redirect has no target file");
     let diag =
         miette::MietteDiagnostic::new("redirect missing target file").with_labels(vec![span]);
@@ -202,7 +216,16 @@ pub fn render_redirect_error(line: &str) -> String {
 
 #[cfg(test)]
 mod redirect_error_tests {
-    use super::render_redirect_error;
+    use super::{render_redirect_error, render_redirect_error_at};
+
+    #[test]
+    fn caret_lands_where_the_span_says_without_scanning() {
+        // The parser's span is authoritative: the caret goes where it points, whether or not a
+        // scan would have chosen the same spot.
+        let out = render_redirect_error_at("echo a >", 7);
+        assert!(out.contains("redirect missing target file"), "got:\n{out}");
+        assert!(out.contains("redirect has no target file"), "got:\n{out}");
+    }
 
     #[test]
     fn caret_lands_under_the_offending_redirect() {

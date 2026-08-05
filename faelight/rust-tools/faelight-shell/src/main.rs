@@ -2177,25 +2177,39 @@ fn repl_main() -> Result<()> {
                                 }
                             }
                         }
-                        if let Some(result) = exec::try_execute_spine_source(
+                        match exec::try_execute_spine_source(
                             line,
                             &shell,
                             engine.db(),
                             engine.core_root(),
                             engine.before_rules(),
                         ) {
-                            if spine_trace {
-                                eprintln!("  [spine-router] claimed: {line}");
+                            exec::SpineOutcome::Executed(result) => {
+                                if spine_trace {
+                                    eprintln!("  [spine-router] claimed: {line}");
+                                }
+                                if engine.absorb_result(result, "spine")
+                                    == crate::engine::SegmentOutcome::ExitShell
+                                {
+                                    break 'repl;
+                                }
+                                continue;
                             }
-                            if engine.absorb_result(result, "spine")
-                                == crate::engine::SegmentOutcome::ExitShell
-                            {
-                                break 'repl;
+                            // The spine owned the line and has already reported. Nothing to print and nothing
+                            // to run -- only the status to record. `Handled` is named for that ownership rather
+                            // than for the diagnostic, so the next claimed-but-not-executed case fits it too.
+                            exec::SpineOutcome::Handled { exit_code } => {
+                                if spine_trace {
+                                    eprintln!("  [spine-router] handled: {line}");
+                                }
+                                engine.set_last_exit(Some(exit_code));
+                                continue;
                             }
-                            continue;
-                        }
-                        if spine_trace {
-                            eprintln!("  [spine-router] declined: {line}");
+                            exec::SpineOutcome::Declined => {
+                                if spine_trace {
+                                    eprintln!("  [spine-router] declined: {line}");
+                                }
+                            }
                         }
                     }
                     let line = expand_vars(line, engine.vars(), engine.last_exit());

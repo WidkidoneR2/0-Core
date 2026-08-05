@@ -1240,45 +1240,73 @@ pub fn spine_routing_report() -> Option<String> {
     ))
 }
 
+/// What the router did with a line. `Option<CommandResult>` carried THREE meanings in a two-state
+/// type: ran it, declined it, and -- once a diagnostic could be reported without executing -- owned
+/// it without producing a result.
+///
+/// ★ NAMED BY OWNERSHIP, NOT BY TODAY'S CASE. `Handled` means the spine claimed this input and no
+/// further execution should occur; a parser diagnostic is merely the first thing that fits.
+pub enum SpineOutcome {
+    /// A command ran and produced a result.
+    Executed(CommandResult),
+    /// The spine consumed the input and established the exit status. Output, if any, is done.
+    Handled { exit_code: i32 },
+    /// Not the spine's. Legacy may try.
+    Declined,
+}
+
 pub fn try_execute_spine_source(
     source: &str,
     shell: &ShellContext,
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
-) -> Option<CommandResult> {
+) -> SpineOutcome {
     match lower_spine_source(source, shell, db, core_root, rules) {
         Ok(plans) => {
             bump(&SPINE_CLAIMED);
             // A single command keeps its EXISTING path -- builtins, the redirect rules, the
             // prefer-the-real-binary check. Only a genuine pipeline takes the chaining executor,
             // so nothing about ordinary commands changes.
-            Some(match plans.as_slice() {
+            SpineOutcome::Executed(match plans.as_slice() {
                 [one] => execute_spine(one, source, db, core_root, rules),
                 many => crate::commands::execute_pipeline_plans(many, db),
             })
         }
+        // ⚠️ A DEFECT, NOT A REFUSAL. `echo a >` is not shell the spine declines to own -- it is a
+        // mistake the parser already located. Declining hands it to legacy, which re-derives the
+        // same position by scanning the text. The spine reports it and keeps ownership.
+        Err(SpineAttemptError::Parse(
+            crate::spine::parser::ParseError::MissingRedirectTarget { span, .. },
+        )) => {
+            bump(&SPINE_CLAIMED);
+            eprint!(
+                "{}",
+                crate::error::render_redirect_error_at(source, span.start)
+            );
+            SpineOutcome::Handled { exit_code: 2 }
+        }
         Err(SpineAttemptError::Parse(_)) => {
             bump(&SPINE_DECLINED_PARSE);
-            None
+            SpineOutcome::Declined
         }
         Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::MissingCapability {
             ..
         })) => {
             bump(&SPINE_DECLINED_CAPABILITY);
-            None
+            SpineOutcome::Declined
         }
         Err(SpineAttemptError::Lower(crate::spine::plan::LowerError::UnsupportedConstruct {
             ..
         })) => {
             bump(&SPINE_DECLINED_CONSTRUCT);
-            None
+            SpineOutcome::Declined
         }
         // ⚠️ NOT a decline. The spine ACCEPTED ownership and produced a spine-owned error, so it
         // counts as claimed -- a defect to investigate, not a fallback to celebrate.
         Err(e) => {
             bump(&SPINE_CLAIMED);
-            Some(CommandResult::Error(format!("spine: {e:?}"), 1))
+            SpineOutcome::Executed(CommandResult::Error(format!("spine: {e:?}"), 1))
         }
     }
 }
