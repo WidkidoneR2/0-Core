@@ -646,7 +646,16 @@ impl Engine {
                     .next()
                     .map(|a| a.split_whitespace().map(|s| s.to_string()).collect())
                     .unwrap_or_default();
-                let _ = jobs.spawn(&cmd, &args);
+                match jobs.spawn(&cmd, &args) {
+                    // Exit 0 means the CHILD STARTED, not that the job succeeded -- a background
+                    // job is never waited on, so its own status is not knowable here. Same
+                    // meaning as a successful register() on the spine path.
+                    Ok(_) => self.set_last_exit(Some(0)),
+                    Err(e) => {
+                        eprintln!("{} {}", "x".bright_red(), e);
+                        self.set_last_exit(Some(1));
+                    }
+                }
             }
             return Some(SegmentOutcome::Next);
         }
