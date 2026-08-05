@@ -46,6 +46,14 @@
         runtimeInputs = [ pkgs.gnugrep pkgs.coreutils pkgs.nix ];
         text = builtins.readFile ./nix/lib/risk-gate.sh;
       };
+      # INT-202 gate 5: fsh-test on pre-push. Same file-not-string form as riskGate above, and
+      # for the same reason -- shell escapes and Nix antiquotation do not mix. cargo is
+      # deliberately NOT a runtimeInput; the script explains why.
+      fshTestGate = pkgs.writeShellApplication {
+        name = "fsh-test-gate";
+        runtimeInputs = [ pkgs.git pkgs.coreutils ];
+        text = builtins.readFile ./nix/lib/fsh-test-gate.sh;
+      };
       # INT-027 (2026-07-15): src = ./. meant ANY repo change -- including a MARKDOWN
       # file -- churned the faelight-forest hash and forced a full ~170s workspace
       # rebuild. PROVEN: appending one blank line to faelight/rust-tools/README.md moved
@@ -320,6 +328,21 @@
               entry = "${riskGate}/bin/risk-gate";
               pass_filenames = true;
               stages = [ "pre-commit" ];
+            };
+
+            # INT-202 gate 5: the suite stops depending on someone remembering to type it.
+            # PRE-PUSH, not pre-commit: risk-gate.sh already recorded why -- a gate that fires on
+            # every commit is one people route around with --no-verify. The `files` regex is what
+            # makes it skip a push touching no shell or harness source, so the skip is the
+            # framework's job rather than a diff walk in the script.
+            fsh-test-gate = {
+              enable = true;
+              name = "fsh-test (pre-push)";
+              description = "INT-202: the interactive suite must be green before code leaves the machine";
+              entry = "${fshTestGate}/bin/fsh-test-gate";
+              files = "^faelight/rust-tools/(faelight-shell|fsh-test)/.*\\.rs$";
+              pass_filenames = false;
+              stages = [ "pre-push" ];
             };
           };
         };
