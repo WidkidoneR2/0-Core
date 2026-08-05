@@ -41,6 +41,29 @@ history in `fsh_test_results` says the same: `repl_background_job_honours_its_re
 times at `a0c60409`, three at `827d76a6`, plus `dd19eb9c` and `a70e696c`, and passed in between on
 those same hashes.
 
+## THE PERFORMANCE FLOOR, MEASURED -- 0.60s
+Five minutes is too long to run often, and a suite nobody runs protects nothing. So the target is
+not aspirational, it is arithmetic on a measured floor.
+
+A pty probe spawned fsh and waited for the bracketed-paste-ON marker -- the line editor announcing
+it is ready -- four times: 0.594, 0.624, 0.610, 0.607 seconds, on ~2KB of banner. THE 30ms SPREAD
+MATTERS MORE THAN THE NUMBER. Waiting for the marker is not merely faster than sleeping 2500ms, it
+is DETERMINISTIC, which is why gate 2 fixes the flake and not just the clock.
+
+Two suspects were ruled out rather than assumed. `nixos-rebuild list-generations --json`, which the
+banner runs on every start, takes 120ms. `faelight-shell -c 'true'` is ~0.00s -- it skips the
+banner, the config load and the session bookkeeping entirely, which is the two-doors difference and
+not a measurement of anything the harness waits for. 0.60s to a prompt is fine for a user; there is
+no startup problem here.
+
+  today   2500 settle + per line (1200 + 500 + 300) + ~400 drain  ~= 4.9s per single-line case,
+          which matches every observed timing, and ~40 REPL cases is essentially the whole 298s
+  after   0.60 settle + ~0.2 per line + ~0.1                       ~= 1.0s per case  ->  ~40s total
+
+AND ISOLATION SURVIVES. Sharing one pty across cases was the old idea for dodging the per-case
+settle; it leaks `cd` and variables between tests. At 0.6s it is unnecessary. Do not trade isolation
+for speed that marker-waiting already gives.
+
 ## THE DESIGN QUESTION THIS INTENT EXISTS TO ANSWER
     What has to be true before a green suite is allowed to mean the shell is correct?
 
@@ -56,8 +79,9 @@ two have made it fast and deterministic.
       submitted line and the NEXT paste-on. The three `conform_*` cases pass WITHOUT their
       assertions being changed -- if an assertion has to move, the capture fix is wrong.
 - [ ] No fixed sleep remains in the per-line path. The harness waits for a marker with a deadline
-      and reports a timeout as a failure, not as empty output. Suite runtime recorded before and
-      after.
+      and reports a timeout as a FAILURE, not as empty output.
+- [ ] THE SUITE COMPLETES IN UNDER 60 SECONDS, from 298s, with runtime recorded before and after.
+      Isolation is not traded away to get there -- one pty per case, as today.
 - [ ] A case can declare the environment its shell runs under, and legacy-routed twins exist for the
       background cases.
 - [ ] The suite runs without being typed -- a pre-commit hook or a `nix flake check` target -- and a
@@ -80,10 +104,24 @@ two have made it fast and deterministic.
 - Do NOT delete a flaky test to make the number green. The flake is the bug.
 - Do NOT add a dependency without discussing it first.
 
-## A DECISION THIS INTENT MUST MAKE RATHER THAN INHERIT
-fsh-test carries `conform_*` cases and `spine conform` is a separate conformance mechanism with a
-different capture path. Two conformance tools with two capture paths is the two-doors shape again.
-Decide which one owns bash comparison, and say so here, before either grows further.
+## THE CONFORMANCE RULING -- ONE CORPUS, ONE VERDICT MODEL, TWO DOORS
+This looked like duplication and is not. `spine conform` compares through `-c`, on stdout and exit
+status only, with three verdicts -- Agrees, DivergesAsDeclared, Unexplained -- where a declared
+divergence that starts MATCHING bash again counts as a failure. fsh-test's `conform_*` cases compare
+through the REPL pty. Different doors.
+
+AND THE DIFFERENCE IS LOAD-BEARING. `spine conform`'s first run caught `-c` creating `0.5` and `=`
+while the REPL refuses them -- the digit guard applying at one door and not the other. Deleting
+either tool would have hidden that.
+
+So: the three-verdict model becomes the ONLY verdict model. fsh-test stops carrying a private case
+list and drives the SHARED corpus through the pty door. A case that agrees on one door and diverges
+on the other then becomes a finding BY CONSTRUCTION rather than something someone has to remember to
+check -- which is exactly INT-201's open gate, "the digit guard applies to both doors."
+
+⚠️ ORDERING: the shared corpus depends on gate 1. `spine conform` reads stdout from a pipe and never
+sees prompt chrome; the pty door does. The bounded capture window is the precondition for trusting
+the REPL side of a shared corpus, not a parallel task.
 
 ## Relationship
 - INT-173 is COMPLETE and is what made this possible: it gave fsh-test a REPL door instead of only
