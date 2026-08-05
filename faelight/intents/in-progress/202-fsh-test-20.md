@@ -128,8 +128,25 @@ two have made it fast and deterministic.
      legacy background path applies no redirect at all, and teaching it to would mean a second copy
      of configure_file_io. a33d6cd7 made it refuse; this case stops that becoming a file named with a
      trailing ampersand again. -->
-- [ ] The suite runs without being typed -- a pre-commit hook or a `nix flake check` target -- and a
-      red run blocks.
+- [x] The suite runs without being typed -- a pre-PUSH hook -- and a red run blocks.
+<!-- evidence: 28c2654a. `nix/lib/fsh-test-gate.sh` + a `fshTestGate` writeShellApplication beside
+     riskGate + a hook with `stages = [ "pre-push" ]`.
+     ★ THE WORDING CHANGED ON EVIDENCE. `nix flake check` was offered as an option and was never
+     viable -- INT-119 found it dies on the rustfmt hook before reaching any checks. And pre-COMMIT
+     was the wrong stage: risk-gate.sh already recorded the rule, that a gate firing on every commit
+     is one people route around with --no-verify, which is how INT-113 and INT-119 both died. Nine
+     commits a day at fifty-five seconds is eight minutes of waiting for an answer that rarely
+     changes within a series; a push is what leaves the machine.
+     ★★ BOTH HALVES WERE DEMONSTRATED, NOT ASSUMED. A scratch branch carrying a deliberately failing
+     case was pushed: the hook built the pushed code, ran 135 cases, failed only zz_gate5_red,
+     printed "BLOCKED: fsh-test is red" and git reported `failed to push some refs` -- nothing
+     reached GitHub, 90.1s including the build. Then this very commit, touching flake.nix and
+     nix/lib only, pushed with `(no files to check) Skipped`. Fires when relevant, silent when not.
+     ⚠️ IT BUILDS WHAT IS BEING PUSHED. FSH_BIN defaults to the DEPLOYED shell, so a hook using that
+     default would test the shell you are running rather than the code you are sending.
+     ⚠️ TWO INSTALL FACTS FOR THE NEXT PERSON: `builtins.readFile` cannot see an untracked file, so a
+     new nix/lib script must be `git add`ed before the flake will evaluate; and `direnv reload` does
+     NOT re-run the shellHook -- `nix develop -c true` is what installs the hook. -->
 - [ ] ONE conformance corpus, ONE verdict model, TWO doors. fsh-test stops carrying a private
       `conform_*` list and drives the shared corpus; the three-verdict model (Agrees,
       DivergesAsDeclared, Unexplained) is the only one; and a case that agrees on one door while
