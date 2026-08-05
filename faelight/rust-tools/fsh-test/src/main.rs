@@ -1327,6 +1327,79 @@ fn all_tests() -> Vec<TestResult> {
     ));
 
     results.push(test(
+        "repl_background_job_keeps_quoted_arguments_legacy",
+        Category::Repl,
+        || {
+            // THE SAME ASSERTION THROUGH THE OTHER DOOR, and the pair is the point. The case above
+            // runs spine-routed, because until now every case did: the spawn set no environment, so
+            // the spine answered everything and the legacy path was never exercised. That is why the
+            // case above passed for months while legacy was mangling quoted arguments -- it claims
+            // `sh -c "..." &` and handles the quoting correctly, so the test never reached the code
+            // its name describes. The bug was found by hand instead, and fixed at d0c04825.
+            //
+            // ★ THIS ONE HAS A RED YOU CAN STILL RUN. Gen 464's binary predates d0c04825:
+            //   FSH_BIN=/nix/store/86m8mhwx52s1ris35jp0v4b7kmffzyv7-faelight-forest-9.2.0/bin/faelight-shell
+            // Against it this case fails and the one above passes -- which is the whole argument for
+            // per-case routing in one screen.
+            let out = repl::run_repl_lines_env(
+                &[
+                    "rm -f /tmp/zzbg2L.txt",
+                    "sh -c \"echo ZZBGQUOTEDL > /tmp/zzbg2L.txt\" &",
+                    "sleep 2",
+                    "sed -n 1p /tmp/zzbg2L.txt",
+                ],
+                &[("FSH_SPINE", "0")],
+            )?;
+            let joined = out.join("\n");
+            if out
+                .iter()
+                .any(|l| l.contains("ZZBGQUOTEDL") && !l.trim_start().starts_with('['))
+            {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the LEGACY background path lost its quoting -- argv was re-derived from text \
+                 instead of going through the shell's one tokenizer, so the child received a \
+                 fragment: {joined:?}"
+                ))
+            }
+        },
+    ));
+
+    results.push(test(
+        "repl_background_redirect_refused_on_legacy",
+        Category::Repl,
+        || {
+            // A REFUSAL IS THE ASSERTION, not a redirect working. detect_redirect runs six hundred
+            // lines before the background handler and takes everything right of the last unquoted
+            // `>` as the target, so `cmd > f &` yielded a target of `f &` -- a file whose NAME ended
+            // in an ampersand, run in the FOREGROUND, with no job registered and nothing reported.
+            // Seven such files accumulated in /tmp before anyone noticed what they were.
+            //
+            // Legacy cannot be made to do this correctly without a second copy of configure_file_io,
+            // so a33d6cd7 made it refuse instead. This case exists so the refusal cannot quietly
+            // become a junk file again. The spine claims the simple form and honours it; only what
+            // the spine declines reaches here, which is why the case is routed to legacy explicitly.
+            //
+            // ONE line, because only the last command's output comes back.
+            let out = repl::run_repl_lines_env(
+                &["echo hi | cat > /tmp/zzbgredirL.txt &"],
+                &[("FSH_SPINE", "0")],
+            )?;
+            let joined = out.join("\n");
+            if joined.contains("not supported here") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "a backgrounded redirect on the legacy path was not refused -- it has \
+                 probably gone back to creating a file whose name ends in an ampersand: \
+                 {joined:?}"
+                ))
+            }
+        },
+    ));
+
+    results.push(test(
         "repl_chain_runs_builtins_and_next_command_sees_the_effect",
         Category::Repl,
         || {

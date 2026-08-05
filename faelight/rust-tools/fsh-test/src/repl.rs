@@ -147,6 +147,21 @@ pub fn run_repl(cmd: &str) -> Result<Vec<String>, String> {
 /// bracketed-paste-off marker and the `133;A` that follows it, so earlier lines are setup rather
 /// than assertions -- a test asserting on an earlier line would silently see nothing.
 pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
+    run_repl_lines_env(cmds, &[])
+}
+
+/// Same, with environment variables set on the shell being tested.
+///
+/// ★ WHY THIS EXISTS: every case ran SPINE-ROUTED because the spawn set no environment, so the
+/// spine answered every test and the legacy path was never exercised. That is why
+/// `repl_background_job_keeps_quoted_arguments` passed for months while legacy was mangling
+/// quoted arguments -- the spine claims `sh -c "..." &` and handles the quoting correctly, so the
+/// test never reached the code its name describes. A harness that can only knock on one door
+/// cannot report on the other.
+///
+/// ⚠️ ADDITIVE ON PURPOSE. Roughly forty call sites use run_repl/run_repl_lines; changing their
+/// signature would have churned all of them to express something almost none of them need.
+pub fn run_repl_lines_env(cmds: &[&str], env: &[(&str, &str)]) -> Result<Vec<String>, String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
@@ -154,6 +169,7 @@ pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
     let s_err = pty.slave.try_clone().map_err(|e| e.to_string())?;
 
     let mut child = Command::new(fsh_bin())
+        .envs(env.iter().copied())
         .current_dir("/tmp")
         .stdin(Stdio::from(s_in))
         .stdout(Stdio::from(s_out))
