@@ -312,6 +312,102 @@ impl Engine {
         Some(SegmentOutcome::Next)
     }
 
+    /// `let NAME = VALUE` -- set a session variable, with the value expanded first.
+    pub fn try_let(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let rest = line.trim().strip_prefix("let ")?;
+        if let Some(eq) = rest.find(" = ") {
+            let name = rest[..eq].trim().to_string();
+            let val = rest[eq + 3..]
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'')
+                .to_string();
+            let expanded = crate::expand_vars(&val, self.vars(), self.last_exit());
+            println!(
+                "  {} {} = {}",
+                colored::Colorize::bright_cyan("→"),
+                colored::Colorize::bright_white(name.as_str()),
+                colored::Colorize::dimmed(expanded.as_str())
+            );
+            self.set_var(name, expanded);
+        } else {
+            eprintln!(
+                "  {} usage: let <name> = <value>",
+                colored::Colorize::bright_red("✗")
+            );
+        }
+        Some(SegmentOutcome::Next)
+    }
+
+    /// `export NAME=VALUE` -- set it in BOTH the process environment and the session.
+    ///
+    /// ⚠️ Both, deliberately: the environment is what child processes inherit, the session map is
+    /// what `$NAME` expansion reads. Setting only one makes them disagree.
+    pub fn try_export(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let rest = line.trim().strip_prefix("export ")?;
+        let (name, val) = if let Some(eq) = rest.find('=') {
+            (
+                rest[..eq].trim(),
+                rest[eq + 1..].trim().trim_matches('"').trim_matches('\''),
+            )
+        } else {
+            (rest.trim(), "")
+        };
+        let expanded = crate::expand_vars(val, self.vars(), self.last_exit());
+        std::env::set_var(name, &expanded);
+        self.set_var(name.to_string(), expanded.clone());
+        println!(
+            "  {} export {} = {}",
+            colored::Colorize::bright_cyan("→"),
+            colored::Colorize::bright_white(name),
+            colored::Colorize::dimmed(expanded.as_str())
+        );
+        Some(SegmentOutcome::Next)
+    }
+
+    /// `unset NAME` -- remove it from both the session and the environment.
+    pub fn try_unset(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let name = line.trim().strip_prefix("unset ")?.trim().to_string();
+        let _ = self.remove_var(&name);
+        std::env::remove_var(&name);
+        println!(
+            "  {} unset {}",
+            colored::Colorize::bright_cyan("→"),
+            colored::Colorize::bright_white(name.as_str())
+        );
+        Some(SegmentOutcome::Next)
+    }
+
+    /// `persist NAME` -- write a variable to shell_persist so it survives the session.
+    pub fn try_persist(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let name = line.trim().strip_prefix("persist ")?.trim().to_string();
+        let env_val = std::env::var(&name).ok();
+        let found = self
+            .var(&name)
+            .or_else(|| env_val.as_deref().and_then(|v| self.var(v)))
+            .or(env_val.as_ref())
+            .cloned();
+        if let Some(val) = found {
+            let _ = self.db().conn.execute(
+                "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
+                rusqlite::params![&name, &val],
+            );
+            println!(
+                "  {} {} persisted across sessions",
+                colored::Colorize::bright_cyan("→"),
+                colored::Colorize::bright_white(name.as_str())
+            );
+        } else {
+            println!(
+                "  {} variable '{}' not set — use: export {}=value first",
+                colored::Colorize::yellow("⚠️ "),
+                name,
+                name
+            );
+        }
+        Some(SegmentOutcome::Next)
+    }
+
     /// The last command's exit status.
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code

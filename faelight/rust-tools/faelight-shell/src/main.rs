@@ -493,7 +493,7 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
 /// Extracted from the original expand_globs body; logic unchanged for parts
 /// that lack quotes.
 
-fn expand_vars(
+pub(crate) fn expand_vars(
     line: &str,
     vars: &std::collections::HashMap<String, String>,
     last_exit: Option<i32>,
@@ -2140,85 +2140,31 @@ fn repl_main() -> Result<()> {
                         }
                     }
 
-                    if let Some(rest) = trimmed.strip_prefix("let ") {
-                        // let x = "value"  or  let x = value
-                        if let Some(eq) = rest.find(" = ") {
-                            let name = rest[..eq].trim().to_string();
-                            let val = rest[eq + 3..]
-                                .trim()
-                                .trim_matches('"')
-                                .trim_matches('\'')
-                                .to_string();
-                            let expanded = expand_vars(&val, engine.vars(), engine.last_exit());
-                            println!(
-                                "  {} {} = {}",
-                                "→".bright_cyan(),
-                                name.bright_white(),
-                                expanded.dimmed()
-                            );
-                            engine.set_var(name, expanded);
-                        } else {
-                            eprintln!("  {} usage: let <name> = <value>", "✗".bright_red());
+                    if let Some(outcome) = engine.try_let(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        continue;
                     }
-                    if let Some(rest) = trimmed.strip_prefix("export ") {
-                        // export EDITOR=nvim  or  export EDITOR = nvim
-                        let (name, val) = if let Some(eq) = rest.find('=') {
-                            (
-                                rest[..eq].trim(),
-                                rest[eq + 1..].trim().trim_matches('"').trim_matches('\''),
-                            )
-                        } else {
-                            (rest.trim(), "")
-                        };
-                        let expanded = expand_vars(val, engine.vars(), engine.last_exit());
-                        std::env::set_var(name, &expanded);
-                        engine.set_var(name.to_string(), expanded.clone());
-                        println!(
-                            "  {} export {} = {}",
-                            "→".bright_cyan(),
-                            name.bright_white(),
-                            expanded.dimmed()
-                        );
-                        continue;
+                    if let Some(outcome) = engine.try_export(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                        }
                     }
 
-                    if let Some(rest) = trimmed.strip_prefix("unset ") {
-                        let name = rest.trim();
-                        let _ = engine.remove_var(name);
-                        std::env::remove_var(name);
-                        println!("  {} unset {}", "→".bright_cyan(), name.bright_white(),);
-                        continue;
+                    if let Some(outcome) = engine.try_unset(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                        }
                     }
                     // persist VAR — save variable to state.db for cross-session persistence
-                    if let Some(rest) = trimmed.strip_prefix("persist ") {
-                        let name = rest.trim();
-                        let env_val = std::env::var(name).ok();
-                        if let Some(val) = engine
-                            .var(name)
-                            .or_else(|| env_val.as_deref().map(|v| engine.var(v)).flatten())
-                            .or(env_val.as_ref())
-                        {
-                            let val = val.clone();
-                            let _ = engine.db().conn.execute(
-                                "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
-                                rusqlite::params![name, &val],
-                            );
-                            println!(
-                                "  {} {} persisted across sessions",
-                                "→".bright_cyan(),
-                                name.bright_white()
-                            );
-                        } else {
-                            println!(
-                                "  {} variable '{}' not set — use: export {}=value first",
-                                "⚠️ ".yellow(),
-                                name,
-                                name
-                            );
+                    if let Some(outcome) = engine.try_persist(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        continue;
                     }
                     // INT-169 DEBUG ENTRY: run one line through the SPINE path end to end --
                     // parse, lower with the real session variables, then execute with the SAME
