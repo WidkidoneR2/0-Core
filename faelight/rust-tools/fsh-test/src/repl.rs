@@ -90,6 +90,15 @@ fn find_last(hay: &[u8], needle: &[u8]) -> Option<usize> {
         .find(|&i| &hay[i..i + needle.len()] == needle)
 }
 
+/// First occurrence of `needle` at or after `from`. The forward twin of find_last, and the
+/// second half of a bounded window: find_last picks which command, this picks where it ends.
+fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+    if needle.is_empty() || hay.len() < needle.len() || from > hay.len() - needle.len() {
+        return None;
+    }
+    (from..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
+}
+
 fn drain(rx: &mpsc::Receiver<Vec<u8>>, quiet: Duration) -> Vec<u8> {
     let mut acc = Vec::new();
     while let Ok(chunk) = rx.recv_timeout(quiet) {
@@ -173,11 +182,40 @@ pub fn run_repl_lines(cmds: &[&str]) -> Result<Vec<String>, String> {
     let _ = child.kill();
     let _ = child.wait();
 
-    // Everything after the last bracketed-paste-off marker is the command's real
-    // output. Before it are ~40 rounds of per-keystroke repaint: the highlighter
-    // redraws the whole line on every character typed.
+    // THE WINDOW IS BOUNDED BY TWO MARKERS, NOT BY A TIMEOUT. It runs from `?2004l`, which the
+    // line editor emits when the line is submitted, to `133;A`, which fsh emits when it starts
+    // drawing the next prompt. Between them is the command's output and nothing else.
+    //
+    // Taking everything after `?2004l` with no end boundary was the old behaviour, and the
+    // capture then ran until drain's quiet timeout happened to fall -- which is why the same
+    // case passed when the prompt was slow and failed when it was fast.
+    //
+    // ⚠️ `133;C`/`133;D` LOOK LIKE THE RIGHT BOUNDARY AND ARE NOT. OSC 133;C means "output
+    // starts here", but fsh emits B, C and D in a cluster AFTER the command has finished for
+    // every path that spawns a child -- the child inherits the pty and writes first. Measured
+    // 2026-08-05: `echo ZZBUILTIN` puts its output between C and D, while `echo hi | grep h`
+    // puts `hi` BEFORE B and leaves C..D empty. A C..D window broke 16 tests, all of them
+    // pipelines, sequences or sh/bash/python3. That is an fsh shell-integration bug and it is
+    // not this harness's to fix; the window is chosen so the harness does not depend on it.
+    //
+    // The prompt is excluded structurally because it begins AT `133;A`. The editor's
+    // per-keystroke repaints and history autosuggestions are excluded because they precede
+    // `?2004l`. The stray B/C/D tokens land inside the window and strip_ansi removes them,
+    // since it handles OSC as well as CSI.
+    //
+    // `133;D;<status>` still carries the exit code. Not consumed here -- giving cases
+    // exit-status assertions is its own change to what a test can express.
+    //
+    // THE FALLBACK IS THE OLD BEHAVIOUR, ON PURPOSE: a command that takes the screen or ends
+    // the session may emit no `133;A`, and an empty capture would read as a passing assertion
+    // about absence.
+    const OSC_A: &[u8] = b"\x1b]133;A";
     let tail = match find_last(&raw, b"\x1b[?2004l") {
-        Some(i) => &raw[i + 8..],
+        Some(i) => {
+            let start = i + 8;
+            let end = find_from(&raw, OSC_A, start).unwrap_or(raw.len());
+            &raw[start..end]
+        }
         None => &raw[..],
     };
     Ok(strip_ansi(tail)
