@@ -3048,13 +3048,16 @@ fn repl_main() -> Result<()> {
                         }
                     };
                     // INT-201: per-execution work. Advisories stay BELOW, in their current order.
-                    let (outcome, cmd_output) = execute_and_record(
+                    let outcome = execute_and_record(
                         &mut engine,
                         &raw_line,
                         &base_cmd,
                         original_line,
                         &pipeline_ops,
                         has_external_op,
+                        redirect,
+                        is_fm_cmd,
+                        &fm_cwd_file,
                     );
                     if outcome == engine::SegmentOutcome::ExitShell {
                         break 'repl;
@@ -3063,97 +3066,6 @@ fn repl_main() -> Result<()> {
                     friday_next_cmd_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
                     // INT-296 Phase 5 (pre-migration citation): consecutive failure detection.
                     friday_failure_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
-                    // Store last output for `last` command (INT-194)
-                    if let Some(ref out) = cmd_output {
-                        if !out.is_empty() {
-                            let _ = engine.db().conn.execute(
-                                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_output', ?1)",
-                                rusqlite::params![out],
-                            );
-                        }
-                    }
-                    // INT-201 — Track last command exit status for faelight-term indicator
-                    {
-                        // FIXED: this block used to RE-DERIVE success by scanning the output
-                        // text for the cross-mark prefix / "error" / "not found", and then
-                        // OVERWROTE last_exit_code with that guess. The guess was a SECOND
-                        // SOURCE OF TRUTH and was wrong in BOTH directions: a successful
-                        // command whose legitimate output mentions the word "error" (e.g. a
-                        // report COUNTING parse errors) was recorded as a failure, and a
-                        // genuinely failed builtin whose message lacks those words was recorded
-                        // as a success. That corrupted term_commands.exit_code, which Friday's
-                        // three-failures-in-a-row detector reads -- the shell was learning from
-                        // fabricated observations.
-                        //
-                        // The verdict is ALREADY correct: the CommandResult match above sets
-                        // last_exit_code (Output/Empty/NotBuiltin -> 0, Error -> 1). This block
-                        // now only CONSUMES it. The faelight-term cache write is kept; only the
-                        // re-derivation is gone.
-                        //
-                        // KNOWN GAP, recorded not hidden: four arms of that match never set
-                        // last_exit_code at all (both Value arms, and the two arms that spawn
-                        // `sh` for pipelines and discard its status), so on those paths the
-                        // value carries over from the previous command. The string scan was
-                        // crudely papering over that; removing it makes the staleness VISIBLE
-                        // rather than guessed. Fixing it touches pipeline execution semantics
-                        // (is pipeline status the last command? the first failure?) and belongs
-                        // in its own intent with its own verification -- deliberately NOT
-                        // bundled with a telemetry-corruption fix.
-                        let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
-                        let status_val = if exit_ok { "success" } else { "failure" };
-                        let cache_dir =
-                            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                                .join(".cache/faelight");
-                        let _ = std::fs::create_dir_all(&cache_dir);
-                        let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
-                    }
-                    // Write to file if redirect was detected, otherwise print
-                    if let Some(output) = cmd_output {
-                        if let Some((ref path, append)) = redirect {
-                            use std::io::Write;
-                            let home = std::env::var("HOME").unwrap_or_default();
-                            let full_path = if path.starts_with("~/") {
-                                format!("{}/{}", home, &path[2..])
-                            } else {
-                                path.clone()
-                            };
-                            let file = std::fs::OpenOptions::new()
-                                .write(true)
-                                .create(true)
-                                .append(append)
-                                .truncate(!append)
-                                .open(&full_path);
-                            match file {
-                                Ok(mut f) => {
-                                    let _ = f.write_all(output.as_bytes());
-                                    let _ = f.write_all(
-                                        b"
-",
-                                    );
-                                    let mode = if append { ">>" } else { ">" };
-                                    println!(
-                                        "  {} {} {}",
-                                        "○".bright_cyan(),
-                                        mode.dimmed(),
-                                        full_path.bright_white()
-                                    );
-                                }
-                                Err(e) => eprintln!("  ✗ redirect failed: {}", e),
-                            }
-                        } else {
-                            println!("{}", output);
-                        }
-                    }
-                    // Phase 20b — apply cwd after yazi/fm exits
-                    if is_fm_cmd {
-                        if let Ok(cwd) = std::fs::read_to_string(&fm_cwd_file) {
-                            let cwd = cwd.trim();
-                            if !cwd.is_empty() {
-                                let _ = std::env::set_current_dir(cwd);
-                            }
-                        }
-                        let _ = std::fs::remove_file(&fm_cwd_file);
-                    }
                     // Phase 17 — evaluate triggers after every command
                     triggers::ensure_schema(engine.db());
                     let health = engine.db().health_score();
@@ -3952,7 +3864,10 @@ fn execute_and_record(
     original_line: &str,
     pipeline_ops: &[value::PipeOp],
     has_external_op: bool,
-) -> (engine::SegmentOutcome, Option<String>) {
+    redirect: Option<(String, bool)>,
+    is_fm_cmd: bool,
+    fm_cwd_file: &std::path::Path,
+) -> engine::SegmentOutcome {
     let _cmd_timer_start = std::time::Instant::now();
     let execution = exec::execute_with_context(
         &raw_line,
@@ -3990,7 +3905,7 @@ fn execute_and_record(
             {
                 eprintln!("warning: failed to close exit command_execution record: {e}");
             }
-            return (engine::SegmentOutcome::ExitShell, None);
+            return engine::SegmentOutcome::ExitShell;
         }
         commands::CommandResult::Value(v) if !pipeline_ops.is_empty() && !has_external_op => {
             // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
@@ -4168,5 +4083,95 @@ fn execute_and_record(
             }
         }
     }
-    (engine::SegmentOutcome::Next, cmd_output)
+    // Store last output for `last` command (INT-194)
+    if let Some(ref out) = cmd_output {
+        if !out.is_empty() {
+            let _ = engine.db().conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_output', ?1)",
+                rusqlite::params![out],
+            );
+        }
+    }
+    // INT-201 — Track last command exit status for faelight-term indicator
+    {
+        // FIXED: this block used to RE-DERIVE success by scanning the output
+        // text for the cross-mark prefix / "error" / "not found", and then
+        // OVERWROTE last_exit_code with that guess. The guess was a SECOND
+        // SOURCE OF TRUTH and was wrong in BOTH directions: a successful
+        // command whose legitimate output mentions the word "error" (e.g. a
+        // report COUNTING parse errors) was recorded as a failure, and a
+        // genuinely failed builtin whose message lacks those words was recorded
+        // as a success. That corrupted term_commands.exit_code, which Friday's
+        // three-failures-in-a-row detector reads -- the shell was learning from
+        // fabricated observations.
+        //
+        // The verdict is ALREADY correct: the CommandResult match above sets
+        // last_exit_code (Output/Empty/NotBuiltin -> 0, Error -> 1). This block
+        // now only CONSUMES it. The faelight-term cache write is kept; only the
+        // re-derivation is gone.
+        //
+        // KNOWN GAP, recorded not hidden: four arms of that match never set
+        // last_exit_code at all (both Value arms, and the two arms that spawn
+        // `sh` for pipelines and discard its status), so on those paths the
+        // value carries over from the previous command. The string scan was
+        // crudely papering over that; removing it makes the staleness VISIBLE
+        // rather than guessed. Fixing it touches pipeline execution semantics
+        // (is pipeline status the last command? the first failure?) and belongs
+        // in its own intent with its own verification -- deliberately NOT
+        // bundled with a telemetry-corruption fix.
+        let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
+        let status_val = if exit_ok { "success" } else { "failure" };
+        let cache_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".cache/faelight");
+        let _ = std::fs::create_dir_all(&cache_dir);
+        let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
+    }
+    // Write to file if redirect was detected, otherwise print
+    if let Some(output) = cmd_output {
+        if let Some((ref path, append)) = redirect {
+            use std::io::Write;
+            let home = std::env::var("HOME").unwrap_or_default();
+            let full_path = if path.starts_with("~/") {
+                format!("{}/{}", home, &path[2..])
+            } else {
+                path.clone()
+            };
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(append)
+                .truncate(!append)
+                .open(&full_path);
+            match file {
+                Ok(mut f) => {
+                    let _ = f.write_all(output.as_bytes());
+                    let _ = f.write_all(
+                        b"
+    ",
+                    );
+                    let mode = if append { ">>" } else { ">" };
+                    println!(
+                        "  {} {} {}",
+                        "○".bright_cyan(),
+                        mode.dimmed(),
+                        full_path.bright_white()
+                    );
+                }
+                Err(e) => eprintln!("  ✗ redirect failed: {}", e),
+            }
+        } else {
+            println!("{}", output);
+        }
+    }
+    // Phase 20b — apply cwd after yazi/fm exits
+    if is_fm_cmd {
+        if let Ok(cwd) = std::fs::read_to_string(&fm_cwd_file) {
+            let cwd = cwd.trim();
+            if !cwd.is_empty() {
+                let _ = std::env::set_current_dir(cwd);
+            }
+        }
+        let _ = std::fs::remove_file(&fm_cwd_file);
+    }
+    engine::SegmentOutcome::Next
 }
