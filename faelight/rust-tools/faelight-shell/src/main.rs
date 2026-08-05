@@ -3373,15 +3373,13 @@ fn repl_main() -> Result<()> {
                     };
                     triggers::evaluate(engine.db(), &trigger_ctx, engine.core_root());
                     // INT-220 -- Send FridayEvent to daemon socket (fire and forget)
-                    if friday_daemon_event(
+                    friday_daemon_event(
                         &mut engine,
                         &base_cmd,
                         health,
                         &mut shown_friday_suggestions,
                         &mut last_friday_intent,
-                    ) {
-                        continue 'segments;
-                    }
+                    );
                     // 🌲 Forest speaks — surface insightd insights after every command
                     {
                         let insight: Option<(i64, String, String, f64)> = engine
@@ -4061,7 +4059,7 @@ fn friday_daemon_event(
     health: Option<i64>,
     shown: &mut std::collections::HashSet<String>,
     last_intent: &mut Option<String>,
-) -> bool {
+) {
     let cmd_str = base_cmd;
     // Read exit status from cache file written above
     let exit_code: i32 = {
@@ -4121,11 +4119,11 @@ fn friday_daemon_event(
                                 let current_intent =
                                     engine.db().get_focus_intent().map(|i| format!("{}", i));
                                 if current_intent == *last_intent && last_intent.is_some() {
-                                    return false; // throttled: stay quiet, but let postexec run
+                                    return; // throttled: stay quiet, but let postexec run
                                 }
                                 // INT-246: never repeat same suggestion in a session
                                 if shown.contains(msg) {
-                                    return false; // throttled: stay quiet, but let postexec run
+                                    return; // throttled: stay quiet, but let postexec run
                                 }
                                 shown.insert(msg.to_string());
                                 *last_intent = current_intent;
@@ -4145,5 +4143,4 @@ fn friday_daemon_event(
             }
         }
     }
-    false
 }
