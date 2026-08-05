@@ -2342,6 +2342,33 @@ fn repl_main() -> Result<()> {
                     let original_line = line;
                     // Handle redirects natively — no sh delegation
                     let (line_stripped, redirect_info) = detect_redirect(line);
+
+                    // A TRAILING `&` CANNOT SURVIVE detect_redirect. It splits at the last unquoted `>`
+                    // and takes everything right of it as the TARGET, so `cmd > f &` yields a target of
+                    // `f &` -- a file whose NAME ends in an ampersand. The stripped line then no longer
+                    // ends with ` &`, so try_background never fires: the command runs in the FOREGROUND,
+                    // registers no job, writes to the junk filename, and reports nothing. Four wrong
+                    // things, all silent. Same family as the quoted-`>` bug that created a file named `b"`.
+                    //
+                    // REFUSE RATHER THAN GUESS. Fixing it here would mean teaching the legacy background
+                    // path to apply redirects, duplicating configure_file_io -- the second owner that
+                    // background_command's doc exists to prevent. The real fix is the spine backgrounding
+                    // a pipeline, which deletes the decline that sends these lines here at all.
+                    //
+                    // SAFE BY CONSTRUCTION: the spine's background attempt sits ~200 lines above and
+                    // `continue 'segments` on success, so this can only ever see a line the spine declined.
+                    if let Some((ref t, _)) = redirect_info {
+                        if t.trim_end().ends_with('&') {
+                            eprintln!(
+                                "{} backgrounding a redirected command is not supported here -- the `&` was absorbed into the redirect target ({:?})",
+                                "x".bright_red(),
+                                t
+                            );
+                            eprintln!("  the spine handles `cmd > file &`; a backgrounded PIPELINE is not supported yet");
+                            engine.set_last_exit(Some(1));
+                            continue 'segments;
+                        }
+                    }
                     if let Some((ref redirect_target, is_append)) = redirect_info {
                         // Check for stderr redirect (2> or 2>&1) — use original line
                         // INT-172 RESTORATION (2026-07-17): hand `sh` the WHOLE line for any `2>`.
