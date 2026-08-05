@@ -126,8 +126,31 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      borrows it for the whole session and pinned the engine as immutably borrowed. That is not a
      borrow-checker workaround -- it states that the database is a SHARED resource while the
      variables and exit code are state the engine owns outright. -->
-- [ ] Execute one command line via a function that accepts all per-execution state as
-      parameters, including `Option<&mut JobTable>`, callable from outside main.rs
+- [x] Execute one command line via a function that accepts all per-execution state as
+      parameters, callable from outside main.rs
+<!-- evidence: `pub fn execute_and_record` in src/engine.rs, called from main.rs. Nine parameters,
+     every one derived from the command line being run. Landed in three commits that each did one
+     thing: 48bf9152 extracted 221 lines with the advisories left in place so print order could not
+     move; 38f26186 hoisted four silent per-execution blocks in and the return type got SIMPLER,
+     from a pair back to a bare SegmentOutcome, because the redirect write consumes the captured
+     output by value; 26042b75 moved it into engine.rs and made it pub. Deployed gen 462.
+     ★ THE CLAUSE THAT WAS REMOVED, AND WHY. This gate previously required `Option<&mut JobTable>`.
+     That was written during gate 2 as a PREDICTION of the shape, and the work disproved it.
+     Measured 2026-08-05: four engine handlers already accept one -- try_jobs, try_fg and try_kill at
+     engine.rs 631/652/682, and try_background added at 4f0d167b -- and backgrounding is decided in
+     the guard chain ABOVE the executor. background_command's own doc states the principle: an
+     ExecutionPlan describes one FOREGROUND process, and "do not wait" is a scheduling decision with
+     no business inside a description of what to run. The job table is session state reaching
+     per-command HANDLERS; it is not a parameter of the executor.
+     ⚠️ WHAT IS NOT CLAIMED. Nine parameters carry #[allow(clippy::too_many_arguments)] -- an honest
+     marker that the count is known and accepted, not hidden. And 1,598 lines of preparation still
+     sit ABOVE the call. That preparation is dispatch and it is the NEXT gate, not this one.
+     ⚠️ THIS TICK IS LATE AND THE REASON IS RECORDED RATHER THAN TIDIED. Commit 7cc6ecd6 was titled
+     "close gate 3" and its diff contained only the Progress section -- 40 insertions and 18
+     deletions, exactly the 191-to-213 line change. The gate patch was written and never run, so for
+     two days a commit message asserted a closure this file did not show. That is the failure the
+     intent audit exists to catch, and it happened here.
+     Verified on 138 unit tests, the full 132-case suite, and live probes on the deployed binary. -->
 - [ ] The REPL loop is a CLIENT of it -- no dispatch logic left inline
 - [ ] fsh-test stays green throughout, including the conformance cases
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
