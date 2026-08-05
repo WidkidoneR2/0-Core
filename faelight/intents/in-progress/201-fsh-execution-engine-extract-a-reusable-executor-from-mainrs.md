@@ -197,6 +197,58 @@ repair is the spine learning to background a pipeline, and that is its own work.
 
 Deployed gen 464, in daily use. 138 unit tests and the full 132-case suite green at every step.
 
+## Progress -- gate 4 reconnaissance: the loop holds FOUR executors, not one (2026-08-05)
+Reading the region between the spine router and the executor call answered a question nobody had
+asked plainly. The router is about twenty lines. The other six hundred and sixty are three more
+executors, each of which runs a command and then continues the segment loop:
+
+  a  redirect executor          main.rs ~2372-2572   ~200 lines
+  b  external pipeline executor main.rs ~2613-2859   ~247 lines
+  c  forest query executor      main.rs ~2222-2319   ~97 lines
+
+So execute_and_record is the FOURTH executor, not the only one, and the remaining preparation is
+three parallel executors plus roughly a hundred and fifty lines of genuine preparation.
+
+THE FIRST MOVE WAS REACHABILITY, NOT EQUIVALENCE, and it was the cheap question. With the router
+trace on, nine forms were probed under default routing -- simple redirect, append, `2>`, `2>&1`,
+combined, stdin, two- and three-stage pipelines, and a pipeline into a file. All nine were CLAIMED by
+the spine. Legacy's `__stderr__` sh-delegation is therefore dead for the ordinary `2>` case: INT-172
+restored it when the spine had no stderr model, and the spine has IoPlan and StderrTarget now. The
+three thousand history rows the migration audit skips as stderr-delegated describe the legacy PARSER,
+not today's routing.
+
+⚠️ SO DELETION IS A REACHABILITY ARGUMENT RATHER THAN AN EQUIVALENCE ONE -- but it is not free, and
+two costs are now named rather than waiting to be discovered.
+
+FIRST, EXECUTOR (a) OWNS THE BEST ERROR MESSAGE IN THE REDIRECT PATH. `echo a >` is declined by the
+spine and lands on the `__redirect_error_no_target__` branch, which prints a source-span diagnostic
+with a caret under the offending `>` and exits 2. Deleting the executor takes that with it. Any
+deletion plan must say where it moves to, or accept losing it.
+
+SECOND, EXECUTOR (b) IS REACHABLE AND WRONG, WHICH BLOCKS ITS OWN DELETION. `echo hi | cat &` was
+declined and fell through to it, where the pipeline split handed the last stage the ampersand as an
+argument: `cat: '&': No such file or directory`, foreground, no job. `sleep 4 &` was claimed and
+registered correctly, so the boundary is exactly "the spine will not background a pipeline".
+Commit 532880e1 guards it -- refuse with a message rather than half-run -- on the same reasoning as
+this morning's redirect guard: repairing legacy would mean building a second pipeline executor beside
+the spine's.
+
+    THE SPINE BACKGROUNDING A PIPELINE IS A PREREQUISITE FOR DELETING EXECUTOR (b), not a parallel
+    improvement. Deleting it today moves that line from wrong to unhandled.
+
+AND EXECUTOR (c) IS A KEEP, WHICH RAISES THE QUESTION THIS GATE CANNOT ANSWER ALONE. The spine cannot
+parse fsh's own query language -- the migration audit counts roughly four hundred and twenty rows of
+`tt | where deployed == true`, `ps | where cpu > 0.5 | sort cpu desc`, `select * from ps where cpu >
+1` -- nor the trigger DSL. `ps | where cpu > 0.5` is declined by the router and served by (c), which
+works correctly. So "the REPL is a client of one executor" is not reachable by deleting things.
+
+    THE FORK, AND IT IS A DESIGN DECISION RATHER THAN A REFACTOR: either the spine LEARNS the query
+    language, which makes "one AST every path routes through" literally true and is its own intent,
+    or the engine hosts TWO executors BY DESIGN -- the spine for shell syntax, the query executor for
+    typed pipes -- because they are genuinely two languages, and pretending otherwise is what made
+    `where cpu > 0.5` need a digit guard in the first place. Neither is chosen yet, and this gate
+    cannot close until one is.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
