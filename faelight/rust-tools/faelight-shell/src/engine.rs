@@ -623,10 +623,11 @@ impl Engine {
     }
     /// Background job -- the legacy trailing `&` path.
     ///
-    /// MOVED VERBATIM from main.rs (INT-201). Three known defects are PRESERVED so that this
-    /// commit is a move and nothing else: the spawn Result is discarded, argv is re-derived
-    /// from text with splitn/split_whitespace (no quote awareness), and trim_end_matches
-    /// strips repetitions. Each is its own commit.
+    /// MOVED VERBATIM from main.rs (INT-201), then repaired one defect per commit: the spawn
+    /// Result is no longer discarded (76305252), and argv is no longer re-derived from text
+    /// (this commit -- it goes through commands::tokenize, the shell's one quote-aware
+    /// tokenizer). ONE REMAINS: trim_end_matches(" &") strips REPETITIONS, so `cmd & &`
+    /// loses both ampersands. Its own commit when it comes.
     ///
     /// WITHOUT A JOB TABLE this declines and the line falls through to normal execution --
     /// correct for a non-interactive caller, which has no jobs to control.
@@ -640,12 +641,19 @@ impl Engine {
             let jobs = jobs?;
             let cmd_part = segment_trimmed.trim_end_matches(" &").trim();
             if !cmd_part.is_empty() {
-                let mut parts = cmd_part.splitn(2, ' ');
-                let cmd = parts.next().unwrap_or("").to_string();
-                let args: Vec<String> = parts
-                    .next()
-                    .map(|a| a.split_whitespace().map(|s| s.to_string()).collect())
-                    .unwrap_or_default();
+                // INT-195: ONE TOKENIZER, not a second derivation. splitn/split_whitespace re-derived
+                // argv from raw text with no idea what a quote was, so `bash -c "echo one two" &`
+                // reached the child as -c, "echo, one, two" -- quote characters included. bash took
+                // `"echo` as the script and `one` as $0 and died on an unterminated quote. This is
+                // INT-171 gate 1's tokenizer: the one the dispatcher and ExecContext already use.
+                let tokens = crate::commands::tokenize(cmd_part);
+                let cmd = tokens.first().cloned().unwrap_or_default();
+                let args: Vec<String> = tokens.into_iter().skip(1).collect();
+                // tokenize CAN return empty where splitn could not -- `"" &` is all quotes and no
+                // token. Decline quietly rather than asking spawn to launch the empty string.
+                if cmd.is_empty() {
+                    return Some(SegmentOutcome::Next);
+                }
                 match jobs.spawn(&cmd, &args) {
                     // Exit 0 means the CHILD STARTED, not that the job succeeded -- a background
                     // job is never waited on, so its own status is not knowable here. Same
