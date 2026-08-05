@@ -3333,40 +3333,8 @@ fn repl_main() -> Result<()> {
                             }
                         }
                     }
-                    // INT-296 Phase 5: Friday consecutive failure detection
-                    {
-                        let fail_cmd = commands::command_word(&base_cmd);
-                        let consecutive: i64 = engine
-                            .db()
-                            .conn
-                            .query_row(
-                                "SELECT COUNT(*) FROM (
-                                SELECT exit_code FROM term_commands
-                                WHERE command LIKE ?1
-                                ORDER BY id DESC LIMIT 3
-                            ) AS recent WHERE exit_code != 0",
-                                rusqlite::params![format!("{}%", fail_cmd)],
-                                |r| r.get(0),
-                            )
-                            .unwrap_or(0);
-                        if consecutive >= 3 {
-                            let fail_key = format!("fail3_{}", fail_cmd);
-                            if !shown_friday_suggestions.contains(&fail_key) {
-                                shown_friday_suggestions.insert(fail_key);
-                                println!(
-                                    "  🌲 Friday: {} failed {} times in a row -- check the command",
-                                    fail_cmd, consecutive
-                                );
-                                let notify_body = format!(
-                                    "{} failed {} times in a row -- Friday suggests checking the command",
-                                    fail_cmd, consecutive
-                                );
-                                let _ = std::process::Command::new("notify-send")
-                                    .args(["🌲 Friday", &notify_body])
-                                    .spawn();
-                            }
-                        }
-                    }
+                    // INT-296 Phase 5 (pre-migration citation): consecutive failure detection.
+                    friday_failure_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
                     // Store last output for `last` command (INT-194)
                     if let Some(ref out) = cmd_output {
                         if !out.is_empty() {
@@ -4101,4 +4069,47 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         "q".dimmed()
     );
     println!();
+}
+
+/// Friday's consecutive-failure hint -- ADVISORY, interactive-only.
+///
+/// ⚠️ INT-201: lifted out of the postexec tail so its inputs are STATED rather than ambient.
+/// The dedupe set is session state and belongs to the REPL, not to execution -- a `-c` caller
+/// must never reach this. The INT-296 citation is pre-migration and is kept verbatim.
+fn friday_failure_hint(
+    engine: &engine::Engine,
+    base_cmd: &str,
+    shown: &mut std::collections::HashSet<String>,
+) {
+    let fail_cmd = commands::command_word(&base_cmd);
+    let consecutive: i64 = engine
+        .db()
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM (
+            SELECT exit_code FROM term_commands
+            WHERE command LIKE ?1
+            ORDER BY id DESC LIMIT 3
+        ) AS recent WHERE exit_code != 0",
+            rusqlite::params![format!("{}%", fail_cmd)],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    if consecutive >= 3 {
+        let fail_key = format!("fail3_{}", fail_cmd);
+        if !shown.contains(&fail_key) {
+            shown.insert(fail_key);
+            println!(
+                "  🌲 Friday: {} failed {} times in a row -- check the command",
+                fail_cmd, consecutive
+            );
+            let notify_body = format!(
+                "{} failed {} times in a row -- Friday suggests checking the command",
+                fail_cmd, consecutive
+            );
+            let _ = std::process::Command::new("notify-send")
+                .args(["🌲 Friday", &notify_body])
+                .spawn();
+        }
+    }
 }
