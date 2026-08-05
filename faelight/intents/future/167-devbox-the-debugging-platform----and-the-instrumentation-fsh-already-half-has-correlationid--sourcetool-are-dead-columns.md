@@ -3,7 +3,7 @@ id: 167
 date: 2026-07-16
 type: arch
 title: "DevBox: the debugging platform -- and the instrumentation fsh already half-has (correlation_id + source_tool are dead columns)"
-status: in-progress
+status: planned
 tags: [devbox, debugging, instrumentation, events, sqlite, tui, fsh, architecture]
 ---
 

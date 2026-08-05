@@ -2,7 +2,7 @@
 id: 087
 date: 2026-06-23
 type: future
-status: in-progress
+status: planned
 title: "Miracle-wm: second compositor profile (Mir-based, Sway-IPC)"
 tags: [compositor, miracle, wayland, mir, profile, 010]
 version: TBD
