@@ -517,6 +517,110 @@ impl Engine {
         });
         Some(SegmentOutcome::Next)
     }
+    /// INT-254 `?<query>` -- natural-language translation, with confirmation before running.
+    ///
+    /// ⚠️ TWO EXITS, BOTH `Next`: a diagnostic query runs its own steps and returns early,
+    /// otherwise the query is translated and offered for confirmation. `None` only means the
+    /// line did not start with `?`.
+    ///
+    /// ⚠️ READS STDIN for the y/n confirmation, so this is INTERACTIVE by nature -- a
+    /// non-interactive caller must not reach it. Recorded here rather than discovered later.
+    pub fn try_nl_query(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if !(line.starts_with('?') && line.len() > 1) {
+            return None;
+        }
+        let query = line[1..].trim();
+        // Phase 25 — auto-diagnose for complex queries
+        if crate::nl::is_diagnostic(query) {
+            println!();
+            println!(
+                "  {} Auto-diagnosing: {}",
+                "🔍".normal(),
+                query.bright_white()
+            );
+            println!();
+            let steps = crate::nl::auto_diagnose(query);
+            for step in &steps {
+                println!("  {} {}", "→".bright_cyan(), step.dimmed());
+                // Parse pipeline ops from step
+                let pipe_parts: Vec<&str> = step.splitn(2, " | ").collect();
+                let base = pipe_parts[0].trim();
+                let pipeline_ops = if pipe_parts.len() > 1 {
+                    crate::value::parse_pipeline(&format!("x | {}", pipe_parts[1..].join(" | ")))
+                } else {
+                    vec![]
+                };
+                // Resolve joins
+                let pipeline_ops: Vec<crate::value::PipeOp> = pipeline_ops
+                    .into_iter()
+                    .map(|op| {
+                        if let crate::value::PipeOp::Join { table, on } = op {
+                            let right_result =
+                                crate::commands::execute(&table, self.db(), self.core_root());
+                            if let crate::commands::CommandResult::Value(
+                                crate::value::Value::Table(rows),
+                            ) = right_result
+                            {
+                                crate::value::PipeOp::JoinData { rows, on }
+                            } else {
+                                crate::value::PipeOp::JoinData { rows: vec![], on }
+                            }
+                        } else {
+                            op
+                        }
+                    })
+                    .collect();
+                match crate::commands::execute(base, self.db(), self.core_root()) {
+                    crate::commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
+                        println!(
+                            "{}",
+                            crate::value::apply_pipeline(v, &pipeline_ops).render()
+                        );
+                    }
+                    crate::commands::CommandResult::Value(v) => println!("{}", v.render()),
+                    crate::commands::CommandResult::Output(o) => println!("{}", o),
+                    _ => {}
+                }
+                println!();
+            }
+            return Some(SegmentOutcome::Next);
+        }
+        let custom_patterns = crate::nl::load_toml_patterns(self.core_root());
+        match crate::nl::translate_with_custom(query, &custom_patterns) {
+            Some(t) => {
+                print!("{}", crate::nl::render_translation(&t));
+                use std::io::BufRead;
+                let stdin = std::io::stdin();
+                let answer = stdin
+                    .lock()
+                    .lines()
+                    .next()
+                    .and_then(|l| l.ok())
+                    .unwrap_or_default()
+                    .trim()
+                    .to_lowercase();
+                if answer == "y" || answer.is_empty() {
+                    println!();
+                    match crate::commands::execute(&t.pipeline, self.db(), self.core_root()) {
+                        crate::commands::CommandResult::Value(v) => {
+                            println!("{}", v.render())
+                        }
+                        crate::commands::CommandResult::Output(o) => println!("{}", o),
+                        crate::commands::CommandResult::Error(e, _) => {
+                            eprintln!("  ✗ {}", e)
+                        }
+                        _ => {}
+                    }
+                } else {
+                    println!("  ○ cancelled");
+                }
+            }
+            None => {
+                eprintln!("  ✗ no pattern matched — try: ?memory hogs, ?biggest files");
+            }
+        }
+        Some(SegmentOutcome::Next)
+    }
     /// The last command's exit status.
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code

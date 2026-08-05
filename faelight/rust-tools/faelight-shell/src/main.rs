@@ -1705,112 +1705,11 @@ fn repl_main() -> Result<()> {
                     }
 
                     // Natural language ?prefix
-                    if line.starts_with('?') && line.len() > 1 {
-                        let query = line[1..].trim();
-                        // Phase 25 — auto-diagnose for complex queries
-                        if nl::is_diagnostic(query) {
-                            println!();
-                            println!(
-                                "  {} Auto-diagnosing: {}",
-                                "🔍".normal(),
-                                query.bright_white()
-                            );
-                            println!();
-                            let steps = nl::auto_diagnose(query);
-                            for step in &steps {
-                                println!("  {} {}", "→".bright_cyan(), step.dimmed());
-                                // Parse pipeline ops from step
-                                let pipe_parts: Vec<&str> = step.splitn(2, " | ").collect();
-                                let base = pipe_parts[0].trim();
-                                let pipeline_ops = if pipe_parts.len() > 1 {
-                                    value::parse_pipeline(&format!(
-                                        "x | {}",
-                                        pipe_parts[1..].join(" | ")
-                                    ))
-                                } else {
-                                    vec![]
-                                };
-                                // Resolve joins
-                                let pipeline_ops: Vec<value::PipeOp> = pipeline_ops
-                                    .into_iter()
-                                    .map(|op| {
-                                        if let value::PipeOp::Join { table, on } = op {
-                                            let right_result = commands::execute(
-                                                &table,
-                                                engine.db(),
-                                                engine.core_root(),
-                                            );
-                                            if let commands::CommandResult::Value(
-                                                value::Value::Table(rows),
-                                            ) = right_result
-                                            {
-                                                value::PipeOp::JoinData { rows, on }
-                                            } else {
-                                                value::PipeOp::JoinData { rows: vec![], on }
-                                            }
-                                        } else {
-                                            op
-                                        }
-                                    })
-                                    .collect();
-                                match commands::execute(base, engine.db(), engine.core_root()) {
-                                    commands::CommandResult::Value(v)
-                                        if !pipeline_ops.is_empty() =>
-                                    {
-                                        println!(
-                                            "{}",
-                                            value::apply_pipeline(v, &pipeline_ops).render()
-                                        );
-                                    }
-                                    commands::CommandResult::Value(v) => println!("{}", v.render()),
-                                    commands::CommandResult::Output(o) => println!("{}", o),
-                                    _ => {}
-                                }
-                                println!();
-                            }
-                            continue;
+                    if let Some(outcome) = engine.try_nl_query(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        let custom_patterns = nl::load_toml_patterns(engine.core_root());
-                        match nl::translate_with_custom(query, &custom_patterns) {
-                            Some(t) => {
-                                print!("{}", nl::render_translation(&t));
-                                use std::io::BufRead;
-                                let stdin = std::io::stdin();
-                                let answer = stdin
-                                    .lock()
-                                    .lines()
-                                    .next()
-                                    .and_then(|l| l.ok())
-                                    .unwrap_or_default()
-                                    .trim()
-                                    .to_lowercase();
-                                if answer == "y" || answer.is_empty() {
-                                    println!();
-                                    match commands::execute(
-                                        &t.pipeline,
-                                        engine.db(),
-                                        engine.core_root(),
-                                    ) {
-                                        commands::CommandResult::Value(v) => {
-                                            println!("{}", v.render())
-                                        }
-                                        commands::CommandResult::Output(o) => println!("{}", o),
-                                        commands::CommandResult::Error(e, _) => {
-                                            eprintln!("  ✗ {}", e)
-                                        }
-                                        _ => {}
-                                    }
-                                } else {
-                                    println!("  ○ cancelled");
-                                }
-                            }
-                            None => {
-                                eprintln!(
-                                    "  ✗ no pattern matched — try: ?memory hogs, ?biggest files"
-                                );
-                            }
-                        }
-                        continue;
                     }
 
                     // Execute

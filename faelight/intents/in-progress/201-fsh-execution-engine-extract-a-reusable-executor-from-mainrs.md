@@ -152,6 +152,21 @@ a time on the same `Option<SegmentOutcome>` shape. The tail from ~3474 waits -- 
 `execution_id`, `_cmd_timer_start`, `cmd_output` and `base_cmd`, and closes its own INT-191
 lifecycle record, which is where an eleven-argument function would come from.
 
+## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
+During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
+The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
+any line starting with `?`, an empty query exits via `continue 'repl`, and a non-empty query also
+resolves there. The segments loop never sees it, so the segments-level handler is dead from the
+user-facing path regardless of the quality of its implementation.
+⚠️ THE TWO ARE NOT EQUIVALENT, which is why this is not a cleanup:
+  reachable  -- `translate_natural_language`, y/N confirmation, confidence display.
+  dead       -- `nl::translate_with_custom` with TOML custom patterns, `nl::is_diagnostic` and
+                auto-diagnose, pipeline and join resolution.
+★ Promoting the richer path is a FEATURE decision, not relocation, so it is deliberately NOT made
+here. Resolving it inside a refactor would leave a bad historical boundary -- future archaeology
+would read this commit as the one that changed query semantics. Recorded instead, and deferred to
+INT-202 (unify natural-language query routing).
+
 ## Scope guardrails
 - Do NOT delete the command registry (main.rs ~903). It is built on every startup and never read
   afterwards, but removing it is a DESIGN decision about abandoned wiring, not a refactor. Its one
