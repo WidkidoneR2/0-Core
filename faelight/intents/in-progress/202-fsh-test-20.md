@@ -75,13 +75,42 @@ would make every commit slower and every red meaningless, so automation comes LA
 two have made it fast and deterministic.
 
 ## Success Criteria
-- [ ] The capture is a bounded window, not a tail: text between the paste-off that follows the
-      submitted line and the NEXT paste-on. The three `conform_*` cases pass WITHOUT their
-      assertions being changed -- if an assertion has to move, the capture fix is wrong.
-- [ ] No fixed sleep remains in the per-line path. The harness waits for a marker with a deadline
+- [x] The capture is a bounded window, not a tail: text between the paste-off that follows the
+      submitted line and the `133;A` prompt-start marker after it. The three `conform_*` cases pass
+      WITHOUT their assertions being changed -- if an assertion has to move, the capture fix is wrong.
+<!-- evidence: 7b1fab15. THE ORIGINAL WORDING SAID "the NEXT paste-on" AND THAT BOUNDARY DOES NOT
+     WORK: the prompt TEXT is printed before `?2004h`, so ending there still swallows it. `133;A` is
+     where the prompt begins, so the prompt is excluded structurally rather than by timing.
+     ⚠️ THE OBVIOUS BOUNDARY WAS TRIED FIRST AND BROKE 16 TESTS. OSC 133;C means "output starts
+     here", so a C..D window looks correct. For any path that spawns a child -- pipeline, `;`
+     sequence, sh, bash, python3 -- the child inherits the pty and writes BEFORE fsh emits anything,
+     so B, C and D arrive afterwards in a cluster and C..D is empty. Measured: `echo ZZBUILTIN` puts
+     its output between C and D; `echo hi | grep h` puts `hi` before B. All 16 failures ran an
+     external child. The probe that justified the first attempt used only builtins -- a probe that
+     exercises the shape that works proves nothing about the shape that does not.
+     ★ That fsh emits `133;C` after the command has run is a REAL shell-integration defect, and it is
+     deliberately NOT fixed here: a harness that only works against a shell we are simultaneously
+     changing is worth less than one that works against the shell as it is. -->
+- [x] No fixed sleep remains in the per-line path. The harness waits for a marker with a deadline
       and reports a timeout as a FAILURE, not as empty output.
-- [ ] THE SUITE COMPLETES IN UNDER 60 SECONDS, from 298s, with runtime recorded before and after.
+<!-- evidence: b6f57e41. `wait_for(rx, &mut acc, needle, from, limit)` waits on `\x1b[?2004h` -- the
+     line editor announcing it is ready -- which is exactly what every sleep approximated. The old
+     budget was 2500ms to settle, 1200ms a line, 500 to drain. The first prompt was measured four
+     times at 0.594/0.624/0.610/0.607s: a 30ms spread, so the wait is deterministic where a sleep
+     cannot be. The determinism is the point and the speed is a side effect. `drain()` is deleted.
+     A timeout returns Err naming the command it gave up on. -->
+- [x] THE SUITE COMPLETES IN UNDER 60 SECONDS, from 298s, with runtime recorded before and after.
       Isolation is not traded away to get there -- one pty per case, as today.
+<!-- evidence: b6f57e41. 299s -> 167 -> 83 -> 62.7 -> 50.6s, 132/132 throughout, measured against the
+     DEPLOYED release shell because that is the binary the suite runs by default.
+     ★ THE PREDICTION WAS WRONG BY FOUR AND THE MEASUREMENT CORRECTED IT. Removing the sleeps gave
+     167s, not the 40 predicted. Phase timing found why: the prompt redraw costs 0.000s, and the
+     dominant phase is write-to-submit at 38-42ms PER CHARACTER, because the highlighter repaints the
+     whole line on every byte. So the line is PASTED, not typed: the same 37-character line takes
+     1.392s to submit written raw and 0.040s inside a bracketed paste, flat with length. Then the
+     300ms teardown became a try_wait poll. No test cared that input arrived pasted.
+     ⚠️ SHARED PTY SESSIONS WERE AVAILABLE AND REFUSED. They would have won the seconds instantly and
+     cost isolation -- `cd` and variables leaking between cases. Still one pty per case. -->
 - [ ] A case can declare the environment its shell runs under, and legacy-routed twins exist for the
       background cases.
 - [ ] The suite runs without being typed -- a pre-commit hook or a `nix flake check` target -- and a
