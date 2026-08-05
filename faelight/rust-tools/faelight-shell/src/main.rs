@@ -3373,104 +3373,14 @@ fn repl_main() -> Result<()> {
                     };
                     triggers::evaluate(engine.db(), &trigger_ctx, engine.core_root());
                     // INT-220 -- Send FridayEvent to daemon socket (fire and forget)
-                    {
-                        let cmd_str = base_cmd.clone();
-                        // Read exit status from cache file written above
-                        let exit_code: i32 = {
-                            let cache_dir =
-                                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                                    .join(".cache/faelight");
-                            let status =
-                                std::fs::read_to_string(cache_dir.join("last-exit-status"))
-                                    .unwrap_or_default();
-                            if status.trim() == "success" {
-                                0
-                            } else {
-                                1
-                            }
-                        };
-                        engine.set_last_exit(Some(exit_code));
-                        let now_ts = std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs() as i64;
-                        let home_dir = std::env::var("HOME").unwrap_or_default();
-                        let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
-                        let sock_path = sock_path_buf.as_str();
-                        // Build JSON safely -- escape special chars in command
-                        let cmd_escaped = cmd_str
-                            .replace('\\', "\\\\")
-                            .replace('"', "\\\"")
-                            .replace('\n', "\\n")
-                            .replace('\r', "\\r");
-                        let event_json = format!(
-                            "{{\"id\":1,\"payload\":{{\"FridayEvent\":{{\"command\":\"{}\",\"exit_code\":{},\"duration_ms\":0,\"intent\":null,\"health\":{},\"timestamp\":{}}}}}}}",
-                            cmd_escaped,
-                            exit_code, health.unwrap_or(100), now_ts
-                        );
-                        if std::path::Path::new(sock_path).exists() {
-                            use std::io::{BufRead, BufReader, Write};
-                            if let Ok(mut stream) =
-                                std::os::unix::net::UnixStream::connect(sock_path)
-                            {
-                                stream
-                                    .set_write_timeout(Some(std::time::Duration::from_millis(100)))
-                                    .ok();
-                                stream
-                                    .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
-                                    .ok();
-                                let _ = stream.write_all(event_json.as_bytes());
-                                let _ = stream.write_all(b"\n");
-                                // Gate 7 -- read FridaySpeak response inline
-                                let mut reader = BufReader::new(&stream);
-                                let mut resp = String::new();
-                                if reader.read_line(&mut resp).is_ok()
-                                    && resp.contains("FridaySpeak")
-                                {
-                                    if (resp.contains("\"low\"")
-                                        || resp.contains("\"medium\"")
-                                        || resp.contains("\"high\""))
-                                        && resp.contains("\"message\":\"")
-                                    {
-                                        if let Some(msg) = resp.split("\"message\":\"").nth(1) {
-                                            if let Some(msg) = msg.split('"').next() {
-                                                if !msg.is_empty() && msg != "null" {
-                                                    // INT-246: once per intent -- only speak when intent changed
-                                                    let current_intent = engine
-                                                        .db()
-                                                        .get_focus_intent()
-                                                        .map(|i| format!("{}", i));
-                                                    if current_intent == last_friday_intent
-                                                        && last_friday_intent.is_some()
-                                                    {
-                                                        continue;
-                                                    }
-                                                    // INT-246: never repeat same suggestion in a session
-                                                    if shown_friday_suggestions.contains(msg) {
-                                                        continue;
-                                                    }
-                                                    shown_friday_suggestions
-                                                        .insert(msg.to_string());
-                                                    last_friday_intent = current_intent;
-                                                    println!();
-                                                    let tier = if resp.contains("\"high\"") {
-                                                        ("RECOMMEND", "78%")
-                                                    } else if resp.contains("\"medium\"") {
-                                                        ("SUGGEST", "62%")
-                                                    } else {
-                                                        ("SUGGEST", "54%")
-                                                    };
-                                                    println!(
-                                                        "  🌲 Friday: {}  ·  {} · {}",
-                                                        msg, tier.0, tier.1
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    if friday_daemon_event(
+                        &mut engine,
+                        &base_cmd,
+                        health,
+                        &mut shown_friday_suggestions,
+                        &mut last_friday_intent,
+                    ) {
+                        continue 'segments;
                     }
                     // 🌲 Forest speaks — surface insightd insights after every command
                     {
@@ -4137,4 +4047,104 @@ fn friday_proactive_message(engine: &engine::Engine, session_commands: usize) {
             }
         }
     }
+}
+
+/// INT-220 -- Send FridayEvent to daemon socket (fire and forget)
+///
+/// ⚠️ INT-201 EXTRACTION ONLY -- BEHAVIOUR PRESERVED EXACTLY. Returns `true` when the caller must
+/// skip the rest of the segment, which is what the two `continue` statements did in place. That
+/// skip is almost certainly wrong -- a throttled message should stop PRINTING, not abandon the
+/// insights display and the session bookkeeping below it -- but changing it here would hide a
+/// behaviour change inside a move. It is fixed in the commit that follows this one.
+fn friday_daemon_event(
+    engine: &mut engine::Engine,
+    base_cmd: &str,
+    health: Option<i64>,
+    shown: &mut std::collections::HashSet<String>,
+    last_intent: &mut Option<String>,
+) -> bool {
+    let cmd_str = base_cmd;
+    // Read exit status from cache file written above
+    let exit_code: i32 = {
+        let cache_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".cache/faelight");
+        let status =
+            std::fs::read_to_string(cache_dir.join("last-exit-status")).unwrap_or_default();
+        if status.trim() == "success" {
+            0
+        } else {
+            1
+        }
+    };
+    engine.set_last_exit(Some(exit_code));
+    let now_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let home_dir = std::env::var("HOME").unwrap_or_default();
+    let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+    let sock_path = sock_path_buf.as_str();
+    // Build JSON safely -- escape special chars in command
+    let cmd_escaped = cmd_str
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r");
+    let event_json = format!(
+        "{{\"id\":1,\"payload\":{{\"FridayEvent\":{{\"command\":\"{}\",\"exit_code\":{},\"duration_ms\":0,\"intent\":null,\"health\":{},\"timestamp\":{}}}}}}}",
+        cmd_escaped,
+        exit_code, health.unwrap_or(100), now_ts
+    );
+    if std::path::Path::new(sock_path).exists() {
+        use std::io::{BufRead, BufReader, Write};
+        if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(sock_path) {
+            stream
+                .set_write_timeout(Some(std::time::Duration::from_millis(100)))
+                .ok();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
+                .ok();
+            let _ = stream.write_all(event_json.as_bytes());
+            let _ = stream.write_all(b"\n");
+            // Gate 7 -- read FridaySpeak response inline
+            let mut reader = BufReader::new(&stream);
+            let mut resp = String::new();
+            if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
+                if (resp.contains("\"low\"")
+                    || resp.contains("\"medium\"")
+                    || resp.contains("\"high\""))
+                    && resp.contains("\"message\":\"")
+                {
+                    if let Some(msg) = resp.split("\"message\":\"").nth(1) {
+                        if let Some(msg) = msg.split('"').next() {
+                            if !msg.is_empty() && msg != "null" {
+                                // INT-246: once per intent -- only speak when intent changed
+                                let current_intent =
+                                    engine.db().get_focus_intent().map(|i| format!("{}", i));
+                                if current_intent == *last_intent && last_intent.is_some() {
+                                    return true; // INT-201: PRESERVED -- caller skips the rest of the segment
+                                }
+                                // INT-246: never repeat same suggestion in a session
+                                if shown.contains(msg) {
+                                    return true; // INT-201: PRESERVED -- caller skips the rest of the segment
+                                }
+                                shown.insert(msg.to_string());
+                                *last_intent = current_intent;
+                                println!();
+                                let tier = if resp.contains("\"high\"") {
+                                    ("RECOMMEND", "78%")
+                                } else if resp.contains("\"medium\"") {
+                                    ("SUGGEST", "62%")
+                                } else {
+                                    ("SUGGEST", "54%")
+                                };
+                                println!("  🌲 Friday: {}  ·  {} · {}", msg, tier.0, tier.1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }
