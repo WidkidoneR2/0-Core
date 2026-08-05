@@ -621,6 +621,100 @@ impl Engine {
         }
         Some(SegmentOutcome::Next)
     }
+    /// `jobs` -- list background jobs.
+    ///
+    /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
+    /// execution -- correct for a non-interactive caller, which has no jobs to control.
+    pub fn try_jobs(
+        &mut self,
+        line: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> Option<SegmentOutcome> {
+        if crate::commands::command_word(line) != "jobs" {
+            return None;
+        }
+        let jobs = jobs?;
+        jobs.list();
+        Some(SegmentOutcome::Next)
+    }
+
+    /// `fg [n]` -- resume a background job.
+    ///
+    /// ⚠️ FALLS THROUGH when the line is not job control: `fg commit`, `fg push` are aliases.
+    /// INT-095: that rule lives in `is_repl_state_command`, which the spine router's exclusion
+    /// consults too -- asked, never duplicated.
+    ///
+    /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
+    /// execution -- correct for a non-interactive caller, which has no jobs to control.
+    pub fn try_fg(
+        &mut self,
+        line: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> Option<SegmentOutcome> {
+        if crate::commands::command_word(line) != "fg" {
+            return None;
+        }
+        let jobs = jobs?;
+        let second = line.split_whitespace().nth(1).unwrap_or("");
+        // Only intercept as job control if second token is a number
+        // fg commit, fg push, etc. → fall through to execute_with_context
+        // ASKED, NOT REPEATED: the router's exclusion consults the same predicate, so the
+        // rule that `fg commit` is NOT job control lives in exactly one place.
+        if crate::is_repl_state_command(line) {
+            let id = second.parse::<usize>().unwrap_or(1);
+            jobs.fg(id);
+            return Some(SegmentOutcome::Next);
+        }
+        // Otherwise fall through — fg commit etc. handled by alias
+        None
+    }
+
+    /// `kill` -- the job-spec form `kill %N`, and the real kill for everything else.
+    ///
+    /// ⚠️ INT-095: ONLY `kill %N` is a job spec. A PID is not a job id -- parsing any number as
+    /// one made `kill <PID>` a silent no-op, which is how `vm down` left two VMs running.
+    ///
+    /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
+    /// execution -- correct for a non-interactive caller, which has no jobs to control.
+    pub fn try_kill(
+        &mut self,
+        line: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> Option<SegmentOutcome> {
+        if crate::commands::command_word(line) != "kill" {
+            return None;
+        }
+        let jobs = jobs?;
+        // INT-095: only `kill %N` is a job-spec. Everything else (PIDs, signals
+        // like -9/-TERM, multiple PIDs) goes to the REAL kill -- a PID is NOT a
+        // job id. The old code parsed any number as a job id, so `kill <PID>`
+        // silently did nothing (corruption risk: vm down -> no-op -> two VMs).
+        let arg = line.split_whitespace().nth(1).unwrap_or("");
+        // Same predicate as the router's exclusion. INT-095: only `kill %N` is a job-spec,
+        // and a PID parsed as a job id made `vm down` a silent no-op.
+        if crate::is_repl_state_command(line) {
+            // job-spec: kill %N -> the in-shell job table
+            let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
+            if id > 0 {
+                jobs.kill_job(id);
+            } else {
+                println!("  usage: kill %<job_id>");
+            }
+            return Some(SegmentOutcome::Next);
+        }
+        // PID / signal form: pass ALL args through to the real kill.
+        let kill_args: Vec<&str> = line.split_whitespace().skip(1).collect();
+        if kill_args.is_empty() {
+            println!("  usage: kill <pid> | kill -SIG <pid> | kill %<job_id>");
+            return Some(SegmentOutcome::Next);
+        }
+        match std::process::Command::new("kill").args(&kill_args).status() {
+            Ok(s) if s.success() => {}
+            Ok(_) => eprintln!("  kill: failed for {}", kill_args.join(" ")),
+            Err(e) => eprintln!("  kill: {}", e),
+        }
+        Some(SegmentOutcome::Next)
+    }
     /// The last command's exit status.
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code

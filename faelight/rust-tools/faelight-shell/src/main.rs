@@ -160,7 +160,7 @@ fn expand_braces(s: &str) -> String {
 /// a PID parsed as a job id made `vm down` a silent no-op and risked two VMs. So the predicate
 /// mirrors Phase 8's own guards, and Phase 8 CALLS THIS rather than repeating them. Two copies of
 /// one rule is the split-brain INT-193 existed to end.
-fn is_repl_state_command(line: &str) -> bool {
+pub(crate) fn is_repl_state_command(line: &str) -> bool {
     let first = commands::command_word(line);
     let second = line.split_whitespace().nth(1).unwrap_or("");
     match first.as_str() {
@@ -2917,55 +2917,23 @@ fn repl_main() -> Result<()> {
 
                     // Phase 8 — Job control commands
                     // INT-195: canonical, quote-aware derivation.
-                    let first_tok_owned = commands::command_word(line);
-                    let first_tok = first_tok_owned.as_str();
-                    if first_tok == "jobs" {
-                        job_table.list();
-                        continue;
+                    if let Some(outcome) = engine.try_jobs(line, Some(&mut job_table)) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                        }
                     }
-                    if first_tok == "fg" {
-                        let second = line.split_whitespace().nth(1).unwrap_or("");
-                        // Only intercept as job control if second token is a number
-                        // fg commit, fg push, etc. → fall through to execute_with_context
-                        // ASKED, NOT REPEATED: the router's exclusion consults the same predicate, so the
-                        // rule that `fg commit` is NOT job control lives in exactly one place.
-                        if is_repl_state_command(line) {
-                            let id = second.parse::<usize>().unwrap_or(1);
-                            job_table.fg(id);
-                            continue;
+                    if let Some(outcome) = engine.try_fg(line, Some(&mut job_table)) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        // Otherwise fall through — fg commit etc. handled by alias
                     }
-                    if first_tok == "kill" {
-                        // INT-095: only `kill %N` is a job-spec. Everything else (PIDs, signals
-                        // like -9/-TERM, multiple PIDs) goes to the REAL kill -- a PID is NOT a
-                        // job id. The old code parsed any number as a job id, so `kill <PID>`
-                        // silently did nothing (corruption risk: vm down -> no-op -> two VMs).
-                        let arg = line.split_whitespace().nth(1).unwrap_or("");
-                        // Same predicate as the router's exclusion. INT-095: only `kill %N` is a job-spec,
-                        // and a PID parsed as a job id made `vm down` a silent no-op.
-                        if is_repl_state_command(line) {
-                            // job-spec: kill %N -> the in-shell job table
-                            let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
-                            if id > 0 {
-                                job_table.kill_job(id);
-                            } else {
-                                println!("  usage: kill %<job_id>");
-                            }
-                            continue;
+                    if let Some(outcome) = engine.try_kill(line, Some(&mut job_table)) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        // PID / signal form: pass ALL args through to the real kill.
-                        let kill_args: Vec<&str> = line.split_whitespace().skip(1).collect();
-                        if kill_args.is_empty() {
-                            println!("  usage: kill <pid> | kill -SIG <pid> | kill %<job_id>");
-                            continue;
-                        }
-                        match std::process::Command::new("kill").args(&kill_args).status() {
-                            Ok(s) if s.success() => {}
-                            Ok(_) => eprintln!("  kill: failed for {}", kill_args.join(" ")),
-                            Err(e) => eprintln!("  kill: {}", e),
-                        }
-                        continue;
                     }
 
                     // Phase 8 — Background job: detect trailing &
