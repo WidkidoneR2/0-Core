@@ -151,7 +151,36 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      two days a commit message asserted a closure this file did not show. That is the failure the
      intent audit exists to catch, and it happened here.
      Verified on 138 unit tests, the full 132-case suite, and live probes on the deployed binary. -->
-- [ ] The REPL loop is a CLIENT of it -- no dispatch logic left inline
+- [ ] The REPL performs no execution dispatch. Every entered command is delegated to the execution
+      engine, and the ENGINE selects the executor -- shell or query -- and runs it. Language routing
+      is an engine concern, not a REPL concern.
+<!-- ★ REWORDED 2026-08-05 ON A DESIGN RULING, not on difficulty. The original asked for "no dispatch
+     logic left inline", which reads as "there is exactly one executor" -- and the reconnaissance
+     above shows that is not reachable by deletion, because the spine cannot parse fsh's own query
+     language and the forest query executor has to survive.
+     ★★ THE DISTINCTION THAT DECIDED IT (Christian): the redirect and pipeline executors exist
+     because the shell parser could not yet absorb those paths -- HISTORICAL boundaries, so they go.
+     The query executor exists because it runs a DIFFERENT LANGUAGE -- a REAL boundary, so it stays,
+     as a first-class executor owned by the engine. Forcing two genuinely different grammars through
+     one parser adds more complexity than it removes.
+     ★ The abstraction boundary survives intact and is arguably cleaner: the REPL performs I/O, the
+     engine decides how execution happens, executors implement languages. Responsibilities now line
+     up with language boundaries instead of with the order things were built.
+     ⏭ WHAT THIS GATE NOW REQUIRES, in order:
+       1. The redirect executor goes. Nothing needs folding -- the spine already claims all nine
+          redirect forms probed. What remains is its diagnostic: `echo a >` is DECLINED and legacy
+          prints the caret. Make MissingRedirectTarget SURFACE rather than decline, per "refusals
+          fall back; defects surface" -- a missing target is the user's mistake, not a construct the
+          spine declines to own.
+       2. The pipeline executor goes AFTER the spine can background a pipeline. It is reachable and
+          wrong today (532880e1 guards it), so deleting it first moves that line from wrong to
+          unhandled.
+       3. The query executor MOVES into the engine as a named executor. It is not deleted and not
+          apologised for.
+     ⚠️ A PREDICTION THIS RULING MAKES, worth testing separately: the digit guard exists because one
+     parser had to serve two grammars. Under clean two-language routing the shell parser never sees
+     `cpu > 0.5`, so `echo test > 0.5` could become an ordinary redirect -- retiring BOTH declared
+     divergences in the conformance corpus. Its own change, its own evidence. -->
 - [ ] fsh-test stays green throughout, including the conformance cases
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
 - [ ] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
