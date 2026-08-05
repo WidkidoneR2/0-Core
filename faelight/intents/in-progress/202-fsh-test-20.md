@@ -111,10 +111,29 @@ two have made it fast and deterministic.
      300ms teardown became a try_wait poll. No test cared that input arrived pasted.
      ⚠️ SHARED PTY SESSIONS WERE AVAILABLE AND REFUSED. They would have won the seconds instantly and
      cost isolation -- `cd` and variables leaking between cases. Still one pty per case. -->
-- [ ] A case can declare the environment its shell runs under, and legacy-routed twins exist for the
+- [x] A case can declare the environment its shell runs under, and legacy-routed twins exist for the
       background cases.
+<!-- evidence: 8d491b5a. `run_repl_lines_env(cmds, env)`; `run_repl` and `run_repl_lines` delegate to
+     it, so ~40 call sites did not churn to express something almost none of them need. The spawn
+     gained `.envs(...)`; before it, EVERY case inherited the runner's environment and therefore ran
+     spine-routed, which is why the legacy path had no coverage at all.
+     ★ THE RED WAS RUN, NOT DESCRIBED. Gen 464's binary predates d0c04825 and survived GC:
+       FSH_BIN=/nix/store/86m8mhwx52s1ris35jp0v4b7kmffzyv7-faelight-forest-9.2.0/bin/faelight-shell
+     Against it: 134 cases, ONE failure -- repl_background_job_keeps_quoted_arguments_legacy -- while
+     its spine-routed sibling PASSED. Against gen 465: 134/134 in 55.2s.
+     ★★ THE SIBLING PASSING ON BOTH BINARIES IS THE FINDING. It carries the name of the bug and could
+     never have detected it; the bug was found by hand instead. One screen, two doors, a shell
+     disagreeing with itself.
+     ⚠️ The second twin (repl_background_redirect_refused_on_legacy) asserts a REFUSAL on purpose: the
+     legacy background path applies no redirect at all, and teaching it to would mean a second copy
+     of configure_file_io. a33d6cd7 made it refuse; this case stops that becoming a file named with a
+     trailing ampersand again. -->
 - [ ] The suite runs without being typed -- a pre-commit hook or a `nix flake check` target -- and a
       red run blocks.
+- [ ] ONE conformance corpus, ONE verdict model, TWO doors. fsh-test stops carrying a private
+      `conform_*` list and drives the shared corpus; the three-verdict model (Agrees,
+      DivergesAsDeclared, Unexplained) is the only one; and a case that agrees on one door while
+      diverging on the other is reported as a FINDING rather than a pass or a failure.
 
 ## The reds, named in advance (INT-158: watch it FAIL first)
 - Gate 1 is already red and recorded above: the three conform captures contain prompt text.
@@ -132,6 +151,14 @@ two have made it fast and deterministic.
   has fixed the wrong thing.
 - Do NOT delete a flaky test to make the number green. The flake is the bug.
 - Do NOT add a dependency without discussing it first.
+- MORE TESTS IS NOT THE GOAL. The suite stays under the speed gate, and EVERY case must be able to
+  FAIL. A case that cannot distinguish fixed from broken is worse than absent -- there are two
+  precedents already: the REPL ghost test that was deleted, and repl_background_job_keeps_quoted_
+  arguments passing for months while the bug it is named for was live.
+- If added coverage puts the suite over sixty seconds, the lever is PARALLELISM, not shared sessions.
+  Every case already owns its own pty and its own process, so threads preserve isolation completely.
+  And if the target becomes genuinely unreachable, AMEND the gate with the measurement -- a gate that
+  is quietly relaxed is the failure this intent exists to prevent.
 
 ## THE CONFORMANCE RULING -- ONE CORPUS, ONE VERDICT MODEL, TWO DOORS
 This looked like duplication and is not. `spine conform` compares through `-c`, on stdout and exit
@@ -151,6 +178,29 @@ check -- which is exactly INT-201's open gate, "the digit guard applies to both 
 ⚠️ ORDERING: the shared corpus depends on gate 1. `spine conform` reads stdout from a pipe and never
 sees prompt chrome; the pty door does. The bounded capture window is the precondition for trusting
 the REPL side of a shared corpus, not a parallel task.
+
+## The coverage to add, and the bug each one would have caught
+Six classes, ranked by evidence rather than by category. The first, third and fifth together ARE the
+sixth gate; the rest are coverage the harness cannot express today.
+
+1. EXIT STATUS. `133;D;<n>` already carries the code and the capture already parses that region, yet
+   every case is stdout-only -- there is no exit-code helper at all. Would have caught 76305252: a
+   background command that could not start printed nothing and left the PREVIOUS exit code standing.
+2. FILESYSTEM EFFECTS, ESPECIALLY ABSENCE. Snapshot a directory, fail on unexpected entries. The only
+   bug class here that has RECURRED: the quoted-`>` split that created a file named `b"`, and the
+   ampersand absorbed into a redirect target that created `out.txt &`. Seven of the latter
+   accumulated before anyone noticed. No existing case can say "and nothing else was created".
+3. BOTH DOORS AGREE. The same input under default routing and FSH_SPINE=0, comparing stdout and
+   status; divergence is a finding. This is the execution-level instrument INT-201's fourth gate
+   needs, because the migration audit compares PARSERS and cannot license deleting an executor.
+4. TELEMETRY. Run a command, then read shell_history and command_execution and assert the stored exit
+   code and argv match what happened. Would have caught "Friday: true failed 3 times in a row".
+   ★ Friday reasons over exactly these rows, so a wrong row is a wrong belief, and nothing tests them.
+5. THE `-c` DOOR IN THE CORPUS. `spine conform` already proved `-c` creates `0.5` and `=` where the
+   REPL refuses them. One corpus through both doors makes INT-201's "the digit guard applies to both
+   doors" a finding by construction instead of something someone remembers to check.
+6. IDEMPOTENCE. Run a redirecting command twice, assert one copy. INT-143's double-exec is the
+   precedent.
 
 ## Relationship
 - INT-173 is COMPLETE and is what made this possible: it gave fsh-test a REPL door instead of only
