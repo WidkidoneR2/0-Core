@@ -147,10 +147,39 @@ two have made it fast and deterministic.
      ⚠️ TWO INSTALL FACTS FOR THE NEXT PERSON: `builtins.readFile` cannot see an untracked file, so a
      new nix/lib script must be `git add`ed before the flake will evaluate; and `direnv reload` does
      NOT re-run the shellHook -- `nix develop -c true` is what installs the hook. -->
-- [ ] ONE conformance corpus, ONE verdict model, TWO doors. fsh-test stops carrying a private
-      `conform_*` list and drives the shared corpus; the three-verdict model (Agrees,
-      DivergesAsDeclared, Unexplained) is the only one; and a case that agrees on one door while
-      diverging on the other is reported as a FINDING rather than a pass or a failure.
+- [ ] The corpus validates the engine's externally observable behaviour against bash: ONE canonical
+      corpus, ONE verdict model, and BOTH stdout AND EXIT STATUS compared, with only the
+      deliberately closed `is_shell_ui` filter applied.
+<!-- ✅ ALREADY TRUE, and smaller than this gate's first wording implied. The single corpus is
+     CONFORMANCE_CASES, migrated verbatim from spine/conform.rs on 2026-08-03. The verdict model came
+     with it: `type ConformCase = (&'static str, Option<&'static str>)` -- None means it must match
+     bash, Some(reason) is a DECLARED divergence, and a declared divergence that starts matching bash
+     again is a FAILURE requiring review, because the reasons are the asset. bash runs in /tmp
+     because the two declared cases make it create files named `0.5` and `=`, which once got
+     committed to the repo. The is_shell_ui filter is CLOSED on purpose: expanding it to make a case
+     pass is a regression in the harness, the same mistake as measuring sh and calling it fsh.
+     ⏭ WHAT REMAINS IS EXIT STATUS. bash's comes from Command::output().status; fsh's from the
+     `133;D;<n>` marker the capture window already passes over. Until both are compared, `false |
+     true` and `true | false` -- cases written for POSIX pipeline status -- are judged on empty
+     stdout alone and are not testing what they were written to test. -->
+
+## OUT OF SCOPE FOR GATE 6, AND WHY IT IS A DEPENDENCY RATHER THAN AN OMISSION
+Running the corpus through `fsh -c` is NOT part of this gate, and neither is anything that assumes
+`-c` exercises the engine.
+
+`fsh -c` delegates the whole string to `sh` today. That is precisely why `spine conform` was moved
+into fsh-test in the first place: it invoked fsh with `-c`, so it was comparing sh against bash and
+calling the result fsh conformance, and its two "unexplained" results were that door rather than a
+defect. A `-c` corpus run today would measure sh semantics with fsh's name on the report.
+
+    BLOCKED ON INT-201: `fsh -c` must execute through the shell engine before `-c` conformance can
+    be considered an engine conformance test.
+
+⚠️ THE FIRST WORDING OF THIS GATE CREATED A CYCLE, which is the real reason for the split. It asked
+for TWO DOORS, which needs INT-201; INT-201's fourth gate needs this intent's per-case routing as its
+execution-level instrument. Each would have waited for the other, quietly, until someone noticed
+neither could finish. INT-202 now completes independently, and INT-201 later ENABLES additional
+conformance coverage rather than being required for it.
 
 ## The reds, named in advance (INT-158: watch it FAIL first)
 - Gate 1 is already red and recorded above: the three conform captures contain prompt text.
@@ -213,9 +242,10 @@ sixth gate; the rest are coverage the harness cannot express today.
 4. TELEMETRY. Run a command, then read shell_history and command_execution and assert the stored exit
    code and argv match what happened. Would have caught "Friday: true failed 3 times in a row".
    ★ Friday reasons over exactly these rows, so a wrong row is a wrong belief, and nothing tests them.
-5. THE `-c` DOOR IN THE CORPUS. `spine conform` already proved `-c` creates `0.5` and `=` where the
-   REPL refuses them. One corpus through both doors makes INT-201's "the digit guard applies to both
-   doors" a finding by construction instead of something someone remembers to check.
+5. THE `-c` DOOR IN THE CORPUS. ⚠️ BLOCKED ON INT-201 -- see the out-of-scope section above.
+   `fsh -c` delegates to `sh`, so running the corpus through it measures sh, not fsh. Once INT-201
+   routes `-c` through the engine this becomes a real second door, and a case that agrees on one
+   door while diverging on the other becomes a finding by construction.
 6. IDEMPOTENCE. Run a redirecting command twice, assert one copy. INT-143's double-exec is the
    precedent.
 
