@@ -1157,9 +1157,11 @@ pub fn try_spine_background_command(
         Ok(_) => return None,
         Err(e) => return Some(Err(SpineAttemptError::Lower(e))),
     };
-    // `None` means the plan carries a redirect, which background_command deliberately does
-    // not wire -- so the whole line declines and legacy runs it exactly as it does today.
-    // A partial claim would be worse than no claim: the job would run without its file.
+    // A REDIRECT DOES NOT DECLINE HERE. `background_command` wires `plan.io` through
+    // `configure_file_io`, the same function the foreground path uses -- its doc owns the
+    // io rules and the deliberate absence of a tee, and restating them here would create
+    // the second owner that arrangement exists to prevent. The one io it refuses is
+    // `IoPlan::Capture`, which arrives below as an Err rather than as a decline.
     // ⚠️ AN IO FAILURE SURFACES, it does not fall back. `None` here would send the line to
     // legacy, which would then fail the same way with a worse message -- and a redirect
     // target that cannot be opened is the user's problem to see, not a routing decision.

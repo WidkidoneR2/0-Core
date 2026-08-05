@@ -2145,8 +2145,10 @@ fn repl_main() -> Result<()> {
                         // on. exec.rs builds the configured Command; the job table lives here, so the handoff
                         // happens here and neither side learns the other's job.
                         //
-                        // ⚠️ A redirected background line yields None and falls through to legacy untouched.
-                        // Claiming it while dropping the redirect would be worse than the bug being fixed.
+                        // A redirected background line IS claimed, and its redirect IS honoured:
+                        // background_command wires plan.io through configure_file_io, the same function the
+                        // foreground path uses. Its doc owns those rules; this site only hands the built
+                        // Command to the job table.
                         if let Some(attempt) = exec::try_spine_background_command(
                             line,
                             &shell,
