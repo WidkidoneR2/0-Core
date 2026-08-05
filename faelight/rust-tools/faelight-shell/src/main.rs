@@ -4051,11 +4051,10 @@ fn friday_proactive_message(engine: &engine::Engine, session_commands: usize) {
 
 /// INT-220 -- Send FridayEvent to daemon socket (fire and forget)
 ///
-/// ⚠️ INT-201 EXTRACTION ONLY -- BEHAVIOUR PRESERVED EXACTLY. Returns `true` when the caller must
-/// skip the rest of the segment, which is what the two `continue` statements did in place. That
-/// skip is almost certainly wrong -- a throttled message should stop PRINTING, not abandon the
-/// insights display and the session bookkeeping below it -- but changing it here would hide a
-/// behaviour change inside a move. It is fixed in the commit that follows this one.
+/// Returns `true` only when the caller must skip the rest of the segment. A THROTTLED MESSAGE
+/// DOES NOT: it stops printing and nothing else. Until INT-201 this returned early from four
+/// levels inside the reply handler, which abandoned the forest-insights display and the periodic
+/// session message for that segment -- a quiet Friday silently cost you the rest of postexec.
 fn friday_daemon_event(
     engine: &mut engine::Engine,
     base_cmd: &str,
@@ -4122,11 +4121,11 @@ fn friday_daemon_event(
                                 let current_intent =
                                     engine.db().get_focus_intent().map(|i| format!("{}", i));
                                 if current_intent == *last_intent && last_intent.is_some() {
-                                    return true; // INT-201: PRESERVED -- caller skips the rest of the segment
+                                    return false; // throttled: stay quiet, but let postexec run
                                 }
                                 // INT-246: never repeat same suggestion in a session
                                 if shown.contains(msg) {
-                                    return true; // INT-201: PRESERVED -- caller skips the rest of the segment
+                                    return false; // throttled: stay quiet, but let postexec run
                                 }
                                 shown.insert(msg.to_string());
                                 *last_intent = current_intent;
