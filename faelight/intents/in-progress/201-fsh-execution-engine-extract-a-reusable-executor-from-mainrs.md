@@ -278,6 +278,46 @@ works correctly. So "the REPL is a client of one executor" is not reachable by d
     `where cpu > 0.5` need a digit guard in the first place. Neither is chosen yet, and this gate
     cannot close until one is.
 
+## Progress -- the query executor moves, and the redirect diagnostic changes doors (2026-08-05)
+Two commits against gate 4, each proving one thing.
+
+`23a6e306` gave the router a type that can describe what it did. Option<CommandResult> could say "ran
+it" and "not mine" and had no way to say "owned it, reported it, nothing to run" -- which is what a
+parser diagnostic is. Every route to preserving the existing caret box ran aground on that, because
+absorb_result prints an Error with a red x and miette's box already opens with its own marker. So
+SpineOutcome names the three states after OWNERSHIP rather than after today's case: Executed carries
+a result, Handled means the spine claimed the input and established the status, Declined means legacy
+may try. MissingRedirectTarget now surfaces instead of declining, and render_redirect_error_at takes
+the parser's span instead of rescanning the line for the offending operator. Refusals fall back;
+defects surface -- a missing redirect target is a mistake the parser already located, not a construct
+the spine declines to own. The proof was three things at once: byte-identical diagnostic, exit code
+still 2, and the trace printing "handled" where it printed "declined".
+
+`96b6ea94` moved the query executor into the engine as try_query_executor. Ninety-three lines leave
+the loop; the call site stays exactly where the block was, so this commit moves code and not
+dispatch. It is named for the question -- does the query language own this line -- rather than for
+the forest-pipeline check that answers it today.
+
+TWO DEFECTS TRAVELLED WITH IT, RECORDED RATHER THAN FIXED, so the move has no semantic delta. The
+source list holds "deploys" twice. And its has_pipe is a bare contains rather than the quote-aware
+form used later in the same loop, so a forest-source command with a quoted pipe in an argument routes
+to the query executor wrongly. The second matters more than it looks: under the two-languages ruling
+that predicate IS the language router, so it is a boundary correctness issue rather than parser
+polish, and it earns its own change with its own evidence.
+
+WHAT THE RECONNAISSANCE SETTLED ABOUT THE OTHER TWO EXECUTORS. Nine redirect and pipeline forms were
+probed with the router trace on and all nine were claimed by the spine, so deletion is a reachability
+argument rather than an equivalence one. But the redirect executor still owns the diagnostic path for
+whatever the spine declines, and the pipeline executor is reachable AND wrong -- `echo hi | cat &`
+reached it and ran cat with the ampersand as an argument until 532880e1 guarded it. So the spine
+backgrounding a pipeline is a prerequisite for deleting the pipeline executor, and the redirect
+executor's remaining branches need their own reachability argument.
+
+⚠️ AND A QUESTION THAT DELETION RAISES, NOT YET ANSWERED: FSH_SPINE=0 is the only remaining route
+into either executor. Delete them and the escape hatch stops handling redirects and pipelines at all
+-- it becomes a diagnostic aid rather than a working shell. That is worth deciding on purpose, since
+a half-working escape hatch is worse than an honest one.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
