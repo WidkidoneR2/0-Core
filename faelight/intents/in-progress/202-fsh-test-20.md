@@ -147,7 +147,7 @@ two have made it fast and deterministic.
      ⚠️ TWO INSTALL FACTS FOR THE NEXT PERSON: `builtins.readFile` cannot see an untracked file, so a
      new nix/lib script must be `git add`ed before the flake will evaluate; and `direnv reload` does
      NOT re-run the shellHook -- `nix develop -c true` is what installs the hook. -->
-- [ ] The corpus validates the engine's externally observable behaviour against bash: ONE canonical
+- [x] The corpus validates the engine's externally observable behaviour against bash: ONE canonical
       corpus, ONE verdict model, and BOTH stdout AND EXIT STATUS compared, with only the
       deliberately closed `is_shell_ui` filter applied.
 <!-- ✅ ALREADY TRUE, and smaller than this gate's first wording implied. The single corpus is
@@ -161,7 +161,22 @@ two have made it fast and deterministic.
      ⏭ WHAT REMAINS IS EXIT STATUS. bash's comes from Command::output().status; fsh's from the
      `133;D;<n>` marker the capture window already passes over. Until both are compared, `false |
      true` and `true | false` -- cases written for POSIX pipeline status -- are judged on empty
-     stdout alone and are not testing what they were written to test. -->
+     stdout alone and are not testing what they were written to test.
+     ✅ DONE 9928070f. `run_repl_lines_status` returns the status beside the lines, read from
+     `133;D;<n>` INSIDE the window the capture already computed -- so it reads what was being thrown
+     away rather than capturing anything new. The three older entry points delegate and drop it, so
+     ~40 call sites did not move.
+     ★ Option, not i32, and a MISSING marker is an ERROR. A manufactured 0 would make a comparison
+     look performed when it was not; treating unknown as "not comparable" would be the same silent
+     weakening as growing is_shell_ui. It fails loudly -- and the first run answered the question:
+     every case in the corpus emits a status marker.
+     ★★ THE ASSERTION WAS WATCHED FAILING BEFORE IT WAS TRUSTED (INT-158). Comparing against
+     `fsh_code + 1` gave 121/134, with thirteen conform cases red and NAMING exit status, while BOTH
+     declared divergences stayed GREEN -- because a case declared to differ is not failed for
+     differing. The verdict table proved itself in both directions in one screen. A green run alone
+     would only have shown that the comparison agrees, not that it runs.
+     Result: 134/134, and fsh agrees with bash on status across the corpus including both pipeline
+     cases, so INT-189's rule holds under the stronger assertion. -->
 
 ## OUT OF SCOPE FOR GATE 6, AND WHY IT IS A DEPENDENCY RATHER THAN AN OMISSION
 Running the corpus through `fsh -c` is NOT part of this gate, and neither is anything that assumes
