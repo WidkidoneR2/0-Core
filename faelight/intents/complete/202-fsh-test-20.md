@@ -3,7 +3,7 @@ id: 202
 date: 2026-08-05
 type: future
 title: "Fsh-Test 2.0"
-status: in-progress
+status: complete
 tags: [faelight, fsh, fsh-test, nix]
 ---
 ## Vision
