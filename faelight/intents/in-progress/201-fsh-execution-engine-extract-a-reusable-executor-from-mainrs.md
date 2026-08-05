@@ -133,24 +133,46 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
 - [ ] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
 
-## Progress -- gate 3 underway (2026-08-05)
-Landed: `8a685fae` exit code into the engine · `d9f4d5fb` session variables + the view · `4cd5839c`
-ownership documented · `e3ff66b5` the first two handler extractions. Deployed gen 461, in daily use.
+## Progress -- gate 3, and four bugs found while proving it (2026-08-05)
+Landed since the last note: `48bf9152` the executor extracted -- 221 lines, five inputs, one returned
+value, because the eleven-argument function collapsed once the four Friday advisories came out first;
+`38f26186` the hoist, which moved four silent per-execution blocks in and made the return type SIMPLER
+by taking more code rather than less; `26042b75` the move into engine.rs, where something other than
+the REPL can reach it. Deployed gen 462.
 
-`SegmentOutcome { Next, ExitShell }` exists with both variants constructed. Two variants because
-there are exactly two: twenty-five `continue 'segments` and four `break 'repl`, measured. The twelve
-`continue 'repl` sites all sit ABOVE the segments loop -- TUIs, safety guard, heredocs, the `?`
-query, parallel blocks -- so they are pre-execution guards the REPL keeps. There is no
-`break 'segments` anywhere, so "abandon this line" is not an outcome fsh has.
+Then the seventeenth handler. `4f0d167b` extracted the legacy trailing-& block into
+`Engine::try_background`, taking `Option<&mut JobTable>` exactly as `try_jobs`, `try_fg` and
+`try_kill` already did -- a pure move, with three known defects preserved so that the commit is a move
+and nothing else. `76305252` then fixed the first of them: a background job that could not start said
+nothing and left the previous command's exit code standing. Red was witnessed before green, under
+FSH_SPINE=0, which is the only route that still reaches that path.
 
-Extracted so far: `try_db_browse` (the narrowest handler -- 19 lines, one escape, touches only
-`line`) and `absorb_result`, which collapsed two byte-identical result-handling blocks at the
-spine-exec door and the spine router into one, with the differing diagnostic string as a parameter.
+THE MEASUREMENT THAT DECIDES THE REMAINING GATES. The segments body is 1,664 lines: 1,598 of
+preparation before the executor call and 66 after it. What sits after is exactly what should -- the
+outcome check and the advisory display. What sits before is alias expansion, the guard chain, variable
+and glob expansion, spine routing, redirect detection and pipeline analysis. That preparation IS
+dispatch, so "the REPL loop is a CLIENT of it" is not met, and those 1,598 lines are the remaining
+bulk of this intent.
 
-NEXT, in order: the remaining guard handlers between the friday block and `spine-exec` extract one at
-a time on the same `Option<SegmentOutcome>` shape. The tail from ~3474 waits -- it reads
-`execution_id`, `_cmd_timer_start`, `cmd_output` and `base_cmd`, and closes its own INT-191
-lifecycle record, which is where an eleven-argument function would come from.
+AND THE JOB-TABLE PHRASE NOW HAS EVIDENCE RATHER THAN A GUESS. `execute_and_record` takes nine
+parameters, every one derived from the command line being run, and is callable from outside main.rs.
+It takes no `Option<&mut JobTable>` -- and the recon says that is correct rather than missing. Four
+engine handlers already accept one, and `background_command`'s own documentation rules that "do not
+wait" is a scheduling decision with no business inside a description of what to run. Backgrounding is
+a guard-chain handler by nature, not a parameter of the executor. The clause describes a shape this
+work has shown to be wrong, so it wants rewording rather than satisfying.
+
+TWO BUGS FOUND WHILE VERIFYING, BOTH PRE-EXISTING, BOTH IN THEIR OWN COMMITS. `b1bb3615` deleted two
+comments -- one in exec.rs, one in main.rs -- each claiming a redirected background line falls through
+to legacy. It has not for months: the spine claims it and honours the redirect through the same
+configure_file_io the foreground path uses. `a33d6cd7` guarded a real one. A backgrounded redirect
+reaching the legacy path took the ampersand into the redirect target, so `echo hi | cat > out.txt &`
+created a file named `out.txt &`, ran in the foreground, registered no job and reported nothing. Seven
+such files accumulated in /tmp before anyone noticed what they were. It reaches the DEFAULT path,
+because the spine declines to background a pipeline. The guard refuses rather than repairs; the real
+repair is the spine learning to background a pipeline, and that is its own work.
+
+Deployed gen 464, in daily use. 138 unit tests and the full 132-case suite green at every step.
 
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
