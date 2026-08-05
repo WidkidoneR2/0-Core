@@ -670,6 +670,119 @@ impl Engine {
         None
     }
 
+    /// Does the QUERY LANGUAGE own this line?
+    ///
+    /// ★ NAMED FOR THE QUESTION, NOT FOR TODAY'S ANSWER. The body happens to recognise forest
+    /// pipelines by their source word; what it is really deciding is which of fsh's two languages
+    /// owns the input. The name should survive if the routing rule changes.
+    ///
+    /// ★★ WHY THIS IS A KEEP WHILE THE REDIRECT AND PIPELINE EXECUTORS ARE NOT (INT-201, 2026-08-05):
+    /// those two exist because the shell parser could not yet absorb their constructs -- a
+    /// HISTORICAL boundary. This one exists because it runs a DIFFERENT LANGUAGE the spine cannot
+    /// parse at all: roughly four hundred history rows of `tt | where deployed == true`,
+    /// `ps | where cpu > 0.5 | sort cpu desc`, `select * from ps where cpu > 1`. A real boundary.
+    ///
+    /// MOVED VERBATIM from main.rs. Two defects are PRESERVED so this is a move and nothing else:
+    ///   1. `"deploys"` appears TWICE in the source list -- harmless to `contains`, a copy-paste
+    ///      smell in the list that decides language routing.
+    ///   2. ⚠️ `has_pipe` here is `line.contains(" | ")` and is NOT quote-aware, unlike the
+    ///      `!in_quotes && ...` form used later in the loop. A forest-source command with a quoted
+    ///      pipe in an argument routes here wrongly. That is a BOUNDARY CORRECTNESS issue rather
+    ///      than parser polish, because under the two-languages design this predicate IS the
+    ///      language router. Its own fix, its own evidence.
+    pub fn try_query_executor(&mut self, line: &str) -> Option<SegmentOutcome> {
+        // INT-171 gate 2: quote-aware command word for forest-pipeline detection.
+        let first = crate::commands::command_word(line);
+        let first = first.as_str();
+        let forest_sources = [
+            "from",
+            "list",
+            "find",
+            "db",
+            "intents",
+            "deploys",
+            "friday",
+            "ps",
+            "processes",
+            "files",
+            "tools",
+            "events",
+            "deploys",
+        ];
+        let has_pipe = line.contains(" | ");
+        if forest_sources.contains(&first) && has_pipe {
+            let explain = line.contains("--explain");
+            let clean_line = line.replace(" --explain", "").replace("--explain", "");
+            let clean_line = clean_line.as_str();
+            let parts: Vec<&str> = clean_line.splitn(2, " | ").collect();
+            let source_cmd = parts[0].trim();
+            let stage_text = parts.get(1).copied().unwrap_or("").to_string();
+            let pipe_rest = if parts.len() > 1 {
+                format!("_source | {}", parts[1])
+            } else {
+                "_source".to_string()
+            };
+            let source_result = crate::commands::execute(source_cmd, self.db(), self.core_root());
+            // INT-169: default to success, then let the Error arm below override with the
+            // REAL code. Without this the whole branch left `$?` reporting the previous
+            // command -- invisible today, load-bearing once `&&` reads it.
+            self.set_last_exit(Some(0));
+            match source_result {
+                crate::commands::CommandResult::Value(v) => {
+                    let source_count = match &v {
+                        crate::value::Value::Table(rows) => rows.len(),
+                        _ => 1,
+                    };
+                    let ops = crate::value::parse_pipeline(&pipe_rest);
+                    if explain {
+                        use colored::Colorize;
+                        let stage_labels: Vec<String> = stage_text
+                            .split(" | ")
+                            .map(|s| s.trim().to_string())
+                            .collect();
+                        let (result, stats) =
+                            crate::value::apply_pipeline_with_stats(v, &ops, &stage_labels);
+                        println!("{}", result.render());
+                        println!();
+                        println!("  {} pipeline explain", "─".repeat(10).dimmed());
+                        println!("  {:<28} {} rows", "source".bright_cyan(), source_count);
+                        for stat in &stats {
+                            let slow = if stat.duration_ms > 100 {
+                                "  ⚠ slow"
+                            } else {
+                                ""
+                            };
+                            let zero = if stat.row_count == 0 {
+                                " ← zero rows!"
+                            } else {
+                                ""
+                            };
+                            println!(
+                                "  {:<28} {} rows  {}ms{}{}",
+                                stat.label.bright_cyan(),
+                                stat.row_count,
+                                stat.duration_ms,
+                                slow,
+                                zero
+                            );
+                        }
+                    } else {
+                        let result = crate::value::apply_pipeline(v, &ops);
+                        println!("{}", result.render());
+                    }
+                }
+                crate::commands::CommandResult::Output(out) => println!("{}", out),
+                crate::commands::CommandResult::Error(e, code) => {
+                    eprintln!("  x {}", e);
+                    self.set_last_exit(Some(code));
+                }
+                _ => {}
+            }
+            return Some(SegmentOutcome::Next);
+        }
+        None
+    }
+
     /// `jobs` -- list background jobs.
     ///
     /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
