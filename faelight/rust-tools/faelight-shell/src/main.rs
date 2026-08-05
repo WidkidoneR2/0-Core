@@ -3047,226 +3047,17 @@ fn repl_main() -> Result<()> {
                             base_cmd.replace(" ~/", &format!(" {}/", home))
                         }
                     };
-                    let _cmd_timer_start = std::time::Instant::now();
-                    let execution = exec::execute_with_context(
+                    // INT-201: per-execution work. Advisories stay BELOW, in their current order.
+                    let (outcome, cmd_output) = execute_and_record(
+                        &mut engine,
                         &raw_line,
                         &base_cmd,
-                        engine.db(),
-                        engine.core_root(),
-                        engine.before_rules(),
+                        original_line,
+                        &pipeline_ops,
+                        has_external_op,
                     );
-                    let execution_id = execution.execution_id;
-                    // INT-191: the state is derived from a BORROW, because the match below MOVES
-                    // `execution.result` and the outcome would be unavailable afterwards.
-                    let exec_state = exec::execution_state(&execution.result);
-                    let cmd_output: Option<String> =
-                        match execution.result {
-                            commands::CommandResult::Exit => {
-                                // INT-191: `break` escapes before the completion below, so this arm
-                                // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
-                                // never sets `last_exit_code`, so passing it would record the PREVIOUS
-                                // command's result, which is the stale-value bug INT-189 removed.
-                                // EXEC_EXIT already carries the meaning; no process exited.
-                                if let Err(e) = engine.db().complete_command_execution(
-                                    &crate::db::ExecutionCompletion {
-                                        session_id: exec::session_id(),
-                                        execution_id,
-                                        executed_text: Some(&base_cmd),
-                                        state: crate::db::EXEC_EXIT,
-                                        exit_code: None,
-                                        duration_ms: Some(
-                                            _cmd_timer_start.elapsed().as_millis() as u64
-                                        ),
-                                        finished_at: std::time::SystemTime::now()
-                                            .duration_since(std::time::UNIX_EPOCH)
-                                            .unwrap_or_default()
-                                            .as_secs()
-                                            as i64,
-                                    },
-                                ) {
-                                    eprintln!(
-                                    "warning: failed to close exit command_execution record: {e}"
-                                );
-                                }
-                                break 'repl;
-                            }
-                            commands::CommandResult::Value(v)
-                                if !pipeline_ops.is_empty() && !has_external_op =>
-                            {
-                                // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
-                                // in-process value pipeline cannot report failure. 0 is not a chosen
-                                // policy here, it is the only coherent answer the type permits.
-                                // ⚠️ If that signature ever becomes fallible, this arm must change with
-                                // it -- a silent 0 over a real error would be the INT-189 bug returning.
-                                let result = value::apply_pipeline(v, &pipeline_ops);
-                                engine.set_last_exit(Some(0));
-                                Some(result.render())
-                            }
-                            commands::CommandResult::Value(_) if has_external_op => {
-                                // Pipeline contains external commands — pass full line to sh
-                                let sh_output = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(original_line)
-                                    .output();
-                                match sh_output {
-                                    Ok(o) => {
-                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                        if !stderr.is_empty() {
-                                            eprint!("{}", stderr);
-                                        }
-                                        // INT-189: sh ALREADY computed this. The status was sitting
-                                        // in `Output` beside stdout and stderr the whole time and was
-                                        // simply never read, so `last_exit_code` carried over stale from
-                                        // the previous command. Nothing is being decided here: the
-                                        // semantics are whatever /bin/sh reported. `.code()` is None
-                                        // only if sh ITSELF was signalled -- a signalled child already
-                                        // arrives as 128+N through sh's own status.
-                                        engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
-                                        Some(stdout)
-                                    }
-                                    Err(_) => {
-                                        // sh could not be launched at all. Leaving the code untouched
-                                        // would recreate the stale-state bug by another route.
-                                        engine.set_last_exit(Some(1));
-                                        None
-                                    }
-                                }
-                            }
-                            commands::CommandResult::Value(v) => {
-                                // INT-189: rendering a value is success; this arm previously left
-                                // `last_exit_code` carrying the previous command's result.
-                                engine.set_last_exit(Some(0));
-                                Some(v.render())
-                            }
-                            commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
-                                // External command with pipe — reconstruct full pipeline and run via sh
-                                let sh_output = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(original_line)
-                                    .output();
-                                match sh_output {
-                                    Ok(o) => {
-                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                        if !stderr.is_empty() {
-                                            eprint!("{}", stderr);
-                                        }
-                                        // INT-189: inherit sh's status -- see the note on the Value
-                                        // arm above. Same omission, same repair.
-                                        engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
-                                        Some(stdout)
-                                    }
-                                    Err(_) => {
-                                        engine.set_last_exit(Some(1));
-                                        Some(out)
-                                    }
-                                }
-                            }
-                            commands::CommandResult::Output(out) => {
-                                engine.set_last_exit(Some(0));
-                                Some(out)
-                            }
-                            commands::CommandResult::Empty => {
-                                engine.set_last_exit(Some(0));
-                                None
-                            }
-                            commands::CommandResult::Error(e, code) => {
-                                eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
-                                // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
-                                // printed "exited 2" while `$?` reported 1 -- the code was formatted into
-                                // the message and thrown away. It travels on the variant now.
-                                engine.set_last_exit(Some(code));
-                                None
-                            }
-                            // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by
-                            // exec::execute_with_context, which dispatches through commands::execute
-                            // (exec.rs:554), and execute() always passes allow_external: true -- so the
-                            // NotBuiltin arm in execute_impl cannot fire on this path. Only
-                            // try_builtin() can produce this variant.
-                            // Handled as Empty rather than todo!() or unreachable!(): BOTH PANIC, and a
-                            // panic here closes the shell. The codebase already knows this -- see
-                            // truncate_safe in commands/mod.rs, written so a multibyte anchor "never
-                            // panics the shell via an out-of-bounds byte slice (a panic here closes
-                            // fsh)". If a future refactor ever routes try_builtin through here, the
-                            // honest failure is a silent no-op, not a dead terminal.
-                            commands::CommandResult::NotBuiltin => {
-                                engine.set_last_exit(Some(0));
-                                None
-                            }
-                        };
-                    // INT-191: close the lifecycle HERE, where the exit code finally exists.
-                    // postexec could not do it: the pipeline arms above decide the code after
-                    // `execute_with_context` has already returned.
-                    if let Err(e) =
-                        engine
-                            .db()
-                            .complete_command_execution(&crate::db::ExecutionCompletion {
-                                session_id: exec::session_id(),
-                                execution_id,
-                                executed_text: Some(&base_cmd),
-                                state: exec_state,
-                                exit_code: engine.last_exit(),
-                                duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
-                                finished_at: std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs() as i64,
-                            })
-                    {
-                        eprintln!("warning: failed to close command_execution record: {e}");
-                    }
-                    // Command timing intelligence — warn if command is unusually slow (INT-194)
-                    {
-                        let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
-                        let cmd_key_owned = commands::command_word(&base_cmd);
-                        let cmd_key = cmd_key_owned.as_str();
-                        if elapsed_ms > 500 {
-                            let _ = engine.db().conn.execute(
-                                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-                                rusqlite::params![
-                                    format!("TIMING:{}:{}", cmd_key, elapsed_ms),
-                                    std::time::SystemTime::now()
-                                        .duration_since(std::time::UNIX_EPOCH)
-                                        .map(|d| d.as_secs() as i64)
-                                        .unwrap_or(0)
-                                ],
-                            );
-                            let avg_ms: Option<f64> = engine.db().conn.query_row(
-                                "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
-                                 FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
-                                rusqlite::params![format!("TIMING:{}:%", cmd_key)],
-                                |r| r.get(0)
-                            ).ok().flatten();
-                            if let Some(avg) = avg_ms {
-                                if avg > 100.0 && elapsed_ms as f64 > avg * 2.0 {
-                                    println!("  {} {} took {}ms — {:.0}x slower than usual ({:.0}ms avg)",
-                                        "⚠️ ".normal(),
-                                        cmd_key.bright_yellow(),
-                                        elapsed_ms,
-                                        elapsed_ms as f64 / avg,
-                                        avg
-                                    );
-                                }
-                            }
-                            // Long command notification -- >30s fires faelight-notify
-                            if elapsed_ms > 30_000 {
-                                let secs = elapsed_ms / 1000;
-                                let msg = format!("{} finished in {}s", cmd_key, secs);
-                                // INT-299: reap child in thread to prevent zombie process
-                                if let Ok(mut child) = std::process::Command::new("faelight-notify")
-                                    .arg("--title")
-                                    .arg("Long command finished")
-                                    .arg("--body")
-                                    .arg(&msg)
-                                    .spawn()
-                                {
-                                    std::thread::spawn(move || {
-                                        let _ = child.wait();
-                                    });
-                                }
-                            }
-                        }
+                    if outcome == engine::SegmentOutcome::ExitShell {
+                        break 'repl;
                     }
                     // INT-194 — Prediction-aware suggestions (pattern detection)
                     friday_next_cmd_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
@@ -4143,4 +3934,239 @@ fn friday_daemon_event(
             }
         }
     }
+}
+
+/// INT-201: execute one already-prepared segment and record its lifecycle.
+///
+/// ⚠️ EXTRACTION ONLY -- the advisory calls deliberately stay in the loop, in their existing
+/// positions, so output order is unchanged. Moving them is a separate, named commit.
+///
+/// ★ Five inputs and one returned value, both MEASURED by the compiler rather than designed:
+/// lifting this region reported exactly these names, inputs failing inside the function and the
+/// output failing below it.
+#[allow(clippy::too_many_arguments)]
+fn execute_and_record(
+    engine: &mut engine::Engine,
+    raw_line: &str,
+    base_cmd: &str,
+    original_line: &str,
+    pipeline_ops: &[value::PipeOp],
+    has_external_op: bool,
+) -> (engine::SegmentOutcome, Option<String>) {
+    let _cmd_timer_start = std::time::Instant::now();
+    let execution = exec::execute_with_context(
+        &raw_line,
+        &base_cmd,
+        engine.db(),
+        engine.core_root(),
+        engine.before_rules(),
+    );
+    let execution_id = execution.execution_id;
+    // INT-191: the state is derived from a BORROW, because the match below MOVES
+    // `execution.result` and the outcome would be unavailable afterwards.
+    let exec_state = exec::execution_state(&execution.result);
+    let cmd_output: Option<String> = match execution.result {
+        commands::CommandResult::Exit => {
+            // INT-191: `break` escapes before the completion below, so this arm
+            // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
+            // never sets `last_exit_code`, so passing it would record the PREVIOUS
+            // command's result, which is the stale-value bug INT-189 removed.
+            // EXEC_EXIT already carries the meaning; no process exited.
+            if let Err(e) =
+                engine
+                    .db()
+                    .complete_command_execution(&crate::db::ExecutionCompletion {
+                        session_id: exec::session_id(),
+                        execution_id,
+                        executed_text: Some(&base_cmd),
+                        state: crate::db::EXEC_EXIT,
+                        exit_code: None,
+                        duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
+                        finished_at: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs() as i64,
+                    })
+            {
+                eprintln!("warning: failed to close exit command_execution record: {e}");
+            }
+            return (engine::SegmentOutcome::ExitShell, None);
+        }
+        commands::CommandResult::Value(v) if !pipeline_ops.is_empty() && !has_external_op => {
+            // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
+            // in-process value pipeline cannot report failure. 0 is not a chosen
+            // policy here, it is the only coherent answer the type permits.
+            // ⚠️ If that signature ever becomes fallible, this arm must change with
+            // it -- a silent 0 over a real error would be the INT-189 bug returning.
+            let result = value::apply_pipeline(v, &pipeline_ops);
+            engine.set_last_exit(Some(0));
+            Some(result.render())
+        }
+        commands::CommandResult::Value(_) if has_external_op => {
+            // Pipeline contains external commands — pass full line to sh
+            let sh_output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(original_line)
+                .output();
+            match sh_output {
+                Ok(o) => {
+                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                    if !stderr.is_empty() {
+                        eprint!("{}", stderr);
+                    }
+                    // INT-189: sh ALREADY computed this. The status was sitting
+                    // in `Output` beside stdout and stderr the whole time and was
+                    // simply never read, so `last_exit_code` carried over stale from
+                    // the previous command. Nothing is being decided here: the
+                    // semantics are whatever /bin/sh reported. `.code()` is None
+                    // only if sh ITSELF was signalled -- a signalled child already
+                    // arrives as 128+N through sh's own status.
+                    engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                    Some(stdout)
+                }
+                Err(_) => {
+                    // sh could not be launched at all. Leaving the code untouched
+                    // would recreate the stale-state bug by another route.
+                    engine.set_last_exit(Some(1));
+                    None
+                }
+            }
+        }
+        commands::CommandResult::Value(v) => {
+            // INT-189: rendering a value is success; this arm previously left
+            // `last_exit_code` carrying the previous command's result.
+            engine.set_last_exit(Some(0));
+            Some(v.render())
+        }
+        commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
+            // External command with pipe — reconstruct full pipeline and run via sh
+            let sh_output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(original_line)
+                .output();
+            match sh_output {
+                Ok(o) => {
+                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                    if !stderr.is_empty() {
+                        eprint!("{}", stderr);
+                    }
+                    // INT-189: inherit sh's status -- see the note on the Value
+                    // arm above. Same omission, same repair.
+                    engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                    Some(stdout)
+                }
+                Err(_) => {
+                    engine.set_last_exit(Some(1));
+                    Some(out)
+                }
+            }
+        }
+        commands::CommandResult::Output(out) => {
+            engine.set_last_exit(Some(0));
+            Some(out)
+        }
+        commands::CommandResult::Empty => {
+            engine.set_last_exit(Some(0));
+            None
+        }
+        commands::CommandResult::Error(e, code) => {
+            eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
+            // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` exits 2 and
+            // printed "exited 2" while `$?` reported 1 -- the code was formatted into
+            // the message and thrown away. It travels on the variant now.
+            engine.set_last_exit(Some(code));
+            None
+        }
+        // INT-143: UNREACHABLE BY CONSTRUCTION, not by luck. This match is fed by
+        // exec::execute_with_context, which dispatches through commands::execute
+        // (exec.rs:554), and execute() always passes allow_external: true -- so the
+        // NotBuiltin arm in execute_impl cannot fire on this path. Only
+        // try_builtin() can produce this variant.
+        // Handled as Empty rather than todo!() or unreachable!(): BOTH PANIC, and a
+        // panic here closes the shell. The codebase already knows this -- see
+        // truncate_safe in commands/mod.rs, written so a multibyte anchor "never
+        // panics the shell via an out-of-bounds byte slice (a panic here closes
+        // fsh)". If a future refactor ever routes try_builtin through here, the
+        // honest failure is a silent no-op, not a dead terminal.
+        commands::CommandResult::NotBuiltin => {
+            engine.set_last_exit(Some(0));
+            None
+        }
+    };
+    // INT-191: close the lifecycle HERE, where the exit code finally exists.
+    // postexec could not do it: the pipeline arms above decide the code after
+    // `execute_with_context` has already returned.
+    if let Err(e) = engine
+        .db()
+        .complete_command_execution(&crate::db::ExecutionCompletion {
+            session_id: exec::session_id(),
+            execution_id,
+            executed_text: Some(&base_cmd),
+            state: exec_state,
+            exit_code: engine.last_exit(),
+            duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
+            finished_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+        })
+    {
+        eprintln!("warning: failed to close command_execution record: {e}");
+    }
+    // Command timing intelligence — warn if command is unusually slow (INT-194)
+    {
+        let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
+        let cmd_key_owned = commands::command_word(&base_cmd);
+        let cmd_key = cmd_key_owned.as_str();
+        if elapsed_ms > 500 {
+            let _ = engine.db().conn.execute(
+                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+                rusqlite::params![
+                    format!("TIMING:{}:{}", cmd_key, elapsed_ms),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0)
+                ],
+            );
+            let avg_ms: Option<f64> = engine.db().conn.query_row(
+                "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
+                 FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
+                rusqlite::params![format!("TIMING:{}:%", cmd_key)],
+                |r| r.get(0)
+            ).ok().flatten();
+            if let Some(avg) = avg_ms {
+                if avg > 100.0 && elapsed_ms as f64 > avg * 2.0 {
+                    println!(
+                        "  {} {} took {}ms — {:.0}x slower than usual ({:.0}ms avg)",
+                        "⚠️ ".normal(),
+                        cmd_key.bright_yellow(),
+                        elapsed_ms,
+                        elapsed_ms as f64 / avg,
+                        avg
+                    );
+                }
+            }
+            // Long command notification -- >30s fires faelight-notify
+            if elapsed_ms > 30_000 {
+                let secs = elapsed_ms / 1000;
+                let msg = format!("{} finished in {}s", cmd_key, secs);
+                // INT-299: reap child in thread to prevent zombie process
+                if let Ok(mut child) = std::process::Command::new("faelight-notify")
+                    .arg("--title")
+                    .arg("Long command finished")
+                    .arg("--body")
+                    .arg(&msg)
+                    .spawn()
+                {
+                    std::thread::spawn(move || {
+                        let _ = child.wait();
+                    });
+                }
+            }
+        }
+    }
+    (engine::SegmentOutcome::Next, cmd_output)
 }
