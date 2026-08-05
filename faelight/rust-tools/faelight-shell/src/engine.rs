@@ -15,6 +15,7 @@
 use crate::config::BeforeRunRule;
 use crate::db::ForestDb;
 use crate::exec::ShellContext;
+use colored::Colorize;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -408,6 +409,114 @@ impl Engine {
         Some(SegmentOutcome::Next)
     }
 
+    /// `friday chat [text]` -- interactive session, or one-shot when text follows.
+    ///
+    /// ⚠️ Two child shapes: bare `friday chat` inherits the terminal via .status(); with text it
+    /// captures via .output(). Both BLOCK, so the child's status IS the command's status.
+    pub fn try_friday_chat(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if !line.starts_with("friday chat") {
+            return None;
+        }
+        let rest = line[11..].trim().to_string();
+        // INT-189: foreground execution the user invoked -- .status()/.output() both BLOCK, so
+        // this child's result IS the command result. Discarding it left the prompt
+        // reporting the previous command.
+        self.set_last_exit(if rest.is_empty() {
+            match std::process::Command::new("friday-chat").status() {
+                Ok(status) => Some(status.code().unwrap_or(1)),
+                Err(_) => Some(1),
+            }
+        } else {
+            match std::process::Command::new("friday-chat")
+                .args(["chat", &rest])
+                .output()
+            {
+                Ok(out) => {
+                    print!("{}", String::from_utf8_lossy(&out.stdout));
+                    Some(out.status.code().unwrap_or(1))
+                }
+                Err(_) => Some(1),
+            }
+        });
+        Some(SegmentOutcome::Next)
+    }
+
+    /// Bare `friday` or `friday <question>` -- ask the daemon over its unix socket.
+    ///
+    /// ⚠️ Excludes lines containing a pipe: `friday ... | ...` is a PIPELINE, not a question,
+    /// and must fall through to the pipeline path rather than being swallowed here.
+    pub fn try_friday_ask(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if !(line.starts_with("friday")
+            && (line == "friday" || line.starts_with("friday "))
+            && !line.contains(" | "))
+        {
+            return None;
+        }
+        let question = if line == "friday" {
+            "what should I work on next?".to_string()
+        } else {
+            line[7..].trim().to_string()
+        };
+        println!("  \u{1f332} Friday: {}", "thinking...".dimmed());
+        let home_dir = std::env::var("HOME").unwrap_or_default();
+        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+        let q_escaped = question.replace('"', "'");
+        let query_json = format!(
+            r#"{{"id":2,"payload":{{"FridayQuery":{{"question":"{}","context":null}}}}}}"#,
+            q_escaped
+        );
+        if std::path::Path::new(&sock_path).exists() {
+            use std::io::{BufRead, BufReader, Write};
+            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&sock_path) {
+                stream
+                    .set_write_timeout(Some(std::time::Duration::from_millis(500)))
+                    .ok();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                    .ok();
+                let _ = stream.write_all(query_json.as_bytes());
+                let _ = stream.write_all(b"\n");
+                let mut reader = BufReader::new(&stream);
+                let mut resp = String::new();
+                if reader.read_line(&mut resp).is_ok() && !resp.is_empty() {
+                    if resp.contains("FridayAnswer") {
+                        if let Some(ans) = resp.split(r#""answer":""#).nth(1) {
+                            let ans = ans.split('"').next().unwrap_or("").to_string();
+                            println!();
+                            println!("  \u{1f332} Friday: {}", ans.bright_white());
+                            println!();
+                        }
+                    }
+                }
+            }
+        } else {
+            println!("  \u{26a0}  Friday daemon not running -- start with: faelight-daemon &");
+        }
+        // INT-169: record the status rather than leaving the PREVIOUS command's.
+        // the friday query completed. A stale code here is invisible today, but `&&`
+        // is about to read this value to decide whether the next part runs.
+        self.set_last_exit(Some(0));
+        Some(SegmentOutcome::Next)
+    }
+
+    /// A line containing `<<` -- delegated whole to sh.
+    ///
+    /// ⚠️ fsh does not parse heredocs; sh does. Recorded rather than hidden: this is one of the
+    /// remaining places the shell hands a construct to sh instead of owning it.
+    pub fn try_heredoc(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if !line.contains("<<") {
+            return None;
+        }
+        let status = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(line)
+            .status();
+        self.set_last_exit(match status {
+            Ok(s) => s.code(),
+            Err(_) => Some(1),
+        });
+        Some(SegmentOutcome::Next)
+    }
     /// The last command's exit status.
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code
