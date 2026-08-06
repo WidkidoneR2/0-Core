@@ -876,13 +876,38 @@ fn repl_main() -> Result<()> {
     let mut _session_failed: usize = 0;
 
     // Phase 16 — configured interactive editor
+    // INT-134 Lane UX: `set edit_mode = vi` in config.fsh selects modal editing. Emacs stays the
+    // default -- and note that "emacs" here means READLINE KEYBINDINGS (Ctrl+A, Ctrl+E, Ctrl+K,
+    // Ctrl+W), not the editor. Nothing is installed and nothing is required; it is what this shell
+    // has always done and what every readline shell does unless told otherwise.
+    //
+    // A TYPO MUST NOT BE SILENT. An unrecognised value warns and falls back rather than quietly
+    // doing nothing -- a setting that accepts anything and honours only some values is a trap, and
+    // the user would have no way to tell `edit_mode = vim` from `edit_mode = vi` failing.
+    let edit_mode = match cfg
+        .settings
+        .iter()
+        .find(|(k, _)| k == "edit_mode")
+        .map(|(_, v)| v.trim().to_lowercase())
+    {
+        None => EditMode::Emacs,
+        Some(v) if v == "vi" || v == "vim" => EditMode::Vi,
+        Some(v) if v == "emacs" => EditMode::Emacs,
+        Some(other) => {
+            eprintln!(
+                "  config: edit_mode '{}' is not recognised -- using emacs (valid: vi, emacs)",
+                other
+            );
+            EditMode::Emacs
+        }
+    };
     let rl_config = Config::builder()
         .max_history_size(10000)?
         .history_ignore_dups(true)?
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
         .completion_show_all_if_ambiguous(true)
-        .edit_mode(EditMode::Emacs)
+        .edit_mode(edit_mode)
         .build();
     // INT-201: the helper takes its OWN handle. Borrowing it from the engine here would
     // hold an immutable borrow for the entire session, since rustyline keeps the helper.
