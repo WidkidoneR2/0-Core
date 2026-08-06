@@ -411,7 +411,72 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
 ///
 /// Stage 0 is skipped because it PRODUCES the value -- it is a command even in a forest pipeline,
 /// which is exactly why `value::parse_pipeline` skips it too.
+#[cfg(test)]
+mod forest_pipeline_tests {
+    use super::super::parser::parse;
+    use super::*;
+
+    fn is_forest(src: &str) -> bool {
+        match parse(src).expect("parses").node {
+            AstNode::Pipeline(pl) => is_forest_pipeline(&pl),
+            other => panic!("not a pipeline: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn a_query_verb_after_a_shell_command_is_shell() {
+        // INT-201 regression: `sort` is in VALUE_VERBS, so this was called a forest pipeline,
+        // refused forever by the spine, and -- once the legacy pipeline executor was deleted --
+        // refused outright. Every pipeline ending in sort stopped working.
+        assert!(!is_forest("echo a | sort -k1 -rn"));
+        assert!(!is_forest("echo b | sort"));
+        assert!(!is_forest("git log | head -3"));
+    }
+
+    #[test]
+    fn a_query_verb_after_a_source_is_a_query() {
+        assert!(is_forest("ps | sort cpu desc"));
+        assert!(is_forest("tools | first 3"));
+        assert!(is_forest("intents | where status = open"));
+    }
+
+    #[test]
+    fn a_comparison_never_reaches_this_predicate() {
+        // `ps | where cpu > 0.5` is refused by the PARSER, not here: the digit guard reports
+        // ComparisonNotRedirect because the shell grammar sees `>` as a redirect whose target is a
+        // number. Recorded as a test rather than left out, because the two declines look identical
+        // from the prompt -- both end at the query executor -- and merging them in one's head is
+        // how this predicate gets blamed for a decision it never made.
+        assert!(parse("ps | where cpu > 0.5").is_err());
+    }
+
+    #[test]
+    fn a_source_without_a_query_verb_is_shell() {
+        // Starting at a source is necessary, not sufficient -- `ps | grep brave` is a shell pipe.
+        assert!(!is_forest("ps | grep brave"));
+    }
+}
+
 fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
+    // A LANGUAGE IS IDENTIFIED BY WHERE IT STARTS, not by a word appearing in the middle. Asking
+    // only "does a later stage name a value verb" made `echo a | sort -k1 -rn` a forest pipeline,
+    // because `sort` is in the vocabulary -- so the spine refused it forever, as it should refuse a
+    // real query, and the line reached legacy. While legacy still had an inline pipeline executor
+    // that was invisible; once INT-201 deleted it the line was refused outright, and every pipeline
+    // ending in `sort` stopped working. Found in ordinary use the day after.
+    //
+    // The source test is what the two-languages design already implies: `ps | sort cpu desc` is a
+    // query, `echo a | sort -k1 -rn` is a shell pipeline that happens to contain the same word.
+    let starts_at_source = matches!(
+        pl.stages
+            .first()
+            .and_then(|st| st.node.words.first())
+            .map(|w| w.node.parts.as_slice()),
+        Some([WordPart::Literal { text, .. }]) if crate::value::is_value_source(text)
+    );
+    if !starts_at_source {
+        return false;
+    }
     pl.stages.iter().skip(1).any(|st| {
         // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot be known
         // here, and a computed verb is not something the forest DSL accepts either.

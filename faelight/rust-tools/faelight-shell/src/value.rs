@@ -654,6 +654,42 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
 ///
 /// ⚠️ THE SPINE MUST NOT KEEP ITS OWN COPY. A second vocabulary is the two-owners failure INT-193
 /// existed to end; it would drift the first time a verb is added here.
+/// The SOURCES a value pipeline can begin with. INT-201 (2026-08-06).
+///
+/// ★ THE VERBS ALONE COULD NOT ANSWER THE OWNERSHIP QUESTION, and that gap was a live bug. A
+/// pipeline was called "forest" whenever any later stage named a value verb -- a statement about a
+/// WORD. But a language is identified by where it STARTS, not by a word appearing in the middle, so
+/// `echo a | sort -k1 -rn` was claimed by the query language, refused by the spine, and then refused
+/// again by legacy once the inline pipeline executor was deleted.
+///
+/// ⚠️ THE VERB LIST AND THE SHELL SHARE A NAMESPACE. Every word added here or to VALUE_VERBS is a
+/// word that stops being available as a pipeline stage. `join`, `watch`, `get`, `filter` and `sort`
+/// are all real programs. That is the cost of a query language that looks like shell, and it is
+/// paid by whoever adds the next verb.
+///
+/// ⚠️ RESIDUAL AMBIGUITY, stated rather than hidden: `find`, `ps`, `list`, `files` and `db` are BOTH
+/// sources and real commands, so `find . -name x | sort` is still read as a query. This list fixes
+/// pipelines that begin with an ORDINARY command; it does not disambiguate the overlap.
+pub const VALUE_SOURCES: &[&str] = &[
+    "from",
+    "list",
+    "find",
+    "db",
+    "intents",
+    "deploys",
+    "friday",
+    "ps",
+    "processes",
+    "files",
+    "tools",
+    "events",
+];
+
+/// Does this word begin a value PIPELINE? Pure, and first-word only.
+pub fn is_value_source(first: &str) -> bool {
+    VALUE_SOURCES.contains(&first)
+}
+
 pub const VALUE_VERBS: &[&str] = &[
     "where", "select", "sort", "first", "last", "count", "take", "skip", "unique", "as", "filter",
     "get", "watch", "group", "join", "map", "reduce", "flatten", "to-text",

@@ -694,23 +694,13 @@ impl Engine {
         // INT-171 gate 2: quote-aware command word for forest-pipeline detection.
         let first = crate::commands::command_word(line);
         let first = first.as_str();
-        let forest_sources = [
-            "from",
-            "list",
-            "find",
-            "db",
-            "intents",
-            "deploys",
-            "friday",
-            "ps",
-            "processes",
-            "files",
-            "tools",
-            "events",
-            "deploys",
-        ];
+        // INT-201: the source list moved to value.rs beside VALUE_VERBS and is ASKED FOR here,
+        // never copied. The private array this replaces held "deploys" twice and, more importantly,
+        // was a second owner of the answer to "is this the query language?" -- the spine's
+        // is_forest_pipeline now asks the same list, so the two cannot drift into disagreeing about
+        // which language a line is written in.
         let has_pipe = line.contains(" | ");
-        if forest_sources.contains(&first) && has_pipe {
+        if crate::value::is_value_source(first) && has_pipe {
             let explain = line.contains("--explain");
             let clean_line = line.replace(" --explain", "").replace("--explain", "");
             let clean_line = clean_line.as_str();
