@@ -222,10 +222,39 @@ WHAT THE LOOP ACTUALLY HOLDS, measured at 1,238 lines after the three executor d
   ADVISORIES  the tail
 Only the last two are the REPL's. Everything above them is the engine's by the gate's own wording.
 
+THE OUTCOME TYPE NEEDS THREE VARIANTS, and the reason is not the advisories themselves. The control
+flow already has three distinct semantic outcomes, and today they are encoded by WHERE a
+`continue 'segments` happens to sit rather than by anything a type says:
+
+    Executed    execution completed and the post-execution phase should run
+    Handled     execution was fully handled and that phase should be skipped
+    ExitShell   the shell should exit
+
+Compressing those into a boolean loses information. Thirty-three `continue 'segments` sites in this
+loop skip the advisory tail today; only the fall-through past execute_and_record reaches it. A
+run_segment returning a two-state outcome would either run the advisories thirty-three times where
+they do not run now, or skip them where they do.
+
+SO SegmentOutcome IS WIDENED RATHER THAN JOINED BY A SECOND RESULT TYPE. Widening preserves the
+existing abstraction and turns every match site into a compile error, which is exactly the situation
+where exhaustive matching earns its keep -- the same argument CommandResult made when it chose to
+widen instead of adding a variant that eighteen catch-all arms would have swallowed.
+
+WHERE THE BOUNDARY FALLS, AND WHY. run_segment ends where execution semantics are complete and the
+advisory phase begins. That is a clean architectural seam on its own terms: everything above it
+decides what to run and runs it, everything below it reacts to what happened. It is NOT chosen to
+keep the parameter list short -- that three advisory bindings (the session command count, the shown
+suggestions, the last Friday intent) then stay out of the signature is VALIDATION of the seam, not
+the reason for it. Pulling the advisories across merely to make the extraction larger would be
+choosing a boundary for the wrong reason.
+
 SEQUENCE. First run_segment as a straight extraction, with the REPL still driving the loop -- the
 same "move code, not dispatch" pattern that worked for the query executor, and provable by the suite
-alone because nothing about behaviour is supposed to change. Once that is stable, run_input is a much
-smaller follow-on.
+alone because nothing about behaviour is supposed to change. run_input comes later and is NOT a
+small follow-on: roughly four hundred and fifteen lines sit between the outer loop and the segment
+loop -- comment stripping, history expansion, normalisation, brace expansion, the `?` guard, the
+pty_exec paths and the segment split -- and that is a refactor of its own, once the lower layer has
+settled.
 
 ## Progress -- gate 3, and four bugs found while proving it (2026-08-05)
 Landed since the last note: `48bf9152` the executor extracted -- 221 lines, five inputs, one returned
