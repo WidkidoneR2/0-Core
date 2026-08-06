@@ -1326,7 +1326,27 @@ impl<'a> Validator for ForestHelper<'a> {
         // not continue, because the lexer does not track heredoc delimiters and try_heredoc hands
         // the whole line to sh. Multi-line shell constructs (if/then/fi, while/do/done) are outside
         // this too. Both need the shell to model constructs it currently delegates.
-        match crate::spine::lexer::lex(input) {
+        // A HEREDOC BODY IS NOT SHELL, and lexing it as shell hangs the prompt. Pasting a block
+        // containing an apostrophe -- an English possessive, a Rust lifetime, a contraction in a
+        // comment -- made the lexer report an unterminated quote, so the REPL waited forever for a
+        // closing quote that was never coming. Found within hours of shipping the validator, by
+        // pasting an ordinary script.
+        //
+        // try_heredoc already draws this line the same crude way (`line.contains("<<")`) before
+        // handing the whole construct to sh. Matching it here is honest: fsh does not model
+        // heredocs, so it must not pretend to lex them.
+        if input.contains("<<") {
+            return Ok(ValidationResult::Valid(None));
+        }
+
+        // COMMENTS ARE NOT SHELL EITHER. strip_comments runs on the line AFTER readline returns
+        // (main.rs), so without this the validator lexes comment text, and an apostrophe in an
+        // ordinary English comment holds the prompt open exactly as a heredoc body did. Asking
+        // expand::strip_comments rather than writing a second stripper keeps one owner of what
+        // counts as a comment -- the same rule that made this ask the lexer rather than count
+        // quotes itself.
+        let scanned = crate::expand::strip_comments(input);
+        match crate::spine::lexer::lex(&scanned) {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(e) => match e.kind {
                 crate::spine::lexer::LexErrorKind::UnterminatedQuote
