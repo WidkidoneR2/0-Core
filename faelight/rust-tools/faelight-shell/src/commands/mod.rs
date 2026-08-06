@@ -8656,7 +8656,19 @@ pub fn execute_pipeline_plans(
     execute_pipeline(plans, db)
 }
 
-fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) -> CommandResult {
+/// Spawn every stage of a pipeline and hand back the running children, in stage order.
+///
+/// ★ SPLIT OUT SO BACKGROUNDING CAN REUSE IT. execute_pipeline always waited on the chain it built,
+/// which is correct for the foreground and is exactly what a background job must NOT do. The loop
+/// and the wait were already separate blocks; this makes the seam explicit so the spine can spawn a
+/// pipeline and register its tail instead of blocking on it.
+///
+/// ⚠️ THE CALLER OWNS REAPING. Every returned child is alive and unwaited. Dropping this vector
+/// leaks zombies -- execute_pipeline waits on all of them, and a background caller must keep them
+/// until the job completes.
+fn spawn_pipeline(
+    plans: &[crate::spine::plan::ExecutionPlan],
+) -> Result<Vec<std::process::Child>, CommandResult> {
     use crate::spine::plan::IoPlan;
     let mut children: Vec<std::process::Child> = Vec::new();
     let mut prev_stdout: Option<std::process::ChildStdout> = None;
@@ -8664,7 +8676,10 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
     for (idx, plan) in plans.iter().enumerate() {
         let is_last = idx + 1 == plans.len();
         let Some(program) = plan.argv.first() else {
-            return CommandResult::Error("  empty stage in pipeline".to_string(), 1);
+            return Err(CommandResult::Error(
+                "  empty stage in pipeline".to_string(),
+                1,
+            ));
         };
         let mut cmd = std::process::Command::new(program);
         cmd.args(&plan.argv[1..]);
@@ -8680,10 +8695,10 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                     cmd.stdin(std::process::Stdio::from(f));
                 }
                 Err(e) => {
-                    return CommandResult::Error(
+                    return Err(CommandResult::Error(
                         format!("  cannot read {}: {e}", path.display()),
                         1,
-                    )
+                    ))
                 }
             },
             (None, Some(prev)) => {
@@ -8716,10 +8731,10 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                         cmd.stdout(std::process::Stdio::from(f));
                     }
                     Err(e) => {
-                        return CommandResult::Error(
+                        return Err(CommandResult::Error(
                             format!("  cannot write {}: {e}", path.display()),
                             1,
-                        )
+                        ))
                     }
                 }
             }
@@ -8744,10 +8759,21 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
                 for mut c in children {
                     let _ = c.wait();
                 }
-                return CommandResult::Error(format!("  {}: {e}", program.to_string_lossy()), 1);
+                return Err(CommandResult::Error(
+                    format!("  {}: {e}", program.to_string_lossy()),
+                    1,
+                ));
             }
         }
     }
+    Ok(children)
+}
+
+fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) -> CommandResult {
+    let children = match spawn_pipeline(plans) {
+        Ok(c) => c,
+        Err(e) => return e,
+    };
 
     // INT-189's ruling: POSIX pipeline status is the LAST stage's, and `children` is in stage order
     // by construction. Every child is waited on so none is left unreaped.
