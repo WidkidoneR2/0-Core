@@ -8656,6 +8656,19 @@ pub fn execute_pipeline_plans(
     execute_pipeline(plans, db)
 }
 
+/// Spawn a pipeline for BACKGROUNDING: the children come back running and unwaited.
+///
+/// ★ THE ERROR MAPPING LIVES HERE ON PURPOSE. spawn_pipeline reports failures as a CommandResult,
+/// which is this module's vocabulary; exec.rs must not learn its variants just to background a
+/// chain. Same boundary background_command keeps -- exec.rs never learns what a JobTable is.
+pub fn background_pipeline(
+    plans: &[crate::spine::plan::ExecutionPlan],
+) -> Result<Vec<std::process::Child>, String> {
+    spawn_pipeline(plans).map_err(|e| match e {
+        CommandResult::Error(m, _) => m,
+        _ => "  pipeline: could not start".to_string(),
+    })
+}
 /// Spawn every stage of a pipeline and hand back the running children, in stage order.
 ///
 /// ★ SPLIT OUT SO BACKGROUNDING CAN REUSE IT. execute_pipeline always waited on the chain it built,

@@ -2157,11 +2157,19 @@ fn repl_main() -> Result<()> {
                             engine.before_rules(),
                         ) {
                             match attempt {
-                                Ok((command, label)) => {
+                                Ok(attempt) => {
                                     if spine_trace {
                                         eprintln!("  [spine-router] claimed (background): {line}");
                                     }
-                                    match job_table.register(command, &label) {
+                                    let started = match attempt {
+                                        exec::BackgroundAttempt::Single(c, l) => {
+                                            job_table.register(c, &l)
+                                        }
+                                        exec::BackgroundAttempt::Chain(ch, l) => {
+                                            job_table.register_chain(ch, &l)
+                                        }
+                                    };
+                                    match started {
                                         Ok(_) => engine.set_last_exit(Some(0)),
                                         Err(e) => {
                                             eprintln!("{} {}", "x".bright_red(), e);

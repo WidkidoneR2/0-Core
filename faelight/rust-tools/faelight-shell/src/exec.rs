@@ -1113,14 +1113,26 @@ fn lower_spine_source(
     crate::spine::plan::lower_pipeline(&node, &ctx).map_err(SpineAttemptError::Lower)
 }
 
-/// INT-200: the BACKGROUND door. Returns the built command for a `cmd &` line, or `None` when the
+/// How a backgrounded line should be started. A configured Command cannot express a pipeline,
+/// whose earlier stages must already be running before the last one can be handed over.
+///
+/// ★ exec.rs SPAWNS BUT STILL NEVER LEARNS WHAT A JobTable IS, and main.rs still never learns how
+/// to lower. The boundary is unchanged; only what crosses it grew a second shape.
+pub enum BackgroundAttempt {
+    /// One command, not yet spawned -- the job table starts it.
+    Single(std::process::Command, String),
+    /// A pipeline, already running, in stage order. The LAST child carries the status.
+    Chain(Vec<std::process::Child>, String),
+}
+
+/// INT-200: the BACKGROUND door. Returns how a `cmd &` line should be STARTED, or `None` when the
 /// line is not a background job at all.
 ///
 /// ★ WHY A SIBLING RATHER THAN AN UNWRAP IN main.rs: `lower_spine_source` parses its own source and
 /// builds the runner, globber and capabilities internally, so main.rs could only reach them by
 /// re-rendering the AST back to text -- the string-reinspection the spine exists to end -- or by
 /// keeping a second copy of the capability setup, which is the drift INT-169 extracted that
-/// function to prevent. Instead this returns a CONFIGURED Command and main.rs hands it to the job
+/// function to prevent. Instead this returns a BackgroundAttempt and main.rs hands it to the job
 /// table. exec.rs never learns what a JobTable is; main.rs never learns how to lower.
 ///
 /// ⚠️ The OPERAND is lowered, not the wrapper. `AstNode::Background` refuses at both lowering
@@ -1132,7 +1144,7 @@ pub fn try_spine_background_command(
     db: &ForestDb,
     core_root: &str,
     rules: &[BeforeRunRule],
-) -> Option<Result<(std::process::Command, String), SpineAttemptError>> {
+) -> Option<Result<BackgroundAttempt, SpineAttemptError>> {
     let node = crate::spine::parser::parse(source).ok()?;
     let crate::spine::ast::AstNode::Background(inner) = node.node else {
         return None;
@@ -1150,13 +1162,32 @@ pub fn try_spine_background_command(
         runner: Some(&runner),
         glob: Some(&glob),
     };
-    // A pipeline cannot be backgrounded yet: it needs every stage spawned and only the LAST child
-    // registered, which is a different executor. Refuse rather than background one stage.
     let plans = match crate::spine::plan::lower_pipeline(&inner, &ctx) {
-        Ok(p) if p.len() == 1 => p,
-        Ok(_) => return None,
+        Ok(p) if p.is_empty() => return None,
+        Ok(p) => p,
         Err(e) => return Some(Err(SpineAttemptError::Lower(e))),
     };
+    let label = plans
+        .first()
+        .and_then(|p| p.argv.first())
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| source.to_string());
+    // A PIPELINE IS SPAWNED HERE RATHER THAN HANDED OVER AS A COMMAND, because every stage must
+    // already be running before the last one can be registered. So the chain crosses the boundary
+    // ALIVE, and its earlier stages travel with it -- the job table reaps them. Registering only
+    // the tail would leave every upstream stage a zombie.
+    if plans.len() > 1 {
+        return Some(
+            crate::commands::background_pipeline(&plans)
+                .map(|children| BackgroundAttempt::Chain(children, label))
+                .map_err(|e| {
+                    SpineAttemptError::Lower(crate::spine::plan::LowerError::InvalidPlan {
+                        message: e,
+                        span: node.span,
+                    })
+                }),
+        );
+    }
     // A REDIRECT DOES NOT DECLINE HERE. `background_command` wires `plan.io` through
     // `configure_file_io`, the same function the foreground path uses -- its doc owns the
     // io rules and the deliberate absence of a tee, and restating them here would create
@@ -1166,12 +1197,16 @@ pub fn try_spine_background_command(
     // legacy, which would then fail the same way with a worse message -- and a redirect
     // target that cannot be opened is the user's problem to see, not a routing decision.
     // Refusals fall back; defects surface. Same rule as InvalidPlan at the router.
-    Some(crate::commands::background_command(&plans[0]).map_err(|e| {
-        SpineAttemptError::Lower(crate::spine::plan::LowerError::InvalidPlan {
-            message: e,
-            span: node.span,
-        })
-    }))
+    Some(
+        crate::commands::background_command(&plans[0])
+            .map(|(c, l)| BackgroundAttempt::Single(c, l))
+            .map_err(|e| {
+                SpineAttemptError::Lower(crate::spine::plan::LowerError::InvalidPlan {
+                    message: e,
+                    span: node.span,
+                })
+            }),
+    )
 }
 
 /// The EXPLICIT door (`spine-exec <cmd>`). You asked for the spine, so every failure is reported

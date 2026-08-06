@@ -7,7 +7,12 @@ use std::time::Instant;
 pub struct Job {
     pub id: usize,
     pub cmd: String,
+    /// The status-bearing stage. For a pipeline this is the LAST one, per POSIX.
     pub child: std::process::Child,
+    /// Upstream stages of a backgrounded pipeline, in stage order. Empty for a single
+    /// command. Held so check_completed can reap them -- registering only the tail would
+    /// leave every earlier stage a zombie.
+    pub rest: Vec<std::process::Child>,
     pub started: Instant,
 }
 
@@ -60,12 +65,26 @@ impl JobTable {
         label: &str,
     ) -> std::io::Result<usize> {
         let child = command.spawn()?;
+        self.register_chain(vec![child], label)
+    }
+
+    /// Register an already-spawned CHAIN as one job. The last child carries the status;
+    /// the rest are held so they are reaped rather than leaked.
+    pub fn register_chain(
+        &mut self,
+        mut children: Vec<std::process::Child>,
+        label: &str,
+    ) -> std::io::Result<usize> {
+        let Some(child) = children.pop() else {
+            return Err(std::io::Error::other("empty pipeline"));
+        };
         let id = self.next_id;
         self.next_id += 1;
         self.jobs.push(Job {
             id,
             cmd: label.to_string(),
             child,
+            rest: children,
             started: Instant::now(),
         });
         println!(
@@ -105,6 +124,11 @@ impl JobTable {
                             elapsed,
                             code
                         );
+                    }
+                    // Reap upstream stages before dropping the job -- their writer end is
+                    // already closed, so they have exited or are about to.
+                    for up in &mut job.rest {
+                        let _ = up.wait();
                     }
                     completed.push(job.id);
                 }
