@@ -63,6 +63,20 @@ impl ShellConfig {
 }
 
 pub fn config_path() -> std::path::PathBuf {
+    // INT-134: FSH_CONFIG overrides the path so a setting can be tried without a rebuild. The
+    // deployed config.fsh is a home-manager symlink into /nix/store and therefore READ-ONLY --
+    // proving one line otherwise costs a full deploy, and this loop is needed once per setting.
+    //
+    // An env var rather than a flag: load() takes no arguments and runs before argument parsing,
+    // so a flag would have to thread through every caller to serve one use.
+    //
+    // An empty value is IGNORED rather than treated as a path -- `FSH_CONFIG= fsh` should mean
+    // "no override", not "load the current directory".
+    if let Ok(p) = std::env::var("FSH_CONFIG") {
+        if !p.trim().is_empty() {
+            return std::path::PathBuf::from(p);
+        }
+    }
     let home = std::env::var("HOME").unwrap_or_default();
     std::path::PathBuf::from(home).join(".config/faelight-shell/config.fsh")
 }
