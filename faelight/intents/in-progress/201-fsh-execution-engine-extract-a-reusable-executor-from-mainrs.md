@@ -455,6 +455,40 @@ shell -- and the alternative was keeping two implementations alive to honour a p
 which is how an ampersand ended up in a filename that morning. The router comment and INT-169's status
 section were corrected to match, rather than being left to mislead the next reader.
 
+## Design result -- the direct run_segment lift was explored and rejected (2026-08-06)
+The extraction was attempted and abandoned. That is a result, not a failure: it answered a question
+the design could not answer on paper.
+
+WHAT STOPPED IT. A census of the loop body's control flow, taken from the file rather than from
+memory, found eighteen labelled breaks, thirty-one labelled continues, and -- decisively -- seven
+bare continues, three bare breaks and one bare break in expression position. A bare break or continue
+binds to the NEAREST ENCLOSING LOOP, and the bare breaks prove the body contains inner loops. So some
+of those bare continues belong to an inner loop and must not become a return, while others belong to
+the segment loop and must. Nothing in the text distinguishes them.
+
+THE TRANSFORMATION WAS SYNTACTIC AND THE SEMANTICS ARE LEXICAL. That is the whole finding. A
+text-driven rewrite cannot prove it preserves behaviour here, however careful the substitution table,
+because the meaning of the statement depends on the scope it sits in and not on the characters it is
+made of. Four attempts failed for four different surface reasons; the underlying reason was the same
+each time.
+
+AND THE HISTORY SAYS THE SAME THING. Every bounded extraction landed with a reviewable diff and a
+clear proof: the executor at two hundred and twenty-one lines, the query executor at ninety-three,
+three legacy executors deleted with their unreachability demonstrated. The one attempt to move the
+whole remaining body never reached a state where it could be validated at all. That is feedback that
+the abstraction boundary is not ready, not that the move was performed badly.
+
+WHAT THE LOOP ACTUALLY IS. Not one cohesive unit awaiting relocation -- a collection of distinct
+responsibilities that happen to share a scope. The flow decision, inline assignment, the expansions,
+the router, the two refusals, the derivations. Each is a responsibility; none of them is the loop.
+
+SO THE ORDER INVERTS. Carve off the remaining inline responsibilities into handlers, one at a time,
+the way the seventeen already in the engine got there. When the loop is a dispatcher over try_ calls
+plus a little orchestration, run_segment stops being a twelve-hundred-line relocation and becomes
+almost mechanical -- and the SegmentOutcome widening becomes meaningful at that moment, because there
+is finally a boundary for it to describe. The widening was written, proved inert, and reverted for
+exactly that reason: it describes a seam that does not exist yet.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
