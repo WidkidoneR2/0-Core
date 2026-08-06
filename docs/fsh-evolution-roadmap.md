@@ -98,30 +98,30 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Benchmark commands with hyperfine -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev bench` uses hyperfine (retitled from Criterion -- hyperfine is the actual tool wired). commands/mod.rs dev_cmd.
 
 ## Lane 4 -- Friday / AI  (always human-authorized)
-- [ ] Explain command before execution
+- [~] Explain command before execution -- PARTIAL (verified INT-134, 2026-08-06): an explicit `explain <cmd>` builtin exists (commands/mod.rs:9980) alongside semantic_explain_cmd and semantic_dryrun_cmd. What is NOT built is the automatic half -- nothing explains a command before it runs unless you ask.
 - [x] Command error diagnosis -- partial (Friday knowledge hints)
 - [ ] Interactive troubleshooting mode
 - [ ] Shell script generation
-- [ ] Extend NL -> commands (the `?` prefix)
+- [~] Extend NL -> commands (the `?` prefix) -- BASE BUILT (verified INT-134, 2026-08-06): translate_natural_language (main.rs:411, INT-268) is a real rule table of pattern-words plus command plus confidence -- pattern-based, no LLM, forest-specific. The `?` prefix is already VERIFIED above. EXTENDING the rule set is the open work, not building it.
 - [ ] Autocomplete from command-history patterns
 
 ## Lane 5 -- Structured-data pipelines  [EPIC -- own decision]
-- [ ] Structured data pipelines (objects, not plain text)
+- [x] Structured data pipelines (objects, not plain text) -- ALREADY BUILT (verified INT-134, 2026-08-06): value::PipeOp and apply_pipeline carry a typed Value between stages (22 uses incl. tests/pipeline.rs); Engine::try_query_executor runs them. `ps | where cpu > 0.5 | sort cpu desc` returns ROWS, not text. This is the shell's differentiator and it was sitting unchecked.
 - [ ] Native JSON / YAML / TOML
 - [ ] Interactive tables
 - [~] Charts in terminal -- CUT (INT-134, 2026-07-12): low utility-to-effort. `the bar` already shows live metrics (CPU/RAM/battery/wifi) and the health panel covers status; a general terminal-charting engine is a lot of build for occasional sparklines. No specific recurring visualization need identified. Filter-appropriate cut.
 
 ## UX / Editing  (evaluate per item)
-- [ ] Multi-line editing
-- [ ] Vim mode
-- [ ] Emacs mode
+- [ ] Multi-line editing -- NOT BUILT, and the exact place is known (verified INT-134, 2026-08-06): impl Validator for ForestHelper (completion.rs:1296) is a STUB -- both paths return Valid. Returning Incomplete for an unterminated quote, an unclosed brace or a trailing backslash IS the feature; rustyline supplies the continuation prompt itself.
+- [ ] Vim mode -- ONE LINE AWAY (verified INT-134, 2026-08-06): EditMode is already imported (main.rs:46) and the editor is built with Editor::with_config (main.rs:891). EditMode::Vi is the change; the real question is making it a config.fsh setting per INT-060 rather than hardcoding it.
+- [x] Emacs mode -- ALREADY BUILT (verified INT-134, 2026-08-06): .edit_mode(EditMode::Emacs) at main.rs:885, an explicit choice rather than a rustyline default. This means READLINE KEYBINDINGS (Ctrl+A/E/K/W), not the Emacs editor -- nothing is installed and nothing is required.
 - [ ] Undo / redo command editing
-- [ ] Fish-style autosuggestions
+- [x] Fish-style autosuggestions -- ALREADY BUILT, and better than the item asks (verified INT-134, 2026-08-06): impl Hinter for ForestHelper (completion.rs:1207-1231) hints only at end of line, matches history by prefix, then falls back to high-confidence friday_patterns rows. Fish suggests from history; this also suggests from what Friday has learned.
 - [ ] Fuzzy command completion
 - [~] Command history with semantic search -- PARTIAL (INT-134, 2026-07-12): literal search SHIPPED (`hs`/`history-search`/`hsearch` -> history_search_cmd, SQLite LIKE-substring, dedup + frequency/recency ranking + timestamps, commands/mod.rs:4643). SEMANTIC (meaning-based/embedding) half DEFERRED -- would need embeddings for a shell-history feature (high cost, marginal benefit over literal); possible future pairing with Friday's fact infrastructure, or a later CUT. Not owned by a current intent.
 - [ ] Popup command palettes
 - [ ] Command previews before execution
-- [ ] Interactive file picker
+- [~] Interactive file picker -- ADJACENT, not the item (verified INT-134, 2026-08-06): pick_cmd (commands/mod.rs:7427) pipes candidates through an external selector, but its subcommands pick INTENTS. A general file picker is unbuilt; yazi covers file browsing (INT-063).
 - [~] Directory jumping / bookmark directories -- PARTIAL (INT-134, 2026-07-12): JUMPING shipped (`z`/`zi` zoxide frecency, commands/mod.rs:667; plus `dev workspace <name>` authoritative crate-jump). Named BOOKMARKS half unbuilt (no mark/bm command -- only session-save exists, which is L129 Session workspaces, a different feature). Bookmarks deferred; not owned by a current intent.
 - [x] Notifications when long tasks finish -- ALREADY BUILT (verified INT-134, 2026-07-13): commands >30s fire faelight-notify on completion (main.rs:3001-3006). Long-command notification hook is live.
 
@@ -130,7 +130,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Named command collections
 - [ ] Macro system
 - [ ] Aliases with arguments
-- [ ] Scheduled commands
+- [~] Scheduled commands -- ADJACENT, not the item (verified INT-134, 2026-08-06): on_cmd (commands/mod.rs:12565) is the EVENT trigger DSL over crate::triggers -- on list, on remove, on <event> => <action> -- and watch_cmd polls. Time-based scheduling is genuinely absent.
 - [ ] Built-in task runner
 - [ ] Quick notes / todos
 
