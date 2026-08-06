@@ -489,6 +489,27 @@ almost mechanical -- and the SegmentOutcome widening becomes meaningful at that 
 is finally a boundary for it to describe. The widening was written, proved inert, and reverted for
 exactly that reason: it describes a seam that does not exist yet.
 
+## Progress -- the first inline extraction, done the way the rejected lift proved necessary (2026-08-06)
+The flow decision moves to the engine and the loop keeps its continue.
+
+MOVE LOGIC, NEVER CONTROL FLOW. A bare break or continue means whatever the nearest enclosing loop
+says, so carrying one across a function boundary changes its meaning silently. Returning a bool
+cannot. That is the rule the failed lift produced, applied for the first time.
+
+THE PREDICATE IS A FREE FUNCTION AND THE METHOD DELEGATES, so its tests need no Engine and no
+database. Four of them: and-runs-after-success, or-runs-after-failure, no-operator-always-runs, and
+the one nobody would think to write -- a missing exit code counts as success, which is what makes a
+chain work as the first command of a session. That last case is why this block was chosen first: it
+is the only remaining one provable without driving a shell.
+
+Success is still read from the exit code and nowhere else. Re-deriving it from a result variant at
+another call site is the bug INT-171 gate 5 put the rule in one place to prevent.
+
+⏭ FIVE REMAIN AND THEY ARE LARGER: let/export inline assignment at roughly two hundred and sixty
+lines, the expansions, the router block, the two legacy refusals, and the base_cmd derivations. Then
+run_segment is a wrapper rather than a relocation. Gate 4 is still real work; it is now predictable
+work.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
