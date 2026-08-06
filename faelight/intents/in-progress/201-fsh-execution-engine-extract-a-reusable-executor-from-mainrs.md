@@ -351,6 +351,39 @@ would hand `echo` the arguments `x | cat` -- the same leak-into-argv failure in 
 commit is a deletion plus a legacy pipeline refusal, and FSH_SPINE=0 stops running pipelines and says
 so.
 
+## Progress -- all three legacy executors are gone (2026-08-05)
+`f849fdba` deleted the pipeline executor and `257d3e92` deleted the redirect executor. Together with
+the query executor's move into the engine, the four-executor finding above is answered: one of them
+moved because it runs a different language, two were deleted because they existed only while the
+shell parser could not absorb their constructs, and execute_and_record remains.
+
+UNREACHABLE WAS PROVED, NOT ARGUED. Each deletion left behind a refusal that prints a distinctive
+line, and the line never appeared under default routing. For pipelines: a two-stage pipe, a
+three-stage pipe, a backgrounded pipe and a query pipeline all behaved exactly as before. For
+redirects the suite is the proof, because its REPL cases exercise write, append, stderr, and
+redirect-from-an-alias through the interactive door -- if two hundred lines of redirect handling had
+still been load-bearing, they would have gone red.
+
+THE REDIRECT EXECUTOR WAS HIDING A DEAD PARAMETER. It ended in an unconditional continue, so
+execute_and_record could only ever be called with redirect: None, and the write hoisted into it at
+38f26186 never ran once. A parameter that cannot vary is not a capability; it is wiring that outlived
+its source, and deleting the block is what made that visible.
+
+AND THE PROBE IT REQUIRED WENT WITH IT. try_builtin existed because the redirect path called execute()
+to ask whether a line was a builtin, got Empty, concluded it was not, and spawned the command a second
+time -- mkdir ran twice, a POST posted twice. It was the answer to a question only that block asked.
+With the block gone it had no callers and ExecutionMode::Probe had no constructor. CommandResult::
+NotBuiltin stays: the spine produces and consumes it, where it means "not a builtin, so run argv",
+and the comment claiming only try_builtin could return it was already false.
+
+main.rs went from 3,913 lines to 3,419 in one day.
+
+⚠️ WHAT THIS COSTS, STATED RATHER THAN DISCOVERED: FSH_SPINE=0 no longer runs redirects or pipelines.
+That is the contract the variable was given -- a migration aid for comparing routing, not a fallback
+shell -- and the alternative was keeping two implementations alive to honour a promise nobody made,
+which is how an ampersand ended up in a filename that morning. The router comment and INT-169's status
+section were corrected to match, rather than being left to mislead the next reader.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
