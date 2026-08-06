@@ -318,6 +318,39 @@ into either executor. Delete them and the escape hatch stops handling redirects 
 -- it becomes a diagnostic aid rather than a working shell. That is worth deciding on purpose, since
 a half-working escape hatch is worse than an honest one.
 
+## Progress -- layer 2: the spine backgrounds a pipeline (2026-08-05)
+Three commits, and the last one removes a prerequisite rather than a line count.
+
+`2e6cf27e` split spawning a pipeline from waiting on it. execute_pipeline built its chain in one
+block and waited in another; the two were already separate, so making the seam a function cost
+nothing and changed nothing. The doc carries the obligation the split creates: the returned children
+are alive and unwaited, and dropping them leaks zombies.
+
+`bb4adb88` used that seam. A configured Command cannot express a chain -- every stage must already
+be running before the last can be handed over -- so the background door's return type grew a second
+shape: Single carries a command the job table will start, Chain carries children already running with
+the last one holding the status. The boundary the door exists to protect is unchanged: exec.rs spawns
+and still never learns what a JobTable is; main.rs registers and still never learns how to lower.
+
+THE PART THAT WOULD HAVE LEAKED QUIETLY. Register only the tail and every upstream stage becomes a
+zombie, once per backgrounded pipeline, invisibly. The Job now holds the upstream stages beside the
+status-bearing child and check_completed reaps them. Verified by counting defunct processes
+afterwards -- the single one on this machine is a core subprocess with a shell parent, present hours
+earlier and unrelated, which is itself a finding filed elsewhere.
+
+AND THE GUARD FROM 532880e1 WAS KEPT RATHER THAN DELETED, which reverses the plan written when it was
+added. Under FSH_SPINE=0 the line never reaches the spine, so that guard is now the legacy path's
+honest answer instead of a temporary measure. It follows the contract FSH_SPINE was given: a
+migration aid that says "legacy does not implement this", not a fallback shell that pretends
+otherwise.
+
+⏭ EXECUTOR (b) IS NOW DELETABLE, AND ITS DELETION IS NOT JUST A REMOVAL. Under default routing the
+spine claims every pipeline, so the inline executor is dead there. Under FSH_SPINE=0 it is still
+live, and deleting it without a guard would send `echo x | cat` to the single-command executor, which
+would hand `echo` the arguments `x | cat` -- the same leak-into-argv failure in a new place. So the
+commit is a deletion plus a legacy pipeline refusal, and FSH_SPINE=0 stops running pipelines and says
+so.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
