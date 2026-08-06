@@ -290,6 +290,14 @@ PURPOSE. `LowerError` now distinguishes a construct it cannot run from a capabil
 `FSH_SPINE` stopped being an opt-in and became an escape hatch: unset routes to the spine,
 `FSH_SPINE=0` restores legacy. Deployed gen 446, fsh-test 107/107 with routing on by default.
 
+⚠️ SUPERSEDED 2026-08-05 BY INT-201, and the line above stays because it was true when written.
+"Restores legacy" is not true now. The inline redirect and pipeline executors were deleted once the
+spine claimed every form of both -- probed with the router trace on, nine for nine -- so FSH_SPINE=0
+routes to a legacy that no longer implements redirects or pipelines and says so rather than
+half-doing them. The variable's contract is a MIGRATION AID for comparing routing, not a fallback
+shell: keeping partial executors alive to honour the old promise would be preserving implementation
+rather than behaviour. Generation rollback is the real escape hatch, as it always was.
+
 WHAT THE FLIP RESTS ON. The existing 107-test suite passes end to end through the router --
 aliases, pipelines, redirects, heredocs, tilde expansion, SIGPIPE, the double-execution guards,
 the recursion protection -- because fsh-test spawns the shell as a child and inherits the

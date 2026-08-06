@@ -2111,8 +2111,11 @@ fn repl_main() -> Result<()> {
                     //
                     // `None` means NOT MINE: fall through with the source untouched, exactly as
                     // if routing did not exist. Legacy must receive what it would have received.
-                    // INT-169: DEFAULT ON. The variable is now an ESCAPE HATCH, not an opt-in --
-                    // `FSH_SPINE=0` restores legacy routing instantly, and generation rollback remains.
+                    // INT-169: DEFAULT ON, and INT-201 (2026-08-05) settled what the variable MEANS. It is not a
+                    // fallback shell and cannot be one: the inline redirect and pipeline executors were deleted
+                    // once the spine claimed every form of both, so legacy no longer implements them. FSH_SPINE=0
+                    // is a MIGRATION AID -- a way to compare routing -- and lines legacy cannot run are refused
+                    // with a message naming what is missing. Generation rollback is the real escape hatch.
                     // Flipped once the evidence stopped improving from testing: 107/107 through the
                     // router, the migration audit at zero unexpected and zero feature gaps, and the
                     // counters showing the spine claims what it owns and declines what it refuses.
