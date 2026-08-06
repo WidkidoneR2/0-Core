@@ -185,6 +185,48 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
 - [ ] `fsh -c` routes through it, and the digit guard applies to both doors
 - [ ] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
 
+## The design gate 4 will be built to (decided 2026-08-06, before any code moved)
+THE BOUNDARY. The REPL owns terminal interaction and session lifetime. The engine owns language
+semantics. Everything in the segment loop is measured against that one sentence.
+
+TWO ENTRY POINTS, NOT ONE.
+
+    run_input(&mut self, input: &str, jobs: &mut JobTable) -> InputOutcome
+    run_segment(&mut self, segment: &str, jobs: &mut JobTable) -> SegmentOutcome
+
+run_input takes one complete command line, splits the boolean chain, and dispatches each segment.
+run_segment is the internal primitive: everything the loop body does today.
+
+WHY THE SPLIT BELONGS TO run_input. `&&`, `||` and `;` are language. If the REPL performs that split
+it still contains part of the language implementation, and the gate would be satisfied on paper by a
+layer that still parses.
+
+JobTable DOES NOT MOVE INTO Engine. It is passed as `&mut`, exactly as try_jobs, try_fg, try_kill and
+try_background already take it. Gate 2 ruled it session state that lives in the loop, and that ruling
+stands: this change is about moving RESPONSIBILITIES, not about changing state ownership.
+Relitigating ownership inside a refactor is how a refactor becomes a rewrite.
+
+THE ADVISORIES ARE DELIBERATELY OUT OF SCOPE. Predictions, consecutive-failure detection, trigger
+evaluation and the Friday daemon event sit below the executor and are logically adjacent to it -- but
+they affect observable output ORDERING, and gate 3's extraction already learned to leave them in
+place for exactly that reason. Relocating them is an independent refactor afterwards, so any
+behavioural change is isolated and easy to validate.
+
+WHAT THE LOOP ACTUALLY HOLDS, measured at 1,238 lines after the three executor deletions:
+  LANGUAGE    the flow/skip decision, let/export inline assignment (~260 lines), heredoc, alias
+              expansion, expand_vars, expand_subshells, expand_globs, detect_redirect, the split
+  ROUTING     the spine background attempt, the router, the two legacy refusals
+  DISPATCH    eleven engine.try_* handlers, the query executor, four job-control handlers,
+              execute_and_record
+  SESSION     job_table
+  ADVISORIES  the tail
+Only the last two are the REPL's. Everything above them is the engine's by the gate's own wording.
+
+SEQUENCE. First run_segment as a straight extraction, with the REPL still driving the loop -- the
+same "move code, not dispatch" pattern that worked for the query executor, and provable by the suite
+alone because nothing about behaviour is supposed to change. Once that is stable, run_input is a much
+smaller follow-on.
+
 ## Progress -- gate 3, and four bugs found while proving it (2026-08-05)
 Landed since the last note: `48bf9152` the executor extracted -- 221 lines, five inputs, one returned
 value, because the eleven-argument function collapsed once the four Friday advisories came out first;
