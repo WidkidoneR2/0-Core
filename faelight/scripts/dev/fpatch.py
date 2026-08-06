@@ -180,4 +180,29 @@ def patch(path, old, new, count=1, context=2):
         print(f"{mark} {i + 1}: {lines[i]}")
 
     p.write_text(s.replace(old, new))
-    print(f"OK {path}: {n} replaced")
+
+    # VERIFY AFTER WRITE. Every guard above runs on the string in memory, and none of them proves
+    # the file on disk now holds the replacement. On 2026-08-06 three patches reported "17 replaced"
+    # truthfully while the file contained none: the shell had eaten braces out of `new` before
+    # python ever saw it, so the in-memory replace was correct and the result was wrong. Reading the
+    # file back is the only check that spans the gap between what was sent and what was written.
+    after = p.read_text()
+    if after.count(new) < count:
+        _refuse(
+            path,
+            "The write completed but the file does not contain the replacement.",
+            detail=[
+                f"expected at least {count} occurrence(s) of the replacement",
+                f"found {after.count(new)}",
+                f"replacement began: {new.split(chr(10))[0]!r}",
+            ],
+            causes=[
+                "The replacement text was altered in transmission before python received it.",
+                "Another process rewrote the file between the read and the write.",
+            ],
+            recovery=[
+                "Print the region with repr() and compare it byte for byte.",
+                "Build fragile characters from chr() so nothing can rewrite them in transit.",
+            ],
+        )
+    print(f"OK {path}: {n} replaced, verified on disk")
