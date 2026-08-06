@@ -1298,12 +1298,43 @@ impl<'a> Validator for ForestHelper<'a> {
         &self,
         ctx: &mut rustyline::validate::ValidationContext,
     ) -> rustyline::Result<rustyline::validate::ValidationResult> {
+        use rustyline::validate::ValidationResult;
         let input = ctx.input();
         let trimmed = input.trim();
         if trimmed.is_empty() {
-            return Ok(rustyline::validate::ValidationResult::Valid(None));
+            return Ok(ValidationResult::Valid(None));
         }
-        Ok(rustyline::validate::ValidationResult::Valid(None))
+
+        // A trailing backslash is an explicit request to continue -- the one case the lexer cannot
+        // answer, because a line ending in one is lexically fine. Doubled backslashes are a literal
+        // backslash and end the line normally.
+        if trimmed.ends_with('\\') && !trimmed.ends_with("\\\\") {
+            return Ok(ValidationResult::Incomplete);
+        }
+
+        // ASK THE LEXER; DO NOT COUNT QUOTES HERE. INT-171 gate 1 made commands::tokenize the one
+        // quote-aware tokenizer and the spine's lexer is the one that reports WHY it stopped. A
+        // quote counter in this file would be a third owner of the same knowledge, which is the
+        // drift INT-193 exists to prevent -- and it would disagree with the shell that runs the
+        // line, which is worse than not validating at all.
+        //
+        // The two kinds are matched EXPLICITLY rather than with a catch-all: a future LexErrorKind
+        // must be a compile error here, because "the lexer refused" and "the line is unfinished"
+        // are different answers and only the second should hold the prompt open.
+        //
+        // NOT COVERED, and said here rather than discovered later: heredocs. `cat <<EOF` still will
+        // not continue, because the lexer does not track heredoc delimiters and try_heredoc hands
+        // the whole line to sh. Multi-line shell constructs (if/then/fi, while/do/done) are outside
+        // this too. Both need the shell to model constructs it currently delegates.
+        match crate::spine::lexer::lex(input) {
+            Ok(_) => Ok(ValidationResult::Valid(None)),
+            Err(e) => match e.kind {
+                crate::spine::lexer::LexErrorKind::UnterminatedQuote
+                | crate::spine::lexer::LexErrorKind::UnterminatedCommandSub => {
+                    Ok(ValidationResult::Incomplete)
+                }
+            },
+        }
     }
 }
 
