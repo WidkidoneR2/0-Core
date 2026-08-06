@@ -3,7 +3,7 @@ id: 168
 date: 2026-07-16
 type: arch
 title: "fsh line editor: reedline replaces rustyline -- a swap, not an addition (they own the same keystroke loop)"
-status: in-progress
+status: cancelled
 tags: [fsh, reedline, rustyline, line-editor, ux, phase2]
 ---
 
@@ -65,3 +65,6 @@ multiline and paste -- and 201 is the work that settles it. One variable at a ti
 
 ## The Rule
 "They own the same keystroke loop. There is no both." 🌲
+
+## Gate Check
+🚫 168 -- cancelled: INT-168 set its own test at gate 4: at least one thing reedline does that rustyline could not, demonstrated -- and if nothing, the intent was churn and should be cancelled rather than shipped. Today answered it. Multi-line editing shipped on rustyline via the Validator. Hinting already exists and does more than fish asks for, matching history by prefix then falling back to high-confidence Friday patterns. A Highlighter is implemented. Menus exist as CompletionType::List with show-all-if-ambiguous. Vi mode landed the same day and was not even on reedline's list. Nothing remaining is unreachable with rustyline, and the swap would land on the code between the user's fingers and the shell in the daily driver, where this intent itself says a regression is not a bug report but an unusable terminal. Cancelled on evidence, not abandoned -- and it stands as the first KEEP/CUT ruling for the thirteen-crate stack: reedline is CUT with a demonstrated reason. Refiling later remains open if a concrete capability appears that rustyline cannot reach. -- approved by: christian 2026-08-06
