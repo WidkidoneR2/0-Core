@@ -29,6 +29,52 @@ use std::rc::Rc;
 /// `break 'repl`. The 12 `continue 'repl` sites all sit ABOVE the segments loop and stay with
 /// the REPL. There is no `break 'segments` anywhere -- `&&`/`||` short-circuiting rides on the
 /// per-line `prev_op`, so an "abandon this line" variant would invent a capability fsh lacks.
+/// The flow decision, separated from the Engine so it can be tested without one.
+///
+/// SUCCESS IS READ FROM THE EXIT CODE AND NOWHERE ELSE. INT-171 gate 5 put the rule in one place
+/// after bug 968c7be5, where a failure returned a variant a scattered inline check read as success.
+/// Re-deriving success from a result variant at another call site IS that bug.
+pub(crate) fn chain_skips_with(prev_op: Option<bool>, last_exit: Option<i32>) -> bool {
+    match prev_op {
+        // No operator: nothing to short-circuit on. A semicolon group ends with None, so a chain
+        // resets at every boundary by construction rather than by a special case.
+        None => false,
+        Some(is_and) => is_and != (last_exit.unwrap_or(0) == 0),
+    }
+}
+
+#[cfg(test)]
+mod chain_flow_tests {
+    use super::chain_skips_with;
+
+    #[test]
+    fn and_runs_after_success_and_skips_after_failure() {
+        assert!(!chain_skips_with(Some(true), Some(0)));
+        assert!(chain_skips_with(Some(true), Some(1)));
+        assert!(chain_skips_with(Some(true), Some(127)));
+    }
+
+    #[test]
+    fn or_skips_after_success_and_runs_after_failure() {
+        assert!(chain_skips_with(Some(false), Some(0)));
+        assert!(!chain_skips_with(Some(false), Some(1)));
+    }
+
+    #[test]
+    fn no_operator_always_runs() {
+        assert!(!chain_skips_with(None, Some(0)));
+        assert!(!chain_skips_with(None, Some(1)));
+    }
+
+    #[test]
+    fn a_missing_exit_code_counts_as_success() {
+        // The first segment of a session has no previous result. Treating that as success is what
+        // makes `true && echo hi` run at a fresh prompt.
+        assert!(!chain_skips_with(Some(true), None));
+        assert!(chain_skips_with(Some(false), None));
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SegmentOutcome {
     /// Carry on with the next segment of this command line.
@@ -868,6 +914,19 @@ impl Engine {
         Some(SegmentOutcome::Next)
     }
     /// The last command's exit status.
+    /// Should this segment be SKIPPED, given the operator that preceded it?
+    ///
+    /// `&&` runs on success, `||` on failure, and no operator always runs. The operator belongs to
+    /// the part BEFORE it, so the caller passes the PREVIOUS part operator and this compares it
+    /// against the previous result.
+    ///
+    /// The caller keeps the `continue`. INT-201 extracts LOGIC from the segment loop, never control
+    /// flow: a bare `break` or `continue` means whatever the nearest enclosing loop says, so moving
+    /// one across a function boundary changes its meaning silently. Returning a bool cannot.
+    pub fn chain_skips(&self, prev_op: Option<bool>) -> bool {
+        chain_skips_with(prev_op, self.last_exit())
+    }
+
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code
     }

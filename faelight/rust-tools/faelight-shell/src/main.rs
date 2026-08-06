@@ -1549,12 +1549,9 @@ fn repl_main() -> Result<()> {
                     // is decided in ONE place, and that place is now `last_exit_code`, which is also what `$?`
                     // reports and what bash consults for the same decision. Do NOT re-derive success from a
                     // result variant at another call site; that divergence IS the bug 968c7be5 was.
-                    if let Some(is_and) = prev_op {
-                        let succeeded = engine.last_exit().unwrap_or(0) == 0;
-                        if is_and != succeeded {
-                            prev_op = *op;
-                            continue 'segments;
-                        }
+                    if engine.chain_skips(prev_op) {
+                        prev_op = *op;
+                        continue 'segments;
                     }
                     prev_op = *op;
                     let line = segment.as_str();
