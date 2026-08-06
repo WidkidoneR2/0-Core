@@ -94,8 +94,24 @@ fn enrich_from_registry(
 
 /// Line-parse registry/tools.toml into (name, category, expected_usage, description, retired).
 fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> {
-    let path = core_root().join("registry/tools.toml");
-    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    // The registry moved to faelight/ in the Phase 1 tree reorganisation and this path did not
+    // follow it. For a month every generated README said "unregistered" and "uncategorized" -- not
+    // because the tools were unregistered, but because this read returned nothing.
+    let path = core_root().join("faelight/registry/tools.toml");
+    // AND IT FAILED SILENTLY, which is why it lasted. unwrap_or_default turns a missing registry
+    // into an empty string, an empty vec, and a plausible-looking fallback on every tool. A
+    // generator that cannot find its input should say so; the caller can still continue.
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!(
+                "  registry not read ({}): {} -- every tool will render as unregistered",
+                path.display(),
+                e
+            );
+            String::new()
+        }
+    };
     let mut out = vec![];
     let (mut name, mut cat, mut usage, mut desc, mut retired, mut deps) = (
         String::new(),
