@@ -31,7 +31,9 @@ pub enum CommandResult {
     Exit,
     /// INT-143: "this command is not an fsh builtin" -- an ANSWER, not an action.
     ///
-    /// Only `try_builtin()` can return this. `execute()` never does, so every existing
+    /// INT-201 (2026-08-05): produced by execute_impl's `!allow_external` arms and consumed by
+    /// the SPINE at execute_plan_dispatch, where it means "not a builtin, so run argv". The
+    /// probe that once produced it (`try_builtin`) died with the inline redirect executor.
     /// caller is unaffected BY CONSTRUCTION (not by the compiler -- most call sites match
     /// with a `_` arm and would silently swallow a new variant).
     ///
@@ -277,17 +279,6 @@ pub fn expand_aliases(line: &str, db: &ForestDb) -> String {
     current
 }
 
-pub fn try_builtin(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    execute_impl(
-        &tokenize(line.trim()),
-        line,
-        db,
-        core_root,
-        &[],
-        ExecutionMode::Probe,
-    )
-}
-
 /// The single quote-aware tokenizer for the whole shell (INT-171 gate 1).
 /// Splits on spaces, respecting single and double quotes. Both the command
 /// dispatcher (execute_impl) and the ExecContext builder (exec.rs) call THIS --
@@ -382,10 +373,6 @@ pub enum ExecutionMode {
     /// Interactive text path. History, alias and plugin expansion all run; an unrecognised
     /// command falls through to `run_external` (which delegates the line to sh).
     Text,
-    /// INT-143 probe (`try_builtin`): ASK whether this line is a builtin without spawning.
-    /// Text transforms STILL run -- aliases are part of the honest answer to "would this hit a
-    /// builtin?" -- but the fallthrough answers `NotBuiltin` instead of spawning.
-    Probe,
     /// INT-169 plan-driven path. argv is AUTHORITATIVE: no history expansion, no alias
     /// expansion, no plugin expansion. The fallthrough answers `NotBuiltin` so the caller can
     /// spawn the plan directly. Because nothing rewrites argv here, that fallback cannot spawn
@@ -396,7 +383,7 @@ pub enum ExecutionMode {
 impl ExecutionMode {
     /// May text-world transforms (history, alias, plugin expansion) run?
     fn allows_text_transforms(self) -> bool {
-        matches!(self, ExecutionMode::Text | ExecutionMode::Probe)
+        matches!(self, ExecutionMode::Text)
     }
     /// May an unrecognised command be handed to `run_external`?
     fn allows_external(self) -> bool {
@@ -8581,7 +8568,7 @@ pub fn execute_plan_dispatch(
         // here and the plan's `io` was only ever read by execute_plan, the EXTERNAL arm below.
         // Claimed, plausible, wrong, silent: the same shape as the two bugs fixed earlier today.
         //
-        // ★ This is parity with legacy, not a new idea -- its redirect branch calls try_builtin and
+        // ★ This was parity with legacy's redirect branch, which called try_builtin and
         // writes the returned Output to the file. Same behaviour, now owned by the plan.
         CommandResult::Output(text)
             if matches!(plan.io, crate::spine::plan::IoPlan::Files { .. }) =>

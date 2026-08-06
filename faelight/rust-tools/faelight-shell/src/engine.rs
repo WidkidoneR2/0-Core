@@ -940,7 +940,6 @@ pub fn execute_and_record(
     original_line: &str,
     pipeline_ops: &[crate::value::PipeOp],
     has_external_op: bool,
-    redirect: Option<(String, bool)>,
     is_fm_cmd: bool,
     fm_cwd_file: &std::path::Path,
 ) -> SegmentOutcome {
@@ -1204,42 +1203,13 @@ pub fn execute_and_record(
         let _ = std::fs::create_dir_all(&cache_dir);
         let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
     }
-    // Write to file if redirect was detected, otherwise print
+    // INT-201: the redirect branch that stood here was DEAD and is deleted with executor (a).
+    // detect_redirect ran in the REPL loop and the inline redirect executor consumed every Some,
+    // ending in an unconditional continue -- so this function was only ever called with None, and
+    // the write hoisted in at 38f26186 never ran once. A parameter that cannot vary is not a
+    // capability; it is wiring that outlived its source.
     if let Some(output) = cmd_output {
-        if let Some((ref path, append)) = redirect {
-            use std::io::Write;
-            let home = std::env::var("HOME").unwrap_or_default();
-            let full_path = if path.starts_with("~/") {
-                format!("{}/{}", home, &path[2..])
-            } else {
-                path.clone()
-            };
-            let file = std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .append(append)
-                .truncate(!append)
-                .open(&full_path);
-            match file {
-                Ok(mut f) => {
-                    let _ = f.write_all(output.as_bytes());
-                    let _ = f.write_all(
-                        b"
-    ",
-                    );
-                    let mode = if append { ">>" } else { ">" };
-                    println!(
-                        "  {} {} {}",
-                        "○".bright_cyan(),
-                        mode.dimmed(),
-                        full_path.bright_white()
-                    );
-                }
-                Err(e) => eprintln!("  ✗ redirect failed: {}", e),
-            }
-        } else {
-            println!("{}", output);
-        }
+        println!("{}", output);
     }
     // Phase 20b — apply cwd after yazi/fm exits
     if is_fm_cmd {

@@ -2298,205 +2298,24 @@ fn repl_main() -> Result<()> {
                             continue 'segments;
                         }
                     }
-                    if let Some((ref redirect_target, is_append)) = redirect_info {
-                        // Check for stderr redirect (2> or 2>&1) — use original line
-                        // INT-172 RESTORATION (2026-07-17): hand `sh` the WHOLE line for any `2>`.
-                        // This code used to hand-parse `2>` and it TRUNCATED THE LINE. Every arm did
-                        //     cmd_part = working_line[..idx]
-                        // which takes the text LEFT of the `2>` token as the entire command and throws
-                        // away everything to its right -- INCLUDING THE PIPE. Measured on the deployed
-                        // binary 2026-07-17 (INT-172 gate 1):
-                        //     echo hello 2>/dev/null | grep -c hello   -> `hello`  (POSIX: 1)
-                        //     echo X > /tmp/o.txt 2>&1                 -> terminal, NO FILE
-                        //     echo hello 2>/tmp/err | grep -c hello    -> left a file named
-                        //                                                 'err | grep -c hello'
-                        // working_line[idx+3..] became the FILENAME. The pipeline became a path.
-                        //
-                        // THIS IS NOT A NEW FIX. It is a RESTORATION of nine lines deleted at 91f8f65f
-                        // on 2026-04-05 ("native stderr redirect -- no more sh fallback"), which read:
-                        //     // Delegate to sh for reliable redirect handling
-                        //     Command::new("sh").arg("-c").arg(line).status();
-                        // It was reliable. 159 lines replaced 9, and it has been silently corrupting
-                        // commands ever since -- born broken, never once repaired across 103 days and
-                        // two distros. `git log -S 'detect_redirect'` is the receipt. See INT-172.
-                        //
-                        // WHY THIS IS CORRECT: the branch below ALREADY spawns `sh -c`. fsh was never
-                        // avoiding a subprocess -- it was calling sh with a MANGLED argument. sh has a
-                        // real parser. Give it the untouched line and the redirect AND the pipe both
-                        // work, at zero new cost. detect_redirect's `2>` arm returns the line whole,
-                        // so line_stripped IS the whole line here.
-                        //
-                        // RELATION TO INT-171: this is neither a holding patch nor the consolidation.
-                        // The `2>` handling stops PARSING and becomes a ROUTER -- one boolean saying
-                        // "this line has a 2>, give it to sh whole". 171's inventory goes from five
-                        // parsers to four parsers and a router. A deletion makes 171's job SMALLER.
-                        //
-                        // KNOWN LIMIT, recorded not hidden (INT-143's convention): fsh BUILTINS plus
-                        // `2>` go to sh, and sh does not know `d` or `intl`. That is ALREADY true today
-                        // -- this branch never called try_builtin -- so it is a ceiling, not a
-                        // regression. Closing it means routing through try_builtin with real fd
-                        // plumbing, which is INT-171's job, not this one.
-                        let cmd_part = line_stripped.clone();
-                        // INT-245 #10: caught by detect_redirect — no target after > or >>
-                        if redirect_target == "__redirect_error_no_target__" {
-                            // INT-171 gate 6: render the parse error with a caret under the
-                            // offending `>` via miette, instead of a bare one-line message.
-                            eprint!("{}", crate::error::render_redirect_error(line));
-                            engine.set_last_exit(Some(2));
-                            continue 'segments;
-                        }
-                        // If it's a pure stderr redirect, handle separately
-                        let is_stderr_only = redirect_target == "__stderr__";
-                        // Open output file
-                        // For stderr-only redirects, handle without opening stdout file
-                        if is_stderr_only {
-                            let st = std::process::Command::new("sh")
-                                .arg("-c")
-                                .arg(&cmd_part)
-                                .stdin(std::process::Stdio::inherit())
-                                .stdout(std::process::Stdio::inherit())
-                                .stderr(std::process::Stdio::inherit())
-                                .envs(std::env::vars())
-                                .status();
-                            // INT-189: sh ran this; sh knows how it ended. Discarding the status left
-                            // `$?` reporting whatever failed before it.
-                            engine.set_last_exit(Some(st.ok().and_then(|s| s.code()).unwrap_or(1)));
-                            continue 'segments;
-                        }
-                        let file = if is_append {
-                            std::fs::OpenOptions::new()
-                                .append(true)
-                                .create(true)
-                                .open(redirect_target)
-                        } else {
-                            std::fs::OpenOptions::new()
-                                .write(true)
-                                .create(true)
-                                .truncate(true)
-                                .open(redirect_target)
-                        };
-                        match file {
-                            Ok(f) => {
-                                // INT-143: ASK whether this is a builtin -- do not find out by
-                                // running it. This line used to be commands::execute(), which for a
-                                // NON-builtin fell through to run_external -> `sh -c <line>`, which
-                                // RAN THE COMMAND. It returned Empty, `_ => None` read that as "not
-                                // a builtin", and the else-branch below SPAWNED IT AGAIN.
-                                // EVERY external `cmd > file` RAN TWICE. Proven 2026-07-16:
-                                //     rm -rf /tmp/dirtest; mkdir /tmp/dirtest > /tmp/mk.txt
-                                //     -> mkdir: cannot create directory ...: File exists
-                                // The dir did not exist. Run 1 made it; run 2 failed. `curl -X POST
-                                // > log` posted twice. `git push > out` pushed twice.
-                                // try_builtin() answers NotBuiltin instead of spawning.
-                                // INT-193 / BUG-298-4: the cat bypass means "use the REAL cat
-                                // for this invocation". It used to skip only the bat alias at the
-                                // prompt; the executor then re-expanded cat anyway, so the probe
-                                // answered NotBuiltin and /bin/cat ran BY ACCIDENT. With a single
-                                // owner the probe now sees `cat` unexpanded and matches fsh's cat
-                                // BUILTIN, whose returned string picks up a trailing newline --
-                                // measured 9 bytes in, 10 out. Skipping the probe here is the
-                                // bypass finally saying what it always meant.
-                                // ⚠️ A PIPELINE IS NOT A BUILTIN INVOCATION. `echo hi | cat > f` wrote the literal
-                                // text `hi | cat` into the file: try_builtin matched `echo`, which took the rest
-                                // of the line as ARGUMENTS and dutifully printed them. External-first pipelines
-                                // were fine (`uname | cat > f` works) only because nothing matched here and the
-                                // line fell through to `sh -c` below, where a real parser handles the pipe.
-                                //
-                                // It never errored -- it wrote something PLAUSIBLE -- so it corrupted output read
-                                // by other commands rather than failing visibly. Live since the redirect branch
-                                // was written; not a routing regression (FSH_SPINE=0 reproduces it).
-                                //
-                                // The detection already existed: `in_quotes` above means "no unquoted pipe", and
-                                // the logical-chain branch has made the same check since INT-109. This is that
-                                // check, in the one branch that lacked it.
-                                let line_has_pipe = !in_quotes;
-                                let builtin_result = if cat_with_redirect || line_has_pipe {
-                                    commands::CommandResult::NotBuiltin
-                                } else {
-                                    commands::try_builtin(
-                                        &cmd_part,
-                                        engine.db(),
-                                        engine.core_root(),
-                                    )
-                                };
-                                let is_builtin =
-                                    !matches!(builtin_result, commands::CommandResult::NotBuiltin);
-                                let builtin_out = match builtin_result {
-                                    commands::CommandResult::Output(o) => Some(o),
-                                    commands::CommandResult::Value(v) => Some(v.render()),
-                                    _ => None,
-                                };
-                                // INT-143: a builtin that PRINTED instead of returning (ls, d) gives
-                                // Empty and no captured output. It has ALREADY RUN. Spawning an
-                                // external twin here is the double-execution bug -- so stop.
-                                // KNOWN LIMIT, recorded not hidden: `ls > file` still leaks its
-                                // pretty listing to the terminal, because fsh's ls builtin prints
-                                // directly. The file now gets nothing rather than /bin/ls's output.
-                                // Fixing THAT means every print-directly builtin returning a String
-                                // instead -- a refactor across 227 match arms. See INT-143's ceiling.
-                                if is_builtin && builtin_out.is_none() {
-                                    // INT-169: record the status rather than leaving the PREVIOUS command's.
-                                    // INT-143: the builtin already ran and printed; it did not fail. A stale code here is invisible today, but `&&`
-                                    // is about to read this value to decide whether the next part runs.
-                                    engine.set_last_exit(Some(0));
-                                    continue 'segments;
-                                }
-                                if let Some(out) = builtin_out {
-                                    use std::io::Write;
-                                    if is_append {
-                                        if let Ok(mut f2) = std::fs::OpenOptions::new()
-                                            .append(true)
-                                            .create(true)
-                                            .open(redirect_target)
-                                        {
-                                            let _ = f2.write_all(out.as_bytes());
-                                            let _ = f2.write_all(b"\n");
-                                        }
-                                    } else {
-                                        if let Ok(mut f2) = std::fs::OpenOptions::new()
-                                            .write(true)
-                                            .create(true)
-                                            .truncate(true)
-                                            .open(redirect_target)
-                                        {
-                                            let _ = f2.write_all(out.as_bytes());
-                                            let _ = f2.write_all(b"\n");
-                                        }
-                                    }
-                                } else {
-                                    // INT-143: hand it to `sh -c` whole, exactly as run_external
-                                    // does. This used to be:
-                                    //     let parts = cmd_part.trim().splitn(2, ' ').collect();
-                                    //     Command::new(parts[0]).args(parts[1].split_whitespace())
-                                    // which WORD-SPLIT the arguments and kept the quote characters
-                                    // as literal text. Measured 2026-07-16:
-                                    //     printf 'a b' > /tmp/q1.txt   -> file contains:  'a
-                                    // printf received two tokens, `'a` and `b'`, and warned about
-                                    // "excess arguments". That silently mangled a .gitignore edit
-                                    // earlier the same day and nobody noticed until we looked.
-                                    // A shell's argument parsing is sh's job and sh is correct at
-                                    // it. We already trust it in run_external -- trust it here too,
-                                    // instead of maintaining a second, worse parser.
-                                    if !cmd_part.trim().is_empty() {
-                                        let mut cmd = std::process::Command::new("sh");
-                                        cmd.arg("-c").arg(cmd_part.trim());
-                                        // INT-172 (2026-07-17): the `if stderr_to_stdout` and `else if stderr_file`
-                                        // branches that stood here were UNREACHABLE and are deleted. detect_redirect
-                                        // returns __stderr__ for ANY line containing ` 2>` (its clause 2 precedes the
-                                        // `>>` and `>` clauses), and is_stderr_only early-returns above. So this path
-                                        // is only ever reached by lines with `>` and NO `2>`, where stderr_to_stdout is
-                                        // always false and stderr_file always None. The 2>&1-to-file code was written
-                                        // on purpose, looked correct, and could never run -- which is exactly why
-                                        // `cmd > f 2>&1` wrote no file. That behavior now comes from sh, above.
-                                        let _ = cmd
-                                            .stdout(std::process::Stdio::from(f))
-                                            .stderr(std::process::Stdio::inherit())
-                                            .status();
-                                    }
-                                } // end else external
-                            }
-                            Err(e) => eprintln!("fsh: redirect error: {}", e),
-                        }
+                    // EXECUTOR (a) WAS HERE -- two hundred and one lines of file opening, append handling, a
+                    // hundred-and-nineteen-line match over the opened file, and INT-172's sh delegation for `2>`.
+                    // The spine claims every redirect form probed with the router trace on: `> f`, `>> f`, `2> f`,
+                    // `2>&1`, `> f 2>&1`, `< f`, and a pipe into a file. `echo a >` is reported by the spine itself
+                    // since 23a6e306. So under default routing nothing arrives here.
+                    //
+                    // ⚠️ AND IT TOOK A DEAD PARAMETER WITH IT. This block ended in an unconditional
+                    // `continue 'segments`, so the `redirect` handed to execute_and_record was permanently None and
+                    // the write hoisted into it never ran. Deleting the block is what makes that visible.
+                    //
+                    // FSH_SPINE=0 still arrives, and says what it does not implement rather than half-doing it --
+                    // the migration-aid contract, same as pipelines.
+                    if redirect_info.is_some() {
+                        eprintln!(
+                            "{} legacy routing does not implement redirects -- unset FSH_SPINE to use the shell's own",
+                            "x".bright_red()
+                        );
+                        engine.set_last_exit(Some(1));
                         continue 'segments;
                     }
                     let line = line_stripped.as_str();
@@ -2707,7 +2526,6 @@ fn repl_main() -> Result<()> {
 
                     // Phase 13 — Redirection: already done early, use redirect_early
                     let line = line;
-                    let redirect = redirect_info;
                     // Re-parse pipeline after stripping redirect
                     // Helper: check if ANY pipe is outside quotes
                     let has_unquoted_pipe2 = || -> bool {
@@ -2808,7 +2626,6 @@ fn repl_main() -> Result<()> {
                         original_line,
                         &pipeline_ops,
                         has_external_op,
-                        redirect,
                         is_fm_cmd,
                         &fm_cwd_file,
                     );
