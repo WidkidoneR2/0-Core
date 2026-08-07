@@ -2356,11 +2356,7 @@ fn repl_main() -> Result<()> {
                     // FSH_SPINE=0 still arrives, and says what it does not implement rather than half-doing it --
                     // the migration-aid contract, same as pipelines.
                     if redirect_info.is_some() {
-                        eprintln!(
-                            "{} legacy routing does not implement redirects -- unset FSH_SPINE to use the shell's own",
-                            "x".bright_red()
-                        );
-                        engine.set_last_exit(Some(1));
+                        engine.refuse_unimplemented("redirects");
                         continue 'segments;
                     }
                     let line = line_stripped.as_str();
@@ -2446,11 +2442,7 @@ fn repl_main() -> Result<()> {
                     // ⚠️ THE CONDITION IS EXACTLY THE ONE THE EXECUTOR USED. execute_and_record still receives
                     // pipeline_ops and has_external_op, so refusing on any pipe would take work that still runs.
                     if has_external_op {
-                        eprintln!(
-                            "{} legacy routing does not implement pipelines -- unset FSH_SPINE to use the shell's own",
-                            "x".bright_red()
-                        );
-                        engine.set_last_exit(Some(1));
+                        engine.refuse_unimplemented("pipelines");
                         continue 'segments;
                     }
                     let base_cmd = if has_pipe {

@@ -927,6 +927,25 @@ impl Engine {
         chain_skips_with(prev_op, self.last_exit())
     }
 
+    /// Say that legacy routing does not implement a construct, and set a failing status.
+    ///
+    /// The two call sites were identical five-line blocks differing only in a noun, and a message
+    /// duplicated in two places drifts. What it says is a contract rather than a nicety: FSH_SPINE
+    /// is a MIGRATION AID for comparing routing, not a fallback shell, so legacy names what it no
+    /// longer implements instead of splitting text and hoping -- which is how a backgrounded
+    /// pipeline once handed `cat` an ampersand as an argument.
+    ///
+    /// The caller keeps its `if` and its `continue`. Carrying control flow across a function
+    /// boundary is the thing INT-201 does not do.
+    pub fn refuse_unimplemented(&mut self, construct: &str) {
+        eprintln!(
+            "{} legacy routing does not implement {} -- unset FSH_SPINE to use the shell's own",
+            colored::Colorize::bright_red("x"),
+            construct
+        );
+        self.set_last_exit(Some(1));
+    }
+
     pub fn last_exit(&self) -> Option<i32> {
         self.last_exit_code
     }
