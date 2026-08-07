@@ -1922,22 +1922,12 @@ fn repl_main() -> Result<()> {
                         crate::engine::RouteOutcome::ExitShell => break 'repl,
                         crate::engine::RouteOutcome::Declined => {}
                     }
-                    let line = expand_vars(line, engine.vars(), engine.last_exit());
-                    // Subshell expansion
-                    let line = expand_subshells(&line);
-                    // Glob expansion — expand *.rs, *.md etc
-                    // INT-097: failglob -- if any unquoted glob matched nothing,
-                    // report it clearly and skip the command (no cryptic literal-* OS error,
-                    // no bogus Friday suggestion via the error path).
-                    let unmatched = find_unmatched_globs(&line);
-                    if !unmatched.is_empty() {
-                        for pat in &unmatched {
-                            println!("  no matches for pattern: {}", pat);
-                        }
-                        engine.set_last_exit(Some(1));
-                        continue;
-                    }
-                    let line = expand_globs(&line);
+                    // INT-201: the expansion pipeline moved to the engine; the REPL keeps the
+                    // continue, because a failglob refusal is control flow and this loop owns it.
+                    let line = match engine.expand_line(line) {
+                        Some(l) => l,
+                        None => continue 'segments,
+                    };
                     let line = line.as_str();
 
                     // INT-265: forest/query pipelines. Moved into the engine 2026-08-05 (INT-201) --

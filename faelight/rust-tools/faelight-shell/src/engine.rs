@@ -1323,6 +1323,30 @@ impl Engine {
         None
     }
 
+    /// Run the expansion pipeline over a line: variables, subshells, then globs.
+    ///
+    /// `None` means the line must NOT run. INT-097: an unquoted glob that matched nothing is
+    /// reported here and the command is skipped, rather than being passed through as a literal
+    /// asterisk for the OS to reject with something cryptic -- which also kept a bogus suggestion
+    /// off the error path.
+    ///
+    /// The caller keeps the `continue`. Order is fixed and load-bearing: variables resolve before
+    /// subshells so `NAME=$(cmd)` sees the command, and globs come last so an expanded variable can
+    /// contain a pattern.
+    pub fn expand_line(&mut self, line: &str) -> Option<String> {
+        let line = crate::expand_vars(line, self.vars(), self.last_exit());
+        let line = crate::expand::expand_subshells(&line);
+        let unmatched = crate::expand::find_unmatched_globs(&line);
+        if !unmatched.is_empty() {
+            for pat in &unmatched {
+                println!("  no matches for pattern: {}", pat);
+            }
+            self.set_last_exit(Some(1));
+            return None;
+        }
+        Some(crate::expand::expand_globs(&line))
+    }
+
     /// Say that legacy routing does not implement a construct, and set a failing status.
     ///
     /// The two call sites were identical five-line blocks differing only in a noun, and a message
