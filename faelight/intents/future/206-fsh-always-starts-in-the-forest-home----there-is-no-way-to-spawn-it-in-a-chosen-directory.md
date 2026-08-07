@@ -54,6 +54,16 @@ explicit signal.
                   directory otherwise. Closest to what a reader would expect, and it needs the shell
                   to know which role it is in -- which is a question INT-201 is already answering.
 
+## A STOPGAP IS IN PLACE, AND IT IS PART OF THIS INTENT'S WORK TO REMOVE (2026-08-07)
+Since the conformance corpus stopped declaring its two divergences, fsh EXECUTES those redirects --
+so the files named 0.5 and = now land in the repository root on EVERY suite run, not occasionally.
+They have been committed by accident before.
+
+.gitignore therefore carries a root-anchored entry for both, with a comment naming this intent. It
+hides the symptom and does not touch the cause. ⚠️ THE BLOCK IS DELETED AS PART OF CLOSING THIS
+INTENT -- an ignore that outlives its bug is one nobody remembers the reason for, and the next person
+to see those files appear would have no thread to pull.
+
 ## Success Criteria
 - [ ] RED FIRST, RECORDED: `cd /tmp && fsh` lands in the forest home, captured before any change, and
       the same for a spawned process with an explicit working directory.
