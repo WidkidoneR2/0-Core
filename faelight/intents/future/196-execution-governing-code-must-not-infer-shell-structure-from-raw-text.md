@@ -37,6 +37,35 @@ Known instances, enumerated 2026-07-25 and not yet fixable:
 That list is a starting point, not a census. The census belongs to this intent
 and should be taken when the intent starts, since the sites will have moved.
 
+## Census, first entries -- found by extraction, not by grep (2026-08-06)
+INT-201's gate-4 work walked the segment loop line by line to extract it, and that walk found five
+sites in one region of main.rs. They are recorded here because this intent owns the census.
+
+FOUR DERIVATIONS OF THE SAME THING. The command to execute is derived four times between the router
+and the executor: once after the expansions, again after a second pipe analysis, again when the file
+manager needs its own form, and again for tilde expansion. Each derives from the line rather than
+from the previous derivation.
+
+TWICE FOR THE PIPE ANALYSIS TOO. Whether the line contains a pipe, and what its stages are, is worked
+out once above and again below, the second set named with a trailing two. Nothing consumes the first
+result; the second simply redoes it.
+
+AND A HAND-WRITTEN QUOTE-AWARE SCANNER. One of those re-analyses is a closure that walks the bytes of
+the line looking for an unquoted pipe, tracking whether it is inside double quotes as it goes. This
+intent warns against opening the work by writing a better scanner, on the grounds that it would add a
+fifth interpretation of shell structure. That warning is retrospective: the scanner is already there.
+
+WHY THESE WERE NOT FIXED WHEN FOUND. Extraction would have moved them into the engine unchanged --
+the same code in a tidier place, still deriving structure from raw text. That would have made the
+violation harder to see without making it smaller. They stay where they are until there is something
+correct to point them at, which is what gate zero is waiting for.
+
+⭐ AND THAT IS THE USEFUL PART: gate zero says this intent is blocked until the parser is
+authoritative over execution. INT-201 spent two days making it so -- the routing decision, the
+assignment handling, the expansions and the streaming path all now live behind the engine, and
+main.rs went from 3,913 lines to 3,060. The blocker is not theoretical any more; it is being lifted,
+and these five sites are what will be waiting when it lifts.
+
 ## Scope
 The same boundary INT-195 established: the execution path, plus any component
 whose decision directly governs execution (a privileged execution consumer).
