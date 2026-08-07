@@ -2166,104 +2166,10 @@ fn repl_main() -> Result<()> {
                     // the JobTable that lives in this loop, which spine dispatch has no path to -- so the
                     // spine can PARSE them and can never RUN them. Excluded before the attempt rather than
                     // handled inside it: the router's contract is that a claim means ownership.
-                    let spine_on = !is_repl_state_command(line)
-                        && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
-                    let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
-                    // ⚠️ TWO REASONS THE SPINE IS OFF, and saying the wrong one is worse than silence: the
-                    // env var is an escape hatch the user chose, while the exclusion is structural. This
-                    // printed "disabled by FSH_SPINE=0" for every `jobs` and `kill %n` with the variable
-                    // unset, which would send a future reader hunting an environment problem that is not
-                    // there.
-                    if spine_trace && !spine_on {
-                        if is_repl_state_command(line) {
-                            eprintln!(
-                                "  [spine-router] excluded: REPL-state command -- legacy owns it"
-                            );
-                        } else {
-                            eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
-                        }
-                    }
-                    if spine_on {
-                        let shell = engine.shell_context();
-                        // INT-200: BACKGROUND IS TRIED FIRST, because it is the one construct whose result is
-                        // not a CommandResult -- it is a live child that must be REGISTERED rather than waited
-                        // on. exec.rs builds the configured Command; the job table lives here, so the handoff
-                        // happens here and neither side learns the other's job.
-                        //
-                        // A redirected background line IS claimed, and its redirect IS honoured:
-                        // background_command wires plan.io through configure_file_io, the same function the
-                        // foreground path uses. Its doc owns those rules; this site only hands the built
-                        // Command to the job table.
-                        if let Some(attempt) = exec::try_spine_background_command(
-                            line,
-                            &shell,
-                            engine.db(),
-                            engine.core_root(),
-                            engine.before_rules(),
-                        ) {
-                            match attempt {
-                                Ok(attempt) => {
-                                    if spine_trace {
-                                        eprintln!("  [spine-router] claimed (background): {line}");
-                                    }
-                                    let started = match attempt {
-                                        exec::BackgroundAttempt::Single(c, l) => {
-                                            job_table.register(c, &l)
-                                        }
-                                        exec::BackgroundAttempt::Chain(ch, l) => {
-                                            job_table.register_chain(ch, &l)
-                                        }
-                                    };
-                                    match started {
-                                        Ok(_) => engine.set_last_exit(Some(0)),
-                                        Err(e) => {
-                                            eprintln!("{} {}", "x".bright_red(), e);
-                                            engine.set_last_exit(Some(1));
-                                        }
-                                    }
-                                    continue 'segments;
-                                }
-                                Err(e) => {
-                                    eprintln!("{} spine: {e:?}", "x".bright_red());
-                                    engine.set_last_exit(Some(1));
-                                    continue 'segments;
-                                }
-                            }
-                        }
-                        match exec::try_execute_spine_source(
-                            line,
-                            &shell,
-                            engine.db(),
-                            engine.core_root(),
-                            engine.before_rules(),
-                        ) {
-                            exec::SpineOutcome::Executed(result) => {
-                                if spine_trace {
-                                    eprintln!("  [spine-router] claimed: {line}");
-                                }
-                                if engine.absorb_result(result, "spine")
-                                    == crate::engine::SegmentOutcome::ExitShell
-                                {
-                                    break 'repl;
-                                }
-                                continue;
-                            }
-                            // The spine owned the line and has already reported. Nothing to print and nothing
-                            // to run -- only the status to record. `Handled` is named for that ownership rather
-                            // than for the diagnostic, so the next claimed-but-not-executed case fits it too.
-                            exec::SpineOutcome::Handled { exit_code } => {
-                                if spine_trace {
-                                    eprintln!("  [spine-router] handled: {line}");
-                                }
-                                engine.set_last_exit(Some(exit_code));
-                                continue;
-                            }
-                            exec::SpineOutcome::Declined => {
-                                if spine_trace {
-                                    eprintln!("  [spine-router] declined: {line}");
-                                }
-                            }
-                        }
+                    match engine.route_through_spine(line, &mut job_table) {
+                        crate::engine::RouteOutcome::Handled => continue 'segments,
+                        crate::engine::RouteOutcome::ExitShell => break 'repl,
+                        crate::engine::RouteOutcome::Declined => {}
                     }
                     let line = expand_vars(line, engine.vars(), engine.last_exit());
                     // Subshell expansion

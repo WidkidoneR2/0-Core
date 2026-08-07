@@ -75,6 +75,20 @@ mod chain_flow_tests {
     }
 }
 
+/// What routing one line through the spine tells the caller to do.
+///
+/// Three outcomes because the router has three, and they were previously encoded by WHICH of five
+/// control-flow statements the block happened to reach. A type says it once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RouteOutcome {
+    /// The spine claimed the line and dealt with it. Carry on with the next segment.
+    Handled,
+    /// The shell should exit.
+    ExitShell,
+    /// Not the spine's. Fall through to legacy with the source untouched.
+    Declined,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SegmentOutcome {
     /// Carry on with the next segment of this command line.
@@ -925,6 +939,118 @@ impl Engine {
     /// one across a function boundary changes its meaning silently. Returning a bool cannot.
     pub fn chain_skips(&self, prev_op: Option<bool>) -> bool {
         chain_skips_with(prev_op, self.last_exit())
+    }
+
+    /// Route one line through the spine: claim it, report it, or decline it.
+    ///
+    /// THE ROUTING DECISION IS DISPATCH, which is what gate 4 says the REPL must stop performing.
+    /// The caller keeps its `continue` and its `break` -- this returns which of the three the loop
+    /// should do, so no labelled control flow crosses the boundary.
+    ///
+    /// `jobs` is passed rather than held: backgrounding produces a live child that must be
+    /// REGISTERED rather than waited on, and the job table is session state that belongs to the
+    /// REPL. Gate 2 ruled that and the ruling stands.
+    pub fn route_through_spine(
+        &mut self,
+        line: &str,
+        jobs: &mut crate::jobs::JobTable,
+    ) -> RouteOutcome {
+        let spine_on = !crate::is_repl_state_command(line)
+            && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
+        let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
+        // ⚠️ TWO REASONS THE SPINE IS OFF, and saying the wrong one is worse than silence: the
+        // env var is an escape hatch the user chose, while the exclusion is structural. This
+        // printed "disabled by FSH_SPINE=0" for every `jobs` and `kill %n` with the variable
+        // unset, which would send a future reader hunting an environment problem that is not
+        // there.
+        if spine_trace && !spine_on {
+            if crate::is_repl_state_command(line) {
+                eprintln!("  [spine-router] excluded: REPL-state command -- legacy owns it");
+            } else {
+                eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
+            }
+        }
+        if spine_on {
+            let shell = self.shell_context();
+            // INT-200: BACKGROUND IS TRIED FIRST, because it is the one construct whose result is
+            // not a CommandResult -- it is a live child that must be REGISTERED rather than waited
+            // on. exec.rs builds the configured Command; the job table lives here, so the handoff
+            // happens here and neither side learns the other's job.
+            //
+            // A redirected background line IS claimed, and its redirect IS honoured:
+            // background_command wires plan.io through configure_file_io, the same function the
+            // foreground path uses. Its doc owns those rules; this site only hands the built
+            // Command to the job table.
+            if let Some(attempt) = crate::exec::try_spine_background_command(
+                line,
+                &shell,
+                self.db(),
+                self.core_root(),
+                self.before_rules(),
+            ) {
+                match attempt {
+                    Ok(attempt) => {
+                        if spine_trace {
+                            eprintln!("  [spine-router] claimed (background): {line}");
+                        }
+                        let started = match attempt {
+                            crate::exec::BackgroundAttempt::Single(c, l) => jobs.register(c, &l),
+                            crate::exec::BackgroundAttempt::Chain(ch, l) => {
+                                jobs.register_chain(ch, &l)
+                            }
+                        };
+                        match started {
+                            Ok(_) => self.set_last_exit(Some(0)),
+                            Err(e) => {
+                                eprintln!("{} {}", colored::Colorize::bright_red("x"), e);
+                                self.set_last_exit(Some(1));
+                            }
+                        }
+                        return RouteOutcome::Handled;
+                    }
+                    Err(e) => {
+                        eprintln!("{} spine: {e:?}", colored::Colorize::bright_red("x"));
+                        self.set_last_exit(Some(1));
+                        return RouteOutcome::Handled;
+                    }
+                }
+            }
+            match crate::exec::try_execute_spine_source(
+                line,
+                &shell,
+                self.db(),
+                self.core_root(),
+                self.before_rules(),
+            ) {
+                crate::exec::SpineOutcome::Executed(result) => {
+                    if spine_trace {
+                        eprintln!("  [spine-router] claimed: {line}");
+                    }
+                    if self.absorb_result(result, "spine")
+                        == crate::engine::SegmentOutcome::ExitShell
+                    {
+                        return RouteOutcome::ExitShell;
+                    }
+                    return RouteOutcome::Handled;
+                }
+                // The spine owned the line and has already reported. Nothing to print and nothing
+                // to run -- only the status to record. `Handled` is named for that ownership rather
+                // than for the diagnostic, so the next claimed-but-not-executed case fits it too.
+                crate::exec::SpineOutcome::Handled { exit_code } => {
+                    if spine_trace {
+                        eprintln!("  [spine-router] handled: {line}");
+                    }
+                    self.set_last_exit(Some(exit_code));
+                    return RouteOutcome::Handled;
+                }
+                crate::exec::SpineOutcome::Declined => {
+                    if spine_trace {
+                        eprintln!("  [spine-router] declined: {line}");
+                    }
+                }
+            }
+        }
+        RouteOutcome::Declined
     }
 
     /// Say that legacy routing does not implement a construct, and set a failing status.
