@@ -572,6 +572,33 @@ main.rs is 3,142 lines, from 3,913 two days ago. What remains before run_segment
 the expansions at roughly twenty lines, and the base_cmd derivations with streaming at about a
 hundred.
 
+## Progress -- six extractions, and one thing deliberately not extracted (2026-08-06)
+The flow decision, the refusal wording, routing, assignment, the expansions, and streaming. main.rs
+is 3,060 lines from 3,913 two days ago.
+
+THE METHOD IS SETTLED AND IT IS WHAT MADE THE LARGE ONES POSSIBLE. Python reads the span out of the
+file, applies mechanical substitutions, and stages the result for inspection before either source is
+touched. Nothing is retyped. The four failed attempts at the whole-body lift all died on transcribed
+anchors; the two-hundred-and-sixty-one-line assignment block moved without a character being typed.
+
+AND THE BARE-EXIT QUESTION IS ANSWERABLE AFTER ALL, just not from text. Printing indent depth per
+line shows which loop a bare continue binds to: in the assignment block the enclosing loop is a
+hand-rolled parse over a multi-assignment prefix, so its bare exits stayed; in the expansion block
+the for loop closes first, so the bare continue belonged to the segment loop and became a return.
+The census was right that text cannot tell. Indentation can.
+
+⚠️ WHAT WAS NOT EXTRACTED, AND WHY IT MATTERS MORE THAN WHAT WAS. The region around the executor
+derives base_cmd FOUR times -- at the start, again after a second pipe analysis, again for the file
+manager, and again for tilde expansion -- and derives the pipe analysis twice, the second pair named
+with a trailing two. Two of those sites carry a comment calling them canonical, quote-aware
+derivations while participating in exactly the re-derivation INT-195 exists to end. Moving that into
+the engine would have laundered it: the same code, in a tidier place, still wrong. It stays where it
+is and becomes a finding for the intent that owns the rule.
+
+⏭ WHAT REMAINS. The derivation question is a correctness matter rather than a structural one, and it
+belongs to INT-195. Once it is settled, run_segment is a wrapper rather than a relocation, and then
+run_input and the two -c gates are what stand between here and the gate.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
