@@ -1103,11 +1103,16 @@ fn all_tests() -> Vec<TestResult> {
             Box::leak(format!("conform_{}", slug(line)).into_boxed_str()),
             Category::Repl,
             move || {
-                // ⚠️ RUN BASH IN /tmp, NOT THE REPO. The two declared-divergence cases are
-                // exactly the ones bash executes as redirects -- `echo test > 0.5` and
-                // `echo test >= x` -- so bash creates files named `0.5` and `=` wherever it runs.
-                // They landed in the repo root and were committed before anyone noticed. fsh is
-                // the shell that refuses them; the reference implementation is not.
+                // ⚠️ RUN BASH IN /tmp, NOT THE REPO -- and fsh too, which
+                // run_repl_lines_status already does. Two cases execute as redirects and write
+                // files named `0.5` and `=` wherever the shell runs. They landed in the repo root
+                // and were committed before anyone noticed.
+                //
+                // ★ AND BOTH SHELLS NEED THIS NOW. The original note said fsh was the shell that
+                // refused them and the reference implementation was not. Since 2026-08-07 fsh
+                // executes them exactly as bash does, so the asymmetry that made this a one-sided
+                // precaution is gone -- which is also why neither case declares a divergence any
+                // more.
                 let bash = std::process::Command::new("bash")
                     .current_dir("/tmp")
                     .args(["-c", line])
@@ -1585,17 +1590,14 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     ("echo \"a > b\"", None),
     ("echo \"a|b\"", None),
     // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
-    (
-        "echo test > 0.5",
-        Some(
-            "bash creates a file named 0.5; fsh treats a digit-initial target as a COMPARISON so \
-             `ps | where cpu > 0.5` keeps working. The query language depends on this.",
-        ),
-    ),
-    (
-        "echo test >= x",
-        Some("same rule, `=` instead of a digit -- `where score >= 70` must stay a comparison."),
-    ),
+    // ⭐ THESE TWO WERE THE ONLY DECLARED DIVERGENCES, AND THEY ARE GONE (2026-08-07). fsh used to
+    // read any digit-initial or `=`-initial redirect target as a comparison, so that
+    // `ps | where cpu > 0.5` kept working -- but that refused `echo test > 0.5` too, which has
+    // nothing to do with the query language. The guard now asks whether the line is QUERY-SHAPED
+    // (has any word so far named a value verb or source) before treating `>` as a comparison, so
+    // both of these agree with bash and both write the file bash writes.
+    ("echo test > 0.5", None),
+    ("echo test >= x", None),
 ];
 
 /// A stable test name from a case line: alphanumerics kept, everything else collapsed to `_`.

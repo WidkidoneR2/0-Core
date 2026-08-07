@@ -184,15 +184,40 @@ impl Parser {
                         // ★ SCOPED TO FILE TARGETS ONLY, and that scoping is load-bearing: `2>&1`
                         // has the target `1`, which starts with a digit. Applying this guard to a
                         // stream target would refuse the single most common fd form in the corpus.
-                        if let Some(WordPart::Literal { text, .. }) = parts.first() {
-                            if text
-                                .chars()
-                                .next()
-                                .is_some_and(|c| c.is_ascii_digit() || c == '=')
-                            {
-                                return Err(ParseError::ComparisonNotRedirect {
-                                    span: opspan.merge(tspan),
-                                });
+                        // ⚠️ AND SCOPED TO QUERY-SHAPED LINES ONLY, which is the second half of the
+                        // scoping and was missing until 2026-08-07. Asking only "does the target
+                        // start with a digit" made `echo test > 0.5` a comparison too, which is a
+                        // divergence from bash with nothing to gain: bash writes a file called 0.5
+                        // and so should fsh. The reason the guard exists is the QUERY language, so
+                        // it should only fire for a line written in that language.
+                        //
+                        // The test is the vocabulary itself, asked rather than re-invented: has any
+                        // word so far named a value verb or source? `where cpu` has. `select * from
+                        // ps where cpu` has. `echo test` has not, so its `>` is an ordinary redirect.
+                        //
+                        // ⚠️ A PIPELINE ALONE IS NOT ENOUGH TO DECIDE THIS. `select * from ps where
+                        // cpu > 1` has no pipe and begins with a verb rather than a source, so the
+                        // is_forest_pipeline check cannot rescue it -- without this guard the spine
+                        // would claim it and write a file called `1` instead of running the query.
+                        let query_shaped = words.iter().any(|w| {
+                            matches!(
+                                w.node.parts.as_slice(),
+                                [WordPart::Literal { text, .. }]
+                                    if crate::value::is_value_verb(text)
+                                        || crate::value::is_value_source(text)
+                            )
+                        });
+                        if query_shaped {
+                            if let Some(WordPart::Literal { text, .. }) = parts.first() {
+                                if text
+                                    .chars()
+                                    .next()
+                                    .is_some_and(|c| c.is_ascii_digit() || c == '=')
+                                {
+                                    return Err(ParseError::ComparisonNotRedirect {
+                                        span: opspan.merge(tspan),
+                                    });
+                                }
                             }
                         }
                         RedirectTarget::File(Word { parts })
