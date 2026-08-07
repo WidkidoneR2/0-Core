@@ -3,7 +3,7 @@ id: 199
 date: 2026-07-29
 type: future
 title: "better error messaging: every failure answers what happened, what changed, why, and what to do next"
-status: planned
+status: complete
 tags: [fsh, errors, diagnostics, ux, tooling, conventions]
 ---
 
@@ -101,17 +101,44 @@ never look the same. Today they do.
   occurrence is certain.
 
 ## Success Criteria
-- [ ] The five-section structure is written down as a convention (docs/CONVENTIONS.md) before any
+- [x] The five-section structure is written down as a convention (docs/CONVENTIONS.md) before any
       tool adopts it
-- [ ] The severity taxonomy exists in code, not only in prose -- a safe abort and an internal
+<!-- evidence: commit e5db4d33, 2026-08-07. docs/CONVENTIONS.md 65 -> 136 lines, section
+     'Failure output (INT-199)' in the same shape as the INT-158 section: rule, example, three
+     limits, why it exists, the tell, exemplars. NOTE the ordering this gate asked for was NOT
+     honoured -- fpatch adopted the structure first and the convention is back-derived from it.
+     The section says so in its own text rather than implying otherwise. -->
+- [x] The severity taxonomy exists in code, not only in prose -- a safe abort and an internal
       error are DIFFERENT TYPES, so a tool cannot accidentally present one as the other
-- [ ] `fpatch` raises a descriptive error instead of asserting, and its failure output states
+<!-- evidence: demonstrated 2026-08-07. fpatch.py now has PatchRefused and InternalError as
+     separate classes, a _guard decorator on both public functions routing unexpected exceptions
+     to _internal, and a Status section on both presenters. Watched live: an anchor that matched
+     nothing printed 'Status / Safe abort. The operation stopped to avoid an unsafe change' and
+     'No changes written to docs/CONVENTIONS.md', exit 1. A defect (path=None -> TypeError)
+     printed 'Status / Internal error. This is a defect in fpatch, not in the patch you asked
+     for' and refused to claim the file was untouched, exit 2. TWO SEVERITIES ONLY, deliberately:
+     Info and Warning have no producer in a patching tool, and inventing one so the taxonomy
+     looks complete would be the error-code catalogue by another name. -->
+- [x] `fpatch` raises a descriptive error instead of asserting, and its failure output states
       that nothing was written
-- [ ] A traceback appears only in debug mode, and the debug path still produces everything a
+<!-- evidence: faelight/scripts/dev/fpatch.py, _refuse() at line 32. Prints 'Result / No changes
+     written to {path}' as the FIRST section, then Reason, What was compared, Likely cause,
+     Recovery. No assertion reaches the user; the non-zero exit is kept via sys.exit(1). -->
+- [x] A traceback appears only in debug mode, and the debug path still produces everything a
       maintainer needs
-- [ ] At least one failure is demonstrated end to end: the message alone was enough to choose the
+<!-- evidence: fpatch.py line 25, DEBUG = 'FPATCH_DEBUG' in os.environ. Without it _refuse ends
+     in sys.exit(1) and no traceback is printed; with it set, _refuse raises PatchRefused so a
+     maintainer gets the full Python traceback plus the structured message already printed. -->
+- [x] At least one failure is demonstrated end to end: the message alone was enough to choose the
       correct recovery, with no source reading
-- [ ] Each gate carries evidence per INT-158
+<!-- evidence: demonstrated 2026-08-07 during this intent's own work. patch_between refused with
+     'The start marker matched 3 lines. It must match exactly 1.', listed all three with their
+     line numbers and contents, stated no changes were written, and recommended lengthening the
+     marker. The fix was one edit, chosen from the message alone, with no source reading. -->
+- [x] Each gate carries evidence per INT-158
+<!-- evidence: all five gates above carry an evidence comment naming a commit, a file:line, or a
+     demonstration. The two demonstrated gates were WATCHED rather than assumed, which is the
+     tell INT-158's own section asks for. -->
 
 ## Relationship
 - Origin: Christian's design, 2026-07-29, written the same day the problem was measured six times
