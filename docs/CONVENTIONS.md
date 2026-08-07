@@ -63,3 +63,74 @@ a gate and a green light.
 INT-133 (the original), INT-161 (Secure Boot, 9 gates), INT-112 (RISK.toml, 6 gates), INT-061
 (the v2 restructure), INT-027:58 -- which discharges a `(consider)` gate by **declining** it, with
 four numbered reasons. A gate can be closed by deciding NOT to do the thing. That is still proof.
+
+---
+
+## Failure output (INT-199)
+
+**A safe abort and a crash must not look the same. Lead with what did NOT happen.**
+
+When a tool stops, say so in this order, before any internal detail:
+==================================================================
+PATCH REFUSED -- safe abort
+
+Result
+No changes written to src/main.rs
+
+Reason
+The anchor matched 3 lines. It must match exactly 1.
+
+What was compared
+marker: 'Phase 10'
+line 1051: ' // Phase 10 — shell variable table'
+
+Likely cause
+
+The marker is not unique.
+
+Recovery
+
+Lengthen the marker until it is unique.
+
+**Result first.** The absence of side effects is usually the most reassuring fact available and the
+hardest to infer. It should never have to be deduced from knowing how the tool works.
+
+**The message carries the diagnostic.** No error code to look up. A code needs a catalogue behind it,
+which is a second artifact to maintain and a second one to go stale.
+
+### The three limits
+
+**Assertions are for bugs.** An assertion means the program reached a state that should never happen.
+A missing search pattern means the requested operation cannot be completed safely. Different events,
+different presentation. Keep the non-zero exit either way.
+
+**Diagnostics are opt-in.** Structured output by default; the traceback behind a debug flag. Normal
+use stays approachable without losing anything a maintainer needs.
+
+**Recovery is part of the interface.** An error should begin the debugging workflow, not end it.
+Numbered, runnable next steps, so external documentation is rarely needed.
+
+### Why this exists
+
+Measured 2026-07-29. `fpatch` aborted six times in one session and every abort printed a bare
+`AssertionError` with a traceback. The tool was correct every time — it declined a patch whose anchor no
+longer matched, and wrote nothing. But the fact that mattered, NOTHING WAS WRITTEN, appeared nowhere.
+Twice that session a safe refusal was read as a broken tool, and the wrong recovery was attempted.
+
+⚠️ This convention is written down AFTER the tool that follows it, which is the wrong order and worth
+admitting. INT-199 asked for the convention first; `fpatch` got there before anyone wrote it. What is
+recorded here is what the implementation proved worth having.
+
+### The tell
+
+**If you have to know how the tool works to tell a refusal from a crash, the message is wrong.**
+
+On 2026-08-06 an anchor matched three lines instead of one. The refusal named all three with their
+line numbers, said nothing had been written, and said to lengthen the marker. The fix took one edit
+and no source reading. That is the whole intent working: the message alone was enough.
+
+### Exemplars
+
+`faelight/scripts/dev/fpatch.py` — its `_refuse` is the reference implementation. INT-192 is the
+sibling from the opposite direction: tools that cannot express an UNDETERMINED outcome, so a failed
+check reports clean. That one is about silence; this one is about noise.
