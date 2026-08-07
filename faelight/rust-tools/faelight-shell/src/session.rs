@@ -120,8 +120,19 @@ impl SessionMemory {
                 "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_session_ts', ?1)",
                 rusqlite::params![ts],
             );
-            // Save current directory
-            if let Ok(cwd) = std::env::current_dir() {
+            // Save current directory.
+            //
+            // INT-206: NOT WHEN THE CALLER CHOSE IT. A session running with FSH_KEEP_CWD stays
+            // where it was spawned, and writing that here would teach the NEXT ordinary session
+            // that the user's last directory was wherever a harness happened to run. Suppressing
+            // only the restore was not enough -- the poisoned value simply waited in session_state
+            // for the next start. Found by the guardian case, which was written to cover something
+            // else entirely.
+            //
+            // The other three writes here are untouched: a test run still has a commit count, a
+            // timestamp and an intent worth remembering. Only the directory is a lie.
+            if crate::keep_launch_cwd() {
+            } else if let Ok(cwd) = std::env::current_dir() {
                 let _ = conn.execute(
                     "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_dir', ?1)",
                     rusqlite::params![cwd.to_string_lossy().to_string()],

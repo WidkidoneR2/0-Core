@@ -778,6 +778,26 @@ fn runtime_init() -> Result<RuntimeInit> {
     })
 }
 
+/// INT-206: may the shell stay in the directory it was SPAWNED in?
+///
+/// fsh starts in the forest home on purpose, and restores its last directory on purpose. Both are
+/// deliberate and neither is being removed. What was missing is a way OUT: a harness that spawns fsh
+/// with a chosen working directory had no way to make that stick, so fsh-test asked for /tmp and
+/// silently got the repository -- which is how two conformance files came to be written into it on
+/// every run.
+///
+/// ⚠️ AN EXPLICIT SIGNAL IS THE ONLY HONEST MECHANISM HERE. A spawned process cannot tell a chosen
+/// working directory from an inherited one, and the obvious heuristic -- honour it unless this is an
+/// interactive login shell -- does not work either, because fsh-test drives a REAL PTY, so stdin is
+/// a terminal inside the harness too.
+///
+/// Defaults to false: unset, every existing behaviour is unchanged.
+fn keep_launch_cwd() -> bool {
+    std::env::var("FSH_KEEP_CWD")
+        .map(|v| v != "0")
+        .unwrap_or(false)
+}
+
 fn repl_main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
@@ -850,8 +870,12 @@ fn repl_main() -> Result<()> {
     // NOTE this OVERRIDES the directory fsh was spawned in, and so does the last_dir restore near
     // the end of the banner. Both are deliberate ("keep work in forest home"), but there is no way
     // to opt out, so a harness that spawns fsh with a chosen working directory cannot make it stick.
-    // That is filed rather than fixed here.
-    let _ = std::env::set_current_dir(&core_root);
+    // INT-206 fixed that: FSH_KEEP_CWD suppresses this and the last_dir restore below, so a caller
+    // that chose a working directory keeps it. Unset -- which is every interactive session -- the
+    // forest-home default is exactly as it was.
+    if !keep_launch_cwd() {
+        let _ = std::env::set_current_dir(&core_root);
+    }
 
     // INT-201: the engine takes ownership of the resources from here down. core_root is
     // computed first because it is derived from db, which moves.
@@ -2664,8 +2688,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root, db) {
         // Phase 23 — restore last working directory
-        if let Some(ref last_dir) = mem.last_dir {
-            let path = std::path::Path::new(last_dir);
+        // INT-206: the restore is skipped entirely when the caller chose the directory. Guarding
+        // the whole block rather than the set_current_dir inside it, because the fallback below is
+        // itself an override -- an unusable last_dir sends the shell to the forest home, which is
+        // exactly what a harness asking for /tmp does not want either.
+        if let Some(ref last_dir) = mem.last_dir.as_ref().filter(|_| !keep_launch_cwd()) {
+            let path = std::path::Path::new(last_dir.as_str());
             // Always restore to core_root — keep work in forest home
             let restore_path = if path.exists()
                 && path.is_dir()

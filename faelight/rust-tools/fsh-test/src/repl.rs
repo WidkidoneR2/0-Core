@@ -185,6 +185,15 @@ pub fn run_repl_lines_status(
     let s_err = pty.slave.try_clone().map_err(|e| e.to_string())?;
 
     let mut child = Command::new(fsh_bin())
+        // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
+        // forest home and restores its last directory, both deliberately, so the current_dir below
+        // was silently ignored for months and conformance cases wrote their files into the
+        // repository. FSH_KEEP_CWD suppresses both overrides.
+        //
+        // Set for every case rather than per-case, so a case added later cannot pollute the repo by
+        // forgetting to opt in. One guardian case passes "0" and asserts the forest-home default,
+        // so the behaviour daily use actually gets is still covered by a case that says so.
+        .env("FSH_KEEP_CWD", "1")
         .envs(env.iter().copied())
         .current_dir("/tmp")
         .stdin(Stdio::from(s_in))

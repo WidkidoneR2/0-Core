@@ -62,6 +62,9 @@ fn run_fsh(input: &str) -> Result<String, String> {
     let fsh = std::env::var("FSH_BIN")
         .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
     let out = Command::new(&fsh)
+        // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
+        // configuration rather than two that differ in where they think they are.
+        .env("FSH_KEEP_CWD", "1")
         .arg("-c")
         .arg(input)
         .stdout(Stdio::piped())
@@ -506,6 +509,25 @@ fn all_tests() -> Vec<TestResult> {
         || {
             let out = repl::run_repl("echo hello | grep -c hello")?;
             expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
+        },
+    ));
+    results.push(test(
+        "repl_206_forest_home_is_still_the_default",
+        Category::Repl,
+        || {
+            // INT-206 GUARDIAN. The harness sets FSH_KEEP_CWD for every other case so that a case which
+            // writes a file cannot write it into the repository. That is the right default, and it has a
+            // cost: every other case then runs a shell configuration nobody uses interactively.
+            //
+            // This case buys that back. It passes "0" to get the ORDINARY shell -- the one that starts in
+            // the forest home on purpose and restores its last directory on purpose -- and asserts that
+            // behaviour is intact. So what daily use actually gets is covered by a case that says what it
+            // is testing, rather than left uncovered because every other case quietly opted out of it.
+            //
+            // "0" rather than removing the variable: keep_launch_cwd reads it as v != "0", so the string
+            // is the off switch and no env_remove is needed.
+            let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("FSH_KEEP_CWD", "0")])?;
+            expect_contains(&out.join("\n"), "0-core")
         },
     ));
     results.push(test(

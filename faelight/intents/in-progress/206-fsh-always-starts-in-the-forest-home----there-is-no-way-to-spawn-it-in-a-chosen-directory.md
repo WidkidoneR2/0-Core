@@ -3,7 +3,7 @@ id: 206
 date: 2026-08-06
 type: future
 title: "fsh always starts in the forest home -- there is no way to spawn it in a chosen directory"
-status: planned
+status: in-progress
 tags: [fsh, shell, faelight-shell, forest]
 ---
 
@@ -63,6 +63,37 @@ They have been committed by accident before.
 hides the symptom and does not touch the cause. ⚠️ THE BLOCK IS DELETED AS PART OF CLOSING THIS
 INTENT -- an ignore that outlives its bug is one nobody remembers the reason for, and the next person
 to see those files appear would have no thread to pull.
+
+## THE DECISION (2026-08-07): an explicit signal, set harness-wide, with a guardian case
+THE OTHER TWO OPTIONS ARE DEAD, and one of them died on evidence rather than taste.
+
+  Narrow by role -- keep the forest-home default for an interactive login session and honour the
+  launch directory otherwise -- read best on paper. It is not implementable: fsh-test drives a REAL
+  PTY, so stdin is a terminal inside the harness too. An is_terminal check cannot separate a login
+  shell from a test, and the test is the case this intent exists for.
+
+  A flag was rejected because fsh is a login shell, and flags arrive from places that did not mean
+  them.
+
+SO THE MECHANISM IS AN ENVIRONMENT VARIABLE, following the convention already in the code --
+FSH_CONFIG, FSH_SPINE, FSH_SESSION_ID. When set, both overrides are suppressed and the shell stays
+where it was spawned. Unset, nothing changes: the forest-home default is deliberate, documented in
+the code, and what its owner wants for daily use.
+
+TWO SITES ARE SUPPRESSED, AND A THIRD IS DELIBERATELY NOT. The startup default and the session-memory
+restore both move the shell to the forest home. The third place that changes directory is the file
+manager handoff -- fsh follows yazi out to wherever you left it -- and that is a feature with nothing
+to do with this intent.
+
+THE HARNESS SETS IT ONCE, FOR EVERY CASE, and that is a choice with a cost worth stating. Isolation
+becomes the default, so a case added later cannot pollute the repository by forgetting to opt in --
+which is the failure mode this intent is about, reintroduced through omission. The cost is that every
+case then runs a shell configuration daily use never runs, which is the same silent divergence that
+made INT-204's isolation accidental.
+
+⭐ SO ONE GUARDIAN CASE UNSETS IT AND ASSERTS THE FOREST-HOME DEFAULT. The behaviour daily use gets is
+covered by a case that says out loud what it is testing, rather than by a hundred cases inheriting an
+override nobody mentions. That is the INT-204 lesson applied on purpose instead of discovered later.
 
 ## Success Criteria
 - [ ] RED FIRST, RECORDED: `cd /tmp && fsh` lands in the forest home, captured before any change, and
