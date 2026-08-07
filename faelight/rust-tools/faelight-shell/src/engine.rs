@@ -1619,6 +1619,43 @@ pub fn execute_and_record(
     is_fm_cmd: bool,
     fm_cwd_file: &std::path::Path,
 ) -> SegmentOutcome {
+    // ⚠️⚠️ TEMPORARY MEASUREMENT -- INT-196/201, 2026-08-07. DELETE WHEN THE QUESTION IS ANSWERED.
+    //
+    // THE QUESTION: is this function still reachable with a genuine shell command? Everything the
+    // spine declines is the query language, malformed input, or the digit guard -- and the query
+    // language is caught by try_query_executor ABOVE the derivations that feed this call. If nothing
+    // real arrives here, this executor is dead the way the pipeline and redirect executors were, and
+    // deleting it takes roughly two hundred and fifty lines of raw-text derivation with it. That is
+    // what unblocks INT-201's gate 4 and dissolves INT-196's census sites.
+    //
+    // ⚠️ NOT ANSWERABLE BY READING. Nine simple pipelines once said the pipeline executor was dead
+    // and one four-stage pipeline disproved it the next day. So this records real use.
+    //
+    // ★ THE SHAPE MATTERS MORE THAN THE COUNT. Reached forty times by `ps | where` and reached forty
+    // times by ordinary commands point in opposite directions.
+    //
+    // Written to a file rather than shell_history on purpose: the TIMING: rows already there pollute
+    // the spine migrate corpus, and that corpus is the measure this work is being judged by.
+    {
+        let word = crate::commands::command_word(base_cmd);
+        let shape = if !pipeline_ops.is_empty() {
+            "value-pipeline"
+        } else if has_external_op {
+            "external-pipeline"
+        } else {
+            "plain"
+        };
+        let path =
+            std::path::Path::new(engine.core_root()).join("faelight/runtime/legacy-exec.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
+            use std::io::Write;
+            let _ = writeln!(f, "{}\t{}\t{}", shape, word, base_cmd);
+        }
+    }
     let _cmd_timer_start = std::time::Instant::now();
     let execution = crate::exec::execute_with_context(
         &raw_line,
