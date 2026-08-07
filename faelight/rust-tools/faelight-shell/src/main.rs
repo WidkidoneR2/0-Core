@@ -844,8 +844,13 @@ fn repl_main() -> Result<()> {
         let _ = std::fs::write("/tmp/fsh-running-build", p.to_string_lossy().as_bytes());
     }
     let core_root = db.core_root();
-    let _ = std::env::set_current_dir(&core_root);
-    // Start in ~/0-core by default
+    // Start in ~/0-core by default. INT-201 2026-08-07: this call was here twice, identically,
+    // with the comment between the two copies -- one was dead and is deleted.
+    //
+    // NOTE this OVERRIDES the directory fsh was spawned in, and so does the last_dir restore near
+    // the end of the banner. Both are deliberate ("keep work in forest home"), but there is no way
+    // to opt out, so a harness that spawns fsh with a chosen working directory cannot make it stick.
+    // That is filed rather than fixed here.
     let _ = std::env::set_current_dir(&core_root);
 
     // INT-201: the engine takes ownership of the resources from here down. core_root is
