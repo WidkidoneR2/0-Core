@@ -3,7 +3,7 @@ id: 205
 date: 2026-08-06
 type: future
 title: "fsh builtins cannot be piped -- execute_pipeline spawns every stage as a process"
-status: in-progress
+status: complete
 tags: [fsh, pipeline, spawns, builtins]
 ---
 
