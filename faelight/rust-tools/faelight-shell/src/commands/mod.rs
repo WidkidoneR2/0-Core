@@ -8651,7 +8651,10 @@ pub fn execute_pipeline_plans(
 pub fn background_pipeline(
     plans: &[crate::spine::plan::ExecutionPlan],
 ) -> Result<Vec<std::process::Child>, String> {
-    spawn_pipeline(plans).map_err(|e| match e {
+    // INT-205 passes None: a builtin first stage is supported in the FOREGROUND only. Backgrounding
+    // would need db threaded through this function and its exec.rs callers, which is a wider change
+    // than the bug requires.
+    spawn_pipeline(plans, None).map_err(|e| match e {
         CommandResult::Error(m, _) => m,
         _ => "  pipeline: could not start".to_string(),
     })
@@ -8668,10 +8671,16 @@ pub fn background_pipeline(
 /// until the job completes.
 fn spawn_pipeline(
     plans: &[crate::spine::plan::ExecutionPlan],
+    initial_stdin: Option<String>,
 ) -> Result<Vec<std::process::Child>, CommandResult> {
     use crate::spine::plan::IoPlan;
+    use std::io::Write;
     let mut children: Vec<std::process::Child> = Vec::new();
     let mut prev_stdout: Option<std::process::ChildStdout> = None;
+    // INT-205: text produced by a builtin stage that execute_pipeline already ran and peeled off.
+    // It arrives as a String because a builtin returns a value, not a file descriptor.
+    let mut pending_input = initial_stdin;
+    let mut feed: Option<(std::process::ChildStdin, String)> = None;
 
     for (idx, plan) in plans.iter().enumerate() {
         let is_last = idx + 1 == plans.len();
@@ -8703,6 +8712,11 @@ fn spawn_pipeline(
             },
             (None, Some(prev)) => {
                 cmd.stdin(std::process::Stdio::from(prev));
+            }
+            (None, None) if pending_input.is_some() => {
+                // INT-205: the first stage was a builtin. Its output is text we hold, so this stage
+                // reads from a pipe we write rather than from the terminal.
+                cmd.stdin(std::process::Stdio::piped());
             }
             (None, None) => {
                 cmd.stdin(std::process::Stdio::inherit());
@@ -8752,6 +8766,16 @@ fn spawn_pipeline(
                 if !is_last && !redirected {
                     prev_stdout = child.stdout.take();
                 }
+                // ⚠️ WRITE THE BUILTIN'S TEXT AFTER THE LOOP, NEVER HERE. Writing inline would block
+                // as soon as this stage filled its own stdout pipe, because the stage that drains it
+                // has not been spawned yet -- a pipe deadlock, invisible for `builtin | cat` where
+                // stdout is inherited and fatal for a three-stage chain. Same reason INT-185's stderr
+                // tee runs on a thread.
+                if let Some(text) = pending_input.take() {
+                    if let Some(sink) = child.stdin.take() {
+                        feed = Some((sink, text));
+                    }
+                }
                 children.push(child);
             }
             Err(e) => {
@@ -8759,18 +8783,109 @@ fn spawn_pipeline(
                 for mut c in children {
                     let _ = c.wait();
                 }
-                return Err(CommandResult::Error(
-                    format!("  {}: {e}", program.to_string_lossy()),
-                    1,
-                ));
+                // ⚠️ AN OFF-PATH NAME HERE IS AMBIGUOUS AND THE MESSAGE SAYS SO. It might be a typo,
+                // or it might be an fsh builtin in a position that cannot serve one -- and this
+                // function has no db, so it cannot ask which without running something. INT-205:
+                // naming both possibilities is honest; picking one would be a guess presented as a
+                // diagnosis.
+                let name = program.to_string_lossy().to_string();
+                let hint = if idx > 0 && !program_on_path(&name) {
+                    " -- if this is an fsh builtin, note that a builtin can only lead a pipeline"
+                } else {
+                    ""
+                };
+                return Err(CommandResult::Error(format!("  {name}: {e}{hint}"), 1));
             }
         }
+    }
+    // INT-205: every stage is spawned now, so the builtin's text can go in without deadlocking.
+    // Dropping the handle when the write finishes is what gives the reader EOF.
+    if let Some((mut sink, text)) = feed {
+        std::thread::spawn(move || {
+            let _ = sink.write_all(text.as_bytes());
+        });
     }
     Ok(children)
 }
 
+/// INT-205: run a first stage that only a BUILTIN can serve, and hand its text to the pipeline.
+///
+/// A builtin with a real binary behind it is left alone -- `cat`, `ps` and `grep` should spawn, for
+/// the reason execute_plan_dispatch already gives under a redirect: fsh builtins are RENDERERS, and
+/// feeding a rendering into grep is a category error. Only a name with nothing behind it -- `spine`,
+/// `intl`, `d` -- can reach the builtin here, and before this it reached the operating system and
+/// died as "No such file or directory".
+///
+/// ⚠️ THE LOSSLESS-JOIN GUARD IS WHAT MAKES THIS LEGAL. execute_impl needs the stage's SOURCE TEXT
+/// for the handful of builtins that read it (`spine` is one -- it strips its own prefix off the
+/// line), and an ExecutionPlan deliberately does not carry source: plan.rs says a runner accepting a
+/// string would rebuild the command. So the text is reconstructed ONLY when the reconstruction
+/// cannot differ from what was typed -- no argument containing a space or a quote. INT-193 forbids a
+/// rebuild that can silently split an argument; a rebuild that is provably byte-identical is not
+/// that. Anything quoted is declined here and reported by the caller.
+///
+/// ⚠️ AND ONLY THE FIRST STAGE. A builtin further along would have to READ its predecessor's output,
+/// and builtins take arguments rather than a stream.
+enum Peeled<'a> {
+    /// The first stage was a builtin; these are the remaining stages and that is its output.
+    Piped(&'a [crate::spine::plan::ExecutionPlan], String),
+    /// Nothing to peel -- spawn every stage exactly as before.
+    Spawn(&'a [crate::spine::plan::ExecutionPlan]),
+    /// The builtin ran and produced something that is not pipeable text. It already happened.
+    Finished(CommandResult),
+    /// Nothing ran. The stage cannot be served here, and this says why in the user's terms rather
+    /// than letting the operating system answer a question it was never asked.
+    Refused(String),
+}
+
+fn peel_builtin_first_stage<'a>(
+    plans: &'a [crate::spine::plan::ExecutionPlan],
+    db: &ForestDb,
+) -> Peeled<'a> {
+    if plans.len() < 2 {
+        return Peeled::Spawn(plans);
+    }
+    let Ok(argv) = plans[0].argv_as_utf8() else {
+        return Peeled::Spawn(plans);
+    };
+    let Some(program) = argv.first() else {
+        return Peeled::Spawn(plans);
+    };
+    if program_on_path(program) {
+        return Peeled::Spawn(plans);
+    }
+    if argv
+        .iter()
+        .any(|a| a.contains(' ') || a.contains('"') || a.contains('\''))
+    {
+        // ⚠️ SAY WHY, because falling through here would report "no such file or directory" for a
+        // command that IS supported -- only its quoting stopped it. The reason is the lossless-join
+        // guard above: the stage's source text has to be reconstructed from argv, and a quoted
+        // argument makes that reconstruction unfaithful.
+        return Peeled::Refused(format!(
+            "  {}: a builtin leading a pipeline cannot carry quoted arguments yet -- \
+             its source text is rebuilt from arguments, which quoting makes unfaithful",
+            program
+        ));
+    }
+    let source = argv.join(" ");
+    let core_root = db.core_root();
+    match execute_impl(&argv, &source, db, &core_root, &[], ExecutionMode::Spine) {
+        CommandResult::NotBuiltin => Peeled::Spawn(plans),
+        CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
+        CommandResult::Empty => Peeled::Piped(&plans[1..], String::new()),
+        other => Peeled::Finished(other),
+    }
+}
+
 fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) -> CommandResult {
-    let children = match spawn_pipeline(plans) {
+    let (plans, initial) = match peel_builtin_first_stage(plans, db) {
+        Peeled::Piped(rest, text) => (rest, Some(text)),
+        Peeled::Spawn(all) => (all, None),
+        Peeled::Finished(result) => return result,
+        Peeled::Refused(msg) => return CommandResult::Error(msg, 1),
+    };
+    let children = match spawn_pipeline(plans, initial) {
         Ok(c) => c,
         Err(e) => return e,
     };

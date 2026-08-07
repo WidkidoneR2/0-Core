@@ -508,6 +508,26 @@ fn all_tests() -> Vec<TestResult> {
             expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
         },
     ));
+    results.push(test(
+        "repl_205_builtin_first_stage_of_pipe",
+        Category::Repl,
+        || {
+            // INT-205: `spine` has NO BINARY ON PATH, so this stage can only be served by the builtin.
+            // spawn_pipeline built every stage with Command::new and handed the name to the operating
+            // system, so the line died with "spine: No such file or directory" while the router had
+            // just claimed it.
+            //
+            // THE CHOICE OF COMMAND IS THE TEST. A shadowed name -- cat, ps, grep -- passes either way,
+            // because a real binary exists and spawning it is correct. Only a builtin with nothing
+            // behind it can fail, so only that shape proves anything.
+            //
+            // AND IT MUST DRIVE THE REPL. Through `fsh -c` the whole string goes to sh, which reports
+            // its own "command not found" and never reaches the pipeline executor at all -- so a case
+            // written against that door would pass forever without testing this.
+            let out = repl::run_repl("spine parse echo hi | cat")?;
+            expect_contains(&out.join("\n"), "redirects")
+        },
+    ));
     results.push(test("repl_stderr_null_then_pipe", Category::Repl, || {
         // The simplest possible case. Printed `hello` on gen 395.
         let out = repl::run_repl("echo hello 2>/dev/null | grep -c hello")?;
