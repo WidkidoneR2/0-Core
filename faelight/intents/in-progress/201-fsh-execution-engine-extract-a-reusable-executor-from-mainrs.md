@@ -540,6 +540,38 @@ pipeline, declined into the query executor, background registration, the REPL-st
 reported parse diagnostic -- plus 150 unit tests and the full suite. main.rs is 3,391 lines, from
 3,913 two days ago.
 
+## Progress -- assignment moves, and the scary block turns out not to be (2026-08-06)
+Two hundred and sixty-one lines replaced by eight. This was the block we had been putting off.
+
+THE SHAPE IS THE ONE ITS NEIGHBOURS ALREADY USE. try_inline_assignment returns an Option: None means
+this is not an assignment and the caller carries on, Some says which control flow to take. The
+seventeen handlers above and below it have that shape, so the call site now reads like them instead
+of like a two-hundred-line digression between them.
+
+THE BARE EXITS INSIDE WERE LEFT ALONE, AND THAT IS THE WHOLE CARE OF IT. A bare continue and two bare
+breaks belong to a hand-rolled parse loop over a multi-assignment prefix, not to the segment loop.
+The census that rejected the big lift said text could not tell which loop a bare exit belonged to --
+true, but printing INDENT DEPTH per line makes it readable: the for loop closes above the continue,
+so the continue binds to the enclosing loop. Converting them would have changed how a two-variable
+prefix parses, silently and without a failing test.
+
+THE PROOF IS BEHAVIOURAL, because this block carries the INT-143 incident. An assignment with a
+quoted value keeps that value whole rather than truncating at the first space. The variable does not
+outlive the command that carried it. A standalone assignment still persists, which is the deliberate
+exception. And a command substitution stores its output rather than the literal. Those four are the
+disaster that cost four failed VM boots and an hour of blaming the firmware; they survived the move.
+
+⭐ AND THE METHOD IS NOW SETTLED. Python reads the span out of the file, applies mechanical
+substitutions, and stages the result for inspection before either source is touched. Nothing is
+retyped. Two anchor lessons came out of it: rustfmt rewrites signatures on commit, so an anchor built
+from one written earlier in the session is already stale, and a binding used just BELOW an extracted
+span (here `trimmed`, wanted by the spine-exec debug entry) is cheaper to recompute at the call site
+than to thread back out.
+
+main.rs is 3,142 lines, from 3,913 two days ago. What remains before run_segment becomes a wrapper:
+the expansions at roughly twenty lines, and the base_cmd derivations with streaming at about a
+hundred.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
