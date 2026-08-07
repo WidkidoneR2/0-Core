@@ -1645,6 +1645,16 @@ pub fn execute_and_record(
         } else {
             "plain"
         };
+        // ⚠️ THE SPINE STATE IS THE FIELD THAT DECIDES WHAT A ROW MEANS. fsh-test cases may set
+        // their own environment, and some pin legacy behaviour with FSH_SPINE=0 on purpose. Without
+        // this, a `plain` row is ambiguous between "a real command still needs legacy" -- which ends
+        // the deletion hypothesis -- and "a case turned the spine off", which says nothing. A
+        // measurement that cannot tell those apart is worse than none, because it reads as evidence.
+        let spine = if std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true) {
+            "spine-on"
+        } else {
+            "spine-off"
+        };
         let path =
             std::path::Path::new(engine.core_root()).join("faelight/runtime/legacy-exec.log");
         if let Ok(mut f) = std::fs::OpenOptions::new()
@@ -1653,7 +1663,7 @@ pub fn execute_and_record(
             .open(&path)
         {
             use std::io::Write;
-            let _ = writeln!(f, "{}\t{}\t{}", shape, word, base_cmd);
+            let _ = writeln!(f, "{}\t{}\t{}\t{}", spine, shape, word, base_cmd);
         }
     }
     let _cmd_timer_start = std::time::Instant::now();
