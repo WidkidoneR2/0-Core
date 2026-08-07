@@ -1053,6 +1053,276 @@ impl Engine {
         RouteOutcome::Declined
     }
 
+    /// Handle `VAR=value` and `VAR=value cmd`, or decline.
+    ///
+    /// `None` means this is not an assignment and the caller should carry on, which is the shape the
+    /// seventeen handlers beside it already use. Some(Next) means handled; Some(ExitShell) means the
+    /// command was `exit`.
+    ///
+    /// ⚠️ THE BARE `continue` AND `break` INSIDE BELONG TO AN INNER LOOP -- the hand-rolled parse over
+    /// a `FOO=1 BAR=2 cmd` prefix -- and were deliberately left alone. Converting them would have
+    /// changed how a multi-assignment prefix parses, silently. Only the labelled exits became
+    /// returns.
+    pub fn try_inline_assignment(&mut self, line: &str, raw_line: &str) -> Option<SegmentOutcome> {
+        // Phase 10 — handle let and export before anything else
+        let trimmed = line.trim();
+
+        // Standalone VAR=value (no command) — treat as export
+        let is_standalone_assign = trimmed.contains('=') && {
+            let eq_pos = trimmed.find('=').unwrap_or(0);
+            let before_eq = &trimmed[..eq_pos];
+            let after_eq = trimmed[eq_pos + 1..].trim();
+            let no_space_before = !before_eq.contains(' ');
+            // INT-143: `starts_with('"') && ends_with('"')` is TRUE for
+            //     QEMU_OPTS="-machine q35,smm=on" echo "$QEMU_OPTS"
+            // -- the LINE merely begins and ends with a quote. That misread an inline
+            // VAR=x cmd as a STANDALONE assignment, stored `-machine q35,smm=on" echo "`
+            // as the value, and never ran echo. Proven 2026-07-16 on the debug binary.
+            // Require the opening quote's MATCHING PARTNER to be the last character:
+            // `"a b"` is standalone; `"a b" cmd` is not.
+            let value_is_quoted = {
+                let mut cs = after_eq.chars();
+                match cs.next() {
+                    Some(q @ ('"' | '\'')) => {
+                        after_eq[1..].find(q).map(|i| i + 1)
+                            == Some(after_eq.len().saturating_sub(1))
+                    }
+                    _ => false,
+                }
+            };
+            let no_space_after = !after_eq.contains(' ');
+            // INT-100: a value that is a complete command substitution
+            // $( ... ) counts as a single standalone value even though it
+            // contains spaces/pipes -- route it to the non-truncating
+            // standalone path (below) instead of the whitespace-splitting
+            // inline path. Balanced-paren check keeps `A=$(x) B=$(y)` out.
+            let value_is_cmdsub = {
+                let a = after_eq;
+                if a.starts_with("$(") && a.ends_with(')') {
+                    let mut depth = 0i32;
+                    let mut ok = true;
+                    for (idx, c) in a.char_indices() {
+                        if c == '(' {
+                            depth += 1;
+                        } else if c == ')' {
+                            depth -= 1;
+                            // closes early (before end) => not a single sub
+                            if depth == 0 && idx != a.len() - 1 {
+                                ok = false;
+                                break;
+                            }
+                        }
+                    }
+                    ok && depth == 0
+                } else {
+                    false
+                }
+            };
+            no_space_before && (no_space_after || value_is_quoted || value_is_cmdsub)
+        };
+        if is_standalone_assign {
+            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                let name = parts[0];
+                let valid = !name.is_empty()
+                    && name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_ascii_alphabetic() || c == '_')
+                        .unwrap_or(false)
+                    && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if valid {
+                    let val = parts[1].trim_matches('\"').trim_matches('\'').to_string();
+                    // INT-100: expand $VAR first, then run $(...) subshells
+                    // so `NAME=$(cmd)` stores the command OUTPUT, not the literal.
+                    let expanded = crate::expand_vars(&val, self.vars(), self.last_exit());
+                    let expanded = crate::expand::expand_subshells(&expanded);
+                    std::env::set_var(name, &expanded);
+                    self.set_var(name.to_string(), expanded.clone());
+                    println!(
+                        "  {} {} = {}",
+                        "→".bright_cyan(),
+                        name.bright_white(),
+                        expanded.dimmed()
+                    );
+                    return Some(SegmentOutcome::Next);
+                }
+            }
+        }
+        // Inline env var assignment: KEY=val cmd  or  KEY=val KEY2=val cmd
+        {
+            let mut temp_vars: Vec<(String, String)> = vec![];
+            let mut rest = trimmed;
+            loop {
+                // Match WORD=value at start (no spaces around =, WORD is [A-Z_][A-Z0-9_]*)
+                // INT-143 BUG A: this was `rest.split_whitespace().next()`, which does
+                // not know what a quote is. `FOO="a b" cmd` -> first token `FOO="a`,
+                // so the value was truncated to `a` and the remainder `b"` was then run
+                // AS A COMMAND ("command not found: b\"").
+                // THE INCIDENT (2026-07-15): QEMU_OPTS="-machine q35,smm=on" vm up left
+                // QEMU_OPTS="-machine" behind. An hour later the vm script's
+                // ${QEMU_OPTS:-} prepended that fragment, producing `-machine -machine
+                // q35,smm=on`. FOUR VM boots failed. The blame went to the firmware, the
+                // launcher, and the Secure Boot config in turn. None were at fault.
+                // Scan for the first token QUOTE-AWARE, the same way tokenize_args
+                // (commands/mod.rs) and tokenize (exec.rs) already do -- a space inside
+                // quotes does not end the token.
+                let maybe_var = {
+                    let mut end = 0usize;
+                    let mut in_quote = false;
+                    let mut quote_char = ' ';
+                    for (i, ch) in rest.char_indices() {
+                        match ch {
+                            '"' | '\'' if !in_quote => {
+                                in_quote = true;
+                                quote_char = ch;
+                            }
+                            c if in_quote && c == quote_char => in_quote = false,
+                            ' ' if !in_quote => break,
+                            _ => {}
+                        }
+                        end = i + ch.len_utf8();
+                    }
+                    &rest[..end]
+                };
+                if let Some(eq) = maybe_var.find('=') {
+                    let name = &maybe_var[..eq];
+                    let valid = !name.is_empty()
+                        && name
+                            .chars()
+                            .next()
+                            .map(|c| c.is_ascii_alphabetic() || c == '_')
+                            .unwrap_or(false)
+                        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                    if valid {
+                        let val = maybe_var[eq + 1..]
+                            .trim_matches('\"')
+                            .trim_matches('\'')
+                            .to_string();
+                        // INT-100: also run $(...) subshells for inline KEY=$(x) cmd
+                        let expanded = crate::expand_vars(&val, self.vars(), self.last_exit());
+                        let expanded = crate::expand::expand_subshells(&expanded);
+                        temp_vars.push((name.to_string(), expanded));
+                        rest = rest[maybe_var.len()..].trim_start();
+                        continue;
+                    }
+                }
+                break;
+            }
+            if !temp_vars.is_empty() {
+                // INT-143 BUG B, and it is the worse of the two: fsh set these vars and
+                // NEVER UNSET THEM. `FOO=1 echo hi` left FOO=1 in the session forever.
+                // Proven 2026-07-16: `FOO143=1 echo scoping_test; echo [$FOO143]` -> [1].
+                // POSIX says VAR=x cmd scopes VAR TO THAT COMMAND. That is why `unset
+                // QEMU_OPTS` fixed the 2026-07-15 incident instantly -- the value should
+                // never have outlived the command that carried it.
+                // Bug A truncated the value; bug B made it PERMANENT. The disaster needed
+                // both. Capture the prior values here, before anything is overwritten.
+                let saved: Vec<(String, Option<String>, Option<String>)> = temp_vars
+                    .iter()
+                    .map(|(k, _)| (k.clone(), std::env::var(k).ok(), self.var(k).cloned()))
+                    .collect();
+                // Set vars in environment
+                for (k, v) in &temp_vars {
+                    std::env::set_var(k, v);
+                    self.set_var(k.clone(), v.clone());
+                }
+                if rest.is_empty() {
+                    // Standalone VAR=value — just set and confirm
+                    for (k, v) in &temp_vars {
+                        println!(
+                            "  {} {} = {}",
+                            "→".bright_cyan(),
+                            k.bright_white(),
+                            v.dimmed()
+                        );
+                    }
+                    // INT-169: record the status rather than leaving the PREVIOUS command's.
+                    // the assignment succeeded. A stale code here is invisible today, but `&&`
+                    // is about to read this value to decide whether the next part runs.
+                    self.set_last_exit(Some(0));
+                    return Some(SegmentOutcome::Next);
+                }
+                // Vars are set BEFORE expansion so `FOO=1 echo $FOO` still prints 1.
+                let rest_expanded = crate::expand_vars(rest, self.vars(), self.last_exit());
+                // INT-191: `raw_line` is the whole segment INCLUDING the FOO=1
+                // prefix, because the field is documented as exactly what the user
+                // typed and the assignment is part of that.
+                let result = crate::exec::execute_with_context(
+                    &raw_line,
+                    &rest_expanded,
+                    self.db(),
+                    self.core_root(),
+                    self.before_rules(),
+                );
+                // INT-143 BUG B: the command is done -- put the environment back exactly
+                // as it was. A var that did not exist before is REMOVED, not left empty;
+                // a var that had a value gets that value back. This runs whether the
+                // command succeeded or failed, because a FAILED command has even less
+                // business mutating durable state. The intent's words: "Silent state
+                // mutation on a FAILED command is indefensible."
+                // NOTE the standalone path above returns before reaching here -- a bare
+                // `FOO=1` with no command SHOULD persist. That is a different statement
+                // and it keeps its old behaviour.
+                for (k, prev_env, prev_shell) in &saved {
+                    match prev_env {
+                        Some(prev) => std::env::set_var(k, prev),
+                        None => std::env::remove_var(k),
+                    }
+                    match prev_shell {
+                        Some(prev) => {
+                            self.set_var(k.clone(), prev.clone());
+                        }
+                        None => {
+                            let _ = self.remove_var(k);
+                        }
+                    }
+                }
+                // INT-191: this path opened a lifecycle too -- `execute_with_context`
+                // inserts before preexec -- so it must close one. Completing BEFORE the
+                // match is safe here, unlike the REPL site: none of these arms sets
+                // `last_exit_code`, so nothing is learned by waiting. The exit code
+                // mirrors what the REPL match means for the same variants rather than
+                // reading a stale value.
+                let execution_id = result.execution_id;
+                let exec_state = crate::exec::execution_state(&result.result);
+                let exec_code = match &result.result {
+                    crate::commands::CommandResult::Exit => None,
+                    crate::commands::CommandResult::Error(_, _) => Some(1),
+                    _ => Some(0),
+                };
+                if let Err(e) =
+                    self.db()
+                        .complete_command_execution(&crate::db::ExecutionCompletion {
+                            session_id: crate::exec::session_id(),
+                            execution_id,
+                            executed_text: Some(&rest_expanded),
+                            state: exec_state,
+                            exit_code: exec_code,
+                            duration_ms: None,
+                            finished_at: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs() as i64,
+                        })
+                {
+                    eprintln!("warning: failed to close command_execution record: {e}");
+                }
+                match result.result {
+                    crate::commands::CommandResult::Exit => return Some(SegmentOutcome::ExitShell),
+                    crate::commands::CommandResult::Error(e, _) => {
+                        eprintln!("  {} {}", colored::Colorize::bright_red("✗"), e);
+                    }
+                    crate::commands::CommandResult::Output(out) => println!("{}", out),
+                    _ => {}
+                }
+                return Some(SegmentOutcome::Next);
+            }
+        }
+
+        None
+    }
+
     /// Say that legacy routing does not implement a construct, and set a failing status.
     ///
     /// The two call sites were identical five-line blocks differing only in a noun, and a message
