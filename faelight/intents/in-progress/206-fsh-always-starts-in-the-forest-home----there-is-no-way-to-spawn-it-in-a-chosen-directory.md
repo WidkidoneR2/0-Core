@@ -96,19 +96,44 @@ covered by a case that says out loud what it is testing, rather than by a hundre
 override nobody mentions. That is the INT-204 lesson applied on purpose instead of discovered later.
 
 ## Success Criteria
-- [ ] RED FIRST, RECORDED: `cd /tmp && fsh` lands in the forest home, captured before any change, and
+- [x] RED FIRST, RECORDED: `cd /tmp && fsh` lands in the forest home, captured before any change, and
       the same for a spawned process with an explicit working directory.
-- [ ] The mechanism is CHOSEN AND WRITTEN DOWN before implementation, with the reason the other two
+<!-- evidence: captured 2026-08-07 before any change. A process spawned with an explicit working
+     directory of /tmp reported /home/christian/0-core. ⚠️ Use an ABSOLUTE binary path when setting
+     cwd -- a relative one resolves against the new directory, which cost one attempt. -->
+- [x] The mechanism is CHOSEN AND WRITTEN DOWN before implementation, with the reason the other two
       were not.
-- [ ] The forest-home default is UNCHANGED for an ordinary interactive session. This intent is about
+<!-- evidence: the decision section above. FSH_KEEP_CWD, following FSH_CONFIG and FSH_SPINE. A flag
+     was rejected because fsh is a login shell and flags arrive from places that did not mean them.
+     Narrow-by-role was rejected on EVIDENCE rather than taste: fsh-test drives a real pty, so stdin
+     is a terminal in the harness too and is_terminal cannot separate a login shell from a test. -->
+- [x] The forest-home default is UNCHANGED for an ordinary interactive session. This intent is about
       adding a way out, not removing the behaviour.
-- [ ] fsh-test's current_dir actually takes effect: a conformance case that writes a file writes it
+<!-- evidence: demonstrated 2026-08-07. Spawned in /tmp: unset -> /home/christian/0-core, and the
+     literal string 0 -> /home/christian/0-core. An ordinary session still WRITES its directory to
+     session_state, confirmed by query -- suppressing that for everyone would have been a different
+     bug wearing this fix's clothes. -->
+- [x] fsh-test's current_dir actually takes effect: a conformance case that writes a file writes it
       where the harness said, and the repo stays clean across a full run.
-- [ ] ⭐ PROVEN BY THE CASE THAT FOUND IT: run the suite with the two redirect-writing cases and show
+<!-- evidence: FSH_KEEP_CWD=1 spawned in /tmp reported /tmp AND left session_state.last_dir with a
+     row count of zero, so the opt-out session both stayed put and wrote nothing. Full suite run
+     afterwards: git status shows no 0.5 and no = in the repository. -->
+- [x] ⭐ PROVEN BY THE CASE THAT FOUND IT: run the suite with the two redirect-writing cases and show
       the repo has no untracked 0.5 or = afterwards. Watch it fail first against the current build.
-- [ ] The session-memory restore and the startup default agree about precedence -- one place decides
+<!-- evidence: repl_206_forest_home_is_still_the_default was added to cover the default the harness
+     now opts out of, and immediately caught a bug in a different part of this change -- the opt-out
+     session was still SAVING its directory, so an ordinary session restored it afterwards. 136/136
+     with it green. The gitignore stopgap was then DELETED and the suite re-run: still clean, so the
+     proof is not resting on an ignore that was covering for it. -->
+- [x] The session-memory restore and the startup default agree about precedence -- one place decides
       where the shell starts, not two that happen to reach the same answer.
-- [ ] Each gate carries evidence per INT-158.
+<!-- evidence: one predicate decides -- keep_launch_cwd in the crate root -- and all three affected
+     sites ask it: the startup default, the session-memory restore, and the session-memory SAVE. The
+     save was the one that mattered and was missed on the first pass. The file manager handoff in
+     engine.rs is deliberately NOT guarded: following yazi out is a feature, not an override. -->
+- [x] Each gate carries evidence per INT-158.
+<!-- evidence: every gate above cites a demonstration or a query. The behavioural ones were watched
+     failing first -- the red capture, and the guardian case going red before green. -->
 
 ## Scope guardrails
 - NOT a removal of the forest-home default. It is deliberate, it is documented in the code, and it is
