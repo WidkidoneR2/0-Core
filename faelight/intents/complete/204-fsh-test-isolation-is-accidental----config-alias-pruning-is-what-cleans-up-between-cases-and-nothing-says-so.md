@@ -3,7 +3,7 @@ id: 204
 date: 2026-08-06
 type: future
 title: "fsh-test isolation is accidental -- config alias pruning is what cleans up between cases, and nothing says so"
-status: in-progress
+status: complete
 tags: [fsh-test, fsh, clean up]
 ---
 
