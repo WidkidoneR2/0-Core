@@ -1445,6 +1445,96 @@ impl Engine {
         None
     }
 
+    /// `spine-exec <command>` -- run one line through the spine end to end, with session state.
+    ///
+    /// Hyphenated on purpose: `spine exec` with a space is caught by the builtin dispatch, which has
+    /// no session state, so the two spellings are two capabilities rather than a typo. This one has
+    /// variables and hooks; that one does not.
+    pub fn try_spine_exec(&mut self, trimmed: &str) -> Option<SegmentOutcome> {
+        if let Some(rest) = trimmed.strip_prefix("spine-exec ") {
+            let source = rest.trim();
+            if source.is_empty() {
+                println!("  usage: spine-exec <command>");
+                return Some(SegmentOutcome::Next);
+            }
+            let shell = self.shell_context();
+            let result = crate::exec::execute_spine_source(
+                source,
+                &shell,
+                self.db(),
+                self.core_root(),
+                self.before_rules(),
+            );
+            if self.absorb_result(result, "spine-exec") == SegmentOutcome::ExitShell {
+                return Some(SegmentOutcome::ExitShell);
+            }
+            return Some(SegmentOutcome::Next);
+        }
+        None
+    }
+
+    /// A shell control structure goes to `sh` with its variables UNEXPANDED, or decline.
+    ///
+    /// INT-285 bug 2: `for`, `while`, `until`, `if` and `case` are constructs fsh does not parse, and
+    /// expanding their variables first would hand sh a body that had already been rewritten. The
+    /// command word is derived quote-aware, and bound before the match because a String does not
+    /// match &str literal patterns.
+    ///
+    /// ⚠️ ORDER IS LOAD-BEARING. This and the heredoc handler both inspect the RAW line and delegate
+    /// before anything touches it; alias expansion sits deliberately BELOW them, so moving either
+    /// would change what they catch.
+    pub fn try_shell_construct(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let shell_construct_word = crate::commands::command_word(line);
+        let shell_construct = matches!(
+            shell_construct_word.as_str(),
+            "for" | "while" | "until" | "if" | "case"
+        );
+        if shell_construct {
+            let status = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(line)
+                .status();
+            self.set_last_exit(match status {
+                Ok(s) => s.code(),
+                Err(_) => Some(1),
+            });
+            return Some(SegmentOutcome::Next);
+        }
+        None
+    }
+
+    /// Expand aliases in a line, unless the cat bypass applies.
+    ///
+    /// BUG-298-4: `cat` is aliased to `bat`, which renders a box for humans and does not accept
+    /// several of cat's flags. A redirect or one of those flags means the user wants cat, so the
+    /// line is returned unexpanded.
+    ///
+    /// ⚠️ THE BYPASS MECHANISM IS NOT-EXPANDING, so this decision has to travel WITH the expansion
+    /// rather than sit above or below it -- separating them leaves nothing to bypass and
+    /// reintroduces the bug.
+    ///
+    /// ⚠️ AND THIS BELONGS BELOW the shell-construct and heredoc handlers, which both inspect the RAW
+    /// line and delegate before anything touches it. INT-169 blocker 6 moved alias expansion ABOVE
+    /// the variable and glob expansions for a different reason: an alias BODY was previously never
+    /// expanded at all, so `alias t='echo [$HOME]'` printed the text literally.
+    pub fn expand_aliases(&self, line: &str) -> String {
+        let first_word = crate::commands::command_word(line).to_lowercase();
+        // BUG-298-4: bypass bat alias for cat when redirect OR bat-unsupported flags
+        // Flags bat doesn't support: -A (show-all), -v, -e, -t, -n, -b
+        let cat_with_redirect = first_word == "cat" && {
+            let has_redirect = line.contains(" > ") || line.contains(" >> ");
+            let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]
+                .iter()
+                .any(|f| line.split_whitespace().any(|w| w == *f));
+            has_redirect || bat_unsupported
+        };
+        if cat_with_redirect {
+            line.to_string()
+        } else {
+            crate::commands::expand_aliases(line, self.db())
+        }
+    }
+
     /// Say that legacy routing does not implement a construct, and set a failing status.
     ///
     /// The two call sites were identical five-line blocks differing only in a noun, and a message

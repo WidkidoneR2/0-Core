@@ -1812,47 +1812,22 @@ fn repl_main() -> Result<()> {
                     // dispatch in commands/mod.rs, which has no session state. Two entry points,
                     // two capabilities: `spine exec` = no vars, no hooks; `spine-exec` = the
                     // full path. The former becomes redundant once the flip lands.
-                    if let Some(rest) = trimmed.strip_prefix("spine-exec ") {
-                        let source = rest.trim();
-                        if source.is_empty() {
-                            println!("  usage: spine-exec <command>");
-                            continue;
+                    if let Some(outcome) = engine.try_spine_exec(trimmed) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
                         }
-                        let shell = engine.shell_context();
-                        let result = exec::execute_spine_source(
-                            source,
-                            &shell,
-                            engine.db(),
-                            engine.core_root(),
-                            engine.before_rules(),
-                        );
-                        if engine.absorb_result(result, "spine-exec")
-                            == crate::engine::SegmentOutcome::ExitShell
-                        {
-                            break 'repl;
-                        }
-                        continue;
                     }
-                    // Phase 10 — expand $VARS before alias resolution
+
                     // INT-285 BUG 2 FIX: shell control structures bypass fsh expansion
                     // for/while/until/if/case go to sh with variables unexpanded
                     // INT-195: canonical, quote-aware derivation. Bound first because a String
                     // will not match &str literal patterns inside matches!.
-                    let shell_construct_word = commands::command_word(line);
-                    let shell_construct = matches!(
-                        shell_construct_word.as_str(),
-                        "for" | "while" | "until" | "if" | "case"
-                    );
-                    if shell_construct {
-                        let status = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(line)
-                            .status();
-                        engine.set_last_exit(match status {
-                            Ok(s) => s.code(),
-                            Err(_) => Some(1),
-                        });
-                        continue;
+                    if let Some(outcome) = engine.try_shell_construct(line) {
+                        match outcome {
+                            crate::engine::SegmentOutcome::Next => continue 'segments,
+                            crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                        }
                     }
                     // BUG-298-2: heredoc — route << blocks to sh -c before
                     // alias expansion or any other processing touches the line.
@@ -1879,21 +1854,7 @@ fn repl_main() -> Result<()> {
                     // Expand aliases before pipeline parsing
                     // INT-171 gate 2: command word is quote-aware (`"ll" foo` -> ll), so the
                     // alias lookup below resolves a quoted command instead of missing it.
-                    let first_word = commands::command_word(line).to_lowercase();
-                    // BUG-298-4: bypass bat alias for cat when redirect OR bat-unsupported flags
-                    // Flags bat doesn't support: -A (show-all), -v, -e, -t, -n, -b
-                    let cat_with_redirect = first_word == "cat" && {
-                        let has_redirect = line.contains(" > ") || line.contains(" >> ");
-                        let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]
-                            .iter()
-                            .any(|f| line.split_whitespace().any(|w| w == *f));
-                        has_redirect || bat_unsupported
-                    };
-                    let line = if cat_with_redirect {
-                        line.to_string()
-                    } else {
-                        commands::expand_aliases(line, engine.db())
-                    };
+                    let line = engine.expand_aliases(line);
                     let line = line.as_str();
                     // INT-169 blocker 6: THE ROUTING POINT. Placed HERE, above expand_vars,
                     // because the spine performs variable, substitution and glob expansion
