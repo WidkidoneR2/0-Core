@@ -3,7 +3,7 @@ id: 206
 date: 2026-08-06
 type: future
 title: "fsh always starts in the forest home -- there is no way to spawn it in a chosen directory"
-status: in-progress
+status: complete
 tags: [fsh, shell, faelight-shell, forest]
 ---
 
