@@ -1347,6 +1347,104 @@ impl Engine {
         Some(crate::expand::expand_globs(&line))
     }
 
+    /// Run a `| watch` pipeline until interrupted, or decline.
+    ///
+    /// `None` means the pipeline does not end in `watch` and the caller should carry on. Some(Next)
+    /// means the stream ran and stopped normally.
+    ///
+    /// The bare breaks inside belong to the polling loops, not to the caller's loop, and were left
+    /// alone. Only the labelled exit became a return.
+    pub fn try_streaming(
+        &mut self,
+        base_cmd: &str,
+        pipeline_ops: &[crate::value::PipeOp],
+    ) -> Option<SegmentOutcome> {
+        // Phase 9 — Streaming: detect | watch at end of pipeline
+        let is_streaming = pipeline_ops
+            .last()
+            .map(|op| matches!(op, crate::value::PipeOp::Watch { .. }))
+            .unwrap_or(false);
+
+        if is_streaming {
+            // Strip watch from pipeline ops
+            let stream_ops: Vec<crate::value::PipeOp> = pipeline_ops
+                .iter()
+                .take(pipeline_ops.len() - 1)
+                .cloned()
+                .collect();
+            let interval = pipeline_ops
+                .last()
+                .and_then(|op| {
+                    if let crate::value::PipeOp::Watch { interval } = op {
+                        Some(*interval)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(2);
+
+            let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+            // Use a background thread to watch for Enter key to stop
+            let r = running.clone();
+            std::thread::spawn(move || {
+                let mut input = String::new();
+                let _ = std::io::stdin().read_line(&mut input);
+                r.store(false, std::sync::atomic::Ordering::SeqCst);
+            });
+
+            println!(
+                "  {} {} {}",
+                "streaming".bright_cyan(),
+                base_cmd.dimmed(),
+                format!("({}s interval — Ctrl+C to stop)", interval).dimmed()
+            );
+
+            while running.load(std::sync::atomic::Ordering::SeqCst) {
+                print!("[2J[H"); // clear screen
+                let now = chrono::Local::now().format("%H:%M:%S").to_string();
+                println!(
+                    "  {} {} {}",
+                    "🌲 live".bright_cyan(),
+                    base_cmd.dimmed(),
+                    now.dimmed()
+                );
+                println!("{}", "━".repeat(52).dimmed());
+                match crate::commands::execute(&base_cmd, self.db(), self.core_root()) {
+                    crate::commands::CommandResult::Value(v) => {
+                        let result = if !stream_ops.is_empty() {
+                            crate::value::apply_pipeline(v, &stream_ops)
+                        } else {
+                            v
+                        };
+                        println!("{}", result.render());
+                    }
+                    crate::commands::CommandResult::Output(out) => println!("{}", out),
+                    _ => {}
+                }
+                for _ in 0..(interval * 10) {
+                    if !running.load(std::sync::atomic::Ordering::SeqCst) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
+            println!(
+                "
+{} stream stopped",
+                "○".dimmed()
+            );
+            // INT-169: record the status rather than leaving the PREVIOUS command's.
+            // the stream ended normally. A stale code here is invisible today, but `&&`
+            // is about to read this value to decide whether the next part runs.
+            self.set_last_exit(Some(0));
+            return Some(SegmentOutcome::Next);
+        }
+
+        // Phase 8 — Job control commands
+        // INT-195: canonical, quote-aware derivation.
+        None
+    }
+
     /// Say that legacy routing does not implement a construct, and set a failing status.
     ///
     /// The two call sites were identical five-line blocks differing only in a noun, and a message
