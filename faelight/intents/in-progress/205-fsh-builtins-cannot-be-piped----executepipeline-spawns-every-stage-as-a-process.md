@@ -103,9 +103,41 @@ with pipe and redirect handling, is acknowledged future work, unfiled." It is fi
 moved: it is no longer about sh delegation, it lives in execute_pipeline, and the pipeline executor
 is code this project owns.
 
+## THE TWO LIMITS, AND WHAT WOULD REMOVE THEM (2026-08-07)
+Naming a limit is not the same as knowing how to lift it. Both are answered here.
+
+QUOTED ARGUMENTS IN A LEADING BUILTIN -- this one has a fix, and it belongs elsewhere.
+  Why it fails: execute_impl needs the stage's source text. An ExecutionPlan deliberately carries
+    none, because a runner that accepts a string would rebuild the command. So the text is
+    reconstructed from argv, and that reconstruction is only faithful while nothing is quoted.
+  How to lift it: give the plan its PROVENANCE -- the source span, attached at lowering. plan.rs
+    already says errors point back to source and lowering keeps that promise, so a span is in keeping
+    with the design; a string to re-parse is what the rule forbids.
+  Where: lower() attaches it, and the peel reads it instead of joining.
+  When: this is the same change INT-196 needs to stop deriving structure from raw text, so it belongs
+    to that intent rather than being smuggled in here.
+  Outcome: any builtin with any quoting can lead a pipeline, and the lossless-join guard is deleted
+    rather than relaxed.
+
+A BUILTIN IN A LATER STAGE -- this one is answered by declining to build it, and the reason is the
+same one that kept this intent to two severities.
+  Why it fails: builtins take arguments, not a stream. Nothing in the dispatch reads stdin.
+  How it could work: a builtin would DECLARE that it consumes stdin, and the pipeline would feed it.
+    That is a capability on the builtin API, not a change to pipelines.
+  Why not now: no fsh builtin reads stdin today, and the forest query language already serves the
+    shape people actually write -- a source, then verbs -- through its own executor. A stdin
+    convention with no consumer is vocabulary nobody emits.
+  Trigger: the first builtin that genuinely wants to read a stream. That demand is the signal. Until
+    it exists, the shape would be guessed rather than designed.
+
 ## Success Criteria
-- [ ] RED FIRST, RECORDED: `spine parse echo hi | cat` fails today with the operating system's
+- [x] RED FIRST, RECORDED: `spine parse echo hi | cat` fails today with the operating system's
       not-found error, captured before any change.
+<!-- evidence: captured 2026-08-07 before any change, feeding the REPL on stdin:
+     'x   spine: No such file or directory (os error 2)'. NOTE the door matters -- through fsh -c
+     the same line gives '/bin/sh: spine: command not found', which is sh reporting, because -c
+     hands the string to sh and never reaches the pipeline executor. A case written against that
+     door would pass forever without testing anything. -->
 - [x] The shadowing question is MEASURED, not assumed: for every builtin whose name also exists as a
       binary on PATH, determine which one a pipeline stage currently runs. If a pipeline silently
       runs the external one, that is a second finding and belongs in this intent's body.
@@ -117,8 +149,6 @@ is code this project owns.
      them -- real cat, ps and grep should win. The exception is `last`, whose fsh meaning (the
      previous command's output) is unrelated to the binary's (login history), so `last | grep x`
      silently runs the login-history tool. Named as a limit in the decision rather than fixed. -->
-      binary on PATH, determine which one a pipeline stage currently runs. If a pipeline silently
-      runs the external one, that is a second finding and belongs in this intent's body.
 - [x] The design question above is ANSWERED IN WRITING before implementation -- buffered, threaded,
       or refused -- with the streaming consequence stated. If the answer is REFUSED, say so plainly
       and close; a stated limitation is a legitimate outcome.
@@ -130,17 +160,34 @@ is code this project owns.
      which this intent's guardrails allow explicitly. Refusing outright was rejected because the
      mechanism already exists (ExecutionMode::Spine plus program_on_path) and inventing a second
      owner of builtin-versus-external is the split-brain INT-193 exists to prevent. -->
-      or refused -- with the streaming consequence stated. If the answer is REFUSED, say so plainly
-      and close; a stated limitation is a legitimate outcome.
-- [ ] A builtin works as the FIRST stage of a pipeline.
-- [ ] A builtin's position beyond the first is either supported or explicitly out of scope, with the
+- [x] A builtin works as the FIRST stage of a pipeline.
+<!-- evidence: demonstrated 2026-08-07. `spine parse echo hi | cat` now prints the parse through
+     cat -- 'Command @[0,7)' and 'redirects: []' -- where before it died with the not-found error. -->
+- [x] A builtin's position beyond the first is either supported or explicitly out of scope, with the
       stdin question answered rather than left open.
-- [ ] ⭐ IT CANNOT BREAK AGAIN: fsh-test carries a case that pipes a builtin with no binary behind it
+<!-- evidence: explicitly out of scope, and the stdin question is ANSWERED in the section above
+     rather than deferred: builtins take arguments, not a stream, and making one read stdin is a
+     capability on the builtin API. It is not built because no fsh builtin reads stdin today and
+     the query language already serves source-then-verbs through its own executor -- a convention
+     with no consumer is vocabulary nobody emits. The trigger is the first builtin that wants a
+     stream. Demonstrated behaviour: `echo hi | spine parse x` reports 'No such file or directory
+     -- if this is an fsh builtin, note that a builtin can only lead a pipeline', naming both
+     possibilities because spawn_pipeline has no db and cannot tell a builtin from a typo. -->
+- [x] ⭐ IT CANNOT BREAK AGAIN: fsh-test carries a case that pipes a builtin with no binary behind it
       and asserts real output. Run it against the current build FIRST and watch it fail, so the test
       is known to be capable of catching this rather than assumed to be.
-- [ ] The single-command and pipeline paths agree about what a command is -- one place decides
+<!-- evidence: repl_205_builtin_first_stage_of_pipe, added BEFORE the fix and watched failing
+     against the build of the day: 134/135 with that one red. After the fix, 135/135 with it green
+     and nothing else moved. It drives the REPL, not -c, and it pipes `spine` specifically because
+     a shadowed name like cat would pass either way and prove nothing. -->
+- [x] The single-command and pipeline paths agree about what a command is -- one place decides
       builtin versus external, not two.
-- [ ] Each gate carries evidence per INT-158.
+<!-- evidence: both now decide with the same pair -- program_on_path as the pure predicate, then
+     execute_impl under ExecutionMode::Spine with NotBuiltin meaning spawn. No second builtin
+     lookup was added; the pipeline asks the question the single-command path already asked. -->
+- [x] Each gate carries evidence per INT-158.
+<!-- evidence: every gate above cites a demonstration, a file:line or a measurement. The two
+     behavioural gates were watched failing first, which is the tell CONVENTIONS.md asks for. -->
 
 ## Scope guardrails
 - ⚠️ DO NOT open this by adding a builtin lookup inside execute_pipeline alongside the existing one in
