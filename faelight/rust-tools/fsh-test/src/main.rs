@@ -95,6 +95,51 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
     }
 }
 
+/// INT-202 coverage class 1: `-c` with the STATUS kept, instead of collapsed into an error.
+///
+/// run_fsh answers `Err(stderr)` for any non-zero exit, which makes a status inexpressible: a case
+/// cannot say "expect 143" because failure and non-zero look identical to it. That gap is why the
+/// three exit-code defects fixed in the `-c` handler have no regression test -- only a probe in a
+/// commit message.
+///
+/// ⚠️ THIS IS A SIBLING, NOT A REPLACEMENT. Over a hundred cases depend on run_fsh answering the way
+/// it does, and rewriting it would mean re-verifying all of them for a change meant to be additive.
+///
+/// ⚠️ THE CODE IS AN Option, AND THAT MATTERS. run_repl_lines_status already establishes the rule --
+/// unknown must stay unknown. On Unix `code()` is None when a process is killed by a signal, and
+/// manufacturing a number there would make a comparison look performed when it was not. A caller
+/// that wants the signal convention asks for it; this reports what it saw.
+fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> {
+    let fsh = std::env::var("FSH_BIN")
+        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
+    let out = Command::new(&fsh)
+        .env("FSH_KEEP_CWD", "1")
+        .env("FAELIGHT_STATE_DB", repl::case_db_path())
+        .arg("-c")
+        .arg(input)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
+    Ok((
+        String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        out.status.code(),
+    ))
+}
+
+/// Assert an exit code, refusing to treat an unknown one as a match.
+fn expect_exit(got: Option<i32>, expected: i32) -> Result<(), String> {
+    match got {
+        Some(c) if c == expected => Ok(()),
+        Some(c) => Err(format!("expected exit {} got {}", expected, c)),
+        None => Err(format!(
+            "expected exit {} but the status was unknown -- the process was signalled",
+            expected
+        )),
+    }
+}
+
 fn expect_eq(got: &str, expected: &str) -> Result<(), String> {
     if got == expected {
         Ok(())
@@ -512,6 +557,53 @@ fn all_tests() -> Vec<TestResult> {
         || {
             let out = repl::run_repl("echo hello | grep -c hello")?;
             expect_eq(out.first().map(|s| s.as_str()).unwrap_or("(nothing)"), "1")
+        },
+    ));
+    // INT-201 / 3c5220be: the `-c` handler used to report success it had not earned, three ways.
+    // These are the regression cases that could not exist until run_fsh_status did, because run_fsh
+    // collapses every non-zero exit into Err and a case cannot say "expect 143" through it.
+    results.push(test(
+        "dashc_exit_code_is_passed_through",
+        Category::Regression,
+        || {
+            let (_, _, code) = run_fsh_status("exit 3")?;
+            expect_exit(code, 3)
+        },
+    ));
+    results.push(test(
+        "dashc_signalled_child_is_not_a_success",
+        Category::Regression,
+        || {
+            // ⭐ THE ONE THAT MATTERS. status.code() is None when a process dies by signal, and the
+            // old unwrap_or(0) turned that into EXIT 0 -- an interrupted command telling its caller
+            // it had finished fine. 143 is 128+15. The child signals ITSELF so fsh survives to
+            // report it; signalling fsh instead measures the wrong process, which cost one probe.
+            let (_, _, code) = run_fsh_status("kill -TERM $$")?;
+            expect_exit(code, 143)
+        },
+    ));
+    results.push(test(
+        "dashc_missing_operand_is_a_usage_error",
+        Category::Regression,
+        || {
+            // ⚠️ SPAWNS DIRECTLY RATHER THAN THROUGH THE HELPER, because run_fsh_status always passes
+            // an operand and this case is about there being none. `-c ""` is a present-but-empty
+            // operand and exits 0, which is a different thing entirely.
+            let fsh = std::env::var("FSH_BIN")
+                .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
+            let out = Command::new(&fsh)
+                .env("FSH_KEEP_CWD", "1")
+                .env("FAELIGHT_STATE_DB", repl::case_db_path())
+                .arg("-c")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map_err(|e| e.to_string())?;
+            expect_exit(out.status.code(), 2)?;
+            expect_contains(
+                &String::from_utf8_lossy(&out.stderr),
+                "requires an argument",
+            )
         },
     ));
     results.push(test(
