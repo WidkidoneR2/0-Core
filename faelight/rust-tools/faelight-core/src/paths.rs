@@ -105,6 +105,25 @@ pub fn runtime_dir() -> PathBuf {
 /// through this function -- never hardcode "runtime/state.db". INT-061: this is
 /// the seam that makes moving runtime/ a one-line change here.
 pub fn state_db() -> PathBuf {
+    // INT-204: one escape hatch, and it lives HERE because this function is the seam. A second place
+    // resolving the database is what the note above forbids, so the override is read once, at the
+    // decider, and everything else keeps calling this.
+    //
+    // WHY IT EXISTS: fsh-test spawns a shell per case against the user's real database, so a case
+    // that creates an alias leaves it behind. The suite has been getting its isolation by accident --
+    // config::apply prunes aliases absent from config.fsh at every startup, which happens to sweep
+    // test pollution -- and that stops the moment config is overridden.
+    //
+    // NOT fsh-prefixed on purpose: this crate is shared, so the name has to describe the reach.
+    //
+    // ⚠️ A LEAKED VALUE HERE IS SERIOUS -- a shell pointed at a scratch file has no history, no
+    // aliases and no session memory. That is why callers announce a non-canonical database rather
+    // than resolving it silently; see the startup notice in faelight-shell.
+    if let Ok(p) = env::var("FAELIGHT_STATE_DB") {
+        if !p.trim().is_empty() {
+            return PathBuf::from(p);
+        }
+    }
     runtime_dir().join("state.db")
 }
 

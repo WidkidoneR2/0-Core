@@ -174,6 +174,24 @@ pub fn run_repl_lines_env(cmds: &[&str], env: &[(&str, &str)]) -> Result<Vec<Str
 /// ⚠️ Option, not i32, and the distinction is the whole point. A command that takes the screen or
 /// ends the session may emit no `133;D` at all, and returning a manufactured 0 there would make a
 /// comparison look performed when it was not. Unknown must stay unknown.
+/// A database path nothing else will use, under one directory this run owns.
+///
+/// The counter is process-local and the pid keeps concurrent runs apart. The directory is removed at
+/// the end of main -- not by each case, because a case that fails would skip its own cleanup, which
+/// is the trap this harness already records against itself.
+pub fn case_db_path() -> String {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let dir = case_db_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    format!("{}/case{}.db", dir, N.fetch_add(1, Ordering::SeqCst))
+}
+
+/// The one directory this run owns. Named from the pid so two runs never collide.
+pub fn case_db_dir() -> String {
+    format!("/tmp/fsh-test-{}", std::process::id())
+}
+
 pub fn run_repl_lines_status(
     cmds: &[&str],
     env: &[(&str, &str)],
@@ -194,6 +212,12 @@ pub fn run_repl_lines_status(
         // forgetting to opt in. One guardian case passes "0" and asserts the forest-home default,
         // so the behaviour daily use actually gets is still covered by a case that says so.
         .env("FSH_KEEP_CWD", "1")
+        // INT-204: a FRESH DATABASE PER CASE, because the pollution this intent is about happens
+        // WITHIN a run. repl_193 creates an alias and later cases in the same run see it -- a single
+        // scratch database would only move that somewhere else. Measured at 20ms per case, 2.8s
+        // across the suite, which is 3.4% of it; a template-copy scheme would save that and cost
+        // more moving parts than it is worth.
+        .env("FAELIGHT_STATE_DB", case_db_path())
         .envs(env.iter().copied())
         .current_dir("/tmp")
         .stdin(Stdio::from(s_in))

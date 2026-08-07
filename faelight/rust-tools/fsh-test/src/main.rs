@@ -65,6 +65,9 @@ fn run_fsh(input: &str) -> Result<String, String> {
         // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
         // configuration rather than two that differ in where they think they are.
         .env("FSH_KEEP_CWD", "1")
+        // INT-204: and its own database, for the same reason -- two doors that disagree about which
+        // state they read is the shape of problem this suite keeps finding in the shell it tests.
+        .env("FAELIGHT_STATE_DB", repl::case_db_path())
         .arg("-c")
         .arg(input)
         .stdout(Stdio::piped())
@@ -1789,6 +1792,16 @@ fn main() {
             );
         }
     }
+    // INT-204: the run owns one directory of per-case databases; remove it now the run is over.
+    //
+    // ⚠️ BEFORE the branch below, not after it -- that branch exits the process, so a cleanup placed
+    // after it would never run on a RED run, which is precisely when files get left behind. The same
+    // trap this harness already records against its own cases: clean on the path that always
+    // executes, not the happy one.
+    //
+    // A crash still leaves them, and that is deliberate -- a run that collapsed is one you want to be
+    // able to look inside.
+    let _ = std::fs::remove_dir_all(repl::case_db_dir());
     if failed > 0 {
         println!("  {} tests failed", failed.to_string().red().bold());
         std::process::exit(1);

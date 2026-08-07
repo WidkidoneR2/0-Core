@@ -863,6 +863,30 @@ fn repl_main() -> Result<()> {
     if let Ok(p) = std::fs::canonicalize("/run/current-system/sw/bin/faelight-shell") {
         let _ = std::fs::write("/tmp/fsh-running-build", p.to_string_lossy().as_bytes());
     }
+    // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. FAELIGHT_STATE_DB exists so the
+    // test harness can give each run its own database instead of borrowing the user's, but a variable
+    // that redirects the database is the more dangerous cousin of the one that started this intent --
+    // FSH_CONFIG leaked out of an inline assignment into a child process and silently changed
+    // behaviour. A leak here costs history, aliases and session memory, and would look like amnesia
+    // rather than a misconfiguration.
+    //
+    // So it is announced rather than resolved quietly. This compares the RESOLVED path against the
+    // default instead of reading the variable again: the decision keeps one owner in paths.rs, and
+    // this message cannot drift out of agreement with it.
+    {
+        let resolved = faelight_core::paths::state_db();
+        if resolved != faelight_core::paths::runtime_dir().join("state.db") {
+            eprintln!(
+                "  {} using a NON-CANONICAL database: {}",
+                colored::Colorize::bright_yellow("!"),
+                resolved.display()
+            );
+            eprintln!(
+                "    history, aliases and session memory come from there, not your usual one."
+            );
+            eprintln!("    unset FAELIGHT_STATE_DB to go back.");
+        }
+    }
     let core_root = db.core_root();
     // Start in ~/0-core by default. INT-201 2026-08-07: this call was here twice, identically,
     // with the comment between the two copies -- one was dead and is deleted.

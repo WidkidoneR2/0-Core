@@ -3,7 +3,7 @@ id: 204
 date: 2026-08-06
 type: future
 title: "fsh-test isolation is accidental -- config alias pruning is what cleans up between cases, and nothing says so"
-status: planned
+status: in-progress
 tags: [fsh-test, fsh, clean up]
 ---
 
@@ -63,6 +63,35 @@ Not "how do we isolate" but "isolate from WHAT".
 The answer may be BOTH, split explicitly: most cases isolated, a small named set declared as running
 against the live environment with the reason recorded. What must not happen is choosing implicitly,
 which is the situation today.
+
+## THE DECISION (2026-08-07): isolate the shell under test, and say so out loud
+ISOLATE FROM WHAT: from the USER'S DATABASE. The shell under test gets its own, pointed at by
+FAELIGHT_STATE_DB. The harness keeps writing its own RESULTS to the live one -- isolation is about the
+shell being tested, not about the reporting.
+
+THE OBJECTION THAT MADE THIS QUESTION HARD IS ANSWERED BY THE SOURCE. The worry was that several
+cases exist because the real environment shaped them -- cat is aliased to bat, and a case had to be
+written around that -- so a scratch database would change what those cases see. It does not.
+config::apply REGISTERS the config aliases into the table before it prunes anything, and it runs at
+every startup. A scratch database therefore arrives seeded from config.fsh exactly as a fresh login
+shell does. Isolation costs nothing in realism, which is why this stopped being a trade-off.
+
+WHERE IT GOES: paths::state_db, and nowhere else. Its own doc calls it the seam that makes moving
+runtime a one-line change, so canonical means ONE DECIDER rather than unoverridable. A second place
+resolving the database is precisely what that comment forbids.
+
+⚠️ THE NAME IS FAELIGHT_STATE_DB, NOT FSH_ANYTHING. paths.rs lives in faelight-core and every tool
+resolves through it, so an fsh prefix would describe a reach it does not have.
+
+⚠️⚠️ AND THE DANGER IS THIS INTENT'S OWN STORY, WITH HIGHER STAKES. INT-204 exists because
+FSH_CONFIG leaked out of an inline assignment into a child process and silently changed behaviour. A
+variable pointing at the DATABASE that leaked the same way would send the shell to a scratch file --
+no history, no aliases, no session memory -- and say nothing.
+
+⭐ SO IT IS LOUD. When the resolved database is not the canonical one, the shell says so on every
+start. That is the model this project already runs on: you cannot make it unbreakable, you can make
+breakage loud. The notice derives from comparing the resolved path against the default rather than
+reading the variable again, so the decision keeps one owner and the message cannot disagree with it.
 
 ## Success Criteria
 - [ ] The dependency is PROVEN before it is removed: a run with a zero-alias config reproduces the
