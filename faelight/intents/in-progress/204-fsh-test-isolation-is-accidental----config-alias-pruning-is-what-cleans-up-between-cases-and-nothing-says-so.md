@@ -94,21 +94,51 @@ breakage loud. The notice derives from comparing the resolved path against the d
 reading the variable again, so the decision keeps one owner and the message cannot disagree with it.
 
 ## Success Criteria
-- [ ] The dependency is PROVEN before it is removed: a run with a zero-alias config reproduces the
+- [x] The dependency is PROVEN before it is removed: a run with a zero-alias config reproduces the
       five failures, and that reproduction is recorded. Unreachable isolation is a claim; a red run
       is evidence.
-- [ ] The isolate-from-what question above is ANSWERED and written down, with the reason. If the
+<!-- evidence: 2026-08-07. With FSH_CONFIG at a comment-only file: 131/136, and the five failures
+     are repl_quoted_redirect_is_not_an_operator, repl_builtin_first_pipeline_with_redirect,
+     repl_plain_builtin_redirect_still_works, conform_echo_one___grep_one___wc__c and
+     conform_echo_one____tmp_fsh_conform_b_txt__echo_. The database afterwards held echo|echo
+     MARK193, so the cause is visible in the table rather than inferred from red tests. NOTE the
+     mechanism precisely: a comment-only config makes apply return early at config.rs 271, before
+     either the seeding or the prune -- not the INT-060 guard at 288, which is a different line. -->
+- [x] The isolate-from-what question above is ANSWERED and written down, with the reason. If the
       answer is "both", the split is explicit and each live-environment case says why it is one.
-- [ ] The shell under test can be pointed at a database other than the user's, by an env var, the
+<!-- evidence: the decision section above. Isolate the shell under test from the user's database;
+     the harness keeps writing its RESULTS to the live one. The objection that made this hard --
+     that cases exist because the real environment shaped them, cat being aliased to bat -- is
+     answered by config.rs 278-281: apply REGISTERS the config aliases before it prunes, and runs
+     at every startup, so a scratch database arrives seeded exactly as a fresh login shell is.
+     Isolation therefore costs nothing in realism. -->
+- [x] The shell under test can be pointed at a database other than the user's, by an env var, the
       way FSH_CONFIG already points it at another config.
-- [ ] A case that creates an alias leaves NOTHING behind: after a full run, the live shell_aliases
+<!-- evidence: FAELIGHT_STATE_DB, read once in paths::state_db because that function is already
+     the documented seam and a second resolver is what its own note forbids. Not fsh-prefixed:
+     faelight-core is shared. An empty value is ignored rather than treated as a path. Proven: one
+     redirected session put its alias in the scratch file and the live database had nothing. -->
+- [x] A case that creates an alias leaves NOTHING behind: after a full run, the live shell_aliases
       table holds exactly what config.fsh defines. Verified by count and by name, not by eye.
-- [ ] The suite is green with FSH_CONFIG set to a zero-alias config -- the proof that isolation no
+<!-- evidence: live shell_aliases 284 before and 284 after a full run, with no row matching MARK.
+     And history: 159,214 rows before and after, measured from a single process so the measurement
+     commands were not themselves counted -- an earlier attempt showed six leaked rows that turned
+     out to be the probe recording itself. -->
+- [x] The suite is green with FSH_CONFIG set to a zero-alias config -- the proof that isolation no
       longer depends on pruning. This is the gate that would have caught today's failure.
-- [ ] fsh-test still writes its own RESULTS to the live state.db. Isolation is about the shell under
+<!-- evidence: 136/136 with the same zero-alias config that produced 131/136 an hour earlier, and
+     the five cases were not touched. A fresh database PER CASE rather than per run, because the
+     pollution happens within a run; measured at 20ms a case before choosing that over a template
+     copy. Side effect worth stating: the suite went from ~82s to ~62s because the shell under test
+     no longer loads 159k history rows at every startup. -->
+- [x] fsh-test still writes its own RESULTS to the live state.db. Isolation is about the shell under
       test, not the harness's reporting; a gate saying "the suite never writes to state.db" would be
       the wrong invariant.
-- [ ] Each gate carries evidence per INT-158.
+<!-- evidence: 136 results stored in state.db on every run above. Only the SPAWNED shells carry
+     FAELIGHT_STATE_DB; the harness process itself is untouched. -->
+- [x] Each gate carries evidence per INT-158.
+<!-- evidence: every gate cites a measurement or a file:line. The behavioural ones were watched
+     failing first -- the red run, and the five going green without being edited. -->
 
 ## Scope guardrails
 - Do NOT fix this by making each test unalias in its own session. A red run skips its own cleanup,
