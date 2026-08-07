@@ -682,14 +682,38 @@ fn main() -> Result<()> {
         // router, no digit guard, no job table. That is a DESIGN QUESTION still open, not an
         // oversight -- see INT-200. It is why the conformance suite had to stop using this door.
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
-            if let Some(cmd_str) = args.get(c_pos + 1) {
-                let status = std::process::Command::new("/bin/sh")
-                    .args(["-c", cmd_str])
-                    .status()
-                    .unwrap_or_else(|_| std::process::exit(1));
-                std::process::exit(status.code().unwrap_or(0));
-            }
-            std::process::exit(0);
+            // ⚠️ A MISSING OPERAND IS A USAGE ERROR, NOT A SUCCESS. This exited 0, so `fsh -c` with
+            // nothing after it reported that a command nobody supplied had run fine. bash exits 2
+            // with a message and so does this now.
+            let Some(cmd_str) = args.get(c_pos + 1) else {
+                eprintln!("fsh: -c requires an argument");
+                std::process::exit(2);
+            };
+            // ⚠️ AND A SPAWN FAILURE SAYS SO. This was `.unwrap_or_else(|_| exit(1))` -- the one case
+            // where the user most needs to know what happened, exiting silently. 127 is the POSIX
+            // code for a shell that could not be executed.
+            let status = match std::process::Command::new("/bin/sh")
+                .args(["-c", cmd_str])
+                .status()
+            {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("fsh: cannot execute /bin/sh: {e}");
+                    std::process::exit(127);
+                }
+            };
+            // ⚠️⚠️ A SIGNALLED CHILD IS NOT A SUCCESS. `status.code()` is None on Unix when the child
+            // was killed by a signal, and the old `unwrap_or(0)` turned that into EXIT 0 -- so
+            // `fsh -c 'sleep 10'` interrupted with Ctrl+C reported success. 128+signal is what every
+            // other shell reports, and it is the same class of defect as INT-189: a real status
+            // discarded and replaced by a guess that means the opposite.
+            std::process::exit(match status.code() {
+                Some(code) => code,
+                None => {
+                    use std::os::unix::process::ExitStatusExt;
+                    status.signal().map(|s| 128 + s).unwrap_or(1)
+                }
+            });
         }
     }
     // INT-092 Phase 3: --refresh-cheatsheet rebuilds command_registry and exits.
