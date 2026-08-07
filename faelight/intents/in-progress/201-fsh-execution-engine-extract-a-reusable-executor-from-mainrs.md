@@ -510,6 +510,36 @@ lines, the expansions, the router block, the two legacy refusals, and the base_c
 run_segment is a wrapper rather than a relocation. Gate 4 is still real work; it is now predictable
 work.
 
+## Progress -- routing moves to the engine, and the transcription problem is solved (2026-08-06)
+Two commits. The first is a tidy; the second is the piece gate 4 is actually about.
+
+ONE OWNER FOR WHAT A REFUSAL SAYS. The two legacy refusal blocks were identical five-line bodies
+differing only in a noun, and a message duplicated in two places drifts apart. Engine::
+refuse_unimplemented owns the wording and the failing status; each site keeps its own condition and
+its own continue. Stated plainly, that is housekeeping -- the dispatch decision stays in the loop
+either way, and both blocks disappear once the escape hatch's fate is settled.
+
+THE ROUTER IS THE REAL ONE. Ninety-nine lines left the segment loop and five replaced them. That
+block held three outcomes encoded by which of five control-flow statements it happened to reach --
+two labelled continues, two bare ones, and a labelled break -- so RouteOutcome names them once and
+the loop keeps its own continue and break. Routing IS the dispatch the gate says the REPL must stop
+performing, so this is the first extraction that moves the gate rather than tidying around it.
+
+THE JOB TABLE IS PASSED, NOT ABSORBED. Backgrounding produces a live child that must be registered
+rather than waited on, and that is session state belonging to the REPL. Gate 2 ruled it and the
+ruling stands.
+
+⭐ AND THE TRANSCRIPTION PROBLEM IS SOLVED. Four attempts at the big lift died on retyped anchors and
+bodies. This one moved ninety-nine lines without retyping a character: python read the span out of
+the file, applied seven mechanical substitutions, and staged the result for inspection before either
+source was touched. Every remaining extraction can use the same method, which makes the two-hundred-
+and-sixty-line assignment block tractable rather than frightening.
+
+Verified on six live probes covering every outcome the router can produce -- claimed, claimed with a
+pipeline, declined into the query executor, background registration, the REPL-state exclusion, and a
+reported parse diagnostic -- plus 150 unit tests and the full suite. main.rs is 3,391 lines, from
+3,913 two days ago.
+
 ## Finding -- duplicate `?` handlers, no behaviour change made (2026-08-05)
 During the guard extractions, `try_nl_query` was moved to the engine and then found to be UNREACHABLE.
 The `?` path has a single reachable behaviour today: the REPL-level guard at main.rs ~1379 catches
