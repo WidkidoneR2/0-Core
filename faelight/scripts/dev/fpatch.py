@@ -26,7 +26,24 @@ DEBUG = "FPATCH_DEBUG" in __import__("os").environ
 
 
 class PatchRefused(Exception):
-    """A SAFE ABORT: the operation could not proceed, and nothing was changed."""
+    """A SAFE ABORT: the operation could not proceed, and nothing was changed.
+
+    Pattern not found, several matches where one was required, a file already patched, a checksum
+    that does not agree. The program behaved correctly and protected the data.
+    """
+
+
+class InternalError(Exception):
+    """A DEFECT IN THIS TOOL: an impossible state, a violated invariant, a bug here.
+
+    INT-199 keeps these apart because they ask different things of the reader. A safe abort says
+    "fix your anchor"; an internal error says "fix fpatch". Presenting them the same way is what made
+    six correct refusals read as a broken tool on 2026-07-29.
+
+    ⚠️ ONLY TWO SEVERITIES EXIST HERE, AND ON PURPOSE. The taxonomy also names Info and Warning; this
+    tool cannot currently produce either, and inventing producers so the set looks complete would be
+    the error-code catalogue by another name. They arrive when behaviour requires them.
+    """
 
 
 def _refuse(path, reason, causes=(), recovery=(), detail=()):
@@ -37,6 +54,9 @@ def _refuse(path, reason, causes=(), recovery=(), detail=()):
         bar,
         "  PATCH REFUSED -- safe abort",
         bar,
+        "",
+        "Status",
+        "  Safe abort. The operation stopped to avoid an unsafe change.",
         "",
         "Result",
         f"  No changes written to {path}",
@@ -57,6 +77,69 @@ def _refuse(path, reason, causes=(), recovery=(), detail=()):
     sys.exit(1)
 
 
+def _internal(path, exc):
+    """Present a DEFECT IN THIS TOOL, and be honest that the file's state is unknown.
+
+    ⚠️ THIS CANNOT PROMISE WHAT A SAFE ABORT PROMISES. A refusal happens before any write, so it can
+    say nothing was written and mean it. An internal error can happen anywhere, including mid-write,
+    so the honest line is that the file may or may not have changed. Saying "no changes written" here
+    would be the comforting answer rather than the true one.
+    """
+    bar = "=" * 66
+    out = [
+        "",
+        bar,
+        "  FPATCH INTERNAL ERROR",
+        bar,
+        "",
+        "Status",
+        "  Internal error. This is a defect in fpatch, not in the patch you asked for.",
+        "",
+        "Result",
+        f"  The operation did not complete. {path} may or may not have changed -- check it before",
+        "  retrying, because unlike a refusal this did not necessarily stop before writing.",
+        "",
+        "Reason",
+        f"  {type(exc).__name__}: {exc}",
+        "",
+        "Recovery",
+        "  - Do not work around this at the call site; the fault is here.",
+        "  - Re-run with FPATCH_DEBUG=1 to get the traceback.",
+        "  - Report it with that traceback and the call that produced it.",
+        "",
+        bar,
+        "",
+    ]
+    print("\n".join(out), file=sys.stderr)
+    if DEBUG:
+        raise InternalError(str(exc)) from exc
+    sys.exit(2)
+
+
+def _guard(fn):
+    """Route an UNEXPECTED exception through the internal presenter instead of a bare traceback.
+
+    This is what gives InternalError a producer. Without it the class would be decoration: every
+    existing failure in this file is operational, so nothing would ever raise it. An uncaught
+    exception escaping as a raw traceback IS the case INT-199 was filed about -- six safe aborts
+    printing bare AssertionErrors on 2026-07-29 -- and this closes it from the other side.
+
+    A refusal and a SystemExit pass through untouched: they are already the presented form.
+    """
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (PatchRefused, SystemExit):
+            raise
+        except Exception as exc:
+            _internal(args[0] if args else "<unknown path>", exc)
+
+    return wrapper
+
+
 def _nearest(lines, needle, n=3):
     """The lines most similar to the anchor's first line, shown with whitespace visible."""
     probe = needle.split("\n")[0].strip()
@@ -67,6 +150,7 @@ def _nearest(lines, needle, n=3):
     return [f"line {i + 1}: {l!r}" for ratio, i, l in scored[:n] if ratio > 0.5]
 
 
+@_guard
 def patch_between(path, start_marker, end_marker, new_lines, context=2):
     """Replace a span located by two SHORT markers, without transcribing its body.
 
@@ -118,6 +202,7 @@ def patch_between(path, start_marker, end_marker, new_lines, context=2):
     print(f"OK {path}: {hi - lo} line(s) replaced by {len(new_lines)}")
 
 
+@_guard
 def patch(path, old, new, count=1, context=2):
     p = Path(path)
     s = p.read_text()
