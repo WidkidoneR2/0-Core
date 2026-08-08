@@ -206,11 +206,35 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         }
     }));
-    results.push(test("vocab_find_basic", Category::Vocabulary, || {
-        // find vocabulary uses fd syntax -- test fd directly
-        let out = run_fsh("fd Cargo.toml /home/christian/0-core/faelight/engine")?;
-        expect_contains(&out, "Cargo.toml")
-    }));
+    results.push(test(
+        "external_fd_is_launched",
+        Category::Vocabulary,
+        || {
+            // ⚠️ RENAMED, BECAUSE THE OLD NAME WAS NOT WHAT THIS TESTS. It said vocab_find_basic and
+            // commented "find vocabulary uses fd syntax", but its body invoked `fd` and relied on `-c`
+            // delegating to sh so the EXTERNAL fd binary ran. INT-201 gate 4 routed `-c` through fsh,
+            // where `fd` resolves to fsh's own find vocabulary -- which is correct, and is what typing
+            // `fd` at the prompt has always done. The change did not break this test; it revealed that
+            // the test depended on the old execution architecture without saying so.
+            //
+            // The contract it actually checks is: CAN fsh LAUNCH AN EXTERNAL EXECUTABLE. So it now says
+            // so, by resolving the binary rather than naming a store path that changes on every rebuild.
+            let fd = String::from_utf8_lossy(
+                &Command::new("sh")
+                    .args(["-c", "command -v fd"])
+                    .output()
+                    .map_err(|e| e.to_string())?
+                    .stdout,
+            )
+            .trim()
+            .to_string();
+            if fd.is_empty() {
+                return Err("fd is not on PATH -- this case needs it".to_string());
+            }
+            let out = run_fsh(&format!("{} Cargo.toml faelight/engine", fd))?;
+            expect_contains(&out, "Cargo.toml")
+        },
+    ));
 
     // --- HEREDOC ---
     results.push(test("heredoc_basic", Category::Heredoc, || {
@@ -578,7 +602,12 @@ fn all_tests() -> Vec<TestResult> {
             // old unwrap_or(0) turned that into EXIT 0 -- an interrupted command telling its caller
             // it had finished fine. 143 is 128+15. The child signals ITSELF so fsh survives to
             // report it; signalling fsh instead measures the wrong process, which cost one probe.
-            let (_, _, code) = run_fsh_status("kill -TERM $$")?;
+            // ⚠️ THE PREMISE MOVED WHEN `-c` STOPPED DELEGATING TO sh (INT-201 gate 4). `$$` used
+            // to be the pid of the sh fsh spawned, so `kill -TERM $$` killed a CHILD and fsh
+            // reported 143 for it. Routed through fsh, `$$` is fsh's OWN pid -- the shell kills
+            // itself and there is no child left to report on, which is a different thing entirely.
+            // The case now spawns a real child explicitly so it still measures what it is named for.
+            let (_, _, code) = run_fsh_status("sh -c 'kill -TERM $$'")?;
             expect_exit(code, 143)
         },
     ));

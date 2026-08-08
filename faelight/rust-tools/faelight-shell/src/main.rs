@@ -658,6 +658,61 @@ fn apply_direnv() {
     }
 }
 
+/// INT-201 gate 4: is this process a `-c` invocation? Read by run_external so the one-deploy-cycle
+/// measurement can tell a non-interactive fallback from an interactive one.
+///
+/// A static rather than a parameter because run_external sits at the bottom of the ordering, and
+/// threading a flag through every caller would touch far more than the thing being measured.
+/// INT-201: shell UI that must not contaminate a non-interactive stdout.
+///
+/// `-c`'s stdout belongs to the program being run. A progress line or an assignment confirmation on
+/// it turns `fsh -c 'X=1; echo $X'` into two lines where a caller expects one. The diagnostics rule
+/// already decided where this goes: any non-program output from a non-interactive invocation belongs
+/// on stderr, so it is still visible to someone watching a script run and invisible to a pipe.
+/// BUG-298-1 / INT-201: expand a leading or mid-string `~/` against HOME.
+///
+/// Lifted verbatim out of the base_cmd path so the assignment path can use the SAME rule. It was
+/// inline there, which is why `x=~/test` stored a literal tilde while `cat ~/test` worked -- one
+/// expander, one caller, and the other path silently without it.
+///
+/// ⚠️ THE TWO BRANCHES ARE NOT INTERCHANGEABLE and the else is not a fallback: a leading `~/` is
+/// replaced positionally, while an interior one is matched on a PRECEDING SPACE so that a path like
+/// /var/tmp~/x is left alone. Kept byte-identical to the original rather than tidied, because
+/// changing base_cmd behaviour while fixing assignments is the sort of thing that hides for months.
+/// INT-201: a child's status as a shell reports it -- code, or 128+signal when it was killed.
+///
+/// `.code()` is None on Unix for a signalled process, and this codebase wrote `.unwrap_or(1)` at more
+/// than ten sites, so every interrupted command answered 1 no matter which signal ended it. The `-c`
+/// handler had the same defect in its own copy and was fixed on its own in 3c5220be; this is the rest
+/// of the family, given one owner so the next site cannot drift.
+pub(crate) fn exit_status_code(status: &std::process::ExitStatus) -> i32 {
+    use std::os::unix::process::ExitStatusExt;
+    match status.code() {
+        Some(c) => c,
+        None => status.signal().map(|s| 128 + s).unwrap_or(1),
+    }
+}
+
+pub(crate) fn expand_tilde(s: &str) -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    if s.starts_with("~/") {
+        format!("{}{}", home, &s[1..])
+    } else {
+        s.replace(" ~/", &format!(" {}/", home))
+    }
+}
+
+pub(crate) fn ui_line(s: String) {
+    if IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
+        eprintln!("{}", s);
+    } else {
+        println!("{}", s);
+    }
+}
+
+pub(crate) static IS_DASH_C: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 fn main() -> Result<()> {
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
@@ -689,31 +744,49 @@ fn main() -> Result<()> {
                 eprintln!("fsh: -c requires an argument");
                 std::process::exit(2);
             };
-            // ⚠️ AND A SPAWN FAILURE SAYS SO. This was `.unwrap_or_else(|_| exit(1))` -- the one case
-            // where the user most needs to know what happened, exiting silently. 127 is the POSIX
-            // code for a shell that could not be executed.
-            let status = match std::process::Command::new("/bin/sh")
-                .args(["-c", cmd_str])
-                .status()
-            {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("fsh: cannot execute /bin/sh: {e}");
-                    std::process::exit(127);
-                }
-            };
-            // ⚠️⚠️ A SIGNALLED CHILD IS NOT A SUCCESS. `status.code()` is None on Unix when the child
-            // was killed by a signal, and the old `unwrap_or(0)` turned that into EXIT 0 -- so
-            // `fsh -c 'sleep 10'` interrupted with Ctrl+C reported success. 128+signal is what every
-            // other shell reports, and it is the same class of defect as INT-189: a real status
-            // discarded and replaced by a guess that means the opposite.
-            std::process::exit(match status.code() {
-                Some(code) => code,
-                None => {
-                    use std::os::unix::process::ExitStatusExt;
-                    status.signal().map(|s| 128 + s).unwrap_or(1)
-                }
-            });
+            // ⭐ INT-201 GATE 4: `-c` EXECUTES fsh, NOT sh.
+            //
+            // This delegated the whole string to /bin/sh, so nothing fsh does applied to it: no
+            // aliases, no spine router, no digit guard, no job table. The suite was structurally
+            // blind to every bug below the router for months because it knocked on this door.
+            //
+            // It now calls the SAME run_input the REPL calls -- the same function, not a copy of the
+            // ordering. Duplicating it here is the second-orderer problem this change exists to
+            // prevent.
+            //
+            // ⚠️ NO `-c` FALLBACK, DELIBERATELY. The chain is run_input -> routing -> engine ->
+            // run_external -> sh, so the delegation already has an owner one layer down. A second
+            // one here would be another escape path rather than instrumentation of the first.
+            //
+            // ★ THE CWD REQUIREMENT IS MET BY CONSTRUCTION: this never reaches repl_main, so the
+            // forest-home default never runs and the caller's directory is simply inherited.
+            IS_DASH_C.store(true, std::sync::atomic::Ordering::SeqCst);
+            let cmd_str = cmd_str.clone();
+            let RuntimeInit {
+                db,
+                cfg,
+                applied: _,
+                diagnostics,
+            } = runtime_init()?;
+            // Diagnostics on stderr: stdout belongs to the program, which is what keeps
+            // `fsh -c 'echo hi' | wc -l` answering 1.
+            for e in &diagnostics {
+                eprintln!("{}", e);
+            }
+            let core_root = db.core_root();
+            let mut engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
+            let mut job_table = jobs::JobTable::new();
+            let mut shown: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut last_intent: Option<String> = None;
+            let _ = run_input(
+                &mut engine,
+                &cmd_str,
+                &mut job_table,
+                &mut shown,
+                &mut last_intent,
+                0,
+            );
+            std::process::exit(engine.last_exit().unwrap_or(0));
         }
     }
     // INT-092 Phase 3: --refresh-cheatsheet rebuilds command_registry and exits.
@@ -851,7 +924,11 @@ fn run_input(
     let mut prev_op: Option<bool> = None;
     let segment_count = segments.len();
     if segment_count > 2 {
-        println!("  {} {} commands", "○".bright_cyan(), segment_count);
+        ui_line(format!(
+            "  {} {} commands",
+            "○".bright_cyan(),
+            segment_count
+        ));
     }
     for (seg_idx, (segment, op)) in segments.iter().enumerate() {
         // INT-307: restore power profile after compilation
@@ -1403,7 +1480,7 @@ fn run_input(
                     .envs(std::env::vars())
                     .status()
                 {
-                    Ok(status) => Some(status.code().unwrap_or(1)),
+                    Ok(status) => Some(crate::exit_status_code(&status)),
                     Err(_) => Some(1),
                 },
             );
@@ -1556,22 +1633,15 @@ fn run_input(
             // leaving `last_exit_code` carrying the PREVIOUS command's result on the
             // most common pipeline form in the shell.
             engine.set_last_exit(match crate::db::spawn_sh_with_leak_check(line) {
-                Ok(status) => Some(status.code().unwrap_or(1)),
+                Ok(status) => Some(crate::exit_status_code(&status)),
                 // sh could not be launched. Same reasoning as the pipeline arms below:
                 // leaving the code untouched recreates the stale-state bug.
                 Err(_) => Some(1),
             });
             continue;
         }
-        // BUG-298-1: expand tilde in base_cmd before dispatch
-        let base_cmd = {
-            let home = std::env::var("HOME").unwrap_or_default();
-            if base_cmd.starts_with("~/") {
-                format!("{}{}", home, &base_cmd[1..])
-            } else {
-                base_cmd.replace(" ~/", &format!(" {}/", home))
-            }
-        };
+        // BUG-298-1: expand tilde in base_cmd before dispatch.
+        let base_cmd = expand_tilde(&base_cmd);
         // INT-201: per-execution work. Advisories stay BELOW, in their current order.
         let outcome = engine::execute_and_record(
             &mut engine,

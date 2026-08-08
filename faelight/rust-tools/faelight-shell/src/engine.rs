@@ -183,7 +183,7 @@ impl Engine {
         // INT-189: foreground execution the user invoked -- .status() BLOCKS, so this child's
         // result IS the command result. Discarding it left the prompt reporting the previous one.
         self.set_last_exit(match cmd.status() {
-            Ok(status) => Some(status.code().unwrap_or(1)),
+            Ok(status) => Some(crate::exit_status_code(&status)),
             Err(_) => Some(1),
         });
         Some(SegmentOutcome::Next)
@@ -228,7 +228,12 @@ impl Engine {
             CommandResult::Empty => self.set_last_exit(Some(0)),
             // Named rather than a catch-all: a `_` arm would silently swallow Exit, so
             // `spine-exec exit` would print instead of leaving the shell.
-            CommandResult::Exit => return SegmentOutcome::ExitShell,
+            // INT-201: the code travels too. Its neighbours above already record one for Error
+            // and Empty; Exit was the arm that did not, because it had none to record.
+            CommandResult::Exit(code) => {
+                self.set_last_exit(Some(code));
+                return SegmentOutcome::ExitShell;
+            }
             CommandResult::NotBuiltin => {
                 // Unreachable in practice -- execute_plan_dispatch converts NotBuiltin into a
                 // direct spawn or an alias diagnostic. Handled honestly rather than panicking.
@@ -334,7 +339,7 @@ impl Engine {
         }
         // INT-189: foreground execution the user invoked; its status is the command's status.
         self.set_last_exit(match cmd.status() {
-            Ok(status) => Some(status.code().unwrap_or(1)),
+            Ok(status) => Some(crate::exit_status_code(&status)),
             Err(_) => Some(1),
         });
         Some(SegmentOutcome::Next)
@@ -365,7 +370,7 @@ impl Engine {
                     if !result.trim().is_empty() {
                         println!("{}", result.trim());
                     }
-                    Some(out.status.code().unwrap_or(1))
+                    Some(crate::exit_status_code(&out.status))
                 }
                 Err(_) => Some(1),
             },
@@ -483,7 +488,7 @@ impl Engine {
         // reporting the previous command.
         self.set_last_exit(if rest.is_empty() {
             match std::process::Command::new("friday-chat").status() {
-                Ok(status) => Some(status.code().unwrap_or(1)),
+                Ok(status) => Some(crate::exit_status_code(&status)),
                 Err(_) => Some(1),
             }
         } else {
@@ -493,7 +498,7 @@ impl Engine {
             {
                 Ok(out) => {
                     print!("{}", String::from_utf8_lossy(&out.stdout));
-                    Some(out.status.code().unwrap_or(1))
+                    Some(crate::exit_status_code(&out.status))
                 }
                 Err(_) => Some(1),
             }
@@ -1137,14 +1142,18 @@ impl Engine {
                     // so `NAME=$(cmd)` stores the command OUTPUT, not the literal.
                     let expanded = crate::expand_vars(&val, self.vars(), self.last_exit());
                     let expanded = crate::expand::expand_subshells(&expanded);
+                    // INT-201: and tilde, which this path never did -- `x=~/test` stored a literal
+                    // `~/test` while `cat ~/test` resolved, because the expander was inline in the
+                    // base_cmd path and nothing else could reach it. Same function now.
+                    let expanded = crate::expand_tilde(&expanded);
                     std::env::set_var(name, &expanded);
                     self.set_var(name.to_string(), expanded.clone());
-                    println!(
+                    crate::ui_line(format!(
                         "  {} {} = {}",
                         "→".bright_cyan(),
                         name.bright_white(),
                         expanded.dimmed()
-                    );
+                    ));
                     return Some(SegmentOutcome::Next);
                 }
             }
@@ -1287,7 +1296,9 @@ impl Engine {
                 let execution_id = result.execution_id;
                 let exec_state = crate::exec::execution_state(&result.result);
                 let exec_code = match &result.result {
-                    crate::commands::CommandResult::Exit => None,
+                    // INT-201: was None because Exit carried no status and reading last_exit here
+                    // would have recorded the PREVIOUS command's result. It carries one now.
+                    crate::commands::CommandResult::Exit(code) => Some(*code),
                     crate::commands::CommandResult::Error(_, _) => Some(1),
                     _ => Some(0),
                 };
@@ -1309,7 +1320,11 @@ impl Engine {
                     eprintln!("warning: failed to close command_execution record: {e}");
                 }
                 match result.result {
-                    crate::commands::CommandResult::Exit => return Some(SegmentOutcome::ExitShell),
+                    // INT-201: carry the status out with the decision to leave.
+                    crate::commands::CommandResult::Exit(code) => {
+                        self.set_last_exit(Some(code));
+                        return Some(SegmentOutcome::ExitShell);
+                    }
                     crate::commands::CommandResult::Error(e, _) => {
                         eprintln!("  {} {}", colored::Colorize::bright_red("✗"), e);
                     }
@@ -1679,12 +1694,19 @@ pub fn execute_and_record(
     // `execution.result` and the outcome would be unavailable afterwards.
     let exec_state = crate::exec::execution_state(&execution.result);
     let cmd_output: Option<String> = match execution.result {
-        crate::commands::CommandResult::Exit => {
-            // INT-191: `break` escapes before the completion below, so this arm
-            // closes its own lifecycle. exit_code is None DELIBERATELY -- this arm
-            // never sets `last_exit_code`, so passing it would record the PREVIOUS
-            // command's result, which is the stale-value bug INT-189 removed.
-            // EXEC_EXIT already carries the meaning; no process exited.
+        crate::commands::CommandResult::Exit(code) => {
+            // INT-191: `break` escapes before the completion below, so this arm closes its own
+            // lifecycle.
+            //
+            // ⚠️ THIS COMMENT USED TO SAY exit_code WAS None DELIBERATELY, because reading
+            // last_exit_code here would have recorded the PREVIOUS command's result -- the
+            // stale-value bug INT-189 removed. That was correct while `exit` carried no status of
+            // its own: `exit 3` and `exit` were the same value, so there was nothing honest to
+            // record.
+            //
+            // INT-201 gave the variant its code, so the record can now say what was actually asked
+            // for. It is not read from anywhere; it travels on the result.
+            engine.set_last_exit(Some(code));
             if let Err(e) =
                 engine
                     .db()
@@ -1693,7 +1715,7 @@ pub fn execute_and_record(
                         execution_id,
                         executed_text: Some(&base_cmd),
                         state: crate::db::EXEC_EXIT,
-                        exit_code: None,
+                        exit_code: Some(code),
                         duration_ms: Some(_cmd_timer_start.elapsed().as_millis() as u64),
                         finished_at: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -1737,7 +1759,7 @@ pub fn execute_and_record(
                     // semantics are whatever /bin/sh reported. `.code()` is None
                     // only if sh ITSELF was signalled -- a signalled child already
                     // arrives as 128+N through sh's own status.
-                    engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                    engine.set_last_exit(Some(crate::exit_status_code(&o.status)));
                     Some(stdout)
                 }
                 Err(_) => {
@@ -1769,7 +1791,7 @@ pub fn execute_and_record(
                     }
                     // INT-189: inherit sh's status -- see the note on the Value
                     // arm above. Same omission, same repair.
-                    engine.set_last_exit(Some(o.status.code().unwrap_or(1)));
+                    engine.set_last_exit(Some(crate::exit_status_code(&o.status)));
                     Some(stdout)
                 }
                 Err(_) => {

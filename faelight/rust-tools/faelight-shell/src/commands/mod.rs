@@ -28,7 +28,13 @@ pub enum CommandResult {
     /// carry a `_` arm and would have swallowed a new variant silently. Widening makes every
     /// one of the 327 sites a COMPILE ERROR -- completeness proven, not audited.
     Error(String, i32),
-    Exit,
+    /// INT-201: the requested exit STATUS, not just the fact of exiting.
+    ///
+    /// This was a unit variant, so `exit 3` and `exit` were identical -- the 3 was discarded at the
+    /// builtin and `fsh -c 'exit 3'` answered 0. Widened for the same reason Error above was: a new
+    /// variant would be swallowed by the `_` arms, while widening this one makes every construction
+    /// and every explicit match a compile error, so completeness is proven rather than audited.
+    Exit(i32),
     /// INT-143: "this command is not an fsh builtin" -- an ANSWER, not an action.
     ///
     /// INT-201 (2026-08-05): produced by execute_impl's `!allow_external` arms and consumed by
@@ -891,7 +897,13 @@ fn execute_dispatch(
         "on" => on_cmd(db, args),
         "help" | "h" => help(),
         "?" => CommandResult::Output(crate::nl::render_pattern_list()),
-        "exit" | "quit" | "q" => CommandResult::Exit,
+        // INT-201: `exit N` means exit WITH N. A non-numeric or absent argument is 0, which is
+        // what every other shell does -- `exit` alone succeeds.
+        "exit" | "quit" | "q" => CommandResult::Exit(
+            args.first()
+                .and_then(|a| a.parse::<i32>().ok())
+                .unwrap_or(0),
+        ),
         // INT-174 — Structured Errors
         "last_error" | "last-error" => last_error_cmd(db, args),
         "errors" => error_history_cmd(db, args),
@@ -4826,7 +4838,7 @@ fn execute_dispatch(
     // Security layer — log every command
     let result_str = match &result {
         CommandResult::Error(_, _) => "error",
-        CommandResult::Exit => "exit",
+        CommandResult::Exit(_) => "exit",
         CommandResult::Empty => "empty",
         _ => "ok",
     };
@@ -8899,7 +8911,7 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
     match last_status {
         Some(s) if s.success() => CommandResult::Empty,
         Some(s) => {
-            let code = s.code().unwrap_or(1);
+            let code = crate::exit_status_code(&s);
             record_failure(db, "pipeline", code);
             CommandResult::Error(
                 format!("  exited {} -- {}", code, explain_exit_code(code)),
@@ -9101,7 +9113,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     CommandResult::Output(String::from_utf8_lossy(&o.stdout).to_string())
                 }
                 Ok(o) => {
-                    let code = o.status.code().unwrap_or(1);
+                    let code = crate::exit_status_code(&o.status);
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
@@ -9125,7 +9137,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
             match spawn_with_tee(cmd, db, None) {
                 Ok(s) if s.success() => CommandResult::Empty,
                 Ok(s) => {
-                    let code = s.code().unwrap_or(1);
+                    let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
@@ -9166,7 +9178,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
             match spawn_with_tee(cmd, db, stderr_sink) {
                 Ok(s) if s.success() => CommandResult::Empty,
                 Ok(s) => {
-                    let code = s.code().unwrap_or(1);
+                    let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
                     CommandResult::Error(
                         format!("  exited {} -- {}", code, explain_exit_code(code)),
@@ -9292,7 +9304,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             if s.success() {
                 CommandResult::Empty
             } else {
-                let code = s.code().unwrap_or(1);
+                let code = crate::exit_status_code(&s);
                 // INT-233 -- command not found: suggest nearest known alternative
                 if code == 127 {
                     // INT-171 gate 2: quote-aware command word for the builtin not-found check.
@@ -11578,7 +11590,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
             Ok(s) => {
                 // Bound ONCE so the printed number and the reported status come from
                 // the same value -- disagreeing is the bug being fixed here.
-                let code = s.code().unwrap_or(1);
+                let code = crate::exit_status_code(&s);
                 CommandResult::Error(format!("grep: exited with code {}", code), code)
             }
             Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
@@ -11605,7 +11617,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
             Ok(s) => {
                 // Bound ONCE so the printed number and the reported status come from
                 // the same value -- disagreeing is the bug being fixed here.
-                let code = s.code().unwrap_or(1);
+                let code = crate::exit_status_code(&s);
                 CommandResult::Error(format!("grep: exited with code {}", code), code)
             }
             Err(e) => CommandResult::Error(format!("grep: {}", e), 1),
@@ -11901,8 +11913,10 @@ fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> Comman
     );
 
     // `time exit` should still leave the shell.
-    if matches!(result, CommandResult::Exit) {
-        return CommandResult::Exit;
+    // ⚠️ PRESERVE THE CODE RATHER THAN RE-EMITTING ONE. `time exit 3` should leave the shell with
+    // 3, not with a fresh 0.
+    if let CommandResult::Exit(code) = result {
+        return CommandResult::Exit(code);
     }
     CommandResult::Empty
 }

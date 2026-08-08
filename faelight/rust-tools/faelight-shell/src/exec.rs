@@ -1052,7 +1052,7 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
             }
             // A substitution that tries to terminate the shell is a FAILED capture, not an empty
             // one -- swallowing it as `Ok("")` would make `$(exit)` silently expand to nothing.
-            CommandResult::Exit => Err("nested command attempted to exit the shell".to_string()),
+            CommandResult::Exit(_) => Err("nested command attempted to exit the shell".to_string()),
             // A contract violation rather than a normal outcome: dispatch already falls back to
             // execute_plan, so it should never hand this back.
             CommandResult::NotBuiltin => {
@@ -1659,7 +1659,9 @@ pub struct ExecutionOutcome {
 /// show", a different question that stays with the caller that knows it.
 pub fn execution_state(result: &CommandResult) -> &'static str {
     match result {
-        CommandResult::Exit => crate::db::EXEC_EXIT,
+        // INT-201: the code is deliberately ignored here -- see this function's doc. Lifecycle
+        // state answers what KIND of outcome occurred; the status is a different question.
+        CommandResult::Exit(_) => crate::db::EXEC_EXIT,
         CommandResult::Error(_, _) => crate::db::EXEC_ERROR,
         CommandResult::Empty => crate::db::EXEC_EMPTY,
         _ => crate::db::EXEC_OK,
