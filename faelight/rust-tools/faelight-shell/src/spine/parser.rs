@@ -14,14 +14,23 @@ use super::ast::{
     Spanned, SpecialParam, VariableSyntax, Word, WordPart,
 };
 use super::lexer::{
-    lex, LexError, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
+    lex, LexIncomplete, LexResult, OperatorKind, QuoteContext, SpannedToken, TokenKind, WordSegment,
 };
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
-    /// The lexer rejected the input.
-    Lex(LexError),
+    /// INT-169 G1: the scanner reported the line is not FINISHED, not that it is wrong.
+    ///
+    /// This was `Lex(LexError)`, and it carried the same lie the lexer did: the only two things the
+    /// scanner could ever report -- an unterminated quote and an unterminated `$(` -- are
+    /// incompleteness. Naming it a lex error made every caller treat unfinished input as failure,
+    /// which is why the validator had to translate it back and why the migration audit counts
+    /// unterminated quotes as parse errors against the shell.
+    ///
+    /// ⚠️ It stays a ParseError variant only until G2, where ParseResult gains a real Incomplete arm
+    /// and this stops needing to travel inside a failure type at all.
+    Incomplete(LexIncomplete),
     /// Nothing to parse (empty / whitespace-only input).
     Empty,
     /// A shell operator the spine's grammar does not cover. INT-169: THE REFUSAL BOUNDARY.
@@ -583,7 +592,13 @@ fn brace_identifier(chars: &[char], dollar: usize) -> Option<(String, usize)> {
 
 /// Parse a source line into a spanned AST node. Public entry: lex, then parse.
 pub fn parse(source: &str) -> Result<Spanned<AstNode>, ParseError> {
-    let tokens = lex(source).map_err(ParseError::Lex)?;
+    // INT-169 G1: a lex outcome is Complete or Incomplete, never an error. parse still returns a
+    // Result until G2 introduces ParseResult, so incompleteness travels as a NAMED ParseError
+    // variant rather than being disguised as a lexical failure.
+    let tokens = match lex(source) {
+        LexResult::Complete(t) => t,
+        LexResult::Incomplete(i) => return Err(ParseError::Incomplete(i)),
+    };
     let mut parser = Parser::new(tokens);
     parser.parse_line()
 }

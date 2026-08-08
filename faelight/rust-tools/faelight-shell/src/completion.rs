@@ -1318,9 +1318,11 @@ impl<'a> Validator for ForestHelper<'a> {
         // drift INT-193 exists to prevent -- and it would disagree with the shell that runs the
         // line, which is worse than not validating at all.
         //
-        // The two kinds are matched EXPLICITLY rather than with a catch-all: a future LexErrorKind
-        // must be a compile error here, because "the lexer refused" and "the line is unfinished"
-        // are different answers and only the second should hold the prompt open.
+        // INT-169 G1: that distinction now lives in the TYPE. This used to match each kind
+        // explicitly so a new one would be a compile error here, because "the lexer refused" and
+        // "the line is unfinished" were the same type and only the second should hold the prompt
+        // open. LexResult separates them, so every Incomplete kind holds the prompt open by
+        // construction and a new one needs no decision in this file.
         //
         // NOT COVERED, and said here rather than discovered later: heredocs. `cat <<EOF` still will
         // not continue, because the lexer does not track heredoc delimiters and try_heredoc hands
@@ -1346,14 +1348,13 @@ impl<'a> Validator for ForestHelper<'a> {
         // counts as a comment -- the same rule that made this ask the lexer rather than count
         // quotes itself.
         let scanned = crate::expand::strip_comments(input);
+        // INT-169 G1: the scanner OWNS continuation state, so this consumes it rather than
+        // translating an error back into it. The match on WHICH kind is gone deliberately -- every
+        // incomplete kind holds the prompt open, and enumerating them here was only ever a way of
+        // asserting that a lex *error* meant *unfinished*. It says what it means now.
         match crate::spine::lexer::lex(&scanned) {
-            Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(e) => match e.kind {
-                crate::spine::lexer::LexErrorKind::UnterminatedQuote
-                | crate::spine::lexer::LexErrorKind::UnterminatedCommandSub => {
-                    Ok(ValidationResult::Incomplete)
-                }
-            },
+            crate::spine::lexer::LexResult::Complete(_) => Ok(ValidationResult::Valid(None)),
+            crate::spine::lexer::LexResult::Incomplete(_) => Ok(ValidationResult::Incomplete),
         }
     }
 }

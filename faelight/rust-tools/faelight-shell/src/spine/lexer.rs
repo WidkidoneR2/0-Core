@@ -129,33 +129,60 @@ pub struct SpannedToken {
     pub segments: Vec<WordSegment>,
 }
 
-/// A lex error: the unlexable slice and where it was. Step 2 produces the first real one --
-/// an unterminated quote, spanned from its opening delimiter.
-/// Why a line could not be scanned. Two causes today, and the enum exists so a third arrives
-/// as a NAMED case rather than joining an anonymous pile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LexErrorKind {
+/// INT-169 G1: WHY a line is not finished. NOT an error -- see LexResult below.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LexIncompleteKind {
     /// A quote opened and the line ended before it closed.
     UnterminatedQuote,
     /// A `$(` opened and its closing paren never arrived.
     UnterminatedCommandSub,
+    /// The line ended in a single backslash -- an explicit request to continue. Previously the
+    /// validator owned this, because a line ending in one is lexically FINE and the lexer had no
+    /// way to say "finished scanning, but not finished".
+    TrailingEscape,
+    /// A heredoc was introduced and its body has not arrived. Carries the delimiter so a caller
+    /// knows what ends it, and whether it was quoted, which decides whether the body expands.
+    ///
+    /// ⚠️ AWARENESS, NOT EXECUTION. The scanner knowing it is inside a heredoc continuation does
+    /// not claim fsh can execute one -- that capability is explicitly out of 169's scope.
+    HeredocBody { delimiter: String, quoted: bool },
 }
 
+/// A line that scanned correctly and simply has not finished.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LexError {
-    /// WHICH failure. INT-200: both construction sites built the same two fields, so the
-    /// audit could only ever report "lex error" for all 42 of them -- not because the classifier
-    /// discarded the reason, but because the lexer never produced one. A refusal that cannot say
-    /// what it refused is honest and useless, which is the argument ParseError already makes one
-    /// layer up.
-    pub kind: LexErrorKind,
+pub struct LexIncomplete {
+    pub kind: LexIncompleteKind,
     pub text: String,
     pub span: Span,
 }
 
+/// ⭐ INT-169 G1: THE SCANNER IS THE SOLE OWNER OF LEXICAL CONTINUATION STATE.
+///
+/// `lex` used to return `Result<Vec<SpannedToken>, LexError>`, and both of the only two error kinds
+/// it could produce -- an unterminated quote and an unterminated `$(` -- were INCOMPLETENESS rather
+/// than invalidity. The name and the Result shape were the lie; the behaviour was already right.
+///
+/// That lie cost real things. completion.rs had to translate the "error" back into Incomplete to
+/// hold the prompt open, and then invent THREE more continuation rules the lexer could not express:
+/// a trailing backslash, a heredoc introduction (`input.contains("<<")`), and comment stripping --
+/// each added after an apostrophe in ordinary English prose hung the prompt. And migrate_audit
+/// counts unterminated quotes as spine PARSE ERRORS against the shell, which they are not.
+///
+/// ⚠️ TWO ARMS, NOT THREE, DELIBERATELY. There is no genuinely-invalid lexical condition in this
+/// language today, and inventing an `Invalid` variant to fill a third slot would be vocabulary with
+/// no emitter. The three-way distinction arrives at the PARSER, where invalid syntax genuinely
+/// exists -- G2's ParseResult.
+///
+/// THE INVARIANT: callers consume an explicit `Incomplete` state; they never infer one from an error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LexResult {
+    Complete(Vec<SpannedToken>),
+    Incomplete(LexIncomplete),
+}
+
 /// Scan a source line into spanned word tokens. Whitespace separates words unless quoted;
 /// quote characters are consumed and recorded as segment context.
-pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
+pub fn lex(source: &str) -> LexResult {
     let chars: Vec<(usize, char)> = source.char_indices().collect();
     let n = chars.len();
     let mut out: Vec<SpannedToken> = Vec::new();
@@ -232,8 +259,8 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
                 }
                 if depth != 0 || j >= n {
                     // Unterminated, spanned from the opener -- same shape as an unclosed quote.
-                    return Err(LexError {
-                        kind: LexErrorKind::UnterminatedCommandSub,
+                    return LexResult::Incomplete(LexIncomplete {
+                        kind: LexIncompleteKind::UnterminatedCommandSub,
                         text: source[pos..].to_string(),
                         span: Span::new(pos, source.len()),
                     });
@@ -314,8 +341,8 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
 
         if context != QuoteContext::Unquoted {
             let at = open_quote_at.unwrap_or(word_start);
-            return Err(LexError {
-                kind: LexErrorKind::UnterminatedQuote,
+            return LexResult::Incomplete(LexIncomplete {
+                kind: LexIncompleteKind::UnterminatedQuote,
                 text: source[at..].to_string(),
                 span: Span::new(at, source.len()),
             });
@@ -356,7 +383,26 @@ pub fn lex(source: &str) -> Result<Vec<SpannedToken>, LexError> {
         }
     }
 
-    Ok(out)
+    LexResult::Complete(out)
+}
+
+/// Test-only conveniences. INT-169 G1: the tests are part of this module's contract and evolve with
+/// the model, so they assert against LexResult rather than being handed `expect`-shaped accessors in
+/// production. Named for what they assert, so a case that gets the OTHER arm fails loudly.
+#[cfg(test)]
+impl LexResult {
+    fn expect_complete(self, msg: &str) -> Vec<SpannedToken> {
+        match self {
+            LexResult::Complete(t) => t,
+            LexResult::Incomplete(i) => panic!("{msg}: got Incomplete({:?})", i.kind),
+        }
+    }
+    fn expect_incomplete(self, msg: &str) -> LexIncomplete {
+        match self {
+            LexResult::Incomplete(i) => i,
+            LexResult::Complete(t) => panic!("{msg}: got Complete with {} tokens", t.len()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -394,7 +440,7 @@ mod tests {
     /// have claimed a command it cannot run.
     #[test]
     fn operators_become_their_own_tokens() {
-        let toks = lex("echo hi | grep h").expect("lexes");
+        let toks = lex("echo hi | grep h").expect_complete("lexes");
         assert_eq!(toks.len(), 5);
         assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Pipe));
         assert_eq!(toks[2].text, "|");
@@ -405,7 +451,7 @@ mod tests {
     /// add spaces around pipes, and `hi|grep` must be three tokens rather than one word.
     #[test]
     fn an_operator_splits_a_word_without_whitespace() {
-        let toks = lex("echo hi|grep h").expect("lexes");
+        let toks = lex("echo hi|grep h").expect_complete("lexes");
         assert_eq!(
             toks.iter().map(|t| t.text.clone()).collect::<Vec<_>>(),
             vec!["echo", "hi", "|", "grep", "h"]
@@ -418,7 +464,7 @@ mod tests {
     #[test]
     fn a_quoted_operator_is_data() {
         for source in ["echo \"|\"", "echo \'|\'", "echo \">>\"", "echo \'&&\'"] {
-            let toks = lex(source).expect("lexes");
+            let toks = lex(source).expect_complete("lexes");
             assert_eq!(toks.len(), 2, "{source} must stay two words");
             assert!(
                 toks.iter().all(|t| t.kind == TokenKind::Word),
@@ -437,7 +483,7 @@ mod tests {
             ("a || b", OperatorKind::Or),
             ("a | b", OperatorKind::Pipe),
         ] {
-            let toks = lex(source).expect("lexes");
+            let toks = lex(source).expect_complete("lexes");
             let ops: Vec<_> = toks.iter().filter(|t| t.kind != TokenKind::Word).collect();
             assert_eq!(ops.len(), 1, "{source}");
             assert_eq!(ops[0].kind, TokenKind::Operator(want), "{source}");
@@ -449,7 +495,7 @@ mod tests {
     /// cleanly, and runs `sleep` with `&` as a literal argument. An incomplete refusal executes.
     #[test]
     fn a_lone_ampersand_is_an_operator() {
-        let toks = lex("sleep 5 &").expect("lexes");
+        let toks = lex("sleep 5 &").expect_complete("lexes");
         assert_eq!(toks.len(), 3);
         assert_eq!(toks[2].kind, TokenKind::Operator(OperatorKind::Background));
     }
@@ -464,7 +510,7 @@ mod tests {
     /// so this must be a token before fd redirects can be built at all.
     #[test]
     fn a_dup_redirect_is_one_operator_not_two() {
-        let toks = lex("ls 2>&1").expect("lexes");
+        let toks = lex("ls 2>&1").expect_complete("lexes");
         let ops: Vec<_> = toks.iter().filter(|t| t.kind != TokenKind::Word).collect();
         assert_eq!(
             ops.len(),
@@ -481,7 +527,7 @@ mod tests {
     /// a `&` NOT preceded by `>` is still Background, so `sleep 5 &` is unchanged.
     #[test]
     fn a_dup_arm_does_not_swallow_a_lone_ampersand() {
-        let toks = lex("ls > f & sleep 5 &").expect("lexes");
+        let toks = lex("ls > f & sleep 5 &").expect_complete("lexes");
         let ops: Vec<_> = toks
             .iter()
             .filter_map(|t| match t.kind {
@@ -504,7 +550,7 @@ mod tests {
     /// consumed whole before the operator check ever sees those characters.
     #[test]
     fn an_operator_inside_a_substitution_is_not_ours() {
-        let toks = lex("echo $(echo a | b)").expect("lexes");
+        let toks = lex("echo $(echo a | b)").expect_complete("lexes");
         assert_eq!(
             toks.len(),
             2,
@@ -518,14 +564,14 @@ mod tests {
     /// guarded on SEGMENTS rather than on text.
     #[test]
     fn a_leading_operator_emits_no_empty_word() {
-        let toks = lex("| grep h").expect("lexes");
+        let toks = lex("| grep h").expect_complete("lexes");
         assert_eq!(toks[0].kind, TokenKind::Operator(OperatorKind::Pipe));
         assert_eq!(toks.len(), 3);
     }
 
     #[test]
     fn lex_bare_command() {
-        let toks = lex("ls -la /tmp").expect("bare command lexes");
+        let toks = lex("ls -la /tmp").expect_complete("bare command lexes");
         assert_eq!(toks.len(), 3);
         assert_eq!(toks[0].kind, TokenKind::Word);
         assert_eq!(toks[0].text, "ls");
@@ -540,7 +586,7 @@ mod tests {
 
     #[test]
     fn lex_collapses_extra_whitespace() {
-        let toks = lex("  ls    -la  ").expect("lexes");
+        let toks = lex("  ls    -la  ").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[0].text, "ls");
         assert_eq!(toks[0].span, Span::new(2, 4));
@@ -549,7 +595,7 @@ mod tests {
 
     #[test]
     fn lex_single_word() {
-        let toks = lex("pwd").expect("lexes");
+        let toks = lex("pwd").expect_complete("lexes");
         assert_eq!(toks.len(), 1);
         assert_eq!(toks[0].text, "pwd");
         assert_eq!(toks[0].span, Span::new(0, 3));
@@ -557,14 +603,16 @@ mod tests {
 
     #[test]
     fn lex_empty_is_empty() {
-        assert!(lex("").expect("empty lexes").is_empty());
-        assert!(lex("   ").expect("whitespace-only lexes").is_empty());
+        assert!(lex("").expect_complete("empty lexes").is_empty());
+        assert!(lex("   ")
+            .expect_complete("whitespace-only lexes")
+            .is_empty());
     }
 
     #[test]
     fn quoted_span_is_one_word() {
         // THE step-2 case: a quoted region keeps its spaces and becomes ONE word.
-        let toks = lex("git commit -m \"message here\"").expect("lexes");
+        let toks = lex("git commit -m \"message here\"").expect_complete("lexes");
         assert_eq!(toks.len(), 4, "the quoted value is one word, not two");
         assert_eq!(
             toks[3].text, "message here",
@@ -583,7 +631,7 @@ mod tests {
     #[test]
     fn adjacent_segments_are_one_word_with_context_each() {
         // `foo"bar baz"qux` is ONE word of three segments -- the case a regex cannot express.
-        let toks = lex("foo\"bar baz\"qux").expect("lexes");
+        let toks = lex("foo\"bar baz\"qux").expect_complete("lexes");
         assert_eq!(toks.len(), 1);
         assert_eq!(toks[0].text, "foobar bazqux");
         assert_eq!(toks[0].segments.len(), 3);
@@ -597,7 +645,7 @@ mod tests {
 
     #[test]
     fn single_quotes_are_their_own_context() {
-        let toks = lex("echo 'a b'").expect("lexes");
+        let toks = lex("echo 'a b'").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "a b");
         assert_eq!(seg_context(&toks[1].segments[0]), QuoteContext::Single);
@@ -606,14 +654,14 @@ mod tests {
     #[test]
     fn other_delimiter_inside_quotes_is_content() {
         // A ' inside "..." is ordinary text, and vice versa.
-        let toks = lex("echo \"it's fine\"").expect("lexes");
+        let toks = lex("echo \"it's fine\"").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "it's fine");
     }
 
     #[test]
     fn empty_quotes_are_a_real_empty_argument() {
-        let toks = lex("echo \"\"").expect("lexes");
+        let toks = lex("echo \"\"").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "");
         assert_eq!(toks[1].segments.len(), 1, "the empty quoted region is kept");
@@ -622,7 +670,7 @@ mod tests {
 
     #[test]
     fn unterminated_quote_is_a_lex_error_spanned_from_the_opener() {
-        let err = lex("echo \"unclosed").expect_err("unterminated quote must error");
+        let err = lex("echo \"unclosed").expect_incomplete("unterminated quote must error");
         assert_eq!(err.span.start, 5, "points at the opening quote");
         assert_eq!(err.span.end, 14);
     }
@@ -639,7 +687,7 @@ mod tests {
     /// spaces and produces four words instead of two.
     #[test]
     fn command_substitution_is_one_word() {
-        let toks = lex("echo $(echo a b)").expect("lexes");
+        let toks = lex("echo $(echo a b)").expect_complete("lexes");
         assert_eq!(
             toks.len(),
             2,
@@ -654,7 +702,7 @@ mod tests {
     /// counting depth, or `$(echo ")")` would terminate at the wrong paren.
     #[test]
     fn command_substitution_ignores_parens_inside_quotes() {
-        let toks = lex(r#"echo $(echo ")")"#).expect("lexes");
+        let toks = lex(r#"echo $(echo ")")"#).expect_complete("lexes");
         assert_eq!(
             toks.len(),
             2,
@@ -667,7 +715,7 @@ mod tests {
     /// Depth counting, not first-close-wins. `$(echo $(pwd))` is the forcing case for nesting.
     #[test]
     fn command_substitution_can_nest() {
-        let toks = lex("echo $(echo $(pwd))").expect("lexes");
+        let toks = lex("echo $(echo $(pwd))").expect_complete("lexes");
         assert_eq!(
             toks.len(),
             2,
@@ -681,7 +729,7 @@ mod tests {
     /// gated on quote context or the scanner would claim syntax the shell says is literal.
     #[test]
     fn single_quoted_command_substitution_is_literal() {
-        let toks = lex("echo '$(echo a b)'").expect("lexes");
+        let toks = lex("echo '$(echo a b)'").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "$(echo a b)");
         assert_eq!(seg_context(&toks[1].segments[0]), QuoteContext::Single);
@@ -691,13 +739,13 @@ mod tests {
     /// than inventing a second convention for the same class of failure.
     #[test]
     fn unterminated_command_substitution_errors_from_the_opener() {
-        let err = lex("echo $(echo a").expect_err("unterminated substitution must error");
+        let err = lex("echo $(echo a").expect_incomplete("unterminated substitution must error");
         assert_eq!(err.span.start, 5, "points at the $ that opened it");
     }
 
     #[test]
     fn unicode_content_survives() {
-        let toks = lex("echo \"héllo 中\"").expect("lexes");
+        let toks = lex("echo \"héllo 中\"").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "héllo 中");
     }

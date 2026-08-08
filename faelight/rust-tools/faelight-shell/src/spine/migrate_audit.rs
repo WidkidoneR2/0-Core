@@ -193,12 +193,23 @@ impl MigrationAudit {
             // INT-200: the KIND, not a shared label. This read "lex error" for every one of the
             // 42 because the lexer built the same struct at both sites -- the classifier was not
             // discarding a reason, there was none to discard.
-            crate::spine::parser::ParseError::Lex(e) => match e.kind {
-                crate::spine::lexer::LexErrorKind::UnterminatedQuote => {
-                    "lex: unterminated quote".to_string()
+            // INT-169 G1: these are INCOMPLETE, not failed. The label says so, because calling a
+            // half-typed line a lex error is what let 39 of them count as spine parse errors against
+            // the shell -- and the corpus is full of pasted multi-line fragments stored as single
+            // rows, which are not shell lines at all. Same argument the report already makes for
+            // rows outside the comparison domain.
+            crate::spine::parser::ParseError::Incomplete(i) => match i.kind {
+                crate::spine::lexer::LexIncompleteKind::UnterminatedQuote => {
+                    "incomplete: quote not closed".to_string()
                 }
-                crate::spine::lexer::LexErrorKind::UnterminatedCommandSub => {
-                    "lex: unterminated $( )".to_string()
+                crate::spine::lexer::LexIncompleteKind::UnterminatedCommandSub => {
+                    "incomplete: $( ) not closed".to_string()
+                }
+                crate::spine::lexer::LexIncompleteKind::TrailingEscape => {
+                    "incomplete: line ends in a backslash".to_string()
+                }
+                crate::spine::lexer::LexIncompleteKind::HeredocBody { .. } => {
+                    "incomplete: heredoc body not arrived".to_string()
                 }
             },
             crate::spine::parser::ParseError::Empty => "empty".to_string(),
