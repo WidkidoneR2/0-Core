@@ -1697,7 +1697,18 @@ pub fn execute_and_record(
             let build = std::env::current_exe()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|_| "unknown".to_string());
-            let _ = writeln!(f, "{}\t{}\t{}\t{}\t{}", build, spine, shape, word, base_cmd);
+            // ⚠️ AND THE TYPED LINE, BECAUSE base_cmd IS POST-EXPANSION. Two spine-on rows read
+            // `echo assets` on the current build while `echo assets` traces as CLAIMED -- which is
+            // three different stories behind one row: a glob (`assets` is a real directory here), an
+            // alias result, or a line genuinely typed that way. A row that cannot distinguish them
+            // reads as evidence for whichever cause was expected. THIRD field added to this
+            // instrument for the same reason as the first two: decide what a row must let you rule
+            // OUT before collecting rows.
+            let _ = writeln!(
+                f,
+                "{}\t{}\t{}\t{}\t{}\t{}",
+                build, spine, shape, word, base_cmd, original_line
+            );
         }
     }
     let _cmd_timer_start = std::time::Instant::now();
