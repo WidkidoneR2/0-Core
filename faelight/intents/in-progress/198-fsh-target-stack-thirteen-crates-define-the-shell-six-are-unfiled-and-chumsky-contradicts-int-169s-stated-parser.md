@@ -146,6 +146,61 @@ modelling complete, incomplete and invalid input. That changes how the gate eval
 how downstream work understands parser completion. The five gates already done survive, because they
 concern the spine existing and working rather than which crate lexes.
 
+TOKIO -- OPTIONAL, NOT CORE. A shell is not naturally an async application: fork, exec, waitpid,
+setpgid, tcsetpgrp, SIGCHLD, SIGINT, SIGTSTP, terminal input and PTY are OS process-control
+operations, and nothing is gained by turning them into async fn. The execution architecture is the OS
+process model, with a synchronous job-control core. Tokio stays available for asynchronous output,
+network-backed commands, plugin APIs, background tasks and completion providers. fsh's only
+async-shaped execution today is backgrounding, whose model is already explicit -- spawn, never wait,
+JobTable::check_completed polls, and a background job gets no tee because there is nothing to tee
+into. Any tokio decision inherits that model rather than starting fresh.
+
+NIX -- KEEP INITIALLY, AND INVESTIGATE RUSTIX. The role was described as "signals, job control,
+pgroups", which is architecturally misleading: nix is an implementation BACKEND, not the job-control
+model. Define a ProcessBackend trait -- spawn, set_process_group, foreground, send_signal, wait --
+and let a Linux backend sit behind it. The interesting direction is not which wrapper crate but the
+Linux primitives: process groups, waitid, pidfds, signalfd, epoll, termios, controlling terminals.
+Lane: INT-188, which got easier once backgrounding moved beside try_jobs, try_fg and try_kill.
+
+CROSSTERM -- KEEP AS INFRASTRUCTURE, BEHIND AN ABSTRACTION. Do not build reedline, crossterm and a
+styling crate as three independent terminal layers. One shell terminal abstraction, with the editor
+and job control beneath it. Ratatui becomes interesting only if a full-screen UI actually exists --
+not because it is appealing.
+
+NU-ANSI-TERM -- REPLACE, and not with itself. The incumbent is `colored`, already in scope and used
+for every marker in the shell, so this was never an addition. The better model is anstyle: a small
+interoperable representation of styling, so a PromptSegment carries semantic style and the renderer
+decides whether it becomes ANSI, plain text, JSON or a test snapshot. Prompt rendering stops
+depending on one ANSI implementation.
+
+NUCLEO -- KEEP, and go beyond fuzzy matching. Make completion a PROVIDER architecture -- command,
+argument, option, path, environment, alias, history, git, plugin -- each receiving a CompletionContext
+of source, cursor, ast, current node, cwd and environment. Completion stops being "find strings
+starting with gi" and becomes "I am in the first argument of git checkout". Nucleo is then the
+ranking engine rather than the feature.
+
+GIX -- DEFER, and keep git out of the core. Its own ledger entry already says "NOT a felt need yet".
+Git becomes a PromptProvider, which also opens the same seam for nix, docker, kubernetes, ssh and
+direnv providers without any of them infecting the shell.
+
+SERDE + TOML -- KEEP, with a layered configuration model. config.fsh must not stay the only
+configuration concept: defaults, system, user, project, environment, runtime state. And distinguish
+configuration (durable preference) from runtime state (cwd, jobs, history, last status) and session
+state (temporary overrides). On NixOS the configuration should eventually be generatable declaratively
+from Nix WITHOUT the shell depending on Nix.
+
+TRACING -- ADD NOW, and this is the strongest live case in the stack. fsh is a process manager and
+already needs observability: FSH_SPINE_TRACE is a bare eprintln behind an env check, and it was the
+decisive tool twice in one week -- it proved the router claims a redirected background line, and it
+proved jobs and kill are excluded as REPL-state commands. Spawning, pgid, job state, signals and
+terminal foreground are exactly the things that become undebuggable without it.
+
+MIETTE -- ADD NOW, AS A RENDERER ONLY. The internal diagnostic model stays independent: severity,
+message, primary span, labels, help, code. Miette then renders it for a terminal, while the same
+model can produce JSON, an editor-facing diagnostic, or a snapshot in a test. Judge it with INT-199,
+whose thesis -- every failure answers what happened, what changed, why, and what to do next -- miette
+is the mechanism for rather than a competitor to.
+
 ## Success Criteria
 - [ ] Each of the thirteen judged against the filter: KEEP with lane and rough order, or CUT
       with the reason. No piece left unjudged
