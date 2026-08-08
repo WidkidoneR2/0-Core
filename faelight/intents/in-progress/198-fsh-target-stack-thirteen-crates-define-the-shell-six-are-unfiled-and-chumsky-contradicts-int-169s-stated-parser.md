@@ -202,13 +202,63 @@ whose thesis -- every failure answers what happened, what changed, why, and what
 is the mechanism for rather than a competitor to.
 
 ## Success Criteria
-- [ ] Each of the thirteen judged against the filter: KEEP with lane and rough order, or CUT
+- [x] Each of the thirteen judged against the filter: KEEP with lane and rough order, or CUT
       with the reason. No piece left unjudged
-- [ ] The parser decision recorded, with the cost of BOTH paths stated -- including what
+<!-- evidence: all thirteen ruled above, 2026-08-08, each with a reason rather than a preference.
+     CUT: reedline (rustyline already ships multi-line, hinting, a highlighter, menus and vi mode)
+     and logos (operator recognition is quote-dependent and the replacement is a fourteen-line
+     match). REVERSED: tree-sitter, keep to defer, on two-grammars. KEEP: chumsky, nucleo,
+     crossterm behind an abstraction, serde+toml with layered config, nix initially. DEFER: gix,
+     tokio as optional. REPLACE: nu-ansi-term with an anstyle-shaped model. ADD NOW: tracing and
+     miette. Two are reversals of earlier positions, both on better reasons than the originals. -->
+- [x] The parser decision recorded, with the cost of BOTH paths stated -- including what
       chumsky would discard and whether a combinator meets the context-sensitivity wall the
       hybrid was built to avoid
-- [ ] Every KEEP without an intent either gets one filed or is explicitly deferred with the
+<!-- evidence: the chumsky ruling above. Cost of adopting: roughly fifty lines of parser.rs today,
+     rising as the parser grows -- measured, not estimated, from a 320-line file of which about
+     fifty actually parse. Cost of NOT adopting: hand-writing recursive descent through CommandSub
+     nesting, pipelines, redirects and operators, and no error recovery for interactive input.
+     And the context-sensitivity question is answered rather than assumed: the wall is at the LEXER
+     level, because operator_at must be called in unquoted context to tell an operator from data,
+     so a combinator over a TOKEN stream never meets it -- the lexer resolved quoting first. -->
+- [x] Every KEEP without an intent either gets one filed or is explicitly deferred with the
       reason. Six currently qualify
-- [ ] The roadmap gains an architecture lane, or this intent records why architecture stays
+<!-- evidence: 2026-08-08, and the rulings changed which pieces even qualify. FILED: INT-207 for
+     structured logging, titled for the problem rather than the crate -- FSH_SPINE_TRACE is a bare
+     eprintln behind an env check and was the decisive tool twice in one week, and there are now
+     THREE hand-rolled observability mechanisms each having learned the same lessons separately.
+     INT-208 for the diagnostic model, likewise titled for the problem -- every failure is an eprintln
+     with a coloured marker, while the spine already carries Spanned<T> everywhere and preserves
+     absolute spans for nested substitutions specifically so diagnostics could use them, and nothing
+     consumes any of it.
+     COVERED ELSEWHERE: chumsky, by INT-169's redesign, which is where the parser contract belongs.
+     DEFERRED WITH THE REASON ALREADY RECORDED ABOVE: tokio (the execution architecture is the OS
+     process model, not an async runtime), gix (git leaves the core as a prompt provider), and
+     tree-sitter (two grammars). None of the three needs a file to hold a decision that is written
+     down here.
+     NOT YET A FILEABLE UNIT: nucleo, whose real work is the completion PROVIDER architecture rather
+     than the ranking crate, and crossterm, whose abstraction does not exist yet. Filing either now
+     would be filing a wish rather than recording discovered work -- the distinction this ledger
+     already draws. -->
+- [x] The roadmap gains an architecture lane, or this intent records why architecture stays
       outside it
-- [ ] Nothing built. The close condition is a decision anyone can act on, not a diff
+<!-- evidence: architecture stays OUTSIDE the roadmap, and the reason is a boundary this ledger
+     already draws. docs/fsh-evolution-roadmap.md is a FEATURE roadmap: ten lanes, 170 lines, and it
+     mentions the spine, INT-169, the parser rebuild and the observation layer zero times. That is
+     not an omission to patch here -- its own maintenance rule says "reconciled by Christian at each
+     fsh version bump", it was finalised at v3.1.0, and fsh is now 3.6.8. Reconciling it is INT-134's
+     standing job and this intent's scope fence says so explicitly.
+     THE SUBSTANTIVE REASON, not just the jurisdictional one: a feature lane answers "what should the
+     shell do next", while architecture answers "what is the shell". Those are judged by different
+     criteria -- a feature earns its place by deepening understanding and control, whereas a crate
+     earns its place by whether the semantic model needs it. Mixing them is how a stack came to be
+     stated as thirteen crates rather than as a design, which is the condition this intent was filed
+     to correct. -->
+- [x] Nothing built. The close condition is a decision anyone can act on, not a diff
+<!-- evidence: this intent produced rulings and two filed intents. No shell source changed under it.
+     What it hands forward is actionable without further judgement: thirteen decisions each with a
+     reason, a parser decision with both costs measured rather than estimated, INT-169 re-scoped from
+     a lexer ticket to the parser-contract ticket, and INT-207 and INT-208 carrying the two ADD NOWs
+     with gates of their own. A reader who disagrees can argue with a stated reason rather than guess
+     at a preference, which is what the fence was protecting. -->
+
