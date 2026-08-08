@@ -3,7 +3,7 @@ id: 198
 date: 2026-07-26
 type: future
 title: "fsh target stack: thirteen crates define the shell, six are unfiled, and chumsky contradicts INT-169's stated parser"
-status: in-progress
+status: complete
 tags: [fsh, chumsky, reedline, Crossterm, Nu-ansi-term, nix, Tracing+Miette]
 ---
 
