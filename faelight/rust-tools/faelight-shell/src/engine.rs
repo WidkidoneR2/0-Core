@@ -1678,7 +1678,16 @@ pub fn execute_and_record(
             .open(&path)
         {
             use std::io::Write;
-            let _ = writeln!(f, "{}\t{}\t{}\t{}", spine, shape, word, base_cmd);
+            // ⚠️ THE BUILD FIELD IS NOT OPTIONAL. Without it this log accumulated across gen 475
+            // to 479 -- through the digit-guard narrowing, the -c routing and the exit-code work --
+            // and a row from the first build was indistinguishable from one written a minute ago.
+            // Sixteen "spine-on" rows read as evidence about the current shell when all three of the
+            // commands behind them are claimed today. Same failure as the spine field this already
+            // has: a measurement missing the one field that makes a row interpretable.
+            let build = std::fs::read_to_string("/tmp/fsh-running-build")
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|_| "unknown".to_string());
+            let _ = writeln!(f, "{}\t{}\t{}\t{}\t{}", build, spine, shape, word, base_cmd);
         }
     }
     let _cmd_timer_start = std::time::Instant::now();
