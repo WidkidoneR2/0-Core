@@ -10,3 +10,4 @@ faelight-vm.qcow2
 .pre-commit-config.yaml
 __pycache__/
 faelight/runtime/legacy-exec.log
+faelight/runtime/sh-fallback.log

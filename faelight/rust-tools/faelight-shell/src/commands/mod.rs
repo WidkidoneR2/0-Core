@@ -9293,6 +9293,36 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // INT-185's stderr tee now lives in spawn_with_tee, shared with the spine's plan
     // executor. This path delegates the UNMODELLED line to sh; the spine path spawns argv
     // directly. Different responsibilities, one telemetry implementation.
+    // ⚠️⚠️ TEMPORARY MEASUREMENT -- INT-201, 2026-08-08. DELETE WHEN THE QUESTION IS ANSWERED.
+    //
+    // THIS IS THE ONE PLACE fsh HANDS A LINE TO sh. `-c` was routed through fsh rather than given a
+    // fallback of its own, on the reasoning that the delegation already has an owner here -- so a
+    // second escape hatch would be a second escape path rather than instrumentation of the first.
+    //
+    // THE QUESTION THIS ANSWERS: over one deploy cycle, does a `-c` line ever reach this point? Zero
+    // rows means every `-c` line was handled natively by fsh. Any rows name the exact commands that
+    // still need sh, which is strictly more useful than a boolean "the fallback fired".
+    //
+    // ★ THE DOOR FIELD IS WHAT MAKES A ROW MEAN ANYTHING. Interactive lines reach here too and always
+    // have; only the `-c` ones are evidence about the routing change. Recording the count without the
+    // door would answer a question nobody asked.
+    {
+        let door = if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
+            "dash-c"
+        } else {
+            "interactive"
+        };
+        let root = db.core_root();
+        let path = std::path::Path::new(&root).join("faelight/runtime/sh-fallback.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
+            use std::io::Write;
+            let _ = writeln!(f, "{}\t{}\t{}", door, command_word(line), line);
+        }
+    }
     let mut cmd = std::process::Command::new("sh");
     cmd.arg("-c").arg(line);
     cmd.stdin(std::process::Stdio::inherit())
