@@ -3,7 +3,7 @@ id: 201
 date: 2026-08-04
 type: arch
 title: "fsh execution engine: extract a reusable executor from main.rs -- nothing outside the REPL loop can run a command"
-status: in-progress
+status: complete
 tags: [fsh, architecture, refactor, execution]
 priority: medium
 ---
