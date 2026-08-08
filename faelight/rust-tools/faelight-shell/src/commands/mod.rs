@@ -9320,7 +9320,12 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             .open(&path)
         {
             use std::io::Write;
-            let _ = writeln!(f, "{}\t{}\t{}", door, command_word(line), line);
+            // The same build field the legacy-exec log carries, for the same reason: a row that
+            // cannot be dated to a binary cannot be read as evidence about the current shell.
+            let build = std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "unknown".to_string());
+            let _ = writeln!(f, "{}\t{}\t{}\t{}", build, door, command_word(line), line);
         }
     }
     let mut cmd = std::process::Command::new("sh");

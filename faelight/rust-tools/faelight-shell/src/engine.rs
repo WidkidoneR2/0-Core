@@ -1684,8 +1684,18 @@ pub fn execute_and_record(
             // Sixteen "spine-on" rows read as evidence about the current shell when all three of the
             // commands behind them are claimed today. Same failure as the spine field this already
             // has: a measurement missing the one field that makes a row interpretable.
-            let build = std::fs::read_to_string("/tmp/fsh-running-build")
-                .map(|s| s.trim().to_string())
+            // ⚠️ THE RUNNING BINARY, NOT THE DEPLOYED ONE. This read /tmp/fsh-running-build, which
+            // INT-096 writes with the DEPLOYED store path at startup -- so every row written by a
+            // debug build was labelled with whatever was deployed at the time, which is exactly the
+            // case we iterate in. Third field today that recorded something adjacent to what it
+            // claimed.
+            //
+            // current_exe() names the process that actually wrote the row. INT-096 avoids it for
+            // BUILD IDENTITY because the deployed binary is makeWrapper-wrapped and the wrapper path
+            // is not the hash it wants -- but for "which binary emitted this line" the wrapper path
+            // is the honest answer, and it still differs per rebuild.
+            let build = std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|_| "unknown".to_string());
             let _ = writeln!(f, "{}\t{}\t{}\t{}\t{}", build, spine, shape, word, base_cmd);
         }
