@@ -151,9 +151,16 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      two days a commit message asserted a closure this file did not show. That is the failure the
      intent audit exists to catch, and it happened here.
      Verified on 138 unit tests, the full 132-case suite, and live probes on the deployed binary. -->
-- [ ] The REPL performs no execution dispatch. Every entered command is delegated to the execution
+- [x] The REPL performs no execution dispatch. Every entered command is delegated to the execution
       engine, and the ENGINE selects the executor -- shell or query -- and runs it. Language routing
       is an engine concern, not a REPL concern.
+<!-- evidence: counted 2026-08-08, not argued. ZERO dispatch-shaped lines remain in repl_main --
+     no engine.try_*, no execute_and_record, no route_through_spine, no split_into_segments. The
+     772-line ordering moved VERBATIM into run_input (4262e19a); repl_main calls it. Exactly one
+     run_input definition, and two call sites: the REPL and -c. The INT-196 derivations moved
+     along untouched, which was the explicit ruling -- gate 4 requires the REPL to stop OWNING
+     dispatch, not the extracted dispatcher to already be the final engine architecture. The
+     engine boundary stays a follow-up: zero run_input in engine.rs. -->
 <!-- ★ REWORDED 2026-08-05 ON A DESIGN RULING, not on difficulty. The original asked for "no dispatch
      logic left inline", which reads as "there is exactly one executor" -- and the reconnaissance
      above shows that is not reachable by deletion, because the spine cannot parse fsh's own query
@@ -181,9 +188,22 @@ semantics establish prompt, history, direnv, bookkeeping and the welcome banner.
      parser had to serve two grammars. Under clean two-language routing the shell parser never sees
      `cpu > 0.5`, so `echo test > 0.5` could become an ordinary redirect -- retiring BOTH declared
      divergences in the conformance corpus. Its own change, its own evidence. -->
-- [ ] fsh-test stays green throughout, including the conformance cases
-- [ ] `fsh -c` routes through it, and the digit guard applies to both doors
-- [ ] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
+- [x] fsh-test stays green throughout, including the conformance cases
+<!-- evidence: 150 unit tests and 139/139 across the extraction and the routing. Seven cases went
+     red in between and every one was a real finding rather than a test to weaken -- exit carried
+     no status, session UI reached a non-interactive stdout, tilde was never expanded in an
+     assignment, and a signalled child reported 1 at sixteen sites. Two more had their PREMISE
+     moved and were rewritten saying so. -->
+- [x] `fsh -c` routes through it, and the digit guard applies to both doors
+<!-- evidence: `fsh -c 'echo test > 0.5'` creates the file, which is the narrowed digit guard
+     applying to the -c door for the first time -- it delegated to sh before, so no fsh rule
+     reached it. -c now calls the same run_input the REPL calls; no second ordering, and no -c
+     level fallback, because run_external already owns the sh delegation one layer down. -->
+- [x] `fsh -c 'pwd'` prints the CALLER's directory, not the forest root
+<!-- evidence: spawned from /tmp, `fsh -c 'pwd'` prints /tmp. Met by CONSTRUCTION rather than by a
+     guard: this path never reaches repl_main, so the forest-home default never runs. And
+     `fsh -c 'echo hi' | wc -l` answers 1, so the diagnostics rule held and nothing leaked onto
+     stdout. -->
 
 ## The design gate 4 will be built to (decided 2026-08-06, before any code moved)
 THE BOUNDARY. The REPL owns terminal interaction and session lifetime. The engine owns language
