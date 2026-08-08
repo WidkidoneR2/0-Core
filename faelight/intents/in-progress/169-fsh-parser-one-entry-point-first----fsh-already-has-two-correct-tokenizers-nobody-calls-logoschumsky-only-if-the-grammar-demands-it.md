@@ -112,8 +112,38 @@ built behind the discipline that makes it not-a-gamble.
       alternatives (chumsky + fully-handwritten, and why not), AST design, lexer design, execution
       interface, 9-step roadmap, first construct, rides-with fixes, Appendix A. Written before any
       spine code was cut. -->
-- [ ] logos added + the hybrid lexer stands up: regular tokens via logos, custom stateful layer for
-      strings/heredocs/$()/${}/interpolation. Demonstrated tokenizing a real line into typed tokens.
+<!-- ⚠️ THIS GATE WAS REPLACED 2026-08-08, on evidence, by the seven below. It asked for "regular
+     tokens via logos", and INT-198 cut logos: operator_at's own doc records that operator recognition
+     is called only in unquoted context because `echo "|"` is data, so a stateless matcher cannot own
+     it -- and the function that does is a fourteen-line match on a character and its successor. The
+     hand-written scanner won the word path at step 2 and the operator path afterwards.
+     The replacement is not a rewording. The CONTRACT changed: a parser that answers "AST or error"
+     cannot serve an interactive shell, because an interactive shell is constantly holding partial
+     input. INT-198 ruled chumsky KEEP and re-scoped this intent around a canonical ParseResult that
+     models complete, incomplete and invalid input.
+     ⭐ THE RED-FIRST EVIDENCE IS ALREADY IN THE CODEBASE, written by it. completion.rs's Validator
+     carries THREE continuation rules the lexer cannot answer: a trailing backslash ("the one case the
+     lexer cannot answer"), heredocs (`if input.contains("<<") { return Valid }`, whose own comment
+     admits try_heredoc "already draws this line the same crude way" and that "fsh does not model
+     heredocs, so it must not pretend to lex them"), and comments (stripped before lexing, because "an
+     apostrophe in an ordinary English comment holds the prompt open exactly as a heredoc body did").
+     Both hacks were added within hours of shipping the validator, by pasting an ordinary script.
+     And the file states the principle the fix must follow: "ASK THE LEXER; DO NOT COUNT QUOTES HERE
+     -- a quote counter in this file would be a THIRD OWNER of the same knowledge." So these rules
+     move INTO the scanner's state; they are not reimplemented better where they sit. -->
+- [ ] G1: the SCANNER owns continuation state. No quote counting, heredoc detection or escape
+      detection remains in the validator
+- [ ] G2: ParseResult models Complete, Incomplete and Invalid -- not Ok-or-error
+- [ ] G3: a trailing escape is represented explicitly, as a stated continuation rather than a
+      special case ahead of the lexer
+- [ ] G4: a heredoc introduction produces explicit lexical continuation state carrying the delimiter
+      and whether it was quoted -- not `contains("<<")`
+- [ ] G5: comments are handled by the scanner as a lexical state, and cannot manufacture an
+      unterminated prompt state. The apostrophe cases stop being special
+- [ ] G6: the existing validator workarounds are REMOVED, not left beside the new mechanism
+- [ ] G7: native heredoc EXECUTION is explicitly out of scope. The scanner knows it is inside a
+      heredoc continuation; it does not claim fsh can execute one. That capability gets its own
+      intent, starting from a front end that already knows what a heredoc is
 - [x] ONE CONSTRUCT end-to-end as proof-of-shape: a simple command -> logos+lexer tokens -> handwritten
       parse -> AST node -> execute, with the OLD path live beside it and the SAME REPL tests passing.
       <!-- DONE 2026-07-22 gen 427. The vertical: source -> custom stateful scanner (logos
@@ -129,7 +159,12 @@ built behind the discipline that makes it not-a-gamble.
       OLD PATH LIVE THROUGHOUT: fsh-test 97/97 including all five REPL redirect tests and the
       INT-143 double-execution guards, plus 77 unit tests. Commits 12487484, c668dfce, d5dbffd0,
       97359732, c445345f, f9dca926. -->
-- [ ] AST types defined (Command / Pipeline / Redirect / Assignment to start) + ExecContext holds the AST.
+- [x] AST types defined (Command / Pipeline / Redirect / Assignment to start) + ExecContext holds the AST.
+<!-- evidence: verified against source 2026-08-08. ExecContext is at exec.rs:73 and from_plan at 129,
+     beside from_line at 163 -- the plan-based constructor exists and is what blocker 2 delivered in
+     4cd9f54d. It derives cmd and args from plan.argv with no tokenizing, which is the point: the
+     catastrophic-command guard now reads ctx.cmd and ctx.args instead of flattening argv and
+     re-parsing it. from_line survives deliberately until the routing work starves it of callers. -->
 - [ ] The rides-with fixes: stop lowercasing cmd; SystemTime not u64; unique execution ID (lights up 167's
       correlation_id).
       <!-- NOT TICKED, and deliberately: three of four are done and deploy-validated, but the
@@ -145,7 +180,12 @@ built behind the discipline that makes it not-a-gamble.
       Deploy-validated gen 438, fsh-test 105/105.
       DEFERRED to INT-167: events.correlation_id is still a dead column. The id now EXISTS to put
       in it; nothing writes it. That is 167's contract, not the spine's, and this gate stays open
-      until it lands so the dependency keeps its reason. -->
+      until it lands so the dependency keeps its reason.
+      VERIFIED AGAIN AGAINST SOURCE 2026-08-08: timestamp: SystemTime at exec.rs:94, and
+      NEXT_EXECUTION_ID: AtomicU64 at exec.rs:41 handed out by next_execution_id() at 43.
+      ⚠️ AND A TRAP FOR WHOEVER FINISHES THIS: to_lowercase() still appears at exec.rs 230, 243 and
+      307. Those are POLICY comparisons inside the catastrophic-command guard, NOT command identity.
+      Removing them to 'complete' this gate would break the safety guard. -->
 - [x] fsh still boots, logs in, deploys at EVERY step. No big-bang.
       <!-- DONE -- demonstrated across generations 411-421 (11 deploys this session). Every increment
       went to the daily driver and the shell kept booting, logging in, and deploying. The old from_line
