@@ -164,8 +164,24 @@ built behind the discipline that makes it not-a-gamble.
      find_heredoc_intro -- a sibling of find_heredoc_delimiter, which already computed the
      quoting to find where the delimiter token ended and then discarded it. The old name
      delegates, so its three callers are untouched. No contains check remains. -->
-- [ ] G5: comments are handled by the scanner as a lexical state, and cannot manufacture an
+- [x] G5: comments are handled by the scanner as a lexical state, and cannot manufacture an
       unterminated prompt state. The apostrophe cases stop being special
+<!-- evidence: 7cb10c46 (scanner) and 480d3617 (pre-pass deleted), deployed gen 483.
+     HANDLED BY THE SCANNER: the # check sits in the OUTER loop, where the loop has just skipped
+     whitespace -- so word-start holds by construction, and unquoted holds too because a # inside
+     quotes is consumed by the inner walk and never reaches it. Four unit tests fix the rule:
+     `echo hi # tail` -> two words, `echo "# x"` -> two tokens, `echo foo#bar` -> ONE word,
+     `# whole line` -> nothing.
+     CANNOT MANUFACTURE AN UNTERMINATED PROMPT: the validator no longer strips before lexing, and
+     a comment containing an apostrophe behaves identically on gen 482 and after -- measured through
+     a pty against both builds rather than reasoned about.
+     THE APOSTROPHE CASES STOP BEING SPECIAL: there is no special case left. expand::strip_comments
+     is DELETED (55 lines, its own quote machine), and INT-209 proved the removal safe before making
+     it -- a probe on its only call site fired for a trailing comment and for a comment-only line,
+     so it was live rather than already dead.
+     ★ AND IT FIXED A DIVERGENCE NOBODY HAD LOOKED FOR: that pre-pass ran on the REPL path only, so
+     the REPL stripped comments and `-c` did not. Both doors now agree, and structurally rather than
+     by ordering -- guarded by a paired case on each door (b52fd248, 75732599). -->
 - [x] G6: the existing validator workarounds are REMOVED, not left beside the new mechanism
 <!-- evidence: all three are gone from completion.rs, not left beside the new mechanism.
      Verified through a pty against BOTH builds side by side rather than by reasoning: a
@@ -225,7 +241,13 @@ built behind the discipline that makes it not-a-gamble.
       <!-- DONE -- demonstrated across generations 411-421 (11 deploys this session). Every increment
       went to the daily driver and the shell kept booting, logging in, and deploying. The old from_line
       path stayed live throughout; nothing calls spine::plan::lower() on the live path. -->
-- [ ] Each gate carries evidence per INT-158.
+- [x] Each gate carries evidence per INT-158.
+      <!-- evidence: every ticked gate above carries an HTML comment naming a commit or a
+      demonstrated fact -- 35d0842f for G1, ceb105de/0d57bd36/ef70ac94 for G2, the backslash-run
+      probe for G3, find_heredoc_intro for G4, 7cb10c46/480d3617 for G5, the both-builds pty
+      comparison for G6, and scope-by-construction for G7. The one UNTICKED gate carries its reason
+      in prose rather than a hash, which is the honest evidence for a gate deliberately held open on
+      another intent's contract. -->
 
 ## PROGRESS 2026-07-21/22 -- the foundation is built, execution is NOT flipped
 
