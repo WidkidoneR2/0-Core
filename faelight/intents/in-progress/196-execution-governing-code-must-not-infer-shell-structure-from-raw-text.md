@@ -227,6 +227,49 @@ REVISED SHAPE: NINE execution-governing, TWO classification, EIGHT telemetry. Bo
 are PROTECTIVE -- one dispatches, one decides whether a safety net is deployed. Reading them
 mattered more than the count did.
 
+## GUARD EVIDENCE: ONE DECISION, TWO CALLS (2026-08-09)
+
+Inspection of the two safety_guard::check(&line) call sites resolves the guard's control flow.
+
+main.rs:2340 is the UNIVERSAL guard. It runs unconditionally after history is saved and before the
+multi-line branch, the heredoc branch, the ? prefix, the ||| operator and run_input at ~2462. No
+parsing has occurred; the guard receives only raw line text.
+
+main.rs:2383 is inside the HEREDOC branch. That branch is reached only after the universal guard has
+already run, and it passes the same unmodified line. The heredoc path therefore invokes the guard
+twice with identical input and obtains the same decision twice.
+
+So the two sites are NOT two independent guard situations. They are one decision expressed in two
+places, with the second invocation redundant.
+
+⭐ AND IT ESTABLISHES SOMETHING THE DESIGN MUST ANSWER: the universal guard intentionally sees inputs
+that are not necessarily complete single commands. Multi-line pastes and heredoc continuations reach
+it before execution parsing. So the parse-first design must EXPLICITLY define guard behaviour for
+non-executable parser outcomes -- Incomplete and Refused -- rather than assuming every line presented
+to the guard yields an executable AST. Blocking everything unparseable would be unusable; passing
+everything unparseable is how the quoted rm got through.
+
+THE STRONGEST SMALL-SCOPE DESIGN NOW SUPPORTED BY EVIDENCE:
+  1. Parse once at the appropriate point before the universal guard.
+  2. When an executable AST is available, obtain the first Word from the AST.
+  3. Give that first-word FACT to the guard rather than asking it to reconstruct one from raw text.
+  4. Remove the redundant heredoc guard call at main.rs:2383.
+  5. Explicitly specify what the guard does for Incomplete and Refused BEFORE implementation.
+
+## SEPARATE FINDINGS -- RECORDED, NOT FOLDED IN
+
+⚠️ Neither belongs to this intent's change, and neither should expand it before the evidence boundary
+above is settled.
+
+DUPLICATE normalize_input. It is called twice consecutively at main.rs:2332-2333, which appears
+accidental. Verify idempotence and side effects before removing either call. Not INT-196's subject.
+
+HEREDOC DELIMITER RE-DERIVATION. The heredoc branch derives its delimiter at ~main.rs:2365 with a raw
+split(" << "), then separately derives quoting at ~2373 with starts_with. This duplicates information
+find_heredoc_intro already exposes -- but do NOT replace it merely because that function exists.
+First establish whether its returned representation fully supplies the delimiter and quoting semantics
+this branch requires. Another text-derivation finding, its own analysis.
+
 ## Success Criteria
 - [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
       blocked. Do not tick the rest before this one
