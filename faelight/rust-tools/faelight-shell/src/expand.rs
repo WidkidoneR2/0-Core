@@ -152,62 +152,6 @@ fn find_heredoc_intro_inner(s: &str) -> Option<(String, bool)> {
     None
 }
 
-pub fn strip_comments(input: &str) -> String {
-    // INT-285 BUG 1 FIX: heredoc-aware comment stripping
-    // Lines inside a heredoc body are raw data -- never strip them
-    let mut result: Vec<String> = Vec::new();
-    let mut in_heredoc = false;
-    let mut heredoc_delim = String::new();
-    for line in input.lines() {
-        if in_heredoc {
-            // Inside heredoc body -- preserve content exactly as written
-            result.push(line.to_string());
-            // Check for closing delimiter (must match exactly, trimmed)
-            if line.trim() == heredoc_delim.as_str() {
-                in_heredoc = false;
-                heredoc_delim.clear();
-            }
-            continue;
-        }
-        // Check if this line opens a heredoc
-        if let Some(delim) = find_heredoc_delimiter(line) {
-            heredoc_delim = delim;
-            in_heredoc = true;
-            result.push(line.to_string());
-            continue;
-        }
-        // Normal comment stripping -- only outside heredoc bodies
-        let trimmed = line.trim_start();
-        if trimmed.starts_with('#') {
-            continue;
-        }
-        let mut in_single = false;
-        let mut in_double = false;
-        let mut comment_pos = None;
-        for (i, ch) in line.char_indices() {
-            match ch {
-                '\'' if !in_double => in_single = !in_single,
-                '"' if !in_single => in_double = !in_double,
-                '#' if !in_single && !in_double => {
-                    if i == 0 || line[..i].ends_with(|c: char| c.is_whitespace()) {
-                        comment_pos = Some(i);
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-        let stripped = match comment_pos {
-            Some(pos) => line[..pos].trim_end().to_string(),
-            None => line.to_string(),
-        };
-        if !stripped.trim().is_empty() {
-            result.push(stripped);
-        }
-    }
-    result.join("\n")
-}
-
 pub fn is_complete_command(buf: &str) -> (bool, &'static str) {
     let cleaned: String = buf
         .lines()

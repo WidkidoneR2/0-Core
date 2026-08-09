@@ -2212,8 +2212,14 @@ fn repl_main() -> Result<()> {
                     }
                     eprintln!("  ✗ reload failed: {:?}", exec_err);
                 }
-                // Strip comments before any processing
-                let line = strip_comments(line.trim());
+                // INT-209: THE COMMENT PRE-PASS IS GONE. The canonical scanner recognises a comment
+                // as a lexical state, so stripping here made two owners implement one rule -- and
+                // this one ran FIRST, which is why both doors agreed for the wrong reason: not
+                // because the scanner governed both, but because a pre-pass beat it to the REPL.
+                //
+                // Measured before removing: a probe on this line fired for `echo hi # tail` and for
+                // a comment-only line, so it was live rather than already-dead code.
+                let line = line.trim().to_string();
                 let line = line.trim().to_string();
                 if line.is_empty() {
                     continue;
