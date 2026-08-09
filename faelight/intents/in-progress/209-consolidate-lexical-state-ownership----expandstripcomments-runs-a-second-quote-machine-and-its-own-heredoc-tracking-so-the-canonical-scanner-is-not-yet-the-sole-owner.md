@@ -71,7 +71,14 @@ architectural change becomes an uncontrolled rewrite; the honest open gate is th
      consumed by the inner walk and never reaches it. Four unit tests define the rule:
      `echo hi # tail` -> two words, `echo "# x"` -> two tokens, `echo foo#bar` -> one word,
      `# whole line` -> nothing. No pre-pass remains over the same text. -->
-- [ ] Heredoc recognition and delimiter tracking live in the scanner
+- [x] Heredoc recognition and delimiter tracking live in the scanner
+<!-- evidence: 35d0842f. The scanner calls find_heredoc_intro before the character walk begins and
+     reports HeredocBody { delimiter, quoted } as lexical continuation state -- so it knows it is
+     inside a heredoc continuation, which is what INT-169's ruling scoped this to.
+     ⚠️ AWARENESS, NOT EXECUTION, deliberately: try_heredoc still collects the body and hands the
+     construct to sh. That capability is a separate intent. And main.rs:2170 still tracks a
+     delimiter for that collection loop -- an EXECUTION concern consuming a lexical fact, not a
+     second recogniser, which is the distinction INT-210 exists to make for the remaining cases. -->
 - [x] The arch-era INT-285 behaviour is preserved: lines inside a heredoc body are raw data and are
       never comment-stripped. Regression coverage names the cases rather than trusting the move
 <!-- evidence: two cases written BEFORE the move so it had something that could fail --
@@ -81,7 +88,13 @@ architectural change becomes an uncontrolled rewrite; the honest open gate is th
 - [x] `strip_comments`'s quote and heredoc state machine is REMOVED, not left beside the scanner's
 <!-- evidence: 480d3617, 55 lines deleted. Zero callers remained; every surviving mention of the
      name is a comment. 152 unit tests and 143/143 after removal, with no warnings. -->
-- [ ] `find_heredoc_delimiter` is audited: kept with one owner, or absorbed
+- [x] `find_heredoc_delimiter` is audited: kept with one owner, or absorbed
+<!-- evidence: KEPT, with one owner. It has two remaining callers -- expand.rs:192, a separate
+     cleaner, and main.rs:2170, the heredoc collection loop -- and both ask the same question:
+     WHICH delimiter ends this heredoc. find_heredoc_intro was added beside it for the scanner,
+     reporting the delimiter AND whether it was quoted, because the quoting was always computed to
+     find where the delimiter token ended and then discarded. The old name delegates to the same
+     body, so there is one recogniser with two signatures rather than two recognisers. -->
 - [x] Every `strip_comments` caller is audited -- callers may depend on the pre-pass shape
 <!-- evidence: 480d3617. ONE caller, main.rs:2216, in repl_main. Measured before removing rather
      than assumed dead: a probe on that line fired for `echo hi # tail` and for a comment-only
@@ -90,4 +103,10 @@ architectural change becomes an uncontrolled rewrite; the honest open gate is th
      path and beat it there. Two owners, one rule, agreeing by ordering. Now structural. -->
 - [ ] The stronger invariant holds and is stated: the canonical scanner is the SOLE owner of lexical
       state. INT-169 closed only the weaker one, that the validator is no longer an owner
-- [ ] Each gate carries evidence per INT-158
+- [x] Each gate carries evidence per INT-158
+<!-- evidence: every ticked gate above carries an HTML comment naming a commit or a demonstrated
+     fact -- 7cb10c46 for comments as lexical state, 35d0842f for heredoc recognition, b52fd248 for
+     the arch-era behaviour cases written before the move, 480d3617 for the deletion and the caller
+     audit, and a stated finding for the delimiter audit. The one UNTICKED gate carries its reason
+     in the boundary section above rather than a hash, which is the honest form of evidence for a
+     gate that is deliberately still open. -->
