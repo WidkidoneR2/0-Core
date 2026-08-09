@@ -1361,8 +1361,15 @@ pub fn try_execute_spine_source(
             bump(&SPINE_DECLINED_PARSE);
             SpineOutcome::Declined
         }
-        // Unfinished input. The REPL validator normally holds these at the prompt, so arriving here
-        // means a caller that did not consult it -- legacy handles the line as it always has.
+        // ⚠️ INCOMPLETE DECLINES, AND THE REASON IS NOT THE SAME AS A REFUSAL. Say it here so a
+        // later reader does not see two arms both answering Declined and conclude that every
+        // non-Complete result is a refusal.
+        //
+        //   Refused    -- valid shell the spine does not own. Legacy is the RIGHT owner.
+        //   Incomplete -- input that should have been intercepted EARLIER, by the REPL validator.
+        //                 Arriving here is a caller-contract violation, not an ownership question,
+        //                 and legacy handles the line as it always has rather than the shell
+        //                 inventing a second continuation policy at the router.
         Err(SpineAttemptError::Incomplete(_)) => {
             bump(&SPINE_DECLINED_PARSE);
             SpineOutcome::Declined
