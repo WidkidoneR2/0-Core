@@ -1189,16 +1189,6 @@ fn run_input(
         // debug entry below still wants it. A one-line derivation is cheaper to repeat
         // than to thread back out, and it cannot drift from what the method computes.
         let trimmed = line.trim();
-        // Phase 10: inline and standalone assignment. INT-201 moved the body into the
-        // engine; the shape now matches the handlers above and below it.
-        if let Some(outcome) = engine.try_inline_assignment(line, &raw_line) {
-            match outcome {
-                crate::engine::SegmentOutcome::Next => continue,
-                crate::engine::SegmentOutcome::ExitShell => {
-                    return crate::engine::SegmentOutcome::ExitShell
-                }
-            }
-        }
         if let Some(outcome) = engine.try_let(line) {
             match outcome {
                 crate::engine::SegmentOutcome::Next => continue,
@@ -1330,6 +1320,36 @@ fn run_input(
                 return crate::engine::SegmentOutcome::ExitShell
             }
             crate::engine::RouteOutcome::Declined => {}
+        }
+        // INT-169 INCREMENT 3: THE ASSIGNMENT PREFIX MOVED BELOW THE ROUTER.
+        //
+        // This ran at the TOP of the loop, so `VAR=x cmd` never reached the spine -- the last
+        // demonstrated route to legacy on this build. The spine now owns the common form and puts
+        // the value on the CHILD, so nothing global is mutated and nothing needs restoring.
+        //
+        // THE HANDLER STAYS, AND IS NOT A DUPLICATE. The spine deliberately refuses two shapes and
+        // legacy is the right owner of both: a BARE `FOO=1`, which persists for the session and
+        // describes no process, and a value expanding to several words, which bash keeps as a
+        // literal pattern. Deleting this would break the first and silently change the second.
+        //
+        // EXACTLY ONE BEHAVIOUR CHANGES, and it was ruled before the move rather than discovered
+        // after it: `FOO=1 echo $FOO` now prints the OLD value, matching bash. Expansion happens
+        // in the shell before the child exists, which is what a prefix assignment means. Legacy
+        // set the variables first and expanded afterwards, so it printed the new one.
+        //
+        // AN ALIAS CHANGE WAS EXPECTED HERE AND DOES NOT HAPPEN, which is worth recording because
+        // the reasoning that predicted it was wrong. `expand_aliases` looks up
+        // `command_word(line)`, and for `FOO=1 ll` that word is `FOO=1` -- so the prefix hides the
+        // alias from the LOOKUP, not from the routing. Measured on gen 484 and on this tree:
+        // unexpanded on both. fsh therefore still diverges from bash here, for a reason that has
+        // nothing to do with where this handler sits, and closing it is its own question.
+        if let Some(outcome) = engine.try_inline_assignment(line, &raw_line) {
+            match outcome {
+                crate::engine::SegmentOutcome::Next => continue,
+                crate::engine::SegmentOutcome::ExitShell => {
+                    return crate::engine::SegmentOutcome::ExitShell
+                }
+            }
         }
         // INT-201: the expansion pipeline moved to the engine; the REPL keeps the
         // continue, because a failglob refusal is control flow and this loop owns it.
