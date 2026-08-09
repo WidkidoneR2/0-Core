@@ -41,32 +41,92 @@ make it a consumer migration rather than a deletion.
 Moving anything. This intent produces a classification anyone can act on. If it starts growing
 implementation, it has failed -- the same fence INT-198 set, for the same reason.
 
+## THE CLASSIFICATION (2026-08-09)
+
+FIRST CORRECTION: there are SIX, not three. INT-209 counted by searching two variable spellings;
+searching all of them -- in_s, in_d, in_s2, in_d2, in_single, in_double -- found six functions. The
+number was wrong because the search was.
+
+CONSUMERS. Each asks ONE question, "is this offset inside quotes?", and acts on the answer. None
+decides what a quote MEANS.
+
+  strip_quoted_regions      36 lines   remove quoted regions from a line
+  rfind_unquoted            21 lines   the last occurrence of a needle not inside quotes
+  expand_globs              64 lines   expand a glob only in an unquoted segment
+  find_unmatched_globs      80 lines   report an unmatched glob only in an unquoted segment
+
+TWO OF THEM ADMIT THE DUPLICATION IN THEIR OWN DOCS. find_unmatched_globs says it reuses "the same
+quote-aware segmentation as expand_globs". And rfind_unquoted records the bug that created it: echo
+with a quoted redirect arrow split at the QUOTED arrow, so the command was truncated, the target
+became a fragment with a stray quote, and a file with that name appeared in the working directory
+while the command printed nothing.
+
+WHAT THEY NEED, AND THE SCANNER ALREADY HAS IT: QuoteContext, with Unquoted, Single and Double, is
+recorded per segment on every Literal. Four consumers rediscovering it by walking characters is four
+chances to disagree with the shell that runs the line -- and rfind_unquoted's own doc proves that is
+not hypothetical, because the pipe scan in main.rs tracks only double quotes and would break a
+single-quoted redirect.
+
+CONSUMER MIGRATION IS NOT DELETION. Each needs the scanner to EXPOSE the fact -- something like
+"which QuoteContext applies at this byte offset" -- and no such accessor exists today. Filing that
+accessor is the actionable next step; moving four call sites is not.
+
+NOT CONSUMERS. These decide structure, and each is a separate finding.
+
+  expand_subshells          56 lines   tracks dollar-paren NESTING DEPTH, quote-aware inside the
+                                       region. That is REGION DETECTION -- the same job the scanner
+                                       does for WordSegment::CommandSub. A second recogniser of one
+                                       construct, belonging with the substitution work rather than
+                                       with quote consumers.
+
+  is_complete_command      150 lines   A THIRD CONTINUATION CHECKER, AND IT IS LIVE. Called from
+                                       main.rs:2155 in the heredoc collection loop and from
+                                       expand.rs:320. It answers "is this input finished" -- the
+                                       exact question INT-169 G1 gave the canonical scanner, and the
+                                       exact question the validator was stripped of. So the shell
+                                       has THREE answers to one question: the scanner, this, and a
+                                       validator that now consumes the scanner.
+                                       This is INT-169's problem rather than this intent's. It is
+                                       quote-state shaped only incidentally; what it actually is, is
+                                       the continuation rule living somewhere the scanner is not.
+
+## THE COUNTABLE TARGET FOR INT-209's SOLE-OWNER GATE
+Six functions outside spine/lexer.rs walk characters tracking quote state. Four are consumers needing
+an accessor. One is a second region recogniser. One is a third continuation checker, and it is the
+most serious of the six.
+
 ## Success Criteria
-- [ ] Each of the three machines is classified: lexical interpretation, or consumer of lexical facts
-- [ ] For each, the evidence is its stated PURPOSE and its inputs, not its variable names
-- [ ] Any that is a consumer names the fact it needs and whether the scanner already records it
+- [x] Each of the three machines is classified: lexical interpretation, or consumer of lexical facts
+<!-- evidence: the classification above, 2026-08-09. SIX functions rather than three -- the
+     original count searched two variable spellings. Four consumers, one region recogniser, one
+     continuation checker. -->
+- [x] For each, the evidence is its stated PURPOSE and its inputs, not its variable names
+<!-- evidence: each is classified by what its doc and signature say it answers, not by the
+     presence of in_single/in_double. rfind_unquoted returns an offset; expand_globs returns an
+     expanded line; is_complete_command returns (bool, reason) -- that last signature is what
+     makes it a continuation checker rather than a quote tracker. -->
+- [x] Any that is a consumer names the fact it needs and whether the scanner already records it
       -- QuoteContext exists per segment today
-- [ ] Any that is a second lexer gets a lane and a rough order, or an explicit deferral with reason
-- [ ] A grep-able statement of how many quote-state machines remain outside the scanner, so
+<!-- evidence: all four consumers need the same fact -- which QuoteContext applies at a byte
+     offset. The scanner records QuoteContext { Unquoted, Single, Double } per segment on every
+     Literal (spine/ast.rs:59), so the fact EXISTS; the accessor does not. That accessor is the
+     actionable next step and it is what makes this a migration rather than a deletion. -->
+- [x] Any that is a second lexer gets a lane and a rough order, or an explicit deferral with reason
+<!-- evidence: expand_subshells is region detection duplicating WordSegment::CommandSub -- lane:
+     with the substitution work, after the accessor exists. is_complete_command is DEFERRED OUT OF
+     THIS INTENT with a reason: it is a third continuation checker answering the question INT-169
+     G1 gave the scanner, live at main.rs:2155, and it belongs to INT-169 rather than here. It is
+     quote-shaped only incidentally. -->
+- [x] A grep-able statement of how many quote-state machines remain outside the scanner, so
       INT-209's sole-owner gate has a countable target rather than a belief
-- [ ] Nothing moved. The close condition is a decision, not a diff
-- [ ] Each gate carries evidence per INT-158
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
-<!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
-When you tick a gate, put the proof in an HTML comment on the line after it: a commit
-hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
-FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
-SOFT (a discipline, not gate-police; nothing enforces this).
-LIGHT (trivial self-evident gates need no artifact).
-Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
-See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+<!-- evidence: SIX outside spine/lexer.rs, found with
+     grep -rn 'in_s\b|in_d\b|in_s2|in_d2|in_single|in_double' -- the countable target INT-209's
+     sole-owner gate needed. It was believed to be three. -->
+- [x] Nothing moved. The close condition is a decision, not a diff
+<!-- evidence: no source file changed under this intent. What it hands forward is a classification
+     with a named next step (the offset accessor) and one finding routed to another intent. -->
+- [x] Each gate carries evidence per INT-158
+<!-- evidence: every gate above carries an HTML comment naming what was read and what it showed --
+     function lengths, signatures, the docs that admit the duplication, and spine/ast.rs:59 for the
+     fact the consumers need. No commit hashes, deliberately: this intent changed no source, which
+     was its close condition. -->
