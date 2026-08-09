@@ -569,9 +569,23 @@ impl Engine {
     /// ⚠️ fsh does not parse heredocs; sh does. Recorded rather than hidden: this is one of the
     /// remaining places the shell hands a construct to sh instead of owning it.
     pub fn try_heredoc(&mut self, line: &str) -> Option<SegmentOutcome> {
-        if !line.contains("<<") {
+        // INT-196: ASK THE RECOGNISER. This tested the raw string, with no space requirement and no
+        // quote state, and it is the FIRST heredoc owner on BOTH doors -- run_input serves the REPL
+        // and the dash-c path alike, and this sits above the REPL branch that also handles them.
+        //
+        // ⚠️ THE COST WAS AN ORDINARY COMMAND BEING HANDED TO sh. A quoted pair inside an argument
+        // matched, so this claimed the line and delegated the whole thing to sh instead of letting
+        // fsh execute it. Proven with a probe at this site: it printed CLAIMED for an ordinary echo
+        // whose only doubled bracket was inside double quotes.
+        //
+        // ★ AND IT CORRECTED THE RECORD. The REPL branch was fixed first and the spurious tip
+        // vanished, which read as that fix working -- but this site claims the line before that
+        // branch is ever reached, so the tip vanished for a different reason than the commit
+        // claimed. The probe found it; the reasoning did not.
+        if crate::expand::find_heredoc_intro(line).is_none() {
             return None;
         }
+
         let status = std::process::Command::new("sh")
             .arg("-c")
             .arg(line)
