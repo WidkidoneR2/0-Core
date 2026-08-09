@@ -58,6 +58,14 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
         .map_err(|e| format!("cannot invoke {bin}: {e}"))
 }
 
+/// ⚠️ BUILD BEFORE YOU RUN. `cargo test` compiles the TEST profile; it does not rebuild the binary
+/// this harness executes. Running fsh-test straight after `cargo test` measures the PREVIOUS build,
+/// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
+/// from a shell that did not contain the change being tested.
+///
+///     cargo build -p faelight-shell && FSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test
+///
+/// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
     let fsh = std::env::var("FSH_BIN")
         .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
@@ -259,20 +267,27 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&joined, "ZZA hi")
     }));
     results.push(test(
-        "comment_handling_differs_by_door",
+        "comment_handling_agrees_across_doors",
         Category::Regression,
         || {
-            // INT-209 RED-FIRST, AND IT IS A REAL DIVERGENCE RATHER THAN TIDINESS. strip_comments is
-            // called from ONE place -- repl_main -- so the REPL strips a trailing comment and `-c`
-            // does not. Measured through both doors: the REPL prints `ZZA hi`, while `-c` prints
-            // `hi # not stripped?` with the comment intact.
+            // INT-209: BOTH DOORS NOW AGREE, and this case is the record of them not agreeing.
             //
-            // This case asserts TODAY'S behaviour so the divergence is visible and cannot widen
-            // silently. When INT-209 moves comment recognition into the canonical scanner, both
-            // doors will agree and this case must be REWRITTEN to assert agreement -- deliberately,
-            // with the change stated, rather than quietly deleted.
+            // It was written asserting the DIVERGENCE: strip_comments was called from repl_main and
+            // nowhere else, so the REPL stripped a trailing comment and `-c` did not -- the founding
+            // two-doors finding in a construct nobody would expect to diverge. Measured through both
+            // doors rather than reasoned about.
+            //
+            // The scanner now recognises a comment as a lexical state, so `-c` strips it too. The
+            // assertion is INVERTED deliberately, with the reason stated, rather than the case being
+            // quietly deleted once it went red -- which is what its original comment promised.
+            //
+            // Paired with repl_strips_trailing_comment: both doors, one rule, and neither can drift
+            // without a test going red.
             let out = run_fsh("echo ZZA hi # ZZB tail")?;
-            expect_contains(&out, "# ZZB tail")
+            if out.contains("ZZB") {
+                return Err(format!("-c did not strip the comment: {out:?}"));
+            }
+            expect_contains(&out, "ZZA hi")
         },
     ));
     results.push(test(

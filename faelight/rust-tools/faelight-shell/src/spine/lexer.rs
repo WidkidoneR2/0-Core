@@ -248,6 +248,23 @@ pub fn lex(source: &str) -> LexResult {
             break;
         }
 
+        // INT-209: A COMMENT IS A LEXICAL STATE, and this is where it belongs -- the outer loop has
+        // just skipped whitespace, so standing here IS being at the start of a word. The word-start
+        // rule comes by construction rather than by testing the preceding character.
+        //
+        // Unquoted by construction too: a `#` inside quotes is consumed by the inner walk as part
+        // of a word and never reaches this point, for the same reason operator_at is only called in
+        // unquoted context. `echo "# x"` is data.
+        //
+        // NOT mid-word: `foo#bar` is one word, and this check cannot see it because the outer loop
+        // only stands here BETWEEN words.
+        //
+        // The rest of the line is a comment, so scanning STOPS -- a comment does not end a word, it
+        // ends the input. Hence breaking the OUTER loop.
+        if chars[idx].1 == '#' {
+            break;
+        }
+
         let word_start = chars[idx].0;
         let mut segments: Vec<WordSegment> = Vec::new();
         let mut text = String::new();
@@ -460,6 +477,33 @@ impl LexResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn comment_is_a_lexical_state() {
+        // INT-209: the four cases that DEFINE the rule, so it cannot drift into something looser.
+        let toks = lex("echo hi # tail").expect_complete("lexes");
+        let words: Vec<&str> = toks.iter().map(|t| t.text.as_str()).collect();
+        assert_eq!(words, vec!["echo", "hi"], "a comment ends the input");
+
+        let toks = lex("echo \"# x\"").expect_complete("lexes");
+        assert_eq!(
+            toks.len(),
+            2,
+            "a # inside quotes is DATA -- the inner walk consumes it and it never reaches the check"
+        );
+
+        let toks = lex("echo foo#bar").expect_complete("lexes");
+        let words: Vec<&str> = toks.iter().map(|t| t.text.as_str()).collect();
+        assert_eq!(
+            words,
+            vec!["echo", "foo#bar"],
+            "mid-word is NOT a comment: the outer loop only stands between words, so it cannot see \
+             this one -- which is the rule holding by construction rather than by a guard"
+        );
+
+        let toks = lex("# whole line").expect_complete("lexes");
+        assert!(toks.is_empty(), "a comment-only line lexes to nothing");
+    }
 
     // INT-169 blocker 4, step 1b-i: test-only accessors. NOT production API -- adding real
     // accessors would let `WordSegment` keep pretending to be a struct, which is the shape the
