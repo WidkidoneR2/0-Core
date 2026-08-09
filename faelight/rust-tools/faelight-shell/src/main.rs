@@ -2379,18 +2379,18 @@ fn repl_main() -> Result<()> {
                 }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
-                if line.contains(" << ") {
+                // INT-196: ASK THE OWNER, DO NOT RE-DERIVE. This tested the raw string for the
+                // pattern, then split the raw string to name a delimiter, then checked quoting with
+                // starts_with -- three derivations of one question that find_heredoc_intro already
+                // answers, and answers quote-aware since the scanner fix.
+                //
+                // THE COST WAS VISIBLE, not theoretical. A quoted pair inside an ordinary argument
+                // matched the raw test, so the branch fired on a line with no heredoc at all: it
+                // printed a tip naming a delimiter cut out of quoted text, and it routed the command
+                // through pty_exec instead of the normal path. It worked by luck rather than by
+                // design.
+                if let Some((delimiter, is_quoted)) = crate::expand::find_heredoc_intro(&line) {
                     // Warn if delimiter is unquoted -- sh will expand backticks
-                    // deadwood: exempt -- heredoc delimiter extraction -- for `cat << EOF` the command word is cat and the delimiter is EOF; command_word() would return the wrong object
-                    let delimiter = line
-                        .split(" << ")
-                        .nth(1)
-                        .unwrap_or("")
-                        .split_whitespace()
-                        .next()
-                        .unwrap_or("")
-                        .trim();
-                    let is_quoted = delimiter.starts_with('\'') || delimiter.starts_with('"');
                     if !is_quoted && !delimiter.is_empty() {
                         println!(
                             "  {} heredoc tip: use << '{}'  to prevent backtick expansion",
