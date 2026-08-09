@@ -118,6 +118,47 @@ verify that the parser and AST can supply equivalent information across the affe
 
 NO IMPLEMENTATION SHOULD BE INFERRED FROM THE CENSUS OR CONSOLIDATION WORK ALONE.
 
+## CENSUS CORRECTION AND EVIDENCE BOUNDARY (2026-08-09)
+
+command_word has approximately TWENTY-FIVE real call sites, not five. Its documentation's reference
+to "the five sites that needed the user's command word to ACT on it" describes the five
+dispatch/action sites, not the total consumer count. The documentation is corrected so a reader does
+not mistake the dispatch count for the complete census.
+
+split_into_segments has exactly two callers, consistent with its documentation.
+
+tokenize has six additional callers beyond command_word. A parse-first design would therefore not
+simply reorder two helpers -- it would displace a tokenizer that currently has its own independent
+consumer set. That makes a blanket migration premature.
+
+⭐ SO THE CENSUS ESTABLISHES THE NEXT EVIDENCE STEP AS CONSUMER CLASSIFICATION, NOT MIGRATION. The
+command_word callers visibly fall into at least three categories:
+
+  EXECUTION-GOVERNING -- safety_guard.rs:19, dispatch, routing. These need the parser's authoritative
+  structure and are the actual subject of this intent. Candidates for AST-based replacement.
+
+  CLASSIFICATION -- comparisons such as == "jobs", == "fg", == "kill". These are not necessarily
+  asking for an execution command word in the AST sense, and command_word's own documentation already
+  establishes that a quoted word fails these comparisons and safely falls through. Their semantics
+  must be examined before treating them as migration targets.
+
+  TELEMETRY AND LABELLING -- record_failure, db.rs:592, the routing instruments. These consume the
+  derived word while recording or labelling an outcome. A text-derived value can be defensible here,
+  and replacing it with an AST-derived one does not inherently provide a correctness benefit.
+
+This is the same evidence discipline INT-210 used for the quote-state machines: classify each
+consumer by what information it actually needs, rather than assuming every caller of a shared helper
+should migrate when the helper's implementation changes.
+
+⚠️ THE STEP IS THEREFORE: classify the ~25 command_word consumers by semantic role and required
+authority, and DO NOT MIGRATE THEM YET. Do not treat the census as a migration plan. The
+execution-governing consumers establish the parse-first correctness case; classification and
+telemetry consumers may have different and valid reasons to retain their current representation.
+
+The same analysis applies to the six independent tokenize callers before any proposal to remove or
+relocate that path. The purpose is to determine which consumers actually require parser authority --
+not to make every consumer AST-based by association.
+
 ## Success Criteria
 - [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
       blocked. Do not tick the rest before this one
