@@ -64,6 +64,30 @@ semantic operation. That distinction is exactly what this intent exists to force
 result. Widening this intent because the invariant turned out to be still false is how a controlled
 architectural change becomes an uncontrolled rewrite; the honest open gate is the safer artifact.
 
+## WHAT INT-210 ANSWERED (2026-08-09)
+
+The sole-owner gate now has a COUNTABLE target instead of a belief, and the belief was wrong: SIX
+machines outside spine/lexer.rs walk characters tracking quote state, not three. The earlier count
+searched two variable spellings.
+
+  CONSUMERS (4) -- ask "is this offset inside quotes?" and act on the answer. None decides what a
+  quote MEANS. strip_quoted_regions, rfind_unquoted, expand_globs, find_unmatched_globs.
+  All four need one fact the scanner ALREADY RECORDS -- QuoteContext per segment on every Literal --
+  but no accessor exposes it at a byte offset. That accessor is the blocking next step, and it makes
+  this a consumer migration rather than four deletions.
+
+  REGION RECOGNISER (1) -- expand_subshells tracks dollar-paren nesting, duplicating what the scanner
+  does for WordSegment::CommandSub. Lane: with the substitution work, after the accessor exists.
+
+  CONTINUATION CHECKER (1) -- is_complete_command, 150 lines, LIVE at main.rs:2155. It answers "is
+  this input finished", which is the question INT-169 G1 gave the canonical scanner and the question
+  the validator was stripped of. Three owners of one rule. Routed to INT-169; it is quote-shaped only
+  incidentally.
+
+⏭ SO THIS GATE STAYS OPEN, and now it can be closed on evidence rather than on a feeling: the
+accessor lands, four consumers migrate, the region recogniser follows the substitution work, and
+INT-169 absorbs the continuation checker. Then the count is zero and the invariant is measurable.
+
 ## Success Criteria
 - [x] The canonical scanner recognises comments as a lexical state -- no pre-pass over the same text
 <!-- evidence: 7cb10c46. The check sits in the OUTER loop, so word-start holds by construction --
