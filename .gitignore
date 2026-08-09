@@ -11,3 +11,5 @@ faelight-vm.qcow2
 __pycache__/
 faelight/runtime/legacy-exec.log
 faelight/runtime/sh-fallback.log
+/0.5
+/=
