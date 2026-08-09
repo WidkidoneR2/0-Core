@@ -1768,6 +1768,89 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "repl_169_assignment_expands_before_the_child_exists",
+        Category::Repl,
+        || {
+            // THE ONE INTENTIONAL BEHAVIOUR CHANGE of Increment 3, and it matches bash.
+            // A prefix assignment belongs to the CHILD, so parameter expansion of the same line
+            // happens in the shell BEFORE that child exists -- $ZZA169 must therefore see the OLD
+            // value. Legacy set the variables first and expanded afterwards, printing the new one.
+            // Measured on gen 484 before the move: [new]. After: [old].
+            let out = repl::run_repl("ZZA169=old; ZZA169=new echo [$ZZA169]")?;
+            let old = out.iter().any(|l| l.contains("[old]"));
+            let new = out.iter().any(|l| l.contains("[new]"));
+            if old && !new {
+                Ok(())
+            } else {
+                Err(format!(
+                    "expected the OLD value (old={old}, new={new}): {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_169_prefix_assignment_does_not_leak_into_the_session",
+        Category::Repl,
+        || {
+            // THE GUARDRAIL, and the reason it earns a second case beside repl_143: that one runs
+            // through legacy, this one runs through the SPINE. Same POSIX property, two owners.
+            // The spine achieves it structurally -- the value goes on the child via cmd.env -- so
+            // there is no save/restore step that can be forgotten. Legacy needed 13 lines.
+            // This is the INT-143 bug B property: QEMU_OPTS survived its command and four VM boots
+            // were blamed on the firmware.
+            let out = repl::run_repl("ZZD169=1 printenv ZZD169; echo [$ZZD169]")?;
+            let child_saw = out.iter().any(|l| l.trim() == "1");
+            let leaked = out.iter().any(|l| l.contains("[1]"));
+            if child_saw && !leaked {
+                Ok(())
+            } else {
+                Err(format!("child_saw={child_saw}, leaked={leaked}: {out:?}"))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_169_an_assignment_prefix_does_not_hide_the_alias",
+        Category::Repl,
+        || {
+            // MATCHES BASH, and this case exists because the reasoning that predicted otherwise
+            // was wrong TWICE, in opposite directions, inside one session.
+            //
+            // THE CAUSE WAS THE TWO DOORS. Every probe used `fsh -c`, where the alias defined in
+            // the first segment is not visible to the second, so `ZZB=1 zzt` reported command not
+            // found and looked like the prefix hiding the alias. Through the REPL door it expands
+            // -- and it expands on gen 484 as well, so Increment 3 changed nothing here. The
+            // harness said so when the reasoning could not.
+            //
+            // ⚠️ WHICHEVER DOOR A CLAIM COMES FROM, SAY WHICH. This is the same trap
+            // repl.rs and `spine conform` were both built to close.
+            let out = repl::run_repl("alias zzt169=\"echo ALIAS_EXPANDED\"; ZZB169=1 zzt169")?;
+            if out.iter().any(|l| l.contains("ALIAS_EXPANDED")) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the alias did not expand through the REPL door: {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_169_bare_assignment_still_persists",
+        Category::Repl,
+        || {
+            // THE SHAPE THE SPINE REFUSES ON PURPOSE. A bare assignment is a shell STATEMENT that
+            // persists for the session, not a process -- an ExecutionPlan describes one process and
+            // there is none here, so lowering declines and legacy keeps it. Before the guard existed
+            // this produced an empty argv and the executor answered "empty plan: nothing to
+            // execute", turning a valid statement into an error.
+            let out = repl::run_repl("ZZC169=kept; echo [$ZZC169]")?;
+            if out.iter().any(|l| l.contains("[kept]")) {
+                Ok(())
+            } else {
+                Err(format!("bare assignment did not persist: {out:?}"))
+            }
+        },
+    ));
     results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
         // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
         // NEVER unset, leaking into the session. POSIX scopes it to that command
