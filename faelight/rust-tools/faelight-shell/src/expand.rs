@@ -94,7 +94,22 @@ pub fn count_keyword_starts(s: &str, kw: &str) -> usize {
 
 // — Phase 2 extractions —
 
+/// The delimiter AND whether it was written quoted.
+///
+/// INT-169 G1: the quoting was always computed here -- it decides where the delimiter token ends --
+/// and then thrown away, because the only caller wanted a name. A quoted delimiter (`<<'EOF'`) means
+/// the body does not expand, which the scanner has to report and a future executor has to honour.
+/// Same shape as the audit's Difference: the answer was already known and the type would not say it.
+pub fn find_heredoc_intro(s: &str) -> Option<(String, bool)> {
+    find_heredoc_intro_inner(s)
+}
+
+/// Name only. Kept so its three existing callers are untouched by G1.
 pub fn find_heredoc_delimiter(s: &str) -> Option<String> {
+    find_heredoc_intro_inner(s).map(|(d, _)| d)
+}
+
+fn find_heredoc_intro_inner(s: &str) -> Option<(String, bool)> {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i + 1 < bytes.len() {
@@ -127,7 +142,7 @@ pub fn find_heredoc_delimiter(s: &str) -> Option<String> {
             }
             if j > start {
                 let delim = std::str::from_utf8(&bytes[start..j]).ok()?.to_string();
-                return Some(delim);
+                return Some((delim, quote.is_some()));
             }
             i = j;
         } else {

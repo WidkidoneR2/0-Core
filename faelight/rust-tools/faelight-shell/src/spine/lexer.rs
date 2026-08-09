@@ -183,6 +183,58 @@ pub enum LexResult {
 /// Scan a source line into spanned word tokens. Whitespace separates words unless quoted;
 /// quote characters are consumed and recorded as segment context.
 pub fn lex(source: &str) -> LexResult {
+    // INT-169 G1: A TRAILING BACKSLASH IS AN EXPLICIT REQUEST TO CONTINUE, and it is checked BEFORE
+    // the scan because it is a property of the line's END rather than of any word in it. The
+    // validator owned this rule and its comment said why the lexer could not: "the one case the
+    // lexer cannot answer, because a line ending in one is lexically fine". That was true while the
+    // only outcome was Ok-or-error -- a line ending in a backslash scans perfectly. It has somewhere
+    // to go now.
+    //
+    // ⚠️ A DOUBLED BACKSLASH IS A LITERAL AND ENDS THE LINE NORMALLY, which is why this counts the
+    // run rather than testing the last character. `echo a\\` is finished; `echo a\` is not.
+    let trailing_backslashes = source.chars().rev().take_while(|c| *c == '\\').count();
+    if trailing_backslashes % 2 == 1 {
+        let at = source.len() - 1;
+        return LexResult::Incomplete(LexIncomplete {
+            kind: LexIncompleteKind::TrailingEscape,
+            text: "\\".to_string(),
+            span: Span {
+                start: at,
+                end: source.len(),
+            },
+        });
+    }
+
+    // INT-169 G1: A HEREDOC INTRODUCTION WITHOUT ITS BODY IS INCOMPLETE, and it is answered BEFORE
+    // the scan for a blunt reason: a heredoc body is not shell. Scanning it as shell is what hung the
+    // prompt when a pasted block contained an English possessive, a Rust lifetime or a contraction --
+    // the scanner reported an unterminated quote and the REPL waited for a closing quote that was
+    // never coming. The validator worked around it with `input.contains("<<")`, which its own comment
+    // called crude and correct-for-now.
+    //
+    // ⚠️ THIS DOES NOT CLAIM fsh CAN EXECUTE A HEREDOC. The scanner knows it is inside a continuation
+    // and says so; execution stays with sh until an intent takes it. Awareness, not capability.
+    //
+    // The delimiter and its quoting come from the ONE function that already knows how to find them,
+    // rather than a second reader of the same syntax.
+    if let Some((delim, quoted)) = crate::expand::find_heredoc_intro(source) {
+        let body_closed = source.lines().skip(1).any(|l| l.trim() == delim.as_str());
+        if !body_closed {
+            let at = source.find("<<").unwrap_or(0);
+            return LexResult::Incomplete(LexIncomplete {
+                kind: LexIncompleteKind::HeredocBody {
+                    delimiter: delim,
+                    quoted,
+                },
+                text: source[at..].to_string(),
+                span: Span {
+                    start: at,
+                    end: source.len(),
+                },
+            });
+        }
+    }
+
     let chars: Vec<(usize, char)> = source.char_indices().collect();
     let n = chars.len();
     let mut out: Vec<SpannedToken> = Vec::new();

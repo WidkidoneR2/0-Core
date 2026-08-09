@@ -1304,55 +1304,29 @@ impl<'a> Validator for ForestHelper<'a> {
         if trimmed.is_empty() {
             return Ok(ValidationResult::Valid(None));
         }
-
-        // A trailing backslash is an explicit request to continue -- the one case the lexer cannot
-        // answer, because a line ending in one is lexically fine. Doubled backslashes are a literal
-        // backslash and end the line normally.
-        if trimmed.ends_with('\\') && !trimmed.ends_with("\\\\") {
-            return Ok(ValidationResult::Incomplete);
-        }
-
-        // ASK THE LEXER; DO NOT COUNT QUOTES HERE. INT-171 gate 1 made commands::tokenize the one
-        // quote-aware tokenizer and the spine's lexer is the one that reports WHY it stopped. A
-        // quote counter in this file would be a third owner of the same knowledge, which is the
-        // drift INT-193 exists to prevent -- and it would disagree with the shell that runs the
-        // line, which is worse than not validating at all.
+        // ⭐ ASK THE SCANNER; DECIDE NOTHING HERE. INT-171 gate 1 made one quote-aware tokenizer,
+        // and the spine's scanner is the one that reports WHY it stopped. A quote counter in this
+        // file would be another owner of the same knowledge -- the drift INT-193 exists to prevent --
+        // and it would disagree with the shell that runs the line, which is worse than not
+        // validating at all.
         //
-        // INT-169 G1: that distinction now lives in the TYPE. This used to match each kind
-        // explicitly so a new one would be a compile error here, because "the lexer refused" and
-        // "the line is unfinished" were the same type and only the second should hold the prompt
-        // open. LexResult separates them, so every Incomplete kind holds the prompt open by
-        // construction and a new one needs no decision in this file.
+        // INT-169 G1 REMOVED THREE RULES THAT USED TO LIVE HERE, and each was compensating for a
+        // scanner whose only vocabulary was ok-or-error:
+        //   a trailing backslash, because a line ending in one scans perfectly and there was nowhere
+        //     to put "finished scanning, not finished input". The old test was ends_with one but not
+        //     two, which is wrong for THREE -- an odd run continues. The scanner counts the run.
+        //   a heredoc introduction, guessed with input.contains("<<"), which its own comment called
+        //     crude. The scanner reports the delimiter and whether it was quoted.
+        //   a strip_comments pre-pass, so an apostrophe in ordinary English prose could not be read
+        //     as an unterminated quote -- an English possessive, a Rust lifetime, a contraction.
         //
-        // NOT COVERED, and said here rather than discovered later: heredocs. `cat <<EOF` still will
-        // not continue, because the lexer does not track heredoc delimiters and try_heredoc hands
-        // the whole line to sh. Multi-line shell constructs (if/then/fi, while/do/done) are outside
-        // this too. Both need the shell to model constructs it currently delegates.
-        // A HEREDOC BODY IS NOT SHELL, and lexing it as shell hangs the prompt. Pasting a block
-        // containing an apostrophe -- an English possessive, a Rust lifetime, a contraction in a
-        // comment -- made the lexer report an unterminated quote, so the REPL waited forever for a
-        // closing quote that was never coming. Found within hours of shipping the validator, by
-        // pasting an ordinary script.
+        // ⚠️ THAT LAST ONE IS NOT YET REPLACED BY A LEXICAL COMMENT STATE. INT-209 moves
+        // strip_comments's own quote machine into the scanner; until it lands, a comment reaches the
+        // scanner as ordinary text. Stated here rather than discovered later.
         //
-        // try_heredoc already draws this line the same crude way (`line.contains("<<")`) before
-        // handing the whole construct to sh. Matching it here is honest: fsh does not model
-        // heredocs, so it must not pretend to lex them.
-        if input.contains("<<") {
-            return Ok(ValidationResult::Valid(None));
-        }
-
-        // COMMENTS ARE NOT SHELL EITHER. strip_comments runs on the line AFTER readline returns
-        // (main.rs), so without this the validator lexes comment text, and an apostrophe in an
-        // ordinary English comment holds the prompt open exactly as a heredoc body did. Asking
-        // expand::strip_comments rather than writing a second stripper keeps one owner of what
-        // counts as a comment -- the same rule that made this ask the lexer rather than count
-        // quotes itself.
-        let scanned = crate::expand::strip_comments(input);
-        // INT-169 G1: the scanner OWNS continuation state, so this consumes it rather than
-        // translating an error back into it. The match on WHICH kind is gone deliberately -- every
-        // incomplete kind holds the prompt open, and enumerating them here was only ever a way of
-        // asserting that a lex *error* meant *unfinished*. It says what it means now.
-        match crate::spine::lexer::lex(&scanned) {
+        // No match on WHICH incomplete kind, deliberately: every kind holds the prompt open, and
+        // enumerating them was only ever a way of asserting that a lex *error* meant *unfinished*.
+        match crate::spine::lexer::lex(input) {
             crate::spine::lexer::LexResult::Complete(_) => Ok(ValidationResult::Valid(None)),
             crate::spine::lexer::LexResult::Incomplete(_) => Ok(ValidationResult::Incomplete),
         }
