@@ -679,8 +679,6 @@ fn execute_impl(
                             }
                             _ => (&source[..], crate::spine::plan::IoPlan::Simple),
                         };
-                        let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
-                        let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
                         let node = match crate::spine::parser::parse(source) {
                             crate::spine::parser::ParseResult::Complete(n) => n,
                             // Counted, not silently dropped: legacy accepted this line. The audit
@@ -705,6 +703,22 @@ fn execute_impl(
                             crate::spine::ast::AstNode::Background(inner) => *inner,
                             other => crate::spine::ast::Spanned::new(node.span, other),
                         };
+                        // INT-169: BUILD THE LEGACY PLAN FROM THE LINE LEGACY ACTUALLY TOKENIZES.
+                        // try_inline_assignment strips a `FOO=bar` prefix and hands the REST to
+                        // execute_with_context, so a context built from the whole line models
+                        // commands::tokenize rather than the shell that runs. Once the spine learned
+                        // to lower these, all 105 assignment rows read as divergences -- the audit
+                        // disagreeing with itself for the SIXTH time in this same way.
+                        //
+                        // ★ MOVED BELOW THE PARSE ON PURPOSE, and below the Background unwrap, so the
+                        // prefix is identified by the PARSER rather than re-scanned here. That is the
+                        // rule the splitter and detect_redirect calls above already follow: ask the
+                        // owner, never re-derive.
+                        let legacy_line =
+                            crate::spine::migrate::legacy_line_without_prefix(&node, legacy_line);
+                        let ctx =
+                            crate::exec::ExecContext::from_line(&legacy_line, &legacy_line, db);
+                        let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
                         // ⚠️ INT-200: `lower_pipeline`, NOT `lower`. The single-plan entry correctly
                         // refuses a pipeline, so calling it here reported 2,371 declines for commands
                         // the shell was already executing -- the audit measuring a door the router no

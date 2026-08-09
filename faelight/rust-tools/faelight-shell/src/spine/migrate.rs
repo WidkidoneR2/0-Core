@@ -42,6 +42,38 @@ pub fn plan_from_legacy(ctx: &ExecContext, io: IoPlan) -> ExecutionPlan {
     }
 }
 
+/// The line legacy ACTUALLY tokenizes, with any command-prefix assignments removed.
+///
+/// LIVE LEGACY NEVER SEES THE PREFIX. `try_inline_assignment` (engine.rs:1071) strips `FOO=bar`,
+/// sets the variable, and calls `execute_with_context` with the REST -- so an audit that builds
+/// ExecContext from the whole line models `commands::tokenize` rather than the shell that runs.
+/// Once the spine learned to lower these, every assignment row read as a divergence: 105 of them,
+/// all of the audit disagreeing with itself.
+///
+/// THE PARSER OWNS THE POSITIONAL RULE AND THIS CONSUMES IT. Rediscovering where a prefix ends
+/// would be a second implementation of the thing that just landed -- `A=1 B=2 echo hi` drops two,
+/// `echo B=2 hi` drops none, and only the parser knows that without re-scanning.
+///
+/// The span is a byte offset into the SOURCE, and a prefix sits at the start, so it holds for the
+/// redirect-stripped line too. Guarded anyway: a short line is returned untouched rather than
+/// panicking on a slice.
+pub fn legacy_line_without_prefix(
+    node: &crate::spine::ast::Spanned<crate::spine::ast::AstNode>,
+    line: &str,
+) -> String {
+    let crate::spine::ast::AstNode::Command(cmd) = &node.node else {
+        return line.to_string();
+    };
+    let Some(last) = cmd.assignments.last() else {
+        return line.to_string();
+    };
+    let end = last.span.end;
+    if line.len() < end || !line.is_char_boundary(end) {
+        return line.to_string();
+    }
+    line[end..].trim_start().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

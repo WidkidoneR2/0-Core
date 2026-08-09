@@ -51,6 +51,16 @@ pub enum KnownDifference {
     /// character, and NO backslash (a backslash means escaping may be involved, which the
     /// spine does not model -- those fall through to Unexpected until there is a precise rule).
     QuotedWordParsing,
+    /// WHERE A PREFIX ASSIGNMENT LIVES. Legacy has no environment model at all: it mutates the
+    /// environment of the shell itself, runs the command, and restores each variable by hand, so
+    /// its plan says Inherit. The spine carries the same intent as an Overlay applied to the
+    /// child. Same effect on the process, different representation.
+    ///
+    /// Evidence, provable from the plans alone: legacy env is Inherit, spine env is Overlay, and
+    /// the argv vectors are EQUAL. The argv requirement is what keeps this from becoming a blanket
+    /// excuse -- if the command words also differ, that is a real divergence and must not be
+    /// swallowed by an environment explanation.
+    AssignmentPrefixOwnership,
 }
 
 /// Which executor-observable field diverged (for an Unexpected difference).
@@ -100,8 +110,20 @@ pub fn compare_execution_semantics(
     legacy: &ExecutionPlan,
     spine: &ExecutionPlan,
 ) -> ComparisonResult {
-    // env / io: only one shape exists today (Inherit / Simple). A mismatch is unexpected.
+    // ENV IS A FIRST-CLASS PART OF EQUIVALENCE. The old comment here said only one shape existed,
+    // which was true while every plan said Inherit and stopped being true when Overlay landed.
+    //
+    // A prefix assignment is the one shape where the two models genuinely cannot agree on
+    // representation: legacy has no env field to fill, because it achieves the same effect by
+    // mutating the shell and restoring afterwards. Classified rather than excused, and only when
+    // argv already matches.
     if legacy.env != spine.env {
+        if matches!(legacy.env, super::plan::Environment::Inherit)
+            && matches!(spine.env, super::plan::Environment::Overlay(_))
+            && legacy.argv == spine.argv
+        {
+            return ComparisonResult::Known(KnownDifference::AssignmentPrefixOwnership);
+        }
         return ComparisonResult::Unexpected(Difference {
             field: DifferenceField::Env,
             legacy: format!("{:?}", legacy.env),
@@ -202,6 +224,12 @@ pub fn migration_status(result: &ComparisonResult) -> MigrationStatus {
         ComparisonResult::Known(KnownDifference::QuotedWordParsing) => {
             MigrationStatus::SafeImprovement
         }
+        // The spine is the correct one here. Legacy reaches POSIX scoping by mutating the shell
+        // and restoring by hand -- and that restore is the only thing between `FOO=1 echo hi` and
+        // a permanent leak, which is the INT-143 bug B disaster. An overlay cannot leak.
+        ComparisonResult::Known(KnownDifference::AssignmentPrefixOwnership) => {
+            MigrationStatus::SafeImprovement
+        }
         ComparisonResult::Unexpected(_) => MigrationStatus::Unexpected,
     }
 }
@@ -281,6 +309,40 @@ mod tests {
             compare_execution_semantics("SHELL=/bin/zsh /usr/bin/niri-session", &legacy, &spine),
             ComparisonResult::Known(KnownDifference::EnvironmentAssignmentCase)
         );
+    }
+
+    /// A prefix assignment lives in argv for legacy and in env for the spine. Same effect on the
+    /// process, different representation, and legacy has no env field to fill because it mutates
+    /// the shell and restores by hand instead.
+    #[test]
+    fn a_prefix_assignment_in_env_rather_than_argv_is_classified() {
+        let legacy = plan(&["echo", "hi"]);
+        let mut spine = plan(&["echo", "hi"]);
+        spine.env = super::super::plan::Environment::Overlay(vec![(
+            std::ffi::OsString::from("FOO"),
+            std::ffi::OsString::from("1"),
+        )]);
+        assert_eq!(
+            compare_execution_semantics("FOO=1 echo hi", &legacy, &spine),
+            ComparisonResult::Known(KnownDifference::AssignmentPrefixOwnership)
+        );
+    }
+
+    /// THE GUARD ON THAT RULE, and it is the load-bearing half. An env difference explains an env
+    /// difference -- it must never excuse a command that also differs. If argv diverges too, that
+    /// is real and stays Unexpected.
+    #[test]
+    fn an_env_difference_does_not_excuse_a_diverging_argv() {
+        let legacy = plan(&["echo", "hi"]);
+        let mut spine = plan(&["echo", "there"]);
+        spine.env = super::super::plan::Environment::Overlay(vec![(
+            std::ffi::OsString::from("FOO"),
+            std::ffi::OsString::from("1"),
+        )]);
+        match compare_execution_semantics("FOO=1 echo hi", &legacy, &spine) {
+            ComparisonResult::Unexpected(d) => assert_eq!(d.field, DifferenceField::Env),
+            other => panic!("a diverging argv must not be classified: {other:?}"),
+        }
     }
 
     #[test]
