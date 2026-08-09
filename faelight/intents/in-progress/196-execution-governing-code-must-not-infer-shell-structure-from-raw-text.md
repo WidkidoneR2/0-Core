@@ -297,9 +297,26 @@ was the trap: adding one would recreate the same boundary problem one layer down
       already-derived word rather than a line. Provable by grep: zero tokenizing calls in that file
 - [ ] M6: the redundant heredoc guard call at main.rs:2383 is REMOVED, with evidence that 2340 has
       already guarded the same unmodified line on that path
-- [ ] M7: RED-FIRST REGRESSION, written before the change: a quoted command word reaches the guard as
-      the bare word. The gen 432 case -- quoted rm -- asserted through the REPL door, since the guard
-      only runs there
+- [x] M7: CHARACTERIZATION TEST PROVEN BY GHOST-CHECK: a quoted command word reaches the guard as
+      the bare word, asserted through the REPL door, since the guard only runs there
+<!-- evidence: 939d77a9, and the gate WORDING IS CORRECTED HERE RATHER THAN QUIETLY TICKED AS
+     WRITTEN. It cannot be red-first: INT-195 already landed the fix at safety_guard.rs:19, which
+     derives through the canonical quote-aware command_word, and faelight-deadwood main.rs:1067
+     keeps the pre-fix line as a fixture. So it is a characterization test proven by ghost-check --
+     green on HEAD, RED under a surgical revert of line 19 to split_whitespace().next(), green on
+     restore. Same method as repl_174_single_quote_no_subshell.
+     THE PAYLOAD IS mkfs.zzz, NOT rm, and that is deliberate. The thing under test IS the abort, so
+     a destructive payload would run if it ever regressed. safety_guard.rs:100 matches on the WORD
+     ALONE and no such binary exists, so a failed guard costs command-not-found rather than damage.
+     Same property proven, zero payload.
+     TWO CASES, because one proves less than it looks: repl_195_quoted_command_word_reaches_the_
+     safety_guard and repl_195_bare_command_word_still_reaches_the_safety_guard. Under the revert
+     the quoted goes RED (20960ms -- the wait_for timeout, because no guard means no prompt) while
+     the bare stays GREEN. Without that discriminator a red pair would say the guard was switched
+     off, not that quoting broke.
+     AND A SECOND RED NOBODY PREDICTED: deadwood_strict_gate_passes also went red, because the
+     architecture linter holds that same pre-fix line as a fixture. Two independent detections.
+     Restored: 145/145. -->
 - [ ] M8: an incomplete multi-line paste still executes and is still guarded. This is the case that
       ruled out blocking, and it must be proven rather than assumed
 - [ ] M9: a refused construct still declines to legacy AND is still guarded. Refusal means the parser
