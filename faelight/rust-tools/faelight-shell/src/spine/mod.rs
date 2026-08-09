@@ -46,6 +46,7 @@ mod tests {
         assert_eq!(full_span, Span::new(0, 11), "node span covers ls..tmp");
 
         let cmd = Command {
+            assignments: vec![],
             words: vec![ls, la, tmp],
             redirects: vec![],
         };

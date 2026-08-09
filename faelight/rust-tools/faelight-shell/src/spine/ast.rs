@@ -187,8 +187,32 @@ pub struct Pipeline {
 /// exact per-word source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
+    /// Environment assignments written BEFORE the command word: `FOO=1 BAR=2 cmd`.
+    ///
+    /// POSITIONAL, AND THAT IS THE WHOLE RULE. An assignment is only an assignment before the
+    /// first ordinary word. `echo FOO=1` has ZERO assignments and two words; `FOO=1 echo BAR=2`
+    /// has ONE assignment and two words. Recognising them anywhere would turn
+    /// `git commit -m x=y` into a variable assignment, which is the fd trap in another costume:
+    /// POSITION decides, never the presence of a character.
+    pub assignments: Vec<Spanned<Assignment>>,
     pub words: Vec<Spanned<Word>>,
     pub redirects: Vec<Spanned<Redirect>>,
+}
+
+/// One `NAME=value` prefix assignment.
+///
+/// THE VALUE STAYS A `Word`, NOT A STRING. `FOO=$BAR`, `FOO=$(pwd)` and `FOO="a $x"` must expand
+/// at the SAME stage every other word expands at. Reducing it to text here would flatten the parts
+/// the lexer already separated and rebuild the INT-172 bug class one layer up.
+///
+/// THE NAME MUST COME FROM AN UNQUOTED LITERAL. `"FOO"=1` is not an assignment word; quoting the
+/// name disqualifies it, and bash agrees.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Assignment {
+    /// The variable name as written. POSIX-shaped: `[A-Za-z_][A-Za-z0-9_]*`.
+    pub name: String,
+    /// Everything after the first `=`, UNEXPANDED, with its parts intact.
+    pub value: Word,
 }
 
 /// A word = the smallest unit that EXPANSION produces. RFC section 4.4. FROZEN.

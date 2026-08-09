@@ -155,6 +155,7 @@ impl Parser {
     /// multiple parts.
     fn parse_command(&mut self) -> Result<Spanned<Command>, ParseError> {
         let mut words: Vec<Spanned<Word>> = Vec::new();
+        let mut assignments: Vec<Spanned<crate::spine::ast::Assignment>> = Vec::new();
         let mut redirects: Vec<Spanned<Redirect>> = Vec::new();
         let mut cmd_span: Option<Span> = None;
 
@@ -356,6 +357,19 @@ impl Parser {
                     for seg in &t.segments {
                         parts.extend(parts_from_segment(seg)?);
                     }
+                    // ASSIGNMENT PREFIX. `words.is_empty()` IS the positional rule: the first
+                    // ordinary word pushed below ends the prefix permanently, so nothing after it
+                    // can be read as an assignment. See Command::assignments.
+                    if words.is_empty() {
+                        if let Some(a) = split_assignment(&parts) {
+                            assignments.push(Spanned::new(wspan, a));
+                            cmd_span = Some(match cmd_span {
+                                None => wspan,
+                                Some(s) => s.merge(wspan),
+                            });
+                            continue;
+                        }
+                    }
                     words.push(Spanned::new(wspan, Word { parts }));
                     cmd_span = Some(match cmd_span {
                         None => wspan,
@@ -367,7 +381,14 @@ impl Parser {
 
         match cmd_span {
             None => Err(ParseError::NoCommand),
-            Some(sp) => Ok(Spanned::new(sp, Command { words, redirects })),
+            Some(sp) => Ok(Spanned::new(
+                sp,
+                Command {
+                    assignments,
+                    words,
+                    redirects,
+                },
+            )),
         }
     }
 
@@ -492,6 +513,47 @@ impl Parser {
 /// the lexer only recorded which delimiter enclosed the text. A single-quoted segment is one
 /// Literal, always: a `$` inside it is ordinary text, and no later stage can mistake it for a
 /// live substitution. Unquoted and double-quoted segments are scanned for variable SITES.
+/// Split a word's parts into `NAME=value` if it is an assignment word, else `None`.
+///
+/// THE LEXER ALREADY SPLIT AT THE BOUNDARY THAT MATTERS. `FOO="a b"` arrives as Literal("FOO=")
+/// then Literal("a b"); `FOO=$BAR` as Literal("FOO=") then Variable. So the name is read from part
+/// 0, and the value is the remainder of part 0 plus EVERY later part, untouched.
+///
+/// An `=` in any part but the first is not an assignment: in `x$y=1` the equals belongs to the
+/// expansion, not to the parser.
+fn split_assignment(parts: &[WordPart]) -> Option<crate::spine::ast::Assignment> {
+    let (text, quoted) = match parts.first()? {
+        WordPart::Literal { text, quoted } => (text, quoted),
+        _ => return None,
+    };
+    if *quoted != QuoteContext::Unquoted {
+        return None;
+    }
+    let eq = text.find('=')?;
+    let name = &text[..eq];
+    let named_ok = name
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if !named_ok {
+        return None;
+    }
+    let mut value: Vec<WordPart> = Vec::new();
+    let rest = &text[eq + 1..];
+    if !rest.is_empty() {
+        value.push(WordPart::Literal {
+            text: rest.to_string(),
+            quoted: QuoteContext::Unquoted,
+        });
+    }
+    value.extend(parts[1..].iter().cloned());
+    Some(crate::spine::ast::Assignment {
+        name: name.to_string(),
+        value: Word { parts: value },
+    })
+}
+
 fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
     match seg {
         WordSegment::Text { text, context, .. } => Ok(match context {
@@ -1082,5 +1144,94 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+/// THE POSITIONAL RULE, and it is the only rule. These four cases are the whole contract:
+/// an assignment is an assignment ONLY before the first ordinary word.
+///
+/// These are PARSER tests rather than REPL tests on purpose. `try_inline_assignment`
+/// (engine.rs:1071, called from main.rs:1194) intercepts `VAR=x cmd` 133 lines ABOVE the router
+/// at main.rs:1327, so no assignment reaches the spine from the REPL today. A behavioural case
+/// would pass no matter what this code did -- it would be watching legacy.
+#[cfg(test)]
+mod assignment_prefix_tests {
+    use super::parse;
+    use crate::spine::ast::{AstNode, WordPart};
+
+    fn command_of(src: &str) -> crate::spine::ast::Command {
+        match parse(src).expect_complete("parses").node {
+            AstNode::Command(c) => c,
+            other => panic!("expected a Command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn one_assignment_then_the_command() {
+        let c = command_of("FOO=1 echo hi");
+        assert_eq!(c.assignments.len(), 1, "FOO=1 is an assignment");
+        assert_eq!(c.assignments[0].node.name, "FOO");
+        assert_eq!(c.words.len(), 2, "echo and hi are the words");
+    }
+
+    #[test]
+    fn several_assignments_stack_up() {
+        let c = command_of("FOO=1 BAR=2 echo x");
+        assert_eq!(c.assignments.len(), 2, "both prefixes are assignments");
+        assert_eq!(c.assignments[1].node.name, "BAR");
+        assert_eq!(c.words.len(), 2);
+    }
+
+    /// THE ONE THAT MATTERS MOST. If this ever fails, `git commit -m x=y` starts setting a
+    /// variable and dropping an argument.
+    #[test]
+    fn an_equals_after_the_command_word_is_an_argument() {
+        let c = command_of("echo FOO=1");
+        assert!(
+            c.assignments.is_empty(),
+            "nothing before echo, so nothing is an assignment"
+        );
+        assert_eq!(c.words.len(), 2, "echo and the literal FOO=1");
+    }
+
+    #[test]
+    fn the_prefix_ends_at_the_first_ordinary_word() {
+        let c = command_of("FOO=1 echo BAR=2");
+        assert_eq!(c.assignments.len(), 1, "only FOO=1 is in prefix position");
+        assert_eq!(c.words.len(), 2, "echo, and BAR=2 as an ARGUMENT");
+    }
+
+    /// The value keeps its PARTS. Flattening here would rebuild the bug class the Word model
+    /// exists to prevent.
+    #[test]
+    fn a_quoted_value_survives_as_a_part() {
+        let c = command_of("FOO=\"a b\" echo hi");
+        assert_eq!(c.assignments.len(), 1);
+        assert_eq!(c.assignments[0].node.name, "FOO");
+        let parts = &c.assignments[0].node.value.parts;
+        assert!(
+            parts
+                .iter()
+                .any(|p| matches!(p, WordPart::Literal { text, .. } if text == "a b")),
+            "the quoted value is preserved whole: {parts:?}"
+        );
+    }
+
+    /// An expansion in the value is NOT evaluated at parse time -- it stays a part.
+    #[test]
+    fn a_variable_value_is_not_flattened() {
+        let c = command_of("FOO=$BAR echo hi");
+        let parts = &c.assignments[0].node.value.parts;
+        assert!(
+            parts.iter().any(|p| matches!(p, WordPart::Variable { .. })),
+            "the value keeps its Variable part: {parts:?}"
+        );
+    }
+
+    /// A quoted NAME is not an assignment word.
+    #[test]
+    fn a_quoted_name_is_not_an_assignment() {
+        let c = command_of("\"FOO\"=1 echo hi");
+        assert!(c.assignments.is_empty(), "quoting the name disqualifies it");
     }
 }

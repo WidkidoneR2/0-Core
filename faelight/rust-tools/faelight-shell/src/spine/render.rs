@@ -65,6 +65,30 @@ fn render_node(node: &Spanned<AstNode>, level: usize, out: &mut String) {
     }
 }
 
+/// Render a word's PARTS. ONE owner, shared by words and by assignment values -- an assignment
+/// value is a Word like any other, and a second copy of this match would drift the way every
+/// duplicated interpretation in this codebase has.
+fn render_parts(parts: &[WordPart]) -> Vec<String> {
+    parts
+        .iter()
+        .map(|p| match p {
+            WordPart::Literal { text, .. } => format!("Literal {text:?}"),
+            // Bare renders unchanged so existing goldens do not move; only the
+            // braced form is annotated, because that is the fact that was missing.
+            WordPart::Variable { name, syntax } => match syntax {
+                VariableSyntax::Bare => format!("Variable {name:?}"),
+                VariableSyntax::Braced => format!("Variable {name:?} (braced)"),
+            },
+            WordPart::SpecialParam(p) => format!("SpecialParam {p:?}"),
+            // Shown, not erased, and not recursed into: this renderer has no
+            // AST-traversal policy and inventing one here would be a second.
+            WordPart::CommandSub(node) => {
+                format!("CommandSub @[{},{})", node.span.start, node.span.end)
+            }
+        })
+        .collect()
+}
+
 fn render_command(
     span: super::ast::Span,
     cmd: &super::ast::Command,
@@ -77,27 +101,27 @@ fn render_command(
         span.start,
         span.end
     ));
+    // ASSIGNMENTS RENDER ONLY WHEN PRESENT, unlike `redirects: []` below.
+    //
+    // Every golden in golden.rs was captured before this field existed, so an
+    // unconditional line would move ALL of them at once -- and a mass golden update is
+    // exactly the change that hides one real diff among a hundred cosmetic ones.
+    //
+    // ⚠️ AND THE LINE ITSELF MATTERS. Without it `spine parse FOO=1 echo hi` printed only
+    // `echo` and `hi`, so a correct parse read as a word being SILENTLY DROPPED. A debug
+    // tool that under-reports is how two misreadings started this month.
+    for a in &cmd.assignments {
+        out.push_str(&format!(
+            "{}Assign @[{},{})  {} = {}\n",
+            indent(level + 1),
+            a.span.start,
+            a.span.end,
+            a.node.name,
+            render_parts(&a.node.value.parts).join(" ")
+        ));
+    }
     for word in &cmd.words {
-        let rendered: Vec<String> = word
-            .node
-            .parts
-            .iter()
-            .map(|p| match p {
-                WordPart::Literal { text, .. } => format!("Literal {text:?}"),
-                // Bare renders unchanged so existing goldens do not move; only the
-                // braced form is annotated, because that is the fact that was missing.
-                WordPart::Variable { name, syntax } => match syntax {
-                    VariableSyntax::Bare => format!("Variable {name:?}"),
-                    VariableSyntax::Braced => format!("Variable {name:?} (braced)"),
-                },
-                WordPart::SpecialParam(p) => format!("SpecialParam {p:?}"),
-                // Shown, not erased, and not recursed into: this renderer has no
-                // AST-traversal policy and inventing one here would be a second.
-                WordPart::CommandSub(node) => {
-                    format!("CommandSub @[{},{})", node.span.start, node.span.end)
-                }
-            })
-            .collect();
+        let rendered = render_parts(&word.node.parts);
         out.push_str(&format!(
             "{}Word @[{},{})  {}\n",
             indent(level + 1),

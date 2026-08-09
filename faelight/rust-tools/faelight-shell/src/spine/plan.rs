@@ -549,6 +549,19 @@ fn lower_command(
     ctx: &LowerContext,
     io: IoPlan,
 ) -> Result<ExecutionPlan, LowerError> {
+    // THE PARSER RUNS AHEAD OF THE EXECUTOR, and this refusal is what keeps that honest.
+    // A prefix assignment now PARSES, but `Environment` has no variant meaning "inherit plus
+    // these" yet -- so lowering here would build argv from `words` alone and DROP the assignment
+    // SILENTLY. That is the same silent-corruption shape the redirect refusal below records.
+    //
+    // Refusing routes the line to legacy, which has run these correctly since INT-143, so no
+    // behaviour changes. `spine migrate` simply gains a named decline category.
+    if !cmd.assignments.is_empty() {
+        return Err(LowerError::UnsupportedConstruct {
+            kind: "assignment prefix (VAR=x cmd)",
+            span,
+        });
+    }
     // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
     // execute them. Refusing here is not a formality -- without it a parsed redirect would
     // lower to IoPlan::Simple and the command would run with the redirect SILENTLY
