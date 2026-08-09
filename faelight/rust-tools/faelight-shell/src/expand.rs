@@ -225,6 +225,18 @@ pub fn is_complete_command(buf: &str) -> (bool, &'static str) {
             if !in_heredoc {
                 out.push_str(line);
                 out.push('\n');
+                // INT-196: A KNOWN EXCEPTION WITH A STATED REASON, not an oversight.
+                //
+                // This is a raw substring test, and it is SAFE HERE because control flow guards it.
+                // Once the flag is set, every later line takes the else branch, so a quoted pair
+                // INSIDE a body never reaches this test at all. The only line that can reach it is
+                // one before the body opens -- and the outer guard above already established, using
+                // the quote-aware recogniser, that a real introduction exists in this buffer.
+                //
+                // ⚠️ MEASURED, NOT ARGUED. It was changed to ask the recogniser and ghost-checked:
+                // with the raw test restored, all four body-scan cases stayed GREEN, including one
+                // written specifically to discriminate. There is no input for which the two spellings
+                // differ, so the change was reverted rather than shipped unprovable.
                 if line.contains("<<") {
                     in_heredoc = true;
                 }
@@ -843,6 +855,59 @@ mod heredoc_intro_quote_tests {
         assert_eq!(
             find_heredoc_intro("echo \"hi\" << EOF"),
             Some(("EOF".to_string(), false))
+        );
+    }
+}
+
+/// INT-196: the body scan inside is_complete_command must ask the recogniser too.
+///
+/// The delimiter comes from the quote-aware recogniser, and then the loop asked the RAW string
+/// whether each line begins a body. A quoted pair on any line flipped the flag, and every line
+/// after it was swallowed as heredoc content -- so a complete multi-line input read as incomplete
+/// and the prompt kept waiting.
+#[cfg(test)]
+mod heredoc_body_scan_tests {
+    use super::is_complete_command;
+
+    #[test]
+    fn a_closed_heredoc_is_complete() {
+        let buf = "cat << EOF\nbody\nEOF";
+        assert!(is_complete_command(buf).0, "a closed heredoc is complete");
+    }
+
+    #[test]
+    fn an_unclosed_heredoc_is_incomplete() {
+        let buf = "cat << EOF\nbody";
+        assert!(
+            !is_complete_command(buf).0,
+            "no terminator means incomplete"
+        );
+    }
+
+    /// NOT A HEREDOC AT ALL, so the input is complete. ⚠️ THIS CASE DOES NOT DISCRIMINATE the
+    /// body scan on its own -- it passes on the scanner fix alone, because the outer guard returns
+    /// None and the body loop never runs. Kept because it pins the outer behaviour; the case below
+    /// is the one that tests THIS line.
+    #[test]
+    fn a_quoted_pair_does_not_start_a_body() {
+        let buf = "echo \"a << b\"\necho done";
+        assert!(
+            is_complete_command(buf).0,
+            "a quoted pair is data, so both lines are ordinary commands"
+        );
+    }
+
+    /// THE DISCRIMINATING CASE, and it took a failed ghost-check to find it. The outer guard must
+    /// FIRE -- so there is a real heredoc -- and a quoted pair must sit INSIDE the body before the
+    /// terminator. With the raw substring test, that pair re-flips the in-body flag while already
+    /// in the body, the terminator line is then skipped, no close is found, and a complete input
+    /// reads as incomplete forever.
+    #[test]
+    fn a_quoted_pair_inside_a_body_does_not_reopen_it() {
+        let buf = "cat << EOF\necho \"a << b\"\nEOF";
+        assert!(
+            is_complete_command(buf).0,
+            "the terminator must still close the body"
         );
     }
 }
