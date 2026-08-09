@@ -284,6 +284,37 @@ LexResult's first token. The quoted rows are the exact input from the gen 432 re
 So no shared conversion layer is needed and no mini command_word goes into the scanner path -- which
 was the trap: adding one would recreate the same boundary problem one layer down.
 
+## GATES FOR THE GUARD MIGRATION (drafted 2026-08-09, from the ruled hierarchy)
+
+- [ ] M1: the line is parsed ONCE before the universal guard at main.rs:2340, and that parse is the
+      only one performed for the guard's benefit. No second parse, no re-tokenization
+- [ ] M2: on Complete, the guard receives the first Word from the parsed Command
+- [ ] M3: on Incomplete or Refused, the guard receives the first token from LexResult. NOT a
+      text-derived word -- one layer down the same pipeline, never a jump back to source heuristics
+- [ ] M4: on Invalid, no guard decision is made, because no execution follows. Verified by showing
+      the Invalid path does not reach an executor
+- [ ] M5: safety_guard::check no longer calls command_word or any tokenizer. Its signature takes the
+      already-derived word rather than a line. Provable by grep: zero tokenizing calls in that file
+- [ ] M6: the redundant heredoc guard call at main.rs:2383 is REMOVED, with evidence that 2340 has
+      already guarded the same unmodified line on that path
+- [ ] M7: RED-FIRST REGRESSION, written before the change: a quoted command word reaches the guard as
+      the bare word. The gen 432 case -- quoted rm -- asserted through the REPL door, since the guard
+      only runs there
+- [ ] M8: an incomplete multi-line paste still executes and is still guarded. This is the case that
+      ruled out blocking, and it must be proven rather than assumed
+- [ ] M9: a refused construct still declines to legacy AND is still guarded. Refusal means the parser
+      declines ownership, not that the input is harmless
+- [ ] M10: measured cost of the added parse at the REPL loop head, stated as a number. If it is not
+      free, say what it costs rather than hoping nobody notices
+- [ ] M11: no behaviour change for any line that already passed the guard. Proven against the
+      deployed build side by side, because the suite structurally cannot see this path
+- [ ] M12: each gate carries evidence per INT-158
+
+⚠️ M3 IS THE ONE THAT CAN GO WRONG QUIETLY. If the scanner's token ever stops matching what the
+guard's lists expect, the correct response is a shared representation -- NOT a second mini
+command_word inside the scanner path, which would recreate the boundary problem one layer down. The
+viability check above proves it matches today; M3 must keep proving it.
+
 ## SEPARATE FINDINGS -- RECORDED, NOT FOLDED IN
 
 ⚠️ Neither belongs to this intent's change, and neither should expand it before the evidence boundary
