@@ -80,6 +80,44 @@ prerequisites -- which is why they are separate numbers rather than one intent
 that is half-actionable. INT-169's flip is the unblocking event, and this intent
 is one of the things the flip pays for.
 
+## FINDING 2026-08-09: A DERIVATION BOUNDARY, NOT A DUPLICATION SITE
+
+The investigation does NOT establish command_word or split_into_segments as duplication sites.
+
+command_word is already explicitly the single owner of command-word extraction -- INT-171 gate 2 --
+and its three callers are callers of one owner rather than three independent derivations. Its own
+doc enumerates which split_whitespace calls elsewhere are NOT command-word extraction and why each
+is safe. split_into_segments is likewise a deliberate single owner with two callers, and its
+documented history shows why that consolidation mattered: when the REPL and the migration audit each
+split inline, both cut an if-then-fi containing && at the &&, and sh reported a syntax error. Four
+days live, missed because every chain test used simple commands.
+
+⭐ THE REMAINING PROBLEM IS THEREFORE ONE OF DERIVATION BOUNDARY.
+
+Both helpers derive parser-owned structure from raw source text BEFORE the parser has established
+the authoritative structure. In particular, command_word invokes tokenize itself. So although
+command-word extraction has been consolidated to one function, that function is still performing a
+SECOND TOKENIZATION before the scanner and parser produce the AST.
+
+The AST already contains the authoritative answer: the command word is the first Word of a Command
+node. The same principle applies to segments -- they should be obtained from the parsed structure
+rather than reconstructed from the original text.
+
+⚠️ SO THE RELEVANT CHANGE IS NOT ANOTHER DEDUPLICATION OR CENSUS SWEEP. It is a boundary and
+ordering change: parse first; derive command words and segments from the resulting AST; do not
+reconstruct parser-owned structure from raw text before parsing.
+
+This is materially larger and riskier than consolidating existing helpers. It changes the order in
+which the shell's processing pipeline establishes facts, and potentially affects callers that
+currently depend on the pre-parser representations.
+
+⚠️⚠️ ACCORDINGLY THIS INTENT RECORDS THE FINDING AND DOES NOT BEGIN IMPLEMENTATION. The next step is
+to establish SEPARATE evidence for the proposed parse-first boundary: identify all current consumers
+of command_word and split_into_segments, determine what AST information each actually requires, and
+verify that the parser and AST can supply equivalent information across the affected command forms.
+
+NO IMPLEMENTATION SHOULD BE INFERRED FROM THE CENSUS OR CONSOLIDATION WORK ALONE.
+
 ## Success Criteria
 - [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
       blocked. Do not tick the rest before this one
