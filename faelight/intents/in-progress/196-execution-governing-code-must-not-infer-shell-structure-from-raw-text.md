@@ -210,8 +210,22 @@ is defensible; an AST-derived one offers no correctness benefit.
 the call sites are this intent's subject and two thirds are not -- which is exactly why the census
 was not a migration plan.
 
-⚠️ TWO SITES NEED A SECOND LOOK BEFORE THE LIST IS FINAL: main.rs:1060 (compare or dispatch?) and
-main.rs:1009 (records, but a miss has a real cost). Neither is decided here.
+THE TWO FLAGGED SITES WERE READ, AND BOTH MOVED TO EXECUTION-GOVERNING. My first classification was
+wrong on both, which is why they were flagged rather than filed.
+
+  main.rs:1060  DISPATCH, not comparison. `if ftok == "flow"` then matches a subcommand and
+                EXECUTES -- set_focus_intent, database writes, printed output. A builtin dispatched
+                on a text-derived word, which is exactly this intent's subject.
+
+  main.rs:1009  GATES, not records. `if _is_destructive { capture_snapshot(...) }` -- the word
+                decides whether a snapshot is taken BEFORE a destructive command runs. Its own
+                comment records the failure: on gen 432 the quoted form of rmdir produced NO
+                snapshot row. The underscore-prefixed names read as unused and are not; that
+                convention is misleading here and worth fixing when the site is touched.
+
+REVISED SHAPE: NINE execution-governing, TWO classification, EIGHT telemetry. Both sites that moved
+are PROTECTIVE -- one dispatches, one decides whether a safety net is deployed. Reading them
+mattered more than the count did.
 
 ## Success Criteria
 - [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
