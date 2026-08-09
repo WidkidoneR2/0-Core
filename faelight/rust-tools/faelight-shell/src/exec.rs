@@ -1348,7 +1348,22 @@ pub fn try_execute_spine_source(
             );
             SpineOutcome::Handled { exit_code: 2 }
         }
-        Err(SpineAttemptError::Parse(_)) => {
+        // ⭐ INT-169 G2: THIS IS WHAT LEGACY FALLBACK MEANS -- an EXPLICIT parser refusal. Valid
+        // shell the spine intentionally does not own: an unsupported operator, an fd redirect left
+        // to legacy, a comparison that is not a redirect.
+        //
+        // ⚠️ THIS REPLACED A `Parse(_)` CATCH-ALL, and the catch-all was the bug: it routed
+        // incompleteness, a bare operator and every future parse error to legacy alike, which made
+        // legacy the generic recovery mechanism for parser failure rather than the destination of a
+        // deliberate refusal. A new parse outcome is now a compile error here instead of a silent
+        // decline.
+        Err(SpineAttemptError::Refused(_)) => {
+            bump(&SPINE_DECLINED_PARSE);
+            SpineOutcome::Declined
+        }
+        // Unfinished input. The REPL validator normally holds these at the prompt, so arriving here
+        // means a caller that did not consult it -- legacy handles the line as it always has.
+        Err(SpineAttemptError::Incomplete(_)) => {
             bump(&SPINE_DECLINED_PARSE);
             SpineOutcome::Declined
         }
