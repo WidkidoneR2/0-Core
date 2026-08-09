@@ -196,6 +196,43 @@ pub fn run_repl_lines_status(
     cmds: &[&str],
     env: &[(&str, &str)],
 ) -> Result<(Vec<String>, Option<i32>), String> {
+    run_session(cmds, env, None)
+}
+
+/// Submit ONE line expected to hit fsh's safety guard, and answer the guard's prompt.
+///
+/// THE GUARD IS NOT AT A PROMPT WHEN IT ASKS. safety_guard::challenge_gate leaves rustyline and
+/// blocks on a raw std::io::stdin().read_line, so the READY marker every other submitted line
+/// waits for never arrives. `needle` is the guard's own prompt text, and synchronising on it is
+/// what makes this expressible at all.
+///
+/// `needle` is a parameter rather than a constant on purpose: the harness should not hold a copy
+/// of the shell's wording. The case that cares states it.
+pub fn run_repl_answered(cmd: &str, needle: &str, reply: &str) -> Result<Vec<String>, String> {
+    run_session(&[cmd], &[], Some((needle, reply))).map(|(lines, _)| lines)
+}
+
+/// THE ONE OWNER OF THE SESSION PROTOCOL: spawn, reader thread, submit, capture, teardown.
+///
+/// `answer` exists for exactly ONE situation, and it is a genuine state transition rather than a
+/// harness convenience. fsh's safety guard LEAVES rustyline and performs a raw
+/// `std::io::stdin().read_line`, so NO bracketed-paste READY marker is emitted while it waits for
+/// the reply. A caller submitting a guarded line must therefore synchronise on the guard's own
+/// prompt text and send the reply UNWRAPPED: a pasted reply would carry the paste markers into
+/// `input` and fail `input.trim() == "yes"` for the wrong reason, which is a test passing by
+/// accident.
+///
+/// The tuple is (prompt needle to wait for, text to send). `None` reproduces the previous
+/// behaviour exactly, because the `if let` below never fires.
+///
+/// LIMIT, STATED RATHER THAN DISCOVERED LATER: an answer applies to EVERY submitted line, so it is
+/// meaningful only for single-command sessions. The answered door enforces that by taking one
+/// command.
+fn run_session(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+) -> Result<(Vec<String>, Option<i32>), String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
@@ -285,6 +322,20 @@ pub fn run_repl_lines_status(
         master
             .write_all(b"\x1b[201~\n")
             .map_err(|e| e.to_string())?;
+        if let Some((needle, reply)) = answer {
+            wait_for(
+                &rx,
+                &mut raw,
+                needle.as_bytes(),
+                mark,
+                Duration::from_secs(20),
+            )
+            .ok_or_else(|| format!("never saw the prompt {needle:?} after: {cmd}"))?;
+            master
+                .write_all(reply.as_bytes())
+                .map_err(|e| e.to_string())?;
+            master.write_all(b"\n").map_err(|e| e.to_string())?;
+        }
         wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30))
             .ok_or_else(|| format!("timed out waiting for the prompt after: {cmd}"))?;
     }

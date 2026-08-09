@@ -1712,6 +1712,62 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "repl_195_quoted_command_word_reaches_the_safety_guard",
+        Category::Repl,
+        || {
+            // INT-195 REGRESSION COVER for safety_guard.rs:19, which had none at all.
+            //
+            // Gen 432: the guard derived its word with split_whitespace().next(), so `"rm" -rf /`
+            // read as `"rm` -- matching no deny entry, no allow entry and no safe entry -- while
+            // the executor, which IS quote aware, ran it. The guard stayed silent. Line 19 now
+            // derives through the canonical quote-aware command_word().
+            //
+            // mkfs.zzz, NOT rm. safety_guard.rs:100 matches on the WORD ALONE
+            // (first_word.starts_with("mkfs")) and no such binary exists, so if this ever
+            // regresses the worst case is command-not-found rather than damage. A safety test
+            // whose payload is destructive when the abort fails is not a safety test.
+            //
+            // Asserts the guard FIRED, never that the echoed line lost its quotes: the warning
+            // deliberately echoes the trimmed ORIGINAL text, so `Filesystem format: "mkfs.zzz"`
+            // keeps them. Firing at all is what proves the derivation.
+            let out = repl::run_repl_answered("\"mkfs.zzz\"", "Type 'yes' to proceed", "no")?;
+            let challenged = out.iter().any(|l| l.contains("CHALLENGE"));
+            let named = out.iter().any(|l| l.contains("Filesystem format:"));
+            let blocked = out
+                .iter()
+                .any(|l| l.contains("Command blocked by Friday safety guard"));
+            if challenged && named && blocked {
+                Ok(())
+            } else {
+                Err(format!(
+                    "quoted word did not reach the guard (challenged={challenged}, named={named}, blocked={blocked}): {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_195_bare_command_word_still_reaches_the_safety_guard",
+        Category::Repl,
+        || {
+            // THE CONTROL, and it earns its second. Under a revert of safety_guard.rs:19 this case
+            // must stay GREEN while the quoted one goes RED -- which is what shows the revert broke
+            // the QUOTED path specifically rather than disabling the guard wholesale. Without it,
+            // a red pair would prove nothing about quoting.
+            let out = repl::run_repl_answered("mkfs.zzz", "Type 'yes' to proceed", "no")?;
+            let challenged = out.iter().any(|l| l.contains("CHALLENGE"));
+            let blocked = out
+                .iter()
+                .any(|l| l.contains("Command blocked by Friday safety guard"));
+            if challenged && blocked {
+                Ok(())
+            } else {
+                Err(format!(
+                    "bare word did not reach the guard (challenged={challenged}, blocked={blocked}): {out:?}"
+                ))
+            }
+        },
+    ));
     results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
         // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
         // NEVER unset, leaking into the session. POSIX scopes it to that command
