@@ -110,7 +110,7 @@ proptest! {
     /// byte-offset spans land on char boundaries (else the slice would panic on unicode).
     #[test]
     fn spans_valid_and_lossless(input in shell_line()) {
-        if let Ok(node) = parse(&input) {
+        if let crate::spine::parser::ParseResult::Complete(node) = parse(&input) {
             prop_assert!(node.span.start <= node.span.end, "node span reversed");
             prop_assert!(node.span.end <= input.len(), "node span past input end");
             match &node.node {
@@ -187,7 +187,7 @@ proptest! {
     /// strong step-1 guarantee on the case where it is still true.
     #[test]
     fn word_count_matches_tokens(input in shell_line()) {
-        if let Ok(node) = parse(&input) {
+        if let crate::spine::parser::ParseResult::Complete(node) = parse(&input) {
             let chunks = input.split_whitespace().count();
                     // ⚠️ THE STRICT EQUALITY HOLDS ONLY WITHOUT REDIRECTS, and proptest found
                     // why with `> 2> é`: that is THREE whitespace chunks but FOUR tokens,

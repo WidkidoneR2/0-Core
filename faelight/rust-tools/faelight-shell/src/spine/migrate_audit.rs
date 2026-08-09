@@ -166,53 +166,37 @@ impl MigrationAudit {
     }
 
     /// Record a source the spine could not parse at all. Counted, never silently dropped.
-    pub fn spine_parse_error(&mut self, source: &str, why: &crate::spine::parser::ParseError) {
+    pub fn spine_parse_error(&mut self, source: &str, why: &crate::spine::parser::ParseResult) {
+        use crate::spine::lexer::LexIncompleteKind as K;
+        use crate::spine::parser::{ParseError as E, ParseResult as R, Refusal as Ref};
         self.report.seen += 1;
         self.report.spine_parse_error += 1;
         push_example(&mut self.report.spine_parse_error_examples, source);
+        // INT-169 G2: the audit reads the parser DECISION rather than reaching into an error to
+        // recover one. The four outcomes say different things about the gap, and lumping them lost
+        // that: an unterminated quote is INCOMPLETE INPUT, not a spine parse failure, and 39 of them
+        // were being counted against the shell as though the spine could not parse valid syntax.
         let reason = match why {
-            // INT-200: SEPARATED FROM THE ORDINARY OPERATOR REFUSAL. A stderr redirect is one
-            // the spine deliberately leaves to legacy -- INT-172 routes it to sh, where it
-            // works -- so counting it beside "redirects we cannot do" made 2,230 declines read
-            // as unfinished work when most are the fd guard behaving correctly.
-            // A DELIBERATE DIVERGENCE, counted apart so it never reads as a gap: fsh refuses
-            // a redirect whose target starts with a digit or `=`, because that is how
-            // `where cpu > 0.5` stays a comparison. Bash would create the file.
-            crate::spine::parser::ParseError::ComparisonNotRedirect { .. } => {
+            R::Refused(Ref::ComparisonNotRedirect { .. }) => {
                 "comparison, not a redirect (> 0.5) -- deliberate divergence".to_string()
             }
-            crate::spine::parser::ParseError::FdRedirect { .. } => {
+            R::Refused(Ref::FdRedirect { .. }) => {
                 "redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
             }
-            crate::spine::parser::ParseError::MissingRedirectTarget { kind, .. } => {
+            R::Refused(Ref::UnsupportedOperator { kind, .. }) => format!("operator {kind:?}"),
+            R::Invalid(E::MissingRedirectTarget { kind, .. }) => {
                 format!("redirect with no target ({kind:?})")
             }
-            crate::spine::parser::ParseError::UnsupportedOperator { kind, .. } => {
-                format!("operator {kind:?}")
-            }
-            // INT-200: the KIND, not a shared label. This read "lex error" for every one of the
-            // 42 because the lexer built the same struct at both sites -- the classifier was not
-            // discarding a reason, there was none to discard.
-            // INT-169 G1: these are INCOMPLETE, not failed. The label says so, because calling a
-            // half-typed line a lex error is what let 39 of them count as spine parse errors against
-            // the shell -- and the corpus is full of pasted multi-line fragments stored as single
-            // rows, which are not shell lines at all. Same argument the report already makes for
-            // rows outside the comparison domain.
-            crate::spine::parser::ParseError::Incomplete(i) => match i.kind {
-                crate::spine::lexer::LexIncompleteKind::UnterminatedQuote => {
-                    "incomplete: quote not closed".to_string()
-                }
-                crate::spine::lexer::LexIncompleteKind::UnterminatedCommandSub => {
-                    "incomplete: $( ) not closed".to_string()
-                }
-                crate::spine::lexer::LexIncompleteKind::TrailingEscape => {
-                    "incomplete: line ends in a backslash".to_string()
-                }
-                crate::spine::lexer::LexIncompleteKind::HeredocBody { .. } => {
-                    "incomplete: heredoc body not arrived".to_string()
-                }
+            R::Invalid(E::NoCommand) => "empty".to_string(),
+            R::Invalid(e) => format!("invalid: {e:?}"),
+            R::Incomplete(i) => match i.kind {
+                K::UnterminatedQuote => "incomplete: quote not closed".to_string(),
+                K::UnterminatedCommandSub => "incomplete: $( ) not closed".to_string(),
+                K::TrailingEscape => "incomplete: line ends in a backslash".to_string(),
+                K::HeredocBody { .. } => "incomplete: heredoc body not arrived".to_string(),
             },
-            crate::spine::parser::ParseError::Empty => "empty".to_string(),
+            // The caller only reaches here when the spine did NOT produce a plan.
+            R::Complete(_) => "complete (unreachable here)".to_string(),
         };
         *self.report.declined_by_reason.entry(reason).or_insert(0) += 1;
     }

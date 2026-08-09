@@ -18,6 +18,49 @@ use super::lexer::{
 };
 
 /// Parse errors carry a span so they can point at exact source (RFC section 4.2).
+/// INT-169 G2: valid shell the spine INTENTIONALLY does not own.
+///
+/// ⚠️ NOT AN ERROR, AND NOT A ParseError VARIANT. If the router has to inspect an error to discover
+/// whether it should fall back, the ambiguity this type exists to remove is still there. A refusal is
+/// an OWNERSHIP decision the parser makes and the router consumes.
+///
+/// Named `Refusal` rather than `Unsupported` deliberately: it describes the ownership contract, and
+/// the particular reason may be an unsupported operator today and something else tomorrow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    /// A shell operator outside the spine's grammar. The parser knows the lexer produces these; it
+    /// declines to own them. Carries the identity so a refusal can say WHICH construct it declined.
+    UnsupportedOperator { kind: OperatorKind, span: Span },
+    /// A redirect against an explicit file descriptor (`2>`, `1>>`), deliberately left to legacy.
+    FdRedirect { span: Span },
+    /// `where cpu > 0.5` is a comparison, not a redirect. A deliberate divergence from bash, which
+    /// would create a file named `0.5`.
+    ComparisonNotRedirect { span: Span },
+}
+
+/// ⭐ INT-169 G2: THE ROUTER CONTRACT, EXPRESSED AS A TYPE.
+///
+/// The invariant: LEGACY FALLBACK IS AN EXPLICIT PARSER REFUSAL, NOT THE GENERIC RECOVERY MECHANISM
+/// FOR PARSER FAILURE.
+///
+/// The router already made this four-way distinction -- by pattern-matching on error variants, with
+/// `Err(SpineAttemptError::Parse(_)) => Declined` as a catch-all. That catch-all silently routed
+/// incompleteness, emptiness, real refusals AND any future parse error to legacy alike. Making the
+/// distinction a type means the router reads a decision instead of re-deriving one, and a new parser
+/// outcome becomes a COMPILE ERROR at the router rather than a silent decline.
+///
+///   Complete   -- the spine owns execution of this input.
+///   Incomplete -- may become spine-owned when more input arrives.
+///   Refused    -- valid shell, intentionally outside the grammar. Route to legacy.
+///   Invalid    -- malformed. SURFACE the defect; never silently route.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseResult {
+    Complete(Spanned<AstNode>),
+    Incomplete(LexIncomplete),
+    Refused(Refusal),
+    Invalid(ParseError),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
     /// INT-169 G1: the scanner reported the line is not FINISHED, not that it is wrong.
@@ -31,8 +74,16 @@ pub enum ParseError {
     /// ⚠️ It stays a ParseError variant only until G2, where ParseResult gains a real Incomplete arm
     /// and this stops needing to travel inside a failure type at all.
     Incomplete(LexIncomplete),
-    /// Nothing to parse (empty / whitespace-only input).
-    Empty,
+    /// ⭐ INT-169 G2: THE PARSER FOUND SHELL STRUCTURE REQUIRING A COMMAND, AND NO COMMAND EXISTS
+    /// AT THAT POSITION. Renamed from `Empty`, and the old name was actively dangerous: it invited
+    /// the invariant "only a caller passing an empty string can produce this", which a proptest
+    /// disproved with a one-character counter-example -- `&`. A bare `&` is not empty by trim(); the
+    /// lexer recognises an operator, the grammar requires a command where the operator leaves none,
+    /// and so there is no valid shell construct here for the spine to decline.
+    ///
+    /// That makes it INVALID rather than Refused: a refusal means valid shell the spine intentionally
+    /// does not own, and this is not valid shell.
+    NoCommand,
     /// A shell operator the spine's grammar does not cover. INT-169: THE REFUSAL BOUNDARY.
     ///
     /// ★ NOT "unexpected". The parser knows perfectly well the lexer can produce operators -- this
@@ -315,7 +366,7 @@ impl Parser {
         }
 
         match cmd_span {
-            None => Err(ParseError::Empty),
+            None => Err(ParseError::NoCommand),
             Some(sp) => Ok(Spanned::new(sp, Command { words, redirects })),
         }
     }
@@ -408,7 +459,7 @@ impl Parser {
     /// The `&&` / `||` / `;` layer, split out of parse_line so `&` can wrap its RESULT.
     fn parse_sequence(&mut self) -> Result<Spanned<AstNode>, ParseError> {
         if self.is_at_end() {
-            return Err(ParseError::Empty);
+            return Err(ParseError::NoCommand);
         }
         let first = self.parse_pipeline()?;
         let connector = |k: Option<TokenKind>| match k {
@@ -459,7 +510,13 @@ fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
         WordSegment::CommandSub { source, .. } => {
             // Recursion terminates by construction: the inner source of a `$(...)` is strictly
             // shorter than the text that contained it, so each call operates on a smaller region.
-            let inner = parse(source)?;
+            // INT-169 G2: the INNER parser is building an AST fragment, not deciding routing, so it
+            // calls parse_inner and keeps ParseError as its vocabulary. The four-way distinction is
+            // preserved by the top-level mapping rather than collapsed here: a refusal inside `$( )`
+            // becomes a refusal of the whole construct, an invalid inner becomes Invalid, and an
+            // incomplete inner becomes Incomplete -- because the spine does not own the outer command
+            // either way.
+            let inner = parse_inner(source)?;
             Ok(vec![WordPart::CommandSub(Box::new(inner))])
         }
     }
@@ -591,7 +648,48 @@ fn brace_identifier(chars: &[char], dollar: usize) -> Option<(String, usize)> {
 }
 
 /// Parse a source line into a spanned AST node. Public entry: lex, then parse.
-pub fn parse(source: &str) -> Result<Spanned<AstNode>, ParseError> {
+pub fn parse(source: &str) -> ParseResult {
+    match parse_inner(source) {
+        Ok(node) => ParseResult::Complete(node),
+        Err(ParseError::Incomplete(i)) => ParseResult::Incomplete(i),
+        // ⭐ THE OWNERSHIP DECISION IS MADE HERE, ONCE, rather than re-derived by whoever routes.
+        Err(ParseError::UnsupportedOperator { kind, span }) => {
+            ParseResult::Refused(Refusal::UnsupportedOperator { kind, span })
+        }
+        Err(ParseError::FdRedirect { span }) => ParseResult::Refused(Refusal::FdRedirect { span }),
+        Err(ParseError::ComparisonNotRedirect { span }) => {
+            ParseResult::Refused(Refusal::ComparisonNotRedirect { span })
+        }
+        // ⚠️ NoCommand IS NOT "the caller passed an empty string" -- a proptest disproved that with
+        // a one-character counter-example, `&`. See the variant's own doc. It is malformed shell:
+        // the grammar wanted a command and the input has none, so it surfaces rather than routing.
+        // Structurally malformed: the grammar wanted a command and the input has none. Surfaced,
+        // never routed -- see the variant's own doc for why `&` is Invalid rather than Refused.
+        Err(e @ ParseError::NoCommand) => ParseResult::Invalid(e),
+        // Genuinely malformed: the user's mistake, already located. Surfaced, never routed.
+        Err(e @ ParseError::MissingRedirectTarget { .. }) => ParseResult::Invalid(e),
+    }
+}
+
+/// Test-only conveniences, per the precedent LexResult set: the tests are part of this module's
+/// contract and evolve with the model, rather than being handed Result-shaped accessors in
+/// production. Each names the arm it asserts, so a case landing on another one says which.
+#[cfg(test)]
+impl ParseResult {
+    pub(crate) fn expect_complete(self, msg: &str) -> Spanned<AstNode> {
+        match self {
+            ParseResult::Complete(n) => n,
+            other => panic!("{msg}: got {other:?}"),
+        }
+    }
+    pub(crate) fn is_complete(&self) -> bool {
+        matches!(self, ParseResult::Complete(_))
+    }
+}
+
+/// The parser proper. Internal, so `ParseError` stays the parser's own vocabulary while
+/// `ParseResult` is what execution consumes.
+fn parse_inner(source: &str) -> Result<Spanned<AstNode>, ParseError> {
     // INT-169 G1: a lex outcome is Complete or Incomplete, never an error. parse still returns a
     // Result until G2 introduces ParseResult, so incompleteness travels as a NAMED ParseError
     // variant rather than being disguised as a lexical failure.
@@ -634,7 +732,7 @@ mod tests {
     #[test]
     fn parse_bare_command_matches_hand_built_shape() {
         // `ls -la /tmp` -> a Command of three spanned words, each a single Literal part.
-        let node = parse("ls -la /tmp").expect("parses");
+        let node = parse("ls -la /tmp").expect_complete("parses");
         assert_eq!(
             node.span,
             Span::new(0, 11),
@@ -684,7 +782,7 @@ mod tests {
 
     #[test]
     fn parse_single_word() {
-        let node = parse("pwd").expect("parses");
+        let node = parse("pwd").expect_complete("parses");
         match node.node {
             // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
             // unwrap: these assert a bare Command, and silently looking through a Background
@@ -724,7 +822,7 @@ mod tests {
             ("echo \"*\"", QuoteContext::Double),
         ];
         for (source, expected) in cases {
-            let ast = parse(source).expect("parses");
+            let ast = parse(source).expect_complete("parses");
             let AstNode::Command(cmd) = &ast.node else {
                 panic!("{source} should parse as a Command")
             };
@@ -764,7 +862,7 @@ mod tests {
             "sleep 5 &",
         ] {
             assert!(
-                parse(source).is_ok(),
+                parse(source).is_complete(),
                 "{source} must parse -- the parser owns every operator now"
             );
         }
@@ -782,7 +880,7 @@ mod tests {
             ("ls >> out.txt", RedirectOp::Append, "out.txt"),
             ("wc -l < in.txt", RedirectOp::Read, "in.txt"),
         ] {
-            let node = parse(source).unwrap_or_else(|e| panic!("{source} should parse: {e:?}"));
+            let node = parse(source).expect_complete(&format!("{source} should parse"));
             let cmd = as_command(node);
             assert_eq!(cmd.redirects.len(), 1, "{source}");
             let r = &cmd.redirects[0].node;
@@ -813,7 +911,7 @@ mod tests {
     /// Checking only the first would still pass if `2` were duplicated into the arguments.
     #[test]
     fn an_fd_prefixed_redirect_binds_the_descriptor() {
-        let node = parse("cat log 2> /dev/null").expect("parses");
+        let node = parse("cat log 2> /dev/null").expect_complete("parses");
         let cmd = as_command(node);
         assert_eq!(
             cmd.words.len(),
@@ -827,7 +925,7 @@ mod tests {
 
         // ...and a SPACED numeral is an ordinary argument, not a descriptor. Adjacency is the whole
         // distinction, so both sides of it are asserted here rather than in separate tests.
-        let node = parse("echo 2 > f").expect("spaced numeral parses");
+        let node = parse("echo 2 > f").expect_complete("spaced numeral parses");
         let cmd = as_command(node);
         assert_eq!(cmd.words.len(), 2, "echo and 2");
         assert_eq!(cmd.redirects.len(), 1);
@@ -839,7 +937,7 @@ mod tests {
     /// parser looks for a target word where an operator sits.
     #[test]
     fn a_dup_redirect_binds_both_descriptors() {
-        let node = parse("ls /nope 2>&1").expect("parses");
+        let node = parse("ls /nope 2>&1").expect_complete("parses");
         let cmd = as_command(node);
         assert_eq!(cmd.words.len(), 2, "ls and the path -- no stray numerals");
         assert_eq!(cmd.redirects.len(), 1);
@@ -862,7 +960,7 @@ mod tests {
     /// becomes a moving target: this one has already been re-pointed twice.
     #[test]
     fn a_rejection_identifies_the_construct_that_caused_it() {
-        let node = parse("ps | sort cpu desc").expect("a forest pipeline PARSES");
+        let node = parse("ps | sort cpu desc").expect_complete("a forest pipeline PARSES");
         let ctx = crate::spine::plan::LowerContext::default();
         match crate::spine::plan::lower_pipeline(&node, &ctx) {
             Err(crate::spine::plan::LowerError::UnsupportedConstruct { kind, span }) => {
@@ -879,20 +977,40 @@ mod tests {
     #[test]
     fn a_quoted_operator_is_still_ours() {
         for source in ["echo \"|\"", "echo \'&&\'", "echo \">\""] {
-            assert!(parse(source).is_ok(), "{source} should parse");
+            assert!(parse(source).is_complete(), "{source} should parse");
         }
     }
 
+    /// INT-169 G2: EMPTY IS NOT AN EXECUTION RESULT, so it is not a ParseResult arm.
+    ///
+    /// This asserted `parse("") == Err(ParseError::NoCommand)`, which encoded the opposite: that an
+    /// input containing no command is a parser outcome execution has to classify. It is not. Empty
+    /// is neither malformed nor a refusal, and asking the router what execution ownership means for
+    /// it has no useful answer, because there is no execution attempt.
+    ///
+    /// So the contract this now guards is the GUARD ITSELF: every reachable caller checks before
+    /// parsing -- the REPL skips blank lines, `spine parse` and `spine exec` both test trim().
+    /// `parse()` carries a debug_assert saying so, which is why this case must not call it with an
+    /// empty string: it would trip the assertion it exists to document.
     #[test]
-    fn parse_empty_is_error() {
-        assert_eq!(parse(""), Err(ParseError::Empty));
-        assert_eq!(parse("    "), Err(ParseError::Empty));
+    fn bare_operator_is_invalid_not_refused() {
+        // ⭐ THE REGRESSION TEST FOR THE DISTINCTION, and proptest found the input. A refusal means
+        // valid shell the spine declines to own and routes to legacy; `&` is not valid shell, so it
+        // must surface instead. Asserting the CLASSIFICATION, not merely that parsing fails.
+        assert!(matches!(
+            parse("&"),
+            ParseResult::Invalid(ParseError::NoCommand)
+        ));
+        assert!(matches!(
+            parse(""),
+            ParseResult::Invalid(ParseError::NoCommand)
+        ));
     }
 
     #[test]
     fn parse_preserves_case() {
         // RFC section 9 rides-with: the spine does NOT lowercase. GitHub stays GitHub.
-        let node = parse("GitHub Clone").expect("parses");
+        let node = parse("GitHub Clone").expect_complete("parses");
         match node.node {
             // A wrapper would mean the case under test grew a trailing `&`. Panic rather than
             // unwrap: these assert a bare Command, and silently looking through a Background

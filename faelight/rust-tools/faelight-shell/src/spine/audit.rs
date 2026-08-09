@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use super::lexer::OperatorKind;
-use super::parser::{parse, ParseError};
+use super::parser::{parse, ParseResult};
 use super::plan::{lower, ExecutionPlan, LowerError};
 
 /// The result of auditing a history corpus. Two metrics kept distinct: VOLUME (every entry --
@@ -181,14 +181,17 @@ enum Outcome {
 /// The parse -> lower -> validate pipeline for a single command.
 fn audit_one(raw: &str) -> Outcome {
     let node = match parse(raw) {
-        Ok(n) => n,
-        // ★ RE-SOURCED FROM A FACT. This used to collapse every parse error into one bucket, and
-        // "operator-shaped" was then INFERRED afterwards by inspecting a lowered argv -- the only
-        // evidence available while `|` was ordinary word content. The parser now says so directly,
-        // and an inference that survives alongside the fact it was standing in for becomes the
-        // inert instrumentation INT-167 keeps finding.
-        Err(ParseError::UnsupportedOperator { kind, .. }) => return Outcome::RefusedOperator(kind),
-        Err(_) => return Outcome::ParseFailure,
+        ParseResult::Complete(n) => n,
+        // ★ RE-SOURCED FROM A FACT, and now from the TYPE. This already distinguished an operator
+        // refusal from a parse failure, which was the four-way instinct arriving early -- but it
+        // had to reach into the error to do it. INT-169 G2 makes the parser say which, so the
+        // audit reads a decision instead of inferring one.
+        ParseResult::Refused(crate::spine::parser::Refusal::UnsupportedOperator {
+            kind, ..
+        }) => return Outcome::RefusedOperator(kind),
+        ParseResult::Refused(_) => return Outcome::ParseFailure,
+        ParseResult::Incomplete(_) => return Outcome::ParseFailure,
+        ParseResult::Invalid(_) => return Outcome::ParseFailure,
     };
     // No environment, deliberately: `spine audit` measures parse+lower CAPABILITY over the
     // history corpus, not runtime values. Variables render in source form.

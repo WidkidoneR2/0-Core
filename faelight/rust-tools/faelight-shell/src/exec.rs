@@ -1077,6 +1077,15 @@ pub enum SpineAttemptError {
     /// mistake the whole decline-reason work existed to fix.
     #[allow(dead_code)]
     Parse(crate::spine::parser::ParseError),
+    /// INT-169 G2: the input is not finished. NOT a parse failure and NOT a refusal -- more input
+    /// may make it spine-owned.
+    #[allow(dead_code)]
+    Incomplete(crate::spine::lexer::LexIncomplete),
+    /// INT-169 G2: valid shell the spine intentionally does not own. THIS is what legacy fallback
+    /// means; `Parse` is not. The doc above predicted this variant -- "a router that wanted to
+    /// distinguish a lex error from an unsupported operator would need exactly this."
+    #[allow(dead_code)]
+    Refused(crate::spine::parser::Refusal),
     Lower(crate::spine::plan::LowerError),
 }
 
@@ -1090,7 +1099,19 @@ fn lower_spine_source(
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Result<Vec<crate::spine::plan::ExecutionPlan>, SpineAttemptError> {
-    let node = crate::spine::parser::parse(source).map_err(SpineAttemptError::Parse)?;
+    // ⭐ INT-169 G2: THE OWNERSHIP DECISION TRAVELS; IT IS NOT FLATTENED AND RE-DERIVED. This read
+    // `.map_err(SpineAttemptError::Parse)?`, which collapsed four meanings into one variant -- and the
+    // router then pattern-matched them back out, with `Parse(_) => Declined` as a catch-all that
+    // silently routed incompleteness, emptiness, real refusals and any future parse error to legacy
+    // alike. Each arm now keeps its meaning all the way to the router.
+    let node = match crate::spine::parser::parse(source) {
+        crate::spine::parser::ParseResult::Complete(n) => n,
+        crate::spine::parser::ParseResult::Incomplete(i) => {
+            return Err(SpineAttemptError::Incomplete(i))
+        }
+        crate::spine::parser::ParseResult::Refused(r) => return Err(SpineAttemptError::Refused(r)),
+        crate::spine::parser::ParseResult::Invalid(e) => return Err(SpineAttemptError::Parse(e)),
+    };
     // INT-169 blocker 4: substitutions need a runner, and refusing one here would leave the
     // capability with no consumer. Blocker 5: a door with a runner but no globber would be
     // incoherent -- substitutions could run while pathname expansion silently could not.
@@ -1145,7 +1166,13 @@ pub fn try_spine_background_command(
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Option<Result<BackgroundAttempt, SpineAttemptError>> {
-    let node = crate::spine::parser::parse(source).ok()?;
+    // INT-169 G2: only a Complete parse can be a background command. The other three arms are not
+    // this function's decision to make -- it answers "is this a background command?", and anything
+    // else returns None so the caller's own routing runs.
+    let crate::spine::parser::ParseResult::Complete(node) = crate::spine::parser::parse(source)
+    else {
+        return None;
+    };
     let crate::spine::ast::AstNode::Background(inner) = node.node else {
         return None;
     };

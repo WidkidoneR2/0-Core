@@ -510,9 +510,20 @@ fn execute_impl(
                 if line_to_parse.trim().is_empty() {
                     return CommandResult::Error("usage: spine parse <line>".to_string(), 1);
                 }
+                use crate::spine::parser::ParseResult;
                 return match crate::spine::parser::parse(&line_to_parse) {
-                    Ok(node) => CommandResult::Output(crate::spine::render::render(&node)),
-                    Err(e) => CommandResult::Error(format!("spine parse error: {e:?}"), 1),
+                    ParseResult::Complete(node) => {
+                        CommandResult::Output(crate::spine::render::render(&node))
+                    }
+                    // A debug door reports every outcome by name, because seeing WHICH of the four
+                    // a line produced is the whole reason to type `spine parse`.
+                    ParseResult::Incomplete(i) => {
+                        CommandResult::Output(format!("incomplete: {:?}", i.kind))
+                    }
+                    ParseResult::Refused(r) => CommandResult::Output(format!("refused: {r:?}")),
+                    ParseResult::Invalid(e) => {
+                        CommandResult::Error(format!("spine parse error: {e:?}"), 1)
+                    }
                 };
             }
             Some("audit") => {
@@ -671,10 +682,12 @@ fn execute_impl(
                         let ctx = crate::exec::ExecContext::from_line(legacy_line, legacy_line, db);
                         let legacy = crate::spine::migrate::plan_from_legacy(&ctx, legacy_io);
                         let node = match crate::spine::parser::parse(source) {
-                            Ok(n) => n,
-                            Err(e) => {
-                                // Counted, not silently dropped: legacy accepted this line.
-                                audit.spine_parse_error(source, &e);
+                            crate::spine::parser::ParseResult::Complete(n) => n,
+                            // Counted, not silently dropped: legacy accepted this line. The audit
+                            // records WHICH of the four outcomes the spine produced, because a
+                            // refusal and a malformed line say different things about the gap.
+                            other => {
+                                audit.spine_parse_error(source, &other);
                                 continue;
                             }
                         };
@@ -748,9 +761,12 @@ fn execute_impl(
                     return CommandResult::Error("usage: spine exec <command>".to_string(), 1);
                 }
                 let node = match crate::spine::parser::parse(&raw) {
-                    Ok(n) => n,
-                    Err(e) => {
-                        return CommandResult::Error(format!("spine exec: parse error: {e:?}"), 1)
+                    crate::spine::parser::ParseResult::Complete(n) => n,
+                    // The EXPLICIT door: you asked for the spine, so every other outcome is
+                    // reported rather than hidden -- INCLUDING a refusal, which the ROUTER would
+                    // send to legacy. That asymmetry is the reason both doors exist.
+                    other => {
+                        return CommandResult::Error(format!("spine exec: {other:?}"), 1);
                     }
                 };
                 // No resolver yet: fsh's session vars live in main.rs's REPL loop and are not

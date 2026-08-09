@@ -35,7 +35,7 @@
 #![cfg(test)]
 
 use super::lexer::OperatorKind;
-use super::parser::{parse, ParseError};
+use super::parser::parse;
 use super::render::render;
 
 /// (input, expected rendered AST). Parser handles these correctly today.
@@ -130,8 +130,8 @@ mod tests {
     #[test]
     fn bare_goldens_match() {
         for (input, expected) in BARE_GOLDENS {
-            let node = parse(input)
-                .unwrap_or_else(|e| panic!("golden input {input:?} failed to parse: {e:?}"));
+            let node =
+                parse(input).expect_complete(&format!("golden input {input:?} failed to parse"));
             let got = render(&node);
             assert_eq!(
                 &got, expected,
@@ -146,8 +146,8 @@ mod tests {
     #[test]
     fn future_goldens_match() {
         for (input, expected) in FUTURE_GOLDENS {
-            let node = parse(input)
-                .unwrap_or_else(|e| panic!("future golden {input:?} failed to parse: {e:?}"));
+            let node =
+                parse(input).expect_complete(&format!("future golden {input:?} failed to parse"));
             let got = render(&node);
             assert_eq!(
                 &got, expected,
@@ -168,7 +168,9 @@ mod tests {
     fn refused_constructs_never_reach_lowering() {
         for (input, want) in FUTURE_REFUSALS {
             match parse(input) {
-                Err(ParseError::UnsupportedOperator { kind, .. }) => {
+                crate::spine::parser::ParseResult::Refused(
+                    crate::spine::parser::Refusal::UnsupportedOperator { kind, .. },
+                ) => {
                     assert_eq!(kind, *want, "{input:?} was declined as the wrong construct")
                 }
                 other => panic!("{input:?} crossed the ownership boundary: {other:?}"),
@@ -187,7 +189,7 @@ mod tests {
     #[test]
     fn unused_descriptors_are_declined_at_lowering() {
         for input in FUTURE_FD_REFUSALS {
-            let node = parse(input).unwrap_or_else(|e| panic!("{input:?} should parse: {e:?}"));
+            let node = parse(input).expect_complete(&format!("{input:?} should parse"));
             match crate::spine::plan::lower(&node, &crate::spine::plan::LowerContext::default()) {
                 Err(crate::spine::plan::LowerError::UnsupportedConstruct { .. }) => {}
                 other => panic!("{input:?} must be declined at lowering: {other:?}"),
@@ -199,7 +201,7 @@ mod tests {
     fn bare_goldens_all_parse() {
         assert!(BARE_GOLDENS.len() >= 8, "corpus should have a real spread");
         for (input, _) in BARE_GOLDENS {
-            assert!(parse(input).is_ok(), "{input:?} should parse");
+            assert!(parse(input).is_complete(), "{input:?} should parse");
         }
     }
 }

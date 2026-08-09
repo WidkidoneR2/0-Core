@@ -8,3 +8,8 @@ cc 45b0c0b357bc5fca9cb9253bcbec9ba92cbb7907ac535d0976f6af88d8906ccd # shrinks to
 cc 87cc5d059be2c11dae8a70daaf4e5ad91daf1ded634fd45cb813bb864ef42237 # shrinks to input = "\"\"\"\"\" \"a\\\"b\""
 cc ad6d085a3d7fefd7990e35738fce84abda23ddc177bb9005d1be10c6a3c1804e # shrinks to input = "> abc"
 cc 2200d448424366c963cfa40084f215651b7e6464eaa6026ee7e38feaeb55b516 # shrinks to input = "> 2> é"
+cc 4e93e80068d48227aa7693eb9c49d6c82c25a3913a7dc92b2d6707d06cddc44e # shrinks to input = ""
+cc 8b723148af00baba0ca6eef97450ebfeaf2b812107bf0c0e921a04dfb551e522 # shrinks to input = "|"
+cc ac728a19fff9289b0f9f346e97f084375ad94653193b1b385f85823f057d15c2 # shrinks to input = "&"
+cc 9c8e63e993b517018eb0fd5e518c10a81da2ca5bb5082ad2046186051abcc790 # shrinks to input = "||||"
+cc 1c2a45da95c1b4d35dbe50fe8996b92a71a6ee028db8f2883be4dd8f15f1a1fc # shrinks to input = "||||"

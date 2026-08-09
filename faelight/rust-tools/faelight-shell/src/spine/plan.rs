@@ -417,7 +417,7 @@ mod forest_pipeline_tests {
     use super::*;
 
     fn is_forest(src: &str) -> bool {
-        match parse(src).expect("parses").node {
+        match parse(src).expect_complete("parses").node {
             AstNode::Pipeline(pl) => is_forest_pipeline(&pl),
             other => panic!("not a pipeline: {:?}", other),
         }
@@ -447,7 +447,7 @@ mod forest_pipeline_tests {
         // number. Recorded as a test rather than left out, because the two declines look identical
         // from the prompt -- both end at the query executor -- and merging them in one's head is
         // how this predicate gets blamed for a decision it never made.
-        assert!(parse("ps | where cpu > 0.5").is_err());
+        assert!(parse("ps | where cpu > 0.5").is_complete() == false);
     }
 
     #[test]
@@ -766,7 +766,7 @@ mod tests {
 
     #[test]
     fn bare_command_lowers_to_argv() {
-        let node = parse("git add -A").expect("parses");
+        let node = parse("git add -A").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn single_word_lowers() {
-        let node = parse("pwd").expect("parses");
+        let node = parse("pwd").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(plan.argv, vec![OsString::from("pwd")]);
     }
@@ -791,7 +791,7 @@ mod tests {
     #[test]
     fn case_preserved_through_lowering() {
         // The rides-with fix survives all the way to argv: GitHub stays GitHub.
-        let node = parse("GitHub Clone").expect("parses");
+        let node = parse("GitHub Clone").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -852,7 +852,7 @@ mod tests {
             // Not a home reference: `~user` is another shell's feature the spine has not built.
             ("echo ~nobody", "~nobody"),
         ] {
-            let node = parse(source).expect("parses");
+            let node = parse(source).expect_complete("parses");
             let plan = lower(&node, &ctx).expect("lowers");
             assert_eq!(
                 plan.argv,
@@ -867,7 +867,7 @@ mod tests {
     /// here would make an audit's result depend on which machine ran it.
     #[test]
     fn tilde_without_a_resolver_stays_literal() {
-        let node = parse("echo ~/project").expect("parses");
+        let node = parse("echo ~/project").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -889,7 +889,7 @@ mod tests {
             runner: None,
             glob: Some(&fake),
         };
-        let node = parse("echo ~/docs/*.md").expect("parses");
+        let node = parse("echo ~/docs/*.md").expect_complete("parses");
         lower(&node, &ctx).expect("lowers");
         let seen = fake.0.borrow();
         assert_eq!(seen.len(), 1, "the word reached the globber");
@@ -931,7 +931,7 @@ mod tests {
                 runner: None,
                 glob: Some(&fake),
             };
-            let node = parse(source).expect("parses");
+            let node = parse(source).expect_complete("parses");
             let plan = lower(&node, &ctx).expect("lowers");
             assert_eq!(
                 fake.0.borrow().len(),
@@ -958,7 +958,7 @@ mod tests {
                 runner: None,
                 glob: Some(&fake),
             };
-            let node = parse(source).expect("parses");
+            let node = parse(source).expect_complete("parses");
             let plan = lower(&node, &ctx).expect("lowers");
             assert!(
                 fake.0.borrow().is_empty(),
@@ -986,7 +986,7 @@ mod tests {
             runner: None,
             glob: Some(&empty),
         };
-        let node = parse("echo nomatch*.xyz").expect("parses");
+        let node = parse("echo nomatch*.xyz").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -998,7 +998,7 @@ mod tests {
     /// no filesystem, and a word must survive as the text that was written.
     #[test]
     fn without_a_globber_an_active_pattern_stays_literal() {
-        let node = parse("echo *.rs").expect("parses");
+        let node = parse("echo *.rs").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -1029,7 +1029,7 @@ mod tests {
             runner: Some(&runner),
             glob: None,
         };
-        let node = parse("echo $(pwd)").expect("parses");
+        let node = parse("echo $(pwd)").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -1041,7 +1041,7 @@ mod tests {
     #[test]
     fn no_environment_renders_variables_in_source_form() {
         // The audit's situation. argv must be byte-identical to the pre-resolver behaviour.
-        let node = parse("echo $HOME").expect("parses");
+        let node = parse("echo $HOME").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
         assert_eq!(
             plan.argv,
@@ -1060,13 +1060,13 @@ mod tests {
             glob: None,
         };
 
-        let node = parse("echo $MY_VAR").expect("parses");
+        let node = parse("echo $MY_VAR").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(plan.argv[1], OsString::from("hello"));
 
         // Legacy uses unwrap_or_default: an UNSET variable is the empty string, NOT the source
         // form. That distinction is the whole reason LowerContext.vars is an Option.
-        let node = parse("echo $NOPE").expect("parses");
+        let node = parse("echo $NOPE").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(plan.argv[1], OsString::from(""));
     }
@@ -1083,8 +1083,8 @@ mod tests {
             glob: None,
         };
 
-        let a = lower(&parse("echo $HOME").unwrap(), &ctx).unwrap();
-        let b = lower(&parse("echo ${HOME}").unwrap(), &ctx).unwrap();
+        let a = lower(&parse("echo $HOME").expect_complete("parses"), &ctx).expect("parses");
+        let b = lower(&parse("echo ${HOME}").expect_complete("parses"), &ctx).expect("parses");
         assert_eq!(a.argv, b.argv);
         assert_eq!(a.argv[1], OsString::from("/home/christian"));
     }
@@ -1100,14 +1100,14 @@ mod tests {
             glob: None,
         };
 
-        let plan = lower(&parse("echo $?").unwrap(), &ctx).unwrap();
+        let plan = lower(&parse("echo $?").expect_complete("parses"), &ctx).expect("parses");
         assert_eq!(plan.argv[1], OsString::from("0"));
 
-        let plan = lower(&parse("echo $$").unwrap(), &ctx).unwrap();
+        let plan = lower(&parse("echo $$").expect_complete("parses"), &ctx).expect("parses");
         assert_eq!(plan.argv[1], OsString::from("1234"));
 
         // Mixed into a word, concatenated with literals.
-        let plan = lower(&parse("echo exit=$?").unwrap(), &ctx).unwrap();
+        let plan = lower(&parse("echo exit=$?").expect_complete("parses"), &ctx).expect("parses");
         assert_eq!(plan.argv[1], OsString::from("exit=0"));
     }
 
@@ -1128,7 +1128,7 @@ mod tests {
         };
 
         for src in ["echo ${VAR:-default}", "echo ${#VAR}", "echo ${VAR/a/b}"] {
-            let plan = lower(&parse(src).unwrap(), &ctx).unwrap();
+            let plan = lower(&parse(src).expect_complete("parses"), &ctx).expect("parses");
             let got = plan.argv[1].to_string_lossy().to_string();
             assert!(
                 got.starts_with("${"),
@@ -1151,7 +1151,7 @@ mod tests {
             ("echo $1", "$1"), // positional params not modelled yet
             ("echo 100$", "100$"),
         ] {
-            let plan = lower(&parse(src).unwrap(), &ctx).unwrap();
+            let plan = lower(&parse(src).expect_complete("parses"), &ctx).expect("parses");
             assert_eq!(plan.argv[1], OsString::from(want), "for input {src:?}");
         }
     }
@@ -1169,7 +1169,7 @@ mod tests {
             glob: None,
         };
 
-        let node = parse("echo '$MY_VAR'").expect("parses");
+        let node = parse("echo '$MY_VAR'").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
             plan.argv[1],
@@ -1178,7 +1178,7 @@ mod tests {
         );
 
         // Double quotes DO expand, matching POSIX and legacy's INT-245 behaviour.
-        let node = parse("echo \"$MY_VAR\"").expect("parses");
+        let node = parse("echo \"$MY_VAR\"").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
             plan.argv[1],
@@ -1197,7 +1197,7 @@ mod tests {
             runner: None,
             glob: None,
         };
-        let node = parse("echo foo$BAR/baz").expect("parses");
+        let node = parse("echo foo$BAR/baz").expect_complete("parses");
         let plan = lower(&node, &ctx).expect("lowers");
         assert_eq!(
             plan.argv[1],
@@ -1208,9 +1208,12 @@ mod tests {
 
     #[test]
     fn argv_as_utf8_round_trips_and_reports_bad_bytes() {
-        let node = parse("git add -A").expect("parses");
+        let node = parse("git add -A").expect_complete("parses");
         let plan = lower(&node, &LowerContext::default()).expect("lowers");
-        assert_eq!(plan.argv_as_utf8().unwrap(), vec!["git", "add", "-A"]);
+        assert_eq!(
+            plan.argv_as_utf8().expect("parses"),
+            vec!["git", "add", "-A"]
+        );
 
         // A non-UTF-8 argument can still be SPAWNED, but must not reach a builtin silently.
         use std::os::unix::ffi::OsStringExt;
@@ -1234,7 +1237,7 @@ mod tests {
     /// is how eighty command substitutions came to be reported as language the spine lacks.
     #[test]
     fn command_substitution_parses_but_does_not_lower() {
-        let ast = parse("echo $(pwd)").expect("valid syntax parses");
+        let ast = parse("echo $(pwd)").expect_complete("valid syntax parses");
         match lower(&ast, &LowerContext::default()) {
             Err(LowerError::MissingCapability { kind, .. }) => {
                 assert_eq!(kind, "command substitution");
@@ -1248,7 +1251,7 @@ mod tests {
         // A word is the smallest unit expansion produces; today all-literal -> its bytes.
         let w = Word::literal("/tmp/testscript.sh");
         assert_eq!(
-            expand_word(&w, &LowerContext::default()).unwrap(),
+            expand_word(&w, &LowerContext::default()).expect("parses"),
             vec![OsString::from("/tmp/testscript.sh")]
         );
     }
