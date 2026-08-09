@@ -1022,7 +1022,10 @@ struct SpineCommandRunner<'a> {
 }
 
 impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
-    fn run_capture(&self, plan: &crate::spine::plan::ExecutionPlan) -> Result<String, String> {
+    fn run_capture(
+        &self,
+        plan: &crate::spine::plan::ExecutionPlan,
+    ) -> Result<String, crate::spine::plan::CaptureError> {
         // INT-169 blocker 2: THE POLICY GATE, which a substitution previously walked straight
         // past. `execute_plan_dispatch` performs no preexec, so `$(rm -rf /somewhere)` reached a
         // process without ever meeting the guard that a typed `rm -rf /somewhere` cannot avoid.
@@ -1035,7 +1038,10 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
         // decision about whether to evaluate an expression; it is not a shell lifecycle event.
         let ctx = crate::exec::ExecContext::from_plan(plan, "", self.db);
         if let Some(reason) = preexec(&ctx, self.core_root, self.rules) {
-            return Err(reason);
+            // FAILED, NOT UNSUPPORTED, and the distinction is the whole point of the enum.
+            // A blocked substitution must SURFACE: declining here would hand the line to legacy,
+            // which would run the very thing the guard refused.
+            return Err(crate::spine::plan::CaptureError::Failed(reason));
         }
         // Matched exhaustively, and each arm for a stated reason -- no catch-all, because a
         // future variant should be a compile error here rather than a generic message.
@@ -1043,21 +1049,30 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
             CommandResult::Output(s) => Ok(s),
             // Produced nothing, so substituted nothing. Correct, not an error.
             CommandResult::Empty => Ok(String::new()),
-            CommandResult::Error(e, _) => Err(e),
+            CommandResult::Error(e, _) => Err(crate::spine::plan::CaptureError::Failed(e)),
             // Stringifying a structured Value here would make this adapter invent display
             // semantics for a layer it does not own. What `$(tt)` should mean is a Lane 5
             // question about structured pipelines, not something to settle by accident.
-            CommandResult::Value(_) => {
-                Err("nested command produced a structured value, not text".to_string())
-            }
+            // UNSUPPORTED, so the router DECLINES and legacy expands the substitution.
+            //
+            // The ruling above stands unchanged: stringifying a Value here would invent display
+            // semantics for a layer this adapter does not own. What changes is only the KIND of
+            // refusal. As a bare string it became InvalidPlan, which never falls back, so
+            // `echo $(ls)` FAILED on gen 485 while legacy handled it correctly -- and the same for
+            // ps, files, tools and intents. A capability boundary declines; it does not error.
+            CommandResult::Value(_) => Err(crate::spine::plan::CaptureError::Unsupported(
+                "command substitution of a forest value verb",
+            )),
             // A substitution that tries to terminate the shell is a FAILED capture, not an empty
             // one -- swallowing it as `Ok("")` would make `$(exit)` silently expand to nothing.
-            CommandResult::Exit(_) => Err("nested command attempted to exit the shell".to_string()),
+            CommandResult::Exit(_) => Err(crate::spine::plan::CaptureError::Failed(
+                "nested command attempted to exit the shell".to_string(),
+            )),
             // A contract violation rather than a normal outcome: dispatch already falls back to
             // execute_plan, so it should never hand this back.
-            CommandResult::NotBuiltin => {
-                Err("nested dispatch returned NotBuiltin, which it should never do".to_string())
-            }
+            CommandResult::NotBuiltin => Err(crate::spine::plan::CaptureError::Failed(
+                "nested dispatch returned NotBuiltin, which it should never do".to_string(),
+            )),
         }
     }
 }

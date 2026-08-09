@@ -182,9 +182,29 @@ pub trait VarResolver {
 /// ⚠️ Returns plan.rs-owned types only. A `CommandResult` here would drag a commands-layer type
 /// into the pure phase and defeat the boundary this trait exists to protect.
 pub trait CommandRunner {
-    /// `Err` carries a message the caller may render. It means the execution FAILED, which is a
-    /// different fact from the capability being absent -- see `LowerContext.runner`.
-    fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String>;
+    /// `Err` carries a KIND, not merely a message -- see `CaptureError`. The two arms need
+    /// OPPOSITE handling at the router, and a bare String cannot tell them apart.
+    fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, CaptureError>;
+}
+
+/// Why a capture produced no text. TWO ARMS BECAUSE THEY NEED OPPOSITE HANDLING.
+///
+/// `Failed` means the nested command RAN and failed, or was BLOCKED by the policy gate. The spine
+/// owns that outcome and it must SURFACE: falling back would let a substitution the guard refused
+/// reach legacy and run there, which is the one thing that guard exists to prevent.
+///
+/// `Unsupported` means the spine cannot REPRESENT what the nested command produced. A forest value
+/// verb returns a structured Value, and rendering it as text would invent display semantics for a
+/// layer the adapter does not own. That is a capability boundary, so it DECLINES and legacy runs
+/// the line -- exactly as a pipeline inside a substitution already does.
+///
+/// BOTH WERE A BARE STRING BEFORE, so both became `InvalidPlan` and neither could fall back.
+/// Measured on gen 485: `echo $(ls)` failed outright while legacy handled it correctly, and the
+/// same held for `ps`, `files`, `tools` and `intents`.
+#[derive(Debug)]
+pub enum CaptureError {
+    Failed(String),
+    Unsupported(&'static str),
 }
 
 /// One position in a pathname pattern.
@@ -321,13 +341,18 @@ fn expand_word(word: &Word, ctx: &LowerContext) -> Result<Vec<OsString>, LowerEr
                 // rather than being lowered normally and retrofitted. The IO intent originates
                 // from the syntax that needs it.
                 let nested = lower_substitution(node, ctx)?;
-                let captured =
-                    runner
-                        .run_capture(&nested)
-                        .map_err(|message| LowerError::InvalidPlan {
-                            message,
-                            span: node.span,
-                        })?;
+                // THE KIND DECIDES THE ROUTE. A failure the spine owns surfaces; a value it
+                // cannot represent declines, so legacy expands the substitution as it always has.
+                let captured = runner.run_capture(&nested).map_err(|e| match e {
+                    CaptureError::Failed(message) => LowerError::InvalidPlan {
+                        message,
+                        span: node.span,
+                    },
+                    CaptureError::Unsupported(kind) => LowerError::UnsupportedConstruct {
+                        kind,
+                        span: node.span,
+                    },
+                })?;
                 // Trailing newlines are stripped HERE, not by IoPlan::Capture. The plan says only
                 // that stdout is a value; that a shell drops the newline from `$(pwd)` is command
                 // substitution SEMANTICS, and this is the phase that owns them.
@@ -1188,13 +1213,67 @@ mod tests {
 
     struct FakeRunner(&'static str);
     impl CommandRunner for FakeRunner {
-        fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, String> {
+        fn run_capture(&self, plan: &ExecutionPlan) -> Result<String, CaptureError> {
             assert_eq!(
                 plan.io,
                 IoPlan::Capture,
                 "a substitution must be lowered asking for capture"
             );
             Ok(self.0.to_string())
+        }
+    }
+
+    /// THE TWO CAPTURE FAILURES ROUTE OPPOSITE WAYS, and that is the entire reason CaptureError
+    /// exists. As a bare String both became InvalidPlan, which never falls back, so a forest value
+    /// verb inside a substitution FAILED where legacy handles it.
+    #[test]
+    fn a_value_capture_declines_while_a_failed_capture_surfaces() {
+        struct ValueRunner;
+        impl CommandRunner for ValueRunner {
+            fn run_capture(&self, _plan: &ExecutionPlan) -> Result<String, CaptureError> {
+                Err(CaptureError::Unsupported(
+                    "command substitution of a forest value verb",
+                ))
+            }
+        }
+        struct BlockedRunner;
+        impl CommandRunner for BlockedRunner {
+            fn run_capture(&self, _plan: &ExecutionPlan) -> Result<String, CaptureError> {
+                Err(CaptureError::Failed(
+                    "blocked by the policy gate".to_string(),
+                ))
+            }
+        }
+
+        let vr = ValueRunner;
+        let ctx = LowerContext {
+            vars: None,
+            runner: Some(&vr),
+            glob: None,
+        };
+        let node = parse("echo $(ls)").expect_complete("parses");
+        match lower(&node, &ctx) {
+            Err(LowerError::UnsupportedConstruct { kind, .. }) => {
+                assert_eq!(kind, "command substitution of a forest value verb")
+            }
+            other => panic!("a value capture must DECLINE so legacy can run it: {other:?}"),
+        }
+
+        // AND THE OTHER WAY, because this half is the safety property. A substitution the preexec
+        // guard blocked must SURFACE -- declining would hand it to legacy, which would run the very
+        // thing the guard refused.
+        let br = BlockedRunner;
+        let ctx = LowerContext {
+            vars: None,
+            runner: Some(&br),
+            glob: None,
+        };
+        let node = parse("echo $(rm -rf /somewhere)").expect_complete("parses");
+        match lower(&node, &ctx) {
+            Err(LowerError::InvalidPlan { message, .. }) => {
+                assert_eq!(message, "blocked by the policy gate")
+            }
+            other => panic!("a blocked capture must SURFACE, never decline: {other:?}"),
         }
     }
 
