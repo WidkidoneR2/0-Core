@@ -112,7 +112,35 @@ pub fn find_heredoc_delimiter(s: &str) -> Option<String> {
 fn find_heredoc_intro_inner(s: &str) -> Option<(String, bool)> {
     let bytes = s.as_bytes();
     let mut i = 0;
+    // INT-196: QUOTE STATE, because a doubled angle bracket INSIDE QUOTES IS DATA, not a heredoc
+    // introduction. Without it, a quoted pair was read as an intro, the delimiter came out of the
+    // quoted text, and is_complete_command reported "unclosed heredoc" -- so the REPL prompt waited
+    // forever for a terminator the user never meant to write. Reproduced live 2026-08-09 by typing
+    // an ordinary echo with a quoted pair in it.
+    //
+    // AND THE KNOWLEDGE ALREADY EXISTED ONE FRAME UP. is_complete_command walks single, double and
+    // backtick state to find an unquoted comment marker, then calls this function, which threw all
+    // of it away and re-scanned the raw bytes. That is this intent in one function: structure
+    // inferred from text by a stage that had the answer and did not ask.
+    let mut in_single = false;
+    let mut in_double = false;
     while i + 1 < bytes.len() {
+        // 39 and 34 rather than character literals, so the rule reads as byte comparison and no
+        // escaping games are needed here.
+        if bytes[i] == 39 && !in_double {
+            in_single = !in_single;
+            i += 1;
+            continue;
+        }
+        if bytes[i] == 34 && !in_single {
+            in_double = !in_double;
+            i += 1;
+            continue;
+        }
+        if in_single || in_double {
+            i += 1;
+            continue;
+        }
         if bytes[i] == b'<' && bytes[i + 1] == b'<' && (i == 0 || bytes[i - 1] != b'<') {
             let mut j = i + 2;
             if j < bytes.len() && bytes[j] == b'-' {
@@ -769,4 +797,52 @@ pub fn expand_globs_in_segment(line: &str) -> String {
         }
     }
     result_parts.join(" ")
+}
+
+/// INT-196: A DOUBLED ANGLE BRACKET INSIDE QUOTES IS DATA, NOT A HEREDOC INTRODUCTION.
+///
+/// This scanner had no quote state at all, so a quoted pair was read as an intro, the delimiter
+/// came out of the quoted text, and is_complete_command reported an unclosed heredoc. The REPL
+/// then waited forever for a terminator the user never meant to write. Reproduced live by typing
+/// an ordinary echo with a quoted pair in it, on gen 486.
+#[cfg(test)]
+mod heredoc_intro_quote_tests {
+    use super::find_heredoc_intro;
+
+    #[test]
+    fn a_real_intro_is_still_found() {
+        assert_eq!(
+            find_heredoc_intro("cat << EOF"),
+            Some(("EOF".to_string(), false))
+        );
+    }
+
+    #[test]
+    fn a_quoted_delimiter_still_reports_quoted() {
+        assert_eq!(
+            find_heredoc_intro("cat << \"EOF\""),
+            Some(("EOF".to_string(), true))
+        );
+    }
+
+    /// THE BUG, and it hung the prompt rather than printing anything.
+    #[test]
+    fn a_double_quoted_pair_is_data_not_an_intro() {
+        assert_eq!(find_heredoc_intro("echo \"a << b\""), None);
+    }
+
+    #[test]
+    fn a_single_quoted_pair_is_data_not_an_intro() {
+        assert_eq!(find_heredoc_intro("echo 'a << b'"), None);
+    }
+
+    /// A CLOSED QUOTE MUST NOT DISARM A LATER INTRO. The quote state has to go back off, or the
+    /// fix would trade a hang for a heredoc that never starts.
+    #[test]
+    fn an_intro_after_a_closed_quote_is_still_found() {
+        assert_eq!(
+            find_heredoc_intro("echo \"hi\" << EOF"),
+            Some(("EOF".to_string(), false))
+        );
+    }
 }
