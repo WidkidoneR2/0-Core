@@ -330,11 +330,35 @@ First establish whether its returned representation fully supplies the delimiter
 this branch requires. Another text-derivation finding, its own analysis.
 
 ## Success Criteria
-- [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
+- [x] GATE ZERO: the parser is authoritative for execution, or this intent stays
       blocked. Do not tick the rest before this one
-- [ ] Every execution-governing site that infers shell structure from raw text is
+<!-- evidence: 2026-08-09, gen 485/486. The gate asks whether a canonical replacement exists to
+     point violations at. It does. Routing has been default-on since 2026-07-29, and every
+     construct typed reaches the spine: traced live, `echo a && echo b` and `echo c ; echo d` and
+     `false || echo e` each produce TWO [spine-router] claimed lines, one per segment. Pipelines,
+     redirects, fd redirects, globs, substitutions and background were already claimed.
+     THE LAST DEMONSTRATED ROUTE TO LEGACY CLOSED TODAY: VAR=x cmd was intercepted 133 lines above
+     the router; 7d0a9551 moved it below, 9d5063f0 added four REPL cases, and the red-first case is
+     RED on gen 484 and GREEN after.
+     MEASURED, NOT ARGUED: legacy-exec.log and sh-fallback.log were truncated at the top of the
+     session and read after ~2h of real work on gen 485. ZERO ordinary-use commands reached legacy.
+     The only current-build spine-on row was `echo assets`, and a bisect proved it: log truncated,
+     fsh-test run alone, the row returned. It comes from fsh-test main.rs:575.
+     WHAT REMAINS OUTSIDE THE SPINE IS DELIBERATE AND ENUMERATED: the forest query language, which
+     legacy owns permanently by design; a bare assignment, which persists for the session and
+     describes no process; an assignment value expanding to several words, which bash keeps as a
+     literal pattern; malformed input; and the four-line chain-skip flow decision at main.rs:987.
+     None is a missing capability. -->
+- [x] Every execution-governing site that infers shell structure from raw text is
       enumerated with file:line, taken fresh at start rather than inherited from
       the 2026-07-25 list above
+<!-- evidence: the classification section above, taken 2026-08-09 at start rather than inherited.
+     ~25 command_word sites, not the five its own doc claimed (that five is the DISPATCH count;
+     the doc is corrected in source). split_into_segments: 2. tokenize: 6 more beyond command_word.
+     Classified NINE execution-governing, TWO classification, EIGHT telemetry, each with file:line.
+     TWO WERE CORRECTED ON A SECOND READ, which is why the census is trustworthy rather than
+     assumed: main.rs:1060 DISPATCHES rather than compares, and main.rs:1009 GATES whether a
+     destructive command gets a snapshot. Both protective, both initially misfiled. -->
 - [ ] Each enumerated site either consumes parser-owned structure, or is recorded
       as a known exception with a stated reason
 - [ ] detect_redirect is resolved: replaced by parser-owned structure, or its
