@@ -8977,6 +8977,12 @@ pub fn background_command(
                 cmd.env(k, v);
             }
         }
+        // No clear: the child keeps the parent's environment and these land on top.
+        Environment::Overlay(vars) => {
+            for (k, v) in vars {
+                cmd.env(k, v);
+            }
+        }
     }
     match &plan.io {
         // Legacy's background stdio: detached from input, output and errors still reaching the
@@ -9110,6 +9116,12 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
         Environment::Inherit => {}
         Environment::Replace(vars) => {
             cmd.env_clear();
+            for (k, v) in vars {
+                cmd.env(k, v);
+            }
+        }
+        // No clear: the child keeps the parent's environment and these land on top.
+        Environment::Overlay(vars) => {
             for (k, v) in vars {
                 cmd.env(k, v);
             }

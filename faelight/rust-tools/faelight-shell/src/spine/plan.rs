@@ -54,6 +54,17 @@ pub enum Environment {
     Inherit,
     /// Replace the environment entirely with exactly these pairs (`env -i` semantics).
     Replace(Vec<(OsString, OsString)>),
+    /// Inherit the parent environment, then lay these pairs OVER it. `FOO=1 cmd`.
+    ///
+    /// THE THREE READ AS ONE INVARIANT: Inherit = parent unchanged · Overlay(xs) = parent + xs ·
+    /// Replace(xs) = exactly xs.
+    ///
+    /// ★ THIS BELONGS TO THE CHILD, WHICH IS THE WHOLE POINT. Legacy achieved POSIX scoping by
+    /// mutating the shell's own environment, running the command, then restoring each variable by
+    /// hand (engine.rs 1236 and 1276-1288) -- and that restore was the only thing standing between
+    /// `FOO=1 echo hi` and a permanent leak, which is exactly the INT-143 bug B disaster. An
+    /// overlay applied with `cmd.env(k, v)` needs no save, no restore, and no global mutation.
+    Overlay(Vec<(OsString, OsString)>),
 }
 
 /// The IO graph -- RESERVED. Redirects, pipelines, and fd wiring get designed at roadmap steps
@@ -549,19 +560,57 @@ fn lower_command(
     ctx: &LowerContext,
     io: IoPlan,
 ) -> Result<ExecutionPlan, LowerError> {
-    // THE PARSER RUNS AHEAD OF THE EXECUTOR, and this refusal is what keeps that honest.
-    // A prefix assignment now PARSES, but `Environment` has no variant meaning "inherit plus
-    // these" yet -- so lowering here would build argv from `words` alone and DROP the assignment
-    // SILENTLY. That is the same silent-corruption shape the redirect refusal below records.
+    // PREFIX ASSIGNMENTS BECOME AN OVERLAY ON THE CHILD. Increment 2 of the VAR=x work.
     //
-    // Refusing routes the line to legacy, which has run these correctly since INT-143, so no
-    // behaviour changes. `spine migrate` simply gains a named decline category.
-    if !cmd.assignments.is_empty() {
+    // ⚠️ EXACTLY ONE WORD, OR REFUSE -- and the reason is a real divergence rather than caution.
+    // Bash performs NO pathname expansion and NO word splitting on an assignment value:
+    // `FOO=*.txt` sets FOO to the literal `*.txt`. `expand_word` DOES glob, because every other
+    // caller is building argv where globbing is correct. So a pattern matching several files is
+    // refused here and legacy runs the line.
+    //
+    // ⚠️ KNOWN DIVERGENCE, RECORDED RATHER THAN HIDDEN: a pattern matching EXACTLY ONE file still
+    // expands, where bash would keep the pattern. Closing it needs `expand_word` to report whether
+    // a glob was active; writing a second metacharacter scanner here would be the duplicate-
+    // interpretation disease this whole spine exists to end.
+    // A BARE ASSIGNMENT IS NOT A COMMAND. `FOO=1` with no command word is a shell STATEMENT that
+    // PERSISTS for the session -- a different meaning from `FOO=1 cmd`, whose value dies with the
+    // child. An ExecutionPlan describes one process, and there is no process here, so this cannot
+    // be represented rather than merely being unimplemented.
+    //
+    // Without this the plan carries an EMPTY argv and the executor reports
+    // "empty plan: nothing to execute" -- a valid shell statement turned into an error. It is
+    // masked today because the interception above the router catches these first, and it would be
+    // exposed the moment that interception moves.
+    if !cmd.assignments.is_empty() && cmd.words.is_empty() {
         return Err(LowerError::UnsupportedConstruct {
-            kind: "assignment prefix (VAR=x cmd)",
+            kind: "bare assignment with no command (a shell statement, not a process)",
             span,
         });
     }
+    let env = if cmd.assignments.is_empty() {
+        Environment::Inherit
+    } else {
+        let mut pairs: Vec<(OsString, OsString)> = Vec::new();
+        for a in &cmd.assignments {
+            // `FOO=` is a real assignment to the empty string, and it has no parts at all --
+            // distinct from a glob that matched nothing, which must NOT silently become empty.
+            let value = if a.node.value.parts.is_empty() {
+                OsString::new()
+            } else {
+                match expand_word(&a.node.value, ctx)?.as_slice() {
+                    [one] => one.clone(),
+                    _ => {
+                        return Err(LowerError::UnsupportedConstruct {
+                            kind: "assignment value that does not expand to exactly one word",
+                            span: a.span,
+                        })
+                    }
+                }
+            };
+            pairs.push((OsString::from(a.node.name.clone()), value));
+        }
+        Environment::Overlay(pairs)
+    };
     // INT-200, STEP 1 OF 2: the parser now BUILDS redirects; lowering cannot yet
     // execute them. Refusing here is not a formality -- without it a parsed redirect would
     // lower to IoPlan::Simple and the command would run with the redirect SILENTLY
@@ -677,7 +726,7 @@ fn lower_command(
     Ok(ExecutionPlan {
         argv,
         cwd: None,
-        env: Environment::Inherit,
+        env,
         io,
     })
 }
@@ -1009,6 +1058,124 @@ mod tests {
 
     /// No capability means DO NOT EXPAND -- not "drop the argument". An audit replaying history has
     /// no filesystem, and a word must survive as the text that was written.
+    /// THE OVERLAY CONTRACT. `FOO=1 cmd` puts FOO on the CHILD and nowhere else.
+    ///
+    /// Legacy reached the same POSIX scoping by mutating the environment of the shell itself and
+    /// restoring each variable by hand (engine.rs 1236, 1276-1288) -- and that restore was the
+    /// only thing between `FOO=1 echo hi` and a permanent leak. That leak WAS the INT-143 bug B
+    /// disaster: QEMU_OPTS survived its command and four VM boots were blamed on the firmware.
+    /// An overlay needs no restore because nothing global was ever changed.
+    #[test]
+    fn an_assignment_prefix_lowers_to_an_overlay_on_the_child() {
+        let node = parse("FOO=1 echo hi").expect_complete("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(
+            plan.env,
+            Environment::Overlay(vec![(OsString::from("FOO"), OsString::from("1"))])
+        );
+        assert_eq!(
+            plan.argv,
+            vec![OsString::from("echo"), OsString::from("hi")],
+            "the prefix is NOT argv"
+        );
+    }
+
+    /// `FOO=` assigns the EMPTY STRING, and that is not the same as absent. The value Word has no
+    /// parts at all, so it never reaches the expander -- which is why it must not be confused with
+    /// a glob that matched nothing, a case that DOES reach the expander and means something else.
+    #[test]
+    fn an_empty_value_is_an_assignment_to_the_empty_string() {
+        let node = parse("FOO= echo hi").expect_complete("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(
+            plan.env,
+            Environment::Overlay(vec![(OsString::from("FOO"), OsString::new())])
+        );
+    }
+
+    /// THE SAFETY GUARD, WATCHED REFUSING. Bash performs NO pathname expansion on an assignment
+    /// value: `FOO=*.txt` sets the literal pattern. `expand_word` DOES glob, because every other
+    /// caller is building argv. A value expanding to several words is therefore REFUSED and legacy
+    /// runs the line, rather than lowering picking one of the matches.
+    #[test]
+    fn an_assignment_value_expanding_to_several_words_is_refused() {
+        struct TwoGlob;
+        impl GlobResolver for TwoGlob {
+            fn expand(&self, _pattern: &[GlobPart]) -> Vec<OsString> {
+                vec![OsString::from("a.txt"), OsString::from("b.txt")]
+            }
+        }
+        let two = TwoGlob;
+        let ctx = LowerContext {
+            vars: None,
+            runner: None,
+            glob: Some(&two),
+        };
+        let node = parse("FOO=*.txt echo hi").expect_complete("parses");
+        match lower(&node, &ctx) {
+            Err(LowerError::UnsupportedConstruct { kind, .. }) => assert_eq!(
+                kind,
+                "assignment value that does not expand to exactly one word"
+            ),
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    /// A KNOWN DIVERGENCE, ASSERTED RATHER THAN DESCRIBED. Bash would set FOO to the literal
+    /// `*.txt`; today a pattern matching EXACTLY ONE file expands to that filename, because
+    /// `expand_word` cannot report whether a glob was active and this layer must not grow a second
+    /// metacharacter scanner to find out -- that is the duplicate-interpretation disease the spine
+    /// exists to end.
+    ///
+    /// WRITTEN AS A TEST ON PURPOSE. A comment saying we know this diverges rots silently; a test
+    /// that FAILS the moment someone fixes it does not. When the expansion layer learns
+    /// assignment-context semantics, THIS is the test that must change, and its failure is the
+    /// notification.
+    #[test]
+    fn a_single_match_glob_in_an_assignment_value_still_expands_today() {
+        let fake = FakeGlob(std::cell::RefCell::new(Vec::new()));
+        let ctx = LowerContext {
+            vars: None,
+            runner: None,
+            glob: Some(&fake),
+        };
+        let node = parse("FOO=*.txt echo hi").expect_complete("parses");
+        let plan = lower(&node, &ctx).expect("lowers");
+        assert_eq!(
+            plan.env,
+            Environment::Overlay(vec![(OsString::from("FOO"), OsString::from("matched.txt"))]),
+            "current behaviour -- bash would keep the pattern"
+        );
+    }
+
+    /// A BARE ASSIGNMENT IS REFUSED, and the reason is representational rather than a missing
+    /// feature. `FOO=1` alone PERSISTS for the session; `FOO=1 cmd` dies with the child. An
+    /// ExecutionPlan describes one process and there is no process here.
+    ///
+    /// Watched failing the honest way: before this guard the plan carried an empty argv and the
+    /// executor answered "empty plan: nothing to execute", turning a valid shell statement into an
+    /// error. Proven live on the debug binary.
+    #[test]
+    fn a_bare_assignment_is_refused_rather_than_lowered_to_an_empty_plan() {
+        let node = parse("FOO=1").expect_complete("parses");
+        match lower(&node, &LowerContext::default()) {
+            Err(LowerError::UnsupportedConstruct { kind, .. }) => assert_eq!(
+                kind,
+                "bare assignment with no command (a shell statement, not a process)"
+            ),
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    /// The change is SCOPED. A command with no prefix still lowers to Inherit, or every command
+    /// in the shell would start carrying an empty overlay.
+    #[test]
+    fn a_command_without_a_prefix_still_inherits() {
+        let node = parse("echo hi").expect_complete("parses");
+        let plan = lower(&node, &LowerContext::default()).expect("lowers");
+        assert_eq!(plan.env, Environment::Inherit);
+    }
+
     #[test]
     fn without_a_globber_an_active_pattern_stays_literal() {
         let node = parse("echo *.rs").expect_complete("parses");
