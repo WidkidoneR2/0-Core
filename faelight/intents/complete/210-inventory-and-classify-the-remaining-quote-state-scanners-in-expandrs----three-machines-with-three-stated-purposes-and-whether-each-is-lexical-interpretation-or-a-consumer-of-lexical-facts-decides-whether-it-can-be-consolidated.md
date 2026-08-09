@@ -3,7 +3,7 @@ id: 210
 date: 2026-08-08
 type: arch
 title: "inventory and classify the remaining quote-state scanners in expandrs -- three machines with three stated purposes, and whether each is lexical interpretation or a consumer of lexical facts decides whether it can be consolidated"
-status: planned
+status: complete
 tags: [architecture, rust, design]
 ---
 
