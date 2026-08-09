@@ -5,6 +5,7 @@ type: future
 title: "cicomplete blocks open gates but never requires gates to exist, and three consumers still count a gate format the ledger stopped using"
 status: planned
 tags: [ledger, intent, gates, enforcement]
+depends_on: [211]
 ---
 
 ## Vision
