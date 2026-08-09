@@ -137,7 +137,21 @@ built behind the discipline that makes it not-a-gamble.
      source text: no quote counting, no heredoc detection, no escape detection. The
      'ASK THE SCANNER; DECIDE NOTHING HERE' principle is kept in place above it, because it is
      what stops a future reader adding a fourth quote counter to that file. -->
-- [ ] G2: ParseResult models Complete, Incomplete and Invalid -- not Ok-or-error
+- [x] G2: ParseResult models Complete, Incomplete and Invalid -- not Ok-or-error
+<!-- evidence: ceb105de, 0d57bd36, ef70ac94. parse() returns ParseResult, and it has FOUR arms
+     rather than three because the spine has four meanings: Complete owns execution, Incomplete may
+     become spine-owned with more input, Refused is valid shell the spine intentionally does not own
+     and routes to legacy, Invalid is malformed and surfaces. Refused is deliberately not a
+     ParseError variant -- if the router must inspect an error to learn whether to fall back, the
+     ambiguity remains. The old router had exactly that: a Parse(_) catch-all that routed
+     incompleteness, a bare operator, every intentional refusal AND any future parse error to legacy
+     alike. It is gone, and a new parse outcome is now a compile error at the router.
+     Two findings paid for themselves here. A proptest shrank a counter-example to one character --
+     a bare & -- which disproved the assumption that Empty meant the caller passed nothing; it means
+     the grammar wanted a command and none exists, so the variant is renamed NoCommand and
+     classified Invalid. And widening the type left a live regression 139 green tests could not see:
+     Refused fell through to the defect arm, so cat log 2> /dev/null would have reported a spine
+     error instead of declining to legacy. Caught by a probe against both builds side by side. -->
 - [x] G3: a trailing escape is represented explicitly, as a stated continuation rather than a
       special case ahead of the lexer
 <!-- evidence: the scanner counts the RUN of trailing backslashes and reports TrailingEscape

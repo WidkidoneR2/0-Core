@@ -993,6 +993,51 @@ mod tests {
     /// `parse()` carries a debug_assert saying so, which is why this case must not call it with an
     /// empty string: it would trip the assertion it exists to document.
     #[test]
+    fn parse_result_classification_matrix() {
+        // ⭐ INT-169 G2 / INT-196: THE CLASSIFICATION IS THE CONTRACT. The router reads these arms to
+        // decide ownership, so asserting WHICH arm each construct lands in is asserting the routing
+        // decision at its source rather than re-deriving it downstream.
+        //
+        // ⚠️ THIS EXISTS BECAUSE THE DISTINCTION WAS BROKEN ONCE AND 139 GREEN TESTS COULD NOT SEE
+        // IT. Widening the type left Refused falling through to the defect arm, so `2>` -- an
+        // everyday construct -- would have reported a spine error instead of declining to legacy.
+        // A manual probe caught it. This is the permanent version of that probe.
+        assert!(
+            matches!(parse("echo hi"), ParseResult::Complete(_)),
+            "an ordinary command must be Complete -- the spine owns it"
+        );
+        assert!(
+            matches!(parse("echo \"unclosed"), ParseResult::Incomplete(_)),
+            "an unterminated quote must be Incomplete -- more input may complete it, and calling it \
+             a failure is what made the validator invent its own continuation rules"
+        );
+        // MEASURED, AND IT CORRECTED A CLAIM I HAD BEEN REPEATING ALL SESSION: `cat log 2>
+        // /dev/null` parses COMPLETE, with fd: Some(2) present in the AST. An fd redirect is NOT a
+        // parser refusal -- the parser handles it, and the decision to leave it to legacy is made at
+        // LOWERING. The FdRedirect refusal covers a narrower case than the everyday `2>`.
+        assert!(
+            matches!(parse("cat log 2> /dev/null"), ParseResult::Complete(_)),
+            "an fd redirect PARSES: the routing decision for it is made at lowering, not here"
+        );
+        assert!(
+            matches!(
+                parse("ps | where cpu > 0.5"),
+                ParseResult::Refused(Refusal::ComparisonNotRedirect { .. })
+            ),
+            "`> 0.5` must be REFUSED as a comparison rather than read as a redirect -- bash would \
+             create a file named 0.5, and this deliberate divergence keeps the query language usable"
+        );
+        assert!(
+            matches!(
+                parse("echo a >"),
+                ParseResult::Invalid(ParseError::MissingRedirectTarget { .. })
+            ),
+            "a redirect with no target must be INVALID: the parser located the mistake, so legacy \
+             must not be asked to rediscover it by scanning the text"
+        );
+    }
+
+    #[test]
     fn bare_operator_is_invalid_not_refused() {
         // ⭐ THE REGRESSION TEST FOR THE DISTINCTION, and proptest found the input. A refusal means
         // valid shell the spine declines to own and routes to legacy; `&` is not valid shell, so it

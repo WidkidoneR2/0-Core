@@ -3,7 +3,7 @@ id: 196
 date: 2026-07-25
 type: arch
 title: "execution-governing code must not infer shell structure from raw text"
-status: planned
+status: in-progress
 tags: [architecture, rust, design]
 ---
 
