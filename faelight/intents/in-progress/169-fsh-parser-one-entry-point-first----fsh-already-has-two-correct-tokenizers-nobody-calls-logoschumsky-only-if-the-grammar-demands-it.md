@@ -131,19 +131,40 @@ built behind the discipline that makes it not-a-gamble.
      And the file states the principle the fix must follow: "ASK THE LEXER; DO NOT COUNT QUOTES HERE
      -- a quote counter in this file would be a THIRD OWNER of the same knowledge." So these rules
      move INTO the scanner's state; they are not reimplemented better where they sit. -->
-- [ ] G1: the SCANNER owns continuation state. No quote counting, heredoc detection or escape
+- [x] G1: the SCANNER owns continuation state. No quote counting, heredoc detection or escape
       detection remains in the validator
+<!-- evidence: 35d0842f. completion.rs's validate now matches LexResult and inspects no
+     source text: no quote counting, no heredoc detection, no escape detection. The
+     'ASK THE SCANNER; DECIDE NOTHING HERE' principle is kept in place above it, because it is
+     what stops a future reader adding a fourth quote counter to that file. -->
 - [ ] G2: ParseResult models Complete, Incomplete and Invalid -- not Ok-or-error
-- [ ] G3: a trailing escape is represented explicitly, as a stated continuation rather than a
+- [x] G3: a trailing escape is represented explicitly, as a stated continuation rather than a
       special case ahead of the lexer
-- [ ] G4: a heredoc introduction produces explicit lexical continuation state carrying the delimiter
+<!-- evidence: the scanner counts the RUN of trailing backslashes and reports TrailingEscape
+     on an odd one. This also FIXED a real defect: the validator's rule was ends_with one but
+     not two, which misjudges THREE backslashes. Proven through a pty -- `echo a\` continues
+     and then runs. -->
+- [x] G4: a heredoc introduction produces explicit lexical continuation state carrying the delimiter
       and whether it was quoted -- not `contains("<<")`
+<!-- evidence: HeredocBody carries the delimiter AND whether it was written quoted, taken from
+     find_heredoc_intro -- a sibling of find_heredoc_delimiter, which already computed the
+     quoting to find where the delimiter token ended and then discarded it. The old name
+     delegates, so its three callers are untouched. No contains check remains. -->
 - [ ] G5: comments are handled by the scanner as a lexical state, and cannot manufacture an
       unterminated prompt state. The apostrophe cases stop being special
-- [ ] G6: the existing validator workarounds are REMOVED, not left beside the new mechanism
-- [ ] G7: native heredoc EXECUTION is explicitly out of scope. The scanner knows it is inside a
+- [x] G6: the existing validator workarounds are REMOVED, not left beside the new mechanism
+<!-- evidence: all three are gone from completion.rs, not left beside the new mechanism.
+     Verified through a pty against BOTH builds side by side rather than by reasoning: a
+     complete line, an odd trailing backslash, and a comment containing an apostrophe behave
+     identically on deployed gen 482 and on this build, so the removals introduced no
+     regression. 150 unit tests, 139/139. -->
+- [x] G7: native heredoc EXECUTION is explicitly out of scope. The scanner knows it is inside a
       heredoc continuation; it does not claim fsh can execute one. That capability gets its own
       intent, starting from a front end that already knows what a heredoc is
+<!-- evidence: satisfied by construction and by scope. The scanner reports that it is inside a
+     heredoc continuation; nothing here claims fsh can execute one. try_heredoc still hands the
+     construct to sh, and native execution gets its own intent starting from a front end that
+     already knows what a heredoc is. -->
 - [x] ONE CONSTRUCT end-to-end as proof-of-shape: a simple command -> logos+lexer tokens -> handwritten
       parse -> AST node -> execute, with the OLD path live beside it and the SAME REPL tests passing.
       <!-- DONE 2026-07-22 gen 427. The vertical: source -> custom stateful scanner (logos
