@@ -241,6 +241,23 @@ fn all_tests() -> Vec<TestResult> {
         let out = run_fsh("cat << 'EOF'\nhello\nEOF")?;
         expect_eq(&out, "hello")
     }));
+    results.push(test("repl_strips_trailing_comment", Category::Repl, || {
+        // INT-209: THE OTHER HALF OF THE DIVERGENCE, and it must be guarded through the REPL
+        // door because that is where strip_comments is called from -- repl_main, its only
+        // caller. A `-c` case cannot reach it, so the state INT-209 moves would otherwise have
+        // nothing protecting it on the side that actually runs it.
+        //
+        // Paired with comment_handling_differs_by_door, which asserts the `-c` side keeps the
+        // comment. When INT-209 moves comment recognition into the canonical scanner both doors
+        // agree, and BOTH cases change together -- deliberately, not one quietly following the
+        // other.
+        let out = crate::repl::run_repl("echo ZZA hi # ZZB tail")?;
+        let joined = out.join("\n");
+        if joined.contains("ZZB") {
+            return Err(format!("REPL did not strip the comment: {joined:?}"));
+        }
+        expect_contains(&joined, "ZZA hi")
+    }));
     results.push(test(
         "comment_handling_differs_by_door",
         Category::Regression,
