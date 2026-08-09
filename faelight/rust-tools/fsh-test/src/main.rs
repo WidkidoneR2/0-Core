@@ -241,6 +241,48 @@ fn all_tests() -> Vec<TestResult> {
         let out = run_fsh("cat << 'EOF'\nhello\nEOF")?;
         expect_eq(&out, "hello")
     }));
+    results.push(test(
+        "comment_handling_differs_by_door",
+        Category::Regression,
+        || {
+            // INT-209 RED-FIRST, AND IT IS A REAL DIVERGENCE RATHER THAN TIDINESS. strip_comments is
+            // called from ONE place -- repl_main -- so the REPL strips a trailing comment and `-c`
+            // does not. Measured through both doors: the REPL prints `ZZA hi`, while `-c` prints
+            // `hi # not stripped?` with the comment intact.
+            //
+            // This case asserts TODAY'S behaviour so the divergence is visible and cannot widen
+            // silently. When INT-209 moves comment recognition into the canonical scanner, both
+            // doors will agree and this case must be REWRITTEN to assert agreement -- deliberately,
+            // with the change stated, rather than quietly deleted.
+            let out = run_fsh("echo ZZA hi # ZZB tail")?;
+            expect_contains(&out, "# ZZB tail")
+        },
+    ));
+    results.push(test(
+        "heredoc_body_keeps_hash_lines",
+        Category::Heredoc,
+        || {
+            // INT-209 RED-FIRST: a heredoc body is DATA, so a line beginning with # is content and
+            // must survive verbatim. arch-era INT-285 established this after comment stripping ate
+            // heredoc bodies; expand::strip_comments encodes it today by tracking in_heredoc, and
+            // INT-209 moves that state into the canonical scanner. This case exists so the move has
+            // something that can FAIL -- the three heredoc cases already here never put a # in a
+            // body, so nothing currently guards the behaviour being relocated.
+            let out = run_fsh("cat <<EOF\n# not a comment\nplain\nEOF")?;
+            expect_contains(&out, "# not a comment")
+        },
+    ));
+    results.push(test(
+        "heredoc_body_keeps_apostrophe",
+        Category::Heredoc,
+        || {
+            // The same rule, second shape: an apostrophe in a body is data, not an opening quote.
+            // This is the failure that hung the prompt twice -- an English possessive inside a
+            // pasted block -- and it must stay fixed when comment and heredoc state move.
+            let out = run_fsh("cat <<EOF\nthe parser's job\nEOF")?;
+            expect_contains(&out, "parser's job")
+        },
+    ));
     results.push(test("heredoc_multiline", Category::Heredoc, || {
         let out = run_fsh("cat << 'EOF'\nline1\nline2\nEOF")?;
         expect_eq(&out, "line1\nline2")

@@ -3,7 +3,7 @@ id: 209
 date: 2026-08-08
 type: arch
 title: "consolidate lexical-state ownership -- expand::strip_comments runs a second quote machine and its own heredoc tracking, so the canonical scanner is not yet the sole owner"
-status: planned
+status: in-progress
 tags: [architecture, rust, design]
 ---
 
@@ -50,22 +50,3 @@ one; that capability is its own intent.
 - [ ] The stronger invariant holds and is stated: the canonical scanner is the SOLE owner of lexical
       state. INT-169 closed only the weaker one, that the validator is no longer an owner
 - [ ] Each gate carries evidence per INT-158
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
-<!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
-When you tick a gate, put the proof in an HTML comment on the line after it: a commit
-hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
-FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
-SOFT (a discipline, not gate-police; nothing enforces this).
-LIGHT (trivial self-evident gates need no artifact).
-Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
-See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
