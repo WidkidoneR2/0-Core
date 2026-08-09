@@ -159,6 +159,60 @@ The same analysis applies to the six independent tokenize callers before any pro
 relocate that path. The purpose is to determine which consumers actually require parser authority --
 not to make every consumer AST-based by association.
 
+## THE CLASSIFICATION (2026-08-09) -- nineteen sites read, three kinds
+
+EXECUTION-GOVERNING -- the word decides WHAT RUNS or WHETHER IT MAY RUN. These need parser authority
+and are this intent's actual subject.
+
+  safety_guard.rs:19      the allow/deny lists. A mis-read word means a dangerous command is not
+                          blocked. Highest stakes of the nineteen, and its own comment records the
+                          near-miss: the bare form was CHALLENGED and blocked while the quoted form
+                          produced no guard output at all.
+  commands/mod.rs:270     the alias-expansion loop, with cycle detection over `seen`. Decides what
+                          the line BECOMES before anything runs it.
+  engine.rs:1536          expand_aliases. Same question, the other owner.
+  engine.rs:760           try_query_executor's forest-pipeline detection. This decides WHICH LANGUAGE
+                          runs -- the two-languages boundary itself.
+  engine.rs:1502          try_shell_construct. Decides whether the line is handed to sh whole.
+  main.rs:184             is_repl_state_command. Decides routing exclusion, and its own doc says one
+                          rule here is what INT-193 existed to end.
+  main.rs:1618            the yazi / faelight-fm check, which selects a cwd-handoff execution path.
+
+CLASSIFICATION -- the word is only COMPARED to a literal. command_word's own doc already argues a
+quoted word fails the compare and falls through safely, so these are not automatically migration
+targets and their semantics must be examined before treating them as such.
+
+  engine.rs:850           `!= "jobs"` -- an early return guard.
+  main.rs:1029            `== "cargo"` for Friday's power switching. Not execution.
+  main.rs:1060            `== "flow"` -- ⚠️ READ THIS ONE AGAIN BEFORE DECIDING. It may dispatch
+                          rather than merely compare, which would move it to execution-governing.
+
+TELEMETRY AND LABELLING -- the word labels a record or a message AFTER the fact. A text-derived value
+is defensible; an AST-derived one offers no correctness benefit.
+
+  commands/mod.rs:9220    the not-found SUGGESTION message.
+  commands/mod.rs:9362    the builtin not-found check, for the same message.
+  commands/mod.rs:9435    record_failure.
+  db.rs:592               snapshot naming. ⚠️ Its comment says it is reached solely from the
+                          execution path and to revisit if a second caller appears -- so it is
+                          telemetry TODAY by a stated assumption, not by nature.
+  engine.rs:1655          the legacy-executor instrument added during this work. Temporary.
+  engine.rs:1888          slow-command telemetry.
+  main.rs:1009            snapshot capture. ⚠️ Safety-ADJACENT: it decides whether a destructive
+                          command gets a snapshot, so a mis-read word means no snapshot before an
+                          `rm`. Classified telemetry because it records rather than gates, but it is
+                          the one telemetry site whose failure has a cost.
+  main.rs:2943            Friday's consecutive-failure hint.
+  main.rs:2986            Friday's suggestion filter.
+  exec.rs:467             telemetry key normalisation -- its own comment says so.
+
+⭐ THE SHAPE: SEVEN execution-governing, THREE classification, NINE telemetry. So roughly a third of
+the call sites are this intent's subject and two thirds are not -- which is exactly why the census
+was not a migration plan.
+
+⚠️ TWO SITES NEED A SECOND LOOK BEFORE THE LIST IS FINAL: main.rs:1060 (compare or dispatch?) and
+main.rs:1009 (records, but a miss has a real cost). Neither is decided here.
+
 ## Success Criteria
 - [ ] GATE ZERO: the parser is authoritative for execution, or this intent stays
       blocked. Do not tick the rest before this one
