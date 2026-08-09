@@ -479,6 +479,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn scanner_first_token_matches_command_word_semantics() {
+        // INT-196 EVIDENCE CHECK, and it decides a design ruling rather than guarding a behaviour.
+        //
+        // The ruling: the safety guard takes the AST's first Word when the parse is Complete, and
+        // the SCANNER's first token when it is Incomplete or Refused -- falling back ONE LAYER in the
+        // existing pipeline rather than all the way to source-text heuristics. The guard must never
+        // re-tokenize raw source; that independent interpretation is exactly what let `"rm" -rf /`
+        // reach the executor while the guard saw `"rm` and matched no list.
+        //
+        // ⚠️ THIS CASE ASKS WHETHER THAT FALLBACK IS VIABLE: does the scanner's first token carry the
+        // same normalised word the guard's comparisons expect, INCLUDING the quoted form? If it does
+        // not, the answer is NOT to add a mini command_word to the scanner path -- that recreates the
+        // boundary problem one layer down.
+        for (src, want) in [
+            ("rm -rf /", "rm"),
+            ("\"rm\" -rf /", "rm"),
+            ("'rm' -rf /", "rm"),
+            ("  ls -la ", "ls"),
+            ("git status", "git"),
+        ] {
+            let toks = lex(src).expect_complete("lexes");
+            let first = toks.first().map(|t| t.text.as_str()).unwrap_or("");
+            assert_eq!(
+                first, want,
+                "scanner first token for {src:?} must match what command_word yields"
+            );
+        }
+    }
+
+    #[test]
     fn comment_is_a_lexical_state() {
         // INT-209: the four cases that DEFINE the rule, so it cannot drift into something looser.
         let toks = lex("echo hi # tail").expect_complete("lexes");

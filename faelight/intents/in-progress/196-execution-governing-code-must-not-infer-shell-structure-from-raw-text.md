@@ -256,6 +256,34 @@ THE STRONGEST SMALL-SCOPE DESIGN NOW SUPPORTED BY EVIDENCE:
   4. Remove the redundant heredoc guard call at main.rs:2383.
   5. Explicitly specify what the guard does for Incomplete and Refused BEFORE implementation.
 
+## THE AUTHORITY HIERARCHY (RULED 2026-08-09, and the viability check passed)
+
+  Complete            -> the AST owns the answer. First Word of the parsed Command.
+  Incomplete/Refused  -> the SCANNER owns the lexical answer. First token from LexResult.
+  Invalid             -> no execution follows, so no guard decision is required.
+
+⭐ THIS IS NOT "FALL BACK TO TEXT". It falls back ONE LAYER in the existing pipeline -- from AST
+semantics to scanner semantics -- rather than jumping to source-text heuristics. The guard never gets
+to invent its own interpretation, which is precisely what produced the regression: an independent
+tokenization inside the guard saw a quoted rm as an unmatched literal while the executor's
+quote-aware path ran it.
+
+WHY NOT "BLOCK WHEN UNPARSEABLE": the Incomplete evidence rules it out. A multi-line paste is
+deliberately incomplete as a single parse unit and is nevertheless about to execute through pty_exec.
+Treating parser incompleteness as grounds for refusing the guard would turn a parser-state
+distinction into an execution-policy decision and break an existing path. Refused has the same shape:
+refusal means this parser declines ownership, not that the input is harmless -- legacy execution
+follows, so the guard still needs a fact.
+
+VIABILITY CHECK -- PASSED, and it was the one thing that could have sunk the design. The question was
+whether the scanner's first token carries the same normalised word the guard's deny/allow/safe
+comparisons expect, INCLUDING the quoted case. A unit test now fixes it: rm, a double-quoted rm, a
+single-quoted rm, a leading-whitespace ls and git all yield the bare command word from
+LexResult's first token. The quoted rows are the exact input from the gen 432 regression.
+
+So no shared conversion layer is needed and no mini command_word goes into the scanner path -- which
+was the trap: adding one would recreate the same boundary problem one layer down.
+
 ## SEPARATE FINDINGS -- RECORDED, NOT FOLDED IN
 
 ⚠️ Neither belongs to this intent's change, and neither should expand it before the evidence boundary
