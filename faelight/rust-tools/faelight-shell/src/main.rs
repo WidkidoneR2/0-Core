@@ -181,8 +181,20 @@ fn expand_braces(s: &str) -> String {
 /// mirrors Phase 8's own guards, and Phase 8 CALLS THIS rather than repeating them. Two copies of
 /// one rule is the split-brain INT-193 existed to end.
 pub(crate) fn is_repl_state_command(line: &str) -> bool {
+    // INT-196: THE SECOND WORD COMES FROM THE TOKENIZER TOO. The command word was already derived
+    // quote-aware; the word beside it was read off the raw line with split_whitespace, so a quoted
+    // job spec arrived with its quote attached and the checks below failed on it.
+    //
+    // ⚠️ THIS DECIDES ROUTING EXCLUSION, and engine.rs asks it four times including the spine
+    // router. A wrong answer routes a line that should have been excluded, so `kill "%1"` reached
+    // the real kill with a job spec instead of a PID. Same shape as the gen 432 guard defect: the
+    // command word quote-aware, its neighbour not.
+    //
+    // commands::tokenize is INT-171 gate 1, the single quote-aware tokenizer, and command_word is
+    // built on it -- so both words now come from one owner rather than two derivations.
     let first = commands::command_word(line);
-    let second = line.split_whitespace().nth(1).unwrap_or("");
+    let tokens = commands::tokenize(line);
+    let second: &str = tokens.get(1).map(|s| s.as_str()).unwrap_or("");
     match first.as_str() {
         "jobs" => true,
         // Job-control `fg` takes a job id or nothing; anything else is a different command.
@@ -3253,5 +3265,60 @@ mod brace_expansion_tests {
         for s in ["{. ..}", "{1..a}", "{a..1}", "Foo { ..default}"] {
             assert_eq!(expand_braces(s), s, "should not expand: {s}");
         }
+    }
+}
+
+/// INT-196 SITE 1: is_repl_state_command derives the command word quote-aware and then reads its
+/// SECOND word from the raw line with split_whitespace. These cases measure whether that matters.
+///
+/// The predicate decides ROUTING EXCLUSION -- engine.rs asks it four times, including the spine
+/// router at 977 -- so a wrong answer routes a line that should have been excluded, or excludes one
+/// that should have routed.
+#[cfg(test)]
+mod repl_state_command_tests {
+    use super::is_repl_state_command;
+
+    #[test]
+    fn bare_jobs_is_repl_state() {
+        assert!(is_repl_state_command("jobs"));
+    }
+
+    #[test]
+    fn a_job_spec_kill_is_repl_state() {
+        assert!(is_repl_state_command("kill %1"));
+    }
+
+    #[test]
+    fn a_pid_kill_is_not_repl_state() {
+        assert!(
+            !is_repl_state_command("kill 1234"),
+            "INT-095: a PID belongs to the real kill"
+        );
+    }
+
+    #[test]
+    fn fg_with_a_job_id_is_repl_state() {
+        assert!(is_repl_state_command("fg 1"));
+    }
+
+    #[test]
+    fn fg_commit_is_not_repl_state() {
+        assert!(
+            !is_repl_state_command("fg commit"),
+            "fg commit must reach the alias"
+        );
+    }
+
+    /// THE QUESTION. bash treats a quoted job spec as a job spec. Here the second word is read from
+    /// the raw line, so it arrives with the quote still attached and the check fails.
+    #[test]
+    fn a_quoted_job_spec_kill_is_still_repl_state() {
+        assert!(is_repl_state_command("kill \"%1\""));
+    }
+
+    /// Same question for fg, where the second word must parse as a number.
+    #[test]
+    fn a_quoted_fg_job_id_is_still_repl_state() {
+        assert!(is_repl_state_command("fg \"1\""));
     }
 }
