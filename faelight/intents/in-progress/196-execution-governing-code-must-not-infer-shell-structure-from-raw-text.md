@@ -400,8 +400,37 @@ this branch requires. Another text-derivation finding, its own analysis.
      the cat bypass -- the scan is correct and the defect is downstream in the builtin.
      ⏭ TWO SEPARATE INTENTS FALL OUT OF THIS GATE: the tokenizer reporting spans, and the cat
      builtin declining flags it does not implement. Neither is INT-196 work. -->
-- [ ] detect_redirect is resolved: replaced by parser-owned structure, or its
+- [x] detect_redirect is resolved: replaced by parser-owned structure, or its
       remaining role is stated and bounded
+<!-- evidence: 2026-08-09, measured with a probe at the function entry, not reasoned about.
+     ABSENT FROM THE NORMAL LIVE PATH, and reachable from exactly two places. Probed with
+     track_caller so the function reports WHO called it rather than what was passed:
+       spine on,  `echo hi > file`  -> ZERO calls
+       FSH_SPINE=0, same line       -> ONE call, from main.rs:1408:46
+     Live redirects are CLAIMED by the spine and lowered to IoPlan, so this no longer decides where
+     output goes. The explicitly disabled-spine path still reaches it, which is correct -- that is
+     the migration aid, not the shell people use.
+     ⚠️ AN EARLIER READING SAID FSH_SPINE=0 WAS ALSO ZERO AND THAT WAS AN ARTIFACT. The count came
+     from `grep -c` through a pipe, and the inner shell writes this diagnostic to stderr, which
+     bypassed the pipe -- the same run printed thousands of lines to the terminal while grep
+     reported none. Recorded because it was nearly ticked as evidence.
+     THE SECOND REACHABLE PLACE IS THE AUDIT. `spine migrate` calls it once per history row at
+     commands/mod.rs:690 and migrate_audit.rs:81, modelling what legacy would have stripped before
+     tokenizing, which is its documented job.
+     ⚠️ A HISTORY ROW INSPECTED IS NOT A COMMAND EXECUTED, and the distinction must not be lost
+     later. The audit feeds STRINGS through the legacy detector; that its corpus contains commit
+     messages and source-looking text says nothing about what ran.
+     THE ONE REMAINING SHELL CALL SITE IS main.rs:1408, and it sits BELOW the router, so it can
+     only ever see a line the spine declined. track_caller confirmed it: with the spine on it is
+     never reached, and with FSH_SPINE=0 it is the caller reported.
+     ⚠️ TWO RAW-TEXT TESTS REMAIN INSIDE IT and are recorded rather than fixed: the bare-redirect
+     sentinel uses `trimmed.ends_with` and the stderr sentinel uses `line.contains(" 2>")`, while
+     `rfind_unquoted` beside them tracks both quote kinds properly. They are not on the live path,
+     so there is no input today that demonstrates a wrong outcome -- the same standard applied to
+     the four exceptions above.
+     ★ ITS OWN DOC ALREADY NAMED THE BOUND: "every command the router DECLINES still comes here."
+     That is now measured rather than asserted, and the decline set is enumerated in the third
+     criterion above. -->
 - [ ] A check exists that returns the violations, runnable on demand
 - [ ] RETRO-VALIDATION: the check is confirmed to catch INT-172's original
       detect_redirect truncation, watched failing against the pre-fix shape. A
