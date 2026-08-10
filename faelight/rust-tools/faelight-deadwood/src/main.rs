@@ -673,6 +673,91 @@ struct CommandWordCandidate {
 
 struct CommandWordVisitor {
     hits: Vec<CommandWordCandidate>,
+    /// Bindings produced by a search on a string, as (binding name, rendered receiver). Collected
+    /// so an index expression can be checked against the thing that was searched.
+    searched: Vec<(String, String)>,
+}
+
+/// Receiver names that mean A SHELL COMMAND LINE, not a structured string this code built.
+///
+/// INTENTIONALLY SCOPED, and this is a heuristic rather than a definition. The defect is semantic:
+/// execution logic treating a shell command line as a disposable prefix. syn provides no type
+/// information, so provenance cannot be resolved -- the checker cannot tell a value that came from
+/// the raw input from one the function constructed. A name vocabulary is the honest approximation,
+/// and it is a CONSTANT so the next reader extends it rather than working around it.
+///
+/// The first run without this filter produced FIVE findings and ZERO true positives -- structural
+/// parsing of a file:line separator, a brace close, and a brace range. A checker at zero precision
+/// gets ignored, which is worse than no checker, and fourteen exemptions would have made it quiet
+/// rather than correct.
+const SHELL_LINE_NAMES: &[&str] = &[
+    "line",
+    "working_line",
+    "cmd",
+    "command",
+    "raw",
+    "raw_line",
+    "input",
+    "source",
+    "trimmed",
+    "segment",
+    "command_line",
+    "command_text",
+    "cmd_line",
+];
+
+/// Needles that are SHELL OPERATORS. The other half of the rule: a shell-shaped receiver sliced at
+/// a structural delimiter it owns is ordinary parsing, and a well-named variable should not be
+/// flagged for finding a brace. INT-172 searched for a stderr redirect and discarded the remainder,
+/// which is what makes the pairing dangerous -- the discarded text can contain more executable
+/// syntax, and in that case it contained a pipe.
+fn is_shell_operator(needle: &str) -> bool {
+    let n = needle
+        .trim_matches(|c| c == 34u8 as char || c == 39u8 as char)
+        .trim();
+    n.contains('>') || n.contains('<') || n.contains('|') || n.contains('&') || n.contains(';')
+}
+
+/// Render an expression as tokens. No type information exists here, so identity is SYNTACTIC:
+/// two spellings of one variable match, a different variable does not.
+fn render(e: &syn::Expr) -> String {
+    use syn::__private::ToTokens;
+    e.to_token_stream().to_string()
+}
+
+/// The receiver of a find or rfind call, if this expression is one. Unwraps the Option-producing
+/// wrappers a real call site puts around it.
+fn search_receiver(e: &syn::Expr) -> Option<String> {
+    match e {
+        syn::Expr::MethodCall(m) if m.method == "find" || m.method == "rfind" => {
+            // BOTH HALVES OR NOTHING. A shell-shaped receiver sliced at a delimiter it owns is
+            // ordinary parsing; a structural receiver sliced at a shell operator is not this
+            // defect either. The pairing is what INT-172 was.
+            let recv = render(&m.receiver);
+            let base = recv.trim_start_matches(38u8 as char).trim();
+            if !SHELL_LINE_NAMES.iter().any(|n| *n == base) {
+                return None;
+            }
+            let needle = m.args.first().map(render).unwrap_or_default();
+            if !is_shell_operator(&needle) {
+                return None;
+            }
+            Some(recv)
+        }
+        syn::Expr::MethodCall(m) => search_receiver(&m.receiver),
+        syn::Expr::Try(t) => search_receiver(&t.expr),
+        _ => None,
+    }
+}
+
+/// The single identifier a pattern binds, if it binds exactly one. `if let Some(idx)` and a plain
+/// `let idx` both arrive here; a tuple or wildcard yields None.
+fn binding_name(p: &syn::Pat) -> Option<String> {
+    match p {
+        syn::Pat::Ident(i) => Some(i.ident.to_string()),
+        syn::Pat::TupleStruct(ts) if ts.elems.len() == 1 => binding_name(&ts.elems[0]),
+        _ => None,
+    }
 }
 
 impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
@@ -703,6 +788,74 @@ impl<'ast> syn::visit::Visit<'ast> for CommandWordVisitor {
             }
         }
         syn::visit::visit_expr_method_call(self, node);
+    }
+
+    /// INT-196 criterion 6: A RAW LINE SLICED AT AN OFFSET IT WAS SEARCHED FOR.
+    ///
+    /// The original rule matched a method CHAIN and missed the INT-172 defect entirely, because
+    /// that defect never split anything -- it called find, bound the offset, and sliced the prefix,
+    /// discarding everything to the right including a pipe. Retro-validation is what surfaced the
+    /// gap: a check that would have missed the bug it exists to prevent is the wrong check.
+    ///
+    /// NARROW ON PURPOSE. The signal is not the slice -- ordinary slicing is everywhere. It is the
+    /// PAIRING: a find or rfind on some expression, and a slice of THAT SAME expression at the
+    /// offset it returned. The generic split exclusion above records what happens otherwise, where
+    /// 21 of the first run 36 findings were noise from a rule that was too wide.
+    ///
+    /// The receiver is compared as rendered TOKENS rather than resolved, because this is a
+    /// syntactic check with no type information. Two spellings of the same variable match; a
+    /// different variable does not.
+    fn visit_local(&mut self, node: &syn::Local) {
+        if let Some(init) = &node.init {
+            if let Some(recv) = search_receiver(&init.expr) {
+                if let Some(name) = binding_name(&node.pat) {
+                    self.searched.push((name, recv));
+                }
+            }
+        }
+        syn::visit::visit_local(self, node);
+    }
+
+    /// An if-let over find is an ExprIf whose cond is an Expr::Let, NOT a Local, so visit_local
+    /// never sees it. That is the exact form the INT-172 defect used, which is why the first
+    /// version of this rule compiled and still missed it.
+    fn visit_expr_if(&mut self, node: &syn::ExprIf) {
+        if let syn::Expr::Let(l) = node.cond.as_ref() {
+            if let Some(recv) = search_receiver(&l.expr) {
+                if let Some(name) = binding_name(&l.pat) {
+                    self.searched.push((name, recv));
+                }
+            }
+        }
+        syn::visit::visit_expr_if(self, node);
+    }
+
+    /// BINDINGS ARE FUNCTION-SCOPED. Taken on the way in and restored on the way out, so a search
+    /// in one function cannot pair with an unrelated slice in another that shares a name. The
+    /// tight rule is deliberate: this checker already learned that a wide one gets ignored.
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        let outer = std::mem::take(&mut self.searched);
+        syn::visit::visit_item_fn(self, node);
+        self.searched = outer;
+    }
+
+    fn visit_expr_index(&mut self, node: &syn::ExprIndex) {
+        use syn::spanned::Spanned;
+        let base = render(&node.expr);
+        let idx = render(&node.index);
+        for (name, recv) in &self.searched {
+            // THE PAIRING IS THE SIGNAL. The sliced expression must be the SAME one that was
+            // searched, and the range must mention the binding the search produced. Either half
+            // alone is ordinary Rust.
+            if *recv == base && idx.contains(name.as_str()) {
+                self.hits.push(CommandWordCandidate {
+                    start_line: node.span().start().line,
+                    method: "__SLICE__".to_string(),
+                });
+                break;
+            }
+        }
+        syn::visit::visit_expr_index(self, node);
     }
 }
 
@@ -797,7 +950,10 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
             continue;
         }
         let file_lines: Vec<&str> = text.lines().collect();
-        let mut v = CommandWordVisitor { hits: Vec::new() };
+        let mut v = CommandWordVisitor {
+            hits: Vec::new(),
+            searched: Vec::new(),
+        };
         syn::visit::visit_file(&mut v, &ast);
         for c in v.hits {
             let (line, method) = (c.start_line, c.method);
@@ -811,7 +967,14 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
                 // that token IS a command word is the architectural judgement it cannot make --
                 // several known candidates derive a shell name, an intent id, or a heredoc
                 // delimiter. The wording claims exactly what the tool can see, no more.
-                detail: format!("{rel}:{line} derives a whitespace first token via .{method}().next(), not routed through command_word()"),
+                // TWO RULES, TWO SENTENCES. The message described a whitespace derivation, and
+                // once the index-slicing rule landed it was describing an operation that had not
+                // happened -- a diagnostic naming something adjacent to what it found.
+                detail: if method == "__SLICE__" {
+                    format!("{rel}:{line} slices a shell command line at an offset found by searching it for a shell operator, discarding the remainder (INT-172 shape)")
+                } else {
+                    format!("{rel}:{line} derives a whitespace first token via .{method}().next(), not routed through command_word()")
+                },
                 action: None,
             });
         }
@@ -1027,6 +1190,37 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
 #[cfg(test)]
 mod cmdword_check_tests {
     use super::check_command_word_derivations;
+
+    /// INT-196 criterion 6: RETRO-VALIDATION against the ACTUAL pre-fix shape.
+    ///
+    /// This is the INT-172 defect verbatim, read from 9f023392 caret. It found the offset of a
+    /// stderr token and SLICED THE PREFIX, discarding everything to the right including the pipe.
+    /// There is no whitespace split anywhere in it, which is why the original rule missed it.
+    ///
+    /// The gate this satisfies states the principle: a check that would have missed the bug it
+    /// exists to prevent is the wrong check.
+    #[test]
+    fn catches_the_original_int172_truncation() {
+        let root = fixture("retro_int172", INT172_PRE_FIX);
+        let (found, _exempt) = check_command_word_derivations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(
+            !found.is_empty(),
+            "a check that would have missed the bug it exists to prevent is the wrong check"
+        );
+    }
+
+    const INT172_PRE_FIX: &str = concat!(
+        "fn handle(working_line: &str, line_stripped: String) {\n",
+        "    let (cmd_part, stderr_to_stdout, stderr_file) =\n",
+        "        if let Some(idx) = working_line.find(\" 2>\") {\n",
+        "            let after = working_line[idx + 3..].trim().to_string();\n",
+        "            (working_line[..idx].trim().to_string(), false, Some(after))\n",
+        "        } else {\n",
+        "            (line_stripped.clone(), false, None)\n",
+        "        };\n",
+        "}\n"
+    );
     use std::path::PathBuf;
 
     /// Build a throwaway tree matching the layout the check walks. Cheap inside the crate,

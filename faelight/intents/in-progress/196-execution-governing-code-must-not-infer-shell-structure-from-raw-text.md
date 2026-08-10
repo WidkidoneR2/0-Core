@@ -451,7 +451,8 @@ this branch requires. Another text-derivation finding, its own analysis.
      rather than grepping, and macro bodies are outside its analysis by design.
      ⏭ The exempt nine are not audited here. Whether any of them is a raw-text neighbour of the kind
      the third criterion found is its own question. -->
-<!-- RETRO-VALIDATION FAILS AS OF 2026-08-09, and the gate stays OPEN on evidence.
+<!-- RETRO-VALIDATION FAILED FIRST, THEN CLOSED, and both halves are the evidence.
+     THE FAILURE, recorded because it is what made the fix correct rather than convenient:
      The INT-172 defect was INDEX SLICING ON A RAW LINE, not a whitespace derivation. Read from the
      source at 9f023392 caret, main.rs, matching the archaeology commit exactly:
        } else if let Some(idx) = working_line.find(" 2>") {
@@ -465,9 +466,27 @@ this branch requires. Another text-derivation finding, its own analysis.
      one asked the harder question and the answer was no. The checker is not useless -- it caught a
      real violation in expand.rs minutes earlier -- it is NARROWER THAN THE BUG CLASS the intent is
      named for.
-     WHAT WOULD CLOSE IT: the checker learns to flag a raw line being INDEX-SLICED at an offset
-     found by find or rfind, then this retro-validation is re-run against the pre-fix shape above
-     and watched FAILING. Until then this stays unticked. -->
-- [ ] RETRO-VALIDATION: the check is confirmed to catch INT-172's original
+     CLOSED 2026-08-09 by widening the checker, and the sequence is the evidence.
+     The fixture holds the pre-fix shape verbatim from git. It was watched FAILING first, against
+     the old rule, with the message the gate asks for: a check that would have missed the bug it
+     exists to prevent is the wrong check. Then the visitor learned the pairing and it went green.
+     TWO VISIT METHODS WERE NEEDED, NOT ONE. The first version handled a plain let binding and
+     still missed the fixture, because an if-let over find is an ExprIf whose cond is an Expr::Let
+     and visit_local never sees it -- which is the exact form the defect used. Bindings are scoped
+     per function so a search in one cannot pair with an unrelated slice in another.
+     THE FIRST WORKING RULE WAS TOO WIDE, AND THE LIVE TREE SAID SO: five findings, ZERO true
+     positives -- a file:line separator, a brace close, a brace range. All structural parsing.
+     Fourteen exemptions would have made the checker quiet rather than correct, and a checker at
+     zero precision gets ignored, which is worse than none.
+     SO THE RULE WAS NARROWED TO THE SEMANTIC DEFECT rather than the syntax that resembles it:
+     execution logic treating A SHELL COMMAND LINE as a disposable prefix. Both halves are now
+     required -- a receiver named like a command line AND a needle that is a shell operator.
+     Result: INT-172 detected, all five structural sites cleared, exemption count unchanged at nine.
+     ⚠️ INTENTIONALLY SCOPED, NOT A DEFINITION. syn carries no type information, so provenance
+     cannot be resolved and a name vocabulary is the honest approximation. It is a documented
+     constant so the next reader extends it rather than working around it.
+     ⚠️ The finding message was also corrected: it described a whitespace derivation while reporting
+     an index slice, which is a diagnostic naming something adjacent to what it found. -->
+- [x] RETRO-VALIDATION: the check is confirmed to catch INT-172's original
       detect_redirect truncation, watched failing against the pre-fix shape. A
       check that would have missed the bug it exists to prevent is the wrong check
