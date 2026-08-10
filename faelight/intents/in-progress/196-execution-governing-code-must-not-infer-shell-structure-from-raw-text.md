@@ -431,7 +431,43 @@ this branch requires. Another text-derivation finding, its own analysis.
      ★ ITS OWN DOC ALREADY NAMED THE BOUND: "every command the router DECLINES still comes here."
      That is now measured rather than asserted, and the decline set is enumerated in the third
      criterion above. -->
-- [ ] A check exists that returns the violations, runnable on demand
+- [x] A check exists that returns the violations, runnable on demand
+<!-- evidence: `faelight-deadwood`, the INT-195 command-word check, WATCHED FINDING A REAL
+     VIOLATION IN THE LIVE TREE rather than inspected.
+     GHOST-CHECKED IN BOTH DIRECTIONS. Before: `Command-word derivation candidates (INT-195)
+     [9 author-exempt]: clean`, and `--strict` exits 0. A raw `.split_whitespace().next()` was then
+     inserted into `detect_redirect`, and the tool reported
+     `[HIGH] .../expand.rs:406 derives a whitespace first token via .split_whitespace().next(), not
+     routed through command_word()` with `--strict` exiting 1. Restored: clean, exit 0.
+     ★ THE CLEAN RUN IS WHAT MAKES THE FLAGGED RUN MEAN ANYTHING. A checker that reports nothing and
+     a checker that is broken look identical, which is why existence was not accepted as evidence.
+     ⚠️ SCOPE IS A SIX-FILE ALLOWLIST -- main.rs, commands/mod.rs, exec.rs, expand.rs,
+     safety_guard.rs, db.rs -- and its own doc calls it a TEMPORARY COARSE FILTER that
+     over-approximates until per-function role annotations exist. A first probe placed OUTSIDE that
+     list was silently skipped, which is worth recording: the check is scoped by FILE while the
+     intent is defined by ROLE.
+     ⚠️ NINE SITES ARE AUTHOR-EXEMPT via a `deadwood: exempt` comment, and the count is reported in
+     the output rather than hidden. It is implemented as an AST visit (syn), so it reads structure
+     rather than grepping, and macro bodies are outside its analysis by design.
+     ⏭ The exempt nine are not audited here. Whether any of them is a raw-text neighbour of the kind
+     the third criterion found is its own question. -->
+<!-- RETRO-VALIDATION FAILS AS OF 2026-08-09, and the gate stays OPEN on evidence.
+     The INT-172 defect was INDEX SLICING ON A RAW LINE, not a whitespace derivation. Read from the
+     source at 9f023392 caret, main.rs, matching the archaeology commit exactly:
+       } else if let Some(idx) = working_line.find(" 2>") {
+           let after = working_line[idx + 3..].trim().to_string();
+           (working_line[..idx].trim().to_string(), false, Some(after))
+     The prefix slice threw away everything right of the 2> token, including the pipe.
+     THE INT-195 CHECKER MATCHES split_whitespace().next(), split_ascii_whitespace().next() and
+     splitn(). It matches NONE of the above. So it WOULD HAVE MISSED the bug it exists to prevent,
+     which is precisely what this gate says makes it the wrong check.
+     THE GATE DID ITS JOB. Criterion 5 closed on a live demonstration and looked like enough; this
+     one asked the harder question and the answer was no. The checker is not useless -- it caught a
+     real violation in expand.rs minutes earlier -- it is NARROWER THAN THE BUG CLASS the intent is
+     named for.
+     WHAT WOULD CLOSE IT: the checker learns to flag a raw line being INDEX-SLICED at an offset
+     found by find or rfind, then this retro-validation is re-run against the pre-fix shape above
+     and watched FAILING. Until then this stays unticked. -->
 - [ ] RETRO-VALIDATION: the check is confirmed to catch INT-172's original
       detect_redirect truncation, watched failing against the pre-fix shape. A
       check that would have missed the bug it exists to prevent is the wrong check
