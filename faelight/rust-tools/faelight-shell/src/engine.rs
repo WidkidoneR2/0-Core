@@ -1582,9 +1582,16 @@ impl Engine {
         // prefer-the-real-command rule at commands/mod.rs:8618 already declines under a redirect.
         let cat_with_redirect = first_word == "cat" && {
             let has_redirect = line.contains(" > ") || line.contains(" >> ");
-            let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]
-                .iter()
-                .any(|f| line.split_whitespace().any(|w| w == *f));
+            // INT-217: ANY FLAG, NOT A LIST OF SIX. The allowlist held exactly -A -v -e -t -n -b,
+            // so `cat -E` and `cat -T` expanded to bat, which rejects them with a clap error naming
+            // bat -- a shell reporting a tool the user never invoked. Real cat implements all eight
+            // GNU options, including the compound forms where -A is -vET, and a list here is a
+            // second place to update when GNU adds one.
+            //
+            // ★ A FLAG MEANS THE USER WANTS CAT SEMANTICS, which is the rule this bypass already
+            // states; the list was an incomplete expression of it. The builtin below defers any
+            // flagged cat to the real binary, so the two halves now agree.
+            let bat_unsupported = line.split_whitespace().any(|w| w.starts_with("-"));
             has_redirect || bat_unsupported
         };
         if cat_with_redirect {

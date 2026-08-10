@@ -4517,6 +4517,35 @@ fn execute_dispatch(
             CommandResult::Output(out.trim_end().to_string())
         }
         "cat" => {
+            // INT-217: A FLAG MEANS THE USER WANTS REAL CAT, so defer instead of guessing.
+            //
+            // This builtin is a RENDERER: it numbers and dims code files for a human reading them.
+            // It implements no options at all, and it took args.first() as a filename -- so
+            // `cat -n file` reported that -n does not exist, which reads as the shell claiming there
+            // is no such file rather than admitting it does not implement the option.
+            //
+            // ★ THE SAME SHAPE AS grep_cmd ALREADY USES (11686): an unrecognised flag falls through
+            // to the system binary. And the same conclusion the BUG-298-4 bypass reached for
+            // redirects, generalised -- when the user asks for cat semantics, give them cat.
+            //
+            // ⚠️ DELIBERATELY NOT A LIST OF THE EIGHT GNU OPTIONS. Real cat implements -n, -b, -A,
+            // -v, -e, -t, -E and -T correctly, including the compound forms where -A is -vET. A
+            // six-flag allowlist here would be a seventh place to update when GNU adds an option,
+            // and would get the compounds wrong on the way. ANY leading dash defers, including a
+            // bare dash, which real cat reads as stdin.
+            //
+            // ⚠️ NO RECURSION: sh resolves cat from PATH, which is coreutils, never this builtin.
+            // And spawn_sh_with_leak_check INHERITS stdin, so a piped `cat -b` still reads the pipe.
+            if args.iter().any(|a| a.starts_with("-")) {
+                return match crate::db::spawn_sh_with_leak_check(line) {
+                    Ok(s) if s.success() => CommandResult::Empty,
+                    Ok(s) => {
+                        let code = crate::exit_status_code(&s);
+                        CommandResult::Error(format!("cat: exited with code {}", code), code)
+                    }
+                    Err(e) => CommandResult::Error(format!("cat: {}", e), 1),
+                };
+            }
             let file = args.first().copied().unwrap_or("");
             if file.is_empty() {
                 return CommandResult::Error("cat: missing filename".to_string(), 1);
