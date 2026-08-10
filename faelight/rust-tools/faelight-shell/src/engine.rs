@@ -1566,6 +1566,20 @@ impl Engine {
         let first_word = crate::commands::command_word(line).to_lowercase();
         // BUG-298-4: bypass bat alias for cat when redirect OR bat-unsupported flags
         // Flags bat doesn't support: -A (show-all), -v, -e, -t, -n, -b
+        //
+        // INT-196 SITE 5: A KNOWN EXCEPTION, AND THE SCAN HERE IS THE PART THAT WORKS.
+        // Probed on gen 488: plain cat takes the alias and renders through bat; a quoted flag
+        // appearing only in a FILE BODY does not trip the scan; and a real flag DOES trip it, so
+        // the line is correctly returned unexpanded.
+        //
+        // ⚠️ THE DEFECT IS DOWNSTREAM, NOT HERE. After this correctly declines to expand, dispatch
+        // hands cat to the fsh BUILTIN, which reads args.first() as a filename with no flag
+        // handling -- so `cat -n file` reports that -n does not exist. The absolute path numbers
+        // the lines correctly, which is what discriminates the two. The bypass reaches the right
+        // decision and something after it defeats the purpose.
+        //
+        // ⏭ Its own intent: the builtin must decline a flag it does not implement, the way the
+        // prefer-the-real-command rule at commands/mod.rs:8618 already declines under a redirect.
         let cat_with_redirect = first_word == "cat" && {
             let has_redirect = line.contains(" > ") || line.contains(" >> ");
             let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]

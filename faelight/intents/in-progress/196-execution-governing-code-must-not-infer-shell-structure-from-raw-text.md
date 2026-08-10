@@ -376,8 +376,30 @@ this branch requires. Another text-derivation finding, its own analysis.
      TWO WERE CORRECTED ON A SECOND READ, which is why the census is trustworthy rather than
      assumed: main.rs:1060 DISPATCHES rather than compares, and main.rs:1009 GATES whether a
      destructive command gets a snapshot. Both protective, both initially misfiled. -->
-- [ ] Each enumerated site either consumes parser-owned structure, or is recorded
+- [x] Each enumerated site either consumes parser-owned structure, or is recorded
       as a known exception with a stated reason
+<!-- evidence: all NINE execution-governing sites settled, every one PROBED rather than asserted.
+     MIGRATED to parser-owned structure (5): find_heredoc_intro_inner gained quote state, b973ce1e,
+     ghost-checked -- two quoted-pair cases red under the revert, three controls green. The REPL
+     heredoc branch now asks that recogniser instead of three raw derivations, 224fbbab.
+     try_heredoc likewise, 6ef99fd8, red-first from a site probe that printed CLAIMED for an
+     ordinary echo. is_repl_state_command takes its second word from commands::tokenize, 2b0d08e7,
+     red-first with five controls green including the INT-095 PID rule. And the CaptureError split,
+     272f6a8d.
+     KNOWN EXCEPTIONS WITH STATED REASONS (4), each recorded AT THE SITE:
+     the is_complete_command body scan -- guarded by control flow, and the fix was written, ghost
+     checked, found unprovable and reverted, 06772bcf.
+     try_query_executor -- the predicted misroute does not occur; measured 387 lines against 5 for
+     a real forest pipeline. Saved downstream, recorded because a second mechanism holding a correct
+     outcome is what stops holding silently.
+     the alias expansion loop -- a REAL defect with a rare shape, and the obvious fix reintroduces a
+     worse one. Rebuilding the remainder from the tokenizer splits a quoted argument in two, which
+     is what this implementation replaced. Discriminated by argument COUNT, not by eye. The correct
+     fix needs byte offsets the tokenizer does not report, so it is a change to a shared owner with
+     its own evidence, 4ebfda1d.
+     the cat bypass -- the scan is correct and the defect is downstream in the builtin.
+     ⏭ TWO SEPARATE INTENTS FALL OUT OF THIS GATE: the tokenizer reporting spans, and the cat
+     builtin declining flags it does not implement. Neither is INT-196 work. -->
 - [ ] detect_redirect is resolved: replaced by parser-owned structure, or its
       remaining role is stated and bounded
 - [ ] A check exists that returns the violations, runnable on demand
