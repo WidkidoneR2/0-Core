@@ -274,6 +274,34 @@ pub fn expand_aliases(line: &str, db: &ForestDb) -> String {
         let Some(aliased) = db.get_alias(&first) else {
             break;
         };
+        // INT-196: THE REMAINDER COMES FROM THE TOKENIZER, NOT FROM THE RAW LINE.
+        //
+        // The alias name is derived quote-aware by command_word above, and then the rest of the
+        // line was taken by splitting the RAW text at its first space -- which sits INSIDE the
+        // quotes when the name contains one. Measured on gen 488: an alias named with a space,
+        // invoked as a quoted word with an argument, expanded to its body plus a FRAGMENT OF ITS
+        // OWN NAME. Not a routing subtlety -- the command that ran was wrong.
+        //
+        // tokenize is INT-171 gate 1, the same owner command_word is built on, so the name and the
+        // remainder now come from one derivation instead of two.
+        // INT-196 SITE 4: A REAL DEFECT, MEASURED, AND DELIBERATELY NOT FIXED HERE.
+        //
+        // THE DEFECT: the alias name is derived quote-aware above, then the remainder is taken by
+        // splitting the RAW line at its first space -- which sits INSIDE the quotes when the name
+        // contains one. Proven on gen 488: an alias named with a space, invoked quoted with an
+        // argument, expanded to its body plus a FRAGMENT OF ITS OWN NAME.
+        //
+        // ⚠️ THE OBVIOUS FIX REINTRODUCES A WORSE BUG, and it was tried and measured rather than
+        // reasoned about. Rebuilding the remainder from tokenize and rejoining with spaces fixes
+        // the fragment, and SPLITS A QUOTED ARGUMENT IN TWO -- which is precisely what the doc
+        // above records this implementation as having replaced. Discriminated with an argument
+        // count rather than by eye: deployed printed one argument, the rejoin printed two.
+        //
+        // ⏭ THE CORRECT FIX NEEDS A SPAN. The remainder must be taken by BYTE OFFSET from the raw
+        // line, at the point where the first token ends, so the original text survives untouched.
+        // tokenize does not report offsets today, and adding a second quote-aware scanner here to
+        // find one would be the duplicate-interpretation disease this intent exists to end. That is
+        // a change to a shared owner and it gets its own evidence.
         let rest: String = current
             .split_once(' ')
             .map(|x| x.1)

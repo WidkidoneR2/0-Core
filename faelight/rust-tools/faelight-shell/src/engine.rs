@@ -778,6 +778,22 @@ impl Engine {
         // was a second owner of the answer to "is this the query language?" -- the spine's
         // is_forest_pipeline now asks the same list, so the two cannot drift into disagreeing about
         // which language a line is written in.
+        // INT-196 SITE 2: A KNOWN EXCEPTION, MEASURED RATHER THAN ARGUED.
+        //
+        // This is a raw substring test and the doc above predicts it misroutes a value source whose
+        // argument contains a quoted pipe. PROBED ON GEN 488 AND IT DOES NOT: `ps "a | first 1"`
+        // produced 387 lines, byte-identical in shape to bare `ps`, while the real pipeline
+        // `ps | first 1` produced 5. So the predicate is reached and answers true, and the line still
+        // does not end up in the query language.
+        //
+        // ⚠️ IT IS SAVED DOWNSTREAM, NOT HERE. The split hands the stage parser text beginning with a
+        // quote, which is not a stage, so the query executor declines and the line falls through.
+        // That is a SECOND mechanism holding a correct outcome, which is exactly the kind of thing
+        // that stops holding silently -- so it is recorded here rather than left to be rediscovered.
+        //
+        // ⏭ Making this quote-aware would be correct and is NOT done here, because there is no input
+        // that demonstrates a wrong outcome today. A fix that cannot be shown to fail without it is
+        // not a fix.
         let has_pipe = line.contains(" | ");
         if crate::value::is_value_source(first) && has_pipe {
             let explain = line.contains("--explain");
