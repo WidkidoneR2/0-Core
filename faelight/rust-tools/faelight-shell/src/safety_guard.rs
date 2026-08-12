@@ -5,7 +5,7 @@
 
 /// Check if a command is dangerous enough to require explicit human confirmation.
 /// Returns Some(warning) if CHALLENGE level applies, None if safe to proceed.
-pub fn check(cmd: &str) -> Option<String> {
+pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     let lower = cmd.to_lowercase();
     let trimmed = cmd.trim();
     // Check first word only -- never match on arguments or paths.
@@ -16,8 +16,15 @@ pub fn check(cmd: &str) -> Option<String> {
     // IS quote-aware, ran rm. Proven on gen 432 before the fix: the unquoted form was
     // CHALLENGED and blocked, the quoted form produced no guard output at all.
     // The first-word-only design is deliberate and unchanged; only the instrument moved.
-    let cmd_word = crate::commands::command_word(trimmed);
-    let first_word = cmd_word.as_str();
+    // INT-196 M5: THE WORD ARRIVES DERIVED. This called command_word, which calls tokenize --
+    // a second tokenizer running ahead of the scanner, inside the highest-stakes consumer in the
+    // shell. The caller now supplies the word from the PARSED line, so this file performs no
+    // tokenization at all and the property is provable by grep rather than by reading.
+    //
+    // THE LINE IS STILL TAKEN, and that is not a compromise. The rules below read the whole line
+    // for things a word cannot answer -- a -rf flag, a drop table clause, a /tmp target -- and the
+    // warning text quotes what the user typed. What moved is the DERIVATION, which is the thing
+    // this intent is about. The first-word-only design is unchanged.
     // INT-134: user-managed command allow/deny lists (DB-backed, managed via `guard`).
     // Deny is checked FIRST and wins over everything (even the static safe list below).
     // Allow is checked next -- an explicitly vetted command skips the guard. Both match

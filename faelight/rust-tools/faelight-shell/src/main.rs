@@ -180,6 +180,66 @@ fn expand_braces(s: &str) -> String {
 /// a PID parsed as a job id made `vm down` a silent no-op and risked two VMs. So the predicate
 /// mirrors Phase 8's own guards, and Phase 8 CALLS THIS rather than repeating them. Two copies of
 /// one rule is the split-brain INT-193 existed to end.
+/// INT-196 M2-M4: the command word the SAFETY GUARD judges, derived from the parser.
+///
+/// THE AUTHORITY HIERARCHY, and it falls back ONE LAYER DOWN THE SAME PIPELINE rather than to a
+/// text heuristic. That is the whole point of this intent: the guard never invents its own reading
+/// of the line.
+///   Complete            -- the first Word of the parsed Command, which is the strongest answer.
+///   Incomplete/Refused  -- the scanner first Word token. Still parser-owned. A refusal means the
+///                          parser declines OWNERSHIP, not that the input is harmless, and an
+///                          incomplete multi-line paste still executes via pty_exec.
+///   Invalid             -- None. No word, no guard decision, and no execution follows either.
+///
+/// ⚠️ THE SCANNER TOKEN IS TAKEN AS IT COMES. If it ever stops matching what the guard lists
+/// expect, the answer is a SHARED REPRESENTATION -- never a second mini command_word here. That
+/// would rebuild the exact derivation this intent removed, one layer lower.
+///
+/// ⚠️ An OPERATOR-leading line yields None. A line beginning with a pipe has no command word, and
+/// inventing one would be a judgement the scanner deliberately refuses to make.
+fn guard_command_word(line: &str) -> Option<String> {
+    // MEASURED 2026-08-12, and it bounds what the AST arm can be said to do. Disabling this
+    // arm entirely and letting the scanner answer everything left the suite at 151/151,
+    // including both gen-432 guard cases. So the two layers AGREE on every input the suite
+    // contains, and no test here can distinguish them.
+    //
+    // THAT IS EQUIVALENCE, NOT CAUSAL NECESSITY. The AST word is the primary source in the
+    // implementation; it has never been shown to matter observably. The hierarchy is kept
+    // because it is the architecture -- and because this arm is what will carry a Word with
+    // parts once expansion moves onto the spine, where the scanner token cannot follow.
+    //
+    // A property that holds only by coincidence between two layers is exactly the kind that
+    // stops holding silently, which is why it is recorded here rather than assumed.
+    use crate::spine::lexer::{LexResult, TokenKind};
+    use crate::spine::parser::ParseResult;
+
+    let from_tokens = || -> Option<String> {
+        match crate::spine::lexer::lex(line) {
+            LexResult::Complete(tokens) => tokens
+                .first()
+                .filter(|t| t.kind == TokenKind::Word)
+                .map(|t| t.text.clone()),
+            LexResult::Incomplete(_) => None,
+        }
+    };
+
+    match crate::spine::parser::parse(line) {
+        ParseResult::Complete(node) => match &node.node {
+            crate::spine::ast::AstNode::Command(cmd) => cmd
+                .words
+                .first()
+                .and_then(|w| match w.node.parts.first() {
+                    Some(crate::spine::ast::WordPart::Literal { text, .. }) => Some(text.clone()),
+                    _ => None,
+                })
+                .or_else(from_tokens),
+            _ => from_tokens(),
+        },
+        ParseResult::Incomplete(_) | ParseResult::Refused(_) => from_tokens(),
+        ParseResult::Invalid(_) => None,
+    }
+}
+
 pub(crate) fn is_repl_state_command(line: &str) -> bool {
     // INT-196: THE SECOND WORD COMES FROM THE TOKENIZER TOO. The command word was already derived
     // quote-aware; the word beside it was read off the raw line with split_whitespace, so a quoted
@@ -2368,11 +2428,23 @@ fn repl_main() -> Result<()> {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
                 }
+                // INT-196 M1-M4: THE GUARD WORD COMES FROM THE PARSER, and the fallback goes
+                // ONE LAYER DOWN THE SAME PIPELINE rather than back to source heuristics.
+                //   Complete            -> the first Word of the parsed Command
+                //   Incomplete/Refused  -> the scanner first token, which is still parser-owned
+                //   Invalid             -> no word, and therefore no guard decision
+                //
+                // M1: this is the only parse performed for the guard. The router parses again at
+                // main.rs:1329, and that is NOT this parse -- it runs later, inside run_input, on
+                // one alias-expanded SEGMENT rather than on the whole raw line.
+                let guard_word = guard_command_word(&line);
                 // INT-246: safety_guard -- check BEFORE any execution path
-                if let Some(warning) = safety_guard::check(&line) {
-                    if !safety_guard::challenge_gate(&warning) {
-                        engine.set_last_exit(Some(1));
-                        continue 'repl;
+                if let Some(word) = guard_word.as_deref() {
+                    if let Some(warning) = safety_guard::check(&line, word) {
+                        if !safety_guard::challenge_gate(&warning) {
+                            engine.set_last_exit(Some(1));
+                            continue 'repl;
+                        }
                     }
                 }
                 // INT-249b/Path-3: multi-line buffer (heredoc, control structure, backslash
@@ -2412,7 +2484,17 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-249b/Path-3: run the heredoc via PTY so we get colored output
                     // AND the chance to scan each line for delimiter-leak warnings.
-                    if let Some(warning) = safety_guard::check(&line) {
+                    //
+                    // INT-196: the word is derived by the SAME helper the universal guard uses, so
+                    // there is one derivation rule rather than two. M6 asks whether this call is
+                    // redundant at all -- `line` is not reassigned between the universal guard and
+                    // here -- and that gate stays OPEN deliberately. An attempt to delete it was
+                    // reverted once already because both verification probes were unrunnable, and
+                    // reading the control flow is not the evidence the gate asks for.
+                    if let Some(warning) = guard_command_word(&line)
+                        .as_deref()
+                        .and_then(|w| safety_guard::check(&line, w))
+                    {
                         if !safety_guard::challenge_gate(&warning) {
                             engine.set_last_exit(Some(1));
                             continue 'repl;
@@ -3320,5 +3402,41 @@ mod repl_state_command_tests {
     #[test]
     fn a_quoted_fg_job_id_is_still_repl_state() {
         assert!(is_repl_state_command("fg \"1\""));
+    }
+}
+
+/// INT-196 M10: the measured cost of the guard parse, stated as a number.
+///
+/// Measured HERE rather than at the REPL, because instrumentation in the loop is invisible to the
+/// dash-c door and a single keystroke is not a repeatable sample. This calls the same function the
+/// guard calls, on shapes taken from real use.
+#[cfg(test)]
+mod guard_cost {
+    #[test]
+    fn measure_guard_parse_cost() {
+        let lines = [
+            "echo one",
+            "ls -la /tmp",
+            "git status --short",
+            "cargo build -p faelight-shell",
+            "grep -rn pattern src/",
+        ];
+        let iters = 2000;
+        let t0 = std::time::Instant::now();
+        let mut sink = 0usize;
+        for _ in 0..iters {
+            for l in lines.iter() {
+                if let Some(w) = super::guard_command_word(l) {
+                    sink += w.len();
+                }
+            }
+        }
+        let total = t0.elapsed();
+        let calls = iters * lines.len();
+        let per = total.as_nanos() as f64 / calls as f64;
+        println!(
+            "GUARD PARSE COST: {calls} calls, {per:.0} ns each, {total:?} total (sink {sink})"
+        );
+        assert!(sink > 0, "the calls must have produced words");
     }
 }

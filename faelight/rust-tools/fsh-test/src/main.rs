@@ -1851,6 +1851,55 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "repl_196_a_declined_construct_is_still_guarded",
+        Category::Repl,
+        || {
+            // INT-196 M8/M9: a line the SPINE DECLINES is still guarded. A 2-and-angle redirect
+            // parses Complete but lowering refuses it, so it falls back to legacy -- and the
+            // guard must still fire before it gets there. That shape is also the INT-172 defect,
+            // which makes it the right thing to guard.
+            //
+            // TWO EARLIER VERSIONS OF THIS CASE WERE WRONG, and both were caught rather than
+            // shipped. The first used a pipe and claimed to test a REFUSAL: it passed with the
+            // scanner fallback DISABLED, proving it tested neither arm. The second used an
+            // unterminated quote, which is genuinely Incomplete -- and the REPL holds such a
+            // line as a multi-line BUFFER waiting for more input, so it never submits, the
+            // harness never sees a prompt, and the case timed out at the wait_for boundary.
+            //
+            // THAT INCOMPLETE-PASTE PROPERTY IS REAL AND HOLDS, proven by hand outside the
+            // harness: completing the quote on a second line produces a Filesystem format
+            // warning and the guard BLOCKS. It is simply not reachable through
+            // run_repl_answered, which sends ONE line and waits for one prompt.
+            // Payload is mkfs.zzz rather than rm: the thing under test IS the abort, so a
+            // destructive payload would run if it ever regressed. No such binary exists.
+            let out = repl::run_repl_answered("mkfs.zzz 2> /tmp/zz196.txt", "CHALLENGE", "no")?;
+            if out.iter().any(|l| l.contains("CHALLENGE")) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "a declined construct reached execution unguarded: {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_196_an_operator_leading_line_makes_no_guard_decision",
+        Category::Repl,
+        || {
+            // INT-196 M4 in its reachable form. A line with no command word yields None, so no
+            // guard decision is made -- and the shell must not hang, panic, or challenge. It
+            // reports an ordinary error and carries on.
+            let out = repl::run_repl("| mkfs.zzz")?;
+            if out.iter().any(|l| l.contains("CHALLENGE")) {
+                Err(format!(
+                    "a line with no command word produced a guard decision: {out:?}"
+                ))
+            } else {
+                Ok(())
+            }
+        },
+    ));
     results.push(test("repl_143_inline_var_scoped", Category::Repl, || {
         // d5a52c1c: `VAR="a b" cmd` -- the QEMU_OPTS incident. The var was set and
         // NEVER unset, leaking into the session. POSIX scopes it to that command

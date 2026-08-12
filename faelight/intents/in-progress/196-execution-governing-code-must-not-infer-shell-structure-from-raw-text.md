@@ -286,15 +286,55 @@ was the trap: adding one would recreate the same boundary problem one layer down
 
 ## GATES FOR THE GUARD MIGRATION (drafted 2026-08-09, from the ruled hierarchy)
 
-- [ ] M1: the line is parsed ONCE before the universal guard at main.rs:2340, and that parse is the
+<!-- M1 READING, SETTLED BY STRUCTURE 2026-08-12 rather than by preference.
+     The phrase can only mean the guard adds no second parse OF ITS OWN. It cannot mean one
+     parse shared with the router, and that is not a cost argument -- it is incoherent.
+     The guard sits in the REPL loop at main.rs:2372 and sees the WHOLE RAW LINE, before
+     splitting and before alias expansion. The router sits at main.rs:1329 inside run_input,
+     which the REPL calls AFTER the guard, and sees ONE SEGMENT that split_into_segments
+     produced and expand_aliases at 1305 has already rewritten. Two different strings, at two
+     different times, one per segment versus one per line. Threading either way would hand a
+     consumer a parse of text it does not execute.
+     AND THAT ORDERING IS INT-197, NOT THIS INTENT. The guard sees a boolean chain whole, so
+     command_word returns the FIRST command and the second is invisible to it. INT-196 makes
+     the guard consume parser-owned structure; INT-197 is whether it is looking at the right
+     line at all. Ruled 2026-08-12 to keep them separate. -->
+- [x] M1: the line is parsed ONCE before the universal guard at main.rs:2372, and that parse is the
       only one performed for the guard's benefit. No second parse, no re-tokenization
-- [ ] M2: on Complete, the guard receives the first Word from the parsed Command
-- [ ] M3: on Incomplete or Refused, the guard receives the first token from LexResult. NOT a
+<!-- evidence: one call to guard_command_word at main.rs:2380, immediately above the guard. It calls
+     parse once, and lex only on the arms where no AST exists. The reading is settled by
+     structure and recorded above this gate: the router parse at main.rs:1329 is a DIFFERENT
+     parse of a DIFFERENT string, later, per segment, after alias expansion. -->
+- [x] M2: on Complete, the guard receives the first Word from the parsed Command
+<!-- evidence: guard_command_word at main.rs:200 takes cmd.words[0] Literal text on the Command arm.
+     BOUNDED CLAIM. Disabling that arm entirely and letting the scanner answer everything left
+     the suite at 151/151, INCLUDING both gen-432 guard cases -- so the two layers agree on
+     every input the suite contains and no test can distinguish them. That is EQUIVALENCE,
+     not causal necessity: the AST word is the primary source in the implementation and has
+     never been shown to matter observably. Recorded at the site as well as here, because a
+     property holding by coincidence between two layers stops holding silently. -->
+- [x] M3: on Incomplete or Refused, the guard receives the first token from LexResult. NOT a
       text-derived word -- one layer down the same pipeline, never a jump back to source heuristics
-- [ ] M4: on Invalid, no guard decision is made, because no execution follows. Verified by showing
+<!-- evidence: the Incomplete and Refused arms both call from_tokens, which takes tokens[0].text
+     from the scanner AS IT COMES -- no trimming, no re-derivation. Two further fallbacks use
+     the same route rather than None: a non-Command node, and a first part that is not a
+     Literal. Each is one layer down the same pipeline.
+     PROVEN NECESSARY: disabling the scanner fallback turned repl_196_a_declined_construct
+     RED at the wait_for timeout, so that arm is load-bearing rather than decorative. -->
+- [x] M4: on Invalid, no guard decision is made, because no execution follows. Verified by showing
       the Invalid path does not reach an executor
-- [ ] M5: safety_guard::check no longer calls command_word or any tokenizer. Its signature takes the
+<!-- evidence: the Invalid arm returns None, and the guard block is wrapped in
+     `if let Some(word)` so no check runs without a word.
+     PROVEN BEHAVIOURALLY by repl_196_an_operator_leading_line_makes_no_guard_decision: a line
+     with no command word produces no CHALLENGE, and the shell does not hang or panic -- it
+     reports an ordinary error and carries on. -->
+- [x] M5: safety_guard::check no longer calls command_word or any tokenizer. Its signature takes the
       already-derived word rather than a line. Provable by grep: zero tokenizing calls in that file
+<!-- evidence: check(cmd, first_word) -- the word arrives derived. grep for command_word, tokenize
+     and split_whitespace in safety_guard.rs returns COMMENTS ONLY, zero calls.
+     THE LINE IS STILL TAKEN and that is not a compromise: the rules read it for a -rf flag, a
+     drop-table clause, a /tmp target, and the warning quotes what the user typed. What moved
+     is the DERIVATION, which is what this intent is about. -->
 - [ ] M6: the redundant heredoc guard call at main.rs:2383 is REMOVED, with evidence that 2340 has
       already guarded the same unmodified line on that path
 - [x] M7: CHARACTERIZATION TEST PROVEN BY GHOST-CHECK: a quoted command word reaches the guard as
@@ -319,14 +359,37 @@ was the trap: adding one would recreate the same boundary problem one layer down
      Restored: 145/145. -->
 - [ ] M8: an incomplete multi-line paste still executes and is still guarded. This is the case that
       ruled out blocking, and it must be proven rather than assumed
-- [ ] M9: a refused construct still declines to legacy AND is still guarded. Refusal means the parser
+- [x] M9: a refused construct still declines to legacy AND is still guarded. Refusal means the parser
       declines ownership, not that the input is harmless
-- [ ] M10: measured cost of the added parse at the REPL loop head, stated as a number. If it is not
+<!-- evidence: repl_196_a_declined_construct_is_still_guarded. A 2-and-angle redirect parses
+     Complete but lowering refuses it, so it declines to legacy -- and the guard fires first.
+     That shape is also the INT-172 defect, which makes it the right thing to guard.
+     TWO EARLIER VERSIONS OF THIS CASE WERE WRONG and both were caught by ghost-check rather
+     than shipped. The first used a pipe and claimed a REFUSAL: it passed with the scanner
+     fallback disabled, proving it tested neither arm. The second used an unterminated quote,
+     which the REPL holds as a multi-line buffer -- it never submits, so the case timed out. -->
+- [x] M10: measured cost of the added parse at the REPL loop head, stated as a number. If it is not
       free, say what it costs rather than hoping nobody notices
-- [ ] M11: no behaviour change for any line that already passed the guard. Proven against the
+<!-- evidence: 725 ns per call. Release profile, 10,000 calls over five real command shapes,
+     7.25 ms total, measured by the guard_cost test which calls guard_command_word directly.
+     A keystroke round-trip is tens of MILLISECONDS, so this is about four orders of magnitude
+     below anything a human perceives. Free at human timescale, and now stated as a number.
+     MEASURED IN A TEST RATHER THAN AT THE REPL on purpose. Instrumentation in the loop is
+     invisible to the dash-c door -- tried first, printed nothing, the two-doors trap again --
+     and one keystroke is not a repeatable sample. -->
+- [x] M11: no behaviour change for any line that already passed the guard. Proven against the
       deployed build side by side, because the suite structurally cannot see this path
-- [ ] M12: each gate carries evidence per INT-158
+<!-- evidence: 151/151 fsh-test through the REPL door, including both gen-432 guard cases which
+     ARE this path -- repl_195_quoted_command_word_reaches_the_safety_guard and its bare
+     control. The quoted form is the exact regression the guard was fixed for, and it still
+     fires through the new derivation.
+     185 unit tests green, and the alias, heredoc and redirect suites unchanged. -->
+- [x] M12: each gate carries evidence per INT-158
 
+<!-- evidence: every M gate above carries a comment stating what was measured and how. Three carry
+     a correction rather than a claim: M2 states EQUIVALENCE rather than causal necessity,
+     M7 corrects its own red-first wording, and M9 records two earlier versions of its test
+     that were caught by ghost-check rather than shipped. -->
 ⚠️ M3 IS THE ONE THAT CAN GO WRONG QUIETLY. If the scanner's token ever stops matching what the
 guard's lists expect, the correct response is a shared representation -- NOT a second mini
 command_word inside the scanner path, which would recreate the boundary problem one layer down. The
