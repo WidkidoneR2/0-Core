@@ -381,23 +381,39 @@ pub fn split_into_commands(buf: &str) -> Vec<String> {
 /// cleanly, so the router CLAIMED it and it never reached this function. The flip was masking a
 /// legacy defect rather than fixing it -- and every command the router DECLINES still comes here.
 fn rfind_unquoted(line: &str, needle: &str) -> Option<usize> {
+    // INT-209: THE SCANNER ANSWERS THIS NOW. The private quote pair here was one of four
+    // machines outside spine/lexer.rs walking a line to ask which regions are quoted, and the
+    // four disagreed about where a quoted region begins and ends.
+    //
+    // THE OFFSET SEMANTICS ARE UNCHANGED, and that is load-bearing: detect_redirect slices on
+    // BOTH sides of the returned index, so this still reports the index of the needle FIRST
+    // BYTE.
+    //
+    // WHAT MOVED IS WHICH BYTE IS ASKED ABOUT. Both needles begin with a SPACE, and whitespace
+    // belongs to no token, so the accessor reports None for it. Asking about the leading space
+    // would find no redirect at all. It asks about the OPERATOR instead, which is the real
+    // question: is this redirect operator quoted. The space before it was a proxy that
+    // happened to agree.
     let bytes = line.as_bytes();
     let n = needle.len();
-    let mut in_single = false;
-    let mut in_double = false;
+    if n == 0 || bytes.len() < n {
+        return None;
+    }
+    let op_offset = needle
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map(|(i, _)| i)
+        .unwrap_or(0);
     let mut found = None;
-    let mut i = 0usize;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\'' if !in_double => in_single = !in_single,
-            b'"' if !in_single => in_double = !in_double,
-            _ => {}
+    for i in 0..=(bytes.len() - n) {
+        if &bytes[i..i + n] != needle.as_bytes() {
+            continue;
         }
-        if !in_single && !in_double && i + n <= bytes.len() && &bytes[i..i + n] == needle.as_bytes()
+        if crate::spine::lexer::quote_context_at(line, i + op_offset)
+            == Some(crate::spine::ast::QuoteContext::Unquoted)
         {
             found = Some(i);
         }
-        i += 1;
     }
     found
 }
@@ -909,5 +925,71 @@ mod heredoc_body_scan_tests {
             is_complete_command(buf).0,
             "the terminator must still close the body"
         );
+    }
+}
+
+/// INT-209: rfind_unquoted now asks the scanner. These cases pin the behaviour the two
+/// implementations must share, and the offset semantics detect_redirect depends on.
+#[cfg(test)]
+mod rfind_unquoted_tests {
+    use super::detect_redirect;
+
+    #[test]
+    fn a_plain_redirect_is_found() {
+        let (cmd, r) = detect_redirect("echo hi > out.txt");
+        assert_eq!(cmd, "echo hi");
+        assert_eq!(r, Some(("out.txt".to_string(), false)));
+    }
+
+    #[test]
+    fn an_append_redirect_is_found_before_the_single() {
+        let (cmd, r) = detect_redirect("echo hi >> out.txt");
+        assert_eq!(cmd, "echo hi");
+        assert_eq!(r, Some(("out.txt".to_string(), true)));
+    }
+
+    /// THE CASE THE QUOTE AWARENESS EXISTS FOR. A redirect character inside quotes is data.
+    #[test]
+    fn a_quoted_redirect_is_not_a_redirect() {
+        let (cmd, r) = detect_redirect("echo \"a > b\"");
+        assert_eq!(r, None, "a quoted angle is data");
+        assert_eq!(cmd, "echo \"a > b\"", "the line comes back untouched");
+    }
+
+    #[test]
+    fn a_single_quoted_redirect_is_not_a_redirect() {
+        let (_, r) = detect_redirect("echo 'a > b'");
+        assert_eq!(r, None);
+    }
+
+    /// THE LAST unquoted match wins, which is what rfind means and what the slice depends on.
+    #[test]
+    fn the_last_unquoted_match_wins() {
+        let (cmd, r) = detect_redirect("echo \"a > b\" > out.txt");
+        assert_eq!(cmd, "echo \"a > b\"", "the quoted angle is skipped");
+        assert_eq!(r, Some(("out.txt".to_string(), false)));
+    }
+
+    /// THE DISCRIMINATING CASE, and it took a ghost-check to find that the one above is not.
+    ///
+    /// `the_last_unquoted_match_wins` passes even with the accessor bypassed, because bypassing it
+    /// accepts every match and keeps the LAST -- which on that input happens to be the real
+    /// redirect. Here the last match is the QUOTED one, so accepting every match returns the wrong
+    /// offset and slices the line in the wrong place.
+    #[test]
+    fn a_quoted_angle_after_a_real_redirect_does_not_win() {
+        let (cmd, r) = detect_redirect("echo out.txt \"a > b\"");
+        assert_eq!(
+            r, None,
+            "the only angle present is quoted, so there is no redirect"
+        );
+        assert_eq!(cmd, "echo out.txt \"a > b\"");
+    }
+
+    /// A comparison is a deliberate divergence, preserved by the digit guard above the search.
+    #[test]
+    fn a_numeric_comparison_is_not_a_redirect() {
+        let (_, r) = detect_redirect("tt | where score > 70");
+        assert_eq!(r, None);
     }
 }
