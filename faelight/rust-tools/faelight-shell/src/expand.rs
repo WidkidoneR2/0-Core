@@ -621,58 +621,62 @@ pub fn parse_parallel_block(input: &str) -> Option<Vec<String>> {
     }
 }
 
+/// INT-209: ONE SEGMENTER, built on the scanner, replacing two byte-for-byte identical copies.
+///
+/// expand_globs and find_unmatched_globs each ran their own quote pair twenty lines apart, with the
+/// same pop-flush-repush dance and different variable names. Two owners of one rule.
+///
+/// RUNS, NOT BYTES, is why the accessor alone was not enough here: both callers hand a whole
+/// unquoted RUN to a matcher, so the shape has to be preserved rather than replaced by per-offset
+/// questions.
+///
+/// THE BOUNDARY RULE IS NOW STATED, and it corrects a comment that described something the code did
+/// not do. The old comment claimed both delimiters land in the quoted segment. Traced: the OPENING
+/// one did, and the CLOSING one landed in the unquoted run that follows it. Under the accessor both
+/// delimiters report Unquoted, so both now sit in an unquoted run -- a change for the opening quote
+/// alone, and invisible to every caller here because a quote character is neither a star nor a
+/// question mark. Recorded rather than absorbed.
+///
+/// A line the scanner cannot finish yields ONE unquoted run covering the whole input, which
+/// preserves the old behaviour for unterminated quotes: the segmenter used to carry the open state
+/// to the end and flush one segment.
+fn quote_runs(line: &str) -> Vec<(bool, String)> {
+    let mut runs: Vec<(bool, String)> = vec![];
+    let mut current = String::new();
+    let mut current_quoted: Option<bool> = None;
+    for (i, ch) in line.char_indices() {
+        let quoted = matches!(
+            crate::spine::lexer::quote_context_at(line, i),
+            Some(crate::spine::ast::QuoteContext::Single)
+                | Some(crate::spine::ast::QuoteContext::Double)
+        );
+        if current_quoted != Some(quoted) {
+            if let Some(prev) = current_quoted {
+                if !current.is_empty() {
+                    runs.push((prev, std::mem::take(&mut current)));
+                }
+            }
+            current_quoted = Some(quoted);
+        }
+        current.push(ch);
+    }
+    if !current.is_empty() {
+        runs.push((current_quoted.unwrap_or(false), current));
+    }
+    runs
+}
+
 pub fn expand_globs(line: &str) -> String {
     // Only expand if line contains * or ? outside of quotes
     if !line.contains('*') && !line.contains('?') {
         return line.to_string();
     }
-    // INT-245 #8: track quote state across the whole line so multi-word quoted
-    // strings (e.g. python3 -c "code with * inside") don't get glob-expanded.
-    // We segment the line into runs of (in_quotes, text) and only expand globs
-    // in unquoted runs.
-    let mut segments: Vec<(bool, String)> = vec![];
-    let mut current = String::new();
-    let mut in_double = false;
-    let mut in_single = false;
-    for ch in line.chars() {
-        let was_in_quote = in_double || in_single;
-        match ch {
-            '"' if !in_single => {
-                in_double = !in_double;
-                current.push(ch);
-            }
-            '\'' if !in_double => {
-                in_single = !in_single;
-                current.push(ch);
-            }
-            _ => current.push(ch),
-        }
-        let now_in_quote = in_double || in_single;
-        // Quote state just changed -- flush the prior segment with its prior quote state
-        if now_in_quote != was_in_quote {
-            // The character we just pushed is the boundary marker. The push includes it
-            // in the segment STARTED by this transition (the new state), so we need to
-            // pop it back if it should belong to the prior segment.
-            // Simpler: at a transition, split AT THIS CHAR. The boundary char (quote)
-            // belongs to the segment with quotes around it. Convention: include the opening
-            // quote in the quoted segment, the closing quote in the quoted segment too.
-            //
-            // Since we already pushed the boundary char to `current`, and it should belong
-            // to the new state's segment, we pop it, push current as old-state, then push
-            // the boundary char into a fresh current with new state.
-            let boundary = current.pop();
-            if !current.is_empty() {
-                segments.push((was_in_quote, std::mem::take(&mut current)));
-            }
-            if let Some(c) = boundary {
-                current.push(c);
-            }
-        }
-    }
-    let final_in_quote = in_double || in_single;
-    if !current.is_empty() {
-        segments.push((final_in_quote, current));
-    }
+    // INT-245 #8: a multi-word quoted string must not be glob-expanded, so the line is split
+    // into runs and only unquoted runs are expanded.
+    //
+    // INT-209: the segmentation is no longer written here. quote_runs asks the scanner, and the
+    // identical copy that used to live in find_unmatched_globs is gone with it.
+    let segments = quote_runs(line);
     let mut out = String::new();
     for (quoted, segment) in &segments {
         if *quoted {
@@ -691,40 +695,12 @@ pub fn expand_globs(line: &str) -> String {
 /// the report matches what expansion actually attempted. Empty vec = all good.
 pub fn find_unmatched_globs(line: &str) -> Vec<String> {
     let mut unmatched: Vec<String> = vec![];
-    // Reuse the same quote-aware segmentation as expand_globs: only inspect
-    // UNQUOTED segments (quoted * is literal and must not be reported).
-    let mut in_double = false;
-    let mut in_single = false;
-    let mut segment = String::new();
-    let mut segments: Vec<(bool, String)> = vec![];
-    for ch in line.chars() {
-        let was = in_double || in_single;
-        match ch {
-            '"' if !in_single => {
-                in_double = !in_double;
-                segment.push(ch);
-            }
-            '\'' if !in_double => {
-                in_single = !in_single;
-                segment.push(ch);
-            }
-            _ => segment.push(ch),
-        }
-        let now = in_double || in_single;
-        if now != was {
-            let b = segment.pop();
-            if !segment.is_empty() {
-                segments.push((was, std::mem::take(&mut segment)));
-            }
-            if let Some(c) = b {
-                segment.push(c);
-            }
-        }
-    }
-    if !segment.is_empty() {
-        segments.push((in_double || in_single, segment));
-    }
-
+    // INT-209: THE SAME SEGMENTER, not a second copy of it. This ran a byte-for-byte identical
+    // quote machine twenty lines below the one in expand_globs -- same pop, same flush, same
+    // trailing push, different variable names. Two owners of one rule, in one file.
+    //
+    // Only UNQUOTED runs are inspected: a quoted star is literal and must not be reported.
+    let segments = quote_runs(line);
     for (quoted, seg) in &segments {
         if *quoted {
             continue;
@@ -991,5 +967,45 @@ mod rfind_unquoted_tests {
     fn a_numeric_comparison_is_not_a_redirect() {
         let (_, r) = detect_redirect("tt | where score > 70");
         assert_eq!(r, None);
+    }
+}
+
+/// INT-209: the glob segmentation behaviour, pinned BEFORE it is consolidated.
+///
+/// expand_globs and find_unmatched_globs run byte-for-byte identical segmenters twenty lines
+/// apart. These cases fix what that shared behaviour is, so the consolidation can be shown to
+/// preserve it rather than asserted to.
+#[cfg(test)]
+mod glob_segmentation_tests {
+    use super::{expand_globs, find_unmatched_globs};
+
+    #[test]
+    fn a_quoted_star_is_literal_and_not_expanded() {
+        let s = "python3 -c \"a * b\"";
+        assert_eq!(expand_globs(s), s, "a star inside quotes is data");
+    }
+
+    #[test]
+    fn a_quoted_star_is_not_reported_unmatched() {
+        assert!(find_unmatched_globs("echo \"zzq*zzq\"").is_empty());
+    }
+
+    /// An unquoted pattern matching nothing comes back unchanged, and IS reported.
+    #[test]
+    fn an_unmatched_unquoted_pattern_is_reported() {
+        let hits = find_unmatched_globs("ls zzq_no_such*");
+        assert_eq!(hits, vec!["zzq_no_such*".to_string()]);
+    }
+
+    #[test]
+    fn an_unmatched_unquoted_pattern_expands_to_itself() {
+        assert_eq!(expand_globs("ls zzq_no_such*"), "ls zzq_no_such*");
+    }
+
+    /// A line with both: the quoted star stays, the unquoted one is judged on its own.
+    #[test]
+    fn a_mixed_line_judges_each_run_separately() {
+        let hits = find_unmatched_globs("echo \"keep*\" zzq_no_such*");
+        assert_eq!(hits, vec!["zzq_no_such*".to_string()]);
     }
 }
