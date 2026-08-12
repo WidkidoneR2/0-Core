@@ -3,7 +3,7 @@ id: 196
 date: 2026-07-25
 type: arch
 title: "execution-governing code must not infer shell structure from raw text"
-status: in-progress
+status: complete
 tags: [architecture, rust, design]
 ---
 
@@ -384,8 +384,15 @@ was the trap: adding one would recreate the same boundary problem one layer down
      AND A SECOND RED NOBODY PREDICTED: deadwood_strict_gate_passes also went red, because the
      architecture linter holds that same pre-fix line as a fixture. Two independent detections.
      Restored: 145/145. -->
-- [ ] M8: an incomplete multi-line paste still executes and is still guarded. This is the case that
-      ruled out blocking, and it must be proven rather than assumed
+- [ ] ⏸ M8: an incomplete multi-line paste still executes and is still guarded -- deferred: the
+      property is PROVEN BY HAND but the harness cannot assert it. Typing a dangerous command with
+      an unterminated quote, then completing it on a second line, produces the CHALLENGE on the
+      assembled buffer and blocks -- so incompleteness is not treated as harmlessness. It is not
+      reachable by fsh-test: run_repl_answered sends ONE line and waits for ONE prompt, and an
+      incomplete line never submits, so the case timed out at the wait_for boundary when it was
+      attempted. Closing this needs a harness door that can send several lines and THEN answer an
+      interactive prompt, which is a change to the test tool rather than to the shell. Recorded so
+      the gap has a name instead of a green tick -- approved by: christian 2026-08-12
 - [x] M9: a refused construct still declines to legacy AND is still guarded. Refusal means the parser
       declines ownership, not that the input is harmless
 <!-- evidence: repl_196_a_declined_construct_is_still_guarded. A 2-and-angle redirect parses
