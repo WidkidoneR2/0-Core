@@ -927,6 +927,17 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
         "expand.rs",
         "safety_guard.rs",
         "db.rs",
+        // ADDED 2026-08-12 ON DEMONSTRATED ESCAPE COVERAGE, not on a feeling that the list was
+        // short. semantic.rs derived its verb with split_whitespace, so the explainer reported a
+        // quoted command word as unknown while the shell treated it as the bare word and challenged
+        // it. A live defect, in a file this check could not see. The nine author exemptions were
+        // being audited at the time and one of them pointed here -- the exemption was the symptom
+        // and the derivation was a layer below it.
+        //
+        // MINIMAL AND AUDITABLE ON PURPOSE. One file, one demonstrated escape. Adding every
+        // execution-adjacent file on suspicion would repeat the mistake the rule itself made when
+        // it was too wide: five findings, zero true positives.
+        "semantic.rs",
     ];
     let mut findings = Vec::new();
     let mut exempted = 0usize;
