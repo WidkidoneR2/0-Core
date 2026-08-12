@@ -111,8 +111,18 @@ impl SemanticIntent {
 
 /// Build a SemanticIntent from raw input -- the core of the three-layer model
 pub fn interpret(input: &str) -> SemanticIntent {
+    // INT-196: THE VERB IS DERIVED THE WAY THE SHELL DERIVES IT. This split on whitespace, so a
+    // quoted command word never matched the vocabulary: `why rm -rf /tmp` reported a destructive
+    // verb at 100% confidence while `why "rm" -rf /tmp` reported the word as unknown, for a line
+    // the shell treats identically and challenges either way. A tool that answers "why does fsh
+    // interpret this" must use the same rule fsh does, or it explains a shell nobody is running.
+    let cmd_word = crate::commands::command_word(input);
     let parts: Vec<&str> = input.split_whitespace().collect();
-    let verb = parts.first().copied().unwrap_or("");
+    let verb = if cmd_word.is_empty() {
+        parts.first().copied().unwrap_or("")
+    } else {
+        cmd_word.as_str()
+    };
     let rest = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
 
     match verb {
@@ -307,8 +317,14 @@ pub struct AmbiguousCommand {
 
 /// Commands known to be ambiguous -- require disambiguation
 pub fn interpret_ambiguous(input: &str) -> Option<AmbiguousCommand> {
+    // INT-196: same rule as interpret above -- two derivations of one question would drift.
+    let cmd_word = crate::commands::command_word(input);
     let parts: Vec<&str> = input.split_whitespace().collect();
-    let verb = parts.first().copied().unwrap_or("");
+    let verb = if cmd_word.is_empty() {
+        parts.first().copied().unwrap_or("")
+    } else {
+        cmd_word.as_str()
+    };
     let rest = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
 
     match verb {

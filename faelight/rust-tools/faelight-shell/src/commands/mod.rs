@@ -13770,9 +13770,21 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
         return CommandResult::Output("  Usage: why <command>\n  Example: why delete".to_string());
     }
     let si = crate::semantic::interpret(input);
-    // deadwood: exempt -- semantic interpretation of user text for explanation; the token feeds
-    // the analysis it prints and is never dispatched
-    let first_word = input.split_whitespace().next().unwrap_or(input);
+    // INT-196: THE EXPLAINER MUST USE THE SHELL RULE, or it explains a shell nobody is running.
+    //
+    // The exemption here said the token is never dispatched, which is true and beside the point.
+    // This tool exists to answer "why does fsh interpret this the way it does", and it was deriving
+    // the word with split_whitespace while the shell derives it quote-aware. Measured on the debug
+    // build: `why rm -rf /tmp` reported a destructive verb at 100% confidence, and
+    // `why "rm" -rf /tmp` reported that the word is not in the forest vocabulary -- for a line the
+    // shell treats identically and challenges either way. The explainer contradicted the shell in
+    // the one place a user goes to find out what the shell will do.
+    let cmd_word = command_word(input);
+    let first_word = if cmd_word.is_empty() {
+        input
+    } else {
+        cmd_word.as_str()
+    };
     let mut out = String::new();
     out.push_str(&format!(
         "\n  {} Why fsh interprets: {}\n",
