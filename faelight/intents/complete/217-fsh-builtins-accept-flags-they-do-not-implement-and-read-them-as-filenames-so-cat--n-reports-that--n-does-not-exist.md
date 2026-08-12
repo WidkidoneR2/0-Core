@@ -3,7 +3,7 @@ id: 217
 date: 2026-08-09
 type: future
 title: "fsh builtins accept flags they do not implement and read them as filenames, so cat -n reports that -n does not exist"
-status: planned
+status: complete
 tags: [fsh, builtins, cat, dispatch]
 ---
 
