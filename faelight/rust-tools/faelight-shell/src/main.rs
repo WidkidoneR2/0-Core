@@ -2438,6 +2438,12 @@ fn repl_main() -> Result<()> {
                 // main.rs:1329, and that is NOT this parse -- it runs later, inside run_input, on
                 // one alias-expanded SEGMENT rather than on the whole raw line.
                 let guard_word = guard_command_word(&line);
+                // INT-196 M6: RECORD WHAT THE UNIVERSAL GUARD JUDGED, so the heredoc site below can
+                // assert it is asking about the SAME string. Reading the control flow says `line` is
+                // not rebound between the two; this makes the shell say so at runtime, under the pty
+                // suite, which is the evidence the gate asks for.
+                let m6_universal_line = line.clone();
+                let m6_universal_word = guard_word.clone();
                 // INT-246: safety_guard -- check BEFORE any execution path
                 if let Some(word) = guard_word.as_deref() {
                     if let Some(warning) = safety_guard::check(&line, word) {
@@ -2491,6 +2497,20 @@ fn repl_main() -> Result<()> {
                     // here -- and that gate stays OPEN deliberately. An attempt to delete it was
                     // reverted once already because both verification probes were unrunnable, and
                     // reading the control flow is not the evidence the gate asks for.
+                    // INT-196 M6: A TRIPWIRE ON A PATH PROVEN UNREACHABLE, kept deliberately.
+                    // Four probes and a static check showed no genuine heredoc reaches here -- the
+                    // multi-line branch above takes them all. These assertions cost nothing in
+                    // release, and if anything ever DOES arrive they fail loudly rather than
+                    // silently guarding a line the universal guard never saw.
+                    debug_assert_eq!(
+                        m6_universal_line, line,
+                        "M6: the heredoc site sees a DIFFERENT line than the universal guard judged"
+                    );
+                    debug_assert_eq!(
+                        m6_universal_word,
+                        guard_command_word(&line),
+                        "M6: the heredoc site derives a DIFFERENT word than the universal guard did"
+                    );
                     if let Some(warning) = guard_command_word(&line)
                         .as_deref()
                         .and_then(|w| safety_guard::check(&line, w))

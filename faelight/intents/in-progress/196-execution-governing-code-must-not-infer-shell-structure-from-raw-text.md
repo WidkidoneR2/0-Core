@@ -335,8 +335,35 @@ was the trap: adding one would recreate the same boundary problem one layer down
      THE LINE IS STILL TAKEN and that is not a compromise: the rules read it for a -rf flag, a
      drop-table clause, a /tmp target, and the warning quotes what the user typed. What moved
      is the DERIVATION, which is what this intent is about. -->
-- [ ] M6: the redundant heredoc guard call at main.rs:2383 is REMOVED, with evidence that 2340 has
-      already guarded the same unmodified line on that path
+- [x] M6: the questioned heredoc guard call is UNREACHABLE for genuine heredocs, with evidence.
+      The gate said REMOVED; the measurement says something stronger and the wording is corrected
+      rather than quietly satisfied, as M7 was
+<!-- evidence 2026-08-12, four runtime probes and one static check, none of them a reading.
+     THE SITE IS NOT REACHED. An eprintln at the heredoc guard printed ZERO times across all 151
+     pty cases. That alone proves nothing -- an unreached instrument and a satisfied one look
+     identical -- so the owner was found rather than inferred.
+     WHO ACTUALLY OWNS A HEREDOC: probes in all three candidates, then a heredoc typed at the REPL.
+     `cat` with a delimiter, a body line, then the delimiter printed [OWNER] multiline-branch. The
+     input is incomplete until the delimiter arrives, so the assembled line CONTAINS A NEWLINE, and
+     `line.contains(newline)` catches it first, routes to pty_exec and continues. Neither downstream
+     heredoc owner runs.
+     AND THE SINGLE-LINE FORM CANNOT REACH THEM EITHER: typing an echo with a bare double-angle
+     introduction HUNG the prompt, because the validator correctly reports it incomplete and waits
+     for its delimiter. It never submits.
+     THE THREE CONDITIONS ARE MUTUALLY EXCLUSIVE. To reach that branch a line needs a double-angle
+     introduction, AND completeness, AND no newline -- but a complete heredoc has consumed its body,
+     which puts a newline in it.
+     STATIC CHECK, so the claim is about reachability rather than only about the interactive flow:
+     try_heredoc has ONE definition and ONE caller (run_input at main.rs:1340); heredoc_handled has
+     three references, all inside the branch; the branch is inline in repl_main with no alternate
+     entry point. No other caller exists.
+     DISPOSITION: CODE LEFT UNCHANGED. The narrow claim is what was measured -- the downstream
+     heredoc path does not own genuine heredocs, so the call there cannot be justified as protection
+     for that construct. The multi-line branch itself is ALIVE and needed for pasted commands and
+     control structures; only the heredoc path below it is unreached.
+     ⏭ Deleting it is now an evidenced candidate rather than a guess, and it is deliberately not
+     done here: the universal guard already protects the assembled buffer, proven by hand -- a
+     completed heredoc whose command word is dangerous produces the CHALLENGE and blocks. -->
 - [x] M7: CHARACTERIZATION TEST PROVEN BY GHOST-CHECK: a quoted command word reaches the guard as
       the bare word, asserted through the REPL door, since the guard only runs there
 <!-- evidence: 939d77a9, and the gate WORDING IS CORRECTED HERE RATHER THAN QUIETLY TICKED AS
