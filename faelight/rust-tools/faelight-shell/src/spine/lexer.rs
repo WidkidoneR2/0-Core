@@ -182,6 +182,56 @@ pub enum LexResult {
 
 /// Scan a source line into spanned word tokens. Whitespace separates words unless quoted;
 /// quote characters are consumed and recorded as segment context.
+/// INT-209: WHICH QUOTE CONTEXT APPLIES AT A BYTE OFFSET.
+///
+/// The scanner already records this per segment. Nothing exposed it at an offset, so four
+/// consumers each walked the line with their own quote pair to ask the same question -- and they
+/// answered it with three different boundary conventions, which is the real cost.
+///
+/// THE CONTRACT, and the middle line is a ruling rather than a consequence:
+///   inside a segment      -> that segment recorded context
+///   a quote DELIMITER     -> Unquoted
+///   an OPERATOR byte      -> Unquoted
+///   whitespace, or past the end -> None
+///
+/// A delimiter occupies a GAP BETWEEN SEGMENTS: the scanner consumes it as syntax and excludes it
+/// from every segment span. It therefore has no quoted-text context, and Unquoted is what the
+/// accessor reports for those syntax bytes. That is NOT a claim that the delimiter was written
+/// unquoted -- conflating lexical context with syntax is the confusion this contract exists to
+/// prevent.
+///
+/// None means the offset is whitespace, an operator, or past the end. A caller asking IS THIS
+/// QUOTED treats None as not quoted; a caller that needs the difference has it.
+///
+/// ⚠️ INCOMPLETE INPUT YIELDS None THROUGHOUT. An unterminated quote means the scanner cannot say
+/// where regions end, and inventing an answer is what this accessor exists to stop.
+///
+/// ⚠️ A COMMAND SUBSTITUTION REGION REPORTS Unquoted, because the scanner does not record the
+/// enclosing context on that variant. Stated rather than silently approximated; no current consumer
+/// asks about an offset inside one.
+pub fn quote_context_at(source: &str, offset: usize) -> Option<QuoteContext> {
+    let tokens = match lex(source) {
+        LexResult::Complete(t) => t,
+        LexResult::Incomplete(_) => return None,
+    };
+    for tok in &tokens {
+        if offset < tok.span.start || offset >= tok.span.end {
+            continue;
+        }
+        for seg in &tok.segments {
+            let (span, context) = match seg {
+                WordSegment::Text { span, context, .. } => (span, *context),
+                WordSegment::CommandSub { span, .. } => (span, QuoteContext::Unquoted),
+            };
+            if offset >= span.start && offset < span.end {
+                return Some(context);
+            }
+        }
+        return Some(QuoteContext::Unquoted);
+    }
+    None
+}
+
 pub fn lex(source: &str) -> LexResult {
     // INT-169 G1: A TRAILING BACKSLASH IS AN EXPLICIT REQUEST TO CONTINUE, and it is checked BEFORE
     // the scan because it is a property of the line's END rather than of any word in it. The
@@ -874,5 +924,77 @@ mod tests {
         let toks = lex("echo \"héllo 中\"").expect_complete("lexes");
         assert_eq!(toks.len(), 2);
         assert_eq!(toks[1].text, "héllo 中");
+    }
+}
+
+/// INT-209: THE ACCESSOR CONTRACT, asserted at the boundaries rather than in the middle.
+///
+/// The interesting offsets are the quote delimiters, because they belong to the word span and to
+/// NO segment. Four consumers each answered that byte differently before this existed.
+#[cfg(test)]
+mod quote_context_at_tests {
+    use super::{quote_context_at, QuoteContext};
+
+    /// `echo "ab"` -- offsets 5 through 8 are the opening quote, a, b, closing quote.
+    #[test]
+    fn a_double_quoted_word_reports_its_boundaries() {
+        let s = "echo \"ab\"";
+        assert_eq!(
+            quote_context_at(s, 0),
+            Some(QuoteContext::Unquoted),
+            "e of echo"
+        );
+        assert_eq!(quote_context_at(s, 4), None, "the space between words");
+        assert_eq!(
+            quote_context_at(s, 5),
+            Some(QuoteContext::Unquoted),
+            "THE OPENING DELIMITER: syntax, in no segment, reported Unquoted by ruling"
+        );
+        assert_eq!(quote_context_at(s, 6), Some(QuoteContext::Double), "a");
+        assert_eq!(quote_context_at(s, 7), Some(QuoteContext::Double), "b");
+        assert_eq!(
+            quote_context_at(s, 8),
+            Some(QuoteContext::Unquoted),
+            "THE CLOSING DELIMITER: same ruling"
+        );
+        assert_eq!(quote_context_at(s, 9), None, "past the end");
+    }
+
+    #[test]
+    fn a_single_quoted_word_reports_single() {
+        let s = "echo 'ab'";
+        assert_eq!(quote_context_at(s, 6), Some(QuoteContext::Single));
+        assert_eq!(quote_context_at(s, 5), Some(QuoteContext::Unquoted));
+    }
+
+    /// A word with quoted and unquoted parts -- the case a single flag cannot express.
+    #[test]
+    fn a_mixed_word_reports_per_region() {
+        let s = "a\"b\"c";
+        assert_eq!(quote_context_at(s, 0), Some(QuoteContext::Unquoted), "a");
+        assert_eq!(quote_context_at(s, 2), Some(QuoteContext::Double), "b");
+        assert_eq!(quote_context_at(s, 4), Some(QuoteContext::Unquoted), "c");
+    }
+
+    /// INCOMPLETE INPUT YIELDS None THROUGHOUT. The scanner cannot say where regions end, and
+    /// inventing an answer is what this accessor exists to stop.
+    #[test]
+    fn an_unterminated_quote_yields_none() {
+        assert_eq!(quote_context_at("echo \"ab", 6), None);
+    }
+
+    /// MEASURED, not assumed. An operator is a token WITH a span and NO segments, so it reports
+    /// Unquoted through the same path a quote delimiter does. Whitespace belongs to no token at all
+    /// and reports None. The first version of this case asserted None for both and was wrong about
+    /// the operator; the probe corrected it rather than the test being edited to match.
+    #[test]
+    fn whitespace_is_outside_every_word_but_an_operator_is_unquoted_syntax() {
+        let s = "a | b";
+        assert_eq!(quote_context_at(s, 1), None, "space: no token owns it");
+        assert_eq!(
+            quote_context_at(s, 2),
+            Some(QuoteContext::Unquoted),
+            "an operator is a token with no segments -- unquoted syntax, not outside the line"
+        );
     }
 }
