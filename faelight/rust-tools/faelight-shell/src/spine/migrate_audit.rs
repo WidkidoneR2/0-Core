@@ -176,18 +176,26 @@ impl MigrationAudit {
         // recover one. The four outcomes say different things about the gap, and lumping them lost
         // that: an unterminated quote is INCOMPLETE INPUT, not a spine parse failure, and 39 of them
         // were being counted against the shell as though the spine could not parse valid syntax.
+        // INT-196 follow-on: THE STAGE IS PART OF THE KEY, not something the renderer infers from
+        // the text. One bucket was answering two questions -- parse-stage outcomes recorded here and
+        // lowering declines recorded in observe() -- and the shared header called all of them
+        // "Declined by construct". For 62 of the 116 that was flatly wrong: an unterminated quote is
+        // UNFINISHED INPUT, which the correction above this function already states and the display
+        // then contradicted.
         let reason = match why {
             R::Refused(Ref::ComparisonNotRedirect { .. }) => {
-                "comparison, not a redirect (> 0.5) -- deliberate divergence".to_string()
+                "refused: comparison, not a redirect (> 0.5) -- deliberate divergence".to_string()
             }
             R::Refused(Ref::FdRedirect { .. }) => {
-                "redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
+                "refused: redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
             }
-            R::Refused(Ref::UnsupportedOperator { kind, .. }) => format!("operator {kind:?}"),
+            R::Refused(Ref::UnsupportedOperator { kind, .. }) => {
+                format!("refused: operator {kind:?}")
+            }
             R::Invalid(E::MissingRedirectTarget { kind, .. }) => {
-                format!("redirect with no target ({kind:?})")
+                format!("invalid: redirect with no target ({kind:?})")
             }
-            R::Invalid(E::NoCommand) => "empty".to_string(),
+            R::Invalid(E::NoCommand) => "invalid: empty".to_string(),
             R::Invalid(e) => format!("invalid: {e:?}"),
             R::Incomplete(i) => match i.kind {
                 K::UnterminatedQuote => "incomplete: quote not closed".to_string(),
@@ -320,7 +328,7 @@ impl MigrationReport {
         }
         if self.spine_parse_error > 0 {
             out.push_str(&format!(
-                "Spine parse error: {}  (legacy accepted these)\n",
+                "No spine plan: {}  (see the stage breakdown below -- most are unfinished input)\n",
                 self.spine_parse_error
             ));
         }
@@ -333,13 +341,46 @@ impl MigrationReport {
         // ★ THE BUILD ORDER, from six months of real history. A bare decline total says how
         // much work remains; this says WHICH work, sorted by what actually gets typed.
         if !self.declined_by_reason.is_empty() {
-            out.push_str("Declined by construct:\n");
+            // THREE STAGES, THREE HEADERS. One block headed "Declined by construct" covered all of
+            // them, and for the incomplete rows that was flatly wrong: an unterminated quote is
+            // UNFINISHED INPUT, not a decline, which the comment on spine_parse_error already says
+            // and this display then contradicted. The stage now lives in the key, recorded where the
+            // fact is known, so this only groups what it was told.
             let mut rows: Vec<_> = self.declined_by_reason.iter().collect();
             rows.sort_by(|a, b| b.1.cmp(a.1));
-            for (reason, count) in rows {
-                out.push_str(&format!("  {count:>7}  {reason}\n"));
-            }
-            out.push('\n');
+            let group = |title: &str, prefix: &str, out: &mut String| {
+                let hits: Vec<_> = rows.iter().filter(|(r, _)| r.starts_with(prefix)).collect();
+                if hits.is_empty() {
+                    return;
+                }
+                let total: usize = hits.iter().map(|(_, c)| **c).sum();
+                out.push_str(&format!("{title} ({total}):\n"));
+                for (reason, count) in hits {
+                    let shown = reason.strip_prefix(prefix).unwrap_or(reason);
+                    out.push_str(&format!("  {count:>7}  {shown}\n"));
+                }
+                out.push('\n');
+            };
+            group(
+                "Unfinished input -- the line was never completed, so nothing was refused",
+                "incomplete: ",
+                &mut out,
+            );
+            group(
+                "Refused at parse -- valid shell the spine does not own; legacy runs it",
+                "refused: ",
+                &mut out,
+            );
+            group(
+                "Malformed -- the parser located a real syntax error",
+                "invalid: ",
+                &mut out,
+            );
+            group(
+                "Declined at lowering -- parsed cleanly, not lowerable",
+                "unlowerable: ",
+                &mut out,
+            );
         }
         out.push('\n');
 
@@ -371,10 +412,7 @@ impl MigrationReport {
             "Unexpected examples (INVESTIGATE):",
             &self.unexpected_examples,
         );
-        section(
-            "Spine parse-error examples:",
-            &self.spine_parse_error_examples,
-        );
+        section("No-spine-plan examples:", &self.spine_parse_error_examples);
 
         // A single boolean throws away the context this audit exists to produce. Report the
         // evidence and a recommendation; leave the decision to informed judgement.
@@ -393,7 +431,7 @@ impl MigrationReport {
         out.push_str(&format!("Unexpected differences:  {}\n", self.unexpected));
         if self.spine_parse_error > 0 {
             out.push_str(&format!(
-                "Rows the spine could not parse: {} (outside the comparison domain -- not a\n  language gap; legacy accepted them)\n",
+                "Rows with no spine plan: {} (outside the comparison domain -- not a language\n  gap. The stage breakdown above splits them: unfinished input, deliberate refusals,\n  and genuinely malformed lines are three different facts)\n",
                 self.spine_parse_error
             ));
         }
