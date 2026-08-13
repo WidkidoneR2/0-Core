@@ -3,7 +3,7 @@ id: 203
 date: 2026-08-05
 type: future
 title: "fsh brace-expands heredoc bodies, silently corrupting pasted text under a quoted delimiter"
-status: in-progress
+status: complete
 tags: [fsh, heredoc, delimiter, shell]
 ---
 
