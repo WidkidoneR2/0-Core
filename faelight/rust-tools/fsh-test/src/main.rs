@@ -1852,6 +1852,21 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_203_a_heredoc_body_is_not_brace_expanded",
+        Category::Heredoc,
+        || {
+            // INT-203 gate 4. A quoted delimiter means the body is DATA. Bracketed paste delivers
+            // the whole construct as ONE line, so brace expansion saw the body and ate any range
+            // in it -- proven expanding before this fix.
+            let out =
+                repl::run_repl_lines(&["cat << 'EOF'\nfor i in {a..c}; do echo $i; done\nEOF"])?;
+            if !out.join("|").contains("{a..c}") {
+                return Err(format!("heredoc body was brace-expanded: {out:?}"));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
         "repl_203_a_quoted_brace_range_is_not_expanded",
         Category::Repl,
         || {

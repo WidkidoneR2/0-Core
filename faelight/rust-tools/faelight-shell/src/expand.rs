@@ -117,15 +117,28 @@ pub fn count_keyword_starts(s: &str, kw: &str) -> usize {
 /// the body does not expand, which the scanner has to report and a future executor has to honour.
 /// Same shape as the audit's Difference: the answer was already known and the type would not say it.
 pub fn find_heredoc_intro(s: &str) -> Option<(String, bool)> {
-    find_heredoc_intro_inner(s)
+    find_heredoc_intro_inner(s).map(|(_, d, q)| (d, q))
+}
+
+/// INT-203 gate 4: the byte offset of the heredoc OPERATOR, for callers that must stop processing
+/// there. Deliberately narrow, and deliberately not called a body offset.
+pub fn find_heredoc_operator_offset(s: &str) -> Option<usize> {
+    find_heredoc_intro_inner(s).map(|(offset, _, _)| offset)
 }
 
 /// Name only. Kept so its three existing callers are untouched by G1.
 pub fn find_heredoc_delimiter(s: &str) -> Option<String> {
-    find_heredoc_intro_inner(s).map(|(d, _)| d)
+    find_heredoc_intro_inner(s).map(|(_, d, _)| d)
 }
 
-fn find_heredoc_intro_inner(s: &str) -> Option<(String, bool)> {
+/// INT-203 gate 4: the OPERATOR OFFSET is now returned rather than discarded.
+///
+/// This function already walks the line with quote state and already holds the operator position
+/// when it recognises one. It threw that position away, and the note below about a stage that had
+/// the answer and did not ask applied to its own caller as much as to itself.
+///
+/// The offset is the operator, NOT a body start. Nothing here infers where a body begins or ends.
+fn find_heredoc_intro_inner(s: &str) -> Option<(usize, String, bool)> {
     let bytes = s.as_bytes();
     let mut i = 0;
     // INT-196: QUOTE STATE, because a doubled angle bracket INSIDE QUOTES IS DATA, not a heredoc
@@ -186,7 +199,7 @@ fn find_heredoc_intro_inner(s: &str) -> Option<(String, bool)> {
             }
             if j > start {
                 let delim = std::str::from_utf8(&bytes[start..j]).ok()?.to_string();
-                return Some((delim, quote.is_some()));
+                return Some((i, delim, quote.is_some()));
             }
             i = j;
         } else {
@@ -1064,14 +1077,32 @@ pub fn expand_braces(s: &str) -> String {
             }
         }
     }
+    // INT-203 gate 4: NOTHING FROM THE HEREDOC OPERATOR ONWARD IS EXPANDED.
+    //
+    // Bracketed paste delivers a whole heredoc as ONE line, so a body containing a range was
+    // expanded and a quoted delimiter could not protect it -- the delimiter was never consulted.
+    // The recogniser is asked where the operator is and everything from there is left alone.
+    //
+    // THE OFFSET IS THE OPERATOR, not a body start. Nothing here infers where a body begins or
+    // ends, which is what would drag this into parsing the construct.
+    //
+    // ⚠️ DELIBERATE OVER-SUPPRESSION, recorded rather than silently solved. A second command AFTER
+    // the body ends, on the same pasted buffer, also stops expanding. Fixing that requires knowing
+    // where the body terminates, which means the delimiter line -- a materially larger change that
+    // would recreate exactly the raw-text inference INT-196 exists to remove.
+    let (head, tail) = match find_heredoc_operator_offset(s) {
+        Some(at) => (&s[..at], &s[at..]),
+        None => (s, ""),
+    };
     let mut out = String::new();
-    for (quoted, run) in quote_runs(s) {
+    for (quoted, run) in quote_runs(head) {
         if quoted {
             out.push_str(&run);
         } else {
             out.push_str(&expand_braces_in_run(&run));
         }
     }
+    out.push_str(tail);
     out
 }
 
