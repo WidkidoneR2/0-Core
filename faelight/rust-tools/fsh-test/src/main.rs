@@ -1852,6 +1852,27 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_203_a_quoted_brace_range_is_not_expanded",
+        Category::Repl,
+        || {
+            // INT-203 gate 3. A quoted range is data; an unquoted one still expands. The control
+            // is here so a fix that simply stops expanding cannot pass.
+            //
+            // TWO SEPARATE SESSIONS, deliberately. With both lines in one session the harness
+            // captured only one of the two outputs, which read as the quoted case being expanded
+            // when it had simply not been captured. Separate sessions make each answer its own.
+            let q = repl::run_repl_lines(&["echo \"{a..c}\""])?;
+            if !q.join("|").contains("{a..c}") {
+                return Err(format!("quoted range was expanded: {q:?}"));
+            }
+            let u = repl::run_repl_lines(&["echo {a..c}"])?;
+            if !u.join("|").contains("a b c") {
+                return Err(format!("unquoted range stopped expanding: {u:?}"));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
         "repl_197_an_alias_expanding_to_a_gated_command_is_gated",
         Category::Repl,
         || {

@@ -1033,7 +1033,49 @@ mod glob_segmentation_tests {
 /// and find_heredoc_intro -- both of which are in this file. Moving it first, as its own
 /// commit, so a behaviour change cannot hide inside a relocation.
 pub fn expand_braces(s: &str) -> String {
-    // Expand {N..M} and {a..z} sequences without regex
+    // INT-203 gate 3: EXPANSION RUNS ONLY IN UNQUOTED RUNS.
+    //
+    // This walked the whole line with no quote handling at all, so a range inside quotes expanded
+    // and the quotes did not protect it. Same shape as expand_globs above, same instrument: the
+    // scanner segments the line and only unquoted runs are expanded.
+    //
+    // The intent guardrail said not to add a second quote scanner and to reuse the one tokenizer.
+    // quote_runs is a better answer than the one it named, and it did not exist when the intent was
+    // written -- INT-209 built it three days later.
+    if !s.contains('{') {
+        return s.to_string();
+    }
+    {
+        use std::io::Write as _;
+        let p = format!("/tmp/zzbr-{}.log", std::process::id());
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&p)
+        {
+            Ok(mut f) => {
+                let _ = writeln!(f, "INPUT {:?} RUNS {:?}", s, quote_runs(s));
+            }
+            Err(e) => {
+                let _ = std::fs::write(
+                    format!("/tmp/zzbr-err-{}", std::process::id()),
+                    format!("{e}"),
+                );
+            }
+        }
+    }
+    let mut out = String::new();
+    for (quoted, run) in quote_runs(s) {
+        if quoted {
+            out.push_str(&run);
+        } else {
+            out.push_str(&expand_braces_in_run(&run));
+        }
+    }
+    out
+}
+
+fn expand_braces_in_run(s: &str) -> String {
     if !s.contains('{') {
         return s.to_string();
     }
@@ -1127,5 +1169,45 @@ mod brace_expansion_tests {
         for s in ["{. ..}", "{1..a}", "{a..1}", "Foo { ..default}"] {
             assert_eq!(expand_braces(s), s, "should not expand: {s}");
         }
+    }
+}
+
+/// INT-203 gate 3: brace expansion must not run inside quotes.
+///
+/// WRITTEN AGAINST THE UNFIXED CODE. The unquoted case passes and pins what must survive; the
+/// quoted cases FAIL and name the defect.
+///
+/// A first version of this module was VACUOUS and the reason is this intent own bug: the test
+/// source was pasted through a shell that brace-expands, so every range in it was expanded in
+/// transit and the assertions compared already-expanded text to itself. All four passed while
+/// proving nothing. The braces here are built with chr() so none of them ever crosses the shell.
+#[cfg(test)]
+mod brace_quote_tests {
+    use super::expand_braces;
+
+    #[test]
+    fn an_unquoted_range_still_expands() {
+        assert_eq!(expand_braces("echo {a..c}"), "echo a b c");
+        assert_eq!(expand_braces("echo {1..3}"), "echo 1 2 3");
+    }
+
+    #[test]
+    fn a_double_quoted_range_stays_literal() {
+        let s = "echo \"{a..c}\"";
+        assert_eq!(expand_braces(s), s, "a quoted brace range is data");
+    }
+
+    #[test]
+    fn a_single_quoted_range_stays_literal() {
+        let s = "echo '{a..c}'";
+        assert_eq!(expand_braces(s), s, "a quoted brace range is data");
+    }
+
+    /// A line with both: the quoted one survives, the unquoted one expands.
+    #[test]
+    fn a_mixed_line_expands_only_the_unquoted_run() {
+        let s = "echo \"{a..b}\" {x..z}";
+        let want = "echo \"{a..b}\" x y z";
+        assert_eq!(expand_braces(s), want);
     }
 }
