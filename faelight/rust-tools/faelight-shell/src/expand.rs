@@ -41,6 +41,22 @@ pub fn glob_match(pattern: &str, name: &str) -> bool {
     pi == p.len()
 }
 
+/// INT-209 DISPOSITION: ASSIGNED TO INT-169, DELIBERATELY NOT MIGRATED HERE.
+///
+/// This is the fourth quote machine INT-210 counted, and it is the one INT-209 does not own. The
+/// distinction is between a helper having a quote-related IMPLEMENTATION and this intent owning the
+/// BEHAVIOUR that requires it. Here the second is false.
+///
+/// It has exactly ONE caller, inside is_complete_command, serving the control-structure keyword
+/// balance check. is_complete_command was routed to INT-169 by INT-210 -- three owners of one rule,
+/// and quote-shaped only incidentally -- and INT-169 intends to REPLACE that completion logic with
+/// the scanner reporting continuation, not to refactor its current implementation.
+///
+/// So migrating this now would rebuild a helper for a function another intent expects to delete.
+/// Same reasoning that deferred INT-216: technically correct, wrong engineering investment.
+///
+/// ⏭ WHEN INT-169 ABSORBS is_complete_command, this goes with it. Until then it stays as written,
+/// with its own escape handling, which no other consumer needs.
 pub fn strip_quoted_regions(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_s = false;

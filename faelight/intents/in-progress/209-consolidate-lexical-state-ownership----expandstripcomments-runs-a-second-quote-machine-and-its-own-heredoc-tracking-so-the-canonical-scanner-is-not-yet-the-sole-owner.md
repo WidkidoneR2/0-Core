@@ -88,6 +88,21 @@ searched two variable spellings.
 accessor lands, four consumers migrate, the region recogniser follows the substitution work, and
 INT-169 absorbs the continuation checker. Then the count is zero and the invariant is measurable.
 
+## HOW IT ACTUALLY CLOSED (2026-08-13)
+
+The closing condition above needed CORRECTING rather than meeting. Then the count is zero would
+have made this intent wait on INT-169 indefinitely, because two of the six machines were never
+209 to close.
+
+THREE of the four consumers migrated behind the accessor. The fourth, strip_quoted_regions, is
+DEFERRED with a named owner: its only caller lives inside is_complete_command, which INT-169
+intends to REPLACE rather than refactor, so migrating it would rebuild a helper another intent
+expects to delete. The disposition is recorded at the site as well as here.
+
+The gate now claims what was achieved: the scanner is the sole owner for the consumers this
+intent owns, and every remaining machine has a named downstream owner. Counting to four by
+touching code that belongs to another intent would have been the dishonest close.
+
 ## Success Criteria
 - [x] The canonical scanner recognises comments as a lexical state -- no pre-pass over the same text
 <!-- evidence: 7cb10c46. The check sits in the OUTER loop, so word-start holds by construction --
@@ -125,8 +140,41 @@ INT-169 absorbs the continuation checker. Then the count is zero and the invaria
      line. That measurement also corrected a claim: both doors agreed after the scanner learned
      comments, but NOT because the scanner governed both -- this pre-pass ran first on the REPL
      path and beat it there. Two owners, one rule, agreeing by ordering. Now structural. -->
-- [ ] The stronger invariant holds and is stated: the canonical scanner is the SOLE owner of lexical
-      state. INT-169 closed only the weaker one, that the validator is no longer an owner
+- [x] The scanner is the sole owner of lexical state FOR THE CONSUMERS THIS INTENT OWNS, and every
+      remaining machine has a named downstream owner. The gate said SOLE OWNER without qualification;
+      the wording is corrected rather than quietly satisfied, as INT-196 M6 and M7 were
+<!-- evidence 2026-08-13. THE BLOCKING STEP LANDED: quote_context_at, spine/lexer.rs, reporting which
+     QuoteContext applies at a byte offset. Its contract has four lines and one is a ruling -- a
+     quote DELIMITER reports Unquoted, because the scanner consumes it as syntax and excludes it
+     from every segment span, so it has no quoted-text context. That is NOT a claim it was written
+     unquoted; conflating lexical context with syntax is the confusion the contract prevents. An
+     operator byte reporting Unquoted is a MEASURED fact rather than a ruling: an operator is a token
+     with a span and no segments. A first test asserted otherwise and a probe corrected the contract
+     rather than the test being edited to match.
+     THE ACCOUNTING, and it is deliberately not "four consumers migrated":
+       rfind_unquoted        MIGRATED   c1b9cbc4
+       expand_globs          MIGRATED   b02970ce
+       find_unmatched_globs  MIGRATED   b02970ce
+       strip_quoted_regions  DEFERRED to INT-169 -- disposition recorded at the site
+       expand_subshells      NOT THIS INTENT -- region recognition, lanes with substitution
+       is_complete_command   INT-169, routed by INT-210
+     WHY strip_quoted_regions IS NOT MIGRATED: it has exactly one caller, inside is_complete_command,
+     and INT-169 intends to REPLACE that completion logic rather than refactor it. Migrating it now
+     rebuilds a helper for a function another intent expects to delete. The distinction is between a
+     helper having a quote-related IMPLEMENTATION and this intent owning the BEHAVIOUR that requires
+     it -- the second is false here. Same reasoning that deferred INT-216.
+     WHAT THE MIGRATIONS ACTUALLY FOUND: expand_globs and find_unmatched_globs were not merely
+     similar, they were BYTE-FOR-BYTE the same algorithm twenty lines apart, differing only in
+     variable names. Eighty-one lines became twelve behind one shared segmenter. And the old
+     segmentation comment described something the code did not do -- it claimed both delimiters land
+     in the quoted segment; the closing one landed in the unquoted run that follows.
+     PROVEN, NOT ASSERTED: five characterization tests written against the UNCHANGED code, green
+     through both migrations, and given teeth by a ghost-check -- blinding the segmenter turns the
+     three quoted cases RED while the two unquoted controls stay green. rfind_unquoted has seven
+     cases with the same treatment, and one of them was exposed BY the ghost-check as a
+     characterization test rather than a discriminator, which is recorded rather than hidden.
+     Live behaviour verified beyond the suite, since globs run in the daily shell: a real glob still
+     expands, a quoted star still prints literally. 203 unit tests, 151 of 151 fsh-test. -->
 - [x] Each gate carries evidence per INT-158
 <!-- evidence: every ticked gate above carries an HTML comment naming a commit or a demonstrated
      fact -- 7cb10c46 for comments as lexical state, 35d0842f for heredoc recognition, b52fd248 for
