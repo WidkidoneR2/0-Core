@@ -7,9 +7,27 @@ status: planned
 tags: [fsh-test, harness, pty, int-196, int-197]
 ---
 
+## CORRECTED 2026-08-12, SAME DAY IT WAS FILED. THE PREMISE WAS WRONG.
+
+THE HARNESS WORKS. run_repl_answered_after drives a two-line answered session in 999ms, and the
+INT-197 gate-6 case it was built for is green and ghost-checked. Every symptom this intent was filed
+about came from ONE cause, and it was mine.
+
+PIPING A LONG-RUNNING SUITE THROUGH head OR grep KILLS IT PARTWAY. Closing the pipe gives fsh-test a
+broken-pipe panic, so the run stops early -- and a killed run is INDISTINGUISHABLE from a completed
+one that found nothing.
+
+That single mistake produced FOUR wrong conclusions in one session: a case that appeared to time
+out, a trace that appeared to print nothing, log files that appeared not to exist, and a ghost-check
+that appeared not to discriminate. Redirecting to a file resolved all four at once.
+
+THE INTENT IS REWRITTEN RATHER THAN DELETED because the finding underneath is real and cost an hour.
+The original text is kept below per INT-027.
+
 ## Vision
-A behaviour proven by hand can be asserted by the suite. Interactive behaviour that needs setup
-before the line under test is expressible, rather than being the one shape the harness cannot reach.
+A measurement of the suite cannot silently truncate. Either the harness survives a closed pipe, or
+it says loudly that it was cut short -- because the failure mode is not a wrong answer, it is a
+CONFIDENT answer from an incomplete run.
 
 ## The Problem
 TWO GATES IN TWO INTENTS ARE BLOCKED ON THIS, and in both the shell is correct and the harness
@@ -41,7 +59,7 @@ the harness -- one used a semicolon and was testing the documented compound-line
 of the alias fix, and the corrected two-line version still timed out. A third adjustment would be
 fitting the test to the tool rather than fixing the tool.
 
-## Evidence (measured 2026-08-13)
+## Evidence (measured 2026-08-12)
 - INT-197 gate 6: `alias zzq197=mkfs.zzz` then `zzq197` gates correctly when piped by hand --
   alias confirmation, CHALLENGE, blocked. Through the pty the same two lines TIME OUT at 20.9s.
 - A trace at the submit loop printed NOTHING under FSH_TEST_TRACE, with the site present in source
@@ -58,6 +76,29 @@ fitting the test to the tool rather than fixing the tool.
 - Native heredoc execution, or anything about the shell. The shell is correct in both blocked cases.
 
 ## Success Criteria
+- [ ] G1: A TRUNCATED RUN IS DISTINGUISHABLE FROM A COMPLETE ONE. Reproduced first: pipe the suite
+      through head, observe that it reports passing cases and stops, and that nothing in the output
+      says it was cut short
+- [ ] G2: BOTH MECHANISMS, WITH A DIVISION OF RESPONSIBILITY, because they solve different halves:
+      SIGPIPE and EPIPE handling is the CORRECTNESS mechanism -- a closed stdout consumer must be
+      classified as truncation and exit with a distinct, documented status. Writing the result line
+      to stderr is the OBSERVABILITY mechanism -- it makes completion visible through a stdout
+      filter, and it does NOT make truncation safe. Stderr alone cannot fix the head case, because
+      the process is already dead by the time the line would be written
+- [ ] G2b: the exit status is chosen from whatever vocabulary fsh-test already has, and DOCUMENTED.
+      The property that matters is distinct and testable, not a particular number -- 141 is
+      conventional for SIGPIPE and is not automatically the right answer here
+- [ ] G3: PROVEN across FOUR shapes, because the point is that they stay distinguishable:
+      redirected to a file -> complete, success, normal result ·
+      piped to grep -> complete, result still visible on stderr ·
+      piped to head -> explicitly TRUNCATED, distinct status ·
+      a genuinely failing complete run -> ordinary failure, never confused with truncation
+- [ ] G4: the 152 cases stay green and the timing is unchanged -- a signal that costs the suite
+      seconds is not worth having
+- [ ] G5: each gate carries evidence per INT-158
+
+## SUPERSEDED GATES, kept per INT-027. These asked about a harness fault that does not exist.
+<!--
 - [ ] G1: AN INSTRUMENT FIRES INSIDE THE SUBMIT LOOP. Until a trace at that site produces output,
       nothing else here is measurable -- this is the smaller, better-defined question and answering
       it makes the timeout answerable
@@ -75,6 +116,7 @@ fitting the test to the tool rather than fixing the tool.
 - [ ] G8: the 151 existing cases stay green, and the timing is compared before and after -- a change
       to the shared session protocol touches every case in the suite
 - [ ] G9: each gate carries evidence per INT-158
+-->
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit

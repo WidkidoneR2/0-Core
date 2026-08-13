@@ -88,7 +88,7 @@ searched two variable spellings.
 accessor lands, four consumers migrate, the region recogniser follows the substitution work, and
 INT-169 absorbs the continuation checker. Then the count is zero and the invariant is measurable.
 
-## HOW IT ACTUALLY CLOSED (2026-08-13)
+## HOW IT ACTUALLY CLOSED (2026-08-12)
 
 The closing condition above needed CORRECTING rather than meeting. Then the count is zero would
 have made this intent wait on INT-169 indefinitely, because two of the six machines were never
@@ -143,7 +143,7 @@ touching code that belongs to another intent would have been the dishonest close
 - [x] The scanner is the sole owner of lexical state FOR THE CONSUMERS THIS INTENT OWNS, and every
       remaining machine has a named downstream owner. The gate said SOLE OWNER without qualification;
       the wording is corrected rather than quietly satisfied, as INT-196 M6 and M7 were
-<!-- evidence 2026-08-13. THE BLOCKING STEP LANDED: quote_context_at, spine/lexer.rs, reporting which
+<!-- evidence 2026-08-12. THE BLOCKING STEP LANDED: quote_context_at, spine/lexer.rs, reporting which
      QuoteContext applies at a byte offset. Its contract has four lines and one is a ruling -- a
      quote DELIMITER reports Unquoted, because the scanner consumes it as syntax and excludes it
      from every segment span, so it has no quoted-text context. That is NOT a claim it was written

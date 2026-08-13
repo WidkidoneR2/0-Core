@@ -52,7 +52,7 @@ Which representation should the gate evaluate?
     since the plan is precisely "what will run" in structured form.
 Choosing among these is the intent. Do not open by moving the call.
 
-## THE RULING (2026-08-13)
+## THE RULING (2026-08-12)
 
 POST-EXPANSION REPRESENTATION. The gate evaluates the alias-expanded segment, and the executable
 identity is NORMALIZED ONCE at the policy boundary. The three lists stay bare-name, because by the
@@ -127,7 +127,7 @@ three rows, because normalization happens once rather than per list.
 - [x] The gate behaviour is covered by a REPL test, since this is interactive behaviour
       and the dash-c door does not reach fsh own dispatch at all
 <!-- ⏸ BLOCKED ON THE HARNESS, and deliberately NOT ticked. State, precisely:
-     CORRECTED 2026-08-13, AFTER this note was written. The gate IS covered by a REPL test:
+     CORRECTED 2026-08-12, AFTER this note was written. The gate IS covered by a REPL test:
      repl_197_an_alias_expanding_to_a_gated_command_is_gated, 152 of 152, two lines through
      run_repl_answered_after -- alias defined on one line, invoked on the next.
      GHOST-CHECKED: reverting the guard to judge the TYPED line turns that case RED at the wait_for
