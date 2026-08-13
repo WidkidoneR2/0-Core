@@ -3,7 +3,7 @@ id: 197
 date: 2026-07-25
 type: arch
 title: "the safety gate evaluates the typed command, not the command that will run"
-status: in-progress
+status: complete
 tags: [architecture, rust, design]
 ---
 
