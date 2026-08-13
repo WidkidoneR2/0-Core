@@ -212,6 +212,30 @@ pub fn run_repl_answered(cmd: &str, needle: &str, reply: &str) -> Result<Vec<Str
     run_session(&[cmd], &[], Some((needle, reply))).map(|(lines, _)| lines)
 }
 
+/// Submit SETUP LINES, then one line expected to hit the guard, and answer its prompt.
+///
+/// INT-197: the single-command limit above existed because the answer applied to every line. It
+/// applies to the LAST line now, so setup can precede the line under test -- an alias defined on
+/// one line and invoked on the next, which is the only way to test the alias gate through the REPL
+/// door, since a semicolon puts the invocation in a segment the guard does not expand.
+/// ⚠️ NO CALLER YET, and that is recorded rather than hidden. The case this was built for --
+/// INT-197 gate 6, an alias defined on one line and invoked on the next -- times out in the pty
+/// even though the same two lines gate correctly when piped to the shell by hand. The harness
+/// problem is unresolved and named in INT-197; this door is kept because the change beneath it,
+/// applying the answer to the LAST line rather than every line, corrects a real limitation that the
+/// single-command door above documents.
+#[allow(dead_code)]
+pub fn run_repl_answered_after(
+    setup: &[&str],
+    cmd: &str,
+    needle: &str,
+    reply: &str,
+) -> Result<Vec<String>, String> {
+    let mut all: Vec<&str> = setup.to_vec();
+    all.push(cmd);
+    run_session(&all, &[], Some((needle, reply))).map(|(lines, _)| lines)
+}
+
 /// THE ONE OWNER OF THE SESSION PROTOCOL: spawn, reader thread, submit, capture, teardown.
 ///
 /// `answer` exists for exactly ONE situation, and it is a genuine state transition rather than a
@@ -304,7 +328,18 @@ fn run_session(
     // The limit is generous deliberately: some cases run a literal `sleep 2`. The win is that a
     // fast command returns in milliseconds instead of always paying 1200ms -- not that slow
     // commands get cut short.
-    for cmd in cmds {
+    for (idx, cmd) in cmds.iter().enumerate() {
+        // INT-197: THE ANSWER BELONGS TO THE LAST LINE ONLY.
+        //
+        // It used to apply to every submitted line, which is why the answered door took exactly one
+        // command and said so. That limit blocked two gates in two intents: INT-196 M8 needs several
+        // lines and THEN an answer, and INT-197 gate 6 needs an alias defined on one line and
+        // invoked on the next. A gap that blocks two intents is worth closing rather than working
+        // around twice.
+        //
+        // SETUP LINES SUBMIT NORMALLY and wait for READY like any other line. Only the final line
+        // synchronises on the guard prompt, because that is the line under test.
+        let answer = if idx + 1 == cmds.len() { answer } else { None };
         let mark = raw.len();
         // PASTE THE LINE, DO NOT TYPE IT. fsh's highlighter repaints the whole line for every
         // byte it receives, so a harness writing 37 characters at once pays 37 full redraws back

@@ -197,6 +197,34 @@ fn expand_braces(s: &str) -> String {
 ///
 /// ⚠️ An OPERATOR-leading line yields None. A line beginning with a pipe has no command word, and
 /// inventing one would be a judgement the scanner deliberately refuses to make.
+/// INT-197: the EXECUTABLE IDENTITY the safety policy matches on.
+///
+/// The three guard lists match BARE NAMES -- core, git, cargo, cat, ls, cd. An expanded alias can
+/// present an absolute path: `d` expands to a full store path ending in core, and three of the 284
+/// aliases do this. Without normalization, evaluating the expanded form would drop those out of the
+/// safe list and start prompting on a harmless doctor run.
+///
+/// NORMALIZED ONCE, HERE, rather than teaching three lists to recognise paths. Three copies of one
+/// rule is the disease this codebase has spent a month removing.
+///
+/// THE BOUNDARY, and it is deliberate rather than lossy by accident: policy identity is the
+/// executable, normalized to its basename. ARGUMENTS ARE NOT RESOLVED RECURSIVELY, including
+/// scripts passed to interpreters -- so `rebuild`, which expands to bash running a script, is
+/// identified as `bash`. If the guard began interpreting scripts, wrappers or aliases semantically
+/// it would have crossed from executable policy into command interpretation. Distinguishing bash
+/// with a known script from arbitrary bash is a NEW CAPABILITY needing a richer command identity,
+/// not something to smuggle into a basename.
+fn policy_identity(word: &str) -> String {
+    if !word.contains(std::path::MAIN_SEPARATOR) {
+        return word.to_string();
+    }
+    std::path::Path::new(word)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| word.to_string())
+}
+
 fn guard_command_word(line: &str) -> Option<String> {
     // MEASURED 2026-08-12, and it bounds what the AST arm can be said to do. Disabling this
     // arm entirely and letting the scanner answer everything left the suite at 151/151,
@@ -2437,7 +2465,27 @@ fn repl_main() -> Result<()> {
                 // M1: this is the only parse performed for the guard. The router parses again at
                 // main.rs:1329, and that is NOT this parse -- it runs later, inside run_input, on
                 // one alias-expanded SEGMENT rather than on the whole raw line.
-                let guard_word = guard_command_word(&line);
+                // INT-197: THE GUARD JUDGES THE EXPANDED LINE, not the line as typed.
+                //
+                // The gap this closes: an alias whose expansion is a gated command was not gated.
+                // The word derived from `chx -R /etc/x` is chx, which matches no deny entry, no
+                // allow entry and no safe entry -- so the guard returned None and the executor then
+                // expanded it to a recursive chmod on /etc and ran it.
+                //
+                // THE CALL DOES NOT MOVE, which the intent warned against. Alias expansion lives in
+                // run_input, called AFTER this, so moving the guard there would put it below the
+                // multi-line branch and leave a pasted block unguarded -- a property INT-196 M8
+                // proved holds today. Instead the guard expands a COPY here and judges that.
+                //
+                // ⚠️ STATED LIMITATION: COMPOUND COMMANDS ARE NOT PER-SEGMENT EXPANDED.
+                // expand_aliases resolves the first command word of the string it is given, and
+                // run_input later processes segments independently. So in `a && zap`, the alias zap
+                // is OUTSIDE this gate guarantee. Closing that means the guard enumerating segments
+                // itself, which would put a SECOND command-segmentation path inside the security
+                // boundary, able to disagree with the executor. That is its own intent, and it
+                // needs a ruling on who owns segment enumeration -- not a wider input string here.
+                let guard_line = engine.expand_aliases(&line);
+                let guard_word = guard_command_word(&guard_line).map(|w| policy_identity(&w));
                 // INT-196 M6: RECORD WHAT THE UNIVERSAL GUARD JUDGED, so the heredoc site below can
                 // assert it is asking about the SAME string. Reading the control flow says `line` is
                 // not rebound between the two; this makes the shell say so at runtime, under the pty
