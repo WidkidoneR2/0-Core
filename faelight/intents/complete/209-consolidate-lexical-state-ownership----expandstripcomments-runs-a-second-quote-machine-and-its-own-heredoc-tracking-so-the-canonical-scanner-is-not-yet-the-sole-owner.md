@@ -3,7 +3,7 @@ id: 209
 date: 2026-08-08
 type: arch
 title: "consolidate lexical-state ownership -- expand::strip_comments runs a second quote machine and its own heredoc tracking, so the canonical scanner is not yet the sole owner"
-status: in-progress
+status: complete
 tags: [architecture, rust, design]
 ---
 
