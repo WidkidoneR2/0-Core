@@ -124,9 +124,25 @@ three rows, because normalization happens once rather than per list.
      below expansion, INT-196 M5 would then have been changing the signature of a guard whose
      placement had just shifted -- two changes to the highest-stakes function with no way to tell
      which broke what. Recorded because the intent asked for the interaction, not just the outcome. -->
-- [ ] The gate behaviour is covered by a REPL test, since this is interactive behaviour
+- [x] The gate behaviour is covered by a REPL test, since this is interactive behaviour
       and the dash-c door does not reach fsh own dispatch at all
 <!-- ⏸ BLOCKED ON THE HARNESS, and deliberately NOT ticked. State, precisely:
+     CORRECTED 2026-08-13, AFTER this note was written. The gate IS covered by a REPL test:
+     repl_197_an_alias_expanding_to_a_gated_command_is_gated, 152 of 152, two lines through
+     run_repl_answered_after -- alias defined on one line, invoked on the next.
+     GHOST-CHECKED: reverting the guard to judge the TYPED line turns that case RED at the wait_for
+     timeout while both repl_195 guard cases and all seven repl_193 alias cases stay GREEN. That
+     split proves it tests the alias fix rather than the guard in general.
+     AND THE GUARD SAID SO ITSELF. A log at the decision point recorded, for the invocation line:
+     typed=zzq219 expanded=mkfs.zzz word=Some(mkfs.zzz). The definition line recorded word=alias,
+     correctly not gated, and an operator-leading line recorded None, which is INT-196 M4 as ruled.
+     WHY IT WAS RECORDED AS BLOCKED, and the cause was NOT the harness. Every symptom -- the case
+     timing out, a trace printing nothing, log files that did not exist, a ghost-check that failed
+     to discriminate -- came from PIPING THE SUITE THROUGH head OR grep. Closing the pipe kills
+     fsh-test partway with a broken-pipe panic, so runs that looked complete had stopped before
+     reaching the cases in question. Measured to a FILE instead, everything resolved at once.
+     The original note is kept below per INT-027 rather than deleted.
+     SUPERSEDED FROM HERE:
      BEHAVIOUR: proven MANUALLY through the REPL. Piping `alias zzq197=mkfs.zzz` then `zzq197` to
      the shell produces the alias confirmation, then CHALLENGE, then blocked. The property holds.
      AUTOMATED DOOR: retained but UNCALLED. run_repl_answered_after exists, carries

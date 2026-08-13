@@ -1852,6 +1852,37 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_197_an_alias_expanding_to_a_gated_command_is_gated",
+        Category::Repl,
+        || {
+            // INT-197 gates 3 and 6. The guard previously evaluated the PRE-EXPANSION command
+            // identity while execution subsequently expanded the alias, so an alias whose expansion
+            // is a gated command was not gated. Proven red-first on gen 493: the aliased invocation
+            // reported command-not-found with no guard output at all.
+            //
+            // TWO LINES, DELIBERATELY. A version with the definition and invocation on ONE line
+            // separated by a semicolon is testing something else: the line command word is then
+            // `alias`, and the second segment is OUTSIDE this gate guarantee by the documented
+            // compound-line limitation.
+            //
+            // Payload is mkfs.zzz because the guard matches on the word alone and no such binary
+            // exists, so a failed guard costs command-not-found rather than damage.
+            let out = repl::run_repl_answered_after(
+                &["alias zzq219=mkfs.zzz"],
+                "zzq219",
+                "CHALLENGE",
+                "no",
+            )?;
+            if out.iter().any(|l| l.contains("CHALLENGE")) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "an aliased gated command reached execution unguarded: {out:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
         "repl_196_a_declined_construct_is_still_guarded",
         Category::Repl,
         || {
