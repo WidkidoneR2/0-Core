@@ -1025,3 +1025,107 @@ mod glob_segmentation_tests {
         assert_eq!(hits, vec!["zzq_no_such*".to_string()]);
     }
 }
+
+/// INT-203: MOVED HERE FROM main.rs, unchanged.
+///
+/// It belongs beside its siblings: expand_globs, expand_subshells and quote_runs all live
+/// here, and the next two gates make this one quote-aware and heredoc-aware using quote_runs
+/// and find_heredoc_intro -- both of which are in this file. Moving it first, as its own
+/// commit, so a behaviour change cannot hide inside a relocation.
+pub fn expand_braces(s: &str) -> String {
+    // Expand {N..M} and {a..z} sequences without regex
+    if !s.contains('{') {
+        return s.to_string();
+    }
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '{' {
+            if let Some(close) = chars[i + 1..].iter().position(|&c| c == '}') {
+                let inner: String = chars[i + 1..i + 1 + close].iter().collect();
+                if let Some(dotdot) = inner.find("..") {
+                    let left = &inner[..dotdot];
+                    let right = &inner[dotdot + 2..];
+                    if let (Ok(start_n), Ok(end_n)) = (left.parse::<i64>(), right.parse::<i64>()) {
+                        let expanded: Vec<String> = if start_n <= end_n {
+                            (start_n..=end_n).map(|n| n.to_string()).collect()
+                        } else {
+                            (end_n..=start_n).rev().map(|n| n.to_string()).collect()
+                        };
+                        result.push_str(&expanded.join(" "));
+                        i += close + 2;
+                        continue;
+                    }
+                    let lc: Vec<char> = left.chars().collect();
+                    let rc: Vec<char> = right.chars().collect();
+                    // INT-203: LENGTH WAS THE ONLY CHECK, and that is the whole bug. A space is one character,
+                    // so `{ .. }` parsed as a character range from space to space and expanded to a single
+                    // space -- silently eating any brace group written with the range operator inside it. A Rust
+                    // match pattern pasted through a heredoc arrived with its braces replaced by three spaces,
+                    // and three patch scripts reported success while grep and rustc disagreed, because the text
+                    // was corrupted in transit rather than the write failing.
+                    //
+                    // Requiring both endpoints to be ASCII LETTERS is the whole repair. `{a..z}` and
+                    // `{A..Z}` still expand. `{1..5}` never reached here -- the integer branch above
+                    // claims it when both sides parse. A mixed `{1..a}` now stays literal, which is what
+                    // bash does. A space, a dot or a quote can no longer be a range endpoint.
+                    //
+                    // NOT FIXED HERE, and recorded rather than hidden: this function is still neither quote-aware
+                    // nor heredoc-aware, so `echo "{a..c}"` still expands inside quotes. That is the
+                    // INT-196 class -- code inferring shell structure from raw text -- and it needs its own
+                    // evidence. See INT-203.
+                    if lc.len() == 1
+                        && rc.len() == 1
+                        && lc[0].is_ascii_alphabetic()
+                        && rc[0].is_ascii_alphabetic()
+                    {
+                        let ls = lc[0] as u8;
+                        let rs = rc[0] as u8;
+                        let expanded: Vec<String> = if ls <= rs {
+                            (ls..=rs).map(|c| (c as char).to_string()).collect()
+                        } else {
+                            (rs..=ls).rev().map(|c| (c as char).to_string()).collect()
+                        };
+                        result.push_str(&expanded.join(" "));
+                        i += close + 2;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+    result
+}
+
+#[cfg(test)]
+mod brace_expansion_tests {
+    use super::expand_braces;
+
+    #[test]
+    fn letter_and_number_ranges_still_expand() {
+        assert_eq!(expand_braces("{a..e}"), "a b c d e");
+        assert_eq!(expand_braces("{1..4}"), "1 2 3 4");
+        assert_eq!(expand_braces("pre {a..c} post"), "pre a b c post");
+    }
+
+    #[test]
+    fn a_space_is_not_a_range_endpoint() {
+        // INT-203: this is the exact text that was being eaten -- a Rust match pattern.
+        let pattern = "Executed { .. } => continue";
+        assert_eq!(
+            expand_braces(pattern),
+            pattern,
+            "brace group with spaces must stay literal"
+        );
+    }
+
+    #[test]
+    fn punctuation_and_mixed_kinds_stay_literal() {
+        for s in ["{. ..}", "{1..a}", "{a..1}", "Foo { ..default}"] {
+            assert_eq!(expand_braces(s), s, "should not expand: {s}");
+        }
+    }
+}
