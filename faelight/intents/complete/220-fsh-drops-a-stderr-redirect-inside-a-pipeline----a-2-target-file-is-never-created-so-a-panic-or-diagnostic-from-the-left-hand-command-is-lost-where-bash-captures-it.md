@@ -3,7 +3,7 @@ id: 220
 date: 2026-08-13
 type: future
 title: "fsh drops a stderr redirect inside a pipeline -- a 2> target file is never created, so a panic or diagnostic from the left-hand command is lost, where bash captures it"
-status: planned
+status: complete
 tags: [fsh, pipeline, redirect, stderr, int-219]
 ---
 
