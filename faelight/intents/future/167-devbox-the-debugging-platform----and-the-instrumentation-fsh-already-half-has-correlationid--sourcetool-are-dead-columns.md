@@ -180,6 +180,60 @@ collect artifacts; do not reimplement them.
 P0 IS WORTH DOING NEXT. P1-P2 are worth doing when fsh's complexity demands it. P3 when the queries
 get tedious. P4 when a specific bug proves the need -- not before.
 
+## ============================================================
+## REVISED 2026-08-14 -- supersedes the shape above, not the ownership
+## ============================================================
+A rewritten DevBox document arrived. Everything above is KEPT per INT-027; these six changes are
+what materially improved, and each is recorded because the reason matters more than the edit.
+
+1. THE CAUSAL MODEL IS FOUR CONCEPTS, NOT ONE ID.
+   correlation_id was too ambiguous to trace with. It becomes:
+     session_id       lifetime of one fsh process/session
+     command_id       one typed command
+     span_id          one meaningful nested operation
+     parent_span_id   causal parent of that operation
+   P0 needs only the first two. The schema must be shaped so P2 can add spans WITHOUT another
+   migration of the fundamental causal model.
+   *** AND THIS INDEPENDENTLY ARRIVES AT WHAT INT-191 MEASURED: identity is the PAIR, because
+   execution_id restarts at 1 in every shell process. command_execution already keys on both. The
+   revision reasoned to it; 191 proved it. They agree.
+
+2. "EVERY FUNCTION GETS TRACING" IS WITHDRAWN.
+   Principle 2 above says instrument everything. The revision says instrument every meaningful
+   SUBSYSTEM BOUNDARY, and internals only selectively while investigating something specific.
+   Reason: tracing every function distorts the timings it exists to measure, and makes the trace
+   harder to read rather than easier.
+
+3. REDACTION -- ENTIRELY ABSENT ABOVE, AND NOT HYPOTHETICAL.
+   "Record everything" is not a security policy. Environment, arguments, stdin/stdout/stderr, paths,
+   plugin state and config can all carry secrets. Redaction belongs AT THE INSTRUMENTATION BOUNDARY,
+   never left to each downstream consumer.
+   *** The events table ALREADY holds 43,081 shell rows including command text. This is a live
+   property of the existing store, not a future concern.
+   The rule: record enough to explain behaviour without turning the debugging database into a
+   credential database.
+
+4. THE EVENT CONTRACT IS domain + action + schema_version, NOT MERELY "JSON".
+   JSON is the storage format; it does not define meaning. Versioning the contract is what lets a
+   consumer read historical events after a producer evolves. Schema changes must be VERSIONED rather
+   than silently changing what an existing event means.
+
+5. REPLAY IS THREE DIFFERENT PROBLEMS -- the biggest conceptual fix in the revision.
+     Level 1  HISTORY                     show what happened            (P0/P2)
+     Level 2  SEMANTIC REPLAY             re-run shell stages against recorded input/state
+     Level 3  DETERMINISTIC PROCESS REPLAY reproduce machine execution   DO NOT BUILD -- use rr
+   The text above says "then REPLAY the execution", which conflates all three. An event log is a
+   history of OBSERVATIONS; it is not automatically a deterministic execution recording.
+
+6. THE TUI SPEC BELOW DESCRIBES A DIFFERENT TOOL.
+   Config Test / Edit Config / Start Rebuild is a NIXOS CONFIGURATION workflow. An fsh debugger needs
+   commands, sessions, timeline, events, AST, environment, processes, state.
+   They can SHARE the event infrastructure without being one application. If the configuration TUI is
+   still wanted, it is a separate small consumer of the platform.
+   *** This also answers the open question recorded with that spec ("what goes in the LEFT pane vs
+   the RIGHT pane -- TBD"): the question had no good answer because two tools were being drawn as one.
+
+
 ## Success Criteria
 - [ ] P0: correlation_id carries a REAL per-command id -- prove it with a query returning one
       command's full event story, multiple distinct ids in the table
@@ -197,10 +251,31 @@ get tedious. P4 when a specific bug proves the need -- not before.
 - [ ] P0: source_tool populated by every emitter -- the 99.6%-empty number goes to ~0
 - [ ] P0: ONE payload format, and every domain emits it. Written down, and old rows either migrated
       or explicitly declared legacy with a cutoff timestamp
+- [ ] ⚠️ CHECK BEFORE ACCEPTING THIS GATE (flagged 2026-08-14): INT-143 was proven 2026-07-16, and
+      INT-169, 196, 197, 203 and 220 have reworked execution since. IF 143 IS FIXED, a fresh event
+      log CANNOT show it, and historical rows carry no command_id -- so this gate would be
+      unachievable as written rather than merely hard. Check 143 status first. If fixed, the dogfood
+      needs either a different live case or an explicit reframe: reconstruct a KNOWN double
+      execution from a synthetic reproduction. The gate is right in spirit; its subject may have
+      moved.
 - [ ] P0 dogfood: replay INT-143's double-execution bug from the event log alone. If DevBox cannot
       show the SAME command exec'ing twice for one typed line, P0 is not done
 - [ ] Every phase after P0 names the SPECIFIC bug or friction that justified it. "It would be cool"
       is not a gate. This intent's own guardrails say so
+- [ ] ⚠️ AND NOTHING HERE BECOMES A SECOND OWNER EITHER (added 2026-08-14). The revision proposes
+      `devbox events / trace / ast / timeline`. fsh ALREADY HAS AN `events` BUILTIN -- it is listed
+      in `help` as "events -- recent events [today|domain]". Extend the consumer that exists before
+      minting a new binary. INT-134 cut TEN roadmap items on 2026-08-14 for exactly this shape: a
+      second owner of an idea that already has one.
+- [ ] ⚠️ AND MEASURE P0 BEFORE SCOPING IT (added 2026-08-14). The revision reads as though P0 is
+      unbuilt. INT-191 already built session identity, execution_id, and the command_execution
+      lifecycle table -- and this intent's own gate note above already says "P0 is now WIRING, not
+      design". On 2026-08-14 INT-134 found NINE of 27 roadmap items already built. The same recon
+      discipline applies: run it before estimating.
+      RECON LIST: is INT-143 still live · what does the existing `events` builtin already do · how
+      much of session_id/execution_id does INT-191 already persist · does a crate boundary already
+      exist (faelight-insightd is in the tools list, and engine/src/domains/friday/events.rs is
+      named as the seed, so P1 may be a MOVE rather than an extraction).
 - [ ] Nothing here becomes a separate repo. It lives in faelight/, per INT-061's domain seam
 - [ ] Each gate carries evidence per INT-158 (docs/CONVENTIONS.md)
 
