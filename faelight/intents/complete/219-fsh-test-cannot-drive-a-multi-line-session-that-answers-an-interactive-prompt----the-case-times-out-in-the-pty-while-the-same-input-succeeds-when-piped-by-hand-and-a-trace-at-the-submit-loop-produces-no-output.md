@@ -3,7 +3,7 @@ id: 219
 date: 2026-08-12
 type: future
 title: "fsh-test cannot drive a multi-line session that answers an interactive prompt -- the case times out in the pty while the same input succeeds when piped by hand, and a trace at the submit loop produces no output"
-status: in-progress
+status: complete
 tags: [fsh-test, harness, pty, int-196, int-197]
 ---
 
@@ -102,7 +102,11 @@ fitting the test to the tool rather than fixing the tool.
      piped to grep -> status 0, Results line still captured, stderr empty.
      piped to head -> status 2, stderr carries the TRUNCATED marker, no Results line.
      The fourth shape, a genuinely failing complete run, is covered by every red case this session:
-     it prints Results and exits 1, which is neither 0 nor 2. -->
+     it prints Results and exits 1, which is neither 0 nor 2.
+     ⚠️ AND A CLAIM WAS CORRECTED BY MEASUREMENT. This was first recorded as protecting fsh only
+     partially, inferred from INT-220 rather than tested. Measured through an fsh pipeline with no
+     stderr redirect, the TRUNCATED marker ARRIVES. The gap is only 2>file INSIDE a pipeline, which
+     is INT-220 and narrower than the note first claimed. -->
 - [x] G4: the cases stay green and the timing is unchanged
 <!-- evidence: 154/154 in the file-redirect shape. Three full runs at 447s total, 149s each, which
      is the same per-run time measured before the hook. A hook that only fires on a broken pipe
@@ -116,23 +120,23 @@ fitting the test to the tool rather than fixing the tool.
 
 ## SUPERSEDED GATES, kept per INT-027. These asked about a harness fault that does not exist.
 <!--
-- [ ] G1: AN INSTRUMENT FIRES INSIDE THE SUBMIT LOOP. Until a trace at that site produces output,
+  (superseded) G1: AN INSTRUMENT FIRES INSIDE THE SUBMIT LOOP. Until a trace at that site produces output,
       nothing else here is measurable -- this is the smaller, better-defined question and answering
       it makes the timeout answerable
-- [ ] G2: WHY the earlier trace produced nothing is stated, not worked around. A site that is
+  (superseded) G2: WHY the earlier trace produced nothing is stated, not worked around. A site that is
       present in source, compiled, and silent is itself a finding
-- [ ] G3: the timeout is LOCATED -- which wait_for call, on which line, waiting for what. Named with
+  (superseded) G3: the timeout is LOCATED -- which wait_for call, on which line, waiting for what. Named with
       the marker it never saw rather than described as hanging
-- [ ] G4: the cause is stated and distinguished: harness protocol, pty behaviour, or a genuine
+  (superseded) G4: the cause is stated and distinguished: harness protocol, pty behaviour, or a genuine
       difference between piped stdin and a pty that the shell itself exhibits
-- [ ] G5: PROVEN by the INT-197 gate-6 case going GREEN, written back as it was before removal --
+  (superseded) G5: PROVEN by the INT-197 gate-6 case going GREEN, written back as it was before removal --
       alias on one line, invocation on the next, answered
-- [ ] G6: INT-196 M8 is revisited with the same door, and either closes or its deferral is renewed
+  (superseded) G6: INT-196 M8 is revisited with the same door, and either closes or its deferral is renewed
       with a stated reason that is no longer this one
-- [ ] G7: run_repl_answered_after loses its allow-dead-code, because it has a caller
-- [ ] G8: the 151 existing cases stay green, and the timing is compared before and after -- a change
+  (superseded) G7: run_repl_answered_after loses its allow-dead-code, because it has a caller
+  (superseded) G8: the 151 existing cases stay green, and the timing is compared before and after -- a change
       to the shared session protocol touches every case in the suite
-- [ ] G9: each gate carries evidence per INT-158
+  (superseded) G9: each gate carries evidence per INT-158
 -->
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
