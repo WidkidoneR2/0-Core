@@ -3,7 +3,7 @@ id: 215
 date: 2026-08-09
 type: future
 title: "fpatch's safe abort and internal error are typographically identical, so a correct refusal still reads as a crash at a glance"
-status: in-progress
+status: complete
 tags: [fpatch, tooling, errors]
 ---
 
