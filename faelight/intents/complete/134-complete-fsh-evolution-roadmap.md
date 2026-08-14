@@ -3,7 +3,7 @@ id: 134
 date: 2026-07-09
 type: future
 title: "Complete fsh Evolution Roadmap"
-status: in-progress
+status: complete
 tags: [fsh, faelight-shell, roadmap, ledger]
 ---
 
