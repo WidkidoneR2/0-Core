@@ -3,7 +3,7 @@ id: 219
 date: 2026-08-12
 type: future
 title: "fsh-test cannot drive a multi-line session that answers an interactive prompt -- the case times out in the pty while the same input succeeds when piped by hand, and a trace at the submit loop produces no output"
-status: planned
+status: in-progress
 tags: [fsh-test, harness, pty, int-196, int-197]
 ---
 
@@ -76,26 +76,43 @@ fitting the test to the tool rather than fixing the tool.
 - Native heredoc execution, or anything about the shell. The shell is correct in both blocked cases.
 
 ## Success Criteria
-- [ ] G1: A TRUNCATED RUN IS DISTINGUISHABLE FROM A COMPLETE ONE. Reproduced first: pipe the suite
-      through head, observe that it reports passing cases and stops, and that nothing in the output
-      says it was cut short
-- [ ] G2: BOTH MECHANISMS, WITH A DIVISION OF RESPONSIBILITY, because they solve different halves:
-      SIGPIPE and EPIPE handling is the CORRECTNESS mechanism -- a closed stdout consumer must be
-      classified as truncation and exit with a distinct, documented status. Writing the result line
-      to stderr is the OBSERVABILITY mechanism -- it makes completion visible through a stdout
-      filter, and it does NOT make truncation safe. Stderr alone cannot fix the head case, because
-      the process is already dead by the time the line would be written
-- [ ] G2b: the exit status is chosen from whatever vocabulary fsh-test already has, and DOCUMENTED.
-      The property that matters is distinct and testable, not a particular number -- 141 is
-      conventional for SIGPIPE and is not automatically the right answer here
-- [ ] G3: PROVEN across FOUR shapes, because the point is that they stay distinguishable:
-      redirected to a file -> complete, success, normal result ·
-      piped to grep -> complete, result still visible on stderr ·
-      piped to head -> explicitly TRUNCATED, distinct status ·
-      a genuinely failing complete run -> ordinary failure, never confused with truncation
-- [ ] G4: the 152 cases stay green and the timing is unchanged -- a signal that costs the suite
-      seconds is not worth having
-- [ ] G5: each gate carries evidence per INT-158
+- [x] G1: A TRUNCATED RUN IS DISTINGUISHABLE FROM A COMPLETE ONE
+<!-- evidence: reproduced FIRST, before any change. Piped to head, the suite printed a banner and
+     two passing cases, never printed its Results line, and the shell reported 0 -- a confident
+     success from a run that stopped after two of 154 cases. Two further facts fell out: the EPIPE
+     panic reached the terminal but no redirect target, which became INT-220, and the pipeline
+     status belongs to the FILTER, which is correct POSIX and is why the exit code alone could
+     never have carried this. -->
+- [x] G2: BOTH MECHANISMS, WITH A DIVISION OF RESPONSIBILITY
+<!-- evidence: one panic hook in main, chained rather than replacing the prior hook so ordinary
+     panics still print normally. It matches TWO substrings rather than the whole payload, because
+     the exact wording is a std detail that moves between Rust versions. 200 print sites untouched.
+     The stderr marker is the observability half and it is what survives a pipeline, since the
+     status there belongs to the filter. -->
+- [x] G2b: the exit status is chosen from this tool own vocabulary and DOCUMENTED
+<!-- evidence: fsh-test uses 0 for pass and 1 for fail; the 3, 143 and 2 elsewhere in the file are
+     expectations ABOUT THE SHELL under test, not this tool own. So 2 was unclaimed and is now
+     truncation. NOT 141, which would claim death by SIGPIPE -- Rust ignores that signal, so what
+     actually happens is EPIPE caught and a deliberate stop. Distinct and testable beats
+     conventional. -->
+- [x] G3: PROVEN across FOUR shapes
+<!-- evidence: measured through bash, since INT-220 means fsh cannot route stderr in a pipeline, and
+     read with PIPESTATUS so the suite own status is visible rather than the filter.
+     file redirect -> exit 0, Results 154/154, stderr empty.
+     piped to grep -> status 0, Results line still captured, stderr empty.
+     piped to head -> status 2, stderr carries the TRUNCATED marker, no Results line.
+     The fourth shape, a genuinely failing complete run, is covered by every red case this session:
+     it prints Results and exits 1, which is neither 0 nor 2. -->
+- [x] G4: the cases stay green and the timing is unchanged
+<!-- evidence: 154/154 in the file-redirect shape. Three full runs at 447s total, 149s each, which
+     is the same per-run time measured before the hook. A hook that only fires on a broken pipe
+     costs nothing on the normal path. -->
+- [x] G5: each gate carries evidence per INT-158
+<!-- evidence: every gate above. Worth recording that this intent was REWRITTEN the day it was
+     filed, because its original premise -- that the harness could not drive a multi-line answered
+     session -- was disproven within the hour. The harness was never broken. The real defect is the
+     one measured here, and the original text and its nine gates are kept below per INT-027. -->
+
 
 ## SUPERSEDED GATES, kept per INT-027. These asked about a harness fault that does not exist.
 <!--

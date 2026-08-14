@@ -2106,6 +2106,40 @@ fn slug(line: &str) -> String {
 }
 
 fn main() {
+    // INT-219: A TRUNCATED RUN MUST NOT LOOK LIKE A COMPLETE ONE.
+    //
+    // Rust ignores SIGPIPE, so a closed stdout consumer -- `| head` -- turns the next println into
+    // an EPIPE panic. The suite stops partway, never prints its Results line, and the pipeline
+    // reports the FILTER status rather than this process, so the whole thing reads as success.
+    // That produced four wrong conclusions in one session on 2026-08-13: a case that appeared to
+    // time out, a trace that appeared to print nothing, log files that appeared not to exist, and a
+    // ghost-check that appeared not to discriminate. All one cause.
+    //
+    // ONE HOOK, NOT 200 CALL SITES. The payload is matched on TWO substrings rather than the whole
+    // message, because the exact wording is a std implementation detail that moves between Rust
+    // versions.
+    //
+    // EXIT 2, chosen from this tool own vocabulary -- 0 passes, 1 fails, nothing above claimed it.
+    // NOT 141: that would claim we died from SIGPIPE, and we did not; we caught EPIPE and chose to
+    // stop. The status must be distinct and testable, not conventional.
+    //
+    // ⚠️ THE STDERR MARKER IS WHAT SURVIVES A PIPELINE, since the exit status there belongs to the
+    // filter. See INT-220: fsh currently drops a stderr redirect inside a pipeline, so this marker
+    // reaches a terminal and a bash redirect but not yet an fsh one.
+    {
+        let prior = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let msg = info.to_string();
+            if msg.contains("failed printing to stdout") && msg.contains("Broken pipe") {
+                eprintln!(
+                    "fsh-test: TRUNCATED -- stdout consumer closed before the suite completed"
+                );
+                std::process::exit(2);
+            }
+            prior(info);
+        }));
+    }
+
     let args: Vec<String> = std::env::args().collect();
     let show_only_failed = args.contains(&"--failed".to_string());
     let category_filter = args
