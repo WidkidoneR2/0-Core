@@ -172,8 +172,19 @@ ledger holds and no package manager does:
   - DEMONSTRATED     -- does every completed gate carry evidence, or is any ticked bare
   - STABLE           -- nothing reopened; no deferral whose stated reason has since been disproven
 
-So the buildable artifact is a RELEASE-READINESS CHECK, not a version calculator. It reports whether
-this moment satisfies 121's own inclusion rule. It never proposes a number.
+So the buildable artifact is a PRECONDITION CHECK -- not a version calculator, and not a readiness
+verdict. It reports whether the mechanical preconditions hold. It never proposes a number and never
+says "ready".
+
+NARROWED 2026-08-14 by his correction, and docs/RELEASE.md line 6 already said it:
+  "The release process is intentional. Nothing is automated end-to-end -- the human decides when the
+   forest is ready. faelight-release v2 handles the mechanical work; THE JUDGEMENT STAYS WITH YOU."
+His words: a system bump cannot be automatic because it depends on WEIGHT, on human decision-making,
+and on deciphering the importance of one intent compared to another. None of that is computable.
+
+PRECONDITIONS are mechanical and checkable -- nothing mid-flight, every gate evidenced, nothing
+reopened. READINESS is judgement. A tool that said "ready" would be doing the very thing ruled out
+here; a tool that says "no blockers found" leaves the decision where it belongs.
 
 WHY THE OTHER SYSTEMS CANNOT DO THIS, recorded because it explains the frustration rather than
 dismissing it: Arch is rolling and versions by nothing. NixOS versions by TIME (twice a year)
