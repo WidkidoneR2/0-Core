@@ -92,8 +92,15 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Cargo workspace navigation -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev workspace`/`ws` -- lists all 35 workspace crates (name/version/path, authoritative from cargo metadata, includes never-visited crates unlike zoxide); `dev workspace <name>` cd's into any crate (set_current_dir, teaches zoxide). commands/mod.rs dev_cmd.
 - [x] Rustdoc lookup from shell -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev doc [crate]` -- auto-routes: no arg -> web std docs; workspace crate -> local cargo doc --open; external crate -> docs.rs. Membership resolved via serde_json parse of cargo metadata (exact match, no substring false-positives). commit 4cd4977e. commands/mod.rs dev_cmd.
 - [x] Crate search completion -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev search <query>` -- crates.io keyword search via cargo search (analogue of pkg-search's nixpkgs search). Text-parses cargo's name="ver" # desc format, char-safe truncation, caches to /tmp/fsh-crate-search.json for a future completion feature. Scoped as a SEARCH command (not tab-completion). commands/mod.rs dev_cmd.
-- [ ] Native Rust scripting support
-- [ ] Compile shell scripts to binaries
+- [ ] CUT -- Native Rust scripting support. Reason: fsh ALREADY HAS A SCRIPT FORMAT. `run <file.fsh>`
+      (scripting_run_cmd, commands/mod.rs:15448) runs fsh scripts, and `run --list` enumerates them.
+      Writing shell scripts in Rust instead would need a compiler in the interactive loop, and it
+      would compete with the format that already exists rather than replace it. ⚠️ Measured: `run`
+      prints its usage; there is no Rust path.
+- [ ] CUT -- Compile shell scripts to binaries. Reason: same family as the line above and it depends
+      on it. Without Rust scripting there is nothing to compile, and compiling .fsh scripts would
+      mean building a compiler for the shell language -- an enormous project serving a speed problem
+      nobody has reported. The shell starts in 8 seconds including a full health check.
 - [x] Dependency graph visualization -- SHIPPED (INT-134 Lane 3, 2026-07-12): `dev graph [crate] [--full]` -- FORWARD cargo tree (what a crate depends ON), complement of `dev deps` (--invert). Depth-2 default since forward trees explode, --full for all depths. Reuses dev deps' ambiguous-version prompt. commands/mod.rs dev_cmd.
 - [x] Benchmark commands with hyperfine -- SHIPPED/VERIFIED (INT-134, 2026-07-12): `dev bench` uses hyperfine (retitled from Criterion -- hyperfine is the actual tool wired). commands/mod.rs dev_cmd.
 
@@ -165,7 +172,10 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 
 ## Productivity
 - [x] Session workspaces -- ALREADY BUILT (verified INT-134, 2026-07-13): full env-snapshot cycle -- `env-save <name>` (snapshot), `env-load` (restore named), `env-rollback` (restore most recent), `env-diff` (compare current vs snapshot). SQLite fsh_env_snapshots table (INT-269). commands/mod.rs:1221-1359.
-- [ ] Named command collections
+- [ ] CUT -- Named command collections. Reason: covered twice over. `run --list` enumerates named
+      .fsh scripts, and 285 aliases group commands by name already. Measured absent as a feature
+      (`collection` and `collections` both report command not found), and adding a third grouping
+      mechanism would be the same fourth-owner problem the macro cut names.
 - [ ] CUT -- Macro system. Reason: three mechanisms already cover this ground and a fourth would be
       a fourth owner of one idea. Aliases do text substitution (and append arguments, as bash does),
       `scripting_run_cmd` runs sequences, and the `on` trigger DSL handles event-driven repetition.
@@ -178,7 +188,12 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
       that half of the item wants is SHELL FUNCTIONS, which this roadmap does not list at all and
       which is a genuine gap worth its own line.
 - [~] Scheduled commands -- ADJACENT, not the item (verified INT-134, 2026-08-06): on_cmd (commands/mod.rs:12565) is the EVENT trigger DSL over crate::triggers -- on list, on remove, on <event> => <action> -- and watch_cmd polls. Time-based scheduling is genuinely absent.
-- [ ] Built-in task runner
+- [~] Built-in task runner -- HALF BUILT (verified INT-134, 2026-08-14), and closer than the line
+      suggests. `run <file.fsh>` executes a named script and `run --list` enumerates what is
+      available, which is what a task runner does. Measured absent is only the WORD: `task` reports
+      command not found. What a dedicated runner would add over this is dependencies between tasks
+      and per-task descriptions -- worth deciding as a small increment on `run` rather than as a new
+      subsystem.
 - [ ] CUT -- Quick notes / todos. Reason: the intent ledger IS this, with gates, evidence, history
       and a TUI (`it`). A second note store would compete with it and the two would drift.
       Measured absent as a shell feature: `note`, `notes` and `todo` all report command not found.
@@ -200,10 +215,18 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
       ⚠️ FOUND ONLY BY RUNNING IT. A grep of commands/mod.rs found nothing, because this is not a
       builtin -- it is its own tool. The sweep rule "a symbol existing is not the feature existing"
       has a mirror: a symbol being ABSENT is not the feature being absent.
-- [ ] Environment variable permissions
+- [ ] CUT -- Environment variable permissions. Reason: WRONG LAYER. `faelight-sandbox` is deployed
+      with five policies active, and confinement is what that tool is for; INT-165 covers AppArmor
+      alongside it. A permission model inside the shell would be a second enforcement point that a
+      child process could simply ignore, since the shell cannot enforce anything the kernel does not.
+      Measured absent: `env-perm` and `envperm` both report command not found.
 
 ## Async / Jobs
-- [ ] Async jobs with futures
+- [ ] KEEP (owner: INT-188, verify what exists first) -- Async jobs with futures. The SYNCHRONOUS
+      half is built: `jobs` reports "No background jobs", so the job table is real and reachable.
+      Measured absent: `async` reports command not found. ⚠️ AND INT-188 SAYS "verify what fsh
+      already has first", which this confirms was the right instruction -- the job table exists and
+      the roadmap did not say so.
 
 ## Experimental / Research  (later, eyes open)
 - [ ] KEEP (Experimental, after the shell is fully migrated) -- Transactional filesystem operations.
