@@ -172,12 +172,38 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Async jobs with futures
 
 ## Experimental / Research  (later, eyes open)
-- [ ] Transactional filesystem operations
-- [ ] Reversible commands (undo for file ops)
-- [ ] Pipe execution visualizer
-- [ ] Command dependency graphs
-- [ ] Event-driven shell hooks
-- [ ] WASM plugins / Lua-Rhai plugins / hot-reload extensions
+- [ ] KEEP (Experimental, after the shell is fully migrated) -- Transactional filesystem operations.
+      Measured absent: `transaction` and `tx` both report command not found. ⚠️ AND IT IS NOT THE
+      SAME AS `undo` ABOVE. undo REVERSES individual mv/cp/rm after the fact; a transaction is
+      all-or-nothing across several operations with a rollback boundary, so a failure halfway leaves
+      nothing applied. Different and much harder, which is why it stays Experimental rather than
+      folding into the undo line.
+- [x] Reversible commands (undo for file ops) -- ALREADY BUILT (verified INT-134, 2026-08-14): the
+      `undo` builtin tracks mv, cp and rm and reverses them. Measured on a clean session: it reports
+      "Nothing to undo -- use mv/cp/rm to track operations", which is the empty-stack message of a
+      real feature rather than a missing command.
+      ⚠️ Listed under Experimental/Research "later, eyes open" and shipped anyway -- the third item
+      this sweep found built in a section that assumed it was not.
+- [ ] KEEP (Experimental, and cheaper than it looks now) -- Pipe execution visualizer. Measured
+      absent: `visualize`, `viz` and `pipeline` all report command not found. ★ BUT THE DATA NOW
+      EXISTS where it did not when this was written: the spine lowers a pipeline into one
+      ExecutionPlan PER STAGE, each carrying argv, cwd, env and io, and FSH_SPINE_TRACE already
+      prints what the router claimed. A trace is not a visualizer, but the structured facts a
+      visualizer would render are already produced rather than needing to be reconstructed from text.
+- [ ] CUT -- Command dependency graphs. Reason: WRONG OWNER. Measured absent in the shell (`graph`
+      reports command not found), and `core deps` already provides dependency intelligence at the
+      SYSTEM level, which is where the dependency facts actually live. A second graph inside the
+      shell would either duplicate that or answer a narrower question nobody asked.
+- [x] Event-driven shell hooks -- ALREADY BUILT (verified INT-134, 2026-08-14) as the `on` trigger
+      DSL over crate::triggers: `on list`, `on remove <id>`, `on <event> => <action>`. Live and in
+      daily use -- two triggers enabled, one fired 2081 times and the other 1111. The word `hooks`
+      is not a command; `on` is the feature.
+- [ ] KEEP (owner: INT-170, before any runtime is chosen) -- WASM plugins / Lua-Rhai plugins /
+      hot-reload extensions. A plugin MECHANISM already exists: the `plugins` builtin loads .fsh
+      files from ~/.config/faelight-shell/plugins, which is TEXT EXPANSION -- exactly what INT-170
+      says today. INT-170 defines initialize/execute/shutdown/metadata BEFORE picking a runtime, so
+      this line is that intent rather than a separate one, and picking WASM or Lua here would be
+      choosing a runtime before the contract exists.
 
 ## Cut -- fails the filter
 - Smart cd with typo correction (erodes explicitness)
