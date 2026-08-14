@@ -8831,6 +8831,12 @@ fn spawn_pipeline(
             _ => None,
         };
         let redirected = own_stdout.is_some();
+        // INT-220: THE HANDLE IS KEPT, not dropped into the child. A stage writing `> f 2>&1` needs
+        // ONE open file shared by both streams, and sharing means a CLONE of this handle rather than
+        // a second open -- two opens give two write offsets and the streams overwrite each other.
+        // That rule already lives in open_stderr_sink; keeping the file here is what lets this stage
+        // ask it the same question the single-command path asks.
+        let mut stdout_file: Option<std::fs::File> = None;
         match own_stdout {
             Some((path, append)) => {
                 let opened = std::fs::OpenOptions::new()
@@ -8841,7 +8847,17 @@ fn spawn_pipeline(
                     .open(&path);
                 match opened {
                     Ok(f) => {
-                        cmd.stdout(std::process::Stdio::from(f));
+                        let for_child = match f.try_clone() {
+                            Ok(c) => c,
+                            Err(e) => {
+                                return Err(CommandResult::Error(
+                                    format!("  cannot open {}: {e}", path.display()),
+                                    1,
+                                ))
+                            }
+                        };
+                        cmd.stdout(std::process::Stdio::from(for_child));
+                        stdout_file = Some(f);
                     }
                     Err(e) => {
                         return Err(CommandResult::Error(
@@ -8858,7 +8874,23 @@ fn spawn_pipeline(
                 cmd.stdout(std::process::Stdio::piped());
             }
         }
-        cmd.stderr(std::process::Stdio::inherit());
+
+        // INT-220: STDERR IS ASKED FOR, NOT ASSUMED. This was an unconditional inherit, so a `2>`
+        // on any stage was parsed, lowered into the plan, and then discarded here -- while `1>` on
+        // the same stage worked, because stdout WAS read from the plan twenty lines above.
+        let own_stderr = match &plan.io {
+            IoPlan::Files { stderr, .. } => stderr.clone(),
+            _ => crate::spine::plan::StderrTarget::Inherit,
+        };
+        match open_stderr_sink(&own_stderr, &stdout_file) {
+            Ok(Some(f)) => {
+                cmd.stderr(std::process::Stdio::from(f));
+            }
+            Ok(None) => {
+                cmd.stderr(std::process::Stdio::inherit());
+            }
+            Err(e) => return Err(CommandResult::Error(e, 1)),
+        }
 
         match cmd.spawn() {
             Ok(mut child) => {
@@ -9144,7 +9176,23 @@ fn configure_file_io(
     //
     // ⚠️ Reopening the path here would look right and produce jumbled output only when both streams
     // are busy. Silent, and only under load.
-    let stderr_sink: Option<std::fs::File> = match stderr_target {
+    open_stderr_sink(stderr_target, &stdout_file)
+}
+
+/// INT-220: THE ONE OWNER OF "where does this stage stderr go".
+///
+/// Extracted from configure_file_io so a PIPELINE STAGE can ask the same question. spawn_pipeline
+/// read stdin and stdout from the plan and then set stderr to inherit unconditionally, so a `2>`
+/// inside a pipeline was recognised by the parser, lowered into the plan, and dropped by the
+/// executor. Measured: `1>` in a pipeline works, `2>` does not, on either side of the pipe.
+///
+/// A second copy here would be a second place for the dup rule to rot, which is what the
+/// configure_file_io doc already says about the background path.
+fn open_stderr_sink(
+    stderr_target: &crate::spine::plan::StderrTarget,
+    stdout_file: &Option<std::fs::File>,
+) -> Result<Option<std::fs::File>, String> {
+    Ok(match stderr_target {
         crate::spine::plan::StderrTarget::Inherit => None,
         crate::spine::plan::StderrTarget::File(path, append) => Some(
             std::fs::OpenOptions::new()
@@ -9155,7 +9203,7 @@ fn configure_file_io(
                 .open(path)
                 .map_err(|e| format!("  cannot write {}: {e}", path.display()))?,
         ),
-        crate::spine::plan::StderrTarget::Stdout => match &stdout_file {
+        crate::spine::plan::StderrTarget::Stdout => match stdout_file {
             Some(f) => Some(
                 f.try_clone()
                     .map_err(|e| format!("  cannot share stdout: {e}"))?,
@@ -9164,8 +9212,7 @@ fn configure_file_io(
             // unreachable -- but inheriting is the honest answer if it ever is not.
             None => None,
         },
-    };
-    Ok(stderr_sink)
+    })
 }
 
 fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {

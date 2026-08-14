@@ -52,17 +52,46 @@ in the deadwood checker. This is the mirror image: the pipe survives and the red
   redirect rather than an absent stream.
 
 ## Success Criteria
-- [ ] G1 RED FIRST: the loss is reproduced by a case, not only by hand -- a command that writes to
-      stderr, redirected, inside a pipeline, asserting the target file exists and holds the text
-- [ ] G2: WHERE the redirect is lost is LOCATED by measurement, not by reading. Named as a file and
-      line, with what was probed and what it reported
-- [ ] G3: the fix keeps the pipeline working. A redirect that vanishes and a pipeline that breaks are
-      not a trade -- both must hold, with a case for each
-- [ ] G4: the same shape is checked for stdout, since a dropped stderr redirect suggests the question
-      was never asked for either stream. Whatever is found is recorded even if it is already correct
-- [ ] G5: the fsh-test suite stays green, and a case for this shape joins it so the behaviour cannot
-      regress silently
-- [ ] G6: each gate carries evidence per INT-158
+- [x] G1 RED FIRST: the loss is reproduced by a case, not only by hand
+<!-- evidence: repl_220_a_stderr_redirect_survives_a_pipeline, 155/155. It writes to stderr inside a
+     pipeline with a redirect, then cats the target back. Before the fix the file did not exist.
+     A FAST reproduction came first: a one-line sh writing both streams, measured in 251ms rather
+     than the 150s the original fsh-test reproduction took. That is what made every later probe
+     cheap enough to iterate on. -->
+- [x] G2: WHERE the redirect is lost is LOCATED by measurement, not by reading
+<!-- evidence: commands/mod.rs:8861, spawn_pipeline: `cmd.stderr(Stdio::inherit())`, unconditional.
+     Narrowed by measurement at each step rather than by reading ahead. Four shapes showed 1> in a
+     pipeline works and 2> does not, on EITHER side, so it was not about position. Spine on and off
+     both lost it, so it was not the router. The trace showed the spine CLAIMS both the single and
+     the piped form, so it was not a refusal. Lowering was ruled out by reading only after the
+     measurement pointed there: plan.rs:725-739 converts a redirect into IoPlan::Files regardless of
+     the IoPlan handed in, so the Simple passed at line 565 is correct and each stage plan carries
+     its own Files. That left the executor, which reads stdin at 8796 and stdout at 8826 from the
+     plan and never reads stderr at all. -->
+- [x] G3: the fix keeps the pipeline working
+<!-- evidence: six shapes, all correct after: single 2>, single 1> 2>&1, pipe 2> on the left, pipe
+     1> on the left, pipe 1> 2>&1, and pipe 2> on the right. Pipe output still flows in every case.
+     THE ONE OWNER RULE HELD: the stderr logic was EXTRACTED from configure_file_io into
+     open_stderr_sink as its own commit, verified pure by the four shapes being byte-identical
+     before and after, and the pipeline then CALLS it. No second interpretation of StderrTarget.
+     The dup needed the stdout handle KEPT rather than dropped into the child, because sharing means
+     a clone -- two opens give two write offsets and the streams overwrite each other silently.
+     RECORDED: pipe 1> 2>&1 interleaves as ZZERR then ZZOUT while the single-command form gives
+     ZZOUT then ZZERR. Both correct, both in one file; the order differs because a pipeline stage
+     writes stdout through the cloned handle. -->
+- [x] G4: the same shape is checked for stdout
+<!-- evidence: stdout was ALREADY correct and is recorded as measured rather than fixed. spawn_pipeline
+     read stdout from the plan at 8826 all along, which is exactly why 1> in a pipeline worked
+     throughout and made the asymmetry the first real clue. -->
+- [x] G5: the suite stays green and a case joins it
+<!-- evidence: 155/155 with the new case. 207 unit tests, no warnings. -->
+- [x] G6: each gate carries evidence per INT-158
+<!-- evidence: every gate above. Worth recording the method rather than only the result: SIX
+     measurements narrowed this before a line was changed, and two of my predictions were wrong
+     along the way -- I expected the pipeline lowering to drop the redirect by passing Simple, and
+     the read showed Simple is precisely what ALLOWS the conversion. The measurement was right each
+     time and the reading-ahead was not. -->
+
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit

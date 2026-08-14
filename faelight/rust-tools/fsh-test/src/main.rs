@@ -1852,6 +1852,28 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_220_a_stderr_redirect_survives_a_pipeline",
+        Category::Repl,
+        || {
+            // INT-220. spawn_pipeline read stdin and stdout from the plan and then set stderr to
+            // inherit UNCONDITIONALLY, so a 2> on any stage was parsed, lowered, and discarded.
+            // Measured before the fix: 1> in a pipeline worked and 2> did not, on either side.
+            let f = "/tmp/fsh-test-int220.txt";
+            let _ = std::fs::remove_file(f);
+            let out = repl::run_repl_lines(&[
+                &format!("sh -c \"echo ZZ220 >&2\" 2>{f} | cat"),
+                &format!("cat {f}"),
+            ])?;
+            let joined = out.join("|");
+            let _ = std::fs::remove_file(f);
+            if joined.contains("ZZ220") {
+                Ok(())
+            } else {
+                Err(format!("stderr redirect lost in a pipeline: {out:?}"))
+            }
+        },
+    ));
+    results.push(test(
         "repl_203_a_heredoc_body_is_not_brace_expanded",
         Category::Heredoc,
         || {
