@@ -24,6 +24,52 @@ from pathlib import Path
 
 DEBUG = "FPATCH_DEBUG" in __import__("os").environ
 
+# INT-215: COLOUR IS THE DIFFERENTIATOR. The refusal and the internal presenter already differ in
+# text and exit code -- INT-199 did that -- but they share a shape, so telling them apart needs
+# READING. Two correct safe aborts were read as crashes on 2026-08-13.
+#
+# Four codes and a reset, defined once. Not a palette module, not a theme.
+_ANSI = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "reset": "\033[0m",
+}
+
+
+def _color(stream):
+    """Whether to colour THIS stream.
+
+    PER-STREAM ON PURPOSE: the diff goes to stdout and the errors go to stderr, and those redirect
+    independently. Asking one question for both would colour a captured diff because the terminal
+    still held stderr.
+
+    Output lands in three places -- a terminal, a paste buffer, and an assistant context window.
+    Colour helps the first and clutters the other two, so isatty is the default rule and
+    FPATCH_COLOR overrides it in BOTH directions: forcing on matters for a pager, forcing off
+    matters for a captured log.
+    """
+    import os
+
+    env = os.environ.get("FPATCH_COLOR")
+    if env is not None:
+        return env.strip().lower() not in ("0", "no", "off", "false", "")
+    try:
+        return stream.isatty()
+    except Exception:
+        return False
+
+
+def _paint(text, name, on):
+    """Wrap text in a colour, or return it UNCHANGED when colour is off.
+
+    The unchanged path is load-bearing: with colour off the output must be byte-identical to the
+    tool before this intent, because a cosmetic change must not alter what a captured log contains.
+    """
+    if not on:
+        return text
+    return _ANSI[name] + text + _ANSI["reset"]
+
 
 class PatchRefused(Exception):
     """A SAFE ABORT: the operation could not proceed, and nothing was changed.
@@ -48,11 +94,13 @@ class InternalError(Exception):
 
 def _refuse(path, reason, causes=(), recovery=(), detail=()):
     """Print the refusal and exit non-zero. Never leaves the reader guessing about writes."""
-    bar = "=" * 66
+    # INT-215: RED, so a refusal is recognisable before it is read.
+    on = _color(sys.stderr)
+    bar = _paint("=" * 66, "red", on)
     out = [
         "",
         bar,
-        "  PATCH REFUSED -- safe abort",
+        _paint("  PATCH REFUSED -- safe abort", "red", on),
         bar,
         "",
         "Status",
@@ -85,11 +133,14 @@ def _internal(path, exc):
     so the honest line is that the file may or may not have changed. Saying "no changes written" here
     would be the comforting answer rather than the true one.
     """
-    bar = "=" * 66
+    # INT-215: YELLOW, distinct from the refusal red at a glance. Different colour for a different
+    # question: a refusal says fix your anchor, this says fix fpatch.
+    on = _color(sys.stderr)
+    bar = _paint("=" * 66, "yellow", on)
     out = [
         "",
         bar,
-        "  FPATCH INTERNAL ERROR",
+        _paint("  FPATCH INTERNAL ERROR", "yellow", on),
         bar,
         "",
         "Status",
@@ -192,10 +243,18 @@ def patch_between(path, start_marker, end_marker, new_lines, context=2):
             recovery=["Check the two markers are the right way round."],
         )
 
+    # INT-215: REMOVED AND ADDED, the way a git diff reads. This showed removal only, so every
+    # patch was accepted on trust that the replacement was what the caller intended -- and INT-203
+    # proved replacement text can be corrupted in transit without either side noticing.
+    on = _color(sys.stdout)
     print(f"--- {path}: replacing lines {lo + 1}..{hi} ---")
     for i in range(max(0, lo - context), min(len(lines), hi + context)):
-        mark = ">>" if lo <= i < hi else "  "
-        print(f"{mark} {i + 1}: {lines[i]}")
+        if lo <= i < hi:
+            print(_paint(f">> {i + 1}: {lines[i]}", "red", on))
+        else:
+            print(f"   {i + 1}: {lines[i]}")
+    for nl in new_lines:
+        print(_paint(f"++ {nl}", "green", on))
 
     lines[lo:hi] = new_lines
     p.write_text("\n".join(lines))
@@ -259,10 +318,17 @@ def patch(path, old, new, count=1, context=2):
     first = s[: s.index(old)].count("\n")
     last = first + old.count("\n")
     lo, hi = max(0, first - context), min(len(lines), last + context + 1)
+    # INT-215: see patch_between. ⚠️ THE DISPLAY IS THE FIRST MATCH ONLY, which is pre-existing --
+    # `first` comes from s.index(old) -- so with count>1 the other sites are replaced but not shown.
+    on = _color(sys.stdout)
     print(f"--- {path}: replacing lines {first + 1}..{last + 1} ---")
     for i in range(lo, hi):
-        mark = ">>" if first <= i <= last else "  "
-        print(f"{mark} {i + 1}: {lines[i]}")
+        if first <= i <= last:
+            print(_paint(f">> {i + 1}: {lines[i]}", "red", on))
+        else:
+            print(f"   {i + 1}: {lines[i]}")
+    for nl in new.split("\n"):
+        print(_paint(f"++ {nl}", "green", on))
 
     p.write_text(s.replace(old, new))
 
