@@ -138,10 +138,27 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Emacs mode -- ALREADY BUILT (verified INT-134, 2026-08-06): .edit_mode(EditMode::Emacs) at main.rs:885, an explicit choice rather than a rustyline default. This means READLINE KEYBINDINGS (Ctrl+A/E/K/W), not the Emacs editor -- nothing is installed and nothing is required.
 - [ ] Undo / redo command editing
 - [x] Fish-style autosuggestions -- ALREADY BUILT, and better than the item asks (verified INT-134, 2026-08-06): impl Hinter for ForestHelper (completion.rs:1207-1231) hints only at end of line, matches history by prefix, then falls back to high-confidence friday_patterns rows. Fish suggests from history; this also suggests from what Friday has learned.
-- [ ] Fuzzy command completion
+- [~] Fuzzy command completion -- HALF BUILT, AND IT HAS A LIVE DEFECT (verified INT-134,
+      2026-08-14). `pick` is a real fuzzy selector: `pick intent`, `pick intent --active`,
+      `pick history`, `pick file [--core]`. ⚠️ A PREVIOUS SWEEP NOTE CALLED IT "picks intents, not
+      files" ON A PARTIAL SUBCOMMAND LIST AND WAS WRONG -- `pick file` exists.
+      ⚠️⚠️ BUT IT CALLS `sk` (skim), WHICH IS NOT INSTALLED: `pick file` reports "sk not found".
+      `fzf` IS installed. So the feature is built and reaching for a backend the system does not
+      have while a working one sits beside it. That is a defect worth its own intent.
+      ★ AND IT IS STILL NOT THIS LINE: `pick` is fuzzy SELECTION through a picker; fuzzy COMPLETION
+      means Tab matching non-prefix substrings at the prompt, which is prefix-only today.
 - [~] Command history with semantic search -- PARTIAL (INT-134, 2026-07-12): literal search SHIPPED (`hs`/`history-search`/`hsearch` -> history_search_cmd, SQLite LIKE-substring, dedup + frequency/recency ranking + timestamps, commands/mod.rs:4643). SEMANTIC (meaning-based/embedding) half DEFERRED -- would need embeddings for a shell-history feature (high cost, marginal benefit over literal); possible future pairing with Friday's fact infrastructure, or a later CUT. Not owned by a current intent.
-- [ ] Popup command palettes
-- [ ] Command previews before execution
+- [ ] CUT -- Popup command palettes. Reason: three full-screen TUIs already serve this need -- `it`
+      for intents, `gt` for git, `cheat` for the command sheet -- plus `pick` for fuzzy selection.
+      Measured absent (`palette` reports command not found). A popup layer would be a fourth way to
+      reach the same commands, and the terminal is not a compositor: overlay windows belong to the
+      window manager rather than to the shell.
+- [ ] KEEP (UX, small) -- Command previews before execution. Measured: `pv` (smart_preview_cmd,
+      commands/mod.rs:15022) previews a FILE -- `pv flake.nix` reports size and detected type. That
+      is a file preview, not a command preview, so the item is genuinely open. ★ The pieces for it
+      exist though: `explain <cmd>` gives static information and `why <verb>` gives the semantic
+      reading, both already recorded above. What is missing is showing either one automatically
+      before a command runs.
 - [~] Interactive file picker -- ADJACENT, not the item (verified INT-134, 2026-08-06): pick_cmd (commands/mod.rs:7427) pipes candidates through an external selector, but its subcommands pick INTENTS. A general file picker is unbuilt; yazi covers file browsing (INT-063).
 - [~] Directory jumping / bookmark directories -- PARTIAL (INT-134, 2026-07-12): JUMPING shipped (`z`/`zi` zoxide frecency, commands/mod.rs:667; plus `dev workspace <name>` authoritative crate-jump). Named BOOKMARKS half unbuilt (no mark/bm command -- only session-save exists, which is L129 Session workspaces, a different feature). Bookmarks deferred; not owned by a current intent.
 - [x] Notifications when long tasks finish -- ALREADY BUILT (verified INT-134, 2026-07-13): commands >30s fire faelight-notify on completion (main.rs:3001-3006). Long-command notification hook is live.
