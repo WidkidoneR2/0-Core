@@ -150,12 +150,76 @@ straightforward once detection is solid.
   LATER: forest release -> snapshot current versions (forest-N.json). Release
   NEVER bumps; it only records.
 
+### ============================================================
+### DECISION 6 (2026-08-14): THE LEDGER ANSWERS *WHETHER*, THE HUMAN ANSWERS *WHICH*
+### ============================================================
+The open question this decision kept returning to: can the intent ledger decide a major or minor
+SYSTEM version -- "if so many intents are completely done, is an upgrade valid?"
+
+RULED: it is TWO questions, and separating them is what resolves it.
+
+WHICH DIGIT MOVES -- the ledger cannot answer, and Decision 5 above already says why. Intent count
+has the same flaw as intent type: twenty polish intents are not a minor, and one infrastructure
+intent IS a major if behaviour changed. Counting completions would produce confidently-wrong
+versions that look principled, which is the failure D5 names as worse than no automation.
+THE HUMAN OWNS SEMVER. Unchanged.
+
+WHETHER NOW IS A VALID MOMENT -- the ledger is uniquely able to answer, and nothing else here can.
+decisions/121 already states the criterion: a change is IN a release only if it is
+"stable + DEMONSTRATED (not merely declared) + not mid-flight". Those are three properties the
+ledger holds and no package manager does:
+  - NOT MID-FLIGHT   -- are there in-progress intents, and do they touch what is shipping
+  - DEMONSTRATED     -- does every completed gate carry evidence, or is any ticked bare
+  - STABLE           -- nothing reopened; no deferral whose stated reason has since been disproven
+
+So the buildable artifact is a RELEASE-READINESS CHECK, not a version calculator. It reports whether
+this moment satisfies 121's own inclusion rule. It never proposes a number.
+
+WHY THE OTHER SYSTEMS CANNOT DO THIS, recorded because it explains the frustration rather than
+dismissing it: Arch is rolling and versions by nothing. NixOS versions by TIME (twice a year)
+because a cadence is the only signal available when nothing records intent -- generations are too
+numerous to carry meaning. Fedora the same. Git uses a TAG: a human marking one commit among
+thousands. NONE OF THEM DERIVES A VERSION FROM STATE COUNT. The forest is not missing a mechanism
+they have; it HAS a signal they lack, and nothing reads it yet.
+
+PORTABILITY, which was half the original wish: the ledger is SQLite plus markdown and asks no
+package manager anything, so this check works identically on Arch, NixOS, Fedora or 0-Core. The
+cross-distro wish is downstream of the ledger being portable, not blocked by Nix.
+
 ### Revised gates (supersede the earlier gate list)
-- [ ] Single source of truth for each tool's version, in a place Nix reads
-- [ ] `bump-version <tool> <patch|minor|major>` edits ONLY that source
+- [x] Single source of truth for each tool's version, in a place Nix reads
+<!-- evidence 2026-08-14: it is Cargo.toml. The apparent contradiction resolves cleanly --
+     normalize-deps-versions.sh zeroes [package] version to 0.0.0 ONLY in the manifests-only
+     buildDepsOnly dummy source, and its own comment states why: "so cicomplete version bumps do not
+     perturb the deps hash" (INT-043, keeping the Cachix push valid). The real build reads the real
+     version. The constraint this gate names was anticipated rather than violated. -->
+- [x] `bump-version <tool> <patch|minor|major>` edits ONLY that source
+<!-- evidence: cicomplete writes Cargo.toml and syncs Cargo.lock. Watched five times on 2026-08-14,
+     3.6.9 through 3.6.14, one bump per completed intent. Built by INT-111, which closed exactly the
+     suggestion-theater gap this decision was filed about. -->
 - [ ] "detect changed tools" mechanism chosen + working (the hard part)
-- [ ] cicomplete/CI SUGGESTS bumps on intent completion; human confirms/overrides
-- [ ] intent-type is NOT used to auto-pick semver level (explicitly avoided)
+<!-- STILL OPEN, and honestly so. It correctly detected faelight-shell on five consecutive intents,
+     but every one of those touched a single tool. Whether it handles an intent spanning several
+     crates is UNMEASURED, and that is the case this gate exists for. -->
+- [x] cicomplete/CI SUGGESTS bumps on intent completion; human confirms/overrides
+<!-- evidence: the live prompt reads
+     `bump faelight-shell 3.6.13 (patch)? [patch/minor/major/skip] >` -- detection, suggestion,
+     human choice, and skip is offered. Decision 4 exactly. -->
+- [x] intent-type is NOT used to auto-pick semver level (explicitly avoided)
+<!-- evidence: the prompt ASKS rather than infers. Decision 5 honoured in the implementation, not
+     only on paper. -->
 - [ ] forest release RECORDS a version snapshot (forest-N.json) and bumps nothing
+<!-- STILL OPEN, and it is THE missing piece. faelight/runtime/snapshots/ exists and is EMPTY,
+     which suggests it was the intended home. ★ This is also what resolves the generation problem
+     in practice: the snapshot RECORDS which generation it was taken at, so the generation is
+     metadata on the release rather than something a version is derived from. -->
 - [ ] dev builds may carry git-describe suffix over the stored base version
-- [ ] faelight-shell bumped to 2.5.1 as the first real use (retroactive: INT-100/101)
+<!-- UNMEASURED. Decision 3 says stored base plus git-describe compose; whether dev builds actually
+     carry the suffix has not been checked. -->
+- [x] faelight-shell bumped to 2.5.1 as the first real use (retroactive: INT-100/101)
+<!-- evidence: long past it. faelight-shell is at 3.6.14 as of 2026-08-14, and the bump path that
+     this gate wanted proved is now used at every cicomplete. -->
+- [ ] RELEASE-READINESS CHECK per Decision 6: the ledger reports whether this moment satisfies
+      decisions/121's inclusion rule -- not mid-flight, every gate evidenced, nothing reopened.
+      It reports readiness and never proposes a version number
+
