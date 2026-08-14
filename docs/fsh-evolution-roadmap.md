@@ -100,8 +100,17 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 ## Lane 4 -- Friday / AI  (always human-authorized)
 - [~] Explain command before execution -- PARTIAL (verified INT-134, 2026-08-06): an explicit `explain <cmd>` builtin exists (commands/mod.rs:9980) alongside semantic_explain_cmd and semantic_dryrun_cmd. What is NOT built is the automatic half -- nothing explains a command before it runs unless you ask.
 - [x] Command error diagnosis -- partial (Friday knowledge hints)
-- [ ] Interactive troubleshooting mode
-- [ ] Shell script generation
+- [ ] KEEP (Lane 4, after the current fsh intents) -- Interactive troubleshooting mode. Measured
+      absent: `troubleshoot` and `diagnose` both report command not found. The PARTS exist and are
+      recorded above -- last-error recall, error-history, explain_exit_code and Friday failure hints
+      -- but each answers a question you ask afterwards. An interactive MODE is a guided session,
+      which none of them is.
+- [ ] CUT -- Shell script generation. Reason: measured absent (`generate` and `scaffold` both report
+      command not found), and the nearest thing is scripting_run_cmd, which RUNS scripts rather than
+      writing them. ⚠️ AND THE PREMISE HAS AGED: generating shell script text is what an assistant
+      does at the prompt, and fsh is moving AWAY from text toward structured plans -- the spine
+      lowers to argv rather than to a line. Building a text generator inside the shell now would run
+      against the direction of the rebuild.
 - [~] Extend NL -> commands (the `?` prefix) -- BASE BUILT (verified INT-134, 2026-08-06): translate_natural_language (main.rs:411, INT-268) is a real rule table of pattern-words plus command plus confidence -- pattern-based, no LLM, forest-specific. The `?` prefix is already VERIFIED above. EXTENDING the rule set is the open work, not building it.
 - [x] Autocomplete from command-history patterns -- ALREADY BUILT (verified INT-134, 2026-08-14),
       and it is the SAME feature as fish-style autosuggestions above rather than a second one:
@@ -111,8 +120,16 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 
 ## Lane 5 -- Structured-data pipelines  [EPIC -- own decision]
 - [x] Structured data pipelines (objects, not plain text) -- ALREADY BUILT (verified INT-134, 2026-08-06): value::PipeOp and apply_pipeline carry a typed Value between stages (22 uses incl. tests/pipeline.rs); Engine::try_query_executor runs them. `ps | where cpu > 0.5 | sort cpu desc` returns ROWS, not text. This is the shell's differentiator and it was sitting unchecked.
-- [ ] Native JSON / YAML / TOML
-- [ ] Interactive tables
+- [ ] KEEP (Lane 5, with the EPIC decision record) -- Native JSON / YAML / TOML. Measured absent as
+      a pipeline source: `json` and `from-json` both report command not found. serde_json appears
+      throughout the tree and toml in a few places, but those are INTERNAL parsing -- config files,
+      checkpoints, manifests -- not sources a pipeline can read from. ⚠️ AND THERE IS NO serde_yaml
+      at all, so the three formats in this line are not equally close.
+- [~] Interactive tables -- HALF BUILT (verified INT-134, 2026-08-14). The RENDERING is real:
+      `ps | first 2` prints a typed table with named columns, a separator rule and aligned rows, via
+      format_table over the Value pipeline. What is absent is INTERACTIVITY -- no `table` command,
+      no navigation, no sorting by clicking a column. So the data model and the renderer are done
+      and only the input layer is missing, which is a much smaller item than the line implies.
 - [~] Charts in terminal -- CUT (INT-134, 2026-07-12): low utility-to-effort. `the bar` already shows live metrics (CPU/RAM/battery/wifi) and the health panel covers status; a general terminal-charting engine is a lot of build for occasional sparklines. No specific recurring visualization need identified. Filter-appropriate cut.
 
 ## UX / Editing  (evaluate per item)
