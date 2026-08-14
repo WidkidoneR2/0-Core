@@ -143,7 +143,18 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Multi-line editing -- BUILT 2026-08-06: the Validator holds the prompt open for an unterminated quote, an unterminated command substitution, and a trailing backslash. It asks the spine lexer rather than counting quotes itself, so there is one owner of that knowledge. Heredocs and multi-line shell constructs (if/then/fi) are NOT covered -- both need the shell to model constructs it currently hands to sh.
 - [x] Vim mode -- BUILT 2026-08-06: `set edit_mode = vi` in config.fsh, emacs remaining the default. Both vi and vim are accepted, and an unrecognised value warns and falls back rather than silently doing nothing. NOTE for anyone switching: after Esc you are in normal mode, so you need i/a/o before typing again -- the extra keystroke is vi, not a bug.
 - [x] Emacs mode -- ALREADY BUILT (verified INT-134, 2026-08-06): .edit_mode(EditMode::Emacs) at main.rs:885, an explicit choice rather than a rustyline default. This means READLINE KEYBINDINGS (Ctrl+A/E/K/W), not the Emacs editor -- nothing is installed and nothing is required.
-- [ ] Undo / redo command editing
+- [x] Undo / redo command editing -- ALREADY BUILT BY INHERITANCE (verified INT-134, 2026-08-14),
+      the same way emacs keybindings are. rustyline 17.0.2 binds Cmd::Undo three ways in its own
+      keymap.rs: Ctrl+underscore in emacs mode (line 1087), plain `u` in vi normal mode (823), and
+      Ctrl+U (596). fsh writes none of this and gets all of it from the line editor.
+      ⚠️ THE EMACS BINDING IS HARD TO REACH ON A US KEYBOARD, and that is a terminal fact rather
+      than a shell one: Ctrl+underscore is byte 0x1F, which most layouts produce with Ctrl+slash --
+      Ctrl+Shift+minus sends a literal plus and the terminal passes it straight through. Measured
+      live: typing 1234 then Ctrl+Shift+minus five times gave `1234+++++`.
+      ⚠️ AND Ctrl+X then u IS NOT A BINDING AT ALL -- that is an Emacs-editor idiom, not readline.
+      ★ VI MODE MAKES IT TRIVIAL: `set edit_mode = vi`, then Esc followed by `u`.
+      ⏭ REDO is the half NOT inherited -- no Cmd::Redo appears in the keymap. If redo is wanted it
+      is a real increment; undo is not.
 - [x] Fish-style autosuggestions -- ALREADY BUILT, and better than the item asks (verified INT-134, 2026-08-06): impl Hinter for ForestHelper (completion.rs:1207-1231) hints only at end of line, matches history by prefix, then falls back to high-confidence friday_patterns rows. Fish suggests from history; this also suggests from what Friday has learned.
 - [~] Fuzzy command completion -- HALF BUILT, AND IT HAS A LIVE DEFECT (verified INT-134,
       2026-08-14). `pick` is a real fuzzy selector: `pick intent`, `pick intent --active`,
