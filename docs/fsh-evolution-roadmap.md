@@ -71,8 +71,8 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Environment diffs -- VERIFIED (INT-269, tested 2026-07-11): `env-diff <name>` compares current env vs a snapshot, names each differing var (saved vs current), counts diffs. Verified live: detected EDITOR hx->vim after a change (1 differ), reported 'No differences' when matched, detected again after env-load changed the live env. Already complete; no fix needed. commands/mod.rs env-diff.
 - [x] Immutable command history -- FIXED (INT-134, 2026-07-11): new append-only shell_history_audit table auto-captures every real command via an AFTER INSERT trigger on shell_history (internal SUGGEST:/TIMING:/doctor-test rows excluded). UPDATE + DELETE on the audit table are blocked by BEFORE triggers (RAISE ABORT) -> DB-enforced immutability. Verified live: delete attempt blocked ('immutable: deletes not permitted', row count unchanged 17->17). The working shell_history table keeps its legitimate mutations (INT-250 exit-code backfill, marker cleanup) -- immutability lives in the audit log, not by breaking the working table. db.rs init.
 - [x] Shareable environment manifests -- FIXED (INT-134, 2026-07-11): new env-export/env-import builtins. env-export <name> [path] writes a snapshot to a portable, human-readable TOML manifest (# header, name, exported_at, [vars]); env-import <path> reads it back into a snapshot. Full shareable cycle verified live: env-save -> env-export (readable TOML, PATH escaped) -> env-import -> env-load round-trip. Reuses the fsh_env_snapshots machinery; TOML is the shareable/committable transport. commands/mod.rs env-export/env-import arms.
-- [ ] Per-project isolated command namespaces -- SPLIT OUT to INT-144 (full scope management: scoped aliases + management UI + project manifests). Checked off when INT-144 completes.
-- [ ] Project-specific shell configuration -- FOLDED into INT-144 (fsh per-project scope system, Layer 3). Same foundation as project namespaces: scope-keyed state loaded on fsh enter from a committable manifest. Checked off when INT-144 completes.
+- [ ] KEEP (Lane 1, after the current fsh intents) -- Per-project isolated command namespaces -- SPLIT OUT to INT-144 (full scope management: scoped aliases + management UI + project manifests). Checked off when INT-144 completes.
+- [ ] KEEP (Lane 1, with the item above) -- Project-specific shell configuration -- FOLDED into INT-144 (fsh per-project scope system, Layer 3). Same foundation as project namespaces: scope-keyed state loaded on fsh enter from a committable manifest. Checked off when INT-144 completes.
 - [x] Audit log -- FIXED (INT-134, 2026-07-11): new `audit-log [n]` builtin surfaces the immutable shell_history_audit trail (recent captured commands + audit_id + timestamps, default 20). Reads the tamper-proof append-only log built alongside 'Immutable command history'. Verified live: showed 'last 20 of 148' with DB-enforced footer, count grew live (148->150) confirming continuous capture. commands/mod.rs audit-log arm.
 - [x] Command allowlists / denylists -- FIXED (INT-134, 2026-07-11): new `cmdguard` builtin manages DB-backed allow/deny lists (fsh_guard_list) that safety_guard.rs reads before execution. deny -> command hits the CHALLENGE gate (deny wins over everything); allow -> command skips the guard (vetted). cmdguard list | deny/allow add|remove <cmd>. Renamed from 'guard' (that word is aliased to the external intent-guard tool, resolved before dispatch). Verified live: deny frobnicate -> CHALLENGE 'Denylisted command'; flipped to allow -> no CHALLENGE (not-found only); existing heuristics (dd/mkfs) untouched. safety_guard.rs check() + commands/mod.rs cmdguard/guard_cmd.
 
@@ -103,7 +103,11 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] Interactive troubleshooting mode
 - [ ] Shell script generation
 - [~] Extend NL -> commands (the `?` prefix) -- BASE BUILT (verified INT-134, 2026-08-06): translate_natural_language (main.rs:411, INT-268) is a real rule table of pattern-words plus command plus confidence -- pattern-based, no LLM, forest-specific. The `?` prefix is already VERIFIED above. EXTENDING the rule set is the open work, not building it.
-- [ ] Autocomplete from command-history patterns
+- [x] Autocomplete from command-history patterns -- ALREADY BUILT (verified INT-134, 2026-08-14),
+      and it is the SAME feature as fish-style autosuggestions above rather than a second one:
+      `impl Hinter for ForestHelper` (completion.rs 1207-1231) prefix-matches `shell_history`,
+      then falls back to high-confidence `friday_patterns` rows. Cross-referenced rather than
+      counted twice.
 
 ## Lane 5 -- Structured-data pipelines  [EPIC -- own decision]
 - [x] Structured data pipelines (objects, not plain text) -- ALREADY BUILT (verified INT-134, 2026-08-06): value::PipeOp and apply_pipeline carry a typed Value between stages (22 uses incl. tests/pipeline.rs); Engine::try_query_executor runs them. `ps | where cpu > 0.5 | sort cpu desc` returns ROWS, not text. This is the shell's differentiator and it was sitting unchecked.
@@ -128,11 +132,22 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 ## Productivity
 - [x] Session workspaces -- ALREADY BUILT (verified INT-134, 2026-07-13): full env-snapshot cycle -- `env-save <name>` (snapshot), `env-load` (restore named), `env-rollback` (restore most recent), `env-diff` (compare current vs snapshot). SQLite fsh_env_snapshots table (INT-269). commands/mod.rs:1221-1359.
 - [ ] Named command collections
-- [ ] Macro system
-- [ ] Aliases with arguments
+- [ ] CUT -- Macro system. Reason: three mechanisms already cover this ground and a fourth would be
+      a fourth owner of one idea. Aliases do text substitution (and append arguments, as bash does),
+      `scripting_run_cmd` runs sequences, and the `on` trigger DSL handles event-driven repetition.
+      Measured absent: `macro` reports command not found. INT-193 exists because two owners of one
+      rule caused real bugs; this would be the same shape by choice.
+- [x] Aliases with arguments -- ALREADY BUILT (verified INT-134, 2026-08-14): arguments APPEND to
+      the expansion exactly as in bash. Measured: `alias zzgreet=echo hello` then `zzgreet world`
+      prints `hello world`. ⚠️ POSITIONAL PARAMETERS ARE NOT AN ALIAS FEATURE IN ANY SHELL --
+      `alias zzp=echo $1` then `zzp WORLD` prints `$1 WORLD`, which is what bash does too. What
+      that half of the item wants is SHELL FUNCTIONS, which this roadmap does not list at all and
+      which is a genuine gap worth its own line.
 - [~] Scheduled commands -- ADJACENT, not the item (verified INT-134, 2026-08-06): on_cmd (commands/mod.rs:12565) is the EVENT trigger DSL over crate::triggers -- on list, on remove, on <event> => <action> -- and watch_cmd polls. Time-based scheduling is genuinely absent.
 - [ ] Built-in task runner
-- [ ] Quick notes / todos
+- [ ] CUT -- Quick notes / todos. Reason: the intent ledger IS this, with gates, evidence, history
+      and a TUI (`it`). A second note store would compete with it and the two would drift.
+      Measured absent as a shell feature: `note`, `notes` and `todo` all report command not found.
 
 ## Terminal UI  (some covered by bar / ade / fm)
 - [x] Dashboard mode -- ALREADY BUILT (verified INT-134, 2026-07-13): `dashboard`/`dash` -> dashboard_cmd (commands/mod.rs:12824). `dashboard` = full overview, `dashboard system` = CPU/memory/network/top processes, `dashboard forest` = forest state.
@@ -143,7 +158,14 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 ## Security
 - [x] Command risk scoring -- ALREADY BUILT (INT-246, verified live 2026-07-13): safety_guard::check() classifies commands by danger -- rm -rf on non-temp paths, sqlite3 DROP TABLE/DATABASE, direct state.db DELETE, plus DB-backed user allow/deny lists (deny wins). First-word matched (never args/paths); safe-command fast-path. Wired BEFORE execution at main.rs:1165/1207.
 - [x] Dangerous command confirmation -- ALREADY BUILT (INT-246, verified live 2026-07-13): safety_guard::challenge_gate() prompts 'Type yes to proceed, anything else to abort' at CHALLENGE tier, blocks by default. LIVE TEST: rm -rf /nonexistent-test challenged with 'Destructive remove' + prompt; safe commands (ls) passed with no prompt.
-- [ ] Secret management
+- [x] Secret management -- ALREADY BUILT (verified INT-134, 2026-08-14) as `faelight-vault`, a
+      separate crate at faelight/rust-tools/faelight-vault, reachable from the shell. Subcommands:
+      init (master password), add, get, list with health scores, rotate, generate, audit for weak
+      or old credentials, unlock with a TTL cache, lock, remove, export and import encrypted
+      backups. That is MORE than this line asks for.
+      ⚠️ FOUND ONLY BY RUNNING IT. A grep of commands/mod.rs found nothing, because this is not a
+      builtin -- it is its own tool. The sweep rule "a symbol existing is not the feature existing"
+      has a mirror: a symbol being ABSENT is not the feature being absent.
 - [ ] Environment variable permissions
 
 ## Async / Jobs
