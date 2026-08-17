@@ -1,5 +1,5 @@
 ---
-id: TBD
+id: 142
 date: 2026-08-17
 type: decision
 title: "intent ledger shape -- store facts, derive conclusions, and make the list decision-shaped"
