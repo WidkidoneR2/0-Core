@@ -5,7 +5,7 @@ type: feature
 title: "Forest-Aware Launcher: forest start <context> -- environment as first class"
 status: planned
 tags: [launcher, environment, nix, friday, context-switching]
-priority: high
+priority: low
 ---
 
 ## Vision

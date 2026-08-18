@@ -5,7 +5,7 @@ type: feature
 title: "Forest Observatory: searchable event timeline"
 status: planned
 tags: [friday, observatory, timeline, history, events]
-priority: high
+priority: low
 ---
 
 ## Vision

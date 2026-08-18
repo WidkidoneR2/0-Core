@@ -5,7 +5,7 @@ type: future
 title: "Route hardcoded path strings through paths.rs (per-tool)"
 status: planned
 tags: [paths, faelight-core, refactor]
-priority: high
+priority: medium
 ---
 
 ## Why

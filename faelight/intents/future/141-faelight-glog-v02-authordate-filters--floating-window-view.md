@@ -5,7 +5,7 @@ type: future
 title: "faelight-glog v0.2: author/date filters + floating-window view"
 status: planned
 tags: [glog, git, tui, filters, floating-window]
-priority: high
+priority: low
 ---
 
 ## Vision
