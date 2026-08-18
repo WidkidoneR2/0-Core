@@ -72,6 +72,29 @@ sudo nixos-rebuild switch --rollback
 
 ## Level 3 — won't boot / fully locked out (USB rescue)
 
+> **FIRST: Secure Boot will reject the USB.** Since INT-161 this machine enforces
+> Secure Boot with custom keys, and the rescue media is not signed by them.
+> Measured twice: it does not error. The firmware silently falls through and boots
+> the signed disk, so it looks like the port is dead or the stick is blank.
+>
+> Before anything below, enter the firmware menu:
+>
+>     systemctl reboot --firmware-setup      # or the boot-menu key at power-on
+>
+> Disable Secure Boot there, then boot the USB. No supervisor password is set
+> (confirmed 2026-08-18), so the menu is directly reachable.
+>
+> After the repair, before re-enabling Secure Boot:
+>
+>     sbctl verify        # confirms every UKI on the ESP is signed
+>
+> Then re-enable Secure Boot in the firmware menu.
+>
+> If the keys themselves are gone, use "Restore secure boot to factory settings"
+> in the INSYDE menu. It restores from the firmware's own storage -- no file, no
+> USB, no network. The factory certs and your sbctl keys are also on FORESTBACKUP
+> and in nix/hosts/framework16/secureboot-factory/ (INT-225).
+
 Boot the NixOS installer USB, then:
 
 ```
