@@ -1130,13 +1130,13 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
     let home = std::env::var("HOME").unwrap_or_default();
     let core_root = ctx.core_root.clone();
     // Only run critical checks — fast subset
-    let checks: Vec<CheckResult> = vec![
-        checks::check_services(),
-        checks::check_broken_symlinks(&core_root, &home),
-        checks::check_git(&core_root),
-        checks::check_scripts(&core_root),
-        checks::check_disk_space(),
-    ];
+    // INT-222: DERIVED, not copied. The old hardcoded five contained git-is-dirty and
+    // scripts-executable, while boot errors and disk space were absent entirely. Deleting a
+    // check also meant editing two lists, and only the compiler noticed the second.
+    let checks: Vec<CheckResult> = all_checks(&core_root, &home)
+        .into_iter()
+        .filter(|c| c.tier == Tier::Critical)
+        .collect();
     let passed = checks.iter().filter(|c| c.status == Status::Pass).count();
     let warned = checks.iter().filter(|c| c.status == Status::Warn).count();
     let failed = checks.iter().filter(|c| c.status == Status::Fail).count();
