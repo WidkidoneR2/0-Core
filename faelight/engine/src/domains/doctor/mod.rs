@@ -1118,7 +1118,6 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
     let core_root = ctx.core_root.clone();
     // Only run critical checks — fast subset
     let checks: Vec<CheckResult> = vec![
-        checks::check_stow(&core_root, &home),
         checks::check_services(),
         checks::check_broken_symlinks(&core_root, &home),
         checks::check_git(&core_root),
@@ -1295,7 +1294,6 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
 
 fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
     vec![
-        check_stow(core_root, home),
         check_services(),
         check_broken_symlinks(core_root, home),
         check_binaries(),

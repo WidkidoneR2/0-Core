@@ -7,17 +7,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
 
-pub fn check_stow(_core_root: &str, _home: &str) -> CheckResult {
-    // Dotfiles are owned by home-manager on NixOS (stow subsystem decommissioned, INT-107).
-    CheckResult {
-        id: "stow".into(),
-        name: "Dotfile Symlinks".into(),
-        status: Status::Pass,
-        message: "Managed by home-manager (NixOS)".into(),
-        fix: None,
-    }
-}
-
 pub fn check_services() -> CheckResult {
     // Per-session daemons the doctor expects up. faelight-bar joined this list
     // when INT-053 shipped it as a real systemd user service.
