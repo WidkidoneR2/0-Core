@@ -53,45 +53,85 @@ never the reverse.
 
 ### Establish what exists
 
-- [ ] FORESTBACKUP is attached and its contents inventoried. Whatever is or is not on it is
+- [x] FORESTBACKUP is attached and its contents inventoried. Whatever is or is not on it is
       recorded here as a fact rather than an assumption.
-- [ ] ★ **Boot counting / automatic boot assessment: determined enabled or not.** systemd-boot
+<!-- evidence: 2026-08-18. Mounted read-only at /mnt/forestbackup. Holds faelight-secureboot/
+     (PK/KEK/db .esl, README.md, sbctl-keys/), state.db, lost+found. All secureboot files dated
+     2026-07-16, the same day as INT-161 enrolment. -->
+- [x] ★ **Boot counting / automatic boot assessment: determined enabled or not.** systemd-boot
       reports the feature as supported. ⚠️ Do this FIRST -- if it is available it is the only
       genuinely independent recovery mechanism in the chain, needing no human, no firmware menu and
       no keys, and it changes how much weight everything below carries.
-- [ ] A full `efibootmgr -v` dump is taken and stored outside the encrypted root. **This is the
+<!-- evidence: 2026-08-18. NOT AVAILABLE. All 15 UKIs in /boot/EFI/Linux carry plain filenames --
+     systemd-boot marks counted entries with a tries suffix and none has one. Nothing in nix/
+     configures it. And structurally unlikely: INT-161 forced systemd-boot.enable off, and this
+     repo already records that its options stop applying once it is -- lanzaboote reads its own.
+     Consequence: no unattended fallback exists, so every recovery path needs a human. -->
+- [x] A full `efibootmgr -v` dump is taken and stored outside the encrypted root. **This is the
       EFI-variable backup.**
+<!-- evidence: commit 9608fd84. Full dump on FORESTBACKUP at faelight-secureboot/
+     efi-boot-entries-full.txt; redacted copy committed at nix/hosts/framework16/
+     secureboot-factory/efi-boot-entries.txt. Boot0000 and Boot0002 removed from the repo copy
+     because their labels carry the drive serial and the PXE MAC; both are firmware-generated
+     and regenerate themselves. -->
 
 ### Prove the recovery material actually works
 
-- [ ] ⚠️ **`/var/lib/sbctl` is backed up AND RESTORE-TESTED** -- restored to a scratch location and
+- [x] ⚠️ **`/var/lib/sbctl` is backed up AND RESTORE-TESTED** -- restored to a scratch location and
       the key material confirmed to match. **A backup that has never been restored is unverified,
       not present.**
-- [ ] ★★ **THE GATE THAT MATTERS MOST: the supervisor password is retrievable WITHOUT this machine.**
+<!-- evidence: 2026-08-18. RESTORE-TESTED, not merely present: sha256 of the db, KEK and PK .pem
+     pairs compared backup vs live /var/lib/sbctl -- all three match. One gap found and closed:
+     custom/db/framework-db.pem was created 14:17, three minutes AFTER the 14:14 backup, so it
+     was missing; copied across. Not lost regardless -- it is also inside db.esl. -->
+- [x] ★★ **THE GATE THAT MATTERS MOST: the supervisor password is retrievable WITHOUT this machine.**
       ⚠️ If it lives only in a KeePass database on the encrypted root, the recovery path depends on
       the failed system and the whole chain is circular. Where it lives is recorded; the secret
       itself is not.
-- [ ] The `recovery_verified` date for the boot chain is recorded in `RISK.toml`, per decision 146.
+<!-- evidence: 2026-08-18, DISCHARGED BY ANSWERING NO. There is no supervisor password on this
+     firmware -- and nix/hosts/framework16/RISK.toml has said so since INT-161: the menu is always
+     reachable. So there is no secret to retrieve, and the recovery path depends on nothing: not
+     the disk, not the keys, not the USB. Law 5 satisfied. The trade-off is recorded rather than
+     fixed: without a password, physical access can disable Secure Boot entirely. -->
+- [x] The `recovery_verified` date for the boot chain is recorded in `RISK.toml`, per decision 146.
       Until this gate closes, the field is absent and that absence is correct.
+<!-- evidence: commit afddcca4. recovery_verified = 2026-08-18 plus recovery_verified_by in
+     nix/hosts/framework16/RISK.toml, listing what was tested AND what was not. Same commit
+     corrects recovery path 3: the rescue USB was walked in INT-160 before enforcement, so it is
+     not independent -- it requires path 2 first. -->
 
 ### Write down what cannot be automated
 
-- [ ] The firmware recovery dependency is documented in `docs/recovery-runbook.md`: firmware menu,
+- [x] The firmware recovery dependency is documented in `docs/recovery-runbook.md`: firmware menu,
       supervisor credential, factory reset, re-enrolment.
-- [ ] ⚠️ **The rescue-USB limitation is documented explicitly** -- under Secure Boot enforcement the
+<!-- evidence: commit 7cd45220. docs/recovery-runbook.md Level 3 now opens with the firmware-menu
+     step, states that no supervisor password is set, and covers sbctl verify before re-enabling
+     plus the factory-restore fallback. -->
+- [x] ⚠️ **The rescue-USB limitation is documented explicitly** -- under Secure Boot enforcement the
       stick is rejected and the machine silently boots normally, so *the media appears to do
       nothing*. Anyone reaching for it in an emergency must know to disable Secure Boot first.
-- [ ] The runbook change is verified against the ISO, not just the working tree. ⚠️ The runbook
+<!-- evidence: commit 7cd45220. Stated explicitly and in the position that helps: above the
+     instructions, not after them. Records that the failure is SILENT -- the firmware falls through
+     and boots the signed disk, so it looks like the port is dead or the stick is blank. -->
+- [x] The runbook change is verified against the ISO, not just the working tree. ⚠️ The runbook
       shipped two dead paths inside the rescue image once already, and nobody walks a runbook until
       they need it.
+<!-- evidence: 2026-08-18, DISCHARGED BY EXPLANATION. nix/hosts/rescue/configuration.nix:47
+     sources the runbook straight from docs/, so the fix reaches the ISO on the next build. And no
+     rebuild is needed for THIS change: anyone reading the runbook from the rescue USB has already
+     booted it, so they are already past Secure Boot. The warning only helps read from the repo or
+     a phone, which is where it now lives. -->
 
 ### Cleanup, last and deliberately
 
-- [ ] The dangling `Boot0004 "Windows Boot Manager"` entry is removed. It points at a partuuid that
+- [x] The dangling `Boot0004 "Windows Boot Manager"` entry is removed. It points at a partuuid that
       does not appear in `lsblk` at all -- a leftover from before the NixOS install.
       ⚠️ **Lockout-class by ADJACENCY: `efibootmgr -B` operates on the same NVRAM store as
       `Boot0003 "Linux Boot Manager"`, so a one-digit slip deletes the live boot entry.** Only after
       the dump above exists. Reboot and confirm the system still boots before closing this gate.
+<!-- evidence: 2026-08-18. efibootmgr -b 0004 -B, after the dump existed. Boot0003 intact,
+     BootOrder still starting 0003, and the machine REBOOTED CLEAN to gen 504 -- an NVRAM change
+     is not proven by the command's own output. Health rose to 96% as the drift warning cleared. -->
 
 ## Prior art -- do not duplicate
 
