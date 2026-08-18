@@ -15,6 +15,9 @@ pub struct Intent {
     pub date: String,
     pub tags: Vec<String>,
     pub intent_type: String,
+    /// INT-213 G10: declared in frontmatter, lowercased on read. Empty means undeclared,
+    /// which is different from low -- an undeclared intent has simply never been ranked.
+    pub priority: String,
     pub folder: String,
     pub filename: String,
     pub depends_on: Vec<String>,
@@ -138,6 +141,8 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     let mut date = String::new();
     let mut tags: Vec<String> = vec![];
     let mut intent_type = folder.to_string();
+    // INT-213 G10: priority was written into 72 intents and read by nothing.
+    let mut priority = String::new();
     let mut depends_on: Vec<String> = vec![];
     let mut blocks_field: Vec<String> = vec![];
     let mut relates: Vec<String> = vec![];
@@ -153,6 +158,8 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
             date = v.trim().to_string();
         } else if let Some(v) = line.strip_prefix("type:") {
             intent_type = v.trim().to_string();
+        } else if let Some(v) = line.strip_prefix("priority:") {
+            priority = v.trim().to_lowercase();
         } else if let Some(v) = line.strip_prefix("tags:") {
             let tag_str = v.trim().trim_matches('[').trim_matches(']');
             tags = tag_str.split(',').map(|t| t.trim().to_string()).collect();
@@ -196,6 +203,7 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
         intent_type,
         folder: folder.to_string(),
         filename,
+        priority,
         depends_on,
         blocks: blocks_field,
         relates,
@@ -2943,19 +2951,28 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
             score += (unblocks as u32 * 15).min(30);
             reasons.push(format!("unblocks {} other intent(s)", unblocks));
         }
-        // Tag-based scoring
-        let tags_str = intent.tags.join(",").to_lowercase();
-        if tags_str.contains("intelligence") || tags_str.contains("friday") {
-            score += 15;
-            reasons.push("high intelligence value".to_string());
-        }
-        if tags_str.contains("security") || tags_str.contains("critical") {
-            score += 20;
-            reasons.push("security/critical priority".to_string());
-        }
-        if tags_str.contains("v2") {
-            score += 10;
-            reasons.push("v2 upgrade pattern".to_string());
+        // INT-213 G10 / decision 142: declared priority, not tag string-matching.
+        // The tag bonuses are gone deliberately -- a security tag added 20 on top of a
+        // declared priority, counting the same intent twice, and no reader ever declared
+        // that a tag should rank anything. An empty priority scores nothing: undeclared
+        // is not low, it means the intent has never been ranked.
+        match intent.priority.as_str() {
+            "high" => {
+                score += 40;
+                reasons.push("declared priority: high".to_string());
+            }
+            "medium" => {
+                score += 20;
+                reasons.push("declared priority: medium".to_string());
+            }
+            "low" => {
+                score += 5;
+                reasons.push("declared priority: low".to_string());
+            }
+            "" => {}
+            other => {
+                reasons.push(format!("unrecognised priority '{}' -- not scored", other));
+            }
         }
         // Base score for being unblocked
         score += 10;
