@@ -4,6 +4,7 @@ date: 2026-07-16
 type: arch
 title: "DevBox: the debugging platform -- and the instrumentation fsh already half-has (correlation_id + source_tool are dead columns)"
 status: planned
+depends_on: [214]
 tags: [devbox, debugging, instrumentation, events, sqlite, tui, fsh, architecture]
 ---
 
@@ -334,3 +335,11 @@ NOTES / OPEN QUESTIONS for when this is built:
 - Ties to 167's existing scope: DevBox as the debugging platform, and fsh's dead instrumentation
   columns (correlation_id + source_tool). The TUI is the FRONT of that platform.
 - Framework: ratatui (matches ArchTUI's approach and the forest's Rust-TUI tools like faelight-fm).
+
+## Dependencies
+
+**INT-214** -- DevBox reconstructs a command causally from recorded events, and no commit
+has ever created the events source_tool or correlation_id columns, so a database built from
+source cannot record one. P0 cannot proceed against a schema that does not carry provenance.
+
+Chosen as INT-213 G6 first real edge because it was already proven rather than assumed.
