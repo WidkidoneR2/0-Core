@@ -3,7 +3,7 @@ id: 225
 date: 2026-08-17
 type: fix
 title: "boot chain recovery material is unverified and not independently reachable"
-status: planned
+status: complete
 priority: high
 depends_on: []
 tags: [fix, bugfix]
