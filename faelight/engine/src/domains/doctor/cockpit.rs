@@ -7,8 +7,8 @@ pub fn print_result(r: &CheckResult) {
         Status::Pass => println!("✅ {}: {}", r.name, r.message),
         Status::Warn => println!("⚠️  {}: {}", r.name, r.message),
         Status::Fail => println!("❌ {}: {}", r.name, r.message),
-        Status::Blocked => println!("⏭  {}: blocked", r.name),
-        Status::Unknown => println!("❔ {}: unknown (could not determine)", r.name),
+        Status::Blocked => println!("⏭ {}: {}", r.name, r.message),
+        Status::Unknown => println!("❔ {}: {}", r.name, r.message),
     }
 }
 
@@ -35,8 +35,8 @@ pub fn render_section(title: &str, checks: &[&CheckResult]) {
             Status::Pass => r.message.dimmed().to_string(),
             Status::Warn => r.message.yellow().to_string(),
             Status::Fail => r.message.bright_red().to_string(),
-            Status::Blocked => "blocked".dimmed().to_string(),
-            Status::Unknown => "unknown".dimmed().to_string(),
+            Status::Blocked => r.message.dimmed().to_string(),
+            Status::Unknown => r.message.dimmed().to_string(),
         };
         println!("  │  {} {}  {}", icon, name_col.normal(), msg);
     }
