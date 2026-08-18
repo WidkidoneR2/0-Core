@@ -2835,24 +2835,24 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> = intents
-        .iter()
-        .filter(|i| i.status == "complete")
-        .map(|i| i.id.clone())
-        .collect();
-    // Score each planned intent
+    // INT-213 G4/G5: dep_state owns satisfaction, and a skipped intent is never silent.
     let mut scored: Vec<(&Intent, u32, Vec<String>)> = Vec::new();
+    let mut skipped: Vec<(&Intent, Vec<String>)> = Vec::new();
     for intent in intents.iter().filter(|i| i.status == "planned") {
-        // Check if all deps are complete
-        let unmet: Vec<String> = intent
-            .depends_on
-            .iter()
-            .filter(|dep| !complete_ids.contains(*dep))
-            .cloned()
-            .collect();
+        let mut unmet: Vec<String> = Vec::new();
+        for dep in &intent.depends_on {
+            match dep_state(&intents, dep) {
+                DepState::Satisfied | DepState::Questionable => {}
+                DepState::Blocked => unmet.push(format!("INT-{}", dep)),
+                DepState::Missing => {
+                    unmet.push(format!("INT-{} (names no intent -- invalid edge)", dep))
+                }
+            }
+        }
         if !unmet.is_empty() {
+            skipped.push((intent, unmet));
             continue;
-        } // skip blocked
+        }
         let mut score = 0u32;
         let mut reasons = Vec::new();
         // How many intents does this unblock?
@@ -2888,39 +2888,52 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(60).dimmed());
     if scored.is_empty() {
         println!("  {} No unblocked planned intents found", "○".dimmed());
-        return Ok(());
     }
-    let (top, score, reasons) = &scored[0];
-    println!(
-        "  {} Recommended: INT-{}",
-        "→".bright_green(),
-        top.id.bright_white()
-    );
-    println!("  {} {}", "  ".dimmed(), top.title.bright_white());
-    println!(
-        "  {} Priority score: {}/100",
-        "  ".dimmed(),
-        score.to_string().bright_green()
-    );
-    println!();
-    println!("  {} Why this intent:", "→".dimmed());
-    for reason in reasons {
-        println!("    {} {}", "◦".dimmed(), reason.bright_white());
-    }
-    if scored.len() > 1 {
+    if let Some((top, score, reasons)) = scored.first() {
+        println!(
+            "  {} Recommended: INT-{}",
+            "→".bright_green(),
+            top.id.bright_white()
+        );
+        println!("  {} {}", "  ".dimmed(), top.title.bright_white());
+        println!(
+            "  {} Priority score: {}/100",
+            "  ".dimmed(),
+            score.to_string().bright_green()
+        );
         println!();
-        println!("{}", "  Other ready intents:".dimmed());
-        for (intent, score, _) in scored.iter().skip(1).take(3) {
+        println!("  {} Why this intent:", "→".dimmed());
+        for reason in reasons {
+            println!("    {} {}", "◦".dimmed(), reason.bright_white());
+        }
+        if scored.len() > 1 {
+            println!();
+            println!("{}", "  Other ready intents:".dimmed());
+            for (intent, score, _) in scored.iter().skip(1).take(3) {
+                println!(
+                    "    {} INT-{} -- {} (score: {})",
+                    "◦".dimmed(),
+                    intent.id.dimmed(),
+                    intent.title.dimmed(),
+                    score.to_string().dimmed()
+                );
+            }
+        }
+        println!("{}", "━".repeat(60).dimmed());
+    }
+    if !skipped.is_empty() {
+        println!();
+        println!("  {} Not recommended, and why:", "!".dimmed());
+        for (intent, blockers) in &skipped {
             println!(
-                "    {} INT-{} -- {} (score: {})",
-                "◦".dimmed(),
+                "    {} INT-{} -- waiting on {}",
+                "~".dimmed(),
                 intent.id.dimmed(),
-                intent.title.dimmed(),
-                score.to_string().dimmed()
+                blockers.join(", ").bright_yellow()
             );
         }
+        println!("{}", "━".repeat(60).dimmed());
     }
-    println!("{}", "━".repeat(60).dimmed());
     Ok(())
 }
 /// Session brief -- what to work on, context from last session
