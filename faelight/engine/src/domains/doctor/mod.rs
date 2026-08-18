@@ -17,11 +17,24 @@ pub enum Status {
     Unknown,
 }
 
+/// INT-222: how much a problem in this check matters, declared per check rather than inferred.
+/// The first three names are deliberately the same as RISK.toml's tiers. The fourth is NOT:
+/// RISK.toml's  means nothing reads it at boot;  here means the check measures
+/// something true but never renders a judgement, so it is excluded from the verdict entirely.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Tier {
+    Critical,
+    System,
+    User,
+    Info,
+}
+
 #[derive(Debug)]
 pub struct CheckResult {
     pub id: String,
     pub name: String,
     pub status: Status,
+    pub tier: Tier,
     pub message: String,
     pub fix: Option<String>,
 }
@@ -1258,6 +1271,7 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             let structural = registry + modules;
             if structural > 0 {
                 CheckResult {
+                    tier: Tier::User,
                     id: "deadwood".into(),
                     name: "Deadwood".into(),
                     status: Status::Warn,
@@ -1271,6 +1285,7 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
                 }
             } else {
                 CheckResult {
+                    tier: Tier::User,
                     id: "deadwood".into(),
                     name: "Deadwood".into(),
                     status: Status::Pass,
@@ -1283,6 +1298,7 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             }
         }
         _ => CheckResult {
+            tier: Tier::User,
             id: "deadwood".into(),
             name: "Deadwood".into(),
             status: Status::Pass,

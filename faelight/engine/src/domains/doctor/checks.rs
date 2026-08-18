@@ -1,6 +1,6 @@
 // doctor/checks.rs — all 23 health check functions
 #![allow(dead_code)]
-use super::{CheckResult, Status};
+use super::{CheckResult, Status, Tier};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -32,6 +32,7 @@ pub fn check_services() -> CheckResult {
         // Now Unknown -- "couldn't determine service state" is honest, and it's excluded from
         // the health denominator rather than counting as a free Pass in bus-less contexts.
         return CheckResult {
+            tier: Tier::System,
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Unknown,
@@ -62,6 +63,7 @@ pub fn check_services() -> CheckResult {
     let running = total - down.len();
     if running == total {
         CheckResult {
+            tier: Tier::System,
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Pass,
@@ -70,6 +72,7 @@ pub fn check_services() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "services".into(),
             name: "System Services".into(),
             status: Status::Warn,
@@ -100,6 +103,7 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
 
     if broken == 0 {
         CheckResult {
+            tier: Tier::System,
             id: "broken_symlinks".into(),
             name: "Broken Symlinks".into(),
             status: Status::Pass,
@@ -108,6 +112,7 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "broken_symlinks".into(),
             name: "Broken Symlinks".into(),
             status: Status::Fail,
@@ -147,6 +152,7 @@ pub fn check_binaries() -> CheckResult {
         .collect();
     if missing.is_empty() {
         CheckResult {
+            tier: Tier::Critical,
             id: "binaries".into(),
             name: "Binary Dependencies".into(),
             status: Status::Pass,
@@ -155,6 +161,7 @@ pub fn check_binaries() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::Critical,
             id: "binaries".into(),
             name: "Binary Dependencies".into(),
             status: Status::Fail,
@@ -201,6 +208,7 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
                 .unwrap_or(0);
             if warns == 0 {
                 CheckResult {
+                    tier: Tier::User,
                     id: "rust_docs".into(),
                     name: "Rust Docs".into(),
                     status: Status::Pass,
@@ -209,6 +217,7 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
                 }
             } else {
                 CheckResult {
+                    tier: Tier::User,
                     id: "rust_docs".into(),
                     name: "Rust Docs".into(),
                     status: Status::Warn,
@@ -219,6 +228,7 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
         }
         // Timed out, or cargo could not be spawned: cannot determine -> Unknown (INT-148).
         _ => CheckResult {
+            tier: Tier::User,
             id: "rust_docs".into(),
             name: "Rust Docs".into(),
             status: Status::Unknown,
@@ -241,6 +251,7 @@ pub fn check_git(core_root: &str) -> CheckResult {
         .unwrap_or(false);
     if !has_changes && !has_unpushed {
         CheckResult {
+            tier: Tier::User,
             id: "git".into(),
             name: "Git Repository".into(),
             status: Status::Pass,
@@ -256,6 +267,7 @@ pub fn check_git(core_root: &str) -> CheckResult {
             issues.push("Unpushed commits");
         }
         CheckResult {
+            tier: Tier::User,
             id: "git".into(),
             name: "Git Repository".into(),
             status: Status::Warn,
@@ -281,6 +293,7 @@ pub fn check_themes(core_root: &str) -> CheckResult {
         .unwrap_or(0);
     if count >= 1 {
         CheckResult {
+            tier: Tier::User,
             id: "themes".into(),
             name: "Theme Packages".into(),
             status: Status::Pass,
@@ -289,6 +302,7 @@ pub fn check_themes(core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "themes".into(),
             name: "Theme Packages".into(),
             status: Status::Warn,
@@ -320,6 +334,7 @@ pub fn check_scripts(core_root: &str) -> CheckResult {
         .collect();
     if std::path::Path::new("/etc/NIXOS").exists() {
         return CheckResult {
+            tier: Tier::User,
             id: "scripts".into(),
             name: "Scripts".into(),
             status: Status::Pass,
@@ -329,6 +344,7 @@ pub fn check_scripts(core_root: &str) -> CheckResult {
     }
     if issues.is_empty() {
         CheckResult {
+            tier: Tier::User,
             id: "scripts".into(),
             name: "Scripts".into(),
             status: Status::Pass,
@@ -337,6 +353,7 @@ pub fn check_scripts(core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "scripts".into(),
             name: "Scripts".into(),
             status: Status::Warn,
@@ -354,6 +371,7 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
 
     if issues.is_empty() {
         CheckResult {
+            tier: Tier::User,
             id: "intents".into(),
             name: "Intent Ledger".into(),
             status: Status::Pass,
@@ -362,6 +380,7 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "intents".into(),
             name: "Intent Ledger".into(),
             status: Status::Warn,
@@ -387,6 +406,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
     }
     if issues == 0 {
         CheckResult {
+            tier: Tier::System,
             id: "config".into(),
             name: "Faelight Config".into(),
             status: Status::Pass,
@@ -395,6 +415,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "config".into(),
             name: "Faelight Config".into(),
             status: Status::Warn,
@@ -412,6 +433,7 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
         ("mango", mango_config, true)
     } else {
         return CheckResult {
+            tier: Tier::User,
             id: "keybinds".into(),
             name: "Compositor Keybinds".into(),
             status: Status::Warn,
@@ -423,6 +445,7 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
         Ok(c) => c,
         Err(_) => {
             return CheckResult {
+                tier: Tier::User,
                 id: "keybinds".into(),
                 name: "Compositor Keybinds".into(),
                 status: Status::Warn,
@@ -467,6 +490,7 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     }
     if conflicts == 0 {
         CheckResult {
+            tier: Tier::User,
             id: "keybinds".into(),
             name: "Compositor Keybinds".into(),
             status: Status::Pass,
@@ -475,6 +499,7 @@ pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "keybinds".into(),
             name: "Compositor Keybinds".into(),
             status: Status::Warn,
@@ -616,6 +641,7 @@ pub fn check_security_hardening() -> CheckResult {
     };
 
     CheckResult {
+        tier: Tier::System,
         id: "security".into(),
         name: "Security Hardening".into(),
         status,
@@ -639,6 +665,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
     let scan_path = PathBuf::from(home).join(".local/state/0-core/security/last-scan.json");
     if !scan_path.exists() {
         return CheckResult {
+            tier: Tier::System,
             id: "security_audit".into(),
             name: "Security Audit".into(),
             status: Status::Warn,
@@ -650,6 +677,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
         Ok(d) => d,
         Err(_) => {
             return CheckResult {
+                tier: Tier::System,
                 id: "security_audit".into(),
                 name: "Security Audit".into(),
                 status: Status::Warn,
@@ -660,6 +688,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
     };
     let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) else {
         return CheckResult {
+            tier: Tier::System,
             id: "security_audit".into(),
             name: "Security Audit".into(),
             status: Status::Warn,
@@ -733,6 +762,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
     };
 
     CheckResult {
+        tier: Tier::System,
         id: "security_audit".into(),
         name: "Security Audit".into(),
         status,
@@ -754,6 +784,7 @@ pub fn check_alias_coverage() -> CheckResult {
         Ok(a) => a,
         Err(_) => {
             return CheckResult {
+                tier: Tier::User,
                 id: "alias_coverage".into(),
                 name: "Alias Coverage".into(),
                 status: Status::Fail,
@@ -775,6 +806,7 @@ pub fn check_alias_coverage() -> CheckResult {
 
     if missing.is_empty() {
         CheckResult {
+            tier: Tier::User,
             id: "alias_coverage".into(),
             name: "Alias Coverage".into(),
             status: Status::Pass,
@@ -787,6 +819,7 @@ pub fn check_alias_coverage() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "alias_coverage".into(),
             name: "Alias Coverage".into(),
             status: Status::Warn,
@@ -812,6 +845,7 @@ pub fn check_rust_toolchain() -> CheckResult {
         .unwrap_or(false);
     if cargo_ok && rustc_ok {
         CheckResult {
+            tier: Tier::System,
             id: "rust_toolchain".into(),
             name: "Rust Toolchain".into(),
             status: Status::Pass,
@@ -820,6 +854,7 @@ pub fn check_rust_toolchain() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "rust_toolchain".into(),
             name: "Rust Toolchain".into(),
             status: Status::Fail,
@@ -850,6 +885,7 @@ pub fn check_disk_space() -> CheckResult {
         .collect();
     if warnings.is_empty() {
         CheckResult {
+            tier: Tier::Critical,
             id: "disk_space".into(),
             name: "Disk Space".into(),
             status: Status::Pass,
@@ -858,6 +894,7 @@ pub fn check_disk_space() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::Critical,
             id: "disk_space".into(),
             name: "Disk Space".into(),
             status: Status::Warn,
@@ -924,6 +961,7 @@ pub fn check_tool_installation() -> CheckResult {
         .collect();
     if missing.is_empty() {
         CheckResult {
+            tier: Tier::System,
             id: "tool_installation".into(),
             name: "Tool Installation".into(),
             status: Status::Pass,
@@ -932,6 +970,7 @@ pub fn check_tool_installation() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "tool_installation".into(),
             name: "Tool Installation".into(),
             status: Status::Warn,
@@ -1007,6 +1046,7 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
         0
     };
     CheckResult {
+        tier: Tier::System,
         id: "path_resilience".into(),
         name: "Path Resilience".into(),
         status: if pct >= 90 {
@@ -1034,6 +1074,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
 
     if !binary_exists {
         return CheckResult {
+            tier: Tier::System,
             id: "sandbox".into(),
             name: "Sandbox".into(),
             status: Status::Fail,
@@ -1047,6 +1088,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
 
     if !policies_path.exists() {
         return CheckResult {
+            tier: Tier::System,
             id: "sandbox".into(),
             name: "Sandbox".into(),
             status: Status::Warn,
@@ -1061,6 +1103,7 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
         .unwrap_or(0);
 
     CheckResult {
+        tier: Tier::System,
         id: "sandbox".into(),
         name: "Sandbox".into(),
         status: Status::Pass,
@@ -1101,6 +1144,7 @@ pub fn check_boot_errors() -> CheckResult {
                 ),
             };
             CheckResult {
+                tier: Tier::Critical,
                 id: "boot_errors".into(),
                 name: "Boot Errors".into(),
                 status: Status::Pass,
@@ -1109,6 +1153,7 @@ pub fn check_boot_errors() -> CheckResult {
             }
         }
         Some(n) => CheckResult {
+            tier: Tier::Critical,
             id: "boot_errors".into(),
             name: "Boot Errors".into(),
             status: Status::Warn,
@@ -1116,6 +1161,7 @@ pub fn check_boot_errors() -> CheckResult {
             fix: Some("journalctl -b -k -p crit".into()),
         },
         None => CheckResult {
+            tier: Tier::Critical,
             id: "boot_errors".into(),
             name: "Boot Errors".into(),
             status: Status::Warn,
@@ -1135,6 +1181,7 @@ pub fn check_boot_time() -> CheckResult {
         Ok(o) if o.status.success() => o,
         _ => {
             return CheckResult {
+                tier: Tier::System,
                 id: "boot_time".into(),
                 name: "Boot Time".into(),
                 status: Status::Warn,
@@ -1156,6 +1203,7 @@ pub fn check_boot_time() -> CheckResult {
         Some(u) if !u.is_empty() => u,
         _ => {
             return CheckResult {
+                tier: Tier::System,
                 id: "boot_time".into(),
                 name: "Boot Time".into(),
                 status: Status::Warn,
@@ -1169,6 +1217,7 @@ pub fn check_boot_time() -> CheckResult {
     let over = slow || secs.map(|s| s > 15.0).unwrap_or(false);
     if over {
         CheckResult {
+            tier: Tier::System,
             id: "boot_time".into(),
             name: "Boot Time".into(),
             status: Status::Warn,
@@ -1177,6 +1226,7 @@ pub fn check_boot_time() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "boot_time".into(),
             name: "Boot Time".into(),
             status: Status::Pass,
@@ -1202,6 +1252,7 @@ pub fn check_vm_state() -> CheckResult {
             .unwrap_or(0),
         Err(_) => {
             return CheckResult {
+                tier: Tier::Info,
                 id: "vm_state".into(),
                 name: "VM State".into(),
                 status: Status::Warn,
@@ -1216,6 +1267,7 @@ pub fn check_vm_state() -> CheckResult {
         format!("{} QEMU VM(s) running", count)
     };
     CheckResult {
+        tier: Tier::Info,
         id: "vm_state".into(),
         name: "VM State".into(),
         status: Status::Pass,
@@ -1238,6 +1290,7 @@ pub fn check_compositor() -> CheckResult {
             .unwrap_or(false);
         if found {
             return CheckResult {
+                tier: Tier::Info,
                 id: "compositor".into(),
                 name: "Compositor".into(),
                 status: Status::Pass,
@@ -1247,6 +1300,7 @@ pub fn check_compositor() -> CheckResult {
         }
     }
     CheckResult {
+        tier: Tier::Info,
         id: "compositor".into(),
         name: "Compositor".into(),
         status: Status::Pass,
@@ -1272,6 +1326,7 @@ pub fn check_nix_store() -> CheckResult {
         Ok(b) => b,
         Err(_) => {
             return CheckResult {
+                tier: Tier::System,
                 id: "nix_store".into(),
                 name: "Nix Store".into(),
                 status: Status::Warn,
@@ -1301,6 +1356,7 @@ pub fn check_nix_store() -> CheckResult {
 
     if gib > 250.0 {
         CheckResult {
+            tier: Tier::System,
             id: "nix_store".into(),
             name: "Nix Store".into(),
             status: Status::Warn,
@@ -1309,6 +1365,7 @@ pub fn check_nix_store() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "nix_store".into(),
             name: "Nix Store".into(),
             status: Status::Pass,
@@ -1329,6 +1386,7 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
         Ok(d) => d,
         Err(_) => {
             return CheckResult {
+                tier: Tier::User,
                 id: "friday".into(),
                 name: "Friday".into(),
                 status: Status::Warn,
@@ -1363,6 +1421,7 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
 
     if patterns < 10 {
         CheckResult {
+            tier: Tier::User,
             id: "friday".into(),
             name: "Friday".into(),
             status: Status::Warn,
@@ -1372,6 +1431,7 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
     } else if stale {
         let days = (now - last_learned) / 86_400;
         CheckResult {
+            tier: Tier::User,
             id: "friday".into(),
             name: "Friday".into(),
             status: Status::Warn,
@@ -1383,6 +1443,7 @@ pub fn check_friday(_core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "friday".into(),
             name: "Friday".into(),
             status: Status::Pass,
@@ -1405,6 +1466,7 @@ pub fn check_network() -> CheckResult {
         std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(1)).is_ok();
     if !online {
         return CheckResult {
+            tier: Tier::System,
             id: "network".into(),
             name: "Network".into(),
             status: Status::Warn,
@@ -1426,6 +1488,7 @@ pub fn check_network() -> CheckResult {
         .unwrap_or(false);
     if dns_ok {
         CheckResult {
+            tier: Tier::System,
             id: "network".into(),
             name: "Network".into(),
             status: Status::Pass,
@@ -1434,6 +1497,7 @@ pub fn check_network() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "network".into(),
             name: "Network".into(),
             status: Status::Warn,
@@ -1448,6 +1512,7 @@ pub fn check_generation_drift() -> CheckResult {
     let booted = std::fs::read_link("/run/booted-system").ok();
     match (current, booted) {
         (Some(c), Some(b)) if c == b => CheckResult {
+            tier: Tier::System,
             id: "generation_drift".into(),
             name: "Generation Drift".into(),
             status: Status::Pass,
@@ -1455,6 +1520,7 @@ pub fn check_generation_drift() -> CheckResult {
             fix: None,
         },
         (Some(_), Some(_)) => CheckResult {
+            tier: Tier::System,
             id: "generation_drift".into(),
             name: "Generation Drift".into(),
             status: Status::Warn,
@@ -1462,6 +1528,7 @@ pub fn check_generation_drift() -> CheckResult {
             fix: Some("Reboot to activate the current generation".into()),
         },
         _ => CheckResult {
+            tier: Tier::System,
             id: "generation_drift".into(),
             name: "Generation Drift".into(),
             status: Status::Warn,
@@ -1502,6 +1569,7 @@ pub fn check_generation_count() -> CheckResult {
     }
     if old > 0 {
         CheckResult {
+            tier: Tier::User,
             id: "generation_count".into(),
             name: "Generation Count".into(),
             status: Status::Warn,
@@ -1510,6 +1578,7 @@ pub fn check_generation_count() -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "generation_count".into(),
             name: "Generation Count".into(),
             status: Status::Pass,
@@ -1529,6 +1598,7 @@ pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
         .map(|d| d.as_secs() / 86400);
     match age_days {
         Some(days) if days > 30 => CheckResult {
+            tier: Tier::User,
             id: "flake_lock_age".into(),
             name: "Flake Lock Age".into(),
             status: Status::Warn,
@@ -1536,6 +1606,7 @@ pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
             fix: Some("nix flake update".into()),
         },
         Some(days) => CheckResult {
+            tier: Tier::User,
             id: "flake_lock_age".into(),
             name: "Flake Lock Age".into(),
             status: Status::Pass,
@@ -1543,6 +1614,7 @@ pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
             fix: None,
         },
         None => CheckResult {
+            tier: Tier::User,
             id: "flake_lock_age".into(),
             name: "Flake Lock Age".into(),
             status: Status::Warn,
@@ -1576,6 +1648,7 @@ pub fn check_update_readiness(core_root: &str) -> CheckResult {
     }
     if blockers.is_empty() {
         CheckResult {
+            tier: Tier::User,
             id: "update_readiness".into(),
             name: "Update Readiness".into(),
             status: Status::Pass,
@@ -1584,6 +1657,7 @@ pub fn check_update_readiness(core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "update_readiness".into(),
             name: "Update Readiness".into(),
             status: Status::Warn,
@@ -1616,6 +1690,7 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
         }
         Err(_) => {
             return CheckResult {
+                tier: Tier::User,
                 id: "nix_hygiene".into(),
                 name: "Nix Hygiene".into(),
                 status: Status::Warn,
@@ -1637,6 +1712,7 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
         }
         Err(_) => {
             return CheckResult {
+                tier: Tier::User,
                 id: "nix_hygiene".into(),
                 name: "Nix Hygiene".into(),
                 status: Status::Warn,
@@ -1649,6 +1725,7 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
     let total = dead_count + statix_count;
     if total == 0 {
         CheckResult {
+            tier: Tier::User,
             id: "nix_hygiene".into(),
             name: "Nix Hygiene".into(),
             status: Status::Pass,
@@ -1658,6 +1735,7 @@ pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::User,
             id: "nix_hygiene".into(),
             name: "Nix Hygiene".into(),
             status: Status::Warn,

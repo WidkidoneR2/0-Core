@@ -1,5 +1,5 @@
 // doctor/schema.rs — registry schema validation check
-use super::{CheckResult, Status};
+use super::{CheckResult, Status, Tier};
 use std::fs;
 
 pub fn check_schema_validation(_core_root: &str) -> CheckResult {
@@ -8,6 +8,7 @@ pub fn check_schema_validation(_core_root: &str) -> CheckResult {
 
     if !schema_dir.exists() {
         return CheckResult {
+            tier: Tier::System,
             id: "schema_validation".into(),
             name: "Schema Validation".into(),
             status: Status::Warn,
@@ -53,6 +54,7 @@ pub fn check_schema_validation(_core_root: &str) -> CheckResult {
 
     if issues.is_empty() {
         CheckResult {
+            tier: Tier::System,
             id: "schema_validation".into(),
             name: "Schema Validation".into(),
             status: Status::Pass,
@@ -61,6 +63,7 @@ pub fn check_schema_validation(_core_root: &str) -> CheckResult {
         }
     } else {
         CheckResult {
+            tier: Tier::System,
             id: "schema_validation".into(),
             name: "Schema Validation".into(),
             status: Status::Warn,
