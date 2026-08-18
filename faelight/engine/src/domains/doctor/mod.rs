@@ -1345,6 +1345,13 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
     }
 }
 
+/// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
+/// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
+/// into a lazy registry of Tier plus closure pairs: run_quick has exactly one caller, the
+/// hand-typed doctor quick command, so half a second buys nothing on a path nobody waits on.
+/// And moving the tier onto a registry entry would take it off CheckResult, which is what
+/// makes the compiler force a classification at every construction site.
+/// Revisit only if this lands somewhere hot -- a prompt, a shell start, a service.
 fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
     vec![
         check_services(),
