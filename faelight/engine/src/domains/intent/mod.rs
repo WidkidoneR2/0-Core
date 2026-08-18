@@ -840,23 +840,41 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // INT-247 Phase 3: dependency check before starting
     {
         let intents_all = load_all(ctx);
-        let complete_ids: std::collections::HashSet<String> = intents_all
-            .iter()
-            .filter(|i| i.status == "complete")
-            .map(|i| i.id.clone())
-            .collect();
-        let unmet: Vec<String> = intent
-            .depends_on
-            .iter()
-            .filter(|dep| !complete_ids.contains(*dep))
-            .map(|dep| {
-                intents_all
-                    .iter()
-                    .find(|i| &i.id == dep)
-                    .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
-                    .unwrap_or_else(|| format!("INT-{} (not found)", dep))
-            })
-            .collect();
+        // INT-213 G4: only a genuinely blocking dependency refuses the start.
+        // A cancelled dependency no longer stops the work -- it warns, because
+        // cancellation removes the blocking condition without making the
+        // assumption behind the edge true.
+        let mut unmet: Vec<String> = Vec::new();
+        let mut notes: Vec<String> = Vec::new();
+        for dep in &intent.depends_on {
+            match dep_state(&intents_all, dep) {
+                DepState::Satisfied => {}
+                DepState::Blocked => {
+                    let text = intents_all
+                        .iter()
+                        .find(|i| &i.id == dep)
+                        .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
+                        .unwrap_or_else(|| format!("INT-{}", dep));
+                    unmet.push(text);
+                }
+                DepState::Questionable => {
+                    notes.push(format!("INT-{} (cancelled) -- {}", dep, CANCELLED_DEP_NOTE));
+                }
+                DepState::Missing => {
+                    notes.push(format!(
+                        "INT-{} names no intent -- the reference is invalid",
+                        dep
+                    ));
+                }
+            }
+        }
+        if !notes.is_empty() {
+            println!("  {} Dependency notes:", "!".bright_yellow());
+            for note in &notes {
+                println!("    {} {}", "~".dimmed(), note.bright_yellow());
+            }
+            println!();
+        }
         if !unmet.is_empty() {
             println!("{}", "⚠️  Dependency Check Failed".bold().bright_yellow());
             println!("{}", "━".repeat(55).dimmed());
@@ -2941,17 +2959,13 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> = intents
-        .iter()
-        .filter(|i| i.status == "complete")
-        .map(|i| i.id.clone())
-        .collect();
     let active: Vec<&Intent> = intents
         .iter()
         .filter(|i| i.status == "in-progress")
         .collect();
     let planned_count = intents.iter().filter(|i| i.status == "planned").count();
-    let complete_count = complete_ids.len();
+    // A count of finished intents, not a dependency question -- not dep_state's job.
+    let complete_count = intents.iter().filter(|i| i.status == "complete").count();
     println!("{}", "🌲 Session Brief".bold());
     println!("{}", "━".repeat(60).dimmed());
     // Active intents
@@ -2981,7 +2995,11 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     let ready: Vec<&Intent> = intents
         .iter()
         .filter(|i| i.status == "planned")
-        .filter(|i| i.depends_on.iter().all(|dep| complete_ids.contains(dep)))
+        .filter(|i| {
+            i.depends_on
+                .iter()
+                .all(|dep| dep_state(&intents, dep).clears())
+        })
         .collect();
     println!();
     println!("  {} Ready to start ({}):", "✅".green(), ready.len());
@@ -3009,11 +3027,6 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> = intents
-        .iter()
-        .filter(|i| i.status == "complete")
-        .map(|i| i.id.clone())
-        .collect();
     let planned: Vec<&Intent> = intents
         .iter()
         .filter(|i| i.status == "planned" || i.status == "in-progress")
@@ -3036,7 +3049,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
                 let blocked = intent
                     .depends_on
                     .iter()
-                    .any(|dep| !complete_ids.contains(dep));
+                    .any(|dep| !dep_state(&intents, dep).clears());
                 if blocked {
                     "🔒".to_string()
                 } else {
@@ -3051,7 +3064,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
             intent.title.dimmed()
         );
         for dep in &intent.depends_on {
-            if !complete_ids.contains(dep) {
+            if !dep_state(&intents, dep).clears() {
                 if let Some(d) = intents.iter().find(|i| &i.id == dep) {
                     println!(
                         "       {} needs: INT-{} [{}]",
