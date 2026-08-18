@@ -3,7 +3,7 @@ id: 213
 date: 2026-08-09
 type: future
 title: "the intent dependency graph is unfed, so core intent blocked reports "nothing blocked" falsely across 239 of 241 intents"
-status: in-progress
+status: complete
 tags: [ledger, intent, deps]
 ---
 
