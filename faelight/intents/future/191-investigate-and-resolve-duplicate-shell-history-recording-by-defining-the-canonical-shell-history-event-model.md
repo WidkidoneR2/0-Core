@@ -3,7 +3,7 @@ id: 191
 date: 2026-07-22
 type: fix
 title: "investigate and resolve duplicate shell history recording by defining the canonical shell history event model"
-status: in-progress
+status: planned
 tags: [fix, bugfix, telemetry, friday, data-model]
 ---
 
@@ -521,3 +521,10 @@ EXECUTOR, not for lifecycle rows.
 - [ ] Frequency analysis, failure attribution and downstream learning consume semantically correct history instead of inferring meaning from duplicate rows
 - [ ] Existing accidental duplication eliminated WITHOUT discarding information that is intentionally distinct
 - [ ] `spine audit` / `spine migrate` volume figures re-checked afterwards (their shape metrics are unaffected -- dedup absorbs this -- but the volume metric has been inflated)
+
+## Deferred 2026-08-17
+
+Moved back to future/ because fsh work is on a deliberate break with the deadline TBA,
+while the Zero Core restructuring takes priority. Not blocked and not abandoned -- paused,
+with the live fsh bugs still filed. Deferred to respect the cap of three active intents
+(decision 142); Friday flagged the contradiction independently.

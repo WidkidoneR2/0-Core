@@ -3,7 +3,7 @@ id: 169
 date: 2026-07-16
 type: arch
 title: "fsh spine: logos lexer + handwritten recursive-descent parser -> AST. The parse/plan/execute rebuild"
-status: in-progress
+status: planned
 tags: [fsh, parser, ast, logos, lexer, recursive-descent, spine, phase3, 171]
 ---
 
@@ -446,3 +446,10 @@ for milestone 2, not a fix. Judge it as a main.rs refactor of a working path, no
 "fsh already had a correct tokenizer -- twice -- and still broke, because nothing routed through one
 structure. The spine is not a better parser. It is a single AST every path must go through, built one
 construct at a time, in code Christian can read every line of." 🌲
+
+## Deferred 2026-08-17
+
+Moved back to future/ because fsh work is on a deliberate break with the deadline TBA,
+while the Zero Core restructuring takes priority. Not blocked and not abandoned -- paused,
+with the live fsh bugs still filed. Deferred to respect the cap of three active intents
+(decision 142); Friday flagged the contradiction independently.
