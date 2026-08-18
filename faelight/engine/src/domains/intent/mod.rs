@@ -2740,34 +2740,65 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
     let intents = load_all(ctx);
-    let complete_ids: std::collections::HashSet<String> = intents
-        .iter()
-        .filter(|i| i.status == "complete")
-        .map(|i| i.id.clone())
-        .collect();
+    // INT-213 G4: dep_state is the single owner of what satisfies a dependency.
     let mut blocked_list: Vec<(&Intent, Vec<String>)> = Vec::new();
+    let mut flagged_list: Vec<(&Intent, Vec<String>)> = Vec::new();
     for intent in intents
         .iter()
         .filter(|i| i.status == "planned" || i.status == "in-progress")
     {
-        let unmet: Vec<String> = intent
-            .depends_on
-            .iter()
-            .filter(|dep| !complete_ids.contains(*dep))
-            .map(|dep| {
-                intents
-                    .iter()
-                    .find(|i| &i.id == dep)
-                    .map(|i| format!("INT-{} ({})", i.id, i.status))
-                    .unwrap_or_else(|| format!("INT-{} (not found)", dep))
-            })
-            .collect();
+        let mut unmet: Vec<String> = Vec::new();
+        let mut flags: Vec<String> = Vec::new();
+        for dep in &intent.depends_on {
+            match dep_state(&intents, dep) {
+                DepState::Satisfied => {}
+                DepState::Blocked => {
+                    let status = intents
+                        .iter()
+                        .find(|i| &i.id == dep)
+                        .map(|i| i.status.clone())
+                        .unwrap_or_default();
+                    unmet.push(format!("INT-{} ({})", dep, status));
+                }
+                DepState::Questionable => {
+                    flags.push(format!("INT-{} (cancelled) -- {}", dep, CANCELLED_DEP_NOTE));
+                }
+                DepState::Missing => {
+                    flags.push(format!(
+                        "INT-{} names no intent -- the reference is invalid",
+                        dep
+                    ));
+                }
+            }
+        }
         if !unmet.is_empty() {
             blocked_list.push((intent, unmet));
+        }
+        if !flags.is_empty() {
+            flagged_list.push((intent, flags));
         }
     }
     println!("{}", "🔒 Blocked Intents".bold());
     println!("{}", "━".repeat(60).dimmed());
+    if !flagged_list.is_empty() {
+        println!(
+            "  {} {} intent(s) have edges needing attention",
+            "!".bright_yellow(),
+            flagged_list.len()
+        );
+        for (intent, flags) in &flagged_list {
+            println!(
+                "  {} INT-{} -- {}",
+                "?".dimmed(),
+                intent.id.bright_white(),
+                intent.title.bright_white()
+            );
+            for flag in flags {
+                println!("       {} {}", "~".bright_yellow(), flag.bright_yellow());
+            }
+        }
+        println!();
+    }
     if blocked_list.is_empty() {
         println!(
             "  {} No blocked intents -- all dependencies satisfied",
