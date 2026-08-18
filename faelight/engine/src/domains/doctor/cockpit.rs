@@ -65,12 +65,14 @@ pub fn render_cockpit(
         format!("{}%", health).bright_red().bold().to_string()
     };
 
-    let status_str = if failed > 0 {
-        "DEGRADED".bright_red().bold().to_string()
-    } else if warnings > 0 {
-        "ADVISORY".yellow().bold().to_string()
-    } else {
-        "HEALTHY".bright_green().bold().to_string()
+    // INT-222: ONE verdict, derived by super::verdict from tier and status. This block used
+    // to count failed and warnings itself, the quick scan counted them again with a different
+    // word for the worst state, and the percentage carried a third set of colour thresholds --
+    // so a red number could sit beside the word ADVISORY in the same line.
+    let status_str = match super::verdict(checks) {
+        super::Verdict::Red => "DEGRADED".bright_red().bold().to_string(),
+        super::Verdict::Amber => "ADVISORY".yellow().bold().to_string(),
+        super::Verdict::Green => "HEALTHY".bright_green().bold().to_string(),
     };
 
     println!();

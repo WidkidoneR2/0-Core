@@ -39,6 +39,43 @@ pub struct CheckResult {
     pub fix: Option<String>,
 }
 
+/// INT-222: the single verdict. Derived from the checks, never stored, never weighted --
+/// because a weight factor is subjective and a number built from one has to be defended
+/// forever. This is the worst thing in the highest tier, and it needs no arithmetic.
+///
+/// GREEN means every judging check RAN and PASSED. Not "nothing shouted" -- an Unknown is
+/// never green, because a tool that cannot express an undetermined outcome reports clean,
+/// and that is the defect INT-192 exists to name.
+///
+/// Info-tier checks are excluded entirely: they measure truly but never judge, so they
+/// cannot make the system unhealthy and must not be able to.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Verdict {
+    Green,
+    Amber,
+    Red,
+}
+
+pub fn verdict(checks: &[CheckResult]) -> Verdict {
+    let mut amber = false;
+    for c in checks.iter().filter(|c| c.tier != Tier::Info) {
+        match (c.tier, c.status) {
+            (Tier::Critical, Status::Fail) => return Verdict::Red,
+            (Tier::Critical, Status::Unknown) | (Tier::Critical, Status::Blocked) => {
+                return Verdict::Red
+            }
+            (_, Status::Fail) | (_, Status::Warn) => amber = true,
+            (_, Status::Unknown) | (_, Status::Blocked) => amber = true,
+            (_, Status::Pass) => {}
+        }
+    }
+    if amber {
+        Verdict::Amber
+    } else {
+        Verdict::Green
+    }
+}
+
 pub mod aliases;
 pub mod bins;
 mod checks;
@@ -1138,8 +1175,6 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
         .filter(|c| c.tier == Tier::Critical)
         .collect();
     let passed = checks.iter().filter(|c| c.status == Status::Pass).count();
-    let warned = checks.iter().filter(|c| c.status == Status::Warn).count();
-    let failed = checks.iter().filter(|c| c.status == Status::Fail).count();
     println!();
     for check in &checks {
         let icon = match check.status {
@@ -1156,19 +1191,21 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
         );
     }
     println!();
-    let health = if failed > 0 {
-        "CRITICAL"
-    } else if warned > 0 {
-        "ADVISORY"
-    } else {
-        "HEALTHY"
+    // INT-222: the same verdict the full panel uses. This block said CRITICAL where the
+    // panel said DEGRADED for the identical condition, and neither counted Unknown at all --
+    // so a check that could not run rendered the system green.
+    let health = match verdict(&checks) {
+        Verdict::Red => "DEGRADED",
+        Verdict::Amber => "ADVISORY",
+        Verdict::Green => "HEALTHY",
     };
-    let health_color = if failed > 0 {
-        health.bright_red().to_string()
-    } else if warned > 0 {
-        health.bright_yellow().to_string()
-    } else {
-        health.bright_green().to_string()
+    // INT-222: the colour comes from the SAME verdict as the word. These were separate
+    // rules, so an Unknown at critical tier gave DEGRADED in bright green -- the word said
+    // one thing and the colour said another, in the same string.
+    let health_color = match verdict(&checks) {
+        Verdict::Red => health.bright_red().to_string(),
+        Verdict::Amber => health.bright_yellow().to_string(),
+        Verdict::Green => health.bright_green().to_string(),
     };
     println!(
         "  {} {}/{} checks  {}",
