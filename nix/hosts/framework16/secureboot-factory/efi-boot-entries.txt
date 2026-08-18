@@ -1,0 +1,30 @@
+# framework16 EFI boot entries -- captured 2026-08-18 (INT-225)
+#
+# REDACTED. Boot0000 and Boot0002 are removed: their labels carry the drive serial and the
+# PXE MAC address. Nothing recovery-relevant is lost -- both are firmware-generated and
+# regenerate themselves, as do Boot2001-2003. The unredacted dump is on FORESTBACKUP at
+# faelight-secureboot/efi-boot-entries-full.txt.
+#
+# Boot0003 is the entry you would hand-recreate: its device path is the record that matters.
+# Boot0004 (Windows Boot Manager) points at partition d164f3ab..., which does not exist on this
+# disk, and is absent from BootOrder. Captured here before removal so the deletion is reversible.
+
+BootCurrent: 0003
+Timeout: 0 seconds
+BootOrder: 0003,0000,2001,2002,2003
+Boot0000* [REDACTED -- firmware-generated entry; label carries a hardware identifier]
+Boot0002* [REDACTED -- firmware-generated entry; label carries a hardware identifier]
+Boot0003* Linux Boot Manager	HD(1,GPT,6d34cd03-6cd1-4e20-8560-4171688c5853,0x800,0x800000)/\EFI\systemd\systemd-bootx64.efi
+      dp: 04 01 2a 00 01 00 00 00 00 08 00 00 00 00 00 00 00 00 80 00 00 00 00 00 03 cd 34 6d d1 6c 20 4e 85 60 41 71 68 8c 58 53 02 02 / 04 04 46 00 5c 00 45 00 46 00 49 00 5c 00 73 00 79 00 73 00 74 00 65 00 6d 00 64 00 5c 00 73 00 79 00 73 00 74 00 65 00 6d 00 64 00 2d 00 62 00 6f 00 6f 00 74 00 78 00 36 00 34 00 2e 00 65 00 66 00 69 00 00 00 / 7f ff 04 00
+Boot0004* Windows Boot Manager	HD(2,GPT,d164f3ab-8c53-41eb-a9fb-bb57b7c9245c,0xa00800,0x82000)/\EFI\Microsoft\Boot\bootmgfw.efi57494e444f5753000100000088000000780000004200430044004f0042004a004500430054003d007b00390064006500610038003600320063002d0035006300640064002d0034006500370030002d0061006300630031002d006600330032006200330034003400640034003700390035007d00000044000100000010000000040000007fff0400
+      dp: 04 01 2a 00 02 00 00 00 00 08 a0 00 00 00 00 00 00 20 08 00 00 00 00 00 ab f3 64 d1 53 8c eb 41 a9 fb bb 57 b7 c9 24 5c 02 02 / 04 04 46 00 5c 00 45 00 46 00 49 00 5c 00 4d 00 69 00 63 00 72 00 6f 00 73 00 6f 00 66 00 74 00 5c 00 42 00 6f 00 6f 00 74 00 5c 00 62 00 6f 00 6f 00 74 00 6d 00 67 00 66 00 77 00 2e 00 65 00 66 00 69 00 00 00 / 7f ff 04 00
+    data: 57 49 4e 44 4f 57 53 00 01 00 00 00 88 00 00 00 78 00 00 00 42 00 43 00 44 00 4f 00 42 00 4a 00 45 00 43 00 54 00 3d 00 7b 00 39 00 64 00 65 00 61 00 38 00 36 00 32 00 63 00 2d 00 35 00 63 00 64 00 64 00 2d 00 34 00 65 00 37 00 30 00 2d 00 61 00 63 00 63 00 31 00 2d 00 66 00 33 00 32 00 62 00 33 00 34 00 34 00 64 00 34 00 37 00 39 00 35 00 7d 00 00 00 44 00 01 00 00 00 10 00 00 00 04 00 00 00 7f ff 04 00
+Boot2001* EFI USB Device	RC
+      dp: 7f ff 04 00
+    data: 52 43
+Boot2002* EFI DVD/CDROM	RC
+      dp: 7f ff 04 00
+    data: 52 43
+Boot2003* EFI Network	RC
+      dp: 7f ff 04 00
+    data: 52 43

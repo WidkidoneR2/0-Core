@@ -203,6 +203,11 @@
     pkgs.rustc
     inputs.attic.packages.${system}.attic-client  # INT-043: attic CLI (replaced pkgs.cachix)
     pkgs.virt-viewer  # INT-077: SPICE client (remote-viewer) for `vm gui`
+    pkgs.efibootmgr  # INT-225: reads and repairs EFI boot entries. It was ONLY in the rescue
+                     # host -- and the rescue USB is REJECTED under Secure Boot enforcement, so the
+                     # tool for fixing the boot order lived on media that cannot boot. Same argument
+                     # as sbctl below: a locked-out machine cannot nix shell anything without a
+                     # network.
     pkgs.sbctl  # INT-161: Secure Boot key management. Lanzaboote's own docs list this
                 # ("For debugging and troubleshooting Secure Boot"). NOT already present from 059 --
                 # that was the VM config. A locked-out machine cannot `nix shell nixpkgs#sbctl`
