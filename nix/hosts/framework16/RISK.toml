@@ -9,9 +9,27 @@ config is a firmware-level problem, not a rebuild-level one.
 Recovery if it happens anyway (all four rehearsed or measured, INT-160/161):
   1. INSYDE menu -> "Restore secure boot to factory settings" (no file, no USB, no network)
   2. INSYDE menu -> Secure Boot off
-  3. Rescue USB (INT-160 gate 7, walked on this hardware)
+  3. Rescue USB (INT-160 gate 7, walked on this hardware) -- NOT INDEPENDENT. That gate was
+     walked BEFORE Secure Boot was enforcing. Under enforcement the USB is rejected SILENTLY:
+     the firmware falls through and boots the signed disk, so it looks like the stick is blank.
+     Path 3 requires path 2 first (INT-225, measured twice).
   4. sbctl reset
 There is NO supervisor password on this firmware, so the menu is always reachable.
+"""
+
+# INT-225, 2026-08-18. What was actually tested, not merely assumed to exist.
+recovery_verified = "2026-08-18"
+recovery_verified_by = """
+sbctl key backup on FORESTBACKUP restore-tested: sha256 of db, KEK and PK .pem pairs
+compared against live /var/lib/sbctl -- all three match. Factory PK/KEK/db .esl also
+present there and committed under secureboot-factory/.
+EFI boot entries dumped and committed (redacted; full copy on FORESTBACKUP). Dangling
+Boot0004 removed and the machine rebooted clean to gen 504.
+efibootmgr added to systemPackages -- it was ONLY on the rescue image, which is the one
+thing that cannot boot under enforcement.
+NOT verified: boot counting is unavailable (lanzaboote replaces the systemd-boot module,
+so its options stop applying), and no supervisor password has been confirmed by entering
+the firmware menu -- only by absence of evidence.
 """
 
 [history]
