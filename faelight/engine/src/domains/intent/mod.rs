@@ -1841,10 +1841,23 @@ pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
     );
     println!("{}", "━".repeat(55).dimmed());
 
+    // INT-213 G9 / law 3: blocks is the inverse of depends_on, so it is DERIVED, never stored.
+    // Two copies of one fact can disagree, and only one of them can be authoritative. The
+    // renderer below is unchanged -- only what it reads has changed.
+    let derived_blocks: Vec<String> = intents
+        .iter()
+        .filter(|i| i.depends_on.contains(&intent.id))
+        .map(|i| i.id.clone())
+        .collect();
+    let owned = Intent {
+        blocks: derived_blocks,
+        ..intent.clone()
+    };
+    let intent = &owned;
     if intent.depends_on.is_empty() && intent.blocks.is_empty() && intent.relates.is_empty() {
         println!("  {} No dependencies declared", "○".dimmed());
         println!(
-            "  {} Add to frontmatter: depends_on: [052], blocks: [110], relates: [099]",
+            "  {} Add to frontmatter: depends_on: [052], relates: [099] -- blocks is derived",
             "→".dimmed()
         );
         return Ok(());
