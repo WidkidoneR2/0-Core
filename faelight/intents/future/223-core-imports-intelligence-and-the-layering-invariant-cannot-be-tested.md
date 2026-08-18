@@ -5,7 +5,7 @@ type: arch
 title: "core imports intelligence and the layering invariant cannot be tested"
 status: planned
 priority: high
-depends_on: [175]
+depends_on: []
 tags: [architecture, rust, design]
 ---
 
@@ -69,7 +69,7 @@ than for something it prints. That distinction decides the size of the work and 
 doctor emits a health-checked event and Friday reacts to it. The dependency arrow reverses without
 either side losing the behaviour.
 
-⚠️ THE PREREQUISITE, AND THE REASON THIS INTENT HAS `depends_on: [175]`: INT-175 "finish the event
+⚠️ THE PREREQUISITE, AND THE REASON THIS INTENT HAS `depends_on: []`: INT-175 "finish the event
 bus" is unfinished, and INT-214 measured that **no commit has ever created `events.source_tool` or
 `events.correlation_id`** -- a database built from source cannot record an event. Inverting onto an
 event bus that does not carry provenance would move the problem rather than solve it.

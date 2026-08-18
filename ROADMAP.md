@@ -151,11 +151,26 @@ Known load-bearing: `nix/home/dotfiles/` is hardcoded in six Rust call sites and
 
 ### P5 -- The layering invariant
 
-**Work:** INT-175 (finish the event bus) then INT-223 (invert the five Core-to-Intelligence
-imports: deploy, doctor, intent, snapshot, status).
+**Work:** INT-223 -- invert the five Core-to-Intelligence imports: `deploy`, `doctor`, `intent`,
+`snapshot`, `status`.
 
-★ **INT-175 is the highest-value node in the graph** -- 223 needs it, and DevBox needs it too
-(INT-214: no commit has ever created `events.source_tool` or `events.correlation_id`).
+⚠️ **CORRECTED 2026-08-17.** An earlier draft named INT-175 ("finish the event bus") as the
+prerequisite and the highest-value node in the graph. **INT-175 is CANCELLED**, and its cancellation
+reason is that the premise was false: `faelight-daemon` is Arch-era prototype code, untouched since
+the NixOS migration, and there was never a NixOS event bus to finish.
+
+★ **The prerequisite is therefore a DECISION, not an intent: does the event bus belong to Core
+Runtime (`engine/src/domains/events/`, which already exists) or to friday-daemon (INT-039)?**
+
+⚠️ INT-175's cancellation said friday-daemon. It was written 2026-07-20, four weeks before decision
+145. **friday-daemon is Intelligence, so putting the bus there would mean Core emitting an event is
+a dependency on Intelligence** -- exactly what INT-223 exists to remove. The likely resolution is
+that the bus is Core Runtime and friday-daemon is a subscriber, but that is unruled.
+
+📍 **INT-214 is a DevBox prerequisite, not a 223 prerequisite.** No commit has ever created
+`events.source_tool` or `events.correlation_id`, so a database built **from source** cannot record
+an event -- that breaks a fresh install, not the running machine, which already holds 43,000+ event
+rows. INT-213's G6 already names `167 -> 214` as its first real edge.
 
 **Exit:** remove the Intelligence domains and `cargo check --workspace` succeeds. Currently false.
 
