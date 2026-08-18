@@ -134,3 +134,81 @@ and no source reading. That is the whole intent working: the message alone was e
 `faelight/scripts/dev/fpatch.py` — its `_refuse` is the reference implementation. INT-192 is the
 sibling from the opposite direction: tools that cannot express an UNDETERMINED outcome, so a failed
 check reports clean. That one is about silence; this one is about noise.
+
+---
+
+## Dependency edges (INT-213)
+
+**`depends_on` means "cannot start until". It does not mean "related to".**
+
+An edge is a claim that work is impossible, not that two things are connected. Write one only when
+you can answer: *what would break if I started this anyway?*
+
+```yaml
+depends_on: [214]
+```
+
+Each edge names its reason in the depending intent, so a future reader can check it rather than
+trust it.
+
+### The three limits
+
+**Lifecycle only.** An edge resolves inside one id namespace. `decisions/`, `incidents/` and
+`philosophy/` each own their own sequence, so decision 144 and intent 144 both exist -- an edge
+pointing at "144" from a record dir means nothing. Only `future`, `in-progress`, `complete` and
+`cancelled` share the counter that makes an edge resolvable.
+
+**Forward-only.** The graph exists to order work that has not happened. Do not retro-file
+dependencies onto complete intents; it is busywork with no payoff.
+
+**Soft associations go in `relates`.** If it is worth reading together but not blocking, it is not
+a dependency.
+
+### What satisfies an edge
+
+Decided in INT-213 G4, implemented in one helper that all five consumers call:
+
+| Dependency status | Satisfies? | Effect |
+| --- | --- | --- |
+| `complete` | yes | unblocked |
+| `cancelled` | yes | **unblocked, but flagged as questionable** |
+| `planned` / `in-progress` / `deferred` | no | blocked |
+| id names no intent | -- | a validation error, never a permanent block |
+
+★ **Cancellation removes the blocking condition without retroactively making the assumption behind
+the edge true.** That is why it clears and flags rather than doing one or the other.
+
+### Why this exists
+
+Measured 2026-08-09: 241 intents, `depends_on` populated on **one**. So `core intent blocked`
+answered *"no blocked intents -- all dependencies satisfied"*, and that answer was **false rather
+than empty**. A command that reports confidently on an empty graph is worse than one that reports
+nothing, because it is trusted.
+
+The cost is the pattern the intent exists to end: starting work whose prerequisite is not done,
+discovering it mid-session, and going back over code from a previous pass. That is rework that
+breaks work already proven.
+
+⚠️ And the opposite failure is real too. On 2026-08-17 an edge was written pointing at INT-175 --
+which is **cancelled**, and cancelled precisely because its premise was false. The edge encoded an
+assumption that had stopped being true, and only `blocked` surfaced it.
+
+### The tell
+
+**If you cannot name what would break by starting anyway, it is not a dependency.**
+
+A `blocked` list full of soft associations stops being read, and an unread list is worse than an
+empty one -- it looks like diligence. **A false positive costs more than a false negative here.**
+
+### Exemplars
+
+**INT-167 depends_on INT-214** -- DevBox reconstructs a command causally from recorded events, and
+no commit has ever created the events provenance columns, so a database built from source cannot
+record one. Chosen as the first real edge because it was already proven rather than assumed.
+
+**INT-212 depends_on INT-211** -- cicomplete cannot be reconciled against a gate format while the
+ledger has no canonical document shape.
+
+📍 Zero Core laws 1 and 2 (decisions/148): record what is true and derive what should happen; a
+concern should not have several competing authorities. An edge is a fact. "Blocked" is a
+conclusion. Only the fact is stored.
