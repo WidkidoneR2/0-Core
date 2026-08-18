@@ -300,3 +300,101 @@ is wrong in a new way, which is the situation today, so the floor is low.
 
 ⚠️ Promote to `critical` if this intent ends up changing what `rebuild-safe` will and will not
 proceed through. That is a safety gate, and changing a safety gate deserves the higher tier.
+
+## Phase 0 -- the census (measured 2026-08-18)
+
+**34 checks, matching the panel count.** Across three files: `checks.rs` (32), `mod.rs`
+(`check_deadwood`), `schema.rs` (`check_schema_validation`).
+
+⚠️ The file header of `checks.rs` says *"all 23 health check functions"*. There are 32 in it. That
+is the **third** hand-maintained count with a different answer -- after WORKFLOWS.md saying 22 and
+POLICIES.md saying 14. Nothing derives this number from the registry.
+
+### Reproduce the census
+
+```
+python3 - << PYEOF
+import re, pathlib
+root = pathlib.Path("faelight/engine/src/domains/doctor")
+rows = []
+for f in sorted(root.rglob("*.rs")):
+    parts = re.split(r"\n\s*(?:pub )?fn (check_[a-z_0-9]+)", f.read_text())
+    for i in range(1, len(parts), 2):
+        name, body = parts[i], parts[i+1]
+        if "CheckResult" not in body[:200]:
+            continue
+        rows.append((name, f.name, sorted(set(re.findall(r"Status::([A-Za-z]+)", body))), body.count("\n")))
+print("checks found:", len(rows))
+for name, fname, variants, lines in sorted(rows):
+    mark = "  <-- CANNOT FAIL" if variants == ["Pass"] else ""
+    print("%-26s %-12s %-30s %4d%s" % (name, fname, ",".join(variants), lines, mark))
+PYEOF
+```
+
+### The four categories
+
+Phase 0 set out expecting three. The census produced four.
+
+| Category | Definition | Health score? |
+| --- | --- | --- |
+| **real** | measures something and can report poor health | ✅ counts |
+| **label** | states a true fact that needs no test and can never change | ❌ excluded |
+| **lie** | asserts something it never measured, and the assertion is false | ⚠️ defect |
+| **reporter** | measures truly, prints it, never renders a judgement | ❌ excluded |
+
+★ **Labels and reporters both inflate the denominator.** If a check cannot indicate poor health, it
+must not be one of the things health is computed from. That is the same argument INT-148 already
+won for `Status::Unknown`.
+
+### The three that cannot fail
+
+Only three of the 34 emit `Status::Pass` and nothing else.
+
+**`check_stow`** (9 lines) -- **TOMBSTONE. Delete.**
+Its only job is to say a decommissioned subsystem does not exist. INT-107 retired stow; the check
+was reframed to *"Managed by home-manager (NixOS)"*. It states something structural and permanent,
+it can never change, and it is already implied by running NixOS at all.
+⚠️ An earlier reading called this a legitimate label. That was too generous -- a tombstone is not a
+health signal.
+
+**`check_dotmeta`** (8 lines) -- **LIE. The defect this intent was filed for.**
+Hardcoded `Status::Pass`, no filesystem read, and the claim is false: `docs/.dotmeta` exists,
+carrying `stowable: false` from the retired stow subsystem. It asserts a fact it never checked.
+📍 The function immediately below it, `check_intents`, opens with *"INT-135 Gate 7: was decoration
+-- hardcoded Status::Pass"*. **INT-135 found one and walked past its neighbour.**
+
+**`check_compositor`** (29 lines) -- **REPORTER. Legitimate, but exclude from the score.**
+NOT hardcoded: it pgreps for mango and pinnacle and names which is running. "No compositor detected
+(TTY or headless)" is `Pass` deliberately, with the reason written in -- *none is not a fault, d can
+run from a TTY, so report it as info rather than crying wolf*. `check_vm_state` is the same shape.
+
+### ⚠️ The structural finding
+
+**Only SEVEN of 34 checks can ever report `Fail`:** `alias_coverage`, `binaries`,
+`broken_symlinks`, `rust_toolchain`, `sandbox`, `security_audit`, `security_hardening`.
+
+**The other 27 top out at `Warn`.**
+
+⭐ So the panel's `❌ Failed: 0` is very nearly guaranteed **by construction, not by health.**
+The doctor is a warning system that presents itself as a pass/fail system. That is this intent's
+thesis, at a scale nobody had measured.
+
+### A fifth problem: non-determinism
+
+`Rust Docs` reported `✅ cargo doc clean, 0 warnings` and then `❔ unknown` on the very next run,
+same machine, nothing changed between them.
+
+⚠️ **A check that changes its mind while the system stands still is a different defect from one
+that cannot fail**, and neither the taxonomy above nor the health score has anywhere to put it.
+
+📍 `Status::Unknown` appears in exactly two checks -- `check_rust_docs` and `check_services`. The
+INT-148 mechanism is real (verified 2026-08-17: 29/(34-1) = 87%, so unknowns are excluded from the
+denominator) but barely used.
+
+### What Phase 1 must now decide
+
+- Whether `check_stow` is deleted, and whether deleting a check is a normal act or a rare one.
+- Where the excluded categories go: dropped, or shown outside the score in their own section.
+- Whether `Warn` and `Fail` mean different things to the score, given 27 checks can only warn.
+- What to do about non-determinism -- retry, cache, or classify as `Unknown` by design.
+- Whether the check count is derived from the registry rather than written in three places.
