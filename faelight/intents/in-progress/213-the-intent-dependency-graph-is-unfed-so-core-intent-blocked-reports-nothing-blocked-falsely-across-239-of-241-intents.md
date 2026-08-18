@@ -61,37 +61,85 @@ positives, and a `blocked` list full of soft associations is one nobody reads.
 - Retro-filing dependencies on complete intents. The graph exists to order FUTURE work.
 
 ## Success Criteria
-- [ ] G1 RED FIRST, captured before any edge is written: `core intent blocked` reports no blocked
+- [x] G1 RED FIRST, captured before any edge is written: `core intent blocked` reports no blocked
       intents while at least one real ordering is known to exist. Record the output verbatim -- it is
       the false answer this intent removes
-- [ ] G2: a `depends_on` naming a nonexistent intent id is a VALIDATION ERROR from
+<!-- evidence: 2026-08-17, DISCHARGED BY EXPLANATION (INT-027:58 precedent). The false answer
+     this gate asked to capture was NO LONGER REPRODUCIBLE: two edges existed by the time it ran
+     (161 depends_on 160, 212 depends_on 211), so blocked answered truthfully. Captured instead,
+     verbatim: 2 intents blocked -- INT-212 waiting on INT-211 (planned), and INT-223 waiting on
+     INT-175 (CANCELLED). That second line is the cancelled-dependency trap firing live, which is
+     better evidence than the empty-graph answer would have been. -->
+- [x] G2: a `depends_on` naming a nonexistent intent id is a VALIDATION ERROR from
       `core intent validate`, not a silent permanent block. Proven by seeding a bad reference,
       watching validate name it, and removing it
-- [ ] G3: a dependency CYCLE is a validation error. Proven by seeding a two-intent cycle and watching
+<!-- evidence: commit e1d4efa8, gen 501. Watched it fail: seeded INT-224 depends_on INT-999,
+     validate reported one issue naming the intent, the reference and the file. Removed it and
+     validate returned All 261 intents valid. -->
+- [x] G3: a dependency CYCLE is a validation error. Proven by seeding a two-intent cycle and watching
       validate reject it. ⚠️ Do NOT re-implement cycle protection in the walkers -- 2576's visited set
       already prevents the hang; this catches the SILENT case, where both intents vanish from
       recommendations
-- [ ] G4: what satisfies a dependency is DECIDED AND IMPLEMENTED. Today only `complete` clears, so a
+<!-- evidence: commit e1d4efa8, gen 501. Watched it fail: pointed 224 and 225 at each other,
+     validate reported a cycle for BOTH ends. Reverted, validate returned clean. Confirms the
+     visited set in deps_critical_path was never the issue -- the silent case was. -->
+- [x] G4: what satisfies a dependency is DECIDED AND IMPLEMENTED. Today only `complete` clears, so a
       cancelled dependency blocks forever. State the rule for cancelled and for superseded, in
       writing, before changing the code
-- [ ] G5: `next_intent` no longer skips silently -- a blocked intent is either named with its blocker
+<!-- evidence: contract written BEFORE the code in commit d9d50316; helper added unused in
+     05435aa8; five call sites converted by eefa3bbb, verified on gen 500. grep -n complete_ids on
+     intent/mod.rs now returns NOTHING (exit 1). start, blocked, next_intent, brief and graph all
+     route through dep_state. brief keeps counting completed intents directly, with a comment,
+     because that is a statistic and not a dependency question. -->
+- [x] G5: `next_intent` no longer skips silently -- a blocked intent is either named with its blocker
       or counted, so an intent can never disappear from recommendations without explanation
-- [ ] G6: THE FIRST REAL EDGE, chosen because it is already proven rather than assumed: INT-167's P0
+<!-- evidence: commit 19646fc7, gen 499. next_intent now prints Not recommended, and why:
+     INT-212 waiting on INT-211. Before, the bare continue at mod.rs:2781-2783 made it vanish with
+     no message. Recommendation itself unchanged, which is the control. -->
+- [x] G6: THE FIRST REAL EDGE, chosen because it is already proven rather than assumed: INT-167's P0
       cannot proceed until INT-214, since the events table cannot be created from source. Encode it
       and show `deps 167`, `blocked` and `next` all reflecting it
-- [ ] G7: a deliberate pass over the planned and in-progress intents, declaring only edges that mean
+<!-- evidence: commit fb9df845, gen 503. INT-167 depends_on 214, with the reason written into
+     167 under a Dependencies heading. validate clean, deps 167 renders the edge, blocked lists it.
+     Chosen because it was already proven rather than assumed. -->
+- [x] G7: a deliberate pass over the planned and in-progress intents, declaring only edges that mean
       "cannot start until". Each edge names its reason in the depending intent, so a future reader can
       check it rather than trust it
-- [ ] G8: the discipline is written into the intent and into CONVENTIONS: `depends_on` = cannot start
+<!-- evidence: commit c2f43db1. Method was measurement: grep found only five prose-stated
+     dependencies across 57 planned intents. Two were genuinely blocking and are encoded with their
+     reasons -- 041 depends_on 039, 155 depends_on 142. 157 to 027 was found and deliberately NOT
+     encoded, because 027 is complete and an edge is a claim that work is impossible. The count is
+     itself the finding: the real ordering is milestone-gated, not intent-gated. -->
+- [x] G8: the discipline is written into the intent and into CONVENTIONS: `depends_on` = cannot start
       until; `relates` = worth reading together. A false positive costs more than a false negative
       here, because a noisy blocked list stops being read
-- [ ] G9: `blocks:` is resolved -- either made real for the blocking logic or documented as
+<!-- evidence: commit edb575f3. docs/CONVENTIONS.md now has three sections; the third is
+     Dependency edges, written in the house shape. Its tell: if you cannot name what would break by
+     starting anyway, it is not a dependency. Records both failure directions. -->
+- [x] G9: `blocks:` is resolved -- either made real for the blocking logic or documented as
       display-only, so nobody populates it expecting it to gate anything
-- [ ] G10: `priority:` is recorded or fixed. `core intent deps` tells the user to set a field that
+<!-- evidence: commit fc3a3a8f, gen 503. RESOLVED AS DERIVED, per law 3. deps computes the set
+     from every intent whose depends_on contains this id; the frontmatter hint no longer advertises
+     the field. deps 214 shows 167 and deps 039 shows 041, both with nothing declared in their own
+     frontmatter. deps 160 still shows 161 because 161 carries the reciprocal depends_on -- the one
+     case where both directions were stored, they agreed, and the derived path reproduces it. -->
+- [x] G10: `priority:` is recorded or fixed. `core intent deps` tells the user to set a field that
       changes no recommendation
-- [ ] G11: `core intent blocked` gives a TRUE answer, demonstrated: it either names real blockers or
+<!-- evidence: commit 34369e4a, gen 502. FIXED, not merely recorded. Intent gained a priority
+     member, parse_intent reads it lowercased, next_intent scores it, and the tag bonuses were
+     removed because a security tag added 20 on top of a declared priority. Before: INT-223 and
+     INT-225 at priority high scored 10/100 and did not appear at all. After: both at 50/100 citing
+     declared priority: high. Also surfaced that seven intents were high against a cap of three;
+     four were demoted in commit 38698c20. -->
+- [x] G11: `core intent blocked` gives a TRUE answer, demonstrated: it either names real blockers or
       reports none against a graph that has edges in it
-- [ ] G12: each gate carries evidence per INT-158
+<!-- evidence: gen 503. core intent blocked reports four, every named blocker real: 041 waiting
+     on 039, 155 on 142, 167 on 214, 212 on 211. validate clean at 262 intents. The graph has edges
+     in it and the answer is true. -->
+- [x] G12: each gate carries evidence per INT-158
+<!-- evidence: this pass. Every gate above carries a commit hash, a generation number, or a
+     demonstrated before-and-after. G1 carries prose because the thing it asked to capture had
+     stopped existing -- stated rather than papered over. -->
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit
