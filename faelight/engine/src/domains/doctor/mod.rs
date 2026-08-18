@@ -1303,7 +1303,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_themes(core_root),
         check_scripts(core_root),
         check_rust_docs(core_root),
-        check_dotmeta(),
         check_intents(core_root),
         check_deadwood(core_root),
         check_faelight_config(home),

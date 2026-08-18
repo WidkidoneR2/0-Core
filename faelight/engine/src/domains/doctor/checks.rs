@@ -357,16 +357,6 @@ pub fn check_scripts(core_root: &str) -> CheckResult {
     }
 }
 
-pub fn check_dotmeta() -> CheckResult {
-    CheckResult {
-        id: "dotmeta".into(),
-        name: "Package Metadata".into(),
-        status: Status::Pass,
-        message: ".dotmeta files intentionally removed (stow conflict resolution)".into(),
-        fix: None,
-    }
-}
-
 pub fn check_intents(_core_root: &str) -> CheckResult {
     // INT-135 Gate 7: was decoration -- hardcoded Status::Pass, a phantom "active/" folder,
     // no "in-progress", and a substring match for "status: complete" over whole files.
