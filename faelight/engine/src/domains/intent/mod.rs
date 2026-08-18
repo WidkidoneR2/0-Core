@@ -451,6 +451,8 @@ pub fn validate_issues() -> (usize, Vec<String>) {
     let base = faelight_core::paths::intents_dir();
     let mut issues: Vec<String> = Vec::new();
     let mut seen: HashMap<(String, String), usize> = HashMap::new();
+    // INT-213 G2/G3: (id, depends_on, where) -- resolved after every file is known.
+    let mut edges: Vec<(String, Vec<String>, String)> = Vec::new();
     let mut count = 0usize;
 
     for folder in FOLDERS {
@@ -545,6 +547,22 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 } else {
                     folder
                 };
+                // INT-213 G2/G3: collect lifecycle edges for the second pass. An edge is only
+                // meaningful inside one namespace -- decision 144 and intent 144 both exist.
+                if LIFECYCLE.contains(folder) {
+                    if let Some(raw) = field("depends_on") {
+                        let deps: Vec<String> = raw
+                            .trim_matches('[')
+                            .trim_matches(']')
+                            .split(',')
+                            .map(|t| t.trim().to_string())
+                            .filter(|t| !t.is_empty())
+                            .collect();
+                        if !deps.is_empty() {
+                            edges.push((id.clone(), deps, format!("{}/{}", folder, name)));
+                        }
+                    }
+                }
                 *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
         }
@@ -556,6 +574,49 @@ pub fn validate_issues() -> (usize, Vec<String>) {
         }
     }
 
+    // INT-213 G2: a depends_on naming an id that does not exist blocks its dependent
+    // forever and renders as "not found". Nothing validated it until now.
+    let known: std::collections::HashSet<&str> = seen
+        .keys()
+        .filter(|(ns, _)| ns == "lifecycle")
+        .map(|(_, id)| id.as_str())
+        .collect();
+    for (id, deps, where_) in &edges {
+        for dep in deps {
+            if !known.contains(dep.as_str()) {
+                issues.push(format!(
+                    "INT-{} depends_on INT-{}, which does not exist: {}",
+                    id, dep, where_
+                ));
+            }
+        }
+    }
+    // INT-213 G3: a cycle does not hang -- deps_critical_path already guards that with a
+    // visited set. It makes every intent in the cycle vanish from recommendations silently.
+    let adjacency: HashMap<&str, &Vec<String>> = edges
+        .iter()
+        .map(|(id, deps, _)| (id.as_str(), deps))
+        .collect();
+    for (start, _, where_) in &edges {
+        let mut stack = vec![start.as_str()];
+        let mut visited: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        while let Some(node) = stack.pop() {
+            if !visited.insert(node) {
+                continue;
+            }
+            if let Some(deps) = adjacency.get(node) {
+                for dep in deps.iter() {
+                    if dep == start {
+                        issues.push(format!(
+                            "Dependency cycle reaching INT-{}: {}",
+                            start, where_
+                        ));
+                    }
+                    stack.push(dep.as_str());
+                }
+            }
+        }
+    }
     (count, issues)
 }
 
