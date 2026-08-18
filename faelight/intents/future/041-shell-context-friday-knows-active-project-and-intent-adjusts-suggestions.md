@@ -4,6 +4,7 @@ date: 2026-06-08
 type: feature
 title: "shell-context: Friday knows active project and intent, adjusts suggestions"
 status: planned
+depends_on: [039]
 tags: [friday, shell-context, suggestions, intent-aware, prediction, rust, nixos]
 version: TBD
 ---
@@ -76,3 +77,9 @@ Phase 4 -- project-scoped knowledge: facts/patterns tagged and retrieved by proj
 
 ## The Rule
 "Knowing things is memory. Knowing what you are doing is attention. Friday needs both." 🌲
+
+## Dependencies
+
+**INT-039** -- friday-daemon is the always-on context holder this intent reads from.
+Stated in the body since filing: build 039 first. Shell context has nothing to attach to
+until a persistent Friday process exists.
