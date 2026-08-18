@@ -39,6 +39,47 @@ fn intents_dir(ctx: &AppContext) -> PathBuf {
     ctx.fpath("intents")
 }
 
+/// INT-213 G4 -- the ONE place that decides what satisfies a dependency.
+///
+/// Contract recorded in the intent before this code existed:
+///   complete   -> satisfies
+///   cancelled  -> satisfies, but the dependent is flagged as questionable
+///   planned / in-progress / deferred -> does not satisfy
+///   missing id -> an error, never a permanent block
+///
+/// Cancellation removes the blocking condition without retroactively making
+/// the dependency assumption true. Proven by INT-223 depending on INT-175.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DepState {
+    Satisfied,
+    Questionable,
+    Blocked,
+    Missing,
+}
+
+impl DepState {
+    /// Does this dependency stop the dependent from starting?
+    pub fn clears(self) -> bool {
+        matches!(self, DepState::Satisfied | DepState::Questionable)
+    }
+}
+
+/// Shown against any dependent whose dependency was cancelled.
+pub const CANCELLED_DEP_NOTE: &str =
+    "depends on a cancelled intent -- the assumption behind this edge may no longer hold";
+
+/// Resolve one dependency id against the loaded intent set.
+pub fn dep_state(intents: &[Intent], dep_id: &str) -> DepState {
+    match intents.iter().find(|i| i.id == dep_id) {
+        None => DepState::Missing,
+        Some(dep) => match dep.status.as_str() {
+            "complete" => DepState::Satisfied,
+            "cancelled" => DepState::Questionable,
+            _ => DepState::Blocked,
+        },
+    }
+}
+
 fn load_all(ctx: &AppContext) -> Vec<Intent> {
     let base = intents_dir(ctx);
     let folders = [
