@@ -102,21 +102,30 @@ impl WallpaperState {
         self.layer.wl_surface().commit();
     }
 
-    fn update_health_color(&mut self) {
+    /// Returns true only when the colour actually CHANGED, so the caller can
+    /// skip a redraw. Before this returned (), the main loop drew on every
+    /// dispatch wake: draw() commits the surface, the compositor answers with a
+    /// frame callback, the callback wakes blocking_dispatch, and it drew again --
+    /// the daemon generating the events it was waiting for. Measured at 29.5% of
+    /// a core, sustained, repainting an identical colour thousands of times.
+    fn update_health_color(&mut self) -> bool {
         if !self.health_reactive {
-            return;
+            return false;
         }
         if self.last_health_check.elapsed() < std::time::Duration::from_secs(30) {
-            return;
+            return false;
         }
         self.last_health_check = std::time::Instant::now();
 
         let health = read_health_from_db();
-        self.color = match health {
+        let next = match health {
             h if h >= 95 => COLOR_HEALTHY,
             h if h >= 80 => COLOR_WARN,
             _ => COLOR_CRITICAL,
         };
+        let changed = next != self.color;
+        self.color = next;
+        changed
     }
 }
 
@@ -309,8 +318,9 @@ fn main() -> Result<()> {
 
     loop {
         queue.blocking_dispatch(&mut state)?;
-        state.update_health_color();
-        if state.configured {
+        // Configure events draw themselves (see the configure handler), so the
+        // loop only needs to repaint when the health colour moved.
+        if state.update_health_color() && state.configured {
             state.draw();
         }
     }
