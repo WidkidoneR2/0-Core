@@ -216,7 +216,11 @@ fn cmd_pick() -> Result<()> {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let mut child = Command::new("sk")
+    // P2: was Command::new("sk") -- skim, which is not installed, so pick failed
+    // with "sk not found" while its own --help said "Pick from history using fzf".
+    // fzf IS installed and does the same job, so the code now matches the docs
+    // rather than adding a package for one subcommand.
+    let mut child = Command::new("fzf")
         .args(["--prompt=📋 clipboard> ", "--height=40%", "--reverse"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
