@@ -204,7 +204,7 @@ faelight-update -v
 
 ### Verification
 ```bash
-# Check system health (14 checks)
+# Check system health
 doctor
 
 # Check git state

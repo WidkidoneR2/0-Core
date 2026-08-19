@@ -76,8 +76,7 @@ solaar show
 ## Compositor Recovery
 
 The forest runs three compositors (mango daily + Pinnacle + Miracle), all selectable
-at the greeter, all under the SafeShell net. Recovery is layered (INT-056).
-Full detail: `docs/recovery-runbook.md`.
+metal 2026-07-11). Full detail: `docs/recovery-runbook.md`.
 
 ### SafeShell -- the 100% recovery (do this first)
 If a compositor fails to launch or black-screens, you do NOT need a TTY. At the greeter,
@@ -85,16 +84,17 @@ press **F3** -> select **SafeShell** -> a bare `fsh` with no compositor, to repa
 SafeShell is always in the picker; a broken compositor can never lock you out.
 
 ### Compositor crash / frozen session (mango)
-1. `Fn+Ctrl+Alt+F2` -> tty2, log in (Fn is a Framework media-row quirk).
-2. `sudo systemctl restart greetd` -- restarts the login stack, fresh greeter.
+1. `Fn+Ctrl+Alt+F2` -> tty2, log in as `christian` (Fn is a Framework media-row quirk).
+2. `sudo systemctl restart greetd` -- restarts the login stack (kills the frozen
+   compositor, returns to a fresh greeter).
 3. `Fn+Ctrl+Alt+F1` back to the graphical VT.
 
 ### VT switch
-- To a console: `Fn+Ctrl+Alt+F2` (-> tty2). A kernel function -- works even if the
+- To a console: `Fn+Ctrl+Alt+F2` (-> tty2). A **kernel** function -- works even if the
   compositor is fully hung. Provided by autovt (always present).
 - Back to the session: `Fn+Ctrl+Alt+F1`.
+- Confirmed from mango, Pinnacle, and the greeter (greetd foreground) -- VM + metal.
 
----
 
 ## Note on Pinnacle Migration
 - Keybind names will change (Pinnacle uses different action names)

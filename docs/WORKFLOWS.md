@@ -10,7 +10,7 @@
 
 ### Morning System Check
 ```bash
-d                    # health check -- 22 checks, health + integrity
+d                    # health check -- health, integrity, and a verdict
 intent list          # see active and upcoming intents
 intent next          # get recommendation on what to work on
 git log -3           # what was done last session
@@ -197,7 +197,7 @@ d                              # verify health restored
 
 | Command | Description |
 |---------|-------------|
-| `d` | Health check (22 checks) |
+| `d` | Health check |
 | `fm` | File manager (broot-style tree) |
 | `fmd` | File manager dual panel |
 | `rebuild` | NixOS rebuild |

@@ -12,7 +12,7 @@
 
 ### Health & Status
 ```bash
-d                          # health check -- 22 checks, health + integrity
+d                          # health check -- health, integrity, and a verdict
 core doctor run            # same as d
 core status                # forest state narrative
 core doctor run --json     # machine-readable health output

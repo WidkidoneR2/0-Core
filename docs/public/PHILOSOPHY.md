@@ -289,7 +289,7 @@ Every major decision is documented in `intents/`. Not just *what* changed, but *
 **Example:** Intent 035 documents the Sway migration after the Omarchy catastrophe. Not to shame the past, but to learn from it.
 
 ### Health Monitoring
-`doctor` doesn't just check — it **explains**. 14 checks with detailed rationale, dependency graphs, and fix instructions.
+`doctor` doesn't just check — it **explains**. checks with detailed rationale, dependency graphs, and fix instructions.
 
 **Principle:** Transparency over magic.
 

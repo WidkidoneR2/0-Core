@@ -1,4 +1,5 @@
-// doctor/checks.rs — all 23 health check functions
+// doctor/checks.rs -- the health check functions. The count is deliberately NOT
+// written here: it said 23 while this file held 30, and the docs said 22 and 14.
 #![allow(dead_code)]
 use super::{CheckResult, Status, Tier};
 use std::fs;
