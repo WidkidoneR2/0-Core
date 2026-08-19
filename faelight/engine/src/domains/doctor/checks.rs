@@ -11,12 +11,40 @@ use walkdir::WalkDir;
 pub fn check_services() -> CheckResult {
     // Per-session daemons the doctor expects up. faelight-bar joined this list
     // when INT-053 shipped it as a real systemd user service.
-    let services = [
-        ("faelight-notify", "Notifications"),
-        ("faelight-bar", "Bar"),
-        ("faelight-wsd", "Workspaces"),
-    ];
+    // INT-222: ASK systemd which services should be running, do not name them here.
+    // This list was hardcoded to three -- notify, bar, wsd -- while the target wanted
+    // five: faelight-insightd had been invisible to the panel for weeks, and
+    // faelight-idle became invisible the moment it was wired. A panel that says
+    // "3/3 running" about a set of five is not reporting health, it is reporting
+    // its own memory. Wiring a service now makes it appear here by itself.
+    let wants = Command::new("systemctl")
+        .args(["--user", "show", "-p", "Wants", "faelight-session.target"])
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let services: Vec<String> = wants
+        .trim()
+        .strip_prefix("Wants=")
+        .unwrap_or("")
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
     let total = services.len();
+
+    if total == 0 {
+        // INT-222: no wants means the query failed or the target is absent -- NOT zero
+        // services healthy. 0/0 would render as a clean Pass, which is the free pass this
+        // whole intent exists to remove.
+        return CheckResult {
+            tier: Tier::System,
+            id: "services".into(),
+            name: "System Services".into(),
+            status: Status::Unknown,
+            message: "could not read faelight-session.target wants".into(),
+            fix: None,
+        };
+    }
 
     // INT-146: distinguish "couldn't query the bus" from "service inactive". The user session
     // bus is unreachable in bus-less contexts (deploy activation, early boot, headless). Probing
@@ -48,18 +76,18 @@ pub fn check_services() -> CheckResult {
     // Bus is reachable -> is-active answers are trustworthy. A non-success now genuinely means
     // the service is inactive, not that we failed to ask. (unwrap_or(true) is safe here because
     // the bus is up; a residual Err would be a real problem worth flagging as down.)
-    let down: Vec<&str> = services
+    let down: Vec<String> = services
         .iter()
-        .filter(|(name, _)| {
+        .filter(|name| {
             // is-active by unit name survives binary swaps (INT-053 changed
             // faelight-bar's ExecStart to the faelight-bar-gtk binary).
             Command::new("systemctl")
-                .args(["--user", "is-active", "--quiet", *name])
+                .args(["--user", "is-active", "--quiet", name.as_str()])
                 .status()
                 .map(|s| !s.success())
                 .unwrap_or(true)
         })
-        .map(|(name, _)| *name)
+        .cloned()
         .collect();
     let running = total - down.len();
     if running == total {
