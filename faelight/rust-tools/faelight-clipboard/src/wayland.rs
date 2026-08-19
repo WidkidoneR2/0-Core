@@ -196,6 +196,13 @@ pub fn native_paste() -> Result<String> {
     selection.receive(mime, write_fd.as_fd());
     queue.flush()?;
 
+    // Close OUR write end. read_to_string below blocks until EOF, and EOF only
+    // arrives once every write end is closed -- the compositor dups its own copy
+    // when it receives the fd, so holding ours open means the read never returns.
+    // This is why watch appeared to run and do nothing: it was not looping at all,
+    // it was blocked forever inside the first poll.
+    drop(write_fd);
+
     let mut content = String::new();
     File::from(read_fd).read_to_string(&mut content)?;
     Ok(content)
