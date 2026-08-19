@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::os::fd::{AsFd, FromRawFd, OwnedFd};
 use wayland_client::{
+    event_created_child,
     protocol::{wl_registry, wl_seat},
     Connection, Dispatch, QueueHandle,
 };
@@ -121,6 +122,15 @@ impl Dispatch<ZwlrDataControlDeviceV1, ()> for PasteState {
             _ => {}
         }
     }
+
+    // The data_offer event (opcode 0) is a NEW-ID event: the compositor creates a
+    // child object and wayland-client needs to be told how to build it. Without
+    // this the first roundtrip panics inside the C dispatch callback, where a Rust
+    // panic cannot unwind, so it aborts. That is why this crate had never once run:
+    // the failure is on the first event, before any clipboard work happens.
+    event_created_child!(PasteState, ZwlrDataControlDeviceV1, [
+        zwlr_data_control_device_v1::EVT_DATA_OFFER_OPCODE => (ZwlrDataControlOfferV1, ()),
+    ]);
 }
 
 impl Dispatch<ZwlrDataControlOfferV1, ()> for PasteState {

@@ -10,6 +10,7 @@
     ./faelight-insightd.nix
     ./faelight-idle.nix
     ./faelight-wallpaper.nix
+    ./faelight-clipboard.nix
   ];
 
   home.stateVersion = "25.11";
