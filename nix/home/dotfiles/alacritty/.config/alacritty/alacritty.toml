@@ -1,5 +1,11 @@
 [font]
-normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+# P2: declare the real faces. Only Regular was declared, so alacritty synthesised
+# bold and italic by thickening and slanting it, while JetBrainsMono ships genuine
+# Bold, Italic and BoldItalic faces that were already installed.
+normal      = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold        = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic      = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+bold_italic = { family = "JetBrainsMono Nerd Font", style = "Bold Italic" }
 size = 12.0
 
 [terminal.shell]
