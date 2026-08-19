@@ -57,13 +57,12 @@ pub fn render_cockpit(
     integrity_pct: u32,
 ) {
     // ── Summary header ────────────────────────────────────────────────
-    let health_color = if health >= 95 {
-        format!("{}%", health).bright_green().bold().to_string()
-    } else if health >= 80 {
-        format!("{}%", health).yellow().bold().to_string()
-    } else {
-        format!("{}%", health).bright_red().bold().to_string()
-    };
+    // INT-222: the percentage is a TREND, not a verdict. It carried its own colour
+    // thresholds, so a green number could sit beside the word ADVISORY, and today one
+    // prunable-generations advisory is the only thing between this machine and HEALTHY.
+    // A weight factor is subjective; comparing the number to its own past is not.
+    // Dimmed and uncoloured so the light does the judging and the number shows movement.
+    let health_color = format!("{}%", health).dimmed().to_string();
 
     // INT-222: ONE verdict, derived by super::verdict from tier and status. This block used
     // to count failed and warnings itself, the quick scan counted them again with a different
@@ -83,8 +82,8 @@ pub fn render_cockpit(
     println!(
         "  │  🏥 {}  {}  {}  │  {}/{} checks  │",
         format!("Faelight Forest {}", version).bright_white().bold(),
-        health_color,
         status_str,
+        health_color,
         passed,
         checks.len(),
     );
