@@ -7,20 +7,26 @@
 //! - Wayland helpers (layer-shell configs)
 //! - Error handling
 
+#[cfg(feature = "ui")]
 pub mod canvas;
 pub mod error;
+#[cfg(feature = "ui")]
 pub mod glyph;
 pub mod paths;
 pub mod theme;
+#[cfg(feature = "ui")]
 pub mod wayland;
 
+#[cfg(feature = "ui")]
 pub use canvas::Canvas;
 pub use error::{FaelightError, Result};
+#[cfg(feature = "ui")]
 pub use glyph::GlyphCache;
 pub use theme::Theme;
+#[cfg(feature = "ui")]
 pub use wayland::{Anchor, Layer, LayerSurfaceConfig};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ui"))]
 mod tests {
     use super::*;
 
