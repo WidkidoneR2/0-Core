@@ -54,6 +54,13 @@ fn cold_fix(line: &str) -> Option<String> {
                 .to_string(),
         );
     }
+    // home-manager refuses to overwrite a file it did not place.
+    if l.contains("would be clobbered") {
+        return Some(
+            "home-manager will not overwrite a hand-written file. Fix: rm the file, or set force = true on that option."
+                .to_string(),
+        );
+    }
     // Nix syntax error.
     if l.contains("syntax error") || (l.contains("unexpected") && l.contains(".nix")) {
         return Some("Nix syntax error -- check the named file/line above.".to_string());
@@ -77,6 +84,15 @@ fn is_serious(line: &str) -> bool {
         || l.contains("error: build of")
         || l.contains("switch failed")
         || l.contains("failed to switch")
+        // Activation-phase failures. These do NOT speak the build phase's
+        // vocabulary: a home-manager failure printed "Failed to restart",
+        // "the following units failed" and "returned non-zero exit status 4"
+        // and the triage reported "benign, nothing needs your attention",
+        // because the default-serious rule only fires on a line containing
+        // "error:" and none of those lines contain the word.
+        || l.contains("failed to restart")
+        || l.contains("units failed")
+        || l.contains("returned non-zero exit status")
 }
 
 /// Classify a full deploy log. Returns (sniffle_count, colds, serious_lines).
@@ -214,6 +230,27 @@ mod tests {
     #[test]
     fn infinite_recursion_is_serious() {
         assert!(is_serious("error: infinite recursion encountered"));
+    }
+
+    #[test]
+    fn activation_failure_is_serious() {
+        // The 2026-08-21 reproduction: a deploy exited 4 and triage said
+        // "benign, nothing needs your attention" because no line said "error:".
+        let log = "Failed to restart home-manager-christian.service
+                   warning: the following units failed: home-manager-christian.service
+                   Command 'systemd-run ...' returned non-zero exit status 4.";
+        let (_, _, serious) = classify(log);
+        assert!(
+            !serious.is_empty(),
+            "activation failure must not read as benign"
+        );
+    }
+
+    #[test]
+    fn clobbered_file_is_cold() {
+        assert!(
+            cold_fix("Existing file '/home/x/.config/q/shell.qml' would be clobbered").is_some()
+        );
     }
 
     #[test]
