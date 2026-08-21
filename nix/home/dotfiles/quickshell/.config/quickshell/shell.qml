@@ -7,11 +7,12 @@ ShellRoot {
         id: bar
         anchors { top: true; left: true; right: true }
         implicitHeight: 26
-        color: "#141816"
+        color: "#080d08"
 
         property var tags: []
         property int health: 100
         property string clock: ""
+        property string intent: ""
 
         FileView {
             id: wsFile
@@ -27,6 +28,21 @@ ShellRoot {
             watchChanges: true
             onFileChanged: reload()
             onLoaded: { bar.health = parseInt(healthFile.text()) || 100 }
+        }
+
+        FileView {
+            id: focusFile
+            path: "/home/christian/.local/state/0-core/intent/focus.toml"
+            watchChanges: true
+            onFileChanged: reload()
+            onLoaded: {
+                // focus.toml is four simple key = "value" lines with no embedded
+                // quotes, so this needs no TOML parser -- which is what keeps the
+                // drawer file-based and free of anything but reading.
+                var m = /title\s*=\s*"([^"]*)"/.exec(focusFile.text())
+                var t = m ? m[1] : ""
+                bar.intent = t.length > 55 ? t.substring(0, 52) + "..." : t
+            }
         }
 
         Timer {
@@ -50,9 +66,18 @@ ShellRoot {
                     font.bold: modelData.selected
                     color: modelData.selected ? "#39ff14"
                          : modelData.occupied ? "#d7e0da"
-                         : "#3c4641"
+                         : "#788c82"
                 }
             }
+        }
+
+        // centre: the active intent -- the one zone no off-the-shelf bar can fill
+        Text {
+            anchors.centerIn: parent
+            text: bar.intent
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 13
+            color: "#b482ff"
         }
 
         // right: health then clock
