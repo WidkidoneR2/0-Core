@@ -51,6 +51,59 @@ impl Value {
         }
     }
 
+    /// The form that goes into a PIPE, as distinct from the one a person reads.
+    ///
+    /// Neither existing rendering worked here: as_text() on a Table returns the
+    /// placeholder "[table: N rows]" -- not the data -- and render() returns a
+    /// box-drawn, ANSI-coloured table, so grep would match against escape codes
+    /// and border characters. Before this, a structured result reaching an
+    /// external stage was dropped SILENTLY: `history | head -3` printed the whole
+    /// history and ignored head entirely.
+    ///
+    /// TAB-separated on purpose. It is what makes `cut -f`, `awk -F'\t'` and
+    /// `column -t` work on fsh output, which is the entire point of a structured
+    /// shell that lives among Unix tools. Column order comes from headers_for,
+    /// so a table has the same columns whether it is piped or read.
+    pub fn to_pipe_text(&self) -> String {
+        match self {
+            Value::Table(rows) => {
+                if rows.is_empty() {
+                    return String::new();
+                }
+                let headers = headers_for(rows);
+                let mut out = String::new();
+                for row in rows {
+                    let line: Vec<String> = headers
+                        .iter()
+                        .map(|h| {
+                            row.get(h)
+                                .map(|v| escape_field(&v.as_text()))
+                                .unwrap_or_default()
+                        })
+                        .collect();
+                    out.push_str(&line.join("\t"));
+                    out.push('\n');
+                }
+                out
+            }
+            Value::Row(row) => {
+                let rows = vec![row.clone()];
+                let headers = headers_for(&rows);
+                let line: Vec<String> = headers
+                    .iter()
+                    .map(|h| {
+                        row.get(h)
+                            .map(|v| escape_field(&v.as_text()))
+                            .unwrap_or_default()
+                    })
+                    .collect();
+                format!("{}\n", line.join("\t"))
+            }
+            Value::Nothing => String::new(),
+            other => format!("{}\n", other.as_text()),
+        }
+    }
+
     /// Render as a formatted table for display
     pub fn render(&self) -> String {
         match self {
@@ -72,12 +125,27 @@ impl Value {
     }
 }
 
-pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
-    if rows.is_empty() {
-        return format!("  {}", "No results.".dimmed());
-    }
+/// The column order for a table, and the ONE owner of it.
+///
+/// A HashMap has no inherent order, so this imposes one: the priority names
+/// first, then whatever else the first row carries, with size_bytes hidden as an
+/// internal column. Extracted from render_table when to_pipe_text arrived --
+/// two renderers each deriving their own order would mean the same table came
+/// out with different columns depending on whether it was piped, which is the
+/// two-owners bug this codebase keeps finding.
+/// One line per row means ONE LINE PER ROW. A stored command can contain a
+/// newline -- every python heredoc in this history does -- and an unescaped one
+/// splits a single record across several lines, so head -3 could hand back three
+/// lines of ONE entry. Measured: history piped to wc -l said 438 for a 100-row
+/// limit. Tabs are escaped for the same reason: they are the field separator.
+fn escape_field(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('\t', "\\t")
+        .replace('\n', "\\n")
+        .replace('\r', "")
+}
 
-    // Collect column names -- name/line first, then sorted rest, hide size_bytes
+pub fn headers_for(rows: &[HashMap<String, Value>]) -> Vec<String> {
     let raw_keys: Vec<String> = rows[0].keys().cloned().collect();
     let priority = [
         "name", "line", "n", "size", "type", "kind", "domain", "action",
@@ -87,14 +155,27 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
         .filter(|p| raw_keys.contains(&p.to_string()))
         .map(|p| p.to_string())
         .collect();
-    for k in &raw_keys {
-        if k == "size_bytes" {
-            continue;
-        } // internal column, skip display
-        if !headers.contains(k) {
-            headers.push(k.clone());
-        }
+    // SORTED, which the original comment claimed and the code did not do. The
+    // remainder came out in HashMap iteration order, so the same table printed
+    // its columns in a DIFFERENT ORDER on different runs -- measured 2026-08-21:
+    // duration/time/command/timestamp one run, time/command/duration/timestamp
+    // the next. Sorting makes the order a property of the data, not of the run.
+    let mut rest: Vec<String> = raw_keys
+        .iter()
+        .filter(|k| *k != "size_bytes" && !headers.contains(k))
+        .cloned()
+        .collect();
+    rest.sort();
+    headers.extend(rest);
+    headers
+}
+
+pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
+    if rows.is_empty() {
+        return format!("  {}", "No results.".dimmed());
     }
+
+    let headers = headers_for(rows);
 
     // Calculate column widths
     let mut widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();

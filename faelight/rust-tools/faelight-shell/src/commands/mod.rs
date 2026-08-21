@@ -9017,6 +9017,18 @@ fn peel_builtin_first_stage<'a>(
         CommandResult::NotBuiltin => Peeled::Spawn(plans),
         CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
         CommandResult::Empty => Peeled::Piped(&plans[1..], String::new()),
+        // THIS ARM WAS THE SILENT DROP. A structured result fell into the
+        // catch-all below and Peeled::Finished abandoned the pipeline, so
+        // history piped to head printed the entire history and ignored head:
+        // a wrong answer with no signal, which is worse than an error.
+        //
+        // INT-169 predicted it -- it widened Output rather than adding a variant
+        // because 18 of the 28 match sites carry a wildcard arm that would have
+        // swallowed a new variant silently. This was one of those arms.
+        //
+        // to_pipe_text is tab-separated and uncoloured, so every table command
+        // now feeds head, grep, cut and awk.
+        CommandResult::Value(v) => Peeled::Piped(&plans[1..], v.to_pipe_text()),
         other => Peeled::Finished(other),
     }
 }
