@@ -27,7 +27,7 @@ rebuild_rc=${PIPESTATUS[0]}
 set -e
 
 # INT-140: read-only triage of the rebuild output (sniffles / cold / heart-attack).
-faelight-shell --triage-deploy /tmp/faelight-deploy.log || true
+faelight-shell --triage-deploy /tmp/faelight-deploy.log "$rebuild_rc" || true
 
 # Honor the rebuild's REAL exit code. Triage informs; it never decides. A failed
 # rebuild still fails here with its own code -- no false all-clear.

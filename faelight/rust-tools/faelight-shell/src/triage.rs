@@ -137,7 +137,12 @@ pub fn classify(log: &str) -> (usize, Vec<ColdHit>, Vec<String>) {
 /// (which the deploy script still shows in full). Returns 0 if nothing serious,
 /// 1 if serious findings. NOTE: the caller must NOT let this override the
 /// rebuild's own exit status -- triage never changes deploy success/failure.
-pub fn render(sniffles: usize, colds: &[ColdHit], serious: &[String]) -> i32 {
+pub fn render(
+    sniffles: usize,
+    colds: &[ColdHit],
+    serious: &[String],
+    rebuild_rc: Option<i32>,
+) -> i32 {
     println!("\n  🩺 Deploy triage");
     println!("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
@@ -160,7 +165,20 @@ pub fn render(sniffles: usize, colds: &[ColdHit], serious: &[String]) -> i32 {
             sniffles
         );
     }
-    if serious.is_empty() && colds.is_empty() {
+    // The rebuild exit code answers "did it succeed"; classification answers
+    // "why". Kept apart: a non-zero code never promotes a cold or sniffle to
+    // serious, and a zero code never suppresses serious evidence. But a FAILED
+    // deploy with no recognised evidence is itself a finding -- the pattern list
+    // will always trail whatever failure reality invents next.
+    let unexplained =
+        matches!(rebuild_rc, Some(rc) if rc != 0) && serious.is_empty() && colds.is_empty();
+    if unexplained {
+        println!(
+            "  \u{1F534} UNEXPLAINED -- the deploy FAILED (exit {}) and triage found no cause.",
+            rebuild_rc.unwrap_or(0)
+        );
+        println!("     Read the log directly: /tmp/faelight-deploy.log");
+    } else if serious.is_empty() && colds.is_empty() {
         println!("  ✅ nothing needs your attention beyond the benign notes above.");
     }
     println!("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -174,7 +192,7 @@ pub fn render(sniffles: usize, colds: &[ColdHit], serious: &[String]) -> i32 {
 
 /// Entry point for `faelight-shell --triage-deploy [logfile]`.
 /// Reads from the given file, or stdin if no path. READ-ONLY.
-pub fn run_triage(logfile: Option<&str>) -> i32 {
+pub fn run_triage(logfile: Option<&str>, rebuild_rc: Option<i32>) -> i32 {
     let content = match logfile {
         Some(path) => match std::fs::read_to_string(path) {
             Ok(c) => c,
@@ -193,7 +211,7 @@ pub fn run_triage(logfile: Option<&str>) -> i32 {
         }
     };
     let (sniffles, colds, serious) = classify(&content);
-    render(sniffles, &colds, &serious)
+    render(sniffles, &colds, &serious, rebuild_rc)
 }
 
 #[cfg(test)]
@@ -230,6 +248,39 @@ mod tests {
     #[test]
     fn infinite_recursion_is_serious() {
         assert!(is_serious("error: infinite recursion encountered"));
+    }
+
+    #[test]
+    fn nonzero_exit_with_no_evidence_is_unexplained() {
+        // The contract: a failed deploy whose log says nothing recognisable is
+        // itself a finding. render() prints it; classify() stays evidence-only.
+        let (s, c, sv) = classify("some output nobody has a pattern for yet");
+        assert!(sv.is_empty() && c.is_empty(), "precondition: no evidence");
+        assert_eq!(
+            render(s, &c, &sv, Some(4)),
+            0,
+            "unexplained must not fake a serious exit"
+        );
+    }
+
+    #[test]
+    fn nonzero_exit_does_not_promote_a_cold() {
+        let (_, colds, serious) =
+            classify("error: getting status of '/nix/store/x/foo.rs': No such file");
+        assert!(!colds.is_empty(), "should be a cold");
+        assert!(
+            serious.is_empty(),
+            "a non-zero exit must not promote a cold to serious"
+        );
+    }
+
+    #[test]
+    fn zero_exit_keeps_serious_evidence() {
+        let (_, _, serious) = classify("error: infinite recursion encountered");
+        assert!(
+            !serious.is_empty(),
+            "a zero exit must not suppress serious evidence"
+        );
     }
 
     #[test]

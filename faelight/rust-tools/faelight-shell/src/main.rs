@@ -856,7 +856,11 @@ fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().collect();
         if let Some(pos) = args.iter().position(|a| a == "--triage-deploy") {
             let logfile = args.get(pos + 1).map(|s| s.as_str());
-            let code = triage::run_triage(logfile);
+            // Second argument is the rebuild's real exit code (PIPESTATUS[0] in
+            // the deploy script). Triage reads it to spot a failure it could not
+            // explain; it never uses it to override classification.
+            let rebuild_rc = args.get(pos + 2).and_then(|s| s.parse::<i32>().ok());
+            let code = triage::run_triage(logfile, rebuild_rc);
             std::process::exit(code);
         }
     }
