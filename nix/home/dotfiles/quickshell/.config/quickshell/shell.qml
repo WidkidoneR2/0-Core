@@ -10,27 +10,37 @@ ShellRoot {
         color: "#141816"
 
         property var tags: []
-
-        Rectangle {
-            anchors.fill: parent
-            color: "#141816"
-        }
+        property int health: 100
+        property string clock: ""
 
         FileView {
             id: wsFile
             path: "/home/christian/.cache/faelight/workspaces"
             watchChanges: true
             onFileChanged: reload()
-            onLoaded: {
-                try { bar.tags = JSON.parse(wsFile.text()).tags }
-                catch (e) { console.log("parse failed: " + e) }
-            }
+            onLoaded: { try { bar.tags = JSON.parse(wsFile.text()).tags } catch (e) {} }
         }
 
-        Row {
-            anchors.centerIn: parent
-            spacing: 10
+        FileView {
+            id: healthFile
+            path: "/home/christian/.cache/faelight/health-status"
+            watchChanges: true
+            onFileChanged: reload()
+            onLoaded: { bar.health = parseInt(healthFile.text()) || 100 }
+        }
 
+        Timer {
+            interval: 1000
+            running: true
+            repeat: true
+            triggeredOnStart: true
+            onTriggered: bar.clock = Qt.formatDateTime(new Date(), "ddd HH:mm")
+        }
+
+        // left: tags
+        Row {
+            anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+            spacing: 10
             Repeater {
                 model: bar.tags
                 Text {
@@ -42,6 +52,29 @@ ShellRoot {
                          : modelData.occupied ? "#d7e0da"
                          : "#3c4641"
                 }
+            }
+        }
+
+        // right: health then clock
+        Row {
+            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+            spacing: 14
+
+            Text {
+                text: bar.health + "%"
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 13
+                // same thresholds the GTK bar uses: 95 and 80
+                color: bar.health >= 95 ? "#39ff14"
+                     : bar.health >= 80 ? "#ffc832"
+                     : "#ff5050"
+            }
+
+            Text {
+                text: bar.clock
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 13
+                color: "#d7e0da"
             }
         }
     }
