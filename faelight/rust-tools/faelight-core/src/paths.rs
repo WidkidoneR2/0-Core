@@ -97,8 +97,56 @@ pub fn security_dir() -> PathBuf {
 // 04-RUNTIME: Execution & Build Artifacts
 // ═══════════════════════════════════════════════════════════
 
+/// XDG state home: `$XDG_STATE_HOME`, or `~/.local/state` when unset. The spec
+/// defines it as state that persists between restarts but is not important or
+/// portable enough for `$XDG_DATA_HOME` -- logs, history, current application
+/// state. That is exactly what runtime_dir() holds.
+///
+/// Kept SEPARATE from runtime_dir so XDG policy and the Faelight namespace stay
+/// independent of each other.
+pub fn state_home() -> PathBuf {
+    match env::var("XDG_STATE_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v),
+        _ => home().join(".local/state"),
+    }
+}
+
+/// Machine-local state: state.db, logs, cache, snapshots, locks, backups,
+/// journal, events.
+///
+/// ⚠️ THIS USED TO LIVE AT faelight_dir()/runtime, INSIDE THE REPO, under a
+/// header reading "Execution & Build Artifacts". Nothing in it is a build
+/// artifact -- those are in core_dir()/target -- so it was misfiled against its
+/// own section. Measured 2026-08-21: starting fsh with a HOME that had no forest
+/// CREATED one, because this path is derived from the repo root. No other shell
+/// stores state in a source tree, and every one of them (bash HISTFILE, OSH
+/// HISTFILE, YSH YSH_HISTFILE) makes the location overridable.
+///
+/// RESOLUTION ORDER, chosen so the code can ship before the data moves:
+///   1. $FAELIGHT_STATE_DIR       -- explicit override; also lets fsh-test
+///                                   isolate per-case state off the live db
+///   2. state_home()/faelight     -- if it already exists, it wins
+///   3. faelight_dir()/runtime    -- legacy, only while it still exists
+///   4. state_home()/faelight     -- fresh install, no repo required
+///
+/// There is deliberately no window where the code points somewhere the data is
+/// not: today (3) holds and nothing changes; after the move (2) takes over on
+/// its own; on a machine with no forest (4) applies and none is created.
 pub fn runtime_dir() -> PathBuf {
-    faelight_dir().join("runtime")
+    if let Ok(v) = env::var("FAELIGHT_STATE_DIR") {
+        if !v.is_empty() {
+            return PathBuf::from(v);
+        }
+    }
+    let xdg = state_home().join("faelight");
+    if xdg.exists() {
+        return xdg;
+    }
+    let legacy = faelight_dir().join("runtime");
+    if legacy.exists() {
+        return legacy;
+    }
+    xdg
 }
 
 /// The single canonical state database. Every tool MUST resolve state.db
@@ -437,7 +485,21 @@ mod tests {
         assert!(meta_dir().to_string_lossy().contains("meta"));
         assert!(registry_dir().to_string_lossy().contains("registry"));
         assert!(policy_dir().to_string_lossy().contains("policy"));
-        assert!(runtime_dir().to_string_lossy().contains("runtime"));
+        // runtime_dir no longer contains the word "runtime" once the data has
+        // moved to XDG state, so assert the CONTRACT instead of the spelling:
+        // an explicit override always wins.
+        unsafe { std::env::set_var("FAELIGHT_STATE_DIR", "/tmp/fsh-paths-test") }
+        assert_eq!(runtime_dir(), PathBuf::from("/tmp/fsh-paths-test"));
+        unsafe { std::env::remove_var("FAELIGHT_STATE_DIR") }
+
+        // With no override, it must land somewhere real -- either the legacy repo
+        // path while that still exists, or XDG state.
+        let r = runtime_dir();
+        assert!(
+            r.ends_with("runtime") || r.ends_with("faelight"),
+            "unexpected runtime_dir: {}",
+            r.display()
+        );
     }
 }
 
