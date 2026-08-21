@@ -11881,7 +11881,6 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
 
 fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     use colored::*;
-    let home = std::env::var("HOME").unwrap_or_default();
     // Load stats from DB
     let aliases: i64 = db
         .conn
@@ -11897,10 +11896,12 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
     let alias_count = aliases;
     // Load health from cache
-    let health: String = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
-        .unwrap_or_else(|_| "100%".to_string())
-        .trim()
-        .to_string();
+    // This function already calls faelight_core::paths::state_db() three lines
+    // below; the health path was hand-built with format! right here. One owner.
+    let health: String = match faelight_core::paths::read_health() {
+        Some(h) => format!("{}%", h),
+        None => "unknown".to_string(),
+    };
     // Load Friday live data from state.db
     let (friday_patterns, friday_facts) = {
         let db_path = faelight_core::paths::state_db();

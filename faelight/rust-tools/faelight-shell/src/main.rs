@@ -2760,22 +2760,21 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "?".to_string());
 
-    let health_num: u32 = std::fs::read_to_string(
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status"),
-    )
-    .unwrap_or_else(|_| "95".into())
-    .trim()
-    .trim_end_matches('%')
-    .parse()
-    .unwrap_or(95);
+    // None means the doctor has never run here. The banner says so rather than
+    // inventing a number -- it used to fall back to 95 twice over.
+    let health_opt = faelight_core::paths::read_health();
 
-    let health_display = if health_num >= 95 {
-        fc_bold(57, 255, 20, &format!("{}% ✅", health_num))
-    } else if health_num >= 80 {
-        fc_bold(255, 200, 0, &format!("{}% ⚠", health_num))
+    let health_display = if let Some(h) = health_opt {
+        let health_num = u32::from(h);
+        if health_num >= 95 {
+            fc_bold(57, 255, 20, &format!("{}% ✅", health_num))
+        } else if health_num >= 80 {
+            fc_bold(255, 200, 0, &format!("{}% ⚠", health_num))
+        } else {
+            fc_bold(255, 70, 70, &format!("{}% ❌", health_num))
+        }
     } else {
-        fc_bold(255, 70, 70, &format!("{}% ❌", health_num))
+        fc_dim(120, 140, 130, "❔ health unknown -- run d")
     };
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic exactly

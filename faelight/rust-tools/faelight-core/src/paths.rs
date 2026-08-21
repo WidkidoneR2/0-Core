@@ -221,6 +221,37 @@ pub fn cache_dir() -> PathBuf {
 // true: the journal and snapshot domains built theirs with ctx.fpath("runtime/x")
 // instead, and backups had BOTH owners agreeing by coincidence. Measured when
 // runtime/ moved to XDG state and journal/ alone stayed behind in the repo.
+/// XDG cache home. DISTINCT from cache_dir(), which is runtime_dir()/cache --
+/// this is the user's ~/.cache, where derived data that is cheap to recompute
+/// and costs nothing to lose belongs.
+pub fn xdg_cache_home() -> PathBuf {
+    match env::var("XDG_CACHE_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v),
+        _ => home().join(".cache"),
+    }
+}
+
+/// The health percentage the doctor last wrote. Derived, not authoritative.
+pub fn health_status_file() -> PathBuf {
+    xdg_cache_home().join("faelight/health-status")
+}
+
+/// The health percentage, or None when it has never been written or cannot be
+/// parsed.
+///
+/// ⚠️ THE Option IS THE POINT. Four readers used to resolve this file
+/// independently and disagree about what its absence meant: the prompt fell back
+/// to 100 and printed "peak", the banner fell back to 95, the status line fell
+/// back to the string "100%", and the GTK bar fell back to 100. A machine that
+/// had never run the doctor therefore claimed PEAK HEALTH on every prompt render.
+/// Returning None forces each caller to say what absent means for ITS OWN
+/// display, which is the same rule INT-148 gave the doctor: could-not-determine
+/// is not a passing grade.
+pub fn read_health() -> Option<u8> {
+    let raw = std::fs::read_to_string(health_status_file()).ok()?;
+    raw.trim().trim_end_matches('%').parse().ok()
+}
+
 pub fn journal_dir() -> PathBuf {
     runtime_dir().join("journal")
 }

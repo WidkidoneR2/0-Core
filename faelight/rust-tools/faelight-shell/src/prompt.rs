@@ -446,7 +446,6 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
 
     if is_friday {
-        let home = std::env::var("HOME").unwrap_or_default();
         let next_intent = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
             .ok()
             .and_then(|entries| {
@@ -473,20 +472,25 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             });
 
         let trend_hint = {
-            let cache = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
-                .unwrap_or_else(|_| "100".to_string());
-            let h: u32 = cache.trim().parse().unwrap_or(100);
-            if h >= 100 {
-                fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, "peak")
-            } else if h >= 95 {
-                fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "stable")
-            } else {
-                fc(
+            // Absent health used to fall back to 100 -- twice -- and the branch
+            // below then printed "peak". A machine that had never run the doctor
+            // claimed peak health on every render. None now yields no hint at all.
+            match faelight_core::paths::read_health().map(u32::from) {
+                // "unknown" IS a trend hint. An early return here would have
+                // exited render_context entirely and dropped the intent hint
+                // with it -- invisible except on a machine that has never run
+                // the doctor, which is the machine nobody tests on.
+                None => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "unknown"),
+                Some(h) if h >= 100 => {
+                    fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, "peak")
+                }
+                Some(h) if h >= 95 => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "stable"),
+                Some(_) => fc(
                     C_HEALTH_ADVISORY.0,
                     C_HEALTH_ADVISORY.1,
                     C_HEALTH_ADVISORY.2,
                     "advisory",
-                )
+                ),
             }
         };
 
