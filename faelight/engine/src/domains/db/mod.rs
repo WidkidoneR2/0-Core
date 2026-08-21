@@ -10,10 +10,6 @@ fn db_path(_ctx: &AppContext) -> PathBuf {
     faelight_core::paths::state_db()
 }
 
-fn backups_dir(ctx: &AppContext) -> PathBuf {
-    ctx.fpath("runtime/backups")
-}
-
 fn fmt_size(bytes: u64) -> String {
     if bytes > 1_000_000 {
         format!("{:.1}MB", bytes as f64 / 1_000_000.0)
@@ -27,7 +23,7 @@ fn fmt_size(bytes: u64) -> String {
 /// core db backup — manual snapshot to timestamped file
 pub fn backup(ctx: &AppContext) -> CoreResult<()> {
     let db = db_path(ctx);
-    let backups = backups_dir(ctx);
+    let backups = faelight_core::paths::backups_dir();
     std::fs::create_dir_all(&backups)?;
 
     let ts = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
@@ -71,7 +67,7 @@ pub fn backup(ctx: &AppContext) -> CoreResult<()> {
 
 /// `core db restore <file>` — restore from a backup snapshot
 pub fn restore(ctx: &AppContext, file: &str) -> CoreResult<()> {
-    let backups = backups_dir(ctx);
+    let backups = faelight_core::paths::backups_dir();
     let db = db_path(ctx);
 
     // Try as full path first, then as filename in backups dir
@@ -171,7 +167,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
 /// core db status — show db size, table counts, last backup
 pub fn status(ctx: &AppContext) -> CoreResult<()> {
     let db = db_path(ctx);
-    let backups = backups_dir(ctx);
+    let backups = faelight_core::paths::backups_dir();
 
     let size = std::fs::metadata(&db).map(|m| m.len()).unwrap_or(0);
 

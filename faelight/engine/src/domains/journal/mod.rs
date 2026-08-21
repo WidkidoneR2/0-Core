@@ -1,20 +1,23 @@
+//! ⚠️ THE _ctx PARAMETERS ARE DELIBERATE. Journal stopped needing AppContext when
+//! its paths moved to faelight_core::paths, but &AppContext is the calling
+//! convention EVERY domain's public functions share, and journal will need it
+//! again the moment it reads the database. Breaking the convention for one
+//! domain costs more than an underscore.
+//!
 //! journal domain — the forest writes its own story
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 use std::path::PathBuf;
-fn journal_dir(ctx: &AppContext) -> PathBuf {
-    ctx.fpath("runtime/journal")
-}
-fn today_path(ctx: &AppContext) -> PathBuf {
+fn today_path() -> PathBuf {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    journal_dir(ctx).join(format!("{}.md", date))
+    faelight_core::paths::journal_dir().join(format!("{}.md", date))
 }
 /// Append an entry to today's journal
-pub fn write_entry(ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<()> {
-    let dir = journal_dir(ctx);
+pub fn write_entry(_ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<()> {
+    let dir = faelight_core::paths::journal_dir();
     std::fs::create_dir_all(&dir)?;
-    let path = today_path(ctx);
+    let path = today_path();
     let time = chrono::Local::now().format("%H:%M").to_string();
     let date = chrono::Local::now().format("%B %-d, %Y").to_string();
     let entry = format!("**{}** — [{}] {}\n\n", date, time, message);
@@ -33,8 +36,8 @@ pub fn write_entry(ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<(
     Ok(())
 }
 /// core journal today
-pub fn today(ctx: &AppContext) -> CoreResult<()> {
-    let path = today_path(ctx);
+pub fn today(_ctx: &AppContext) -> CoreResult<()> {
+    let path = today_path();
     println!();
     println!("{}", "📖 Forest Journal — Today".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
@@ -64,19 +67,19 @@ pub fn today(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 /// core journal yesterday
-pub fn yesterday(ctx: &AppContext) -> CoreResult<()> {
+pub fn yesterday(_ctx: &AppContext) -> CoreResult<()> {
     let date = (chrono::Local::now() - chrono::Duration::days(1))
         .format("%Y-%m-%d")
         .to_string();
-    show_date(ctx, &date, "Yesterday")
+    show_date(&date, "Yesterday")
 }
 /// core journal week
-pub fn week(ctx: &AppContext) -> CoreResult<()> {
+pub fn week(_ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("{}", "📖 Forest Journal — This Week".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let dir = journal_dir(ctx);
+    let dir = faelight_core::paths::journal_dir();
     let mut entries: Vec<(String, String)> = Vec::new();
     for i in 0..7 {
         let date = (chrono::Local::now() - chrono::Duration::days(i))
@@ -115,7 +118,7 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 /// `core journal search <term>`
-pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
+pub fn search(_ctx: &AppContext, term: &str) -> CoreResult<()> {
     println!();
     println!(
         "{} Searching journal for: {}",
@@ -124,7 +127,7 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     );
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let dir = journal_dir(ctx);
+    let dir = faelight_core::paths::journal_dir();
     let mut found = 0;
     if let Ok(entries) = std::fs::read_dir(&dir) {
         let mut dates: Vec<String> = entries
@@ -168,11 +171,11 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     Ok(())
 }
 /// `core journal show <date>`  (e.g. 2026-04-08)
-pub fn show(ctx: &AppContext, date: &str) -> CoreResult<()> {
-    show_date(ctx, date, date)
+pub fn show(_ctx: &AppContext, date: &str) -> CoreResult<()> {
+    show_date(date, date)
 }
-fn show_date(ctx: &AppContext, date: &str, label: &str) -> CoreResult<()> {
-    let path = journal_dir(ctx).join(format!("{}.md", date));
+fn show_date(date: &str, label: &str) -> CoreResult<()> {
+    let path = faelight_core::paths::journal_dir().join(format!("{}.md", date));
     println!();
     println!(
         "{} {}",
@@ -203,7 +206,7 @@ fn show_date(ctx: &AppContext, date: &str, label: &str) -> CoreResult<()> {
 /// Write a session-start entry (called by fsh on login)
 pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
     // Cooldown — only write if no session entry in last 30 minutes
-    let path = today_path(ctx);
+    let path = today_path();
     if path.exists() {
         let content = std::fs::read_to_string(&path).unwrap_or_default();
         let now = chrono::Local::now();

@@ -217,6 +217,18 @@ pub fn cache_dir() -> PathBuf {
     runtime_dir().join("cache")
 }
 
+// INT-061 said every runtime/* path routes through runtime_dir(). It was 95%
+// true: the journal and snapshot domains built theirs with ctx.fpath("runtime/x")
+// instead, and backups had BOTH owners agreeing by coincidence. Measured when
+// runtime/ moved to XDG state and journal/ alone stayed behind in the repo.
+pub fn journal_dir() -> PathBuf {
+    runtime_dir().join("journal")
+}
+
+pub fn snapshots_dir() -> PathBuf {
+    runtime_dir().join("snapshots")
+}
+
 pub fn health_cache() -> PathBuf {
     cache_dir().join("health.txt")
 }

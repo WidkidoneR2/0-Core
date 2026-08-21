@@ -18,7 +18,7 @@ pub fn narrative(ctx: &AppContext, json: bool, save: bool) -> CoreResult<()> {
     if json {
         let json_out = render_json(&data);
         if save {
-            save_snapshot(ctx, &data, Some(&json_out))?;
+            save_snapshot(&data, Some(&json_out))?;
         }
         println!("{}", json_out);
         return Ok(());
@@ -27,7 +27,7 @@ pub fn narrative(ctx: &AppContext, json: bool, save: bool) -> CoreResult<()> {
     let markdown = render_markdown(&data);
 
     if save {
-        save_snapshot(ctx, &data, None)?;
+        save_snapshot(&data, None)?;
     }
 
     // Print human-readable version
@@ -447,12 +447,8 @@ fn render_json(d: &SnapshotData) -> String {
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 
-fn save_snapshot(
-    ctx: &AppContext,
-    d: &SnapshotData,
-    json_override: Option<&str>,
-) -> CoreResult<()> {
-    let snapshots_dir = ctx.fpath("runtime/snapshots");
+fn save_snapshot(d: &SnapshotData, json_override: Option<&str>) -> CoreResult<()> {
+    let snapshots_dir = faelight_core::paths::snapshots_dir();
     std::fs::create_dir_all(&snapshots_dir).ok();
 
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
