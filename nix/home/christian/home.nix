@@ -25,6 +25,7 @@
   xdg.configFile."faelight/themes.toml".source = ../dotfiles/faelight/.config/faelight/themes.toml;
   xdg.configFile."faelight/term.toml".source = ../dotfiles/faelight/.config/faelight/term.toml;
   xdg.configFile."mango/config.conf".source = ../dotfiles/mango/.config/mango/config.conf;
+  xdg.configFile."quickshell/shell.qml".source = ../dotfiles/quickshell/.config/quickshell/shell.qml;
 
   home.packages = with pkgs; [
     hello
