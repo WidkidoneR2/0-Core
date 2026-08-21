@@ -748,10 +748,20 @@ pub(crate) static IS_DASH_C: std::sync::atomic::AtomicBool =
 fn main() -> Result<()> {
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
-    #[cfg(unix)]
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-    }
+    // SUPERSEDED. The comment above describes an Arch-era panic: fsh captured
+    // external output and re-printed it, so a println into a closed stdout blew
+    // up. Both pipeline stages are real children with real pipes now, and fsh
+    // never writes there -- but resetting SIGPIPE process-wide bought something
+    // worse than the panic it removed. When a downstream stage exits early, the
+    // write to the closed pipe delivered a FATAL signal and the shell died
+    // silently: `fsearch deploy | head -3` closed the terminal, and a nested fsh
+    // took its parent down with it. A visible panic traded for an invisible
+    // death, citing an intent (299) that no longer exists.
+    //
+    // SIGPIPE now stays IGNORED here (Rust's default) so fsh's own writes return
+    // EPIPE, and children get SIG_DFL restored individually via pre_exec in
+    // spawn_pipeline -- otherwise they inherit the ignore across exec and
+    // `yes | head -3` spins forever.
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
     {

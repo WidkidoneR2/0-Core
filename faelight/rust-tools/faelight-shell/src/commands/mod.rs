@@ -8791,6 +8791,18 @@ fn spawn_pipeline(
         };
         let mut cmd = std::process::Command::new(program);
         cmd.args(&plan.argv[1..]);
+        // A child must die on a broken pipe the way every other shell's children
+        // do. An IGNORED disposition is inherited across exec, and fsh keeps
+        // SIGPIPE ignored so its own writes return EPIPE instead of killing the
+        // session -- so without this, `yes | head -3` would spin forever.
+        #[cfg(unix)]
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            cmd.pre_exec(|| {
+                libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+                Ok(())
+            });
+        }
 
         // stdin: the previous stage's output, unless this stage redirects its own input.
         let own_stdin = match &plan.io {
