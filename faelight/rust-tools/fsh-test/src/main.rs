@@ -387,8 +387,11 @@ fn all_tests() -> Vec<TestResult> {
             "deploy",
         )
     }));
-    results.push(test("tilde_ls_runtime", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/runtime")?, "state.db")
+    // Renamed from tilde_ls_runtime: runtime/ no longer exists. Machine-local
+    // state moved to XDG state home, and a test named for a directory that is
+    // gone is the same stale label this suite exists to catch.
+    results.push(test("tilde_ls_state", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/.local/state/faelight")?, "state.db")
     }));
     results.push(test("tilde_cat_cargo", Category::Tilde, || {
         expect_contains(
@@ -590,10 +593,7 @@ fn all_tests() -> Vec<TestResult> {
 
     // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
     results.push(test("state_db_exists", Category::Regression, || {
-        expect_contains(
-            &run_fsh("ls ~/0-core/faelight/runtime/state.db")?,
-            "state.db",
-        )
+        expect_contains(&run_fsh("ls ~/.local/state/faelight/state.db")?, "state.db")
     }));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
