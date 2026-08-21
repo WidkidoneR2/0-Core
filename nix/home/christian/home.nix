@@ -30,6 +30,12 @@
     hello
     brave
     lla
+    # P2 / Track C: QML desktop-shell framework. Evaluating it as the DRAWER
+    # for bar/notifications/launcher/OSD, with the existing faelight-* daemons
+    # kept as the WATCHERS -- faelight-wsd already writes workspace state as
+    # JSON to ~/.cache/faelight/workspaces, which quickshell can read directly.
+    # Pulls Qt6; remove this line if the evaluation says no.
+    quickshell
      # CLI tools
     bat
     eza
