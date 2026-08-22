@@ -275,6 +275,15 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     let alias_count = cfg.aliases.len();
     let setting_count = cfg.settings.len();
 
+    // ONE TRANSACTION, NOT 285. Measured 2026-08-22 with FSH_BOOT_PROFILE: this function
+    // cost 210ms of fsh's 214ms startup, and `fsh -c true` took 462ms against bash's 3ms.
+    // SQLite commits per statement without an explicit transaction, so 285 aliases meant
+    // 285 commits -- roughly 0.7ms each, paid on EVERY invocation including a one-shot -c
+    // that uses none of them.
+    //
+    // ⚠️ The order rule above still holds: apply WRITES shell_aliases and the registry READS
+    // it. Nothing is skipped here -- the same writes happen, they are simply committed once.
+    let _ = db.conn.execute_batch("BEGIN");
     // Register aliases into shell_aliases table
     for (name, cmd) in &cfg.aliases {
         db.add_alias(name, cmd);
@@ -284,6 +293,8 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     // remove any table alias not present in config.fsh so runtime `alias` cruft
     // cannot persist across shells. Guard: never prune when config parsed to zero
     // aliases -- a parse failure must not wipe the live set.
+    let _ = db.conn.execute_batch("COMMIT");
+
     let mut pruned = 0usize;
     if !cfg.aliases.is_empty() {
         use std::collections::HashSet;

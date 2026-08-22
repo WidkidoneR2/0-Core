@@ -33,9 +33,23 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-fn fsh_bin() -> String {
-    std::env::var("FSH_BIN")
-        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string())
+/// THE SHELL UNDER TEST -- resolved in ONE place, and verified to exist.
+///
+/// The fallback used to be silent on BOTH doors, so a typo or a dropped FSH_BIN quietly
+/// tested the DEPLOYED shell and the suite reported green. That is INT-110's lesson, and it
+/// recurred on 2026-08-21: three tests stayed red through six rebuilds because the harness
+/// was measuring a binary from before the fix. A default that hides a missing input is the
+/// same disease as a check that cannot fail.
+pub fn fsh_bin() -> String {
+    match std::env::var("FSH_BIN") {
+        Ok(p) if std::path::Path::new(&p).exists() => p,
+        Ok(p) => {
+            eprintln!("  FSH_BIN names a binary that does not exist: {}", p);
+            eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
+            std::process::exit(2);
+        }
+        Err(_) => "/run/current-system/sw/bin/faelight-shell".to_string(),
+    }
 }
 
 /// Strip ANSI CSI/OSC sequences and control bytes; map CR to LF.

@@ -1745,9 +1745,7 @@ pub fn execute_and_record(
             // BUILD IDENTITY because the deployed binary is makeWrapper-wrapped and the wrapper path
             // is not the hash it wants -- but for "which binary emitted this line" the wrapper path
             // is the honest answer, and it still differs per rebuild.
-            let build = std::env::current_exe()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| "unknown".to_string());
+            let build = crate::exec::build_identity();
             // ⚠️ AND THE TYPED LINE, BECAUSE base_cmd IS POST-EXPANSION. Two spine-on rows read
             // `echo assets` on the current build while `echo assets` traces as CLAIMED -- which is
             // three different stories behind one row: a glob (`assets` is a real directory here), an

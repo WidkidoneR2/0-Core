@@ -67,8 +67,7 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
-    let fsh = std::env::var("FSH_BIN")
-        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
+    let fsh = repl::fsh_bin();
     let out = Command::new(&fsh)
         // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
         // configuration rather than two that differ in where they think they are.
@@ -2196,6 +2195,30 @@ fn main() {
         "{}",
         "  🌲 fsh-test v2.0.0 -- INT-202 (orig. INT-304)".bold()
     );
+    // ASK THE SHELL WHO IT IS, rather than trusting the path we passed it. Refusing a
+    // MISSING binary catches a typo; this catches the case that actually cost a session --
+    // a path that exists and is the WRONG BUILD. /run/current-system/... exists perfectly
+    // well, which is exactly why the silent fallback was invisible.
+    //
+    // The BASH_VERSION pattern: bash exposes its identity so a script can prove which shell
+    // it reached. fsh now exposes FSH_VERSION and FSH_BUILD for the same reason.
+    {
+        let ident = std::process::Command::new(repl::fsh_bin())
+            // ⚠️ CLEARED FIRST, OR THE ANSWER IS THE PARENT'S. These are exported at
+            // startup, so a child INHERITS them -- and a shell too old to set them would
+            // echo ours back and report an identity it does not have. Measured the moment
+            // this banner was added: it named the debug build while testing the deployed
+            // one. An empty answer now means the shell cannot identify itself, which is
+            // the honest result and a detectable one.
+            .env_remove("FSH_VERSION")
+            .env_remove("FSH_BUILD")
+            .arg("-c")
+            .arg("echo $FSH_VERSION $FSH_BUILD")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|e| format!("could not ask: {}", e));
+        println!("  under test: {}", ident);
+    }
     println!(
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()

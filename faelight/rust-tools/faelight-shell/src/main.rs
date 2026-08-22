@@ -746,6 +746,16 @@ pub(crate) static IS_DASH_C: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 fn main() -> Result<()> {
+    // INT-182 profiled startup once and INT-176 found a 643ms doctor run inside it. This is
+    // the same instrument, kept: fsh -c true costs 305ms in release against bash's 3ms, and
+    // 158 of those is why the suite takes 155 seconds. Env-gated, so it costs nothing when off.
+    let boot_t0 = std::time::Instant::now();
+    let boot_mark = |what: &str| {
+        if std::env::var("FSH_BOOT_PROFILE").is_ok() {
+            eprintln!("[boot] {:>6}ms {}", boot_t0.elapsed().as_millis(), what);
+        }
+    };
+    boot_mark("main entered");
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
     // SUPERSEDED. The comment above describes an Arch-era panic: fsh captured
@@ -792,9 +802,19 @@ fn main() -> Result<()> {
     // INT-167 P0a -- three existing readers start working the moment this is written.
     unsafe { std::env::set_var("FSH_SESSION_ID", crate::exec::session_id()) }
 
+    // WHO AM I -- the BASH_VERSION pattern. A harness must be able to ASK the shell
+    // which binary it reached, instead of trusting the path it passed. fsh-test could
+    // not, and run_fsh's own doc records what that cost: a green suite read from a
+    // shell that did not contain the change being tested.
+    unsafe {
+        std::env::set_var("FSH_VERSION", env!("CARGO_PKG_VERSION"));
+        std::env::set_var("FSH_BUILD", crate::exec::build_identity());
+    }
+
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
     {
+        boot_mark("args collected");
         let args: Vec<String> = std::env::args().collect();
         // ⚠️ ONE HANDLER, MERGED FROM TWO (2026-08-03). A second copy lived in repl_main and
         // differed in three ways that mattered: it searched the args for `-c` rather than
@@ -808,6 +828,7 @@ fn main() -> Result<()> {
         // ⚠️⚠️ AND THIS DELEGATES TO sh, WHICH MEANS `fsh -c` IS NOT fsh: no aliases, no spine
         // router, no digit guard, no job table. That is a DESIGN QUESTION still open, not an
         // oversight -- see INT-200. It is why the conformance suite had to stop using this door.
+        boot_mark("reached -c handler");
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
             // ⚠️ A MISSING OPERAND IS A USAGE ERROR, NOT A SUCCESS. This exited 0, so `fsh -c` with
             // nothing after it reported that a command nobody supplied had run fine. bash exits 2
@@ -850,6 +871,7 @@ fn main() -> Result<()> {
             let mut job_table = jobs::JobTable::new();
             let mut shown: std::collections::HashSet<String> = std::collections::HashSet::new();
             let mut last_intent: Option<String> = None;
+            boot_mark("about to run_input");
             let _ = run_input(
                 &mut engine,
                 &cmd_str,
@@ -858,6 +880,7 @@ fn main() -> Result<()> {
                 &mut last_intent,
                 0,
             );
+            boot_mark("run_input returned");
             std::process::exit(engine.last_exit().unwrap_or(0));
         }
     }
@@ -936,13 +959,28 @@ struct RuntimeInit {
 }
 
 fn runtime_init() -> Result<RuntimeInit> {
+    let t0 = std::time::Instant::now();
+    let mark = |what: &str| {
+        if std::env::var("FSH_BOOT_PROFILE").is_ok() {
+            eprintln!(
+                "[boot]   {:>6}ms runtime_init: {}",
+                t0.elapsed().as_millis(),
+                what
+            );
+        }
+    };
     let db = db::ForestDb::open()?;
+    mark("db open");
     config::ensure_default();
+    mark("ensure_default");
     let cfg = config::load();
+    mark("config load");
     // ⚠️ ORDER IS LOAD-BEARING: `apply` WRITES shell_aliases, and the command registry READS it.
     let applied = config::apply(&cfg, &db);
+    mark("config apply (writes shell_aliases)");
     // Diagnostics, not control flow -- validate reports on the runtime, it does not change it.
     let diagnostics = config::validate();
+    mark("validate");
     Ok(RuntimeInit {
         db,
         cfg,
@@ -1422,12 +1460,27 @@ fn run_input(
                 eprintln!("warning: failed to open command_execution record: {e}");
             }
         }
+        // WHICH EXECUTOR CLAIMED THIS LINE? The question cost hours on 2026-08-21, when a
+        // command's path could only be inferred from which side effects appeared. There are
+        // three answers -- spine, legacy, or sh -- and nothing reported them.
         match engine.route_through_spine(line, &mut job_table) {
-            crate::engine::RouteOutcome::Handled => continue,
+            crate::engine::RouteOutcome::Handled => {
+                if std::env::var("FSH_TRACE").is_ok() {
+                    eprintln!("[fsh-trace] SPINE ran (post-alias): {:?}", line);
+                }
+                continue;
+            }
             crate::engine::RouteOutcome::ExitShell => {
                 return crate::engine::SegmentOutcome::ExitShell
             }
-            crate::engine::RouteOutcome::Declined => {}
+            crate::engine::RouteOutcome::Declined => {
+                if std::env::var("FSH_TRACE").is_ok() {
+                    eprintln!(
+                        "[fsh-trace] spine DECLINED -> legacy (post-alias): {:?}",
+                        line
+                    );
+                }
+            }
         }
         // INT-169 INCREMENT 3: THE ASSIGNMENT PREFIX MOVED BELOW THE ROUTER.
         //

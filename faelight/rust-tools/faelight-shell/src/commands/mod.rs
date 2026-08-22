@@ -9552,6 +9552,11 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // ★ THE DOOR FIELD IS WHAT MAKES A ROW MEAN ANYTHING. Interactive lines reach here too and always
     // have; only the `-c` ones are evidence about the routing change. Recording the count without the
     // door would answer a question nobody asked.
+    if std::env::var("FSH_TRACE").is_ok() {
+        // The third executor. This function calls itself the one place fsh hands a line to
+        // sh, so a line reaching here took neither the spine nor a builtin.
+        eprintln!("[fsh-trace] SH handoff: {:?}", line);
+    }
     {
         let door = if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
             "dash-c"

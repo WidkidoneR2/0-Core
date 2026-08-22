@@ -58,6 +58,27 @@ pub fn next_execution_id() -> u64 {
     id
 }
 
+/// WHICH BINARY IS THIS? -- the `$BASH_VERSION` question, and fsh could not answer it.
+///
+/// bash exposes BASH_VERSION precisely so a script can PROVE which shell it is talking to.
+/// fsh exposed nothing, so `fsh-test` had to TRUST the path it was handed -- and run_fsh's own
+/// doc records the cost: a green 143/143 read from a shell that did not contain the change
+/// being tested (INT-110). It happened again on 2026-08-21, for a whole session.
+///
+/// The value is the EXECUTABLE PATH, which is what engine.rs already writes to the instrument
+/// log for exactly this purpose. INT-096 avoids current_exe() for build identity because the
+/// deployed binary is makeWrapper-wrapped, but for WHICH BINARY IS RUNNING the wrapper path is
+/// the honest answer and it differs per rebuild -- target/debug/... versus /nix/store/... is
+/// unmistakable, which is the entire point.
+///
+/// ONE OWNER: the instrument log calls this too, so the log and the exported variable cannot
+/// disagree about which binary wrote a row.
+pub fn build_identity() -> String {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".to_string())
+}
+
 /// INT-191: WHO IS THIS SHELL INSTANCE?
 ///
 /// Nothing owned that question before. `FSH_SESSION_ID` is read in three places and set in NONE --
