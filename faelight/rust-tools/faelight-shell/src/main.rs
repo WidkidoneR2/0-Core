@@ -745,6 +745,17 @@ pub(crate) fn ui_line(s: String) {
 pub(crate) static IS_DASH_C: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// INT-167: the boot profiler, callable from anywhere rather than only from main.
+/// Its own clock starts at first use, so a mark inside run_input measures from there.
+pub(crate) fn mark(what: &str) {
+    use std::sync::OnceLock;
+    static T0: OnceLock<std::time::Instant> = OnceLock::new();
+    if std::env::var("FSH_BOOT_PROFILE").is_ok() {
+        let t0 = T0.get_or_init(std::time::Instant::now);
+        eprintln!("[boot] {:>6}ms {}", t0.elapsed().as_millis(), what);
+    }
+}
+
 fn main() -> Result<()> {
     // INT-182 profiled startup once and INT-176 found a 643ms doctor run inside it. This is
     // the same instrument, kept: fsh -c true costs 305ms in release against bash's 3ms, and
@@ -756,6 +767,7 @@ fn main() -> Result<()> {
         }
     };
     boot_mark("main entered");
+    boot_mark("SIGPIPE + SHLVL + identity exports done");
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
     // SUPERSEDED. The comment above describes an Arch-era panic: fsh captured
@@ -853,6 +865,7 @@ fn main() -> Result<()> {
             //
             // ★ THE CWD REQUIREMENT IS MET BY CONSTRUCTION: this never reaches repl_main, so the
             // forest-home default never runs and the caller's directory is simply inherited.
+            boot_mark("entering -c branch");
             IS_DASH_C.store(true, std::sync::atomic::Ordering::SeqCst);
             let cmd_str = cmd_str.clone();
             let RuntimeInit {
@@ -1404,6 +1417,7 @@ fn run_input(
         // Expand aliases before pipeline parsing
         // INT-171 gate 2: command word is quote-aware (`"ll" foo` -> ll), so the
         // alias lookup below resolves a quoted command instead of missing it.
+        mark("aliases expanded");
         let line = engine.expand_aliases(line);
         let line = line.as_str();
         // INT-169 blocker 6: THE ROUTING POINT. Placed HERE, above expand_vars,
@@ -1463,6 +1477,7 @@ fn run_input(
         // WHICH EXECUTOR CLAIMED THIS LINE? The question cost hours on 2026-08-21, when a
         // command's path could only be inferred from which side effects appeared. There are
         // three answers -- spine, legacy, or sh -- and nothing reported them.
+        mark("about to route");
         match engine.route_through_spine(line, &mut job_table) {
             crate::engine::RouteOutcome::Handled => {
                 if std::env::var("FSH_TRACE").is_ok() {

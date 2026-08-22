@@ -990,6 +990,7 @@ impl Engine {
         line: &str,
         jobs: &mut crate::jobs::JobTable,
     ) -> RouteOutcome {
+        crate::mark("route_through_spine entered");
         let spine_on = !crate::is_repl_state_command(line)
             && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
         let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
@@ -1060,6 +1061,7 @@ impl Engine {
                 crate::exec::SpineOutcome::Executed(result) => {
                     if spine_trace {
                         eprintln!("  [spine-router] claimed: {line}");
+                        crate::mark("spine claimed, execution done");
                     }
                     if self.absorb_result(result, "spine")
                         == crate::engine::SegmentOutcome::ExitShell
