@@ -1390,6 +1390,38 @@ fn run_input(
         // the JobTable that lives in this loop, which spine dispatch has no path to -- so the
         // spine can PARSE them and can never RUN them. Excluded before the attempt rather than
         // handled inside it: the router's contract is that a claim means ownership.
+        // INT-167 P0 / INT-191: THE LIFECYCLE RECORD OPENS ABOVE THE FORK.
+        //
+        // Measured 2026-08-21 with FSH_TRACE: command_execution held 2,419 rows and
+        // stopped around 2026-08-18. Nothing broke -- the TRAFFIC MOVED. A spine-handled
+        // command hits `continue` below and never reaches execute_and_record, so the
+        // recorder that INT-191 built lives on the legacy path only, and the shell has
+        // been executing commands with no lifecycle row for three days.
+        //
+        // Opening it here means the record exists regardless of which executor claims
+        // the line, which is what INT-191's own rule demands: postexec cannot own this,
+        // because it never runs for a blocked command. One owner, above the fork.
+        let lifecycle_exec_id = crate::exec::next_execution_id();
+        {
+            let started_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            let cwd = std::env::current_dir().unwrap_or_default();
+            if let Err(e) = engine
+                .db()
+                .begin_command_execution(&crate::db::ExecutionStart {
+                    session_id: crate::exec::session_id(),
+                    execution_id: lifecycle_exec_id,
+                    typed_text: line,
+                    cwd: &cwd.to_string_lossy(),
+                    intent_id: None,
+                    started_at,
+                })
+            {
+                eprintln!("warning: failed to open command_execution record: {e}");
+            }
+        }
         match engine.route_through_spine(line, &mut job_table) {
             crate::engine::RouteOutcome::Handled => continue,
             crate::engine::RouteOutcome::ExitShell => {
@@ -1739,6 +1771,9 @@ fn run_input(
         // BUG-298-1: expand tilde in base_cmd before dispatch.
         let base_cmd = expand_tilde(&base_cmd);
         // INT-201: per-execution work. Advisories stay BELOW, in their current order.
+        if std::env::var("FSH_TRACE").is_ok() {
+            eprintln!("[fsh-trace] main.rs:1742 execute_and_record");
+        }
         let outcome = engine::execute_and_record(
             &mut engine,
             &raw_line,
@@ -2428,6 +2463,9 @@ fn repl_main() -> Result<()> {
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 let line = crate::expand::expand_braces(&line);
+                if std::env::var("FSH_TRACE").is_ok() {
+                    eprintln!("[fsh-trace] after expand_braces: {:?}", line);
+                }
                 match engine.db().save_history_entry(&line) {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
@@ -2461,6 +2499,9 @@ fn repl_main() -> Result<()> {
                 // boundary, able to disagree with the executor. That is its own intent, and it
                 // needs a ruling on who owns segment enumeration -- not a wider input string here.
                 let guard_line = engine.expand_aliases(&line);
+                if std::env::var("FSH_TRACE").is_ok() {
+                    eprintln!("[fsh-trace] after expand_aliases: {:?}", guard_line);
+                }
                 let guard_word = guard_command_word(&guard_line).map(|w| policy_identity(&w));
                 // INT-196 M6: RECORD WHAT THE UNIVERSAL GUARD JUDGED, so the heredoc site below can
                 // assert it is asking about the SAME string. Reading the control flow says `line` is

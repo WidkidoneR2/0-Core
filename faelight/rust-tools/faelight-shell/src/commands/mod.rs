@@ -79,10 +79,32 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
         result,
         cmd.replace('"', "'")
     );
-    db.conn.execute(
-        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'command', ?1, ?2)",
-        rusqlite::params![payload, ts],
-    ).ok();
+    // INT-167 P0: THIS EMITTER NOW CARRIES PROVENANCE. It fires on every command and
+    // owns 43,081 of the events table's rows, so it is the one whose correlation_id
+    // decides whether a typed line can be reconstructed at all.
+    //
+    // The pair comes from the environment -- FSH_SESSION_ID once per process,
+    // FSH_EXECUTION_ID at every mint -- because INT-191 proved either half alone is a
+    // key that looks unique and is not: execution_id restarts at 1 in every shell.
+    //
+    // ⚠️ NOT YET ONE OWNER. The canonical emit() lives in the engine crate and fsh
+    // cannot call it, so P1's extraction into a shared crate is a PREREQUISITE of the
+    // full convergence rather than a follow-on. This makes the highest-value emitter
+    // honest first; the remaining sites follow the same shape once emit() is reachable.
+    let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
+    let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
+    let corr = if sess.is_empty() && exec.is_empty() {
+        String::new()
+    } else {
+        format!("{}:{}", sess, exec)
+    };
+    db.conn
+        .execute(
+            "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) \
+         VALUES ('shell', 'command', ?1, ?2, 'faelight-shell', ?3)",
+            rusqlite::params![payload, ts, corr],
+        )
+        .ok();
 }
 
 #[allow(dead_code)]

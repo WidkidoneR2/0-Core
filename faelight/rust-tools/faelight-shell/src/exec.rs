@@ -1757,6 +1757,15 @@ pub fn execute_with_context(
     // context and the dispatcher, so `ExecContext.raw` -- documented as "exactly what the user
     // typed" -- received a value that had already crossed the execution boundary. postexec was
     // never wrong; it was faithfully recording what it was handed.
+    // INT-167 P0: THE FIRST DEVBOX CAPABILITY, and it exists because seven layers were
+    // read by hand on 2026-08-21 to answer one question: which path did my command take?
+    // command_execution stopped being written three days earlier and nothing noticed,
+    // because no instrument reports which door a line went through.
+    //
+    // Env-gated so it costs nothing when off, and stderr so it never pollutes a pipe.
+    if std::env::var("FSH_TRACE").is_ok() {
+        eprintln!("[fsh-trace] execute_with_context raw={:?}", raw);
+    }
     let ctx = ExecContext::from_line(raw, expanded, db);
     // INT-191: the lifecycle record opens HERE, before anything can return. postexec cannot own it:
     // it never runs for a blocked command, and it deliberately skips `exit`. Those are precisely

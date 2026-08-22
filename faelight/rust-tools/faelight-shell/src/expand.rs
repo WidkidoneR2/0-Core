@@ -1045,6 +1045,17 @@ mod glob_segmentation_tests {
 /// here, and the next two gates make this one quote-aware and heredoc-aware using quote_runs
 /// and find_heredoc_intro -- both of which are in this file. Moving it first, as its own
 /// commit, so a behaviour change cannot hide inside a relocation.
+#[cfg(test)]
+mod brace_escape_tests {
+    #[test]
+    fn brace_expansion_preserves_a_backslash_it_has_no_business_touching() {
+        // The interactive door runs this before run_input; the -c door does not.
+        // That is the ONLY difference between a correct escaped quote and a broken one.
+        let got = super::expand_braces("echo \"a\\\"b\"");
+        assert_eq!(got, "echo \"a\\\"b\"");
+    }
+}
+
 pub fn expand_braces(s: &str) -> String {
     // INT-203 gate 3: EXPANSION RUNS ONLY IN UNQUOTED RUNS.
     //

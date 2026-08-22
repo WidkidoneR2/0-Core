@@ -30,7 +30,31 @@ pub fn emit(
 ) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let ts = now_ts();
-    let corr = correlation_id.unwrap_or("");
+    // THE FALLBACK IS NO LONGER THE EMPTY STRING. Every one of the 475 non-null
+    // correlation_id rows held the same value -- blank -- because every caller passed
+    // None and this line turned that into a value. A correlation id that never varies
+    // correlates nothing.
+    //
+    // INT-167 P0. Both halves of the identity now arrive in the ENVIRONMENT: fsh
+    // exports FSH_SESSION_ID once per process and FSH_EXECUTION_ID at every mint, so
+    // this reads the pair rather than asking 36 call sites to carry it. INT-191 proved
+    // the pair is the identity -- execution_id restarts at 1 in every shell, so either
+    // half alone is a key that looks unique and is not.
+    //
+    // An explicit argument still wins, for a caller that genuinely knows better.
+    let corr = match correlation_id {
+        Some(c) if !c.is_empty() => c.to_string(),
+        _ => {
+            let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
+            let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
+            if sess.is_empty() && exec.is_empty() {
+                String::new()
+            } else {
+                format!("{}:{}", sess, exec)
+            }
+        }
+    };
+    let corr = corr.as_str();
 
     db.execute(
         "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id)
