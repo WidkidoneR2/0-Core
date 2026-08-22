@@ -52,6 +52,27 @@ static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 /// ⚠️ A SIDE EFFECT IN WHAT READS LIKE A COUNTER, and named as such rather than hidden.
 /// set_var is not thread-safe; this is called from the command path, but INT-185's
 /// stderr tee runs on a thread, so if a mint ever moves onto one this must be revisited.
+/// The id for the line CURRENTLY being executed, minting one only if none has been published.
+///
+/// ONE MINT PER TYPED LINE. Before 2026-08-22 there was exactly one: ExecContext made it. That day
+/// the lifecycle record moved above the routing fork and minted its own, so a single command got
+/// TWO ids -- and the two tables recorded different halves of it. Measured: command_execution held
+/// 27, 25, 23 while events held 26, 22, 14, adjacent and never equal, so the join that DevBox needs
+/// returned zero every time.
+///
+/// Reads back what next_execution_id published rather than adding a second counter, so there is
+/// still one source of the number. A path the REPL loop does not drive -- a subshell built through
+/// from_plan -- finds nothing published and mints, which is correct: it is a different execution.
+pub fn current_execution_id() -> u64 {
+    match std::env::var("FSH_EXECUTION_ID")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        Some(id) => id,
+        None => next_execution_id(),
+    }
+}
+
 pub fn next_execution_id() -> u64 {
     let id = NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     unsafe { std::env::set_var("FSH_EXECUTION_ID", id.to_string()) }
@@ -189,7 +210,7 @@ impl ExecContext {
             cwd,
             intent,
             timestamp,
-            execution_id: next_execution_id(),
+            execution_id: current_execution_id(),
             session_id: session_id(),
             in_pipeline: false,
         }
@@ -233,7 +254,7 @@ impl ExecContext {
             cwd,
             intent,
             timestamp,
-            execution_id: next_execution_id(),
+            execution_id: current_execution_id(),
             session_id: session_id(),
             in_pipeline: false,
         }
