@@ -1511,6 +1511,38 @@ fn run_input(
                 if std::env::var("FSH_TRACE").is_ok() {
                     eprintln!("[fsh-trace] SPINE ran (post-alias): {:?}", line);
                 }
+                // CLOSE THE RECORD WHERE IT WAS OPENED. The opening moved above this fork
+                // earlier today so every executor is recorded, but the COMPLETION stayed in
+                // execute_and_record, which a spine-claimed line skips. Measured: 339 rows
+                // left in state started, which db.rs documents as the shell dying mid-command.
+                // Every healthy spine command looked like a crash.
+                //
+                // Uses lifecycle_exec_id, the id this loop minted, so it closes its OWN row
+                // rather than ExecContext's, which belongs to the legacy path.
+                let finished_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let st = if engine.last_exit().unwrap_or(0) == 0 {
+                    crate::db::EXEC_OK
+                } else {
+                    crate::db::EXEC_ERROR
+                };
+                if let Err(e) =
+                    engine
+                        .db()
+                        .complete_command_execution(&crate::db::ExecutionCompletion {
+                            session_id: crate::exec::session_id(),
+                            execution_id: lifecycle_exec_id,
+                            executed_text: Some(line),
+                            state: st,
+                            exit_code: engine.last_exit(),
+                            duration_ms: None,
+                            finished_at,
+                        })
+                {
+                    eprintln!("warning: failed to close command_execution record: {e}");
+                }
                 continue;
             }
             crate::engine::RouteOutcome::ExitShell => {
