@@ -8841,6 +8841,32 @@ fn spawn_pipeline(
         };
         let mut cmd = std::process::Command::new(program);
         cmd.args(&plan.argv[1..]);
+        // THE THIRD SPAWNER, AND IT NEVER APPLIED THE PLAN'S ENVIRONMENT.
+        //
+        // Lowering builds Environment::Overlay from the assignments; the other two
+        // spawners match on it exhaustively, and one of them says so: a new variant is
+        // a compile error there, not a silent no-op. This one had no match at all, so
+        // the overlay was built and thrown away -- and the compiler cannot warn about a
+        // match that was never written.
+        //
+        // Measured 2026-08-22: FSH_BIN=/nonexistent ./target/debug/fsh-test ran the
+        // suite normally under fsh and failed 157 of 158 under bash, which delivers the
+        // variable. A prefix assignment that is accepted and ignored makes every
+        // environment-controlled test a lie, including this suite's own isolation.
+        match &plan.env {
+            crate::spine::plan::Environment::Inherit => {}
+            crate::spine::plan::Environment::Replace(vars) => {
+                cmd.env_clear();
+                for (k, v) in vars {
+                    cmd.env(k, v);
+                }
+            }
+            crate::spine::plan::Environment::Overlay(vars) => {
+                for (k, v) in vars {
+                    cmd.env(k, v);
+                }
+            }
+        }
         // A child must die on a broken pipe the way every other shell's children
         // do. An IGNORED disposition is inherited across exec, and fsh keeps
         // SIGPIPE ignored so its own writes return EPIPE instead of killing the
