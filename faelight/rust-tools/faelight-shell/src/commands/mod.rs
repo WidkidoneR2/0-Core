@@ -4656,41 +4656,56 @@ fn execute_dispatch(
         "env" if !args.is_empty() && allow_external => run_external(line, db),
         "env" if !args.is_empty() => CommandResult::NotBuiltin,
         "env" => {
-            let mut out = String::new();
-            out.push_str(&format!("{}\n", "🌲 Shell Environment".cyan().bold()));
-            out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
-            let vars = [
-                "HOME",
-                "USER",
-                "SHELL",
-                "PATH",
-                "EDITOR",
-                "WAYLAND_DISPLAY",
-                "XDG_CURRENT_DESKTOP",
-                "XDG_RUNTIME_DIR",
-                "LANG",
-                "TERM",
-            ];
-            for var in &vars {
-                if let Ok(val) = std::env::var(var) {
-                    let display = if val.len() > 60 {
-                        format!("{}…", &val[..60])
-                    } else {
-                        val
-                    };
-                    out.push_str(&format!("  {:25} {}\n", var.bright_cyan(), display.white()));
+            // CURATE PRESENTATION, NOT TRUTH. This printed a HARDCODED LIST OF TEN variables
+            // under the heading Shell Environment, so everything else was invisible --
+            // including fsh's own FSH_VERSION, FSH_BUILD, FSH_SESSION_ID and FSH_EXECUTION_ID.
+            // On 2026-08-22 that cost half an hour: piping env into grep returned one line and
+            // sent a debugging session chasing a variable it wrongly believed was unset.
+            //
+            // It also FABRICATED. FSH_FOCUS was printed from the DATABASE, not the environment,
+            // so a reader would expect a child process to inherit something that was never
+            // there. Shell state now prints under its own heading, plainly labelled.
+            //
+            // Iterates the real environment rather than holding a second list, so a variable
+            // added anywhere in fsh appears here without anyone updating an array.
+            let mut vars: Vec<(String, String)> = std::env::vars().collect();
+            fn rank(k: &str) -> u8 {
+                if k.starts_with("FSH_") {
+                    0
+                } else if matches!(k, "SHELL" | "SHLVL" | "PATH" | "HOME" | "USER" | "PWD") {
+                    1
+                } else if k.starts_with("XDG_")
+                    || matches!(k, "TERM" | "LANG" | "EDITOR" | "WAYLAND_DISPLAY")
+                {
+                    2
+                } else {
+                    3
                 }
             }
-            // Also show fsh-specific vars
-            out.push_str(&format!("\n  {}\n", "fsh vars:".dimmed()));
+            vars.sort_by(|a, b| rank(&a.0).cmp(&rank(&b.0)).then(a.0.cmp(&b.0)));
+            let mut out = String::new();
+            out.push_str(&format!("{}\n", "Shell Environment".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "-".repeat(52).dimmed()));
+            for (k, v) in &vars {
+                let display = if v.len() > 60 {
+                    format!("{}...", &v[..60])
+                } else {
+                    v.clone()
+                };
+                out.push_str(&format!("  {:28} {}\n", k.bright_cyan(), display.white()));
+            }
+            // NOT ENVIRONMENT. Shell state, from the database, under its own heading so it
+            // cannot be mistaken for something a child process inherits.
             if let Some(focus) = db.get_focus_intent() {
+                out.push_str(&format!("\n  {}\n", "shell state (not exported):".dimmed()));
                 out.push_str(&format!(
-                    "  {:25} {}\n",
-                    "FSH_FOCUS".bright_cyan(),
+                    "  {:28} {}\n",
+                    "focus intent".bright_cyan(),
                     focus.bright_green()
                 ));
             }
-            out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
+            out.push_str(&format!("\n  {} variables\n", vars.len()));
+            out.push_str(&format!("{}\n", "-".repeat(52).dimmed()));
             CommandResult::Output(out)
         }
         "pwd" => {
