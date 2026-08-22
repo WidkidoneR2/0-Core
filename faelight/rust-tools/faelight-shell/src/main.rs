@@ -780,6 +780,18 @@ fn main() -> Result<()> {
         unsafe { std::env::set_var("SHLVL", next.to_string()) }
     }
 
+    // FSH_SESSION_ID: INT-191 built the generator and nothing ever exported it.
+    // exec.rs states the defect outright -- read in three places, set in NONE -- and
+    // records the damage: term_commands holds 42,376 rows under the fallback string
+    // "unknown", because a missing variable became a shared session name instead of
+    // triggering creation. The engine reads this from the ENVIRONMENT, so without the
+    // export the generator and its readers never met.
+    //
+    // Unconditional, not set-if-absent: each fsh process IS a session, so a nested
+    // shell earns its own id and anything it spawns is correctly attributed to it.
+    // INT-167 P0a -- three existing readers start working the moment this is written.
+    unsafe { std::env::set_var("FSH_SESSION_ID", crate::exec::session_id()) }
+
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
     {

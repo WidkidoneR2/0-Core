@@ -595,6 +595,25 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("state_db_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/.local/state/faelight/state.db")?, "state.db")
     }));
+    // INT-097 claimed a correct tokenizer for nested quotes and escapes; the proptests said
+    // in writing that escaped quoting was NOT YET INTERPRETED. It was declared done and never
+    // was, and an escaped quote HUNG THE PROMPT until 2026-08-21. These run in the real REPL
+    // so the claim cannot drift from the behaviour again.
+    results.push(test(
+        "escaped_quote_is_literal",
+        Category::Regression,
+        || expect_contains(&run_fsh("echo \"a\\\"b\"")?, "a\"b"),
+    ));
+    results.push(test(
+        "escaped_dollar_does_not_expand",
+        Category::Regression,
+        || expect_contains(&run_fsh("echo \"\\$HOME\"")?, "$HOME"),
+    ));
+    results.push(test(
+        "doubled_backslash_is_one",
+        Category::Regression,
+        || expect_contains(&run_fsh("echo \"a\\\\b\"")?, "a\\b"),
+    ));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
     }));

@@ -24,10 +24,13 @@ pub mod test_support {
                 value TEXT NOT NULL, updated_at INTEGER NOT NULL,
                 PRIMARY KEY (domain, key)
             );
+            -- INT-214. ALSO A SECOND OWNER OF THIS SCHEMA: tests validated against a
+            -- table that was not production's, and production's was not the live one's.
             CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 domain TEXT NOT NULL, action TEXT NOT NULL,
-                payload TEXT, timestamp INTEGER NOT NULL
+                payload TEXT, timestamp INTEGER NOT NULL,
+                source_tool TEXT NOT NULL DEFAULT '', correlation_id TEXT
             );
             CREATE TABLE IF NOT EXISTS capabilities_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

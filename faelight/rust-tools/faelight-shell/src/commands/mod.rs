@@ -318,16 +318,44 @@ pub fn expand_aliases(line: &str, db: &ForestDb) -> String {
 /// dispatcher (execute_impl) and the ExecContext builder (exec.rs) call THIS --
 /// it replaces two byte-for-byte-identical nested copies that drifted apart in
 /// spirit if never in bytes. There is now ONE tokenizer. Prove it: grep "fn tokenize".
+#[cfg(test)]
+mod escape_tokenize_tests {
+    #[test]
+    fn an_escaped_quote_is_literal_and_does_not_close_the_region() {
+        // Direct on the function, so a pass here with a red REPL test proves tokenize
+        // is not on that path -- eliminating a layer instead of guessing at one.
+        let got = super::tokenize("echo \"a\\\"b\"");
+        assert_eq!(got, vec!["echo".to_string(), "a\"b".to_string()]);
+    }
+}
+
 pub fn tokenize(s: &str) -> Vec<String> {
     let mut tokens: Vec<String> = Vec::new();
     let mut current = String::new();
     let mut in_quote = false;
     let mut quote_char = ' ';
+    let mut escaped = false;
     for ch in s.chars() {
         match ch {
             '"' | '\'' if !in_quote => {
                 in_quote = true;
                 quote_char = ch;
+            }
+            // A BACKSLASH INSIDE QUOTES ESCAPES THE NEXT CHARACTER, and this arm must come
+            // before the close-quote arm below or an escaped quote ends the region. Without
+            // it, echo of a double-quoted string containing an escaped quote saw a closing
+            // delimiter where a literal was meant. The spine lexer got this on 2026-08-21;
+            // this is the door that actually executes until the spine flip.
+            //
+            // Single quotes escape NOTHING, per POSIX, so the guard checks quote_char.
+            // The escaped character is taken LITERALLY and the flag cleared immediately,
+            // so it can never leak past one character.
+            c if escaped => {
+                escaped = false;
+                current.push(c);
+            }
+            c if in_quote && quote_char == '"' && c == '\\' && !escaped => {
+                escaped = true;
             }
             c if in_quote && c == quote_char => {
                 in_quote = false;

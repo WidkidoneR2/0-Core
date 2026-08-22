@@ -71,12 +71,18 @@ impl Runtime {
                 updated_at  INTEGER NOT NULL,
                 PRIMARY KEY (domain, key)
             );
+            -- INT-214: source_tool and correlation_id were added to the LIVE database by
+            -- ALTER TABLE and never existed here, so a database built from source could not
+            -- record provenance at all. Measured 2026-08-21: the live schema dump shows them
+            -- appended after the closing paren. They are part of the table now.
             CREATE TABLE IF NOT EXISTS events (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                domain      TEXT NOT NULL,
-                action      TEXT NOT NULL,
-                payload     TEXT,
-                timestamp   INTEGER NOT NULL
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain         TEXT NOT NULL,
+                action         TEXT NOT NULL,
+                payload        TEXT,
+                timestamp      INTEGER NOT NULL,
+                source_tool    TEXT NOT NULL DEFAULT '',
+                correlation_id TEXT
             );
             CREATE TABLE IF NOT EXISTS capabilities_log (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,

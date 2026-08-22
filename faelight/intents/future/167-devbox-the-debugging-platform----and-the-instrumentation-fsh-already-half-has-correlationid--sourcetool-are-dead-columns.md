@@ -336,6 +336,74 @@ NOTES / OPEN QUESTIONS for when this is built:
   columns (correlation_id + source_tool). The TUI is the FRONT of that platform.
 - Framework: ratatui (matches ArchTUI's approach and the forest's Rust-TUI tools like faelight-fm).
 
+## ============================================================
+## MEASURED 2026-08-21 -- P0 IS NOT WIRING. THE NUMBER IS 36.
+## ============================================================
+The revision and the gate note above both say P0 is wiring, not design. That was
+estimated, not measured. Tonight it was measured, and the estimate was wrong.
+
+1. THIRTY-SIX HAND-ROLLED `INSERT INTO events` SITES.
+   anomaly, autobiography, bootstrap, deps, goals, narrative, planning, prioritize,
+   security and 27 more, each writing its own SQL, each inserting only
+   (domain, action, payload, timestamp). NONE carries source_tool or correlation_id.
+   That is WHY source_tool is 99.6% empty and correlation_id never varies: not one
+   broken emitter, but 36 emitters that never knew the columns existed.
+
+2. THE CANONICAL emit() IS DEAD CODE.
+   friday/events.rs marks both emit() and emit_simple() #[allow(dead_code)]. The
+   function whose own doc says "the v23 canonical emit -- all tools should use this"
+   has no callers. The 112,643 rows came from the 36, not from it.
+   THIS IS THE THIRD INT-119 IN DEVBOX'S OWN FOUNDATION.
+
+3. THE SCHEMA HAD TWO OWNERS AND NEITHER CARRIED THE COLUMNS -- FIXED 2026-08-21.
+   engine/src/runtime/mod.rs:74 (production) and engine/src/test_utils.rs:27 (tests)
+   both defined events as id/domain/action/payload/timestamp only, while the LIVE
+   database had both columns bolted on by ALTER TABLE. Three versions of one table:
+   source-production, source-test, and the live DB. Tests validated against a schema
+   that was not production's, and production's was not the live one's.
+   Both source definitions now carry source_tool and correlation_id. That is INT-214's
+   substance -- a database built from source can now record provenance, which also
+   matters for any machine that is not this one.
+
+4. FSH_SESSION_ID IS READ IN THREE PLACES AND WRITTEN IN NONE.
+   exec.rs:49 states it outright, and records the damage: term_commands holds 42,376
+   rows under the fallback string "unknown". INT-191 BUILT the generator --
+   session_id() returns {pid}-{nanos} from a OnceLock -- but the engine reads
+   FSH_SESSION_ID from the ENVIRONMENT, so without an export the generator and its
+   three readers never meet. Its own rule applies: absence should trigger creation,
+   not become a value.
+
+## REVISED P0 -- what it actually is
+- [ ] P0a: EXPORT FSH_SESSION_ID at shell startup. One line. Three existing readers
+      begin working the moment it is written, and the "unknown" bucket stops growing.
+- [ ] P0b: emit() becomes the SOLE WRITER and carries the (session_id, execution_id)
+      pair. Session comes from the environment, so no signature change is forced on
+      callers for it.
+- [ ] P0c: convert all 36 sites to call emit(). Mechanical, and the largest part.
+- [ ] P0d: A CHECK FORBIDS A RAW `INSERT INTO events` OUTSIDE events.rs -- deadwood or
+      a test. Without it the owner quietly becomes 37 again. This is the same shape as
+      INT-195's command-word check, and it is what makes P0 STAY fixed rather than be
+      fixed once.
+
+## THE DOGFOOD GATE IS REFRAMED -- a better live case arrived
+The gate above worries INT-143 may be fixed and therefore unreproducible. Tonight
+supplied a replacement that is live, not synthetic:
+  An escaped quote inside double quotes hung the prompt. Finding the owner took FIVE
+  layers eliminated BY HAND -- spine lexer, commands::tokenize, expand_vars, sh
+  (proven correct), normalize_input -- three fixes, one full revert, and the bug is
+  STILL not located as of this writing.
+- [ ] P0 dogfood, REPLACING the INT-143 gate: from the event log alone, show which
+      stage transformed a typed line. If DevBox cannot answer "who changed my
+      command" in one query, P0 is not done. INT-143's gate is retained in spirit but
+      its subject has moved; this one is reproducible on demand.
+
+## RULING 2026-08-21: NO TUI
+DevBox is fsh BUILTINS, not an application. This confirms revision point 6 from the
+other direction -- and today's structured-pipe work proved the argument: a TUI is a
+dead end for composition, because data trapped in a rendering cannot be piped. Every
+DevBox output that returns CommandResult::Value is pipeable the day it is written.
+The captured TUI spec above remains a separate small consumer if it is ever wanted.
+
 ## Dependencies
 
 **INT-214** -- DevBox reconstructs a command causally from recorded events, and no commit

@@ -569,6 +569,13 @@ fn parts_from_segment(seg: &WordSegment) -> Result<Vec<WordPart>, ParseError> {
         // the refactor changed nothing. Step 1b-ii replaces THIS ARM ONLY, with a recursive parse
         // into `WordPart::CommandSub` and `Result` propagation, because an embedded shell program
         // that fails to parse must not be silently degraded into text.
+        // An escaped character is LITERAL, whatever it looks like. This is the arm the
+        // whole variant exists for: recognise_variables is never called, so an escaped
+        // dollar cannot become a Variable node and cannot be resolved downstream.
+        WordSegment::Escaped { ch, context, .. } => Ok(vec![WordPart::Literal {
+            text: ch.to_string(),
+            quoted: *context,
+        }]),
         WordSegment::CommandSub { source, .. } => {
             // Recursion terminates by construction: the inner source of a `$(...)` is strictly
             // shorter than the text that contained it, so each call operates on a smaller region.

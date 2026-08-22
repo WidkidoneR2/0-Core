@@ -52,6 +52,27 @@ pub enum WordSegment {
     /// delimiters, because the parser should not re-strip syntax the scanner already recognised.
     /// `span` covers the inner source, not the delimiters.
     CommandSub { source: String, span: Span },
+    /// A character that was ESCAPED, and is therefore literal whatever it looks like.
+    ///
+    /// Same reasoning as CommandSub above: a variant rather than a Text segment wearing a
+    /// special context. Being escaped is a fact about the CHARACTER, not about the region
+    /// around it -- an escaped dollar sits in the middle of a double-quoted run whose other
+    /// characters still expand normally, so the region's context cannot carry it.
+    ///
+    /// WHY IT EXISTS: the scanner used to fold the escaped character straight into seg_text,
+    /// which left the parser unable to tell an escaped dollar from a real one. It built a
+    /// Variable node, the spine resolved it, and an escaped variable expanded anyway. The
+    /// escape was lost at LEXING and every layer below behaved correctly on bad input.
+    ///
+    /// `ch` is the character ITSELF, backslash already consumed. `span` covers BOTH source
+    /// characters, because the escape is part of how the word was written.
+    /// `context` is the region the escape OCCURRED IN, kept so quote_context_at can answer
+    /// truthfully about this position instead of reporting a convenient fiction.
+    Escaped {
+        ch: char,
+        span: Span,
+        context: QuoteContext,
+    },
 }
 
 /// A shell operator, recorded as WHAT WAS SEEN rather than as a judgement about it.
@@ -222,6 +243,9 @@ pub fn quote_context_at(source: &str, offset: usize) -> Option<QuoteContext> {
             let (span, context) = match seg {
                 WordSegment::Text { span, context, .. } => (span, *context),
                 WordSegment::CommandSub { span, .. } => (span, QuoteContext::Unquoted),
+                // The escape is a fact about the character; the position still sits inside
+                // whatever region contained it, and that is what a caller is asking about.
+                WordSegment::Escaped { span, context, .. } => (span, *context),
             };
             if offset >= span.start && offset < span.end {
                 return Some(context);
@@ -449,9 +473,27 @@ pub fn lex(source: &str) -> LexResult {
                 let escapes_here =
                     context != QuoteContext::Double || matches!(nch, '"' | '$' | '`' | '\\');
                 if escapes_here {
-                    seg_text.push(nch);
+                    // Its OWN segment, following the CommandSub pattern above: flush what
+                    // is pending so segment order matches source order, then record the
+                    // character as escaped. Folding it into seg_text is what lost the fact
+                    // and let an escaped dollar reach the parser as an ordinary one.
+                    if !seg_text.is_empty() {
+                        segments.push(WordSegment::Text {
+                            text: std::mem::take(&mut seg_text),
+                            span: Span::new(seg_start, pos),
+                            context,
+                        });
+                    }
+                    let after_esc = npos + nch.len_utf8();
+                    segments.push(WordSegment::Escaped {
+                        ch: nch,
+                        span: Span::new(pos, after_esc),
+                        context,
+                    });
+                    // The flat text keeps the CONTENT, as everywhere else in this scanner.
                     text.push(nch);
-                    word_end = npos + nch.len_utf8();
+                    seg_start = after_esc;
+                    word_end = after_esc;
                     idx += 2;
                     continue;
                 }
