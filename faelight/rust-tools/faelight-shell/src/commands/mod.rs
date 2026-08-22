@@ -3839,13 +3839,14 @@ fn execute_dispatch(
                 match result {
                     Ok(_) => {
                         let _ = db.conn.execute(
-                            "INSERT INTO events (timestamp, action, source_tool, payload, domain) \
-                             VALUES (?1, ?2, ?3, ?4, 'shell')",
+                            "INSERT INTO events (timestamp, action, source_tool, payload, domain, correlation_id) \
+                             VALUES (?1, ?2, ?3, ?4, 'shell', ?5)",
                             rusqlite::params![
                                 timestamp as i64,
                                 "file_deleted",
                                 "fsh::delete",
-                                format!("{{\"path\":\"{}\",\"force\":true}}", expanded)
+                                format!("{{\"path\":\"{}\",\"force\":true}}", expanded),
+                                correlation()
                             ],
                         );
                         CommandResult::Output(format!("  deleted: {}", expanded))
@@ -3863,8 +3864,8 @@ fn execute_dispatch(
                 match std::fs::rename(&target, &trash_name) {
                     Ok(_) => {
                         let _ = db.conn.execute(
-                            "INSERT INTO events (timestamp, action, source_tool, payload, domain) \
-                             VALUES (?1, ?2, ?3, ?4, 'shell')",
+                            "INSERT INTO events (timestamp, action, source_tool, payload, domain, correlation_id) \
+                             VALUES (?1, ?2, ?3, ?4, 'shell', ?5)",
                             rusqlite::params![
                                 timestamp as i64,
                                 "file_deleted",
@@ -3872,7 +3873,8 @@ fn execute_dispatch(
                                 format!(
                                     "{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}",
                                     expanded, trash_name
-                                )
+                                ),
+                                correlation()
                             ],
                         );
                         CommandResult::Output(format!(
@@ -3911,11 +3913,12 @@ fn execute_dispatch(
                                     std::fs::remove_file(&target)
                                 };
                                 let _ = db.conn.execute(
-                                    "INSERT INTO events (timestamp, action, source_tool, payload, domain) \
-                             VALUES (?1, ?2, ?3, ?4, 'shell')",
+                                    "INSERT INTO events (timestamp, action, source_tool, payload, domain, correlation_id) \
+                             VALUES (?1, ?2, ?3, ?4, 'shell', ?5)",
                                     rusqlite::params![
                                         timestamp as i64, "file_deleted", "fsh::delete",
-                                        format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name)
+                                        format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name),
+                                correlation()
                                     ],
                                 );
                                 CommandResult::Output(format!(
