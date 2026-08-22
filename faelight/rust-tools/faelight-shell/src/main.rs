@@ -841,6 +841,34 @@ fn main() -> Result<()> {
         // router, no digit guard, no job table. That is a DESIGN QUESTION still open, not an
         // oversight -- see INT-200. It is why the conformance suite had to stop using this door.
         boot_mark("reached -c handler");
+        // --version and --help, because every tool has them and fsh had neither. Measured
+        // 2026-08-22: `fsh --version` started an interactive shell and printed a banner,
+        // which reads as broken on first contact -- and on another machine that IS first
+        // contact. bash, zsh, fish and core all answer both.
+        //
+        // Placed ABOVE the -c handler: these exit before any runtime is built, so they cost
+        // nothing and work even when the forest is absent.
+        if args.iter().any(|a| a == "--version" || a == "-V") {
+            println!("faelight-shell {}", env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        }
+        if args.iter().any(|a| a == "--help") {
+            println!(
+                "faelight-shell {} -- the Faelight shell",
+                env!("CARGO_PKG_VERSION")
+            );
+            println!();
+            println!("  fsh                 start an interactive shell");
+            println!("  fsh -c COMMAND      run COMMAND and exit");
+            println!("  fsh --version       print the version");
+            println!("  fsh --help          print this");
+            println!();
+            println!("  FSH_TRACE=1         report which executor claims each line");
+            println!("  FSH_BOOT_PROFILE=1  report startup and per-command timings");
+            println!("  FSH_SPINE=0         route through the legacy executor");
+            println!("  FSH_KEEP_CWD=1      stay in the directory fsh was spawned in");
+            return Ok(());
+        }
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
             // ⚠️ A MISSING OPERAND IS A USAGE ERROR, NOT A SUCCESS. This exited 0, so `fsh -c` with
             // nothing after it reported that a command nobody supplied had run fine. bash exits 2
