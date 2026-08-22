@@ -1299,6 +1299,7 @@ fn execute_dispatch(
         // The `if args.is_empty()` shape is not invented here -- `git` four lines below does the
         // same thing, and has all along.
         "zsh" | "bash" if args.is_empty() => shell_handoff_cmd(line),
+        "trace" => trace_cmd(db, args),
         "hstats" => history_stats(db),
         "histogram" => histogram_cmd(db, args),
         "hpattern" => history_pattern(db),
@@ -5710,6 +5711,104 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
     println!();
     CommandResult::Empty
 }
+/// INT-167 DEVBOX: what happened during one command?
+///
+/// command_execution holds the RECORD of a typed line -- one row, opened before routing and
+/// closed after, with state and exit code. events holds the STREAM of what happened while it
+/// ran. They share session:execution, so one join reconstructs the account. Until now that
+/// query could only be run by hand in sqlite3.
+///
+/// `trace` takes the newest command of this session; `trace N` takes execution N.
+/// NAMED trace, NOT story: `story` already delegates to `core story`, a different feature
+/// that owns the name. It also sits beside FSH_TRACE, which reports which executor claimed
+/// a line -- same vocabulary, same question asked at two levels.
+fn trace_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let session = crate::exec::session_id();
+    let target: Option<i64> = match args.first().and_then(|a| a.parse::<i64>().ok()) {
+        Some(n) => Some(n),
+        None => db
+            .conn
+            .query_row(
+                // THE PREVIOUS COMMAND, NOT THE NEWEST. The newest is always `trace` itself,
+                // which the first run demonstrated by reporting `trace trace` with no events.
+                // Asking about a command means the one before the asking.
+                "SELECT MAX(execution_id) FROM command_execution \
+                 WHERE session_id = ?1 AND typed_text NOT LIKE 'trace%'",
+                rusqlite::params![session],
+                |r| r.get(0),
+            )
+            .ok()
+            .flatten(),
+    };
+    let Some(exec_id) = target else {
+        return CommandResult::Output("  no commands recorded in this session yet".to_string());
+    };
+    let key = format!("{}:{}", session, exec_id);
+    let head: Option<(String, String, Option<i64>)> = db
+        .conn
+        .query_row(
+            "SELECT typed_text, execution_state, exit_code FROM command_execution \
+             WHERE session_id = ?1 AND execution_id = ?2",
+            rusqlite::params![session, exec_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .ok();
+    let Some((typed, state, code)) = head else {
+        return CommandResult::Output(format!("  no record for execution {}", exec_id));
+    };
+    println!("  {} {}", "trace".cyan().bold(), typed.bright_white());
+    println!(
+        "  {}  state {}  exit {}",
+        key.dimmed(),
+        state.bright_cyan(),
+        code.map(|c| c.to_string())
+            .unwrap_or_else(|| "-".to_string())
+    );
+    trace_events(db, &key)
+}
+
+/// The events half of `trace`, returning a Value so it pipes like history does.
+fn trace_events(db: &ForestDb, key: &str) -> CommandResult {
+    use crate::value::Value;
+    use std::collections::HashMap;
+    let mut stmt = match db.conn.prepare(
+        "SELECT action, source_tool, payload, timestamp FROM events \
+         WHERE correlation_id = ?1 ORDER BY id",
+    ) {
+        Ok(st) => st,
+        Err(e) => return CommandResult::Error(format!("trace: {}", e), 1),
+    };
+    let raw: Vec<(String, String, String, i64)> = stmt
+        .query_map(rusqlite::params![key], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1).unwrap_or_default(),
+                r.get::<_, String>(2).unwrap_or_default(),
+                r.get::<_, i64>(3)?,
+            ))
+        })
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+    if raw.is_empty() {
+        // Honest, and a real answer: the command ran and nothing emitted during it.
+        return CommandResult::Output(
+            "  the command was recorded; nothing emitted an event during it".to_string(),
+        );
+    }
+    let rows: Vec<HashMap<String, Value>> = raw
+        .iter()
+        .map(|(action, tool, payload, ts)| {
+            let mut m = HashMap::new();
+            m.insert("action".to_string(), Value::Text(action.clone()));
+            m.insert("tool".to_string(), Value::Text(tool.clone()));
+            m.insert("payload".to_string(), Value::Text(payload.clone()));
+            m.insert("timestamp".to_string(), Value::Int(*ts));
+            m
+        })
+        .collect();
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn history_table(db: &ForestDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
