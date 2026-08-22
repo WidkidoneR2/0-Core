@@ -762,6 +762,24 @@ fn main() -> Result<()> {
     // EPIPE, and children get SIG_DFL restored individually via pre_exec in
     // spawn_pipeline -- otherwise they inherit the ignore across exec and
     // `yes | head -3` spins forever.
+    // SHLVL: a shell counts itself. Measured 2026-08-21 -- this session had
+    // SHLVL=0 exported at the TOP level, inherited from the login chain, and fsh
+    // never touched it. Nothing in fsh or nix/ mentions SHLVL, so the zero came
+    // from greetd/PAM, but a shell that does not increment leaves every child
+    // computing from a wrong base: a bash launched from here would read 0, add
+    // one, and believe it was the outermost shell.
+    //
+    // Incrementing is correct whatever arrives: login becomes 1, a nested fsh
+    // becomes 2, and anything spawned below counts up from there.
+    {
+        let next = std::env::var("SHLVL")
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .unwrap_or(0)
+            .saturating_add(1);
+        unsafe { std::env::set_var("SHLVL", next.to_string()) }
+    }
+
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
     {
