@@ -69,6 +69,25 @@ fn truncate_safe(s: &str, max: usize) -> &str {
     &s[..end]
 }
 
+/// THE CORRELATION KEY, in one place.
+///
+/// session:execution, the same pair command_execution keys on, which is what makes
+/// LEFT JOIN events ON correlation_id return a command with everything that happened
+/// while it ran. Read from the environment because both halves are exported at their
+/// mint points, so any emitter inside the shell process can reach them.
+///
+/// Empty when neither half is set -- a child process that fsh did not start. Empty is
+/// honest; a fabricated key would join rows that have nothing to do with each other.
+fn correlation() -> String {
+    let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
+    let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
+    if sess.is_empty() && exec.is_empty() {
+        String::new()
+    } else {
+        format!("{}:{}", sess, exec)
+    }
+}
+
 fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -91,13 +110,7 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     // cannot call it, so P1's extraction into a shared crate is a PREREQUISITE of the
     // full convergence rather than a follow-on. This makes the highest-value emitter
     // honest first; the remaining sites follow the same shape once emit() is reachable.
-    let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
-    let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
-    let corr = if sess.is_empty() && exec.is_empty() {
-        String::new()
-    } else {
-        format!("{}:{}", sess, exec)
-    };
+    let corr = correlation();
     db.conn
         .execute(
             "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) \
@@ -2380,8 +2393,8 @@ fn execute_dispatch(
             match std::fs::create_dir_all(&dir_name) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'dir_created', ?1, strftime('%s','now'))",
-                        rusqlite::params![dir_name.clone()]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'dir_created', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![dir_name.clone(), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ created {}", dir_name))
                 }
@@ -2422,8 +2435,8 @@ fn execute_dispatch(
             match status {
                 Ok(s) if s.success() => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'))",
-                        rusqlite::params![target]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![target, correlation()]
                     );
                     CommandResult::Empty
                 }
@@ -2511,8 +2524,8 @@ fn execute_dispatch(
                 Ok(_) => {
                     let payload = format!("src={},dst={}", src_path, dst_path);
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_renamed', ?1, strftime('%s','now'))",
-                        rusqlite::params![payload]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_renamed', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![payload, correlation()]
                     );
                     let verb = if is_same_dir { "renamed" } else { "moved" };
                     CommandResult::Output(format!("  ✅ {} {} → {}", verb, src_path, dst_path))
@@ -3413,8 +3426,8 @@ fn execute_dispatch(
             match std::fs::copy(&src_path, &dst_path) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_copied', ?1, strftime('%s','now'))",
-                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path)]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_copied', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ copied {} → {}", src_path, dst_path))
                 }
@@ -3486,8 +3499,8 @@ fn execute_dispatch(
             match std::fs::rename(&src_path, &dst_path) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_moved', ?1, strftime('%s','now'))",
-                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path)]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_moved', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ moved {} → {}", src_path, dst_path))
                 }
@@ -3649,8 +3662,8 @@ fn execute_dispatch(
                 ));
             }
             let _ = db.conn.execute(
-                "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_read', ?1, strftime('%s','now'))",
-                rusqlite::params![format!("{{\"path\":\"{}\"}}", filepath)]
+                "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_read', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                rusqlite::params![format!("{{\"path\":\"{}\"}}", filepath), correlation()]
             );
             CommandResult::Output(out.trim_end().to_string())
         }
@@ -3726,8 +3739,8 @@ fn execute_dispatch(
             match result {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_written', ?1, strftime('%s','now'))",
-                        rusqlite::params![format!("{{\"path\":\"{}\",\"append\":{}}}", dst_path, append)]
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_written', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        rusqlite::params![format!("{{\"path\":\"{}\",\"append\":{}}}", dst_path, append), correlation()]
                     );
                     let action = if append { "appended to" } else { "wrote" };
                     CommandResult::Output(format!("  ✅ {} {}", action, dst_path))
