@@ -30,6 +30,24 @@ impl FlowError {
     pub fn display_colored(&self) -> String {
         use colored::Colorize;
         match self {
+            FlowError::CommandNotFound(cmd) if cmd.starts_with('(') => {
+                // A LEADING PAREN IS NOT A TYPO, IT IS AN UNSUPPORTED CONSTRUCT.
+                // The lexer knows parens only inside a command substitution, so a
+                // subshell reaches the OS as a program named "(echo" and comes
+                // back as no-such-file -- the operating system answering a
+                // question it was never asked. Same reasoning as the refusal in
+                // peel_builtin_first_stage: say why, rather than let the
+                // filesystem give a misleading answer about a construct fsh
+                // simply has not implemented yet.
+                //
+                // Keyed on the WORD here rather than checked at the three
+                // CommandNotFound call sites, so the kind cannot drift and the
+                // explanation cannot either.
+                format!(
+                    "subshells are not supported yet: {}\n  fsh parses parens only inside $( ), so this ran as a command name",
+                    cmd.bright_red()
+                )
+            }
             FlowError::CommandNotFound(cmd) => {
                 format!("command not found: {}", cmd.bright_red())
             }
