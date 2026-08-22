@@ -412,6 +412,51 @@ pub fn lex(source: &str) -> LexResult {
                 continue;
             }
 
+            // POSIX ESCAPE, checked BEFORE the quote branch below, because a backslash
+            // decides whether the NEXT character is a delimiter at all.
+            //
+            // Measured 2026-08-21: an escaped quote inside double quotes HUNG THE
+            // PROMPT. The backslash was not consumed, so the scanner read a closing
+            // quote where a literal one was meant, then an opening quote after it --
+            // an unterminated word, and the REPL waited for input never coming. The
+            // same shape this function already documents for apostrophes in pasted
+            // prose. An escaped dollar was no better: the backslash printed and the
+            // variable expanded anyway. Neither half right.
+            //
+            // intents/complete/097 claimed a correct tokenizer for nested quotes and
+            // escapes. spine/proptests.rs says the opposite in writing -- quoting
+            // (empty, nested, escaped) is NOT YET INTERPRETED. Nothing regressed; it
+            // was declared done and never was.
+            //
+            // NOT SYMMETRIC, and POSIX is absolute about it:
+            //   single quotes -- nothing escapes, a backslash is literal.
+            //   double quotes -- only quote, dollar, backtick and backslash are
+            //                    special; any other backslash stays literal.
+            //   unquoted      -- the backslash escapes whatever follows.
+            //
+            // The escaped character joins seg_text as ITSELF and context is untouched,
+            // so the segment stays Double and a literal quote inside it never reads as
+            // a delimiter.
+            if ch == '\\' && context != QuoteContext::Single && idx + 1 < n {
+                let (npos, nch) = chars[idx + 1];
+                // ONLY THE QUOTE, and the narrowing is the point. The lexer's concern
+                // is STRUCTURAL -- an escaped quote must not act as a delimiter, which
+                // is what hung the prompt. Dollar, backtick and backslash are
+                // SEMANTIC: they decide what expands, and expansion happens downstream
+                // in expand_vars and then in sh. Consuming them here removed the
+                // escape before the layer that needed it, which is how an escaped
+                // dollar still expanded after being correctly escaped.
+                let escapes_here =
+                    context != QuoteContext::Double || matches!(nch, '"' | '$' | '`' | '\\');
+                if escapes_here {
+                    seg_text.push(nch);
+                    text.push(nch);
+                    word_end = npos + nch.len_utf8();
+                    idx += 2;
+                    continue;
+                }
+            }
+
             if ch == '"' || ch == '\'' {
                 let this = if ch == '"' {
                     QuoteContext::Double
