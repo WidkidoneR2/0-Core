@@ -440,6 +440,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             eprintln!("warning: failed to save history: {}", e);
         }
     }
+    crate::mark("    postexec: history saved");
 
     // ── Failure Memory — INT-176 ──────────────────────────────────────────────
     // Store last failed command so last_command retry/explain/fix can use it
@@ -500,6 +501,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         // INT-195: canonical command derivation. Lowercasing is intentionally preserved
         // until flip blocker 8 revisits telemetry key normalization policy.
         let first_word_owned = crate::commands::command_word(&ctx.cmd).to_lowercase();
+        crate::mark("    postexec @503");
         let first_word = first_word_owned.as_str();
         let no_match_tools = [
             "grep", "rg", "egrep", "fgrep", "ripgrep", "find", "fd", "diff", "test", "ag", "ack",
@@ -547,6 +549,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             }
         }
         search_tokens.truncate(8);
+        crate::mark("    postexec @550");
 
         // Branch 1: an entry whose error_signature fingerprint is actually PRESENT in the error.
         // INSTR(error_lower, sig) > 0 means the real output contains the signature.
@@ -600,6 +603,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                             .split(|c: char| !c.is_alphanumeric() && c != '0')
                             .filter(|w| !w.is_empty())
                             .collect();
+                        crate::mark("    postexec @603");
                         let hits = search_tokens
                             .iter()
                             .filter(|t| descr_words.contains(t.as_str()))
@@ -652,13 +656,28 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             "paru" | "pacman" => Some("💡 That isn't a NixOS command — apply changes with deploy (it rebuilds + health-checks)"),
             _ => None,
         };
+        crate::mark("    postexec @655");
         if let Some(msg) = suggestion {
             println!("  {}", msg);
         }
 
         // ── Phase 28: Predictive Suggestions ──────────────────────────────────
         // Read shell_history to find what commands usually follow this one
-        if suggestion.is_none() {
+        //
+        // ⚠️ INTERACTIVE ONLY, AND THE REASON IS MEASURED. This runs THREE correlated
+        // self-joins over shell_history -- h2.id = h1.id + 1, then a frequency query, then
+        // a total -- across 39,000 rows, on EVERY command. Profiled 2026-08-22: 60ms of
+        // fsh -c true's 90ms, and `true` produced no suggestion at all, so the cost bought
+        // nothing.
+        //
+        // A -c invocation has nobody to show a suggestion to: it prints and exits. This is
+        // bash's own rule -- interactive conveniences do not run in non-interactive shells,
+        // which is why bash -c true is 2ms. The interactive path is untouched.
+        //
+        // ⚠️ NOT A FIX FOR THE QUERY ITSELF. Interactively it still costs 60ms per command,
+        // and that is the next change: precompute the next-command table rather than
+        // joining history three times per line.
+        if suggestion.is_none() && !crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
             let cmd_prefix = ctx.cmd.clone();
             let full_raw = ctx.raw.clone();
 
@@ -703,6 +722,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                         |r| r.get(0),
                     )
                     .unwrap_or(1);
+                crate::mark("    postexec @706");
 
                 let pct = (freq * 100) / total.max(1);
                 // Phase 28 gate — INT-186: must meet ALL thresholds before firing
@@ -747,6 +767,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                     );
                     // Counterfactual — what would make this wrong
                     let cmd_cf = ctx.cmd.to_lowercase();
+                    crate::mark("    postexec @750");
                     let counterfactual = if cmd_cf == "d" {
                         "already ran d recently"
                     } else if cmd_cf.starts_with("deploy") {
@@ -824,11 +845,15 @@ pub fn execute_spine(
     rules: &[BeforeRunRule],
 ) -> CommandResult {
     let ctx = ExecContext::from_plan(plan, source, db);
+    crate::mark("  execute_spine: ctx built");
     if let Some(block_reason) = preexec(&ctx, core_root, rules) {
         return CommandResult::Error(block_reason, 1);
     }
+    crate::mark("  execute_spine: preexec done");
     let result = commands::execute_plan_dispatch(plan, source, db, core_root);
+    crate::mark("  execute_spine: dispatch done");
     postexec(&ctx, &result, db);
+    crate::mark("  execute_spine: postexec done");
     result
 }
 
@@ -1374,14 +1399,20 @@ pub fn try_execute_spine_source(
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> SpineOutcome {
+    crate::mark("spine: lowering starts");
     match lower_spine_source(source, shell, db, core_root, rules) {
         Ok(plans) => {
+            crate::mark("spine: lowered");
             bump(&SPINE_CLAIMED);
             // A single command keeps its EXISTING path -- builtins, the redirect rules, the
             // prefer-the-real-binary check. Only a genuine pipeline takes the chaining executor,
             // so nothing about ordinary commands changes.
             SpineOutcome::Executed(match plans.as_slice() {
-                [one] => execute_spine(one, source, db, core_root, rules),
+                [one] => {
+                    let r = execute_spine(one, source, db, core_root, rules);
+                    crate::mark("spine: executed");
+                    r
+                }
                 many => crate::commands::execute_pipeline_plans(many, db),
             })
         }
