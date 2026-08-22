@@ -78,7 +78,72 @@ fn truncate_safe(s: &str, max: usize) -> &str {
 ///
 /// Empty when neither half is set -- a child process that fsh did not start. Empty is
 /// honest; a fabricated key would join rows that have nothing to do with each other.
-fn correlation() -> String {
+#[cfg(test)]
+mod event_provenance_guard {
+    /// EVERY EVENT THE SHELL WRITES MUST BE TRACEABLE, and the compiler cannot check it.
+    ///
+    /// Two failures on 2026-08-22 motivated this, both of which BUILT CLEANLY:
+    ///   1. Three inserts used columns kind and source, which do not exist on events. Every
+    ///      delete since the feature shipped failed silently -- zero rows, ever.
+    ///   2. A bulk edit added a ?5 placeholder to three statements but bound the value in
+    ///      only one params! block, leaving two that could only fail at runtime.
+    ///
+    /// rusqlite binds at runtime, so cargo build sees neither. This reads the source.
+    /// A trailing backslash marks a wrapped SQL string, so the columns and the VALUES clause
+    /// may sit on different lines. Written as a fn because the character in a string literal
+    /// would itself need escaping and confuses the very scan this guard performs.
+    fn chr_backslash() -> char {
+        92 as u8 as char
+    }
+
+    /// EVERY file in the crate that writes events, not just this one. Scoping the guard to
+    /// its own file would let a bare insert live one module away and still pass -- a check
+    /// that cannot see the violation is the same as a check that cannot fail.
+    fn source() -> String {
+        format!(
+            "{}\n{}",
+            include_str!("mod.rs"),
+            include_str!("../scripting.rs")
+        )
+    }
+
+    #[test]
+    fn every_event_insert_carries_a_correlation_id() {
+        let src = source();
+        let bad: Vec<&str> = src
+            .lines()
+            .filter(|l| l.contains("INSERT INTO events"))
+            // Only real statements. Without this the test matches its OWN filter line and
+            // reports itself -- which it did on the first run, and the message named the
+            // line verbatim, so the false positive diagnosed itself.
+            .filter(|l| l.contains("VALUES") || l.trim_end().ends_with(chr_backslash()))
+            .filter(|l| !l.contains("correlation_id"))
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "these event inserts have no correlation_id, so nothing they record can be traced \
+             back to the command that caused it:\n{:#?}",
+            bad
+        );
+    }
+
+    #[test]
+    fn every_placeholder_has_a_bound_value() {
+        let src = source();
+        let stmts = src.matches("'shell', ?5)").count();
+        let bound = src.matches("correlation()").count();
+        // one occurrence is the fn definition itself; the rest are call sites
+        assert!(
+            bound > stmts,
+            "found {} statements needing a bound correlation and only {} occurrences of \
+             correlation() -- a placeholder with nothing bound compiles and fails at runtime",
+            stmts,
+            bound
+        );
+    }
+}
+
+pub(crate) fn correlation() -> String {
     let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
     let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
     if sess.is_empty() && exec.is_empty() {

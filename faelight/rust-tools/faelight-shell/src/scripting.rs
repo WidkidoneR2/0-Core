@@ -257,8 +257,17 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
                 ("shell", event.as_str())
             };
             if let Err(e) = db.conn.execute(
-                "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
-                rusqlite::params![domain, action, payload.as_deref().unwrap_or(""), ts],
+                // The pair travels with the event, same as every other emitter in the shell.
+                // A script's events belong to the command that ran the script.
+                "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) \
+                 VALUES (?1, ?2, ?3, ?4, 'faelight-shell', ?5)",
+                rusqlite::params![
+                    domain,
+                    action,
+                    payload.as_deref().unwrap_or(""),
+                    ts,
+                    crate::commands::correlation()
+                ],
             ) {
                 eprintln!("  {} failed to emit event: {}", "✗".bright_red(), e);
                 return false;
