@@ -376,13 +376,6 @@ impl ForestDb {
         );
     }
 
-    /// INT-191: record that an execution BEGAN. Errors are returned rather than swallowed --
-    /// `update_history_completion` above is documented best-effort, but this table is meant to be
-    /// authoritative, so a caller that cannot write must be able to say so.
-    ///
-    /// ⚠️ Plain INSERT, not INSERT OR REPLACE. `(session_id, execution_id)` should never collide;
-    /// if it somehow does, the ORIGINAL row survives and the write fails loudly, rather than
-    /// evidence being silently overwritten by whatever came second.
     pub fn begin_command_execution(&self, start: &ExecutionStart) -> rusqlite::Result<()> {
         self.conn.execute(
             "INSERT INTO command_execution

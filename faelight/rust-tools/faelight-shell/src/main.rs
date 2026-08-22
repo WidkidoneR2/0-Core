@@ -2218,6 +2218,7 @@ fn repl_main() -> Result<()> {
     // Restore persisted variables from state.db
     {
         {
+            mark("EXIT: distinct_intents done");
             let _ = engine.db().conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         );
@@ -2530,10 +2531,12 @@ fn repl_main() -> Result<()> {
                 print!("{}", prompt::OSC133_OUTPUT_START);
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
+                mark("REPL: line read, about to process");
                 let line = crate::expand::expand_braces(&line);
                 if std::env::var("FSH_TRACE").is_ok() {
                     eprintln!("[fsh-trace] after expand_braces: {:?}", line);
                 }
+                mark("REPL: about to save input history");
                 match engine.db().save_history_entry(&line) {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
@@ -2769,6 +2772,7 @@ fn repl_main() -> Result<()> {
     let hour = chrono::Local::now().hour() as i64;
     // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
     let session_start_ts = now - (_session_duration as i64 * 60);
+    mark("EXIT: start");
     let distinct_intents: i64 = engine.db().conn.query_row(
         "SELECT COUNT(DISTINCT intent_id) FROM commit_patterns WHERE timestamp > ?1 AND intent_id != ''",
         rusqlite::params![session_start_ts],
@@ -2797,6 +2801,7 @@ fn repl_main() -> Result<()> {
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
+    mark("EXIT: session_patterns written");
     // INT-229: Session summary on exit
     {
         use colored::Colorize;
@@ -2832,6 +2837,7 @@ fn repl_main() -> Result<()> {
                 println!("{report}");
             }
         }
+        mark("EXIT: active_intent scanned");
         println!("  🌲 Session complete");
         println!(
             "  {} commands  ·  {} deploys  ·  {} commits  ·  {}",
@@ -2849,6 +2855,7 @@ fn repl_main() -> Result<()> {
         "{}",
         colored::Colorize::dimmed("  🌲 The forest remembers.")
     );
+    mark("EXIT: main returning");
     Ok(())
 }
 

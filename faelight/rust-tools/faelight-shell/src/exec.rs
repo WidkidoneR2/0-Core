@@ -661,135 +661,25 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             println!("  {}", msg);
         }
 
-        // ── Phase 28: Predictive Suggestions ──────────────────────────────────
-        // Read shell_history to find what commands usually follow this one
+        // ── Phase 28: Predictive Suggestions -- REMOVED 2026-08-22 ─────────────
         //
-        // ⚠️ INTERACTIVE ONLY, AND THE REASON IS MEASURED. This runs THREE correlated
-        // self-joins over shell_history -- h2.id = h1.id + 1, then a frequency query, then
-        // a total -- across 39,000 rows, on EVERY command. Profiled 2026-08-22: 60ms of
-        // fsh -c true's 90ms, and `true` produced no suggestion at all, so the cost bought
-        // nothing.
+        // It suggested the next command by deriving 'what usually follows this' from
+        // three correlated self-joins over shell_history on every line. Profiled at 65ms
+        // of a 105ms typed command against 173,811 rows.
         //
-        // A -c invocation has nobody to show a suggestion to: it prints and exits. This is
-        // bash's own rule -- interactive conveniences do not run in non-interactive shells,
-        // which is why bash -c true is 2ms. The interactive path is untouched.
+        // A cache made the lookup 0.065ms -- a thousandfold -- and that is when the real
+        // problem became visible. Of 28,218 distinct commands, only 131 passed INT-186's
+        // gate: 0.46%. And the qualifying rows were mostly the TEST SUITE'S OWN commands,
+        // run thousands of times: G3SCOPE143=leaked echo scope_ok at 207/207, alias
+        // grtxyz at 190/190. Three genuine human patterns qualified.
         //
-        // ⚠️ NOT A FIX FOR THE QUERY ITSELF. Interactively it still costs 60ms per command,
-        // and that is the next change: precompute the next-command table rather than
-        // joining history three times per line.
-        if suggestion.is_none() && !crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
-            let cmd_prefix = ctx.cmd.clone();
-            let full_raw = ctx.raw.clone();
-
-            // Find the most common next command after this one
-            let next_cmd: Option<String> = db
-                .conn
-                .query_row(
-                    "SELECT next_cmd, COUNT(*) as freq FROM (
-                    SELECT h2.command as next_cmd
-                    FROM shell_history h1
-                    JOIN shell_history h2 ON h2.id = h1.id + 1
-                    WHERE h1.command = ?1 OR h1.command LIKE ?2
-                    AND h2.command != h1.command
-                    AND h2.command NOT IN ('q', 'exit', 'clear', 'c', 'pwd')
-                ) GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
-                    rusqlite::params![cmd_prefix, format!("{}%", full_raw)],
-                    |r| r.get(0),
-                )
-                .ok();
-
-            if let Some(next) = next_cmd {
-                let freq: i64 = db
-                    .conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM (
-                        SELECT h2.command as next_cmd
-                        FROM shell_history h1
-                        JOIN shell_history h2 ON h2.id = h1.id + 1
-                        WHERE (h1.command = ?1 OR h1.command LIKE ?2)
-                        AND h2.command = ?3
-                    )",
-                        rusqlite::params![cmd_prefix, format!("{}%", ctx.raw), next],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or(0);
-
-                let total: i64 = db
-                    .conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM shell_history WHERE command = ?1 OR command LIKE ?2",
-                        rusqlite::params![cmd_prefix, format!("{}%", ctx.raw)],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or(1);
-                crate::mark("    postexec @706");
-
-                let pct = (freq * 100) / total.max(1);
-                // Phase 28 gate — INT-186: must meet ALL thresholds before firing
-                // Firing on weak patterns trains the user to ignore suggestions
-                let confidence = pct as f64 / 100.0;
-                let occurrences = freq;
-                let accuracy_ok = pct >= 80; // >= 80% accuracy
-                let volume_ok = occurrences >= 30; // >= 30 occurrences
-                let conf_ok = confidence >= 0.7; // >= 0.7 confidence
-                                                 // Cooldown: no suggestion in last 3 minutes
-                let last_suggest: i64 = db
-                    .conn
-                    .query_row(
-                        "SELECT MAX(timestamp) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
-                        [],
-                        |r| r.get(0),
-                    )
-                    .ok()
-                    .flatten()
-                    .unwrap_or(0);
-                let now_ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0);
-                let cooldown_ok = (now_ts - last_suggest) > 180; // 3 min cooldown
-                if accuracy_ok && volume_ok && conf_ok && cooldown_ok {
-                    // Full judgment credibility output — INT-186
-                    println!("  {} Suggestion: {}", "💡".normal(), next.bright_white());
-                    println!(
-                        "     {} Confidence: {:.2}  ·  {} occurrences  ·  {}% accuracy",
-                        "·".dimmed(),
-                        confidence,
-                        occurrences,
-                        pct
-                    );
-                    println!(
-                        "     {} Causality: after '{}' this follows {}% of the time ({} sessions)",
-                        "·".dimmed(),
-                        ctx.cmd.dimmed(),
-                        pct,
-                        occurrences
-                    );
-                    // Counterfactual — what would make this wrong
-                    let cmd_cf = ctx.cmd.to_lowercase();
-                    crate::mark("    postexec @750");
-                    let counterfactual = if cmd_cf == "d" {
-                        "already ran d recently"
-                    } else if cmd_cf.starts_with("deploy") {
-                        "build failed or different tool deployed"
-                    } else if cmd_cf.starts_with("fg") {
-                        "already pushed or no changes staged"
-                    } else {
-                        "pattern recently changed or different context"
-                    };
-                    println!(
-                        "     {} Might be wrong if: {}",
-                        "·".dimmed(),
-                        counterfactual.dimmed()
-                    );
-                    // Log suggestion for cooldown tracking
-                    let _ = db.conn.execute(
-                        "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-                        rusqlite::params![format!("SUGGEST:{}", next), now_ts],
-                    );
-                }
-            }
-        }
+        // THE PREDICTOR HAD LEARNED THE HARNESS, NOT THE USER. An earlier 42% estimate was
+        // wrong -- it sampled the top 200 commands with LIKE prefix matching, which inflates
+        // both accuracy and volume.
+        //
+        // Kept deliberately: shell_history, the frequency data, and the next_command
+        // relationships. A better feature may want them. Removed: the automatic suggestion,
+        // its cooldown, and its UI. git holds the implementation if evidence ever changes.
     }
 }
 
