@@ -40,8 +40,22 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Not derived from the timestamp: that field already means something else.
 static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+/// MINTS AND PUBLISHES. The export is deliberate and belongs here rather than at the
+/// two ExecContext constructors, because one mint point cannot disagree with itself
+/// and two publishers could. An execution id that a child process cannot see does not
+/// serve its purpose: the engine runs as a separate process and reads its half of the
+/// identity from the environment, exactly as it already reads FSH_SESSION_ID.
+///
+/// INT-167 P0b. Together the two variables give any tool the PAIR without a signature
+/// change at 36 emit sites -- which is what makes P0c mechanical instead of invasive.
+///
+/// ⚠️ A SIDE EFFECT IN WHAT READS LIKE A COUNTER, and named as such rather than hidden.
+/// set_var is not thread-safe; this is called from the command path, but INT-185's
+/// stderr tee runs on a thread, so if a mint ever moves onto one this must be revisited.
 pub fn next_execution_id() -> u64 {
-    NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    let id = NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    unsafe { std::env::set_var("FSH_EXECUTION_ID", id.to_string()) }
+    id
 }
 
 /// INT-191: WHO IS THIS SHELL INSTANCE?
