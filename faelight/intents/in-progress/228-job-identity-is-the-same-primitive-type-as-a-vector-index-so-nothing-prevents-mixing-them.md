@@ -1,7 +1,7 @@
 ---
 id: 228
 title: "job identity is the same primitive type as a vector index, so nothing prevents mixing them"
-status: planned
+status: in-progress
 type: fix
 priority: medium
 date: 2026-08-23

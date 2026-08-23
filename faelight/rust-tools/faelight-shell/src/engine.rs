@@ -923,7 +923,14 @@ impl Engine {
         // ASKED, NOT REPEATED: the router's exclusion consults the same predicate, so the
         // rule that `fg commit` is NOT job control lives in exactly one place.
         if crate::is_repl_state_command(line) {
-            let id = second.parse::<usize>().unwrap_or(1);
+            // ⚠️ INT-228: THIS USED unwrap_or(1), so `fg banana` silently became `fg 1` and
+            // foregrounded an arbitrary job. The newtype makes that unwritable -- JobId::parse
+            // returns None for anything that is not a positive number, and there is no plausible
+            // job to fall back to. `kill` already refused bad input; now both do.
+            let Some(id) = crate::jobs::JobId::parse(second) else {
+                println!("  usage: fg <job_id>");
+                return Some(SegmentOutcome::Next);
+            };
             jobs.fg(id);
             return Some(SegmentOutcome::Next);
         }
@@ -956,8 +963,9 @@ impl Engine {
         // and a PID parsed as a job id made `vm down` a silent no-op.
         if crate::is_repl_state_command(line) {
             // job-spec: kill %N -> the in-shell job table
-            let id = arg.trim_start_matches('%').parse::<usize>().unwrap_or(0);
-            if id > 0 {
+            // INT-228: the % stripping and the positive-number rule now live in JobId::parse,
+            // so both entry points share one definition of what a job id IS.
+            if let Some(id) = crate::jobs::JobId::parse(arg) {
                 jobs.kill_job(id);
             } else {
                 println!("  usage: kill %<job_id>");

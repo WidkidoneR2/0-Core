@@ -5,7 +5,7 @@ use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Job {
-    pub id: usize,
+    pub id: JobId,
     pub cmd: String,
     /// The status-bearing stage. For a pipeline this is the LAST one, per POSIX.
     pub child: std::process::Child,
@@ -22,9 +22,69 @@ impl Job {
     }
 }
 
+/// The SHELL's identity for a job. Not a position, not a process.
+///
+/// ⚠️ WHY A TYPE AND NOT A `usize`. The counter was already correct -- monotonic, never recycled,
+/// and both lookups find a job BY IDENTITY before touching an index. What was wrong is that `id`
+/// and a vector index were the SAME PRIMITIVE, so nothing stopped one being used as the other.
+///
+/// ★ THIS SHELL HAS PAID FOR THAT EXACT CLASS ONCE ALREADY: `id + 1` on shell_history meant "the
+/// next row", four consumers read it as "the next command", and four predictors were deleted on
+/// 2026-08-22 because the arithmetic was wrong in a way nothing could catch. A counter and an
+/// offset that share a type invite the same mistake; the compiler can refuse it instead.
+///
+/// ⭐ AND THE THREE-LEVEL DISTINCTION THIS KEEPS APART, which INT-188 will lean on:
+///     JobId           the shell's identity for a job
+///     ProcessGroupId  the OS's job-control identity
+///     Pid             one individual process
+/// A job holds MULTIPLE processes once pipelines and process groups exist, so a pid can never be
+/// the shell's identity for one. That distinction was earned in an incident, and `kill`'s own
+/// comment records it: parsing any number as a job id made `kill <PID>` a silent no-op, which
+/// turned `vm down` into nothing and left two VMs running.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct JobId(u64);
+
+impl JobId {
+    /// The value a person typed. FALLIBLE ON PURPOSE -- see the note on `fg` in engine.rs: parsing
+    /// with a fallback turned `fg banana` into `fg 1`, foregrounding an arbitrary job.
+    pub fn parse(s: &str) -> Option<JobId> {
+        // ONE DEFINITION OF WHAT A JOB ID IS, shared by `fg` and `kill`. The % is stripped here so
+        // neither caller has to remember that `kill %2` and `fg 2` name the same thing.
+        let t = s.trim().trim_start_matches('%');
+        match t.parse::<u64>() {
+            Ok(n) if n > 0 => Some(JobId(n)),
+            _ => None,
+        }
+    }
+
+    // ⏭ INT-228 DELIBERATELY SHIPS NO BASE32 ENCODING, and the reason is worth keeping.
+    // A Crockford Base32 pair was written here -- it excludes I/L/O/U and DECODES the confusables,
+    // so a misread `O` still resolves. Then the encoder had no caller, and the tempting fix was to
+    // add a column to `jobs` so it would have one.
+    //
+    // ⚠️ THAT IS BACKWARDS. It turns an internal capability into a UI change because the
+    // implementation happens to exist. And `[2R]` is not another rendering of `2`; it is a NEW
+    // IDENTIFIER FORM a person has to learn, which deserves an explicit decision rather than being
+    // smuggled in beside a type change.
+    //
+    // ★ THE RULE: do not create UI to give an unused helper a caller. Create the UI when there is a
+    // user-facing requirement, then implement exactly what that requirement needs. INT-188 makes
+    // job identifiers visible -- stopped, resumed, moved between foreground and background -- and
+    // that is where the whole feature gets defined coherently, encoder and display together.
+}
+
+impl std::fmt::Display for JobId {
+    /// ⚠️ THE DECIMAL FORM IS WHAT `jobs` PRINTS TODAY, and INT-228 does not renumber anything. A
+    /// job that was 3 is still 3. The Base32 rendering exists and is tested; adopting it in the
+    /// listing is a SEPARATE, VISIBLE change rather than one smuggled in with a type.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 pub struct JobTable {
     jobs: Vec<Job>,
-    next_id: usize,
+    next_id: u64,
 }
 
 impl JobTable {
@@ -41,7 +101,7 @@ impl JobTable {
     /// streams. That is fine for legacy's `cmd &` path, which has no IO plan to apply, but the
     /// spine does. `register` below takes an already-built Command for exactly that reason; this
     /// stays as the argv-shaped convenience over it so legacy's call site is untouched.
-    pub fn spawn(&mut self, cmd: &str, args: &[String]) -> std::io::Result<usize> {
+    pub fn spawn(&mut self, cmd: &str, args: &[String]) -> std::io::Result<JobId> {
         let mut command = std::process::Command::new(cmd);
         command
             .args(args)
@@ -63,7 +123,7 @@ impl JobTable {
         &mut self,
         mut command: std::process::Command,
         label: &str,
-    ) -> std::io::Result<usize> {
+    ) -> std::io::Result<JobId> {
         let child = command.spawn()?;
         self.register_chain(vec![child], label)
     }
@@ -74,11 +134,11 @@ impl JobTable {
         &mut self,
         mut children: Vec<std::process::Child>,
         label: &str,
-    ) -> std::io::Result<usize> {
+    ) -> std::io::Result<JobId> {
         let Some(child) = children.pop() else {
             return Err(std::io::Error::other("empty pipeline"));
         };
-        let id = self.next_id;
+        let id = JobId(self.next_id);
         self.next_id += 1;
         self.jobs.push(Job {
             id,
@@ -162,7 +222,7 @@ impl JobTable {
     }
 
     /// Bring job to foreground — wait for it.
-    pub fn fg(&mut self, id: usize) {
+    pub fn fg(&mut self, id: JobId) {
         let pos = self.jobs.iter().position(|j| j.id == id);
         match pos {
             None => println!("  {} No job [{}]", "✗".bright_red(), id),
@@ -189,7 +249,7 @@ impl JobTable {
     }
 
     /// Kill a job by id.
-    pub fn kill_job(&mut self, id: usize) {
+    pub fn kill_job(&mut self, id: JobId) {
         let pos = self.jobs.iter().position(|j| j.id == id);
         match pos {
             None => println!("  {} No job [{}]", "✗".bright_red(), id),
@@ -209,5 +269,43 @@ impl JobTable {
 
     pub fn job_count(&self) -> usize {
         self.jobs.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ⚠️ THE DEFECT THIS INTENT ACTUALLY FIXED, asserted at the boundary where it lived.
+    /// `fg` parsed with `unwrap_or(1)`, so `fg banana` became `fg 1` and foregrounded whatever job
+    /// happened to be first. There is no plausible job to fall back to, so parsing returns None and
+    /// the caller must say so.
+    #[test]
+    fn nonsense_is_not_quietly_a_job() {
+        assert_eq!(JobId::parse("banana"), None);
+        assert_eq!(JobId::parse(""), None);
+        assert_eq!(JobId::parse("-3"), None);
+        assert_eq!(
+            JobId::parse("0"),
+            None,
+            "job ids start at 1, so zero is not one"
+        );
+    }
+
+    /// ONE DEFINITION SHARED BY BOTH DOORS. `kill %2` and `fg 2` name the same job, and neither
+    /// caller has to remember where the % is stripped.
+    #[test]
+    fn the_percent_form_and_the_bare_form_agree() {
+        assert_eq!(JobId::parse("%2"), JobId::parse("2"));
+        assert_eq!(JobId::parse(" %2 "), JobId::parse("2"));
+        assert!(JobId::parse("2").is_some());
+    }
+
+    /// ⭐ G2: THE VALUES DO NOT CHANGE. This is a type change, not a renumbering -- a job that was
+    /// 3 still displays as 3, and `jobs` output is untouched.
+    #[test]
+    fn a_job_id_still_displays_as_the_number_it_always_was() {
+        let id = JobId::parse("3").expect("3 is a job id");
+        assert_eq!(format!("{}", id), "3");
     }
 }
