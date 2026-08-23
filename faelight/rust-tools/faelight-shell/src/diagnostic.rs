@@ -37,6 +37,14 @@ pub enum Severity {
     Error,
 }
 
+impl Severity {
+    fn as_str(self) -> &'static str {
+        match self {
+            Severity::Error => "error",
+        }
+    }
+}
+
 /// A region of the source line this diagnostic is about, with what to say against it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label {
@@ -114,6 +122,33 @@ impl From<&str> for Diagnostic {
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)
+    }
+}
+
+impl Diagnostic {
+    /// INT-208 GATE 3: the SECOND renderer, and deliberately not cosmetic.
+    ///
+    /// A terminal rendering serves one reader. This one serves everything else -- a tool asking
+    /// what fsh refused and why, an editor placing a squiggle, a test asserting a snapshot. That
+    /// those are possible at all is the argument for a model: the same failure, three projections,
+    /// none of them reconstructed by parsing prose.
+    ///
+    /// Built by hand rather than derived. The wire format is a CONTRACT, and a contract that falls
+    /// out of struct field names changes silently when a field is renamed.
+    pub fn to_json(&self) -> String {
+        let labels: Vec<serde_json::Value> = self
+            .labels
+            .iter()
+            .map(|l| serde_json::json!({ "start": l.start, "end": l.end, "text": l.text }))
+            .collect();
+        serde_json::json!({
+            "severity": self.severity.as_str(),
+            "message": self.message,
+            "labels": labels,
+            "help": self.help,
+            "code": self.code,
+        })
+        .to_string()
     }
 }
 

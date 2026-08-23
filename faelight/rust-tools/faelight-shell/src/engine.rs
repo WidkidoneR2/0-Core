@@ -222,7 +222,22 @@ impl Engine {
             // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` printed "exited 2"
             // while `$?` reported 1 -- the code was formatted into the message and thrown away.
             CommandResult::Error(e, code) => {
-                eprintln!("{} {}", colored::Colorize::bright_red("x"), e);
+                // INT-208 GATE 3: THE SECOND RENDERER, WITH A REAL CONSUMER. FSH_DIAGNOSTIC_JSON
+                // makes a failure machine-readable -- what an editor or a tool would ask for, and
+                // impossible while the payload was a string formatted for a terminal.
+                //
+                // ⚠️ A renderer only a test calls would be decoration, which is the charge INT-222
+                // makes against the doctor. This one has a caller.
+                if std::env::var("FSH_DIAGNOSTIC_JSON").is_ok() {
+                    eprintln!("{}", e.to_json());
+                } else {
+                    eprintln!("{} {}", colored::Colorize::bright_red("x"), e);
+                    // The help the diagnostic carries, shown when it has any. INT-199's convention
+                    // -- what to do next -- rendered from the model rather than written per site.
+                    if let Some(h) = &e.help {
+                        eprintln!("  {}", colored::Colorize::dimmed(h.as_str()));
+                    }
+                }
                 self.set_last_exit(Some(code));
             }
             CommandResult::Empty => self.set_last_exit(Some(0)),
