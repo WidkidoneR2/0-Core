@@ -131,6 +131,15 @@ fn main() {
             check_stale_baks(&root, cli.bak_age),
         );
     }
+    // INT-231: deliberately NOT in the --summary positional totals, for the reason recorded on
+    // that line above -- the health check parses it by index, so an added field silently shifts
+    // what it reads. Same precedent as the INT-195 check.
+    if run("citations") {
+        reported += report(
+            "Dangling intent citations",
+            check_dangling_intent_citations(&root),
+        );
+    }
     if run("keybinds") {
         reported += report("Dead keybinds (mango)", check_dead_keybinds(&root));
     }
@@ -305,6 +314,127 @@ fn on_path(cmd: &str) -> bool {
         .unwrap_or_default()
         .split(':')
         .any(|dir| Path::new(&format!("{dir}/{cmd}")).exists())
+}
+
+/// INT-231: an `INT-NNN` in source that resolves to no intent in the ledger.
+///
+/// ⚠️ THE QUESTION IS "DOES IT EXIST", NOT "IS THE NUMBER PLAUSIBLE". A check comparing against the
+/// highest filed number would pass INT-180 -- a real hole BELOW the maximum, and the one citation
+/// most worth looking at. Existence is the invariant; contiguity was only reconnaissance.
+///
+/// ★ THREE POPULATIONS, REPORTED SEPARATELY, because a single count hides the finding:
+///   FORWARD   cites a number above the highest filed intent -- invented, not lost. Git shows no
+///             commit ever added a file for them; they arrived via a tree move and a changelog
+///             regeneration pass.
+///   GAP       a hole below the highest filed number -- the only genuine candidate for a lost
+///             intent, and an INVESTIGATION item rather than a defect.
+///   RESERVED  INT-000, a placeholder by convention. Allowed, and named rather than silently
+///             skipped.
+///
+/// ⚠️ THIS EXPOSES; IT DOES NOT MATERIALISE. No intent is filed because code cites its number --
+/// that would produce a ledger file with no decision in it, which inverts what the ledger is for.
+fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    // Every intent that exists, by number, from the filename stem.
+    let mut filed: BTreeSet<u32> = BTreeSet::new();
+    let intents = root.join("faelight/intents");
+    if let Ok(dirs) = std::fs::read_dir(&intents) {
+        for d in dirs.flatten() {
+            if let Ok(files) = std::fs::read_dir(d.path()) {
+                for f in files.flatten() {
+                    let name = f.file_name().to_string_lossy().to_string();
+                    if let Some(n) = name.get(..3).and_then(|p| p.parse::<u32>().ok()) {
+                        filed.insert(n);
+                    }
+                }
+            }
+        }
+    }
+    if filed.is_empty() {
+        // ⚠️ A CHECK THAT CANNOT SEE THE LEDGER MUST NOT REPORT EVERY CITATION AS DANGLING. That
+        // would be the failure this whole family of checks exists to prevent: an unanswerable
+        // question presented as an answer.
+        return vec![Finding {
+            confidence: Confidence::High,
+            detail: "intent ledger not readable -- citations cannot be checked".to_string(),
+            action: None,
+        }];
+    }
+    let highest = *filed.iter().next_back().unwrap_or(&0);
+
+    // Where each unfiled number is cited. BTreeMap keeps the report stable between runs.
+    let mut cites: BTreeMap<u32, Vec<String>> = BTreeMap::new();
+    for sub in ["faelight/rust-tools", "faelight/engine"] {
+        collect_citations(&root.join(sub), &filed, &mut cites);
+    }
+
+    let mut out = Vec::new();
+    for (num, places) in &cites {
+        let (kind, confidence) = if *num == 0 {
+            continue; // reserved placeholder -- reported in the summary line below, not as a finding
+        } else if *num > highest {
+            ("forward", Confidence::Medium)
+        } else {
+            ("gap", Confidence::High)
+        };
+        out.push(Finding {
+            confidence,
+            detail: format!(
+                "INT-{num:03} [{kind}] cited {} time(s), no intent filed: {}",
+                places.len(),
+                places.join(", ")
+            ),
+            action: None,
+        });
+    }
+    out
+}
+
+/// Walk .rs files under `dir`, recording citations of intent numbers that are not filed.
+fn collect_citations(
+    dir: &Path,
+    filed: &std::collections::BTreeSet<u32>,
+    out: &mut std::collections::BTreeMap<u32, Vec<String>>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.is_dir() {
+            if path.file_name().is_some_and(|n| n == "target") {
+                continue;
+            }
+            collect_citations(&path, filed, out);
+        } else if path.extension().is_some_and(|x| x == "rs") {
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            for (i, line) in text.lines().enumerate() {
+                let mut rest = line;
+                while let Some(at) = rest.find("INT-") {
+                    let after = &rest[at + 4..];
+                    let digits: String = after.chars().take(3).collect();
+                    if digits.len() == 3 && digits.chars().all(|c| c.is_ascii_digit()) {
+                        if let Ok(n) = digits.parse::<u32>() {
+                            if !filed.contains(&n) {
+                                let name = path
+                                    .strip_prefix(dir)
+                                    .unwrap_or(&path)
+                                    .to_string_lossy()
+                                    .to_string();
+                                out.entry(n)
+                                    .or_default()
+                                    .push(format!("{}:{}", name, i + 1));
+                            }
+                        }
+                    }
+                    rest = &rest[at + 4..];
+                }
+            }
+        }
+    }
 }
 
 fn check_dead_aliases(root: &Path) -> Vec<Finding> {
