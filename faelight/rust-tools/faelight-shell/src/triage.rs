@@ -225,6 +225,36 @@ mod tests {
         ));
     }
 
+    /// INT-227: THE PATH IS INCIDENTAL DATA, and this proves it rather than assuming it.
+    /// `is_sniffle` matches the shape -- "git tree" plus "is dirty" on a lowercased line -- so a
+    /// checkout belonging to anyone, anywhere, classifies the same way. The first case preserves
+    /// today's behaviour; the other two are the portability property, and the third has a SPACE in
+    /// the path because that is what a lazier matcher would break on.
+    #[test]
+    fn dirty_tree_is_a_sniffle_for_any_checkout() {
+        for line in [
+            "warning: Git tree '/home/christian/0-core' is dirty",
+            "warning: Git tree '/home/other/project' is dirty",
+            "warning: Git tree '/tmp/some checkout' is dirty",
+        ] {
+            assert!(
+                is_sniffle(line),
+                "should classify regardless of path: {line}"
+            );
+        }
+    }
+
+    /// ⚠️ AND THE OTHER HALF: an unrelated git warning must NOT be swallowed. A matcher that fired
+    /// on "git tree" alone would classify a real problem as benign, which is worse than missing a
+    /// benign one.
+    #[test]
+    fn an_unrelated_git_warning_is_not_a_sniffle() {
+        assert!(!is_sniffle(
+            "error: Git tree '/home/other/project' has conflicts"
+        ));
+        assert!(!is_sniffle("warning: object file is dirty"));
+    }
+
     #[test]
     fn builddeps_is_sniffle() {
         assert!(is_sniffle(

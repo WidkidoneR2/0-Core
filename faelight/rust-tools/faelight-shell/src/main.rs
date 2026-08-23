@@ -23,6 +23,8 @@ mod intent_tui;
 /// a dependency.
 mod observe;
 mod output;
+/// INT-227: platform facts, answered once.
+mod platform;
 mod pty_exec;
 mod registry;
 mod safety_guard;
@@ -2065,8 +2067,22 @@ fn repl_main() -> Result<()> {
     // whether a newer build was deployed. The deploy symlink canonicalizes to a store path
     // whose hash changes on every rebuild -- that hash IS the build identity (current_exe()
     // is unreliable here because the deployed binary is makeWrapper-wrapped).
-    if let Ok(p) = std::fs::canonicalize("/run/current-system/sw/bin/faelight-shell") {
-        let _ = std::fs::write("/tmp/fsh-running-build", p.to_string_lossy().as_bytes());
+    // INT-227: the platform answers this now. On Nix the store path stays the identity, for the
+    // reason INT-096 recorded above; elsewhere the running executable is the artifact.
+    //
+    // ⚠️ INTENTIONALLY INTERACTIVE-ONLY, and the scope is the point. This sits after runtime_init
+    // in the interactive path, so `fsh -c` never writes it -- verified 2026-08-23 rather than
+    // assumed. That is CORRECT: this file is state for the RELOAD mechanism, which only exists in
+    // an interactive session, and a `-c` invocation cannot reload itself.
+    //
+    // ⭐ AND MAKING IT UNIVERSAL WOULD GIVE THE FILE TWO MEANINGS. "Which interactive build should
+    // reload compare against?" and "which build produced this observation?" are different
+    // questions, and INT-207 already answers the second for every invocation including `-c`, via
+    // the build field the emission path attaches. Two mechanisms for one question is the shape this
+    // ledger keeps removing -- do not turn reload bookkeeping into invocation bookkeeping because
+    // the implementation happens to live inside runtime_init.
+    if let Some(id) = platform::running_build_identity() {
+        let _ = std::fs::write("/tmp/fsh-running-build", id.as_bytes());
     }
     // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. FAELIGHT_STATE_DB exists so the
     // test harness can give each run its own database instead of borrowing the user's, but a variable
