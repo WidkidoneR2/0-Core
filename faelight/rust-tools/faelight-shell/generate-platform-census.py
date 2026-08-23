@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""INT-227 G1/G6: the platform-assumption census, produced mechanically.
+"""INT-227 G1 census + a platform error-swallow LINT.
 
     python3 faelight/rust-tools/faelight-shell/generate-platform-census.py          # write the doc
     python3 faelight/rust-tools/faelight-shell/generate-platform-census.py --check  # G6, exit 1 on drift
@@ -56,6 +56,13 @@ def classify(path: str, text: str, in_test_fn: bool = False):
         return "C", "alias name, not a call"
     if name == "platform.rs":
         return "OWNER", "the platform module itself"
+    # ⭐ THE GUARD AND ITS MESSAGE ARE THE FIX, not a finding. A site asking has_tool, and the
+    # diagnostic it returns when the answer is no, are what this census exists to produce.
+    if "has_tool(" in text:
+        return "GUARD", "asks the platform before assuming the capability"
+    if any(k in text for k in ("no systemctl on this system", "no journalctl on this system",
+                               "this machine has no nix-store", "cannot query the store here")):
+        return "GUARD", "the message a guard prints when the capability is absent"
     if "candidates" in text or "format!(" in text and "/bin/faelight-shell" in text:
         return "D", "candidate list -- probes and falls through when absent"
     if "nix_system" in text:
@@ -108,8 +115,47 @@ def main():
     rows = collect()
     check = "--check" in sys.argv
 
-    # G6: nothing outside the platform module may SPAWN a platform-specific process.
-    offenders = [r for r in rows if r["cat"] == "B" and r["file"] != "platform.rs"]
+    # ⚠️⚠️ A LINT, NOT A VERIFICATION -- and this was demoted after it PROVED it could not fail.
+    # Disabling a live guard with `if false &&` left the guard's TEXT in place, so the scanner still
+    # saw `has_tool(` and passed. A checker that reads source text cannot establish a runtime
+    # property, and the PLATFORM-CHECKED marker below is a DECLARATION rather than evidence: a
+    # comment can claim anything.
+    #
+    # ⭐ SO THE PROOF LIVES ELSEWHERE. INT-227 G6 is the runtime test that strips a tool from PATH
+    # and asserts the real command paths report unavailability rather than emptiness. This scanner
+    # is a cheap regression aid that surfaces NEW candidates -- undeclared swallows nobody has
+    # reasoned about -- and nothing more.
+    #
+    # ⚠️ THE ORIGINAL GATE BANNED NAMING A TOOL, which is unachievable -- `generations` legitimately
+    # runs nixos-rebuild. Naming a tool is not assuming a capability. This tests the invariant the
+    # work actually found: within a few lines of a platform spawn, a failure must not be swallowed.
+    # ⭐ A SITE DECLARES ITS OWN HONESTY WITH A MARKER, rather than the scanner widening its window
+    # until everything passes. Three sites were honest for reasons sitting just outside a six-line
+    # view -- a guard twenty lines up, an explicit unknown fourteen lines down, a precondition
+    # established by an earlier query. Widening until green is how a check becomes decoration; the
+    # marker makes the claim reviewable and puts the reason beside the code that needs it.
+    swallow = (".ok()", "unwrap_or_default()", "if let Ok")
+    offenders = []
+    for r in [x for x in rows if x["cat"] == "B"]:
+        lines = (SRC / r["file"]).read_text().splitlines()
+        # ⚠️ THE WINDOW LOOKS BOTH WAYS, and the first version did not. A guard sits ABOVE the
+        # spawn it protects, so a forward-only window reported every guarded site as a violation.
+        before = "\n".join(lines[max(0, r["line"] - 14) : r["line"] - 1])
+        window = "\n".join(lines[r["line"] - 1 : r["line"] + 6])
+        # ⭐ AN EXPLICIT UNKNOWN IS A DEGRADE, NOT A SWALLOW, and the distinction is the whole
+        # point. main.rs's generation banner ends unwrap_or_else(|| "?") -- it SHOWS that it does
+        # not know, which is what this intent asks for. Only a default that READS AS AN ANSWER
+        # (an empty collection, a zero, an empty string) is the defect.
+        honest = (
+            'unwrap_or_else(|| "?"' in window          # an explicit unknown, not a fabricated answer
+            or 'unknown' in window
+            or 'has_tool(' in before                    # guarded ABOVE the spawn
+            or 'map_err' in window                      # the error is carried, not dropped
+            or 'PLATFORM-CHECKED' in before             # the site DECLARES why it is honest
+        )
+        hit = None if honest else next((w for w in swallow if w in window), None)
+        if hit:
+            offenders.append({**r, "swallow": hit})
     unread = [r for r in rows if r["cat"] == "B?"]
 
     if check:
@@ -118,7 +164,13 @@ def main():
             for r in unread:
                 print(f"  {r['file']}:{r['line']}  {r['text']}")
             return 1
-        print(f"census clean: {len(rows)} sites, {len(offenders)} capability spawns outside platform.rs")
+        if offenders:
+            print(f"LINT: {len(offenders)} platform spawn(s) with an undeclared swallow:")
+            for r in offenders:
+                print(f"  {r['file']}:{r['line']}  [{r['swallow']}]  {r['text'][:60]}")
+            return 1
+        print(f"lint clean: {len(rows)} sites, no undeclared swallow near a platform spawn")
+        print("  (a lint, not a proof -- G6 is the PATH-stripping runtime test)")
         return 0
 
     by_cat = {}

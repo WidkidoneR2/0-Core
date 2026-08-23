@@ -672,6 +672,92 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         },
     ));
+    // INT-227 G6: A CAPABILITY THAT IS ABSENT MUST NOT LOOK LIKE AN ANSWER.
+    //
+    // ⚠️ THIS IS THE GATE, AND A STATIC CHECK WAS DEMOTED TO MAKE ROOM FOR IT. A scanner that read
+    // source text for swallowed errors PASSED with a live guard disabled by `if false &&` -- the
+    // guard's TEXT was still there. A checker that reads text cannot establish a runtime property,
+    // and a comment claiming a site is safe is metadata rather than evidence.
+    //
+    // ★ THE ASSERTIONS ARE SEMANTIC, NOT IMPLEMENTATION-SHAPED. None of them asks whether has_tool
+    // was called. They ask what a person sees: does the shell SAY the capability is missing, or
+    // does it report an empty result that reads as a real answer?
+    //
+    // PATH is built at runtime, dropping only the directories holding the one tool, so fsh still
+    // starts normally and ONLY that capability disappears.
+    fn path_without(tool: &str) -> String {
+        std::env::var("PATH")
+            .unwrap_or_default()
+            .split(':')
+            .filter(|d| !std::path::Path::new(d).join(tool).exists())
+            .collect::<Vec<_>>()
+            .join(":")
+    }
+
+    results.push(test(
+        "services_without_systemctl_reports_unavailable",
+        Category::Regression,
+        || {
+            let path = path_without("systemctl");
+            let got = match run_fsh_env("services", &[("PATH", path.as_str())]) {
+                Ok(o) => o,
+                Err(e) => e,
+            };
+            // The defect: .ok() then unwrap_or_default() produced an EMPTY TABLE, so a machine
+            // with services running was told it had none.
+            if !got.to_lowercase().contains("systemctl") {
+                return Err(format!(
+                    "an absent service manager must be named, not reported as an empty list: {}",
+                    got.trim()
+                ));
+            }
+            Ok(())
+        },
+    ));
+
+    results.push(test(
+        "logs_without_journalctl_reports_unavailable",
+        Category::Regression,
+        || {
+            let path = path_without("journalctl");
+            let got = match run_fsh_env("logs", &[("PATH", path.as_str())]) {
+                Ok(o) => o,
+                Err(e) => e,
+            };
+            // The defect: an empty string became an empty table -- "no log entries" on a machine
+            // with a full journal. The streaming form was worse: a header, then nothing forever.
+            if !got.to_lowercase().contains("journalctl") {
+                return Err(format!(
+                    "an absent log source must be named, not reported as no entries: {}",
+                    got.trim()
+                ));
+            }
+            Ok(())
+        },
+    ));
+
+    results.push(test(
+        "packages_without_nix_store_reports_unavailable",
+        Category::Regression,
+        || {
+            let path = path_without("nix-store");
+            let got = match run_fsh_env("packages", &[("PATH", path.as_str())]) {
+                Ok(o) => o,
+                Err(e) => e,
+            };
+            // The defect: one helper returned vec![] on spawn failure, feeding four callers that
+            // each read it as "nothing found".
+            let lower = got.to_lowercase();
+            if !(lower.contains("nix-store") || lower.contains("cannot query")) {
+                return Err(format!(
+                    "an unqueryable store must be named, not reported as an empty package list: {}",
+                    got.trim()
+                ));
+            }
+            Ok(())
+        },
+    ));
+
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
     }));

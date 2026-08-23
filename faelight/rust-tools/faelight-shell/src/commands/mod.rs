@@ -7454,6 +7454,9 @@ fn store_cmd(args: &[&str]) -> CommandResult {
 
             // Direct referrers (reverse-deps)
             // Reachable only when the roots query above succeeded, so the store is answerable.
+            // PLATFORM-CHECKED: unreachable unless the roots query above returned Some, which
+            // establishes that the store is answerable here. The default is empty referrers, which
+            // is a real answer on a store that can be queried.
             let refs = nix_query_lines(&["nix-store", "--query", "--referrers", &path])
                 .unwrap_or_default();
             let refs: Vec<&String> = refs.iter().filter(|r| **r != path).collect();
@@ -7807,6 +7810,9 @@ fn sys_logs(args: &[&str]) -> CommandResult {
         );
         println!("{}", "━".repeat(52).dimmed());
 
+        // PLATFORM-CHECKED: the has_tool guard at the top of this branch returns before here, so
+        // reaching this line means journalctl exists. The if-let below can still fail to spawn for
+        // other reasons, and that is an ordinary error rather than an absent capability.
         let mut cmd = std::process::Command::new("journalctl");
         cmd.args(["-f", "-n", "0", "--no-pager", "--output=short-iso"]);
         if errors_only {
@@ -7844,6 +7850,18 @@ fn sys_logs(args: &[&str]) -> CommandResult {
     }
 
     // Static mode — return as table
+    // INT-227: THE SECOND journalctl SPAWN, with the same defect the streaming one had. Its
+    // .ok() then unwrap_or_default() produced an empty string, an empty table, and "no log
+    // entries" on a machine with a full journal. The guard above does not cover this path --
+    // it returns early only in follow mode.
+    if !crate::platform::has_tool("journalctl") {
+        return CommandResult::Error(
+            crate::diagnostic::Diagnostic::error("no journalctl on this system")
+                .with_help("logs are read from the systemd journal; this machine has none")
+                .with_code("fsh::platform::no_log_source"),
+            1,
+        );
+    }
     let output = std::process::Command::new("journalctl")
         .args(["-n", &lines.to_string(), "--no-pager", "--output=short-iso"])
         .output()

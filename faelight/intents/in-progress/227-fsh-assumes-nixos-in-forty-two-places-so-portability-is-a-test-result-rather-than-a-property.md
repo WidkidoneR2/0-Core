@@ -70,8 +70,27 @@ systemd and glibc, so neither would find these bugs.
       failing with a not-found error. The message names what is missing, per INT-215
 - [ ] G5 A TEST CONTROLS THE PLATFORM, so this is provable without a second machine.
       `run_fsh_env` already exists (INT-221) and can set whatever the module reads
-- [ ] G6 THE CENSUS RE-RUNS CLEAN: no site outside the platform module names a service
-      manager, a package manager or a store path. A mechanical check, red first
+- [ ] G6 NO PLATFORM FAILURE BECOMES A SUCCESSFUL-LOOKING EMPTY RESULT. A mechanical
+      check, red first.
+      ⚠️ REWORDED 2026-08-23, AND THE ORIGINAL WAS UNACHIEVABLE. It asked that no site
+      outside the platform module NAME a service manager or a store path -- but
+      `generations` legitimately runs `nixos-rebuild`, and banning the name would make
+      correct code fail the gate. Naming a tool is not assuming a capability. Same
+      lesson as INT-169's logos gate: a gate must test the INVARIANT, not an accidental
+      implementation detail, and a gate that cannot pass is the same defect as a check
+      that cannot fail (INT-222).
+      ★ THE INVARIANT THE WORK ACTUALLY FOUND, which is stronger and checkable: a
+      capability failure must never be converted into a result that reads as an answer.
+      Every defect this intent fixed was one of four patterns --
+        `.ok()`                 swallowing a spawn or query failure
+        `unwrap_or_default()`   turning failure into an empty collection
+        `if let Ok(..)`         turning failure into an apparently empty operation
+        a zero or default value standing in for an unavailable capability
+      MEASURED EXAMPLES: an empty services table on a machine with services running; a
+      log stream that printed a header and nothing forever; a store query returning
+      "no GC roots" without asking the store; `total closure: 0.0 B` as a measured size.
+      ⭐ AND THE RULE THAT FALLS OUT: `Result` and `?` fail honestly by construction.
+      The three patterns above are where lies come from.
 - [ ] G7 each gate carries evidence per INT-158
 
 ## Non-goals

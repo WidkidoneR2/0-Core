@@ -3129,6 +3129,9 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
                 .unwrap_or_else(|_| "tty".to_string())
         });
     // ── detect NixOS generation ──
+    // PLATFORM-CHECKED: this chain ends unwrap_or_else(|| "?"), so an absent nixos-rebuild shows
+    // a question mark in the banner rather than a fabricated generation number. An explicit unknown
+    // is a degrade, not a swallow -- and a banner is the wrong place for an error.
     let nix_gen = std::process::Command::new("nixos-rebuild")
         .args(["list-generations", "--json"])
         .output()
