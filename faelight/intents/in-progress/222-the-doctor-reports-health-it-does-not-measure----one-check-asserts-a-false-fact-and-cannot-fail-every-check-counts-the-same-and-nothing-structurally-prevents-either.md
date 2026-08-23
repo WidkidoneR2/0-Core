@@ -398,3 +398,43 @@ denominator) but barely used.
 - Whether `Warn` and `Fail` mean different things to the score, given 27 checks can only warn.
 - What to do about non-determinism -- retry, cache, or classify as `Unknown` by design.
 - Whether the check count is derived from the registry rather than written in three places.
+
+### ⚠️⚠️ A SIXTH PROBLEM, found 2026-08-23: THERE ARE TWO DOCTORS
+
+Everything above censuses `core doctor` -- 34 checks in the engine. **`fsh doctor` is a SECOND
+doctor, seven checks, in a different binary, and it has never been censused.** Found while fixing
+INT-227's hardcoded paths, not by looking for it.
+
+Three of its seven were wrong, and each is a different failure:
+
+    ✗  fsh binary       tested a HARDCODED path inside one user's checkout
+                        (/home/christian/0-core/scripts/faelight-shell). That file does not
+                        exist on this machine -- verified with ls -- so the check reported
+                        `missing!` EVERY TIME IT RAN, since the day it was written.
+                        A check that has never passed is this intent's thesis inverted:
+                        not a check that cannot fail, but one that cannot succeed.
+                        FIXED under INT-227: it now asks current_exe() and reports the path.
+
+    ✗  focus intent     hand-builds $HOME/.local/state/0-core/intent/focus.toml as a string,
+                        while the check TWO LINES ABOVE it uses paths::state_db() correctly.
+                        Same file, two conventions. Reports "no focus.toml" while `intl`
+                        shows INT-222 active and the bar reads the focus fine.
+                        NOT FIXED -- INT-115 owns routing paths through paths.rs.
+
+    ✗  cargo in PATH    reports "missing -- run: source ~/.profile" while cargo demonstrably
+                        works; the entire session that found this was built with it.
+                        ⚠️ AND THE ADVICE IS A BASHISM. `source ~/.profile` is not how fsh
+                        restores a path, and on another distro it may not exist at all.
+                        NOT FIXED.
+
+★ THE POINT FOR THIS INTENT: the thesis is not specific to `core doctor`. A seven-check doctor
+had one check that could never succeed, one false negative carrying advice for a different
+shell, and one hand-built path its own neighbour looks up properly. **Three of seven.** The
+34-check census found a 27-of-34 structural defect; a second, much smaller doctor was found to
+be wrong at a similar rate the first time anyone read it.
+
+⏭ SO PHASE 1 GAINS A QUESTION: does the definition format, the probe registry and the scoring
+serve BOTH doctors, or does `fsh doctor` remain a separate thing that will drift the same way?
+A shared engine is the obvious answer and may be the wrong one -- `fsh doctor` checks the SHELL
+(its binary, its database, its aliases) while `core doctor` checks the SYSTEM, and they may
+genuinely want different tiers. **The decision belongs here rather than being made by accident.**
