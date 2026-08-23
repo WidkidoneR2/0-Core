@@ -33,9 +33,49 @@ use std::sync::OnceLock;
 /// before `init()` needs measuring, move `init()` earlier rather than making the clock lazy.
 static PROCESS_START: OnceLock<std::time::Instant> = OnceLock::new();
 
-/// Start the process clock. Call once, as early in `main` as observation can reasonably begin.
+/// Where accumulating observations go, if anywhere. `None` unless FSH_OBSERVE_FILE is set.
+static SINK: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+
+/// Start the process clock and resolve the optional file sink.
+///
+/// ⚠️⚠️ THE DIRECTORY IS CREATED HERE AND ITS FAILURE IS LOUD, and that is not defensive
+/// programming -- it is a repair. Two instruments wrote to `faelight/runtime/` with
+/// `OpenOptions::create(true)`, which creates a FILE and never its PARENT. The directory was lost
+/// in the Phase 1 tree move, so every open failed, every `if let Ok(f)` arm was skipped, and NOT
+/// ONE ROW was ever written. Their emptiness was then read as "the code path is cold" -- an
+/// unanswered question mistaken for an answered one.
+///
+/// ★ THE RULE THAT COMES OUT OF IT: an instrumentation path must FAIL VISIBLY when its destination
+/// cannot be established. Otherwise "no observations" and "nothing happened" are the same output.
 pub fn init() {
     let _ = PROCESS_START.set(std::time::Instant::now());
+    let resolved = std::env::var_os("FSH_OBSERVE_FILE").and_then(|raw| {
+        let path = std::path::PathBuf::from(raw);
+        if let Some(dir) = path.parent() {
+            if let Err(e) = std::fs::create_dir_all(dir) {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "fsh: observation sink unavailable: cannot create {} ({}). \
+                     Events will go to stderr only -- an empty log would otherwise be \
+                     indistinguishable from nothing happening.",
+                    dir.display(),
+                    e
+                );
+                return None;
+            }
+        }
+        Some(path)
+    });
+    let _ = SINK.set(resolved);
+}
+
+/// The build that emitted a row. Two file instruments each added this after the fact, and both
+/// left the same note: a row that cannot be dated to a binary cannot be read as evidence about the
+/// current shell. So the emission path attaches it rather than each caller remembering.
+fn build() -> String {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".to_string())
 }
 
 /// Milliseconds since this process's observability clock started.
@@ -194,8 +234,21 @@ pub fn emit(ev: Event<'_>) {
     // clock, so no caller can supply a number measured from somewhere else.
     line.push_str(&format!(" process_elapsed_ms={}", elapsed));
     line.push_str(&format!(" ts={}", ts));
+    line.push_str(&format!(" build={}", build()));
 
     let _ = writeln!(std::io::stderr(), "{}", line);
+
+    // THE ACCUMULATING SINK, opt-in. Some questions -- "does any -c line still reach sh over a
+    // whole deploy cycle?" -- cannot be answered by a stderr line nobody was watching.
+    if let Some(Some(path)) = SINK.get() {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            let _ = writeln!(f, "{}", line);
+        }
+    }
 }
 
 /// Which entry point the shell was invoked through. Interactive lines and `-c` lines reach the
