@@ -890,29 +890,6 @@ fn match_trigger_pattern(ctx: &AppContext, last_cmd: &str) -> Option<(i64, Strin
     )
     .ok()
 }
-/// Frequency-fallback: find the most common command that followed last_cmd
-/// in shell_history. Returns (action, frequency) if signal is strong enough.
-fn match_frequency_followup(ctx: &AppContext, last_cmd: &str) -> Option<(String, i64)> {
-    let db = &ctx.runtime.db;
-    // First word of last_cmd for a lenient match
-    let first_word = last_cmd.split_whitespace().next().unwrap_or("");
-    if first_word.is_empty() {
-        return None;
-    }
-    db.query_row(
-        "SELECT h2.command, COUNT(*) as freq FROM shell_history h1 \
-         JOIN shell_history h2 ON h2.id = h1.id + 1 \
-         WHERE h1.command LIKE ?1 \
-           AND h2.command NOT IN ('c', 'clear', 'cd', 'ls', 'pwd', 'q', 'exit') \
-           AND h2.command NOT LIKE 'SUGGEST:%' \
-         GROUP BY h2.command \
-         ORDER BY freq DESC LIMIT 1",
-        rusqlite::params![format!("{}%", first_word)],
-        |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
-    )
-    .ok()
-    .filter(|(_, freq)| *freq >= 10)
-}
 /// core friday anticipate -- predict next action using session + temporal models.
 /// Strong match: explicit trigger pattern with confidence >= 0.85.
 /// Weak match: frequency-based follow-up with >= 10 occurrences.
@@ -1012,30 +989,21 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
         println!();
         return Ok(());
     }
-    if let Some((action, freq)) = match_frequency_followup(ctx, &last_cmd) {
-        let content = format!(
-            "You usually run {} after {} (frequency: {}x, not a causal pattern)",
-            action,
-            last_cmd.split_whitespace().next().unwrap_or("that"),
-            freq
-        );
-        // Lower confidence for frequency-only
-        let confidence = (freq as f64 / 100.0).min(0.7);
-        write_anticipation(ctx, &content, None, confidence)?;
-        println!(
-            "  {} {} -- frequency match",
-            "→".bright_yellow(),
-            action.bright_white()
-        );
-        println!("    {} {}", "·".dimmed(), content.dimmed());
-        println!(
-            "    {} confidence: {:.0}% (frequency-based, not causal)",
-            "·".dimmed(),
-            confidence * 100.0
-        );
-        println!();
-        return Ok(());
-    }
+    // INT-191: THE FREQUENCY FALLBACK IS GONE. It asked what usually follows a command by
+    // self-joining shell_history on id + 1, and that adjacency does not mean "the next
+    // command" -- it means "the other half of the same command". Measured 2026-08-22:
+    // cd ~/0-core -> cd /home/christian/0-core 2,768 · d -> core doctor run 612 ·
+    // fg commit -> ~/0-core/scripts/faelight-git commit 370 · intent list -> /run/... 321.
+    // All typed -> executed pairs. It excluded c/clear/cd/ls/pwd/q/exit from the follower
+    // side, which filtered the worst offender and hid the rest -- a hardcoded list of seven
+    // names standing in for a model.
+    //
+    // Its own message already said "not a causal pattern". It was right, and a fallback that
+    // speaks when the good signal is silent is the worst place for a false one.
+    //
+    // Two fsh predictors were deleted the same day for the same measurement. The replacement
+    // shape is directly above: predict_from_event_bus reads the events table by action and
+    // timestamp -- an explicit stream, not row adjacency.
     println!("  {} No strong next-action signal.", "💡".dimmed());
     println!(
         "  {} Not enough pattern data for this context yet.",
