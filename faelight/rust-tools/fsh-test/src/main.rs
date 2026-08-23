@@ -67,14 +67,30 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
+    run_fsh_env(input, &[])
+}
+
+/// INT-221: the same launcher, with the environment under the case's control.
+///
+/// ONE LAUNCH PATH, not two. A case that needs to vary PATH, FSH_TRACE or FSH_SPINE used to have
+/// no way to do it, and the alternative -- a second Command::new(FSH_BIN) inside the test -- would
+/// be a fourth way of starting the shell in a suite whose founding finding was that two doors
+/// disagree. So the capability belongs here.
+///
+/// `extra_env` is applied AFTER the harness defaults, so a case can deliberately override them.
+fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String> {
     let fsh = repl::fsh_bin();
-    let out = Command::new(&fsh)
-        // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
-        // configuration rather than two that differ in where they think they are.
-        .env("FSH_KEEP_CWD", "1")
+    let mut cmd = Command::new(&fsh);
+    // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
+    // configuration rather than two that differ in where they think they are.
+    cmd.env("FSH_KEEP_CWD", "1")
         // INT-204: and its own database, for the same reason -- two doors that disagree about which
         // state they read is the shape of problem this suite keeps finding in the shell it tests.
-        .env("FAELIGHT_STATE_DB", repl::case_db_path())
+        .env("FAELIGHT_STATE_DB", repl::case_db_path());
+    for (k, v) in extra_env {
+        cmd.env(k, v);
+    }
+    let out = cmd
         .arg("-c")
         .arg(input)
         .stdout(Stdio::piped())
@@ -612,6 +628,49 @@ fn all_tests() -> Vec<TestResult> {
         "doubled_backslash_is_one",
         Category::Regression,
         || expect_contains(&run_fsh("echo \"a\\\\b\"")?, "a\\b"),
+    ));
+    // INT-221 G1, RED FIRST. `pick` reached for `sk`, which is not installed, while `fzf` sits on
+    // the same system -- so every fuzzy selection failed. This case fails until the selector is
+    // fzf AND the message names the missing dependency.
+    //
+    // The PATH is built at RUNTIME, dropping only directories that contain an fzf executable.
+    // Hardcoding would rot: fzf lives in /etc/profiles/... while rg, sh and git are each in a
+    // /nix/store/<hash>-... directory, and those hashes change on every rebuild. Everything else
+    // stays, so fsh starts normally and ONLY the selector goes missing -- otherwise the case would
+    // be testing "fsh cannot start" rather than "fsh cannot find its selector".
+    //
+    // `pick intent` is used rather than `pick file`, which shells out to rg first: nothing else
+    // can fail before the selector is reached.
+    results.push(test(
+        "pick_without_fzf_names_the_dependency",
+        Category::Regression,
+        || {
+            let stripped: Vec<String> = std::env::var("PATH")
+                .unwrap_or_default()
+                .split(':')
+                .filter(|d| !std::path::Path::new(d).join("fzf").exists())
+                .map(|d| d.to_string())
+                .collect();
+            let path = stripped.join(":");
+            let got = match run_fsh_env("pick intent", &[("PATH", path.as_str())]) {
+                Ok(o) => o,
+                Err(e) => e,
+            };
+            if got.contains("sk") {
+                return Err(format!(
+                    "pick still reaches for skim, which is not installed on this system: {}",
+                    got
+                ));
+            }
+            if !got.contains("fzf") {
+                return Err(format!(
+                    "the failure does not name the missing dependency, so a reader cannot tell a \
+                 missing tool from a typo: {}",
+                    got
+                ));
+            }
+            Ok(())
+        },
     ));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")

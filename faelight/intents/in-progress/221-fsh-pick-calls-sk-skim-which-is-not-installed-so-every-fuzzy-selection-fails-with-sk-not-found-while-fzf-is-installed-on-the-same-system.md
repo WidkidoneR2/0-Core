@@ -3,7 +3,7 @@ id: 221
 date: 2026-08-13
 type: future
 title: "fsh pick calls sk (skim) which is not installed, so every fuzzy selection fails with "sk not found" while fzf is installed on the same system"
-status: planned
+status: in-progress
 tags: [fsh, pick, fuzzy, dependency, int-134]
 ---
 

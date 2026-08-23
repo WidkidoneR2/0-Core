@@ -143,6 +143,66 @@ mod event_provenance_guard {
     }
 }
 
+/// INT-221: THE fuzzy selector, in one place.
+///
+/// Three sites each reached for `sk` directly, and skim is not installed on this system while
+/// fzf is -- so every fuzzy selection failed. Three call sites had already drifted: two said
+/// "sk not found" and one said "sk not found -- install skim". A backend reached for at three
+/// sites is a drift factory, which is why this is a helper rather than three replaced strings.
+///
+/// fzf is the ruled backend: it is already installed by the system configuration, and every flag
+/// the callers use -- --prompt, --height, --reverse, --ansi -- is common to both tools, so no
+/// behaviour is given up. Probing for either was rejected: for a controlled shell, deterministic
+/// dependencies beat runtime backend discovery.
+///
+/// The error names the executable, says it is a dependency, and says what to do -- so a reader can
+/// tell a missing tool from a typo. INT-215's class of complaint.
+fn fuzzy_select(items: &str, prompt: &str, ansi: bool) -> Result<String, CommandResult> {
+    use std::io::Write;
+    let mut args = vec![
+        format!("--prompt={}", prompt),
+        "--height=50%".to_string(),
+        "--reverse".to_string(),
+    ];
+    if ansi {
+        args.push("--ansi".to_string());
+    }
+    // THE SELECTED ROW IS HIGHLIGHTED. Without it the cursor is a single marker
+    // character and the row under it looks like every other row, which is hard to
+    // read in a long list.
+    //
+    // ⚠️ HARDCODED, AND THAT IS THE POINT OF THIS COMMENT: the Hakker Green palette
+    // exists only as PROSE -- ROADMAP.md and a decisions file -- so there is nothing to
+    // import. When the single token source lands, this is one of the places that should
+    // read from it rather than carry its own hex.
+    args.push(
+        "--color=bg+:#1a1a1a,fg+:#00ff99,hl+:#00ff99,hl:#00cc77,pointer:#00ff99,prompt:#00cc77"
+            .to_string(),
+    );
+    let mut child =
+        match std::process::Command::new("fzf")
+            .args(&args)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(_) => return Err(CommandResult::Error(
+                "pick: fzf is required for fuzzy selection but was not found on PATH -- add fzf \
+                 to the system environment"
+                    .to_string(),
+                1,
+            )),
+        };
+    if let Some(stdin) = child.stdin.as_mut() {
+        let _ = stdin.write_all(items.as_bytes());
+    }
+    match child.wait_with_output() {
+        Ok(o) => Ok(String::from_utf8_lossy(&o.stdout).trim().to_string()),
+        Err(e) => Err(CommandResult::Error(format!("pick: fzf failed: {}", e), 1)),
+    }
+}
+
 pub(crate) fn correlation() -> String {
     let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
     let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
@@ -7779,8 +7839,7 @@ fn compare_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
 }
 fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Command;
     let subcommand = args.first().copied().unwrap_or("");
     let extra = if args.len() > 1 { args[1] } else { "" };
     match subcommand {
@@ -7820,45 +7879,24 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             if items.is_empty() {
                 return CommandResult::Output("  No intents found".to_string());
             }
-            let mut child = match Command::new("sk")
-                .args([
-                    "--prompt=pick intent> ",
-                    "--height=50%",
-                    "--reverse",
-                    "--ansi",
-                ])
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-            {
-                Ok(c) => c,
-                Err(_) => {
-                    return CommandResult::Error("sk not found -- install skim".to_string(), 1)
-                }
+            // INT-221: one selector, not three. See fuzzy_select.
+            let line = match fuzzy_select(&items, "pick intent> ", true) {
+                Ok(sel) => sel,
+                Err(e) => return e,
             };
-            if let Some(stdin) = child.stdin.as_mut() {
-                let _ = stdin.write_all(items.as_bytes());
-            }
-            let output = child
-                .wait_with_output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::process::ExitStatus::default(),
-                    stdout: vec![],
-                    stderr: vec![],
-                });
-            if output.status.success() {
-                let line = String::from_utf8_lossy(&output.stdout);
-                let line = line.trim();
-                if !line.is_empty() {
-                    // deadwood: exempt -- intent id parsed out of command OUTPUT, then INT- stripped -- structured output, not user input
-                    let id = line
-                        .split_whitespace()
-                        .next()
-                        .unwrap_or("")
-                        .replace("INT-", "");
-                    if !id.is_empty() {
-                        return CommandResult::Output(format!("intent show {}", id));
-                    }
+            // CANCELLATION IS AN EMPTY SELECTION. The old code guarded on the selector's
+            // EXIT STATUS; fzf exits non-zero when the user presses Escape, and the helper
+            // returns its (empty) stdout regardless. Same outcome, reached by the empty
+            // check rather than by the status -- recorded because it IS a semantic change.
+            if !line.is_empty() {
+                // deadwood: exempt -- intent id parsed out of command OUTPUT, then INT- stripped -- structured output, not user input
+                let id = line
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .replace("INT-", "");
+                if !id.is_empty() {
+                    return CommandResult::Output(format!("intent show {}", id));
                 }
             }
             CommandResult::Output(String::new())
@@ -7884,28 +7922,16 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     time, cmd
                 ));
             }
-            let mut child = match Command::new("sk")
-                .args(["--prompt=pick history> ", "--height=50%", "--reverse"])
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-            {
-                Ok(c) => c,
-                Err(_) => return CommandResult::Error("sk not found".to_string(), 1),
+            // INT-221: one selector, not three. See fuzzy_select. No --ansi here: this list is
+            // plain text, and the flag set is the caller's choice rather than the helper's.
+            let selected = match fuzzy_select(&items, "pick history> ", false) {
+                Ok(sel) => sel,
+                Err(e) => return e,
             };
-            if let Some(stdin) = child.stdin.as_mut() {
-                let _ = stdin.write_all(items.as_bytes());
-            }
-            let output = child
-                .wait_with_output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::process::ExitStatus::default(),
-                    stdout: vec![],
-                    stderr: vec![],
-                });
-            if output.status.success() {
-                let line = String::from_utf8_lossy(&output.stdout);
-                let cmd = line.trim().splitn(2, "  ").nth(1).unwrap_or("").trim();
+            {
+                // Strips the timestamp column this subcommand prepends -- its OWN parsing,
+                // which is why the helper returns raw text rather than a parsed selection.
+                let cmd = selected.splitn(2, "  ").nth(1).unwrap_or("").trim();
                 if !cmd.is_empty() {
                     return CommandResult::Output(format!("  Selected: {}", cmd));
                 }
@@ -7925,27 +7951,13 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
                 Err(_) => return CommandResult::Error("rg not found".to_string(), 1),
             };
-            let mut child = match Command::new("sk")
-                .args(["--prompt=pick file> ", "--height=50%", "--reverse"])
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-            {
-                Ok(c) => c,
-                Err(_) => return CommandResult::Error("sk not found".to_string(), 1),
+            // INT-221: one selector, not three. See fuzzy_select. This subcommand needs no
+            // parsing at all -- the selection IS the path.
+            let path = match fuzzy_select(&items, "pick file> ", false) {
+                Ok(sel) => sel,
+                Err(e) => return e,
             };
-            if let Some(stdin) = child.stdin.as_mut() {
-                let _ = stdin.write_all(items.as_bytes());
-            }
-            let output = child
-                .wait_with_output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::process::ExitStatus::default(),
-                    stdout: vec![],
-                    stderr: vec![],
-                });
-            if output.status.success() {
-                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            {
                 if !path.is_empty() {
                     return CommandResult::Output(format!("  {}", path));
                 }

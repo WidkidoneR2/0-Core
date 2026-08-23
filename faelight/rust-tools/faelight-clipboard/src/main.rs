@@ -225,7 +225,7 @@ fn cmd_pick() -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .context("sk not found")?;
+        .context("fzf is required for fuzzy selection but was not found on PATH -- add fzf to the system environment")?;
 
     child.stdin.as_mut().unwrap().write_all(input.as_bytes())?;
     let output = child.wait_with_output()?;
