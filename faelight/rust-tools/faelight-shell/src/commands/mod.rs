@@ -9784,34 +9784,27 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // door would answer a question nobody asked.
     // The third executor. This function is the one place fsh hands a line to sh, so a line
     // reaching here took neither the spine nor a builtin.
+    // INT-207: THE sh-fallback.log INSTRUMENT LIVES HERE NOW, as fields rather than a second
+    // mechanism. It asked a question that still matters to INT-169: over a whole deploy cycle,
+    // does any `-c` line reach sh? Zero rows would mean every `-c` line was handled natively.
+    //
+    // ⚠️ AND ITS OLD ZERO-ROW RESULT WAS INVALID EVIDENCE, not an answer. It wrote to
+    // faelight/runtime/ with OpenOptions::create(true), which never creates a parent directory,
+    // and that directory was lost in the Phase 1 tree move -- so every write silently failed.
+    // Set FSH_OBSERVE_FILE to ask the question properly; the sink creates its own directory and
+    // says so loudly if it cannot.
     crate::observe::emit(crate::observe::Event {
         level: crate::observe::Level::Debug,
         target: crate::observe::Target::Executor,
         message: "sh handoff",
-        fields: &[("line", format!("{:?}", line))],
+        // `word` is kept because the shape of what still needs sh matters more than the count --
+        // forty lines of `ps | where` and forty ordinary commands point in opposite directions.
+        // `door` and `build` are attached by the emission path; they used to be written by hand.
+        fields: &[
+            ("line", format!("{:?}", line)),
+            ("word", command_word(line)),
+        ],
     });
-    {
-        let door = if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
-            "dash-c"
-        } else {
-            "interactive"
-        };
-        let root = db.core_root();
-        let path = std::path::Path::new(&root).join("faelight/runtime/sh-fallback.log");
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-        {
-            use std::io::Write;
-            // The same build field the legacy-exec log carries, for the same reason: a row that
-            // cannot be dated to a binary cannot be read as evidence about the current shell.
-            let build = std::env::current_exe()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| "unknown".to_string());
-            let _ = writeln!(f, "{}\t{}\t{}\t{}", build, door, command_word(line), line);
-        }
-    }
     let mut cmd = std::process::Command::new("sh");
     cmd.arg("-c").arg(line);
     cmd.stdin(std::process::Stdio::inherit())

@@ -1739,6 +1739,24 @@ pub fn execute_and_record(
     //
     // Written to a file rather than shell_history on purpose: the TIMING: rows already there pollute
     // the spine migrate corpus, and that corpus is the measure this work is being judged by.
+    // INT-207: THE legacy-exec.log INSTRUMENT LIVES HERE NOW, as one event with its fields.
+    // It answers "is legacy execution still reached, and by what?" -- the measurement that decides
+    // whether roughly two hundred and fifty lines of raw-text derivation can be deleted.
+    //
+    // ⚠️ ITS OLD EMPTINESS WAS INVALID EVIDENCE. It wrote to faelight/runtime/ with
+    // OpenOptions::create(true), which never creates a parent, and that directory was lost in the
+    // Phase 1 tree move -- so it never wrote a row and its silence meant nothing. Set
+    // FSH_OBSERVE_FILE to collect properly.
+    //
+    // ★ EVERY FIELD BELOW WAS ADDED AFTER A ROW PROVED UNREADABLE WITHOUT IT, and each is kept:
+    //   spine -- a `plain` row is otherwise ambiguous between "a real command still needs legacy"
+    //            and "a test pinned FSH_SPINE=0", and a measurement that cannot tell those apart
+    //            is worse than none.
+    //   shape -- forty rows from `ps | where` and forty from ordinary commands point in opposite
+    //            directions; the count alone decides nothing.
+    //   typed -- base_cmd is POST-expansion, so a row showing `echo assets` could be a glob, an
+    //            alias result, or a line genuinely typed that way. Three stories, one row.
+    // `build` and `door` are attached by the emission path; they used to be written by hand here.
     {
         let word = crate::commands::command_word(base_cmd);
         let shape = if !pipeline_ops.is_empty() {
@@ -1748,54 +1766,23 @@ pub fn execute_and_record(
         } else {
             "plain"
         };
-        // ⚠️ THE SPINE STATE IS THE FIELD THAT DECIDES WHAT A ROW MEANS. fsh-test cases may set
-        // their own environment, and some pin legacy behaviour with FSH_SPINE=0 on purpose. Without
-        // this, a `plain` row is ambiguous between "a real command still needs legacy" -- which ends
-        // the deletion hypothesis -- and "a case turned the spine off", which says nothing. A
-        // measurement that cannot tell those apart is worse than none, because it reads as evidence.
         let spine = if std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true) {
             "spine-on"
         } else {
             "spine-off"
         };
-        let path =
-            std::path::Path::new(engine.core_root()).join("faelight/runtime/legacy-exec.log");
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-        {
-            use std::io::Write;
-            // ⚠️ THE BUILD FIELD IS NOT OPTIONAL. Without it this log accumulated across gen 475
-            // to 479 -- through the digit-guard narrowing, the -c routing and the exit-code work --
-            // and a row from the first build was indistinguishable from one written a minute ago.
-            // Sixteen "spine-on" rows read as evidence about the current shell when all three of the
-            // commands behind them are claimed today. Same failure as the spine field this already
-            // has: a measurement missing the one field that makes a row interpretable.
-            // ⚠️ THE RUNNING BINARY, NOT THE DEPLOYED ONE. This read /tmp/fsh-running-build, which
-            // INT-096 writes with the DEPLOYED store path at startup -- so every row written by a
-            // debug build was labelled with whatever was deployed at the time, which is exactly the
-            // case we iterate in. Third field today that recorded something adjacent to what it
-            // claimed.
-            //
-            // current_exe() names the process that actually wrote the row. INT-096 avoids it for
-            // BUILD IDENTITY because the deployed binary is makeWrapper-wrapped and the wrapper path
-            // is not the hash it wants -- but for "which binary emitted this line" the wrapper path
-            // is the honest answer, and it still differs per rebuild.
-            let build = crate::exec::build_identity();
-            // ⚠️ AND THE TYPED LINE, BECAUSE base_cmd IS POST-EXPANSION. Two spine-on rows read
-            // `echo assets` on the current build while `echo assets` traces as CLAIMED -- which is
-            // three different stories behind one row: a glob (`assets` is a real directory here), an
-            // alias result, or a line genuinely typed that way. A row that cannot distinguish them
-            // reads as evidence for whichever cause was expected. THIRD field added to this
-            // instrument for the same reason as the first two: decide what a row must let you rule
-            // OUT before collecting rows.
-            let _ = writeln!(
-                f,
-                "{}\t{}\t{}\t{}\t{}\t{}",
-                build, spine, shape, word, base_cmd, original_line
-            );
-        }
+        crate::observe::emit(crate::observe::Event {
+            level: crate::observe::Level::Debug,
+            target: crate::observe::Target::Executor,
+            message: "legacy execution reached",
+            fields: &[
+                ("spine", spine.to_string()),
+                ("shape", shape.to_string()),
+                ("word", word),
+                ("expanded", base_cmd.to_string()),
+                ("typed", original_line.to_string()),
+            ],
+        });
     }
     let _cmd_timer_start = std::time::Instant::now();
     let execution = crate::exec::execute_with_context(
