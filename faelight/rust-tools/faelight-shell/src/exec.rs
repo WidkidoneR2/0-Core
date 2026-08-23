@@ -1726,9 +1726,12 @@ pub fn execute_with_context(
     // because no instrument reports which door a line went through.
     //
     // Env-gated so it costs nothing when off, and stderr so it never pollutes a pipe.
-    if std::env::var("FSH_TRACE").is_ok() {
-        eprintln!("[fsh-trace] execute_with_context raw={:?}", raw);
-    }
+    crate::observe::emit(crate::observe::Event {
+        level: crate::observe::Level::Debug,
+        target: crate::observe::Target::Executor,
+        message: "execute_with_context",
+        fields: &[("raw", format!("{:?}", raw))],
+    });
     let ctx = ExecContext::from_line(raw, expanded, db);
     // INT-191: the lifecycle record opens HERE, before anything can return. postexec cannot own it:
     // it never runs for a blocked command, and it deliberately skips `exit`. Those are precisely

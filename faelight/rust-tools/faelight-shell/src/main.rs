@@ -866,7 +866,12 @@ fn main() -> Result<()> {
             println!("  fsh --version       print the version");
             println!("  fsh --help          print this");
             println!();
-            println!("  FSH_TRACE=1         report which executor claims each line");
+            // INT-207: FSH_TRACE and FSH_SPINE_TRACE are gone, replaced by ONE selector.
+            // The help is the shell's public account of its own instruments, so a variable named
+            // here that no longer exists sends the one person most likely to try it into silence.
+            println!("  FSH_OBSERVE=TARGETS  trace the shell: router, lexer, expansion,");
+            println!("                       executor, jobs, boot -- comma-separated, or all");
+            println!("  FSH_OBSERVE_LEVEL=L  trace, debug (default), info, warn");
             println!("  FSH_BOOT_PROFILE=1  report startup and per-command timings");
             println!("  FSH_SPINE=0         route through the legacy executor");
             println!("  FSH_KEEP_CWD=1      stay in the directory fsh was spawned in");
@@ -1511,9 +1516,12 @@ fn run_input(
         mark("about to route");
         match engine.route_through_spine(line, &mut job_table) {
             crate::engine::RouteOutcome::Handled => {
-                if std::env::var("FSH_TRACE").is_ok() {
-                    eprintln!("[fsh-trace] SPINE ran (post-alias): {:?}", line);
-                }
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Router,
+                    message: "spine ran (post-alias)",
+                    fields: &[("line", format!("{:?}", line))],
+                });
                 // CLOSE THE RECORD WHERE IT WAS OPENED. The opening moved above this fork
                 // earlier today so every executor is recorded, but the COMPLETION stayed in
                 // execute_and_record, which a spine-claimed line skips. Measured: 339 rows
@@ -1552,12 +1560,12 @@ fn run_input(
                 return crate::engine::SegmentOutcome::ExitShell
             }
             crate::engine::RouteOutcome::Declined => {
-                if std::env::var("FSH_TRACE").is_ok() {
-                    eprintln!(
-                        "[fsh-trace] spine DECLINED -> legacy (post-alias): {:?}",
-                        line
-                    );
-                }
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Router,
+                    message: "spine declined, legacy takes it (post-alias)",
+                    fields: &[("line", format!("{:?}", line))],
+                });
             }
         }
         // INT-169 INCREMENT 3: THE ASSIGNMENT PREFIX MOVED BELOW THE ROUTER.
@@ -1902,9 +1910,12 @@ fn run_input(
         // BUG-298-1: expand tilde in base_cmd before dispatch.
         let base_cmd = expand_tilde(&base_cmd);
         // INT-201: per-execution work. Advisories stay BELOW, in their current order.
-        if std::env::var("FSH_TRACE").is_ok() {
-            eprintln!("[fsh-trace] main.rs:1742 execute_and_record");
-        }
+        crate::observe::emit(crate::observe::Event {
+            level: crate::observe::Level::Debug,
+            target: crate::observe::Target::Router,
+            message: "entering execute_and_record",
+            fields: &[],
+        });
         let outcome = engine::execute_and_record(
             &mut engine,
             &raw_line,
@@ -2615,9 +2626,12 @@ fn repl_main() -> Result<()> {
                 let line = normalize_input(&line);
                 mark("REPL: line read, about to process");
                 let line = crate::expand::expand_braces(&line);
-                if std::env::var("FSH_TRACE").is_ok() {
-                    eprintln!("[fsh-trace] after expand_braces: {:?}", line);
-                }
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Expansion,
+                    message: "after expand_braces",
+                    fields: &[("line", format!("{:?}", line))],
+                });
                 mark("REPL: about to save input history");
                 match engine.db().save_history_entry(&line) {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
@@ -2652,9 +2666,12 @@ fn repl_main() -> Result<()> {
                 // boundary, able to disagree with the executor. That is its own intent, and it
                 // needs a ruling on who owns segment enumeration -- not a wider input string here.
                 let guard_line = engine.expand_aliases(&line);
-                if std::env::var("FSH_TRACE").is_ok() {
-                    eprintln!("[fsh-trace] after expand_aliases: {:?}", guard_line);
-                }
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Expansion,
+                    message: "after expand_aliases",
+                    fields: &[("line", format!("{:?}", guard_line))],
+                });
                 let guard_word = guard_command_word(&guard_line).map(|w| policy_identity(&w));
                 // INT-196 M6: RECORD WHAT THE UNIVERSAL GUARD JUDGED, so the heredoc site below can
                 // assert it is asking about the SAME string. Reading the control flow says `line` is
