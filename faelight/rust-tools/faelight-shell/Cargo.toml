@@ -23,7 +23,6 @@ libc = "0.2"
 ratatui = "0.28"
 crossterm = "0.28"
 portable-pty = "0.8"
-logos = "0.16.1"
 
 [dev-dependencies]
 proptest = "1.11.0"

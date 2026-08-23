@@ -273,8 +273,16 @@ So parser equivalence is demonstrated; EXECUTION equivalence is not.
 
 ⚠️ GATE DISCREPANCY to resolve: the hybrid-lexer gate says "regular tokens via logos", but step 2
 replaced logos on the word path with the hand-written stateful scanner (a regex alternation cannot
-express quoting -- `foo"bar baz"` is one word). logos is currently an unused dependency. Either the
-gate's wording needs revisiting or logos returns for the operator tokens at steps 5-7.
+express quoting -- `foo"bar baz"` is one word). RESOLVED 2026-08-23: LOGOS IS REMOVED FROM Cargo.toml. The gate's wording was the thing that was
+wrong, not the design. operator_at is a ten-arm match on (char, next_char) -- exactly what a DFA is
+good at -- but its own doc names the disqualifier: it is called ONLY in unquoted context, and the
+caller's state machine is the only thing that knows the difference, so logos would have to be
+invoked from INSIDE that state machine to match two characters.
+★ PROOF BY REMOVAL: zero source references, not even a use. The build is clean without it, which is
+the strongest evidence a dependency was unused. INT-198 cut logos and this finishes the job.
+⚠️ A GATE THAT CANNOT PASS IS THE SAME DEFECT AS A CHECK THAT CANNOT FAIL (INT-222). This gate asked
+for a design the project deliberately rejected on a stated reason, so it is corrected rather than
+carried.
 RESOLVED 2026-07-25 by an outside architecture review, which took the SECOND branch:
 "logos isn't the lexer -- it's the engine for the easy pieces. The shell lexer is
 still your state machine." So the split is by RESPONSIBILITY, not by coverage: the
