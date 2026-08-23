@@ -1422,9 +1422,19 @@ fn execute_dispatch(
             let filter = args.first().copied().unwrap_or("");
             let paths =
                 nix_query_lines(&["nix-store", "-q", "--references", "/run/current-system/sw"]);
+            // INT-227: None means the query could not run AT ALL, which is a different fact from
+            // a system whose profile references nothing. The message says which.
+            let Some(paths) = paths else {
+                return CommandResult::Error(
+                    crate::diagnostic::Diagnostic::error("cannot query the Nix store")
+                        .with_help("packages are read from the current system's references; this machine has no nix-store")
+                        .with_code("fsh::platform::no_nix_store"),
+                    1,
+                );
+            };
             if paths.is_empty() {
                 return CommandResult::Error(
-                    "packages: could not read /run/current-system/sw references"
+                    "packages: /run/current-system/sw references nothing"
                         .to_string()
                         .into(),
                     1,
@@ -7421,7 +7431,17 @@ fn store_cmd(args: &[&str]) -> CommandResult {
             out.push_str(&format!("  closure size : {}\n", clos_sz));
 
             // GC roots: is anything pinning it?
-            let roots = nix_query_lines(&["nix-store", "--query", "--roots", &path]);
+            // ⚠️ INT-227: "no GC roots -- nothing pins this" is a CLAIM ABOUT THE STORE. Printing
+            // it when the query never ran would assert something nobody asked. unwrap_or_default
+            // is honest here only because the branch below distinguishes them in the text.
+            let roots = match nix_query_lines(&["nix-store", "--query", "--roots", &path]) {
+                Some(r) => r,
+                None => {
+                    out.push_str("  pinned by    : (unknown -- cannot query the store here)\n");
+                    out.push_str("  referrers    : (unknown -- cannot query the store here)\n");
+                    return CommandResult::Output(out);
+                }
+            };
             if roots.is_empty() {
                 out.push_str("  pinned by    : \u{1b}[38;2;255;200;50m(no GC roots -- not directly pinned)\u{1b}[0m\n");
             } else {
@@ -7433,7 +7453,9 @@ fn store_cmd(args: &[&str]) -> CommandResult {
             }
 
             // Direct referrers (reverse-deps)
-            let refs = nix_query_lines(&["nix-store", "--query", "--referrers", &path]);
+            // Reachable only when the roots query above succeeded, so the store is answerable.
+            let refs = nix_query_lines(&["nix-store", "--query", "--referrers", &path])
+                .unwrap_or_default();
             let refs: Vec<&String> = refs.iter().filter(|r| **r != path).collect();
             if refs.is_empty() {
                 out.push_str("  referrers    : (none -- nothing else depends on it directly)\n");
@@ -7582,6 +7604,9 @@ fn store_reclaim() -> CommandResult {
 fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String {
     let mut rooted = 0usize;
     let mut unrooted = 0usize;
+    // ⚠️ INT-227: A COUNT NOBODY SEES IS THE SAME SILENCE ONE LEVEL UP. Reported below, and only
+    // when it happened, so a machine that CAN answer sees no change at all.
+    let mut unknown_roots = 0usize;
     let mut total_bytes: u64 = 0;
     for p in matches {
         // closure size in bytes (-S = closure, default bytes when no -h)
@@ -7593,11 +7618,13 @@ fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String
             }
         }
         // pinned? (any GC root)
-        let roots = nix_query_lines(&["nix-store", "--query", "--roots", p]);
-        if roots.is_empty() {
-            unrooted += 1;
-        } else {
-            rooted += 1;
+        // ⚠️ INT-227: THE WORST OF THE FOUR. An unanswerable query counted as UNROOTED, so on a
+        // machine without nix-store every path tallied as reclaimable and a size figure was
+        // computed from a question that was never asked. Unknown is its own count now.
+        match nix_query_lines(&["nix-store", "--query", "--roots", p]) {
+            Some(roots) if roots.is_empty() => unrooted += 1,
+            Some(_) => rooted += 1,
+            None => unknown_roots += 1,
         }
     }
     let human = |b: u64| -> String {
@@ -7614,13 +7641,26 @@ fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String
         "  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  '{}' matches {} store paths:\n",
         target, n
     ));
-    msg.push_str(&format!("  total closure : {}\n", human(total_bytes)));
+    // ⚠️ AND THE SAME DEFECT ONE LINE UP, found by reading rather than guessing: path-info also
+    // returns None where nix is absent, so total_bytes stays zero and this printed "0.0 B" as a
+    // measured total. A size nobody could measure is not a size.
+    if unknown_roots == matches.len() && total_bytes == 0 {
+        msg.push_str("  total closure : (unknown -- the store could not be queried here)\n");
+    } else {
+        msg.push_str(&format!("  total closure : {}\n", human(total_bytes)));
+    }
     msg.push_str(&format!(
         "  pinned        : {} (GC-rooted -- a generation/result holds them)\n",
         rooted
     ));
     msg.push_str(&format!(
         "  \u{1b}[38;2;255;200;50mreclaimable\u{1b}[0m   : {} (no GC root -- would be freed by a GC)\n", unrooted));
+    if unknown_roots > 0 {
+        msg.push_str(&format!(
+            "  unknown       : {} (store not queryable -- NOT counted as reclaimable)\n",
+            unknown_roots
+        ));
+    }
     msg.push_str(
         "  (note: closure sizes overlap heavily via shared deps; total is an upper bound,\n",
     );
@@ -7686,21 +7726,41 @@ fn nix_query(args: &[&str]) -> Option<String> {
 }
 
 // Run a command (first arg = binary) and capture stdout lines.
-fn nix_query_lines(argv: &[&str]) -> Vec<String> {
+/// Run a store query and return its lines.
+///
+/// ⚠️ INT-227: THIS RETURNED `vec![]` ON SPAWN FAILURE, and that was a lie in one place feeding
+/// four callers. On a system without `nix-store` every caller received an empty list and read it
+/// as "no roots", "no referrers", "no references" -- confidently wrong, and indistinguishable
+/// from a query that genuinely found nothing.
+///
+/// ⭐ THE ABSENCE IS REPRESENTABLE NOW, so the compiler finds every consumer rather than four
+/// hand-maintained guards:
+///   Some(entries)  -- the query ran and produced these
+///   Some(vec![])   -- the query RAN and found nothing. A real answer.
+///   None           -- the query could not be performed at all
+///
+/// ★ THE HELPER STAYS PURE: no printing, no diagnostics, no fabricated fallback. A helper that
+/// prints has two jobs, and the caller is the one that knows what silence should mean to it.
+///
+/// ⏭ AND THE KNOWN LIMIT, recorded so the next change is the right one: `None` currently conflates
+/// "the tool is missing" with "the query failed after starting". If a caller ever needs those
+/// apart, the answer is `Result<Vec<String>, Diagnostic>` -- NOT a boolean beside this, and NOT
+/// printing from in here.
+fn nix_query_lines(argv: &[&str]) -> Option<Vec<String>> {
     if argv.is_empty() {
-        return vec![];
+        return None;
     }
     let out = std::process::Command::new(argv[0])
         .args(&argv[1..])
-        .output();
-    match out {
-        Ok(o) => String::from_utf8_lossy(&o.stdout)
+        .output()
+        .ok()?;
+    Some(
+        String::from_utf8_lossy(&out.stdout)
             .lines()
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect(),
-        Err(_) => vec![],
-    }
+    )
 }
 
 fn sys_logs(args: &[&str]) -> CommandResult {
