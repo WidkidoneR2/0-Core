@@ -22,6 +22,33 @@
 //! signal to adopt the real crate instead of reimplementing it badly.
 
 use std::io::Write;
+use std::sync::OnceLock;
+
+/// THE process clock. One monotonic origin for the whole process, owned here so a caller cannot
+/// create a fourth one.
+///
+/// ⚠️ INITIALIZED EXPLICITLY, NOT LAZILY, and the difference is the whole point. A OnceLock set on
+/// first use is technically one clock, but if twelve milliseconds of work happen before the first
+/// event, the clock starts late and that event reports 0ms. That is not a boot clock. If something
+/// before `init()` needs measuring, move `init()` earlier rather than making the clock lazy.
+static PROCESS_START: OnceLock<std::time::Instant> = OnceLock::new();
+
+/// Start the process clock. Call once, as early in `main` as observation can reasonably begin.
+pub fn init() {
+    let _ = PROCESS_START.set(std::time::Instant::now());
+}
+
+/// Milliseconds since this process's observability clock started.
+///
+/// NAMED FOR ITS CLOCK ON PURPOSE. `duration_ms`, `startup_elapsed_ms` and `command_elapsed_ms`
+/// are all plausible future measurements, and a bare `elapsed_ms` would leave nobody able to say
+/// which zero a number belongs to. This one means: since fsh began observing itself.
+fn process_elapsed_ms() -> u128 {
+    PROCESS_START
+        .get()
+        .map(|t| t.elapsed().as_millis())
+        .unwrap_or(0)
+}
 
 /// Severity. Ordered: a target enabled at `Debug` also emits `Info` and above.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -96,6 +123,12 @@ pub struct Event<'a> {
 /// sets the floor, defaulting to `debug`. Nothing is enabled without the variable, which is the
 /// gate that keeps an ordinary session exactly as quiet as it is today.
 pub fn enabled(target: Target, level: Level) -> bool {
+    // FSH_BOOT_PROFILE IS A RENDERING MODE, NOT AN INSTRUMENT. It selects the boot target and asks
+    // for the human boot format; it does not measure anything itself. That is what collapsed three
+    // separate clocks into one.
+    if target == Target::Boot && std::env::var("FSH_BOOT_PROFILE").is_ok() {
+        return true;
+    }
     let Ok(spec) = std::env::var("FSH_OBSERVE") else {
         return false;
     };
@@ -130,6 +163,18 @@ pub fn emit(ev: Event<'_>) {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
+    let elapsed = process_elapsed_ms();
+
+    // ONE EVENT, SEVERAL RENDERERS. The boot profile is a VIEW of the same event every other sink
+    // sees, which is why its numbers can no longer disagree with a trace line's.
+    if ev.target == Target::Boot && std::env::var("FSH_BOOT_PROFILE").is_ok() {
+        let mut boot = format!("[boot] {:>6}ms {}", elapsed, ev.message);
+        for (k, v) in ev.fields {
+            boot.push_str(&format!(" {}={}", k, v));
+        }
+        let _ = writeln!(std::io::stderr(), "{}", boot);
+        return;
+    }
 
     let mut line = format!(
         "[fsh {} {}] {}",
@@ -145,6 +190,9 @@ pub fn emit(ev: Event<'_>) {
     if let Some(id) = correlation() {
         line.push_str(&format!(" correlation_id={}", id));
     }
+    // A FIRST-CLASS PROPERTY, not an arbitrary field: every event carries it, derived from the one
+    // clock, so no caller can supply a number measured from somewhere else.
+    line.push_str(&format!(" process_elapsed_ms={}", elapsed));
     line.push_str(&format!(" ts={}", ts));
 
     let _ = writeln!(std::io::stderr(), "{}", line);

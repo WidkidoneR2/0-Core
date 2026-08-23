@@ -751,24 +751,27 @@ pub(crate) static IS_DASH_C: std::sync::atomic::AtomicBool =
 /// INT-167: the boot profiler, callable from anywhere rather than only from main.
 /// Its own clock starts at first use, so a mark inside run_input measures from there.
 pub(crate) fn mark(what: &str) {
-    use std::sync::OnceLock;
-    static T0: OnceLock<std::time::Instant> = OnceLock::new();
-    if std::env::var("FSH_BOOT_PROFILE").is_ok() {
-        let t0 = T0.get_or_init(std::time::Instant::now);
-        eprintln!("[boot] {:>6}ms {}", t0.elapsed().as_millis(), what);
-    }
+    // INT-207: THIS NO LONGER OWNS A CLOCK. It had a lazy OnceLock starting at first use, main()
+    // had its own Instant, and runtime_init() had a third with a different prefix -- so
+    // "[boot] 6ms X" and "[boot] 6ms runtime_init: Y" were measured from different zeros and could
+    // not be compared. All three now emit against the one process clock observe::init() starts.
+    observe::emit(observe::Event {
+        level: observe::Level::Debug,
+        target: observe::Target::Boot,
+        message: what,
+        fields: &[],
+    });
 }
 
 fn main() -> Result<()> {
     // INT-182 profiled startup once and INT-176 found a 643ms doctor run inside it. This is
     // the same instrument, kept: fsh -c true costs 305ms in release against bash's 3ms, and
     // 158 of those is why the suite takes 155 seconds. Env-gated, so it costs nothing when off.
-    let boot_t0 = std::time::Instant::now();
-    let boot_mark = |what: &str| {
-        if std::env::var("FSH_BOOT_PROFILE").is_ok() {
-            eprintln!("[boot] {:>6}ms {}", boot_t0.elapsed().as_millis(), what);
-        }
-    };
+    // INT-207: THE PROCESS CLOCK STARTS HERE, explicitly and as early as observation can begin.
+    // A lazily-started clock reports 0ms for its own first event no matter how much work preceded
+    // it, which is not a boot clock. If something above this needs measuring, this call moves up.
+    observe::init();
+    let boot_mark = mark;
     boot_mark("main entered");
     boot_mark("SIGPIPE + SHLVL + identity exports done");
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
@@ -1008,16 +1011,10 @@ struct RuntimeInit {
 }
 
 fn runtime_init() -> Result<RuntimeInit> {
-    let t0 = std::time::Instant::now();
-    let mark = |what: &str| {
-        if std::env::var("FSH_BOOT_PROFILE").is_ok() {
-            eprintln!(
-                "[boot]   {:>6}ms runtime_init: {}",
-                t0.elapsed().as_millis(),
-                what
-            );
-        }
-    };
+    // INT-207: was a third clock with its own zero and a "runtime_init:" prefix. The prefix is
+    // kept in the message so the stage is still named, but the NUMBER now shares one origin with
+    // every other boot mark, which is what makes them comparable.
+    let mark = |what: &str| crate::mark(&format!("runtime_init: {}", what));
     let db = db::ForestDb::open()?;
     mark("db open");
     config::ensure_default();
