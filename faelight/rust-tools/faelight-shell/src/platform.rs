@@ -46,6 +46,35 @@ pub fn running_build_identity() -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
+/// Is there an executable named `name` on PATH?
+///
+/// ⭐ A GENERIC PRIMITIVE WITH SPECIFIC CALLERS. Not `has_systemctl()` -- that shape accumulates
+/// `has_journalctl`, `has_nix_store`, `has_pacman` as separate one-off functions until the module
+/// is the junk drawer this one was written to avoid.
+///
+/// ⚠️ EXISTENCE, NOT USABILITY. This says a binary is on PATH, nothing more: not that it will
+/// succeed, not that the daemon behind it is running. A caller that needs more must ask for more.
+///
+/// ★ AND IT DOES NOT EXECUTE ANYTHING. Shelling out to `command -v` would depend on `sh` existing,
+/// which is a platform assumption inside a portability fix. PATH is read directly.
+pub fn has_tool(name: &str) -> bool {
+    let Ok(path) = std::env::var("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|dir| {
+        let candidate = dir.join(name);
+        candidate.is_file() && is_executable(&candidate)
+    })
+}
+
+#[cfg(unix)]
+fn is_executable(p: &std::path::Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(p)
+        .map(|m| m.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,6 +89,21 @@ mod tests {
             "identity must name something that exists: {id}"
         );
         assert!(id.starts_with('/'), "identity must be absolute: {id}");
+    }
+
+    /// A tool that certainly exists, and one that certainly does not. ⚠️ The negative case is the
+    /// one that matters: a lookup that returned true for everything would make every degrade path
+    /// dead code, and nothing would notice.
+    #[test]
+    fn has_tool_finds_what_is_there_and_not_what_is_not() {
+        assert!(has_tool("sh"), "sh is on PATH on any unix");
+        assert!(!has_tool("definitely-not-a-real-binary-xyzzy"));
+    }
+
+    /// ⚠️ NOT FOOLED BY A DIRECTORY OR A NON-EXECUTABLE FILE of the same name.
+    #[test]
+    fn has_tool_requires_an_executable_file() {
+        assert!(!has_tool("."), "a directory entry is not a tool");
     }
 
     /// ⚠️ THE NIX BRANCH IS ASSERTED ONLY WHERE NIX IS, so this test says something true on Void

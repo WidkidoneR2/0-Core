@@ -7134,6 +7134,19 @@ fn sys_services() -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
+    // ⚠️ INT-227 G4: THIS RETURNED AN EMPTY TABLE ON A SYSTEM WITHOUT systemctl. The spawn error
+    // was swallowed by .ok() and .unwrap_or_default(), so a Void machine with plenty of services
+    // running would be told it had none -- a FALSE STATEMENT, not a missing feature, and
+    // indistinguishable from a legitimately quiet system. Same defect class as a doctor check that
+    // cannot fail and an instrument writing into a directory that does not exist.
+    if !crate::platform::has_tool("systemctl") {
+        return CommandResult::Error(
+            crate::diagnostic::Diagnostic::error("no systemctl on this system")
+                .with_help("services are listed through systemd; this machine does not have it")
+                .with_code("fsh::platform::no_service_manager"),
+            1,
+        );
+    }
     let output = std::process::Command::new("systemctl")
         .args([
             "list-units",
@@ -7705,6 +7718,20 @@ fn sys_logs(args: &[&str]) -> CommandResult {
     if follow {
         // Streaming mode — follow journalctl
         let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        // ⚠️ INT-227 G4: CHECKED BEFORE ANYTHING IS STARTED OR ANNOUNCED. This used to print
+        // "streaming logs -- press Enter to stop", a separator, and then nothing forever, because
+        // the spawn sat inside `if let Ok(child)` and its failure was silent. Announcing a stream
+        // the machine cannot produce is a lie; announcing it and THEN refusing is a shorter lie.
+        // ★ AND THE GUARD BELONGS ABOVE THE READER THREAD, not merely above the header: that thread
+        // blocks on stdin waiting for the Enter that stops a stream which would never start.
+        if !crate::platform::has_tool("journalctl") {
+            println!("  {}", "no journalctl on this system".bright_yellow());
+            println!(
+                "  {}",
+                "logs are read from the systemd journal; this machine has none".dimmed()
+            );
+            return CommandResult::Empty;
+        }
         let r = running.clone();
         std::thread::spawn(move || {
             let mut input = String::new();
