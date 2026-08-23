@@ -1,0 +1,208 @@
+//! INT-207: fsh's structured observability, owned rather than depended on.
+//!
+//! WHY THIS EXISTS. Five hand-rolled instruments were counted on 2026-08-23: FSH_SPINE_TRACE
+//! (stderr), FSH_TRACE (stderr), FSH_BOOT_PROFILE (stderr), legacy-exec.log (file) and
+//! sh-fallback.log (file). Each was decisive when it was needed -- FSH_TRACE found a lifecycle
+//! recorder that had been dead three days, FSH_BOOT_PROFILE found a 210ms alias transaction -- and
+//! each was written from scratch, learning the same lessons separately.
+//!
+//! ★ THE PROOF THAT A SHARED SCHEMA IS NEEDED IS IN THEIR OWN COMMENTS. Two file instruments
+//! independently invented the SAME TWO FIELDS, each explaining why it had been added after the
+//! fact: `door` ("what makes a row mean anything") and `build` ("a row that cannot be dated to a
+//! binary cannot be read as evidence"). They are fields of every event, not per-caller afterthoughts.
+//!
+//! WHY NOT THE `tracing` CRATE. INT-198 ruled tracing as the mechanism, and that ruling STANDS --
+//! but it names the CAPABILITY AND CONTRACT, not a mandatory dependency. INT-198 owns what must
+//! exist; portability owns how fsh implements it. A shell that starts in 8ms and may run on musl
+//! has reason to stay small, and the event SCHEMA below is the stable contract, so a `tracing`
+//! backend can sit behind `emit` later without touching a single caller.
+//!
+//! ⚠️ AND THE CONSTRAINT THAT KEEPS THIS HONEST: do not accidentally recreate `tracing`. The API is
+//! three items -- Event, emit, enabled. If it grows spans, subscribers or a registry, that is the
+//! signal to adopt the real crate instead of reimplementing it badly.
+
+use std::io::Write;
+
+/// Severity. Ordered: a target enabled at `Debug` also emits `Info` and above.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Level {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+}
+
+impl Level {
+    fn as_str(self) -> &'static str {
+        match self {
+            Level::Trace => "trace",
+            Level::Debug => "debug",
+            Level::Info => "info",
+            Level::Warn => "warn",
+        }
+    }
+}
+
+/// What part of the shell an event came from. An enum rather than a string so a typo is a
+/// compile error and the set stays enumerable -- the registry is closed by construction.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Target {
+    Router,
+    Lexer,
+    Expansion,
+    Executor,
+    Jobs,
+    Boot,
+}
+
+impl Target {
+    fn as_str(self) -> &'static str {
+        match self {
+            Target::Router => "router",
+            Target::Lexer => "lexer",
+            Target::Expansion => "expansion",
+            Target::Executor => "executor",
+            Target::Jobs => "jobs",
+            Target::Boot => "boot",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Target> {
+        Some(match s {
+            "router" => Target::Router,
+            "lexer" => Target::Lexer,
+            "expansion" => Target::Expansion,
+            "executor" => Target::Executor,
+            "jobs" => Target::Jobs,
+            "boot" => Target::Boot,
+            _ => return None,
+        })
+    }
+}
+
+/// One observation. THIS IS THE STABLE CONTRACT -- the renderer is not.
+pub struct Event<'a> {
+    pub level: Level,
+    pub target: Target,
+    pub message: &'a str,
+    /// Structured pairs. The emission path adds `door`, `build` and `correlation_id`; a caller
+    /// supplies only what is specific to its own event.
+    pub fields: &'a [(&'a str, String)],
+}
+
+/// Is this target enabled at this level?
+///
+/// FSH_OBSERVE selects targets: `FSH_OBSERVE=router,jobs` or `FSH_OBSERVE=all`. FSH_OBSERVE_LEVEL
+/// sets the floor, defaulting to `debug`. Nothing is enabled without the variable, which is the
+/// gate that keeps an ordinary session exactly as quiet as it is today.
+pub fn enabled(target: Target, level: Level) -> bool {
+    let Ok(spec) = std::env::var("FSH_OBSERVE") else {
+        return false;
+    };
+    let floor = std::env::var("FSH_OBSERVE_LEVEL")
+        .ok()
+        .and_then(|s| match s.as_str() {
+            "trace" => Some(Level::Trace),
+            "debug" => Some(Level::Debug),
+            "info" => Some(Level::Info),
+            "warn" => Some(Level::Warn),
+            _ => None,
+        })
+        .unwrap_or(Level::Debug);
+    if level < floor {
+        return false;
+    }
+    spec == "all"
+        || spec
+            .split(',')
+            .filter_map(|t| Target::from_str(t.trim()))
+            .any(|t| t == target)
+}
+
+/// THE ONE EMISSION PATH. Filtering, field attachment and rendering happen here and nowhere else,
+/// so a new instrument cannot invent its own destination or forget a field the way the five
+/// hand-rolled ones did.
+pub fn emit(ev: Event<'_>) {
+    if !enabled(ev.target, ev.level) {
+        return;
+    }
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+
+    let mut line = format!(
+        "[fsh {} {}] {}",
+        ev.level.as_str(),
+        ev.target.as_str(),
+        ev.message
+    );
+    for (k, v) in ev.fields {
+        line.push_str(&format!(" {}={}", k, v));
+    }
+    // The two fields five instruments each discovered they needed, attached once.
+    line.push_str(&format!(" door={}", door()));
+    if let Some(id) = correlation() {
+        line.push_str(&format!(" correlation_id={}", id));
+    }
+    line.push_str(&format!(" ts={}", ts));
+
+    let _ = writeln!(std::io::stderr(), "{}", line);
+}
+
+/// Which entry point the shell was invoked through. Interactive lines and `-c` lines reach the
+/// same code, and a row that does not say which is evidence about neither.
+fn door() -> &'static str {
+    if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
+        "dash-c"
+    } else {
+        "interactive"
+    }
+}
+
+/// The session:execution pair, so a trace line and a command_execution row describe the same
+/// event. Read from the environment rather than minted -- one owner per typed line.
+fn correlation() -> Option<String> {
+    let s = std::env::var("FSH_SESSION_ID").ok()?;
+    let e = std::env::var("FSH_EXECUTION_ID").ok()?;
+    Some(format!("{}:{}", s, e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The gate that matters most: nothing is chattier by default.
+    #[test]
+    fn silent_without_the_variable() {
+        std::env::remove_var("FSH_OBSERVE");
+        assert!(!enabled(Target::Router, Level::Warn));
+        assert!(!enabled(Target::Jobs, Level::Trace));
+    }
+
+    #[test]
+    fn targets_select_independently() {
+        std::env::set_var("FSH_OBSERVE", "router,jobs");
+        assert!(enabled(Target::Router, Level::Info));
+        assert!(enabled(Target::Jobs, Level::Info));
+        assert!(!enabled(Target::Lexer, Level::Info));
+        std::env::remove_var("FSH_OBSERVE");
+    }
+
+    #[test]
+    fn level_is_a_floor() {
+        std::env::set_var("FSH_OBSERVE", "all");
+        std::env::set_var("FSH_OBSERVE_LEVEL", "warn");
+        assert!(enabled(Target::Router, Level::Warn));
+        assert!(!enabled(Target::Router, Level::Debug));
+        std::env::remove_var("FSH_OBSERVE");
+        std::env::remove_var("FSH_OBSERVE_LEVEL");
+    }
+
+    #[test]
+    fn unknown_target_names_are_ignored_not_matched() {
+        std::env::set_var("FSH_OBSERVE", "nonsense");
+        assert!(!enabled(Target::Router, Level::Warn));
+        std::env::remove_var("FSH_OBSERVE");
+    }
+}

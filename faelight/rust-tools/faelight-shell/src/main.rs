@@ -17,6 +17,9 @@ mod health_tui;
 mod history;
 mod history_tui;
 mod intent_tui;
+/// INT-207: the one observability path. See observe.rs for why it is owned rather than
+/// a dependency.
+mod observe;
 mod output;
 mod pty_exec;
 mod registry;

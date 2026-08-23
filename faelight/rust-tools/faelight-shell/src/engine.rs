@@ -993,7 +993,12 @@ impl Engine {
         crate::mark("route_through_spine entered");
         let spine_on = !crate::is_repl_state_command(line)
             && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
-        let spine_trace = std::env::var_os("FSH_SPINE_TRACE").is_some();
+        // INT-207: FSH_SPINE_TRACE MIGRATED. It was the first hand-rolled instrument and the
+        // one the intent names; it now asks the single filter instead of reading its own variable.
+        // FSH_OBSERVE=router replaces FSH_SPINE_TRACE=1, and the six emissions below became
+        // structured events that carry door, correlation_id and a timestamp without asking.
+        let spine_trace =
+            crate::observe::enabled(crate::observe::Target::Router, crate::observe::Level::Debug);
         // ⚠️ TWO REASONS THE SPINE IS OFF, and saying the wrong one is worse than silence: the
         // env var is an escape hatch the user chose, while the exclusion is structural. This
         // printed "disabled by FSH_SPINE=0" for every `jobs` and `kill %n` with the variable
@@ -1001,9 +1006,19 @@ impl Engine {
         // there.
         if spine_trace && !spine_on {
             if crate::is_repl_state_command(line) {
-                eprintln!("  [spine-router] excluded: REPL-state command -- legacy owns it");
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Router,
+                    message: "excluded: REPL-state command, legacy owns it",
+                    fields: &[],
+                });
             } else {
-                eprintln!("  [spine-router] disabled by FSH_SPINE=0 -- legacy routing");
+                crate::observe::emit(crate::observe::Event {
+                    level: crate::observe::Level::Debug,
+                    target: crate::observe::Target::Router,
+                    message: "disabled by FSH_SPINE=0, legacy routing",
+                    fields: &[],
+                });
             }
         }
         if spine_on {
@@ -1027,7 +1042,12 @@ impl Engine {
                 match attempt {
                     Ok(attempt) => {
                         if spine_trace {
-                            eprintln!("  [spine-router] claimed (background): {line}");
+                            crate::observe::emit(crate::observe::Event {
+                                level: crate::observe::Level::Debug,
+                                target: crate::observe::Target::Router,
+                                message: "claimed (background)",
+                                fields: &[("line", line.to_string())],
+                            });
                         }
                         let started = match attempt {
                             crate::exec::BackgroundAttempt::Single(c, l) => jobs.register(c, &l),
@@ -1060,7 +1080,12 @@ impl Engine {
             ) {
                 crate::exec::SpineOutcome::Executed(result) => {
                     if spine_trace {
-                        eprintln!("  [spine-router] claimed: {line}");
+                        crate::observe::emit(crate::observe::Event {
+                            level: crate::observe::Level::Debug,
+                            target: crate::observe::Target::Router,
+                            message: "claimed",
+                            fields: &[("line", line.to_string())],
+                        });
                         crate::mark("spine claimed, execution done");
                     }
                     if self.absorb_result(result, "spine")
@@ -1075,14 +1100,24 @@ impl Engine {
                 // than for the diagnostic, so the next claimed-but-not-executed case fits it too.
                 crate::exec::SpineOutcome::Handled { exit_code } => {
                     if spine_trace {
-                        eprintln!("  [spine-router] handled: {line}");
+                        crate::observe::emit(crate::observe::Event {
+                            level: crate::observe::Level::Debug,
+                            target: crate::observe::Target::Router,
+                            message: "handled",
+                            fields: &[("line", line.to_string())],
+                        });
                     }
                     self.set_last_exit(Some(exit_code));
                     return RouteOutcome::Handled;
                 }
                 crate::exec::SpineOutcome::Declined => {
                     if spine_trace {
-                        eprintln!("  [spine-router] declined: {line}");
+                        crate::observe::emit(crate::observe::Event {
+                            level: crate::observe::Level::Debug,
+                            target: crate::observe::Target::Router,
+                            message: "declined",
+                            fields: &[("line", line.to_string())],
+                        });
                     }
                 }
             }
