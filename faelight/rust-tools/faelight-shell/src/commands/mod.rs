@@ -11865,7 +11865,13 @@ fn vm_list() -> CommandResult {
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     ));
     // INT-030: scan ~/vms/*.qcow2 -- no virsh dependency
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    // INT-227 category A: the fallback used to be one user's home directory, which is
+    // wrong for EVERY other user and silently scans somebody else's disk. If HOME is
+    // unset there is no home to guess at, so the list is empty and says so.
+    let Some(home) = std::env::var("HOME").ok() else {
+        out.push_str("  HOME is not set, so there is no ~/vms to scan\n");
+        return CommandResult::Output(out);
+    };
     let vms_dir = std::path::PathBuf::from(&home).join("vms");
     // Check which qcow2 names are currently running via qemu process list
     let running_output = std::process::Command::new("pgrep")
@@ -14484,12 +14490,19 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let mut checks: Vec<(&str, bool, String)> = Vec::new(); // (name, passed, note)
 
     // 1. fsh binary exists and is this binary
-    let fsh_bin = std::path::Path::new("/home/christian/0-core/scripts/faelight-shell").exists();
+    // INT-227 category A: this claimed to check "fsh binary exists and is this binary"
+    // while testing a HARDCODED path in one user's checkout -- a path that does not
+    // exist on this machine, so the check reported missing EVERY TIME it ran.
+    // current_exe() is the honest answer to "which binary is this" -- the same value
+    // FSH_BUILD exports and the instrument log writes, through one owner.
+    let fsh_bin = std::env::current_exe().is_ok();
     checks.push((
         "fsh binary",
         fsh_bin,
         if fsh_bin {
-            "scripts/faelight-shell present".into()
+            std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "running".to_string())
         } else {
             "missing!".into()
         },
