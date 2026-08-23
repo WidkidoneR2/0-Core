@@ -3,7 +3,7 @@ id: 207
 date: 2026-08-08
 type: arch
 title: "fsh has no structured logging -- FSH_SPINE_TRACE is a bare eprintln behind an env check, and it was the decisive debugging tool twice in one week"
-status: in-progress
+status: complete
 tags: [architecture, rust, design]
 ---
 
