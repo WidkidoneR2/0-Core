@@ -1916,7 +1916,26 @@ fn run_input(
             return crate::engine::SegmentOutcome::ExitShell;
         }
         // INT-194 — Prediction-aware suggestions (pattern detection)
-        friday_next_cmd_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
+        // INT-191: THE NEXT-COMMAND HINT IS GONE, and the measurement is why.
+        //
+        // It asked "what usually follows this?" by self-joining shell_history on id + 1.
+        // Measured 2026-08-22 across real history, its qualifying pairs at freq >= 3 were:
+        //   c -> clear 21,339 · cd ~/0-core -> cd /home/christian/0-core 2,768
+        //   d -> core doctor run 612 · fg commit -> ~/0-core/scripts/faelight-git commit 370
+        //
+        // Those are TYPED -> EXECUTED pairs: the two halves of one command, not a workflow.
+        // INT-191 already documents this failure mode for faelight-daemon -- "it is learning
+        // the alias table" -- and this consumer had the same defect at a WEAKER threshold.
+        // The rest of the top twelve were fsh-test artefacts, including the suite's own
+        // exit -> echo loop boundary.
+        //
+        // A second predictor in postexec was deleted the same day for the same reason. Two
+        // owners of one idea, both learning the alias table.
+        //
+        // NOT DEFERRED, DELETED. Lacking a trustworthy sequence source is a reason not to
+        // implement the feature, not a reason to keep an incorrect one. When id + 1 is
+        // replaced by an explicit execution sequence, prediction returns as a NEW
+        // implementation with its own evidence -- not as this machinery reconnected.
         // INT-296 Phase 5 (pre-migration citation): consecutive failure detection.
         friday_failure_hint(&engine, &base_cmd, &mut shown_friday_suggestions);
         // Phase 17 — evaluate triggers after every command
@@ -3302,83 +3321,6 @@ fn friday_failure_hint(
             let _ = std::process::Command::new("notify-send")
                 .args(["🌲 Friday", &notify_body])
                 .spawn();
-        }
-    }
-}
-
-/// Friday's next-command prediction hint -- ADVISORY, interactive-only.
-/// After each command, check if there is a strong "next command" pattern
-///
-/// ⚠️ INT-201: lifted out of the postexec tail so its inputs are STATED rather than ambient.
-/// The dedupe set is session state owned by the REPL -- a `-c` caller must never reach this.
-fn friday_next_cmd_hint(
-    engine: &engine::Engine,
-    base_cmd: &str,
-    shown: &mut std::collections::HashSet<String>,
-) {
-    let cmd_key = commands::command_word(&base_cmd);
-    // Only suggest for meaningful commands, not builtins
-    let skip_suggest = matches!(
-        cmd_key.as_str(),
-        "d" | "ls" | "cd" | "echo" | "cat" | "help" | "exit" | "q" | "clear"
-    );
-    if !skip_suggest {
-        // Find what command most often follows this one
-        let next_cmd: Option<String> = engine
-            .db()
-            .conn
-            .query_row(
-                "SELECT next_cmd, COUNT(*) as freq
-             FROM (
-               SELECT h2.command as next_cmd
-               FROM shell_history h1
-               JOIN shell_history h2 ON h2.id = h1.id + 1
-               WHERE h1.command LIKE ?1
-               AND h2.command NOT LIKE ?1
-               AND length(h2.command) > 2
-             )
-             GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
-                rusqlite::params![format!("{}%", cmd_key)],
-                |r| r.get(0),
-            )
-            .ok();
-        if let Some(suggestion) = next_cmd {
-            // Only show if it appears often (check count >= 3)
-            let freq: i64 = engine
-                .db()
-                .conn
-                .query_row(
-                    "SELECT COUNT(*) FROM shell_history h1
-                 JOIN shell_history h2 ON h2.id = h1.id + 1
-                 WHERE h1.command LIKE ?1 AND h2.command = ?2",
-                    rusqlite::params![format!("{}%", cmd_key), &suggestion],
-                    |r| r.get(0),
-                )
-                .unwrap_or(0);
-            if freq >= 3 {
-                // Check friday_hints setting -- off = silent learning
-                let hints_enabled = engine
-                    .db()
-                    .conn
-                    .query_row(
-                        "SELECT value FROM shell_state WHERE key='config.friday_hints'",
-                        [],
-                        |r| r.get::<_, String>(0),
-                    )
-                    .unwrap_or_else(|_| "on".to_string());
-                if hints_enabled != "off" {
-                    // INT-246: deduplicate hints -- only show once per session
-                    let hint_key = format!("hint_{}", suggestion);
-                    if !shown.contains(&hint_key) {
-                        shown.insert(hint_key);
-                        println!(
-                            "  {} you usually run {} next",
-                            "💡".normal(),
-                            suggestion.bright_cyan()
-                        );
-                    }
-                }
-            }
         }
     }
 }
