@@ -7864,8 +7864,21 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                             .nth(2)
                             .unwrap_or("")
                             .replace('-', " ");
+                        // INT-221 G5: --active MEANT ITS OPPOSITE. The condition skipped
+                        // everything that was NOT future, so `pick intent --active` listed the 51
+                        // FUTURE intents and hid the two actually in progress. Found by running
+                        // every subcommand rather than only `pick file`, which is what G5 asks for.
+                        //
+                        // `status` here is the DIRECTORY NAME, and there is no `planned` directory:
+                        // planned intents live in `future/` with `status: planned` in their
+                        // frontmatter. So this picker labels a planned intent [future] while `intl`
+                        // labels the same intent [planned] -- two vocabularies for one state, which
+                        // is how the filter came to mean the wrong thing.
+                        //
+                        // ACTIVE MEANS IN-PROGRESS, matching the "ACTIVE (in-progress)" heading
+                        // `intl` already prints. One word, one meaning.
                         let status = *dir;
-                        if extra == "--active" && status != "future" {
+                        if extra == "--active" && status != "in-progress" {
                             continue;
                         }
                         items.push_str(&format!(
