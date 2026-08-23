@@ -180,6 +180,26 @@ mod tests {
         assert!(d.code.is_none());
     }
 
+    /// GATE 3's renderer asserted as a CONTRACT, not as text. The wire format is built by hand
+    /// rather than derived precisely so a field rename cannot change it silently -- and this parses
+    /// the output back rather than string-matching it, so formatting is free to change and the
+    /// contract is not.
+    #[test]
+    fn the_json_contract_is_stable() {
+        let d = Diagnostic::error("no target after RedirectOut")
+            .with_label(7, 8, "this redirect has nothing to write to")
+            .with_code("fsh::spine::missing_redirect_target");
+        let v: serde_json::Value = serde_json::from_str(&d.to_json()).expect("valid json");
+        assert_eq!(v["severity"], "error");
+        assert_eq!(v["code"], "fsh::spine::missing_redirect_target");
+        assert_eq!(v["labels"][0]["start"], 7);
+        assert_eq!(v["labels"][0]["end"], 8);
+        assert!(
+            v["help"].is_null(),
+            "absent help is null, not an empty string"
+        );
+    }
+
     /// Today's terminal output is unchanged for a migrated site.
     #[test]
     fn display_renders_exactly_the_old_string() {

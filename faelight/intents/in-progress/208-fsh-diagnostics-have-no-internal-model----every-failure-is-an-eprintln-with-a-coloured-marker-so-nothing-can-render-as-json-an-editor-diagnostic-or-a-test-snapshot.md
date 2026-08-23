@@ -49,26 +49,50 @@ Rewriting every existing error site. The model and one renderer that matches tod
 deliverable; migration is per-site and follows the evidence, starting where spans already exist.
 
 ## Success Criteria
-- [ ] The Diagnostic model is defined and OWNED by fsh -- no crate type in the signature
-- [ ] One parse or lower error renders through it with its span, proving the spans that already
+- [x] The Diagnostic model is defined and OWNED by fsh -- no crate type in the signature
+<!-- src/diagnostic.rs. Severity, message, labels, help, code. No crate appears in any signature.
+     miette remains where INT-198 put it: a RENDERER at error.rs:223, its only use in the codebase.
+     Commit 6d57243b. -->
+- [x] One parse or lower error renders through it with its span, proving the spans that already
       exist can reach a user
-- [ ] TWO renderers exist, and the second is not cosmetic: terminal plus one machine-readable form
-- [ ] A test asserts a diagnostic by VALUE rather than by matching printed text
-- [ ] Today's terminal output is unchanged for the migrated site, or the difference is stated
-- [ ] The INT-199 convention is expressible in the model -- what happened, what changed, why, what
+<!-- PROVEN LIVE: `spine-exec echo a >` reports labels [{start:7, end:8}] -- the exact position of
+     the `>`. That byte range has been recorded by the lexer since the spine was written and was
+     consumed by nothing.
+     ★ AND THE SITE THAT DESTROYED IT IS GONE: two sites read `format!("spine: {e:?}")`, flattening
+     a SpineAttemptError whose four variants each carry the structured thing. spine::diagnose now
+     projects them. Three of those variants carried #[allow(dead_code)] with a comment saying the
+     data was kept for a consumer that did not exist yet -- all three allows removed, because it
+     does now. Commit 3a614e24. -->
+- [x] TWO renderers exist, and the second is not cosmetic: terminal plus one machine-readable form
+<!-- Display for the terminal; to_json() for everything else, behind FSH_DIAGNOSTIC_JSON at
+     engine.rs:224 -- a REAL consumer, not a test. A renderer only a test calls is decoration,
+     which is the charge INT-222 makes against the doctor.
+     Same failure, both ways: `x unterminated quote` + `  close the quote`, versus
+     {"code":"fsh::spine::incomplete","help":"close the quote",...}. A tool matches the code without
+     reading prose. serde_json was already a dependency, so no new crate and no ruling needed. -->
+- [x] A test asserts a diagnostic by VALUE rather than by matching printed text
+<!-- Four tests in diagnostic.rs. a_diagnostic_is_inspectable_not_just_readable checks fields;
+     the_json_contract_is_stable PARSES the output back rather than string-matching it, so
+     formatting can change and the contract cannot, and asserts absent help is null rather than an
+     empty string -- the distinction a consumer would care about.
+     a_string_becomes_a_message_and_nothing_more asserts the conversion FABRICATES NOTHING. -->
+- [x] Today's terminal output is unchanged for the migrated site, or the difference is stated
+<!-- Unchanged for the 313 mechanically converted sites: Display renders exactly the old string,
+     asserted by display_renders_exactly_the_old_string, and 159/159 fsh-test green throughout.
+     ⚠️ TWO DIFFERENCES, STATED RATHER THAN QUIET: (1) a diagnostic carrying help now prints a
+     second dimmed line -- new output, and the point of the intent. (2) spine failures changed from
+     Debug dumps to real messages: `unterminated quote` where it read
+     `Incomplete(LexIncomplete { kind: UnterminatedQuote, .. })`. Both are improvements; neither is
+     invisible. -->
+- [x] The INT-199 convention is expressible in the model -- what happened, what changed, why, what
       to do next -- rather than reconstructed per site
-- [ ] Each gate carries evidence per INT-158
-[Describe the goal and desired outcome]
-
-## The Problem
-[What problem does this solve?]
-
-## The Solution
-[High-level approach]
-
-## Success Criteria
-- [ ] ...
-
+<!-- message = what happened · labels = where · help = what to do next · code = a stable handle.
+     Demonstrated end to end: a bare `&` reports "expected a command" with
+     "shell structure here requires a command, and there is none" -- which is ParseError::NoCommand's
+     own rustdoc, previously readable only by someone reading the source. The convention is now
+     PRODUCED FROM THE MODEL rather than hand-written at each site. -->
+- [x] Each gate carries evidence per INT-158
+<!-- this block. -->
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit
 hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
