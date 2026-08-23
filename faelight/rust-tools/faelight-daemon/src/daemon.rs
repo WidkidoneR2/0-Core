@@ -72,11 +72,9 @@ impl Daemon {
         tokio::spawn(async move {
             health_watchdog(watchdog_db).await;
         });
-        // INT-196 v2 — Prediction pre-compute (every 30 seconds)
-        let predict_db = db_path.clone();
-        tokio::spawn(async move {
-            prediction_precompute(predict_db).await;
-        });
+        // INT-191: the prediction pre-compute task is gone. It learned the alias table from
+        // shell_history adjacency and reported it as a prediction. See the note where the
+        // function used to live.
         // INT-196 v2 — Signal aggregation (every 30 seconds)
         let signal_db = db_path.clone();
         tokio::spawn(async move {
@@ -485,36 +483,23 @@ async fn wal_checkpoint_loop(db_path: String) {
         }
     }
 }
-/// Prediction pre-compute — runs every 30 seconds
-async fn prediction_precompute(db_path: String) {
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-        let Ok(conn) = rusqlite::Connection::open(&db_path) else {
-            continue;
-        };
-        let now = chrono::Utc::now().timestamp();
-        // Find most frequent next command in history
-        let suggestion: Option<String> = conn
-            .query_row(
-                "SELECT next_cmd FROM (
-               SELECT h2.command as next_cmd, COUNT(*) as freq
-               FROM shell_history h1
-               JOIN shell_history h2 ON h2.id = h1.id + 1
-               WHERE h1.timestamp > ?1
-               GROUP BY next_cmd ORDER BY freq DESC LIMIT 1
-             )",
-                rusqlite::params![now - 86400],
-                |r| r.get(0),
-            )
-            .ok();
-        if let Some(ref s) = suggestion {
-            let _ = conn.execute(
-                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('daemon_prediction', ?1)",
-                rusqlite::params![s],
-            );
-        }
-    }
-}
+// INT-191: THE PREDICTION PRE-COMPUTE IS GONE, and this was the worst of four consumers.
+//
+// It wrote shell_state.daemon_prediction every thirty seconds from the single most frequent
+// adjacent pair in shell_history -- no threshold, no exclusions. But h2.id = h1.id + 1 does
+// not mean "the next command"; it means "the other half of the same command", because the
+// shell records a typed line and its executed form as separate rows. INT-191 measured this
+// consumer directly: its top predictions were clear 17,305 and c 17,283 -- one keystroke and
+// its own alias expansion. It was not learning what follows what. It was learning the alias
+// table, and reporting it confidently.
+//
+// The readers now return None. The protocol already models suggestion as Option<String>, so
+// the wire shape is unchanged and None is the honest value while no trustworthy sequence
+// source exists. Three other adjacency consumers were deleted the same day for the same
+// measurement.
+//
+// A replacement reads the events table by action and timestamp -- an explicit stream, the
+// shape core already uses in predict_from_event_bus -- not row adjacency.
 /// Signal aggregation — summarizes engine signals every 30 seconds
 async fn signal_aggregation(db_path: String) {
     loop {
@@ -598,13 +583,8 @@ async fn get_forest_context() -> crate::protocol::Response {
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
         .unwrap_or(0);
     // Top prediction
-    let top_prediction: Option<String> = conn
-        .query_row(
-            "SELECT value FROM shell_state WHERE key = 'daemon_prediction'",
-            [],
-            |r| r.get(0),
-        )
-        .ok();
+    // INT-191: nothing writes daemon_prediction any more. None is the honest answer.
+    let top_prediction: Option<String> = None;
     crate::protocol::Response::ForestContext {
         health,
         alignment,
@@ -615,26 +595,19 @@ async fn get_forest_context() -> crate::protocol::Response {
     }
 }
 async fn get_prediction() -> crate::protocol::Response {
-    let db_path = get_db_path();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
-        return crate::protocol::Response::Prediction {
-            suggestion: None,
-            confidence: 0.0,
-            cached_at: 0,
-        };
-    };
-    let now = chrono::Utc::now().timestamp();
-    let suggestion: Option<String> = conn
-        .query_row(
-            "SELECT value FROM shell_state WHERE key = 'daemon_prediction'",
-            [],
-            |r| r.get(0),
-        )
-        .ok();
+    // INT-191: this reports NO PREDICTION, and says so rather than guessing.
+    //
+    // It used to read shell_state.daemon_prediction, written from the most frequent
+    // adjacent pair in shell_history -- which measured to be the alias table, not a
+    // workflow. The writer is gone; nothing populates the key, so opening the database
+    // at all would be ceremony. The wire shape is unchanged.
+    //
+    // confidence 0.0 is load-bearing: the old code reported a hardcoded 0.75 for a
+    // value computed with no threshold, a number that looked measured and was not.
     crate::protocol::Response::Prediction {
-        suggestion,
-        confidence: 0.75,
-        cached_at: now,
+        suggestion: None,
+        confidence: 0.0,
+        cached_at: 0,
     }
 }
 async fn get_watchdog_status() -> crate::protocol::Response {
