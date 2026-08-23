@@ -484,7 +484,10 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
                 if all_ok {
                     return CommandResult::Output(format!("  {} trace complete", "✅".normal()));
                 } else {
-                    return CommandResult::Error("script failed — see trace above".to_string(), 1);
+                    return CommandResult::Error(
+                        "script failed — see trace above".to_string().into(),
+                        1,
+                    );
                 }
             }
 
@@ -492,10 +495,10 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
             if ok {
                 CommandResult::Output(format!("  {} script complete", "✅".normal()))
             } else {
-                CommandResult::Error("script exited with error".to_string(), 1)
+                CommandResult::Error("script exited with error".to_string().into(), 1)
             }
         }
-        Err(e) => CommandResult::Error(format!("cannot read {}: {}", path, e), 1),
+        Err(e) => CommandResult::Error(format!("cannot read {}: {}", path, e).into(), 1),
     }
 }
 
@@ -508,6 +511,6 @@ pub fn run_source(source: &str, db: &ForestDb, core_root: &str) -> CommandResult
     if ok {
         CommandResult::Empty
     } else {
-        CommandResult::Error("script exited with error".to_string(), 1)
+        CommandResult::Error("script exited with error".to_string().into(), 1)
     }
 }

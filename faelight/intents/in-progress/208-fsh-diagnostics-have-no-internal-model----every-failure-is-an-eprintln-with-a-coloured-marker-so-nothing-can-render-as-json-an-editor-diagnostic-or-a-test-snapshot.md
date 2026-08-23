@@ -3,7 +3,7 @@ id: 208
 date: 2026-08-08
 type: arch
 title: "fsh diagnostics have no internal model -- every failure is an eprintln with a coloured marker, so nothing can render as JSON, an editor diagnostic, or a test snapshot"
-status: planned
+status: in-progress
 tags: [architecture, rust, design]
 ---
 

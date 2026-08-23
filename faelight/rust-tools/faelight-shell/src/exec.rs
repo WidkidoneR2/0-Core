@@ -481,7 +481,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             .as_secs() as i64;
         let error_msg = match result {
             crate::commands::CommandResult::Error(e, _) => e.clone(),
-            _ => "unknown error".to_string(),
+            _ => "unknown error".to_string().into(),
         };
         let log_key = format!("failure_log_{}", ts);
         let log_val = format!("{}|{}", ctx.raw, error_msg);
@@ -510,7 +510,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             match stashed {
                 Some(s) if !s.trim().is_empty() => s,
                 _ => match result {
-                    CommandResult::Error(e, _) => e.clone(),
+                    CommandResult::Error(d, _) => d.to_string(),
                     _ => String::new(),
                 },
             }
@@ -758,7 +758,7 @@ pub fn execute_spine(
     let ctx = ExecContext::from_plan(plan, source, db);
     crate::mark("  execute_spine: ctx built");
     if let Some(block_reason) = preexec(&ctx, core_root, rules) {
-        return CommandResult::Error(block_reason, 1);
+        return CommandResult::Error(block_reason.into(), 1);
     }
     crate::mark("  execute_spine: preexec done");
     let result = commands::execute_plan_dispatch(plan, source, db, core_root);
@@ -1020,7 +1020,11 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
             CommandResult::Output(s) => Ok(s),
             // Produced nothing, so substituted nothing. Correct, not an error.
             CommandResult::Empty => Ok(String::new()),
-            CommandResult::Error(e, _) => Err(crate::spine::plan::CaptureError::Failed(e)),
+            // INT-208: CaptureError still carries a String. A capture failure arguably wants the
+            // whole diagnostic, but widening it is a separate change with its own callers.
+            CommandResult::Error(d, _) => {
+                Err(crate::spine::plan::CaptureError::Failed(d.to_string()))
+            }
             // Stringifying a structured Value here would make this adapter invent display
             // semantics for a layer it does not own. What `$(tt)` should mean is a Lane 5
             // question about structured pipelines, not something to settle by accident.
@@ -1061,16 +1065,13 @@ pub enum SpineAttemptError {
     /// reasons from it, and a router that wanted to distinguish a lex error from an unsupported
     /// operator would need exactly this. Dropping it to silence a warning would repeat the
     /// mistake the whole decline-reason work existed to fix.
-    #[allow(dead_code)]
     Parse(crate::spine::parser::ParseError),
     /// INT-169 G2: the input is not finished. NOT a parse failure and NOT a refusal -- more input
     /// may make it spine-owned.
-    #[allow(dead_code)]
     Incomplete(crate::spine::lexer::LexIncomplete),
     /// INT-169 G2: valid shell the spine intentionally does not own. THIS is what legacy fallback
     /// means; `Parse` is not. The doc above predicted this variant -- "a router that wanted to
     /// distinguish a lex error from an unsupported operator would need exactly this."
-    #[allow(dead_code)]
     Refused(crate::spine::parser::Refusal),
     Lower(crate::spine::plan::LowerError),
 }
@@ -1238,7 +1239,7 @@ pub fn execute_spine_source(
             [one] => execute_spine(one, source, db, core_root, rules),
             many => crate::commands::execute_pipeline_plans(many, db),
         },
-        Err(e) => CommandResult::Error(format!("spine: {e:?}"), 1),
+        Err(e) => CommandResult::Error(crate::spine::diagnose(&e), 1),
     }
 }
 
@@ -1382,7 +1383,7 @@ pub fn try_execute_spine_source(
         // counts as claimed -- a defect to investigate, not a fallback to celebrate.
         Err(e) => {
             bump(&SPINE_CLAIMED);
-            SpineOutcome::Executed(CommandResult::Error(format!("spine: {e:?}"), 1))
+            SpineOutcome::Executed(CommandResult::Error(crate::spine::diagnose(&e), 1))
         }
     }
 }
@@ -1765,7 +1766,7 @@ pub fn execute_with_context(
         }
         return ExecutionOutcome {
             execution_id: ctx.execution_id,
-            result: CommandResult::Error(block_reason, 1),
+            result: CommandResult::Error(block_reason.into(), 1),
         };
     }
 
