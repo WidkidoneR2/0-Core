@@ -1482,3 +1482,92 @@ mod cmdword_check_tests {
         assert_eq!(exempt, 0);
     }
 }
+
+/// INT-231: the citation check's own tests. ⚠️ A SEPARATE MODULE ON PURPOSE -- these were first
+/// written inside `cmdword_check_tests`, which belongs to INT-196, because that module happened to
+/// own a convenient fixture helper. Sharing a test module between unrelated checks is how a suite
+/// stops saying what it covers.
+#[cfg(test)]
+mod citation_check_tests {
+    use super::check_dangling_intent_citations;
+    use std::path::PathBuf;
+
+    /// INT-231: a throwaway tree with BOTH a ledger and a source file, because this check reads
+    /// two things and a fixture giving it one would prove nothing.
+    fn citation_fixture(name: &str, filed: &[&str], body: &str) -> PathBuf {
+        assert!(
+            name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            "fixture name must be [A-Za-z0-9_]"
+        );
+        let root = std::env::temp_dir().join(format!("deadwood_cite_{name}"));
+        let _ = std::fs::remove_dir_all(&root);
+        let intents = root.join("faelight/intents/complete");
+        std::fs::create_dir_all(&intents).expect("fixture intents");
+        for f in filed {
+            std::fs::write(intents.join(f), "---\nid: x\n---\n").expect("fixture intent");
+        }
+        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        std::fs::create_dir_all(&src).expect("fixture dir");
+        std::fs::write(src.join("main.rs"), body).expect("fixture file");
+        root
+    }
+
+    /// ⭐ THE ONE A RANGE CHECK WOULD MISS, and the reason this check asks about existence.
+    /// INT-180 is cited three times in the real engine and sits BELOW the highest filed number, so
+    /// "is the number plausible?" would pass it silently. It is also the only citation that turned
+    /// out to name something real -- the sway removal -- which is why missing it would have cost
+    /// the most.
+    #[test]
+    fn a_gap_below_the_highest_filed_number_is_reported() {
+        let root = citation_fixture(
+            "gap",
+            &["100-early.md", "300-late.md"],
+            "// INT-200 something\n",
+        );
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(found.len(), 1, "a hole below the maximum must be reported");
+        assert!(
+            found[0].detail.contains("INT-200") && found[0].detail.contains("gap"),
+            "and it must be named a gap, not lumped in with forward citations: {}",
+            found[0].detail
+        );
+    }
+
+    /// ⚠️ THE OTHER HALF, per INT-222: a check that cannot go green is the same defect as one that
+    /// cannot fail. A citation whose intent EXISTS must produce nothing.
+    #[test]
+    fn a_citation_that_resolves_is_not_reported() {
+        let root = citation_fixture("clean", &["100-early.md"], "// INT-100 something\n");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(
+            found.is_empty(),
+            "a citation that resolves must be silent: {:?}",
+            found.iter().map(|f| &f.detail).collect::<Vec<_>>()
+        );
+    }
+
+    /// ⚠️ AND THE FAILURE THIS FAMILY OF CHECKS EXISTS TO PREVENT: an unanswerable question must
+    /// not be presented as an answer. With no ledger, every citation would look dangling.
+    #[test]
+    fn an_unreadable_ledger_says_so_rather_than_flagging_everything() {
+        let root = std::env::temp_dir().join("deadwood_cite_noledger");
+        let _ = std::fs::remove_dir_all(&root);
+        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        std::fs::create_dir_all(&src).expect("dir");
+        std::fs::write(src.join("main.rs"), "// INT-100 INT-200 INT-300\n").expect("file");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            found.len(),
+            1,
+            "one finding about the ledger, not three about citations"
+        );
+        assert!(
+            found[0].detail.contains("not readable"),
+            "it must name the real problem: {}",
+            found[0].detail
+        );
+    }
+}
