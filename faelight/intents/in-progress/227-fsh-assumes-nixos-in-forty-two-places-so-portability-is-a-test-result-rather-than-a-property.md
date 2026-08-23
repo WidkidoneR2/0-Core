@@ -56,21 +56,63 @@ runit rather than systemd, optionally musl rather than glibc. Omarchy and NixOS 
 systemd and glibc, so neither would find these bugs.
 
 ## Success Criteria
-- [ ] G1 THE CENSUS IS AN ARTIFACT, NOT A PARAGRAPH: a committed file listing every
+- [x] G1 THE CENSUS IS AN ARTIFACT, NOT A PARAGRAPH: a committed file listing every
       site with its category (A wrong-everywhere / B platform-capability / C noise).
       Produced mechanically so it can be re-run and diffed
-- [ ] G2 CATEGORY A IS FIXED FIRST AND SEPARATELY: no fallback to a literal home
+<!-- docs/platform-census.md + generate-platform-census.py. 56 sites, each with a stated reason.
+     ⭐ AND IT GREW TWO CATEGORIES THE INTENT DID NOT HAVE, because reading forced them:
+       D  already correct -- candidate lists that probe and fall through, PATH additions that are
+          harmless when absent, and TEST FIXTURES where a literal path is right
+       GUARD  the has_tool checks and their messages -- the fix, not a finding
+     The check refuses to pass while any site is unread, and three rounds of that refusal found
+     what a count would have hidden: a matcher believed machine-specific was already shape-based,
+     and a "unread" site was a fixture whose #[test] sat four lines above the match. -->
+- [x] G2 CATEGORY A IS FIXED FIRST AND SEPARATELY: no fallback to a literal home
       directory, no hardcoded absolute path into one user's checkout. These are defects
       independent of portability and should not wait for an abstraction
-- [ ] G3 THE PLATFORM MODULE EXISTS AND IS THE ONLY PLACE THAT ANSWERS: what is the
-      service manager, the log source, the package manager, the system-rebuild command.
-      One owner, per the same rule that produced `fuzzy_select` and `correlation`
-- [ ] G4 A CATEGORY B CAPABILITY DEGRADES RATHER THAN BREAKS, demonstrated: with the
-      platform reporting no journald, `logs` says so and exits cleanly rather than
-      failing with a not-found error. The message names what is missing, per INT-215
-- [ ] G5 A TEST CONTROLS THE PLATFORM, so this is provable without a second machine.
-      `run_fsh_env` already exists (INT-221) and can set whatever the module reads
-- [ ] G6 NO PLATFORM FAILURE BECOMES A SUCCESSFUL-LOOKING EMPTY RESULT. A mechanical
+<!-- DONE 2026-08-23, commit be3fc0c1, before the module existed. mod.rs:11868's fallback to a
+     literal home replaced with an early return; mod.rs:14487's hardcoded script path replaced with
+     current_exe(). ★ THAT CHECK HAD NEVER PASSED -- the path did not exist on this machine, so it
+     reported missing every run since it was written. -->
+- [x] G3 THE PLATFORM MODULE EXISTS -- AND IT ANSWERS TWO QUESTIONS, NOT FIVE
+<!-- ⚠️ THE GATE'S OWN LIST WAS THE WRONG SHAPE, and the first draft followed it: six questions
+     with ONE caller between them. Six questions and one consumer is a dumping ground rather than
+     an abstraction. Services, logs, rebuild and store queries are CAPABILITY DETECTION; build
+     identity is IDENTITY. Different concerns, different lifetimes, and mixing them because both
+     happen to be platform-dependent is how a module becomes a junk drawer.
+     src/platform.rs answers exactly two:
+       running_build_identity()  -- which build is running. On Nix the store path stays the
+         identity, because the old code's comment recorded why current_exe() is unreliable there
+         (the deployed binary is makeWrapper-wrapped); elsewhere the executable IS the artifact.
+       has_tool(name)            -- is this executable on PATH. A GENERIC PRIMITIVE with specific
+         callers: not has_systemctl(), which accumulates has_journalctl, has_nix_store, has_pacman
+         until the module is the junk drawer again. Existence, not usability. Reads PATH directly
+         rather than shelling to `command -v`, which would assume a shell inside a portability fix.
+     ★ AND MOST OF THE REST NEEDED NO ABSTRACTION: three self-location sites already probe a
+     candidate list and fall through, so on Void the Nix entries simply miss. -->
+- [x] G4 A CATEGORY B CAPABILITY DEGRADES RATHER THAN BREAKS, demonstrated
+<!-- ⚠️ AND WHAT THEY DID BEFORE IS THE SHARPEST ARGUMENT THIS INTENT HAS: THEY LIED.
+     `services` used .ok() then unwrap_or_default(), so a missing systemctl produced an EMPTY
+     TABLE -- a machine with services running told it had none.
+     `logs -f` printed "streaming logs -- press Enter to stop", a separator, and then NOTHING
+     FOREVER, because the spawn sat inside `if let Ok(child)`.
+     A second, static journalctl spawn had the same defect and was found only by the lint.
+     `nix_query_lines` returned vec![] on spawn failure, feeding FOUR callers that each read it as
+     "no roots" / "no referrers" / "no references".
+     `store_summarize_matches` printed "total closure: 0.0 B" as a MEASURED size.
+     ★ Same defect class as a doctor check that cannot fail: the failure is indistinguishable from
+     a legitimate empty result.
+     Now: each names what is absent. The log guard had to move TWICE -- above the header, then
+     above the stdin reader thread, which blocks waiting for the Enter that stops a stream that
+     would never start. Commits 64d8215a, b86a4543. -->
+- [x] G5 A TEST CONTROLS THE PLATFORM, so this is provable without a second machine
+<!-- has_tool reads PATH, so stripping ONE directory simulates Void. Measured live:
+     `services` with systemctl -> a real table; without -> "no systemctl on this system".
+     `logs -f` without journalctl -> names the absence and RETURNS, where it used to block.
+     `packages` without nix-store -> "cannot query the Nix store".
+     `store why <path>` without nix-store -> "(unknown -- cannot query the store here)" for roots
+     and referrers, where it would have claimed nothing pins the path. -->
+- [x] G6 NO PLATFORM FAILURE BECOMES A SUCCESSFUL-LOOKING EMPTY RESULT. A mechanical
       check, red first.
       ⚠️ REWORDED 2026-08-23, AND THE ORIGINAL WAS UNACHIEVABLE. It asked that no site
       outside the platform module NAME a service manager or a store path -- but
@@ -91,7 +133,21 @@ systemd and glibc, so neither would find these bugs.
       "no GC roots" without asking the store; `total closure: 0.0 B` as a measured size.
       ⭐ AND THE RULE THAT FALLS OUT: `Result` and `?` fail honestly by construction.
       The three patterns above are where lies come from.
-- [ ] G7 each gate carries evidence per INT-158
+<!-- ⚠️⚠️ THE FIRST ATTEMPT AT THIS GATE PROVED IT COULD NOT FAIL, WHICH IS WHY IT MOVED.
+     A scanner read source text for swallowed errors near a platform spawn. Disabling a live guard
+     with `if false &&` left the guard TEXT in place, so the scanner still saw the call and passed.
+     A checker that reads text cannot establish a runtime property, and the PLATFORM-CHECKED marker
+     that grew alongside it is a DECLARATION rather than evidence -- a comment can claim anything.
+     ★ SO THE GATE IS THE RUNTIME TEST, and the scanner is demoted to a LINT that surfaces new
+     candidates. fsh-test cases, 162/162:
+       services_without_systemctl_reports_unavailable
+       logs_without_journalctl_reports_unavailable
+       packages_without_nix_store_reports_unavailable
+     Each strips ONE tool from PATH, runs the real command, and asserts SEMANTICALLY -- not that
+     the platform was consulted, but that a person is told the capability is missing rather than
+     shown an empty result. Commit 09c65d0c. -->
+- [x] G7 each gate carries evidence per INT-158
+<!-- this block. -->
 
 ## Non-goals
 - Supporting distros nobody will run. The matrix is NixOS, Void, Omarchy -- and the
