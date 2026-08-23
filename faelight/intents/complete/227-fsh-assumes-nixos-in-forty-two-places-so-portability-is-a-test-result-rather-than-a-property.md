@@ -1,7 +1,7 @@
 ---
 id: 227
 title: "fsh assumes NixOS in forty-two places, so portability is a test result rather than a property"
-status: in-progress
+status: complete
 type: infrastructure
 priority: high
 date: 2026-08-23
