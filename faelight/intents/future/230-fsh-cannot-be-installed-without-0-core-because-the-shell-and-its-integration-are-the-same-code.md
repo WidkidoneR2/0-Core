@@ -75,6 +75,36 @@ in place.
 which boundary failed. Prove the shell runs as part of the existing checkout FIRST. Standalone
 ownership is a separate architectural migration.
 
+## ⭐ WHY THIS MATTERS: PACKAGING IS DOWNSTREAM OF THIS BOUNDARY (his plan, 2026-08-23)
+He arrived at the destination independently and it sharpens the intent: fsh should be installed the
+way bash is -- a versioned package, core files under system paths, user customisation confined to
+`~/.config/`. His words: *"treat it like real software from the start: package it, version it, own
+the core, and give users clean extension points instead of the source itself."*
+
+    void   ->  xbps template, xbps-install fsh
+    arch   ->  PKGBUILD / AUR, or a small personal repo
+    both   ->  /usr/bin/fsh + /usr/share/fsh, root-owned; user edits ~/.config/fsh only
+    always ->  tagged releases (v0.1.0), never a living checkout of main
+
+⭐⭐ AND MOST OF IT IS ALREADY TRUE, which is worth recording so nobody rebuilds it:
+- **The user side EXISTS.** `config.rs:81` reads `~/.config/faelight-shell/config.fsh`, and there is
+  already `~/.config/faelight-shell/plugins/` (`mod.rs:7014`) and `.../scripts/` (`mod.rs:16079`).
+  Config, plugins and scripts -- all three extension points, in the XDG location, today.
+- **The lock is STRONGER than the plan assumes.** fsh is a Rust binary, and on NixOS the deployed
+  config is a home-manager symlink into `/nix/store`, which `config.rs:67` already records as
+  READ-ONLY. Not root-owned-and-editable -- immutable.
+- **Versioning EXISTS.** Semver, `cicomplete` prompting for bumps, `bump-versions`, and INT-102 owns
+  the tool-version-versus-forest-release architecture. fsh is at 3.8.4.
+
+⚠️⚠️ **SO THE ONLY THING BLOCKING HIS PLAN IS THIS INTENT.** A PKGBUILD that installs
+`/usr/bin/fsh` produces a binary that expects `~/0-core/faelight/intents/` to exist, because 68
+sites read 0-Core's layout. **You cannot package what cannot install alone.** Packaging is not a
+parallel workstream -- it is the thing this boundary unlocks.
+
+★ AND THE SOCIAL HALF IS RIGHT AND COSTS NOTHING TO ADOPT EARLY: clear ownership, an official
+install method, versioned releases, and the expectation that users report bugs rather than editing
+an installed copy. That part is documentation, and it can be written the day the boundary lands.
+
 ## Success Criteria
 - [ ] G1 THE 68 SITES ARE CLASSIFIED BY CAPABILITY, as a committed artifact produced mechanically so
       it can be re-run and diffed. The classification decides the scope; it is not decoration
