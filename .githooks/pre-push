@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Tracked hook -- see .githooks/README.md
+#
+# ⚠️ FINDING THE BINARY IS THE WHOLE PROBLEM THIS SOLVES, so it is done in the open:
+# a built binary first (a working tree), then PATH (an installed system). If neither exists the
+# hook FAILS rather than passing, because a gate that cannot run must never look like one that did.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+for candidate in "$root/target/debug/zero-gate" "$root/target/release/zero-gate"; do
+    if [ -x "$candidate" ]; then
+        exec "$candidate" "pre-push"
+    fi
+done
+if command -v zero-gate > /dev/null 2>&1; then
+    exec zero-gate "pre-push"
+fi
+
+echo "zero-gate not found -- build it (cargo build -p zero-gate) or install it." >&2
+echo "Refusing to pass: an absent gate is not a satisfied gate." >&2
+exit 1
