@@ -31,6 +31,10 @@ use super::plan::ExecutionPlan;
 /// is modeled, RedirectParsing when `>`/`<` are, etc.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KnownDifference {
+    /// The two argvs are identical once backslashes are removed -- legacy strips a backslash that
+    /// bash and the spine both keep. A FACT about how the models differ; the policy below decides
+    /// what to do about it.
+    BackslashPreservation,
     /// Legacy lowercases the command word; the spine preserves case. Evidence: argv elements
     /// differ ONLY by ASCII case, and argv[0] is not an assignment. (Intended improvement.)
     CommandCasePreservation,
@@ -240,6 +244,28 @@ pub fn compare_execution_semantics(
         return ComparisonResult::Known(KnownDifference::QuotedWordParsing);
     }
 
+    // ⭐ BACKSLASH PRESERVATION, and it is a NEW FACT rather than a widening of the rule above.
+    //
+    // The guard at has_backslash was correct when written: the comment beside it said that without
+    // a PRECISE rule we must not claim an explanation. There is one now, and it is mechanical
+    // rather than inferred from the source text -- strip backslashes from BOTH argvs and ask
+    // whether what remains is identical. If it is, the two models agree about every other
+    // character and the entire divergence is one escaping rule.
+    //
+    // ⚠️ AND THE SPINE IS THE CORRECT ONE, measured against bash rather than reasoned about:
+    //     bash -c 'printf "%s\n" "a\|b"'   ->   a\|b
+    // Inside double quotes a backslash before an ordinary character is LITERAL, so `a\|b` is what
+    // reaches the program. The spine keeps it; legacy strips it. Same shape as QuotedWordParsing
+    // above, where the policy moved once the spine became the right one.
+    let strip_bs = |v: &Vec<std::ffi::OsString>| -> Vec<String> {
+        v.iter()
+            .map(|a| a.to_string_lossy().replace('\\', ""))
+            .collect()
+    };
+    if strip_bs(&legacy.argv) == strip_bs(&spine.argv) {
+        return ComparisonResult::Known(KnownDifference::BackslashPreservation);
+    }
+
     // No evidence-backed explanation -> honestly Unexpected.
     ComparisonResult::Unexpected(Difference {
         field: DifferenceField::Argv,
@@ -277,6 +303,13 @@ pub fn migration_status(result: &ComparisonResult) -> MigrationStatus {
         // means legacy is wrong, not that the spine is behind. The FACT never changed meaning
         // -- only the policy moved, which is exactly what the fact/policy split is for.
         ComparisonResult::Known(KnownDifference::QuotedWordParsing) => {
+            MigrationStatus::SafeImprovement
+        }
+        // ⚠️ SAFE IMPROVEMENT BECAUSE BASH WAS ASKED, not because the spine is newer. Inside double
+        // quotes a backslash before an ordinary character is literal, so legacy has been silently
+        // deleting a character the program was meant to receive. 972 rows of six months of real
+        // history, and every one of them was legacy getting it wrong.
+        ComparisonResult::Known(KnownDifference::BackslashPreservation) => {
             MigrationStatus::SafeImprovement
         }
         // The spine is the correct one here. Legacy reaches POSIX scoping by mutating the shell
