@@ -295,7 +295,35 @@ impl MigrationAudit {
 impl MigrationReport {
     pub fn render(&self) -> String {
         let mut out = String::new();
-        out.push_str("Migration Audit (spine vs legacy)\n\n");
+        out.push_str("Migration Audit (spine vs legacy)\n");
+
+        // ⚠️ WHICH SHELL PRODUCED THIS REPORT. Typed at a prompt, `spine migrate` runs the DEPLOYED
+        // binary, so a comparator change sitting unbuilt in the working tree is simply not in these
+        // numbers. That cost real time on 2026-08-24: the same command was run three times against
+        // a shell that predated the change being measured, and nothing in the output said so.
+        //
+        // ⭐ THE SUITE LEARNED THE SAME LESSON THE SAME DAY and its wording is deliberate here too:
+        // state the identity, then the CONSEQUENCE. A version printed alone is a fact a reader
+        // skims; a version printed beside what it means is one they act on.
+        //
+        // Unlike fsh-test there is no FSH_BIN to point elsewhere -- this code IS the shell -- so
+        // the honest move is to name the running build and the command that rebuilds it.
+        let version = env!("CARGO_PKG_VERSION");
+        let exe = std::env::current_exe()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "(unknown path)".to_string());
+        out.push_str(&format!("  produced by: fsh {version}  {exe}\n"));
+        if !exe.contains("/target/") {
+            out.push_str(
+                "  ⚠️  this is the DEPLOYED shell -- comparator changes you have not deployed are \
+                 NOT in these numbers\n",
+            );
+            out.push_str(
+                "     for the working tree: cargo build -p faelight-shell && \
+                 ./target/debug/faelight-shell -c 'spine migrate'\n",
+            );
+        }
+        out.push('\n');
         out.push_str(&format!("History entries seen:     {}\n", self.seen));
         out.push_str(&format!("Applicable to comparison: {}\n", self.compared));
         let skipped = self.skipped_empty + self.skipped_multiline + self.skipped_stderr;
