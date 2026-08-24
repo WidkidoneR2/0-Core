@@ -171,6 +171,45 @@ fn expect_eq(got: &str, expected: &str) -> Result<(), String> {
     }
 }
 
+/// The home directory of whoever is RUNNING the suite.
+///
+/// ⚠️ EARNED ON VOID 2026-08-23. Thirty-three cases failed on a second machine, and reading two of
+/// them settled it: `pwd_returns_path -- expected "/build/0-core" to contain "/home/christian"`
+/// and `whoami -- expected "christian" got "anon"`. The tests asserted the AUTHOR'S username and
+/// home directory, so they fail for any other user on any machine -- including a second account on
+/// the author's own laptop. INT-227 Category A: wrong everywhere, not merely off NixOS.
+///
+/// ⭐ THE PATTERN ALREADY EXISTED AND WAS SIMPLY NOT USED EVERYWHERE. `tilde_basic` and
+/// `tilde_in_path` ask $HOME and compare -- and those two PASSED on Void while their hardcoded
+/// siblings failed. This makes the working shape the easy one to reach for.
+fn home() -> String {
+    std::env::var("HOME").unwrap_or_default()
+}
+
+/// Who is RUNNING the suite.
+///
+/// ⚠️ NOT $USER, AND THE DISTINCTION MATTERS HERE. The test asserts what the shell's `whoami`
+/// prints, and `whoami` reports the EFFECTIVE UID's name from the password database -- which is
+/// not always what $USER holds. Under `sudo`, $USER is often the original user while `whoami`
+/// says root; in a container $USER may be unset entirely.
+///
+/// ⭐ SO THE TEST ASKS THE SAME SOURCE THE SHELL WILL: run `whoami` and compare. That makes the
+/// assertion "fsh agrees with the system" rather than "fsh agrees with a name we guessed", which
+/// is the property actually worth testing.
+fn whoami() -> String {
+    std::process::Command::new("whoami")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Where the 0-Core checkout lives for whoever is running the suite.
+fn core_root() -> String {
+    format!("{}/0-core", home())
+}
+
 fn expect_contains(got: &str, needle: &str) -> Result<(), String> {
     if got.contains(needle) {
         Ok(())
@@ -346,13 +385,13 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("echo 'forest grows'")?, "forest grows")
     }));
     results.push(test("pwd_returns_path", Category::Regression, || {
-        expect_contains(&run_fsh("pwd")?, "/home/christian")
+        expect_contains(&run_fsh("pwd")?, &home())
     }));
     results.push(test("uname_linux", Category::Regression, || {
         expect_contains(&run_fsh("uname")?, "Linux")
     }));
     results.push(test("whoami", Category::Regression, || {
-        expect_eq(&run_fsh("whoami")?, "christian")
+        expect_eq(&run_fsh("whoami")?, &whoami())
     }));
     results.push(test("which_bash", Category::Regression, || {
         expect_contains(&run_fsh("which bash")?, "bash")
@@ -366,7 +405,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("MSG=world; echo $MSG")?, "world")
     }));
     results.push(test("home_variable", Category::Regression, || {
-        expect_contains(&run_fsh("echo $HOME")?, "/home/christian")
+        expect_contains(&run_fsh("echo $HOME")?, &home())
     }));
     results.push(test("assign_number", Category::Regression, || {
         expect_eq(&run_fsh("N=42; echo $N")?, "42")
@@ -391,7 +430,7 @@ fn all_tests() -> Vec<TestResult> {
 
     // --- TILDE ---
     results.push(test("tilde_echo_subpath", Category::Tilde, || {
-        expect_contains(&run_fsh("echo ~/0-core")?, "/home/christian/0-core")
+        expect_contains(&run_fsh("echo ~/0-core")?, &core_root())
     }));
     results.push(test("tilde_ls_root", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core")?, "faelight")
@@ -564,7 +603,7 @@ fn all_tests() -> Vec<TestResult> {
         }
     }));
     results.push(test("echo_env_home", Category::Regression, || {
-        expect_contains(&run_fsh("echo $HOME")?, "/home/christian")
+        expect_contains(&run_fsh("echo $HOME")?, &home())
     }));
 
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
@@ -989,7 +1028,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("tilde_in_quoted_string", Category::Tilde, || {
         // ~ inside double quotes should expand
         let out = run_fsh("echo $HOME")?;
-        expect_contains(&out, "/home/christian")
+        expect_contains(&out, &home())
     }));
     results.push(test("exit_code_success", Category::Regression, || {
         run_fsh("true")?;
@@ -2179,13 +2218,7 @@ fn store_results(results: &[TestResult]) {
         return;
     };
     let commit = std::process::Command::new("git")
-        .args([
-            "-C",
-            "/home/christian/0-core",
-            "rev-parse",
-            "--short",
-            "HEAD",
-        ])
+        .args(["-C", &core_root(), "rev-parse", "--short", "HEAD"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
