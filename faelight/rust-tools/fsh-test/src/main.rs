@@ -2396,6 +2396,45 @@ fn main() {
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_else(|e| format!("could not ask: {}", e));
         println!("  under test: {}", ident);
+
+        // ⚠️ ASKING WAS NEVER THE PROBLEM -- NOT COMPARING WAS. The line above has always been
+        // honest, and on 2026-08-24 a full green run reported `3.8.1` while the change under
+        // examination was in 3.8.4. The banner said so and was read past, three times in one
+        // session, because a version printed among other version-shaped text does not announce
+        // that it is the WRONG one.
+        //
+        // ⭐ SO THE SUITE STATES THE CONSEQUENCE rather than the fact. fsh-test is versioned in
+        // lockstep with the shell in this workspace, so its own CARGO_PKG_VERSION is a usable
+        // expectation. A mismatch is not an error -- testing a deployed build on purpose is
+        // legitimate -- but it MUST NOT look like a run that covered your working tree.
+        // ⚠️ NOT fsh-test's OWN VERSION -- it is 2.0.0 while the shell is 3.8.x, so comparing
+        // them would warn on EVERY run, and a warning that always fires is one nobody reads.
+        // That is the failure risk-gate.sh already recorded about gates people route around.
+        //
+        // ⭐ THE RIGHT EXPECTATION IS THE SHELL'S VERSION IN THIS WORKSPACE, read from its
+        // Cargo.toml at RUNTIME rather than baked in: the suite and the shell are separate crates
+        // that version independently, so a compile-time constant would go stale silently.
+        let expected = std::fs::read_to_string("faelight/rust-tools/faelight-shell/Cargo.toml")
+            .ok()
+            .and_then(|t| {
+                t.lines()
+                    .find(|l| l.trim_start().starts_with("version"))
+                    .and_then(|l| l.split('"').nth(1).map(str::to_string))
+            })
+            .unwrap_or_default();
+        let saw_version = ident.split_whitespace().next().unwrap_or("");
+        // ⚠️ BOTH SIDES MUST BE KNOWN. An unreadable Cargo.toml (running from another directory)
+        // leaves `expected` empty, and comparing against nothing would warn on every run from
+        // outside the repo -- the same noise problem, arriving by a different door. Unknown stays
+        // unknown and says nothing.
+        if !saw_version.is_empty() && !expected.is_empty() && saw_version != expected {
+            println!(
+                "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
+            );
+            println!(
+                "     to test what you just built: FSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test"
+            );
+        }
     }
     println!(
         "{}",
