@@ -74,11 +74,66 @@ pub enum DifferenceField {
 
 /// An unexplained divergence -- data, not a boolean. Carries both sides so a human can see
 /// exactly what diverged and investigate.
+///
+/// ⚠️ CARRYING IT WAS NEVER THE PROBLEM. `migration_status` matched `Unexpected(_)` and threw all
+/// of this away one line before the audit incremented a counter, so 1025 rows arrived as a bare
+/// total that cannot say what to build. That is the SAME defect `declined_by_reason` was created to
+/// fix, recorded in its own doc comment: the parser already knew the operator, and `Err(_)`
+/// discarded it. See `shape()` below -- the audit groups on it now.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Difference {
     pub field: DifferenceField,
     pub legacy: String,
     pub spine: String,
+}
+
+impl Difference {
+    /// A stable, LOW-CARDINALITY name for what KIND of divergence this is, for grouping.
+    ///
+    /// ⭐ THE POINT IS TO TURN A TOTAL INTO A BUILD ORDER, exactly as `declined_by_reason` did for
+    /// declines. "1025 unexpected" says investigate everything; "900 of one shape" says fix one
+    /// thing. So this must NOT include the differing text itself -- that would give 1025 groups of
+    /// one and reinvent the problem.
+    ///
+    /// ⚠️ AND IT MUST NOT GUESS. Each arm below names a MECHANICAL, checkable property of the two
+    /// strings. Anything not recognised is `argv: other` rather than a plausible-sounding label,
+    /// because a wrong group is worse than an unlabelled one -- it sends the reader to fix
+    /// something that was never broken.
+    pub fn shape(&self) -> String {
+        match self.field {
+            DifferenceField::Cwd => "cwd".to_string(),
+            DifferenceField::Env => "env".to_string(),
+            DifferenceField::Io => "io".to_string(),
+            DifferenceField::Argv => self.argv_shape(),
+        }
+    }
+
+    /// Argv is where the volume is, so it is the one split further.
+    fn argv_shape(&self) -> String {
+        let (l, s) = (&self.legacy, &self.spine);
+
+        // ⭐ THE BACKSLASH CASE, and it is named first because it is the one this was written to
+        // measure. `grep -r "a\|b"` parses to `a\|b` in the spine; if legacy differs ONLY by
+        // backslashes, the two agree about every other character and the divergence is one rule.
+        if l.replace('\\', "") == s.replace('\\', "") && l != s {
+            return "argv: backslash handling".to_string();
+        }
+        // Same content, different quoting characters left in place.
+        let strip = |t: &str| t.replace(['"', '\''], "");
+        if strip(l) == strip(s) && l != s {
+            return "argv: quote characters retained".to_string();
+        }
+        // Case-only: legacy lowercased the command word for years (INT-195).
+        if l.to_lowercase() == s.to_lowercase() && l != s {
+            return "argv: case only".to_string();
+        }
+        // One side produced more or fewer words -- a splitting disagreement, not a text one.
+        let (lw, sw) = (l.split_whitespace().count(), s.split_whitespace().count());
+        if lw != sw {
+            return format!("argv: word count ({lw} vs {sw})");
+        }
+        "argv: other".to_string()
+    }
 }
 
 /// The outcome of comparing two plans' execution semantics.

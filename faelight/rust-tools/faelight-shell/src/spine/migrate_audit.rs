@@ -125,6 +125,14 @@ pub struct MigrationReport {
     /// forest pipelines, boolean chains. Biggest bucket first, measured rather than guessed.
     pub declined_by_reason: std::collections::BTreeMap<String, usize>,
 
+    /// ⭐ WHAT THE 1025 ACTUALLY ARE, grouped by mechanical shape rather than counted.
+    ///
+    /// Added for the reason `declined_by_reason` above records verbatim: the evidence already
+    /// existed and the call site threw it away. `compare.rs` builds a `Difference` carrying the
+    /// field and BOTH sides, then `migration_status` matched `Unexpected(_)` -- the underscore
+    /// discarded all of it one line before this counter incremented.
+    pub unexpected_by_shape: std::collections::BTreeMap<String, usize>,
+
     pub safe_improvement_examples: Vec<String>,
     pub feature_gap_examples: Vec<String>,
     pub missing_capability_examples: Vec<String>,
@@ -265,6 +273,15 @@ impl MigrationAudit {
             }
             MigrationStatus::Unexpected => {
                 self.report.unexpected += 1;
+                // ⚠️ READ THE EVIDENCE BEFORE COUNTING IT. The comparison already knows what
+                // diverged; this is the line that used to lose it.
+                if let super::compare::ComparisonResult::Unexpected(d) = &result {
+                    *self
+                        .report
+                        .unexpected_by_shape
+                        .entry(d.shape())
+                        .or_insert(0) += 1;
+                }
                 push_example(&mut self.report.unexpected_examples, obs.source);
             }
         }
@@ -429,6 +446,16 @@ impl MigrationReport {
             }
         ));
         out.push_str(&format!("Unexpected differences:  {}\n", self.unexpected));
+        // ⭐ THE SHAPE BREAKDOWN, and it is the whole point: a total says investigate everything,
+        // a grouping says fix one thing. Sorted biggest-first so the build order reads off the top.
+        if !self.unexpected_by_shape.is_empty() {
+            let mut rows: Vec<_> = self.unexpected_by_shape.iter().collect();
+            rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+            out.push_str("  by shape:\n");
+            for (shape, count) in rows {
+                out.push_str(&format!("    {count:>6}  {shape}\n"));
+            }
+        }
         if self.spine_parse_error > 0 {
             out.push_str(&format!(
                 "Rows with no spine plan: {} (outside the comparison domain -- not a language\n  gap. The stage breakdown above splits them: unfinished input, deliberate refusals,\n  and genuinely malformed lines are three different facts)\n",
