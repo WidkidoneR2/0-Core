@@ -458,6 +458,23 @@ pub fn validate_issues() -> (usize, Vec<String>) {
 
     let base = faelight_core::paths::intents_dir();
     let mut issues: Vec<String> = Vec::new();
+    // ⚠️ AN ABSENT LEDGER IS NOT AN EMPTY ONE, and until 2026-08-23 this could not tell them apart.
+    // Every folder below is read with `let Ok(entries) = read_dir(..) else { continue }`, so on a
+    // machine without 0-Core all nine simply skip: count stays 0, issues stays empty, and the
+    // doctor prints `✅ Intent Ledger -- 0 intents, all valid` about a directory that does not
+    // exist. FOUND IN THE VM: a guest with the tools deployed but no ledger reported a green PASS.
+    //
+    // ⭐ Same defect as a services table that comes back empty because the service manager is
+    // missing. The failure is indistinguishable from a legitimate empty result, so it is reported
+    // as an issue -- which is what the existing type already means, and what both callers already
+    // render correctly.
+    if !base.exists() {
+        issues.push(format!(
+            "intent ledger not found at {} -- this machine has no 0-Core checkout",
+            base.display()
+        ));
+        return (0, issues);
+    }
     let mut seen: HashMap<(String, String), usize> = HashMap::new();
     // INT-213 G2/G3: (id, depends_on, where) -- resolved after every file is known.
     let mut edges: Vec<(String, Vec<String>, String)> = Vec::new();
@@ -3380,4 +3397,41 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
         "  ⚠️  Override logged to integrity audit trail".yellow()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod absent_ledger_tests {
+    /// ⚠️ FOUND IN THE VM, 2026-08-23. A guest with the tools deployed but no 0-Core checkout ran
+    /// the doctor and got `✅ Intent Ledger -- 0 intents, all valid` about a directory that does
+    /// not exist. Nine folders, each read with `let Ok(entries) = read_dir(..) else { continue }`,
+    /// so an absent ledger and an empty one produced identical output.
+    ///
+    /// ⭐ THE TEST DRIVES THE REAL FUNCTION THROUGH `HOME`, because that is what
+    /// `paths::intents_dir()` reads -- the same technique that proved the platform degrades in
+    /// INT-227, and it needs no second machine.
+    #[test]
+    fn an_absent_ledger_is_an_issue_not_a_clean_bill() {
+        let dir = std::env::temp_dir().join("core_absent_ledger_test");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp home");
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: single-threaded test, restored below.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let (count, issues) = super::validate_issues();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(count, 0, "nothing was counted, which is true");
+        assert!(
+            !issues.is_empty(),
+            "but silence about it is the defect: an absent ledger must not read as a clean bill"
+        );
+        assert!(
+            issues[0].contains("not found"),
+            "and it must name the real problem: {}",
+            issues[0]
+        );
+    }
 }
