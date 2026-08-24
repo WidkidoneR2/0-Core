@@ -73,3 +73,15 @@ fn main() {
         }
     }
 }
+
+/// ⚠️⚠️ EARNED, NOT DECORATION. Tests that set HOME exist in two modules -- the intent validator's
+/// and the doctor's -- and cargo runs tests in PARALLEL. One restored the real HOME while the other
+/// was mid-flight: each passed alone, together they failed.
+///
+/// ⭐ `--test-threads=1` WOULD HAVE HIDDEN IT and slowed every unrelated test. This serialises only
+/// the tests that mutate process-wide state. It lives at the crate root because both modules can
+/// reach it here without making a private module public to satisfy a test.
+///
+/// ANY future test that touches HOME must take this lock.
+#[cfg(test)]
+pub static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

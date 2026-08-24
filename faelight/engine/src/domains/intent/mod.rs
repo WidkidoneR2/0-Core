@@ -3414,6 +3414,9 @@ mod absent_ledger_tests {
         let dir = std::env::temp_dir().join("core_absent_ledger_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp home");
+        // Shares the lock with the doctor's registry tests -- see its comment. Both mutate HOME,
+        // and cargo runs them in parallel.
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev = std::env::var("HOME").ok();
         // SAFETY: single-threaded test, restored below.
         unsafe { std::env::set_var("HOME", &dir) };

@@ -936,6 +936,25 @@ pub fn check_disk_space() -> CheckResult {
 pub fn check_tool_installation() -> CheckResult {
     // Registry-aware: read deployable, non-retired, high-usage tools
     let registry_path = faelight_core::paths::tools_registry();
+    // ⚠️ AN UNREADABLE REGISTRY IS NOT AN EMPTY ONE. The chain below ends unwrap_or_default(), so a
+    // missing tools.toml produced an empty list, an empty list has nothing missing, and this
+    // printed a green `All 0 key tools installed`. FOUND IN THE VM 2026-08-23 on a guest with
+    // THIRTY-TWO tools actually deployed -- so it was not merely silent, it described the wrong
+    // machine confidently. Same defect as the intent ledger one function over, and the same shape
+    // INT-227 removed from the shell.
+    if !registry_path.exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "tool_installation".into(),
+            name: "Tool Installation".into(),
+            status: Status::Warn,
+            message: format!(
+                "tool registry not found at {} -- cannot say what should be installed",
+                registry_path.display()
+            ),
+            fix: None,
+        };
+    }
     let tools: Vec<String> = fs::read_to_string(&registry_path)
         .map(|content| {
             let mut tools = vec![];
@@ -1017,6 +1036,24 @@ pub fn check_tool_installation() -> CheckResult {
 pub fn check_path_resilience(core_root: &str) -> CheckResult {
     let scripts_dir = PathBuf::from(core_root).join("scripts");
     let registry_path = faelight_core::paths::tools_registry();
+    // ⚠️ A PERCENTAGE OF NOTHING IS NOT ZERO PERCENT. The chain below ends unwrap_or_default(), so
+    // an unreadable registry gave total = 0, and the divide-by-zero guard chose 0 as the answer --
+    // printing `0/0 tools deployed (0%)`, which READS AS A MEASUREMENT. Found in the VM alongside
+    // the same swallow in check_tool_installation. The guard was right that zero cannot be
+    // divided; it was wrong that the answer is zero.
+    if !registry_path.exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "path_resilience".into(),
+            name: "Path Resilience".into(),
+            status: Status::Warn,
+            message: format!(
+                "tool registry not found at {} -- cannot say what should be deployed",
+                registry_path.display()
+            ),
+            fix: None,
+        };
+    }
 
     // Read deployable, non-retired tools from registry (INT-183)
     let rust_tools: Vec<String> = fs::read_to_string(&registry_path)
@@ -1912,6 +1949,66 @@ Port 22
         assert_eq!(
             sshd_setting("permitrootlogin NO\n", "PermitRootLogin"),
             Some("no".into())
+        );
+    }
+}
+
+#[cfg(test)]
+mod absent_registry_tests {
+    use super::*;
+
+    /// ⚠️ FOUND IN THE VM, 2026-08-23, on a guest with THIRTY-TWO tools deployed and no registry.
+    /// Both checks read tools.toml through a chain ending unwrap_or_default(), so an unreadable
+    /// registry became an empty tool list. An empty list has nothing missing, so installation
+    /// reported a green `All 0 key tools installed`; and total was zero, so resilience printed
+    /// `0/0 tools deployed (0%)` -- a percentage of nothing that reads as a measurement.
+    ///
+    /// ⭐ NEITHER WAS SILENT. Both described the wrong machine confidently, which is the defect
+    /// class this ledger keeps removing: a failure indistinguishable from a real result.
+    fn with_temp_home<T>(f: impl FnOnce() -> T) -> T {
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join("core_absent_registry_test");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp home");
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: single-threaded test, restored before returning.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let out = f();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        out
+    }
+
+    #[test]
+    fn an_absent_registry_does_not_certify_zero_tools() {
+        let r = with_temp_home(check_tool_installation);
+        assert_ne!(
+            r.status,
+            Status::Pass,
+            "a machine whose registry cannot be read must not be told all its tools are installed"
+        );
+        assert!(
+            r.message.contains("not found"),
+            "and it must name what is missing: {}",
+            r.message
+        );
+    }
+
+    #[test]
+    fn an_absent_registry_does_not_report_a_percentage() {
+        let r = with_temp_home(|| check_path_resilience("/nonexistent"));
+        assert!(
+            !r.message.contains("%"),
+            "a percentage of nothing is not zero percent: {}",
+            r.message
+        );
+        assert!(
+            r.message.contains("not found"),
+            "it must say the registry is missing: {}",
+            r.message
         );
     }
 }
