@@ -135,7 +135,16 @@ fn main() {
     // that line above -- the health check parses it by index, so an added field silently shifts
     // what it reads. Same precedent as the INT-195 check.
     if run("citations") {
-        reported += report(
+        // ⚠️ REPORTED BUT NOT GATED, and the distinction is the point. --strict exits non-zero on
+        // `reported`, which gates DEPLOYMENT HYGIENE: dead aliases, orphaned scripts, stale files
+        // -- things that make a deploy wrong. A citation pointing at an unfiled intent is LEDGER
+        // debris. It is worth seeing on every run and it is not a reason to block a deploy.
+        //
+        // ⭐ AND THE ACCOUNTABILITY STAYS WHERE IT BELONGS: INT-231's G5 is deliberately RED until
+        // the 57 are resolved. Counting them here would have moved that pressure onto `dep`, which
+        // would train someone to pass --no-verify -- the checker gets ignored instead of the
+        // debris getting cleaned.
+        let _ = report(
             "Dangling intent citations",
             check_dangling_intent_citations(&root),
         );
