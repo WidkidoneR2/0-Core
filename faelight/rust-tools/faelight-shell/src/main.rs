@@ -3016,8 +3016,15 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
         .output()
         .ok()
+        // ⚠️ .ok() ONLY SAYS THE PROCESS RAN. git exits 128 with EMPTY stdout when there is no
+        // repository, so the chain succeeded, trimmed an empty string, and `unwrap_or_else` never
+        // fired -- the banner printed a BLANK where a count belongs, which reads as a rendering
+        // glitch rather than an admission. This was the line the other three were modelled on, and
+        // it was only honest when git was ABSENT, never when git FAILED.
+        .filter(|o| o.status.success())
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "?".to_string());
 
     // None means the doctor has never run here. The banner says so rather than
@@ -3038,6 +3045,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     };
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
+    // ⚠️ ABSENT IS NOT EMPTY, and the rule was already written eight lines above for health:
+    // "the banner says so rather than inventing a number." These two did invent one. The loop
+    // below reads nine directories with `if let Ok(entries)`, so on a machine without a ledger all
+    // nine miss, nothing increments, and the banner printed `0 done · 0 planned` about a directory
+    // that is not there. Seen on Void and on Omarchy, beside an honest `? commits`.
+    let ledger_exists = faelight_core::paths::intents_dir().exists();
     let (complete_count, planned_count) = {
         let intent_dir = faelight_core::paths::intents_dir();
         let categories = [
@@ -3073,7 +3086,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // Count tools from registry — mirrors doctor check_path_resilience logic exactly
     let tool_count = std::fs::read_to_string(faelight_core::paths::tools_registry())
         .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
-        .unwrap_or(0);
+        .ok();
 
     let quotes = [
         "Nothing runs without explicit human authorization.",
@@ -3171,13 +3184,44 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // ── stats row ──
     println!(
         "  {} {}  {} {}  {} {}  {} {}",
-        fc_bold(57, 255, 20, &complete_count.to_string()),
+        // ⭐ A QUESTION MARK IS THE HONEST ANSWER when the source is not there, and `commits`
+        // has always done this. These three now match it: an absent ledger or registry reads `?`,
+        // an empty one reads `0`, and the two are no longer the same sentence.
+        fc_bold(
+            57,
+            255,
+            20,
+            &if ledger_exists {
+                complete_count.to_string()
+            } else {
+                "?".into()
+            }
+        ),
         fc_dim(120, 200, 100, "done"),
         fc_bold(255, 200, 50, &commits),
         fc_dim(180, 160, 80, "commits"),
-        fc_bold(50, 220, 255, &tool_count.to_string()),
+        fc_bold(
+            50,
+            220,
+            255,
+            &tool_count
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "?".into())
+        ),
         fc_dim(100, 180, 200, "tools"),
-        fc_dim(160, 140, 220, &format!("{} planned", planned_count)),
+        fc_dim(
+            160,
+            140,
+            220,
+            &format!(
+                "{} planned",
+                if ledger_exists {
+                    planned_count.to_string()
+                } else {
+                    "?".into()
+                }
+            )
+        ),
         fc_dim(100, 100, 140, "")
     );
     // ── health row ──
