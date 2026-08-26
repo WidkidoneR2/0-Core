@@ -56,7 +56,17 @@ impl Runtime {
         fs::create_dir_all(&cache)?;
         fs::create_dir_all(&snapshots)?;
         fs::create_dir_all(&locks)?;
-        let db_path = root.join("state.db");
+        // ⚠️ THE SEAM, NOT A JOIN. paths::state_db() is the single decider -- it reads the
+        // FAELIGHT_STATE_DB override, and this is the connection the WHOLE ENGINE uses through
+        // ctx.runtime.db. Building the path here instead meant the override reached the few sites
+        // that open their own connection and MISSED the main one: a restore rehearsal on
+        // 2026-08-26 saw the doctor report the snapshot's 914 facts while `core version` reported
+        // the live 915, from the same run.
+        //
+        // ⭐ IDENTICAL BEHAVIOUR WITH NO OVERRIDE SET -- state_db() returns runtime_dir().join(
+        // "state.db"), which is what this line already computed. The change is that the override
+        // now reaches the reader that matters.
+        let db_path = faelight_core::paths::state_db();
         let backups = root.join("backups");
         fs::create_dir_all(&backups)?;
         let db = Connection::open(&db_path)?;

@@ -2,7 +2,13 @@
 target/
 result
 result-*
-runtime/
+# ⚠️ ANCHORED ON PURPOSE. A bare `runtime/` matches at ANY depth, so it also caught
+# faelight/engine/src/runtime/ -- a SOURCE directory. The file inside stayed tracked because it
+# predated the rule, which is why nothing complained until the formatting hook tried to re-stage it
+# and could not, blocking every commit that touched it (2026-08-26).
+# The state directory this was written for lives outside the repo now; the leading slash keeps the
+# intent for the repo root without swallowing source.
+/runtime/
 faelight-vm.qcow2
 *.bak-*
 
