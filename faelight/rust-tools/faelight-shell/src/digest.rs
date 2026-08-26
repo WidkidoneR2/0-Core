@@ -32,7 +32,7 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
 
     lines.push(format!(
         "  {} {}",
-        "🌲".normal(),
+        "◉".normal(),
         greeting.bright_white().bold()
     ));
     lines.push(String::new());

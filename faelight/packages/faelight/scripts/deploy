@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🌲 Faelight Deploy -- NixOS"
+echo "◉ Zero Core Deploy -- NixOS"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Check we're in the forest root
