@@ -247,7 +247,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     );
     println!("  │  💡 NixOS reproduces state.");
     println!(
-        "  │    Faelight Forest reproduces state {} reasoning.",
+        "  │    Zero Core reproduces state {} reasoning.",
         "AND".bright_green().bold()
     );
     println!(

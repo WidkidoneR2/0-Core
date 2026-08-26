@@ -437,7 +437,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
         CheckResult {
             tier: Tier::System,
             id: "config".into(),
-            name: "Faelight Config".into(),
+            name: "Zero Config".into(),
             status: Status::Pass,
             message: "All config files valid".into(),
             fix: None,
@@ -446,7 +446,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
         CheckResult {
             tier: Tier::System,
             id: "config".into(),
-            name: "Faelight Config".into(),
+            name: "Zero Config".into(),
             status: Status::Warn,
             message: format!("{} config issues", issues),
             fix: Some("Run: faelight config validate".into()),

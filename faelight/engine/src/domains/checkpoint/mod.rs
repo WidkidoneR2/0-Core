@@ -733,7 +733,7 @@ pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
         let lines: Vec<&str> = s.lines().filter(|l| l.contains("faelight")).collect();
 
         if lines.is_empty() {
-            println!("  {} No Faelight snapshots found", "○".dimmed());
+            println!("  {} No Zero Core snapshots found", "○".dimmed());
         } else {
             for line in lines {
                 let parts: Vec<&str> = line.split_whitespace().collect();

@@ -314,7 +314,7 @@ fn categorize_tool(name: &str) -> String {
             "sandbox" | "gen" | "vault" => "Security".to_string(),
             "compositor" | "idle" | "notify" | "lock" => "Compositor".to_string(),
             "fm" | "fetch" | "link" | "zone" => "System Tools".to_string(),
-            _ => "Faelight Core".to_string(),
+            _ => "Zero Core".to_string(),
         }
     } else if name == "core" || name == "engine" {
         "Core Engine".to_string()
@@ -331,7 +331,7 @@ fn domain_icon(domain: &str) -> &'static str {
         "Security" => "🔒",
         "Compositor" => "🪟",
         "System Tools" => "🛠",
-        "Faelight Core" => "🌲",
+        "Zero Core" => "◉",
         "Core Engine" => "⚙",
         _ => "○",
     }

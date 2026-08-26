@@ -60,7 +60,7 @@ pub fn desktop(summary: &str, body: &str, critical: bool) {
             "org.freedesktop.Notifications",
             "Notify",
             "susssasa{sv}i",
-            "Faelight Forest",
+            "Zero Core",
             "0",
             "",
             summary,

@@ -210,7 +210,7 @@ fn render_markdown(d: &SnapshotData) -> String {
         "Identity".bright_white().bold()
     ));
     out.push_str(&format!(
-        "  │  Faelight Forest {} — built entirely in Rust
+        "  │  Zero Core {} — built entirely in Rust
 ",
         d.version
     ));

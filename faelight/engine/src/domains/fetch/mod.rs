@@ -111,7 +111,7 @@ pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
     let host = get_hostname();
 
     println!("╭─────────────────────────────────╮");
-    println!("│ 🌲 Faelight Forest v{:<14}│", version);
+    println!("│ ◉ Zero Core v{:<18}│", version);
     println!("╰─────────────────────────────────╯");
     println!("{:>10}  {}", "zone".dimmed(), zone);
     println!("{:>10}  {}", "profile".dimmed(), profile);

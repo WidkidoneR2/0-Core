@@ -3150,7 +3150,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // ── header ──
     println!(
         "  {}  {}",
-        fc_bold(57, 255, 20, "🌲 Faelight Forest"),
+        fc_bold(57, 255, 20, "◉ Zero Core"),
         fc_dim(140, 220, 100, &format!("gen {} · {}", nix_gen, compositor))
     );
     println!();

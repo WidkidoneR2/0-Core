@@ -81,7 +81,7 @@ pub fn render_cockpit(
     );
     println!(
         "  │  🏥 {}  {}  {}  │  {}/{} checks  │",
-        format!("Faelight Forest {}", version).bright_white().bold(),
+        format!("Zero Core {}", version).bright_white().bold(),
         status_str,
         health_color,
         passed,
@@ -104,7 +104,7 @@ pub fn render_cockpit(
     let tools_names = ["Tool Installation", "Path Resilience", "Alias Coverage"];
     let forest_names = [
         "Intent Ledger",
-        "Faelight Config",
+        "Zero Config",
         "Compositor Keybinds",
         "Theme Packages",
         "Package Metadata",

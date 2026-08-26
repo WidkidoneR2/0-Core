@@ -355,7 +355,10 @@ fn draw_health_ui(
         std::fs::read_to_string("/etc/faelight/VERSION").unwrap_or_else(|_| "v14.0.0".to_string());
     let forest_version = forest_version.trim();
     let health_str = format!(
-        "🏥 Faelight Forest {} -- {}% -- {}/23",
+        // ⚠️ THE DENOMINATOR WAS HARDCODED TO 23 AND THE SYSTEM NOW RUNS 32 CHECKS, so this header
+        // printed `32/23` -- a ratio of the real total over a number frozen at some earlier moment.
+        // The count was already being computed on the line below; only the second half was invented.
+        "🏥 Zero Core {} -- {}% -- {} checks",
         forest_version,
         health_pct,
         sections.iter().map(|s| s.checks.len()).sum::<usize>()
