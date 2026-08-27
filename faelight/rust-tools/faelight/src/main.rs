@@ -270,8 +270,13 @@ fn handle_launch(app: LaunchApp) {
             run_tool_bg(&menu, &[]);
         }
         LaunchApp::Launcher => {
-            let launcher = find_tool("faelight-launcher");
-            run_tool_bg(&launcher, &[]);
+            // faelight-launcher was a GTK4 app launcher, deleted 2026-08-27.
+            // Omarchy owns this now: omarchy-menu is a mode-based dispatcher
+            // (apps, capture, hardware, system) bound to SUPER+SPACE, with the
+            // app list on SUPER+ALT+SPACE. Reimplementing it is the case
+            // INT-167 asks about -- does this carry system-specific meaning, or
+            // is it a reimplementation. It is the latter.
+            run_tool_bg("omarchy-menu", &["toggle", "apps"]);
         }
     }
 }

@@ -434,16 +434,6 @@ type = "cargo"
 deployable = false
 retired = false
 
-[[tool]]
-name = "faelight-launcher"
-version = "0.1.0"
-category = "tools"
-description = "Candy-neon GTK4 app launcher: fuzzy search over .desktop apps + forest tools, sectioned and themed"
-expected_usage = "high"
-type = "python"
-deployable = true
-retired = false
-
 # --- Added by INT-098 Phase 2 (registry reconciliation, 2026-06-28) ---
 [[tool]]
 name = "db-browse"

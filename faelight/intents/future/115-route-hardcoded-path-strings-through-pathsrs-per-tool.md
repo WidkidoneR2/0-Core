@@ -2,10 +2,10 @@
 id: 115
 date: 2026-07-02
 type: future
-title: "Route hardcoded path strings through paths.rs (per-tool)"
+title: "fifty sites build the binary path themselves and six execute a directory that was deleted"
 status: planned
 tags: [paths, faelight-core, refactor]
-priority: medium
+priority: high
 ---
 
 ## Why
