@@ -3,7 +3,7 @@ id: 211
 date: 2026-08-09
 type: future
 title: "the intent ledger has no canonical document shape -- "gate" has four spellings, "date" means four different things, and only two intents record an outcome"
-status: planned
+status: in-progress
 tags: [ledger, intent, schema]
 ---
 

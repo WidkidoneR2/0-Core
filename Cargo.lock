@@ -1649,6 +1649,7 @@ name = "faelight-core"
 version = "1.0.0"
 dependencies = [
  "fontdue",
+ "libc",
  "thiserror 1.0.69",
  "wayland-client",
 ]
@@ -1675,6 +1676,7 @@ version = "1.0.0"
 dependencies = [
  "clap",
  "colored",
+ "faelight-core",
  "once_cell",
  "proc-macro2",
  "regex",
