@@ -939,13 +939,10 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let registry_path = ctx.ctx.fpath("registry/tools.toml");
-            // On NixOS tools are deployed to /run/current-system/sw/bin, not scripts/
-            let nix_bin_dir = std::path::PathBuf::from("/run/current-system/sw/bin");
-            let scripts_dir = if nix_bin_dir.exists() {
-                nix_bin_dir
-            } else {
-                ctx.core_root.join("scripts")
-            };
+            // Both branches of the old conditional are gone: the Nix store is
+            // not here, and scripts/ was deleted in e733287d. paths::bin_dir()
+            // is the single owner of where a deployed binary lives.
+            let bin_dir = faelight_core::paths::bin_dir();
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
                 Err(_) => return issues,
@@ -971,13 +968,13 @@ pub mod checks {
                     && !name.is_empty()
                     && deployable
                     && !retired
-                    && !scripts_dir.join(&name).exists()
+                    && !bin_dir.join(&name).exists()
                 {
                     issues.push(IntegrityIssue::alert(
                         Category::Registry,
                         "registry_deployable_exists",
                         &format!(
-                            "{} is deployable but missing from scripts/ — run: deploy {}",
+                            "{} is deployable but not installed — run: deploy {}",
                             name, name
                         ),
                         4,
@@ -985,11 +982,11 @@ pub mod checks {
                 }
             }
             // Check last tool
-            if deployable && !retired && !name.is_empty() && !scripts_dir.join(&name).exists() {
+            if deployable && !retired && !name.is_empty() && !bin_dir.join(&name).exists() {
                 issues.push(IntegrityIssue::alert(
                     Category::Registry,
                     "registry_deployable_exists",
-                    &format!("{} is deployable but missing from scripts/", name),
+                    &format!("{} is deployable but not installed", name),
                     4,
                 ));
             }

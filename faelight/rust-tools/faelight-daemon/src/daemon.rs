@@ -1019,12 +1019,24 @@ async fn contradiction_detection_loop(db_path: String) {
 async fn friday_learning_loop() {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(1800)).await; // 30 minutes
-        let home = std::env::var("HOME").unwrap_or_default();
-        let core_path = format!("{}/0-core/scripts/core", home);
-        let _ = tokio::process::Command::new(&core_path)
+                                                                          // This spawned core from scripts/, deleted in e733287d, and threw the
+                                                                          // result away with let _. The loop has fired every thirty minutes since
+                                                                          // the migration, done nothing, and said nothing. A background task that
+                                                                          // cannot report its own failure is indistinguishable from one that is
+                                                                          // working.
+        match tokio::process::Command::new("core")
             .args(["friday", "learning-loop"])
             .output()
-            .await;
+            .await
+        {
+            Ok(o) if o.status.success() => {}
+            Ok(o) => eprintln!(
+                "friday learning-loop exited {}: {}",
+                o.status,
+                String::from_utf8_lossy(&o.stderr).trim()
+            ),
+            Err(e) => eprintln!("friday learning-loop could not run: {}", e),
+        }
     }
 }
 

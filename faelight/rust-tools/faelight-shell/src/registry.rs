@@ -163,7 +163,7 @@ impl Registry {
     }
 
     /// Populate registry from all known sources
-    pub fn populate(&mut self, db: &crate::db::ForestDb, core_root: &str) {
+    pub fn populate(&mut self, db: &crate::db::ForestDb, _core_root: &str) {
         // ── Builtins ─────────────────────────────────────────────────────────
         let builtins = BUILTINS;
         for (name, desc, usage) in builtins {
@@ -183,8 +183,8 @@ impl Registry {
         }
 
         // ── Forest scripts ────────────────────────────────────────────────────
-        let scripts_dir = format!("{}/scripts", core_root);
-        if let Ok(entries) = std::fs::read_dir(&scripts_dir) {
+        let bin_dir = faelight_core::paths::bin_dir();
+        if let Ok(entries) = std::fs::read_dir(&bin_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {

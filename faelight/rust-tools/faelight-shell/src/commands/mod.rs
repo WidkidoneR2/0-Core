@@ -8054,9 +8054,9 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn compare_cmd(core_root: &str, args: &[&str]) -> CommandResult {
+fn compare_cmd(_core_root: &str, args: &[&str]) -> CommandResult {
     use std::process::Command;
-    let bin = format!("{}/scripts/faelight-diff", core_root);
+    let bin = String::from("faelight-diff");
     let mut cmd_args: Vec<String> = Vec::new();
     for a in args {
         cmd_args.push(a.to_string());

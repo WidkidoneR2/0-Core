@@ -79,7 +79,7 @@ pub fn events(ctx: &AppContext) -> CoreResult<()> {
 }
 
 // ── Test 2: Prediction Under Load ─────────────────────────────────────────────
-pub fn predict(ctx: &AppContext) -> CoreResult<()> {
+pub fn predict(_ctx: &AppContext) -> CoreResult<()> {
     println!(
         "{}",
         "🌲 Stress Test 2 — Prediction Under Load".cyan().bold()
@@ -101,7 +101,7 @@ pub fn predict(ctx: &AppContext) -> CoreResult<()> {
 
     let mut passed = 0u32;
     let mut failed = 0u32;
-    let core_path = format!("{}/scripts/core", ctx.core_root);
+    let core_path = String::from("core");
 
     for (cmd, desc) in &commands {
         let start = std::time::Instant::now();
@@ -334,7 +334,7 @@ pub fn health(ctx: &AppContext) -> CoreResult<()> {
 }
 
 // ── Test 5: Intent Velocity ───────────────────────────────────────────────────
-pub fn intents(ctx: &AppContext) -> CoreResult<()> {
+pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
     println!(
         "{}",
         "🌲 Stress Test 5 — Intent Velocity Accuracy".cyan().bold()
@@ -342,7 +342,6 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     separator();
     println!();
 
-    let core_root = &ctx.core_root;
     let complete_dir = faelight_core::paths::intents_dir().join("complete");
     let future_dir = faelight_core::paths::intents_dir().join("future");
 
@@ -406,7 +405,7 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Verify predict intents command works
-    let core_path = format!("{}/scripts/core", core_root);
+    let core_path = String::from("core");
     let result = std::process::Command::new(&core_path)
         .args(["predict", "intents"])
         .output();

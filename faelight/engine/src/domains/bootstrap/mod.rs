@@ -8,7 +8,6 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
-use std::path::PathBuf;
 use std::process::Command;
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -124,10 +123,10 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
 
     // Check 1 — registry tools deployed
     let tools = read_registry_tools(core_root);
-    let scripts_dir = PathBuf::from(core_root).join("scripts");
+    let bin_dir = faelight_core::paths::bin_dir();
     let mut missing = Vec::new();
     for tool in &tools {
-        if !scripts_dir.join(tool).exists() {
+        if !bin_dir.join(tool).exists() {
             missing.push(tool.clone());
         }
     }
@@ -238,17 +237,14 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
 
     // Compare registry tools vs deployed tools
     let tools = read_registry_tools(core_root);
-    let scripts_dir = PathBuf::from(core_root).join("scripts");
+    let bin_dir = faelight_core::paths::bin_dir();
 
     // Tools in registry but not deployed
-    let not_deployed: Vec<&String> = tools
-        .iter()
-        .filter(|t| !scripts_dir.join(t).exists())
-        .collect();
+    let not_deployed: Vec<&String> = tools.iter().filter(|t| !bin_dir.join(t).exists()).collect();
 
     // Files in scripts not in registry
     let mut unregistered = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&scripts_dir) {
+    if let Ok(entries) = std::fs::read_dir(&bin_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if !tools.contains(&name) && !name.starts_with('.') {

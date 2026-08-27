@@ -153,22 +153,22 @@ fn run_health_check(explain: bool, fail_on_warning: bool) {
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
     println!();
 
-    let doctor_path = paths::scripts_dir().join("dot-doctor");
-
-    if !check_tool_exists(&doctor_path) {
-        eprintln!("{} dot-doctor not found!", "❌".red());
-        eprintln!("   Expected at: {}", doctor_path.display());
-        eprintln!("   Run: cargo build --release -p dot-doctor");
-        exit(1);
-    }
-
-    let mut cmd = Command::new(&doctor_path);
-
+    // dot-doctor was deprecated and removed in 53897405, and this kept calling
+    // it from scripts/, itself deleted in e733287d -- so faelight health has
+    // been PANICKING on .expect rather than degrading. core doctor run is the
+    // health check that actually exists and that d invokes every session.
+    let mut cmd = Command::new("core");
+    cmd.args(["doctor", "run"]);
     if explain {
         cmd.arg("--explain");
     }
-
-    let status = cmd.status().expect("Failed to run dot-doctor");
+    let status = match cmd.status() {
+        Ok(st) => st,
+        Err(e) => {
+            eprintln!("{} could not run core doctor run: {}", "X".red(), e);
+            exit(1);
+        }
+    };
 
     if !status.success() && fail_on_warning {
         exit(1);
@@ -195,7 +195,6 @@ fn show_ecosystem_versions() {
 
     // Show key tool versions
     let tools = vec![
-        ("dot-doctor", "scripts/dot-doctor"),
         ("faelight-fm", "target/release/faelight-fm"),
         ("faelight-term", "target/release/faelight-term"),
     ];
@@ -344,10 +343,6 @@ fn find_tool(name: &str) -> String {
     eprintln!("To install:");
     eprintln!("  {}", format!("cargo build --release -p {}", name).cyan());
     exit(1);
-}
-
-fn check_tool_exists(path: &std::path::Path) -> bool {
-    path.exists()
 }
 
 fn run_tool(tool: &str, args: &[&str]) {

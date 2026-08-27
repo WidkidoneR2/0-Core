@@ -3,7 +3,6 @@
 #![allow(dead_code)]
 use super::{CheckResult, Status, Tier};
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
@@ -361,57 +360,6 @@ pub fn check_themes(core_root: &str) -> CheckResult {
             status: Status::Warn,
             message: "0/1 theme packages found".into(),
             fix: None,
-        }
-    }
-}
-
-pub fn check_scripts(core_root: &str) -> CheckResult {
-    let scripts_dir = PathBuf::from(core_root).join("scripts");
-    let required = ["faelight", "profile", "intent"];
-    let issues: Vec<_> = required
-        .iter()
-        .filter_map(|s| {
-            let path = scripts_dir.join(s);
-            if !path.exists() {
-                Some(format!("{} missing", s))
-            } else if path
-                .metadata()
-                .map(|m| m.permissions().mode() & 0o111 == 0)
-                .unwrap_or(false)
-            {
-                Some(format!("{} not executable", s))
-            } else {
-                None
-            }
-        })
-        .collect();
-    if std::path::Path::new("/etc/NIXOS").exists() {
-        return CheckResult {
-            tier: Tier::User,
-            id: "scripts".into(),
-            name: "Scripts".into(),
-            status: Status::Pass,
-            message: "Tools deployed as Nix binaries (NixOS)".into(),
-            fix: None,
-        };
-    }
-    if issues.is_empty() {
-        CheckResult {
-            tier: Tier::User,
-            id: "scripts".into(),
-            name: "Scripts".into(),
-            status: Status::Pass,
-            message: "All scripts present and executable".into(),
-            fix: None,
-        }
-    } else {
-        CheckResult {
-            tier: Tier::User,
-            id: "scripts".into(),
-            name: "Scripts".into(),
-            status: Status::Warn,
-            message: format!("{} script issues", issues.len()),
-            fix: Some("chmod +x ~/0-core/scripts/*".into()),
         }
     }
 }

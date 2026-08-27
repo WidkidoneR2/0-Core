@@ -1028,13 +1028,12 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
 pub fn coupling(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    let core_root = &ctx.core_root;
     println!("{}", "🌲 Predict — Coupling Forecast".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
     // Run evolution map analysis
-    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+    let output = std::process::Command::new("core")
         .args(["evolution", "map"])
         .output();
 
