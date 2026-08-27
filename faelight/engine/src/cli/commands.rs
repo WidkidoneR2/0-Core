@@ -620,7 +620,6 @@ pub enum PluginCommand {
 
 #[derive(Debug)]
 pub enum CheckpointCommand {
-    Restore { name: String },
     LastGood,
     Snapshot { label: String },
     Snapshots,

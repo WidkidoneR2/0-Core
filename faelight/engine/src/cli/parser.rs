@@ -1177,12 +1177,7 @@ pub enum PluginCommands {
 
 #[derive(Subcommand)]
 pub enum CheckpointCommands {
-    /// Restore config files from a named checkpoint
-    Restore {
-        /// Checkpoint name
-        name: String,
-    },
-    /// Find and restore last checkpoint with 95%+ health
+    /// Report the last checkpoint with 95%+ health. Writes nothing.
     LastGood,
     /// Create a btrfs snapshot of @home
     Snapshot {

@@ -352,7 +352,7 @@ impl<'a> ForestHelper<'a> {
                 // ── core checkpoint ───────────────────────────────────────
                 "core checkpoint create",
                 "core checkpoint list",
-                "core checkpoint restore",
+                "core checkpoint diff",
                 "core checkpoint",
                 // ── core security ─────────────────────────────────────────
                 "core security scan",

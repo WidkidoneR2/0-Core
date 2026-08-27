@@ -665,7 +665,6 @@ pub fn parse() -> Command {
             CheckpointCommands::Create { name, notes } => CheckpointCommand::Create { name, notes },
             CheckpointCommands::List => CheckpointCommand::List,
             CheckpointCommands::Diff { name } => CheckpointCommand::Diff { name },
-            CheckpointCommands::Restore { name } => CheckpointCommand::Restore { name },
             CheckpointCommands::LastGood => CheckpointCommand::LastGood,
             CheckpointCommands::Snapshot { label } => CheckpointCommand::Snapshot { label },
             CheckpointCommands::Snapshots => CheckpointCommand::Snapshots,
