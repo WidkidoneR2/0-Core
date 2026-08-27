@@ -48,7 +48,34 @@ pub fn fsh_bin() -> String {
             eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
             std::process::exit(2);
         }
-        Err(_) => "/run/current-system/sw/bin/faelight-shell".to_string(),
+        // The fallback was /run/current-system/sw/bin/faelight-shell -- a NixOS store
+        // path that has not existed since the migration. With FSH_BIN unset the suite
+        // spawned a binary that is not there and 158 of 162 cases failed for that one
+        // reason, reporting a 2% shell rather than a missing subject.
+        //
+        // paths::bin_dir owns where a deployed binary lives, so the fallback follows it
+        // instead of naming a location. Same accessor ship writes to.
+        Err(_) => {
+            let p = faelight_core::paths::bin_dir().join("faelight-shell");
+            // BOTH ARMS REFUSE NOW. The Ok arm has always exited 2 when FSH_BIN names a
+            // missing binary, with the right reasoning: refusing to fall back is how a
+            // stale binary is kept from passing. The fallback arm did no such check, so
+            // when its path died with the migration the suite spawned nothing 158 times
+            // and reported a 2% shell instead of an absent one. One standard, both arms.
+            if !p.exists() {
+                eprintln!(
+                    "  The shell under test is not where it should be: {}",
+                    p.display()
+                );
+                eprintln!("  Nothing was tested. A missing subject is not a failing suite.");
+                eprintln!();
+                eprintln!("  Recovery");
+                eprintln!("    - ship faelight-shell        install it, then re-run");
+                eprintln!("    - FSH_BIN=<path> fsh-test    test a binary somewhere else");
+                std::process::exit(2);
+            }
+            p.display().to_string()
+        }
     }
 }
 
