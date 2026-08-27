@@ -19,3 +19,10 @@ faelight/runtime/legacy-exec.log
 faelight/runtime/sh-fallback.log
 /0.5
 /=
+
+# ship writes a copy of each outgoing binary here before replacing it, so
+# core deploy rollback has something to restore. Machine-local state, not
+# source: regenerated on every ship, ~25MB, and meaningless on another
+# machine. Anchored for the same reason /runtime/ is -- a bare bin/ would
+# match at any depth and swallow a source directory named bin.
+/bin/
