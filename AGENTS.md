@@ -275,6 +275,10 @@ Edits go through **`fpatch`** (`faelight/scripts/dev/fpatch.py`), not ad-hoc rew
 - Watch for em dash versus double dash in anchors. They look alike, are not interchangeable, and
   are a recurring cause of failed patches.
 - One concern per patch. A patch that fixes two things cannot be reverted for one of them.
+- When an anchor cannot be made to match -- a line carrying an em dash, a box-drawing rule, or any
+  non-ASCII character -- use fpatch.patch_between(path, start_marker, end_marker, new_lines). It
+  locates a span by two SHORT ASCII markers and replaces it BY INDEX, so the body is never
+  retyped. fpatch.patch refuses a non-ASCII anchor outright and names the offending characters.
 - Never make unrequested changes. Surface improvements for discussion instead.
 
 ### Paste blocks
