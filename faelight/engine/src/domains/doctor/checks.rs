@@ -120,12 +120,27 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
         .filter_map(|e| e.ok())
     {
         let p = entry.path();
-        if p.is_symlink()
-            && !p.exists()
-            && !p.to_string_lossy().contains("BraveSoftware")
-            && !p.to_string_lossy().contains("Notesnook")
-            && !p.to_string_lossy().contains("Singleton")
-        {
+        // ⚠️ A DANGLING LINK INTO A RUNTIME DIRECTORY MEANS THE APP IS NOT RUNNING, not that the
+        // configuration is broken. Chromium and PulseAudio both drop lock and socket links under
+        // ~/.config pointing into /tmp, and those targets vanish the moment the process exits.
+        //
+        // ⭐ THE EXCLUSION IS A PROPERTY, NOT A NAME. Three application names were listed here and
+        // the list would have grown with every program installed -- the same hand-maintained drift
+        // as the binary list one function above. Asking where the TARGET lives answers it for every
+        // application at once: /tmp and /run are runtime paths by definition.
+        // ⚠️ TWO CONDITIONS, BECAUSE NEITHER CATCHES ALL OF THEM. A first attempt replaced the
+        // name list with a target test alone and the count went from one to four: Chromium writes
+        // SingletonLock and SingletonCookie with RELATIVE targets, so asking where the target lives
+        // says nothing about them, while the socket beside them points at /tmp and the name says
+        // nothing about it. The property is "an artifact a running program manages", and neither
+        // test expresses that on its own.
+        let target = std::fs::read_link(p).unwrap_or_default();
+        let runtime_target = target.starts_with("/tmp") || target.starts_with("/run");
+        let name = p.to_string_lossy();
+        let runtime_name = name.contains("Singleton")
+            || name.contains("BraveSoftware")
+            || name.contains("Notesnook");
+        if p.is_symlink() && !p.exists() && !runtime_target && !runtime_name {
             broken += 1;
         }
     }
@@ -1186,14 +1201,21 @@ pub fn check_path_resilience(_core_root: &str) -> CheckResult {
     }
 }
 
-pub fn check_sandbox(core_root: &str) -> CheckResult {
-    // Check sandbox binary exists and policies are valid
-    // NixOS: check /run/current-system/sw/bin first, fall back to scripts/
-    let binary_exists = std::path::Path::new("/run/current-system/sw/bin/faelight-sandbox")
-        .exists()
-        || std::path::PathBuf::from(core_root)
-            .join("scripts/faelight-sandbox")
-            .exists();
+// The parameter stays for the shared check signature; asking `which` does not require knowing
+// where the project lives. Second check today to shed it for the same reason.
+pub fn check_sandbox(_core_root: &str) -> CheckResult {
+    // ⚠️ TWO HARDCODED LOCATIONS, NEITHER OF WHICH EXISTS HERE. It looked in one distribution's
+    // system path and then in a directory inside the project, and reported the binary undeployed
+    // while it sat on PATH where the shell finds it every time. That is the FOURTH check today
+    // needing the same correction, which is itself the finding: five checks each answer "is this
+    // tool installed" their own way, and each was right about exactly one machine.
+    //
+    // ⭐ `which` asks the question the shell answers, so it is true wherever the tool actually is.
+    let binary_exists = Command::new("which")
+        .arg("faelight-sandbox")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
     if !binary_exists {
         return CheckResult {
