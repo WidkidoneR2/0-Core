@@ -320,19 +320,38 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
             }
         }
     }
-    // ── Safety Rule 3: Protect against self-overwriting core binary ───────────
-    if cmd == "cp" || cmd == "mv" {
-        // INT-097: was raw.contains("core") -- matched every path under ~/0-core,
-        // blocking legit copies. Now block only when the DESTINATION is a core binary.
+    // -- Safety Rule 3: hand-installing over a deployed binary ---------------
+    // ADVISORY, NOT A BLOCK, and the change is deliberate. This used to block,
+    // named a deploy script deleted in e733287d, and its escape hatch was the
+    // substring "deploy" appearing anywhere in the line. On 2026-08-27 it fired
+    // on a legitimate install, left no core binary in place, and pointed at a
+    // path that had not existed for months.
+    //
+    // Overwriting a binary is RECOVERABLE -- rebuild takes seconds and bin/ now
+    // holds backups -- so it does not belong in the same tier as rules 1b and 4,
+    // which guard irreversible deletion. A wrong warning costs one line; a wrong
+    // block costs a working toolchain. What the guard was ever worth is the
+    // REMINDER, and a warning carries that in full.
+    //
+    // The escape hatch is gone rather than fixed. Per the INT-191 note above,
+    // policy inspects cmd/args/expanded -- and ship writes to bin_dir from its
+    // own process, which this shell never sees. There is nothing to exempt.
+    if cmd == "cp" || cmd == "mv" || cmd == "install" {
+        // All three take the destination last, including: install -m 755 src dest
         let dest = expanded.split_whitespace().last().unwrap_or("");
-        let protected = ["scripts/core", ".cargo/bin/core", "/bin/core"];
-        let hits_core_binary = dest.ends_with("/core")
-            || dest == "core"
-            || protected.iter().any(|p| dest.ends_with(p));
-        if hits_core_binary && !expanded.contains("deploy") {
-            return Some(
-                "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string(),
+        let bin_dir = faelight_core::paths::bin_dir();
+        let bin_str = bin_dir.to_string_lossy().to_string();
+        let dest_expanded = if let Some(rest) = dest.strip_prefix("~/") {
+            format!("{}/{}", faelight_core::paths::home().display(), rest)
+        } else {
+            dest.to_string()
+        };
+        if dest_expanded.starts_with(&bin_str) {
+            println!(
+                "  {} bypasses ship -- no backup, no deploy record, and a copy over a",
+                cmd
             );
+            println!("      running binary can fail with Text file busy. Prefer: ship <tool>");
         }
     }
 
@@ -1516,14 +1535,18 @@ mod preexec_boundary_tests {
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
     }
 
-    /// Self-overwrite protection for cp/mv, same exposure.
+    /// Rule 3 became ADVISORY on 2026-08-27. It used to BLOCK a cp onto a core
+    /// binary; it now warns and lets the command run, because overwriting a
+    /// binary is recoverable and a wrong block cost a working toolchain that
+    /// morning. This test asserts the NEW contract -- not blocked -- and exists
+    /// so that a future change back to blocking has to come through here.
     #[test]
-    fn blocks_aliased_copy_over_core_binary() {
+    fn does_not_block_aliased_copy_over_core_binary() {
         let ctx = aliased(
             "install",
             &["cp", "/tmp/thing", "/home/christian/.cargo/bin/core"],
         );
-        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_none());
     }
 
     /// The negative direction matters as much: a harmless execution must not be blocked just
