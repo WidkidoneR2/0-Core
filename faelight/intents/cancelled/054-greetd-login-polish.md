@@ -3,7 +3,7 @@ id: 054
 date: 2026-06-09
 type: polish
 title: "greetd: green theme, F2 session picker, compositor safety net"
-status: planned
+status: cancelled
 tags: [greetd, tuigreet, login, polish, recovery, safety]
 priority: medium
 ---
@@ -231,3 +231,6 @@ Clears the "prove in VM first" bar; remaining before metal = real-hardware DRM t
 - User/password input bubbles could be improved.
 - Clock looks good (keep).
 - Make the card glossier/glassier.
+
+## Gate Check
+🚫 054 -- cancelled: greetd is not installed and is not Omarchy login. Session-picker and theme work belongs to whatever Omarchy uses. -- approved by: christian 2026-08-27

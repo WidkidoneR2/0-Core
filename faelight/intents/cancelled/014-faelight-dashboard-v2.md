@@ -3,7 +3,7 @@ id: 014
 date: 2026-06-03
 type: feature
 title: "faelight-dashboard v2: full NixOS replacement, ratatui, forest-native"
-status: planned
+status: cancelled
 tags: [dashboard, ratatui, nixos, forest-native]
 priority: medium
 ---
@@ -26,3 +26,6 @@ system resources, and recent commits -- all in one ratatui TUI.
 ## Gate
 
 Mod+Alt+m launches dashboard. All panels render correctly.
+
+## Gate Check
+🚫 014 -- cancelled: Scoped as a full NixOS replacement dashboard. There is no NixOS to replace. -- approved by: christian 2026-08-27

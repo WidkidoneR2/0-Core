@@ -3,7 +3,7 @@ id: 136
 date: 2026-07-10
 type: future
 title: "faelight-term v4: a real terminal, and a Nix contract for it"
-status: planned
+status: cancelled
 tags: [faelight-term, terminal, nix, alacritty, mars, integration]
 version: TBD
 ---
@@ -152,3 +152,6 @@ as it would have without an AI, that is the honest answer and it gets recorded.
   bounded experiment, not a rewrite -- worth knowing, not worth doing yet.
 - The filename generated for this charter contains `:` and `,` -- the slug generator does not
   sanitize. Noted, not fixed. -> INT-135's territory.
+
+## Gate Check
+🚫 136 -- cancelled: faelight-term v4 was scoped around a Nix contract for the terminal. No Nix, and the terminal in use works. -- approved by: christian 2026-08-27

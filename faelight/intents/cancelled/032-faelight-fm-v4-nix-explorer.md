@@ -3,7 +3,7 @@ id: 032
 date: 2026-06-04
 type: feature
 title: "faelight-fm v4: full Nix explorer, plugin system, semantic engine"
-status: planned
+status: cancelled
 tags: [faelight-fm, nix, explorer, plugins, semantic, v4]
 priority: medium
 ---
@@ -49,6 +49,7 @@ Extensions/Plugins:
 - [ ] INT-015 (v3.1) complete first
 
 ## Gate Check
+🚫 032 -- cancelled: Scoped as a full Nix store explorer. The store is gone; a file manager is a separate want with no intent behind it yet. -- approved by: christian 2026-08-27
 ✅ Plugin system -- NixPlugin, GitPlugin, IntentPlugin
 ✅ Nix store info via n key
 ✅ Flake lock parsing

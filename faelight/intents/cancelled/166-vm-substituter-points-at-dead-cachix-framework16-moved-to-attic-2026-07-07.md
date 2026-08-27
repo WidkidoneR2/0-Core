@@ -3,7 +3,7 @@ id: 166
 date: 2026-07-16
 type: fix
 title: "VM substituter points at dead Cachix; framework16 moved to Attic 2026-07-07"
-status: planned
+status: cancelled
 tags: [fix, bugfix]
 ---
 
@@ -59,3 +59,6 @@ to be useless.
 - [ ] Consider whether the substituter belongs in nix/profiles/base.nix after all -- INT-061
       deliberately left it out because the two hosts genuinely differ. If they stop differing,
       that reasoning changes
+
+## Gate Check
+🚫 166 -- cancelled: The VM substituter pointed at a dead Cachix and framework16 moved to Attic. Both are Nix binary caches. No store, no substituter. -- approved by: christian 2026-08-27

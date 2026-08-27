@@ -3,7 +3,7 @@ id: 010
 date: 2026-06-03
 type: feature
 title: "NixOS environment switching: instant context change without logout"
-status: planned
+status: cancelled
 tags: [nix, devshell, environments, direnv, profiles]
 priority: medium
 ---
@@ -24,3 +24,6 @@ killer features vs Arch.
 ## Gate
 
 Three named devShells in flake.nix. Switching takes one command.
+
+## Gate Check
+🚫 010 -- cancelled: NixOS environment switching -- the facility does not exist on Omarchy. Nix profiles are gone; per-project environments belong to the Omnibox direction, not to a NixOS switcher. -- approved by: christian 2026-08-27

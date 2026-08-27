@@ -3,7 +3,7 @@ id: 142
 date: 2026-07-11
 type: future
 title: "Pinnacle custom config loads under greetd (protos + XDG_DATA_DIRS + API reconcile)"
-status: planned
+status: cancelled
 tags: [pinnacle, greetd, compositor, 067, reproducibility]
 ---
 
@@ -117,3 +117,6 @@ pinnacle source's api/protobuf. Options to evaluate:
 Then: deploy, logout, pick Pinnacle, confirm the log shows setup() completing (no
 "protobuf definitions directory" assert, no "Config crashed! Falling back"), and custom keybinds
 (Super+B) fire. THEN Layer 3 (API-drift) if any.
+
+## Gate Check
+🚫 142 -- cancelled: Pinnacle custom config under greetd. Neither Pinnacle nor greetd is installed. -- approved by: christian 2026-08-27

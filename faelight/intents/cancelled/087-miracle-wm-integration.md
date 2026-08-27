@@ -2,7 +2,7 @@
 id: 087
 date: 2026-06-23
 type: future
-status: planned
+status: cancelled
 title: "Miracle-wm: second compositor profile (Mir-based, Sway-IPC)"
 tags: [compositor, miracle, wayland, mir, profile, 010]
 version: TBD
@@ -104,3 +104,6 @@ Miracle are fully configured -- don't open new fronts while two compositors are 
 - The dedicated "Miracle Day" is its own intent (dark glassy forest). Pinnacle gets its own
   "Pinnacle Day" intent (frosted-glass see-through), which depends on INT-142's keybind fix
   landing first. Mango stays the untouched primary work profile.
+
+## Gate Check
+🚫 087 -- cancelled: miracle-wm second compositor profile. Hyprland is the compositor and no second profile is wanted. -- approved by: christian 2026-08-27

@@ -3,7 +3,7 @@ id: 013
 date: 2026-06-03
 type: feature
 title: "Forest-Aware Launcher: forest start <context> -- environment as first class"
-status: planned
+status: cancelled
 tags: [launcher, environment, nix, friday, context-switching]
 priority: low
 ---
@@ -27,3 +27,6 @@ Friday knows which project, which intent, what comes next.
 ## Gate
 
 forest start coding activates rust devShell, switches workspace, Friday briefs.
+
+## Gate Check
+🚫 013 -- cancelled: faelight-launcher was retired long ago and its stale registry entry is the missing tool the doctor reports. A launcher intent for a launcher that does not exist. -- approved by: christian 2026-08-27

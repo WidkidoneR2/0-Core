@@ -3,7 +3,7 @@ id: 154
 date: 2026-07-12
 type: future
 title: "Miracle Day: build the dark glassy forest profile end-to-end -- border/color, full keybind mirror, own dark-glass Alacritty theme, own miracle-bar (Sway-IPC), wallpaper, clean-launch verify, then home-manager track"
-status: planned
+status: cancelled
 tags: [compositor, miracle, theme, bar, alacritty, dark-glass, 087, 067]
 ---
 
@@ -80,3 +80,6 @@ turns "works" into "the dark glassy forest."
 
 ## The Rule
 "Same forest, different light. Mango works; Miracle is where the dark glass catches it." 🌲
+
+## Gate Check
+🚫 154 -- cancelled: The dark glassy profile end-to-end on miracle-wm, which is not installed. The palette work survives in the Hakker Green single-token-source direction. -- approved by: christian 2026-08-27

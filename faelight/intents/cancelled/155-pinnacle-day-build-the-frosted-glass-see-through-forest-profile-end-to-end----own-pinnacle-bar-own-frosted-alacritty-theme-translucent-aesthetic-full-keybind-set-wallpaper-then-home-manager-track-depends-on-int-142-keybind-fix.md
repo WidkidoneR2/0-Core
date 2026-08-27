@@ -3,7 +3,7 @@ id: 155
 date: 2026-07-12
 type: future
 title: "Pinnacle Day: build the frosted-glass see-through forest profile end-to-end -- own pinnacle-bar, own frosted Alacritty theme, translucent aesthetic, full keybind set, wallpaper, then home-manager track (depends on INT-142 keybind fix)"
-status: planned
+status: cancelled
 depends_on: [142]
 tags: [compositor, pinnacle, theme, bar, alacritty, frosted-glass, 142, 067]
 ---
@@ -87,3 +87,6 @@ communicate-goal has a fallback even pre-142; 142 is about the KEYBINDS.)
 **INT-142** -- Pinnacle custom config does not load under greetd until the protos and
 XDG_DATA_DIRS reconcile lands. Stated in this intent title since filing. The frosted-glass
 profile is a full keybind set, and the keybinds are what 142 fixes.
+
+## Gate Check
+🚫 155 -- cancelled: The frosted profile end-to-end on Pinnacle, which is not installed. Its only dependency, INT-142, is cancelled with it. -- approved by: christian 2026-08-27

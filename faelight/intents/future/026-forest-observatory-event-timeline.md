@@ -32,3 +32,4 @@ Friday already collects events -- they need a searchable interface.
 - [ ] Date range filtering works
 - [ ] Intent + commit + rebuild events unified in one timeline
 - [ ] Friday can answer "what was I working on last week"
+

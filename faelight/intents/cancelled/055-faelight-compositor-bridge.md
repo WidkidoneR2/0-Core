@@ -3,7 +3,7 @@ id: 055
 date: 2026-06-09
 type: architecture
 title: "faelight-compositor: shared Wayland bridge for MangoWM and Pinnacle"
-status: planned
+status: cancelled
 tags: [compositor, wayland, layer-shell, mango, pinnacle, smithay, rust, ipc]
 priority: medium
 ---
@@ -109,3 +109,6 @@ checklist in INT-024's VM:
   [ ] recovery from a broken session demonstrated in VM
   [ ] all of the above documented before graduating
 Door is always open: docs/recovery-runbook.md · TTY2 via Ctrl+Alt+F2.
+
+## Gate Check
+🚫 055 -- cancelled: A shared Wayland bridge for MangoWM and Pinnacle. Neither compositor is installed. Hyprland is the compositor. -- approved by: christian 2026-08-27

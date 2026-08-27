@@ -3,7 +3,7 @@ id: 049
 date: 2026-06-09
 type: polish
 title: "boot-polish: clean quiet boot, fix display handoff, greetd stability"
-status: planned
+status: cancelled
 tags: [boot, plymouth, greetd, display, tuigreet, polish, amd, framework]
 priority: medium
 ---
@@ -247,3 +247,6 @@ the concrete VM is now 027's OVMF-capable faelight-vm.)
 NOTE: 049 is the boot/login/shutdown EXPERIENCE (per INT-078's own boundary: 078 = boot
 INFRASTRUCTURE, 049/054 = experience). Tonight's seamlessness+shutdown vision lives HERE, not in
 Everglow.
+
+## Gate Check
+🚫 049 -- cancelled: boot-polish targeted greetd stability and the NixOS display handoff. Omarchy boots through limine with its own greeter; nothing transfers. -- approved by: christian 2026-08-27

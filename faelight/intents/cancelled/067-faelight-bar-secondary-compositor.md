@@ -3,7 +3,7 @@ id: 067
 date: 2026-06-17
 type: feature
 title: "faelight-bar under the secondary compositor (Pinnacle primary, MiracleWM fallback)"
-status: planned
+status: cancelled
 tags: [bar, wayland, layer-shell, compositor, pinnacle, miraclewm, workspaces, ipc]
 priority: medium
 ---
@@ -61,3 +61,6 @@ demonstrated -- before it lands on the real machine. Sequenced after INT-024.
 ## The Rule
 "The bar follows the forest, not the compositor.
  Whichever window manager paints the screen, the pulse reads the same." 🌲
+
+## Gate Check
+🚫 067 -- cancelled: faelight-bar under Pinnacle or MiracleWM. Neither compositor exists here, and the bar is Quickshell, which already carries a plugin API. -- approved by: christian 2026-08-27

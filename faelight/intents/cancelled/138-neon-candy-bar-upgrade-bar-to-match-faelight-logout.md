@@ -3,7 +3,7 @@ id: 138
 date: 2026-07-10
 type: future
 title: "Neon-Candy Bar (Upgrade Bar to match faelight-logout)"
-status: planned
+status: cancelled
 tags: [bar, gtk4, candy, neon]
 ---
 
@@ -86,3 +86,6 @@ Mirror the prompt's semantic mapping so a person reads the two as one system:
 ## The Rule
 "The forest should speak one language, from prompt to bar to the door you leave by.
  The bar is Friday's face -- let it be as bright and magical as the rest of the forest." 🌲
+
+## Gate Check
+🚫 138 -- cancelled: Upgrades the GTK bar, whose Friday zone read a wrong path and was silently blank and whose intent zone never had a focus set. Superseded by Quickshell, which already delivers more than that bar did. -- approved by: christian 2026-08-27

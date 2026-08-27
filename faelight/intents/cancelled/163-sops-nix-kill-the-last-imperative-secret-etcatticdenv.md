@@ -3,7 +3,7 @@ id: 163
 date: 2026-07-16
 type: arch
 title: "sops-nix: kill the last imperative secret (/etc/atticd.env)"
-status: planned
+status: cancelled
 tags: [security, secrets, nix, attic]
 ---
 
@@ -67,3 +67,6 @@ twice.
 - [ ] The existing /etc/atticd.env value is preserved, not regenerated -- server.db (10MB,
       since 2026-07-07) holds tokens signed by the CURRENT key. A new key invalidates them
 - [ ] nix flake check green; RISK.toml tier for any new secrets dir decided (INT-112)
+
+## Gate Check
+🚫 163 -- cancelled: sops-nix is a NixOS module, atticd is gone, and there is no imperative secret left to kill. Secret handling on Arch is an unfiled question. -- approved by: christian 2026-08-27

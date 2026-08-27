@@ -3,7 +3,7 @@ id: 078
 date: 2026-06-23
 type: future
 title: "Everglow/Faelight-boot"
-status: planned
+status: cancelled
 tags: [Boot, NixOS, faelight, gerneration-aware]
 ---
 
@@ -90,3 +90,6 @@ the verification path (the TCB moved, it did not shrink) or load unsigned code p
 this intent's own "minimize the trusted computing base" note.
 NOTE: automatic rollback via boot counting is NOT free -- verified 2026-07-15, no such option exists
 anywhere under boot.loader in NixOS. systemd-boot supports +tries; NixOS never emits them.
+
+## Gate Check
+🚫 078 -- cancelled: Everglow reads /nix/var/nix/profiles directly and its trust tier was Lanzaboote. Both substrates are gone -- and Omarchy already ships the feature: snapper snapshots on package transactions, limine-snapper-sync puts them in the boot menu. Overtaken by delivery, not only by migration. -- approved by: christian 2026-08-27
