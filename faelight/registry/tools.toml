@@ -105,15 +105,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-lock"
-version = "2.0.0"
-category = "security"
-description = "File and directory locking"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
 name = "faelight-menu"
 version = "4.0.0"
 category = "ui"
@@ -237,15 +228,6 @@ version = "0.1.0"
 category = "desktop"
 description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
 expected_usage = "rare"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
-name = "faelight-idle"
-version = "1.0.0"
-category = "system"
-description = "Rust idle daemon — ext-idle-notify-v1, replaces swayidle, event ledger integration"
-expected_usage = "high"
 type = "rust"
 deployable = true
 retired = false

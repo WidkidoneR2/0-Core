@@ -42,11 +42,6 @@ category = "development"
 
 
 [[alias]]
-command = "faelight-lock"
-aliases = ["lock"]
-category = "desktop"
-
-[[alias]]
 command = "faelight-logout"
 aliases = ["menu"]
 category = "desktop"
