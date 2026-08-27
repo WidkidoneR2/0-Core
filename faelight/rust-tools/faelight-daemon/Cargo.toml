@@ -35,6 +35,3 @@ chrono = { version = "0.4", features = ["clock"] }
 name = "faelight-daemon"
 path = "src/main.rs"
 
-[[bin]]
-name = "test-client"
-path = "src/bin/test-client.rs"

@@ -268,15 +268,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-login"
-version = "2.0.0"
-category = "system"
-description = "Faelight login greeter — greetd-compatible TUI login screen"
-expected_usage = "low"
-type = "special"
-deployable = true
-retired = false
-[[tool]]
 name = "security-audit"
 version = "1.0.0"
 category = "security"
@@ -454,15 +445,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-nix"
-version = "0.1.0"
-category = "system"
-description = "Nix package search TUI -- search nixpkgs, add declaratively"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "faelight-wsd"
 version = "0.1.0"
 category = "compositor"
@@ -485,15 +467,6 @@ name = "fsh-test"
 version = "2.0.0"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
-name = "gen-diff"
-version = "0.1.0"
-category = "system"
-description = "Rich visual diff between NixOS generations"
 expected_usage = "medium"
 type = "rust"
 deployable = true

@@ -1708,28 +1708,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-login"
-version = "2.0.0"
-dependencies = [
- "crossterm 0.28.1",
- "greetd_ipc",
- "libc",
- "ratatui 0.29.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "faelight-nix"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm 0.28.1",
- "ratatui 0.29.0",
- "serde_json",
-]
-
-[[package]]
 name = "faelight-notify"
 version = "4.0.0"
 dependencies = [
@@ -2266,18 +2244,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gen-diff"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "colored",
- "libc",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2448,17 +2414,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdf242682df893b86f33a73828fb09ca4b2d3bb6cc95249707fc684d27484b91"
 dependencies = [
  "bitflags 2.10.0",
-]
-
-[[package]]
-name = "greetd_ipc"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "700d2e5bfc91a042d1d531b46de245085c6a179debedf149aa97c7ca71492078"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
 ]
 
 [[package]]
