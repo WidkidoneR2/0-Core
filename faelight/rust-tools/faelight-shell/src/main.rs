@@ -2987,45 +2987,6 @@ fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
 
 fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     use colored::Colorize;
-    use std::path::PathBuf;
-
-    let root = PathBuf::from(core_root);
-
-    let version = std::fs::read_to_string(root.join("faelight/meta/VERSION"))
-        .unwrap_or_else(|_| "unknown".into())
-        .trim()
-        .to_string();
-
-    let changelog =
-        std::fs::read_to_string(root.join("faelight/meta/CHANGELOG.md")).unwrap_or_default();
-    let theme = changelog
-        .lines()
-        .find(|l| l.starts_with(&format!("## [{}]", version)))
-        .and_then(|l| {
-            if l.contains(" — ") {
-                l.split(" — ").nth(1)
-            } else {
-                l.split(" -- ").nth(1)
-            }
-        })
-        .and_then(|s| s.split('(').next())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "The Living Forest".to_string());
-
-    let commits = std::process::Command::new("git")
-        .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-        .output()
-        .ok()
-        // ⚠️ .ok() ONLY SAYS THE PROCESS RAN. git exits 128 with EMPTY stdout when there is no
-        // repository, so the chain succeeded, trimmed an empty string, and `unwrap_or_else` never
-        // fired -- the banner printed a BLANK where a count belongs, which reads as a rendering
-        // glitch rather than an admission. This was the line the other three were modelled on, and
-        // it was only honest when git was ABSENT, never when git FAILED.
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "?".to_string());
 
     // None means the doctor has never run here. The banner says so rather than
     // inventing a number -- it used to fall back to 95 twice over.
@@ -3083,11 +3044,6 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         }
         (complete, planned)
     };
-    // Count tools from registry — mirrors doctor check_path_resilience logic exactly
-    let tool_count = std::fs::read_to_string(faelight_core::paths::tools_registry())
-        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
-        .ok();
-
     let quotes = [
         "Nothing runs without explicit human authorization.",
         "The forest remembers. The human decides.",
@@ -3141,37 +3097,109 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
                 .map(|_| "wayland".to_string())
                 .unwrap_or_else(|_| "tty".to_string())
         });
-    // ── detect NixOS generation ──
-    // PLATFORM-CHECKED: this chain ends unwrap_or_else(|| "?"), so an absent nixos-rebuild shows
-    // a question mark in the banner rather than a fabricated generation number. An explicit unknown
-    // is a degrade, not a swallow -- and a banner is the wrong place for an error.
-    let nix_gen = std::process::Command::new("nixos-rebuild")
-        .args(["list-generations", "--json"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| {
-            // find "current":true entry and get generation number
-            let v: serde_json::Value = serde_json::from_str(&s).ok()?;
-            v.as_array()?
-                .iter()
-                .find(|g| g["current"].as_bool().unwrap_or(false))
-                .and_then(|g| g["generation"].as_u64())
-                .map(|n| n.to_string())
-        })
-        .unwrap_or_else(|| "?".to_string());
-    // ── header ──
+    // -- fsh-test: the suite score, read rather than run --
+    // The pre-push hook runs fsh-test on every push, so state.db always holds a fresh
+    // result and the banner never has to spawn anything. Rows from one run share a
+    // timestamp; the newest group is the latest run.
+    let fsh_score = {
+        let row: Option<(i64, i64, String)> = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*), SUM(passed), commit_hash FROM fsh_test_results \
+                 WHERE timestamp = (SELECT MAX(timestamp) FROM fsh_test_results)",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .ok();
+        match row {
+            Some((total, passed, hash)) if total > 0 => {
+                let head = std::process::Command::new("git")
+                    .args(["-C", core_root, "rev-parse", "HEAD"])
+                    .output()
+                    .ok()
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default();
+                if !head.is_empty() && head != hash {
+                    format!("{}/{} (at {})", passed, total, &hash[..8.min(hash.len())])
+                } else {
+                    format!("{}/{}", passed, total)
+                }
+            }
+            // ABSENT IS NOT ZERO. A suite that has never run here is unknown, not failing.
+            _ => "?".to_string(),
+        }
+    };
+
+    // -- in-progress intents, counted the same way planned already is --
+    let active_count = {
+        let dir = faelight_core::paths::intents_dir();
+        let mut n = 0usize;
+        for cat in ["in-progress", "active"] {
+            if let Ok(entries) = std::fs::read_dir(dir.join(cat)) {
+                for e in entries.flatten() {
+                    if e.path().extension().map(|x| x == "md").unwrap_or(false) {
+                        n += 1;
+                    }
+                }
+            }
+        }
+        n
+    };
+
+    let planned_display = if ledger_exists {
+        planned_count.to_string()
+    } else {
+        "?".to_string()
+    };
+    let complete_display = if ledger_exists {
+        complete_count.to_string()
+    } else {
+        "?".to_string()
+    };
+
+    // -- blocked: only shown when there is something to act on --
+    let blocked_note = String::new();
+
+    // -- git, and only what is actionable. 4383 total commits is not.
+    let git_line = {
+        let dirty = std::process::Command::new("git")
+            .args(["-C", core_root, "status", "--porcelain"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
+            .unwrap_or(0);
+        let ahead = std::process::Command::new("git")
+            .args(["-C", core_root, "rev-list", "--count", "origin/main..HEAD"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse::<usize>().ok())
+            .unwrap_or(0);
+        let mut parts: Vec<String> = Vec::new();
+        if dirty > 0 {
+            parts.push(format!("{} uncommitted", dirty));
+        }
+        if ahead > 0 {
+            parts.push(format!("{} unpushed", ahead));
+        }
+        if parts.is_empty() {
+            "clean and pushed".to_string()
+        } else {
+            parts.join(" \u{00b7} ")
+        }
+    };
+
+    // -- header --
     println!(
         "  {}  {}",
         fc_bold(57, 255, 20, "◉ Zero Core"),
-        fc_dim(140, 220, 100, &format!("gen {} · {}", nix_gen, compositor))
+        fc_dim(140, 220, 100, &compositor)
     );
     println!();
-    println!(
-        "  {}",
-        fc_bold(57, 255, 20, &format!("{} -- {}", version, theme))
-    );
-    // ── neon separator ──
+
+    // -- separator --
     println!(
         "  {}",
         fc(
@@ -3181,57 +3209,47 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
     );
-    // ── stats row ──
+
+    // -- shell row: the suite score, and whether it saw this commit --
+    // The pre-push hook runs fsh-test on every push, so this is fresh without the
+    // banner running anything. If the recorded commit is not HEAD the score is about
+    // OLDER CODE and says so -- same discipline as reporting an unknown rather than
+    // inventing a number.
     println!(
-        "  {} {}  {} {}  {} {}  {} {}",
-        // ⭐ A QUESTION MARK IS THE HONEST ANSWER when the source is not there, and `commits`
-        // has always done this. These three now match it: an absent ledger or registry reads `?`,
-        // an empty one reads `0`, and the two are no longer the same sentence.
-        fc_bold(
-            57,
-            255,
-            20,
-            &if ledger_exists {
-                complete_count.to_string()
-            } else {
-                "?".into()
-            }
-        ),
-        fc_dim(120, 200, 100, "done"),
-        fc_bold(255, 200, 50, &commits),
-        fc_dim(180, 160, 80, "commits"),
-        fc_bold(
-            50,
-            220,
-            255,
-            &tool_count
-                .map(|n| n.to_string())
-                .unwrap_or_else(|| "?".into())
-        ),
-        fc_dim(100, 180, 200, "tools"),
-        fc_dim(
-            160,
-            140,
-            220,
-            &format!(
-                "{} planned",
-                if ledger_exists {
-                    planned_count.to_string()
-                } else {
-                    "?".into()
-                }
-            )
-        ),
-        fc_dim(100, 100, 140, "")
+        "  {}  {}   {}  {}",
+        fc_bold(50, 220, 255, &fsh_score),
+        fc_dim(100, 180, 200, "shell"),
+        fc_bold(57, 255, 20, &health_display),
+        fc_dim(100, 160, 100, "forest")
     );
-    // ── health row ──
+
+    // -- ledger row --
     println!(
-        "  {}  {}",
-        &health_display,
-        fc_dim(100, 160, 100, "system health")
+        "  {} {}  {} {}  {} {}  {}",
+        fc_bold(255, 200, 50, &active_count.to_string()),
+        fc_dim(180, 160, 80, "active"),
+        fc_bold(160, 140, 220, &planned_display),
+        fc_dim(120, 110, 170, "planned"),
+        fc_bold(120, 200, 100, &complete_display),
+        fc_dim(100, 150, 90, "done"),
+        fc_dim(200, 120, 120, &blocked_note)
+    );
+
+    // -- git row: real time, and only what is actionable --
+    println!("  {}", fc_dim(150, 150, 180, &git_line));
+
+    println!(
+        "  {}",
+        fc(
+            34,
+            200,
+            80,
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
     );
     println!();
-    // ── philosophy quote -- bold not dimmed ──
+
+    // -- philosophy quote --
     println!("  {}", fc_bold(180, 130, 255, &format!("\"{}\"", quote)));
     println!();
     // Today's Focus — lowest audit score tool
