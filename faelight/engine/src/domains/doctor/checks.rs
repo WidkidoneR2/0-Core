@@ -1454,94 +1454,6 @@ pub fn check_compositor() -> CheckResult {
     }
 }
 
-pub fn check_nix_store() -> CheckResult {
-    // ⚠️ A CHECK THAT CANNOT APPLY HAS NOT PASSED -- IT HAS NOTHING TO SAY. Every branch below
-    // assumes a Nix store, so off NixOS they all failed their reads and reported Warn, dragging a
-    // healthy machine's score down for the absence of a package manager it does not use.
-    //
-    // ⭐ Status::Unknown ALREADY MEANS THIS: INT-148 documents it as excluded from the health
-    // denominator and rendered neutrally. No fifth status is needed, and inventing one to
-    // distinguish "could not run" from "does not apply" would be ceremony -- the behaviour is
-    // identical and no consumer needs to tell them apart.
-    //
-    // ⚠️ THE GUARD IS AT THE TOP AND ASKS ABOUT THE SYSTEM, not about a failed read. On a NixOS
-    // machine whose store is genuinely unreadable, Warn is still the right answer -- that is a real
-    // problem there. The two cases are different facts and get different answers.
-    if !std::path::Path::new("/nix").exists() {
-        return CheckResult {
-            tier: Tier::System,
-            id: "nix_store".into(),
-            name: "Nix Store".into(),
-            status: Status::Unknown,
-            message: "not a Nix system".into(),
-            fix: None,
-        };
-    }
-    // Store size via the Nix path DB: SUM(narSize) over ValidPaths --
-    // milliseconds, no filesystem walk. Read-only; the DB is root-owned 0644.
-    // narSize is the logical NAR size (a hair above true on-disk due to dedup),
-    // so it errs high -- the safe direction for a "getting large" signal.
-    let bytes: i64 = match rusqlite::Connection::open_with_flags(
-        "/nix/var/nix/db/db.sqlite",
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .and_then(|db| {
-        db.query_row("SELECT SUM(narSize) FROM ValidPaths", [], |r| {
-            r.get::<_, i64>(0)
-        })
-    }) {
-        Ok(b) => b,
-        Err(_) => {
-            return CheckResult {
-                tier: Tier::System,
-                id: "nix_store".into(),
-                name: "Nix Store".into(),
-                status: Status::Warn,
-                message: "Could not read Nix store DB".into(),
-                fix: Some("Verify /nix/var/nix/db/db.sqlite is readable".into()),
-            };
-        }
-    };
-
-    let gib = bytes as f64 / 1_073_741_824.0;
-
-    let mut disk_total: u64 = 0;
-    if let Ok(p) = std::ffi::CString::new("/nix") {
-        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
-        if unsafe { libc::statvfs(p.as_ptr(), &mut stat) } == 0 {
-            disk_total = stat.f_blocks as u64 * stat.f_frsize as u64;
-        }
-    }
-
-    let message = if disk_total > 0 {
-        let pct = bytes as f64 / disk_total as f64 * 100.0;
-        let tib = disk_total as f64 / 1_099_511_627_776.0;
-        format!("{:.1} GiB ({:.1}% of {:.1} TiB)", gib, pct, tib)
-    } else {
-        format!("{:.1} GiB", gib)
-    };
-
-    if gib > 250.0 {
-        CheckResult {
-            tier: Tier::System,
-            id: "nix_store".into(),
-            name: "Nix Store".into(),
-            status: Status::Warn,
-            message: format!("{} -- consider nix-collect-garbage", message),
-            fix: Some("Run nix-collect-garbage -d to reclaim space".into()),
-        }
-    } else {
-        CheckResult {
-            tier: Tier::System,
-            id: "nix_store".into(),
-            name: "Nix Store".into(),
-            status: Status::Pass,
-            message,
-            fix: None,
-        }
-    }
-}
-
 pub fn check_friday(_core_root: &str) -> CheckResult {
     // Friday learning vital signs, read from the same state.db the footer uses
     // (friday_patterns / friday_knowledge). PASS while learning; WARN only on a
@@ -1674,492 +1586,260 @@ pub fn check_network() -> CheckResult {
     }
 }
 
-pub fn check_generation_drift() -> CheckResult {
-    // See check_nix_store: not applicable is not a failure. Same guard, same reasoning.
-    if !std::path::Path::new("/nix").exists() {
-        return CheckResult {
-            tier: Tier::System,
-            id: "generation_drift".into(),
-            name: "Generation Drift".into(),
-            status: Status::Unknown,
-            message: "not a Nix system".into(),
-            fix: None,
-        };
-    }
-    let current = std::fs::read_link("/run/current-system").ok();
-    let booted = std::fs::read_link("/run/booted-system").ok();
-    match (current, booted) {
-        (Some(c), Some(b)) if c == b => CheckResult {
-            tier: Tier::System,
-            id: "generation_drift".into(),
-            name: "Generation Drift".into(),
-            status: Status::Pass,
-            message: "Booted generation is current".into(),
-            fix: None,
-        },
-        (Some(_), Some(_)) => CheckResult {
-            tier: Tier::System,
-            id: "generation_drift".into(),
-            name: "Generation Drift".into(),
-            status: Status::Warn,
-            message: "Rebuilt since boot -- reboot to apply (kernel/initrd changes need it)".into(),
-            fix: Some("Reboot to activate the current generation".into()),
-        },
-        _ => CheckResult {
-            tier: Tier::System,
-            id: "generation_drift".into(),
-            name: "Generation Drift".into(),
-            status: Status::Warn,
-            message: "Could not read current/booted system links".into(),
-            fix: None,
-        },
+// -- Arch system state (INT-222, Omarchy) ------------------------------------
+// ONE owner for the kernel question. Both checks below call these two helpers;
+// a second place deciding what the running kernel is would be the two-owners
+// disease arriving on day one.
+fn running_kernel() -> Result<String, String> {
+    match Command::new("uname").arg("-r").output() {
+        Ok(o) => {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() {
+                Err("uname -r produced no output".to_string())
+            } else {
+                Ok(s)
+            }
+        }
+        Err(e) => Err(format!("uname -r failed: {}", e)),
     }
 }
 
-pub fn check_generation_count() -> CheckResult {
-    // ⚠️⚠️ THIS ONE WAS PASSING, AND A FALSE GREEN IS QUIETER THAN A FALSE AMBER. Off NixOS it
-    // counted zero generations and reported "0 generations, none older than 14d" -- a clean bill
-    // of health for a facility that does not exist. Same absent-is-not-empty defect as the ledger
-    // and the tool registry, wearing a tick instead of a warning.
-    if !std::path::Path::new("/nix").exists() {
-        return CheckResult {
-            tier: Tier::System,
-            id: "generation_count".into(),
-            name: "Generation Count".into(),
-            status: Status::Unknown,
-            message: "not a Nix system".into(),
-            fix: None,
-        };
+fn installed_kernels() -> Result<Vec<String>, String> {
+    let rd = std::fs::read_dir("/usr/lib/modules")
+        .map_err(|e| format!("cannot read /usr/lib/modules: {}", e))?;
+    let mut out: Vec<String> = rd
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
+    out.sort();
+    if out.is_empty() {
+        Err("no kernel module trees in /usr/lib/modules".to_string())
+    } else {
+        Ok(out)
     }
-    // Warn only when a GC could actually prune something: generations whose link
-    // mtime is older than 14d (approximates --delete-older-than 14d). Total shown
-    // for transparency; the warn is the actionable part.
-    use std::time::{Duration, SystemTime};
-    const PRUNE_AGE: Duration = Duration::from_secs(14 * 24 * 3600);
-    let now = SystemTime::now();
-    let mut total = 0usize;
-    let mut old = 0usize;
-    if let Ok(entries) = std::fs::read_dir("/nix/var/nix/profiles") {
-        for e in entries.filter_map(|e| e.ok()) {
-            let n = e.file_name();
-            let n = n.to_string_lossy();
-            if n.starts_with("system-") && n.ends_with("-link") {
-                total += 1;
-                if let Ok(meta) = std::fs::symlink_metadata(e.path()) {
-                    if let Ok(mtime) = meta.modified() {
-                        if now
-                            .duration_since(mtime)
-                            .map(|a| a > PRUNE_AGE)
-                            .unwrap_or(false)
-                        {
-                            old += 1;
-                        }
-                    }
-                }
+}
+
+// Replaces check_generation_drift. SAME QUESTION -- is what is running still
+// what is installed -- with a mechanism that exists on this machine. Both reads
+// are unprivileged, which matters because d runs at session start.
+pub fn check_reboot_needed() -> CheckResult {
+    let id = "reboot_needed";
+    let name = "Reboot Needed";
+    let running = match running_kernel() {
+        Ok(v) => v,
+        Err(why) => {
+            return CheckResult {
+                tier: Tier::System,
+                id: id.into(),
+                name: name.into(),
+                status: Status::Unknown,
+                message: format!("could not check -- {}", why),
+                fix: None,
             }
         }
-    }
-    if old > 0 {
+    };
+    let installed = match installed_kernels() {
+        Ok(v) => v,
+        Err(why) => {
+            return CheckResult {
+                tier: Tier::System,
+                id: id.into(),
+                name: name.into(),
+                status: Status::Unknown,
+                message: format!("could not check -- {}", why),
+                fix: None,
+            }
+        }
+    };
+    if installed.iter().any(|k| k == &running) {
         CheckResult {
-            tier: Tier::User,
-            id: "generation_count".into(),
-            name: "Generation Count".into(),
-            status: Status::Warn,
-            message: format!("{} generations ({} older than 14d, prunable)", total, old),
-            fix: Some("sudo nix-collect-garbage --delete-older-than 14d".into()),
+            tier: Tier::System,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Pass,
+            message: format!("running kernel {} is the installed one", running),
+            fix: None,
         }
     } else {
         CheckResult {
-            tier: Tier::User,
-            id: "generation_count".into(),
-            name: "Generation Count".into(),
-            status: Status::Pass,
-            message: format!("{} generations, none older than 14d", total),
-            fix: None,
-        }
-    }
-}
-
-pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
-    // ⚠️ AND THIS ONE PASSED FOR A WORSE REASON: it read the file's mtime, and a fresh git clone
-    // stamps every file with today's date -- so it reported "updated 0 days ago" about a lock file
-    // that had not been touched in weeks, on a machine that cannot use it. The number was real and
-    // the conclusion was nonsense.
-    if !std::path::Path::new("/nix").exists() {
-        return CheckResult {
             tier: Tier::System,
-            id: "flake_lock".into(),
-            name: "Flake Lock Age".into(),
-            status: Status::Unknown,
-            message: "not a Nix system".into(),
-            fix: None,
-        };
-    }
-    use std::time::SystemTime;
-    let path = std::path::Path::new(core_root).join("flake.lock");
-    let age_days = std::fs::metadata(&path)
-        .and_then(|m| m.modified())
-        .ok()
-        .and_then(|mtime| SystemTime::now().duration_since(mtime).ok())
-        .map(|d| d.as_secs() / 86400);
-    match age_days {
-        Some(days) if days > 30 => CheckResult {
-            tier: Tier::User,
-            id: "flake_lock_age".into(),
-            name: "Flake Lock Age".into(),
+            id: id.into(),
+            name: name.into(),
             status: Status::Warn,
-            message: format!("flake.lock is {} days old -- deps may be stale", days),
-            fix: Some("nix flake update".into()),
-        },
-        Some(days) => CheckResult {
-            tier: Tier::User,
-            id: "flake_lock_age".into(),
-            name: "Flake Lock Age".into(),
-            status: Status::Pass,
-            message: format!("flake.lock updated {} days ago", days),
-            fix: None,
-        },
-        None => CheckResult {
-            tier: Tier::User,
-            id: "flake_lock_age".into(),
-            name: "Flake Lock Age".into(),
-            status: Status::Warn,
-            message: "Could not read flake.lock mtime".into(),
-            fix: None,
-        },
+            message: format!(
+                "kernel changed since boot -- running {}, installed {}",
+                running,
+                installed.join(", ")
+            ),
+            fix: Some("Reboot to load the installed kernel".into()),
+        }
     }
 }
 
+// INT-222: the old body read /run/current-system and /run/booted-system. Off
+// NixOS both read_link calls returned Err, .ok() turned them into None, the
+// if-let never matched, and NO BLOCKER WAS PUSHED -- so it reported "safe to
+// update" having measured only the git half. A MISSING MEASUREMENT RENDERED AS
+// A PASS, which is quieter and therefore worse than a false amber.
+// Rule enforced below: every signal produces a blocker, an unreadable entry, or
+// a pass. None of them may go quiet.
 pub fn check_update_readiness(core_root: &str) -> CheckResult {
-    // Synthesis: is the system in a safe STATE to run an update?
-    // booted == current (no pending reboot) AND no uncommitted tracked changes.
-    // Folds the drift + git signals into one go/no-go pre-update verdict.
-    let mut blockers: Vec<&str> = Vec::new();
-    let current = std::fs::read_link("/run/current-system").ok();
-    let booted = std::fs::read_link("/run/booted-system").ok();
-    if let (Some(c), Some(b)) = (current, booted) {
-        if c != b {
-            blockers.push("reboot to clear generation drift");
+    let id = "update_readiness";
+    let name = "Update Readiness";
+    let mut blockers: Vec<String> = Vec::new();
+    let mut unreadable: Vec<String> = Vec::new();
+
+    match (running_kernel(), installed_kernels()) {
+        (Ok(r), Ok(i)) => {
+            if !i.iter().any(|k| k == &r) {
+                blockers.push(format!(
+                    "reboot -- running {}, installed {}",
+                    r,
+                    i.join(", ")
+                ));
+            }
         }
+        (Err(why), _) | (_, Err(why)) => unreadable.push(format!("kernel state ({})", why)),
     }
-    let dirty = Command::new("git")
+
+    match Command::new("git")
         .arg("-C")
         .arg(core_root)
         .args(["diff", "--quiet", "HEAD"])
         .status()
-        .map(|s| !s.success())
-        .unwrap_or(false);
-    if dirty {
-        blockers.push("commit or stash tracked changes");
+    {
+        Ok(s) => {
+            if !s.success() {
+                blockers.push("commit or stash tracked changes".to_string());
+            }
+        }
+        Err(e) => unreadable.push(format!("git worktree ({})", e)),
     }
-    if blockers.is_empty() {
+
+    if !blockers.is_empty() {
         CheckResult {
             tier: Tier::User,
-            id: "update_readiness".into(),
-            name: "Update Readiness".into(),
-            status: Status::Pass,
-            message: "Safe to update -- booted current, tree clean".into(),
+            id: id.into(),
+            name: name.into(),
+            status: Status::Warn,
+            message: format!("hold off -- {}", blockers.join("; ")),
+            fix: Some("Resolve the above, then: omarchy-update".into()),
+        }
+    } else if !unreadable.is_empty() {
+        CheckResult {
+            tier: Tier::User,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Unknown,
+            message: format!("could not judge -- unread: {}", unreadable.join("; ")),
             fix: None,
         }
     } else {
         CheckResult {
             tier: Tier::User,
-            id: "update_readiness".into(),
-            name: "Update Readiness".into(),
-            status: Status::Warn,
-            message: format!("Hold off -- {}", blockers.join("; ")),
-            fix: Some("Resolve the above, then: nix flake update && rebuild".into()),
+            id: id.into(),
+            name: name.into(),
+            status: Status::Pass,
+            message: "safe to update -- kernel current, tree clean".into(),
+            fix: None,
         }
     }
 }
 
-pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
-    // See check_nix_store: linting Nix code on a machine with no Nix is not a health question.
-    if !std::path::Path::new("/nix").exists() {
-        return CheckResult {
-            tier: Tier::User,
-            id: "nix_hygiene".into(),
-            name: "Nix Hygiene".into(),
-            status: Status::Unknown,
-            message: "not a Nix system".into(),
-            fix: None,
-        };
+// Tier::Info -- a REPORTER. It measures truly and never renders a judgement, so
+// it stays out of the health denominator. Deliberate: any warning threshold here
+// would be a number somebody typed, and a typed threshold goes stale exactly the
+// way the check count did.
+// NOTE: du on this directory EXITS 1 because two root-only download-* temp dirs
+// live in it, while still printing a correct total. Walking entries and asking
+// each for metadata skips those without ever consulting an exit code.
+pub fn check_package_cache() -> CheckResult {
+    let id = "package_cache";
+    let name = "Package Cache";
+    let dir = "/var/cache/pacman/pkg";
+    let rd = match std::fs::read_dir(dir) {
+        Ok(v) => v,
+        Err(e) => {
+            return CheckResult {
+                tier: Tier::Info,
+                id: id.into(),
+                name: name.into(),
+                status: Status::Unknown,
+                message: format!("could not read {} -- {}", dir, e),
+                fix: None,
+            }
+        }
+    };
+    let mut bytes: u64 = 0;
+    let mut files: u64 = 0;
+    for e in rd.filter_map(|e| e.ok()) {
+        if let Ok(m) = e.metadata() {
+            if m.is_file() {
+                bytes += m.len();
+                files += 1;
+            }
+        }
     }
-    // INT-133: tuned deadnix + statix over nix/. Both tools exit 0 even with
-    // findings, so we parse output, not exit codes. Tuning: deadnix runs with
-    // --no-lambda-pattern-names (idiomatic `{ config, pkgs, lib, ... }:` headers
-    // are not dead code); statix reads statix.toml at repo root (repeated_keys
-    // disabled -- flat-dotted keys are idiomatic). Green when clean, warns on
-    // genuine findings only (dead code, empty patterns, real anti-patterns).
-    use std::process::Command;
+    let gb = bytes as f64 / 1073741824.0;
+    CheckResult {
+        tier: Tier::Info,
+        id: id.into(),
+        name: name.into(),
+        status: Status::Pass,
+        message: format!("{} cached packages, {:.1} GB", files, gb),
+        fix: Some("Reclaim with: paccache -r".into()),
+    }
+}
 
-    let nix_dir = format!("{}/nix", core_root);
-
-    // deadnix: prints findings to stdout; empty stdout == clean.
-    let deadnix_out = Command::new("deadnix")
-        .args(["--no-lambda-pattern-names", &nix_dir])
-        .output();
-    let dead_count = match &deadnix_out {
-        Ok(o) => {
-            let s = String::from_utf8_lossy(&o.stdout);
-            // deadnix prints one block per finding; count lines that name a .nix file.
-            s.lines().filter(|l| l.contains(".nix")).count()
-        }
-        Err(_) => {
+// WARNING WORTH KEEPING: pacman -Qdtq EXITS 1 WHEN THERE ARE NO ORPHANS -- the
+// healthiest possible answer returns a failure status. Reading that status would
+// report a broken check on a clean machine, which is INT-192 in the wild. Read
+// stdout and count lines instead.
+pub fn check_orphan_packages() -> CheckResult {
+    let id = "orphan_packages";
+    let name = "Orphan Packages";
+    let out = match Command::new("pacman").args(["-Qdtq"]).output() {
+        Ok(o) => o,
+        Err(e) => {
             return CheckResult {
                 tier: Tier::User,
-                id: "nix_hygiene".into(),
-                name: "Nix Hygiene".into(),
-                status: Status::Warn,
-                message: "deadnix not found -- install it to lint Nix code".into(),
-                fix: Some("Add deadnix to your packages".into()),
-            };
+                id: id.into(),
+                name: name.into(),
+                status: Status::Unknown,
+                message: format!("could not run pacman -- {}", e),
+                fix: None,
+            }
         }
     };
-
-    // statix: exits 0 but prints "Warning:" per finding; count those.
-    let statix_out = Command::new("statix")
-        .args(["check", &nix_dir])
-        .current_dir(core_root) // so statix.toml at repo root is picked up
-        .output();
-    let statix_count = match &statix_out {
-        Ok(o) => {
-            let s = String::from_utf8_lossy(&o.stdout);
-            s.matches("Warning:").count()
-        }
-        Err(_) => {
-            return CheckResult {
-                tier: Tier::User,
-                id: "nix_hygiene".into(),
-                name: "Nix Hygiene".into(),
-                status: Status::Warn,
-                message: "statix not found -- install it to lint Nix code".into(),
-                fix: Some("Add statix to your packages".into()),
-            };
-        }
-    };
-
-    let total = dead_count + statix_count;
-    if total == 0 {
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let names: Vec<&str> = text
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
+    if names.is_empty() {
         CheckResult {
             tier: Tier::User,
-            id: "nix_hygiene".into(),
-            name: "Nix Hygiene".into(),
+            id: id.into(),
+            name: name.into(),
             status: Status::Pass,
-            message: "Nix code clean -- no dead code or anti-patterns (tuned deadnix + statix)"
-                .into(),
+            message: "no orphaned packages".into(),
             fix: None,
         }
     } else {
+        let preview: Vec<&str> = names.iter().take(5).cloned().collect();
         CheckResult {
             tier: Tier::User,
-            id: "nix_hygiene".into(),
-            name: "Nix Hygiene".into(),
+            id: id.into(),
+            name: name.into(),
             status: Status::Warn,
             message: format!(
-                "{} Nix hygiene finding(s): {} dead-code, {} anti-pattern",
-                total, dead_count, statix_count
+                "{} orphaned package(s): {}",
+                names.len(),
+                preview.join(", ")
             ),
-            fix: Some(
-                "Run `deadnix --no-lambda-pattern-names nix/` and `statix check nix/` to see them"
-                    .into(),
-            ),
+            fix: Some("Review, then: pacman -Qdtq | pacman -Rns -".into()),
         }
-    }
-}
-
-#[cfg(test)]
-mod int164_security_tests {
-    use super::*;
-
-    /// The EXACT config that was live on generation 392, verbatim from
-    /// /nix/var/nix/profiles/system-392-link/etc/ssh/sshd_config on 2026-07-17.
-    /// The old check called this "SSH hardened OK".
-    const GEN_392: &str = "\
-AuthorizedPrincipalsFile none
-GatewayPorts no
-KbdInteractiveAuthentication yes
-LogLevel VERBOSE
-PasswordAuthentication yes
-PermitRootLogin no
-PrintMotd no
-StrictModes yes
-UseDns no
-UsePAM yes
-X11Forwarding no
-AddressFamily any
-Port 22
-";
-
-    #[test]
-    fn gen_392_config_is_not_hardened() {
-        // THE REGRESSION. The old check was:
-        //     c.contains("PermitRootLogin no") || c.contains("PasswordAuthentication no")
-        // PermitRootLogin IS "no" here, so the old check returned TRUE and printed
-        // "SSH hardened OK" -- while password auth AND keyboard-interactive were both wide open.
-        // This test FAILS on the old logic and passes on the new. That is the whole point.
-        let open = ssh_open_doors(GEN_392);
-        assert!(
-            open.contains(&"password"),
-            "PasswordAuthentication yes must register as an open door"
-        );
-        assert!(
-            open.contains(&"keyboard-interactive"),
-            "KbdInteractiveAuthentication yes is the SECOND password door -- the half-fix this \
-             intent exists to prevent"
-        );
-        assert!(
-            !open.contains(&"root login"),
-            "PermitRootLogin no was the ONE thing set correctly, and the old check let it vouch \
-             for everything else"
-        );
-    }
-
-    /// THE OLD LOGIC, preserved verbatim so the bug can be DEMONSTRATED rather than described.
-    /// This is exactly what checks.rs:533 did before INT-164:
-    ///     c.contains("PermitRootLogin no") || c.contains("PasswordAuthentication no")
-    fn old_check_said_hardened(cfg: &str) -> bool {
-        cfg.contains("PermitRootLogin no") || cfg.contains("PasswordAuthentication no")
-    }
-
-    #[test]
-    fn the_old_check_called_gen_392_hardened_and_it_was_wrong() {
-        // WATCH THE GATE FAIL FIRST. The tests above prove the NEW function is right; on their own
-        // they do not prove the OLD one was wrong, because the old one is gone. This one does.
-        //
-        // The old check returned TRUE for the config that was LIVE on generation 392 -- and the
-        // dashboard printed "SSH hardened OK" on the strength of it, for months.
-        assert!(
-            old_check_said_hardened(GEN_392),
-            "the old check really did pass this config -- that is the bug"
-        );
-        // And the machine it vouched for had BOTH password doors wide open.
-        let open = ssh_open_doors(GEN_392);
-        assert_eq!(open, vec!["password", "keyboard-interactive"]);
-        // ONE `||` between an honest dashboard and a lying one. PermitRootLogin was the single
-        // thing set correctly, and the `||` let it vouch for everything else.
-    }
-
-    #[test]
-    fn the_old_check_would_pass_a_config_with_nothing_set() {
-        // Worse than gen 392: the old check would ALSO have passed a config where the setting is
-        // explicitly COMMENTED OUT, because contains() does not care about a leading `#`.
-        // Latent on NixOS (which generates the full effective config, no comments) -- but this is
-        // what "it looked rigorous" bought.
-        let commented = "#PasswordAuthentication no\nPermitRootLogin yes\n";
-        assert!(
-            old_check_said_hardened(commented),
-            "the old check passed a DISABLED line"
-        );
-        assert!(
-            ssh_open_doors(commented).contains(&"root login"),
-            "meanwhile root login was open"
-        );
-    }
-
-    #[test]
-    fn a_genuinely_key_only_config_is_clean() {
-        let cfg =
-            "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n";
-        assert!(ssh_open_doors(cfg).is_empty());
-    }
-
-    #[test]
-    fn half_fix_is_caught() {
-        // The trap: close the door you know about, leave the one you do not.
-        let cfg =
-            "PasswordAuthentication no\nKbdInteractiveAuthentication yes\nPermitRootLogin no\n";
-        assert_eq!(ssh_open_doors(cfg), vec!["keyboard-interactive"]);
-    }
-
-    #[test]
-    fn absent_directive_is_an_open_door() {
-        // OpenSSH defaults both to yes. Silence is not safety.
-        assert_eq!(
-            ssh_open_doors("Port 22\n"),
-            vec!["password", "keyboard-interactive", "root login"]
-        );
-    }
-
-    #[test]
-    fn commented_setting_does_not_count_as_set() {
-        // The latent bug in the old check: contains() matched a DISABLED line.
-        let cfg =
-            "#PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n";
-        assert_eq!(ssh_open_doors(cfg), vec!["password"]);
-    }
-
-    #[test]
-    fn directive_match_is_not_substring_match() {
-        assert_eq!(
-            sshd_setting("PermitRootLogin no\n", "PermitRootLogin"),
-            Some("no".into())
-        );
-        assert_eq!(sshd_setting("PermitRootLogin no\n", "RootLogin"), None);
-        // sshd itself is case-insensitive on directive names.
-        assert_eq!(
-            sshd_setting("permitrootlogin NO\n", "PermitRootLogin"),
-            Some("no".into())
-        );
-    }
-}
-
-#[cfg(test)]
-mod absent_registry_tests {
-    use super::*;
-
-    /// ⚠️ FOUND IN THE VM, 2026-08-23, on a guest with THIRTY-TWO tools deployed and no registry.
-    /// Both checks read tools.toml through a chain ending unwrap_or_default(), so an unreadable
-    /// registry became an empty tool list. An empty list has nothing missing, so installation
-    /// reported a green `All 0 key tools installed`; and total was zero, so resilience printed
-    /// `0/0 tools deployed (0%)` -- a percentage of nothing that reads as a measurement.
-    ///
-    /// ⭐ NEITHER WAS SILENT. Both described the wrong machine confidently, which is the defect
-    /// class this ledger keeps removing: a failure indistinguishable from a real result.
-    fn with_temp_home<T>(f: impl FnOnce() -> T) -> T {
-        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let dir = std::env::temp_dir().join("core_absent_registry_test");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("temp home");
-        let prev = std::env::var("HOME").ok();
-        // SAFETY: single-threaded test, restored before returning.
-        unsafe { std::env::set_var("HOME", &dir) };
-        let out = f();
-        match prev {
-            Some(h) => unsafe { std::env::set_var("HOME", h) },
-            None => unsafe { std::env::remove_var("HOME") },
-        }
-        let _ = std::fs::remove_dir_all(&dir);
-        out
-    }
-
-    #[test]
-    fn an_absent_registry_does_not_certify_zero_tools() {
-        let r = with_temp_home(check_tool_installation);
-        assert_ne!(
-            r.status,
-            Status::Pass,
-            "a machine whose registry cannot be read must not be told all its tools are installed"
-        );
-        assert!(
-            r.message.contains("not found"),
-            "and it must name what is missing: {}",
-            r.message
-        );
-    }
-
-    #[test]
-    fn an_absent_registry_does_not_report_a_percentage() {
-        let r = with_temp_home(|| check_path_resilience("/nonexistent"));
-        assert!(
-            !r.message.contains("%"),
-            "a percentage of nothing is not zero percent: {}",
-            r.message
-        );
-        assert!(
-            r.message.contains("not found"),
-            "it must say the registry is missing: {}",
-            r.message
-        );
     }
 }

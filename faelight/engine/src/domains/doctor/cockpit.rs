@@ -114,13 +114,11 @@ pub fn render_cockpit(
     ];
     let security_names = ["Security Hardening", "Security Audit", "Sandbox"];
     let boot_names = ["Boot Errors", "Boot Time"];
-    let nixos_names = [
-        "Generation Drift",
-        "Generation Count",
-        "Flake Lock Age",
+    let system_state_names = [
+        "Reboot Needed",
         "Update Readiness",
-        "Nix Store",
-        "Nix Hygiene",
+        "Package Cache",
+        "Orphan Packages",
     ];
     let runtime_names = ["VM State", "Compositor", "Network"];
 
@@ -136,7 +134,7 @@ pub fn render_cockpit(
     render_section("🛠  Tools", &group(&tools_names));
     render_section("📋 Forest", &group(&forest_names));
     render_section("🥾 Boot", &group(&boot_names));
-    render_section("❄ NixOS", &group(&nixos_names));
+    render_section("📦 System State", &group(&system_state_names));
     render_section("🖥  Runtime", &group(&runtime_names));
     render_section("🔒 Security", &group(&security_names));
 
