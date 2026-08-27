@@ -230,79 +230,148 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
 }
 /// `core deploy rollback [tool] [--dry-run]` -- restore previous version
 pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResult<()> {
-    let db = &ctx.runtime.db;
-    db.execute_batch(CREATE_TABLE)?;
     use colored::*;
-    let query = match tool {
-        Some(t) => format!(
-            "SELECT tool, version, outcome, timestamp FROM deploy_patterns WHERE tool = '{}' ORDER BY timestamp DESC LIMIT 6",
-            t
-        ),
-        None =>
-            "SELECT tool, version, outcome, timestamp FROM deploy_patterns ORDER BY timestamp DESC LIMIT 6".to_string(),
+
+    // REWRITTEN 2026-08-27. The old version was unusable on two counts.
+    //
+    // It read bin/{name}@{version} and wrote into scripts/ -- one directory was
+    // empty until ship started filling it today, the other was deleted in
+    // e733287d. And with no tool named it took the two most recent rows from
+    // deploy_patterns ACROSS ALL TOOLS, called them current and previous, then
+    // looked for a backup of one tool selected by another tool timestamp.
+    //
+    // VERSION IS NOT AN IDENTIFIER HERE. bin/ currently holds three backups of
+    // core and all three are 3.2.10, because the version does not change
+    // between builds. The deploy log records what HAPPENED; the directory
+    // records what can be RESTORED, and only the second question matters to
+    // rollback. So the directory is the source of truth and the key is the
+    // mtime ship stamps into the filename.
+    let bin_dir = faelight_core::paths::bin_dir();
+    let backup_dir = std::path::PathBuf::from(&ctx.core_root).join("bin");
+
+    let entries = match std::fs::read_dir(&backup_dir) {
+        Ok(e) => e,
+        Err(e) => {
+            println!();
+            println!(
+                "  {} no backups at {} -- {}",
+                "○".dimmed(),
+                backup_dir.display(),
+                e
+            );
+            println!(
+                "  {} backups are written by ship on each install",
+                "→".dimmed()
+            );
+            println!();
+            return Ok(());
+        }
     };
-    let mut stmt = db.prepare(&query)?;
-    let rows: Vec<(String, String, String, i64)> = stmt
-        .query_map([], |r: &rusqlite::Row| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, i64>(3)?,
-            ))
-        })
-        .map(|rows| rows.filter_map(|x| x.ok()).collect::<Vec<_>>())
-        .unwrap_or_default();
-    if rows.len() < 2 {
-        println!("  {} Not enough deploy history to rollback", "○".dimmed());
+
+    // name@<digits>. Anything else is skipped rather than sorted wrongly --
+    // older backups carry a version suffix (core@3.2.10) from before ship
+    // stamped mtimes, and parsing those as numbers would order them arbitrarily.
+    let mut found: Vec<(String, u64, std::path::PathBuf)> = Vec::new();
+    for e in entries.filter_map(|e| e.ok()) {
+        let fname = e.file_name().to_string_lossy().to_string();
+        let Some((name, stamp)) = fname.rsplit_once('@') else {
+            continue;
+        };
+        let Ok(stamp) = stamp.parse::<u64>() else {
+            continue;
+        };
+        if let Some(t) = tool {
+            if name != t {
+                continue;
+            }
+        }
+        found.push((name.to_string(), stamp, e.path()));
+    }
+
+    if found.is_empty() {
+        println!();
+        match tool {
+            Some(t) => println!(
+                "  {} no restorable backup for {}",
+                "○".dimmed(),
+                t.bright_cyan()
+            ),
+            None => println!(
+                "  {} no restorable backups in {}",
+                "○".dimmed(),
+                backup_dir.display()
+            ),
+        }
+        println!();
         return Ok(());
     }
-    let current = &rows[0];
-    let previous = &rows[1];
+
+    found.sort_by(|a, b| b.1.cmp(&a.1));
+
+    if tool.is_none() {
+        // No tool named: SHOW what could be restored, restore nothing. Guessing
+        // which binary to replace is not a thing to do on the user behalf.
+        println!();
+        println!("  {} Restorable backups", "🔄".normal());
+        let mut seen: Vec<&str> = Vec::new();
+        for (name, stamp, _) in &found {
+            if seen.contains(&name.as_str()) {
+                continue;
+            }
+            seen.push(name.as_str());
+            let when = chrono::DateTime::from_timestamp(*stamp as i64, 0)
+                .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| stamp.to_string());
+            let count = found.iter().filter(|f| &f.0 == name).count();
+            println!(
+                "    {:<24} {} ({} kept)",
+                name.bright_cyan(),
+                when.dimmed(),
+                count
+            );
+        }
+        println!();
+        println!("  {} core deploy rollback <tool>", "→".dimmed());
+        println!();
+        return Ok(());
+    }
+
+    let (name, stamp, src) = &found[0];
+    let dest = bin_dir.join(name);
+    let when = chrono::DateTime::from_timestamp(*stamp as i64, 0)
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_else(|| stamp.to_string());
+
     println!();
-    println!("  {} Rollback: {}", "🔄".normal(), current.0.bright_cyan());
-    println!(
-        "  current:  {} ({})",
-        current.1.bright_white(),
-        current.2.dimmed()
-    );
-    println!(
-        "  previous: {} ({})",
-        previous.1.bright_green(),
-        previous.2.dimmed()
-    );
+    println!("  {} Rollback: {}", "🔄".normal(), name.bright_cyan());
+    println!("  from:  {}", src.display().to_string().dimmed());
+    println!("  to:    {}", dest.display().to_string().dimmed());
+    println!("  saved: {}", when.bright_green());
+    if found.len() > 1 {
+        println!(
+            "  {} {} older backups also kept",
+            "○".dimmed(),
+            found.len() - 1
+        );
+    }
+
     if dry_run {
         println!("  {} dry-run -- no changes made", "○".dimmed());
+        println!();
         return Ok(());
     }
-    // Find versioned binary in bin/
-    let core_root = &ctx.core_root;
-    let bin_dir = std::path::PathBuf::from(core_root).join("bin");
-    let target = format!("{}@{}", previous.0, previous.1);
-    let versioned = bin_dir
-        .read_dir()?
-        .filter_map(|e| e.ok())
-        .find(|e| e.file_name().to_string_lossy().starts_with(&target));
-    match versioned {
-        Some(entry) => {
-            let scripts_path = std::path::PathBuf::from(core_root)
-                .join("scripts")
-                .join(&previous.0);
-            std::fs::copy(entry.path(), &scripts_path)?;
-            println!(
-                "  {} rolled back {} to {}",
-                "✅".normal(),
-                previous.0.bright_cyan(),
-                previous.1.bright_green()
-            );
-        }
-        None => {
-            println!(
-                "  {} binary not found in bin/ -- versioned binary may have been cleaned up",
-                "⚠️ ".yellow()
-            );
-        }
-    }
+
+    // Same install mechanism ship uses: stage beside the destination, then
+    // rename. A copy onto a live executable gives Text file busy; the rename
+    // leaves any running process on its unlinked inode.
+    let tmp = bin_dir.join(format!(".{}.rollback-tmp", name));
+    std::fs::copy(src, &tmp)?;
+    let mut perm = std::fs::metadata(&tmp)?.permissions();
+    std::os::unix::fs::PermissionsExt::set_mode(&mut perm, 0o755);
+    std::fs::set_permissions(&tmp, perm)?;
+    std::fs::rename(&tmp, &dest)?;
+
+    println!("  {} restored {}", "✅".normal(), name.bright_cyan());
     println!();
     Ok(())
 }
