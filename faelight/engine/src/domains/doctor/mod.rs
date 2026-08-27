@@ -366,18 +366,31 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     }
 
     // INT-019: forest-aware notifications -- health / integrity drops
-    if health < 85 {
+    // ⚠️ THE NOTIFICATION FIRED ON A NUMBER THAT IS NOT A VERDICT. The percentage counts every
+    // non-passing check equally and its denominator shifts as checks are added or excluded, so it
+    // fell twice this month while the system became strictly MORE honest -- once when a lying check
+    // was deleted, once when five checks about an absent package manager stopped pretending.
+    // A threshold on a trend line is an alarm that fires on arithmetic.
+    //
+    // ⭐ verdict() ALREADY ANSWERS THE QUESTION THIS WANTED TO ASK: Red means a critical-tier
+    // failure, or a critical check that could not run. Nothing else is worth interrupting for.
+    if verdict(&checks) == Verdict::Red {
         crate::domains::notify::desktop(
-            "Forest health below 85%",
-            &format!("System health is {}%", health),
+            "Critical check failing",
+            "A critical-tier check failed or could not run -- run: d",
             true,
         );
     }
+    // ⚠️ CRITICAL URGENCY MEANS THE NOTIFICATION NEVER EXPIRES -- that is the specification, and
+    // the notifier was honouring it correctly. An advisory sent at the same level as a dying
+    // battery stacks up permanently and covers the screen, which is how a health signal becomes
+    // something to dismiss without reading.
+    // ⭐ Only the Red verdict above keeps critical urgency, because that is what Red MEANS.
     if integrity_pct < 80 {
         crate::domains::notify::desktop(
             "Forest integrity below 80%",
             &format!("Integrity is {}%", integrity_pct),
-            true,
+            false,
         );
     }
     // Show integrity summary if issues found
