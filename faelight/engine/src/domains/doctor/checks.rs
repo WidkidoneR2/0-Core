@@ -825,7 +825,7 @@ pub fn check_alias_coverage() -> CheckResult {
     use crate::domains::doctor::aliases::{parse_aliases, EXPECTED_TOOLS};
     use faelight_core::paths;
 
-    let aliases_path = paths::aliases_file();
+    let aliases_path = paths::shell_config();
     let aliases = match parse_aliases(&aliases_path) {
         Ok(a) => a,
         Err(_) => {

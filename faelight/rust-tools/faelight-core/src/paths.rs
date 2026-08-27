@@ -505,9 +505,23 @@ pub fn intents_incidents() -> PathBuf {
 // SHELL CONFIGURATION PATHS
 // ═══════════════════════════════════════════════════════════
 
-/// fsh config file (aliases live here)
-pub fn aliases_file() -> PathBuf {
-    core_dir().join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh")
+/// The fsh config file -- aliases and settings -- at its LIVE location.
+///
+/// WARNING: this used to return core_dir()/nix/home/dotfiles/... and had ZERO
+/// callers. Under home-manager that repo path and the XDG path were one file
+/// via symlink, so the distinction did not exist. After the Omarchy migration
+/// they are two real files that agree only until the next edit, and seven sites
+/// read the config across THREE different locations -- the repo copy, the XDG
+/// copy, and 0-core/config/... which has never existed on this machine.
+///
+/// The XDG copy is the one the shell loads (see faelight-shell config.rs) and
+/// the one that gets edited, so it is the only honest answer. Renamed from
+/// aliases_file because the file is the shell config; aliases are its contents.
+pub fn shell_config() -> PathBuf {
+    match env::var("XDG_CONFIG_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.fsh"),
+        _ => home().join(".config/faelight-shell/config.fsh"),
+    }
 }
 
 // ═══════════════════════════════════════════════════════════

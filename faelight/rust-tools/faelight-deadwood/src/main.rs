@@ -198,8 +198,14 @@ fn report(title: &str, findings: Vec<Finding>) -> usize {
     findings.len()
 }
 
-fn config_fsh(root: &Path) -> PathBuf {
-    root.join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh")
+// Reads the LIVE config. It read the repo copy, which is why deadwood kept
+// reporting aliases that had already been deleted from the file in use.
+fn config_fsh(_root: &Path) -> PathBuf {
+    match std::env::var("XDG_CONFIG_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.fsh"),
+        _ => PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".config/faelight-shell/config.fsh"),
+    }
 }
 
 const BUILTINS: &[&str] = &[

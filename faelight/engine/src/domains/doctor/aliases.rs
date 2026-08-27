@@ -47,7 +47,7 @@ pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
 }
 
 pub fn run_full_audit(subcmd: Option<&str>) -> CoreResult<()> {
-    let aliases_path = paths::aliases_file();
+    let aliases_path = paths::shell_config();
     let aliases = parse_aliases(&aliases_path)?;
 
     match subcmd {

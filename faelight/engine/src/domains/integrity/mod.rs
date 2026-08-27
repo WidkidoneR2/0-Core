@@ -1136,15 +1136,14 @@ pub mod checks {
         fn category(&self) -> Category {
             Category::Shell
         }
-        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
+        fn run(&self, _ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let stale_refs = ["swaymsg", "hyprctl", "sway-", "hyprland"];
             let config_files = [
                 std::env::var("HOME")
                     .map(|h| PathBuf::from(h).join(".zshrc"))
                     .unwrap_or_default(),
-                ctx.core_root
-                    .join("nix/home/dotfiles/faelight-shell/.config/faelight-shell/config.fsh"),
+                faelight_core::paths::shell_config(),
             ];
 
             for config_path in &config_files {
