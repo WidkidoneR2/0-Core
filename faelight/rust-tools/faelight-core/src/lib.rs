@@ -55,3 +55,23 @@ mod tests {
         assert_eq!(hit_rate, 50.0);
     }
 }
+
+/// Restore the default SIGPIPE disposition, so a tool piped into head or less
+/// exits quietly instead of panicking.
+///
+/// WHY THIS IS NEEDED: the Rust runtime sets SIGPIPE to SIG_IGN at startup, so a
+/// write to a closed pipe returns EPIPE rather than terminating the process.
+/// println! unwraps that error and panics. The result is that EVERY CLI in this
+/// workspace dies with "failed printing to stdout: Broken pipe (os error 32)"
+/// when the reader goes away first -- normal Unix behaviour that head relies on.
+/// Measured 2026-08-27 on faelight-deadwood and ship; the tools that appeared to
+/// survive only printed fewer lines than head had asked for.
+///
+/// UNSAFE AND PROCESS-WIDE, which is why it lives in ONE place rather than being
+/// pasted into each main. Call it as the first statement of main, before any
+/// output.
+pub fn restore_sigpipe() {
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+}

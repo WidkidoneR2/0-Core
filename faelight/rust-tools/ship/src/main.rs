@@ -166,6 +166,7 @@ fn record(tool: &str, version: &str, outcome: &str, ms: i64, errors: &mut Vec<St
 // Fall back to a timestamp rather than to a guess. A file named @unknown-<epoch>
 // is honest about what it does not know; a wrong version number is not, and
 fn main() {
+    faelight_core::restore_sigpipe();
     let args = Args::parse();
     let root = faelight_core::paths::core_dir();
     let bin = faelight_core::paths::bin_dir();

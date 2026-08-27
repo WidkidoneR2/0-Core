@@ -79,6 +79,7 @@ fn core_root() -> PathBuf {
 }
 
 fn main() {
+    faelight_core::restore_sigpipe();
     let cli = Cli::parse();
     let root = core_root();
     if cli.purge {
@@ -201,11 +202,7 @@ fn report(title: &str, findings: Vec<Finding>) -> usize {
 // Reads the LIVE config. It read the repo copy, which is why deadwood kept
 // reporting aliases that had already been deleted from the file in use.
 fn config_fsh(_root: &Path) -> PathBuf {
-    match std::env::var("XDG_CONFIG_HOME") {
-        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.fsh"),
-        _ => PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".config/faelight-shell/config.fsh"),
-    }
+    faelight_core::paths::shell_config()
 }
 
 const BUILTINS: &[&str] = &[
