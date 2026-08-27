@@ -610,15 +610,60 @@ fn ssh_open_doors(cfg: &str) -> Vec<&'static str> {
 /// directive means OpenSSH's DEFAULT, and for both password doors that default is `yes`. Absent is
 /// therefore read as OPEN. Fail safe, not fail flattering.
 pub fn check_security_hardening() -> CheckResult {
-    let firewall_active = Command::new("systemctl")
-        .args(["is-active", "firewall"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active")
-        .unwrap_or(false);
+    // ⚠️ "firewall" IS ONE DISTRIBUTION'S UNIT NAME, NOT THE QUESTION. NixOS calls it
+    // firewall.service; Arch machines run ufw, firewalld or a plain nftables/iptables unit. Asking
+    // for one name reported NO FIREWALL on a machine whose ufw was active and denying all incoming
+    // traffic -- a false alarm in a check whose own comment says fail safe, not fail flattering.
+    // A false alarm is its own failure: it teaches the reader to discount the line.
+    //
+    // ⭐ THE QUESTION IS WHETHER SOMETHING IS ENFORCING, so ask about every unit that could be.
+    let firewall_active = ["firewall", "ufw", "firewalld", "nftables", "iptables"]
+        .iter()
+        .any(|unit| {
+            Command::new("systemctl")
+                .args(["is-active", unit])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "active")
+                .unwrap_or(false)
+        });
 
+    // ⚠️ THE MAIN FILE IS NOT THE CONFIGURATION. Its line 2 is `Include sshd_config.d/*.conf`,
+    // and on Arch that directory is WHERE SETTINGS ARE SUPPOSED TO LIVE -- the distribution ships
+    // its own defaults there and expects yours beside them, because editing the packaged file
+    // leaves a .pacnew to merge on every upgrade. Reading only the main file reported both
+    // password doors OPEN on a machine that had explicitly closed them one directory over.
+    //
+    // ⭐ ORDER MATTERS AND IT IS NOT ALPHABETICAL-AFTER: OpenSSH takes the FIRST value it sees for
+    // most keywords, and the Include sits at the TOP of the main file -- so the included files are
+    // read BEFORE the rest of it. Concatenating the other way round would produce a confident
+    // wrong answer, which is worse than the blind one this replaces.
     let sshd_path = PathBuf::from("/etc/ssh/sshd_config");
     let sshd_cfg = if sshd_path.exists() {
-        fs::read_to_string(&sshd_path).ok()
+        let mut parts: Vec<String> = Vec::new();
+        if let Ok(entries) = fs::read_dir("/etc/ssh/sshd_config.d") {
+            let mut confs: Vec<PathBuf> = entries
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().is_some_and(|x| x == "conf"))
+                .collect();
+            confs.sort();
+            for c in confs {
+                if let Ok(t) = fs::read_to_string(&c) {
+                    parts.push(t);
+                }
+            }
+        }
+        if let Ok(main) = fs::read_to_string(&sshd_path) {
+            parts.push(main);
+        }
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join(
+                "
+",
+            ))
+        }
     } else {
         None
     };
@@ -1033,7 +1078,9 @@ pub fn check_tool_installation() -> CheckResult {
     }
 }
 
-pub fn check_path_resilience(core_root: &str) -> CheckResult {
+// The parameter stays for the shared check signature; this check no longer needs it, because
+// asking `which` does not require knowing where the project lives.
+pub fn check_path_resilience(_core_root: &str) -> CheckResult {
     let registry_path = faelight_core::paths::tools_registry();
     // ⚠️ A PERCENTAGE OF NOTHING IS NOT ZERO PERCENT. The chain below ends unwrap_or_default(), so
     // an unreadable registry gave total = 0, and the divide-by-zero guard chose 0 as the answer --

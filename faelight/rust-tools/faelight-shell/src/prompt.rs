@@ -559,10 +559,15 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
         (None, Some(d)) => Some(d.clone()),
         (None, None) => None,
     };
+    // ⚠️ TWO DIFFERENT FACTS, AND THEY WERE PRINTING THE SAME GLYPH.
+    //   IN_NIX_SHELL  -- a Nix environment IS LOADED. The snowflake is earned.
+    //   DIRENV_DIR    -- direnv KNOWS ABOUT a directory with an .envrc. That is all it means:
+    //                    direnv sets it on discovery, before and regardless of whether the file
+    //                    was allowed or the environment loaded. On a machine with no Nix and an
+    //                    .envrc reading `use flake`, this was set while nothing had loaded --
+    //                    so the prompt claimed an environment that did not exist.
+    // A snowflake means Nix. direnv is not Nix, and knowing about a file is not loading it.
     let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        let _ = &label;
-        format!("{} ", fc_rl(54, 224, 208, "❄"))
-    } else if std::env::var("DIRENV_DIR").is_ok() {
         let _ = &label;
         format!("{} ", fc_rl(54, 224, 208, "❄"))
     } else {
