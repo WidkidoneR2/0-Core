@@ -152,9 +152,20 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
 }
 
 pub fn check_binaries() -> CheckResult {
+    // ⚠️ THIS LIST IS ONE MACHINE'S EXPECTATIONS AND IT IS HAND-MAINTAINED, so it drifts the way
+    // the check counts did. It named a compositor, a terminal and two package-manager tools from
+    // the previous system -- four Critical-tier failures for facilities this machine deliberately
+    // does not have, which is what kept a notification on screen that could not be acted on.
+    //
+    // ⭐ WHAT CHANGED AND WHY: mango -> hyprland (the compositor actually running) ·
+    // alacritty -> foot (the terminal actually running) · nix-tree and nvd DELETED outright,
+    // because they manage a package manager that is gone and nothing here can want them.
+    //
+    // ⏭ The durable fix is deriving this from something declared rather than typed; until then a
+    // wrong entry here reports a Critical failure, so treat it as code, not as a note.
     let bins = [
-        "mango",
-        "alacritty",
+        "hyprland",
+        "foot",
         "nvim",
         "git",
         "bat",
@@ -165,8 +176,6 @@ pub fn check_binaries() -> CheckResult {
         "brightnessctl",
         "wpctl",
         "wl-copy",
-        "nix-tree",
-        "nvd",
     ];
     let missing: Vec<_> = bins
         .iter()
