@@ -6,20 +6,58 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-pub const EXPECTED_TOOLS: &[&str] = &[
-    // Core Infrastructure
-    "faelight-update",
-    // Desktop Environment
-    "faelight-logout",
-    "faelight-notify",
-    "faelight-lock",
-    // Development
-    "intent",
-    "faelight-git",
-    "faelight",
-    "faelight-fm",
-    // Version Management
-];
+/// Tools that should have an alias, READ FROM THE REGISTRY rather than named here.
+///
+/// WARNING: this was a hardcoded list of eight. By 2026-08-27 it named a tool deleted
+/// the same day (faelight-lock), a subcommand that is not a binary (intent, which is
+/// core intent), and a package that is not a cargo target so is never installed
+/// (faelight-logout). It reported All 8 tools have aliases while asking only whether
+/// an alias EXISTED, never whether the tool did.
+///
+/// Two consumers also skipped faelight-daemon and faelight-core by name -- exclusions
+/// guarding entries the list did not contain.
+///
+/// Same failure as check_scripts and the faelight-launcher registry entry: a hardcoded
+/// census goes stale silently and the check keeps passing. tools.toml knows what
+/// exists and carries deployable and retired flags, so removing a tool now updates
+/// this check for free.
+pub fn expected_tools() -> Vec<String> {
+    let path = faelight_core::paths::tools_registry();
+    let content = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut out: Vec<String> = Vec::new();
+    let mut name = String::new();
+    let mut deployable = false;
+    let mut retired = false;
+    let mut usage = String::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line == "[[tool]]" {
+            if !name.is_empty() && deployable && !retired && (usage == "high" || usage == "medium")
+            {
+                out.push(name.clone());
+            }
+            name.clear();
+            deployable = false;
+            retired = false;
+            usage.clear();
+        } else if let Some(v) = line.strip_prefix("name = \"") {
+            name = v.trim_end_matches('"').to_string();
+        } else if let Some(v) = line.strip_prefix("expected_usage = \"") {
+            usage = v.trim_end_matches('"').to_string();
+        } else if line == "deployable = true" {
+            deployable = true;
+        } else if line == "retired = true" {
+            retired = true;
+        }
+    }
+    if !name.is_empty() && deployable && !retired && (usage == "high" || usage == "medium") {
+        out.push(name);
+    }
+    out
+}
 
 pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
     let content = fs::read_to_string(path).unwrap_or_default();
@@ -82,7 +120,8 @@ fn check_duplicates(aliases: &HashMap<String, String>) -> CoreResult<()> {
 fn check_missing(aliases: &HashMap<String, String>) -> CoreResult<()> {
     println!("{}", "🔍 Checking tool coverage...".cyan().bold());
     let mut missing = Vec::new();
-    for tool in EXPECTED_TOOLS {
+    let expected = expected_tools();
+    for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
         }
@@ -134,7 +173,8 @@ fn check_conflicts(aliases: &HashMap<String, String>) -> CoreResult<()> {
 fn show_tools(aliases: &HashMap<String, String>) -> CoreResult<()> {
     println!("{}", "🌲 FAELIGHT TOOLS ALIAS COVERAGE".cyan().bold());
     println!("{}", "═".repeat(60));
-    for tool in EXPECTED_TOOLS {
+    let expected = expected_tools();
+    for tool in &expected {
         let tool_aliases: Vec<&String> = aliases
             .iter()
             .filter(|(_, v)| v.contains(tool))
@@ -189,7 +229,8 @@ fn run_default(aliases: &HashMap<String, String>) -> CoreResult<()> {
 
 pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()> {
     let mut missing = Vec::new();
-    for tool in EXPECTED_TOOLS {
+    let expected = expected_tools();
+    for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
         }
@@ -200,7 +241,7 @@ pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()>
     if missing.is_empty() {
         println!(
             "✅ Alias Coverage: All {} tools have aliases ({} total)",
-            EXPECTED_TOOLS.len(),
+            expected_tools().len(),
             aliases.len()
         );
     } else {

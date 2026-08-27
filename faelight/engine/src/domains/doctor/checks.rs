@@ -822,7 +822,7 @@ pub fn check_security_audit(home: &str) -> CheckResult {
 }
 
 pub fn check_alias_coverage() -> CheckResult {
-    use crate::domains::doctor::aliases::{parse_aliases, EXPECTED_TOOLS};
+    use crate::domains::doctor::aliases::{expected_tools, parse_aliases};
     use faelight_core::paths;
 
     let aliases_path = paths::shell_config();
@@ -841,7 +841,8 @@ pub fn check_alias_coverage() -> CheckResult {
     };
 
     let mut missing: Vec<&str> = Vec::new();
-    for tool in EXPECTED_TOOLS {
+    let expected = expected_tools();
+    for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
         }
@@ -858,7 +859,7 @@ pub fn check_alias_coverage() -> CheckResult {
             status: Status::Pass,
             message: format!(
                 "All {} tools have aliases ({} total)",
-                EXPECTED_TOOLS.len(),
+                expected.len(),
                 aliases.len()
             ),
             fix: None,
