@@ -1424,6 +1424,28 @@ pub fn check_compositor() -> CheckResult {
 }
 
 pub fn check_nix_store() -> CheckResult {
+    // ⚠️ A CHECK THAT CANNOT APPLY HAS NOT PASSED -- IT HAS NOTHING TO SAY. Every branch below
+    // assumes a Nix store, so off NixOS they all failed their reads and reported Warn, dragging a
+    // healthy machine's score down for the absence of a package manager it does not use.
+    //
+    // ⭐ Status::Unknown ALREADY MEANS THIS: INT-148 documents it as excluded from the health
+    // denominator and rendered neutrally. No fifth status is needed, and inventing one to
+    // distinguish "could not run" from "does not apply" would be ceremony -- the behaviour is
+    // identical and no consumer needs to tell them apart.
+    //
+    // ⚠️ THE GUARD IS AT THE TOP AND ASKS ABOUT THE SYSTEM, not about a failed read. On a NixOS
+    // machine whose store is genuinely unreadable, Warn is still the right answer -- that is a real
+    // problem there. The two cases are different facts and get different answers.
+    if !std::path::Path::new("/nix").exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "nix_store".into(),
+            name: "Nix Store".into(),
+            status: Status::Unknown,
+            message: "not a Nix system".into(),
+            fix: None,
+        };
+    }
     // Store size via the Nix path DB: SUM(narSize) over ValidPaths --
     // milliseconds, no filesystem walk. Read-only; the DB is root-owned 0644.
     // narSize is the logical NAR size (a hair above true on-disk due to dedup),
@@ -1622,6 +1644,17 @@ pub fn check_network() -> CheckResult {
 }
 
 pub fn check_generation_drift() -> CheckResult {
+    // See check_nix_store: not applicable is not a failure. Same guard, same reasoning.
+    if !std::path::Path::new("/nix").exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "generation_drift".into(),
+            name: "Generation Drift".into(),
+            status: Status::Unknown,
+            message: "not a Nix system".into(),
+            fix: None,
+        };
+    }
     let current = std::fs::read_link("/run/current-system").ok();
     let booted = std::fs::read_link("/run/booted-system").ok();
     match (current, booted) {
@@ -1653,6 +1686,20 @@ pub fn check_generation_drift() -> CheckResult {
 }
 
 pub fn check_generation_count() -> CheckResult {
+    // ⚠️⚠️ THIS ONE WAS PASSING, AND A FALSE GREEN IS QUIETER THAN A FALSE AMBER. Off NixOS it
+    // counted zero generations and reported "0 generations, none older than 14d" -- a clean bill
+    // of health for a facility that does not exist. Same absent-is-not-empty defect as the ledger
+    // and the tool registry, wearing a tick instead of a warning.
+    if !std::path::Path::new("/nix").exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "generation_count".into(),
+            name: "Generation Count".into(),
+            status: Status::Unknown,
+            message: "not a Nix system".into(),
+            fix: None,
+        };
+    }
     // Warn only when a GC could actually prune something: generations whose link
     // mtime is older than 14d (approximates --delete-older-than 14d). Total shown
     // for transparency; the warn is the actionable part.
@@ -1703,6 +1750,20 @@ pub fn check_generation_count() -> CheckResult {
 }
 
 pub fn check_flake_lock_age(core_root: &str) -> CheckResult {
+    // ⚠️ AND THIS ONE PASSED FOR A WORSE REASON: it read the file's mtime, and a fresh git clone
+    // stamps every file with today's date -- so it reported "updated 0 days ago" about a lock file
+    // that had not been touched in weeks, on a machine that cannot use it. The number was real and
+    // the conclusion was nonsense.
+    if !std::path::Path::new("/nix").exists() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "flake_lock".into(),
+            name: "Flake Lock Age".into(),
+            status: Status::Unknown,
+            message: "not a Nix system".into(),
+            fix: None,
+        };
+    }
     use std::time::SystemTime;
     let path = std::path::Path::new(core_root).join("flake.lock");
     let age_days = std::fs::metadata(&path)
@@ -1782,6 +1843,17 @@ pub fn check_update_readiness(core_root: &str) -> CheckResult {
 }
 
 pub fn check_nix_hygiene(core_root: &str) -> CheckResult {
+    // See check_nix_store: linting Nix code on a machine with no Nix is not a health question.
+    if !std::path::Path::new("/nix").exists() {
+        return CheckResult {
+            tier: Tier::User,
+            id: "nix_hygiene".into(),
+            name: "Nix Hygiene".into(),
+            status: Status::Unknown,
+            message: "not a Nix system".into(),
+            fix: None,
+        };
+    }
     // INT-133: tuned deadnix + statix over nix/. Both tools exit 0 even with
     // findings, so we parse output, not exit codes. Tuning: deadnix runs with
     // --no-lambda-pattern-names (idiomatic `{ config, pkgs, lib, ... }:` headers
