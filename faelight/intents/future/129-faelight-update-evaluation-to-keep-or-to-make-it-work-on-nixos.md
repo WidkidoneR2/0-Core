@@ -2,7 +2,7 @@
 id: 129
 date: 2026-07-07
 type: future
-title: "Faelight-Update evaluation to keep or to make it work on NixOS"
+title: "faelight-update owns everything pacman cannot see"
 status: planned
 tags: [faelight-update, nix, fsh, faelight]
 priority: low
@@ -64,3 +64,38 @@ teach/main.rs faelight-update entry has accuracy drift beyond the Arch language 
 Both are accuracy, not Arch-language, so 117 left them. Fix as part of the 129 evaluation
 (if faelight-update is adapted, correct the teach entry to match reality; if retired,
 remove the entry).
+
+## THE EVALUATION IS ANSWERED 2026-08-26 -- KEEP IT, and here is why
+
+The original title asked: keep faelight-update, or make it work on NixOS. Both
+halves are now wrong. There is no NixOS, and the keep question was settled by
+measurement rather than by argument.
+
+HIS POSITION GOING IN: it has no purpose because of omarchy-update. HALF TRUE.
+The test settled it: faelight-update --dry-run reported Important: 1 (Global
+NPM packages) -- a real pending update that pacman knows nothing about.
+
+THE HONEST SCOPE: faelight-update is NOT a system-package updater on Omarchy.
+omarchy-update owns that, and reimplementing it is how you end up fighting the
+distribution. It is the one place that knows about EVERYTHING ELSE.
+
+MEASURED, of 3,348 lines:
+- flake_checker + flake_update (324 lines) -- genuinely dead, delete
+- generation.rs (476 lines: timeline browser, rollback, closure diff) -- NOT
+  dead, POINTED AT THE WRONG BACKEND. Omarchy has generations: snapper takes
+  snapshots on package transactions and limine-snapper-sync puts them in the
+  boot menu. The timeline and rollback halves repoint. The closure-diff half is
+  genuinely Nix-only and has no snapper equivalent.
+- cargo, npm, pip, rustup, flatpak, neovim, git, firmware -- ALL WORK ON ARCH
+  UNCHANGED, and degrade honestly (nix not available) rather than crashing.
+
+The checker contract is two functions per file: check_x_updates() ->
+Vec<String> and update_x() -> io::Result<()>, guarding on the tool absence and
+returning empty rather than erroring. rustup_checker.rs is the 27-line model.
+
+SUCCESS CRITERIA
+- [ ] flake_checker and flake_update deleted, no callers left
+- [ ] generation.rs reads snapper; the closure-diff path degrades honestly
+- [ ] omarchy-update availability REPORTED, never invoked -- the distribution
+      owns system packages
+- [ ] --count-only verified against a Quickshell bar widget

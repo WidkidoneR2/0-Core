@@ -2,7 +2,7 @@
 id: 042
 date: 2026-06-09
 type: feature
-title: "natural-language-rebuild: natural language triggers system actions"
+title: "natural language triggers system actions -- the action set is Arch, not nixos-rebuild"
 status: planned
 tags: [nl, fsh, natural-language, friday, vocabulary, system-actions]
 priority: medium

@@ -2,7 +2,7 @@
 id: 157
 date: 2026-07-13
 type: future
-title: "fsh VM-based testing: NixOS-test-framework regression tests (parser/aliases/pipes/history) in clean VMs + minimal & debug VM profiles. Personal-scope, deferred until after VM-tool + Friday prerequisites."
+title: "fsh regression tests in clean VMs -- parser, aliases, pipes, history"
 status: planned
 tags: [fsh, testing, vm, nixos, regression, 027, friday]
 ---
@@ -120,3 +120,28 @@ lesser one.
 ## The Rule
 "Prove it in a clean machine. Small, real tests that grow by need -- not a pipeline built for
 users who do not exist." 🌲
+
+## RESCOPED 2026-08-27 -- the want survives, the framework does not
+
+FALSE PREMISE: the mechanism was the NixOS test framework -- declarative VMs
+built from the flake, hermetic by construction. That is gone with the store.
+
+WHAT SURVIVES, unchanged: fsh regression tests (parser, aliases, pipes, history)
+in a CLEAN machine, so a case cannot pass by accident of this box. That want got
+sharper during the migration, not weaker -- six fsh-test failures on Omarchy were
+the HARNESS asserting one machine layout (/run/current-system paths, PATH
+containing /nix), and a clean-VM suite is exactly what catches that class before
+a migration does.
+
+OPEN QUESTION, deliberately not answered here: what provides hermetic VMs on
+Arch. The value of the NixOS framework was that the VM was DERIVED from the same
+source as the system, so it could not drift. Nothing on Arch gives that for
+free, and picking a runner (libvirt, cloud-hypervisor, systemd-nspawn) before
+knowing what property is actually needed is how the wrong tool gets adopted.
+
+NOTE: INT-027 (faelight-vm tooling) is COMPLETE, so the old prerequisite is
+satisfied -- but it was built against Nix and needs its own check.
+
+NOTE: FAELIGHT_STATE_DIR and FAELIGHT_STATE_DB already exist as isolation
+overrides (INT-204). A clean HOME plus those two may deliver most of the
+isolation without a VM at all, and that is the cheaper experiment to run first.

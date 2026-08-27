@@ -2,7 +2,7 @@
 id: 048
 date: 2026-06-09
 type: infrastructure
-title: "forest-ci: local CI with Gitea and Hydra for flake builds"
+title: "local CI gates are disarmed in a fresh clone -- core.hooksPath does not travel"
 status: planned
 tags: [ci, gitea, hydra, nix, flake, build, infrastructure, nixos]
 priority: low
@@ -96,3 +96,34 @@ Phase 4 -- Graduate to real machine
 "A broken flake should never reach the live machine.
  The forest validates before it deploys.
  CI is not bureaucracy -- it is discipline." 🌲
+
+## RESCOPED 2026-08-27 -- Hydra is gone, and the real defect was found live
+
+FALSE PREMISE: forest-ci was scoped as a local build farm (Gitea + Hydra) for
+flake builds. Hydra is a Nix build farm and flakes are gone. Gitea itself runs
+anywhere and Gitea Actions has been built in since 1.19, so a runner remains
+possible -- but that is not the finding.
+
+THE ACTUAL DEFECT, measured 2026-08-26 during the Omarchy migration:
+A FRESH CLONE ARRIVES WITH ITS HOOKS DISARMED. core.hooksPath is LOCAL git
+config and is not cloned. Every commit made between the clone and running
+git config core.hooksPath .githooks was ungated -- no rustfmt, no fsh-test, no
+pre-push check.
+
+WHY THIS IS THE SAME DISEASE THE LEDGER KEEPS FINDING: the gate did not fail.
+It was ABSENT, and absence is silent. A skipped hook and a passing hook look
+identical from the outside. That is the INT-110 warning arriving from a
+direction nobody had checked.
+
+WHAT LOCAL CI ALREADY IS HERE: the pre-push hook runs fsh-test and blocks the
+push. It has earned its keep -- it refused the push after the runtime-path move
+because two assertions still named the old location. The mechanism works. Its
+ACTIVATION is what does not travel.
+
+SUCCESS CRITERIA
+- [ ] A fresh clone either arms its own hooks or refuses to commit until armed
+- [ ] Watch it fail first: clone to /tmp, commit something rustfmt would reject,
+      confirm it goes through today
+- [ ] The check reports which gates are active, so no output cannot mean not
+      installed
+- [ ] Decide separately whether a runner (Gitea Actions) is wanted at all
