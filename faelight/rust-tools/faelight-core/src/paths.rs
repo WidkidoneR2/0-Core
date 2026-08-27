@@ -111,6 +111,30 @@ pub fn state_home() -> PathBuf {
     }
 }
 
+/// XDG executable home: `$XDG_BIN_HOME`, or `~/.local/bin` when unset.
+///
+/// ⚠️ THE ONLY OWNER OF WHERE A BINARY LIVES. Before this existed there were
+/// THIRTY-SIX sites building the path themselves, across FIVE different layouts:
+/// `scripts/` (deleted in e733287d), `bin/`, `/run/current-system/sw/bin`,
+/// `pkgs/faelight/scripts/`, and `~/.local/bin`. Six of them still EXECUTE a
+/// binary at a path that has not existed for months, and they fail silently.
+///
+/// Nobody noticed because on NixOS none of them were load-bearing: the rebuild
+/// put binaries in the store and regenerated the PATH directory itself, so no
+/// tool ever had to copy one. On Arch there is no reconciler, so this path is
+/// real and it needs exactly one owner -- the same lesson runtime_dir() learned
+/// in INT-061, where one helper let the whole tree move and nothing recreated
+/// the old location.
+///
+/// Kept SEPARATE from any tool that writes here, so XDG policy stays one fact
+/// and deployment stays a separate act.
+pub fn bin_dir() -> PathBuf {
+    match env::var("XDG_BIN_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v),
+        _ => home().join(".local/bin"),
+    }
+}
+
 /// Machine-local state: state.db, logs, cache, snapshots, locks, backups,
 /// journal, events.
 ///

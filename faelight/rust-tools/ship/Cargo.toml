@@ -1,0 +1,15 @@
+[package]
+name = "ship"
+license = "MIT"
+version = "1.0.0"
+edition = "2021"
+description = "Build the workspace and place binaries where PATH can see them -- the Arch-era replacement for the Nix rebuild"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde_json = "1.0"
+faelight-core = { path = "../faelight-core" }
+
+[[bin]]
+name = "ship"
+path = "src/main.rs"
