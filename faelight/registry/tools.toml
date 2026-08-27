@@ -232,15 +232,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-compositor"
-version = "0.1.0"
-category = "compositor"
-description = "Rust Wayland compositor on Smithay — the last sibling comes home (INT-109)"
-expected_usage = "high"
-type = "rust"
-deployable = false
-retired = false
-[[tool]]
 name = "faelight-gen"
 version = "1.0.0"
 category = "security"
@@ -445,15 +436,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-wsd"
-version = "0.1.0"
-category = "compositor"
-description = "Workspace daemon -- manages workspace state and output bindings"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "friday-chat"
 version = "1.0.0"
 category = "intelligence"
@@ -470,13 +452,4 @@ description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"
 type = "rust"
 deployable = true
-retired = false
-[[tool]]
-name = "faelight-compositor"
-version = "0.1.0"
-category = "compositor"
-description = "Wayland compositor -- pre-NixOS, not yet updated for NixOS"
-expected_usage = "medium"
-type = "rust"
-deployable = false
 retired = false

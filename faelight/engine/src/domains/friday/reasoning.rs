@@ -96,33 +96,6 @@ pub fn starter_rules() -> Vec<Rule> {
             },
         },
         Rule {
-            name: "compositor_active",
-            description: "faelight-compositor is receiving window events",
-            check: |ctx| {
-                let db = &ctx.runtime.db;
-                let now = now_ts();
-                let events: i64 = db
-                    .query_row(
-                        "SELECT COUNT(*) FROM events WHERE domain='compositor' AND timestamp > ?1",
-                        rusqlite::params![now - 3600],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or(0);
-                if events > 0 {
-                    Some(Observation {
-                        conclusion: format!(
-                            "faelight-compositor active -- {} window events in last hour",
-                            events
-                        ),
-                        confidence: 0.95,
-                        kind: ObservationKind::SystemWide,
-                    })
-                } else {
-                    None
-                }
-            },
-        },
-        Rule {
             name: "no_intent_activity",
             description: "No cistart/cicomplete in 2+ hours during active session",
             check: |ctx| {
