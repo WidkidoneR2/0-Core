@@ -1376,7 +1376,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_intents(core_root),
         check_deadwood(core_root),
         check_faelight_config(home),
-        check_keybinds(core_root, home),
         check_security_hardening(),
         check_security_audit(home),
         check_alias_coverage(),
@@ -1395,6 +1394,5 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_friday(core_root),
         check_network(),
         check_vm_state(),
-        check_compositor(),
     ]
 }

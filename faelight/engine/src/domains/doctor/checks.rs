@@ -426,93 +426,6 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
     }
 }
 
-pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
-    // Compositor-aware: read the active compositor's keybind config.
-    // mango (daily driver): ~/.config/mango/config.conf -- bind=MODS,key,action,...
-    let mango_config = PathBuf::from(home).join(".config/mango/config.conf");
-    let (wm_name, wm_config, is_mango) = if mango_config.exists() {
-        ("mango", mango_config, true)
-    } else {
-        return CheckResult {
-            tier: Tier::User,
-            id: "keybinds".into(),
-            name: "Compositor Keybinds".into(),
-            status: Status::Warn,
-            message: "No compositor keybind config found".into(),
-            fix: Some("Deploy a compositor config (mango)".into()),
-        };
-    };
-    let config_content = match std::fs::read_to_string(&wm_config) {
-        Ok(c) => c,
-        Err(_) => {
-            return CheckResult {
-                tier: Tier::User,
-                id: "keybinds".into(),
-                name: "Compositor Keybinds".into(),
-                status: Status::Warn,
-                message: "Could not read keybind config".into(),
-                fix: None,
-            }
-        }
-    };
-    let keybinds: Vec<String> = if is_mango {
-        config_content
-            .lines()
-            .map(|l| l.trim())
-            .filter_map(|l| l.strip_prefix("bind="))
-            .filter_map(|rest| {
-                let mut parts = rest.splitn(3, ',');
-                let mods = parts.next()?;
-                let key = parts.next()?;
-                Some(format!("{},{}", mods, key))
-            })
-            .collect()
-    } else {
-        config_content
-            .lines()
-            .filter(|l| {
-                let t = l.trim();
-                t.starts_with("Mod+")
-                    || t.starts_with("Ctrl+")
-                    || t.starts_with("Shift+")
-                    || t.starts_with("Alt+")
-                    || t.starts_with("Super+")
-            })
-            .map(|l| l.trim().split('{').next().unwrap_or("").trim().to_string())
-            .collect()
-    };
-    let count = keybinds.len();
-    let mut seen = std::collections::HashSet::new();
-    let mut conflicts = 0;
-    for bind in &keybinds {
-        if !seen.insert(bind.as_str()) {
-            conflicts += 1;
-        }
-    }
-    if conflicts == 0 {
-        CheckResult {
-            tier: Tier::User,
-            id: "keybinds".into(),
-            name: "Compositor Keybinds".into(),
-            status: Status::Pass,
-            message: format!("{}: {} keybindings, no conflicts", wm_name, count),
-            fix: None,
-        }
-    } else {
-        CheckResult {
-            tier: Tier::User,
-            id: "keybinds".into(),
-            name: "Compositor Keybinds".into(),
-            status: Status::Warn,
-            message: format!(
-                "{}: {} keybind conflicts detected -- review {} config",
-                wm_name, conflicts, wm_name
-            ),
-            fix: None,
-        }
-    }
-}
-
 /// Read ONE sshd_config directive, honestly.
 ///
 /// INT-164: the old check used `cfg.contains("PasswordAuthentication no")`, which is a substring
@@ -1366,39 +1279,6 @@ pub fn check_vm_state() -> CheckResult {
         name: "VM State".into(),
         status: Status::Pass,
         message,
-        fix: None,
-    }
-}
-
-pub fn check_compositor() -> CheckResult {
-    // Identify the running compositor (mango/pinnacle) by process.
-    // "none" is not a fault -- d can run from a TTY or headless session --
-    // so we report it as info rather than crying wolf, same as VM State.
-    let candidates = [("mango", "MangoWM"), ("pinnacle", "Pinnacle")];
-    for (proc_name, label) in candidates {
-        let found = Command::new("pgrep")
-            .arg("-x")
-            .arg(proc_name)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-        if found {
-            return CheckResult {
-                tier: Tier::Info,
-                id: "compositor".into(),
-                name: "Compositor".into(),
-                status: Status::Pass,
-                message: format!("{} running", label),
-                fix: None,
-            };
-        }
-    }
-    CheckResult {
-        tier: Tier::Info,
-        id: "compositor".into(),
-        name: "Compositor".into(),
-        status: Status::Pass,
-        message: "No compositor detected (TTY or headless)".into(),
         fix: None,
     }
 }
