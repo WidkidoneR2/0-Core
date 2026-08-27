@@ -14,9 +14,9 @@ set history_limit = 10000
 set prompt_style = forest
 
 # Tier 1 — Daily use
-alias d = "/run/current-system/sw/bin/core doctor run"
+alias d = "core doctor run"
 alias v = "nvim"
-alias l = "eza -lh --icons --group-directories-first"
+alias l = "eza -lh --icons=auto --group-directories-first"
 alias b = "bat --paging=never"
 alias y = "yazi"
 alias g = "git"
@@ -28,7 +28,7 @@ alias gcm = "git commit -m"
 
 # Tier 2 — Forest tools
 # Core binary -- explicit NixOS path
-alias core = "/run/current-system/sw/bin/core"
+alias core = "core"
 
 alias fm = "faelight-fm"
 alias menu = "faelight-logout"
@@ -42,17 +42,12 @@ alias vault = "faelight-vault"
 alias forecast = "core friday health-forecast"
 alias inspect = "core nix inspect"
 # awesome-nix tools (installed, now wired in -- see decision pattern INT-097)
-alias ndiff = "nvd diff"
-alias deptree = nix-tree
-alias nhclean = "nh clean all --keep-since 7d --ask"
-alias nhclean-dry = "nh clean all --keep-since 7d --dry"
-alias nhclean-all = "nh clean all --ask"
 alias clip = "faelight-clipboard"
 alias ya = "yazi"
 
-alias ls = "eza --icons"
-alias ll = "eza -la --icons"
-alias la = "eza -la --icons"
+alias ls = "eza --icons=auto"
+alias ll = "eza -la --icons=auto"
+alias la = "eza -la --icons=auto"
 
 # Deploy pipeline (INT-164)
 alias deploy = "~/0-core/faelight/packages/faelight/scripts/deploy"
@@ -252,15 +247,13 @@ alias jf = journalctl -f | tspin
 alias journal = journalctl --no-pager | tspin
 alias keep = cd ~/3-keep
 alias keys = bat ~/0-core/docs/KEYBINDINGS.md
-alias launcher = faelight-launcher
-alias launch = faelight-launcher  # INT-084
 alias lessons = core lessons
 alias lg = lazygit
 alias loc = tokei
 alias localip = ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1
 alias loch = tokei ~/0-core/rust-tools --sort lines
-alias lsize = eza -lah --icons --sort=size --reverse
-alias lt = eza -lah --icons --sort=modified --reverse
+alias lsize = eza -lah --icons=auto --sort=size --reverse
+alias lt = eza -lah --icons=auto --sort=modified --reverse
 alias mem = ps auxf | sort -nr -k 4 | head -10
 alias mycommits = gc
 alias myip = curl -s ifconfig.me
@@ -291,7 +284,7 @@ alias scan-staged = gitleaks protect --staged -v
 alias secadvise = core security advise
 alias secrets = cd ~/secrets
 alias secrets-mount = gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted
-alias secrets-unmount = fusermount -u ~/secrets && echo "🔒 Secrets locked
+alias secrets-unmount = fusermount3 -u ~/secrets && echo "🔒 Secrets locked
 alias security-score = test -f ~/.lynis-score && echo "🛡️  Hardening Index: $(cat ~/.lynis-score)/100" || echo "Run audit-full or audit-quick first
 alias snap-before = echo "📸 Creating safety snapshot..." && snap-now && echo "✅ Snapshot created!
 alias sr = reboot
@@ -310,7 +303,7 @@ alias targz = tar -czf
 alias timestamp = date +"%Y%m%d_%H%M%S
 alias tmp = cd ~/9-temp
 alias top = btm
-alias tree = eza --tree --icons --group-directories-first
+alias tree = eza --tree --icons=auto --group-directories-first
 alias untar = tar -xvf
 alias update = faelight-update
 alias vf = nvim $(fd --type f | fzf)

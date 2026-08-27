@@ -48,8 +48,7 @@ struct TestResult {
 /// shell. DEADWOOD_BIN lets one test prove the debug build before a deploy and the deployed
 /// artifact after -- the two-binaries discipline the rest of this work relies on.
 fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
-    let bin = std::env::var("DEADWOOD_BIN")
-        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-deadwood".to_string());
+    let bin = std::env::var("DEADWOOD_BIN").unwrap_or_else(|_| "faelight-deadwood".to_string());
     Command::new(&bin)
         .args(args)
         .stdout(Stdio::piped())
@@ -133,8 +132,7 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
 /// manufacturing a number there would make a comparison look performed when it was not. A caller
 /// that wants the signal convention asks for it; this reports what it saw.
 fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> {
-    let fsh = std::env::var("FSH_BIN")
-        .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
+    let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "faelight-shell".to_string());
     let out = Command::new(&fsh)
         .env("FSH_KEEP_CWD", "1")
         .env("FAELIGHT_STATE_DB", repl::case_db_path())
@@ -411,7 +409,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("N=42; echo $N")?, "42")
     }));
     results.push(test("path_not_empty", Category::Regression, || {
-        expect_contains(&run_fsh("echo $PATH")?, "/nix")
+        expect_contains(&run_fsh("echo $PATH")?, "/")
     }));
 
     // --- SEMICOLON / OPERATORS ---
@@ -798,7 +796,7 @@ fn all_tests() -> Vec<TestResult> {
     ));
 
     results.push(test("core_binary_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls /run/current-system/sw/bin/core")?, "core")
+        expect_contains(&run_fsh("which core")?, "core")
     }));
     results.push(test(
         "deadwood_strict_gate_passes",
@@ -831,10 +829,7 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test("fsh_binary_exists", Category::Regression, || {
-        expect_contains(
-            &run_fsh("ls /run/current-system/sw/bin/faelight-shell")?,
-            "faelight-shell",
-        )
+        expect_contains(&run_fsh("which faelight-shell")?, "faelight-shell")
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md")
@@ -894,8 +889,7 @@ fn all_tests() -> Vec<TestResult> {
             // ⚠️ SPAWNS DIRECTLY RATHER THAN THROUGH THE HELPER, because run_fsh_status always passes
             // an operand and this case is about there being none. `-c ""` is a present-but-empty
             // operand and exits 0, which is a different thing entirely.
-            let fsh = std::env::var("FSH_BIN")
-                .unwrap_or_else(|_| "/run/current-system/sw/bin/faelight-shell".to_string());
+            let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "faelight-shell".to_string());
             let out = Command::new(&fsh)
                 .env("FSH_KEEP_CWD", "1")
                 .env("FAELIGHT_STATE_DB", repl::case_db_path())
@@ -2222,7 +2216,7 @@ fn store_results(results: &[TestResult]) {
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
-    let fsh_version = std::process::Command::new("/run/current-system/sw/bin/faelight-shell")
+    let fsh_version = std::process::Command::new(repl::fsh_bin())
         .arg("--version")
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
