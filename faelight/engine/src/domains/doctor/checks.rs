@@ -1034,7 +1034,6 @@ pub fn check_tool_installation() -> CheckResult {
 }
 
 pub fn check_path_resilience(core_root: &str) -> CheckResult {
-    let scripts_dir = PathBuf::from(core_root).join("scripts");
     let registry_path = faelight_core::paths::tools_registry();
     // ⚠️ A PERCENTAGE OF NOTHING IS NOT ZERO PERCENT. The chain below ends unwrap_or_default(), so
     // an unreadable registry gave total = 0, and the divide-by-zero guard chose 0 as the answer --
@@ -1095,15 +1094,17 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
     let deployed = rust_tools
         .iter()
         .filter(|n| {
-            if std::path::Path::new("/etc/NIXOS").exists() {
-                Command::new("which")
-                    .arg(n)
-                    .output()
-                    .map(|o| o.status.success())
-                    .unwrap_or(false)
-            } else {
-                scripts_dir.join(n).exists()
-            }
+            // ⚠️ THE QUESTION IS "CAN I RUN THIS", AND `which` ANSWERS IT ON EVERY SYSTEM.
+            // This used to branch on /etc/NIXOS and, off NixOS, look inside 0-core/scripts/ --
+            // one deployment shape hardcoded as if it were the only one. On Omarchy with all
+            // 29 tools on PATH it reported 0/29 deployed while the installation check, which
+            // uses `which`, reported 24/25. Two checks over the same tools disagreeing, and
+            // the one that assumed a location was the wrong one.
+            Command::new("which")
+                .arg(n)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
         })
         .count();
     let pct = if total > 0 {
