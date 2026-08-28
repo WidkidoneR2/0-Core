@@ -3034,7 +3034,19 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
                             if content.contains("status: complete") {
                                 complete += 1;
-                            } else if content.contains("status: planned") {
+                            } else if content.contains("status: planned") && *cat == "future" {
+                                // PLANNED IS A future/ FACT. Counting it across all nine
+                                // directories reported 43 where intl reported 40, because
+                                // four decisions and philosophy documents carry
+                                // status: planned -- a status those categories have no use
+                                // for. That disagreement is the INT-211 finding and belongs
+                                // there, visible, rather than absorbed into a banner count.
+                                // The banner should agree with the tool used to read the
+                                // ledger.
+                                //
+                                // complete still scans everything: a completed intent
+                                // legitimately lives in complete/, and that count is a
+                                // total rather than a directory fact.
                                 planned += 1;
                             }
                         }
@@ -3120,7 +3132,13 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
                     .and_then(|o| String::from_utf8(o.stdout).ok())
                     .map(|s| s.trim().to_string())
                     .unwrap_or_default();
-                if !head.is_empty() && head != hash {
+                // COMPARE LIKE WITH LIKE. fsh-test stores an 8-character short hash and
+                // git rev-parse HEAD returns 40, so this was never equal and the banner
+                // showed the stale marker on every run since it was written. Truncating
+                // HEAD to whatever length was actually recorded keeps it correct if the
+                // suite ever stores a different width.
+                let n = hash.len().min(head.len());
+                if !head.is_empty() && head[..n] != hash[..n] {
                     format!("{}/{} (at {})", passed, total, &hash[..8.min(hash.len())])
                 } else {
                     format!("{}/{}", passed, total)
