@@ -621,19 +621,23 @@ pub fn render_changelog(m: &ToolMeta) -> String {
     out.push_str("This project follows the Faelight Forest versioning model; format loosely tracks Keep a Changelog.\n\n");
     out.push_str("---\n\n");
 
-    // NixOS migration entry (the gate requirement).
+    // Platform entry. THIS NAMED NIXOS AND THE BUILD AND DEPLOY COMMANDS WERE WRONG:
+    // nix develop, nixos-rebuild switch, home-manager. None of them exist here. The
+    // section is worth keeping because per-tool build and deploy instructions are
+    // genuinely useful; it just has to name the commands that work.
     out.push_str(&format!(
-        "## [{}] -- NixOS 26.05 era\n\n",
+        "## [{}] -- Omarchy / Arch era",
         if m.version.is_empty() {
             "current"
         } else {
             &m.version
         }
     ));
+    out.push_str("\n\n");
     out.push_str("### Changed\n");
-    out.push_str("- Migrated from Arch Linux to NixOS 26.05 (Yarara).\n");
-    out.push_str("- Build: `nix develop ~/0-core#faelight-forest -c cargo build`.\n");
-    out.push_str("- Deploy: home-manager / `nixos-rebuild switch` (replaces stow).\n\n");
+    out.push_str("- Migrated from NixOS to Omarchy (Arch) 2026-08-26.\n");
+    out.push_str("- Build: `cargo build --release`.\n");
+    out.push_str("- Deploy: `ship` for the workspace, `ship <tool>` for one.\n\n");
 
     // Recent substantive history from git.
     let hist = tool_history(&m.name, 15);

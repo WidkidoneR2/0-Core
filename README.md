@@ -1,45 +1,41 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
+
 # 🌲 Faelight Forest 1.0.0
+
 ![Version](https://img.shields.io/badge/version-1.0.0-green?style=flat-square)
 ![Rust](https://img.shields.io/badge/Rust-96.5%25-dea584?style=flat-square)
-![Lines](https://img.shields.io/badge/lines-113k-blue?style=flat-square)
-![NixOS](https://img.shields.io/badge/NixOS-26.05_Yarara-7ebae4?style=flat-square)
+![Lines](https://img.shields.io/badge/lines-125k-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 > **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**
 
-## 🎊 1.0.0 -- Morphwood (2026-07-06)
+## 🍂 Migrating to Omarchy (Arch), August 2026
 
-The inaugural release. Faelight Forest crossed from Arch Linux to NixOS 26.05 -- a full migration to declarative, reproducible, rollback-safe computing, with every trace of the old platform swept away. The forest that changed form.
+The 1.0.0 release ran on NixOS. It does not any more.
 
-### ✅ What Shipped
+On 2026-08-26 the machine was wiped and reinstalled on Omarchy, and the forest moved
+with it. What that migration is finding, in the open: checks that could not fail,
+counts that disagreed with each other, tools whose purpose left with the platform, and
+a test suite that reported a 2% shell because its harness had lost the binary it was
+meant to test.
 
-- NixOS Era Begins -- Faelight Forest on NixOS
-- Fenix: Rust 1.93+ toolchain via flake overlay
-- NixOS scripts layer: lock-core, unlock-core, deploy, core-protect
-- Faelight-fm v3: broot-inspired, ratatui, forest-native navigation
-- Faelight-login + faelight-menu: proper NixOS login flow with greetd
-- Friday-dev shell: nix develop environment for Friday/forest development
-- Faelight-shell v4: NixOS-native, nix develop aware, forest-first
-- Faelight-notify v5: NixOS-native, layer-shell ready
-- MangoWM: daily driver configuration, keybinds, and autostart
-- Fsh semantic domains: project/intent/experiment as first-class shell objects
-- Faelight-release v2: NixOS-native release manager with generation-commit-intent triad
-- Forest-aware color system: semantic colors, context themes, git regions
-- Doctor v2: NixOS-aware health checks
-- Canonical 0-Core repository structure on NixOS
-- Final Arch sweep: purge pacman/AUR remnants for a true NixOS-native 1.0.0
+Ten tools retired, seventeen intents cancelled with recorded reasons, and the health
+panel stopped measuring a distribution it does not own. The work is ongoing and the
+commit history is the record.
 
-_…and 71 more -- see the [full changelog](faelight/meta/CHANGELOG.md) for the complete list._
+The next chapter is the shell. Forty-one binaries built at the migration; thirty do
+now, and that is the number one person can keep honest. The shell is where the
+attention goes.
+
+_Release notes for 1.0.0 and everything since live in the [changelog](faelight/meta/CHANGELOG.md)._
 
 ## 🌲 Forest DNA
 
 | | |
 |---|---|
-| 🛠 **Tools** | 36 custom Rust tools |
-| 📋 **Codebase** | ~109k lines, 96.5% Rust |
-| 🏥 **Health** | 100% |
-| ⚡ **Stack** | Rust · Wayland · Smithay · ratatui · wgpu |
+| 🛠 **Tools** | 30 custom Rust tools |
+| 📋 **Codebase** | ~125k lines of Rust |
+| ⚡ **Stack** | Rust · Wayland · ratatui · SQLite |
 | 🌍 **Philosophy** | Understanding over convenience · No mystery packages |
 
 > Every tool written or fully understood. Nothing runs blindly.
@@ -47,19 +43,20 @@ _…and 71 more -- see the [full changelog](faelight/meta/CHANGELOG.md) for the 
 [Full Changelog →](faelight/meta/CHANGELOG.md)
 
 ---
+
 <!-- END DYNAMIC SECTION -->
 
 <!-- STATIC SECTION -->
 
 ## What is Faelight Forest?
 
-A self-aware personal computing environment, built from first principles on **NixOS 26.05**.
-Every piece a modern desktop needs -- a shell, an intelligence layer, and 36 custom Rust
-tools -- written or fully understood. No mystery packages. No magic. No convenience at the
+A self-aware personal computing environment, built from first principles. Every piece a
+modern desktop needs -- a shell, an intelligence layer, and 30 custom Rust tools --
+written or fully understood. No mystery packages. No magic. No convenience at the
 cost of comprehension.
 
-**~97% Rust** (109k lines across 250 files), with a thin Nix layer for declarative system
-management and small amounts of Lua and shell where they serve best. The forest is not Rust
+**~97% Rust** (125k lines across 239 files), with small amounts of Lua and shell where
+they serve best. The forest is not Rust
 for its own sake -- it is Rust because understanding every line is the point.
 POSIX shells:      text -> text -> text
 Nu shell:          table -> filter -> transform
@@ -74,8 +71,11 @@ understand, or don't run it at all.
 
 That rebuild started on Arch Linux. In June 2026, after another Arch failure, the forest
 migrated to **NixOS 26.05** -- a deliberate move toward declarative, reproducible,
-rollback-safe computing. Every system change is now a bootable generation. Nothing is lost,
-nothing is mysterious.
+rollback-safe computing.
+
+In August 2026 it moved again, to **Omarchy**. The reasons are in the commit history
+rather than in a manifesto. What the move made plain is that a system which claims to
+understand itself has to be tested by taking the ground out from under it.
 
 ## Philosophy
 
@@ -128,7 +128,7 @@ This README is the front door. The depth lives here:
 - [Shell Philosophy](docs/FSH-PHILOSOPHY.md) -- the case for a human-first shell
 - [Release Process](docs/RELEASE.md) -- how the forest publishes itself
 - [Tool Catalog](faelight/rust-tools/) -- every active tool, generated from source
-- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS
+- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS and back
 
 ## Security
 
@@ -137,7 +137,6 @@ Nothing runs without explicit authorization.
 - UFW firewall + fail2ban active
 - faelight-vault -- encrypted credential manager
 - faelight-sandbox -- policy engine with namespace isolation
-- Immutable core on NixOS -- system changes are declarative and reviewable
 - Health + integrity monitoring -- continuous verification
 - cargo-audit on every deploy -- findings surfaced, triaged, and documented, never silent
 
