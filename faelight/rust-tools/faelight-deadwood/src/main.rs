@@ -94,16 +94,14 @@ fn main() {
             .filter(|f| f.confidence != Confidence::Low)
             .count();
         let registry = check_registry_orphans(&root).len();
-        let scripts = check_orphaned_scripts(&root).len();
-        let modules = check_orphaned_modules(&root).len();
-        let total = aliases + baks + registry + scripts + modules;
-        // machine-readable single line: TOTAL|aliases|baks|registry|scripts|modules
+        let total = aliases + baks + registry;
+        // machine-readable single line: TOTAL|aliases|baks|registry
         //
         // FORMAT CHANGED 2026-08-27: keybinds was field 3 and is gone with the mango
         // keybind check. The doctor parses this BY INDEX, so dropping a field shifts
         // everything after it -- check_deadwood was updated in the same commit. That
         // coupling is the reason the note below exists.
-        println!("{total}|{aliases}|{baks}|{registry}|{scripts}|{modules}");
+        println!("{total}|{aliases}|{baks}|{registry}");
         // The INT-195 check is deliberately NOT in these positional totals: the health doctor
         // parses this line by index, so an added field would silently shift what it reads. That
         // means --summary --strict gates on the six filesystem categories only, while report mode
@@ -158,18 +156,6 @@ fn main() {
         reported += report(
             "Registry orphans (deployable, no binary)",
             check_registry_orphans(&root),
-        );
-    }
-    if run("scripts") {
-        reported += report(
-            "Orphaned scripts (referenced nowhere)",
-            check_orphaned_scripts(&root),
-        );
-    }
-    if run("modules") {
-        reported += report(
-            "Orphaned Nix modules (imported by no host)",
-            check_orphaned_modules(&root),
         );
     }
     if run("cmdword") {
@@ -566,7 +552,12 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
 }
 
 fn check_registry_orphans(root: &Path) -> Vec<Finding> {
-    let path = root.join("registry/tools.toml");
+    // WAS root.join(registry/tools.toml) -- the file is at faelight/registry/tools.toml,
+    // so read_to_string failed and this returned empty on every run. It reported clean
+    // because it was BLIND. Found 2026-08-27 by adding a deliberate orphan and watching
+    // the summary stay at zero, then verified in both directions: orphan present reads
+    // 1|0|0|1|0|0 and the doctor says 1 registry; orphan gone reads all zeros.
+    let path = root.join("faelight/registry/tools.toml");
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
         Err(_) => return Vec::new(),
@@ -620,121 +611,6 @@ fn check_registry_orphans(root: &Path) -> Vec<Finding> {
 // ── Orphaned scripts ─────────────────────────────────────────────────────────
 // A script in pkgs/faelight/scripts/ whose basename is referenced nowhere else in the repo
 // (no alias, no config, no other source). MED -- could be called dynamically.
-
-fn check_orphaned_scripts(root: &Path) -> Vec<Finding> {
-    let scripts_dir = root.join("pkgs/faelight/scripts");
-    let entries = match std::fs::read_dir(&scripts_dir) {
-        Ok(e) => e,
-        Err(_) => return Vec::new(),
-    };
-    // Build a corpus of all text in the repo (config + registry + rust src), once.
-    let mut corpus = String::new();
-    for dir in ["config", "registry", "rust-tools", "modules", "hosts"] {
-        for entry in WalkDir::new(root.join(dir))
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file() {
-                let n = entry.file_name().to_string_lossy();
-                if n.contains(".bak") {
-                    continue;
-                }
-                if let Ok(t) = std::fs::read_to_string(entry.path()) {
-                    corpus.push_str(&t);
-                    corpus.push('\n');
-                }
-            }
-        }
-    }
-    let mut findings = Vec::new();
-    for entry in entries.filter_map(|e| e.ok()) {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name.contains(".bak") {
-            continue;
-        }
-        if !entry.path().is_file() {
-            continue;
-        }
-        // Referenced if its basename appears anywhere in the corpus.
-        if !corpus.contains(&name) {
-            findings.push(Finding {
-                action: None,
-                confidence: Confidence::Medium,
-                detail: format!(
-                    "script {} -- referenced nowhere (may be run dynamically)",
-                    name.bright_white()
-                ),
-            });
-        }
-    }
-    findings
-}
-
-// ── Orphaned Nix modules ─────────────────────────────────────────────────────
-// A modules/**/*.nix file whose filename is referenced in no host configuration's imports.
-// Empty module files are flagged HIGH (definitely dead); others MED (config may have moved
-// inline, leaving a stale module).
-
-fn check_orphaned_modules(root: &Path) -> Vec<Finding> {
-    // Gather all host config text (the import sites).
-    let mut host_text = String::new();
-    for entry in WalkDir::new(root.join("hosts"))
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if entry.file_type().is_file() {
-            let n = entry.file_name().to_string_lossy();
-            if n.ends_with(".nix") && !n.contains(".bak") {
-                if let Ok(t) = std::fs::read_to_string(entry.path()) {
-                    host_text.push_str(&t);
-                    host_text.push('\n');
-                }
-            }
-        }
-    }
-    // Also count flake.nix (modules can be wired there).
-    if let Ok(t) = std::fs::read_to_string(root.join("flake.nix")) {
-        host_text.push_str(&t);
-    }
-
-    let mut findings = Vec::new();
-    for entry in WalkDir::new(root.join("modules"))
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let p = entry.path();
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let name = entry.file_name().to_string_lossy().to_string();
-        if !name.ends_with(".nix") || name.contains(".bak") {
-            continue;
-        }
-        // Referenced if the filename appears in any host/flake text.
-        if host_text.contains(&name) {
-            continue;
-        }
-        let rel = p.strip_prefix(root).unwrap_or(p).display().to_string();
-        let empty = entry.metadata().map(|m| m.len() == 0).unwrap_or(false);
-        if empty {
-            findings.push(Finding {
-                action: None,
-                confidence: Confidence::High,
-                detail: format!("{} -- EMPTY and imported by no host", rel.bright_white()),
-            });
-        } else {
-            findings.push(Finding {
-                action: None,
-                confidence: Confidence::Medium,
-                detail: format!(
-                    "{} -- imported by no host (config may have moved inline)",
-                    rel
-                ),
-            });
-        }
-    }
-    findings
-}
 
 /// INT-195: execution-governing code must derive the command word only through
 /// commands::command_word(). This is a SOURCE-structure check rather than a filesystem one --

@@ -1315,13 +1315,21 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             let line = line.trim();
             let parts: Vec<&str> = line.split('|').collect();
             let total: usize = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-            // High-confidence structural orphans (registry+modules) are the ones worth a Warn.
-            // INDICES SHIFTED 2026-08-27: the summary format dropped its keybinds field
-            // when the mango keybind check was removed, so registry moved 4 -> 3 and
-            // modules 6 -> 5. Format is total|aliases|baks|registry|scripts|modules.
+            // FORMAT IS NOW total|aliases|baks|registry -- four fields.
+            //
+            // It was seven. keybinds went with the mango check, and scripts and modules
+            // went with two checks that read directories this repo does not have
+            // (pkgs/faelight/scripts, and hosts/modules rather than nix/hosts and
+            // nix/modules). All three reported clean because they were BLIND.
+            //
+            // This parses BY INDEX, so a dropped field silently shifts what it reads --
+            // parts.get(5) would now return None and default to 0, which is wrong in the
+            // quiet direction. Both sides change together, always.
+            //
+            // Verified in both directions 2026-08-27: a deliberate registry orphan reads
+            // 1|0|0|1 and this reports 1 registry; removing it returns all zeros.
             let registry: usize = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let modules: usize = parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let structural = registry + modules;
+            let structural = registry;
             if structural > 0 {
                 CheckResult {
                     tier: Tier::User,
@@ -1329,8 +1337,8 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
                     name: "Deadwood".into(),
                     status: Status::Warn,
                     message: format!(
-                        "{} orphans flagged ({} structural: {} registry, {} modules)",
-                        total, structural, registry, modules
+                        "{} orphans flagged ({} structural: {} registry)",
+                        total, structural, registry
                     ),
                     fix: Some(
                         "Run: faelight-deadwood (reports only -- you decide every cut)".into(),
