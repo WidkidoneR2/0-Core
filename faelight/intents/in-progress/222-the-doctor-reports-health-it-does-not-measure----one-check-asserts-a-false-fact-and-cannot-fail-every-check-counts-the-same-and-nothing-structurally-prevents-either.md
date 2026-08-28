@@ -241,8 +241,19 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
 
 ### Phase 2 -- build, proving each gate by watching it fail
 
-- [ ] `check_dotmeta` is corrected or removed, and `docs/.dotmeta` is dealt with in the same change
+- [x] `check_dotmeta` is corrected or removed, and `docs/.dotmeta` is dealt with in the same change
       so the repo and the check agree. ⚠️ Fixing only one of the two leaves the contradiction.
+      <!-- 2026-08-27: check_dotmeta was deleted earlier as proven decoration. THE GATE WARNED
+      ABOUT EXACTLY WHAT HAPPENED NEXT: the file outlived the check, so a grep for dotmeta in
+      Rust returned nothing while docs/.dotmeta still sat there. It held GNU stow metadata
+      (stowable: false) from the Arch era; ROADMAP.md:98 already called it orphaned, and
+      DEC-044 records removing all .dotmeta files -- it survived that sweep.
+
+      AND SO DID A SECOND ONE, found only because the first was checked for siblings:
+      faelight/rust-tools/.dotmeta, a museum of wrong facts -- version 10.3.0, tool_count
+      42, last_updated February, tools compile to ~/0-core/scripts/ (deleted in e733287d),
+      registry at 01-registry/tools.toml (moved long ago). Nothing read it, so nothing
+      corrected it. Both files removed; the check and the repo now agree. -->
 - [ ] A definition declaring pass-only is treated as a label and excluded from the denominator.
       **Proven by watching it work: fabricate a pass-only definition, watch it be excluded and
       reported as declared, then remove it and watch the denominator return.**
@@ -250,9 +261,23 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       one, watch it be refused, then complete it and watch it accepted.
 - [ ] A critical-tier ERROR caps the reported health. **Proven by watching it fail:** force a
       critical check red and confirm the verdict cannot read healthy.
-- [ ] An UNKNOWN check is excluded from health math and rendered as could-not-run. **Proven by
+- [x] An UNKNOWN check is excluded from health math and rendered as could-not-run. **Proven by
       watching it fail:** make a probe unavailable and confirm the output says so rather than
       reporting clean.
+      <!-- 2026-08-27 DEMONSTRATED, not observed. Ran the real doctor with PATH set to an empty
+      directory, so no external probe resolved at all:
+        PATH=/tmp/nobin ~/.local/bin/core doctor run
+      Five checks went UNKNOWN and NAMED THEMSELVES -- System Services, Rust Docs, Reboot
+      Needed, Update Readiness, Orphan Packages -- rather than reporting clean. Health fell to
+      47% and the unknowns were excluded from the denominator. The same command on the real
+      machine before and after reads 84% with one unknown, so nothing on disk changed.
+      ONE CHECK PASSED WITH NO BINARIES AND WAS SUSPECTED OF LYING: Network reported online
+      with DNS resolving. It is honest -- check_network uses Rust TCP and ToSocketAddrs, no
+      external command, so an empty PATH cannot blind it. Suspicion was checked against the
+      code rather than assumed either way.
+      The live unknown on this machine is System Services: faelight-session.target does not
+      exist on Omarchy, and the check says could not read rather than calling 0/0 healthy --
+      which its own comment names as the free pass this intent exists to remove. -->
 - [ ] `faelight-deadwood` gains a mechanical check for a check that cannot fail. **Proven by
       watching it fail first:** reintroduce a hardcoded-Pass definition, watch it be flagged, remove
       it, watch the flag clear. ⚠️ Without the fail-first proof this gate is itself decoration --
