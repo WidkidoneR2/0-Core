@@ -101,6 +101,49 @@ fn differs(a: &Path, b: &Path) -> bool {
     }
 }
 
+/// Keep the newest three backups of one tool, delete the rest.
+///
+/// bin/ reached 573MB in a single day -- thirteen copies of core alone, at roughly
+/// 4.8MB each -- because ship wrote a backup on every install and never removed one.
+/// It is gitignored, so nothing surfaced it.
+///
+/// KEEP-COUNT, NOT AGE. Time-based retention behaves badly under this workload: ten
+/// deploys in an afternoon then nothing for a month leaves either everything or
+/// nothing, depending which side of the window you land on. A count is deterministic.
+///
+/// Backups are named tool@<mtime>. Older ones from before that change are named
+/// tool@<version>, and a plain string sort would rank core@3.2.10 beside a ten-digit
+/// epoch and keep it forever. Anything whose suffix is not all digits is treated as
+/// oldest, so the legacy names age out first.
+///
+/// Only files ship itself wrote are ever considered. Errors are ignored deliberately:
+/// a backup that cannot be deleted is disk to reclaim later, not a failed deploy.
+fn prune_backups(backup_dir: &Path, tool: &str) {
+    const KEEP: usize = 3;
+    let rd = match std::fs::read_dir(backup_dir) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    let prefix = format!("{}@", tool);
+    let mut found: Vec<(u64, std::path::PathBuf)> = Vec::new();
+    for e in rd.filter_map(|e| e.ok()) {
+        let name = e.file_name().to_string_lossy().to_string();
+        let Some(suffix) = name.strip_prefix(&prefix) else {
+            continue;
+        };
+        // A non-numeric suffix is a pre-mtime backup: rank it oldest.
+        let stamp = suffix.parse::<u64>().unwrap_or(0);
+        found.push((stamp, e.path()));
+    }
+    if found.len() <= KEEP {
+        return;
+    }
+    found.sort_by(|a, b| b.0.cmp(&a.0));
+    for (_, path) in found.iter().skip(KEEP) {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
 fn install(src: &Path, dest: &Path) -> Result<(), String> {
     let dir = dest.parent().ok_or("destination has no parent")?;
     let stem = dest.file_name().and_then(|s| s.to_str()).unwrap_or("tool");
@@ -276,6 +319,7 @@ fn main() {
             if let Err(e) = std::fs::copy(&dest, &keep) {
                 println!("  backup of {} FAILED -- {}", t.name, e);
             }
+            prune_backups(&backup_dir, &t.name);
         }
         let started = Instant::now();
         match install(&src, &dest) {
