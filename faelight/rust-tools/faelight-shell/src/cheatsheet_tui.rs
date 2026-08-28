@@ -246,64 +246,15 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
         }
     }
 
-    // --- Keybinds: parse mango config.conf `bind=` lines ---
-    let mut keybinds = 0usize;
-    {
-        let core_root = conn_core_root(conn);
-        let cfg_path = std::path::PathBuf::from(&core_root)
-            .join("nix/home/dotfiles/mango/.config/mango/config.conf");
-        if let Ok(text) = std::fs::read_to_string(&cfg_path) {
-            let mut ins = tx.prepare(
-                "INSERT INTO command_registry
-                   (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
-                 VALUES ('keybind', ?1, 'mango-config', ?2, ?3, ?4, NULL, ?5, ?5, 0)",
-            )?;
-            for line in text.lines() {
-                let line = line.trim();
-                if let Some(rest) = line.strip_prefix("bind=") {
-                    // rest = MODS,key,action[,args...]
-                    let parts: Vec<&str> = rest.split(',').collect();
-                    if parts.len() < 3 {
-                        continue;
-                    }
-                    let mods = parts[0].trim();
-                    let key = parts[1].trim();
-                    let action = parts[2].trim();
-                    let args: Vec<&str> = parts[3..]
-                        .iter()
-                        .map(|s| s.trim())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-
-                    // chord: SUPER+SHIFT + key  ->  "SUPER+SHIFT+Left"
-                    let chord = if mods.is_empty() {
-                        key.to_string()
-                    } else {
-                        format!("{}+{}", mods, key)
-                    };
-                    // human action: "spawn alacritty -e yazi" / "view 1" / "killclient"
-                    let action_str = if args.is_empty() {
-                        action.to_string()
-                    } else {
-                        format!("{} {}", action, args.join(" "))
-                    };
-                    // category by action family for nicer grouping
-                    let category = match action {
-                        "spawn" => "launch",
-                        "view" => "workspace",
-                        "tag" => "tag",
-                        "chvt" => "recovery",
-                        _ => "window",
-                    };
-
-                    ins.execute(rusqlite::params![
-                        chord, category, action_str, action_str, now
-                    ])?;
-                    keybinds += 1;
-                }
-            }
-        }
-    }
+    // KEYBINDS: the parser is gone, the display is not.
+    //
+    // It read mango config.conf, and mango left with the migration -- the file has not
+    // existed since, so this has silently contributed zero rows the whole time. The
+    // KindFilter, the glyph, the header and the struct field stay: removing the concept
+    // would be a large change to a daily tool for no gain, and the display side is
+    // ready if Omarchy keybinds ever belong here. Today they do not -- Omarchy owns
+    // them and shows them on SUPER+K.
+    let keybinds = 0usize;
 
     // --- Builtins: parse the dispatcher match arms in commands/mod.rs (live source) ---
     // INT-092 Phase 1b: the match cmd.as_str() block IS the source of truth for builtins.
@@ -401,19 +352,6 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
         keybinds,
         builtins,
     })
-}
-
-/// Resolve the repo root from the db connection's file path (…/runtime/state.db -> repo root).
-fn conn_core_root(conn: &Connection) -> String {
-    if let Some(p) = conn.path() {
-        if let Some(runtime) = std::path::Path::new(p).parent() {
-            if let Some(reporoot) = runtime.parent() {
-                return reporoot.to_string_lossy().to_string();
-            }
-        }
-    }
-    // fallback
-    format!("{}/0-core", std::env::var("HOME").unwrap_or_default())
 }
 
 pub fn run_cheatsheet_tui(_core_root: &str) {

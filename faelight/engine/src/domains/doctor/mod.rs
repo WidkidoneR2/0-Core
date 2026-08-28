@@ -1316,8 +1316,11 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             let parts: Vec<&str> = line.split('|').collect();
             let total: usize = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
             // High-confidence structural orphans (registry+modules) are the ones worth a Warn.
-            let registry: usize = parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let modules: usize = parts.get(6).and_then(|s| s.parse().ok()).unwrap_or(0);
+            // INDICES SHIFTED 2026-08-27: the summary format dropped its keybinds field
+            // when the mango keybind check was removed, so registry moved 4 -> 3 and
+            // modules 6 -> 5. Format is total|aliases|baks|registry|scripts|modules.
+            let registry: usize = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let modules: usize = parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(0);
             let structural = registry + modules;
             if structural > 0 {
                 CheckResult {
@@ -1371,7 +1374,6 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_broken_symlinks(core_root, home),
         check_binaries(),
         check_git(core_root),
-        check_themes(core_root),
         check_rust_docs(core_root),
         check_intents(core_root),
         check_deadwood(core_root),

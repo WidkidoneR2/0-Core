@@ -329,41 +329,6 @@ pub fn check_git(core_root: &str) -> CheckResult {
     }
 }
 
-pub fn check_themes(core_root: &str) -> CheckResult {
-    // INT-061: config/ moved to nix/home/dotfiles/
-    let stow = PathBuf::from(core_root).join("nix/home/dotfiles");
-    let count = fs::read_dir(&stow)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|e| {
-                    let n = e.file_name().to_string_lossy().to_string();
-                    n.starts_with("faelight") || n.starts_with("theme-")
-                })
-                .count()
-        })
-        .unwrap_or(0);
-    if count >= 1 {
-        CheckResult {
-            tier: Tier::User,
-            id: "themes".into(),
-            name: "Theme Packages".into(),
-            status: Status::Pass,
-            message: format!("{}/1 theme packages present", count),
-            fix: None,
-        }
-    } else {
-        CheckResult {
-            tier: Tier::User,
-            id: "themes".into(),
-            name: "Theme Packages".into(),
-            status: Status::Warn,
-            message: "0/1 theme packages found".into(),
-            fix: None,
-        }
-    }
-}
-
 pub fn check_intents(_core_root: &str) -> CheckResult {
     // INT-135 Gate 7: was decoration -- hardcoded Status::Pass, a phantom "active/" folder,
     // no "in-progress", and a substring match for "status: complete" over whole files.

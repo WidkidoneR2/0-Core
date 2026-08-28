@@ -93,13 +93,17 @@ fn main() {
             .iter()
             .filter(|f| f.confidence != Confidence::Low)
             .count();
-        let keybinds = check_dead_keybinds(&root).len();
         let registry = check_registry_orphans(&root).len();
         let scripts = check_orphaned_scripts(&root).len();
         let modules = check_orphaned_modules(&root).len();
-        let total = aliases + baks + keybinds + registry + scripts + modules;
-        // machine-readable single line: TOTAL|aliases|baks|keybinds|registry|scripts|modules
-        println!("{total}|{aliases}|{baks}|{keybinds}|{registry}|{scripts}|{modules}");
+        let total = aliases + baks + registry + scripts + modules;
+        // machine-readable single line: TOTAL|aliases|baks|registry|scripts|modules
+        //
+        // FORMAT CHANGED 2026-08-27: keybinds was field 3 and is gone with the mango
+        // keybind check. The doctor parses this BY INDEX, so dropping a field shifts
+        // everything after it -- check_deadwood was updated in the same commit. That
+        // coupling is the reason the note below exists.
+        println!("{total}|{aliases}|{baks}|{registry}|{scripts}|{modules}");
         // The INT-195 check is deliberately NOT in these positional totals: the health doctor
         // parses this line by index, so an added field would silently shift what it reads. That
         // means --summary --strict gates on the six filesystem categories only, while report mode
@@ -149,9 +153,6 @@ fn main() {
             "Dangling intent citations",
             check_dangling_intent_citations(&root),
         );
-    }
-    if run("keybinds") {
-        reported += report("Dead keybinds (mango)", check_dead_keybinds(&root));
     }
     if run("registry") {
         reported += report(
@@ -563,66 +564,6 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
     }
     findings
 }
-
-fn check_dead_keybinds(root: &Path) -> Vec<Finding> {
-    let candidates = [
-        root.join("nix/home/dotfiles/mango/.config/mango/config.conf"),
-        root.join("nix/home/dotfiles/mango/config.conf"),
-    ];
-    let path = match candidates.iter().find(|p| p.exists()) {
-        Some(p) => p,
-        None => return Vec::new(),
-    };
-    let text = match std::fs::read_to_string(path) {
-        Ok(t) => t,
-        Err(_) => return Vec::new(),
-    };
-    let mut findings = Vec::new();
-    for line in text.lines() {
-        let l = line.trim();
-        if l.starts_with('#') || !l.starts_with("bind") {
-            continue;
-        }
-        if l.contains("# deadwood: skip") {
-            continue;
-        }
-        let cmd_field = match l.rsplit(',').next() {
-            Some(c) => c.trim(),
-            None => continue,
-        };
-        let first = cmd_field.split_whitespace().next().unwrap_or("");
-        if first != "spawn" {
-            continue;
-        }
-        let target = cmd_field
-            .split_whitespace()
-            .nth(1)
-            .unwrap_or("")
-            .trim_matches(|c| c == '"' || c == '\'');
-        if target.is_empty() {
-            continue;
-        }
-        let live = BUILTINS.contains(&target)
-            || on_path(target)
-            || target.starts_with('~')
-            || target.starts_with('/');
-        if !live {
-            findings.push(Finding {
-                confidence: Confidence::Medium,
-                detail: format!("bind -> spawn '{}' (not found)", target.bright_white()),
-                action: Some(PurgeAction::RemoveLine {
-                    file: path.to_path_buf(),
-                    exact: line.to_string(),
-                }),
-            });
-        }
-    }
-    findings
-}
-
-// ── Registry orphans ─────────────────────────────────────────────────────────
-// A tool in registry/tools.toml marked deployable=true, retired=false, whose `name` binary
-// isn't on PATH. (retired=true -> intentionally gone, skip.)
 
 fn check_registry_orphans(root: &Path) -> Vec<Finding> {
     let path = root.join("registry/tools.toml");
@@ -1161,11 +1102,6 @@ fn purgeable(root: &Path, bak_age: u64) -> Vec<Finding> {
         }
     }
     for f in check_stale_baks(root, bak_age) {
-        if f.action.is_some() {
-            out.push(f);
-        }
-    }
-    for f in check_dead_keybinds(root) {
         if f.action.is_some() {
             out.push(f);
         }
