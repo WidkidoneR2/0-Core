@@ -1,9 +1,0 @@
-# INT-112: risk metadata.
-risk = "system"
-reason = """
-The proving ground. Deliberately NOT critical: breaking the VM costs a test run, not a
-laptop. That is the entire point of having it -- lanzaboote landed here first (INT-059),
-was rehearsed twice, and only then went to metal (INT-161).
-Its login config is real login config, but it is a VM's login. Get it wrong and you lose
-the test surface, not the machine.
-"""

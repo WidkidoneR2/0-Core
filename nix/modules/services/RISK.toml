@@ -1,7 +1,0 @@
-# INT-112: risk metadata.
-risk = "system"
-reason = """
-System services (atticd -- the self-hosted binary cache). A broken service here degrades
-the machine: builds fall back to cache.nixos.org and get slower. It does not stop the boot
-or the login.
-"""
