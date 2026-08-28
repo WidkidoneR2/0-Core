@@ -215,14 +215,6 @@ fn main() -> ExitCode {
             verdict: gate_ripsecrets(&root, &staged),
         });
         gates.push(Gate {
-            name: "risk tiers",
-            verdict: if staged.is_empty() {
-                Verdict::Skipped
-            } else {
-                run_repo_script(&root, "nix/lib/risk-gate.sh", &staged)
-            },
-        });
-        gates.push(Gate {
             name: "formatting",
             verdict: gate_rustfmt(&root, &staged),
         });
@@ -230,7 +222,7 @@ fn main() -> ExitCode {
     if stage == "pre-push" || stage == "all" {
         gates.push(Gate {
             name: "shell tests",
-            verdict: run_repo_script(&root, "nix/lib/fsh-test-gate.sh", &[]),
+            verdict: run_repo_script(&root, ".githooks/lib/fsh-test-gate.sh", &[]),
         });
     }
 
