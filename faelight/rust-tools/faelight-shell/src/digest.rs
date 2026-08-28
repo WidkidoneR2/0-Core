@@ -17,7 +17,72 @@ pub fn should_show(mem: &SessionMemory) -> bool {
     long_gap || morning
 }
 
-pub fn render(mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
+/// Blocked and ready planned-intent counts.
+///
+/// EXTRACTED so the banner and the digest read ONE computation. It was inline in
+/// render, which meant the count only appeared after a four-hour gap or in the
+/// morning -- and putting a second copy in the banner would have been the
+/// two-owners defect this ledger keeps removing.
+///
+/// Reads depends_on from frontmatter and tests each dependency against the ids in
+/// complete/. Agrees with core intent blocked.
+pub fn blocked_ready() -> (usize, usize) {
+    let intents_future = faelight_core::paths::intents_dir().join("future");
+    let intents_complete = faelight_core::paths::intents_dir().join("complete");
+    let mut complete_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Ok(entries) = std::fs::read_dir(&intents_complete) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if let Some(num) = name.split('-').next() {
+                complete_ids.insert(num.to_string());
+            }
+        }
+    }
+    let mut blocked_count = 0usize;
+    let mut ready_count = 0usize;
+    if let Ok(entries) = std::fs::read_dir(&intents_future) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&p) {
+                if !text.contains("status: planned") {
+                    continue;
+                }
+                let deps: Vec<String> = text
+                    .lines()
+                    .find(|l| l.trim_start().starts_with("depends_on:"))
+                    .and_then(|l| {
+                        let v = l
+                            .splitn(2, ':')
+                            .nth(1)?
+                            .trim()
+                            .trim_start_matches('[')
+                            .trim_end_matches(']')
+                            .to_string();
+                        if v.is_empty() {
+                            return Some(vec![]);
+                        }
+                        Some(v.split(',').map(|s| s.trim().to_string()).collect())
+                    })
+                    .unwrap_or_default();
+                let has_unmet = deps.iter().any(|d| {
+                    let d = d.trim();
+                    !d.is_empty() && !complete_ids.contains(d)
+                });
+                if has_unmet {
+                    blocked_count += 1;
+                } else {
+                    ready_count += 1;
+                }
+            }
+        }
+    }
+    (blocked_count, ready_count)
+}
+
+pub fn render(_mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
     use chrono::Timelike;
     let mut lines: Vec<String> = vec![];
 
@@ -36,29 +101,6 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
         greeting.bright_white().bold()
     ));
     lines.push(String::new());
-
-    // Commits since last session
-    let new_commits = mem.new_commits();
-    if new_commits > 0 && mem.last_commit_count > 0 {
-        lines.push(format!("  {} Since last session:", "→".bright_cyan()));
-        lines.push(format!(
-            "    {} {} new commit{}",
-            "·".dimmed(),
-            new_commits.to_string().bright_green().bold(),
-            if new_commits == 1 { "" } else { "s" }
-        ));
-    }
-
-    // Health + forecast
-    let health = db.health_score().unwrap_or(0);
-    let health_str = if health >= 95 {
-        format!("{}% healthy", health).bright_green().to_string()
-    } else if health >= 80 {
-        format!("{}% advisory", health).yellow().to_string()
-    } else {
-        format!("{}% degraded", health).bright_red().to_string()
-    };
-    lines.push(format!("    {} Health: {}", "·".dimmed(), health_str));
 
     // Active intents
     let intents_path = faelight_core::paths::intents_dir().join("future");
@@ -89,67 +131,13 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
         ));
     }
 
-    // INT-247 Phase 5: blocked + ready counts in session brief
+    // INT-247 Phase 5: blocked + ready counts, computed in blocked_ready above.
     {
-        let intents_future = faelight_core::paths::intents_dir().join("future");
-        let intents_complete = faelight_core::paths::intents_dir().join("complete");
-        let mut complete_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        if let Ok(entries) = std::fs::read_dir(&intents_complete) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if let Some(num) = name.split('-').next() {
-                    complete_ids.insert(num.to_string());
-                }
-            }
-        }
-        let mut blocked_count = 0usize;
-        let mut ready_count = 0usize;
-        if let Ok(entries) = std::fs::read_dir(&intents_future) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension().and_then(|e| e.to_str()) != Some("md") {
-                    continue;
-                }
-                if let Ok(text) = std::fs::read_to_string(&p) {
-                    if !text.contains("status: planned") {
-                        continue;
-                    }
-                    let deps: Vec<String> = text
-                        .lines()
-                        .find(|l| l.trim_start().starts_with("depends_on:"))
-                        .and_then(|l| {
-                            let v = l
-                                .splitn(2, ':')
-                                .nth(1)?
-                                .trim()
-                                .trim_start_matches('[')
-                                .trim_end_matches(']')
-                                .to_string();
-                            if v.is_empty() {
-                                return Some(vec![]);
-                            }
-                            Some(v.split(',').map(|s| s.trim().to_string()).collect())
-                        })
-                        .unwrap_or_default();
-                    let has_unmet = deps.iter().any(|d| {
-                        let d = d.trim();
-                        !d.is_empty() && !complete_ids.contains(d)
-                    });
-                    if has_unmet {
-                        blocked_count += 1;
-                    } else {
-                        ready_count += 1;
-                    }
-                }
-            }
-        }
-        if blocked_count > 0 {
-            lines.push(format!(
-                "    · {} intent{} blocked",
-                blocked_count.to_string().bright_red(),
-                if blocked_count == 1 { "" } else { "s" }
-            ));
-        }
+        let (_blocked_count, ready_count) = blocked_ready();
+        // BLOCKED IS ON THE BANNER, every session. It was printed here too, and
+        // twice on screen is worse than once in the wrong place. READY STAYS: it is
+        // a prompt to act rather than a piece of state, and the digest exists to say
+        // what to pick up after being away.
         if ready_count > 0 {
             lines.push(format!(
                 "    · {} intent{} ready -- run: core intent next",

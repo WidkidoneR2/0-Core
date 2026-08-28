@@ -3177,7 +3177,17 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     };
 
     // -- blocked: only shown when there is something to act on --
-    let blocked_note = String::new();
+    // ONE COMPUTATION, TWO READERS. digest::blocked_ready owns this; it used to be
+    // inline in digest::render, which meant the count appeared only after a four-hour
+    // gap or in the morning. A second copy here would have been the two-owners defect.
+    let blocked_note = {
+        let (blocked, _ready) = digest::blocked_ready();
+        if blocked > 0 {
+            format!("\u{00b7} {} blocked", blocked)
+        } else {
+            String::new()
+        }
+    };
 
     // -- git, and only what is actionable. 4383 total commits is not.
     let git_line = {
