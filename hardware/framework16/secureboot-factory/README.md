@@ -61,7 +61,14 @@ Restoring by hand, if it ever comes to that: boot the INT-160 rescue USB, then u
 sbctl --custom-bytes with --partial. Do NOT attempt this without reading INT-161's recovery section
 first.
 
+## Where these live, and why here
+
+MOVED 2026-08-27 from nix/hosts/framework16/. These are hardware facts about this
+Framework 16 -- public X.509 certificates captured from its firmware -- and they have
+nothing to do with which operating system runs on it. They outlived NixOS and they will
+outlive Omarchy.
+
 ## Decode any of these
 
-    nix shell nixpkgs#efitools -c sig-list-to-certs db.esl out
-    nix shell nixpkgs#openssl -c openssl x509 -in out-0.der -inform der -noout -subject -dates
+    sig-list-to-certs db.esl out
+    openssl x509 -in out-0.der -inform der -noout -subject -dates
