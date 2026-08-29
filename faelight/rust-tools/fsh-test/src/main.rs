@@ -2302,6 +2302,54 @@ fn all_tests() -> Vec<TestResult> {
             expect_contains(&out.join("\n"), "builtin-ok")
         },
     ));
+
+    // --- HOSTILE: parser ---
+    //
+    // Through the REPL door for a reason the other door cannot give: run_session waits
+    // with a timeout and kills the child, so a shell that HANGS on malformed input fails
+    // the case rather than blocking the suite.
+    //
+    // Each case submits the malformed line, then a known-good line. The assertion is on
+    // the SECOND line: the shell must still be answering. Whether it errored or ignored
+    // the first is a different question from whether it survived.
+    //
+    // UNTERMINATED QUOTES ARE DELIBERATELY ABSENT. Two such cases were written, timed
+    // out at 30s, and were WRONG: bash hangs on identical input, because an unterminated
+    // quote at an interactive prompt means keep reading, not error. The real contract is
+    // that the shell waits and completes when the quote closes -- and
+    // run_repl_lines_status waits for a READY marker after every line, so it cannot
+    // express a line that deliberately does not complete. Testing that needs a harness
+    // change, not a test.
+    results.push(test("hostile_bare_pipe", Category::Hostile, || {
+        let (out, _) = repl::run_repl_lines_status(&["echo hi |", "echo alive"], &[])?;
+        expect_contains(&out.join("\n"), "alive")
+    }));
+    results.push(test("hostile_bare_operator", Category::Hostile, || {
+        let (out, _) = repl::run_repl_lines_status(&["&&", "echo alive"], &[])?;
+        expect_contains(&out.join("\n"), "alive")
+    }));
+    results.push(test(
+        "hostile_very_long_argument",
+        Category::Hostile,
+        || {
+            // 64KB in ONE word -- looks for a fixed buffer assumption in the lexer or argv.
+            let big = "a".repeat(65536);
+            let (out, _) =
+                repl::run_repl_lines_status(&[&format!("echo {}", big), "echo alive"], &[])?;
+            expect_contains(&out.join("\n"), "alive")
+        },
+    ));
+    results.push(test(
+        "hostile_nested_substitution",
+        Category::Hostile,
+        || {
+            let (out, _) = repl::run_repl_lines_status(
+                &["echo $(echo $(echo $(echo deep)))", "echo alive"],
+                &[],
+            )?;
+            expect_contains(&out.join("\n"), "alive")
+        },
+    ));
     results
 }
 
