@@ -18,6 +18,7 @@ enum Category {
     Signals,
     Regression,
     Performance,
+    Hostile,
 }
 
 impl std::fmt::Display for Category {
@@ -31,6 +32,7 @@ impl std::fmt::Display for Category {
             Category::Signals => write!(f, "signals"),
             Category::Regression => write!(f, "regression"),
             Category::Performance => write!(f, "performance"),
+            Category::Hostile => write!(f, "hostile"),
         }
     }
 }
@@ -2202,6 +2204,104 @@ fn all_tests() -> Vec<TestResult> {
             ))
         }
     }));
+
+    // --- HOSTILE ---
+    //
+    // The suite proves fsh handles CORRECT input. These ask whether it survives input
+    // nobody sanitised, which is where quoting and globbing bugs live. The bar is NOT
+    // exact output -- it is: no panic, no hang, and something sensible said. Each case
+    // builds its own directory under /tmp so nothing touches the working tree.
+    results.push(test(
+        "hostile_filename_with_space",
+        Category::Hostile,
+        || {
+            let d = "/tmp/fsh-hostile-space";
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+            std::fs::write(format!("{}/two words.txt", d), "x").map_err(|e| e.to_string())?;
+            let out = run_fsh(&format!("ls {}", d))?;
+            let r = expect_contains(&out, "two words.txt");
+            let _ = std::fs::remove_dir_all(d);
+            r
+        },
+    ));
+    results.push(test(
+        "hostile_filename_with_quote",
+        Category::Hostile,
+        || {
+            let d = "/tmp/fsh-hostile-quote";
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+            std::fs::write(format!("{}/it\u{27}s.txt", d), "x").map_err(|e| e.to_string())?;
+            let out = run_fsh(&format!("ls {}", d))?;
+            let r = expect_contains(&out, "s.txt");
+            let _ = std::fs::remove_dir_all(d);
+            r
+        },
+    ));
+    results.push(test(
+        "hostile_filename_with_glob_chars",
+        Category::Hostile,
+        || {
+            let d = "/tmp/fsh-hostile-glob";
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+            std::fs::write(format!("{}/star*name.txt", d), "x").map_err(|e| e.to_string())?;
+            std::fs::write(format!("{}/quest?name.txt", d), "x").map_err(|e| e.to_string())?;
+            let out = run_fsh(&format!("ls {}", d))?;
+            let r = expect_contains(&out, "star*name.txt")
+                .and_then(|_| expect_contains(&out, "quest?name.txt"));
+            let _ = std::fs::remove_dir_all(d);
+            r
+        },
+    ));
+    results.push(test(
+        "hostile_filename_with_newline",
+        Category::Hostile,
+        || {
+            let d = "/tmp/fsh-hostile-newline";
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+            std::fs::write(format!("{}/line\nbreak.txt", d), "x").map_err(|e| e.to_string())?;
+            let out = run_fsh(&format!("ls {}", d))?;
+            let r = expect_contains(&out, "break.txt");
+            let _ = std::fs::remove_dir_all(d);
+            r
+        },
+    ));
+
+    // --- HOSTILE: environment ---
+    //
+    // Through the REPL door, not -c. INT-207 established that -c delegates the whole
+    // string to sh, so no alias, spine or guard applies -- an environment case run that
+    // way would be testing sh's handling of a broken environment, not fsh's.
+    //
+    // run_repl_lines_status takes an env slice and drives the real REPL, which is what
+    // these need. It SETS variables; it cannot unset them (.envs, no env_remove), so
+    // HOME-unset is not expressible yet and is not attempted here rather than being
+    // faked with an empty string, which is a different environment.
+    results.push(test("hostile_home_nonexistent", Category::Hostile, || {
+        let (out, _) = repl::run_repl_lines_status(
+            &["echo start", "cd ~", "echo survived"],
+            &[("HOME", "/nonexistent/path/for/testing")],
+        )?;
+        // The bar is that the shell is still answering afterwards, not that cd succeeded.
+        expect_contains(&out.join("\n"), "survived")
+    }));
+    results.push(test("hostile_term_empty", Category::Hostile, || {
+        let (out, _) = repl::run_repl_lines_status(&["echo rendered"], &[("TERM", "")])?;
+        expect_contains(&out.join("\n"), "rendered")
+    }));
+    results.push(test(
+        "hostile_path_empty_builtin_still_works",
+        Category::Hostile,
+        || {
+            // A BUILTIN MUST NOT NEED PATH. echo is fsh's own; if it fails when nothing
+            // external resolves, the shell is shelling out for something it owns.
+            let (out, _) = repl::run_repl_lines_status(&["echo builtin-ok"], &[("PATH", "")])?;
+            expect_contains(&out.join("\n"), "builtin-ok")
+        },
+    ));
     results
 }
 
