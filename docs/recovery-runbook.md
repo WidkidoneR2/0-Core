@@ -92,8 +92,12 @@ sudo nixos-rebuild switch --rollback
 >
 > If the keys themselves are gone, use "Restore secure boot to factory settings"
 > in the INSYDE menu. It restores from the firmware's own storage -- no file, no
-> USB, no network. The factory certs and your sbctl keys are also on FORESTBACKUP
-> and in hardware/framework16/secureboot-factory/ (INT-225).
+> USB, no network. The factory certs and your sbctl keys are on FORESTBACKUP
+> (INT-225). They are NO LONGER IN THIS REPO -- removed
+> 2026-08-29 because the boot entries describe this machine and the repo is
+> public. Off-machine copies only: FORESTBACKUP holds the unredacted dump at
+> faelight-secureboot/, and ~/secureboot-framework16/ holds the redacted set
+> until it moves to the external drive.
 
 Boot the NixOS installer USB, then:
 
