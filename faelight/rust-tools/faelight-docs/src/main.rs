@@ -143,10 +143,10 @@ fn cmd_public(dry_run: bool) {
         ("COMMAND-GUIDE.md", "Command Reference"),
         ("ARCHITECTURE.md", "Architecture"),
         ("PHILOSOPHY.md", "Philosophy"),
-        ("FSH-PHILOSOPHY.md", "Shell Philosophy"),
+        ("NSH-PHILOSOPHY.md", "Shell Philosophy"),
         ("design-system.md", "Design System"),
         ("forest-resilience.md", "Resilience Guide"),
-        ("FAELIGHT-SHELL.md", "Shell Reference"),
+        ("NOVASHELL.md", "Shell Reference"),
     ];
 
     if dry_run {

@@ -184,5 +184,5 @@ core friday status         # Friday intelligence status
 - [PHILOSOPHY.md](PHILOSOPHY.md) -- Core principles
 - [WORKFLOWS.md](WORKFLOWS.md) -- Day-to-day workflows
 - [ALIASES.md](ALIASES.md) -- All 50 aliases
-- [FAELIGHT-SHELL.md](FAELIGHT-SHELL.md) -- fsh documentation
+- [NOVASHELL.md](NOVASHELL.md) -- NovaShell documentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- System architecture

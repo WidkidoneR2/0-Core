@@ -125,7 +125,7 @@ This README is the front door. The depth lives here:
 - [Theory of Operation](docs/THEORY_OF_OPERATION.md) -- how the forest thinks
 - [Architecture](docs/ARCHITECTURE.md) -- how the pieces fit
 - [Philosophy](docs/PHILOSOPHY.md) -- why it is built this way
-- [Shell Philosophy](docs/FSH-PHILOSOPHY.md) -- the case for a human-first shell
+- [Shell Philosophy](docs/NSH-PHILOSOPHY.md) -- the case for a human-first shell
 - [Release Process](docs/RELEASE.md) -- how the forest publishes itself
 - [Tool Catalog](faelight/rust-tools/) -- every active tool, generated from source
 - [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS and back

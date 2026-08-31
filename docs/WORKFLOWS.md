@@ -217,5 +217,5 @@ d                              # verify health restored
 
 - [PHILOSOPHY.md](PHILOSOPHY.md) -- Core principles
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- System architecture
-- [FAELIGHT-SHELL.md](FAELIGHT-SHELL.md) -- fsh documentation
+- [NOVASHELL.md](NOVASHELL.md) -- NovaShell documentation
 - [ALIASES.md](ALIASES.md) -- All 49 aliases

@@ -1,16 +1,22 @@
-# 🌲 faelight-shell — The Forest-Native Shell
+# 🌲 NovaShell -- The Forest-Native Shell
 
 > *"A forest deserves a shell that knows it is a forest."*
 
-**Version:** v2.5.0 (Faelight Forest 14.1.0) | Last verified: 2026-06-05  
-**Status:** Login shell since 2026-04-03. Daily driver.  
-**Last updated:** 2026-05-08
+**Version:** nsh 3.8.4 (Faelight Forest 1.0.0) | Last verified: 2026-09-01  
+**Status:** Interactive shell, not the login shell. Daily driver since 2026-04-03.  
+**Last updated:** 2026-09-01
+
+> ⚠️ **NOT THE LOGIN SHELL, DELIBERATELY.** /etc/passwd says bash, and ~/.bashrc
+> execs nsh for interactive sessions only. INT-190 is why: with nsh set as the
+> login shell via chsh, niri-session tried to run its own startup logic through
+> it with POSIX -c syntax nsh did not implement, and the desktop never started.
+> A broken shell build costs a prompt, not a session.
 
 ---
 
-## What is faelight-shell?
+## What is NovaShell?
 
-faelight-shell is not a POSIX shell. It is not bash. It is not fish. It is not Nu.
+NovaShell is not a POSIX shell. It is not bash. It is not fish. It is not Nu.
 
 It is a **forest-native structured shell** — every command returns structured data,
 every pipeline is composable, and the shell knows it is running inside a living system
@@ -20,14 +26,14 @@ that tracks its own health, goals, decisions, and history.
 ```
 Unix shells:       text | text | text
 Nushell:           table | filter | transform
-faelight-shell:    forest_data | judgment | wisdom | anticipation | alignment
+NovaShell:         forest_data | judgment | wisdom | anticipation | alignment
 ```
 
 ### The Compatibility Contract
 
-faelight-shell is **NOT POSIX**. It does not run bash or zsh scripts.
+NovaShell is **NOT POSIX**. It does not run bash or zsh scripts.
 For POSIX compatibility when needed, use the escape hatch:
-```fsh
+```nsh
 sh {
   awk '{print $1}' /etc/passwd | sort
 }
@@ -39,18 +45,18 @@ sh {
 
 ### Launch
 ```bash
-fsh         # the shell
-faelight-shell
+nsh         # the shell
+nsh --help  # what it takes
 ```
 
 ### Exit
-```fsh
+```nsh
 q
 exit
 ```
 
 ### Help
-```fsh
+```nsh
 help        # show all commands
 ```
 
@@ -61,7 +67,7 @@ help        # show all commands
 ### 1. Structured Data
 Every command returns a **table** — not text. Tables are pipeable,
 filterable, sortable, and composable with unix tools.
-```fsh
+```nsh
 ps                          # processes as table
 ps | sort cpu desc          # sorted by CPU
 ps | sort cpu desc | first 5 # top 5
@@ -96,7 +102,7 @@ The shell knows your system state at all times:
 ## Command Reference
 
 ### Forest Commands
-```fsh
+```nsh
 health          # system health summary
 d               # full doctor run (core doctor run)
 forecast        # health trend and 24h/7d forecast
@@ -107,7 +113,7 @@ commits         # commit count and last commit
 ```
 
 ### Data Commands (return pipeable tables)
-```fsh
+```nsh
 gc              # git commits
 gf              # git files changed
 et [today|domain] # events
@@ -126,7 +132,7 @@ logs [--follow] [--errors] # system logs
 ```
 
 ### Forest State Commands
-```fsh
+```nsh
 intents         # active intents
 decisions       # open decisions
 events [today]  # recent events
@@ -138,7 +144,7 @@ git             # git status and recent commits
 ```
 
 ### Analysis Commands
-```fsh
+```nsh
 histogram <field>   # frequency histogram of any field
 domains             # event domain summary
 watch <cmd>         # live-updating command
@@ -147,7 +153,7 @@ ps | watch 5        # refresh every 5 seconds
 ```
 
 ### Shell Management
-```fsh
+```nsh
 alias name=command  # create alias
 unalias name        # remove alias
 plugins             # list loaded plugins
@@ -161,7 +167,7 @@ cd ~/path           # change directory
 ## Pipelines to External Commands
 
 Forest data flows directly into unix tools:
-```fsh
+```nsh
 gc | first 20 | grep feat       # filter commits by content
 ps | sort cpu desc | first 5 | less  # paginate process table
 gc | first 10 > commits.txt     # redirect to file
@@ -173,7 +179,7 @@ gc | first 10 >> commits.txt    # append to file
 ## Multi-Command Execution
 
 Run multiple commands in sequence with `;`:
-```fsh
+```nsh
 health; d; git status
 cd ~/0-core; gc | first 5; health
 cargo --version; ls
@@ -182,7 +188,7 @@ cargo --version; ls
 ---
 
 ## Shell Variables
-```fsh
+```nsh
 let NAME = "Faelight"       # define variable
 let VERSION = "11.2.0"
 let MSG = "Forest v$VERSION" # interpolation at assignment
@@ -195,33 +201,41 @@ echo $EDITOR                # nvim
 ---
 
 ## Background Jobs
-```fsh
+```nsh
 sleep 30 &          # run in background
 cargo build &       # background build
 jobs                # list running jobs
-fg 1                # bring job 1 to foreground
 kill %1             # kill job 1
 ```
 
 When a background job completes, the forest announces it automatically:
 ```
-✅ [1] cargo build — done (8.3s)
+✅ [1] cargo build -- done (8.3s)
 ```
+
+> ⚠️ **`fg` IS NOT JOB CONTROL HERE.** It is an alias for faelight-git, so typing
+> `fg` prints git's help rather than resuming a job. Two reasons it stays that way:
+> the alias is used constantly, and there is nothing to resume TO -- see Signals.
 
 ---
 
 ## Signals
 
-- **Ctrl+C** — kills the foreground process, shell survives
-- **Ctrl+D** — exit shell
-- **Ctrl+L** — clear screen (or use `c`)
+- **Ctrl+C** -- kills the foreground process, shell survives
+- **Ctrl+D** -- exit shell
+- **Ctrl+L** -- clear screen (or use `c`)
+
+> ⚠️ **Ctrl+Z SUSPENDS THE SHELL ITSELF, not the running command.** nsh has no
+> process groups and never calls tcsetpgrp, so it does not own the terminal
+> foreground the way bash does. A suspended nsh is recovered with `fg` from the
+> parent bash. INT-188 owns the real fix; until it lands, avoid Ctrl+Z.
 
 ---
 
 ## Configuration File
 
-Location: `~/.config/faelight-shell/config.fsh`
-```fsh
+Location: `~/.config/faelight-shell/config.nsh`
+```nsh
 # Aliases
 alias ll = "ls"
 alias gs = "git status"
@@ -239,7 +253,7 @@ Loaded automatically on every startup. Edit and restart to apply.
 ## Natural Language Queries
 
 Prefix any query with `?` to use natural language:
-```fsh
+```nsh
 ?biggest files in this directory
 ?show me failing health checks
 ?memory hogs
@@ -264,7 +278,7 @@ and asks for confirmation before executing.
 ---
 
 ## Real Examples
-```fsh
+```nsh
 # Find the 5 processes using most memory
 ps | sort memory desc | first 5
 
@@ -287,6 +301,7 @@ cd ~/0-core; d; gc | first 3
 ps | sort cpu desc | first 10 > top-processes.txt
 
 # Pipe to unix tools
+gc | first 20 | grep "INT-146"
 gc | first 100 | wc -l
 
 # Background job workflow
@@ -315,7 +330,7 @@ cargo build -p $TOOL
 
 ## The Philosophy
 ```
-faelight-shell is NOT trying to replace bash.
+NovaShell is NOT trying to replace bash.
 It is trying to replace the NEED for bash.
 ```
 
