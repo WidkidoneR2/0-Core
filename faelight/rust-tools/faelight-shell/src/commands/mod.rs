@@ -785,7 +785,7 @@ fn execute_impl(
                 let report = crate::spine::audit::audit_history(commands);
                 return CommandResult::Output(report.render());
             }
-            // INT-200: `spine conform` MOVED (2026-08-03). It lives in fsh-test now, and the reason
+            // INT-200: `spine conform` MOVED (2026-08-03). It lives in nsh-test now, and the reason
             // is the defect that ended it: this version invoked fsh with `-c`, and `fsh -c` hands the
             // whole string to `sh`. It was comparing sh against bash and reporting the result as fsh
             // conformance -- its two 'unexplained' findings were that door, not a defect in fsh.
@@ -793,11 +793,11 @@ fn execute_impl(
             // ★ AND IT BELONGED THERE ANYWAY. Its three-verdict rule -- a declared divergence that
             // starts MATCHING bash again is a FAILURE -- is a statement about drift over time, which
             // only means anything if something runs it repeatedly. As a typed command it ran once.
-            // fsh-test drives a real pty, so the cases now measure the shell people actually use.
+            // nsh-test drives a real pty, so the cases now measure the shell people actually use.
             Some("conform") => {
                 return CommandResult::Output(
-                    "  conformance moved to fsh-test (INT-200, 2026-08-03)\n\
-                     \n  Run:  fsh-test --failed        # cases named conform_*\n\
+                    "  conformance moved to nsh-test (INT-200, 2026-08-03)\n\
+                     \n  Run:  nsh-test --failed        # cases named conform_*\n\
                      \n  This command compared `fsh -c` against bash, and `fsh -c` delegates to sh --\n\
                      \n  so it measured sh, not fsh. The cases now run over a real pty.\n"
                         .to_string(),
@@ -9324,7 +9324,7 @@ fn spawn_pipeline(
         // the overlay was built and thrown away -- and the compiler cannot warn about a
         // match that was never written.
         //
-        // Measured 2026-08-22: NSH_BIN=/nonexistent ./target/debug/fsh-test ran the
+        // Measured 2026-08-22: NSH_BIN=/nonexistent ./target/debug/nsh-test ran the
         // suite normally under fsh and failed 157 of 158 under bash, which delivers the
         // variable. A prefix assignment that is accepted and ignored makes every
         // environment-controlled test a lie, including this suite's own isolation.
@@ -13664,7 +13664,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let cmd = args.get(1..).map(|a| a.join(" ")).unwrap_or_default();
             if cmd.is_empty() {
                 return CommandResult::Output(
-                    "  Usage: dev bench <command>  (e.g. dev bench fsh-test)".to_string(),
+                    "  Usage: dev bench <command>  (e.g. dev bench nsh-test)".to_string(),
                 );
             }
             let _ = std::process::Command::new("hyperfine").arg(&cmd).status();

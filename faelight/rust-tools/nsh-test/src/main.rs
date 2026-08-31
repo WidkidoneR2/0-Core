@@ -1,4 +1,4 @@
-//! fsh-test -- permanent regression suite for faelight-shell
+//! nsh-test -- permanent regression suite for faelight-shell
 //! INT-304 Phase 1: port fsh_audit.sh 75 tests to Rust
 
 mod repl;
@@ -60,11 +60,11 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 }
 
 /// ⚠️ BUILD BEFORE YOU RUN. `cargo test` compiles the TEST profile; it does not rebuild the binary
-/// this harness executes. Running fsh-test straight after `cargo test` measures the PREVIOUS build,
+/// this harness executes. Running nsh-test straight after `cargo test` measures the PREVIOUS build,
 /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
 /// from a shell that did not contain the change being tested.
 ///
-///     cargo build -p faelight-shell && NSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test
+///     cargo build -p faelight-shell && NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
@@ -841,12 +841,12 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(out.trim(), "3")
     }));
     results.push(test("redirect_not_crash", Category::Regression, || {
-        run_fsh("echo test > /tmp/fsh_test_redirect.txt")?;
-        expect_contains(&run_fsh("cat /tmp/fsh_test_redirect.txt")?, "test")
+        run_fsh("echo test > /tmp/nsh_test_redirect.txt")?;
+        expect_contains(&run_fsh("cat /tmp/nsh_test_redirect.txt")?, "test")
     }));
     // ---- INT-172: REPL tests. These drive a real pty, NOT `fsh -c`.
     // Every one of them PASSES on `fsh -c` even against a broken shell -- which
-    // is exactly why fsh-test was 83/83 green for three months while the shell we
+    // is exactly why nsh-test was 83/83 green for three months while the shell we
     // type into was turning pipelines into filenames.
     results.push(test(
         "repl_pipe_control_no_redirect",
@@ -962,9 +962,9 @@ fn all_tests() -> Vec<TestResult> {
             // `cmd > f 2>&1` wrote NO FILE. The code that would have written both
             // streams existed and was UNREACHABLE -- detect_redirect intercepted the
             // line before it could ever run.
-            let _ = std::fs::remove_file("/tmp/fsh_test_g7out.txt");
-            let _ = repl::run_repl("ls /tmp/fsh_test_nope /tmp > /tmp/fsh_test_g7out.txt 2>&1")?;
-            let body = std::fs::read_to_string("/tmp/fsh_test_g7out.txt")
+            let _ = std::fs::remove_file("/tmp/nsh_test_g7out.txt");
+            let _ = repl::run_repl("ls /tmp/nsh_test_nope /tmp > /tmp/nsh_test_g7out.txt 2>&1")?;
+            let body = std::fs::read_to_string("/tmp/nsh_test_g7out.txt")
                 .map_err(|e| format!("no file created: {}", e))?;
             if body.contains("No such file") {
                 Ok(())
@@ -996,17 +996,17 @@ fn all_tests() -> Vec<TestResult> {
             {
                 if e.file_name()
                     .to_string_lossy()
-                    .starts_with("fsh_test_g7err")
+                    .starts_with("nsh_test_g7err")
                 {
                     let _ = std::fs::remove_file(e.path());
                 }
             }
-            let _ = repl::run_repl("echo hello 2>/tmp/fsh_test_g7err | grep -c hello")?;
+            let _ = repl::run_repl("echo hello 2>/tmp/nsh_test_g7err | grep -c hello")?;
             let junk: Vec<String> = std::fs::read_dir("/tmp")
                 .map_err(|e| e.to_string())?
                 .filter_map(|e| e.ok())
                 .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|n| n.starts_with("fsh_test_g7err") && n.contains('|'))
+                .filter(|n| n.starts_with("nsh_test_g7err") && n.contains('|'))
                 .collect();
             if junk.is_empty() {
                 Ok(())
@@ -1098,13 +1098,13 @@ fn all_tests() -> Vec<TestResult> {
         // it into the file with 2>&1 (the REPL handles that since INT-172).
         // Clear state FIRST: a failed run never reaches cleanup, and a broken
         // shell leaves exactly the dir/file a fixed shell must start without.
-        let _ = std::fs::remove_file("/tmp/fsh_test_143once.txt");
-        let _ = std::fs::remove_dir("/tmp/fsh_test_143once_dir");
-        let _ = repl::run_repl("mkdir /tmp/fsh_test_143once_dir > /tmp/fsh_test_143once.txt 2>&1")?;
-        if !std::path::Path::new("/tmp/fsh_test_143once_dir").is_dir() {
+        let _ = std::fs::remove_file("/tmp/nsh_test_143once.txt");
+        let _ = std::fs::remove_dir("/tmp/nsh_test_143once_dir");
+        let _ = repl::run_repl("mkdir /tmp/nsh_test_143once_dir > /tmp/nsh_test_143once.txt 2>&1")?;
+        if !std::path::Path::new("/tmp/nsh_test_143once_dir").is_dir() {
             return Err("mkdir did not run: dir absent".to_string());
         }
-        let body = std::fs::read_to_string("/tmp/fsh_test_143once.txt")
+        let body = std::fs::read_to_string("/tmp/nsh_test_143once.txt")
             .map_err(|e| format!("no redirect file: {}", e))?;
         if body.trim().is_empty() {
             Ok(())
@@ -1144,8 +1144,8 @@ fn all_tests() -> Vec<TestResult> {
         // 5cba096d: `bash script.sh` dropped into interactive bash and the script
         // never ran. Guarded to `if args.is_empty()` -- with args it falls through
         // to the real bash.
-        std::fs::write("/tmp/fsh_test_143.sh", "echo MARKER143RAN\n").map_err(|e| e.to_string())?;
-        let out = repl::run_repl("bash /tmp/fsh_test_143.sh")?;
+        std::fs::write("/tmp/nsh_test_143.sh", "echo MARKER143RAN\n").map_err(|e| e.to_string())?;
+        let out = repl::run_repl("bash /tmp/nsh_test_143.sh")?;
         if out.iter().any(|l| l.contains("MARKER143RAN")) {
             Ok(())
         } else {
@@ -2056,7 +2056,7 @@ fn all_tests() -> Vec<TestResult> {
             // INT-220. spawn_pipeline read stdin and stdout from the plan and then set stderr to
             // inherit UNCONDITIONALLY, so a 2> on any stage was parsed, lowered, and discarded.
             // Measured before the fix: 1> in a pipeline worked and 2> did not, on either side.
-            let f = "/tmp/fsh-test-int220.txt";
+            let f = "/tmp/nsh-test-int220.txt";
             let _ = std::fs::remove_file(f);
             let out = repl::run_repl_lines(&[
                 &format!("sh -c \"echo ZZ220 >&2\" 2>{f} | cat"),
@@ -2451,18 +2451,18 @@ fn store_results(results: &[TestResult]) {
     let pass_rate = (passed_count * 100) / total.max(1);
     let _ = conn.execute(
         "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
-         VALUES ('testing', 'fsh_test_last_run', ?1, 0.95, 'fsh-test', ?2, ?2)",
+         VALUES ('testing', 'fsh_test_last_run', ?1, 0.95, 'nsh-test', ?2, ?2)",
         rusqlite::params![
-            format!("fsh-test last run: {}/{} passed ({}%%). Commit: {}. All categories: heredoc, pipes, regression, tilde, vocabulary.", passed_count, total, pass_rate, commit),
+            format!("nsh-test last run: {}/{} passed ({}%%). Commit: {}. All categories: heredoc, pipes, regression, tilde, vocabulary.", passed_count, total, pass_rate, commit),
             ts
         ],
     );
     if pass_rate < 100 {
         let _ = conn.execute(
             "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
-             VALUES ('testing', 'fsh_test_regression_alert', ?1, 0.99, 'fsh-test', ?2, ?2)",
+             VALUES ('testing', 'nsh_test_regression_alert', ?1, 0.99, 'nsh-test', ?2, ?2)",
             rusqlite::params![
-                format!("ALERT: fsh-test regression detected. Only {}/{} tests passing ({}%%). Immediate attention required.", passed_count, total, pass_rate),
+                format!("ALERT: nsh-test regression detected. Only {}/{} tests passing ({}%%). Immediate attention required.", passed_count, total, pass_rate),
                 ts
             ],
         );
@@ -2556,7 +2556,7 @@ fn main() {
             let msg = info.to_string();
             if msg.contains("failed printing to stdout") && msg.contains("Broken pipe") {
                 eprintln!(
-                    "fsh-test: TRUNCATED -- stdout consumer closed before the suite completed"
+                    "nsh-test: TRUNCATED -- stdout consumer closed before the suite completed"
                 );
                 std::process::exit(2);
             }
@@ -2577,7 +2577,7 @@ fn main() {
     );
     println!(
         "{}",
-        "  🌲 fsh-test v2.0.0 -- INT-202 (orig. INT-304)".bold()
+        "  🌲 nsh-test v2.0.0 -- INT-202 (orig. INT-304)".bold()
     );
     // ASK THE SHELL WHO IT IS, rather than trusting the path we passed it. Refusing a
     // MISSING binary catches a typo; this catches the case that actually cost a session --
@@ -2609,11 +2609,11 @@ fn main() {
         // session, because a version printed among other version-shaped text does not announce
         // that it is the WRONG one.
         //
-        // ⭐ SO THE SUITE STATES THE CONSEQUENCE rather than the fact. fsh-test is versioned in
+        // ⭐ SO THE SUITE STATES THE CONSEQUENCE rather than the fact. nsh-test is versioned in
         // lockstep with the shell in this workspace, so its own CARGO_PKG_VERSION is a usable
         // expectation. A mismatch is not an error -- testing a deployed build on purpose is
         // legitimate -- but it MUST NOT look like a run that covered your working tree.
-        // ⚠️ NOT fsh-test's OWN VERSION -- it is 2.0.0 while the shell is 3.8.x, so comparing
+        // ⚠️ NOT nsh-test's OWN VERSION -- it is 2.0.0 while the shell is 3.8.x, so comparing
         // them would warn on EVERY run, and a warning that always fires is one nobody reads.
         // That is the failure risk-gate.sh already recorded about gates people route around.
         //
@@ -2638,7 +2638,7 @@ fn main() {
                 "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
             );
             println!(
-                "     to test what you just built: NSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test"
+                "     to test what you just built: NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test"
             );
         }
     }

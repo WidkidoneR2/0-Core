@@ -445,7 +445,7 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "fsh-test"
+name = "nsh-test"
 version = "2.0.0"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"

@@ -222,7 +222,7 @@ fn main() -> ExitCode {
     if stage == "pre-push" || stage == "all" {
         gates.push(Gate {
             name: "shell tests",
-            verdict: run_repo_script(&root, ".githooks/lib/fsh-test-gate.sh", &[]),
+            verdict: run_repo_script(&root, ".githooks/lib/nsh-test-gate.sh", &[]),
         });
     }
 

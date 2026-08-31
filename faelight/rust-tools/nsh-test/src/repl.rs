@@ -1,6 +1,6 @@
 //! REPL-driving test support -- INT-172.
 //!
-//! WHY THIS MODULE EXISTS. fsh-test's run_fsh() invokes `fsh -c`. Measured
+//! WHY THIS MODULE EXISTS. nsh-test's run_fsh() invokes `fsh -c`. Measured
 //! 2026-07-17 against the same deployed binary on the same day:
 //!
 //!     fsh -c 'echo hello 2>/dev/null | grep -c hello'   -> 1       CORRECT
@@ -77,7 +77,7 @@ pub fn fsh_bin() -> String {
                 eprintln!();
                 eprintln!("  Recovery");
                 eprintln!("    - ship nsh                   install it, then re-run");
-                eprintln!("    - NSH_BIN=<path> fsh-test    test a binary somewhere else");
+                eprintln!("    - NSH_BIN=<path> nsh-test    test a binary somewhere else");
                 std::process::exit(2);
             }
             p.display().to_string()
@@ -236,7 +236,7 @@ pub fn case_db_path() -> String {
 
 /// The one directory this run owns. Named from the pid so two runs never collide.
 pub fn case_db_dir() -> String {
-    format!("/tmp/fsh-test-{}", std::process::id())
+    format!("/tmp/nsh-test-{}", std::process::id())
 }
 
 /// How the physical lines of one construct reach fsh's line editor.

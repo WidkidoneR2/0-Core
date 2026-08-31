@@ -1,9 +1,9 @@
 [package]
-name = "fsh-test"
+name = "nsh-test"
 version = "2.0.0"
 edition = "2021"
 license = "MIT"
-description = "fsh permanent regression suite -- INT-304"
+description = "nsh permanent regression suite -- INT-304"
 
 [dependencies]
 faelight-core = { path = "../faelight-core" }

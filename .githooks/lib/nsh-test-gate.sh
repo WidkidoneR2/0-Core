@@ -36,7 +36,7 @@ echo "  FSH-TEST GATE (INT-202): shell or harness sources are in this push."
 echo "  Building and running the suite against the code being PUSHED (~1 minute)."
 echo ""
 
-if ! cargo build -p faelight-shell -p fsh-test --message-format=short; then
+if ! cargo build -p faelight-shell -p nsh-test --message-format=short; then
   echo ""
   echo "  BLOCKED: the workspace does not build. Nothing was tested."
   exit 1
@@ -46,13 +46,13 @@ fi
 # PACKAGE name and is unchanged. NSH_BIN takes a PATH, and cargo stopped producing
 # target/debug/faelight-shell when the [[bin]] landed -- so this pointed at a stale
 # artifact from before the rename, or at nothing in a clean tree.
-if ! NSH_BIN="$root/target/debug/nsh" ./target/debug/fsh-test; then
+if ! NSH_BIN="$root/target/debug/nsh" ./target/debug/nsh-test; then
   echo ""
-  echo "  BLOCKED: fsh-test is red. This is the gate doing its job."
-  echo "  Reproduce: NSH_BIN=\$PWD/target/debug/nsh ./target/debug/fsh-test"
+  echo "  BLOCKED: nsh-test is red. This is the gate doing its job."
+  echo "  Reproduce: NSH_BIN=\$PWD/target/debug/nsh ./target/debug/nsh-test"
   exit 1
 fi
 
 echo ""
-echo "  ok: fsh-test passed against the code being pushed"
+echo "  ok: nsh-test passed against the code being pushed"
 echo ""

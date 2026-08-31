@@ -2,7 +2,6 @@
 # faelight-fm v3: ratatui rewrite, no git deps
 resolver = "2"
 members = [
-    "faelight/rust-tools/fsh-test",
     "faelight/rust-tools/faelight-docs",
     "faelight/rust-tools/faelight-vault",
     "faelight/rust-tools/*",
