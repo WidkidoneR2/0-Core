@@ -592,7 +592,7 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
         _ => format!(
             "  {}{}{}  ",
             nix_indicator,
-            fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "fsh"),
+            fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "nsh"),
             caret
         ),
     };
