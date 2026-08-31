@@ -287,7 +287,7 @@ impl ForestDb {
         if let Ok(entries) = std::fs::read_dir(&plugin_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map(|e| e == "fsh").unwrap_or(false) {
+                if path.extension().map(|e| e == "nsh").unwrap_or(false) {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         if let Ok(parsed) = toml::from_str::<toml::Value>(&content) {
                             if let Some(cmds) = parsed.get("command").and_then(|c| c.as_array()) {

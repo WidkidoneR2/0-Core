@@ -253,7 +253,7 @@ pub fn interpret(input: &str) -> SemanticIntent {
             confidence: 1.0,
             reversible: true,
             layer2_description: "Doctor(fsh) -- shell health check, 7 checks".to_string(),
-            layer3_commands: vec!["fsh doctor".to_string()],
+            layer3_commands: vec!["nsh doctor".to_string()],
         },
         // ── Intelligence ────────────────────────────────────────────────────
         "friday" => SemanticIntent {

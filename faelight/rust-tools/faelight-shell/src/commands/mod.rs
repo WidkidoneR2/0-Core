@@ -1230,7 +1230,11 @@ fn execute_dispatch(
         "story" => story(db),
         "advise" => advise(db),
         "audit" => audit(db, core_root),
-        "fsh" => match args.first().copied() {
+        // BOTH WORDS, and the file already worked this way: the two is_self checks below
+        // have always accepted fsh, shell and faelight-shell for one concept. nsh joins
+        // them rather than replacing fsh, because muscle memory is real and a verb that
+        // stops working is a worse greeting than one that has two spellings.
+        "nsh" | "fsh" => match args.first().copied() {
             Some("doctor") => fsh_doctor_cmd(db, args.get(1..).unwrap_or(&[])),
             Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
             Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
@@ -1900,7 +1904,7 @@ fn execute_dispatch(
                         }
                     } else if path.is_file() {
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                        if !["rs", "py", "md", "toml", "sh", "fsh"].contains(&ext) {
+                        if !["rs", "py", "md", "toml", "sh", "nsh"].contains(&ext) {
                             continue;
                         }
                         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -2618,7 +2622,7 @@ fn execute_dispatch(
                     .and_then(|e| e.to_str())
                     .unwrap_or("");
                 match ext {
-                    "rs" | "py" | "sh" | "fsh" | "toml" | "md" | "json" | "txt" => {
+                    "rs" | "py" | "sh" | "nsh" | "toml" | "md" | "json" | "txt" => {
                         // Code/text files -- use $EDITOR
                         std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string())
                     }
@@ -2792,7 +2796,7 @@ fn execute_dispatch(
                             }
                         } else {
                             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                            if !["rs", "py", "md", "toml", "sh", "fsh", "txt", "json"]
+                            if !["rs", "py", "md", "toml", "sh", "nsh", "txt", "json"]
                                 .contains(&ext)
                             {
                                 continue;
@@ -4546,7 +4550,7 @@ fn execute_dispatch(
                         // Only search text files (check extension)
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                         let text_exts = [
-                            "rs", "nix", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml",
+                            "rs", "nix", "py", "md", "toml", "sh", "nsh", "txt", "json", "yaml",
                             "yml", "html", "css", "js", "ts", "lua", "conf", "desktop", "service",
                             "lock",
                         ];
@@ -10973,6 +10977,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "exec",
         "reload",
         "source",
+        "nsh",
         "fsh",
         "explain",
         "where",
@@ -11124,8 +11129,8 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     // Builtin
     let builtins = [
         "cd", "pwd", "ls", "echo", "env", "type", "which", "grep", "find", "tree", "fstat", "peek",
-        "realpath", "time", "exec", "reload", "source", "fsh", "explain", "where", "hs", "alias",
-        "unalias", "export", "unset", "let", "run",
+        "realpath", "time", "exec", "reload", "source", "nsh", "fsh", "explain", "where", "hs",
+        "alias", "unalias", "export", "unset", "let", "run",
     ];
     if builtins.contains(&cmd) {
         out.push_str(&format!(
@@ -12763,7 +12768,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
         Some(c) => c,
         None => return CommandResult::Error("exec: missing command".to_string().into(), 1),
     };
-    let is_self = matches!(*cmd, "fsh" | "faelight-shell" | "shell");
+    let is_self = matches!(*cmd, "nsh" | "fsh" | "faelight-shell" | "shell");
     let resolved = if is_self {
         resolve_fsh_binary() // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
@@ -12779,7 +12784,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
             Some(p) => p,
             None => {
                 // Last resort: try current_exe for any shell-like name
-                if matches!(*cmd, "fsh" | "shell" | "faelight-shell") {
+                if matches!(*cmd, "nsh" | "fsh" | "shell" | "faelight-shell") {
                     std::env::current_exe()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or_else(|_| cmd.to_string())
@@ -14762,7 +14767,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // NSH_BUILD exports and the instrument log writes, through one owner.
     let fsh_bin = std::env::current_exe().is_ok();
     checks.push((
-        "fsh binary",
+        "nsh binary",
         fsh_bin,
         if fsh_bin {
             std::env::current_exe()
@@ -14868,7 +14873,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let all_ok = passed == total;
 
     let mut out = String::new();
-    out.push_str(&format!("\n  {} fsh doctor\n", "🩺".normal()));
+    out.push_str(&format!("\n  {} nsh doctor\n", "🩺".normal()));
     out.push_str(&format!("  {}\n\n", "━".repeat(50).dimmed()));
     for (name, ok, note) in &checks {
         let icon = if *ok {
@@ -14894,7 +14899,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         out.push_str(&format!("  {} shell is healthy\n", "🌲".normal()));
     } else {
         out.push_str(&format!(
-            "  {} {} check(s) failed -- run: fsh doctor --fix\n",
+            "  {} {} check(s) failed -- run: nsh doctor --fix\n",
             "⚠".yellow(),
             total - passed
         ));
@@ -15688,7 +15693,7 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     match ext.as_str() {
         // Text files — bat preview
         "rs" | "py" | "js" | "ts" | "toml" | "yaml" | "yml" | "sh" | "zsh" | "kdl" | "md"
-        | "txt" | "json" | "html" | "css" | "ron" | "conf" | "ini" | "env" | "fsh" => {
+        | "txt" | "json" | "html" | "css" | "ron" | "conf" | "ini" | "env" | "nsh" => {
             let output = std::process::Command::new("bat")
                 .args([
                     "--paging=never",
@@ -16066,7 +16071,7 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     match args.first() {
-        None => CommandResult::Error("Usage: run <file.fsh> or run --list".to_string().into(), 1),
+        None => CommandResult::Error("Usage: run <file.nsh> or run --list".to_string().into(), 1),
         Some(&"--list") => {
             // List .fsh scripts in core_root
             let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
@@ -16084,7 +16089,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                         if entry
                             .path()
                             .extension()
-                            .map(|e| e == "fsh")
+                            .map(|e| e == "nsh")
                             .unwrap_or(false)
                         {
                             println!("  · {}", entry.file_name().to_string_lossy().bright_cyan());
