@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-//! config — load ~/.config/faelight-shell/config.fsh on startup (Phase 15)
+//! config — load ~/.config/faelight-shell/config.nsh on startup (Phase 15)
 //!
 //! Supported directives:
 //!   alias ll = "ls -la"       — register shell alias
@@ -72,13 +72,10 @@ pub fn config_path() -> std::path::PathBuf {
     //
     // An empty value is IGNORED rather than treated as a path -- `NSH_CONFIG= fsh` should mean
     // "no override", not "load the current directory".
-    if let Ok(p) = std::env::var("NSH_CONFIG") {
-        if !p.trim().is_empty() {
-            return std::path::PathBuf::from(p);
-        }
-    }
-    let home = std::env::var("HOME").unwrap_or_default();
-    std::path::PathBuf::from(home).join(".config/faelight-shell/config.fsh")
+    // ONE OWNER. This built the path itself and honoured NSH_CONFIG; three other readers
+    // built it too and honoured nothing. paths::shell_config now carries both, so pointing
+    // the shell at a different config moves every reader with it.
+    faelight_core::paths::shell_config()
 }
 
 /// Parse config.fsh and return structured config.
@@ -335,7 +332,7 @@ pub fn ensure_default() {
     }
 
     let default = r#"# faelight-shell configuration
-# ~/.config/faelight-shell/config.fsh
+# ~/.config/faelight-shell/config.nsh
 #
 # Syntax:
 #   alias <name> = "<command>"

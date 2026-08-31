@@ -196,14 +196,13 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     // Format: alias NAME = "COMMAND"   (optional trailing # comment).
     let mut aliases = 0usize;
     {
-        let cfg_path = std::env::var_os("HOME")
-            .map(|h| std::path::PathBuf::from(h).join(".config/faelight-shell/config.fsh"));
+        let cfg_path = Some(faelight_core::paths::shell_config());
         if let Some(path) = cfg_path {
             if let Ok(text) = std::fs::read_to_string(&path) {
                 let mut ins = tx.prepare(
                     "INSERT INTO command_registry
                        (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
-                     VALUES ('alias', ?1, 'config.fsh', 'alias', ?2, ?3, NULL, ?4, ?4, 0)",
+                     VALUES ('alias', ?1, 'config.nsh', 'alias', ?2, ?3, NULL, ?4, ?4, 0)",
                 )?;
                 for line in text.lines() {
                     let line = line.trim();
@@ -741,8 +740,8 @@ fn load_entries(conn: &Connection) -> Vec<Entry> {
 /// INT-092 Phase 2: names of aliases currently defined in the deployed config.fsh.
 fn live_alias_names() -> std::collections::HashSet<String> {
     let mut set = std::collections::HashSet::new();
-    if let Some(home) = std::env::var_os("HOME") {
-        let path = std::path::Path::new(&home).join(".config/faelight-shell/config.fsh");
+    {
+        let path = faelight_core::paths::shell_config();
         if let Ok(text) = std::fs::read_to_string(&path) {
             for line in text.lines() {
                 if let Some(rest) = line.trim().strip_prefix("alias ") {

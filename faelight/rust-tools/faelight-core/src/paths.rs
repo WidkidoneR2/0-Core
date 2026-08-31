@@ -518,9 +518,17 @@ pub fn intents_incidents() -> PathBuf {
 /// the one that gets edited, so it is the only honest answer. Renamed from
 /// aliases_file because the file is the shell config; aliases are its contents.
 pub fn shell_config() -> PathBuf {
+    // NSH_CONFIG FIRST, and it belongs here rather than in one consumer. config.rs honoured
+    // it; the cheatsheet and the alias reporter did not, so pointing the shell at a different
+    // config moved the shell and left two readers on the default -- a split nothing reports.
+    if let Ok(p) = env::var("NSH_CONFIG") {
+        if !p.trim().is_empty() {
+            return PathBuf::from(p);
+        }
+    }
     match env::var("XDG_CONFIG_HOME") {
-        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.fsh"),
-        _ => home().join(".config/faelight-shell/config.fsh"),
+        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.nsh"),
+        _ => home().join(".config/faelight-shell/config.nsh"),
     }
 }
 

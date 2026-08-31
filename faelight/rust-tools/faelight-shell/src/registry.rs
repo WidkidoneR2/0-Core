@@ -176,7 +176,7 @@ impl Registry {
                 .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
                 .map(|rows| {
                     for row in rows.flatten() {
-                        let entry = CommandEntry::alias(&row.0, &row.1, "config.fsh");
+                        let entry = CommandEntry::alias(&row.0, &row.1, "config.nsh");
                         self.register(entry);
                     }
                 });

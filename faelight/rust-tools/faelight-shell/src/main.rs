@@ -2150,7 +2150,7 @@ fn repl_main() -> Result<()> {
     let mut _session_failed: usize = 0;
 
     // Phase 16 — configured interactive editor
-    // INT-134 Lane UX: `set edit_mode = vi` in config.fsh selects modal editing. Emacs stays the
+    // INT-134 Lane UX: `set edit_mode = vi` in config.nsh selects modal editing. Emacs stays the
     // default -- and note that "emacs" here means READLINE KEYBINDINGS (Ctrl+A, Ctrl+E, Ctrl+K,
     // Ctrl+W), not the editor. Nothing is installed and nothing is required; it is what this shell
     // has always done and what every readline shell does unless told otherwise.
@@ -2197,7 +2197,7 @@ fn repl_main() -> Result<()> {
     // banner is byte-identical to before.
     if applied.pruned > 0 {
         println!(
-            "  {} reconciled - {} runtime alias{} pruned to config.fsh",
+            "  {} reconciled - {} runtime alias{} pruned to config.nsh",
             "✓".bright_green(),
             applied.pruned,
             if applied.pruned == 1 { "" } else { "es" }
@@ -2205,7 +2205,7 @@ fn repl_main() -> Result<()> {
     }
     if applied.aliases > 0 || applied.settings > 0 {
         println!(
-            "  {} config.fsh — {} alias{}  {} setting{}",
+            "  {} config.nsh — {} alias{}  {} setting{}",
             "✓".bright_green(),
             applied.aliases,
             if applied.aliases == 1 { "" } else { "es" },
@@ -2213,13 +2213,13 @@ fn repl_main() -> Result<()> {
             if applied.settings == 1 { "" } else { "s" },
         );
     }
-    // INT-233 -- validate config.fsh on load, surface errors immediately.
+    // INT-233 -- validate config.nsh on load, surface errors immediately.
     //
     // ⚠️ THE INTERACTIVE FRONT END PRINTS THESE TO STDOUT, where the user is looking. A
     // non-interactive invocation must send the same diagnostics to STDERR instead: stdout is
     // program output, and a broken config must not appear in a caller's pipeline.
     if !diagnostics.is_empty() {
-        println!("  {} config.fsh syntax errors:", "⚠️".normal());
+        println!("  {} config.nsh syntax errors:", "⚠️".normal());
         for e in &diagnostics {
             println!("{}", e);
         }

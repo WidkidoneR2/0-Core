@@ -4797,9 +4797,8 @@ fn execute_dispatch(
                 ));
             }
 
-            // 3. Check config.fsh aliases
-            let home = std::env::var("HOME").unwrap_or_default();
-            let config_path = format!("{}/.config/faelight-shell/config.fsh", home);
+            // 3. Check config.nsh aliases
+            let config_path = faelight_core::paths::shell_config();
             if let Ok(config) = std::fs::read_to_string(&config_path) {
                 for line in config.lines() {
                     if line.trim_start().starts_with("alias ") {
@@ -4809,7 +4808,7 @@ fn execute_dispatch(
                             if alias_name == cmd {
                                 let target = parts[1].trim();
                                 out.push_str(&format!(
-                                    "  {} config.fsh alias\n",
+                                    "  {} config.nsh alias\n",
                                     "▶".bright_cyan()
                                 ));
                                 out.push_str(&format!(
@@ -4824,13 +4823,9 @@ fn execute_dispatch(
                 }
             }
 
-            // 4. Check forest scripts
-            let script_path = format!("{}/0-core/scripts/{}", home, cmd);
-            if std::path::Path::new(&script_path).exists() {
-                out.push_str(&format!("  {} forest script\n", "▶".bright_green()));
-                out.push_str(&format!("    {} {}\n", "·".dimmed(), script_path.dimmed()));
-            }
-
+            // 4. Forest scripts -- REMOVED. It looked in 0-core/scripts/, deleted in
+            // e733287d, so exists() was false on every run since and the block could not
+            // fire. Step 5 asks which, which is the question that has an answer.
             // 5. PATH lookup
             if let Ok(out_bytes) = std::process::Command::new("which").arg(cmd).output() {
                 if out_bytes.status.success() {
