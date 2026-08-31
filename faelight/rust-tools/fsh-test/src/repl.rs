@@ -233,6 +233,37 @@ pub fn case_db_dir() -> String {
     format!("/tmp/fsh-test-{}", std::process::id())
 }
 
+/// How the physical lines of one construct reach fsh's line editor.
+///
+/// THIS IS A PROPERTY OF THE READLINE LAYER, NOT OF SHELL SYNTAX, and the difference was
+/// measured rather than assumed. Both variants were wrong for the other class first.
+///
+///                     physical input delivery
+///                              |
+///              +---------------+---------------+
+///              |                               |
+///        Incremental                       Buffered
+///        for / if / while                  quote / heredoc
+///        wait per line                     write the whole buffer
+///
+/// Incremental: after `for i in alpha beta` fsh returns to a CONTINUATION READ and emits
+/// ?2004h again. That marker is a handshake -- ready for the next line, not command
+/// finished -- and each line must wait for it. Writing all three at once put them in the pty
+/// before rustyline came back, so it read them as ONE buffered submission, ran the first line
+/// alone, swallowed the rest, and sat at `... ` waiting for a body that was already gone.
+///
+/// Buffered: after `echo 'first` or `cat <<EOF` rustyline stays INSIDE one read_line and
+/// emits no intermediate ?2004h at all. Waiting for one times out at 30 seconds. The whole
+/// construct is written and a single ?2004l follows when it completes.
+///
+/// A future reader seeing multiline in a name should not assume every multi-line syntax
+/// belongs to one path. The shell has two behaviours; so does this.
+#[derive(Clone, Copy, PartialEq)]
+pub enum InputDelivery {
+    Incremental,
+    Buffered,
+}
+
 /// Submit several lines that form ONE continued construct, then capture its output.
 ///
 /// Every line but the last is HELD: sent without waiting for the prompt to return, because a
@@ -251,15 +282,23 @@ pub fn run_repl_multiline(
     cmds: &[&str],
     env: &[(&str, &str)],
 ) -> Result<(Vec<String>, Option<i32>), String> {
-    let hold = cmds.len().saturating_sub(1);
-    run_session(cmds, env, None, hold)
+    run_session(cmds, env, None, InputDelivery::Incremental)
+}
+
+/// Submit a construct whose lines rustyline consumes in ONE read: a quote held open, a
+/// heredoc. No intermediate prompt comes back, so no per-line wait is possible.
+pub fn run_repl_buffered(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+) -> Result<(Vec<String>, Option<i32>), String> {
+    run_session(cmds, env, None, InputDelivery::Buffered)
 }
 
 pub fn run_repl_lines_status(
     cmds: &[&str],
     env: &[(&str, &str)],
 ) -> Result<(Vec<String>, Option<i32>), String> {
-    run_session(cmds, env, None, 0)
+    run_session(cmds, env, None, InputDelivery::Incremental)
 }
 
 /// Submit ONE line expected to hit fsh's safety guard, and answer the guard's prompt.
@@ -272,7 +311,13 @@ pub fn run_repl_lines_status(
 /// `needle` is a parameter rather than a constant on purpose: the harness should not hold a copy
 /// of the shell's wording. The case that cares states it.
 pub fn run_repl_answered(cmd: &str, needle: &str, reply: &str) -> Result<Vec<String>, String> {
-    run_session(&[cmd], &[], Some((needle, reply)), 0).map(|(lines, _)| lines)
+    run_session(
+        &[cmd],
+        &[],
+        Some((needle, reply)),
+        InputDelivery::Incremental,
+    )
+    .map(|(lines, _)| lines)
 }
 
 /// Submit SETUP LINES, then one line expected to hit the guard, and answer its prompt.
@@ -296,7 +341,8 @@ pub fn run_repl_answered_after(
 ) -> Result<Vec<String>, String> {
     let mut all: Vec<&str> = setup.to_vec();
     all.push(cmd);
-    run_session(&all, &[], Some((needle, reply)), 0).map(|(lines, _)| lines)
+    run_session(&all, &[], Some((needle, reply)), InputDelivery::Incremental)
+        .map(|(lines, _)| lines)
 }
 
 /// THE ONE OWNER OF THE SESSION PROTOCOL: spawn, reader thread, submit, capture, teardown.
@@ -319,7 +365,7 @@ fn run_session(
     cmds: &[&str],
     env: &[(&str, &str)],
     answer: Option<(&str, &str)>,
-    hold: usize,
+    delivery: InputDelivery,
 ) -> Result<(Vec<String>, Option<i32>), String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
@@ -435,16 +481,25 @@ fn run_session(
                 .map_err(|e| e.to_string())?;
             master.write_all(b"\n").map_err(|e| e.to_string())?;
         }
-        // A HELD LINE DOES NOT COMPLETE A COMMAND, so waiting for READY after it is
-        // waiting for something that will never arrive. Measured 2026-09-01 in a real pty:
-        // after `echo 'first` fsh repaints its ordinary prompt with the partial line and
-        // emits NO ?2004h -- the continuation prompt is textually identical to the normal
-        // one, so there is no second marker to synchronise on. Skipping the wait is not a
-        // shortcut around the no-sleeps rule; it is the only option the shell offers, and
-        // the NEXT line's wait proves the whole construct completed.
+        // EVERY LINE SYNCHRONISES, INCLUDING A HELD ONE -- and the first version of this
+        // skipped the wait, which was wrong in a way worth recording.
         //
-        // The last line always waits, so a case still fails on a hang rather than passing.
-        if idx < hold {
+        // The reasoning was that a continuation line completes no command so no prompt comes
+        // back. Measured in a real pty, that is false: after `for i in alpha beta` fsh emits
+        // ?2004h again for the CONTINUATION read. The marker arrives; it just means ready for
+        // the next line rather than command finished.
+        //
+        // And skipping it broke the construct outright. Writing three lines without waiting
+        // put all three in the pty before rustyline came back for them, so it read them as ONE
+        // buffered submission, submitted `for i in alpha beta` alone, and consumed `do ...`
+        // and `done` as part of that same read. They were gone. The shell then sat at `... `
+        // waiting for a body that had already been swallowed -- which is why the capture held
+        // the continuation prompt and nothing else.
+        //
+        // THE WAIT IS A HANDSHAKE HERE, not a command boundary: it is the acknowledgment that
+        // fsh has consumed the previous line and is asking for the next. Do not batch these
+        // writes as an optimisation; typing by hand works only because the pauses are there.
+        if delivery == InputDelivery::Buffered && idx + 1 < cmds.len() {
             continue;
         }
         wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30))

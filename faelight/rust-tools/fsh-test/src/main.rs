@@ -2368,11 +2368,52 @@ fn all_tests() -> Vec<TestResult> {
         || {
             // THE CONSTRUCT IS LAST, deliberately: the capture window holds the final
             // command output only, so a trailing echo would be the thing captured.
-            let (out, _) = repl::run_repl_multiline(&["echo 'first", "second'"], &[])?;
+            let (out, _) = repl::run_repl_buffered(&["echo 'first", "second'"], &[])?;
             let joined = out.join("\n");
             expect_contains(&joined, "first").and_then(|_| expect_contains(&joined, "second"))
         },
     ));
+
+    // --- MULTI-LINE CONSTRUCTS ---
+    //
+    // Nothing has ever tested these. run_repl_multiline made them expressible for the
+    // first time; expand.rs says the scanner handles for/while/if/case and paren, brace
+    // and bracket blocks, and this is the first time anything has checked.
+    //
+    // The construct is LAST in every case, because the capture window holds the final
+    // command's output only.
+    results.push(test("multiline_for_loop", Category::Hostile, || {
+        let (out, _) =
+            repl::run_repl_multiline(&["for i in alpha beta", "do echo item-$i", "done"], &[])?;
+        let joined = out.join("\n");
+        expect_contains(&joined, "item-alpha").and_then(|_| expect_contains(&joined, "item-beta"))
+    }));
+    results.push(test("multiline_if_block", Category::Hostile, || {
+        let (out, _) = repl::run_repl_multiline(&["if true", "then echo branch-taken", "fi"], &[])?;
+        expect_contains(&out.join("\n"), "branch-taken")
+    }));
+    results.push(test("multiline_while_loop", Category::Hostile, || {
+        let (out, _) = repl::run_repl_multiline(
+            &[
+                "n=0",
+                "while [ $n -lt 2 ]",
+                "do echo tick-$n",
+                "n=$((n+1))",
+                "done",
+            ],
+            &[],
+        )?;
+        let joined = out.join("\n");
+        expect_contains(&joined, "tick-0").and_then(|_| expect_contains(&joined, "tick-1"))
+    }));
+    results.push(test("multiline_heredoc", Category::Hostile, || {
+        // ⚠️ EXPECTED TO BE THE INTERESTING ONE. spine/lexer.rs says the scanner knows it
+        // is inside a heredoc continuation and states plainly that this is AWARENESS, NOT
+        // EXECUTION -- it does not claim fsh can run one. If this fails, that is a real
+        // finding rather than a harness artifact, and the comment predicted it.
+        let (out, _) = repl::run_repl_buffered(&["cat <<EOF", "heredoc-body", "EOF"], &[])?;
+        expect_contains(&out.join("\n"), "heredoc-body")
+    }));
     results
 }
 
