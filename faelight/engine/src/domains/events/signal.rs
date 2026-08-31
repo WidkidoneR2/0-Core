@@ -125,7 +125,7 @@ pub fn emit(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let session_id = std::env::var("FSH_SESSION_ID").ok();
+    let session_id = std::env::var("NSH_SESSION_ID").ok();
     db.execute(
         "INSERT INTO forest_events_v2 (timestamp, source, kind, type_name, payload, intent_id, session_id, caused_by, confidence)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",

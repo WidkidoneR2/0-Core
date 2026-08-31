@@ -812,7 +812,7 @@ fn main() -> Result<()> {
         unsafe { std::env::set_var("SHLVL", next.to_string()) }
     }
 
-    // FSH_SESSION_ID: INT-191 built the generator and nothing ever exported it.
+    // NSH_SESSION_ID: INT-191 built the generator and nothing ever exported it.
     // exec.rs states the defect outright -- read in three places, set in NONE -- and
     // records the damage: term_commands holds 42,376 rows under the fallback string
     // "unknown", because a missing variable became a shared session name instead of
@@ -822,15 +822,15 @@ fn main() -> Result<()> {
     // Unconditional, not set-if-absent: each fsh process IS a session, so a nested
     // shell earns its own id and anything it spawns is correctly attributed to it.
     // INT-167 P0a -- three existing readers start working the moment this is written.
-    unsafe { std::env::set_var("FSH_SESSION_ID", crate::exec::session_id()) }
+    unsafe { std::env::set_var("NSH_SESSION_ID", crate::exec::session_id()) }
 
     // WHO AM I -- the BASH_VERSION pattern. A harness must be able to ASK the shell
     // which binary it reached, instead of trusting the path it passed. fsh-test could
     // not, and run_fsh's own doc records what that cost: a green suite read from a
     // shell that did not contain the change being tested.
     unsafe {
-        std::env::set_var("FSH_VERSION", env!("CARGO_PKG_VERSION"));
-        std::env::set_var("FSH_BUILD", crate::exec::build_identity());
+        std::env::set_var("NSH_VERSION", env!("CARGO_PKG_VERSION"));
+        std::env::set_var("NSH_BUILD", crate::exec::build_identity());
     }
 
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
@@ -873,15 +873,15 @@ fn main() -> Result<()> {
             println!("  fsh --version       print the version");
             println!("  fsh --help          print this");
             println!();
-            // INT-207: FSH_TRACE and FSH_SPINE_TRACE are gone, replaced by ONE selector.
+            // INT-207: NSH_TRACE and NSH_SPINE_TRACE are gone, replaced by ONE selector.
             // The help is the shell's public account of its own instruments, so a variable named
             // here that no longer exists sends the one person most likely to try it into silence.
-            println!("  FSH_OBSERVE=TARGETS  trace the shell: router, lexer, expansion,");
+            println!("  NSH_OBSERVE=TARGETS  trace the shell: router, lexer, expansion,");
             println!("                       executor, jobs, boot -- comma-separated, or all");
-            println!("  FSH_OBSERVE_LEVEL=L  trace, debug (default), info, warn");
-            println!("  FSH_BOOT_PROFILE=1  report startup and per-command timings");
-            println!("  FSH_SPINE=0         route through the legacy executor");
-            println!("  FSH_KEEP_CWD=1      stay in the directory fsh was spawned in");
+            println!("  NSH_OBSERVE_LEVEL=L  trace, debug (default), info, warn");
+            println!("  NSH_BOOT_PROFILE=1  report startup and per-command timings");
+            println!("  NSH_SPINE=0         route through the legacy executor");
+            println!("  NSH_KEEP_CWD=1      stay in the directory fsh was spawned in");
             return Ok(());
         }
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
@@ -1054,7 +1054,7 @@ fn runtime_init() -> Result<RuntimeInit> {
 ///
 /// Defaults to false: unset, every existing behaviour is unchanged.
 fn keep_launch_cwd() -> bool {
-    std::env::var("FSH_KEEP_CWD")
+    std::env::var("NSH_KEEP_CWD")
         .map(|v| v != "0")
         .unwrap_or(false)
 }
@@ -1468,7 +1468,7 @@ fn run_input(
         // if routing did not exist. Legacy must receive what it would have received.
         // INT-169: DEFAULT ON, and INT-201 (2026-08-05) settled what the variable MEANS. It is not a
         // fallback shell and cannot be one: the inline redirect and pipeline executors were deleted
-        // once the spine claimed every form of both, so legacy no longer implements them. FSH_SPINE=0
+        // once the spine claimed every form of both, so legacy no longer implements them. NSH_SPINE=0
         // is a MIGRATION AID -- a way to compare routing -- and lines legacy cannot run are refused
         // with a message naming what is missing. Generation rollback is the real escape hatch.
         // Flipped once the evidence stopped improving from testing: 107/107 through the
@@ -1481,7 +1481,7 @@ fn run_input(
         // handled inside it: the router's contract is that a claim means ownership.
         // INT-167 P0 / INT-191: THE LIFECYCLE RECORD OPENS ABOVE THE FORK.
         //
-        // Measured 2026-08-21 with FSH_TRACE: command_execution held 2,419 rows and
+        // Measured 2026-08-21 with NSH_TRACE: command_execution held 2,419 rows and
         // stopped around 2026-08-18. Nothing broke -- the TRAFFIC MOVED. A spine-handled
         // command hits `continue` below and never reaches execute_and_record, so the
         // recorder that INT-191 built lives on the legacy path only, and the shell has
@@ -1679,7 +1679,7 @@ fn run_input(
         // `continue 'segments`, so the `redirect` handed to execute_and_record was permanently None and
         // the write hoisted into it never ran. Deleting the block is what makes that visible.
         //
-        // FSH_SPINE=0 still arrives, and says what it does not implement rather than half-doing it --
+        // NSH_SPINE=0 still arrives, and says what it does not implement rather than half-doing it --
         // the migration-aid contract, same as pipelines.
         if redirect_info.is_some() {
             engine.refuse_unimplemented("redirects");
@@ -1760,7 +1760,7 @@ fn run_input(
         // trace was claimed, and backgrounded pipelines joined them at bb4adb88.
         //
         // SO THIS POINT IS UNREACHABLE UNDER DEFAULT ROUTING -- a claimed line left the segment loop
-        // four hundred lines above. Only FSH_SPINE=0 arrives here, and that variable is a MIGRATION
+        // four hundred lines above. Only NSH_SPINE=0 arrives here, and that variable is a MIGRATION
         // AID rather than a fallback shell: its job is to let you compare routing, not to be a second
         // implementation of the shell. So legacy names what it no longer implements instead of
         // splitting text and hoping, which is how `echo hi | cat &` came to hand `cat` an ampersand.
@@ -2087,7 +2087,7 @@ fn repl_main() -> Result<()> {
     // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. FAELIGHT_STATE_DB exists so the
     // test harness can give each run its own database instead of borrowing the user's, but a variable
     // that redirects the database is the more dangerous cousin of the one that started this intent --
-    // FSH_CONFIG leaked out of an inline assignment into a child process and silently changed
+    // NSH_CONFIG leaked out of an inline assignment into a child process and silently changed
     // behaviour. A leak here costs history, aliases and session memory, and would look like amnesia
     // rather than a misconfiguration.
     //
@@ -2115,7 +2115,7 @@ fn repl_main() -> Result<()> {
     // NOTE this OVERRIDES the directory fsh was spawned in, and so does the last_dir restore near
     // the end of the banner. Both are deliberate ("keep work in forest home"), but there is no way
     // to opt out, so a harness that spawns fsh with a chosen working directory cannot make it stick.
-    // INT-206 fixed that: FSH_KEEP_CWD suppresses this and the last_dir restore below, so a caller
+    // INT-206 fixed that: NSH_KEEP_CWD suppresses this and the last_dir restore below, so a caller
     // that chose a working directory keeps it. Unset -- which is every interactive session -- the
     // forest-home default is exactly as it was.
     if !keep_launch_cwd() {
@@ -2373,7 +2373,7 @@ fn repl_main() -> Result<()> {
             let cwd = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let session = std::env::var("FSH_SESSION_ID").unwrap_or_else(|_| "unknown".to_string());
+            let session = std::env::var("NSH_SESSION_ID").unwrap_or_else(|_| "unknown".to_string());
             let _ = engine.db().conn.execute(
                 "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
                  SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIMIT 1",
@@ -2946,7 +2946,7 @@ fn repl_main() -> Result<()> {
         // INT-169: MIGRATION, not compatibility. A green suite proves a command behaved the
         // same; it cannot say whether the spine ran it or the router declined and legacy did.
         // Printed once per session and only on request, so normal use stays quiet.
-        if std::env::var_os("FSH_SPINE_METRICS").is_some() {
+        if std::env::var_os("NSH_SPINE_METRICS").is_some() {
             if let Some(report) = exec::spine_routing_report() {
                 println!("{report}");
             }

@@ -35,21 +35,21 @@ use std::time::{Duration, Instant};
 
 /// THE SHELL UNDER TEST -- resolved in ONE place, and verified to exist.
 ///
-/// The fallback used to be silent on BOTH doors, so a typo or a dropped FSH_BIN quietly
+/// The fallback used to be silent on BOTH doors, so a typo or a dropped NSH_BIN quietly
 /// tested the DEPLOYED shell and the suite reported green. That is INT-110's lesson, and it
 /// recurred on 2026-08-21: three tests stayed red through six rebuilds because the harness
 /// was measuring a binary from before the fix. A default that hides a missing input is the
 /// same disease as a check that cannot fail.
 pub fn fsh_bin() -> String {
-    match std::env::var("FSH_BIN") {
+    match std::env::var("NSH_BIN") {
         Ok(p) if std::path::Path::new(&p).exists() => p,
         Ok(p) => {
-            eprintln!("  FSH_BIN names a binary that does not exist: {}", p);
+            eprintln!("  NSH_BIN names a binary that does not exist: {}", p);
             eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
             std::process::exit(2);
         }
         // The fallback was /run/current-system/sw/bin/faelight-shell -- a NixOS store
-        // path that has not existed since the migration. With FSH_BIN unset the suite
+        // path that has not existed since the migration. With NSH_BIN unset the suite
         // spawned a binary that is not there and 158 of 162 cases failed for that one
         // reason, reporting a 2% shell rather than a missing subject.
         //
@@ -63,7 +63,7 @@ pub fn fsh_bin() -> String {
             // fallback was written to fix, arriving from the other side: then it could not
             // find its subject, now it finds the WRONG one confidently.
             let p = faelight_core::paths::bin_dir().join("nsh");
-            // BOTH ARMS REFUSE NOW. The Ok arm has always exited 2 when FSH_BIN names a
+            // BOTH ARMS REFUSE NOW. The Ok arm has always exited 2 when NSH_BIN names a
             // missing binary, with the right reasoning: refusing to fall back is how a
             // stale binary is kept from passing. The fallback arm did no such check, so
             // when its path died with the migration the suite spawned nothing 158 times
@@ -77,7 +77,7 @@ pub fn fsh_bin() -> String {
                 eprintln!();
                 eprintln!("  Recovery");
                 eprintln!("    - ship nsh                   install it, then re-run");
-                eprintln!("    - FSH_BIN=<path> fsh-test    test a binary somewhere else");
+                eprintln!("    - NSH_BIN=<path> fsh-test    test a binary somewhere else");
                 std::process::exit(2);
             }
             p.display().to_string()
@@ -383,12 +383,12 @@ fn run_session(
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
         // forest home and restores its last directory, both deliberately, so the current_dir below
         // was silently ignored for months and conformance cases wrote their files into the
-        // repository. FSH_KEEP_CWD suppresses both overrides.
+        // repository. NSH_KEEP_CWD suppresses both overrides.
         //
         // Set for every case rather than per-case, so a case added later cannot pollute the repo by
         // forgetting to opt in. One guardian case passes "0" and asserts the forest-home default,
         // so the behaviour daily use actually gets is still covered by a case that says so.
-        .env("FSH_KEEP_CWD", "1")
+        .env("NSH_KEEP_CWD", "1")
         // INT-204: a FRESH DATABASE PER CASE, because the pollution this intent is about happens
         // WITHIN a run. repl_193 creates an alias and later cases in the same run see it -- a single
         // scratch database would only move that somewhere else. Measured at 20ms per case, 2.8s

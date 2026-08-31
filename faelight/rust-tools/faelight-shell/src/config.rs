@@ -63,16 +63,16 @@ impl ShellConfig {
 }
 
 pub fn config_path() -> std::path::PathBuf {
-    // INT-134: FSH_CONFIG overrides the path so a setting can be tried without a rebuild. The
+    // INT-134: NSH_CONFIG overrides the path so a setting can be tried without a rebuild. The
     // deployed config.fsh is a home-manager symlink into /nix/store and therefore READ-ONLY --
     // proving one line otherwise costs a full deploy, and this loop is needed once per setting.
     //
     // An env var rather than a flag: load() takes no arguments and runs before argument parsing,
     // so a flag would have to thread through every caller to serve one use.
     //
-    // An empty value is IGNORED rather than treated as a path -- `FSH_CONFIG= fsh` should mean
+    // An empty value is IGNORED rather than treated as a path -- `NSH_CONFIG= fsh` should mean
     // "no override", not "load the current directory".
-    if let Ok(p) = std::env::var("FSH_CONFIG") {
+    if let Ok(p) = std::env::var("NSH_CONFIG") {
         if !p.trim().is_empty() {
             return std::path::PathBuf::from(p);
         }
@@ -275,7 +275,7 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     let alias_count = cfg.aliases.len();
     let setting_count = cfg.settings.len();
 
-    // ONE TRANSACTION, NOT 285. Measured 2026-08-22 with FSH_BOOT_PROFILE: this function
+    // ONE TRANSACTION, NOT 285. Measured 2026-08-22 with NSH_BOOT_PROFILE: this function
     // cost 210ms of fsh's 214ms startup, and `fsh -c true` took 462ms against bash's 3ms.
     // SQLite commits per statement without an explicit transaction, so 285 aliases meant
     // 285 commits -- roughly 0.7ms each, paid on EVERY invocation including a one-shot -c

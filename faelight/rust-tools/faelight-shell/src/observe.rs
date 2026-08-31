@@ -1,9 +1,9 @@
 //! INT-207: fsh's structured observability, owned rather than depended on.
 //!
-//! WHY THIS EXISTS. Five hand-rolled instruments were counted on 2026-08-23: FSH_SPINE_TRACE
-//! (stderr), FSH_TRACE (stderr), FSH_BOOT_PROFILE (stderr), legacy-exec.log (file) and
-//! sh-fallback.log (file). Each was decisive when it was needed -- FSH_TRACE found a lifecycle
-//! recorder that had been dead three days, FSH_BOOT_PROFILE found a 210ms alias transaction -- and
+//! WHY THIS EXISTS. Five hand-rolled instruments were counted on 2026-08-23: NSH_SPINE_TRACE
+//! (stderr), NSH_TRACE (stderr), NSH_BOOT_PROFILE (stderr), legacy-exec.log (file) and
+//! sh-fallback.log (file). Each was decisive when it was needed -- NSH_TRACE found a lifecycle
+//! recorder that had been dead three days, NSH_BOOT_PROFILE found a 210ms alias transaction -- and
 //! each was written from scratch, learning the same lessons separately.
 //!
 //! ★ THE PROOF THAT A SHARED SCHEMA IS NEEDED IS IN THEIR OWN COMMENTS. Two file instruments
@@ -33,7 +33,7 @@ use std::sync::OnceLock;
 /// before `init()` needs measuring, move `init()` earlier rather than making the clock lazy.
 static PROCESS_START: OnceLock<std::time::Instant> = OnceLock::new();
 
-/// Where accumulating observations go, if anywhere. `None` unless FSH_OBSERVE_FILE is set.
+/// Where accumulating observations go, if anywhere. `None` unless NSH_OBSERVE_FILE is set.
 static SINK: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
 
 /// Start the process clock and resolve the optional file sink.
@@ -49,7 +49,7 @@ static SINK: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
 /// cannot be established. Otherwise "no observations" and "nothing happened" are the same output.
 pub fn init() {
     let _ = PROCESS_START.set(std::time::Instant::now());
-    let resolved = std::env::var_os("FSH_OBSERVE_FILE").and_then(|raw| {
+    let resolved = std::env::var_os("NSH_OBSERVE_FILE").and_then(|raw| {
         let path = std::path::PathBuf::from(raw);
         if let Some(dir) = path.parent() {
             if let Err(e) = std::fs::create_dir_all(dir) {
@@ -159,20 +159,20 @@ pub struct Event<'a> {
 
 /// Is this target enabled at this level?
 ///
-/// FSH_OBSERVE selects targets: `FSH_OBSERVE=router,jobs` or `FSH_OBSERVE=all`. FSH_OBSERVE_LEVEL
+/// NSH_OBSERVE selects targets: `NSH_OBSERVE=router,jobs` or `NSH_OBSERVE=all`. NSH_OBSERVE_LEVEL
 /// sets the floor, defaulting to `debug`. Nothing is enabled without the variable, which is the
 /// gate that keeps an ordinary session exactly as quiet as it is today.
 pub fn enabled(target: Target, level: Level) -> bool {
-    // FSH_BOOT_PROFILE IS A RENDERING MODE, NOT AN INSTRUMENT. It selects the boot target and asks
+    // NSH_BOOT_PROFILE IS A RENDERING MODE, NOT AN INSTRUMENT. It selects the boot target and asks
     // for the human boot format; it does not measure anything itself. That is what collapsed three
     // separate clocks into one.
-    if target == Target::Boot && std::env::var("FSH_BOOT_PROFILE").is_ok() {
+    if target == Target::Boot && std::env::var("NSH_BOOT_PROFILE").is_ok() {
         return true;
     }
-    let Ok(spec) = std::env::var("FSH_OBSERVE") else {
+    let Ok(spec) = std::env::var("NSH_OBSERVE") else {
         return false;
     };
-    let floor = std::env::var("FSH_OBSERVE_LEVEL")
+    let floor = std::env::var("NSH_OBSERVE_LEVEL")
         .ok()
         .and_then(|s| match s.as_str() {
             "trace" => Some(Level::Trace),
@@ -207,7 +207,7 @@ pub fn emit(ev: Event<'_>) {
 
     // ONE EVENT, SEVERAL RENDERERS. The boot profile is a VIEW of the same event every other sink
     // sees, which is why its numbers can no longer disagree with a trace line's.
-    if ev.target == Target::Boot && std::env::var("FSH_BOOT_PROFILE").is_ok() {
+    if ev.target == Target::Boot && std::env::var("NSH_BOOT_PROFILE").is_ok() {
         let mut boot = format!("[boot] {:>6}ms {}", elapsed, ev.message);
         for (k, v) in ev.fields {
             boot.push_str(&format!(" {}={}", k, v));
@@ -264,8 +264,8 @@ fn door() -> &'static str {
 /// The session:execution pair, so a trace line and a command_execution row describe the same
 /// event. Read from the environment rather than minted -- one owner per typed line.
 fn correlation() -> Option<String> {
-    let s = std::env::var("FSH_SESSION_ID").ok()?;
-    let e = std::env::var("FSH_EXECUTION_ID").ok()?;
+    let s = std::env::var("NSH_SESSION_ID").ok()?;
+    let e = std::env::var("NSH_EXECUTION_ID").ok()?;
     Some(format!("{}:{}", s, e))
 }
 
@@ -276,34 +276,34 @@ mod tests {
     /// The gate that matters most: nothing is chattier by default.
     #[test]
     fn silent_without_the_variable() {
-        std::env::remove_var("FSH_OBSERVE");
+        std::env::remove_var("NSH_OBSERVE");
         assert!(!enabled(Target::Router, Level::Warn));
         assert!(!enabled(Target::Jobs, Level::Trace));
     }
 
     #[test]
     fn targets_select_independently() {
-        std::env::set_var("FSH_OBSERVE", "router,jobs");
+        std::env::set_var("NSH_OBSERVE", "router,jobs");
         assert!(enabled(Target::Router, Level::Info));
         assert!(enabled(Target::Jobs, Level::Info));
         assert!(!enabled(Target::Lexer, Level::Info));
-        std::env::remove_var("FSH_OBSERVE");
+        std::env::remove_var("NSH_OBSERVE");
     }
 
     #[test]
     fn level_is_a_floor() {
-        std::env::set_var("FSH_OBSERVE", "all");
-        std::env::set_var("FSH_OBSERVE_LEVEL", "warn");
+        std::env::set_var("NSH_OBSERVE", "all");
+        std::env::set_var("NSH_OBSERVE_LEVEL", "warn");
         assert!(enabled(Target::Router, Level::Warn));
         assert!(!enabled(Target::Router, Level::Debug));
-        std::env::remove_var("FSH_OBSERVE");
-        std::env::remove_var("FSH_OBSERVE_LEVEL");
+        std::env::remove_var("NSH_OBSERVE");
+        std::env::remove_var("NSH_OBSERVE_LEVEL");
     }
 
     #[test]
     fn unknown_target_names_are_ignored_not_matched() {
-        std::env::set_var("FSH_OBSERVE", "nonsense");
+        std::env::set_var("NSH_OBSERVE", "nonsense");
         assert!(!enabled(Target::Router, Level::Warn));
-        std::env::remove_var("FSH_OBSERVE");
+        std::env::remove_var("NSH_OBSERVE");
     }
 }

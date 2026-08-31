@@ -65,7 +65,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 
 ## Lane 1 -- Declarative / Reproducible  [FOUNDATION = INT-060]
 - [x] config.fsh = single declarative source of truth (INT-060) -- DONE 2026-06-18
-- [x] Reproducible shell sessions -- FIXED (INT-134, 2026-07-11): session save/load now captures + restores the environment (PATH + FAELIGHT_/FSH_/FOREST_ vars) alongside directory/intent/commands. The env_vars column existed in the schema but was never wired -- now written on save, applied on load. Verified live: '2 env var(s) captured' -> '2 env var(s) restored'. commands/mod.rs session save/load.
+- [x] Reproducible shell sessions -- FIXED (INT-134, 2026-07-11): session save/load now captures + restores the environment (PATH + FAELIGHT_/NSH_/FOREST_ vars) alongside directory/intent/commands. The env_vars column existed in the schema but was never wired -- now written on save, applied on load. Verified live: '2 env var(s) captured' -> '2 env var(s) restored'. commands/mod.rs session save/load.
 - [x] Versioned shell environments -- FIXED (INT-134, 2026-07-11): the env-snapshot system (INT-269: env-save/env-load/env-diff) now RESTORES on load, not just shows. env-load was show-only ('fsh cannot set parent process env'); corrected -- fsh IS the shell, so set_var restores into its own env (children inherit it). Named versions: env-save v1/v2, env-load <ver> restores, env-diff compares. Verified live: env-save (9 vars) -> env-load ('7 var(s) restored') -> env-diff ('No differences'). commands/mod.rs env-load.
 - [x] Rollback-able environment changes -- FIXED (INT-134, 2026-07-11): new `env-rollback` builtin restores the MOST RECENT env snapshot on demand (no name needed -- newest by saved_at). Reuses the env-load restore machinery. Verified live: env-save r1 -> env-rollback ('Rolled back to r1, 7 var(s) restored'), repeatable. commands/mod.rs env-rollback arm.
 - [x] Environment diffs -- VERIFIED (INT-269, tested 2026-07-11): `env-diff <name>` compares current env vs a snapshot, names each differing var (saved vs current), counts diffs. Verified live: detected EDITOR hx->vim after a change (1 differ), reported 'No differences' when matched, detected again after env-load changed the live env. Already complete; no fix needed. commands/mod.rs env-diff.
@@ -255,7 +255,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [ ] KEEP (Experimental, and cheaper than it looks now) -- Pipe execution visualizer. Measured
       absent: `visualize`, `viz` and `pipeline` all report command not found. ★ BUT THE DATA NOW
       EXISTS where it did not when this was written: the spine lowers a pipeline into one
-      ExecutionPlan PER STAGE, each carrying argv, cwd, env and io, and FSH_SPINE_TRACE already
+      ExecutionPlan PER STAGE, each carrying argv, cwd, env and io, and NSH_SPINE_TRACE already
       prints what the router claimed. A trace is not a visualizer, but the structured facts a
       visualizer would render are already produced rather than needing to be reconstructed from text.
 - [ ] CUT -- Command dependency graphs. Reason: WRONG OWNER. Measured absent in the shell (`graph`

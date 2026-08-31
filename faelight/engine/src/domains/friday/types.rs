@@ -85,7 +85,7 @@ impl FridayInput {
             cwd: std::env::current_dir()
                 .ok()
                 .map(|p| p.to_string_lossy().to_string()),
-            session_id: std::env::var("FSH_SESSION_ID").ok(),
+            session_id: std::env::var("NSH_SESSION_ID").ok(),
         }
     }
 

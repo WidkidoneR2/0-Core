@@ -28,7 +28,7 @@ nobody wrote down why. The last is the only one that fails.
 against the code being pushed. Red means the push does not happen.
 
 ⚠️ **One trap worth knowing.** The suite's isolation between cases is not designed -- it is a side
-effect of each shell pruning aliases that are absent from `config.fsh`. A stray `FSH_CONFIG` in your
+effect of each shell pruning aliases that are absent from `config.fsh`. A stray `NSH_CONFIG` in your
 environment pointing at a small config disables that pruning, and one case's alias will leak into
 later ones. If several unrelated cases fail at once, check your environment before your change.
 

@@ -12,7 +12,7 @@ fn now_ts() -> i64 {
 pub fn decide(ctx: &AppContext, what: &str, why: &str, ties_to: &str) -> CoreResult<()> {
     super::ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
-    let session_id = std::env::var("FSH_SESSION_ID").unwrap_or_default();
+    let session_id = std::env::var("NSH_SESSION_ID").unwrap_or_default();
     db.execute(
         "INSERT INTO friday_decisions (timestamp, what, why, ties_to, session_id)
          VALUES (?1, ?2, ?3, ?4, ?5)",

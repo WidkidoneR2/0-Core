@@ -122,7 +122,7 @@ impl SessionMemory {
             );
             // Save current directory.
             //
-            // INT-206: NOT WHEN THE CALLER CHOSE IT. A session running with FSH_KEEP_CWD stays
+            // INT-206: NOT WHEN THE CALLER CHOSE IT. A session running with NSH_KEEP_CWD stays
             // where it was spawned, and writing that here would teach the NEXT ordinary session
             // that the user's last directory was wherever a harness happened to run. Suppressing
             // only the restore was not enough -- the poisoned value simply waited in session_state

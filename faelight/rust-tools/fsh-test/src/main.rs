@@ -64,7 +64,7 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
 /// from a shell that did not contain the change being tested.
 ///
-///     cargo build -p faelight-shell && FSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test
+///     cargo build -p faelight-shell && NSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
@@ -73,8 +73,8 @@ fn run_fsh(input: &str) -> Result<String, String> {
 
 /// INT-221: the same launcher, with the environment under the case's control.
 ///
-/// ONE LAUNCH PATH, not two. A case that needs to vary PATH, FSH_TRACE or FSH_SPINE used to have
-/// no way to do it, and the alternative -- a second Command::new(FSH_BIN) inside the test -- would
+/// ONE LAUNCH PATH, not two. A case that needs to vary PATH, NSH_TRACE or NSH_SPINE used to have
+/// no way to do it, and the alternative -- a second Command::new(NSH_BIN) inside the test -- would
 /// be a fourth way of starting the shell in a suite whose founding finding was that two doors
 /// disagree. So the capability belongs here.
 ///
@@ -84,7 +84,7 @@ fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String
     let mut cmd = Command::new(&fsh);
     // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
     // configuration rather than two that differ in where they think they are.
-    cmd.env("FSH_KEEP_CWD", "1")
+    cmd.env("NSH_KEEP_CWD", "1")
         // INT-204: and its own database, for the same reason -- two doors that disagree about which
         // state they read is the shape of problem this suite keeps finding in the shell it tests.
         .env("FAELIGHT_STATE_DB", repl::case_db_path());
@@ -134,9 +134,9 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
 /// manufacturing a number there would make a comparison look performed when it was not. A caller
 /// that wants the signal convention asks for it; this reports what it saw.
 fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> {
-    let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "nsh".to_string());
+    let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
     let out = Command::new(&fsh)
-        .env("FSH_KEEP_CWD", "1")
+        .env("NSH_KEEP_CWD", "1")
         .env("FAELIGHT_STATE_DB", repl::case_db_path())
         .arg("-c")
         .arg(input)
@@ -891,9 +891,9 @@ fn all_tests() -> Vec<TestResult> {
             // ⚠️ SPAWNS DIRECTLY RATHER THAN THROUGH THE HELPER, because run_fsh_status always passes
             // an operand and this case is about there being none. `-c ""` is a present-but-empty
             // operand and exits 0, which is a different thing entirely.
-            let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "nsh".to_string());
+            let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
             let out = Command::new(&fsh)
-                .env("FSH_KEEP_CWD", "1")
+                .env("NSH_KEEP_CWD", "1")
                 .env("FAELIGHT_STATE_DB", repl::case_db_path())
                 .arg("-c")
                 .stdout(Stdio::piped())
@@ -911,7 +911,7 @@ fn all_tests() -> Vec<TestResult> {
         "repl_206_forest_home_is_still_the_default",
         Category::Repl,
         || {
-            // INT-206 GUARDIAN. The harness sets FSH_KEEP_CWD for every other case so that a case which
+            // INT-206 GUARDIAN. The harness sets NSH_KEEP_CWD for every other case so that a case which
             // writes a file cannot write it into the repository. That is the right default, and it has a
             // cost: every other case then runs a shell configuration nobody uses interactively.
             //
@@ -922,7 +922,7 @@ fn all_tests() -> Vec<TestResult> {
             //
             // "0" rather than removing the variable: keep_launch_cwd reads it as v != "0", so the string
             // is the off switch and no env_remove is needed.
-            let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("FSH_KEEP_CWD", "0")])?;
+            let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("NSH_KEEP_CWD", "0")])?;
             expect_contains(&out.join("\n"), "0-core")
         },
     ));
@@ -1807,7 +1807,7 @@ fn all_tests() -> Vec<TestResult> {
             // its name describes. The bug was found by hand instead, and fixed at d0c04825.
             //
             // ★ THIS ONE HAS A RED YOU CAN STILL RUN. Gen 464's binary predates d0c04825:
-            //   FSH_BIN=/nix/store/86m8mhwx52s1ris35jp0v4b7kmffzyv7-faelight-forest-9.2.0/bin/faelight-shell
+            //   NSH_BIN=/nix/store/86m8mhwx52s1ris35jp0v4b7kmffzyv7-faelight-forest-9.2.0/bin/faelight-shell
             // Against it this case fails and the one above passes -- which is the whole argument for
             // per-case routing in one screen.
             let out = repl::run_repl_lines_env(
@@ -1817,7 +1817,7 @@ fn all_tests() -> Vec<TestResult> {
                     "sleep 2",
                     "sed -n 1p /tmp/zzbg2L.txt",
                 ],
-                &[("FSH_SPINE", "0")],
+                &[("NSH_SPINE", "0")],
             )?;
             let joined = out.join("\n");
             if out
@@ -1853,7 +1853,7 @@ fn all_tests() -> Vec<TestResult> {
             // ONE line, because only the last command's output comes back.
             let out = repl::run_repl_lines_env(
                 &["echo hi | cat > /tmp/zzbgredirL.txt &"],
-                &[("FSH_SPINE", "0")],
+                &[("NSH_SPINE", "0")],
             )?;
             let joined = out.join("\n");
             if joined.contains("not supported here") {
@@ -2585,7 +2585,7 @@ fn main() {
     // well, which is exactly why the silent fallback was invisible.
     //
     // The BASH_VERSION pattern: bash exposes its identity so a script can prove which shell
-    // it reached. fsh now exposes FSH_VERSION and FSH_BUILD for the same reason.
+    // it reached. fsh now exposes NSH_VERSION and NSH_BUILD for the same reason.
     {
         let ident = std::process::Command::new(repl::fsh_bin())
             // ⚠️ CLEARED FIRST, OR THE ANSWER IS THE PARENT'S. These are exported at
@@ -2594,10 +2594,10 @@ fn main() {
             // this banner was added: it named the debug build while testing the deployed
             // one. An empty answer now means the shell cannot identify itself, which is
             // the honest result and a detectable one.
-            .env_remove("FSH_VERSION")
-            .env_remove("FSH_BUILD")
+            .env_remove("NSH_VERSION")
+            .env_remove("NSH_BUILD")
             .arg("-c")
-            .arg("echo $FSH_VERSION $FSH_BUILD")
+            .arg("echo $NSH_VERSION $NSH_BUILD")
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_else(|e| format!("could not ask: {}", e));
@@ -2638,7 +2638,7 @@ fn main() {
                 "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
             );
             println!(
-                "     to test what you just built: FSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test"
+                "     to test what you just built: NSH_BIN=target/debug/faelight-shell ./target/debug/fsh-test"
             );
         }
     }

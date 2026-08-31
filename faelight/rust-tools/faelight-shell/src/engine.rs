@@ -222,13 +222,13 @@ impl Engine {
             // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` printed "exited 2"
             // while `$?` reported 1 -- the code was formatted into the message and thrown away.
             CommandResult::Error(e, code) => {
-                // INT-208 GATE 3: THE SECOND RENDERER, WITH A REAL CONSUMER. FSH_DIAGNOSTIC_JSON
+                // INT-208 GATE 3: THE SECOND RENDERER, WITH A REAL CONSUMER. NSH_DIAGNOSTIC_JSON
                 // makes a failure machine-readable -- what an editor or a tool would ask for, and
                 // impossible while the payload was a string formatted for a terminal.
                 //
                 // ⚠️ A renderer only a test calls would be decoration, which is the charge INT-222
                 // makes against the doctor. This one has a caller.
-                if std::env::var("FSH_DIAGNOSTIC_JSON").is_ok() {
+                if std::env::var("NSH_DIAGNOSTIC_JSON").is_ok() {
                     eprintln!("{}", e.to_json());
                 } else {
                     eprintln!("{} {}", colored::Colorize::bright_red("x"), e);
@@ -1015,16 +1015,16 @@ impl Engine {
     ) -> RouteOutcome {
         crate::mark("route_through_spine entered");
         let spine_on = !crate::is_repl_state_command(line)
-            && std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true);
-        // INT-207: FSH_SPINE_TRACE MIGRATED. It was the first hand-rolled instrument and the
+            && std::env::var("NSH_SPINE").map(|v| v != "0").unwrap_or(true);
+        // INT-207: NSH_SPINE_TRACE MIGRATED. It was the first hand-rolled instrument and the
         // one the intent names; it now asks the single filter instead of reading its own variable.
-        // FSH_OBSERVE=router replaces FSH_SPINE_TRACE=1, and the six emissions below became
+        // NSH_OBSERVE=router replaces NSH_SPINE_TRACE=1, and the six emissions below became
         // structured events that carry door, correlation_id and a timestamp without asking.
         let spine_trace =
             crate::observe::enabled(crate::observe::Target::Router, crate::observe::Level::Debug);
         // ⚠️ TWO REASONS THE SPINE IS OFF, and saying the wrong one is worse than silence: the
         // env var is an escape hatch the user chose, while the exclusion is structural. This
-        // printed "disabled by FSH_SPINE=0" for every `jobs` and `kill %n` with the variable
+        // printed "disabled by NSH_SPINE=0" for every `jobs` and `kill %n` with the variable
         // unset, which would send a future reader hunting an environment problem that is not
         // there.
         if spine_trace && !spine_on {
@@ -1039,7 +1039,7 @@ impl Engine {
                 crate::observe::emit(crate::observe::Event {
                     level: crate::observe::Level::Debug,
                     target: crate::observe::Target::Router,
-                    message: "disabled by FSH_SPINE=0, legacy routing",
+                    message: "disabled by NSH_SPINE=0, legacy routing",
                     fields: &[],
                 });
             }
@@ -1664,7 +1664,7 @@ impl Engine {
     /// Say that legacy routing does not implement a construct, and set a failing status.
     ///
     /// The two call sites were identical five-line blocks differing only in a noun, and a message
-    /// duplicated in two places drifts. What it says is a contract rather than a nicety: FSH_SPINE
+    /// duplicated in two places drifts. What it says is a contract rather than a nicety: NSH_SPINE
     /// is a MIGRATION AID for comparing routing, not a fallback shell, so legacy names what it no
     /// longer implements instead of splitting text and hoping -- which is how a backgrounded
     /// pipeline once handed `cat` an ampersand as an argument.
@@ -1673,7 +1673,7 @@ impl Engine {
     /// boundary is the thing INT-201 does not do.
     pub fn refuse_unimplemented(&mut self, construct: &str) {
         eprintln!(
-            "{} legacy routing does not implement {} -- unset FSH_SPINE to use the shell's own",
+            "{} legacy routing does not implement {} -- unset NSH_SPINE to use the shell's own",
             colored::Colorize::bright_red("x"),
             construct
         );
@@ -1769,11 +1769,11 @@ pub fn execute_and_record(
     // ⚠️ ITS OLD EMPTINESS WAS INVALID EVIDENCE. It wrote to faelight/runtime/ with
     // OpenOptions::create(true), which never creates a parent, and that directory was lost in the
     // Phase 1 tree move -- so it never wrote a row and its silence meant nothing. Set
-    // FSH_OBSERVE_FILE to collect properly.
+    // NSH_OBSERVE_FILE to collect properly.
     //
     // ★ EVERY FIELD BELOW WAS ADDED AFTER A ROW PROVED UNREADABLE WITHOUT IT, and each is kept:
     //   spine -- a `plain` row is otherwise ambiguous between "a real command still needs legacy"
-    //            and "a test pinned FSH_SPINE=0", and a measurement that cannot tell those apart
+    //            and "a test pinned NSH_SPINE=0", and a measurement that cannot tell those apart
     //            is worse than none.
     //   shape -- forty rows from `ps | where` and forty from ordinary commands point in opposite
     //            directions; the count alone decides nothing.
@@ -1789,7 +1789,7 @@ pub fn execute_and_record(
         } else {
             "plain"
         };
-        let spine = if std::env::var("FSH_SPINE").map(|v| v != "0").unwrap_or(true) {
+        let spine = if std::env::var("NSH_SPINE").map(|v| v != "0").unwrap_or(true) {
             "spine-on"
         } else {
             "spine-off"

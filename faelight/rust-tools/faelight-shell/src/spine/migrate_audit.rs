@@ -306,7 +306,7 @@ impl MigrationReport {
         // state the identity, then the CONSEQUENCE. A version printed alone is a fact a reader
         // skims; a version printed beside what it means is one they act on.
         //
-        // Unlike fsh-test there is no FSH_BIN to point elsewhere -- this code IS the shell -- so
+        // Unlike fsh-test there is no NSH_BIN to point elsewhere -- this code IS the shell -- so
         // the honest move is to name the running build and the command that rebuilds it.
         let version = env!("CARGO_PKG_VERSION");
         let exe = std::env::current_exe()

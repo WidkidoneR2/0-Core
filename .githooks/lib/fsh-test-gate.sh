@@ -10,9 +10,9 @@
 # pre-commit does not invoke it at all unless the push touches shell or harness sources. No
 # hand-rolled diff logic to get wrong.
 #
-# WHY IT BUILDS FIRST. FSH_BIN defaults to the DEPLOYED shell, so a hook that used the default
+# WHY IT BUILDS FIRST. NSH_BIN defaults to the DEPLOYED shell, so a hook that used the default
 # would test the shell you are RUNNING rather than the code you are SENDING -- passing a broken
-# change, and failing a good one pushed after a bad deploy. It builds and points FSH_BIN at the
+# change, and failing a good one pushed after a bad deploy. It builds and points NSH_BIN at the
 # fresh debug binary instead.
 #
 # NO cargo IN runtimeInputs. writeShellApplication PREPENDS runtimeInputs to PATH without
@@ -43,13 +43,13 @@ if ! cargo build -p faelight-shell -p fsh-test --message-format=short; then
 fi
 
 # THE PACKAGE IS faelight-shell; THE BINARY IS nsh. cargo build -p above takes the
-# PACKAGE name and is unchanged. FSH_BIN takes a PATH, and cargo stopped producing
+# PACKAGE name and is unchanged. NSH_BIN takes a PATH, and cargo stopped producing
 # target/debug/faelight-shell when the [[bin]] landed -- so this pointed at a stale
 # artifact from before the rename, or at nothing in a clean tree.
-if ! FSH_BIN="$root/target/debug/nsh" ./target/debug/fsh-test; then
+if ! NSH_BIN="$root/target/debug/nsh" ./target/debug/fsh-test; then
   echo ""
   echo "  BLOCKED: fsh-test is red. This is the gate doing its job."
-  echo "  Reproduce: FSH_BIN=\$PWD/target/debug/nsh ./target/debug/fsh-test"
+  echo "  Reproduce: NSH_BIN=\$PWD/target/debug/nsh ./target/debug/fsh-test"
   exit 1
 fi
 

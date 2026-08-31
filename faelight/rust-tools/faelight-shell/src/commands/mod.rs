@@ -214,8 +214,8 @@ fn fuzzy_select(items: &str, prompt: &str, ansi: bool) -> Result<String, Command
 }
 
 pub(crate) fn correlation() -> String {
-    let sess = std::env::var("FSH_SESSION_ID").unwrap_or_default();
-    let exec = std::env::var("FSH_EXECUTION_ID").unwrap_or_default();
+    let sess = std::env::var("NSH_SESSION_ID").unwrap_or_default();
+    let exec = std::env::var("NSH_EXECUTION_ID").unwrap_or_default();
     if sess.is_empty() && exec.is_empty() {
         String::new()
     } else {
@@ -237,8 +237,8 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     // owns 43,081 of the events table's rows, so it is the one whose correlation_id
     // decides whether a typed line can be reconstructed at all.
     //
-    // The pair comes from the environment -- FSH_SESSION_ID once per process,
-    // FSH_EXECUTION_ID at every mint -- because INT-191 proved either half alone is a
+    // The pair comes from the environment -- NSH_SESSION_ID once per process,
+    // NSH_EXECUTION_ID at every mint -- because INT-191 proved either half alone is a
     // key that looks unique and is not: execution_id restarts at 1 in every shell.
     //
     // ⚠️ NOT YET ONE OWNER. The canonical emit() lives in the engine crate and fsh
@@ -1990,12 +1990,12 @@ fn execute_dispatch(
                     // shell/forest-relevant vars -- capturing ALL of std::env would drag in
                     // session-specific system noise (DBUS addr, XDG runtime paths, PID vars)
                     // that would be wrong to restore into a different session. PATH plus any
-                    // FAELIGHT_*/FSH_* project vars are what "reproducible" actually needs.
+                    // FAELIGHT_*/NSH_* project vars are what "reproducible" actually needs.
                     let env_map: std::collections::BTreeMap<String, String> = std::env::vars()
                         .filter(|(k, _)| {
                             k == "PATH"
                                 || k.starts_with("FAELIGHT_")
-                                || k.starts_with("FSH_")
+                                || k.starts_with("NSH_")
                                 || k.starts_with("FOREST_")
                         })
                         .collect();
@@ -2170,7 +2170,7 @@ fn execute_dispatch(
                 "SHELL",
                 "XDG_CURRENT_DESKTOP",
                 "WAYLAND_DISPLAY",
-                "FSH_SESSION_ID",
+                "NSH_SESSION_ID",
             ];
             let mut vars = serde_json::Map::new();
             for key in &keys {
@@ -2326,7 +2326,7 @@ fn execute_dispatch(
                             "SHELL",
                             "XDG_CURRENT_DESKTOP",
                             "WAYLAND_DISPLAY",
-                            "FSH_SESSION_ID",
+                            "NSH_SESSION_ID",
                         ];
                         let mut diffs = 0;
                         for key in &keys {
@@ -4919,7 +4919,7 @@ fn execute_dispatch(
         // Proven 2026-07-16: `env FOO=1 echo real_env_would_print_this` -> the table. Real env
         // is right there at coreutils-9.11/bin/env; fsh was shadowing it and eating the command.
         // Third arm today with this shape, after python3 and bash.
-        // NO ARGS -> fsh's own curated table (HOME/USER/PATH + FSH_FOCUS). That is fsh's to
+        // NO ARGS -> fsh's own curated table (HOME/USER/PATH + NSH_FOCUS). That is fsh's to
         // define and it is genuinely more useful than a raw dump. Keep it.
         // WITH ARGS -> that is coreutils env: `env VAR=x cmd`, `env -u VAR cmd`, `env -i cmd`.
         // fsh has no business interpreting any of those. Fall through to run_external.
@@ -4930,11 +4930,11 @@ fn execute_dispatch(
         "env" => {
             // CURATE PRESENTATION, NOT TRUTH. This printed a HARDCODED LIST OF TEN variables
             // under the heading Shell Environment, so everything else was invisible --
-            // including fsh's own FSH_VERSION, FSH_BUILD, FSH_SESSION_ID and FSH_EXECUTION_ID.
+            // including fsh's own NSH_VERSION, NSH_BUILD, NSH_SESSION_ID and NSH_EXECUTION_ID.
             // On 2026-08-22 that cost half an hour: piping env into grep returned one line and
             // sent a debugging session chasing a variable it wrongly believed was unset.
             //
-            // It also FABRICATED. FSH_FOCUS was printed from the DATABASE, not the environment,
+            // It also FABRICATED. NSH_FOCUS was printed from the DATABASE, not the environment,
             // so a reader would expect a child process to inherit something that was never
             // there. Shell state now prints under its own heading, plainly labelled.
             //
@@ -4942,7 +4942,7 @@ fn execute_dispatch(
             // added anywhere in fsh appears here without anyone updating an array.
             let mut vars: Vec<(String, String)> = std::env::vars().collect();
             fn rank(k: &str) -> u8 {
-                if k.starts_with("FSH_") {
+                if k.starts_with("NSH_") {
                     0
                 } else if matches!(k, "SHELL" | "SHLVL" | "PATH" | "HOME" | "USER" | "PWD") {
                     1
@@ -5917,7 +5917,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
 ///
 /// `trace` takes the newest command of this session; `trace N` takes execution N.
 /// NAMED trace, NOT story: `story` already delegates to `core story`, a different feature
-/// that owns the name. It also sits beside FSH_TRACE, which reports which executor claimed
+/// that owns the name. It also sits beside NSH_TRACE, which reports which executor claimed
 /// a line -- same vocabulary, same question asked at two levels.
 fn trace_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let session = crate::exec::session_id();
@@ -9329,7 +9329,7 @@ fn spawn_pipeline(
         // the overlay was built and thrown away -- and the compiler cannot warn about a
         // match that was never written.
         //
-        // Measured 2026-08-22: FSH_BIN=/nonexistent ./target/debug/fsh-test ran the
+        // Measured 2026-08-22: NSH_BIN=/nonexistent ./target/debug/fsh-test ran the
         // suite normally under fsh and failed 157 of 158 under bash, which delivers the
         // variable. A prefix assignment that is accepted and ignored makes every
         // environment-controlled test a lie, including this suite's own isolation.
@@ -10050,7 +10050,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // ⚠️ AND ITS OLD ZERO-ROW RESULT WAS INVALID EVIDENCE, not an answer. It wrote to
     // faelight/runtime/ with OpenOptions::create(true), which never creates a parent directory,
     // and that directory was lost in the Phase 1 tree move -- so every write silently failed.
-    // Set FSH_OBSERVE_FILE to ask the question properly; the sink creates its own directory and
+    // Set NSH_OBSERVE_FILE to ask the question properly; the sink creates its own directory and
     // says so loudly if it cannot.
     crate::observe::emit(crate::observe::Event {
         level: crate::observe::Level::Debug,
@@ -14764,7 +14764,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // while testing a HARDCODED path in one user's checkout -- a path that does not
     // exist on this machine, so the check reported missing EVERY TIME it ran.
     // current_exe() is the honest answer to "which binary is this" -- the same value
-    // FSH_BUILD exports and the instrument log writes, through one owner.
+    // NSH_BUILD exports and the instrument log writes, through one owner.
     let fsh_bin = std::env::current_exe().is_ok();
     checks.push((
         "fsh binary",

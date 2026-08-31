@@ -44,7 +44,7 @@ static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 /// two ExecContext constructors, because one mint point cannot disagree with itself
 /// and two publishers could. An execution id that a child process cannot see does not
 /// serve its purpose: the engine runs as a separate process and reads its half of the
-/// identity from the environment, exactly as it already reads FSH_SESSION_ID.
+/// identity from the environment, exactly as it already reads NSH_SESSION_ID.
 ///
 /// INT-167 P0b. Together the two variables give any tool the PAIR without a signature
 /// change at 36 emit sites -- which is what makes P0c mechanical instead of invasive.
@@ -64,7 +64,7 @@ static NEXT_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 /// still one source of the number. A path the REPL loop does not drive -- a subshell built through
 /// from_plan -- finds nothing published and mints, which is correct: it is a different execution.
 pub fn current_execution_id() -> u64 {
-    match std::env::var("FSH_EXECUTION_ID")
+    match std::env::var("NSH_EXECUTION_ID")
         .ok()
         .and_then(|v| v.parse().ok())
     {
@@ -75,7 +75,7 @@ pub fn current_execution_id() -> u64 {
 
 pub fn next_execution_id() -> u64 {
     let id = NEXT_EXECUTION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    unsafe { std::env::set_var("FSH_EXECUTION_ID", id.to_string()) }
+    unsafe { std::env::set_var("NSH_EXECUTION_ID", id.to_string()) }
     id
 }
 
@@ -102,7 +102,7 @@ pub fn build_identity() -> String {
 
 /// INT-191: WHO IS THIS SHELL INSTANCE?
 ///
-/// Nothing owned that question before. `FSH_SESSION_ID` is read in three places and set in NONE --
+/// Nothing owned that question before. `NSH_SESSION_ID` is read in three places and set in NONE --
 /// no .rs, .nix, .sh or .fsh file in the tree writes it -- which is why `term_commands` holds 42,376
 /// rows under the fallback string "unknown". That fallback turns "the variable is missing" into
 /// "there is a shared session called unknown"; absence should TRIGGER CREATION, not become a value.
