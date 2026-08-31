@@ -2350,6 +2350,29 @@ fn all_tests() -> Vec<TestResult> {
             expect_contains(&out.join("\n"), "alive")
         },
     ));
+
+    // CONTINUATION. fsh waits for an unterminated quote to close, exactly as bash does --
+    // measured 2026-09-01 by piping two lines and a close into it: the quoted string came
+    // back spanning both lines, then the next command ran, and the session counted three
+    // commands. Two earlier cases asserted the opposite and timed out at 30s; they were
+    // wrong about the shell, not the shell about the input.
+    //
+    // Whether the HARNESS can express it is the open question this case answers. Every
+    // line waits for READY (bracketed-paste-on, the line editor asking for input) before
+    // the next is sent. If rustyline re-announces that while continuing a command, this
+    // passes and nothing needs changing. If it does not, this times out and the harness
+    // needs a second synchronisation point.
+    results.push(test(
+        "hostile_quote_continuation",
+        Category::Hostile,
+        || {
+            // THE CONSTRUCT IS LAST, deliberately: the capture window holds the final
+            // command output only, so a trailing echo would be the thing captured.
+            let (out, _) = repl::run_repl_multiline(&["echo 'first", "second'"], &[])?;
+            let joined = out.join("\n");
+            expect_contains(&joined, "first").and_then(|_| expect_contains(&joined, "second"))
+        },
+    ));
     results
 }
 

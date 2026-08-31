@@ -233,11 +233,33 @@ pub fn case_db_dir() -> String {
     format!("/tmp/fsh-test-{}", std::process::id())
 }
 
+/// Submit several lines that form ONE continued construct, then capture its output.
+///
+/// Every line but the last is HELD: sent without waiting for the prompt to return, because a
+/// line inside an unterminated quote, a for loop or an if block does not complete a command
+/// and no prompt comes back for it. The last line closes the construct and waits normally.
+///
+/// WHY THE CONSTRUCT MUST BE LAST. The capture window runs from the LAST `?2004l` to the
+/// following `133;A`, so it holds the final command's output and nothing else. A trailing
+/// `echo alive` would therefore be the thing captured and the construct's own output would be
+/// lost. Put the construct last and assert on it directly.
+///
+/// fsh continues correctly -- measured 2026-09-01: two lines and a close came back as one
+/// string spanning both, and the session counted the right number of commands. Until this
+/// existed the suite could not express that, or any for/while/if typed across lines.
+pub fn run_repl_multiline(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+) -> Result<(Vec<String>, Option<i32>), String> {
+    let hold = cmds.len().saturating_sub(1);
+    run_session(cmds, env, None, hold)
+}
+
 pub fn run_repl_lines_status(
     cmds: &[&str],
     env: &[(&str, &str)],
 ) -> Result<(Vec<String>, Option<i32>), String> {
-    run_session(cmds, env, None)
+    run_session(cmds, env, None, 0)
 }
 
 /// Submit ONE line expected to hit fsh's safety guard, and answer the guard's prompt.
@@ -250,7 +272,7 @@ pub fn run_repl_lines_status(
 /// `needle` is a parameter rather than a constant on purpose: the harness should not hold a copy
 /// of the shell's wording. The case that cares states it.
 pub fn run_repl_answered(cmd: &str, needle: &str, reply: &str) -> Result<Vec<String>, String> {
-    run_session(&[cmd], &[], Some((needle, reply))).map(|(lines, _)| lines)
+    run_session(&[cmd], &[], Some((needle, reply)), 0).map(|(lines, _)| lines)
 }
 
 /// Submit SETUP LINES, then one line expected to hit the guard, and answer its prompt.
@@ -274,7 +296,7 @@ pub fn run_repl_answered_after(
 ) -> Result<Vec<String>, String> {
     let mut all: Vec<&str> = setup.to_vec();
     all.push(cmd);
-    run_session(&all, &[], Some((needle, reply))).map(|(lines, _)| lines)
+    run_session(&all, &[], Some((needle, reply)), 0).map(|(lines, _)| lines)
 }
 
 /// THE ONE OWNER OF THE SESSION PROTOCOL: spawn, reader thread, submit, capture, teardown.
@@ -297,6 +319,7 @@ fn run_session(
     cmds: &[&str],
     env: &[(&str, &str)],
     answer: Option<(&str, &str)>,
+    hold: usize,
 ) -> Result<(Vec<String>, Option<i32>), String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
@@ -411,6 +434,18 @@ fn run_session(
                 .write_all(reply.as_bytes())
                 .map_err(|e| e.to_string())?;
             master.write_all(b"\n").map_err(|e| e.to_string())?;
+        }
+        // A HELD LINE DOES NOT COMPLETE A COMMAND, so waiting for READY after it is
+        // waiting for something that will never arrive. Measured 2026-09-01 in a real pty:
+        // after `echo 'first` fsh repaints its ordinary prompt with the partial line and
+        // emits NO ?2004h -- the continuation prompt is textually identical to the normal
+        // one, so there is no second marker to synchronise on. Skipping the wait is not a
+        // shortcut around the no-sleeps rule; it is the only option the shell offers, and
+        // the NEXT line's wait proves the whole construct completed.
+        //
+        // The last line always waits, so a case still fails on a hang rather than passing.
+        if idx < hold {
+            continue;
         }
         wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30))
             .ok_or_else(|| format!("timed out waiting for the prompt after: {cmd}"))?;
