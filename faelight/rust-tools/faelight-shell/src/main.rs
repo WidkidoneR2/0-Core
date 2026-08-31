@@ -859,19 +859,19 @@ fn main() -> Result<()> {
         // Placed ABOVE the -c handler: these exit before any runtime is built, so they cost
         // nothing and work even when the forest is absent.
         if args.iter().any(|a| a == "--version" || a == "-V") {
-            println!("faelight-shell {}", env!("CARGO_PKG_VERSION"));
+            println!("NovaShell {}", env!("CARGO_PKG_VERSION"));
             return Ok(());
         }
         if args.iter().any(|a| a == "--help") {
             println!(
-                "faelight-shell {} -- the Faelight shell",
+                "NovaShell {} -- speaks human first, UNIX as fallback",
                 env!("CARGO_PKG_VERSION")
             );
             println!();
-            println!("  fsh                 start an interactive shell");
-            println!("  fsh -c COMMAND      run COMMAND and exit");
-            println!("  fsh --version       print the version");
-            println!("  fsh --help          print this");
+            println!("  nsh                 start an interactive shell");
+            println!("  nsh -c COMMAND      run COMMAND and exit");
+            println!("  nsh --version       print the version");
+            println!("  nsh --help          print this");
             println!();
             // INT-207: NSH_TRACE and NSH_SPINE_TRACE are gone, replaced by ONE selector.
             // The help is the shell's public account of its own instruments, so a variable named
@@ -881,7 +881,7 @@ fn main() -> Result<()> {
             println!("  NSH_OBSERVE_LEVEL=L  trace, debug (default), info, warn");
             println!("  NSH_BOOT_PROFILE=1  report startup and per-command timings");
             println!("  NSH_SPINE=0         route through the legacy executor");
-            println!("  NSH_KEEP_CWD=1      stay in the directory fsh was spawned in");
+            println!("  NSH_KEEP_CWD=1      stay in the directory nsh was spawned in");
             return Ok(());
         }
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
