@@ -56,7 +56,13 @@ pub fn fsh_bin() -> String {
         // paths::bin_dir owns where a deployed binary lives, so the fallback follows it
         // instead of naming a location. Same accessor ship writes to.
         Err(_) => {
-            let p = faelight_core::paths::bin_dir().join("faelight-shell");
+            // THE BINARY IS nsh. It was faelight-shell until 2026-09-01, and this fallback
+            // kept pointing at the old name after the rename -- so the suite reported
+            // "under test: .../faelight-shell" and passed 178 cases about a binary the
+            // machine was no longer running. The same defect as the store path this
+            // fallback was written to fix, arriving from the other side: then it could not
+            // find its subject, now it finds the WRONG one confidently.
+            let p = faelight_core::paths::bin_dir().join("nsh");
             // BOTH ARMS REFUSE NOW. The Ok arm has always exited 2 when FSH_BIN names a
             // missing binary, with the right reasoning: refusing to fall back is how a
             // stale binary is kept from passing. The fallback arm did no such check, so
@@ -70,7 +76,7 @@ pub fn fsh_bin() -> String {
                 eprintln!("  Nothing was tested. A missing subject is not a failing suite.");
                 eprintln!();
                 eprintln!("  Recovery");
-                eprintln!("    - ship faelight-shell        install it, then re-run");
+                eprintln!("    - ship nsh                   install it, then re-run");
                 eprintln!("    - FSH_BIN=<path> fsh-test    test a binary somewhere else");
                 std::process::exit(2);
             }

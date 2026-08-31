@@ -5,6 +5,19 @@ version = "3.8.4"
 edition = "2021"
 description = "The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
 
+# THE BINARY IS nsh; THE PACKAGE IS STILL faelight-shell.
+#
+# fsh collides with fish -- same abbreviation, and anyone reading fsh in a ps listing or a
+# README reads it as the other shell. nsh (NovaShell) does not.
+#
+# A [[bin]] rather than a package rename, deliberately: the package name is what every
+# dependency reference and the directory itself carry, and the wider faelight-* -> zero-*
+# rename is still ahead. Renaming the package now means renaming it twice. This changes the
+# one thing that needed changing -- what the shell is called when you run it.
+[[bin]]
+name = "nsh"
+path = "src/main.rs"
+
 [dependencies]
 faelight-core = { path = "../faelight-core" }
 rustyline = "17.0.2"

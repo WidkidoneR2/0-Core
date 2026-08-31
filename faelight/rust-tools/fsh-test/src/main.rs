@@ -134,7 +134,7 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
 /// manufacturing a number there would make a comparison look performed when it was not. A caller
 /// that wants the signal convention asks for it; this reports what it saw.
 fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> {
-    let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "faelight-shell".to_string());
+    let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "nsh".to_string());
     let out = Command::new(&fsh)
         .env("FSH_KEEP_CWD", "1")
         .env("FAELIGHT_STATE_DB", repl::case_db_path())
@@ -831,7 +831,7 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test("fsh_binary_exists", Category::Regression, || {
-        expect_contains(&run_fsh("which faelight-shell")?, "faelight-shell")
+        expect_contains(&run_fsh("which nsh")?, "nsh")
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md")
@@ -891,7 +891,7 @@ fn all_tests() -> Vec<TestResult> {
             // ⚠️ SPAWNS DIRECTLY RATHER THAN THROUGH THE HELPER, because run_fsh_status always passes
             // an operand and this case is about there being none. `-c ""` is a present-but-empty
             // operand and exits 0, which is a different thing entirely.
-            let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "faelight-shell".to_string());
+            let fsh = std::env::var("FSH_BIN").unwrap_or_else(|_| "nsh".to_string());
             let out = Command::new(&fsh)
                 .env("FSH_KEEP_CWD", "1")
                 .env("FAELIGHT_STATE_DB", repl::case_db_path())
