@@ -2695,8 +2695,20 @@ fn repl_main() -> Result<()> {
                 let m6_universal_line = line.clone();
                 let m6_universal_word = guard_word.clone();
                 // INT-246: safety_guard -- check BEFORE any execution path
+                // ⭐ THE EXPANDED LINE, NOT THE TYPED ONE. guard_line is computed three lines
+                // above and was logged and then discarded here, which meant the guard judged
+                // two different strings at once: an EXPANDED word and a TYPED line.
+                //
+                // A word-only rule survived that. mkfs.zzz behind an alias still challenged,
+                // because safety_guard.rs:100 reads first_word alone. A rule needing BOTH
+                // halves did not: line 69 is first_word == "rm" && lower.contains("-rf"), and
+                // behind an alias the word matched while the line -- `zzguard` -- carried no
+                // -rf. The rule failed open, silently, and INT-197's gate was ticked over it.
+                //
+                // Proven red first: repl_197_alias_expansion_reaches_the_safety_guard timed
+                // out at 20s waiting for a challenge that never came.
                 if let Some(word) = guard_word.as_deref() {
-                    if let Some(warning) = safety_guard::check(&line, word) {
+                    if let Some(warning) = safety_guard::check(&guard_line, word) {
                         if !safety_guard::challenge_gate(&warning) {
                             engine.set_last_exit(Some(1));
                             continue 'repl;
@@ -2752,6 +2764,15 @@ fn repl_main() -> Result<()> {
                     // multi-line branch above takes them all. These assertions cost nothing in
                     // release, and if anything ever DOES arrive they fail loudly rather than
                     // silently guarding a line the universal guard never saw.
+                    //
+                    // ⚠️ THESE ASSERTIONS NOW DESCRIBE A DIFFERENT ARRANGEMENT THAN THE UNIVERSAL
+                    // SITE USES. Since 2026-09-02 that site judges guard_line -- the ALIAS-EXPANDED
+                    // line -- because passing the typed one let an alias hide the payload from any
+                    // rule needing both a word and a line. This site still asks about `line`, and
+                    // m6_universal_word was derived from the expansion, so the second assertion
+                    // compares an expanded word against a typed one. It cannot fire on a path
+                    // nothing reaches; if a heredoc ever DOES arrive here, expect it to fail on
+                    // that mismatch first and read this note before assuming a regression.
                     debug_assert_eq!(
                         m6_universal_line, line,
                         "M6: the heredoc site sees a DIFFERENT line than the universal guard judged"

@@ -2493,6 +2493,64 @@ fn all_tests() -> Vec<TestResult> {
             },
         ));
     }
+    results.push(test(
+        "repl_197_alias_expansion_reaches_the_safety_guard",
+        Category::Repl,
+        || {
+            // INT-197 REMAINDER, and the gate above it was ticked while this was open.
+            //
+            // The guard receives TWO things: a word and a line. The WORD is derived from
+            // guard_line, which is engine.expand_aliases(&line) -- so it is expanded. The LINE
+            // passed as cmd is the TYPED one. main.rs:2683 computes the expansion, 2688 logs
+            // it, and 2699 discards it and passes &line instead.
+            //
+            // ⭐ THE SCOPE IS NARROWER THAN IT FIRST LOOKED, and measuring corrected it twice.
+            //
+            // A WORD-ONLY rule survives aliasing. safety_guard.rs:100 matches
+            // first_word.starts_with("mkfs"), and first_word IS expanded -- so
+            // `alias a = mkfs.zzz` then `a` challenges, reporting "Filesystem format: a".
+            // Verified 2026-09-02; a test with that payload passes and proves nothing.
+            //
+            // A RULE NEEDING BOTH HALVES DOES NOT. safety_guard.rs:69 is
+            //     first_word == "rm" && lower.contains("-rf")
+            // where first_word is expanded and `lower` comes from cmd, the TYPED line. Behind
+            // an alias the word half matches and the line half cannot: the typed line is
+            // `zzguard`, which contains no -rf. The rule silently fails open.
+            //
+            // Line 71 has the same shape -- cmd.contains(t) for the safe-target check.
+            //
+            // PAYLOAD, AND IT TOOK TWO WRONG ONES TO GET HERE.
+            //
+            // mkfs.zzz was wrong: word-only rule, passes without proving anything.
+            // rm -rf /tmp/... was ALSO wrong, and worse -- safety_guard.rs:69 carries
+            // safe_targets = ["/tmp/", "/tmp ", "target/", "./target"], so a /tmp payload is
+            // the payload the guard DELIBERATELY PERMITS. The case went red and proved only
+            // that /tmp is allowed. The path chosen to make a failed abort harmless was the
+            // same path that made the rule not fire.
+            //
+            // /nonexistent-nsh-zzguard: outside every safe target, and absent, so a failed
+            // abort removes nothing. A safety test whose payload is destructive when the
+            // abort fails is not a safety test -- and one whose payload is allowlisted is
+            // not a test at all.
+            let out = repl::run_repl_answered_after(
+                &["alias zzguard = 'rm -rf /nonexistent-nsh-zzguard'"],
+                "zzguard",
+                "Type 'yes' to proceed",
+                "no",
+            )?;
+            let challenged = out.iter().any(|l| l.contains("CHALLENGE"));
+            let blocked = out
+                .iter()
+                .any(|l| l.contains("Command blocked by Friday safety guard"));
+            if challenged && blocked {
+                Ok(())
+            } else {
+                Err(format!(
+                    "an alias hid the payload from the guard (challenged={challenged}, blocked={blocked}) -- the guard judged the TYPED word, not the expansion: {out:?}"
+                ))
+            }
+        },
+    ));
     results
 }
 
