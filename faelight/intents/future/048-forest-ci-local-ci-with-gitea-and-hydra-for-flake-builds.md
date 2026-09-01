@@ -35,6 +35,21 @@ Hydra: available as NixOS service (services.hydra)
 flake.nix: already builds faelight-forest as derivation
 nixos-lab.qcow2: VM available for isolated builds
 
+## ⚠️ EVERYTHING FROM HERE TO THE RESCOPE IS HISTORY, NOT A PLAN
+
+The approach, the four phases and the nine gates below describe Gitea plus Hydra
+building flake derivations. nix/ and flake.nix were deleted with the Omarchy
+migration on 2026-08-28, and Hydra is a Nix build farm with nothing left to build.
+Not one of those gates is work to do.
+
+They are kept rather than cut because the reasoning is sound and the rule at the end
+still holds -- and because the ledger records what was true when written. The title
+and the RESCOPED section carry the live finding; read those.
+
+This marker exists because the section head and the gate list read as open work. A
+document whose top and middle disagree is the defect ALIASES.md was, and someone
+hitting Phase 1 first should know before planning a VM pipeline for a wiped machine.
+
 ## Approach
 OPTION A -- Gitea + Hydra on local machine (full)
   Run Gitea as NixOS service (local git host)
@@ -124,6 +139,29 @@ SUCCESS CRITERIA
 - [ ] A fresh clone either arms its own hooks or refuses to commit until armed
 - [ ] Watch it fail first: clone to /tmp, commit something rustfmt would reject,
       confirm it goes through today
-- [ ] The check reports which gates are active, so no output cannot mean not
+- [x] The check reports which gates are active, so no output cannot mean not
       installed
+      <!-- DONE 2026-09-02, two halves.
+
+      THE DOCTOR ASKS THE QUESTION NOW. check_hooks reports core.hooksPath and whether
+      the hooks carry the executable bit, with three distinct failure modes: unset,
+      pointed elsewhere, or present but not executable -- git skips that last one
+      SILENTLY, which a fresh clone can produce. Unknown when git itself cannot be
+      asked, per INT-148.
+
+      Demonstrated by unsetting core.hooksPath and running d: the check went red and
+      named the disarmed gate. Restored, and it passes.
+
+      AND THE GATE NAMES ITS OWN BINARY. The wrapper resolves target/debug, then
+      target/release, then PATH -- debug FIRST so the gate judges the tree being
+      pushed. Nothing reported which won, so a defeated preference looked identical to
+      a satisfied one. Measured the same day: target/debug/zero-gate did not exist, so
+      every push that day ran the release build, current only because ship happens to
+      rebuild it. It now prints one line when it is not the debug build, and a second
+      if a NEWER debug build exists beside it. Silent otherwise -- silent on success is
+      still the rule.
+
+      ⚠️ THE OTHER THREE CRITERIA STAY OPEN. This makes absence VISIBLE; it does not
+      make a fresh clone arm itself, and nothing yet refuses to commit until armed.
+      That is the remaining work and it is the harder half. -->
 - [ ] Decide separately whether a runner (Gitea Actions) is wanted at all
