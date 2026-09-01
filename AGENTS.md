@@ -356,6 +356,46 @@ is wrong, fix the generator.
 
 ---
 
+## Version Control
+
+The commit is the receipt. CHANGELOG.md is a lagging copy of it, and the intent
+ledger cites SHAs -- so a commit body is load-bearing evidence rather than a
+courtesy.
+
+**The subject names the subsystem and the fact.** `nsh: the suite can tell a
+stale binary from a current one`, not `fix tests`. The body says what was false,
+what is true now, and how that was watched.
+
+**One boundary per commit.** The fsh -> nsh rename went bashrc, then the
+`[[bin]]`, then the resolvers, then the tables -- each pushed separately. Mixing
+a rename, a new guard door and a WAL change into one SHA makes it impossible to
+say afterwards which one moved the number.
+
+**History is not a whiteboard.** No rebase to tidy a month, no amend of anything
+pushed. A wrong commit gets a FOLLOW-UP that cites it by hash. Rewriting deletes
+the generation numbers and measurements the ledger depends on -- the evidence
+lives in the bodies, not in a separate document.
+
+**Prefix the future, never rename the past.** Commit messages from July say
+`fsh` because that is what it was called in July. Leave them. New commits say
+`nsh`. The same rule governs intent files and changelogs: they record what was
+true when written.
+
+**A skipped hook is stated, not hidden.** If `--no-verify` lands a WIP, the next
+commit's body says the hook was skipped and why -- the same class of sentence as
+"the eighth gate is deliberately left red".
+
+**`git add` scope is a bug class, not a preference.** Commit 39031dc exists
+because a previous commit scoped `git add` to `faelight/` and missed the root
+`Cargo.lock` -- the second time that day. If the change touches a workspace
+dependency, add the lock deliberately.
+
+Conventional Commits, squash merges and force-pushes are all rejected for the
+same reason: each one flattens or discards the part of the log that is actually
+used.
+
+---
+
 ## Current Work -- September 2026
 
 ⚠️ THIS SECTION IS DATED AND MEANT TO BE REPLACED. Everything above it is a
