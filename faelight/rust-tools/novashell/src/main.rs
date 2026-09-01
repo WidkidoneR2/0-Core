@@ -1546,6 +1546,49 @@ fn run_input(
                 eprintln!("warning: failed to open command_execution record: {e}");
             }
         }
+        // THE SEGMENT BOUNDARY IS A SECURITY BOUNDARY, and it was not one until now.
+        //
+        // Measured 2026-09-02: `alias zzc3 = 'rm -rf /nonexistent'` then `zzc3` CHALLENGES,
+        // and `true && zzc3` runs SILENTLY. The line-level guard judges the whole line, so
+        // guard_command_word answers `true` -- the first word -- and the rm rule needs the
+        // word AND the flags. Neither half arrives. Every segment after the first was
+        // outside the gate.
+        //
+        // ⭐ FOUR CONSTRAINTS, EACH FROM THE CODE RATHER THAN CHOSEN:
+        //
+        // 1. split_into_segments STAYS THE SOLE SEGMENTER. The guard consumes its output and
+        //    does not learn about `&&`. The ast.rs note at AstNode::Background already ruled
+        //    that a second reading of the language is how a scope gets claimed that was never
+        //    observed; the earlier objection here declined a second SEGMENTER, not a second
+        //    call site.
+        //
+        // 2. AFTER chain_skips, so only segments that WILL RUN are judged. `false && rm -rf x`
+        //    never reaches this line for the rm, and a challenge for a command that cannot
+        //    execute is the loud-shell failure the philosophy names -- an alarm answered yes
+        //    every time teaches the answer.
+        //
+        // 3. AFTER expand_aliases at ~1492, because INT-197 ruled the guard judges what WILL
+        //    RUN rather than what was typed. That is the same three-step shape both existing
+        //    call sites use: expand, derive the word from the expansion, judge the expansion.
+        //
+        // 4. ONLY WHEN segment_count > 1. A single-segment line was already judged by the
+        //    line-level guard above run_input, and asking twice would challenge the same word
+        //    twice for no reason other than passing through two layers.
+        //
+        // ⚠️ THE OUTER GUARD IS NOT REDUNDANT AND MUST STAY. It sits ABOVE the multi-line
+        // branch, so it covers a pasted block that never reaches run_input at all -- the
+        // property INT-196 M8 proved holds. This closes the compound gap; it does not replace
+        // what already works.
+        if segment_count > 1 {
+            if let Some(word) = guard_command_word(line).map(|w| policy_identity(&w)) {
+                if let Some(warning) = safety_guard::check(line, &word) {
+                    if !safety_guard::challenge_gate(&warning) {
+                        engine.set_last_exit(Some(1));
+                        continue;
+                    }
+                }
+            }
+        }
         // WHICH EXECUTOR CLAIMED THIS LINE? The question cost hours on 2026-08-21, when a
         // command's path could only be inferred from which side effects appeared. There are
         // three answers -- spine, legacy, or sh -- and nothing reported them.

@@ -2602,6 +2602,53 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "repl_segment_after_and_reaches_the_guard",
+        Category::Repl,
+        || {
+            // THE COMPOUND GAP. `zzguard2` alone challenges; `true && zzguard2` ran SILENTLY
+            // until 2026-09-02. The line-level guard judges the WHOLE line, so its word is
+            // `true` and the rm rule -- which needs the word AND the flags -- got neither.
+            // Every segment after the first was outside the gate.
+            //
+            // split_into_segments stays the sole segmenter; the guard consumes its output at
+            // the execution boundary rather than learning about `&&`.
+            let out = repl::run_repl_answered_after(
+                &["alias zzguard2 = 'rm -rf /nonexistent-nsh-zzguard2'"],
+                "true && zzguard2",
+                "Type 'yes' to proceed",
+                "no",
+            )?;
+            let n = out.iter().filter(|l| l.contains("CHALLENGE")).count();
+            if n >= 1 {
+                Ok(())
+            } else {
+                Err(format!("no challenge for the executing segment: {out:?}"))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_skipped_segment_is_not_challenged",
+        Category::Repl,
+        || {
+            // CONSTRAINT 2: the guard sits AFTER chain_skips, so a segment the chain will not
+            // run is never judged. `false && rm -rf x` cannot execute the rm, and challenging
+            // for it would be an alarm answered yes every time -- which teaches the answer.
+            //
+            // Not a policy invented for this case: the loop's `continue` at chain_skips draws
+            // the line, and the guard is placed below it.
+            let out = repl::run_repl_lines(&[
+                "alias zzguard3 = 'rm -rf /nonexistent-nsh-zzguard3'",
+                "false && zzguard3",
+            ])?;
+            let n = out.iter().filter(|l| l.contains("CHALLENGE")).count();
+            if n == 0 {
+                Ok(())
+            } else {
+                Err(format!("a segment the chain SKIPS was challenged: {out:?}"))
+            }
+        },
+    ));
     results
 }
 
