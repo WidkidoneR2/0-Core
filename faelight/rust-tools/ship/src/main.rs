@@ -39,6 +39,15 @@ struct Args {
     /// Do not keep a versioned copy of the outgoing binary.
     #[arg(long)]
     no_backup: bool,
+    /// Remove an installed tool: back it up, then take it off PATH.
+    ///
+    /// The inverse of shipping, and deliberately NOT a second binary. `unship` is not a word,
+    /// and a separate crate would duplicate the backup naming, the record call and the prune --
+    /// three things that would then drift apart, which is the two-owners defect this tree keeps
+    /// finding. `retire` borrows its name from the registry, which already carries a `retired`
+    /// field that deadwood reads.
+    #[arg(long, value_name = "TOOL")]
+    retire: Option<String>,
 }
 
 struct Target {
@@ -194,6 +203,73 @@ fn record(tool: &str, version: &str, outcome: &str, ms: i64, errors: &mut Vec<St
 //
 // Fall back to a timestamp rather than to a guess. A file named @unknown-<epoch>
 // is honest about what it does not know; a wrong version number is not, and
+/// Take an installed tool off PATH, keeping the binary where rollback can find it.
+///
+/// ⚠ NOT A DELETE. It moves to bin/{tool}@{stamp}, the same place and the same naming ship
+/// uses for an outgoing binary, so `core deploy rollback` can restore a retired tool exactly as
+/// it restores a replaced one. Retiring is a decision, not an accident, and a decision you
+/// cannot undo is a worse tool than one you can.
+///
+/// ⚠ THE STAMP IS MTIME, NOT THE VERSION, and ship's own comment says why: several of these
+/// binaries are session daemons -- lock, idle, compositor, wallpaper -- and running one to ask
+/// its version is how a deploy takes down a session. This does not execute what it retires.
+///
+/// THE REGISTRY IS CHECKED BUT NOT EDITED. A tool marked deployable with no binary on PATH is
+/// the orphan deadwood flags -- it caught novashell doing exactly that on 2026-09-01. Retiring
+/// warns rather than refuses: refusing would mean editing the registry BEFORE you can retire,
+/// which makes the first step impossible.
+fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
+    let dest = bin.join(tool);
+    println!();
+    println!("  📦 retire  {}", tool);
+    if !dest.exists() {
+        println!("     {} is not installed at {}", tool, bin.display());
+        return 1;
+    }
+    let stamp = std::fs::metadata(&dest)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let keep = backup_dir.join(format!("{}@{}", tool, stamp));
+    if dry_run {
+        println!("     would move  {}", dest.display());
+        println!("             to  {}", keep.display());
+        return 0;
+    }
+    let _ = std::fs::create_dir_all(backup_dir);
+    if let Err(e) = std::fs::copy(&dest, &keep) {
+        eprintln!("     backup FAILED -- {}", e);
+        eprintln!("     nothing removed: a retire you cannot undo is a delete");
+        return 1;
+    }
+    if let Err(e) = std::fs::remove_file(&dest) {
+        eprintln!("     could not remove {} -- {}", dest.display(), e);
+        return 1;
+    }
+    println!("     kept  {}", keep.display());
+    println!("     gone  {}", dest.display());
+    let mut errors: Vec<String> = Vec::new();
+    record(tool, &format!("@{}", stamp), "retired", 0, &mut errors);
+    for e in &errors {
+        println!("     deploy record: {}", e);
+    }
+    let registry = faelight_core::paths::core_dir().join("faelight/registry/tools.toml");
+    let needle = format!("name = \"{}\"", tool);
+    if let Ok(text) = std::fs::read_to_string(&registry) {
+        let claimed = text.split("[[tool]]").any(|b| {
+            b.contains(&needle) && b.contains("deployable = true") && !b.contains("retired = true")
+        });
+        if claimed {
+            println!();
+            println!("     ⚠ the registry still lists {} as deployable.", tool);
+            println!("     deadwood flags it as an orphan until that entry says retired = true.");
+        }
+    }
+    0
+}
+
 fn main() {
     faelight_core::restore_sigpipe();
     let args = Args::parse();
@@ -201,6 +277,10 @@ fn main() {
     let bin = faelight_core::paths::bin_dir();
     let release = root.join("target/release");
     let backup_dir = root.join("bin");
+
+    if let Some(tool) = args.retire.clone() {
+        std::process::exit(retire(&tool, &bin, &backup_dir, args.dry_run));
+    }
 
     println!();
     println!("  \u{1F6A2} ship");

@@ -66,7 +66,12 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     }
     // Recent failure check
     let recent_failures: i64 = db.query_row(
-        "SELECT COUNT(*) FROM deploy_patterns WHERE tool = ?1 AND outcome != 'success' AND timestamp > ?2",
+        // ⚠️ NOT `!= success`. That counted every DELIBERATE outcome as a failure: `rollback`
+        // has been written by core deploy rollback since before this was measured, and `retired`
+        // joined it in 2026-09. Both are decisions, and neither says the last deploy broke.
+        // Naming failure explicitly is the fix -- an unknown future outcome should not silently
+        // become one.
+        "SELECT COUNT(*) FROM deploy_patterns WHERE tool = ?1 AND outcome = 'failed' AND timestamp > ?2",
         rusqlite::params![tool, chrono::Utc::now().timestamp() - 86400],
         |r: &rusqlite::Row| r.get::<_, i64>(0),
     ).unwrap_or(0);
@@ -133,8 +138,11 @@ pub fn record(
         rusqlite::params![now, tool, version, outcome, duration_ms, health, active_intents, commit],
     )?;
     // Emit engine signal
+    // The catch-all gave `rollback` and `retired` a weight of 0.0 -- the value reserved for
+    // nothing-happened -- when both are things a person chose to do.
     let weight: f64 = match outcome {
         "success" => 1.0,
+        "retired" | "rollback" => 0.6,
         "failed" => 0.3,
         _ => 0.0,
     };
@@ -147,14 +155,16 @@ pub fn record(
         rusqlite::params![payload, weight, now],
     );
     // INT-251 v23: emit to unified event bus
-    let event_kind = if outcome == "success" {
-        "deploy_completed"
-    } else {
-        "deploy_failed"
+    // A retirement is not a failed deploy, and the bus should not say it was.
+    let event_kind = match outcome {
+        "success" => "deploy_completed",
+        "retired" => "deploy_retired",
+        "rollback" => "deploy_rolled_back",
+        _ => "deploy_failed",
     };
     let _ = crate::domains::friday::events::emit(ctx, "deploy", event_kind, &payload, "core", None);
 
-    let icon = if outcome == "success" { "✅" } else { "❌" };
+    let icon = outcome_icon(outcome);
     println!(
         "  {} deploy recorded: {} {} ({}) {}ms",
         icon,
@@ -170,6 +180,24 @@ pub fn record(
     Ok(())
 }
 /// core deploy log -- recent deploy history
+/// ⭐ ONE OWNER FOR THE MAPPING, because there were two and they disagreed.
+///
+/// `record` printed one icon at write time and `log` computed its own at read time, both with
+/// `if outcome == "success"` and an else. Fixing the first left the second showing ❌ for the
+/// same row -- found immediately, by looking at the log after the fix.
+///
+/// THREE STATES, NOT TWO. `rollback` has been written by core deploy rollback since before this
+/// was measured, and `retired` joined it in 2026-09. Both are DECISIONS. Rendering them as
+/// failures is the same error the doctor made before INT-148 gave Unknown its own mark.
+fn outcome_icon(outcome: &str) -> &'static str {
+    match outcome {
+        "success" => "✅",
+        "retired" => "📦",
+        "rollback" => "↩",
+        _ => "❌",
+    }
+}
+
 pub fn log(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     db.execute_batch(CREATE_TABLE)?;
@@ -207,11 +235,7 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
         "─────────────────────────────────────────────".dimmed()
     );
     for (tool, version, outcome, duration_ms, health, ts) in rows {
-        let icon = if outcome == "success" {
-            "✅".to_string()
-        } else {
-            "❌".to_string()
-        };
+        let icon = outcome_icon(&outcome);
         let time = chrono::DateTime::from_timestamp(ts, 0)
             .map(|t| t.format("%m/%d %H:%M").to_string())
             .unwrap_or_default();

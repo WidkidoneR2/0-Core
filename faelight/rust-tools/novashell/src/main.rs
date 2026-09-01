@@ -203,6 +203,15 @@ fn guard_command_word(line: &str) -> Option<String> {
             _ => from_tokens(),
         },
         ParseResult::Incomplete(_) | ParseResult::Refused(_) => from_tokens(),
+        // ⭐ NO WORD, THEREFORE NO GUARD DECISION -- and that is safe because an Invalid line
+        // does not execute. Measured 2026-09-02: `rm -rf /nonexistent >` renders the
+        // missing-target diagnostic, does not run the rm, and exits 2 -- the same status bash
+        // gives for the same shape. A line the parser refuses is refused, not passed to sh.
+        //
+        // So the ungated-parse gap is theoretical rather than live. If Invalid ever becomes
+        // executable, this arm must fall through to from_tokens() like the two above it -- the
+        // scanner has been measured to answer everything the AST arm does (see the note at the
+        // top of this function), so the fallback is available and deliberately unused.
         ParseResult::Invalid(_) => None,
     }
 }
