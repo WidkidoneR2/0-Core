@@ -193,7 +193,7 @@ fn main() -> ExitCode {
     if stage == "--help" || stage == "-h" {
         eprintln!("zero-gate -- repository-owned quality gates");
         eprintln!();
-        eprintln!("  zero-gate pre-commit    secrets, risk tiers, formatting   (default)");
+        eprintln!("  zero-gate pre-commit    secrets, formatting   (default)");
         eprintln!("  zero-gate pre-push      the shell test suite");
         eprintln!("  zero-gate all           everything");
         eprintln!();

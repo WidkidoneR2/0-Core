@@ -6,33 +6,38 @@
 # minutes spent waiting for an answer that rarely changes within a series. A push is the thing
 # that leaves the machine, and a red push is what actually matters.
 #
-# THE SKIP IS THE FRAMEWORK'S, NOT THIS SCRIPT'S. The hook declares a `files` regex, so
-# pre-commit does not invoke it at all unless the push touches shell or harness sources. No
-# hand-rolled diff logic to get wrong.
+# ⚠️ THERE IS NO SKIP. This described a `files` regex declared by the Nix pre-commit
+# framework, which died with nix/. zero-gate runs this script on EVERY pre-push regardless of
+# what the push touches, so every push pays the suite. The comment survived its framework by a
+# week and was still promising a filter that no code implements.
+#
+# Implement a path filter in zero-gate as another Gate, or accept the cost. Do not describe one
+# that is not there.
 #
 # WHY IT BUILDS FIRST. NSH_BIN defaults to the DEPLOYED shell, so a hook that used the default
 # would test the shell you are RUNNING rather than the code you are SENDING -- passing a broken
 # change, and failing a good one pushed after a bad deploy. It builds and points NSH_BIN at the
 # fresh debug binary instead.
 #
-# NO cargo IN runtimeInputs. writeShellApplication PREPENDS runtimeInputs to PATH without
-# clearing it, so a toolchain pinned there could shadow the devshell's and silently test a
-# different compiler than the one you develop with. The devshell provides cargo; this checks
-# for it and says so plainly if it is missing.
+# WHY IT DOES NOT PIN A TOOLCHAIN. This was written about writeShellApplication prepending
+# runtimeInputs to PATH and shadowing the devshell's compiler. The devshell is gone with nix/,
+# but the reasoning outlived it: a gate that supplies its own cargo can silently test a
+# different compiler than the one you build with. It checks for cargo and says so plainly if
+# it is missing, rather than providing one.
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
 if ! command -v cargo > /dev/null 2>&1; then
   echo ""
-  echo "  FSH-TEST GATE (INT-202): cargo is not on PATH -- are you outside the devshell?"
+  echo "  NSH-TEST GATE (INT-202): cargo is not on PATH."
   echo "  This gate builds what you are pushing. It will not silently test the deployed"
   echo "  shell instead, because that would answer a question you did not ask."
   exit 1
 fi
 
 echo ""
-echo "  FSH-TEST GATE (INT-202): shell or harness sources are in this push."
+echo "  NSH-TEST GATE (INT-202): every push runs the suite -- there is no path filter."
 echo "  Building and running the suite against the code being PUSHED (~1 minute)."
 echo ""
 
