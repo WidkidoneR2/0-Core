@@ -32,9 +32,9 @@ Faelight NixOS 1.0.0
 2. **rebuild-safe** for any risky change -- not plain `rebuild`
 3. **VM first** for compositor/login changes (INT-021 sets this up)
 4. **One intent at a time** -- Friday contradicts focus>speed
-5. **After fsh rebuild** -- `exec faelight-shell` to pick up new binary
+5. **After nsh rebuild** -- `exec nsh` to pick up new binary
 6. **Gate rule** -- never defer intent gates silently, ask first
-7. **No sudo rm** -- fsh blocks it for safety
+7. **No sudo rm** -- nsh blocks it for safety
 
 ## Key File Paths
 

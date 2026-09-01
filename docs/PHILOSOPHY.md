@@ -317,7 +317,7 @@ No cron jobs. No systemd timers at boot. Everything runs **when you decide**.
 
 Principle: Trust is earned, not granted.
 
-**Human Vocabulary** -- fsh speaks your language first. delete, find, rename, make, launch before their UNIX equivalents. The shell learns you.
+**Human Vocabulary** -- nsh speaks your language first. delete, find, rename, make, launch before their UNIX equivalents. The shell learns you.
 
 Principle: The forest speaks human first.
 

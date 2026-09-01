@@ -1,4 +1,4 @@
-# Changelog -- faelight-shell (fsh)
+# Changelog -- NovaShell (nsh)
 
 ## 🎉 3.0.0 -- The Nix Crossing
 - 🌲 The shell crossed from Arch to NixOS -- fully native, no package-manager assumptions, no distro lock-in.

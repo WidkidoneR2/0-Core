@@ -16,7 +16,7 @@ writing 258K of a 266MB file. Nothing else in this document matters as much: a s
 - `faelight-shell` builds on Omarchy in **30 seconds**, no patches, no source changes.
 - `core` builds clean. `core doctor run` works; 53% on a bare machine, every gap explained by
   "nothing deployed yet" or "no state present" -- not portability.
-- A restored `state.db` opens, reads, AND writes. fsh shows real history from it.
+- A restored `state.db` opens, reads, AND writes. nsh shows real history from it.
 - The ISO checksum is verified: `69cbb4e10d98ad831c3c9f245b5757a9d1fedfd0c9592780e977d6f950dea8c3`
 
 ## Facts about Omarchy learned in rehearsal
@@ -29,7 +29,7 @@ writing 258K of a 266MB file. Nothing else in this document matters as much: a s
 
 ## BEFORE the wipe -- prepare, in this order
 
-### 1. Fresh snapshot, with fsh stopped
+### 1. Fresh snapshot, with nsh stopped
 The rehearsal snapshot is dated. Take a new one so no tables differ:
 
     python3 -c "
@@ -69,9 +69,9 @@ Stick B contents (~400MB total):
     payload/faelight-shell          ~/.config/faelight-shell -- COPY WITH `cp -rL`
     payload/MIGRATION-RUNBOOK.md    this file
 
-⚠️ **`-L` IS NOT OPTIONAL.** `~/.config/faelight-shell/config.fsh` is a SYMLINK into
+⚠️ **`-L` IS NOT OPTIONAL.** `~/.config/faelight-shell/config.nsh` was a SYMLINK into
 `/nix/store/...home-manager-files/`. Copy it without dereferencing and Omarchy gets a dangling link:
-fsh starts with zero aliases and zero settings and nothing says why.
+nsh starts with zero aliases and zero settings and nothing says why.
 
 ### 4. Confirm everything is pushed
 
@@ -149,9 +149,9 @@ doing anything else.
 
 ## What is NOT solved yet, and is fine
 These are all recoverable AFTER the move, with the same tools:
-- **Ctrl+Z suspends fsh itself** (INT-188). No process groups, no terminal foreground ownership.
+- **Ctrl+Z suspends nsh itself** (INT-188). No process groups, no terminal foreground ownership.
   Reproduced live on Void. Bash's `fg` recovers it.
-- **`fsh -c` delegates to `sh`** -- no builtins, aliases, spine or guard apply through that door.
+- **`nsh -c` delegates to `sh`** -- no builtins, aliases, spine or guard apply through that door.
 - **The banner still reports `0 done · 0 tools · 0 planned`** on a machine with no ledger --
   confident zeros the doctor no longer tells.
 - **Compositor keybinds**: mango's config will not apply. Omarchy runs Hyprland.

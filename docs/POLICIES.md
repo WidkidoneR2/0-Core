@@ -233,7 +233,7 @@ fg status
 - ✅ **ALWAYS** use recovery procedures for high-risk edits
 
 - **ALWAYS** test login/compositor-touching changes in the VM first (INT-024), never on bare metal blind
-- **SafeShell = the guaranteed recovery net:** at the greeter, F3 -> SafeShell drops to a working `fsh` with no compositor. A broken compositor or session can never lock you out (INT-056). TTY2 (`Fn+Ctrl+Alt+F2`) is the kernel-level backup.
+- **SafeShell = the guaranteed recovery net:** at the greeter, F3 -> SafeShell drops to a working `nsh` with no compositor. A broken compositor or session can never lock you out (INT-056). TTY2 (`Fn+Ctrl+Alt+F2`) is the kernel-level backup.
 ### Classification
 
 - 🔴 **Critical:** System unusable if broken (`mango`)

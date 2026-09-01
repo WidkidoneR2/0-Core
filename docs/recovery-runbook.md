@@ -38,12 +38,12 @@ If you reach the greeter but a compositor (mango / Pinnacle / Miracle) fails to
 launch or black-screens, you do NOT need tty2 — the greeter itself offers a
 rescue session, and it is the simplest, most reliable recovery there is:
 1. At the greeter, press **F3** (session picker) → select **SafeShell**.
-2. Log in as `christian`. SafeShell is a bare `fsh` on the VT with NO compositor
+2. Log in as `christian`. SafeShell is a bare `nsh` on the VT with NO compositor
    — a full working shell to repair from.
 3. Fix the flake / roll back / inspect, then `exit` → pick a working session
    (e.g. MangoWM) at the greeter.
 SafeShell is defined in the flake (`environment.etc."greetd/sessions/safeshell.desktop"`,
-Exec=fsh) and is ALWAYS present as a picker option. A broken compositor can never
+Exec=nsh) and is ALWAYS present as a picker option. A broken compositor can never
 lock you out while SafeShell exists. Proven VM + metal (INT-056, 2026-07-11).
 
 ## Level 1 — can't log in (greetd/session broken) but it boots

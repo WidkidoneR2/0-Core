@@ -100,7 +100,7 @@ Structured wisdom.
 
 The forest rests on three pillars, plus an ecosystem of tools:
 
-- **fsh (faelight-shell)** -- the forest's own shell. Speaks human first, UNIX as fallback.
+- **nsh (NovaShell)** -- the forest's own shell. Speaks human first, UNIX as fallback.
 - **core** -- a single Rust engine of native domains: health, intent ledger, integrity,
   prediction, decisions, strategy.
 - **Friday** -- an intelligence layer that watches, learns, and speaks only when confident.

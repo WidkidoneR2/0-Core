@@ -37,7 +37,7 @@ The forest's tool ecosystem: 35 active tools (plus 1 retired), each a purpose-bu
 | [`faelight-deadwood`](./faelight-deadwood/) | 1.0.0 | - |
 | [`faelight-git`](./faelight-git/) | 4.4.1 | Git governance for the forest -- guarded commits, health-aware verification, and intent-commit genealogy. |
 | [`faelight-sandbox`](./faelight-sandbox/) | 3.0.0 | The forest's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization. |
-| [`fsh-test`](./fsh-test/) | 2.0.0 | fsh permanent regression suite |
+| [`nsh-test`](./nsh-test/) | 2.0.0 | nsh permanent regression suite |
 | [`teach`](./teach/) | 4.0.0 | Live system narrator — adapts to newcomer or expert |
 
 ## Documentation

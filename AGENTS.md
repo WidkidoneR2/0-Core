@@ -120,7 +120,7 @@ edit  ->  debug shell  ->  dep  ->  reload  ->  test in the new build
 - **`dep` is the only thing that compiles what actually runs.** A green `cargo build` is not
   proof of anything deployed.
 - **`cargo build -p <crate>` is a silent no-op for deployment.** It compiles; it does not ship.
-- **After an fsh rebuild, `exec faelight-shell`** to pick up the new binary. Without this you
+- **After an nsh rebuild, `exec nsh`** to pick up the new binary. Without this you
   are testing the old one and will read a working fix as a failure.
 - Nix cannot see a file that git has not been told about. `git add` before building.
 - After any rename, `cargo check --workspace`. A per-crate check misses the breakage.
@@ -140,7 +140,7 @@ edit  ->  debug shell  ->  dep  ->  reload  ->  test in the new build
 - Do not add `NOPASSWD` entries for any user, command, or tool.
 - Do not add `sudo` to a command that was not already privileged.
 - Do not cache, script around, or otherwise avoid a password prompt.
-- Never `sudo rm`. fsh blocks it deliberately.
+- Never `sudo rm`. nsh blocks it deliberately.
 - **No automation runs privileged.** No systemd timers at boot, no scheduled updates, no cron
   with sudo. Automation is opt-in and explicitly triggered.
 
@@ -159,7 +159,7 @@ why it needs privilege. Privilege escalation is never a convenience.
 - After deploying a service or daemon, confirm with `ps` that the process exists.
 - Run the health check — `d` — at session start and before closing. Fix warnings rather than
   noting them.
-- Shell behaviour must be exercised through the real REPL, not only `-c`. **`fsh -c` delegates
+- Shell behaviour must be exercised through the real REPL, not only `-c`. **`nsh -c` delegates
   to `sh`** and does not exercise the same path.
 - **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
   blind.
@@ -170,7 +170,7 @@ why it needs privilege. Privilege escalation is never a convenience.
 
 Know the way back before you need it.
 
-- **SafeShell:** at the greeter, F3 gives a working `fsh` with no compositor (INT-056). A broken
+- **SafeShell:** at the greeter, F3 gives a working `nsh` with no compositor (INT-056). A broken
   compositor cannot lock you out.
 - **TTY2:** `Fn+Ctrl+Alt+F2`, the kernel-level backup.
 - **`rollback`** restores the previous NixOS generation.

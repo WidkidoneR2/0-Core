@@ -22,10 +22,10 @@
 | Open files (yazi) | `Super+Shift+y` |
 | Lock screen | `Super+Ctrl+Escape` |
 
-### fsh keyboard-only workflow
+### nsh keyboard-only workflow
 - All forest vocabulary works without mouse: `list`, `find`, `delete`, `show`
 - File navigation: `yazi` (full keyboard navigation)
-- Clipboard: `wl-copy` / `wl-paste` from fsh
+- Clipboard: `wl-copy` / `wl-paste` from nsh
 - `friday` command for AI assistance without mouse
 
 ### If cursor goes off-screen
@@ -80,7 +80,7 @@ metal 2026-07-11). Full detail: `docs/recovery-runbook.md`.
 
 ### SafeShell -- the 100% recovery (do this first)
 If a compositor fails to launch or black-screens, you do NOT need a TTY. At the greeter,
-press **F3** -> select **SafeShell** -> a bare `fsh` with no compositor, to repair from.
+press **F3** -> select **SafeShell** -> a bare `nsh` with no compositor, to repair from.
 SafeShell is always in the picker; a broken compositor can never lock you out.
 
 ### Compositor crash / frozen session (mango)
