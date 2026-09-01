@@ -2638,8 +2638,33 @@ fn main() {
                 "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
             );
             println!(
-                "     to test what you just built: NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test"
+                "     to test what you just built: NSH_BIN=target/debug/nsh ./target/debug/nsh-test"
             );
+        }
+
+        // ⭐ THE VERSION CANNOT SEE A MID-VERSION REBUILD, and that is every case that cost
+        // time on 2026-09-01. Five stale-binary confusions in one session, all at 3.8.4
+        // against source that was also 3.8.4 -- the check above was correct, fired on
+        // nothing, and each failure looked like a regression instead.
+        //
+        // COMPARE BYTES, NOT LABELS. If what cargo last built differs from what is being
+        // tested, the suite is measuring something other than the working tree.
+        //
+        // WARN RATHER THAN REFUSE, for the reason the version check already gives: testing a
+        // deployed build on purpose is legitimate. What must not happen is a green run that
+        // LOOKS like it covered your changes.
+        //
+        // Silent when the release artifact is absent -- a clean tree has nothing to compare,
+        // and a warning that fires on every fresh clone is one nobody reads.
+        let built = faelight_core::paths::core_dir().join("target/release/nsh");
+        let tested = std::path::PathBuf::from(repl::fsh_bin());
+        if built.exists() && tested.exists() && faelight_core::differs(&built, &tested) {
+            println!(
+                "  ⚠️  the binary above is NOT what cargo last built -- SAME VERSION, DIFFERENT BYTES"
+            );
+            println!("     built:  {}", built.display());
+            println!("     tested: {}", tested.display());
+            println!("     ship nsh, or point NSH_BIN at the build you meant");
         }
     }
     println!(

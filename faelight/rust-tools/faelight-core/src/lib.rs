@@ -70,6 +70,35 @@ mod tests {
 /// UNSAFE AND PROCESS-WIDE, which is why it lives in ONE place rather than being
 /// pasted into each main. Call it as the first statement of main, before any
 /// output.
+/// Do two files hold different bytes? Length first, then contents.
+///
+/// ⚠️ THE ANSWER TO "IS THE INSTALLED BINARY WHAT THE SOURCE BUILDS", and it lived privately
+/// in ship, where only ship could ask it. On 2026-09-01 a stale binary produced a confident
+/// wrong answer FIVE separate times in one session -- nsh-test testing a shell the machine was
+/// no longer running, the shell exporting variable names the source had renamed, and the
+/// harness itself. Each looked like a regression and none was.
+///
+/// VERSIONS CANNOT ANSWER IT. nsh-test already compared the deployed shell's version against
+/// the workspace's and warned on a mismatch, with sound reasoning -- and it stayed silent
+/// through all five, because the version does not change on every edit. A mid-version rebuild
+/// is invisible to a version check and obvious to a byte comparison.
+///
+/// Missing on either side counts as different: nothing installed cannot match anything built.
+pub fn differs(a: &std::path::Path, b: &std::path::Path) -> bool {
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(x), Ok(y)) => {
+            if x.len() != y.len() {
+                return true;
+            }
+            match (std::fs::read(a), std::fs::read(b)) {
+                (Ok(da), Ok(db)) => da != db,
+                _ => true,
+            }
+        }
+        _ => true,
+    }
+}
+
 pub fn restore_sigpipe() {
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);

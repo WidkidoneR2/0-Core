@@ -85,21 +85,7 @@ fn metadata_targets(root: &Path) -> Result<Vec<Target>, String> {
 // Cheap first, exact second. Length differs -> certainly changed. Same length ->
 // read both, because a rebuild that produces an identical binary is common and
 // reinstalling it would make every run look like it did work it did not do.
-fn differs(a: &Path, b: &Path) -> bool {
-    let (ma, mb) = (std::fs::metadata(a), std::fs::metadata(b));
-    match (ma, mb) {
-        (Ok(x), Ok(y)) => {
-            if x.len() != y.len() {
-                return true;
-            }
-            match (std::fs::read(a), std::fs::read(b)) {
-                (Ok(da), Ok(db)) => da != db,
-                _ => true,
-            }
-        }
-        _ => true,
-    }
-}
+use faelight_core::differs;
 
 /// Keep the newest three backups of one tool, delete the rest.
 ///
