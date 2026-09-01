@@ -3117,8 +3117,8 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         let row: Option<(i64, i64, String)> = db
             .conn
             .query_row(
-                "SELECT COUNT(*), SUM(passed), commit_hash FROM fsh_test_results \
-                 WHERE timestamp = (SELECT MAX(timestamp) FROM fsh_test_results)",
+                "SELECT COUNT(*), SUM(passed), commit_hash FROM nsh_test_results \
+                 WHERE timestamp = (SELECT MAX(timestamp) FROM nsh_test_results)",
                 [],
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )

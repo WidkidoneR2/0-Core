@@ -145,7 +145,7 @@ fn guard_list_contains(kind: &str, word: &str) -> bool {
         Err(_) => return false,
     };
     let _ = conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS fsh_guard_list (
+        "CREATE TABLE IF NOT EXISTS nsh_guard_list (
             word TEXT NOT NULL,
             kind TEXT NOT NULL,
             PRIMARY KEY (word, kind)
@@ -153,7 +153,7 @@ fn guard_list_contains(kind: &str, word: &str) -> bool {
     );
     let count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM fsh_guard_list WHERE kind = ?1 AND word = ?2",
+            "SELECT COUNT(*) FROM nsh_guard_list WHERE kind = ?1 AND word = ?2",
             rusqlite::params![kind, word],
             |r| r.get(0),
         )

@@ -1956,9 +1956,9 @@ fn execute_dispatch(
                     return CommandResult::Error(format!("session: db error: {}", e).into(), 1)
                 }
             };
-            // Ensure fsh_sessions table exists
+            // Ensure nsh_sessions table exists
             let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS fsh_sessions (
+                "CREATE TABLE IF NOT EXISTS nsh_sessions (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     name        TEXT NOT NULL UNIQUE,
                     directory   TEXT NOT NULL,
@@ -2013,7 +2013,7 @@ fn execute_dispatch(
                         .duration_since(std::time::UNIX_EPOCH)
                         .map(|d| d.as_secs() as i64).unwrap_or(0);
                     match conn.execute(
-                        "INSERT INTO fsh_sessions (name, directory, intent, commands, env_vars, created_at, updated_at)
+                        "INSERT INTO nsh_sessions (name, directory, intent, commands, env_vars, created_at, updated_at)
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
                          ON CONFLICT(name) DO UPDATE SET
                          directory=?2, intent=?3, commands=?4, env_vars=?5, updated_at=?6",
@@ -2030,7 +2030,7 @@ fn execute_dispatch(
                 "load" => {
                     let name = args.get(1).copied().unwrap_or("default");
                     let row: Option<(String, String, String, String)> = conn.query_row(
-                        "SELECT directory, intent, commands, env_vars FROM fsh_sessions WHERE name = ?1",
+                        "SELECT directory, intent, commands, env_vars FROM nsh_sessions WHERE name = ?1",
                         rusqlite::params![name],
                         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
                     ).ok();
@@ -2069,7 +2069,7 @@ fn execute_dispatch(
                 }
                 "list" => {
                     let mut stmt = match conn.prepare(
-                        "SELECT name, directory, intent, updated_at FROM fsh_sessions ORDER BY updated_at DESC"
+                        "SELECT name, directory, intent, updated_at FROM nsh_sessions ORDER BY updated_at DESC"
                     ) {
                         Ok(s) => s,
                         Err(e) => return CommandResult::Error(format!("session list: {}", e).into(), 1),
@@ -2101,7 +2101,7 @@ fn execute_dispatch(
                         return CommandResult::Error("usage: session delete <name>".to_string().into(), 1);
                     }
                     let deleted = conn.execute(
-                        "DELETE FROM fsh_sessions WHERE name = ?1",
+                        "DELETE FROM nsh_sessions WHERE name = ?1",
                         rusqlite::params![name]
                     ).unwrap_or(0);
                     if deleted > 0 {
@@ -2159,7 +2159,7 @@ fn execute_dispatch(
                 Err(e) => return CommandResult::Error(format!("env-save: {}", e).into(), 1),
             };
             let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
+                "CREATE TABLE IF NOT EXISTS nsh_env_snapshots (
                     name TEXT PRIMARY KEY,
                     vars TEXT NOT NULL,
                     saved_at INTEGER NOT NULL
@@ -2188,7 +2188,7 @@ fn execute_dispatch(
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             match conn.execute(
-                "INSERT INTO fsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
+                "INSERT INTO nsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
                  ON CONFLICT(name) DO UPDATE SET vars=?2, saved_at=?3",
                 rusqlite::params![name, vars_json, ts],
             ) {
@@ -2210,7 +2210,7 @@ fn execute_dispatch(
             };
             let row: Option<(String, i64)> = conn
                 .query_row(
-                    "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
+                    "SELECT vars, saved_at FROM nsh_env_snapshots WHERE name = ?1",
                     rusqlite::params![name],
                     |r| Ok((r.get(0)?, r.get(1)?)),
                 )
@@ -2262,7 +2262,7 @@ fn execute_dispatch(
             };
             let row: Option<(String, String, i64)> = conn
                 .query_row(
-                    "SELECT name, vars, saved_at FROM fsh_env_snapshots ORDER BY saved_at DESC LIMIT 1",
+                    "SELECT name, vars, saved_at FROM nsh_env_snapshots ORDER BY saved_at DESC LIMIT 1",
                     [],
                     |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                 )
@@ -2305,7 +2305,7 @@ fn execute_dispatch(
             };
             let vars_json: Option<String> = conn
                 .query_row(
-                    "SELECT vars FROM fsh_env_snapshots WHERE name = ?1",
+                    "SELECT vars FROM nsh_env_snapshots WHERE name = ?1",
                     rusqlite::params![name],
                     |r| r.get(0),
                 )
@@ -2383,7 +2383,7 @@ fn execute_dispatch(
             };
             let row: Option<(String, i64)> = conn
                 .query_row(
-                    "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
+                    "SELECT vars, saved_at FROM nsh_env_snapshots WHERE name = ?1",
                     rusqlite::params![name],
                     |r| Ok((r.get(0)?, r.get(1)?)),
                 )
@@ -2471,7 +2471,7 @@ fn execute_dispatch(
                 Err(e) => return CommandResult::Error(format!("env-import: {}", e).into(), 1),
             };
             let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
+                "CREATE TABLE IF NOT EXISTS nsh_env_snapshots (
                     name TEXT PRIMARY KEY,
                     vars TEXT NOT NULL,
                     saved_at INTEGER NOT NULL
@@ -2482,7 +2482,7 @@ fn execute_dispatch(
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             match conn.execute(
-                "INSERT INTO fsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
+                "INSERT INTO nsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
                  ON CONFLICT(name) DO UPDATE SET vars=?2, saved_at=?3",
                 rusqlite::params![name, vars_json, ts],
             ) {
@@ -15801,7 +15801,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
         Err(e) => return CommandResult::Error(format!("guard: {}", e).into(), 1),
     };
     let _ = conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS fsh_guard_list (
+        "CREATE TABLE IF NOT EXISTS nsh_guard_list (
             word TEXT NOT NULL,
             kind TEXT NOT NULL,
             PRIMARY KEY (word, kind)
@@ -15811,7 +15811,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
     match sub {
         "list" | "" => {
             let mut stmt = match conn.prepare(
-                "SELECT kind, word FROM fsh_guard_list ORDER BY kind, word",
+                "SELECT kind, word FROM nsh_guard_list ORDER BY kind, word",
             ) {
                 Ok(s) => s,
                 Err(e) => return CommandResult::Error(format!("guard list: {}", e).into(), 1),
@@ -15847,7 +15847,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
             match action {
                 "add" => {
                     match conn.execute(
-                        "INSERT OR IGNORE INTO fsh_guard_list (word, kind) VALUES (?1, ?2)",
+                        "INSERT OR IGNORE INTO nsh_guard_list (word, kind) VALUES (?1, ?2)",
                         rusqlite::params![word, sub],
                     ) {
                         Ok(_) => CommandResult::Output(format!(
@@ -15860,7 +15860,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
                 }
                 "remove" | "rm" => {
                     let n = conn.execute(
-                        "DELETE FROM fsh_guard_list WHERE word = ?1 AND kind = ?2",
+                        "DELETE FROM nsh_guard_list WHERE word = ?1 AND kind = ?2",
                         rusqlite::params![word, sub],
                     ).unwrap_or(0);
                     if n > 0 {

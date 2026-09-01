@@ -2428,7 +2428,7 @@ fn store_results(results: &[TestResult]) {
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
-    let fsh_version = std::process::Command::new(repl::fsh_bin())
+    let nsh_version = std::process::Command::new(repl::fsh_bin())
         .arg("--version")
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
@@ -2440,8 +2440,8 @@ fn store_results(results: &[TestResult]) {
     let mut stored = 0;
     for r in results {
         if conn.execute(
-            "INSERT INTO fsh_test_results (test_name, category, passed, duration_ms, commit_hash, timestamp, fsh_version) VALUES (?1,?2,?3,?4,?5,?6,?7)",
-            rusqlite::params![r.name, r.category.to_string(), r.passed as i32, r.duration_ms as i64, commit, ts, fsh_version],
+            "INSERT INTO nsh_test_results (test_name, category, passed, duration_ms, commit_hash, timestamp, nsh_version) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            rusqlite::params![r.name, r.category.to_string(), r.passed as i32, r.duration_ms as i64, commit, ts, nsh_version],
         ).is_ok() { stored += 1; }
     }
     println!("  💾 {} results stored in state.db", stored);
@@ -2451,7 +2451,7 @@ fn store_results(results: &[TestResult]) {
     let pass_rate = (passed_count * 100) / total.max(1);
     let _ = conn.execute(
         "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
-         VALUES ('testing', 'fsh_test_last_run', ?1, 0.95, 'nsh-test', ?2, ?2)",
+         VALUES ('testing', 'nsh_test_last_run', ?1, 0.95, 'nsh-test', ?2, ?2)",
         rusqlite::params![
             format!("nsh-test last run: {}/{} passed ({}%%). Commit: {}. All categories: heredoc, pipes, regression, tilde, vocabulary.", passed_count, total, pass_rate, commit),
             ts
