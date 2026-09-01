@@ -395,7 +395,6 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         line,
         db,
         core_root,
-        &[],
         ExecutionMode::Text,
     )
 }
@@ -637,7 +636,13 @@ fn execute_impl(
     line: &str,
     db: &ForestDb,
     core_root: &str,
-    expanded_names: &[&str],
+    // INT-057's cycle guard was the plugin expander's, and it left with it. The recursion it
+    // protected against cannot happen now: expand_aliases substitutes ONCE at the input phase
+    // and never re-enters, so a self-referential alias resolves to itself and then fails as an
+    // unknown command rather than looping. Verified 2026-09-02 -- `alias zzc = 'zzc -h'` then
+    // `zzc` answers command not found and exits clean, where INT-057's df alias closed the
+    // terminal. Every caller had been passing &[] for some time; the parameter was threading a
+    // guard nothing could reach.
     // INT-143: false = probe. The fallthrough answers NotBuiltin instead of spawning.
     // Threaded through the alias/plugin recursion below, or a probe would quietly become a
     // real run one expansion deep -- the same bug, hidden one level down.
@@ -1083,39 +1088,26 @@ fn execute_impl(
         // quoted multi-word argument as several bare ones. It now has a single owner in the
         // input phase (`expand_aliases`), called at the prompt before this executor sees the
         // line. Do NOT reintroduce it here -- INT-195: no stage may re-derive syntax a
-        // previous stage already computed. Plugin expansion below is a SEPARATE question,
-        // deliberately left to INT-170; it keeps its own INT-057 guard.
+        // previous stage already computed.
 
-        // Plugin resolution — after final cmd parse
-        {
-            let plugins = db.load_plugins();
-            if let Some((_, expand, _)) = plugins
-                .iter()
-                .find(|(name, _, _)| name.as_str() == cmd.as_str())
-            {
-                // INT-057: same cycle guard as aliases -- a self-referential plugin
-                // would otherwise recurse forever -> stack overflow.
-                if !expanded_names.contains(&cmd.as_str()) {
-                    let expanded = if args.is_empty() {
-                        expand.clone()
-                    } else {
-                        format!("{} {}", expand, args.join(" "))
-                    };
-                    let mut next = expanded_names.to_vec();
-                    next.push(cmd.as_str());
-                    // Alias expansion produced NEW TEXT, so it is re-tokenized here -- at the exact
-                    // point the new text appears, which is where text-world work belongs.
-                    return execute_impl(
-                        &tokenize(expanded.trim()),
-                        &expanded,
-                        db,
-                        core_root,
-                        &next,
-                        mode,
-                    );
-                }
-            }
-        }
+        // PLUGIN EXPANSION WAS HERE AND IS DELETED. It read *.nsh TOML from a directory and
+        // rewrote a command word into other text -- a THIRD expansion mechanism beside aliases
+        // and the .nsh script language, competing with the alias owner INT-193 spent an entire
+        // intent consolidating into one.
+        //
+        // NSH-PHILOSOPHY is explicit: no plugin system that can change what the shell is. This
+        // was that rule being leaked past, implemented as aliases with extra files.
+        //
+        // It carried the quoting bug INT-193 killed for aliases -- args.join(" ") flattens
+        // quoted arguments -- and the spine skipped it deliberately, so the two execution
+        // worlds disagreed about what a command word meant.
+        //
+        // MEASURED 2026-09-02: the plugin directory did not exist, so every dispatch paid a
+        // filesystem call to load nothing, and had done since the migration. Zero users, one
+        // known bug, and a rule against it.
+        //
+        // New capability stays a match arm in this file. That is the philosophy line:
+        // builtins plus sh, with aliases for user shorthand.
     } // end text-world transforms
       // INT-278: friday chat -- intercept before alias expansion
     if cmd == "friday" && args.first().copied() == Some("chat") {
@@ -1591,7 +1583,6 @@ fn execute_dispatch(
         "alias" => alias_cmd(db, args),
         "unalias" => unalias_cmd(db, args),
         "plugins" => list_plugins(db),
-        "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "z" | "zi" => z_jump(args),
         "which" => {
             let cmd = args.first().copied().unwrap_or("");
@@ -7005,67 +6996,31 @@ fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn list_plugins(db: &ForestDb) -> CommandResult {
-    let plugins = db.load_plugins();
-
-    // Group by plugin file
-    let plugin_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join(".config/faelight-shell/plugins");
-
+/// THERE ARE NO PLUGINS, AND THAT IS THE ANSWER RATHER THAN THE ABSENCE OF ONE.
+///
+/// This listed commands loaded from *.nsh TOML in a plugin directory, and the loader was
+/// deleted 2026-09-02 -- see the note in execute_impl where its expansion used to run. The
+/// command survives because someone typing `plugins` deserves the RULING, not a
+/// command-not-found that reads like a missing feature.
+fn list_plugins(_db: &ForestDb) -> CommandResult {
     let mut out = String::new();
+    out.push_str(&format!("\n  {} Plugins\n\n", "🔌"));
+    out.push_str("  There are none, by design.\n\n");
+    out.push_str("  A plugin system that can rewrite command words is a plugin system that\n");
+    out.push_str("  can change what the shell is. NSH-PHILOSOPHY refuses that.\n\n");
     out.push_str(&format!(
-        "\n{}\n",
-        "  ╭─ 🔌 Loaded Plugins ─────────────────────────────".bright_cyan()
+        "  {:<24} {}\n",
+        "for your own shorthand", "alias, in ~/.config/faelight-shell/config.nsh"
     ));
-
-    if plugins.is_empty() {
-        out.push_str(&format!("  │  {} No plugins found\n", "○".dimmed()));
-        out.push_str(&format!(
-            "  │  Add .nsh files (TOML: [[command]] name/expand/description) to {}\n",
-            plugin_dir.display().to_string().dimmed()
-        ));
-    } else {
-        out.push_str(&format!(
-            "  │  {} commands from plugins:\n",
-            plugins.len().to_string().bright_white()
-        ));
-        for (name, expand, desc) in &plugins {
-            out.push_str(&format!(
-                "  │  {:<15} {} {}\n",
-                name.bright_cyan(),
-                "→".dimmed(),
-                if desc.is_empty() {
-                    expand.dimmed().to_string()
-                } else {
-                    desc.dimmed().to_string()
-                }
-            ));
-        }
-    }
-    out.push_str(
-        &"  ╰────────────────────────────────────────────────────"
-            .dimmed()
-            .to_string(),
-    );
+    out.push_str(&format!(
+        "  {:<24} {}\n",
+        "for a new capability", "a builtin -- it lives in the shell, not beside it"
+    ));
+    out.push_str(&format!(
+        "  {:<24} {}\n",
+        "for anything else", "an external program, and nsh runs those"
+    ));
     CommandResult::Output(out)
-}
-
-/// ⚠️ THERE IS NOTHING TO RELOAD, and the message used to imply otherwise.
-///
-/// Plugins are not cached. load_plugins() reads the directory from disk on every dispatch, so an
-/// edit to a plugin file is live on the next command with no verb typed. This counts what is on
-/// disk right now -- useful for confirming a file parsed, which is the only question it can
-/// answer.
-///
-/// Kept rather than deleted because the count IS the answer to "did my file parse". Renaming the
-/// message is the honest fix; keeping "Reloaded" would describe a cache that does not exist.
-fn reload_plugins_cmd(db: &ForestDb) -> CommandResult {
-    let plugins = db.load_plugins();
-    CommandResult::Output(format!(
-        "  {} {} plugin commands on disk (nothing is cached -- edits are live immediately)",
-        "✅".green(),
-        plugins.len().to_string().bright_white()
-    ))
 }
 
 // ── Phase 8 — System Tables ───────────────────────────────────────────────────
@@ -9185,7 +9140,7 @@ pub fn execute_plan_dispatch(
     {
         return execute_plan(plan, db);
     }
-    match execute_impl(&argv, source, db, core_root, &[], ExecutionMode::Spine) {
+    match execute_impl(&argv, source, db, core_root, ExecutionMode::Spine) {
         // INT-169 blocker 6: NO ALIAS LOOKUP HERE. This branch used to answer "argv[0] is a
         // known alias -- the spine path does not expand aliases yet", which was true while
         // nothing upstream expanded aliases for the spine. Aliases are now expanded ABOVE the
@@ -9580,7 +9535,7 @@ fn peel_builtin_first_stage<'a>(
     }
     let source = argv.join(" ");
     let core_root = db.core_root();
-    match execute_impl(&argv, &source, db, &core_root, &[], ExecutionMode::Spine) {
+    match execute_impl(&argv, &source, db, &core_root, ExecutionMode::Spine) {
         CommandResult::NotBuiltin => Peeled::Spawn(plans),
         CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
         CommandResult::Empty => Peeled::Piped(&plans[1..], String::new()),
