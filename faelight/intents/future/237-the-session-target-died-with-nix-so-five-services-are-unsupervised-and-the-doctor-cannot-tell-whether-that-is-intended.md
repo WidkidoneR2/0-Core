@@ -60,7 +60,7 @@ the check without changing it.
 
 ## Success Criteria
 
-- [ ] Each of the five is ruled KEEP or RETIRE, with a reason, measured
+- [x] Each of the five is ruled KEEP or RETIRE, with a reason, measured
       against what Omarchy already provides rather than against what NixOS
       used to
 - [ ] Whatever survives is declared in a committed unit file, so deleting a
@@ -70,6 +70,45 @@ the check without changing it.
       is the whole fix
 - [ ] Retired services are removed from the registry and from anything that
       expects them, not merely left unstarted
+
+## MEASURED 2026-09-02 -- and the premise was wrong in three places
+
+The charter said five supervised services lost their supervision. Four of the five
+were never in the state this describes.
+
+faelight-bar, faelight-idle -- RETIRE, ALREADY GONE. Not on PATH, and not in
+registry/tools.toml. They do not exist to keep. The list came from what the target
+declared on NixOS, not from what this machine has.
+
+faelight-notify -- RETIRE. Quickshell owns org.freedesktop.Notifications on this
+machine: busctl names PID 4514, which also holds StatusNotifierHost and
+StatusNotifierWatcher. Ours checks that bus name at startup and exits silently when
+it is taken -- correct behaviour, and it is what a redundant daemon should do. That
+is measured redundancy rather than the guess the charter made.
+
+⚠️ ITS MESSAGE IS WRONG THOUGH: it prints faelight-notify already running, which sent
+this investigation looking for a stale lock file. What it detected was ANOTHER
+PROGRAM owning the name. Worth correcting; not a reason to keep it.
+
+faelight-daemon -- KEEP, and it works. Starts, registers org.faelight.Forest on the
+session bus, opens its socket, and answers. Its clients -- nsh in three places, the
+engine in two -- all agree on the path. Nothing starts it, which is the ONLY part of
+the original premise that survived.
+
+faelight-insightd -- KEEP, unexamined. It answered with live data, 93,182 events, a
+number matching forest_events exactly. Whether it needs to RUN or only to be INVOKED
+is the open question, and it is the same question faelight-daemon raises.
+
+⭐ SO THE INTENT IS SMALLER AND DIFFERENT. Not restore a target for five services --
+two are fiction, one is redundant, and two are tools that work when run. What is
+actually missing is a decision about whether the remaining two are DAEMONS or
+COMMANDS, and that question does not need a systemd target to answer.
+
+FOUND ALONGSIDE, fixed in 324f64cd: faelight-daemon --health printed Daemon ready
+unconditionally -- no socket, no process, no connection. It said ready on a machine
+where nothing was running. It connects now, and the two failure modes prove why
+connecting rather than stat-ing is the honest check: a killed daemon leaves its
+socket file behind, so existence answers healthy against a dead process.
 
 ## Notes
 

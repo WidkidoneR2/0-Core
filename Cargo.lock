@@ -1502,22 +1502,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-notify"
-version = "4.0.0"
-dependencies = [
- "colored",
- "dirs",
- "faelight-core",
- "fontdue",
- "nix 0.29.0",
- "smithay-client-toolkit 0.19.2",
- "tokio",
- "wayland-client",
- "wayland-protocols 0.32.10",
- "zbus",
-]
-
-[[package]]
 name = "faelight-release"
 version = "1.0.3"
 dependencies = [

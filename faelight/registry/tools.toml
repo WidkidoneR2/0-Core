@@ -117,11 +117,11 @@ retired = true
 name = "faelight-notify"
 version = "4.0.0"
 category = "ui"
-description = "Notification system"
-expected_usage = "high"
+description = "Notification system -- RETIRED 2026-09-02, Quickshell owns the bus"
+expected_usage = "none"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-sandbox"
 version = "3.0.0"
@@ -452,4 +452,34 @@ description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"
 type = "rust"
 deployable = true
+[[tool]]
+name = "ship"
+version = "1.0.0"
+category = "development"
+description = "Installs built binaries to ~/.local/bin, keeps a versioned backup, records the deploy. --retire is the inverse."
+expected_usage = "high"
+type = "rust"
+deployable = true
+retired = false
+
+[[tool]]
+name = "zero-gate"
+version = "0.1.0"
+category = "development"
+description = "The pre-commit and pre-push gates: secrets, formatting, the nsh-test suite. Absent means red."
+expected_usage = "high"
+type = "rust"
+deployable = true
+retired = false
+
+[[tool]]
+name = "faelight-vm"
+version = "1.0.0"
+category = "development"
+description = "VM launcher -- q35, SMM, swtpm. NixOS-era; unverified since Omarchy."
+expected_usage = "high"
+type = "rust"
+deployable = true
+retired = false
+
 retired = false
