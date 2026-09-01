@@ -15,7 +15,7 @@ use faelight_core::paths;
 #[command(about = "🌲 Faelight Forest Daemon - Background operations", long_about = None)]
 #[command(version)]
 struct Cli {
-    /// Socket path (default: ~/.local/state/faelight/daemon.sock)
+    /// Socket path (default: daemon.sock under paths::faelight_state_dir)
     #[arg(short, long)]
     socket: Option<String>,
 
@@ -29,8 +29,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     if cli.health {
-        println!("{} faelight-daemon: Daemon ready", "✅".green());
-        return Ok(());
+        // A HEALTH CHECK THAT CANNOT FAIL IS NOT A HEALTH CHECK. This printed Daemon ready
+        // and returned, unconditionally, without looking at a socket or a process. Measured
+        // 2026-09-02: it said ready on a machine where no faelight process was running at
+        // all and pgrep returned nothing.
+        //
+        // Same class as the doctor checks INT-222 catalogues -- the answer was decided at
+        // compile time. CONNECTING is the question, not existence: a socket file outlives
+        // the process that made it, so a stat would be the same lie one step further on.
+        let sock = cli.socket.clone().unwrap_or_else(|| {
+            paths::faelight_state_dir()
+                .join("daemon.sock")
+                .display()
+                .to_string()
+        });
+        match std::os::unix::net::UnixStream::connect(&sock) {
+            Ok(_) => {
+                println!("{} faelight-daemon: responding on {}", "OK".green(), sock);
+                return Ok(());
+            }
+            Err(e) => {
+                println!(
+                    "{} faelight-daemon: not responding on {} -- {}",
+                    "DOWN".red(),
+                    sock,
+                    e
+                );
+                std::process::exit(1);
+            }
+        }
     }
 
     // Determine socket path
