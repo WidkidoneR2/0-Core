@@ -7021,7 +7021,7 @@ fn list_plugins(db: &ForestDb) -> CommandResult {
     if plugins.is_empty() {
         out.push_str(&format!("  │  {} No plugins found\n", "○".dimmed()));
         out.push_str(&format!(
-            "  │  Add .fsh files to {}\n",
+            "  │  Add .nsh files (TOML: [[command]] name/expand/description) to {}\n",
             plugin_dir.display().to_string().dimmed()
         ));
     } else {
@@ -7050,10 +7050,19 @@ fn list_plugins(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
+/// ⚠️ THERE IS NOTHING TO RELOAD, and the message used to imply otherwise.
+///
+/// Plugins are not cached. load_plugins() reads the directory from disk on every dispatch, so an
+/// edit to a plugin file is live on the next command with no verb typed. This counts what is on
+/// disk right now -- useful for confirming a file parsed, which is the only question it can
+/// answer.
+///
+/// Kept rather than deleted because the count IS the answer to "did my file parse". Renaming the
+/// message is the honest fix; keeping "Reloaded" would describe a cache that does not exist.
 fn reload_plugins_cmd(db: &ForestDb) -> CommandResult {
     let plugins = db.load_plugins();
     CommandResult::Output(format!(
-        "  {} Reloaded {} plugin commands",
+        "  {} {} plugin commands on disk (nothing is cached -- edits are live immediately)",
         "✅".green(),
         plugins.len().to_string().bright_white()
     ))
