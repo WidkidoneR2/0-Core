@@ -62,6 +62,68 @@ fn has(tool: &str) -> bool {
 /// The repository root, from git itself. ⭐ NOT from a hardcoded path and NOT from $HOME: this
 /// binary must work in any checkout, by any user, at any location. Asking git is the only answer
 /// that is true everywhere.
+/// SAY WHICH BINARY THIS IS -- but only when the answer is surprising.
+///
+/// The wrapper tries target/debug FIRST, then target/release, then PATH, and it does so
+/// deliberately: debug is what you just built, so the gate judges the tree you are pushing rather
+/// than whatever was installed last. Nothing reported which of the three won, so a defeated
+/// preference looked exactly like a satisfied one.
+///
+/// MEASURED 2026-09-02: target/debug/zero-gate did not exist, so every push that day was gated by
+/// the release build -- current only because `ship` happens to rebuild it. A stale release with no
+/// debug beside it would have gated pushes with old logic and said nothing.
+///
+/// SILENT ON SUCCESS IS THE RULE, so this speaks only when the first preference lost:
+///   - running something other than target/debug   -> one line, because the wrapper wanted debug
+///   - a debug build exists and DIFFERS from this  -> louder, because a newer gate was skipped
+///
+/// ⚠️ NO faelight-core. This crate has zero dependencies on purpose -- a gate that needs the forest
+/// to check formatting is the house holding its own door. faelight_core::differs exists and is not
+/// imported; length-then-bytes on two files is std, and staying std is the point.
+fn provenance(root: &Path) {
+    let Ok(running) = std::env::current_exe() else {
+        return;
+    };
+    let debug = root.join("target/debug/zero-gate");
+    let running_is_debug = running
+        .canonicalize()
+        .ok()
+        .zip(debug.canonicalize().ok())
+        .map(|(a, b)| a == b)
+        .unwrap_or(false);
+    if running_is_debug {
+        return;
+    }
+    eprintln!("{} gate binary: {}", c("33", "?"), running.display());
+    if !debug.exists() {
+        eprintln!(
+            "  {}",
+            c(
+                "2",
+                "no target/debug/zero-gate -- build it so the gate judges the tree you push"
+            )
+        );
+        return;
+    }
+    // ⚠️ MTIME, NOT CONTENT, and the first attempt got this wrong. Comparing bytes fires on
+    // EVERY release run, because a debug and a release build of the same source always differ --
+    // it answered "are these the same binary" when the question is "was a NEWER gate skipped".
+    // A message that cannot stay silent is the noise this whole check exists to avoid.
+    let newer = std::fs::metadata(&debug)
+        .and_then(|d| Ok((d.modified()?, std::fs::metadata(&running)?.modified()?)))
+        .map(|(d, r)| d > r)
+        .unwrap_or(false);
+    if newer {
+        eprintln!(
+            "  {}",
+            c(
+                "33",
+                "a NEWER target/debug/zero-gate exists -- this run used the older one above"
+            )
+        );
+    }
+}
+
 fn repo_root() -> Option<PathBuf> {
     let out = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
@@ -206,6 +268,7 @@ fn main() -> ExitCode {
         eprintln!("{} not a git repository -- nothing to gate", c("31", "✗"));
         return ExitCode::FAILURE;
     };
+    provenance(&root);
     let staged = staged_files();
     let mut gates: Vec<Gate> = Vec::new();
 
