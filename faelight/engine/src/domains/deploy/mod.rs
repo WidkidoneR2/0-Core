@@ -400,7 +400,7 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
     }
     // Reverse -- what does this tool depend on?
     let all_tools = [
-        "faelight-shell",
+        "novashell",
         "core",
         "faelight-git",
         "faelight-term",
@@ -425,7 +425,7 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
 
 fn tool_dependencies(tool: &str) -> Vec<&'static str> {
     match tool {
-        "faelight-shell" => vec!["faelight-term"],
+        "novashell" => vec![],
         "core" => vec!["all tools using core commands"],
         "faelight-git" => vec!["fg alias", "cistart/cicomplete hooks"],
         _ => vec![],

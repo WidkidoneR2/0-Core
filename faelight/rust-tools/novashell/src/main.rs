@@ -453,7 +453,7 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
     let rules: &[(&[&str], &str, f64)] = &[
         // Build rules
         (&["build", "core"], "cargo build -p core", 0.95),
-        (&["build", "shell"], "cargo build -p faelight-shell", 0.95),
+        (&["build", "shell"], "cargo build -p novashell", 0.95),
         (&["build", "everything"], "cargo build --workspace", 0.90),
         (&["build", "workspace"], "cargo build --workspace", 0.90),
         // Deploy rules
@@ -3678,7 +3678,7 @@ mod guard_cost {
             "echo one",
             "ls -la /tmp",
             "git status --short",
-            "cargo build -p faelight-shell",
+            "cargo build -p novashell",
             "grep -rn pattern src/",
         ];
         let iters = 2000;

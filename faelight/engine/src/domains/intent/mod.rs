@@ -1372,10 +1372,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
         let mut tools: Vec<(&str, &str)> = vec![];
         if touched.contains("faelight-shell") {
-            tools.push((
-                "faelight-shell",
-                "faelight/rust-tools/faelight-shell/Cargo.toml",
-            ));
+            tools.push(("faelight-shell", "faelight/rust-tools/novashell/Cargo.toml"));
         }
         if touched.contains("engine/src") || touched.contains("engine/Cargo") {
             tools.push(("core (engine)", "faelight/engine/Cargo.toml"));

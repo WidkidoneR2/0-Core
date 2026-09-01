@@ -140,7 +140,7 @@ NEXT TO the database.
 ### 11. Build and check
 
     cd ~/0-core
-    cargo build -p faelight-shell -p core
+    cargo build -p novashell -p core
     ./target/debug/core version        # ⭐ Friday should report your real fact count
     ./target/debug/faelight-shell      # ⭐ press UP -- your history should be there
 

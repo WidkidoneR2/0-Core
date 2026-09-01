@@ -64,7 +64,7 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
 /// from a shell that did not contain the change being tested.
 ///
-///     cargo build -p faelight-shell && NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test
+///     cargo build -p novashell && NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
@@ -449,8 +449,8 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("tilde_cat_cargo", Category::Tilde, || {
         expect_contains(
-            &run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml")?,
-            "faelight-shell",
+            &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml")?,
+            "novashell",
         )
     }));
     results.push(test("tilde_pipe_grep", Category::Tilde, || {
@@ -458,7 +458,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
         expect_contains(
-            &run_fsh("cat ~/0-core/faelight/rust-tools/faelight-shell/Cargo.toml | grep name")?,
+            &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml | grep name")?,
             "name",
         )
     }));
@@ -529,7 +529,12 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
     }));
     results.push(test("grep_r_in_src", Category::Regression, || {
-        expect_contains(&run_fsh("grep -r 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+        expect_contains(
+            &run_fsh(
+                "grep -r 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
+            )?,
+            "expand_braces",
+        )
     }));
     results.push(test("awk_print_field", Category::Regression, || {
         expect_eq(
@@ -586,13 +591,13 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
         expect_contains(
             &run_fsh(
-                "grep -r expand_braces ~/0-core/faelight/rust-tools/faelight-shell/src/ | head -1",
+                "grep -r expand_braces ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
             )?,
             "expand_braces",
         )
     }));
     results.push(test("grep_in_and_chain", Category::Regression, || {
-        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/faelight-shell/src/main.rs | head -1")?, "expand_braces")
+        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/main.rs | head -1")?, "expand_braces")
     }));
     results.push(test("cat_hostname", Category::Regression, || {
         let out = run_fsh("cat /etc/hostname")?;
@@ -607,10 +612,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
-        expect_contains(
-            &run_fsh("ls ~/0-core/faelight/rust-tools")?,
-            "faelight-shell",
-        )
+        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "novashell")
     }));
     results.push(test("tilde_ls_docs", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
@@ -620,7 +622,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("tilde_deep_nested", Category::Tilde, || {
         expect_contains(
-            &run_fsh("ls ~/0-core/faelight/rust-tools/faelight-shell/src")?,
+            &run_fsh("ls ~/0-core/faelight/rust-tools/novashell/src")?,
             "main.rs",
         )
     }));
@@ -2620,7 +2622,7 @@ fn main() {
         // ⭐ THE RIGHT EXPECTATION IS THE SHELL'S VERSION IN THIS WORKSPACE, read from its
         // Cargo.toml at RUNTIME rather than baked in: the suite and the shell are separate crates
         // that version independently, so a compile-time constant would go stale silently.
-        let expected = std::fs::read_to_string("faelight/rust-tools/faelight-shell/Cargo.toml")
+        let expected = std::fs::read_to_string("faelight/rust-tools/novashell/Cargo.toml")
             .ok()
             .and_then(|t| {
                 t.lines()

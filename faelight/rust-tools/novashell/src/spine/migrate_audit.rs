@@ -319,7 +319,7 @@ impl MigrationReport {
                  NOT in these numbers\n",
             );
             out.push_str(
-                "     for the working tree: cargo build -p faelight-shell && \
+                "     for the working tree: cargo build -p novashell && \
                  ./target/debug/faelight-shell -c 'spine migrate'\n",
             );
         }

@@ -262,8 +262,7 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     let mut builtins = 0usize;
     {
         tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
-        let mod_path =
-            faelight_core::paths::rust_tools_dir().join("faelight-shell/src/commands/mod.rs");
+        let mod_path = faelight_core::paths::rust_tools_dir().join("novashell/src/commands/mod.rs");
         const SKIP: &[&str] = &[
             "bash",
             "zsh",

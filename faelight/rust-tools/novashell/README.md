@@ -32,7 +32,7 @@ The forest's own shell -- speaks human first, UNIX as fallback. Structured data,
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-shell
+nix develop ~/0-core#faelight-forest -c cargo build -p novashell
 ```
 
 ## Deploy

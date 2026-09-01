@@ -1,7 +1,7 @@
 # platform assumption census (INT-227 G1)
 
 GENERATED. Do not edit by hand -- run
-`python3 faelight/rust-tools/faelight-shell/generate-platform-census.py`.
+`python3 faelight/rust-tools/novashell/generate-platform-census.py`.
 
 ⚠️ A COUNT IS NOT A CENSUS. The intent's headline said forty-two places; the
 categories below are what reading them actually found.

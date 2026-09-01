@@ -36,7 +36,7 @@ echo "  FSH-TEST GATE (INT-202): shell or harness sources are in this push."
 echo "  Building and running the suite against the code being PUSHED (~1 minute)."
 echo ""
 
-if ! cargo build -p faelight-shell -p nsh-test --message-format=short; then
+if ! cargo build -p novashell -p nsh-test --message-format=short; then
   echo ""
   echo "  BLOCKED: the workspace does not build. Nothing was tested."
   exit 1

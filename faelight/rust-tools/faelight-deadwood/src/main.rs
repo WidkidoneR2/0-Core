@@ -900,7 +900,7 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
     ];
     let mut findings = Vec::new();
     let mut exempted = 0usize;
-    let src = root.join("faelight/rust-tools/faelight-shell/src");
+    let src = root.join("faelight/rust-tools/novashell/src");
     for entry in walkdir::WalkDir::new(&src)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -1200,7 +1200,7 @@ mod cmdword_check_tests {
         );
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        let src = root.join("faelight/rust-tools/novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
         root
@@ -1215,7 +1215,7 @@ mod cmdword_check_tests {
         );
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        let src = root.join("faelight/rust-tools/novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join(file), body).expect("fixture file");
         root
@@ -1330,7 +1330,7 @@ mod citation_check_tests {
         for f in filed {
             std::fs::write(intents.join(f), "---\nid: x\n---\n").expect("fixture intent");
         }
-        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        let src = root.join("faelight/rust-tools/novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
         root
@@ -1378,7 +1378,7 @@ mod citation_check_tests {
     fn an_unreadable_ledger_says_so_rather_than_flagging_everything() {
         let root = std::env::temp_dir().join("deadwood_cite_noledger");
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("faelight/rust-tools/faelight-shell/src");
+        let src = root.join("faelight/rust-tools/novashell/src");
         std::fs::create_dir_all(&src).expect("dir");
         std::fs::write(src.join("main.rs"), "// INT-100 INT-200 INT-300\n").expect("file");
         let found = check_dangling_intent_citations(&root);

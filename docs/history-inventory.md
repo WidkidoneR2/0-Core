@@ -1,7 +1,7 @@
 # shell_history inventory (INT-191 G1)
 
 GENERATED. Do not edit by hand -- run
-`python3 faelight/rust-tools/faelight-shell/generate-history-inventory.py`.
+`python3 faelight/rust-tools/novashell/generate-history-inventory.py`.
 
 - writers: **4**
 - readers: **80**
@@ -12,23 +12,23 @@ GENERATED. Do not edit by hand -- run
 
 The gate asks whether every history write has a single, well-defined owner.
 
-- `rust-tools/faelight-shell/src/db.rs:338` -- "INSERT INTO shell_history (command, timestamp, cwd, intent_id) VALUES (?1, ?2, ?3, ?4)",
-- `rust-tools/faelight-shell/src/db.rs:374` -- "UPDATE shell_history SET exit_code = ?1, duration_ms = ?2 WHERE id = ?3",
-- `rust-tools/faelight-shell/src/engine.rs:1943` -- "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-- `rust-tools/faelight-shell/src/main.rs:2767` -- "INSERT INTO shell_history (command, timestamp) VALUES (?1, strftime('%s','now'))",
+- `rust-tools/novashell/src/db.rs:338` -- "INSERT INTO shell_history (command, timestamp, cwd, intent_id) VALUES (?1, ?2, ?3, ?4)",
+- `rust-tools/novashell/src/db.rs:374` -- "UPDATE shell_history SET exit_code = ?1, duration_ms = ?2 WHERE id = ?3",
+- `rust-tools/novashell/src/engine.rs:1943` -- "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+- `rust-tools/novashell/src/main.rs:2767` -- "INSERT INTO shell_history (command, timestamp) VALUES (?1, strftime('%s','now'))",
 
 ## Matched but not consumers
 
 Each was read and judged rather than excluded by a pattern.
 
-- `rust-tools/faelight-shell/src/commands/mod.rs:14541` -- fsh doctor writability probe -- inserts and deletes its own row
-- `rust-tools/faelight-shell/src/commands/mod.rs:14546` -- fsh doctor writability probe -- inserts and deletes its own row
-- `rust-tools/faelight-shell/src/commands/mod.rs:16464` -- retention pruning, not recording
-- `rust-tools/faelight-shell/src/commands/mod.rs:16472` -- retention pruning, not recording
-- `rust-tools/faelight-shell/src/db.rs:178` -- trigger definition (shell_history_audit)
-- `rust-tools/faelight-shell/src/db.rs:183` -- writes the AUDIT table, not history
-- `rust-tools/faelight-shell/src/db.rs:187` -- immutability guard on the audit table
-- `rust-tools/faelight-shell/src/db.rs:192` -- immutability guard on the audit table
+- `rust-tools/novashell/src/commands/mod.rs:14541` -- fsh doctor writability probe -- inserts and deletes its own row
+- `rust-tools/novashell/src/commands/mod.rs:14546` -- fsh doctor writability probe -- inserts and deletes its own row
+- `rust-tools/novashell/src/commands/mod.rs:16464` -- retention pruning, not recording
+- `rust-tools/novashell/src/commands/mod.rs:16472` -- retention pruning, not recording
+- `rust-tools/novashell/src/db.rs:178` -- trigger definition (shell_history_audit)
+- `rust-tools/novashell/src/db.rs:183` -- writes the AUDIT table, not history
+- `rust-tools/novashell/src/db.rs:187` -- immutability guard on the audit table
+- `rust-tools/novashell/src/db.rs:192` -- immutability guard on the audit table
 
 ## Readers, by file
 
@@ -80,7 +80,7 @@ Each was read and judged rather than excluded by a pattern.
 - `71` [UNTYPED] "shell_history" => Some('h'),
 - `747` [UNTYPED] app.tables.iter().position(|(n, _)| n == "shell_history")
 
-### rust-tools/faelight-shell/src/commands/mod.rs (53)
+### rust-tools/novashell/src/commands/mod.rs (53)
 
 - `752` [READ] "SELECT command FROM shell_history \
 - `796` [READ] "SELECT DISTINCT command FROM shell_history \
@@ -136,11 +136,11 @@ Each was read and judged rather than excluded by a pattern.
 - `16424` [READ] "SELECT command, COUNT(*) as freq FROM shell_history
 - `16473` [READ] SELECT command FROM shell_history
 
-### rust-tools/faelight-shell/src/completion.rs (1)
+### rust-tools/novashell/src/completion.rs (1)
 
 - `1216` [READ] "SELECT command FROM shell_history              WHERE command LIKE ?1 AND command != ?2 AND length(c
 
-### rust-tools/faelight-shell/src/db.rs (11)
+### rust-tools/novashell/src/db.rs (11)
 
 - `104` [UNTYPED] "CREATE TABLE IF NOT EXISTS shell_history (
 - `124` [UNTYPED] let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN cwd TEXT");
@@ -154,20 +154,20 @@ Each was read and judged rather than excluded by a pattern.
 - `428` [READ] "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 1",
 - `438` [READ] "SELECT command FROM shell_history WHERE command LIKE ?1 ORDER BY timestamp DESC LIMIT 1",
 
-### rust-tools/faelight-shell/src/engine.rs (1)
+### rust-tools/novashell/src/engine.rs (1)
 
 - `1954` [UNTYPED] FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
 
-### rust-tools/faelight-shell/src/history_tui.rs (2)
+### rust-tools/novashell/src/history_tui.rs (2)
 
 - `120` [UNTYPED] FROM shell_history
 - `126` [UNTYPED] FROM shell_history
 
-### rust-tools/faelight-shell/src/main.rs (1)
+### rust-tools/novashell/src/main.rs (1)
 
 - `2350` [READ] SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIM
 
-### rust-tools/faelight-shell/src/semantic.rs (1)
+### rust-tools/novashell/src/semantic.rs (1)
 
 - `203` [UNTYPED] target: Target::System("shell_history".to_string()),
 

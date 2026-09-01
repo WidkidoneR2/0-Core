@@ -1,11 +1,11 @@
 [package]
-name = "faelight-shell"
+name = "novashell"
 license = "MIT"
 version = "3.8.4"
 edition = "2021"
 description = "The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
 
-# THE BINARY IS nsh; THE PACKAGE IS STILL faelight-shell.
+# THE PACKAGE IS novashell; THE BINARY IS nsh.
 #
 # fsh collides with fish -- same abbreviation, and anyone reading fsh in a ps listing or a
 # README reads it as the other shell. nsh (NovaShell) does not.

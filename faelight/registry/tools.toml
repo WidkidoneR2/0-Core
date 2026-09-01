@@ -132,10 +132,10 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-shell"
-version = "3.6.4"
+name = "nsh"
+version = "3.8.4"
 category = "shell"
-description = "Forest-native structured shell environment — beyond NixOS"
+description = "NovaShell -- forest-native structured shell. Package: novashell."
 expected_usage = "high"
 type = "rust"
 deployable = true

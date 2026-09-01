@@ -13584,7 +13584,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // cargo nextest run for a specific tool or all
             let manifest = if tool.is_empty() {
                 faelight_core::paths::rust_tools_dir()
-                    .join("faelight-shell/Cargo.toml")
+                    .join("novashell/Cargo.toml")
                     .to_string_lossy()
                     .to_string()
             } else {
@@ -13620,7 +13620,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // cargo watch for a specific tool
             let manifest = if tool.is_empty() {
                 faelight_core::paths::rust_tools_dir()
-                    .join("faelight-shell/Cargo.toml")
+                    .join("novashell/Cargo.toml")
                     .to_string_lossy()
                     .to_string()
             } else {
@@ -16790,7 +16790,7 @@ fn memory_distill(db: &ForestDb) -> CommandResult {
 // Count-asserted: exactly one version line, or it errors (never a partial/wrong write).
 fn tool_cargo_path(name: &str) -> Option<&'static str> {
     match name {
-        "faelight-shell" => Some("faelight/rust-tools/faelight-shell/Cargo.toml"),
+        "novashell" => Some("faelight/rust-tools/novashell/Cargo.toml"),
         "core" | "engine" => Some("faelight/engine/Cargo.toml"),
         "faelight-git" => Some("faelight/rust-tools/faelight-git/Cargo.toml"),
         "faelight-release" => Some("faelight/rust-tools/faelight-release/Cargo.toml"),
@@ -16890,10 +16890,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
 
     let tools = [
-        (
-            "faelight-shell",
-            "faelight/rust-tools/faelight-shell/Cargo.toml",
-        ),
+        ("faelight-shell", "faelight/rust-tools/novashell/Cargo.toml"),
         ("core", "faelight/engine/Cargo.toml"),
         (
             "faelight-git",

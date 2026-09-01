@@ -4,7 +4,7 @@
 The gate asks for an ARTIFACT, not a paragraph -- something that can be re-run and
 diffed rather than re-argued. Run it from the repo root:
 
-    python3 faelight/rust-tools/faelight-shell/generate-history-inventory.py
+    python3 faelight/rust-tools/novashell/generate-history-inventory.py
 
 It writes docs/history-inventory.md.
 
@@ -77,7 +77,7 @@ def main():
     doc.append("# shell_history inventory (INT-191 G1)")
     doc.append("")
     doc.append("GENERATED. Do not edit by hand -- run")
-    doc.append("`python3 faelight/rust-tools/faelight-shell/generate-history-inventory.py`.")
+    doc.append("`python3 faelight/rust-tools/novashell/generate-history-inventory.py`.")
     doc.append("")
     doc.append(f"- writers: **{len(writes)}**")
     doc.append(f"- readers: **{len(reads)}**")

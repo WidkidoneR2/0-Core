@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """INT-227 G1 census + a platform error-swallow LINT.
 
-    python3 faelight/rust-tools/faelight-shell/generate-platform-census.py          # write the doc
-    python3 faelight/rust-tools/faelight-shell/generate-platform-census.py --check  # G6, exit 1 on drift
+    python3 faelight/rust-tools/novashell/generate-platform-census.py          # write the doc
+    python3 faelight/rust-tools/novashell/generate-platform-census.py --check  # G6, exit 1 on drift
 
 WHY MECHANICAL, AND WHY IT CLASSIFIES RATHER THAN COUNTS. The intent's own headline said
 "forty-two places", and reading them found: two real defects, twelve TEST FIXTURES where a literal
@@ -179,7 +179,7 @@ def main():
 
     doc = ["# platform assumption census (INT-227 G1)", ""]
     doc.append("GENERATED. Do not edit by hand -- run")
-    doc.append("`python3 faelight/rust-tools/faelight-shell/generate-platform-census.py`.")
+    doc.append("`python3 faelight/rust-tools/novashell/generate-platform-census.py`.")
     doc.append("")
     doc.append("⚠️ A COUNT IS NOT A CENSUS. The intent's headline said forty-two places; the")
     doc.append("categories below are what reading them actually found.")
