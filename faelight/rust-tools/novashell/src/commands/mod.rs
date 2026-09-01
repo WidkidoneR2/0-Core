@@ -1259,17 +1259,50 @@ fn execute_dispatch(
         "dev" => dev_cmd(db, core_root, args),
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
         | "capabilities" | "genealogy" | "autonomy" => {
-            let sub = args.join(" ");
-            let full = if sub.is_empty() {
-                format!("core {}", cmd)
-            } else {
-                format!("core {} {}", cmd, sub)
-            };
-            // INT-143: these arms shell out to `core`. A probe must not.
-            if !allow_external {
-                CommandResult::NotBuiltin
-            } else {
-                run_external(&full, db)
+            // ⚠️ NO STRING, NO SHELL. This joined the already-tokenized args back into
+            // `core <cmd> <sub>` and handed that LINE to run_external, which gives it to sh --
+            // so a quoted argument was flattened AND anything in it was shell-interpreted.
+            // `doctor $(whoami)` substituted. That is INT-193's rejoin bug with an execution
+            // surface, and INT-195's rule against re-deriving what a previous stage computed.
+            //
+            // argv goes straight through. No quoting function is added: this tree spent INT-193,
+            // 195, 196 and 209 reducing the number of places that own quoting, and a shell_quote
+            // helper here would be a new one.
+            //
+            // WHAT run_external PROVIDED AND IS NOT MISSED: a PATH check and a did-you-mean
+            // suggestion for an unknown command word. The word here is always `core`, which is
+            // known to exist -- the suggestion could never fire.
+            //
+            // ⚠️ NO allow_external CHECK, AND ITS ABSENCE IS THE FIX. These verbs answered
+            // NotBuiltin under ExecutionMode::Spine, and the spine takes that literally: it
+            // spawns the plan's argv, so `predict` became a search for a binary named predict.
+            // Every verb in this arm has been command-not-found since the spine flip -- doctor,
+            // predict, react, stress, goals, evolution, security, capabilities, genealogy,
+            // autonomy. Observed with NSH_OBSERVE=all: the router claims the line, the spine
+            // dispatches, and the result is not-found.
+            //
+            // THE GUARD WAS FOR A PROBE THAT NO LONGER EXISTS. allow_external was born as
+            // INT-143's `try_builtin` check -- a probe must not spawn anything -- and
+            // try_builtin died with the inline redirect executor, which the note on
+            // CommandResult::NotBuiltin already records. The flag now means only "the spine
+            // handles the fallthrough itself", and this arm no longer USES the fallthrough: it
+            // spawns core by argv rather than handing a line to run_external.
+            //
+            // A recognised builtin that implements itself by running a program is not an
+            // unrecognised command, and it should not answer as one.
+            {
+                let status = std::process::Command::new("core")
+                    .arg(&cmd)
+                    .args(args)
+                    .status();
+                match status {
+                    Ok(st) if st.success() => CommandResult::Output(String::new()),
+                    Ok(st) => CommandResult::Error(
+                        format!("core {} exited {}", cmd, st.code().unwrap_or(-1)).into(),
+                        st.code().unwrap_or(1),
+                    ),
+                    Err(e) => CommandResult::Error(format!("core did not run: {}", e).into(), 127),
+                }
             }
         }
         "sandbox" => sandbox(db),
@@ -3988,9 +4021,17 @@ fn execute_dispatch(
             // INT-095: `kill` removed from this arm -- kill is now handled in main.rs as the
             // real PID/job killer. `terminate <pattern>` keeps the pgrep -f semantic match.
             let target = args.join(" ");
-            let pid_result = std::process::Command::new("sh")
-                .arg("-c")
-                .arg(format!("pgrep -f '{}'", target))
+            // ⚠️ NO SHELL. This built `sh -c "pgrep -f '<target>'"` from args that were ALREADY
+            // tokenized, so a single quote in the pattern closed the quoting and the rest of the
+            // string became shell: terminate "x'; rm -rf /tmp/y; '" would have run it. That is
+            // INT-193's rejoin bug with an injection surface on top, in the command whose job is
+            // killing processes.
+            //
+            // pgrep never needed a shell. The pattern goes as one argument, and nothing parses it
+            // but pgrep.
+            let pid_result = std::process::Command::new("pgrep")
+                .arg("-f")
+                .arg(&target)
                 .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
                 .unwrap_or_default();
