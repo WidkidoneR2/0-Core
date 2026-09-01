@@ -115,7 +115,21 @@ impl ForestDb {
             CREATE TABLE IF NOT EXISTS shell_state (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
-            );",
+            );
+            -- load_history asks for the newest 10000 rows ordered by timestamp, at EVERY
+            -- interactive start. Without this the plan is SCAN shell_history + USE TEMP B-TREE
+            -- FOR ORDER BY: a full scan of 187,630 rows and a sort, to return the newest 5%.
+            --
+            -- MEASURED 2026-09-02: 277ms without, 0.79ms with. That was 255ms of a 400ms
+            -- startup -- the single largest cost between launching a terminal and getting a
+            -- prompt, and larger than everything runtime_init does put together.
+            --
+            -- ⚠️ IT IS IN THE SCHEMA BECAUSE IT HAD BEEN FIXED BEFORE AND CAME BACK. An index
+            -- applied by hand to state.db is a fact about one machine and survives only until
+            -- something rebuilds the table. This file created NO indexes at all, so nothing in
+            -- the code that builds the database knew the index was supposed to exist.
+            CREATE INDEX IF NOT EXISTS idx_shell_history_timestamp
+                ON shell_history(timestamp DESC);",
         )?;
 
         // INT-101: enrich shell_history AFTER its CREATE above, so a FRESH db
@@ -221,6 +235,7 @@ impl ForestDb {
                 .query_map([], |r| r.get(0))
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default();
+            crate::mark("history: query returned");
             // Add in reverse so most recent is at top
             for cmd in history.iter().rev() {
                 let _ = rl.add_history_entry(cmd.as_str());

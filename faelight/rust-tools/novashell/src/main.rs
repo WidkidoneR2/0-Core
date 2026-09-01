@@ -2043,6 +2043,7 @@ fn run_input(
 fn repl_main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
+    mark("login shell phase");
     // Phase 19 — Login shell support
     // If invoked as login shell (argv[0] starts with '-' or --login flag),
     // source /etc/profile and ~/.profile to set up environment
@@ -2161,6 +2162,7 @@ fn repl_main() -> Result<()> {
     // computed first because it is derived from db, which moves.
     let mut engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
 
+    mark("health refresh: entering");
     // INT-124: refresh health BEFORE the welcome header renders, so the splash
     // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
     refresh_health_if_stale(engine.core_root(), engine.db());
@@ -2184,6 +2186,7 @@ fn repl_main() -> Result<()> {
     let mut _session_commits: usize = 0;
     let mut _session_failed: usize = 0;
 
+    mark("editor config read");
     // Phase 16 — configured interactive editor
     // INT-134 Lane UX: `set edit_mode = vi` in config.nsh selects modal editing. Emacs stays the
     // default -- and note that "emacs" here means READLINE KEYBINDINGS (Ctrl+A, Ctrl+E, Ctrl+K,
@@ -2222,6 +2225,7 @@ fn repl_main() -> Result<()> {
     // hold an immutable borrow for the entire session, since rustyline keeps the helper.
     let db_handle = engine.db_handle();
     let helper = completion::ForestHelper::new(&db_handle);
+    mark("line editor: constructed");
     let mut rl: Editor<completion::ForestHelper<'_>, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
     // Ctrl+L handled in REPL loop via clear command
@@ -2229,6 +2233,7 @@ fn repl_main() -> Result<()> {
     // Apply config aliases and settings
     // The announcement moved OUT of `apply` (INT-200): a runtime step must not emit UI, or a
     // non-interactive caller inherits it on stdout. Printed here, unchanged, so the interactive
+    mark("banner: about to render");
     // banner is byte-identical to before.
     if applied.pruned > 0 {
         println!(
@@ -2262,10 +2267,13 @@ fn repl_main() -> Result<()> {
 
     // INT-173 — build command registry on startup
     let mut registry = registry::Registry::new();
+    mark("registry: populate starting");
     registry.populate(engine.db(), engine.core_root());
+    mark("registry: populated");
 
     // Load history from state.db
     engine.db().load_history(&mut rl);
+    mark("history: loaded into the line editor");
     // INT-250: bind Ctrl+R to a custom ConditionalEventHandler that sets a flag
     // and accepts the line. After readline returns, we check the flag and run TUI.
     use rustyline::{Cmd, KeyCode as RKeyCode, KeyEvent as RKeyEvent, Modifiers};
@@ -2357,11 +2365,12 @@ fn repl_main() -> Result<()> {
     let mut last_history_id: Option<i64> = None;
     let mut last_command_start: Option<std::time::Instant> = None;
 
+    mark("shell vars: restore starting");
     // Phase 10 — shell variable table
     // Restore persisted variables from state.db
     {
         {
-            mark("EXIT: distinct_intents done");
+            mark("shell vars: table ensured");
             let _ = engine.db().conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         );

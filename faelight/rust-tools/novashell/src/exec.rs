@@ -632,6 +632,11 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                         r.get::<_, String>(3)?,
                     ))
                 });
+                // The mark was INSIDE this loop and fired once per knowledge entry -- fourteen
+                // times for one command, which is noise in a profile rather than a measurement.
+                // One query, N in-memory comparisons; the query is what costs, so the mark
+                // belongs here.
+                crate::mark("    postexec @603");
                 if let Ok(rows) = rows {
                     for row in rows.flatten() {
                         let (id, resolution, confidence, descr) = row;
@@ -643,7 +648,6 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                             .split(|c: char| !c.is_alphanumeric() && c != '0')
                             .filter(|w| !w.is_empty())
                             .collect();
-                        crate::mark("    postexec @603");
                         let hits = search_tokens
                             .iter()
                             .filter(|t| descr_words.contains(t.as_str()))
