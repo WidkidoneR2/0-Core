@@ -2166,14 +2166,18 @@ fn repl_main() -> Result<()> {
     // INT-124: refresh health BEFORE the welcome header renders, so the splash
     // never shows a stale (pre-boot) health number. Cheap unless the event is stale.
     refresh_health_if_stale(engine.core_root(), engine.db());
+    mark("health: refresh_health_if_stale returned");
     // Print welcome
     print_welcome(engine.core_root(), engine.db());
+    mark("health: welcome printed");
     // Write journal session-start entry
     let _ = std::process::Command::new("core")
         .args(["journal", "session-start"])
         .output();
+    mark("health: core journal session-start returned");
     // INT-242: export forest state to /etc/faelight/ for login screen
     let _ = std::process::Command::new("faelight-export").output();
+    mark("health: faelight-export returned");
     let _session_start = std::time::Instant::now();
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
@@ -3077,6 +3081,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // nine miss, nothing increments, and the banner printed `0 done · 0 planned` about a directory
     // that is not there. Seen on Void and on Omarchy, beside an honest `? commits`.
     let ledger_exists = faelight_core::paths::intents_dir().exists();
+    mark("welcome: intent scan starting");
     let (complete_count, planned_count) = {
         let intent_dir = faelight_core::paths::intents_dir();
         let categories = [
@@ -3121,6 +3126,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         }
         (complete, planned)
     };
+    mark("welcome: intent scan done");
     let quotes = [
         "Nothing runs without explicit human authorization.",
         "The forest remembers. The human decides.",
@@ -3136,6 +3142,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         "Not text streams. Not configuration. Structured wisdom.",
     ];
     // Rotate quotes via state.db — never repeat consecutively
+    mark("welcome: quote block starting");
     let quote = {
         let _ = db.conn.execute(
             "CREATE TABLE IF NOT EXISTS shell_state (key TEXT PRIMARY KEY, value TEXT)",
@@ -3178,6 +3185,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // The pre-push hook runs fsh-test on every push, so state.db always holds a fresh
     // result and the banner never has to spawn anything. Rows from one run share a
     // timestamp; the newest group is the latest run.
+    mark("welcome: quote block done");
     let fsh_score = {
         let row: Option<(i64, i64, String)> = db
             .conn
@@ -3215,6 +3223,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     };
 
     // -- in-progress intents, counted the same way planned already is --
+    mark("welcome: score block done");
     let active_count = {
         let dir = faelight_core::paths::intents_dir();
         let mut n = 0usize;

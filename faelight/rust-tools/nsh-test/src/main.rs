@@ -2625,6 +2625,31 @@ fn store_results(results: &[TestResult]) {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
+    // ⚠️ NOTHING IN THE TREE CREATED THIS TABLE. It existed only in state.db, put there by
+    // hand or by code since removed, so a fresh machine ran the suite and stored NOTHING --
+    // silently, because the insert below is best-effort and only counts what succeeded.
+    //
+    // THE INDEX IS THE SAME STORY AS shell_history, ONE DAY LATER. The banner reads this
+    // table at every interactive start, filtering on the newest timestamp. With 110,582 rows
+    // and no index that was a full SCAN: 60ms measured, 0.43ms with the index -- and the
+    // index had to be created by hand to find that out, which is exactly why it belongs here.
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS nsh_test_results (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            test_name   TEXT NOT NULL,
+            category    TEXT NOT NULL,
+            passed      INTEGER NOT NULL,
+            duration_ms INTEGER NOT NULL,
+            commit_hash TEXT NOT NULL,
+            timestamp   INTEGER NOT NULL,
+            nsh_version TEXT
+         );
+         CREATE INDEX IF NOT EXISTS idx_nsh_test_results_timestamp
+             ON nsh_test_results(timestamp);",
+    );
+    // ONE TRANSACTION, NOT 191 AUTOCOMMITS. config::apply learned this already -- 285 alias
+    // inserts at roughly 0.7ms each was 210ms of startup until they were wrapped.
+    let _ = conn.execute_batch("BEGIN");
     let mut stored = 0;
     for r in results {
         if conn.execute(
@@ -2632,6 +2657,7 @@ fn store_results(results: &[TestResult]) {
             rusqlite::params![r.name, r.category.to_string(), r.passed as i32, r.duration_ms as i64, commit, ts, nsh_version],
         ).is_ok() { stored += 1; }
     }
+    let _ = conn.execute_batch("COMMIT");
     println!("  💾 {} results stored in state.db", stored);
     // Phase 5: update Friday knowledge with test health
     let total = results.len();
