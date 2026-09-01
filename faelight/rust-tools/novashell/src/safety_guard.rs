@@ -29,13 +29,33 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     // Deny is checked FIRST and wins over everything (even the static safe list below).
     // Allow is checked next -- an explicitly vetted command skips the guard. Both match
     // on first_word only, consistent with the rest of this module (never args/paths).
-    if guard_list_contains("deny", first_word) {
-        return Some(format!(
-            "Denylisted command (user guard): {}",
-            trimmed.chars().take(60).collect::<String>()
-        ));
+    // ⚠️ THE TWO LISTS FAIL IN OPPOSITE DIRECTIONS, which is why they read the same answer
+    // differently. An UNREADABLE list used to be indistinguishable from an EMPTY one -- both
+    // returned false -- and that is safe for allow and unsafe for deny:
+    //   allow, undetermined -> heuristics still run, which is MORE caution. Silence is correct.
+    //   deny,  undetermined -> a word you explicitly banned is judged by heuristics alone, and
+    //                          if none match it runs. Silence there is the defect.
+    match guard_list_contains("deny", first_word) {
+        Some(true) => {
+            return Some(format!(
+                "Denylisted command (user guard): {}",
+                trimmed.chars().take(60).collect::<String>()
+            ));
+        }
+        Some(false) => {}
+        None => {
+            // Not a challenge: the user cannot fix an unreadable database mid-command, and a
+            // prompt they must answer every line is the loud-shell failure. Observable instead
+            // -- NSH_OBSERVE=guard answers "is my deny list actually being consulted".
+            crate::observe::emit(crate::observe::Event {
+                level: crate::observe::Level::Warn,
+                target: crate::observe::Target::Guard,
+                message: "deny-list-unreadable",
+                fields: &[("word", first_word.to_string())],
+            });
+        }
     }
-    if guard_list_contains("allow", first_word) {
+    if guard_list_contains("allow", first_word) == Some(true) {
         return None;
     }
     // Safe commands -- nsh builtins and forest tools never trigger guard.
@@ -150,14 +170,22 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
 /// Opens the db read-only itself so check()'s signature stays unchanged. Best-effort:
 /// any error -> false (fail-open for allow, fail-safe for deny is handled by the caller
 /// order -- deny miss just falls through to the normal heuristics).
-fn guard_list_contains(kind: &str, word: &str) -> bool {
+/// `None` means COULD NOT DETERMINE -- not "absent".
+///
+/// This returned bool, so an unreadable database and an empty list were the same answer. There
+/// were two ways to reach it: the open at the top, and a query error swallowed by unwrap_or(0).
+/// The callers want opposite things from that state, so the function stopped deciding for them.
+///
+/// Same shape as Status::Unknown in the doctor and Verdict::Unknown in zero-gate: a thing that
+/// could not be measured is its own outcome, never a clean one.
+fn guard_list_contains(kind: &str, word: &str) -> Option<bool> {
     if word.is_empty() {
-        return false;
+        return Some(false);
     }
     let db_path = faelight_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
-        Err(_) => return false,
+        Err(_) => return None,
     };
     let _ = conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS nsh_guard_list (
@@ -166,14 +194,14 @@ fn guard_list_contains(kind: &str, word: &str) -> bool {
             PRIMARY KEY (word, kind)
         );",
     );
-    let count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM nsh_guard_list WHERE kind = ?1 AND word = ?2",
-            rusqlite::params![kind, word],
-            |r| r.get(0),
-        )
-        .unwrap_or(0);
-    count > 0
+    // unwrap_or(0) was the second fail-open: a query error read as "not on the list".
+    conn.query_row(
+        "SELECT COUNT(*) FROM nsh_guard_list WHERE kind = ?1 AND word = ?2",
+        rusqlite::params![kind, word],
+        |r| r.get::<_, i64>(0),
+    )
+    .ok()
+    .map(|c| c > 0)
 }
 
 /// Display the CHALLENGE gate and wait for explicit confirmation.
