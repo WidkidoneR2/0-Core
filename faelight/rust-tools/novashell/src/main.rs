@@ -927,6 +927,32 @@ fn main() -> Result<()> {
             let mut job_table = jobs::JobTable::new();
             let mut shown: std::collections::HashSet<String> = std::collections::HashSet::new();
             let mut last_intent: Option<String> = None;
+            // ⭐ THE GUARD IS ON THIS DOOR TOO. It was REPL-only, so `nsh -c 'rm -rf /etc'`
+            // ran ungated while the same line typed at a prompt was challenged. The comment at
+            // the REPL site said "BEFORE any execution path" and that was false for this one.
+            //
+            // ⚠️ THE CALL IS COPIED, NOT MOVED, and the REPL site says why: alias expansion lives
+            // inside run_input, so a guard placed there would sit BELOW the multi-line branch and
+            // leave a pasted block unguarded -- a property INT-196 M8 proved holds today. Moving
+            // it would trade a covered path for this one. Two callers, one policy module.
+            //
+            // Same three steps as the REPL, in the same order: expand a COPY, derive the word
+            // from the expansion, judge the expansion. INT-197 is why the expanded line is what
+            // gets judged rather than the typed one.
+            //
+            // ⚠️ STILL NOT PER-SEGMENT. `a && zap` expands only the first word here, exactly as
+            // at the REPL. Closing that needs a ruling on who owns segment enumeration, because
+            // a second segmenter inside the security boundary can disagree with the executor.
+            {
+                let guard_line = engine.expand_aliases(&cmd_str);
+                if let Some(word) = guard_command_word(&guard_line).map(|w| policy_identity(&w)) {
+                    if let Some(warning) = safety_guard::check(&guard_line, &word) {
+                        if !safety_guard::challenge_gate(&warning) {
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
             boot_mark("about to run_input");
             let _ = run_input(
                 &mut engine,

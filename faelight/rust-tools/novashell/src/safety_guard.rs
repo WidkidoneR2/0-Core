@@ -164,6 +164,33 @@ fn guard_list_contains(kind: &str, word: &str) -> bool {
 /// Display the CHALLENGE gate and wait for explicit confirmation.
 /// Returns true if the human approved, false if blocked.
 pub fn challenge_gate(warning: &str) -> bool {
+    // ⭐ `-c` REFUSES RATHER THAN ASKS, and the alternative is worse than it looks.
+    //
+    // This reads stdin for the word yes. Through `-c`, stdin belongs to the CALLER -- a pipe, a
+    // file, a closed descriptor. Asking a question into that is not asking anyone: EOF trims to
+    // an empty string, which already returns false. So the door was ALREADY blocking closed,
+    // by accident, after printing a prompt nobody could answer.
+    //
+    // Worse, a piped `yes` on the next line would ANSWER a challenge the caller never saw.
+    //
+    // Deliberate now: name the refusal, do not prompt, return false. And write to STDERR --
+    // stdout belongs to the program on this door, which is what keeps `nsh -c 'echo hi' | wc -l`
+    // answering 1.
+    if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
+        eprintln!();
+        eprintln!("  \u{26a0} REFUSED -- this needs a human, and `-c` has no one to ask");
+        eprintln!("  \u{2192} {}", warning);
+        eprintln!("  Run it at an interactive prompt if you meant it.");
+        // Same instrument, the other door. A refusal nobody could answer is still a decision
+        // the guard made, and `NSH_OBSERVE=guard nsh -c ...` should say so.
+        crate::observe::emit(crate::observe::Event {
+            level: crate::observe::Level::Info,
+            target: crate::observe::Target::Guard,
+            message: "refused-no-tty",
+            fields: &[("warning", warning.to_string())],
+        });
+        return false;
+    }
     println!();
     println!(
         "  {} CHALLENGE -- Friday requires explicit approval",
@@ -181,6 +208,22 @@ pub fn challenge_gate(warning: &str) -> bool {
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap_or(0);
     let approved = input.trim() == "yes";
+    // ⭐ THE FIRST RECORD THIS GATE HAS EVER KEPT. It has been stopping commands since April and
+    // logging nothing: no event, no history row, nothing saying a human was asked or what they
+    // answered. So nobody can say how often it fires, on what, or whether anyone types yes --
+    // and after widening it to a second door there is no BASELINE to compare against.
+    //
+    // ⚠️ THIS IS AN INSTRUMENT, NOT A RECORD. observe::emit is silent unless NSH_OBSERVE is set,
+    // so `NSH_OBSERVE=guard` answers what the guard is doing while you watch. NOTHING
+    // ACCUMULATES. A persistent count of every challenge is a different thing and it belongs to
+    // the history model INT-191 owns -- inventing a table here would be a second owner of shell
+    // events, which is the defect this codebase keeps finding.
+    crate::observe::emit(crate::observe::Event {
+        level: crate::observe::Level::Info,
+        target: crate::observe::Target::Guard,
+        message: if approved { "approved" } else { "blocked" },
+        fields: &[("warning", warning.to_string())],
+    });
     if approved {
         println!(
             "  {} Proceeding with explicit approval.",

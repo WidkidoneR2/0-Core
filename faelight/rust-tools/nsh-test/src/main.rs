@@ -2551,6 +2551,57 @@ fn all_tests() -> Vec<TestResult> {
             }
         },
     ));
+    results.push(test(
+        "dashc_reaches_the_safety_guard",
+        Category::Regression,
+        || {
+            // ITEM 1: the guard was REPL-only. `nsh -c 'rm -rf /etc'` ran ungated while the
+            // same line typed at a prompt was challenged, and the comment at the REPL site
+            // claimed BEFORE any execution path. Measured 2026-09-02: the old binary exited 0
+            // silently; the new one refuses and exits 1.
+            //
+            // `-c` REFUSES RATHER THAN PROMPTS. challenge_gate reads stdin for yes, and on this
+            // door stdin belongs to the CALLER -- a pipe, a file, a closed descriptor. It was
+            // already blocking closed by accident (EOF trims to empty), after printing a
+            // question nobody could answer. Worse, a piped `yes` could have answered a
+            // challenge the caller never saw.
+            //
+            // THE REFUSAL GOES TO STDERR. stdout belongs to the program on this door, which is
+            // what keeps `nsh -c 'echo hi' | wc -l` answering 1 -- asserted below, because a
+            // guard that contaminates stdout breaks the contract INT-201 established.
+            //
+            // Payload outside every safe_target and absent, so a failed refusal removes
+            // nothing.
+            let (out, err, code) = run_fsh_status("rm -rf /nonexistent-nsh-dashc-guard")?;
+            let refused = err.contains("REFUSED") || out.contains("REFUSED");
+            let named = err.contains("Destructive remove")
+                || out.contains("Destructive remove");
+            let nonzero = code != Some(0);
+            if refused && named && nonzero {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the -c door did not reach the guard (refused={refused}, named={named}, code={code:?}) -- out={out:?} err={err:?}"
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "dashc_guard_refusal_stays_off_stdout",
+        Category::Regression,
+        || {
+            // The companion assertion, and the reason the refusal uses eprintln. A guard that
+            // printed to stdout would break `nsh -c 'echo hi' | wc -l` == 1, which INT-201
+            // established and the diagnostics rule protects.
+            let (out, _, _) = run_fsh_status("echo hi")?;
+            let lines = out.lines().filter(|l| !l.trim().is_empty()).count();
+            if lines == 1 {
+                Ok(())
+            } else {
+                Err(format!("stdout carried {lines} lines, not 1: {out:?}"))
+            }
+        },
+    ));
     results
 }
 

@@ -120,6 +120,8 @@ pub enum Target {
     Executor,
     Jobs,
     Boot,
+    /// The safety guard: what it judged, and what the human answered.
+    Guard,
 }
 
 impl Target {
@@ -131,6 +133,7 @@ impl Target {
             Target::Executor => "executor",
             Target::Jobs => "jobs",
             Target::Boot => "boot",
+            Target::Guard => "guard",
         }
     }
 
@@ -142,6 +145,7 @@ impl Target {
             "executor" => Target::Executor,
             "jobs" => Target::Jobs,
             "boot" => Target::Boot,
+            "guard" => Target::Guard,
             _ => return None,
         })
     }
@@ -217,7 +221,7 @@ pub fn emit(ev: Event<'_>) {
     }
 
     let mut line = format!(
-        "[fsh {} {}] {}",
+        "[nsh {} {}] {}",
         ev.level.as_str(),
         ev.target.as_str(),
         ev.message
