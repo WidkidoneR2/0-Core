@@ -38,7 +38,12 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     if guard_list_contains("allow", first_word) {
         return None;
     }
-    // Safe commands -- fsh builtins and forest tools never trigger guard
+    // Safe commands -- nsh builtins and forest tools never trigger guard.
+    //
+    // ⚠️ THIS CATEGORY OUTRANKS EVERY HEURISTIC BELOW. A word here returns None before any
+    // pattern runs, so a rule written for a command in this list is unreachable by
+    // construction. `git reset --hard` had such a rule and it was deleted rather than
+    // resurrected -- see the note where it used to be.
     let safe = [
         "fg",
         "core",
@@ -111,14 +116,24 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
         ));
     }
 
-    // git reset --hard
-    if first_word == "git" && lower.contains("reset") && lower.contains("--hard") {
-        return Some(format!(
-            "Destructive git reset: {}",
-            trimmed.chars().take(60).collect::<String>()
-        ));
-    }
-
+    // ⚠️ THE `git reset --hard` RULE WAS HERE AND IS DELETED, not disabled. `git` sits in the
+    // safe list above, which returns before this line, so the rule had never fired -- a gate
+    // that cannot fail, in the file where that matters most.
+    //
+    // DELETED RATHER THAN MADE REACHABLE, and the cost decided it. Taking git out of safe puts
+    // every gp, gc and fg done through the heuristics to catch one pattern whose entire purpose
+    // is discarding work deliberately -- and which has the reflog behind it. A challenge answered
+    // yes every time is the loud-shell failure the philosophy names.
+    //
+    // ⭐ AND IT MAY HAVE BEEN THE WRONG SUBCOMMAND ANYWAY. `git clean -xfd` removes untracked
+    // files with no reflog and is equally unguarded. If any git verb earns a gate it is that one,
+    // and it needs git out of safe -- a decision with a stated cost, not a revived dead branch.
+    //
+    // ⭐ PROVEN DEAD THE HARD WAY. This rule was verified unreachable by running
+    // `nsh -c 'git reset --hard'` -- which ran ungated, exactly as predicted, and discarded the
+    // uncommitted edit that had just deleted it. The guard was right: that command means discard,
+    // and it was typed deliberately. Check `git status` before proving a destructive command is
+    // unguarded.
     // chmod -R on sensitive paths
     if first_word == "chmod" && lower.contains("-r") && lower.contains("/etc") {
         return Some(format!(
