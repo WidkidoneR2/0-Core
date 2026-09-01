@@ -356,6 +356,63 @@ is wrong, fix the generator.
 
 ---
 
+## Current Work -- September 2026
+
+⚠️ THIS SECTION IS DATED AND MEANT TO BE REPLACED. Everything above it is a
+standing convention; this is what is being worked on right now and in what
+order. If the date is stale, distrust the list before you distrust the rest of
+the file.
+
+### The ordering, and why it is an ordering
+
+Coherence does not move until the safety guard is on every execution door.
+Until then, more code means more comments to distrust. So:
+
+1. **`safety_guard` on `run_input`.** Today it runs in the REPL loop only, so
+   `nsh -c` skips it entirely. The comment saying "BEFORE any execution path"
+   is false until this lands. Requires a stated `-c` policy for
+   `challenge_gate`: no TTY means either block closed or documented skip.
+   Pick one and write it down.
+   ⚠️ nsh-test drives `-c` for over a hundred cases, so "block closed" changes
+   what the suite can run. Decide deliberately, not as a side effect.
+2. **One git policy.** `git` is in the `safe` set AND there is a
+   `git reset --hard` arm in the heuristics. The arm is dead while git is
+   safe. Remove git from safe, or delete the arm. Name the discarded half in
+   the commit.
+3. **INT-197 remainder -- VERIFY BEFORE IMPLEMENTING.** The claim is that
+   `check(cmd, first_word)` gets the alias-EXPANDED first word but the TYPED
+   line as cmd, so `alias zap='rm -rf /tmp/x'` then `zap` never sees `-rf`.
+   INT-196 and INT-197 are both marked complete, so either this was fixed or a
+   gate was ticked without demonstration. One reproduction settles it. Do that
+   first.
+4. **The `-c` boot tax.** `nsh -c true` costs ~305ms release against bash's
+   ~3ms. The hypothesis: `ForestDb::open` runs `wal_checkpoint(TRUNCATE)` on
+   every process; `config::apply` re-seeds 270 aliases every time; prune and
+   settings sit outside the alias transaction.
+   ⚠️ THAT IS A HYPOTHESIS READ FROM THE CODE, NOT A MEASUREMENT. Profile
+   first: `NSH_BOOT_PROFILE=1 NSH_OBSERVE=boot nsh -c true`, and
+   `ls -l ~/.local/state/faelight/state.db*` before and after. The profile
+   either confirms the chain or names something else.
+5. **An honesty pass, deletions only.** `plugin-reload` help versus what it
+   does; `.fsh` versus `.nsh` in the plugin help; `cmdguard` versus `guard`;
+   `zero-gate --help` still offering risk tiers after risk-gate.sh died with
+   nix/. Fix or delete -- do not add documentation.
+
+### Deferred, and the reason is ordering rather than objection
+
+Not this month, and not because they are wrong:
+
+- A hook or plugin surface. It would be built on top of a guard that does not
+  cover every door.
+- INT-169 spine as the only executor.
+- Splitting `commands/mod.rs`. It is 17k lines and it IS the coherence
+  problem -- which is why it waits for a guard that makes the split provable
+  rather than hopeful.
+- New heuristics, more deny words, chmod rules.
+- Making nsh the login shell. INT-190 records what that cost.
+
+---
+
 ## Definition of Done
 
 An item is done when **all** of the following are true:
