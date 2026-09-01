@@ -378,7 +378,7 @@ fn friday_why(db: &Connection, term: &str) -> String {
 
 fn friday_recall(db: &Connection, term: &str) -> String {
     if term.is_empty() {
-        return "Usage: recall [query]\nExample: recall deploy faelight-shell".to_string();
+        return "Usage: recall [query]\nExample: recall deploy nsh".to_string();
     }
     let pattern = format!("%{}%", term);
     // Search knowledge + events

@@ -1139,7 +1139,7 @@ fn run_shell_tutorial(args: &[String]) {
         println!();
         println!(
             "{}",
-            "  ╭─ 📚 faelight-shell Lessons ─────────────────────────".bright_cyan()
+            "  ╭─ 📚 NovaShell Lessons ─────────────────────────".bright_cyan()
         );
         for (i, lesson) in lessons.iter().enumerate() {
             println!(
@@ -1193,7 +1193,7 @@ fn build_shell_lessons() -> Vec<Lesson> {
     vec![
         Lesson {
             title: "The Basics — Your First Commands".to_string(),
-            intro: "faelight-shell is a forest-native shell. Everything here knows about your system.".to_string(),
+            intro: "NovaShell is a forest-native shell. Everything here knows about your system.".to_string(),
             steps: vec![
                 Step {
                     instruction: "Check the forest health".to_string(),
@@ -1217,7 +1217,7 @@ fn build_shell_lessons() -> Vec<Lesson> {
         },
         Lesson {
             title: "Tables — Structured Data".to_string(),
-            intro: "In faelight-shell, commands return structured tables — not text.".to_string(),
+            intro: "In NovaShell, commands return structured tables — not text.".to_string(),
             steps: vec![
                 Step {
                     instruction: "Show all tools as a table".to_string(),
@@ -1283,7 +1283,7 @@ fn build_shell_lessons() -> Vec<Lesson> {
         },
         Lesson {
             title: "Git Intelligence — Structured History".to_string(),
-            intro: "Git data is first-class in faelight-shell. Commits are rows you can filter.".to_string(),
+            intro: "Git data is first-class in NovaShell. Commits are rows you can filter.".to_string(),
             steps: vec![
                 Step {
                     instruction: "Show recent commits as a table".to_string(),
@@ -1385,7 +1385,7 @@ fn show_shell_progress(lessons: &[Lesson]) {
     println!();
     println!(
         "{}",
-        "  ╭─ 📊 faelight-shell Progress ───────────────────────".bright_cyan()
+        "  ╭─ 📊 NovaShell Progress ───────────────────────".bright_cyan()
     );
     println!(
         "  │  {} lessons available",

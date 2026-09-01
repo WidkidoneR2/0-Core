@@ -5903,7 +5903,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
         .stderr(std::process::Stdio::inherit())
         .status();
     println!();
-    println!("  {} Welcome back to Faelight Shell 🌲", "✅".green());
+    println!("  {} Welcome back to NovaShell 🌲", "✅".green());
     println!();
     CommandResult::Empty
 }
@@ -8797,7 +8797,7 @@ fn usage_report(db: &ForestDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "{}\n",
-        "🌲 Usage Report — faelight-shell".cyan().bold()
+        "🌲 Usage Report — NovaShell".cyan().bold()
     ));
     out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
     let total_shell: i64 = db

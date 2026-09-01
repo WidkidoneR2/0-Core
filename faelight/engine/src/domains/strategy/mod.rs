@@ -462,10 +462,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
         "    {} Shell Architecture Hardening (INT-162)",
         "→".bright_green()
     );
-    println!(
-        "    {} faelight-shell daily driver (INT-146)",
-        "→".bright_green()
-    );
+    println!("    {} nsh daily driver (INT-146)", "→".bright_green());
     println!(
         "    {} faelight-context + memory (INT-159, INT-160)",
         "→".bright_green()
@@ -1554,13 +1551,10 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         let today = chrono::Local::now().date_naive();
         let days = (today - login_date).num_days();
         if days >= 30 {
-            format!(
-                "faelight-shell daily driver for {} days — gate passed",
-                days
-            )
+            format!("nsh daily driver for {} days — gate passed", days)
         } else {
             format!(
-                "faelight-shell login shell since 2026-04-03 — {} of 30 days (gate: May 3)",
+                "nsh interactive shell since 2026-04-03 — {} of 30 days (gate: May 3)",
                 days
             )
         }
@@ -1922,11 +1916,7 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
             "Prediction accuracy > 75% measured over 30 days",
             "core predict accuracy",
         ),
-        (
-            false,
-            "faelight-shell as primary daily driver",
-            "intent show 146",
-        ),
+        (false, "nsh as primary daily driver", "intent show 146"),
         (
             false,
             "faelight-context + memory operational",
@@ -1997,7 +1987,7 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
         (
             false,
             "HIGH",
-            "faelight-shell Daily Driver",
+            "nsh Daily Driver",
             "INT-146",
             "Shell not yet primary interface",
         ),
