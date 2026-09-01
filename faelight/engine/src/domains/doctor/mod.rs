@@ -1382,6 +1382,7 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_broken_symlinks(core_root, home),
         check_binaries(),
         check_git(core_root),
+        check_hooks(core_root),
         check_rust_docs(core_root),
         check_intents(core_root),
         check_deadwood(core_root),

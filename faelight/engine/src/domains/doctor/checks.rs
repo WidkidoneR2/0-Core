@@ -329,6 +329,100 @@ pub fn check_git(core_root: &str) -> CheckResult {
     }
 }
 
+/// ⭐ WILL A HOOK ACTUALLY RUN? Nothing measured this, and there are three ways for the answer to
+/// be no.
+///
+/// The hooks are TRACKED, in .githooks/, but git does not use them until someone runs
+/// `git config core.hooksPath .githooks` -- and that setting is LOCAL TO THE CLONE. It does not
+/// travel with a fetch, a fresh clone, or a machine migration. Git refuses to let a repository arm
+/// its own hooks, and that refusal is a security property rather than an oversight.
+///
+/// So after the Omarchy wipe the gate was one manual command away from never having run, and no
+/// check anywhere would have said so. INT-113 and INT-119 both died exactly this way: a gate
+/// that had never existed reported nothing, for days, and looked identical to a gate that passed.
+///
+/// THREE FAILURE MODES, ONE QUESTION:
+///   unset            -- the gate is disarmed and git is running its own empty .git/hooks
+///   set elsewhere    -- a deliberate override, named rather than guessed at
+///   not executable   -- git SKIPS a hook without the bit, silently, which a fresh clone can cause
+///
+/// Unknown when git itself cannot be asked, per INT-148: could-not-determine is not health.
+pub fn check_hooks(core_root: &str) -> CheckResult {
+    let id = "hooks";
+    let name = "Git Hooks";
+    let out = Command::new("git")
+        .args(["-C", core_root, "config", "core.hooksPath"])
+        .output();
+    let Ok(out) = out else {
+        return CheckResult {
+            tier: Tier::User,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Unknown,
+            message: "could not run git config".into(),
+            fix: None,
+        };
+    };
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if path.is_empty() {
+        return CheckResult {
+            tier: Tier::User,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Fail,
+            message: "core.hooksPath is unset -- no gate runs on commit or push".into(),
+            fix: Some("git config core.hooksPath .githooks".into()),
+        };
+    }
+    if path != ".githooks" {
+        return CheckResult {
+            tier: Tier::User,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Fail,
+            message: format!("core.hooksPath is {path}, not .githooks"),
+            fix: Some("git config core.hooksPath .githooks".into()),
+        };
+    }
+    let mut not_exec: Vec<String> = Vec::new();
+    for hook in ["pre-commit", "pre-push"] {
+        let f = std::path::Path::new(core_root).join(".githooks").join(hook);
+        let ok = fs::metadata(&f)
+            .map(|m| {
+                use std::os::unix::fs::PermissionsExt;
+                m.permissions().mode() & 0o111 != 0
+            })
+            .unwrap_or(false);
+        if !ok {
+            not_exec.push(hook.to_string());
+        }
+    }
+    if !not_exec.is_empty() {
+        return CheckResult {
+            tier: Tier::User,
+            id: id.into(),
+            name: name.into(),
+            status: Status::Fail,
+            message: format!(
+                "{} not executable -- git skips it silently",
+                not_exec.join(", ")
+            ),
+            fix: Some(format!(
+                "chmod +x .githooks/{}",
+                not_exec.join(" .githooks/")
+            )),
+        };
+    }
+    CheckResult {
+        tier: Tier::User,
+        id: id.into(),
+        name: name.into(),
+        status: Status::Pass,
+        message: "core.hooksPath is .githooks, hooks executable".into(),
+        fix: None,
+    }
+}
+
 pub fn check_intents(_core_root: &str) -> CheckResult {
     // INT-135 Gate 7: was decoration -- hardcoded Status::Pass, a phantom "active/" folder,
     // no "in-progress", and a substring match for "status: complete" over whole files.

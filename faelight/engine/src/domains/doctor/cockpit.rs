@@ -100,7 +100,9 @@ pub fn render_cockpit(
         "Binary Dependencies",
         "Disk Space",
     ];
-    let git_names = ["Git Repository", "Scripts", "Rust Toolchain", "Rust Docs"];
+    // "Scripts" was here and no check produces it -- a name carried by the display alone, which
+    // the filter_map swallowed as quietly as it swallowed Git Hooks in the other direction.
+    let git_names = ["Git Repository", "Git Hooks", "Rust Toolchain", "Rust Docs"];
     let tools_names = ["Tool Installation", "Path Resilience", "Alias Coverage"];
     let forest_names = [
         "Intent Ledger",
@@ -137,6 +139,41 @@ pub fn render_cockpit(
     render_section("📦 System State", &group(&system_state_names));
     render_section("🖥  Runtime", &group(&runtime_names));
     render_section("🔒 Security", &group(&security_names));
+
+    // ⭐ ANYTHING NOT CLAIMED ABOVE STILL RENDERS. The eight lists are a SECOND registry of check
+    // names -- all_checks() decides what RUNS, these decide what is SEEN, and they drift apart
+    // silently in both directions.
+    //
+    // MEASURED 2026-09-02: check_hooks was written, registered in all_checks, compiled, and
+    // invisible. filter_map drops a name nobody listed, with no error. In the other direction
+    // git_names carries "Scripts", which no check produces, and the forest and system lists still
+    // name Dotfile Symlinks, Compositor Keybinds, Theme Packages and Package Metadata -- checks
+    // deleted when Omarchy replaced their subjects.
+    //
+    // That is the check-count discrepancy this file's sibling already recorded: "it said 23 while
+    // this file held 30, and the docs said 22 and 14". Two owners of one set.
+    //
+    // A catch-all does not fix the drift, it makes the drift VISIBLE -- the same move INT-148 made
+    // for Unknown. Forgetting to categorise a check is now cosmetic instead of silent, and a check
+    // can never again run without being seen.
+    let claimed: Vec<&str> = system_names
+        .iter()
+        .chain(git_names.iter())
+        .chain(tools_names.iter())
+        .chain(forest_names.iter())
+        .chain(boot_names.iter())
+        .chain(system_state_names.iter())
+        .chain(runtime_names.iter())
+        .chain(security_names.iter())
+        .copied()
+        .collect();
+    let unclaimed: Vec<&CheckResult> = checks
+        .iter()
+        .filter(|c| !claimed.contains(&c.name.as_str()))
+        .collect();
+    if !unclaimed.is_empty() {
+        render_section("❔ Uncategorised", &unclaimed);
+    }
 
     // ── Stats strip ───────────────────────────────────────────────────
     println!();
