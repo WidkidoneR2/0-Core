@@ -104,7 +104,6 @@ enum LaunchApp {
     /// File manager
     Fm,
     /// Terminal
-    Term,
     /// Menu
     Menu,
     /// App launcher (candy-neon GTK4)
@@ -194,10 +193,7 @@ fn show_ecosystem_versions() {
     println!();
 
     // Show key tool versions
-    let tools = vec![
-        ("faelight-fm", "target/release/faelight-fm"),
-        ("faelight-term", "target/release/faelight-term"),
-    ];
+    let tools = vec![("faelight-fm", "target/release/faelight-fm")];
 
     println!("  {} Key Tools:", "📦".bold());
     for (name, bin_path) in tools {
@@ -259,10 +255,6 @@ fn handle_launch(app: LaunchApp) {
         LaunchApp::Fm => {
             let fm = find_tool("faelight-fm");
             run_tool_bg(&fm, &[]);
-        }
-        LaunchApp::Term => {
-            let term = find_tool("faelight-term");
-            run_tool_bg(&term, &[]);
         }
         LaunchApp::Menu => {
             let menu = find_tool("faelight-logout");

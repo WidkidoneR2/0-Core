@@ -427,7 +427,6 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
         "novashell",
         "core",
         "faelight-git",
-        "faelight-term",
         "faelight-update",
         "faelight-daemon",
     ];

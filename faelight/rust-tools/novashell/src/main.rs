@@ -470,7 +470,7 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         (&["deploy", "shell"], "deploy faelight-shell", 0.95),
         (
             &["deploy", "everything"],
-            "parallel {deploy core; deploy faelight-shell; deploy faelight-term}",
+            "parallel {deploy core; deploy novashell}",
             0.85,
         ),
         // Git rules

@@ -74,8 +74,9 @@ impl App {
             pixel_height: 0,
         })?;
 
-        // Launch fsh in PTY
-        let mut cmd = CommandBuilder::new("fsh");
+        // Launch nsh in PTY. It spawned fsh until 2026-09-02 -- a binary that stopped
+        // existing at the rename, so ade had been broken since and nothing said so.
+        let mut cmd = CommandBuilder::new("nsh");
         cmd.env("FAELIGHT_ADE", "1");
         cmd.env("TERM", "vt100"); // vt100 prevents mouse tracking
         cmd.env("COLORTERM", "truecolor");

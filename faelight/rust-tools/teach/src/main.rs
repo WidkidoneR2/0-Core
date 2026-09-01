@@ -293,16 +293,6 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             philosophy: "Code explains what. Intent explains why. Six months from now, you'll thank yourself.".to_string(),
             replaces: None,
         },
-        ToolInfo {
-            name: "faelight-term".to_string(),
-            version: "10.3.0".to_string(),
-            description: "Wayland terminal emulator built from scratch. VTE-compatible, Faelight Visual Language themed. Production-ready.".to_string(),
-            commands: vec![
-                "faelight-term   # launch terminal".to_string(),
-            ],
-            philosophy: "If you use a terminal every day, you should understand every line of it.".to_string(),
-            replaces: Some("foot".to_string()),
-        },
     ]
 }
 

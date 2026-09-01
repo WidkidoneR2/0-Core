@@ -145,11 +145,11 @@ depends_on = ["faelight-git"]
 name = "faelight-term"
 version = "3.1.0"
 category = "ui"
-description = "Terminal emulator"
-expected_usage = "high"
+description = "Terminal emulator -- RETIRED 2026-09-02, Alacritty on Omarchy"
+expected_usage = "none"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-update"
 version = "1.0.0"

@@ -9964,7 +9964,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             "core",
             "fg",
             "faelight-shell",
-            "faelight-term",
             "git",
             "cargo",
             "python3",
@@ -10107,7 +10106,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "fg",
                             "faelight-daemon",
                             "faelight-shell",
-                            "faelight-term",
                             "git",
                             "cargo",
                             "python3",
@@ -16801,8 +16799,6 @@ fn tool_cargo_path(name: &str) -> Option<&'static str> {
         "faelight-release" => Some("faelight/rust-tools/faelight-release/Cargo.toml"),
         "friday-chat" => Some("faelight/rust-tools/friday-chat/Cargo.toml"),
         "db-browse" => Some("faelight/rust-tools/db-browse/Cargo.toml"),
-        "faelight-term" => Some("faelight/rust-tools/faelight-term/Cargo.toml"),
-        "faelight-notify" => Some("faelight/rust-tools/faelight-notify/Cargo.toml"),
         _ => None,
     }
 }
@@ -16907,14 +16903,6 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         ),
         ("friday-chat", "faelight/rust-tools/friday-chat/Cargo.toml"),
         ("db-browse", "faelight/rust-tools/db-browse/Cargo.toml"),
-        (
-            "faelight-term",
-            "faelight/rust-tools/faelight-term/Cargo.toml",
-        ),
-        (
-            "faelight-notify",
-            "faelight/rust-tools/faelight-notify/Cargo.toml",
-        ),
     ];
     let mut out = String::new();
     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
@@ -16956,7 +16944,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-/// INT-346: ade -- launch Forest ADE (Zellij + faelight-term + friday-chat)
+/// INT-346: ade -- launch Forest ADE (Zellij + Alacritty + friday-chat)
 fn ade_cmd(args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let layout = args.first().copied().unwrap_or("forest-ade");

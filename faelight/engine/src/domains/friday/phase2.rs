@@ -1126,7 +1126,6 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
                                 "friday",
                                 "core",
                                 "faelight-shell",
-                                "faelight-term",
                                 "intelligence",
                                 "rust",
                                 "wayland",

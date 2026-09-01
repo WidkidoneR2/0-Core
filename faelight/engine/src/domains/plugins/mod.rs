@@ -57,7 +57,7 @@ fn binary_version(binary: &str) -> Option<String> {
     use std::time::Duration;
 
     // Known GUI/TUI tools that must not be invoked for version detection
-    const SKIP_VERSION: &[&str] = &["faelight-fm", "faelight-term"];
+    const SKIP_VERSION: &[&str] = &["faelight-fm"];
     if SKIP_VERSION.contains(&binary) {
         return None;
     }

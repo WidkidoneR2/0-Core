@@ -1395,18 +1395,6 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if touched.contains("db-browse") {
             tools.push(("db-browse", "faelight/rust-tools/db-browse/Cargo.toml"));
         }
-        if touched.contains("faelight-term") {
-            tools.push((
-                "faelight-term",
-                "faelight/rust-tools/faelight-term/Cargo.toml",
-            ));
-        }
-        if touched.contains("faelight-notify") {
-            tools.push((
-                "faelight-notify",
-                "faelight/rust-tools/faelight-notify/Cargo.toml",
-            ));
-        }
 
         if !tools.is_empty() {
             use std::io::{IsTerminal, Write};
