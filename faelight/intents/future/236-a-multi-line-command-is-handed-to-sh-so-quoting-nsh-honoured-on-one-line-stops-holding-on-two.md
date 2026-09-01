@@ -20,8 +20,22 @@ MEASURED 2026-09-01, both directions, on the deployed binary:
     two"                                ->  one LEAKED / two      EXECUTED
 
 Same quotes, same substitution, opposite outcome. The only difference is a
-newline inside the string. `$(...)` behaves identically, so this is general
-command substitution rather than a backtick quirk.
+newline inside the string.
+
+⚠️ AND `$(...)` DOES **NOT** BEHAVE IDENTICALLY -- this was recorded as general
+command substitution and the Leak suite corrected it on its first run,
+2026-09-01. Nine of ten metacharacters survive the line break unchanged:
+`$(...)`, `$HOME`, `${HOME}`, `;`, `&&`, `|`, `>`, `*` and `{a,b}`. Only
+BACKTICKS differ.
+
+The original claim came from running the two-line `$(...)` case, seeing it
+substitute, and matching it to the backtick result -- WITHOUT running the
+one-line control. `$(...)` substitutes in BOTH forms, which is consistent, and
+consistent is the contract. Verified by hand after the suite disagreed.
+
+SO THE DEFECT IS NARROWER AND STRANGER. Two syntaxes for one operation:
+`$(...)` always substitutes, backticks substitute only across a line break.
+They disagree with each other, and backticks disagree with themselves.
 
 WHY IT MATTERS BEYOND THE CURIOSITY. Multi-line quoted text is PASTED text --
 a commit message, a config block, a code snippet, a log extract. Anything
@@ -97,9 +111,22 @@ sh before choosing.
 
 ## THE LEAK TEST -- the gate that generalises
 
-- [ ] nsh-test carries a `Leak` category that feeds shell metacharacters
+- [x] nsh-test carries a `Leak` category that feeds shell metacharacters
       through the shell and asserts they arrive UNCHANGED. Not a test for
       this bug; a test for this CLASS.
+<!-- DONE 2026-09-01. Ten metacharacters, each run inside double quotes on one
+line and again split across two, asserting the two forms agree. The comparison
+IS the assertion, so no table of expected strings can go stale.
+
+IT CORRECTED THIS CHARTER ON ITS FIRST RUN. Nine of the ten agree; only
+backticks differ. The claim that dollar-paren behaves identically was wrong --
+it substitutes in BOTH forms, which is consistent. See the amended problem
+statement above.
+
+leak_backtick carries a DECLARED DIVERGENCE using INT-202 four-arm shape, so a
+known defect does not block every push and cannot be silenced either: the case
+fails if it starts AGREEING, which is the reminder to remove the declaration
+when this intent is fixed. 188/188. -->
 
 The principle: text nsh treats as literal must not come out evaluated. Every
 case is the same shape -- put a metacharacter inside quoting that should make

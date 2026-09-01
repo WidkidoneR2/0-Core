@@ -19,6 +19,7 @@ enum Category {
     Regression,
     Performance,
     Hostile,
+    Leak,
 }
 
 impl std::fmt::Display for Category {
@@ -33,6 +34,7 @@ impl std::fmt::Display for Category {
             Category::Regression => write!(f, "regression"),
             Category::Performance => write!(f, "performance"),
             Category::Hostile => write!(f, "hostile"),
+            Category::Leak => write!(f, "leak"),
         }
     }
 }
@@ -2416,6 +2418,81 @@ fn all_tests() -> Vec<TestResult> {
         let (out, _) = repl::run_repl_buffered(&["cat <<EOF", "heredoc-body", "EOF"], &[])?;
         expect_contains(&out.join("\n"), "heredoc-body")
     }));
+
+    // ─── LEAK: text nsh treats as literal must not come out evaluated ───
+    //
+    // INT-236. A double-quoted string keeps its substitutions literal on ONE line and
+    // EXECUTES them when the same string spans TWO. Measured 2026-09-01:
+    //
+    //     echo \"one `echo X`\"          -> one `echo X`   LITERAL
+    //     echo \"one `echo X`\\ntwo\"    -> one X / two    EXECUTED
+    //
+    // THE COMPARISON IS THE ASSERTION. Each case runs the same payload twice -- once on
+    // one line, once split across two -- and requires the two to agree. That needs no
+    // table of expected strings and stays true if the quoting rules are ever changed
+    // DELIBERATELY: a rule that changes changes both forms together.
+    //
+    // ⚠️ THE TWO-LINE FORM IS BUFFERED, NOT INCREMENTAL. rustyline stays inside one
+    // read_line for a held quote and emits no intermediate prompt, so the harness must
+    // write the whole construct. run_repl_multiline would time out at 30s here.
+    //
+    // NOT A TEST FOR ONE BUG -- a test for the CLASS. Any metacharacter that survives
+    // quoting on one line and does not on two is the same defect wearing a different hat.
+    for (name, payload, diverges) in [
+        ("backtick", "`echo ZZL`", Some("INT-236: literal on one line, SUBSTITUTED across a line break. Dollar-paren does not do this -- it substitutes in both forms, which is consistent. Two syntaxes for one operation, disagreeing.")),
+        ("dollar_paren", "$(echo ZZL)", None),
+        ("variable", "$HOME", None),
+        ("braced_variable", "${HOME}", None),
+        ("semicolon", "a;b", None),
+        ("and_operator", "a && b", None),
+        ("pipe", "a | b", None),
+        ("redirect", "a > zzleak.txt", None),
+        ("glob", "*", None),
+        ("brace_expansion", "{a,b}", None),
+    ] {
+        results.push(test(
+            Box::leak(format!("leak_{}", name).into_boxed_str()),
+            Category::Leak,
+            move || {
+                let one = repl::run_repl_lines_status(
+                    &[&format!("echo \"AA {} BB\"", payload)],
+                    &[],
+                )?;
+                let two = repl::run_repl_buffered(
+                    &[&format!("echo \"AA {}", payload), " BB\""],
+                    &[],
+                )?;
+                let a1 = one.0.join(" ");
+                let a2 = two.0.join(" ");
+                // Compare the PAYLOAD REGION only -- the two-line form legitimately
+                // carries a newline the one-line form cannot have.
+                let pick = |s: &str| -> String {
+                    let t: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+                    match (t.find("AA"), t.rfind("BB")) {
+                        (Some(i), Some(j)) if j > i => t[i + 2..j].to_string(),
+                        _ => t,
+                    }
+                };
+                let (p1, p2) = (pick(&a1), pick(&a2));
+                // THE FOUR ARMS COME FROM INT-202, borrowed rather than reinvented: the
+                // conformance cases already solved this. A KNOWN divergence must not block
+                // a push, and it must not be silenced either. A declaration that starts
+                // AGREEING fails too -- it means the defect was fixed and nobody removed
+                // the note, so the next reader inherits a warning about something that no
+                // longer happens.
+                match (diverges, p1 == p2) {
+                    (None, true) => Ok(()),
+                    (Some(_), false) => Ok(()),
+                    (None, false) => Err(format!(
+                        "quoting does not survive the line break and nobody wrote down why -- one line gave {p1:?}, two lines gave {p2:?}"
+                    )),
+                    (Some(why), true) => Err(format!(
+                        "this was declared to leak and now does not -- if it was fixed, remove the declaration: {why}"
+                    )),
+                }
+            },
+        ));
+    }
     results
 }
 
