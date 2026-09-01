@@ -425,8 +425,13 @@ Until then, more code means more comments to distrust. So:
    INT-196 and INT-197 are both marked complete, so either this was fixed or a
    gate was ticked without demonstration. One reproduction settles it. Do that
    first.
-4. **The `-c` boot tax.** `nsh -c true` costs ~305ms release against bash's
-   ~3ms. The hypothesis: `ForestDb::open` runs `wal_checkpoint(TRUNCATE)` on
+4. **The `-c` boot tax -- CLOSED BY MEASUREMENT 2026-09-02, no change made.**
+   Measured 13ms against bash's 1ms, ten runs timed externally; db open on the
+   276MB file with its TRUNCATE checkpoint is 2ms and config apply is 5ms. The
+   305ms figure predates the BEGIN/COMMIT already in tree. None of the three
+   proposed fixes is warranted, and 160 processes x 13ms is two seconds, so the
+   suite's 155s is pty sessions rather than boot.
+   ~~`nsh -c true` costs ~305ms release against bash's ~3ms.~~ The hypothesis: `ForestDb::open` runs `wal_checkpoint(TRUNCATE)` on
    every process; `config::apply` re-seeds 270 aliases every time; prune and
    settings sit outside the alias transaction.
    ⚠️ THAT IS A HYPOTHESIS READ FROM THE CODE, NOT A MEASUREMENT. Profile
