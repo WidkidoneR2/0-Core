@@ -1,7 +1,7 @@
 # Alias Reference -- Zero Core
 
 **Updated:** 2026-09-01
-**System:** Omarchy (Arch) + nsh 3.8.4
+**System:** Omarchy (Arch) + nsh 3.9.0
 
 ---
 

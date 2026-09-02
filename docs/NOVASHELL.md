@@ -2,7 +2,7 @@
 
 > *"A forest deserves a shell that knows it is a forest."*
 
-**Version:** nsh 3.8.4 (Faelight Forest 1.0.0) | Last verified: 2026-09-01  
+**Version:** nsh 3.9.0 (Faelight Forest 1.0.0) | Last verified: 2026-09-02  
 **Status:** Interactive shell, not the login shell. Daily driver since 2026-04-03.  
 **Last updated:** 2026-09-01
 

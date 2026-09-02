@@ -133,7 +133,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "3.8.4"
+version = "3.9.0"
 category = "shell"
 description = "NovaShell -- forest-native structured shell. Package: novashell."
 expected_usage = "high"
