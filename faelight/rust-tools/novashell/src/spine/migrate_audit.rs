@@ -517,30 +517,28 @@ impl MigrationReport {
             ));
         }
         out.push('\n');
+        // ⚠️ THIS ASKED A QUESTION THAT WAS ANSWERED MONTHS AGO. The line read manual review
+        // before ENABLING spine execution -- but the spine executes by default and NSH_SPINE=0
+        // is the escape hatch, not the switch. It was reporting readiness for a flip that had
+        // already happened.
+        //
+        // Worse, it could never say otherwise: flip_ready wanted feature_gap == 0, and 62 of
+        // the 158 gaps are forest value pipelines that LEGACY IS MEANT TO OWN. A condition
+        // that cannot be satisfied is not a gate, it is a constant.
+        //
+        // ⭐ THE LIVE QUESTION IS WHETHER LEGACY CAN BE DELETED, and it has a different shape:
+        // not does the spine handle everything, but does anything still NEED legacy. The
+        // feature gaps answer it directly -- each one is a line legacy runs and the spine
+        // cannot -- so they are reported as what they are rather than as a blocker to a
+        // decision already made.
         out.push_str(&format!(
-            "Recommendation: {}\n",
-            if flip_ready(self) {
-                "no observed blocker WITHIN THE COMPARISON DOMAIN -- every applicable command is equivalent or an approved improvement"
-            } else {
-                "manual review of the comparison-domain differences above before enabling spine execution"
-            }
+            "Legacy still owns {} lines in this corpus. Until that is zero, or until each
+  remaining kind is ruled deliberate, the legacy path cannot be deleted.
+",
+            self.feature_gap + self.spine_unlowerable
         ));
         out
     }
-}
-
-/// POLICY (prescriptive), separate from the descriptive MigrationReport -- the same split as
-/// KnownDifference vs migration_status, applied one level up. The report records what was
-/// observed; this decides what it means for the flip, and only this changes as the migration
-/// progresses.
-///
-/// Criteria: no language feature gaps, and no unexpected differences among APPLICABLE commands.
-/// Deliberately NOT gated on spine_parse_error: those are arbitrary history rows (fragments of
-/// pasted blocks), and a row that was never a shell line is not evidence about the shell
-/// language. The audit's question is "can the spine replace execution for the commands this
-/// shell actually executes?", not "is every history row understood?".
-pub fn flip_ready(report: &MigrationReport) -> bool {
-    report.feature_gap == 0 && report.unexpected == 0 && report.spine_unlowerable == 0
 }
 
 fn push_example(bucket: &mut Vec<String>, cmd: &str) {
@@ -603,18 +601,5 @@ mod tests {
         assert_eq!(r.safe_improvement, 1);
         assert_eq!(r.feature_gap, 1);
         assert_eq!(r.unexpected, 0);
-        assert!(!flip_ready(&r), "a feature gap blocks readiness");
-    }
-
-    #[test]
-    fn all_equivalent_is_flip_ready() {
-        let mut audit = MigrationAudit::new();
-        audit.observe(AuditObservation {
-            source: "pwd",
-            legacy: plan(&["pwd"]),
-            spine: Ok(plan(&["pwd"])),
-        });
-        let r = audit.finish();
-        assert!(flip_ready(&r));
     }
 }
