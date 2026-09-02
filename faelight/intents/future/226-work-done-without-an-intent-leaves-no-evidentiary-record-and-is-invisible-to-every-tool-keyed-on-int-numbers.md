@@ -50,6 +50,33 @@ not lying; it is answering a narrower question than the one being asked.
 - `is_noise()` exists on `Commit` (`changelog.rs:52`) and its behaviour on an intentless commit is
   UNMEASURED. G1 measures it rather than assuming.
 
+## MEASURED AGAIN 2026-09-02 -- and the cost has a name now
+
+A full day of work, none of it under an intent until the last hour. What that cost:
+
+nsh went 3.8.4 to 3.9.0 by INSTINCT. No intent, so no cicomplete, so nothing asked
+the question -- the level was chosen from a feeling that a behaviour change sounds
+minor, and written into four files by hand. The compatibility contract written the
+same evening says it should have been 3.8.5: the -c guard was correcting ERRONEOUS
+behaviour, which is a patch, because nobody reasonably depends on a guard failing
+to guard.
+
+⭐ AND THE LOOP WOULD HAVE CAUGHT IT. INT-237 was completed properly hours later --
+cistart, gates ticked with evidence, cicomplete -- and cicomplete PROMPTED for the
+bump: core 3.2.10 to 3.2.11, patch, accepted. The lightweight path INT-102 was
+filed to find already exists. It lives in cicomplete, so it only runs for work that
+went through an intent.
+
+Christian, 2026-09-02: otherwise it will be based on instincts, not measured by
+true code.
+
+The same day produced three bugs that had been invisible for months, every one of
+them from work done without an intent: faelight-docs writing 0 custom Rust tools
+into the README since INT-061 moved two directories; flip_ready gating on a
+condition that became unsatisfiable when the spine flip landed; faelight_state_dir
+splitting live state across two directories during the rename. None was recorded
+anywhere, because none was under an intent when it happened.
+
 ## Success Criteria
 - [ ] G1 MEASURE BEFORE RULING: report, from real history since the last tag, how many commits
       carry an `INT-<id>` and how many do not; and for the intentless ones, whether `is_noise()`
