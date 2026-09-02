@@ -15,7 +15,7 @@ use faelight_core::paths;
 #[command(about = "🌲 Faelight Forest Daemon - Background operations", long_about = None)]
 #[command(version)]
 struct Cli {
-    /// Socket path (default: daemon.sock under paths::faelight_state_dir)
+    /// Socket path (default: paths::daemon_socket)
     #[arg(short, long)]
     socket: Option<String>,
 
@@ -37,12 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Same class as the doctor checks INT-222 catalogues -- the answer was decided at
         // compile time. CONNECTING is the question, not existence: a socket file outlives
         // the process that made it, so a stat would be the same lie one step further on.
-        let sock = cli.socket.clone().unwrap_or_else(|| {
-            paths::faelight_state_dir()
-                .join("daemon.sock")
-                .display()
-                .to_string()
-        });
+        let sock = cli
+            .socket
+            .clone()
+            .unwrap_or_else(|| paths::daemon_socket().display().to_string());
         match std::os::unix::net::UnixStream::connect(&sock) {
             Ok(_) => {
                 println!("{} faelight-daemon: responding on {}", "OK".green(), sock);
@@ -61,12 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Determine socket path
-    let socket_path = cli.socket.unwrap_or_else(|| {
-        paths::faelight_state_dir()
-            .join("daemon.sock")
-            .display()
-            .to_string()
-    });
+    let socket_path = cli
+        .socket
+        .unwrap_or_else(|| paths::daemon_socket().display().to_string());
 
     // Banner logged to friday.log, not stdout
     let _ = std::fs::OpenOptions::new()

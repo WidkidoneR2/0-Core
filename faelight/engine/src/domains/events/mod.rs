@@ -718,8 +718,7 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
     use std::io::{BufRead, BufReader, Write};
     use std::os::unix::net::UnixStream;
 
-    let home = std::env::var("HOME").unwrap_or_default();
-    let socket_path = format!("{}/.local/state/0-core/daemon.sock", home);
+    let socket_path = faelight_core::paths::daemon_socket().display().to_string();
 
     let stream = match UnixStream::connect(&socket_path) {
         Ok(s) => s,

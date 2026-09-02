@@ -3660,8 +3660,7 @@ fn friday_daemon_event(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let home_dir = std::env::var("HOME").unwrap_or_default();
-    let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+    let sock_path_buf = faelight_core::paths::daemon_socket().display().to_string();
     let sock_path = sock_path_buf.as_str();
     // Build JSON safely -- escape special chars in command
     let cmd_escaped = cmd_str

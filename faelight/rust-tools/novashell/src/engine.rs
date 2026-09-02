@@ -272,8 +272,7 @@ impl Engine {
         } else {
             format!("\"{}\"", line[15..].trim().replace('"', "'"))
         };
-        let home_dir = std::env::var("HOME").unwrap_or_default();
-        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+        let sock_path = faelight_core::paths::daemon_socket().display().to_string();
         let dismiss_json = format!(
             r#"{{"id":3,"payload":{{"FridayDismiss":{{"pattern_trigger":{}}}}}}}"#,
             trigger
@@ -538,8 +537,7 @@ impl Engine {
             line[7..].trim().to_string()
         };
         println!("  \u{1f332} Friday: {}", "thinking...".dimmed());
-        let home_dir = std::env::var("HOME").unwrap_or_default();
-        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+        let sock_path = faelight_core::paths::daemon_socket().display().to_string();
         let q_escaped = question.replace('"', "'");
         let query_json = format!(
             r#"{{"id":2,"payload":{{"FridayQuery":{{"question":"{}","context":null}}}}}}"#,

@@ -397,9 +397,23 @@ pub fn local_data_dir() -> PathBuf {
     home().join(".local/share")
 }
 
-/// faelight-core state directory
-pub fn faelight_state_dir() -> PathBuf {
-    home().join(".local/state/0-core")
+/// The daemon control socket. FULL PATH, not a directory: every caller joined daemon.sock
+/// onto it immediately and none used it for anything else, so the directory was an
+/// abstraction that existed only to be discarded.
+///
+/// ⚠️ REPLACES faelight_state_dir, WHICH HARDCODED .local/state/0-core -- in the one file
+/// whose entire purpose is that nothing hardcodes a path. It also had the name backwards:
+/// it said faelight and returned 0-core, while runtime_dir carries no brand and correctly
+/// resolves to the faelight directory where state.db actually lives.
+///
+/// ⭐ AND THE SPLIT WAS NOT DESIGN. Measured 2026-09-02: state.db sits under
+/// .local/state/faelight via runtime_dir which checks existence and migrates on its own,
+/// while daemon.sock sat under .local/state/0-core because one function was pointed at the
+/// new name during the rename and the other was left with its careful resolution intact.
+/// Deriving from runtime_dir puts the socket beside the state it belongs to, and makes
+/// moving that directory the one-line change INT-061 built the seam for.
+pub fn daemon_socket() -> PathBuf {
+    runtime_dir().join("daemon.sock")
 }
 
 // ═══════════════════════════════════════════════════════════
