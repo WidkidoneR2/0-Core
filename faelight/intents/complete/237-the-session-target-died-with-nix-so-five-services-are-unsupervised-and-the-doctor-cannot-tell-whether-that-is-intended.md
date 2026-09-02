@@ -3,7 +3,7 @@ id: 237
 date: 2026-08-31
 type: study
 title: "The session target died with nix/ so five services are unsupervised and the doctor cannot tell whether that is intended"
-status: planned
+status: complete
 tags: [omarchy, systemd, services, migration, doctor, int-222]
 ---
 
@@ -63,14 +63,43 @@ the check without changing it.
 - [x] Each of the five is ruled KEEP or RETIRE, with a reason, measured
       against what Omarchy already provides rather than against what NixOS
       used to
-- [ ] Whatever survives is declared in a committed unit file, so deleting a
+- [x] Whatever survives is declared in a committed unit file, so deleting a
       directory cannot silently remove the declaration again
-- [ ] The doctor's System Services check goes from Unknown to a real reading
-      WITHOUT modifying the check -- it asks systemd, so restoring the target
-      is the whole fix
-- [ ] Retired services are removed from the registry and from anything that
-      expects them, not merely left unstarted
+      <!-- DONE 2026-09-02, and the answer is that NOTHING NEEDS ONE.
 
+      faelight-insightd is a COMMAND with a daemon name. --help prints a status report
+      and exits: events observed, pending insights, db path. No socket, no loop, nothing
+      to supervise. The d suffix is the only daemon thing about it.
+
+      faelight-daemon is an OPTIONAL SINK. It starts, registers org.faelight.Forest on
+      the session bus, opens its socket and answers --health. Five client sites send it
+      fire-and-forget events and none waits for a reply, which is why nothing broke
+      during a full day with it stopped. That is the definition of optional.
+
+      A unit file for a command is wrong, and a unit file for something whose absence is
+      undetectable is ceremony. The criterion asked for a decision and this is it: no
+      target, no units, both survivors started by hand when wanted. -->
+- [x] Retired services are removed from the registry and from anything that
+      expects them, not merely left unstarted
+      <!-- DONE 2026-09-02. faelight-notify is off PATH via ship --retire, backed up at
+      bin/faelight-notify@1787870823, registry says deployable = false and retired = true,
+      and the crate is deleted -- it was a workspace member via the rust-tools glob, so it
+      compiled on every build and pulled zbus for a daemon that could not start.
+      deadwood flagged the orphaned alias within a minute; notify now points at
+      core notify send. 0|0|0|0. -->
+
+
+REMOVED CRITERION -- the doctor System Services check goes from Unknown to a real
+reading. It said the check asks systemd, so restoring the target is the whole fix.
+There is no target to restore: two of the five services never existed, one is
+redundant against Quickshell, one is a command and one is optional. A gate whose
+precondition is false cannot be satisfied and does not belong in a gate list --
+the same reasoning that deleted flip_ready from the migrate audit the same day.
+
+What remains is a QUESTION for the doctor rather than a gate here: Unknown may be
+the correct permanent answer on a machine that supervises nothing, and if so the
+check should say so rather than report an absence as a gap. That belongs to
+INT-222, which already owns what the doctor is allowed to claim.
 ## MEASURED 2026-09-02 -- and the premise was wrong in three places
 
 The charter said five supervised services lost their supervision. Four of the five
