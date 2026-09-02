@@ -367,7 +367,7 @@ INCIDENTAL behaviour was never offered; ERRONEOUS behaviour violates the shell
 own stated semantics, and correcting it is a PATCH even when observable --
 nobody reasonably depends on a guard failing to guard.
 
-Read  before choosing a level. It carries the
+Read docs/NSH-COMPATIBILITY.md before choosing a level. It carries the
 promise, the three tiers, and the question sequence. Do not restate its rules
 here: one owner.
 
