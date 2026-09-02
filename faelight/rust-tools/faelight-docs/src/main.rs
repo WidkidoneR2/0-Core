@@ -304,10 +304,42 @@ fn gather_state() -> ForestState {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Living Forest".to_string());
 
-    // Count registered tools from tools.toml — matches doctor path resilience check
-    let tool_count = std::fs::read_to_string(root.join("registry/tools.toml"))
-        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
-        .unwrap_or(0);
+    // Count registered tools from tools.toml -- the same file the doctor path-resilience
+    // check reads, which is the point of the comment that used to be here. They disagreed.
+    //
+    // ⚠️ THE PATH WAS WRONG AND THE FAILURE WAS SILENT. registry/tools.toml has not existed
+    // since INT-061 moved directories under faelight/; the file is at
+    // faelight/registry/tools.toml. read_to_string failed, unwrap_or(0) turned that into a
+    // confident zero, and faelight-docs sync WROTE 0 custom Rust tools into the front page of
+    // the repository -- then printed a green check. Caught 2026-09-02 by reading tools: 0 in
+    // its own success line while 26 tools were deployed.
+    //
+    // A missing registry is not zero tools. It is a fact the generator cannot establish, and
+    // writing a number it did not measure is how the README came to state something false.
+    let tools_path = faelight_core::paths::core_dir().join("faelight/registry/tools.toml");
+    let tool_count = match std::fs::read_to_string(&tools_path) {
+        // ⚠️ NOT retired ONES. Fixing the path exposed the predicate: counting every
+        // name = line gave 51, and 13 of those entries are RETIRED -- core-diff,
+        // faelight-notify and faelight-term among them, two of those retired the same
+        // day. The sentence in the README is about tools the forest HAS, so a tool it
+        // deliberately removed does not count toward it.
+        //
+        // Splitting on [[tool]] rather than scanning lines, because retired = true and
+        // name = are different lines of the same entry and a line filter cannot relate
+        // them. 51 entries, 13 retired, 38 live.
+        Ok(t) => t
+            .split("[[tool]]")
+            .filter(|b| b.contains("name = ") && !b.contains("retired = true"))
+            .count(),
+        Err(e) => {
+            eprintln!(
+                "  cannot read {} ({}) -- refusing to write a tool count it did not measure",
+                tools_path.display(),
+                e
+            );
+            std::process::exit(1);
+        }
+    };
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic
     let (intent_complete, intent_planned) = {
@@ -362,9 +394,27 @@ fn gather_state() -> ForestState {
             .to_string()
     };
 
-    let core_domains = std::fs::read_dir(root.join("engine/src/domains"))
-        .map(|d| d.flatten().filter(|e| e.path().is_dir()).count())
-        .unwrap_or(0);
+    // ⚠️ THE SAME BUG AS THE TOOL COUNT, IN THE SAME FILE, FROM THE SAME CAUSE. The path
+    // was engine/src/domains and the engine has been at faelight/engine since INT-061
+    // moved directories. read_dir failed, unwrap_or(0) made it zero, and the README
+    // advertised 0+ native domains while 55 directories sat on disk. 57 is what ls counts,
+    // because ls counts mod.rs too -- the number in the README is directories.
+    //
+    // TWO sites computed a path into a directory INT-061 moved. The other six root.join
+    // calls in this file are correct -- docs, README.md and link resolution really are
+    // relative to the repo root. Counted after writing three from memory and being wrong.
+    let domains_path = faelight_core::paths::core_dir().join("faelight/engine/src/domains");
+    let core_domains = match std::fs::read_dir(&domains_path) {
+        Ok(d) => d.flatten().filter(|e| e.path().is_dir()).count(),
+        Err(e) => {
+            eprintln!(
+                "  cannot read {} ({}) -- refusing to write a domain count it did not measure",
+                domains_path.display(),
+                e
+            );
+            std::process::exit(1);
+        }
+    };
 
     ForestState {
         version,
