@@ -78,10 +78,31 @@ impl ForestDb {
 
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Cannot open state.db at {:?}", db_path))?;
-        // INT-249b: checkpoint WAL on startup so morning-after-suspend doesn't
-        // hit SQLITE_READONLY from accumulated WAL frames. Errors ignored - if
-        // checkpoint fails, normal operation continues; retry logic handles transients.
-        let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
+        // INT-249b put a checkpoint here so morning-after-suspend does not hit
+        // SQLITE_READONLY from accumulated WAL frames. That reason still holds. What
+        // changed is WHICH checkpoint, and it depends on which door opened the database.
+        //
+        // TRUNCATE takes an EXCLUSIVE lock to shrink the file. An interactive shell is one
+        // process per terminal and can afford that. A -c invocation is short-lived, and
+        // scripts, hooks and the test suite spawn them in tight loops -- each one asking
+        // for an exclusive checkpoint, none alive long enough to be a stable reader. That
+        // is the contention save_history_entry already retries around, three times, with a
+        // comment naming boot-time checkpointing as the cause.
+        //
+        // ⚠️ THIS IS NOT A PERFORMANCE FIX AND THE MEASUREMENT SAYS SO. nsh -c true is 12ms
+        // before and after; a checkpoint on a 276MB database costs 2ms. Measured 2026-09-02:
+        // PASSIVE on a grown WAL reported log 96, checkpointed 96, busy 0 -- it drains every
+        // frame exactly as TRUNCATE does. The only difference is the file size: PASSIVE left
+        // 396k allocated for reuse, TRUNCATE shrank it to 62k.
+        //
+        // So both drain. One needs an exclusive lock and one does not, and the hot path takes
+        // the one that does not.
+        let checkpoint = if crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst) {
+            "PRAGMA wal_checkpoint(PASSIVE)"
+        } else {
+            "PRAGMA wal_checkpoint(TRUNCATE)"
+        };
+        let _ = conn.execute_batch(checkpoint);
 
         // INT-104: command_snapshots -- destructive-command audit ledger (INT-322 Phase 4).
         // Split out of shell_snapshots: distinct purpose (pre-destructive command context),
