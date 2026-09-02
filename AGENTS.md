@@ -358,6 +358,19 @@ is wrong, fix the generator.
 
 ## Version Control
 
+**Version numbers are decided by contract impact, never by size.** A one-line
+change can be major and a fifty-thousand-line rewrite can be a patch. The
+deciding question is what a caller is owed, not what the work cost.
+
+Three tiers govern it: CONTRACTUAL behaviour is owed and breaking it is major;
+INCIDENTAL behaviour was never offered; ERRONEOUS behaviour violates the shell
+own stated semantics, and correcting it is a PATCH even when observable --
+nobody reasonably depends on a guard failing to guard.
+
+Read  before choosing a level. It carries the
+promise, the three tiers, and the question sequence. Do not restate its rules
+here: one owner.
+
 The commit is the receipt. CHANGELOG.md is a lagging copy of it, and the intent
 ledger cites SHAs -- so a commit body is load-bearing evidence rather than a
 courtesy.
