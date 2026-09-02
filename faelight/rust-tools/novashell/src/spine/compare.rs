@@ -107,9 +107,54 @@ impl Difference {
         match self.field {
             DifferenceField::Cwd => "cwd".to_string(),
             DifferenceField::Env => "env".to_string(),
-            DifferenceField::Io => "io".to_string(),
+            DifferenceField::Io => self.io_shape(),
             DifferenceField::Argv => self.argv_shape(),
         }
+    }
+    /// ⭐ THE SAME SPLIT argv GOT, FOR THE SAME REASON, one bucket later. io was the largest
+    /// unexpected shape at 49 of 59, and 49 of one label says investigate everything -- which is
+    /// exactly what the note above argv_shape says a total must not stay.
+    ///
+    /// The ten sampled examples were four different problems wearing one name: a stdin redirect,
+    /// an append to a quoted path, an unquoted space in a target, and process substitution. Those
+    /// are four decisions, not one.
+    ///
+    /// ⚠️ MECHANICAL ONLY, per the rule above: every arm tests a checkable property of the two
+    /// debug-rendered IoPlans. Anything unrecognised stays io-colon-other rather than earning a
+    /// plausible name, because a wrong group sends the reader to fix something that was never
+    /// broken. IoPlan has three variants -- Simple, Capture, Files -- so the presence tests are
+    /// substring checks on names the enum actually has.
+    fn io_shape(&self) -> String {
+        let (l, s) = (&self.legacy, &self.spine);
+        let files = |t: &str| t.starts_with("Files");
+        let simple = |t: &str| t.starts_with("Simple");
+
+        // One side sees a redirect where the other sees none. The largest disagreement there
+        // can be: not a detail of the redirect but whether one exists.
+        if simple(l) != simple(s) {
+            return if simple(l) {
+                "io: spine redirects, legacy does not".to_string()
+            } else {
+                "io: legacy redirects, spine does not".to_string()
+            };
+        }
+        if files(l) && files(s) {
+            // stdin present on one side only: a stdin redirect is a separate phase from stdout.
+            let has_stdin = |t: &str| t.contains("stdin: Some");
+            if has_stdin(l) != has_stdin(s) {
+                return "io: stdin disagreement".to_string();
+            }
+            // Same wiring, different open mode: truncate against append.
+            let appends = |t: &str| t.contains("true");
+            if appends(l) != appends(s) {
+                return "io: append vs truncate".to_string();
+            }
+            return "io: target path differs".to_string();
+        }
+        if l.starts_with("Capture") != s.starts_with("Capture") {
+            return "io: capture disagreement".to_string();
+        }
+        "io: other".to_string()
     }
 
     /// Argv is where the volume is, so it is the one split further.

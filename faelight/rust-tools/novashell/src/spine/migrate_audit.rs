@@ -137,6 +137,12 @@ pub struct MigrationReport {
     pub feature_gap_examples: Vec<String>,
     pub missing_capability_examples: Vec<String>,
     pub unexpected_examples: Vec<String>,
+
+    /// Examples keyed BY SHAPE, because a count without instances is half an answer. The
+    /// shape split turns a total into a build order; this is what lets you read the group you
+    /// are about to work on. Measured 2026-09-02: 43 of 59 unexpected were one shape, and the
+    /// flat example list mixed all 59 -- so the largest group could only be sampled by chance.
+    pub unexpected_examples_by_shape: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 /// Accumulator. Feed it observations; it classifies each and tallies.
@@ -276,13 +282,24 @@ impl MigrationAudit {
                 // ⚠️ READ THE EVIDENCE BEFORE COUNTING IT. The comparison already knows what
                 // diverged; this is the line that used to lose it.
                 if let super::compare::ComparisonResult::Unexpected(d) = &result {
+                    let shape = d.shape();
                     *self
                         .report
                         .unexpected_by_shape
-                        .entry(d.shape())
+                        .entry(shape.clone())
                         .or_insert(0) += 1;
+                    // The example goes in the SAME arm as the count, because they answer one
+                    // question together. The flat list below is kept -- it is what the report has
+                    // always printed -- but a reader working one shape needs that shape instances.
+                    let bucket = self
+                        .report
+                        .unexpected_examples_by_shape
+                        .entry(shape)
+                        .or_default();
+                    push_example(bucket, obs.source);
+                } else {
+                    push_example(&mut self.report.unexpected_examples, obs.source);
                 }
-                push_example(&mut self.report.unexpected_examples, obs.source);
             }
         }
     }
@@ -482,6 +499,15 @@ impl MigrationReport {
             out.push_str("  by shape:\n");
             for (shape, count) in rows {
                 out.push_str(&format!("    {count:>6}  {shape}\n"));
+                // The instances belong UNDER their count, not in a separate pile. A flat example
+                // list mixed every shape together, so the largest group could only be sampled by
+                // chance -- 43 of 59 rows were one shape and the ten printed examples spanned all
+                // of them. Three per shape is enough to tell debris from a real gap by reading.
+                if let Some(examples) = self.unexpected_examples_by_shape.get(shape) {
+                    for ex in examples.iter().take(3) {
+                        out.push_str(&format!("            {ex}\n"));
+                    }
+                }
             }
         }
         if self.spine_parse_error > 0 {
