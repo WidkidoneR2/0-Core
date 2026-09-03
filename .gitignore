@@ -26,3 +26,6 @@ faelight/runtime/sh-fallback.log
 # machine. Anchored for the same reason /runtime/ is -- a bare bin/ would
 # match at any depth and swallow a source directory named bin.
 /bin/
+
+# flea -- a separate git repository, not part of this tree
+flea/
