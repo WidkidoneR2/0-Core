@@ -3,12 +3,12 @@ mod cleanup_checker;
 mod config;
 mod firmware_checker;
 mod flatpak_checker;
-mod generation;
 mod git_checker;
 mod neovim_checker;
 mod npm_checker;
 mod pip_checker;
 mod rustup_checker;
+mod system_checker;
 mod tui_v2;
 mod yazi_checker;
 
@@ -28,9 +28,6 @@ struct Cli {
     /// Check for updates without applying them
     #[arg(short = 'n', long)]
     dry_run: bool,
-    /// Open the generation browser (timeline + closure diff + rollback)
-    #[arg(long, alias = "gens")]
-    generations: bool,
 
     /// Skip health check before updates
     #[arg(long)]
@@ -461,13 +458,6 @@ fn run() -> Result<()> {
     if cli.maintain {
         return run_maintenance();
     }
-
-    // INT-074 Phase 2: the generation browser TUI.
-    if cli.generations {
-        generation::run_generation_browser()
-            .map_err(|e| anyhow::anyhow!("generation browser: {e}"))?;
-        return Ok(());
-    }
     // System Identity header
     if !cli.json && !cli.count_only {
         print_system_identity();
@@ -598,70 +588,23 @@ fn run() -> Result<()> {
         log_update_run(selections.len(), 0, "success", health as i64, &drift_after);
         return Ok(());
     } else if cli.dry_run {
-        println!("\n{}  Ready to update {} packages!", "✨".yellow(), total);
-
-        // Prompt for confirmation
-        use std::io::{self, Write};
-        print!("Proceed? (Y/n): ");
-        io::stdout().flush()?;
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim().to_lowercase();
-
-        if input.is_empty() || input == "y" || input == "yes" {
-            // LOCK CORE BEFORE UPDATES
-            let in_core = is_in_core();
-            if in_core {
-                // lock_core()?; // Disabled - using simple file lock instead
-            }
-
-            // Convert UpdateCategory to format perform_updates expects
-            let all_updates: Vec<(String, Vec<String>)> = updates
-                .iter()
-                .map(|cat| {
-                    let items: Vec<String> =
-                        cat.items.iter().map(|item| item.name.clone()).collect();
-                    (cat.name.clone(), items)
-                })
-                .collect();
-
-            // PERFORM UPDATES
-            perform_updates(&all_updates)?;
-
-            // CLEANUP CACHES
-            cleanup_caches()?;
-
-            // UPDATE PROMPT CACHE
-            update_prompt_cache()?;
-
-            // UNLOCK CORE
-            if in_core {
-                // lock_core()?; // Disabled
-            }
-
-            // FINAL HEALTH CHECK (moved from beginning!)
-            let health = run_doctor_final()?;
-
-            // GIT STATUS CHECK
-            check_git_status()?;
-
-            // (Arch .pacnew + AUR-rebuild checks removed -- INT-074 de-Arch.)
-
-            // FINAL SUMMARY
-            println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-            if health == 100 {
-                println!("{}  Update complete! System: {}%", "✅".green(), health);
-            } else {
-                println!(
-                    "{}  Update complete! System: {}% (check warnings)",
-                    "⚠️".yellow(),
-                    health
-                );
-            }
-        } else {
-            println!("\n{}  Cancelled", "ℹ️".blue());
+        // THIS BRANCH APPLIED THE UPDATES. --dry-run is documented as check for updates
+        // WITHOUT applying them. It printed Ready to update N packages, prompted Proceed?
+        // (Y/n), treated an EMPTY INPUT as yes, and called perform_updates -- so pressing
+        // Enter, the obvious thing to do at a prompt, installed everything.
+        //
+        // Found 2026-09-04 closing INT-129. A dry run reports and stops. The interactive
+        // path at ~554 is where perform_updates belongs and it still lives there.
+        println!();
+        println!(
+            "  {} {} update(s) found -- nothing applied (--dry-run)",
+            "✓".green(),
+            total
+        );
+        if total > 0 {
+            println!("     run without --dry-run to apply");
         }
+        return Ok(());
     } else {
         println!(
             "\n{}  Dry run complete - {} updates available",
@@ -777,10 +720,15 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     // ❄ FLAKE INPUTS REMOVED 2026-09-04. This category, the --flake-update flag and both
     // flake modules (324 lines) asked nix what the system depends on. There is no flake
     // and no nix: NixOS was wiped for Omarchy on 2026-08-28. INT-129 measured them as
-    // genuinely dead rather than repointable, unlike generation.rs which has a snapper
-    // equivalent to aim at.
+    // genuinely dead rather than repointable -- and generation.rs turned out the same way
+    // once measured. Omarchy has snapper, but limine-snapper-sync already puts snapshots in
+    // the BOOT MENU, which works when the system will not boot and a TUI cannot. The
+    // timeline is sudo snapper list, already a formatted table. Closure diff has no snapper
+    // equivalent at all. 476 lines to wrap a command you can run directly.
 
-    // (Arch pacman/AUR checkers removed -- INT-074 de-Arch. Flake inputs are the NixOS analog.)
+    // (Arch pacman/AUR checkers were removed by INT-074 for NixOS. The machine is back
+    // on Arch, and the System category below restores the capability by a safer route:
+    // report what is pending, never apply it.)
 
     // Cargo tools
     let cargo_items = cargo_checker::check_cargo_updates();
@@ -794,11 +742,22 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     // Neovim plugins
     let nvim_items: Vec<UpdateItem> = neovim_checker::check_neovim_updates()
         .into_iter()
-        .map(|name| UpdateItem {
-            name,
-            current: "unknown".to_string(),
-            new: "available".to_string(),
-            repository: None,
+        // checkupdates prints: name old_version -> new_version. Parsing it fills the
+        // columns the TUI already renders; a bare name would leave them blank.
+        .map(|line| {
+            let mut parts = line.split_whitespace();
+            let name = parts.next().unwrap_or_default().to_string();
+            let current = parts.next().unwrap_or_default().to_string();
+            let _arrow = parts.next();
+            let new = parts.next().unwrap_or_default().to_string();
+            UpdateItem {
+                name,
+                current,
+                new,
+                // checkupdates does not report the repository, and inventing an empty
+                // string would claim it did.
+                repository: None,
+            }
         })
         .collect();
     categories.push(UpdateCategory {
@@ -935,6 +894,49 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "📦".to_string(),
         count: flatpak_items.len(),
         items: flatpak_items,
+    });
+
+    // System packages -- REPORTED, NEVER APPLIED. INT-129: the distribution owns these and
+    // reimplementing that is how you end up fighting it. checkupdates syncs to a temporary
+    // database and touches nothing; omarchy-update is what applies them, and it cannot be
+    // scripted anyway -- it opens with a box saying you cannot stop the update once you
+    // start, and waits for a keypress.
+    //
+    // INT-192: an absent checkupdates is UNKNOWN, not zero pending, and the item says so
+    // rather than leaving an empty category that reads as up to date.
+    let (sys_items, sys_note) = match system_checker::check_system_updates() {
+        Ok(v) => (
+            v.into_iter()
+                // checkupdates prints: name old_version -> new_version. Parsing it fills
+                // the columns the TUI already renders.
+                .map(|line| {
+                    let mut parts = line.split_whitespace();
+                    let name = parts.next().unwrap_or_default().to_string();
+                    let current = parts.next().unwrap_or_default().to_string();
+                    let _arrow = parts.next();
+                    let new = parts.next().unwrap_or_default().to_string();
+                    UpdateItem {
+                        name,
+                        current,
+                        new,
+                        // checkupdates does not report the repository, and an empty string
+                        // would claim it did.
+                        repository: None,
+                    }
+                })
+                .collect::<Vec<_>>(),
+            None,
+        ),
+        Err(s) => (Vec::new(), Some(s.to_string())),
+    };
+    if let Some(note) = sys_note {
+        eprintln!("  [??] system packages: {}", note);
+    }
+    categories.push(UpdateCategory {
+        name: "System (run omarchy-update)".to_string(),
+        emoji: "🧱".to_string(),
+        count: sys_items.len(),
+        items: sys_items,
     });
     Ok(categories)
 }
