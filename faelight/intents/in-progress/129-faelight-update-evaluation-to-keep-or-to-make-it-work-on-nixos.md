@@ -3,7 +3,7 @@ id: 129
 date: 2026-07-07
 type: future
 title: "faelight-update owns everything pacman cannot see"
-status: planned
+status: in-progress
 tags: [faelight-update, nix, fsh, faelight]
 priority: low
 ---

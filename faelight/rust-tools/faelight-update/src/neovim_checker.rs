@@ -134,23 +134,41 @@ fn check_via_lockfile() -> Vec<String> {
                     continue;
                 }
 
-                // Check if HEAD matches locked commit
+                // ⚠️ THIS DID NOT CHECK FOR UPDATES, IT CHECKED FOR STDERR. The old code ran
+                // git fetch --dry-run and marked the plugin outdated whenever stderr was
+                // non-empty, so a warning, an unreachable host or a credential prompt all
+                // read as an available update. head_commit was computed and thrown away with
+                // let _, so the comparison the comment promised never happened.
+                //
+                // AND IT BLOCKED. Without GIT_TERMINAL_PROMPT=0 a remote needing auth stops
+                // and waits for a username. Measured 2026-09-04: faelight-update --dry-run
+                // hung on a github prompt and never reached the remaining checkers, so one
+                // plugin with an HTTPS remote silently disabled the whole category.
                 let head = Command::new("git")
                     .args(["-C", &plugin_path, "rev-parse", "HEAD"])
                     .output();
-
-                if let Ok(out) = head {
-                    let head_commit = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                    // Check if remote has newer commits
-                    let fetch = Command::new("git")
-                        .args(["-C", &plugin_path, "fetch", "--dry-run"])
-                        .output();
-                    if let Ok(f) = fetch {
-                        if !f.stderr.is_empty() {
+                let remote = Command::new("git")
+                    .args(["-C", &plugin_path, "ls-remote", "origin", "HEAD"])
+                    .env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_ASKPASS", "true")
+                    .output();
+                if let (Ok(h), Ok(r)) = (head, remote) {
+                    if r.status.success() {
+                        let head_commit = String::from_utf8_lossy(&h.stdout).trim().to_string();
+                        let remote_commit = String::from_utf8_lossy(&r.stdout)
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or_default()
+                            .to_string();
+                        // Both sides known and different is a real update. Unreachable or
+                        // unparseable stays SILENT rather than counting as one.
+                        if !head_commit.is_empty()
+                            && !remote_commit.is_empty()
+                            && head_commit != remote_commit
+                        {
                             outdated.push(name.clone());
                         }
                     }
-                    let _ = head_commit;
                 }
             }
         }

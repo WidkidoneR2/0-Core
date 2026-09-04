@@ -2,8 +2,6 @@ mod cargo_checker;
 mod cleanup_checker;
 mod config;
 mod firmware_checker;
-mod flake_checker;
-mod flake_update;
 mod flatpak_checker;
 mod generation;
 mod git_checker;
@@ -30,9 +28,6 @@ struct Cli {
     /// Check for updates without applying them
     #[arg(short = 'n', long)]
     dry_run: bool,
-    /// Update a single flake input with closure diff + review gate (e.g. --flake-update nixpkgs)
-    #[arg(long, value_name = "INPUT")]
-    flake_update: Option<String>,
     /// Open the generation browser (timeline + closure diff + rollback)
     #[arg(long, alias = "gens")]
     generations: bool,
@@ -278,9 +273,16 @@ fn print_system_identity() {
     let wm = std::env::var("XDG_CURRENT_DESKTOP")
         .or_else(|_| std::env::var("WAYLAND_DISPLAY").map(|_| "Wayland".to_string()))
         .unwrap_or_else(|_| "unknown".to_string());
-    let shell = std::env::var("SHELL")
-        .map(|s| s.split('/').next_back().unwrap_or("unknown").to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+    // $SHELL IS THE LOGIN SHELL, NOT THE RUNNING ONE, and here they are deliberately
+    // different: bash holds the passwd seat per INT-190 and starts nsh from .bashrc.
+    // So this said bash -- right for the question asked, wrong for the one a reader has.
+    // INT-129 recorded it 2026-07-07 when the answer was fsh. Still bash 2026-09-04.
+    let shell = match std::env::var("NSH_VERSION") {
+        Ok(v) if !v.is_empty() => format!("nsh {}", v),
+        _ => std::env::var("SHELL")
+            .map(|s| s.split('/').next_back().unwrap_or("unknown").to_string())
+            .unwrap_or_else(|_| "unknown".to_string()),
+    };
     // Get health from cache
     let health = std::fs::read_to_string(
         std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
@@ -387,6 +389,7 @@ fn print_system_identity() {
     println!();
 }
 fn main() {
+    faelight_core::restore_sigpipe();
     if let Err(e) = run() {
         eprintln!("{} {}", "❌".red(), format!("Error: {:#}", e).red());
         std::process::exit(1);
@@ -457,11 +460,6 @@ fn run() -> Result<()> {
     // Maintenance mode
     if cli.maintain {
         return run_maintenance();
-    }
-
-    // INT-074 Phase 1b: per-input flake update + closure diff + review gate.
-    if let Some(ref input) = cli.flake_update {
-        return flake_update::run_flake_update(input, cli.dry_run);
     }
 
     // INT-074 Phase 2: the generation browser TUI.
@@ -776,14 +774,11 @@ pub struct UpdateItem {
 fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     let mut categories = Vec::new();
 
-    // Flake inputs (INT-074 Phase 1a) -- the legible per-input view of the NixOS flake.
-    let flake_items = flake_checker::check_flake_updates();
-    categories.push(UpdateCategory {
-        name: "Flake Inputs".to_string(),
-        emoji: "❄".to_string(),
-        count: flake_items.len(),
-        items: flake_items,
-    });
+    // ❄ FLAKE INPUTS REMOVED 2026-09-04. This category, the --flake-update flag and both
+    // flake modules (324 lines) asked nix what the system depends on. There is no flake
+    // and no nix: NixOS was wiped for Omarchy on 2026-08-28. INT-129 measured them as
+    // genuinely dead rather than repointable, unlike generation.rs which has a snapper
+    // equivalent to aim at.
 
     // (Arch pacman/AUR checkers removed -- INT-074 de-Arch. Flake inputs are the NixOS analog.)
 
