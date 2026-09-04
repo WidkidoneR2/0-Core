@@ -4,6 +4,7 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use chrono::Local;
 use colored::*;
+use faelight_core::check::{Checked, Skipped};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -47,6 +48,12 @@ struct ScanResult {
     timestamp: String,
     findings: Vec<Finding>,
     scan_duration_ms: u64,
+    /// INT-192: checks that could not run, with the reason. A scan with a skipped step is
+    /// NOT a clean scan, and the doctor reads this field rather than inferring from an
+    /// empty findings list -- which is what let it show a green Security Audit while
+    /// cargo-audit was not installed.
+    #[serde(default)]
+    skipped: Vec<String>,
 }
 
 fn last_scan_path() -> PathBuf {
@@ -54,16 +61,28 @@ fn last_scan_path() -> PathBuf {
     PathBuf::from(home).join(".local/state/0-core/security/last-scan.json")
 }
 
-fn scan_cargo(ctx: &AppContext) -> Vec<Finding> {
+// INT-192: THREE WAYS TO REPORT ZERO WITHOUT LOOKING, and all three fired on this
+// machine. cargo-audit is not installed, so cargo audit exits non-zero with an error on
+// stderr and NOTHING on stdout: the spawn succeeds, the UTF-8 conversion succeeds on an
+// empty string, and the JSON parse quietly fails. Empty findings, reported as clean.
+//
+// The status check is what separates the two cases that look identical downstream: a
+// successful run with no vulnerabilities is a genuine zero, and a non-zero exit is a
+// question that was never asked.
+fn scan_cargo(ctx: &AppContext) -> Checked<Vec<Finding>> {
     let mut findings = Vec::new();
     let output = Command::new("cargo")
         .args(["audit", "--json"])
         .current_dir(&ctx.core_root)
-        .output();
-    let Ok(output) = output else { return findings };
-    let Ok(text) = String::from_utf8(output.stdout) else {
-        return findings;
-    };
+        .output()
+        .map_err(|e| Skipped::new("cargo audit", e))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let why = stderr.lines().next().unwrap_or("cargo audit failed").trim();
+        return Err(Skipped::new("cargo audit", why));
+    }
+    let text =
+        String::from_utf8(output.stdout).map_err(|e| Skipped::new("cargo audit output", e))?;
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
         if let Some(vulns) = json["vulnerabilities"]["list"].as_array() {
             for vuln in vulns {
@@ -92,7 +111,7 @@ fn scan_cargo(ctx: &AppContext) -> Vec<Finding> {
             }
         }
     }
-    findings
+    Ok(findings)
 }
 
 fn scan_permissions() -> Vec<Finding> {
@@ -236,11 +255,21 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
     let mut findings = Vec::new();
     print!("  {} Rust crates (cargo-audit)... ", "🦀".cyan());
     std::io::Write::flush(&mut std::io::stdout()).ok();
-    findings.extend(scan_cargo(ctx));
-    println!("{}", "done".dimmed());
-
-    std::io::Write::flush(&mut std::io::stdout()).ok();
-    println!("{}", "done".dimmed());
+    // INT-192: A SKIPPED SUB-SCAN IS NOT A CLEAN ONE. cargo-audit is not installed on this
+    // machine, so cargo audit exits non-zero, stdout is empty, the JSON parse falls through
+    // and scan_cargo returned an empty Vec. The scan then reported 0 findings and the doctor
+    // turned an honest warning into a green Security Audit line. Measured 2026-09-04.
+    let mut skipped: Vec<String> = Vec::new();
+    match scan_cargo(ctx) {
+        Ok(f) => {
+            findings.extend(f);
+            println!("{}", "done".dimmed());
+        }
+        Err(s) => {
+            println!("{}", "SKIPPED".yellow());
+            skipped.push(s.to_string());
+        }
+    }
 
     print!("  {} File permissions... ", "🔑".cyan());
     std::io::Write::flush(&mut std::io::stdout()).ok();
@@ -262,6 +291,7 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
         timestamp,
         findings,
         scan_duration_ms: duration,
+        skipped: skipped.clone(),
     };
 
     // Save to state file
@@ -313,7 +343,21 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
         medium.to_string().dimmed(),
         low.to_string().dimmed(),
     );
-    println!("  {} Scan completed in {}ms", "✅".green(), duration);
+    if skipped.is_empty() {
+        println!("  {} Scan completed in {}ms", "✅".green(), duration);
+    } else {
+        // A COUNT OF ZERO FROM A PARTIAL SCAN IS NOT A CLEAN BILL. Naming the skip is what
+        // makes the number readable: 0 findings out of the checks that ran.
+        println!(
+            "  {} Scan completed in {}ms -- {} check(s) SKIPPED",
+            "⚠".yellow(),
+            duration,
+            skipped.len()
+        );
+        for s in &skipped {
+            println!("     {}", s.dimmed());
+        }
+    }
 
     // Event Ledger
     let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
@@ -338,6 +382,7 @@ pub fn report(ctx: &AppContext, all: bool) -> CoreResult<()> {
         timestamp: "never".to_string(),
         findings: vec![],
         scan_duration_ms: 0,
+        skipped: Vec::new(),
     });
 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
@@ -392,6 +437,8 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
         timestamp: "never".to_string(),
         findings: vec![],
         scan_duration_ms: 0,
+        // timestamp never already says nothing was scanned; no skips to carry.
+        skipped: Vec::new(),
     });
 
     let finding = result

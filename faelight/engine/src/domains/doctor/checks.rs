@@ -718,6 +718,38 @@ pub fn check_security_audit(home: &str) -> CheckResult {
     let all_findings = json["findings"].as_array().cloned().unwrap_or_default();
     let findings = all_findings.len();
 
+    // INT-192: A SCAN WITH A BLIND STEP IS NOT A CLEAN BILL. cargo-audit is not installed
+    // here, so the crate audit never ran -- and this check read an empty findings array as
+    // zero vulnerabilities and reported a green line. Measured 2026-09-04: the honest
+    // warning No scan found became a false pass the moment a scan was run.
+    //
+    // Warn rather than Unknown, because three of the four sub-scans DID run and found
+    // nothing. The answer is partial, not absent, and the message says which part is
+    // missing rather than leaving the reader to guess.
+    let skipped: Vec<String> = json["skipped"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    if !skipped.is_empty() {
+        return CheckResult {
+            tier: Tier::System,
+            id: "security_audit".into(),
+            name: "Security Audit".into(),
+            status: Status::Warn,
+            message: format!(
+                "{} finding(s), but {} check(s) could not run: {}",
+                findings,
+                skipped.len(),
+                skipped.join("; ")
+            ),
+            fix: Some("Install the missing tool, then: core security scan".into()),
+        };
+    }
+
     // Only count findings that have patches available
     let patchable: Vec<_> = all_findings
         .iter()
