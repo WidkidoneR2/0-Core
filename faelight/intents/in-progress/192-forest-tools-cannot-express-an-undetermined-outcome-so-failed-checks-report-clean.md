@@ -196,14 +196,48 @@ CORRECT, and no existing instrument would catch it.
       rejected -- it would be the same class of error as the bug itself
 - [ ] Sites sorted by quadrant BEFORE any are fixed, so effort lands on
       "empty is a lie AND nobody can see it" first
-- [ ] The tri-state is expressed in the TYPE SYSTEM, so a collapse fails to compile
+- [x] The tri-state is expressed in the TYPE SYSTEM, so a collapse fails to compile
       rather than relying on discipline
 - [ ] HIGH-severity sites first: anything feeding the health score or an automated decision
 - [ ] `Err(_)` is retired wherever the reason is needed -- the why survives to the report
-- [ ] The doctor can distinguish "checked, clean" from "could not check", and says so
-- [ ] Verified by breaking a check on purpose (rename config.fsh) and confirming the
+- [x] The doctor can distinguish "checked, clean" from "could not check", and says so
+- [x] Verified by breaking a check on purpose (rename config.fsh) and confirming the
       report says UNDETERMINED rather than clean
 - [x] Decided: shared crate vs per-tool convention, with the adoption surface in mind
+
+## PROGRESS 2026-09-04 -- the contract exists and one tool uses it
+
+THE TYPE LANDED. faelight_core::check carries Skipped {subject, reason} and
+Checked<T> = Result<T, Skipped>. Not in error.rs: an error is a failure, this is an
+absence of knowledge, and filing it beside FontLoad would encode the confusion the
+intent exists to remove.
+
+PROVEN BEFORE FIXING. config.nsh was moved aside and deadwood reported [ok] Dead
+aliases: clean, 0|0|0|0 -- it could not read the file and said clean, and that zero
+feeds the health score. The charter proposed this as the test; it was run.
+
+The conversion produced SEVEN COMPILE ERRORS in one file, each a place that had been
+reporting clean without looking. That is the type doing the enforcement a convention
+could not.
+
+END TO END, demonstrated in three states:
+  normal          0|0|0|0   [ok] clean          doctor: green
+  config hidden   ?|?|0|0   [??] could not check  doctor: Unknown 1 -> 2
+  restored        0|0|0|0   back to green
+
+--strict exits 1 on a skip, because a gate that could not run has not passed.
+A total containing an unknown is itself unknown -- summing ? as zero would rebuild
+the collapse one level up.
+
+AND THE DOCTOR CATCH-ALL WAS ITS OWN INSTANCE: an absent deadwood reported Pass with
+not installed, run after deploy. A check that reports clean by being ABSENT.
+
+⚠️ THE ENUMERATION GATE IS THE REMAINING WORK AND IS NOT STARTED. Three sites judged
+and converted out of 15+ across five tools, and a new one surfaced while testing:
+the doctor Alias Coverage check reads the same config and collapses in the LOUD
+direction -- clean became 21 tools missing aliases when the file was hidden. The
+July list is a grep, and the two deadwood line numbers in it were already stale.
+
 <!-- 2026-07-23 recon: the forest ALREADY has a shared library. faelight-core/src/lib.rs exists and
 28 tools already depend on it via { path = "../faelight-core" }, inside a real Cargo workspace. It
 is a clean crate, not a junk drawer: canvas, error, glyph, paths, theme, wayland; 51-line lib.rs of
