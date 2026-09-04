@@ -546,30 +546,43 @@ fn strip_timestamp(s: &str) -> String {
 }
 
 // Simple regex-free pattern replacer for "digits + suffix" patterns
+/// Replace EVERY occurrence, which the name used to promise it would not.
+///
+/// ⚠️ IT REPLACED THE FIRST AND STOPPED, and README.md carries the phrase twice. The
+/// static section said 38 custom Rust tools on line 54 and 0 custom Rust tools on line
+/// 116 -- the same document, the same generator, the same sync run. Line 116 had never
+/// been reached since the phrase was added below it.
+///
+/// Not a regex despite the name: a literal suffix search, walking back over the digits
+/// in front of it. That is fine and stays. What changes is that it keeps going.
 fn regex_replace_first(text: &str, pattern_kind: &str, replacement: &str) -> String {
-    // Parse the pattern kind to find prefix digits and literal suffix
     let suffix = match pattern_kind {
         r"\d+ custom Rust tools" => " custom Rust tools",
         r"\d+\+ native domains" => "+ native domains",
         r"\d+ complete intents" => " complete intents",
         _ => return text.to_string(),
     };
-    // Find the suffix in text, walk back over preceding digits
-    if let Some(suffix_pos) = text.find(suffix) {
-        let before = &text[..suffix_pos];
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(suffix_pos) = rest.find(suffix) {
+        let before = &rest[..suffix_pos];
         let digit_start = before
             .rfind(|c: char| !c.is_ascii_digit())
             .map(|i| i + 1)
             .unwrap_or(0);
-        format!(
-            "{}{}{}",
-            &text[..digit_start],
-            replacement,
-            &text[suffix_pos + suffix.len()..]
-        )
-    } else {
-        text.to_string()
+        // No digits in front of the suffix: not a count, so leave it and move past.
+        if digit_start == suffix_pos {
+            let cut = suffix_pos + suffix.len();
+            out.push_str(&rest[..cut]);
+            rest = &rest[cut..];
+            continue;
+        }
+        out.push_str(&rest[..digit_start]);
+        out.push_str(replacement);
+        rest = &rest[suffix_pos + suffix.len()..];
     }
+    out.push_str(rest);
+    out
 }
 
 fn verify_links(dry_run: bool) -> bool {
