@@ -2862,7 +2862,14 @@ fn main() {
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_else(|e| format!("could not ask: {}", e));
-        println!("  under test: {}", ident);
+        // The BUILD PATH is not shown here. It matters only when the byte comparison below
+        // disagrees, and that block prints both paths where they can be acted on. In the
+        // normal case the version is the identity and the path is noise.
+        //
+        // ident keeps both halves because the comparison needs the path; only the display
+        // narrows.
+        let shown = ident.split_whitespace().next().unwrap_or(&ident);
+        println!("  under test: {}", shown);
 
         // ⚠️ ASKING WAS NEVER THE PROBLEM -- NOT COMPARING WAS. The line above has always been
         // honest, and on 2026-08-24 a full green run reported `3.8.1` while the change under
