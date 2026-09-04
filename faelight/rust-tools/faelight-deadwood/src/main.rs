@@ -5,6 +5,7 @@
 
 use clap::Parser;
 use colored::*;
+use faelight_core::check::{Checked, Skipped};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -88,13 +89,39 @@ fn main() {
     }
 
     if cli.summary {
-        let aliases = check_dead_aliases(&root).len();
+        // INT-192: A SKIPPED CHECK HAS NO NUMBER. The field carries ? rather than 0,
+        // because 0 here means checked and found nothing -- and that is the lie this
+        // whole intent is about. Proven live 2026-09-04: config.nsh moved aside and this
+        // line read 0|0|0|0 while the doctor called the system healthy.
+        //
+        // FORMAT CHANGE, and the note below applies: the doctor parses by index and both
+        // sides move together. check_deadwood reads a non-numeric field as Unknown now
+        // rather than defaulting it to zero.
+        let aliases = match check_dead_aliases(&root) {
+            Ok(v) => v.len().to_string(),
+            Err(_) => "?".to_string(),
+        };
         let baks = check_stale_baks(&root, cli.bak_age)
             .iter()
             .filter(|f| f.confidence != Confidence::Low)
             .count();
-        let registry = check_registry_orphans(&root).len();
-        let total = aliases + baks + registry;
+        let registry = match check_registry_orphans(&root) {
+            Ok(v) => v.len().to_string(),
+            Err(_) => "?".to_string(),
+        };
+        // A TOTAL THAT INCLUDES AN UNKNOWN IS ITSELF UNKNOWN. Summing a ? as zero would
+        // reintroduce the collapse one level up: the fields would say ? and the total
+        // would say a confident number smaller than the truth.
+        let known: Vec<usize> = [aliases.as_str(), registry.as_str()]
+            .iter()
+            .filter_map(|s| s.parse::<usize>().ok())
+            .collect();
+        let any_skipped = known.len() < 2;
+        let total = if any_skipped {
+            "?".to_string()
+        } else {
+            (known.iter().sum::<usize>() + baks).to_string()
+        };
         // machine-readable single line: TOTAL|aliases|baks|registry
         //
         // FORMAT CHANGED 2026-08-27: keybinds was field 3 and is gone with the mango
@@ -107,7 +134,12 @@ fn main() {
         // means --summary --strict gates on the six filesystem categories only, while report mode
         // gates on all seven. If INT-195 ever belongs here, that is a documented format version
         // change, not a quiet extra field.
-        if cli.strict && total > 0 {
+        // A GATE THAT COULD NOT RUN HAS NOT PASSED. --strict exits non-zero on a skip as
+        // well as on findings, because the alternative is a gate that goes green precisely
+        // when it is blindest. zero-gate calls this on every push; a config it cannot read
+        // must stop the push, not wave it through.
+        let has_findings = total.parse::<usize>().map(|n| n > 0).unwrap_or(false);
+        if cli.strict && (has_findings || any_skipped) {
             std::process::exit(1);
         }
         return;
@@ -131,7 +163,7 @@ fn main() {
     if run("baks") {
         reported += report(
             &format!("Stale .bak files (>{} days)", cli.bak_age),
-            check_stale_baks(&root, cli.bak_age),
+            Ok(check_stale_baks(&root, cli.bak_age)),
         );
     }
     // INT-231: deliberately NOT in the --summary positional totals, for the reason recorded on
@@ -149,7 +181,7 @@ fn main() {
         // debris getting cleaned.
         let _ = report(
             "Dangling intent citations",
-            check_dangling_intent_citations(&root),
+            Ok(check_dangling_intent_citations(&root)),
         );
     }
     if run("registry") {
@@ -162,7 +194,7 @@ fn main() {
         let (found, exempt) = check_command_word_derivations(&root);
         reported += report(
             &format!("Command-word derivation candidates (INT-195) [{exempt} author-exempt]"),
-            found,
+            Ok(found),
         );
     }
     println!("{}", "-".repeat(56).dimmed());
@@ -172,7 +204,18 @@ fn main() {
     }
 }
 
-fn report(title: &str, findings: Vec<Finding>) -> usize {
+// A skipped check is NOT a clean one, and this is where the difference becomes visible.
+// INT-192: [ok] means checked and found nothing. [??] means could not look, and the
+// reason travels with it so the line is actionable rather than merely honest.
+fn report(title: &str, findings: Checked<Vec<Finding>>) -> usize {
+    let findings = match findings {
+        Ok(f) => f,
+        Err(skipped) => {
+            println!("  [??] {}: {}", title, skipped);
+            println!();
+            return 0;
+        }
+    };
     if findings.is_empty() {
         println!("  [ok] {}: clean", title);
         println!();
@@ -436,12 +479,14 @@ fn collect_citations(
     }
 }
 
-fn check_dead_aliases(root: &Path) -> Vec<Finding> {
+fn check_dead_aliases(root: &Path) -> Checked<Vec<Finding>> {
     let path = config_fsh(root);
-    let text = match std::fs::read_to_string(&path) {
-        Ok(t) => t,
-        Err(_) => return Vec::new(),
-    };
+    // INT-192, PROVEN LIVE 2026-09-04: Err(_) => Vec::new() here reported Dead aliases:
+    // clean with config.nsh moved aside. It could not read the file and said clean, and
+    // that zero feeds the doctor health score -- a missing config read as a healthy
+    // system. The reason travels now instead of being discarded.
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| Skipped::new(path.display().to_string(), e))?;
     let mut alias_names: HashSet<String> = HashSet::new();
     for line in text.lines() {
         if let Some((n, _)) = parse_alias(line) {
@@ -485,7 +530,7 @@ fn check_dead_aliases(root: &Path) -> Vec<Finding> {
             });
         }
     }
-    findings
+    Ok(findings)
 }
 
 fn parse_alias(line: &str) -> Option<(String, String)> {
@@ -551,17 +596,17 @@ fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
     findings
 }
 
-fn check_registry_orphans(root: &Path) -> Vec<Finding> {
+fn check_registry_orphans(root: &Path) -> Checked<Vec<Finding>> {
     // WAS root.join(registry/tools.toml) -- the file is at faelight/registry/tools.toml,
     // so read_to_string failed and this returned empty on every run. It reported clean
     // because it was BLIND. Found 2026-08-27 by adding a deliberate orphan and watching
     // the summary stay at zero, then verified in both directions: orphan present reads
     // 1|0|0|1|0|0 and the doctor says 1 registry; orphan gone reads all zeros.
     let path = root.join("faelight/registry/tools.toml");
-    let text = match std::fs::read_to_string(&path) {
-        Ok(t) => t,
-        Err(_) => return Vec::new(),
-    };
+    // INT-192: same collapse. tools.toml is not optional -- if it cannot be read the
+    // answer is unknown, not zero orphans.
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| Skipped::new(path.display().to_string(), e))?;
     let mut findings = Vec::new();
     // Parse [[tool]] blocks by scanning name/deployable/retired per block.
     let mut name = String::new();
@@ -605,7 +650,7 @@ fn check_registry_orphans(root: &Path) -> Vec<Finding> {
         }
     }
     flush(&name, deployable, retired, &mut findings); // last block
-    findings
+    Ok(findings)
 }
 
 // ── Orphaned scripts ─────────────────────────────────────────────────────────
@@ -972,9 +1017,20 @@ fn git_tree_clean(root: &Path) -> bool {
 
 fn purgeable(root: &Path, bak_age: u64) -> Vec<Finding> {
     let mut out = Vec::new();
-    for f in check_dead_aliases(root) {
-        if f.action.is_some() {
-            out.push(f);
+    // INT-192: a check that could not run contributes NOTHING to a purge list, and that is
+    // the safe direction -- purge deletes. An undetermined alias check must not be read as
+    // no aliases to purge, and must not be read as purge everything either. The skip is
+    // announced so the operator knows the list is partial rather than complete.
+    match check_dead_aliases(root) {
+        Ok(findings) => {
+            for f in findings {
+                if f.action.is_some() {
+                    out.push(f);
+                }
+            }
+        }
+        Err(skipped) => {
+            eprintln!("  [??] dead aliases: {} -- purge list is PARTIAL", skipped);
         }
     }
     for f in check_stale_baks(root, bak_age) {

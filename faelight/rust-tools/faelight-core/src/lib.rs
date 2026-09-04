@@ -9,6 +9,7 @@
 
 #[cfg(feature = "ui")]
 pub mod canvas;
+pub mod check;
 pub mod error;
 #[cfg(feature = "ui")]
 pub mod glyph;
