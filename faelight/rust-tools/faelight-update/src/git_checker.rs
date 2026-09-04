@@ -1,8 +1,21 @@
 use std::path::Path;
 use std::process::Command;
 
-/// Check for Git repository updates
+///
+// THIS PRINTED Checking git repositories AND RETURNED AN EMPTY VECTOR. The report then
+// said Git Repositories (up to date) -- a check that never ran, reported as clean. Same
+// shape as the doctor checks INT-222 catalogues.
+//
+// ~/repos does not exist on this machine (measured 2026-09-04) and the convention is not
+// used: work lives in ~/0-core. So the honest answer is not a scan, it is saying that the
+// directory this category is about is absent. update_git_repos below already says exactly
+// that when asked to apply.
 pub fn check_git_updates() -> Vec<String> {
+    let repos_dir = std::env::var("HOME").unwrap_or_default() + "/repos";
+    if !Path::new(&repos_dir).exists() {
+        println!("   Git repositories: ~/repos not present, nothing to check");
+        return Vec::new();
+    }
     println!("   Checking git repositories...");
     Vec::new()
 }
