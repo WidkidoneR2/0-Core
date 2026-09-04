@@ -1314,21 +1314,28 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             let line = String::from_utf8_lossy(&o.stdout);
             let line = line.trim();
             let parts: Vec<&str> = line.split('|').collect();
-            let total: usize = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-            // FORMAT IS NOW total|aliases|baks|registry -- four fields.
-            //
-            // It was seven. keybinds went with the mango check, and scripts and modules
-            // went with two checks that read directories this repo does not have
-            // (pkgs/faelight/scripts, and hosts/modules rather than nix/hosts and
-            // nix/modules). All three reported clean because they were BLIND.
-            //
-            // This parses BY INDEX, so a dropped field silently shifts what it reads --
-            // parts.get(5) would now return None and default to 0, which is wrong in the
-            // quiet direction. Both sides change together, always.
-            //
-            // Verified in both directions 2026-08-27: a deliberate registry orphan reads
-            // 1|0|0|1 and this reports 1 registry; removing it returns all zeros.
-            let registry: usize = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0);
+            // INT-192: A NON-NUMERIC FIELD MEANS THE CHECK COULD NOT RUN. deadwood emits ?
+            // where it could not look, and unwrap_or(0) read that as zero findings -- the
+            // exact collapse this pair of commits exists to end. Proven 2026-09-04:
+            // config.nsh moved aside gave ?|?|0|0 and the doctor called it healthy.
+            let field =
+                |n: usize| -> Option<usize> { parts.get(n).and_then(|s| s.parse::<usize>().ok()) };
+            let total_opt = field(0);
+            let registry_opt = field(3);
+            if total_opt.is_none() || registry_opt.is_none() {
+                return CheckResult {
+                    tier: Tier::User,
+                    id: "deadwood".into(),
+                    name: "Deadwood".into(),
+                    status: Status::Unknown,
+                    message: format!("deadwood could not complete every check: {}", line),
+                    fix: Some(
+                        "Run: faelight-deadwood to see which check was skipped and why".into(),
+                    ),
+                };
+            }
+            let total = total_opt.unwrap_or(0);
+            let registry = registry_opt.unwrap_or(0);
             let structural = registry;
             if structural > 0 {
                 CheckResult {
@@ -1362,8 +1369,8 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
             tier: Tier::User,
             id: "deadwood".into(),
             name: "Deadwood".into(),
-            status: Status::Pass,
-            message: "faelight-deadwood not installed (run after deploy)".into(),
+            status: Status::Unknown,
+            message: "faelight-deadwood did not run -- hygiene is unmeasured, not clean".into(),
             fix: None,
         },
     }
