@@ -8,6 +8,7 @@
 
 mod cheatsheet_tui;
 mod commands;
+mod core_integration;
 mod db;
 /// INT-208: a failure is a value before it is a string.
 mod diagnostic;

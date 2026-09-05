@@ -237,19 +237,13 @@ pub fn run_health_tui(core_root: &str) {
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
         .unwrap_or(0);
     // Count active intents from in-progress files
-    let active_intents: i64 = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
-        .map(|dir| {
-            dir.filter_map(|e| e.ok())
-                .filter(|e| {
-                    let path = e.path();
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        content.contains("in-progress")
-                    } else {
-                        false
-                    }
-                })
-                .count() as i64
-        })
+    // INT-230: was a loose content search over future/ only, which counted
+    // prose mentions and could not see a started intent at all (cistart
+    // moves the file to in-progress/). Now asks the adapter, which reads
+    // the frontmatter status field across the lifecycle folders -- the same
+    // predicate core uses.
+    let active_intents: i64 = crate::core_integration::ledger()
+        .map(|l| l.active_count() as i64)
         .unwrap_or(0);
     let _ = enable_raw_mode();
     let mut stdout = io::stdout();

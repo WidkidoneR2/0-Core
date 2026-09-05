@@ -446,30 +446,15 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
 
     if is_friday {
-        let next_intent = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
-            .ok()
-            .and_then(|entries| {
-                let mut in_progress: Vec<String> = entries
-                    .flatten()
-                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                    .filter_map(|e| {
-                        let content = std::fs::read_to_string(e.path()).ok()?;
-                        if !content.contains("status: in-progress") {
-                            return None;
-                        }
-                        let id = e
-                            .file_name()
-                            .to_string_lossy()
-                            .split('-')
-                            .next()
-                            .unwrap_or("?")
-                            .to_string();
-                        Some(format!("INT-{}", id))
-                    })
-                    .collect();
-                in_progress.sort();
-                in_progress.first().cloned()
-            });
+        // INT-230: read future/ for `status: in-progress`. cistart moves a started
+        // intent into in-progress/, so the hint could never fire. The adapter
+        // reads the lifecycle folders and returns None when 0-Core is absent,
+        // which renders as no hint rather than a wrong one.
+        let next_intent = crate::core_integration::ledger().and_then(|l| {
+            let mut ids: Vec<String> = l.active().iter().map(|i| format!("INT-{}", i.id)).collect();
+            ids.sort();
+            ids.first().cloned()
+        });
 
         let trend_hint = {
             // Absent health used to fall back to 100 -- twice -- and the branch

@@ -27,59 +27,12 @@ pub fn should_show(mem: &SessionMemory) -> bool {
 /// Reads depends_on from frontmatter and tests each dependency against the ids in
 /// complete/. Agrees with core intent blocked.
 pub fn blocked_ready() -> (usize, usize) {
-    let intents_future = faelight_core::paths::intents_dir().join("future");
-    let intents_complete = faelight_core::paths::intents_dir().join("complete");
-    let mut complete_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-    if let Ok(entries) = std::fs::read_dir(&intents_complete) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if let Some(num) = name.split('-').next() {
-                complete_ids.insert(num.to_string());
-            }
-        }
-    }
-    let mut blocked_count = 0usize;
-    let mut ready_count = 0usize;
-    if let Ok(entries) = std::fs::read_dir(&intents_future) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().and_then(|e| e.to_str()) != Some("md") {
-                continue;
-            }
-            if let Ok(text) = std::fs::read_to_string(&p) {
-                if !text.contains("status: planned") {
-                    continue;
-                }
-                let deps: Vec<String> = text
-                    .lines()
-                    .find(|l| l.trim_start().starts_with("depends_on:"))
-                    .and_then(|l| {
-                        let v = l
-                            .splitn(2, ':')
-                            .nth(1)?
-                            .trim()
-                            .trim_start_matches('[')
-                            .trim_end_matches(']')
-                            .to_string();
-                        if v.is_empty() {
-                            return Some(vec![]);
-                        }
-                        Some(v.split(',').map(|s| s.trim().to_string()).collect())
-                    })
-                    .unwrap_or_default();
-                let has_unmet = deps.iter().any(|d| {
-                    let d = d.trim();
-                    !d.is_empty() && !complete_ids.contains(d)
-                });
-                if has_unmet {
-                    blocked_count += 1;
-                } else {
-                    ready_count += 1;
-                }
-            }
-        }
-    }
-    (blocked_count, ready_count)
+    // INT-230: was a hand-rolled complete/ id set plus its own depends_on
+    // frontmatter parser -- a second implementation of what the adapter
+    // owns. Absence yields (0, 0), which renders as no ready prompt.
+    crate::core_integration::ledger()
+        .map(|l| l.blocked_ready())
+        .unwrap_or((0, 0))
 }
 
 pub fn render(_mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
@@ -103,25 +56,16 @@ pub fn render(_mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
     lines.push(String::new());
 
     // Active intents
-    let intents_path = faelight_core::paths::intents_dir().join("future");
-    let mut active_intents: Vec<String> = vec![];
-    if let Ok(entries) = std::fs::read_dir(&intents_path) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                if content.contains("status: in-progress") {
-                    let name = entry
-                        .file_name()
-                        .to_string_lossy()
-                        .trim_end_matches(".md")
-                        .to_string();
-                    // Extract INT number
-                    if let Some(num) = name.split('-').next() {
-                        active_intents.push(format!("INT-{}", num));
-                    }
-                }
-            }
-        }
-    }
+    // INT-230: scanned future/ for `status: in-progress`. cistart moves a
+    // started intent into in-progress/, so this list has been empty for as
+    // long as that move has existed -- the banner could not name the work
+    // actually in progress. The adapter reads the lifecycle folders using
+    // the same frontmatter predicate core does.
+    let mut active_intents: Vec<String> = match crate::core_integration::ledger() {
+        Some(l) => l.active().iter().map(|i| format!("INT-{}", i.id)).collect(),
+        None => vec![],
+    };
+    active_intents.sort();
 
     if !active_intents.is_empty() {
         lines.push(format!(

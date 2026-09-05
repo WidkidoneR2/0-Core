@@ -173,26 +173,15 @@ impl SessionMemory {
 
 // ── Read active intents from filesystem ──────────────────────────────────────────
 
+// INT-230: scanned future/ for `status: in-progress`, but cistart moves a
+// started intent into in-progress/ -- so this returned an empty list for as
+// long as that move has existed. The adapter reads the lifecycle folders.
 fn active_intents(_core_root: &str) -> Vec<String> {
-    let future = faelight_core::paths::intents_dir().join("future");
-    let mut intents = vec![];
-    if let Ok(entries) = std::fs::read_dir(&future) {
-        let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
-        entries.sort_by_key(|e| e.file_name());
-        for entry in entries {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") {
-                continue;
-            }
-            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                if content.contains("status: in-progress") {
-                    // Extract INT number from filename (e.g. "120-faelight-shell.md" -> "INT-120")
-                    let int_num = name.split('-').next().unwrap_or("?");
-                    intents.push(format!("INT-{}", int_num));
-                }
-            }
-        }
-    }
+    let mut intents: Vec<String> = match crate::core_integration::ledger() {
+        Some(l) => l.active().iter().map(|i| format!("INT-{}", i.id)).collect(),
+        None => vec![],
+    };
+    intents.sort();
     intents
 }
 
