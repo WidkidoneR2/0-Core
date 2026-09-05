@@ -3781,9 +3781,11 @@ fn execute_dispatch(
                     "@rust" => crate::core_integration::tools_root()
                         .map(|d| d.to_string_lossy().to_string())
                         .unwrap_or_else(|| "@rust".to_string()),
-                    "@intents" => faelight_core::paths::intents_dir()
-                        .to_string_lossy()
-                        .to_string(),
+                    // INT-230: same treatment as @rust -- an absent 0-Core
+                    // expanded this to the empty string, silently.
+                    "@intents" => crate::core_integration::intents_root()
+                        .map(|d| d.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "@intents".to_string()),
                     "@scripts" => format!("{}/0-core/scripts", home),
                     "@docs" => format!("{}/0-core/docs", home),
                     p if p.starts_with("~/") => format!("{}/{}", home, &p[2..]),
@@ -8140,11 +8142,13 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "intent" | "intents" => {
             // Collect all intent files
             let mut items = String::new();
+            // INT-230: no root, no items.
+            let intents_root = match crate::core_integration::intents_root() {
+                Some(r) => r,
+                None => return CommandResult::Output(String::new()),
+            };
             for dir in &["future", "complete", "in-progress"] {
-                let path = faelight_core::paths::intents_dir()
-                    .join(dir)
-                    .to_string_lossy()
-                    .to_string();
+                let path = intents_root.join(dir).to_string_lossy().to_string();
                 if let Ok(entries) = std::fs::read_dir(&path) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
@@ -11687,8 +11691,16 @@ fn intents(_core_root: &str) -> CommandResult {
         ("complete", "complete"),
         ("future", "planned"),
     ];
+    // INT-230: a SEVENTH intent reader, kept deliberately. It maps each FOLDER
+    // to a status label and needs complete/ in full, while ledger() reads the
+    // frontmatter status field and carries only complete ids. Only the root
+    // moves; the folder-to-status logic stays where its caller needs it.
+    let intents_root = crate::core_integration::intents_root();
     for (dir, dir_status) in &dirs {
-        let path = faelight_core::paths::intents_dir().join(dir);
+        let path = match &intents_root {
+            Some(r) => r.join(dir),
+            None => continue,
+        };
         if let Ok(entries) = std::fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -11764,8 +11776,15 @@ fn project_list(core_root: &str) -> CommandResult {
         crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
 
     // Count intents
+    // INT-230: the ONE place a zero is allowed on absence -- this renders in a
+    // version panel where "0 intents" prints beside "unknown version", so the
+    // zero reads as absence rather than as a count that was taken.
     let count_md = |sub: &str| -> usize {
-        std::fs::read_dir(faelight_core::paths::intents_dir().join(sub))
+        let root = match crate::core_integration::intents_root() {
+            Some(r) => r,
+            None => return 0,
+        };
+        std::fs::read_dir(root.join(sub))
             .map(|d| {
                 d.flatten()
                     .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
@@ -16514,10 +16533,10 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 fn forest_stats_intents(_core_root: &str) -> CommandResult {
-    let complete_dir = faelight_core::paths::intents_dir()
-        .join("complete")
-        .to_string_lossy()
-        .to_string();
+    let complete_dir = match crate::core_integration::intents_root() {
+        Some(r) => r.join("complete").to_string_lossy().to_string(),
+        None => return CommandResult::Output(String::new()),
+    };
     let mut out = String::new();
     out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
     let entries = std::fs::read_dir(&complete_dir).ok();

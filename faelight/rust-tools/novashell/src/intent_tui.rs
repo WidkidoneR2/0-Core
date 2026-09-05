@@ -459,20 +459,18 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
 }
 fn load_intents(_core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
-    let dirs = vec![
-        faelight_core::paths::intents_dir()
-            .join("future")
-            .to_string_lossy()
-            .to_string(),
-        faelight_core::paths::intents_dir()
-            .join("in-progress")
-            .to_string_lossy()
-            .to_string(),
-        faelight_core::paths::intents_dir()
-            .join("complete")
-            .to_string_lossy()
-            .to_string(),
-    ];
+    // INT-230: one root, three joins. An absent 0-Core yields no directories and
+    // the TUI shows nothing, which is what a TUI with no ledger should show.
+    // NOTE: parse_intent below stays its own parser deliberately -- this Intent
+    // carries title, date, tags, path and full content for rendering, while the
+    // adapter keeps four fields so a prompt render does not load every body.
+    let dirs: Vec<String> = match crate::core_integration::intents_root() {
+        Some(root) => ["future", "in-progress", "complete"]
+            .iter()
+            .map(|d| root.join(d).to_string_lossy().to_string())
+            .collect(),
+        None => Vec::new(),
+    };
     for dir in &dirs {
         let path = std::path::Path::new(dir);
         if !path.exists() {

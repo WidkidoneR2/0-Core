@@ -185,6 +185,16 @@ pub fn intents_root() -> Option<PathBuf> {
     }
 }
 
+/// The 0-Core registry directory, when 0-Core is present.
+pub fn registry_root() -> Option<PathBuf> {
+    let dir = faelight_core::paths::registry_dir();
+    if dir.is_dir() {
+        Some(dir)
+    } else {
+        None
+    }
+}
+
 /// The status a lifecycle folder carries in frontmatter.
 ///
 /// ⚠️ MATCHES `core` DELIBERATELY. `engine/src/domains/intent/mod.rs` filters on

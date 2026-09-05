@@ -3390,17 +3390,12 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     println!("  {}", fc_bold(180, 130, 255, &format!("\"{}\"", quote)));
     println!();
     // Today's Focus — lowest audit score tool
-    let _focus = std::fs::read_to_string(faelight_core::paths::tools_registry())
-        .map(|t| {
-            // Find tool with lowest score hint from name patterns
-            let stale: Vec<&str> = t
-                .lines()
-                .filter(|l| l.starts_with("name = "))
-                .filter_map(|l| l.split('"').nth(1))
-                .collect();
-            stale.first().map(|s| s.to_string()).unwrap_or_default()
-        })
-        .unwrap_or_default();
+    // INT-230: a _focus binding was computed here from the tools registry and
+    // then DISCARDED -- the underscore said so. It read and parsed the registry
+    // on every banner render to produce a value nobody used. And it did not do
+    // what its comment claimed: that said lowest audit score tool, while the
+    // code took the FIRST name line in file order and read no score at all.
+    // A computation shaped like a measurement, deleted rather than migrated.
 
     // Show today's focus from actual in-progress intents only
     // INT-230: read future/ for `status: in-progress`. cistart moves a started
