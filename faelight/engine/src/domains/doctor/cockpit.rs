@@ -202,6 +202,19 @@ pub fn render_cockpit(
     } else {
         String::new()
     };
+    // INT-222: THE PERCENTAGE STATES ITS BASIS. A bare 84% cannot be read -- the charter
+    // complaint is that a reader seeing 97% cannot tell whether the missing 3% is a stale
+    // doc or a failing boot check. Half that fix is weighting, which is a separate gate.
+    // The other half is showing the denominator, because it MOVES: Unknown and Blocked are
+    // excluded from the ratio (INT-148), so a run where nine probes cannot answer scores
+    // 7 of 18 rather than 7 of 27, and the shrinking denominator is invisible today.
+    let blocked = checks
+        .iter()
+        .filter(|c| c.status == Status::Blocked)
+        .count() as u32;
+    let determinable = (checks.len() as u32)
+        .saturating_sub(unknown)
+        .saturating_sub(blocked);
     println!(
         "  {} {}   ⚠️  {}   ❌ {}{}   📊 {}",
         "✅".green(),
@@ -209,7 +222,12 @@ pub fn render_cockpit(
         format!("Warnings: {}", warnings).yellow(),
         format!("Failed: {}", failed).bright_red(),
         unknown_seg,
-        format!("Health: {}%", health).bright_white().bold(),
+        format!(
+            "Health: {}% ({} of {} determinable)",
+            health, passed, determinable
+        )
+        .bright_white()
+        .bold(),
     );
     // Integrity score
     let int_str = if integrity_pct >= 95 {

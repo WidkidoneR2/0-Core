@@ -7,6 +7,12 @@ status: in-progress
 tags: [architecture, rust, design]
 ---
 
+> ⚠️ **COUNTS IN THIS DOCUMENT ARE DATED.** Everything below the RESCOPED marks was measured
+> 2026-08-17, when the doctor wired **34** checks. It wires **27** today; the difference went
+> with the Omarchy migration. Historical numbers are left as written rather than edited,
+> because they record what was true when the work was done. The live count is derived:
+> `all_checks().len()`, printed in the doctor header.
+
 ## Vision
 
 The doctor becomes a scan engine with declared definitions, the way anti-virus software works:
@@ -308,9 +314,33 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
          check impossible to WRITE rather than difficult to FIND. The census proves the
          manual pass works and also proves what it costs: twenty-seven functions read by
          hand, which is exactly what the charter says must not be the durable answer. -->
-- [ ] INT-148's `Status::Unknown` claim is verified against the code, with evidence either way.
+- [x] INT-148's `Status::Unknown` claim is verified against the code, with evidence either way.
       ⚠️ If false, that is a third completed intent claiming something untrue and it is recorded
       here rather than quietly worked around.
+      <!-- VERIFIED 2026-09-04 with arithmetic, not assertion. The claim holds.
+
+      mod.rs, and the comment states it: Unknown and Blocked are excluded from the ratio,
+      couldn't determine and blocked are not failures and must not drag health down.
+
+          let determinable = total - unknown - blocked;
+          let health = if determinable > 0 { (passed * 100) / determinable } else { 0 };
+
+      PROVEN BY A BLIND RUN -- every probe made unreachable with PATH=/nonexistent:
+          27 total, 9 unknown, 18 determinable, 7 passed
+          700 / 18 = 38 with integer division
+          the doctor printed Health: 38%
+      Excluding them would give 7/27 = 25%. The formula is doing what the comment says.
+
+      The verdict function agrees separately: Critical + Unknown returns Red, any other
+      Unknown sets amber. An unknown critical check is treated as a failure, which is the
+      right direction -- not knowing whether the disk is full is not the same as it being
+      fine.
+
+      ⚠️ AND THIS IS WHERE THE NEXT DEFECT LIVES. (passed * 100) / determinable weights
+      every check IDENTICALLY, which is complaint 2 in this intent's own Problem section:
+      a failing Critical Disk Space and a Warn on Alias Coverage move the number by the
+      same amount. Worse, Warn counts as not-passed, so today's four warnings cost exactly
+      what four failures would. That is the scoring gate, not this one. -->
 - [ ] Every check is assigned a RISK.toml tier (critical / system / user), and the assignment is
       justified in one line each. Disagreement is expected and is the point.
 
@@ -378,8 +408,26 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       recovery.
 - [ ] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
       constants.
-- [ ] The stale check counts are corrected wherever they appear, and the number is DERIVED rather
+- [x] The stale check counts are corrected wherever they appear, and the number is DERIVED rather
       than typed so it cannot go stale a fourth time.
+      <!-- DONE 2026-09-04, and NOT by rewriting thirteen numbers.
+
+      grep found 34 in thirteen places in this document and NOWHERE in code or docs. So the
+      stale count never reached anything that runs -- WORKFLOWS.md said 22 and POLICIES.md
+      said 14, but neither says a number now.
+
+      ⚠️ AND MOST OF THE THIRTEEN ARE HISTORY, NOT ERROR. The census at Phase 0, the finding
+      that only seven of 34 could report Fail, the note that a second doctor exists -- all
+      were measured on 2026-08-17 when the count WAS 34. Editing them would falsify the
+      record of what was true when the work was done.
+
+      The correction is the banner at the top of this intent, and the derivation is what
+      the doctor already does: the header prints 22/27 from all_checks().len(), not from a
+      typed constant. Nothing computes a check count from a written number.
+
+      TODAY: 27 checks. 2026-08-17: 34. The difference is checks deleted with their
+      subjects at the Omarchy migration -- stow, mango, the NixOS theme packages, and
+      check_dotmeta itself. -->
 - [ ] `rebuild-safe` is reviewed against the new scoring and it is stated -- with a reason --
       whether it gates on the percentage or on critical-tier status.
 
