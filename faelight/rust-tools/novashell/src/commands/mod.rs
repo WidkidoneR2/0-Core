@@ -8156,10 +8156,18 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "intent" | "intents" => {
             // Collect all intent files
             let mut items = String::new();
-            // INT-230: no root, no items.
+            // INT-230 G4: an absent forest is REFUSED, not an empty list with
+            // exit 0. Same shape as the find @intents arm.
             let intents_root = match crate::core_integration::intents_root() {
                 Some(r) => r,
-                None => return CommandResult::Output(String::new()),
+                None => {
+                    return CommandResult::Error(
+                        "  pick intent: needs 0-Core, which is not present"
+                            .to_string()
+                            .into(),
+                        1,
+                    );
+                }
             };
             for dir in &["future", "complete", "in-progress"] {
                 let path = intents_root.join(dir).to_string_lossy().to_string();
