@@ -460,7 +460,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             // Absent health used to fall back to 100 -- twice -- and the branch
             // below then printed "peak". A machine that had never run the doctor
             // claimed peak health on every render. None now yields no hint at all.
-            match faelight_core::paths::read_health().map(u32::from) {
+            match crate::core_integration::health().map(u32::from) {
                 // "unknown" IS a trend hint. An early return here would have
                 // exited render_context entirely and dropped the intent hint
                 // with it -- invisible except on a machine that has never run

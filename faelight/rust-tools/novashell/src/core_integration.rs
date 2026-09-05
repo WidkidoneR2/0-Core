@@ -79,6 +79,61 @@ pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
     }
 }
 
+/// The forest version string, when 0-Core is present.
+///
+/// ⚠️ THIS IS THE FOREST'S VERSION, NOT THE SHELL'S. `nsh --version` answers
+/// from CARGO_PKG_VERSION with no file involved, and must keep doing so -- a
+/// shell that read its own version off disk would report nothing when packaged.
+///
+/// Four callers read faelight/meta/VERSION independently and had already
+/// drifted on what absence means: three fell back to "unknown", one to the
+/// EMPTY STRING, which printed as though it were a version. Returning Option
+/// moves that choice to the display, where it belongs.
+pub fn forest_version() -> Option<String> {
+    let v = std::fs::read_to_string(faelight_core::paths::version_file()).ok()?;
+    let v = v.trim().to_string();
+    if v.is_empty() {
+        None
+    } else {
+        Some(v)
+    }
+}
+
+/// The current release name from the changelog, when 0-Core is present.
+///
+/// Returns the text AFTER the em-dash in the `## [` heading -- the release
+/// name, not the whole heading. The caller previously did `unwrap_or_default()`
+/// on the file, so an absent changelog produced no release name and no signal
+/// that anything was missing. The display fallback stays with the caller, which
+/// is whose choice it is.
+pub fn release_name() -> Option<String> {
+    let changelog = std::fs::read_to_string(faelight_core::paths::changelog_file()).ok()?;
+    changelog
+        .lines()
+        .find(|l| l.starts_with("## ["))
+        .and_then(|l| l.split(RELEASE_SEPARATOR).nth(1))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// The em-dash separating a changelog version from its release name.
+///
+/// U+2014, and it is LOAD-BEARING: the split depends on this exact character.
+/// It is the one that has broken patch anchors in this repo before, so it lives
+/// HERE, once, rather than being re-typed at a call site.
+const RELEASE_SEPARATOR: char = '—';
+
+/// The last health percentage the doctor recorded, when it has ever run.
+///
+/// ⚠️ THE THREE CALLERS OF THIS WERE ALREADY CORRECT. `paths::read_health()`
+/// returns Option and all three match it honestly; the doubled-95 and
+/// doubled-100 fallbacks that once made a machine assert peak health from a
+/// missing file are gone. This wraps for the 0-Core presence check only, and
+/// deliberately does not change what any caller displays.
+pub fn health() -> Option<u8> {
+    faelight_core::paths::read_health()
+}
+
 /// The status a lifecycle folder carries in frontmatter.
 ///
 /// ⚠️ MATCHES `core` DELIBERATELY. `engine/src/domains/intent/mod.rs` filters on

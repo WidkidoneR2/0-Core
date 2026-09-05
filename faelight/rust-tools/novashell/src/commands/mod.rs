@@ -6774,10 +6774,11 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         match target {
             "health" => {
                 let health = db.health_score().unwrap_or(0);
-                let version = std::fs::read_to_string(faelight_core::paths::version_file())
-                    .unwrap_or_default()
-                    .trim()
-                    .to_string();
+                // INT-230: was unwrap_or_default(), so an absent VERSION file
+                // printed as an empty version. The other three readers of this
+                // same file said "unknown"; now they all do.
+                let version = crate::core_integration::forest_version()
+                    .unwrap_or_else(|| "unknown".to_string());
 
                 let status = if health >= 95 {
                     "HEALTHY".bright_green().bold()
@@ -11434,10 +11435,8 @@ fn health(db: &ForestDb) -> CommandResult {
         "DEGRADED".bright_red()
     };
 
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
-        .unwrap_or_else(|_| "unknown".into())
-        .trim()
-        .to_string();
+    let version =
+        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
 
     let mut out = String::new();
     out.push_str(&format!(
@@ -11715,10 +11714,8 @@ fn project_list(core_root: &str) -> CommandResult {
     ));
 
     // Read version
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
-        .unwrap_or_else(|_| "unknown".into())
-        .trim()
-        .to_string();
+    let version =
+        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
 
     // Count intents
     let count_md = |sub: &str| -> usize {
@@ -12194,17 +12191,11 @@ fn vm_list() -> CommandResult {
 }
 
 fn version(_core_root: &str) -> CommandResult {
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
-        .unwrap_or_else(|_| "unknown".into());
+    let version =
+        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
 
-    let changelog =
-        std::fs::read_to_string(faelight_core::paths::changelog_file()).unwrap_or_default();
-
-    let release_name = changelog
-        .lines()
-        .find(|l| l.starts_with("## ["))
-        .and_then(|l| l.split('—').nth(1))
-        .map(|s| s.trim().to_string())
+    // INT-230: the changelog read and its em-dash split live in the adapter.
+    let release_name = crate::core_integration::release_name()
         .unwrap_or_else(|| "The Forest Remembers".to_string());
 
     let mut out = String::new();
@@ -12457,7 +12448,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     // Load health from cache
     // This function already calls faelight_core::paths::state_db() three lines
     // below; the health path was hand-built with format! right here. One owner.
-    let health: String = match faelight_core::paths::read_health() {
+    let health: String = match crate::core_integration::health() {
         Some(h) => format!("{}%", h),
         None => "unknown".to_string(),
     };

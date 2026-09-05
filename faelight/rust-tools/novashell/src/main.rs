@@ -3103,7 +3103,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     // None means the doctor has never run here. The banner says so rather than
     // inventing a number -- it used to fall back to 95 twice over.
-    let health_opt = faelight_core::paths::read_health();
+    let health_opt = crate::core_integration::health();
 
     let health_display = if let Some(h) = health_opt {
         let health_num = u32::from(h);
