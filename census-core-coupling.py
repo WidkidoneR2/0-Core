@@ -34,6 +34,7 @@ BUCKETS = {
         # it resolves to, not by what one caller does with it.
         "bin_dir",
         "state_home",
+        "daemon_socket",
     ],
     "0-Core discovery": [
         "intents_dir",
@@ -48,7 +49,14 @@ BUCKETS = {
         "changelog_file",
     ],
     "0-Core execution": [
-        "daemon_socket",
+        # EMPTY. daemon_socket moved to core shell state: it derives from
+        # runtime_dir(), which has been XDG state since 2026-08-21, so it
+        # resolves on any machine. And its three callers were already correct --
+        # Path::exists() then UnixStream::connect(), two guards, no fabricated
+        # availability. Deliberately NOT routed through the adapter: a socket's
+        # absence is not 0-Core's absence (the daemon can be stopped on a
+        # machine with the full forest), so gating it on present() would answer
+        # a question no caller asks.
     ],
     "0-Core safety": [
         # RESOLVED, NOT PENDING. exec.rs:307 and exec.rs:1536 build the intents
@@ -141,6 +149,23 @@ def main():
     out.append("")
     out.append("A single line can do more than one of these. The unit G1 counts is the")
     out.append("classified call.")
+    out.append("")
+    out.append("## What this census CANNOT see")
+    out.append("")
+    out.append("Recorded so a clean census is never read as a clean shell.")
+    out.append("")
+    out.append("- It matches **text, not syntax**, so a comment mentioning a")
+    out.append("  `paths::` function counts as a call (`nl.rs:460`).")
+    out.append("- It only finds **`paths::` calls**. Thirty hand-built `0-core/`")
+    out.append("  paths exist in this shell and are invisible here, twelve of them")
+    out.append("  pointing at `~/0-core/scripts`, which does not exist. INT-240.")
+    out.append("- It classifies by **function**, so one function asked two different")
+    out.append("  questions cannot be split -- `intents_dir` serves both discovery")
+    out.append("  and the catastrophic-rm guard. The evidence list below is where a")
+    out.append("  reader sees which call is which.")
+    out.append("- It measures **path coupling, not the defect class**. A fabricated")
+    out.append("  default read from the database rather than a path is invisible to")
+    out.append("  it (`commands/mod.rs:6776`, `db.health_score().unwrap_or(0)`).")
     out.append("")
 
     order = [

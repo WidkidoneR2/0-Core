@@ -13,14 +13,30 @@ Three different numbers get confused here, so all three are stated:
 A single line can do more than one of these. The unit G1 counts is the
 classified call.
 
+## What this census CANNOT see
+
+Recorded so a clean census is never read as a clean shell.
+
+- It matches **text, not syntax**, so a comment mentioning a
+  `paths::` function counts as a call (`nl.rs:460`).
+- It only finds **`paths::` calls**. Thirty hand-built `0-core/`
+  paths exist in this shell and are invisible here, twelve of them
+  pointing at `~/0-core/scripts`, which does not exist. INT-240.
+- It classifies by **function**, so one function asked two different
+  questions cannot be split -- `intents_dir` serves both discovery
+  and the catastrophic-rm guard. The evidence list below is where a
+  reader sees which call is which.
+- It measures **path coupling, not the defect class**. A fabricated
+  default read from the database rather than a path is invisible to
+  it (`commands/mod.rs:6776`, `db.health_score().unwrap_or(0)`).
+
 ## Summary
 
 | bucket | calls | functions |
 | --- | --- | --- |
-| core shell state | 32 | bin_dir, home, runtime_dir, shell_config, state_db, state_home |
+| core shell state | 35 | bin_dir, daemon_socket, home, runtime_dir, shell_config, state_db, state_home |
 | 0-Core discovery | 9 | core_root_string, intents_dir, registry_dir, rust_tools_dir |
 | 0-Core observability | 4 | changelog_file, read_health, version_file |
-| 0-Core execution | 3 | daemon_socket |
 | 0-Core UI enrichment | 0 | (split by caller -- see G2) |
 
 ## Evidence
@@ -31,6 +47,12 @@ classified call.
 
 - `exec.rs:350`
 - `registry.rs:186`
+
+**paths::daemon_socket** -- 3 calls
+
+- `engine.rs:275`
+- `engine.rs:540`
+- `main.rs:3629`
 
 **paths::home** -- 1 calls
 
@@ -60,10 +82,10 @@ classified call.
 - `commands/mod.rs:2403`
 - `commands/mod.rs:2492`
 - `commands/mod.rs:2525`
-- `commands/mod.rs:12517`
-- `commands/mod.rs:12525`
-- `commands/mod.rs:14814`
-- `commands/mod.rs:15830`
+- `commands/mod.rs:12514`
+- `commands/mod.rs:12522`
+- `commands/mod.rs:14811`
+- `commands/mod.rs:15827`
 - `completion.rs:1151`
 - `db.rs:69`
 - `history_tui.rs:57`
@@ -114,14 +136,6 @@ classified call.
 **paths::version_file** -- 1 calls
 
 - `core_integration.rs:93`
-
-### 0-Core execution
-
-**paths::daemon_socket** -- 3 calls
-
-- `engine.rs:275`
-- `engine.rs:540`
-- `main.rs:3629`
 
 ### bare paths:: (use statements, not calls)
 
