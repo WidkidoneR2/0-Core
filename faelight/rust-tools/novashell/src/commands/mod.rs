@@ -5738,11 +5738,19 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
-    // INT-230: asks the adapter for the root, so an absent forest yields an
-    // empty table rather than a table of a directory that is not there.
+    // INT-230 G4: an absent forest is REFUSED, not rendered as an empty
+    // table. Empty output with exit 0 is the successful-looking empty result
+    // INT-227 forbids. Same shape as the find @rust arm.
     let tools_dir = match crate::core_integration::tools_root() {
         Some(d) => d,
-        None => return CommandResult::Output(String::new()),
+        None => {
+            return CommandResult::Error(
+                "  tools: needs 0-Core, which is not present"
+                    .to_string()
+                    .into(),
+                1,
+            );
+        }
     };
     let mut rows = Vec::new();
 
