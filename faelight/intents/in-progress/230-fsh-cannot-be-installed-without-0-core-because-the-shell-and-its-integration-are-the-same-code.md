@@ -186,15 +186,31 @@ an installed copy. That part is documentation, and it can be written the day the
          0 commits while the TUI once said 16. INT-222/192.
        - rulings still open: mod.rs release_name fallback The Forest Remembers beside an
          unknown version; the intents rows function yielding [] on absence. -->
-- [ ] G5 RUNTIME PROOF: a test runs fsh with the 0-Core paths absent or redirected, and asserts the
+- [x] G5 RUNTIME PROOF: a test runs fsh with the 0-Core paths absent or redirected, and asserts the
       shell works and the integrations report their absence. ⚠️ NOT a source-text check
+<!-- evidence: 1d538eb6, 2026-09-05. nsh-test case repl_230_absent_forest_refuses_not_empties:
+     HOME and XDG_STATE_HOME both pointed at a fresh /tmp directory the case creates before
+     spawning (HOME alone hides the ledger; the state home reads XDG_STATE_HOME on its own and
+     stayed present under a bare HOME redirect -- measured that night). Four REPL sessions, one
+     door each: echo alive, tools, pick intent, fstats intents; each asserts the refusal text.
+     WATCHED FAILING TWICE, for two different reasons:
+       - first run, 193/194: the harness returns the capture of the LAST line only, so a
+         four-line session could not assert the first three. Harness fact, recorded in the case.
+       - against the shell that HAD the bug: deadb373 built in a git worktree, NSH_BIN pointed
+         at it -> expected "No results." to contain "tools: needs 0-Core, which is not present".
+         The case catches what it claims to catch. Worktree removed afterwards.
+     GREEN: 194/194 against the 04:10 shipped binary, the case at ~741ms. -->
 - [x] G6 NO COMPILE-TIME FEATURE FLAG unless a concrete reason to compile two products is recorded
       here first
 <!-- evidence: satisfied BY CONSTRUCTION. No `cfg` appears in core_integration.rs or at any
      migrated call site; absence is a runtime fact throughout. The intent rejected the flag on
      the grounds that it PRESERVES the coupling while worsening the build matrix, and nothing in
      the migration produced a reason to revisit that. Verify with: grep -rn cfg( on the adapter. -->
-- [ ] G7 each gate carries evidence per INT-158
+- [x] G7 each gate carries evidence per INT-158
+<!-- evidence: every gate above carries an evidence comment naming a commit, a measurement, or a
+     demonstration. G4 lists six hashes with red and green per site; G5 one hash plus the red
+     taken against deadb373. The one correction (8ee52ff9's body says silent where the shipped
+     shell printed No intents found) is recorded in G4 rather than by rewriting history. -->
 
 ## Non-goals
 - Moving the repository. ⚠️ THAT IS THE VERSION THIS INTENT REPLACES. A git remote is trivial; the
