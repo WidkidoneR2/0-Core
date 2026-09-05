@@ -33,6 +33,7 @@ BUCKETS = {
         # G2 split list beside intents_dir. The function is classified by what
         # it resolves to, not by what one caller does with it.
         "bin_dir",
+        "state_home",
     ],
     "0-Core discovery": [
         "intents_dir",
@@ -48,6 +49,19 @@ BUCKETS = {
     ],
     "0-Core execution": [
         "daemon_socket",
+    ],
+    "0-Core safety": [
+        # RESOLVED, NOT PENDING. exec.rs:307 and exec.rs:1536 build the intents
+        # path as a PROTECTED PATH for the catastrophic-rm guard (1536 is its
+        # test). An Option returning None when 0-Core is absent would silently
+        # disarm a protection, so these stay unwrapped by design. They were
+        # misclassified as discovery and read as unmigrated work.
+        #
+        # ⚠️ intents_dir() appears in BOTH this bucket and discovery, because the
+        # same function is asked two different questions. The census classifies
+        # by function, so it cannot split them -- the evidence list below is
+        # where a reader sees which call is which. Stated so a future reader
+        # does not "fix" the apparent inconsistency.
     ],
     "0-Core UI enrichment": [
         # Deliberately empty. intents_dir splits by CALLER, not by function --

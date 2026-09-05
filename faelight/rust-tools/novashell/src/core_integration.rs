@@ -134,6 +134,40 @@ pub fn health() -> Option<u8> {
     faelight_core::paths::read_health()
 }
 
+/// The intent `cistart` last focused, when 0-Core is present.
+///
+/// ⚠️ `focus.toml` IS THE SOURCE OF TRUTH and the engine says so
+/// (`friday/attention.rs:98`: "written by cistart, source of truth"). It holds
+/// the id AND the title, which is what a focus line wants.
+///
+/// ⚠️ THE OTHER OWNER IS BROKEN AND IS NOT USED HERE: `db::set_focus_intent`
+/// writes `shell_state.focus_intent`, a key no reader reads, while
+/// `db::get_focus_intent` reads this file. A setter and a getter sharing a name
+/// and not a storage. Filed as INT-242, deliberately not fixed inside this
+/// boundary.
+///
+/// 📍 The path was hand-built from `env::var("HOME")` at `db.rs:495` and never
+/// asked `paths.rs` -- so the census, which only finds `paths::` calls, could
+/// not see this coupling at all. INT-240's subject, inside the mechanism.
+pub fn focus() -> Option<(String, String)> {
+    let path = faelight_core::paths::state_home().join("0-core/intent/focus.toml");
+    let content = std::fs::read_to_string(path).ok()?;
+    let mut id = String::new();
+    let mut title = String::new();
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("id = ") {
+            id = rest.trim().trim_matches('"').to_string();
+        } else if let Some(rest) = line.strip_prefix("title = ") {
+            title = rest.trim().trim_matches('"').to_string();
+        }
+    }
+    if id.is_empty() {
+        None
+    } else {
+        Some((id, title))
+    }
+}
+
 /// The status a lifecycle folder carries in frontmatter.
 ///
 /// ⚠️ MATCHES `core` DELIBERATELY. `engine/src/domains/intent/mod.rs` filters on

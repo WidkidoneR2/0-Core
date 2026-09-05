@@ -3037,24 +3037,18 @@ fn repl_main() -> Result<()> {
         } else {
             format!("{}m", _session_duration)
         };
-        let active_intent: String =
-            std::fs::read_dir(faelight_core::paths::intents_dir().join("in-progress"))
-                .map(|d| {
-                    d.filter_map(|e| e.ok())
-                        .filter(|e| {
-                            std::fs::read_to_string(e.path())
-                                .map(|c| c.contains("status: in-progress"))
-                                .unwrap_or(false)
-                        })
-                        .filter_map(|e| {
-                            let n = e.file_name().to_string_lossy().to_string();
-                            let num = n.split('-').next()?.to_string();
-                            Some(format!("INT-{}", num))
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default();
+        // INT-230: this one was ALREADY CORRECT -- right folder, right
+        // predicate. Migrated so the shell has one definition of an active
+        // intent, not because it was wrong.
+        let active_intent: String = crate::core_integration::ledger()
+            .map(|l| {
+                l.active()
+                    .iter()
+                    .map(|i| format!("INT-{}", i.id))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .unwrap_or_default();
         println!();
         // INT-169: MIGRATION, not compatibility. A green suite proves a command behaved the
         // same; it cannot say whether the spine ran it or the router declined and legacy did.
@@ -3124,7 +3118,9 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // below reads nine directories with `if let Ok(entries)`, so on a machine without a ledger all
     // nine miss, nothing increments, and the banner printed `0 done · 0 planned` about a directory
     // that is not there. Seen on Void and on Omarchy, beside an honest `? commits`.
-    let ledger_exists = faelight_core::paths::intents_dir().exists();
+    // INT-230: main.rs had its own existence check. The adapter owns that
+    // question now -- one place asks whether 0-Core is here.
+    let ledger_exists = crate::core_integration::present();
     mark("welcome: intent scan starting");
     let (complete_count, planned_count) = {
         let intent_dir = faelight_core::paths::intents_dir();
@@ -3268,20 +3264,15 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     // -- in-progress intents, counted the same way planned already is --
     mark("welcome: score block done");
-    let active_count = {
-        let dir = faelight_core::paths::intents_dir();
-        let mut n = 0usize;
-        for cat in ["in-progress", "active"] {
-            if let Ok(entries) = std::fs::read_dir(dir.join(cat)) {
-                for e in entries.flatten() {
-                    if e.path().extension().map(|x| x == "md").unwrap_or(false) {
-                        n += 1;
-                    }
-                }
-            }
-        }
-        n
-    };
+    // INT-230: counted .md FILES across in-progress/ and "active" -- a folder
+    // that does not exist. It agreed with the status count only because cistart
+    // keeps folder and status in sync; a status edited without moving the file
+    // would have made the banner and the ledger disagree. Now one definition.
+    // Measured before swapping: deferred/ does not exist, so this is
+    // behaviour-preserving.
+    let active_count = crate::core_integration::ledger()
+        .map(|l| l.active_count())
+        .unwrap_or(0);
 
     let planned_display = if ledger_exists {
         planned_count.to_string()
@@ -3412,58 +3403,37 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         .unwrap_or_default();
 
     // Show today's focus from actual in-progress intents only
-    let focus_intent: Option<String> =
-        std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
-            .ok()
-            .and_then(|entries| {
-                let mut in_progress: Vec<String> = entries
-                    .flatten()
-                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                    .filter_map(|e| {
-                        let content = std::fs::read_to_string(e.path()).ok()?;
-                        if !content.contains("status: in-progress") {
-                            return None;
-                        }
-                        Some(
-                            e.file_name()
-                                .to_string_lossy()
-                                .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
-                                .trim_end_matches(".md")
-                                .replace('-', " ")
-                                .to_string(),
-                        )
-                    })
-                    .collect();
-                in_progress.sort();
-                if in_progress.is_empty() {
-                    None
-                } else {
-                    Some(in_progress.join(", "))
-                }
-            });
-
-    if let Some(ref focus) = focus_intent {
+    // INT-230: read future/ for `status: in-progress`. cistart moves a started
+    // intent into in-progress/, so this comment -- "today's focus from actual
+    // in-progress intents only" -- described something that could never fire.
+    // ⚠️ THE ID STAYS BARE. Twenty lines below, focus persistence takes the
+    // first whitespace token and requires it to be all ASCII digits before
+    // writing `INT-{id}` to the database. Formatting the id as "INT-230" here
+    // makes that guard fail silently -- inside an `if`, with no error -- and the
+    // prompt reads focus from that write. The display and the extraction are
+    // coupled, so the coupling is written down rather than rediscovered.
+    // INT-230: THE FOCUS, NOT THE ACTIVE LIST. This line's own comment always
+    // said "today's focus" -- singular -- but it rendered every in-progress
+    // intent, duplicating the "Working on" line below it and wrapping three
+    // lines with four active intents. focus.toml is what cistart writes and
+    // what every reader reads.
+    //
+    // The auto-persist block that sat here is DELETED: it called
+    // set_focus_intent, which writes a shell_state key NO READER READS, guarded
+    // by an all-digits test the old display could never satisfy, deriving a
+    // "focus" from the first of N active intents -- a fact nobody stated.
+    // See INT-242.
+    if let Some((id, title)) = crate::core_integration::focus() {
+        let shown = if title.is_empty() {
+            id
+        } else {
+            format!("{} {}", id, title)
+        };
         println!(
             "  {}  {}",
             fc_dim(255, 180, 50, "Today:"),
-            fc_bold(255, 230, 100, focus)
+            fc_bold(255, 230, 100, &shown)
         );
-        // Auto-persist detected intent so prompt.rs can read it
-        {
-            // Only write if no conscious focus already set
-            if db.get_focus_intent().is_none() {
-                // Extract INT-NNN from filename — only if first token is numeric
-                // deadwood: exempt -- focus INTENT IDENTIFIER extraction; the numeric id is ledger metadata read from the focus file, not shell input and not a command selector
-                if let Some(int_id) = focus.split_whitespace().next() {
-                    if int_id.chars().all(|c| c.is_ascii_digit()) {
-                        let intent_key = format!("INT-{}", int_id);
-                        if let Err(e) = db.set_focus_intent(&intent_key) {
-                            eprintln!("warning: failed to set focus intent: {}", e);
-                        }
-                    }
-                }
-            }
-        }
     }
     println!();
     // Session memory + digest
