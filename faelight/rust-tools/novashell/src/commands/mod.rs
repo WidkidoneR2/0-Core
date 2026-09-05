@@ -6813,24 +6813,30 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
         match target {
             "health" => {
-                let health = db.health_score().unwrap_or(0);
+                // INT-230 G4: was unwrap_or(0) -- a machine that had
+                // never run the doctor reported 0% DEGRADED, number and
+                // verdict both invented.
+                let health = db.health_score();
                 // INT-230: was unwrap_or_default(), so an absent VERSION file
                 // printed as an empty version. The other three readers of this
                 // same file said "unknown"; now they all do.
                 let version = crate::core_integration::forest_version()
                     .unwrap_or_else(|| "unknown".to_string());
 
-                let status = if health >= 95 {
-                    "HEALTHY".bright_green().bold()
-                } else if health >= 80 {
-                    "ADVISORY".yellow().bold()
-                } else {
-                    "DEGRADED".bright_red().bold()
+                let status = match health {
+                    Some(h) if h >= 95 => "HEALTHY".bright_green().bold(),
+                    Some(h) if h >= 80 => "ADVISORY".yellow().bold(),
+                    Some(_) => "DEGRADED".bright_red().bold(),
+                    None => "no doctor run recorded".dimmed(),
+                };
+                let health_display = match health {
+                    Some(h) => format!("{}%", h),
+                    None => "unknown".to_string(),
                 };
 
                 println!(
                     "  Health:   {} {}",
-                    format!("{}%", health).bright_white().bold(),
+                    health_display.bright_white().bold(),
                     status
                 );
                 println!("  Version:  {}", version.dimmed());
@@ -11476,13 +11482,17 @@ fn help() -> CommandResult {
 }
 
 fn health(db: &ForestDb) -> CommandResult {
-    let health = db.health_score().unwrap_or(0);
-    let status = if health >= 95 {
-        "HEALTHY".bright_green()
-    } else if health >= 80 {
-        "ADVISORY".yellow()
-    } else {
-        "DEGRADED".bright_red()
+    // INT-230 G4: same collapse as the `health` target arm above.
+    let health = db.health_score();
+    let health_display = match health {
+        Some(h) => format!("{}%", h),
+        None => "unknown".to_string(),
+    };
+    let status = match health {
+        Some(h) if h >= 95 => "HEALTHY".bright_green(),
+        Some(h) if h >= 80 => "ADVISORY".yellow(),
+        Some(_) => "DEGRADED".bright_red(),
+        None => "no doctor run recorded".dimmed(),
     };
 
     let version =
@@ -11495,7 +11505,7 @@ fn health(db: &ForestDb) -> CommandResult {
     ));
     out.push_str(&format!(
         "  │  Health:  {}  {}\n",
-        format!("{}%", health).bright_white().bold(),
+        health_display.bright_white().bold(),
         status
     ));
     out.push_str(&format!("  │  Version: {}\n", version.dimmed()));
@@ -15555,15 +15565,17 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
     println!("{}", "┌─ 🌲  Forest".bright_cyan().bold());
 
     // Health
-    let health = db.health_score().unwrap_or(0);
-    let health_color = if health >= 95 {
-        health.to_string().bright_green()
-    } else if health >= 80 {
-        health.to_string().yellow()
-    } else {
-        health.to_string().bright_red()
+    // INT-230 G4: was unwrap_or(0) -- 0% rendered red as though measured.
+    let health = db.health_score();
+    let health_color = match health {
+        Some(h) if h >= 95 => format!("{}%", h).bright_green(),
+        Some(h) if h >= 80 => format!("{}%", h).yellow(),
+        Some(h) => format!("{}%", h).bright_red(),
+        // The percent sign moves INSIDE, so absence does not render as
+        // the string "unknown%".
+        None => "unknown".dimmed(),
     };
-    println!("  {}  {}%", "Health:".dimmed(), health_color);
+    println!("  {}  {}", "Health:".dimmed(), health_color);
 
     // Commit count
     let commits: i64 = std::process::Command::new("git")

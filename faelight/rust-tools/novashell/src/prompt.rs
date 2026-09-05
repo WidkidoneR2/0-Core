@@ -2,7 +2,6 @@
 // faelight-shell -- prompt and status line
 // render_line    -- single-line readline prompt (no emoji, Tab completion safe)
 // render_context -- two-line forest context printed BEFORE the input line
-// status_line    -- pretty status printed after clear or on welcome
 // INT-033        -- neon candy truecolor semantic colors
 
 use crate::db::ForestDb;
@@ -591,17 +590,8 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     raw
 }
 
-// ── status line ─────────────────────────────────────────────────────────────
-
-#[allow(dead_code)]
-pub fn status_line(db: &ForestDb) -> String {
-    let h = health_str(db.health_score().unwrap_or(95));
-    let cwd = cwd_str(30);
-    format!(
-        "\n  {} {}  {}  {}\n",
-        "🌲",
-        fc_bold(C_CWD.0, C_CWD.1, C_CWD.2, &cwd),
-        h,
-        fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "forest"),
-    )
-}
+// INT-230 G4: status_line DELETED. It was #[allow(dead_code)] with no
+// caller, and it defaulted health to 95 -- asserting near-perfect health on
+// a machine that had never run the doctor. Dead code carrying a lie is worse
+// than dead code: nobody sees it fail, so nobody fixes it, and whoever wires
+// it up later inherits the defect silently.

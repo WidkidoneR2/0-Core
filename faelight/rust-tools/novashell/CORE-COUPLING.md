@@ -82,17 +82,17 @@ Recorded so a clean census is never read as a clean shell.
 - `commands/mod.rs:2403`
 - `commands/mod.rs:2492`
 - `commands/mod.rs:2525`
-- `commands/mod.rs:12514`
-- `commands/mod.rs:12522`
-- `commands/mod.rs:14811`
-- `commands/mod.rs:15827`
+- `commands/mod.rs:12524`
+- `commands/mod.rs:12532`
+- `commands/mod.rs:14821`
+- `commands/mod.rs:15839`
 - `completion.rs:1151`
 - `db.rs:69`
 - `history_tui.rs:57`
 - `main.rs:984`
 - `main.rs:2178`
 - `main.rs:2675`
-- `prompt.rs:492`
+- `prompt.rs:498`
 - `safety_guard.rs:185`
 
 **paths::state_home** -- 1 calls
