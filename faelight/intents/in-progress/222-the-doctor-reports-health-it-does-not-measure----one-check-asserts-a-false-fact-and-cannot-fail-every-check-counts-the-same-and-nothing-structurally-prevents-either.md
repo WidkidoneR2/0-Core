@@ -350,9 +350,39 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       declared severity range, assertion or probe, threshold source, and recovery text.
 - [ ] The probe registry is enumerated and closed. Adding a probe is a deliberate, reviewable act;
       **there is no path from a definition to arbitrary code.**
-- [ ] Scoring is DECIDED and written: severity x tier, critical caps, labels excluded from the
+- [x] Scoring is DECIDED and written: severity x tier, critical caps, labels excluded from the
       denominator. ★ A decision to keep flat scoring is a valid discharge of this criterion --
       declining with reasons is still proof.
+
+## SCORING DECIDED 2026-09-04
+
+A Critical-tier Fail, Unknown or Blocked CAPS the reported health at 50. Everything else
+stays one check, one vote: (passed * 100) / determinable, with Unknown and Blocked out of
+the denominator per INT-148.
+
+PROVEN BY WATCHING IT FAIL. brightnessctl is one of the twelve binaries check_binaries
+requires and nothing else in the forest uses it. Moved aside:
+    Binary Dependencies -- 1 binaries missing
+    Health: 50% (21 of 26 determinable)
+Raw was 21/26 = 80%. The cap forced 50. Restored, health returned to 84%. A desktop
+notification fired on the critical failure, so the event path works end to end.
+
+⚠️ UNKNOWN AT CRITICAL TIER CAPS TOO, for the reason the verdict function already treats
+them alike: not knowing whether the disk is full is not the same as it being fine.
+
+★ 50 RATHER THAN 0, so the gradation below survives -- a critical failure with everything
+else passing must still score better than a critical failure with half the machine broken.
+
+⚠️ REJECTED: tier-weighted arithmetic (Critical x3 / System x2 / User x1). More precise,
+and impossible to verify by eye. The gate requiring the health output to state its basis
+makes legibility a requirement, and a cap is one rule a reader can hold in their head.
+
+⚠️ REJECTED: Warn costing less than Fail. Half-credit softens the number, and a soft
+number is easier to ignore. Four warnings costing what four failures cost is deliberate.
+
+STILL OPEN in this area: labels excluded from the denominator. There are no labels today --
+the census found zero -- so there is nothing to exclude until the definition format exists.
+
 - [ ] The four-state / three-colour rendering is DECIDED, including the exact wording an UNKNOWN
       check shows so it cannot be misread as a failure.
 - [ ] Quick scan and full scan are named, and it is stated which runs when and what each contains.
@@ -377,7 +407,7 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       reported as declared, then remove it and watch the denominator return.**
 - [ ] A definition with no assertion and no probe is REJECTED. **Proven by watching it fail:** write
       one, watch it be refused, then complete it and watch it accepted.
-- [ ] A critical-tier ERROR caps the reported health. **Proven by watching it fail:** force a
+- [x] A critical-tier ERROR caps the reported health. **Proven by watching it fail:** force a
       critical check red and confirm the verdict cannot read healthy.
 - [x] An UNKNOWN check is excluded from health math and rendered as could-not-run. **Proven by
       watching it fail:** make a probe unavailable and confirm the output says so rather than
@@ -403,7 +433,7 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
 
 ### Phase 3 -- output and hygiene
 
-- [ ] The health output states its basis rather than a bare percentage.
+- [x] The health output states its basis rather than a bare percentage.
 - [ ] Every red check renders INT-199 shape: result first, reason, comparison, likely cause,
       recovery.
 - [ ] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
