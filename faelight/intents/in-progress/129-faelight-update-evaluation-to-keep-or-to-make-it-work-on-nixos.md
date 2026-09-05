@@ -39,6 +39,10 @@ Option B -- RETIRE: the flake-native path (update-flake alias = nix flake update
   display or is removed. `update`/`fu` aliases repoint or drop.
 
 ## Success Criteria (draft -- refine at cistart)
+⚠️ THE FIVE CRITERIA BELOW ARE DEAD, kept as history. They ask whether to ADAPT the tool
+to NixOS or RETIRE it for the flake-native path. Both options went with NixOS on
+2026-08-28. The live criteria are in the RESCOPED section further down; work those.
+
 - [ ] Decision made: adapt (A) or retire (B), with reasoning recorded
 - [ ] If A: shell detection fixed (fsh recognized); cargo-install-update dependency
       removed/replaced; "apply updates" routes through flake update + deploy safely
@@ -94,8 +98,52 @@ Vec<String> and update_x() -> io::Result<()>, guarding on the tool absence and
 returning empty rather than erroring. rustup_checker.rs is the 27-line model.
 
 SUCCESS CRITERIA
-- [ ] flake_checker and flake_update deleted, no callers left
-- [ ] generation.rs reads snapper; the closure-diff path degrades honestly
-- [ ] omarchy-update availability REPORTED, never invoked -- the distribution
+- [x] flake_checker and flake_update deleted, no callers left
+- [x] generation.rs reads snapper; the closure-diff path degrades honestly
+- [x] omarchy-update availability REPORTED, never invoked -- the distribution
       owns system packages
 - [ ] --count-only verified against a Quickshell bar widget
+
+## DONE 2026-09-04 -- three of four, and the fourth is a question rather than work
+
+flake_checker and flake_update DELETED, 324 lines, with the --flake-update flag and the
+snowflake category. No callers left; the build is clean with no warnings.
+
+generation.rs DELETED, 476 lines, and the ruling is the finding. The charter said it was
+not dead but POINTED AT THE WRONG BACKEND, so the timeline and rollback halves would
+repoint at snapper. Measured on the machine, that is wrong three ways:
+  rollback      limine-snapper-sync already puts snapshots in the BOOT MENU, which works
+                when the system will not boot and a TUI cannot
+  timeline      sudo snapper list, already a formatted table -- and it needs ROOT, so a
+                TUI in the update path would prompt for a password to show what one
+                command shows
+  closure diff  no snapper equivalent, as the charter said
+Snapper is installed and working: one config on /, six snapshots tagged 4.0.2-1 from
+omarchy-update runs, NUMBER_LIMIT 5 with cleanup on.
+
+omarchy-update REPORTED, NEVER INVOKED. A System category built on checkupdates, which
+syncs to a temporary database and touches nothing. omarchy-update cannot be scripted
+anyway: it opens with a box saying you cannot stop the update once you start, and waits
+for a keypress. There is no check-only mode and no non-interactive flag.
+
+⚠️ --count-only IS BLOCKED ON A CONFLICT, NOT ON EFFORT. The criterion assumed a bar
+widget would surface something Omarchy does not. It narrowed since: this tool owns npm,
+pip, cargo, rustup, neovim, yazi, flatpak and firmware, and NONE of those are system
+packages. Omarchy already reports the system ones. A bar number for cargo crates is not
+something you glance at -- you act on it when you sit down to update.
+
+And the full check takes 20 SECONDS, so a live count is unusable from a bar; it would
+have to be cached, which makes the number as fresh as the last real run rather than
+current. Christian: none of the faelight tools are system packages, Omarchy already
+tells me. Left open deliberately, unresolved rather than unattempted.
+
+FOUND WHILE CLOSING THESE, all fixed and committed:
+  --dry-run APPLIED THE UPDATES. It prompted Proceed? (Y/n), treated empty input as
+  yes, and called perform_updates. Pressing Enter installed everything.
+  The neovim checker tested STDERR, not commits -- any warning or unreachable host read
+  as an available update, and it blocked on a credential prompt.
+  Shell: bash, the defect this intent recorded on 2026-07-07 when the answer was fsh.
+  No SIGPIPE restore: the tool panicked when piped to head.
+  check_git_updates printed Checking git repositories and returned nothing, reported as
+  up to date.
+
