@@ -291,17 +291,62 @@ pub fn check_rust_docs(core_root: &str) -> CheckResult {
 }
 
 pub fn check_git(core_root: &str) -> CheckResult {
-    let has_changes = Command::new("git")
+    // ⚠️ BOTH PROBES ENDED unwrap_or(false), SO AN UNRUNNABLE GIT REPORTED A CLEAN TREE.
+    // Working tree clean, all commits pushed is a CONJUNCTION of two facts, and a
+    // conjunction with an unknown term is unknown -- not true. Classified 2026-09-04 in the
+    // INT-222 census as the worst of four quiet-direction collapses in this file.
+    //
+    // ⭐ AND @{u} FAILS WITH NO UPSTREAM, which is a THIRD state rather than a failure. A
+    // branch with no tracking remote exits non-zero, and reading that as nothing unpushed
+    // is a different wrong answer from git being absent. It is reported as its own fact.
+    //
+    // The pattern is check_reboot_needed: an unrunnable probe is Status::Unknown WITH the
+    // reason, never a value.
+    let status_out = Command::new("git")
         .args(["-C", core_root, "status", "--porcelain"])
-        .output()
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
-    let has_unpushed = Command::new("git")
+        .output();
+    let has_changes = match status_out {
+        Ok(o) if o.status.success() => !o.stdout.is_empty(),
+        Ok(o) => {
+            let why = String::from_utf8_lossy(&o.stderr);
+            return CheckResult {
+                tier: Tier::User,
+                id: "git".into(),
+                name: "Git Repository".into(),
+                status: Status::Unknown,
+                message: format!("could not read the working tree -- {}", why.trim()),
+                fix: None,
+            };
+        }
+        Err(e) => {
+            return CheckResult {
+                tier: Tier::User,
+                id: "git".into(),
+                name: "Git Repository".into(),
+                status: Status::Unknown,
+                message: format!("could not run git -- {}", e),
+                fix: None,
+            };
+        }
+    };
+    // No upstream is not zero unpushed commits. None means the question does not apply.
+    let has_unpushed: Option<bool> = Command::new("git")
         .args(["-C", core_root, "log", "@{u}..", "--oneline"])
         .output()
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
-    if !has_changes && !has_unpushed {
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| !o.stdout.is_empty());
+    let mut issues: Vec<String> = Vec::new();
+    if has_changes {
+        issues.push("Uncommitted changes".to_string());
+    }
+    match has_unpushed {
+        Some(true) => issues.push("Unpushed commits".to_string()),
+        Some(false) => {}
+        // The branch has no upstream, so pushed and unpushed are both wrong answers.
+        None => issues.push("no upstream configured -- push state unknown".to_string()),
+    }
+    if issues.is_empty() {
         CheckResult {
             tier: Tier::User,
             id: "git".into(),
@@ -311,13 +356,6 @@ pub fn check_git(core_root: &str) -> CheckResult {
             fix: None,
         }
     } else {
-        let mut issues = vec![];
-        if has_changes {
-            issues.push("Uncommitted changes");
-        }
-        if has_unpushed {
-            issues.push("Unpushed commits");
-        }
         CheckResult {
             tier: Tier::User,
             id: "git".into(),
@@ -451,20 +489,34 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
 }
 
 pub fn check_faelight_config(home: &str) -> CheckResult {
+    // ⚠️ A FILE THAT EXISTS BUT CANNOT BE READ COUNTED AS NO ISSUE. The else-if chain matched
+    // only Ok(content), so a permissions error or an I/O failure fell through both arms and
+    // the file was silently treated as valid. Classified 2026-09-04 in the INT-222 census as
+    // one of four quiet-direction collapses in this file.
+    //
+    // ⭐ AND A COUNT IS NOT A FINDING. The message said N config issues, which tells a reader
+    // how many and nothing about which -- so the warning could not be acted on without
+    // repeating the check by hand. Each issue names its file and what is wrong with it.
     let config_dir = PathBuf::from(home).join(".config/faelight");
     let files = ["config.toml", "profiles.toml", "themes.toml"];
-    let mut issues = 0;
+    let mut issues: Vec<String> = Vec::new();
     for file in files {
         let path = config_dir.join(file);
         if !path.exists() {
-            issues += 1;
-        } else if let Ok(content) = fs::read_to_string(&path) {
-            if toml::from_str::<toml::Value>(&content).is_err() {
-                issues += 1;
+            issues.push(format!("{} missing", file));
+            continue;
+        }
+        match fs::read_to_string(&path) {
+            Ok(content) => {
+                if let Err(e) = toml::from_str::<toml::Value>(&content) {
+                    issues.push(format!("{} invalid: {}", file, e));
+                }
             }
+            // Present and unreadable is a THIRD state. Not missing, not valid.
+            Err(e) => issues.push(format!("{} unreadable: {}", file, e)),
         }
     }
-    if issues == 0 {
+    if issues.is_empty() {
         CheckResult {
             tier: Tier::System,
             id: "config".into(),
@@ -479,7 +531,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
             id: "config".into(),
             name: "Zero Config".into(),
             status: Status::Warn,
-            message: format!("{} config issues", issues),
+            message: issues.join(", "),
             fix: Some("Run: faelight config validate".into()),
         }
     }
@@ -919,21 +971,46 @@ pub fn check_rust_toolchain() -> CheckResult {
 }
 
 pub fn check_disk_space() -> CheckResult {
-    let warnings: Vec<_> = ["/", "/home"]
-        .iter()
-        .filter_map(|mount| {
-            Command::new("df")
-                .args(["-h", mount])
-                .output()
-                .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .and_then(|s| s.lines().nth(1).map(|l| l.to_string()))
-                .and_then(|line| line.split_whitespace().nth(4).map(|u| u.to_string()))
-                .and_then(|u| u.strip_suffix('%').and_then(|p| p.parse::<u32>().ok()))
-                .filter(|&p| p > 90)
-                .map(|p| format!("{} at {}%", mount, p))
-        })
-        .collect();
+    // ⚠️ THE CHAIN DROPPED EVERY MOUNT IT COULD NOT PARSE. filter_map plus five and_then
+    // steps meant a df that failed to spawn, produced non-UTF8, or printed an unexpected
+    // table shape yielded NOTHING -- and no warnings read as sufficient disk space. On a
+    // Critical-tier check, that is the worst place in the file for a quiet collapse.
+    //
+    // ⭐ THE MOUNTS ARE INDEPENDENT, so one being unreadable does not make the other
+    // unknown. Each reports its own state rather than the pair collapsing to a verdict.
+    //
+    // ⚠️ AND THE WARNING NEVER SAID WHICH MOUNT. The vector below was built, formatted with
+    // the mount and the percentage, and then discarded: the message was the constant Low
+    // disk space detected. A Critical warning a reader cannot act on without repeating the
+    // check by hand.
+    let mut warnings: Vec<String> = Vec::new();
+    let mut unreadable: Vec<String> = Vec::new();
+    for mount in ["/", "/home"] {
+        let pct = Command::new("df")
+            .args(["-h", mount])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.lines().nth(1).map(|l| l.to_string()))
+            .and_then(|line| line.split_whitespace().nth(4).map(|u| u.to_string()))
+            .and_then(|u| u.strip_suffix('%').and_then(|p| p.parse::<u32>().ok()));
+        match pct {
+            Some(p) if p > 90 => warnings.push(format!("{} at {}%", mount, p)),
+            Some(_) => {}
+            None => unreadable.push(mount.to_string()),
+        }
+    }
+    if !unreadable.is_empty() {
+        return CheckResult {
+            tier: Tier::Critical,
+            id: "disk_space".into(),
+            name: "Disk Space".into(),
+            status: Status::Unknown,
+            message: format!("could not read usage for {}", unreadable.join(", ")),
+            fix: Some("Verify df is available and the mount exists".into()),
+        };
+    }
     if warnings.is_empty() {
         CheckResult {
             tier: Tier::Critical,
@@ -949,7 +1026,7 @@ pub fn check_disk_space() -> CheckResult {
             id: "disk_space".into(),
             name: "Disk Space".into(),
             status: Status::Warn,
-            message: "Low disk space detected".into(),
+            message: warnings.join(", "),
             fix: Some("Clean up old files or expand partition".into()),
         }
     }
@@ -1196,9 +1273,23 @@ pub fn check_sandbox(_core_root: &str) -> CheckResult {
     }
 
     // Count policies
-    let policy_count = std::fs::read_to_string(&policies_path)
-        .map(|t| t.lines().filter(|l| l.trim().starts_with("name =")).count())
-        .unwrap_or(0);
+    // ⚠️ AN UNREADABLE POLICIES FILE REPORTED ZERO POLICIES AND PASSED. The existence check
+    // above catches the common case, so the window is narrow -- a file present but not
+    // readable -- but the shape is the same as the other three: unwrap_or(0) turns a failed
+    // read into a number, and the number reads as a measurement.
+    let policy_count = match std::fs::read_to_string(&policies_path) {
+        Ok(t) => t.lines().filter(|l| l.trim().starts_with("name =")).count(),
+        Err(e) => {
+            return CheckResult {
+                tier: Tier::System,
+                id: "sandbox".into(),
+                name: "Sandbox".into(),
+                status: Status::Unknown,
+                message: format!("could not read {} -- {}", policies_path.display(), e),
+                fix: Some("Check permissions on registry/sandbox-policies.toml".into()),
+            };
+        }
+    };
 
     CheckResult {
         tier: Tier::System,
