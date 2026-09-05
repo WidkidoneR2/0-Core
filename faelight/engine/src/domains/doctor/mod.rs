@@ -313,11 +313,35 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-148: Unknown (couldn't-run) and Blocked checks are excluded from the ratio --
     // "couldn't determine" and "blocked" are not failures and must not drag health down.
     let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
-    let health = if determinable > 0 {
+    let raw = if determinable > 0 {
         (passed * 100) / determinable
     } else {
         0
     };
+
+    // ⭐ A CRITICAL FAILURE CAPS HEALTH AT 50 (INT-222, decided 2026-09-04).
+    //
+    // Every check counted ONE. Twenty-six passing and a failed boot chain scored 96%, and
+    // the charter names that exactly: a reader seeing 97% cannot tell whether the missing
+    // 3% is a stale doc or a failing boot check. The verdict function already knew better --
+    // Critical + Fail returns Red -- so the WORD and the NUMBER disagreed, and the number is
+    // what gets read at a glance.
+    //
+    // ⚠️ UNKNOWN AT CRITICAL TIER CAPS TOO, and for the same reason the verdict treats them
+    // alike: not knowing whether the disk is full is not the same as it being fine.
+    //
+    // ★ 50 RATHER THAN 0, so the gradation below it survives -- a critical failure with
+    // everything else passing must still score better than a critical failure with half the
+    // machine broken. A floor of zero throws that away.
+    //
+    // ⚠️ NOT tier-weighted arithmetic. Critical x3 / System x2 / User x1 makes the number
+    // more precise and impossible to verify by eye, and the gate one line up just made
+    // stating the basis a requirement. A cap is one rule a reader can hold in their head.
+    let critical_broken = checks.iter().any(|c| {
+        c.tier == Tier::Critical
+            && matches!(c.status, Status::Fail | Status::Unknown | Status::Blocked)
+    });
+    let health = if critical_broken { raw.min(50) } else { raw };
 
     // Run integrity quick scan (safe auto-fixes only)
     let (integrity_pct, int_fixed, int_proposed, int_alerts) =
