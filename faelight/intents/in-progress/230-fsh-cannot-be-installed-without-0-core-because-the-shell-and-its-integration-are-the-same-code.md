@@ -1,7 +1,7 @@
 ---
 id: 230
 title: "fsh cannot be installed without 0-Core, because the shell and its integration are the same code"
-status: planned
+status: in-progress
 type: architecture
 priority: high
 date: 2026-08-23
