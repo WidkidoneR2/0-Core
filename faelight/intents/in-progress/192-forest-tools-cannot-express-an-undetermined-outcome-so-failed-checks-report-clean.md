@@ -154,25 +154,34 @@ Four quadrants. Only one is urgent:
 So the 15 sites are NOT 15 equal decisions. Sort by quadrant first; the
 expectation is that a handful need real care and the rest resolve in a line each.
 
-    site                                    | A: truth or lie? | B: visible? | verdict + reason
-    ----------------------------------------+------------------+-------------+------------------
-    deadwood/main.rs:286 check_dead_aliases  |                  |             |
-    deadwood/main.rs:408                     |                  |             |
-    deadwood/main.rs:461                     |                  |             |
-    deadwood/main.rs:517                     |                  |             |
-    shell/git_tui.rs:132                     |                  |             |
-    shell/history_tui.rs:134                 |                  |             |
-    shell/triggers.rs:70                     |                  |             |
-    shell/cheatsheet_tui.rs:774              |                  |             |
-    shell/config.rs:207                      |                  |             |
-    shell/db.rs:185                          |                  |             |
-    shell/db.rs:353                          |                  |             |
-    docs/toolgen.rs:563                      |                  |             |
-    release/learning.rs:56                   |                  |             |
-    update/cargo_checker.rs:24,30            | LIE (check ran, failed) | INVISIBLE (summary) | ★ the founding case
-    update/neovim_checker.rs:120             |                  |             |
-    update/flake_checker.rs:38,50            |                  |             |
-    (+ whatever enumeration adds)            |                  |             |
+    ENUMERATED 2026-09-05. Population: CHECK OUTCOMES -- a value that feeds a
+    verdict, a summary, a health score, or an automatic action. NOT every
+    unwrap_or_default in the tree: the forest-wide grep for the five shapes counts
+    700+ sites (329 in novashell commands/mod.rs alone) and they are display
+    defaults -- a blank title, a cursor at 0. Judging those would be the blanket
+    sweep this intent rejects. The shape of the founding case is a READ THAT FAILS
+    AND RETURNS AN EMPTY COLLECTION; that grep, restricted to the tools the July
+    table named, found the rows below. Stale July rows: flake_checker.rs deleted by
+    INT-129; shell/ is novashell/; config.fsh is config.nsh; deadwood 286 is 595.
+
+    site                                    | A: truth or lie?  | B: visible?  | verdict + reason
+    ----------------------------------------+-------------------+--------------+------------------
+    novashell config.rs ensure_default+apply| LIE (template)    | INVISIBLE    | ** DESTROYED STATE. Missing NSH_CONFIG path: template written, loaded, 268 live aliases pruned against it; outer shell lost 0core mid-session. FIXED 43951d8a: first-run config never reconciles
+    novashell config.rs:validate            | LIE (clean)       | INVISIBLE    | ** unreadable config validated CLEAN and fed startup diagnostics. FIXED bd20536b: Checked<Vec<String>>, both consumers print could-not-check; no template on an override path
+    update/neovim_checker.rs:104            | LIE               | INVISIBLE    | ** update check: read failed = no outdated plugins, summary says clean. NEXT
+    update/neovim_checker.rs:120            | LIE               | INVISIBLE    | ** lockfile unreadable = no outdated plugins. NEXT
+    novashell triggers.rs:70                | LIE               | INVISIBLE    | ** failed query = no triggers; an automatic behaviour silently disarmed. NEXT
+    release/learning.rs:56                  | LIE               | INVISIBLE?   | no releases learned feeds release advice; CALLER UNREAD, verdict pending
+    novashell db.rs:306 list_aliases        | LIE               | depends      | consumer decides (the prune loop reads it); CALLER UNREAD
+    novashell db.rs:474 events query        | LIE               | depends      | CALLER UNREAD
+    docs/toolgen.rs:579                     | LIE               | visible      | an empty history section in generated docs; a reader can suspect. LOW
+    novashell git_tui.rs:132                | LIE               | visible      | spawn failure renders as a CLEAN tree -- the visible lie that reads as good news. LOW-MED
+    novashell history_tui.rs:134            | LIE               | visible      | empty TUI; user can suspect. LOW
+    novashell cheatsheet_tui.rs:710         | LIE               | visible      | empty TUI; user can suspect. LOW
+    deadwood/main.rs:141, 684               | count collapses   | INVISIBLE?   | parse-to-false and unwrap_or(0) on counts; NOT YET JUDGED, read before touching
+    doctor Alias Coverage                   | LIE (loud)        | visible      | clean -> 21 missing when the config is hidden; collapses LOUD, still a lie. Recorded 2026-09-04
+    update/cargo_checker.rs:24,30           | was the founding case            | FIXED 2026-09-04 (Checked)
+    deadwood/main.rs:595 (July: 286)        | LIE               | INVISIBLE    | FIXED 2026-09-04, proven live: Dead aliases reported clean when config unreadable
 
 ⚠️ A "verdict" of TRUTH still needs its REASON recorded. "This file is optional"
 is a claim about the system, and an undocumented one will be re-litigated -- or
@@ -189,13 +198,19 @@ CORRECT, and no existing instrument would catch it.
 
 ## Success Criteria
 
-- [ ] Every site is ENUMERATED, not grepped -- including the shapes the first
+- [x] Every site is ENUMERATED, not grepped -- including the shapes the first
       pattern missed (unwrap_or_default, .ok()?, unwrap_or(0), bool and count returns)
-- [ ] Each site is JUDGED individually against the two-axis scaffold above, with the
+- [x] Each site is JUDGED individually against the two-axis scaffold above, with the
       REASON recorded (including for sites judged fine). A blanket sweep is explicitly
       rejected -- it would be the same class of error as the bug itself
-- [ ] Sites sorted by quadrant BEFORE any are fixed, so effort lands on
+- [x] Sites sorted by quadrant BEFORE any are fixed, so effort lands on
       "empty is a lie AND nobody can see it" first
+<!-- evidence for gates 1-3, 2026-09-05: the table above. Population ruled as check outcomes
+     (700+ forest-wide matches are display defaults, not checks); sixteen candidate sites
+     re-found under post-migration names, four rows judged urgent, two of those already
+     fixed and shipped (43951d8a, bd20536b, 194/194, shipped 2026-09-05 late afternoon).
+     The enumeration surfaced a site the July grep could not: a first-run template
+     reconciling the live alias set, which deleted state rather than misreporting it. -->
 - [x] The tri-state is expressed in the TYPE SYSTEM, so a collapse fails to compile
       rather than relying on discipline
 - [ ] HIGH-severity sites first: anything feeding the health score or an automated decision
