@@ -16600,9 +16600,18 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 fn forest_stats_intents(_core_root: &str) -> CommandResult {
+    // INT-230 G4: an absent forest is REFUSED, not an empty timeline with
+    // exit 0. Same shape as the find @intents arm.
     let complete_dir = match crate::core_integration::intents_root() {
         Some(r) => r.join("complete").to_string_lossy().to_string(),
-        None => return CommandResult::Output(String::new()),
+        None => {
+            return CommandResult::Error(
+                "  fstats intents: needs 0-Core, which is not present"
+                    .to_string()
+                    .into(),
+                1,
+            );
+        }
     };
     let mut out = String::new();
     out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
