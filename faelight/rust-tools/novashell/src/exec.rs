@@ -299,7 +299,8 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
         let expanded_lower = expanded.to_lowercase();
         if expanded_lower.contains("-rf") || expanded_lower.contains("-fr") {
             // Block rm -rf on core source directories
-            let core_src = faelight_core::paths::rust_tools_dir()
+            let core_src = crate::core_integration::tools_root()
+                .unwrap_or_default()
                 .to_string_lossy()
                 .to_string();
             let core_engine = format!("{}/engine", core_root);

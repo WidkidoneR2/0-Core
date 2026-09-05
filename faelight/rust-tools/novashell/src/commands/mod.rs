@@ -3775,7 +3775,8 @@ fn execute_dispatch(
             let home = std::env::var("HOME").unwrap_or_default();
             let expand_path = |p: &str| -> String {
                 match p {
-                    "@rust" => faelight_core::paths::rust_tools_dir()
+                    "@rust" => crate::core_integration::tools_root()
+                        .unwrap_or_default()
                         .to_string_lossy()
                         .to_string(),
                     "@intents" => faelight_core::paths::intents_dir()
@@ -4290,7 +4291,7 @@ fn execute_dispatch(
                         i += 2;
                     }
                     "@rust" => {
-                        search_root = faelight_core::paths::rust_tools_dir();
+                        search_root = crate::core_integration::tools_root().unwrap_or_default();
                         i += 1;
                     }
                     "@intents" => {
@@ -5697,7 +5698,12 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
-    let tools_dir = faelight_core::paths::rust_tools_dir();
+    // INT-230: asks the adapter for the root, so an absent forest yields an
+    // empty table rather than a table of a directory that is not there.
+    let tools_dir = match crate::core_integration::tools_root() {
+        Some(d) => d,
+        None => return CommandResult::Output(String::new()),
+    };
     let mut rows = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
@@ -12187,47 +12193,6 @@ fn vm_list() -> CommandResult {
     CommandResult::Output(out)
 }
 
-#[allow(dead_code)]
-fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
-    let tools_dir = faelight_core::paths::rust_tools_dir();
-    let total = std::fs::read_dir(&tools_dir)
-        .map(|e| {
-            e.flatten()
-                .filter(|e| e.path().join("Cargo.toml").exists())
-                .count()
-        })
-        .unwrap_or(0);
-
-    let deployed = std::fs::read_dir(std::path::PathBuf::from(core_root).join("scripts"))
-        .map(|e| e.flatten().count())
-        .unwrap_or(0);
-
-    let mut out = String::new();
-    out.push_str(&format!(
-        "\n{}\n",
-        "  ╭─ 🛠  Tools ─────────────────────────────────────────".bright_cyan()
-    ));
-    out.push_str(&format!(
-        "  │  Total:    {} tools\n",
-        total.to_string().bright_white().bold()
-    ));
-    out.push_str(&format!(
-        "  │  Deployed: {}/{}\n",
-        deployed.to_string().bright_green(),
-        total
-    ));
-    out.push_str(&format!(
-        "  │  Run {} for intelligence scores\n",
-        "audit".bright_cyan()
-    ));
-    out.push_str(
-        &"  ╰────────────────────────────────────────────────────"
-            .dimmed()
-            .to_string(),
-    );
-    CommandResult::Output(out)
-}
-
 fn version(_core_root: &str) -> CommandResult {
     let version = std::fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into());
@@ -13585,24 +13550,18 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     match sub {
         "test" => {
             // cargo nextest run for a specific tool or all
-            let manifest = if tool.is_empty() {
-                faelight_core::paths::rust_tools_dir()
-                    .join("novashell/Cargo.toml")
-                    .to_string_lossy()
-                    .to_string()
-            } else {
-                faelight_core::paths::rust_tools_dir()
-                    .join(tool)
-                    .join("Cargo.toml")
-                    .to_string_lossy()
-                    .to_string()
+            // INT-230: one accessor, and the existence check lives inside it.
+            // The `watch` arm never checked and announced cargo watch on a
+            // manifest that was not there; it cannot skip the check now.
+            let manifest = match crate::core_integration::tool_manifest(tool) {
+                Some(m) => m.to_string_lossy().to_string(),
+                None => {
+                    return CommandResult::Error(
+                        format!("  dev {}: no Cargo.toml found for '{}'", sub, tool).into(),
+                        1,
+                    );
+                }
             };
-            if !std::path::Path::new(&manifest).exists() {
-                return CommandResult::Error(
-                    format!("  dev test: no Cargo.toml found for '{}'", tool).into(),
-                    1,
-                );
-            }
             println!(
                 "  {} running: cargo nextest run --manifest-path {}",
                 "🧪".normal(),
@@ -13621,17 +13580,17 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         }
         "watch" => {
             // cargo watch for a specific tool
-            let manifest = if tool.is_empty() {
-                faelight_core::paths::rust_tools_dir()
-                    .join("novashell/Cargo.toml")
-                    .to_string_lossy()
-                    .to_string()
-            } else {
-                faelight_core::paths::rust_tools_dir()
-                    .join(tool)
-                    .join("Cargo.toml")
-                    .to_string_lossy()
-                    .to_string()
+            // INT-230: one accessor, and the existence check lives inside it.
+            // The `watch` arm never checked and announced cargo watch on a
+            // manifest that was not there; it cannot skip the check now.
+            let manifest = match crate::core_integration::tool_manifest(tool) {
+                Some(m) => m.to_string_lossy().to_string(),
+                None => {
+                    return CommandResult::Error(
+                        format!("  dev {}: no Cargo.toml found for '{}'", sub, tool).into(),
+                        1,
+                    );
+                }
             };
             println!(
                 "  {} starting: cargo watch --manifest-path {}",
@@ -13940,7 +13899,8 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
-            let manifest = faelight_core::paths::rust_tools_dir()
+            let manifest = crate::core_integration::tools_root()
+                .unwrap_or_default()
                 .join(tool)
                 .join("Cargo.toml")
                 .to_string_lossy()
@@ -13958,7 +13918,8 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 println!("  {} starting bacon in current directory", "🥓".normal());
                 let _ = std::process::Command::new("bacon").status();
             } else {
-                let manifest = faelight_core::paths::rust_tools_dir()
+                let manifest = crate::core_integration::tools_root()
+                    .unwrap_or_default()
                     .join(tool)
                     .join("Cargo.toml")
                     .to_string_lossy()

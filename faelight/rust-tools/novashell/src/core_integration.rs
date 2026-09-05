@@ -44,6 +44,41 @@ fn intents_root() -> PathBuf {
     faelight_core::paths::intents_dir()
 }
 
+/// The 0-Core rust-tools source tree, when 0-Core is present.
+///
+/// `None` on a machine without a forest -- which is every packaged install.
+pub fn tools_root() -> Option<PathBuf> {
+    let dir = faelight_core::paths::rust_tools_dir();
+    if dir.is_dir() {
+        Some(dir)
+    } else {
+        None
+    }
+}
+
+/// The Cargo.toml for one tool, or for novashell when `tool` is empty.
+///
+/// The existence check lives HERE on purpose. `dev_cmd` built this path in its
+/// `test` arm and again in its `watch` arm -- byte-identical, forty lines apart
+/// -- and the two had drifted: `test` checked the file existed and returned an
+/// error, `watch` did not and announced cargo watch on a manifest that was not
+/// there. Two owners of one path, agreeing on where it was and disagreeing on
+/// whether it was real. One owner now, and an arm cannot skip a check that is
+/// not the arm's to skip.
+pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
+    let root = tools_root()?;
+    let manifest = if tool.is_empty() {
+        root.join("novashell/Cargo.toml")
+    } else {
+        root.join(tool).join("Cargo.toml")
+    };
+    if manifest.is_file() {
+        Some(manifest)
+    } else {
+        None
+    }
+}
+
 /// The status a lifecycle folder carries in frontmatter.
 ///
 /// ⚠️ MATCHES `core` DELIBERATELY. `engine/src/domains/intent/mod.rs` filters on
