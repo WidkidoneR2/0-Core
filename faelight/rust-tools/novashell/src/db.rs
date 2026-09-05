@@ -556,7 +556,13 @@ impl ForestDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        let health = self.health_score().unwrap_or(0);
+        // INT-230 G4: was unwrap_or(0), so a snapshot taken on a machine
+        // with no doctor run recorded health 0 AS A FACT -- and
+        // capture_snapshot fires BEFORE DESTRUCTIVE COMMANDS, which is
+        // exactly the record read back when something went wrong. The
+        // column is nullable (db.rs:115), so the truth was always
+        // representable and the collapse was here.
+        let health = self.health_score();
         let cwd = std::env::current_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
@@ -584,7 +590,7 @@ impl ForestDb {
         let _ = self.conn.execute(
             "INSERT INTO command_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            rusqlite::params![name, ts, health as i64, command, git_hash, cwd, intent_id],
+            rusqlite::params![name, ts, health, command, git_hash, cwd, intent_id],
         );
     }
 }

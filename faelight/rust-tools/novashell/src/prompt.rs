@@ -308,7 +308,14 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     let _ = ctx;
     let is_friday = theme == "friday";
     let cwd = cwd_str(35);
-    let health = db.health_score().unwrap_or(95);
+    // INT-230 G4: was unwrap_or(95). On a machine that has never run the
+    // doctor this asserted 95% health ON EVERY PROMPT. The August work
+    // fixed the FILE reader (read_health, Option in all three callers)
+    // and left this SCORE reader four lines away still fabricating.
+    // ⚠️ 0 is not honest either -- it is less wrong than 95. Threading
+    // Option through the powerline badge is a display redesign and is
+    // named as remaining G4 work rather than done here.
+    let health = db.health_score().unwrap_or(0);
     let git = git_info();
 
     // ── Line 1: candy powerline (INT-103) -- directory / repo / devshell ──

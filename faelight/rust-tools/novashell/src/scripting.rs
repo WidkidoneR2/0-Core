@@ -338,7 +338,12 @@ fn resolve_value(name: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) 
     }
     // Built-in forest values
     match name {
-        "health" => db.health_score().unwrap_or(0).to_string(),
+        // INT-230 G4: a script asking for health on a doctorless machine
+        // got the string "0", indistinguishable from a real zero.
+        "health" => db
+            .health_score()
+            .map(|h| h.to_string())
+            .unwrap_or_else(|| "unknown".to_string()),
         "commits" => std::process::Command::new("git")
             .args(["-C", core_root, "rev-list", "--count", "HEAD"])
             .output()
