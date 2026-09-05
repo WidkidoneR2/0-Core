@@ -888,7 +888,15 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     });
 
     // Git repositories
-    let git_items: Vec<UpdateItem> = git_checker::check_git_updates()
+    // INT-192: same shape as the other Checked categories.
+    let (git_lines, git_note) = match git_checker::check_git_updates() {
+        Ok(v) => (v, None),
+        Err(s) => (Vec::new(), Some(s.to_string())),
+    };
+    if let Some(note) = &git_note {
+        eprintln!("  [??] git repositories: {}", note);
+    }
+    let git_items: Vec<UpdateItem> = git_lines
         .into_iter()
         .map(|name| UpdateItem {
             name,
@@ -902,7 +910,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🔄".to_string(),
         count: git_items.len(),
         items: git_items,
-        skipped: None,
+        skipped: git_note,
     });
 
     // Firmware updates

@@ -10,14 +10,17 @@ use std::process::Command;
 // used: work lives in ~/0-core. So the honest answer is not a scan, it is saying that the
 // directory this category is about is absent. update_git_repos below already says exactly
 // that when asked to apply.
-pub fn check_git_updates() -> Vec<String> {
+pub fn check_git_updates() -> faelight_core::check::Checked<Vec<String>> {
     let repos_dir = std::env::var("HOME").unwrap_or_default() + "/repos";
     if !Path::new(&repos_dir).exists() {
-        println!("   Git repositories: ~/repos not present, nothing to check");
-        return Vec::new();
+        // INT-192: the directory this category is about is absent -- UNKNOWN, not clean.
+        return Err(faelight_core::check::Skipped::new("~/repos", "not present"));
     }
-    println!("   Checking git repositories...");
-    Vec::new()
+    // INT-192: no scan exists yet. A checker that never runs must not report clean.
+    Err(faelight_core::check::Skipped::new(
+        "git repositories",
+        "checker not implemented",
+    ))
 }
 
 /// Update Git repositories in ~/repos
