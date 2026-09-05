@@ -1057,12 +1057,12 @@ fn runtime_init() -> Result<RuntimeInit> {
     let mark = |what: &str| crate::mark(&format!("runtime_init: {}", what));
     let db = db::ForestDb::open()?;
     mark("db open");
-    config::ensure_default();
+    let created = config::ensure_default();
     mark("ensure_default");
     let cfg = config::load();
     mark("config load");
     // ⚠️ ORDER IS LOAD-BEARING: `apply` WRITES shell_aliases, and the command registry READS it.
-    let applied = config::apply(&cfg, &db);
+    let applied = config::apply(&cfg, &db, !created);
     mark("config apply (writes shell_aliases)");
     // Diagnostics, not control flow -- validate reports on the runtime, it does not change it.
     let diagnostics = config::validate();

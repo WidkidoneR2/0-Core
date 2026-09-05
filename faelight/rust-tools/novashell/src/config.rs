@@ -264,7 +264,9 @@ pub struct ApplyReport {
     pub pruned: usize,
 }
 
-pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
+/// `reconcile` false means: seed from the config, never prune the live set
+/// against it. A first-run template is not the operator's config.
+pub fn apply(cfg: &ShellConfig, db: &ForestDb, reconcile: bool) -> ApplyReport {
     if cfg.aliases.is_empty() && cfg.settings.is_empty() {
         return ApplyReport::default();
     }
@@ -293,7 +295,7 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     let _ = db.conn.execute_batch("COMMIT");
 
     let mut pruned = 0usize;
-    if !cfg.aliases.is_empty() {
+    if reconcile && !cfg.aliases.is_empty() {
         use std::collections::HashSet;
         let keep: HashSet<&str> = cfg.aliases.iter().map(|(n, _)| n.as_str()).collect();
         for (name, _) in db.list_aliases() {
@@ -319,11 +321,14 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) -> ApplyReport {
     }
 }
 
-/// Create a default config.fsh if none exists.
-pub fn ensure_default() {
+/// Create a default config.fsh if none exists. Returns true when THIS call
+/// created it, so the caller can refuse to reconcile against a file the shell
+/// wrote a millisecond ago (INT-192: 268 live aliases pruned against a
+/// three-alias template, 2026-09-05).
+pub fn ensure_default() -> bool {
     let path = config_path();
     if path.exists() {
-        return;
+        return false;
     }
 
     // Create parent dir
@@ -348,5 +353,5 @@ set history_limit = 10000
 set prompt_style = forest
 "#;
 
-    let _ = std::fs::write(&path, default);
+    std::fs::write(&path, default).is_ok()
 }
