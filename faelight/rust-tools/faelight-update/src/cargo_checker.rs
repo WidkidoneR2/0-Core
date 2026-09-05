@@ -1,6 +1,17 @@
 use faelight_core::check::{Checked, Skipped};
 use std::process::Command;
 
+/// INT-192: the reason a check could not run. stderr when it says something,
+/// the exit status when it does not -- an empty reason is not a reason.
+fn reason(stderr: &str, status: std::process::ExitStatus) -> String {
+    let s = stderr.trim();
+    if s.is_empty() {
+        status.to_string()
+    } else {
+        s.to_string()
+    }
+}
+
 /// Check for cargo-installed tool updates
 pub fn check_cargo_updates() -> Checked<Vec<crate::UpdateItem>> {
     println!("   Checking cargo-installed tools...");
@@ -19,7 +30,7 @@ pub fn check_cargo_updates() -> Checked<Vec<crate::UpdateItem>> {
                     println!("      💡 Run: cargo install cargo-update");
                     return Err(Skipped::new(
                         "cargo install-update --list",
-                        stderr.trim().to_string(),
+                        reason(&stderr, output.status),
                     ));
                 }
 
@@ -29,7 +40,7 @@ pub fn check_cargo_updates() -> Checked<Vec<crate::UpdateItem>> {
                     eprintln!("      💡 Install: cargo install cargo-update");
                     return Err(Skipped::new(
                         "cargo install-update --list",
-                        stderr.trim().to_string(),
+                        reason(&stderr, output.status),
                     ));
                 }
 
@@ -38,7 +49,7 @@ pub fn check_cargo_updates() -> Checked<Vec<crate::UpdateItem>> {
                 eprintln!("      💡 Try: cargo install-update --help");
                 return Err(Skipped::new(
                     "cargo install-update --list",
-                    stderr.trim().to_string(),
+                    reason(&stderr, output.status),
                 ));
             }
 
@@ -95,7 +106,7 @@ fn parse_cargo_update_list(output: &[u8]) -> Vec<crate::UpdateItem> {
 }
 
 /// Check if 0-Core workspace needs rebuilding
-pub fn check_workspace_updates() -> Vec<crate::UpdateItem> {
+pub fn check_workspace_updates() -> Checked<Vec<crate::UpdateItem>> {
     println!("   Checking 0-Core workspace...");
 
     let output = Command::new("git")
@@ -106,7 +117,10 @@ pub fn check_workspace_updates() -> Vec<crate::UpdateItem> {
         Ok(out) => {
             if !out.status.success() {
                 eprintln!("      ⚠️  Failed to check git status");
-                return Vec::new();
+                return Err(Skipped::new(
+                    "git status --porcelain",
+                    out.status.to_string(),
+                ));
             }
 
             let text = String::from_utf8_lossy(&out.stdout);
@@ -118,19 +132,19 @@ pub fn check_workspace_updates() -> Vec<crate::UpdateItem> {
             });
 
             if has_rust_changes {
-                vec![crate::UpdateItem {
+                Ok(vec![crate::UpdateItem {
                     name: "0-core-workspace".to_string(),
                     current: "modified".to_string(),
                     new: "rebuild needed".to_string(),
                     repository: None,
-                }]
+                }])
             } else {
-                Vec::new()
+                Ok(Vec::new())
             }
         }
         Err(e) => {
             eprintln!("      ⚠️  Failed to run git: {}", e);
-            Vec::new()
+            Err(Skipped::new("git", e))
         }
     }
 }

@@ -83,7 +83,8 @@ fn print_suggestions(categories: &[UpdateCategory], total: usize) {
         }
     }
     // If nothing was updated
-    if total == 0 {
+    // INT-192: a total containing an unknown is itself unknown.
+    if total == 0 && !categories.iter().any(|c| c.skipped.is_some()) {
         suggestions.push("System is fully up to date — nothing to do".to_string());
     }
     if !suggestions.is_empty() {
@@ -416,10 +417,11 @@ fn run() -> Result<()> {
         let updates = check_all_updates()?;
         let total_check_ms = check_start.elapsed().as_millis();
         let total: usize = updates.iter().map(|c| c.count).sum();
+        let unknown = updates.iter().any(|c| c.skipped.is_some());
         println!();
         println!("{}", "📦 Preview — What Would Change".cyan().bold());
         println!("{}", "─".repeat(48).dimmed());
-        if total == 0 {
+        if total == 0 && !unknown {
             println!("  {} Nothing to update — system is current", "✅".green());
         } else {
             for cat in &updates {
@@ -495,10 +497,17 @@ fn run() -> Result<()> {
     }
 
     let total: usize = updates.iter().map(|c| c.count).sum();
+    // INT-192: a category that could not be checked makes the total unknown.
+    let unknown = updates.iter().any(|c| c.skipped.is_some());
 
     // Count-only output
     if cli.count_only {
-        println!("{}", total);
+        // INT-192: a bar reading this must not see 0 for could-not-check.
+        if unknown {
+            println!("?");
+        } else {
+            println!("{}", total);
+        }
         return Ok(());
     }
     // JSON output
@@ -512,7 +521,7 @@ fn run() -> Result<()> {
 
     // Print suggestions
     print_suggestions(&updates, total);
-    if total == 0 {
+    if total == 0 && !unknown {
         println!("\n{}  All packages up to date!", "✨".green());
         return Ok(());
     }
@@ -699,6 +708,10 @@ pub struct UpdateCategory {
     pub name: String,
     pub count: usize,
     pub items: Vec<UpdateItem>,
+    /// INT-192: Some(reason) when the checker could not run. A skipped category is
+    /// UNKNOWN, not zero updates, and every reader of `count` must treat it so.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skipped: Option<String>,
     #[serde(skip)]
     pub emoji: String,
 }
@@ -737,7 +750,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         Ok(v) => (v, None),
         Err(s) => (Vec::new(), Some(s.to_string())),
     };
-    if let Some(note) = cargo_note {
+    if let Some(note) = &cargo_note {
         eprintln!("  [??] cargo tools: {}", note);
     }
     categories.push(UpdateCategory {
@@ -745,6 +758,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🦀".to_string(),
         count: cargo_items.len(),
         items: cargo_items,
+        skipped: cargo_note,
     });
 
     // Neovim plugins
@@ -752,7 +766,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         Ok(v) => (v, None),
         Err(s) => (Vec::new(), Some(s.to_string())),
     };
-    if let Some(note) = nvim_note {
+    if let Some(note) = &nvim_note {
         eprintln!("  [??] neovim plugins: {}", note);
     }
     let nvim_items: Vec<UpdateItem> = nvim_lines
@@ -780,15 +794,24 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "📝".to_string(),
         count: nvim_items.len(),
         items: nvim_items,
+        skipped: nvim_note,
     });
 
     // 0-Core workspace
-    let workspace_items = cargo_checker::check_workspace_updates();
+    // INT-192: same shape as the other Checked categories.
+    let (workspace_items, workspace_note) = match cargo_checker::check_workspace_updates() {
+        Ok(v) => (v, None),
+        Err(s) => (Vec::new(), Some(s.to_string())),
+    };
+    if let Some(note) = &workspace_note {
+        eprintln!("  [??] 0-core workspace: {}", note);
+    }
     categories.push(UpdateCategory {
         name: "0-Core Workspace".to_string(),
         emoji: "🌲".to_string(),
         count: workspace_items.len(),
         items: workspace_items,
+        skipped: workspace_note,
     });
 
     // Yazi/FM packages (will rename to FM later)
@@ -808,6 +831,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🦀".to_string(),
         count: rustup_items.len(),
         items: rustup_items,
+        skipped: None,
     });
 
     // NPM global packages
@@ -825,6 +849,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "📦".to_string(),
         count: npm_items.len(),
         items: npm_items,
+        skipped: None,
     });
 
     // Pip/pipx packages
@@ -842,6 +867,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🐍".to_string(),
         count: pip_items.len(),
         items: pip_items,
+        skipped: None,
     });
 
     let yazi_items: Vec<UpdateItem> = yazi_checker::check_yazi_packages()
@@ -858,6 +884,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "📁".to_string(),
         count: yazi_items.len(),
         items: yazi_items,
+        skipped: None,
     });
 
     // Git repositories
@@ -875,6 +902,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🔄".to_string(),
         count: git_items.len(),
         items: git_items,
+        skipped: None,
     });
 
     // Firmware updates
@@ -892,6 +920,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "⚡".to_string(),
         count: firmware_items.len(),
         items: firmware_items,
+        skipped: None,
     });
 
     // Flatpak packages
@@ -909,6 +938,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "📦".to_string(),
         count: flatpak_items.len(),
         items: flatpak_items,
+        skipped: None,
     });
 
     // System packages -- REPORTED, NEVER APPLIED. INT-129: the distribution owns these and
@@ -944,7 +974,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         ),
         Err(s) => (Vec::new(), Some(s.to_string())),
     };
-    if let Some(note) = sys_note {
+    if let Some(note) = &sys_note {
         eprintln!("  [??] system packages: {}", note);
     }
     categories.push(UpdateCategory {
@@ -952,6 +982,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         emoji: "🧱".to_string(),
         count: sys_items.len(),
         items: sys_items,
+        skipped: sys_note,
     });
     Ok(categories)
 }
@@ -1089,6 +1120,14 @@ fn show_update_summary(categories: &[UpdateCategory], verbose: bool) {
                     category.items.len() - display_count
                 );
             }
+        } else if let Some(reason) = &category.skipped {
+            // INT-192: could not check is not up to date.
+            println!(
+                "  {} {} {}",
+                category.emoji.yellow(),
+                category.name,
+                format!("({})", reason).yellow()
+            );
         } else {
             println!(
                 "  {} {} {}",
