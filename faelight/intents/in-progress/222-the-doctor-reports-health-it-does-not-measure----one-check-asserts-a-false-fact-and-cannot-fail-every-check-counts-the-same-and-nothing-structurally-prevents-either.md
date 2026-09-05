@@ -216,10 +216,98 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
 
 ### Phase 0 -- establish the truth
 
-- [ ] `check_sandbox`, `check_vm_state` and `check_compositor` are read and classified
+- [x] `check_sandbox`, `check_vm_state` and `check_compositor` are read and classified
       real / label / lie, with the deciding lines quoted as evidence.
-- [ ] All 34 wired checks are classified real / label / lie in a table in this intent, one line
+      <!-- DONE 2026-09-04, read line by line.
+
+      check_sandbox -- REAL. Probes with `which faelight-sandbox`, which asks the question
+      the shell answers, then reads sandbox-policies.toml through paths::registry_dir and
+      counts `name =` lines. Three branches, all reachable: Fail when the binary is absent,
+      Warn when the policies file is missing, Pass with the measured count otherwise. The 5
+      in `5 policies active` is counted, not asserted.
+      ⚠️ One INT-192 note: unwrap_or(0) on the read means a file that EXISTS but cannot be
+      read reports 0 policies and still passes. Low severity -- the existence check above
+      catches the common case -- but it is the same collapse and belongs in that census.
+
+      check_vm_state -- REAL, and already correct on the axis INT-192 cares about. Runs
+      `pgrep -f -c qemu-system` and parses the count, with an explicit Err arm returning
+      Warn and the message `Could not check for running VMs`. It distinguishes no VMs from
+      could not look, which most checks in this file do not. Tier::Info, so a running VM is
+      reported without being a fault -- the comment says VM-first development means VMs are
+      often up by design.
+
+      check_compositor -- ABSENT. There is no such function. `Compositor` and `Compositor
+      Keybinds` survive only in two display lists in cockpit.rs, and the note at
+      cockpit.rs:149 already records them as checks deleted when Omarchy replaced their
+      subjects.
+
+      ⭐ WHICH ADDS A FOURTH CLASS THIS INTENT DID NOT HAVE: PHANTOM -- a name in the
+      display with no check behind it. Not real, label or lie, because there is nothing to
+      classify. The three classes above all assume a function exists.
+
+      And it is the OPPOSITE direction from the drift the 09-02 catch-all fixed. That made
+      an unclaimed CHECK visible; a claimed NAME with no check is still silent, because
+      filter_map drops it without complaint. Same two-owners defect, other end. Known
+      phantoms today: Dotfile Symlinks, Compositor Keybinds, Theme Packages, Package
+      Metadata, and `Scripts` in git_names. -->
+- [x] All 34 wired checks are classified real / label / lie in a table in this intent, one line
       each. **No check is left unclassified**, including the ones that look obvious.
+      <!-- DONE 2026-09-04. Enumerated from all_checks(), not grepped, and read one by one.
+
+      ⚠️ IT IS 27, NOT 34. all_checks lists twenty-seven and the doctor header says 27/27.
+      The 34 in this intent is stale -- checks went with their subjects at the migration.
+      Gate: the stale check counts are corrected wherever they appear.
+
+      | check | class | evidence |
+      | --- | --- | --- |
+      | check_services | REAL | asks systemd what faelight-session.target Wants; does not name services |
+      | check_broken_symlinks | REAL | walks ~/.config depth 6; runtime-link exclusion is a property, not a name list |
+      | check_binaries | REAL | probes 12 binaries; list is hand-maintained and its comment says treat it as code |
+      | check_git | REAL, FAILS OPEN | two git probes, both unwrap_or(false) -- unrunnable git reports a clean tree and PASSES |
+      | check_hooks | REAL | core.hooksPath plus the executable bit, three failure modes, Unknown when git cannot be asked |
+      | check_rust_docs | REAL | cargo doc bounded at 3s by thread + recv_timeout; a stuck cargo is Unknown, never a hang |
+      | check_intents | REAL | calls intent::validate_issues, the one validator. Was a hardcoded Pass until INT-135 gate 7 |
+      | check_deadwood | REAL | parses the summary line; a non-numeric field is Unknown since 2026-09-04 |
+      | check_faelight_config | REAL, SWALLOWS | parses three TOMLs; a file that exists but cannot be READ counts as no issue |
+      | check_security_hardening | REAL | asks five possible firewall units rather than one name -- a false alarm is its own failure |
+      | check_security_audit | REAL | reads last-scan.json; Warn naming skipped sub-scans since 2026-09-04 |
+      | check_alias_coverage | REAL | parses the live config; an unparseable file is Fail, not zero missing |
+      | check_rust_toolchain | REAL, fails CLOSED | cargo and rustc probes; an unrunnable probe reports missing -- a false alarm, not a false pass |
+      | check_disk_space | REAL, SWALLOWS | df -h parsed through a filter_map chain; an unparseable mount yields no warnings and passes |
+      | check_tool_installation | REAL | returns early on a missing registry. Its comment records printing All 0 key tools installed on a VM with 32 |
+      | check_path_resilience | REAL | same fix: a percentage of nothing is not zero percent. Printed 0/0 tools deployed (0%) |
+      | check_schema_validation | REAL | schema_dir missing is Warn; validates each registry file against its schema |
+      | check_sandbox | REAL, SWALLOWS | which probe plus a registry read; an unreadable policies file reports 0 policies and PASSES |
+      | check_boot_errors | REAL | separates journal crit from err deliberately; benign hardware noise is the baseline and is not an alarm |
+      | check_boot_time | REAL | systemd-analyze time; a non-success exit returns early rather than a fabricated number |
+      | check_reboot_needed | REAL, exemplary | running_kernel failure is Status::Unknown WITH the reason. The pattern the others should copy |
+      | check_update_readiness | REAL | separates blockers from unreadable, which is this axis built in from the start |
+      | check_package_cache | REAL | read_dir on the pacman cache; Err returns early with the reason |
+      | check_orphan_packages | REAL | pacman -Qdtq; a spawn failure is Unknown |
+      | check_friday | REAL | opens state.db through paths::state_db; open failure returns early |
+      | check_network | REAL | TCP connect to an IP with a 1s cap, then bounded DNS. Cannot hang |
+      | check_vm_state | REAL | pgrep -f -c qemu-system; an explicit Err arm returns Warn rather than a false zero |
+      | check_compositor | PHANTOM | NO SUCH FUNCTION. Compositor and Compositor Keybinds survive only in cockpit.rs display lists |
+
+      ⭐ TWENTY-SIX REAL, ONE PHANTOM, ZERO LIES -- and that changes this intent premise.
+      It was written 2026-08-17 expecting decoration. check_dotmeta, the hardcoded Pass
+      asserting a false fact that the whole charter is built on, is already gone. So are
+      the others: check_intents, check_tool_installation, check_path_resilience,
+      check_services, check_hooks and check_security_hardening all carry fix comments
+      citing this intent or its siblings. The doctor was repaired check by check while
+      this intent sat open.
+
+      ⚠️ WHAT IS ACTUALLY LEFT IS TWO THINGS, and neither is finding a lie:
+
+      1. FOUR QUIET-DIRECTION COLLAPSES, listed above as FAILS OPEN or SWALLOWS. Each
+         reports health it did not measure when its probe cannot run: check_git,
+         check_faelight_config, check_disk_space, check_sandbox. All four are INT-192
+         shape and all four pass while blind.
+
+      2. THE STRUCTURAL PREVENTION this intent Vision asks for -- making an unfailable
+         check impossible to WRITE rather than difficult to FIND. The census proves the
+         manual pass works and also proves what it costs: twenty-seven functions read by
+         hand, which is exactly what the charter says must not be the durable answer. -->
 - [ ] INT-148's `Status::Unknown` claim is verified against the code, with evidence either way.
       ⚠️ If false, that is a third completed intent claiming something untrue and it is recorded
       here rather than quietly worked around.

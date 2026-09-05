@@ -94,7 +94,6 @@ pub fn render_cockpit(
 
     // ── Group checks ─────────────────────────────────────────────────
     let system_names = [
-        "Dotfile Symlinks",
         "System Services",
         "Broken Symlinks",
         "Binary Dependencies",
@@ -107,9 +106,6 @@ pub fn render_cockpit(
     let forest_names = [
         "Intent Ledger",
         "Zero Config",
-        "Compositor Keybinds",
-        "Theme Packages",
-        "Package Metadata",
         "Schema Validation",
         "Friday",
         "Deadwood",
@@ -122,7 +118,18 @@ pub fn render_cockpit(
         "Package Cache",
         "Orphan Packages",
     ];
-    let runtime_names = ["VM State", "Compositor", "Network"];
+    // ⚠️ FOUR PHANTOM NAMES REMOVED 2026-09-04 (INT-222 gate: the census).
+    //
+    // Dotfile Symlinks, Compositor Keybinds, Theme Packages, Package Metadata and Compositor
+    // named checks that no longer exist -- stow went with INT-107, mango and the NixOS theme
+    // packages went with the migration, and Package Metadata was check_dotmeta, the hardcoded
+    // Pass this whole intent was written about.
+    //
+    // A NAME WITH NO CHECK IS THE OTHER HALF OF THE DRIFT. The catch-all added 2026-09-02
+    // makes an unclaimed CHECK visible; filter_map still drops a claimed NAME silently, so
+    // these sat here reading as coverage. The census called this class PHANTOM: not real,
+    // label or lie, because there is nothing behind it to classify.
+    let runtime_names = ["VM State", "Network"];
 
     let group = |names: &[&str]| -> Vec<&CheckResult> {
         names
