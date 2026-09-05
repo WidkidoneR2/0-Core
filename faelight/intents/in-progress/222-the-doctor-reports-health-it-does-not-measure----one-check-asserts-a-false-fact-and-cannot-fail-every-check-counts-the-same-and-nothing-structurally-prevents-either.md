@@ -426,13 +426,20 @@ the census found zero -- so there is nothing to exclude until the definition for
       The live unknown on this machine is System Services: faelight-session.target does not
       exist on Omarchy, and the check says could not read rather than calling 0/0 healthy --
       which its own comment names as the free pass this intent exists to remove. -->
-- [ ] `faelight-deadwood` gains a mechanical check for a check that cannot fail. **Proven by
+- [x] `faelight-deadwood` gains a mechanical check for a check that cannot fail. **Proven by
       watching it fail first:** reintroduce a hardcoded-Pass definition, watch it be flagged, remove
       it, watch the flag clear. ⚠️ Without the fail-first proof this gate is itself decoration --
       a fourth sighting of the disease, inside the fix for it.
 
 ### Phase 3 -- output and hygiene
 
+      <!-- DONE 2026-09-04, fail-first proven.
+      Rule: a function returning CheckResult whose body mentions Status::Pass and no other
+      Status variant. Comments stripped first -- a comment naming Status::Fail does not give
+      a function a way to return one.
+      clean tree: clean. Decoy appended, in check_dotmeta exact shape:
+        [MED] checks.rs:1859 check_zzdecoy can only return Pass -- it cannot fail
+      Decoy removed: clean. git diff --stat empty, no residue. -->
 - [x] The health output states its basis rather than a bare percentage.
 - [ ] Every red check renders INT-199 shape: result first, reason, comparison, likely cause,
       recovery.
