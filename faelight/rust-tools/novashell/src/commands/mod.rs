@@ -4291,11 +4291,34 @@ fn execute_dispatch(
                         i += 2;
                     }
                     "@rust" => {
-                        search_root = crate::core_integration::tools_root().unwrap_or_default();
+                        // INT-230: was unwrap_or_default(), which REPLACED the
+                        // core_root default with an EMPTY path and handed that
+                        // to fd. Refuses now.
+                        match crate::core_integration::tools_root() {
+                            Some(d) => search_root = d,
+                            None => {
+                                return CommandResult::Error(
+                                    "  find: @rust needs 0-Core, which is not present"
+                                        .to_string()
+                                        .into(),
+                                    1,
+                                );
+                            }
+                        }
                         i += 1;
                     }
                     "@intents" => {
-                        search_root = faelight_core::paths::intents_dir();
+                        match crate::core_integration::intents_root() {
+                            Some(d) => search_root = d,
+                            None => {
+                                return CommandResult::Error(
+                                    "  find: @intents needs 0-Core, which is not present"
+                                        .to_string()
+                                        .into(),
+                                    1,
+                                );
+                            }
+                        }
                         i += 1;
                     }
                     "@scripts" => {
@@ -4486,8 +4509,21 @@ fn execute_dispatch(
                         i += 1;
                     }
                     "--intent" | "--intents" => {
-                        let _home = std::env::var("HOME").unwrap_or_default();
-                        search_root = Some(faelight_core::paths::intents_dir());
+                        // INT-230: None here already means "the user did not pick
+                        // a root" -- 4547 falls back to the cwd. Assigning None
+                        // for "0-Core is absent" would make this silently search
+                        // the working directory instead of refusing.
+                        match crate::core_integration::intents_root() {
+                            Some(d) => search_root = Some(d),
+                            None => {
+                                return CommandResult::Error(
+                                    "  fsearch: --intent needs 0-Core, which is not present"
+                                        .to_string()
+                                        .into(),
+                                    1,
+                                );
+                            }
+                        }
                         i += 1;
                     }
                     "--forest" | "--all" => {
@@ -7943,9 +7979,17 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
             "--toml" => (Some("toml"), root.clone()),
             "--intent" => (
                 None,
-                faelight_core::paths::intents_dir()
-                    .to_string_lossy()
-                    .to_string(),
+                match crate::core_integration::intents_root() {
+                    Some(d) => d.to_string_lossy().to_string(),
+                    None => {
+                        return CommandResult::Error(
+                            "  --intent needs 0-Core, which is not present"
+                                .to_string()
+                                .into(),
+                            1,
+                        );
+                    }
+                },
             ),
             "--scripts" => (None, format!("{}/scripts", root)),
             _ => (None, root.clone()),

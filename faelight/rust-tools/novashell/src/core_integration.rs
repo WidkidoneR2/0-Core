@@ -37,11 +37,11 @@ use std::path::PathBuf;
 /// directory, one checks a font. Every other 0-Core path is returned
 /// unconditionally. This is where that stops.
 pub fn present() -> bool {
-    intents_root().is_dir()
-}
-
-fn intents_root() -> PathBuf {
-    faelight_core::paths::intents_dir()
+    // INT-230: was `intents_root().is_dir()` against a PRIVATE helper returning
+    // a bare PathBuf. That helper was a second definition of the same name as
+    // the public accessor below, and the compiler resolved three call sites to
+    // the wrong one. One owner: presence IS the accessor answering Some.
+    intents_root().is_some()
 }
 
 /// The 0-Core rust-tools source tree, when 0-Core is present.
@@ -168,6 +168,23 @@ pub fn focus() -> Option<(String, String)> {
     }
 }
 
+/// The 0-Core intents tree, when 0-Core is present.
+///
+/// ⚠️ CALLERS MUST REFUSE ON `None`, NOT FALL BACK. Every consumer of this path
+/// hands it to a tool -- `fd`, `rg`, `read_dir` -- and
+/// `unwrap_or_default()` on a PathBuf yields the EMPTY path, which is the
+/// current directory to every filesystem call. Claude shipped exactly that bug
+/// at `commands/mod.rs:4294` two passes ago: it overwrote a good `core_root`
+/// default with an empty path and ran `fd` against it.
+pub fn intents_root() -> Option<PathBuf> {
+    let dir = faelight_core::paths::intents_dir();
+    if dir.is_dir() {
+        Some(dir)
+    } else {
+        None
+    }
+}
+
 /// The status a lifecycle folder carries in frontmatter.
 ///
 /// ⚠️ MATCHES `core` DELIBERATELY. `engine/src/domains/intent/mod.rs` filters on
@@ -221,10 +238,9 @@ pub struct Ledger {
 /// difference between `intl` saying the forest is absent and `intl` printing
 /// `Total: 0`.
 pub fn ledger() -> Option<Ledger> {
-    if !present() {
-        return None;
-    }
-    let root = intents_root();
+    // INT-230: was present() then intents_root() -- two existence checks for one
+    // question. The accessor answers both.
+    let root = intents_root()?;
     let mut intents = Vec::new();
     // future/ and in-progress/ are both live work. deferred/ is paused, not
     // abandoned, and is read so a caller can distinguish the two.
