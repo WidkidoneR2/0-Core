@@ -184,6 +184,15 @@ fn main() {
             Ok(check_dangling_intent_citations(&root)),
         );
     }
+    if run("unfailable") {
+        // INT-222: the durable half. The census that found check_dotmeta took twenty-seven
+        // hand reads, and the intent says that must not be the answer -- a check which
+        // cannot fail should be impossible to WRITE rather than difficult to FIND.
+        reported += report(
+            "Checks that cannot fail (INT-222)",
+            check_unfailable_checks(&root),
+        );
+    }
     if run("registry") {
         reported += report(
             "Registry orphans (deployable, no binary)",
@@ -375,6 +384,108 @@ fn on_path(cmd: &str) -> bool {
 ///
 /// ⚠️ THIS EXPOSES; IT DOES NOT MATERIALISE. No intent is filed because code cites its number --
 /// that would produce a ledger file with no decision in it, which inverts what the ledger is for.
+/// A check that cannot fail, found mechanically (INT-222).
+///
+/// THE CENSUS THAT FOUND THESE TOOK TWENTY-SEVEN HAND READS, and the intent says plainly
+/// that must not be the durable answer: a check which cannot fail should be impossible to
+/// WRITE rather than difficult to FIND. This is the finding half -- the declaring half
+/// needs the definition format that does not exist yet.
+///
+/// THE RULE IS TEXT-LEVEL AND DELIBERATELY CRUDE: a function returning CheckResult whose
+/// body mentions Status::Pass and NO OTHER Status variant cannot report anything else.
+/// check_dotmeta was exactly that -- a struct literal with a hardcoded Pass asserting a
+/// fact it never read, and its neighbour check_intents had been the same until INT-135
+/// gate 7 rewrote it. Same file, adjacent functions, one found and one walked past.
+///
+/// ⚠️ A LEGITIMATE LABEL TRIPS THIS TOO, AND THAT IS CORRECT. The intent's ruling is that a
+/// hardcoded Pass stating a TRUE fact is a label and allowed -- but that it must DECLARE
+/// itself rather than be discovered. Until declarations exist, being flagged is the right
+/// outcome: the finding says this cannot fail, decide whether it should.
+///
+/// MED confidence, and deadwood reports rather than deletes. The human judges.
+fn check_unfailable_checks(root: &Path) -> Checked<Vec<Finding>> {
+    let dir = root.join("faelight/engine/src/domains/doctor");
+    if !dir.exists() {
+        return Err(Skipped::new(
+            dir.display().to_string(),
+            "doctor directory not found",
+        ));
+    }
+    let mut findings = Vec::new();
+    for entry in WalkDir::new(&dir).max_depth(2).into_iter().flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e != "rs").unwrap_or(true) {
+            continue;
+        }
+        let text = match std::fs::read_to_string(path) {
+            Ok(t) => t,
+            // One unreadable file is not zero unfailable checks. Say so and keep going.
+            Err(e) => {
+                return Err(Skipped::new(path.display().to_string(), e));
+            }
+        };
+        let lines: Vec<&str> = text.lines().collect();
+        let mut i = 0usize;
+        while i < lines.len() {
+            let l = lines[i];
+            let is_fn = (l.starts_with("fn ") || l.starts_with("pub fn "))
+                && l.contains("CheckResult")
+                && !l.contains("Checked<");
+            if !is_fn {
+                i += 1;
+                continue;
+            }
+            // Body runs to the first closing brace at column zero.
+            let start = i;
+            let mut end = lines.len();
+            for (n, b) in lines.iter().enumerate().skip(i + 1) {
+                if *b == "}" {
+                    end = n;
+                    break;
+                }
+            }
+            let body: Vec<&str> = lines[start..=end.min(lines.len() - 1)].to_vec();
+            // Comments are prose ABOUT the check, not the check. A comment naming
+            // Status::Fail does not give the function a way to return one.
+            let code: String = body
+                .iter()
+                .map(|b| b.trim())
+                .filter(|b| !b.starts_with("//"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let has_pass = code.contains("Status::Pass");
+            let has_other = code.contains("Status::Fail")
+                || code.contains("Status::Warn")
+                || code.contains("Status::Unknown")
+                || code.contains("Status::Blocked");
+            if has_pass && !has_other {
+                let name = l
+                    .split("fn ")
+                    .nth(1)
+                    .and_then(|s| s.split('(').next())
+                    .unwrap_or("?")
+                    .to_string();
+                let file = path
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                findings.push(Finding {
+                    confidence: Confidence::Medium,
+                    detail: format!(
+                        "{}:{} {} can only return Pass -- it cannot fail. Make it declare itself or give it an assertion.",
+                        file,
+                        start + 1,
+                        name
+                    ),
+                    action: None,
+                });
+            }
+            i = end + 1;
+        }
+    }
+    Ok(findings)
+}
+
 fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
     use std::collections::{BTreeMap, BTreeSet};
 

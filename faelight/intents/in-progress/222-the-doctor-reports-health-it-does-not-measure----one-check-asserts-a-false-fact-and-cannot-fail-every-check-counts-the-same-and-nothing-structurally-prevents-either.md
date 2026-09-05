@@ -436,8 +436,11 @@ the census found zero -- so there is nothing to exclude until the definition for
 - [x] The health output states its basis rather than a bare percentage.
 - [ ] Every red check renders INT-199 shape: result first, reason, comparison, likely cause,
       recovery.
-- [ ] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
+- [~] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
       constants.
+      <!-- DEAD 2026-09-04. ESP size and configurationLimit are NixOS concepts and there
+      are no generations to count. The subject went with the migration on 2026-08-28,
+      the same way INT-129's adapt-or-retire options did. Kept as history. -->
 - [x] The stale check counts are corrected wherever they appear, and the number is DERIVED rather
       than typed so it cannot go stale a fourth time.
       <!-- DONE 2026-09-04, and NOT by rewriting thirteen numbers.
@@ -458,7 +461,7 @@ the census found zero -- so there is nothing to exclude until the definition for
       TODAY: 27 checks. 2026-08-17: 34. The difference is checks deleted with their
       subjects at the Omarchy migration -- stow, mango, the NixOS theme packages, and
       check_dotmeta itself. -->
-- [ ] `rebuild-safe` is reviewed against the new scoring and it is stated -- with a reason --
+- [~] `rebuild-safe` is reviewed against the new scoring and it is stated -- with a reason --
       whether it gates on the percentage or on critical-tier status.
 
 ## Prior art -- do not duplicate
@@ -629,3 +632,10 @@ serve BOTH doctors, or does `fsh doctor` remain a separate thing that will drift
 A shared engine is the obvious answer and may be the wrong one -- `fsh doctor` checks the SHELL
 (its binary, its database, its aliases) while `core doctor` checks the SYSTEM, and they may
 genuinely want different tiers. **The decision belongs here rather than being made by accident.**
+
+      <!-- DEAD 2026-09-04. There is no rebuild-safe to review.
+      It survives as a NAME in three lists -- one deadwood keyword list and two nsh
+      completion lists -- with no implementation and no command behind it. Same class as
+      check_compositor: PHANTOM, per the census above.
+      ⚠️ And nsh offers tab-completion for a command that does not exist, which is its own
+      small defect and not this intent's. -->
