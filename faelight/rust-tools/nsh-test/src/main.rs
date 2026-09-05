@@ -931,6 +931,48 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_230_absent_forest_refuses_not_empties",
+        Category::Repl,
+        || {
+            // INT-230 G5: RUNTIME proof, not a source-text check. The real REPL is
+            // driven with the forest absent, and the doors that read it must REFUSE
+            // rather than print a successful-looking empty result (INT-227).
+            //
+            // Absence is TWO variables, not one. intents_dir is HOME/0-core/faelight/
+            // intents, so HOME alone hides the ledger -- but state_home reads
+            // XDG_STATE_HOME independently, so health, focus.toml and the rest stayed
+            // present under a bare HOME redirect (measured 2026-09-05). Both move.
+            // FAELIGHT_STATE_DB is already per-case, set by the harness.
+            //
+            // Clean BEFORE, not after: after does not run when the case fails, which
+            // is exactly when junk is left.
+            let root = format!("/tmp/nsh-test-230-{}", std::process::id());
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(&root).map_err(|e| format!("mkdir {}: {}", root, e))?;
+            // One door per session. On the first run of this case the harness
+            // handed back only the LAST line's capture (the fstats refusal), so a
+            // single four-line session cannot assert the first three.
+            let env = [("HOME", root.as_str()), ("XDG_STATE_HOME", root.as_str())];
+            let (alive, _) = repl::run_repl_lines_status(&["echo alive"], &env)?;
+            expect_contains(&alive.join("\n"), "alive")?;
+            let (tools, _) = repl::run_repl_lines_status(&["tools"], &env)?;
+            expect_contains(
+                &tools.join("\n"),
+                "tools: needs 0-Core, which is not present",
+            )?;
+            let (pick, _) = repl::run_repl_lines_status(&["pick intent"], &env)?;
+            expect_contains(
+                &pick.join("\n"),
+                "pick intent: needs 0-Core, which is not present",
+            )?;
+            let (fstats, _) = repl::run_repl_lines_status(&["fstats intents"], &env)?;
+            expect_contains(
+                &fstats.join("\n"),
+                "fstats intents: needs 0-Core, which is not present",
+            )
+        },
+    ));
+    results.push(test(
         "repl_205_builtin_first_stage_of_pipe",
         Category::Repl,
         || {
