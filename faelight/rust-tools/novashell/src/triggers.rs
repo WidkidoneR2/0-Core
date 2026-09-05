@@ -61,13 +61,13 @@ pub fn add(db: &ForestDb, trigger: &str, action: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn list(db: &ForestDb) -> Vec<Trigger> {
+pub fn list(db: &ForestDb) -> faelight_core::check::Checked<Vec<Trigger>> {
     let mut stmt = match db
         .conn
         .prepare("SELECT id, trigger, action, enabled, fired_count FROM shell_triggers ORDER BY id")
     {
         Ok(s) => s,
-        Err(_) => return vec![],
+        Err(e) => return Err(faelight_core::check::Skipped::new("shell_triggers", e)),
     };
     stmt.query_map([], |r| {
         Ok(Trigger {
@@ -78,9 +78,9 @@ pub fn list(db: &ForestDb) -> Vec<Trigger> {
             fired_count: r.get(4)?,
         })
     })
-    .ok()
+    // INT-192: a failed read is UNKNOWN, not an empty trigger list.
+    .map_err(|e| faelight_core::check::Skipped::new("shell_triggers", e))
     .map(|rows| rows.filter_map(|r| r.ok()).collect())
-    .unwrap_or_default()
 }
 
 pub fn remove(db: &ForestDb, id: i64) -> bool {
@@ -110,7 +110,15 @@ pub struct TriggerContext {
 }
 
 pub fn evaluate(db: &ForestDb, ctx: &TriggerContext, core_root: &str) {
-    let triggers = list(db);
+    // INT-192: a failed read is NOT zero triggers. Say so instead of silently
+    // firing nothing -- an automatic behaviour disarmed with no message.
+    let triggers = match list(db) {
+        Ok(t) => t,
+        Err(skip) => {
+            eprintln!("  [??] triggers not evaluated: {}", skip);
+            return;
+        }
+    };
     for t in triggers.iter().filter(|t| t.enabled) {
         let fired = match_trigger(&t.trigger, ctx, db);
         if fired {
@@ -203,7 +211,14 @@ fn fire(db: &ForestDb, trigger: &Trigger, _ctx: &TriggerContext, core_root: &str
 // ── Display ───────────────────────────────────────────────────────────────────
 
 pub fn render_list(db: &ForestDb) {
-    let triggers = list(db);
+    let triggers = match list(db) {
+        Ok(t) => t,
+        Err(skip) => {
+            println!();
+            println!("  [??] {}", skip);
+            return;
+        }
+    };
     println!();
     println!("{}", "⚡  Shell Triggers".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
