@@ -146,9 +146,46 @@ an installed copy. That part is documentation, and it can be written the day the
      HOME=/tmp/g3home nsh -c "pwd" -> the real launch directory, NOT a phantom -- the startup-cd
      fix from 2026-08-21 is holding. /usr/bin/ls -la /tmp/g3home -> EMPTY: nsh -c manufactures no
      state at all under a fresh HOME, so the shell cannot build a forest on a machine that has none. -->
-- [ ] G4 EACH 0-CORE FEATURE DEGRADES VISIBLY WHEN 0-CORE IS ABSENT, per INT-227's invariant: an
+- [x] G4 EACH 0-CORE FEATURE DEGRADES VISIBLY WHEN 0-CORE IS ABSENT, per INT-227's invariant: an
       unavailable capability must never become a successful-looking empty result. A prompt with no
       intent to show says nothing, it does not show a wrong one
+<!-- evidence: 2026-09-05. All 36 consumers of core_integration classified by reading each
+     call site plus six lines of context: 21 already correct (11 refusals in the find/fsearch/
+     --intent/dev arms, four forest_version and two health sites saying unknown, @rust/@intents
+     expanding to themselves, prompt.rs:459 and main.rs:3421 saying nothing on None, the
+     recorded zero at mod.rs count_md); nine render nothing on None, which is the gate wording
+     (digest, session, nl, exec.rs guard filter); six were the violation, each carrying a comment
+     presenting it as a design choice. Six fixed, one boundary per commit, each RED on the
+     shipped shell and GREEN on the debug build under HOME=/tmp/g4home, then all six re-read on
+     the deployed binary after ship (04:10):
+       1 00c7542d banner: 0 active beside ? planned -> ? active
+       2 56869b21 health TUI (Ctrl+D): Active intents 0 -> ?
+       3 7c908aab tools/tt: No results, exit 0 -> refusal, exit 1
+       4 8ee52ff9 pick intent: No intents found, exit 0 -> refusal, exit 1
+         (the commit body says silent; the shipped shell printed No intents found -- this
+         line is the correction, history left alone)
+       5a ac334925 fstats intents: header + 0 intents complete, exit 0 -> refusal, exit 1
+       5b a1986969 fstats all: blank where a section refused -> the refusal line shown;
+         extract_output now renders Error via Display, aggregate exit unchanged by decision
+       6 072aae76 it: full-screen empty ledger -> one line at the prompt, no screen switch;
+         limit stated: the arm is above dispatch and does not set $?
+     Suite 193/193 on the debug binary before ship.
+     THE REDS WERE TAKEN AGAINST deadb373: the shipped nsh was built 00:18 at the cistart
+     commit, before e6b290e1 and every adapter consumer, so the daily shell carried none of
+     this intent until the 04:10 ship. The version string 3.9.0 did not change across that gap.
+     NOT G4, found while proving it, for 230's body or the owners named:
+       - exec builtin does not search PATH: exec nsh fails, exec /home/christian/.local/bin/nsh
+         works. AGENTS.md instructs exec nsh after every rebuild; that instruction cannot be
+         followed today.
+       - HOME redirect does not move the state home (XDG_STATE_HOME set independently):
+         health, focus.toml, config all stayed present under /tmp/g4home. G5 must redirect
+         both, or state what it is not testing.
+       - the health TUI under an absent forest wrote forecast rows into the REAL state
+         (68% then 55% then 56% across three runs). Not deleted. INT-222/192 territory.
+       - health TUI reports Health 100% above ten warnings and Commits today 0; fstats says
+         0 commits while the TUI once said 16. INT-222/192.
+       - rulings still open: mod.rs release_name fallback The Forest Remembers beside an
+         unknown version; the intents rows function yielding [] on absence. -->
 - [ ] G5 RUNTIME PROOF: a test runs fsh with the 0-Core paths absent or redirected, and asserts the
       shell works and the integrations report their absence. ⚠️ NOT a source-text check
 - [x] G6 NO COMPILE-TIME FEATURE FLAG unless a concrete reason to compile two products is recorded
