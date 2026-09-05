@@ -110,25 +110,34 @@ watch it pass. The rustfmt hook "passed" for six days by never running.
 ---
 
 ## Build System
-
-The rebuild cycle:
-
+The rebuild cycle on Omarchy (measured 2026-09-05):
 ```
-edit  ->  debug shell  ->  dep  ->  reload  ->  test in the new build
+edit  ->  cargo build -p <crate>  ->  test the DEBUG binary  ->  ship  ->  exec /home/christian/.local/bin/nsh  ->  verify on the DEPLOYED binary
 ```
-
-- **`dep` is the only thing that compiles what actually runs.** A green `cargo build` is not
-  proof of anything deployed.
-- **`cargo build -p <crate>` is a silent no-op for deployment.** It compiles; it does not ship.
-- **After an nsh rebuild, `exec nsh`** to pick up the new binary. Without this you
-  are testing the old one and will read a working fix as a failure.
-- Nix cannot see a file that git has not been told about. `git add` before building.
+- **`ship` is the only thing that builds what actually runs.** It builds the release profile
+  into ~/0-core/target/release and copies CHANGED tools into ~/.local/bin (it reports
+  "N shipped  M unchanged"). A green `cargo build` is not proof of anything deployed.
+- **`cargo build -p <crate>` produces the DEBUG binary** at ~/0-core/target/debug/<bin>. That is
+  the binary to test before shipping. It is never what runs at the prompt.
+- **Test the debug shell with the suite, output to a file, never through a filter:**
+  `env NSH_BIN=/home/christian/0-core/target/debug/nsh nsh-test > /tmp/suite.txt 2>&1`
+  then read the file. `env`, not a bare `VAR=value` prefix -- nsh drops the prefix for some
+  children. Absolute path -- INT-241, `$PWD` is not updated.
+- **After `ship`, `exec /home/christian/.local/bin/nsh` -- ABSOLUTE PATH.** The `exec` builtin does
+  not search PATH (found 2026-09-05, recorded in INT-230's body): bare `exec nsh` fails with
+  "No such file". Without the exec you are testing the old binary and will read a working fix
+  as a failure.
+- **The deployed binary can trail HEAD by many commits with no warning.** The version string does
+  not change per commit. 2026-09-05: the shipped nsh was built at the `cistart 230` commit and
+  carried none of the intent's sixteen commits. When a red does not match the source, compare
+  the binary mtime (`/usr/bin/ls -la --time-style=full-iso ~/.local/bin/nsh`) against
+  `git log --format="%h %ci %s"` before reading further.
 - After any rename, `cargo check --workspace`. A per-crate check misses the breakage.
-- Wayland crates require `nix develop`.
-- `rebuild-safe`, not plain `rebuild`, for any risky change — it runs a dry-run first, gates on
-  health, and rolls back if health drops. `rebuild-dry` to catch evaluation errors alone.
-
-<!-- VERIFY: confirm rebuild-safe / rebuild-dry still exist and how they relate to dep -->
+- **Gone with NixOS, do not look for them:** `dep`, `rebuild`, `rebuild-safe`, `rebuild-dry`,
+  `nix develop`, generations, rollback-by-generation, and the rule that git must know a file
+  before it builds. `ship` has no health gate and no rollback.
+<!-- VERIFY: whether any rollback path exists on Omarchy (INT-129's generation.rs reads snapper);
+     whether Wayland crates need any special environment on Arch now that nix develop is gone -->
 
 ---
 
