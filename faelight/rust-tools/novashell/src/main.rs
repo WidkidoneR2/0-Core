@@ -2691,6 +2691,14 @@ fn repl_main() -> Result<()> {
                 }
                 // INT-254: it opens intent ledger TUI
                 if line.trim() == "it" {
+                    // INT-230 G4: refuse BEFORE the alternate screen. An absent
+                    // 0-Core opened a full-screen ledger with nothing in it and no
+                    // reason. Printed in the shape main.rs uses for a failed
+                    // command; this arm sits above dispatch, so $? is not set here.
+                    if !crate::core_integration::present() {
+                        eprintln!("  x it: needs 0-Core, which is not present");
+                        continue 'repl;
+                    }
                     intent_tui::run_intent_tui(engine.core_root());
                     continue 'repl;
                 }
