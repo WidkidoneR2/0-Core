@@ -299,19 +299,26 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
         let expanded_lower = expanded.to_lowercase();
         if expanded_lower.contains("-rf") || expanded_lower.contains("-fr") {
             // Block rm -rf on core source directories
+            // ⚠️ INT-230: `core_src` was unwrap_or_default(), so on a machine
+            // without 0-Core it was the EMPTY STRING -- and every string
+            // contains the empty string, so this guard BLOCKED EVERY rm -rf and
+            // named '' as the thing it was protecting. A protected list must
+            // hold paths that EXIST; an absent one is not an entry.
             let core_src = crate::core_integration::tools_root()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
             let core_engine = format!("{}/engine", core_root);
             let core_intents = faelight_core::paths::intents_dir()
                 .to_string_lossy()
                 .to_string();
-            for protected in &[
+            for protected in [
                 core_src.as_str(),
                 core_engine.as_str(),
                 core_intents.as_str(),
-            ] {
+            ]
+            .iter()
+            .filter(|p| !p.is_empty())
+            {
                 if expanded.contains(protected) {
                     return Some(format!(
                         "🛡  Blocked: rm -rf on forest source '{}' — use git to manage removals",

@@ -3775,10 +3775,12 @@ fn execute_dispatch(
             let home = std::env::var("HOME").unwrap_or_default();
             let expand_path = |p: &str| -> String {
                 match p {
+                    // INT-230: an absent 0-Core expanded this to the EMPTY
+                    // string, silently. Returning the shortcut unexpanded at
+                    // least shows what happened.
                     "@rust" => crate::core_integration::tools_root()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string(),
+                        .map(|d| d.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "@rust".to_string()),
                     "@intents" => faelight_core::paths::intents_dir()
                         .to_string_lossy()
                         .to_string(),
@@ -13934,12 +13936,18 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "geiger" => {
             // cargo geiger -- count unsafe code
             let tool = args.get(1).copied().unwrap_or("faelight-shell");
-            let manifest = crate::core_integration::tools_root()
-                .unwrap_or_default()
-                .join(tool)
-                .join("Cargo.toml")
-                .to_string_lossy()
-                .to_string();
+            // INT-230: was unwrap_or_default(), which fed cargo an absolute path
+            // into the filesystem root. tool_manifest already owns this pattern
+            // and carries the existence check.
+            let manifest = match crate::core_integration::tool_manifest(tool) {
+                Some(m) => m.to_string_lossy().to_string(),
+                None => {
+                    return CommandResult::Error(
+                        format!("  dev geiger: no Cargo.toml found for '{}'", tool).into(),
+                        1,
+                    );
+                }
+            };
             println!("  {} scanning unsafe code in {}", "☢".normal(), tool);
             let _ = std::process::Command::new("cargo")
                 .args(["geiger", "--manifest-path", &manifest])
@@ -13953,12 +13961,15 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 println!("  {} starting bacon in current directory", "🥓".normal());
                 let _ = std::process::Command::new("bacon").status();
             } else {
-                let manifest = crate::core_integration::tools_root()
-                    .unwrap_or_default()
-                    .join(tool)
-                    .join("Cargo.toml")
-                    .to_string_lossy()
-                    .to_string();
+                let manifest = match crate::core_integration::tool_manifest(tool) {
+                    Some(m) => m.to_string_lossy().to_string(),
+                    None => {
+                        return CommandResult::Error(
+                            format!("  dev check: no Cargo.toml found for '{}'", tool).into(),
+                            1,
+                        );
+                    }
+                };
                 println!("  {} starting bacon for {}", "🥓".normal(), tool);
                 let _ = std::process::Command::new("bacon")
                     .args(["--manifest-path", &manifest])

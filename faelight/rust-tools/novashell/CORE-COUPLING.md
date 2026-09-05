@@ -29,12 +29,12 @@ classified call.
 
 **paths::bin_dir** -- 2 calls
 
-- `exec.rs:343`
+- `exec.rs:350`
 - `registry.rs:186`
 
 **paths::home** -- 1 calls
 
-- `exec.rs:346`
+- `exec.rs:353`
 
 **paths::runtime_dir** -- 1 calls
 
@@ -44,7 +44,7 @@ classified call.
 
 - `cheatsheet_tui.rs:199`
 - `cheatsheet_tui.rs:743`
-- `commands/mod.rs:4874`
+- `commands/mod.rs:4876`
 - `config.rs:76`
 - `config.rs:78`
 
@@ -60,10 +60,10 @@ classified call.
 - `commands/mod.rs:2403`
 - `commands/mod.rs:2492`
 - `commands/mod.rs:2525`
-- `commands/mod.rs:12493`
-- `commands/mod.rs:12501`
-- `commands/mod.rs:14781`
-- `commands/mod.rs:15797`
+- `commands/mod.rs:12495`
+- `commands/mod.rs:12503`
+- `commands/mod.rs:14792`
+- `commands/mod.rs:15808`
 - `completion.rs:1151`
 - `db.rs:69`
 - `history_tui.rs:57`
@@ -85,14 +85,14 @@ classified call.
 
 **paths::intents_dir** -- 12 calls
 
-- `commands/mod.rs:3782`
-- `commands/mod.rs:8142`
-- `commands/mod.rs:11689`
-- `commands/mod.rs:11766`
-- `commands/mod.rs:16506`
+- `commands/mod.rs:3784`
+- `commands/mod.rs:8144`
+- `commands/mod.rs:11691`
+- `commands/mod.rs:11768`
+- `commands/mod.rs:16517`
 - `core_integration.rs:180`
-- `exec.rs:307`
-- `exec.rs:1536`
+- `exec.rs:311`
+- `exec.rs:1543`
 - `intent_tui.rs:463`
 - `intent_tui.rs:467`
 - `intent_tui.rs:471`
