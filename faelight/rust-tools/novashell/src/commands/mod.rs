@@ -16477,6 +16477,11 @@ fn forest_stats_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRes
 fn extract_output(r: CommandResult) -> String {
     match r {
         CommandResult::Output(s) => s,
+        // INT-230 G4: a section that REFUSED is shown, not blanked. Every
+        // non-Output result used to become an empty string here, so fstats all
+        // printed a gap where a refusal belonged. The aggregate keeps its own
+        // exit status; the refusal is visible, which is the invariant.
+        CommandResult::Error(diag, _) => format!("{}\n", diag),
         _ => String::new(),
     }
 }
