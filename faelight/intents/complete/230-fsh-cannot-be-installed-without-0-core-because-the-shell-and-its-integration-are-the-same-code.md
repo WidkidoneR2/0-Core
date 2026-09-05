@@ -1,7 +1,7 @@
 ---
 id: 230
 title: "fsh cannot be installed without 0-Core, because the shell and its integration are the same code"
-status: in-progress
+status: complete
 type: architecture
 priority: high
 date: 2026-08-23
@@ -236,7 +236,7 @@ Accessors so far: `present`, `ledger`, `tools_root`, `tool_manifest`,
 ### ⚠️⚠️ FOUR SURFACES WERE READING A DIRECTORY THE WORKFLOW EMPTIES
 `cistart` MOVES a started intent from `future/` into `in-progress/`, and
 `prompt.rs`, `session.rs`, `digest.rs:106` and `health_tui.rs` all scanned
-`future/` only. Measured: `future/` held **0** intents with `status: in-progress`,
+`future/` only. Measured: `future/` held **0** intents with `status: complete`,
 `in-progress/` held **4**. So the next-intent hint and the banner list were
 STRUCTURALLY always empty, and `health_tui` reported **5** by matching the bare
 word in prose rather than the frontmatter key. `core` reads the status field and
@@ -300,7 +300,7 @@ as a gate at the end.
 1. **FIVE BLIND INTENT READERS.** `cistart` moves a started intent from
    `future/` to `in-progress/`, and `prompt.rs`, `session.rs`, `digest.rs:106`,
    `health_tui.rs` and `main.rs:3416` all scanned `future/` only. Measured:
-   `future/` held **0** intents with `status: in-progress`, `in-progress/` held
+   `future/` held **0** intents with `status: complete`, `in-progress/` held
    **4**. So the banner list and the focus hint were STRUCTURALLY empty, and
    `health_tui` reported **5** by matching the bare word in prose. `core` had
    the right answer the whole time; the shell and the engine disagreed and
