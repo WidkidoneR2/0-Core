@@ -242,9 +242,11 @@ pub fn run_health_tui(core_root: &str) {
     // moves the file to in-progress/). Now asks the adapter, which reads
     // the frontmatter status field across the lifecycle folders -- the same
     // predicate core uses.
-    let active_intents: i64 = crate::core_integration::ledger()
-        .map(|l| l.active_count() as i64)
-        .unwrap_or(0);
+    // INT-230 G4: a machine without 0-Core has no count to show. The value
+    // becomes the display string here so the renderer stays untouched.
+    let active_intents: String = crate::core_integration::ledger()
+        .map(|l| l.active_count().to_string())
+        .unwrap_or_else(|| "?".to_string());
     let _ = enable_raw_mode();
     let mut stdout = io::stdout();
     let _ = execute!(stdout, EnterAlternateScreen);
@@ -272,7 +274,7 @@ pub fn run_health_tui(core_root: &str) {
                 &forecast_line,
                 health_pct,
                 commits_today,
-                active_intents,
+                &active_intents,
             );
         });
         if let Ok(Event::Key(KeyEvent {
@@ -330,7 +332,7 @@ fn draw_health_ui(
     forecast_line: &str,
     health_pct: u8,
     commits_today: i64,
-    active_intents: i64,
+    active_intents: &str,
 ) {
     let area = f.area();
     // Overall border color based on worst section
@@ -422,7 +424,7 @@ fn draw_info_panel(
     sections: &[Section],
     health_pct: u8,
     commits_today: i64,
-    active_intents: i64,
+    active_intents: &str,
 ) {
     let mut lines: Vec<Line> = Vec::new();
     lines.push(Line::from(""));
