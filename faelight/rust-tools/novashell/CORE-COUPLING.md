@@ -85,7 +85,7 @@ Recorded so a clean census is never read as a clean shell.
 - `commands/mod.rs:12524`
 - `commands/mod.rs:12532`
 - `commands/mod.rs:14821`
-- `commands/mod.rs:15839`
+- `commands/mod.rs:15878`
 - `completion.rs:1151`
 - `db.rs:69`
 - `history_tui.rs:57`

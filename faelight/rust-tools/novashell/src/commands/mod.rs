@@ -15050,7 +15050,10 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         .as_secs() as i64;
 
     // Capture health
-    let health = db.health_score().unwrap_or(0);
+    // INT-230 G4: was unwrap_or(0), so a snapshot taken on a doctorless
+    // machine recorded health 0 AS A FACT. The column is nullable, so the
+    // truth was always representable and the collapse was here.
+    let health = db.health_score();
 
     // Capture commit count
     let commits: i64 = std::process::Command::new("git")
@@ -15104,10 +15107,15 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ).ok();
 
     CommandResult::Output(format!(
-        "  {} Snapshot '{}' captured — health: {}%  commits: {}  procs: {}  load: {}",
+        "  {} Snapshot '{}' captured — health: {}  commits: {}  procs: {}  load: {}",
         "📸".normal(),
         name.bright_white().bold(),
-        health.to_string().bright_green(),
+        // INT-230 G4: the % moved into the format above so absence does not
+        // render as "unknown%".
+        health
+            .map(|h| format!("{}%", h))
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_green(),
         commits.to_string().bright_white(),
         processes.to_string().dimmed(),
         load_avg.dimmed()
@@ -15138,7 +15146,8 @@ fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 r.get::<_, i64>(0)?,
                 r.get::<_, String>(1)?,
                 r.get::<_, i64>(2)?,
-                r.get::<_, i64>(3)?,
+                // INT-230 G4: health is nullable and may now be NULL.
+                r.get::<_, Option<i64>>(3)?,
                 r.get::<_, i64>(4)?,
                 r.get::<_, i64>(5)?,
                 r.get::<_, String>(6)?,
@@ -15153,7 +15162,17 @@ fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     row.insert("id".to_string(), Value::Int(id));
                     row.insert("name".to_string(), Value::Text(name));
                     row.insert("time".to_string(), Value::Text(time));
-                    row.insert("health".to_string(), Value::Int(health));
+                    // INT-230 G4: Value has a Nothing variant, but as_text()
+                    // renders it as "" -- honest for awk, silent for a human
+                    // reading the table. Health is the column this gate is
+                    // about, so absence says so.
+                    row.insert(
+                        "health".to_string(),
+                        match health {
+                            Some(h) => Value::Int(h),
+                            None => Value::Text("unknown".to_string()),
+                        },
+                    );
                     row.insert("commits".to_string(), Value::Int(commits));
                     row.insert("procs".to_string(), Value::Int(procs));
                     row.insert("load".to_string(), Value::Text(load));
@@ -15203,12 +15222,15 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     };
 
     // Fetch both snapshots
-    let fetch = |id: i64| -> Option<(String, i64, i64, i64, String)> {
+    // INT-230 G4: health is Option -- a NULL used to make the `?` below
+    // return None, so this reported "Snapshot #N not found" about a snapshot
+    // that plainly exists. A failure disguised as absence.
+    let fetch = |id: i64| -> Option<(String, Option<i64>, i64, i64, String)> {
         db.conn.query_row(
             "SELECT name, health, commits, processes, load_avg FROM shell_snapshots WHERE id = ?1",
             rusqlite::params![id], |r| Ok((
                 r.get::<_, String>(0)?,
-                r.get::<_, i64>(1)?,
+                r.get::<_, Option<i64>>(1)?,
                 r.get::<_, i64>(2)?,
                 r.get::<_, i64>(3)?,
                 r.get::<_, String>(4)?,
@@ -15239,19 +15261,25 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     println!();
 
     // Health diff
-    let health_diff = s2.1 - s1.1;
-    let health_str = if health_diff > 0 {
-        format!("+{}", health_diff).bright_green().to_string()
-    } else if health_diff < 0 {
-        format!("{}", health_diff).bright_red().to_string()
-    } else {
-        "unchanged".dimmed().to_string()
+    // ⭐ A DIFF AGAINST AN UNKNOWN BASELINE IS NOT A DIFF. With unwrap_or(0)
+    // two UNMEASURED snapshots would compare equal and print "unchanged" --
+    // a measurement claim about two things that were never measured, in a
+    // command whose whole purpose is comparing measurements.
+    let health_str = match (s1.1, s2.1) {
+        (Some(a), Some(b)) if b > a => format!("+{}", b - a).bright_green().to_string(),
+        (Some(a), Some(b)) if b < a => format!("{}", b - a).bright_red().to_string(),
+        (Some(_), Some(_)) => "unchanged".dimmed().to_string(),
+        _ => "unknown".dimmed().to_string(),
     };
     println!(
         "  {}  {} → {}  ({})",
         "Health:".dimmed(),
-        s1.1.to_string().bright_white(),
-        s2.1.to_string().bright_white(),
+        s1.1.map(|h| h.to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_white(),
+        s2.1.map(|h| h.to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_white(),
         health_str
     );
 
@@ -15621,12 +15649,21 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
     }
 
     // Latest snapshot if exists
-    let snap: Option<(String, i64, i64)> = db
+    // INT-230 G4: health is nullable. This annotation is what made `sh` an
+    // i64 below, so fixing it here also fixes the render at the println.
+    let snap: Option<(String, Option<i64>, i64)> = db
         .conn
         .query_row(
             "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
             [],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    // INT-230 G4: nullable.
+                    r.get::<_, Option<i64>>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            },
         )
         .ok();
     if let Some((name, sh, sc)) = snap {
@@ -15635,7 +15672,9 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
             "  {}  '{}' — health:{} commits:+{}",
             "Last snapshot:".dimmed(),
             name.bright_white(),
-            sh.to_string().dimmed(),
+            sh.map(|h| h.to_string())
+                .unwrap_or_else(|| "unknown".to_string())
+                .dimmed(),
             commit_diff.to_string().bright_green()
         );
     }
