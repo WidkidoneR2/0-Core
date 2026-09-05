@@ -1,7 +1,8 @@
+use faelight_core::check::{Checked, Skipped};
 use std::process::Command;
 
 /// Check for cargo-installed tool updates
-pub fn check_cargo_updates() -> Vec<crate::UpdateItem> {
+pub fn check_cargo_updates() -> Checked<Vec<crate::UpdateItem>> {
     println!("   Checking cargo-installed tools...");
 
     let check = Command::new("cargo")
@@ -16,28 +17,37 @@ pub fn check_cargo_updates() -> Vec<crate::UpdateItem> {
                 if stderr.contains("no such subcommand") || stderr.contains("not found") {
                     println!("      ⚠️  cargo-update not installed");
                     println!("      💡 Run: cargo install cargo-update");
-                    return Vec::new();
+                    return Err(Skipped::new(
+                        "cargo install-update --list",
+                        stderr.trim().to_string(),
+                    ));
                 }
 
                 // cargo-update not installed
                 if stderr.contains("cargo: 'install-update' is not a cargo command") {
                     eprintln!("      ⚠️  cargo-update not installed");
                     eprintln!("      💡 Install: cargo install cargo-update");
-                    return Vec::new();
+                    return Err(Skipped::new(
+                        "cargo install-update --list",
+                        stderr.trim().to_string(),
+                    ));
                 }
 
                 // Other error
                 eprintln!("      ⚠️  Failed to check cargo updates: {}", stderr);
                 eprintln!("      💡 Try: cargo install-update --help");
-                return Vec::new();
+                return Err(Skipped::new(
+                    "cargo install-update --list",
+                    stderr.trim().to_string(),
+                ));
             }
 
-            parse_cargo_update_list(&output.stdout)
+            Ok(parse_cargo_update_list(&output.stdout))
         }
         Err(e) => {
             eprintln!("      ⚠️  Cargo not available: {}", e);
             eprintln!("      💡 Install Rust: https://rustup.rs");
-            Vec::new()
+            Err(Skipped::new("cargo", e))
         }
     }
 }

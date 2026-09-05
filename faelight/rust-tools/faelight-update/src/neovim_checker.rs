@@ -1,4 +1,5 @@
 //! Neovim plugin checker — supports LazyVim, AstroNvim, NvChad
+use faelight_core::check::{Checked, Skipped};
 use std::process::Command;
 
 /// Detect which neovim distribution is installed
@@ -44,13 +45,13 @@ pub fn detect_distro() -> NvimDistro {
 }
 
 /// Check for outdated plugins by reading lazy-lock.json and comparing to git
-pub fn check_neovim_updates() -> Vec<String> {
+pub fn check_neovim_updates() -> Checked<Vec<String>> {
     println!("   Checking neovim plugins...");
 
     // Verify nvim is available
-    if Command::new("nvim").arg("--version").output().is_err() {
-        println!("      ⚠️  nvim not found");
-        return Vec::new();
+    // INT-192: no nvim is UNKNOWN, not zero outdated plugins.
+    if let Err(e) = Command::new("nvim").arg("--version").output() {
+        return Err(Skipped::new("nvim --version", e));
     }
 
     let distro = detect_distro();
@@ -98,26 +99,30 @@ pub fn check_neovim_updates() -> Vec<String> {
                 // Fall back to checking if lazy-lock.json is older than plugins
                 check_via_lockfile()
             } else {
-                outdated
+                Ok(outdated)
             }
         }
-        Err(_) => Vec::new(),
+        // INT-192: nvim not runnable is UNKNOWN, not zero outdated plugins.
+        Err(e) => Err(Skipped::new("nvim --headless Lazy check", e)),
     }
 }
 
 /// Secondary check — see if lazy-lock.json suggests updates needed
-fn check_via_lockfile() -> Vec<String> {
+fn check_via_lockfile() -> Checked<Vec<String>> {
     let home = std::env::var("HOME").unwrap_or_default();
     let lock_path = format!("{}/.config/nvim/lazy-lock.json", home);
 
     if !std::path::Path::new(&lock_path).exists() {
-        return Vec::new();
+        return Err(Skipped::new(
+            format!("lazy-lock.json at {}", lock_path),
+            "not found",
+        ));
     }
 
     // Read lockfile and check if any plugin dirs have newer commits
     let content = match std::fs::read_to_string(&lock_path) {
         Ok(c) => c,
-        Err(_) => return Vec::new(),
+        Err(e) => return Err(Skipped::new(format!("lazy-lock.json at {}", lock_path), e)),
     };
 
     // Parse plugin names from lockfile
@@ -178,7 +183,7 @@ fn check_via_lockfile() -> Vec<String> {
         println!("      {} plugins may have updates", outdated.len());
     }
 
-    outdated
+    Ok(outdated)
 }
 
 /// Update neovim plugins — respects detected distro

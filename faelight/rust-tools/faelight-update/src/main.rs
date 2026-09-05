@@ -731,7 +731,15 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     // report what is pending, never apply it.)
 
     // Cargo tools
-    let cargo_items = cargo_checker::check_cargo_updates();
+    // INT-192: a checker that could not run is UNKNOWN, not zero updates. Same
+    // shape as the System category below.
+    let (cargo_items, cargo_note) = match cargo_checker::check_cargo_updates() {
+        Ok(v) => (v, None),
+        Err(s) => (Vec::new(), Some(s.to_string())),
+    };
+    if let Some(note) = cargo_note {
+        eprintln!("  [??] cargo tools: {}", note);
+    }
     categories.push(UpdateCategory {
         name: "Cargo Tools".to_string(),
         emoji: "🦀".to_string(),
@@ -740,7 +748,14 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     });
 
     // Neovim plugins
-    let nvim_items: Vec<UpdateItem> = neovim_checker::check_neovim_updates()
+    let (nvim_lines, nvim_note) = match neovim_checker::check_neovim_updates() {
+        Ok(v) => (v, None),
+        Err(s) => (Vec::new(), Some(s.to_string())),
+    };
+    if let Some(note) = nvim_note {
+        eprintln!("  [??] neovim plugins: {}", note);
+    }
+    let nvim_items: Vec<UpdateItem> = nvim_lines
         .into_iter()
         // checkupdates prints: name old_version -> new_version. Parsing it fills the
         // columns the TUI already renders; a bare name would leave them blank.
