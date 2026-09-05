@@ -929,8 +929,14 @@ fn main() -> Result<()> {
             } = runtime_init()?;
             // Diagnostics on stderr: stdout belongs to the program, which is what keeps
             // `fsh -c 'echo hi' | wc -l` answering 1.
-            for e in &diagnostics {
-                eprintln!("{}", e);
+            match &diagnostics {
+                Ok(errs) => {
+                    for e in errs {
+                        eprintln!("{}", e);
+                    }
+                }
+                // INT-192: an unreadable config is reported, not read as clean.
+                Err(skip) => eprintln!("{}", skip),
             }
             let core_root = db.core_root();
             let mut engine = crate::engine::Engine::new(db, core_root, cfg.before_rules);
@@ -1047,7 +1053,7 @@ struct RuntimeInit {
     db: db::ForestDb,
     cfg: config::ShellConfig,
     applied: config::ApplyReport,
-    diagnostics: Vec<String>,
+    diagnostics: faelight_core::check::Checked<Vec<String>>,
 }
 
 fn runtime_init() -> Result<RuntimeInit> {
@@ -2306,11 +2312,16 @@ fn repl_main() -> Result<()> {
     // ⚠️ THE INTERACTIVE FRONT END PRINTS THESE TO STDOUT, where the user is looking. A
     // non-interactive invocation must send the same diagnostics to STDERR instead: stdout is
     // program output, and a broken config must not appear in a caller's pipeline.
-    if !diagnostics.is_empty() {
-        println!("  {} config.nsh syntax errors:", "⚠️".normal());
-        for e in &diagnostics {
-            println!("{}", e);
+    match &diagnostics {
+        Ok(errs) if !errs.is_empty() => {
+            println!("  {} config.nsh syntax errors:", "⚠️".normal());
+            for e in errs {
+                println!("{}", e);
+            }
         }
+        Ok(_) => {}
+        // INT-192: an unreadable config is reported, not read as clean.
+        Err(skip) => println!("  {} {}", "⚠️".normal(), skip),
     }
 
     // INT-173 — build command registry on startup

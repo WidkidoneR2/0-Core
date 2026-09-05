@@ -209,12 +209,19 @@ pub fn load() -> ShellConfig {
         before_rules,
     }
 }
-/// Validate config.fsh syntax without loading -- returns list of errors
-pub fn validate() -> Vec<String> {
+/// Validate config syntax without loading. Ok(errors) when the file was read;
+/// Err(Skipped) when it could not be. INT-192: an unreadable config used to
+/// validate CLEAN, and that clean reached the startup diagnostics.
+pub fn validate() -> faelight_core::check::Checked<Vec<String>> {
     let path = config_path();
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
-        Err(_) => return vec![],
+        Err(e) => {
+            return Err(faelight_core::check::Skipped::new(
+                format!("config {}", path.display()),
+                e,
+            ))
+        }
     };
     let mut errors: Vec<String> = vec![];
     let mut in_before_run = false;
@@ -246,7 +253,7 @@ pub fn validate() -> Vec<String> {
             errors.push(format!("  line {}: unknown directive '{}'\n    fix: valid directives are: alias, set, before_run", lineno+1, &line[..line.len().min(40)]));
         }
     }
-    errors
+    Ok(errors)
 }
 
 /// Apply config to the running shell — register aliases and settings.
@@ -328,6 +335,15 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb, reconcile: bool) -> ApplyReport {
 pub fn ensure_default() -> bool {
     let path = config_path();
     if path.exists() {
+        return false;
+    }
+    // INT-192: an NSH_CONFIG override that does not exist is an operator
+    // error, not a first run. Writing a template there would load a config
+    // the operator never wrote. validate() reports the absence instead.
+    if std::env::var("NSH_CONFIG")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+    {
         return false;
     }
 
