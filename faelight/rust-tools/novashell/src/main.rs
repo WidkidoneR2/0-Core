@@ -3273,6 +3273,13 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     let active_count = crate::core_integration::ledger()
         .map(|l| l.active_count())
         .unwrap_or(0);
+    // INT-230 G4: planned and complete already render ? on absence, but this
+    // line printed 0 beside them -- a count that was never taken.
+    let active_display = if ledger_exists {
+        active_count.to_string()
+    } else {
+        "?".to_string()
+    };
 
     let planned_display = if ledger_exists {
         planned_count.to_string()
@@ -3363,7 +3370,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // -- ledger row --
     println!(
         "  {} {}  {} {}  {} {}  {}",
-        fc_bold(255, 200, 50, &active_count.to_string()),
+        fc_bold(255, 200, 50, &active_display),
         fc_dim(180, 160, 80, "active"),
         fc_bold(160, 140, 220, &planned_display),
         fc_dim(120, 110, 170, "planned"),
