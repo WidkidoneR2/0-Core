@@ -14,8 +14,9 @@ duplicate it here. Where a rule below has a "why", it points there.
 - **One line:** Project 0 — a new computing system built around objects, state, and capabilities.
 - **Repository:** `0-Core`. Historical identity: Faelight Forest / Faelight Shell.
 
-Project 0 is a NixOS-based system. NixOS is the substrate, not the product.
-The architecture defines the abstraction; Linux and NixOS provide the initial implementation.
+Project 0 runs on Omarchy -- Arch-based, systemd, Hyprland. **The operating system is
+the substrate, not the product.** The architecture defines the abstraction; the current
+substrate is one implementation of it, and is expected to be replaceable.
 
 ---
 
@@ -65,7 +66,9 @@ not optional, and no step is skipped because a change looks small.
 3. **`cistart <id>`.** Open the intent *before* writing code, not after the work is done.
 4. **Apply the code.** Only the change that was agreed. No unrequested edits riding along.
 5. **Test in the debug shell.** Exercise the behaviour before it reaches the running system.
-6. **`dep`.** Rebuild. This is the only step that produces what actually runs.
+6. **`ship`.** Build the release and deploy. This is the only step that produces
+   what actually runs. `dep` was the NixOS verb and no longer exists -- see
+   Build System below.
 7. **Reload and test in the new build.** Re-verify against the deployed artifact.
 8. **DevBox** (INT-167), as it comes online — instrumented verification in place of manual
    checking.
@@ -136,8 +139,11 @@ edit  ->  cargo build -p <crate>  ->  test the DEBUG binary  ->  ship  ->  exec 
 - **Gone with NixOS, do not look for them:** `dep`, `rebuild`, `rebuild-safe`, `rebuild-dry`,
   `nix develop`, generations, rollback-by-generation, and the rule that git must know a file
   before it builds. `ship` has no health gate and no rollback.
-<!-- VERIFY: whether any rollback path exists on Omarchy (INT-129's generation.rs reads snapper);
-     whether Wayland crates need any special environment on Arch now that nix develop is gone -->
+<!-- MEASURED 2026-09-05: snapper and limine ARE installed (/usr/bin/snapper,
+     /usr/bin/limine); dep, rebuild, sbctl and grub are NOT. Whether a snapper
+     rollback is configured AND bootable remains UNVERIFIED -- installed is not the
+     same as working, and nobody has restored from one. Still open: whether Wayland
+     crates need any special environment on Arch now that nix develop is gone -->
 
 ---
 
@@ -168,8 +174,11 @@ why it needs privilege. Privilege escalation is never a convenience.
 - After deploying a service or daemon, confirm with `ps` that the process exists.
 - Run the health check — `d` — at session start and before closing. Fix warnings rather than
   noting them.
-- Shell behaviour must be exercised through the real REPL, not only `-c`. **`nsh -c` delegates
-  to `sh`** and does not exercise the same path.
+- Shell behaviour must be exercised through the real REPL, not only `-c` -- but not
+  for the old reason. **`nsh -c` executes nsh, not `sh`** (INT-201 gate 4,
+  main.rs:905), and the safety guard is on that door (main.rs:946). The stale
+  comment at main.rs:860 still says it delegates to sh; it is wrong.
+  ⚠️ The two doors still disagree -- see Current Work item 1. Test both.
 - **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
   blind.
 
@@ -179,12 +188,19 @@ why it needs privilege. Privilege escalation is never a convenience.
 
 Know the way back before you need it.
 
-- **SafeShell:** at the greeter, F3 gives a working `nsh` with no compositor (INT-056). A broken
-  compositor cannot lock you out.
-- **TTY2:** `Fn+Ctrl+Alt+F2`, the kernel-level backup.
-- **`rollback`** restores the previous NixOS generation.
-- `docs/recovery-runbook.md` is the written procedure. Anything that invalidates a path in it
-  must update it in the same commit.
+- **TTY2:** `Fn+Ctrl+Alt+F2` -- a kernel VT switch, so it works even when the compositor
+  is hung. The one recovery path that depends on nothing this project ships.
+- **`ship` has no rollback.** It overwrites the previous binary. The way back from a bad
+  deploy is `git checkout <sha>` then `ship` -- which makes the pushed history the
+  recovery mechanism. Push before you deploy something you cannot rebuild.
+- **snapper and limine are installed** -- but whether a snapshot rollback is configured
+  and bootable is UNVERIFIED. Do not plan around it until someone has restored from one
+  and written down what they did.
+- ⚠️ **`docs/recovery-runbook.md` IS STALE AND DESCRIBES A MACHINE THAT No LONGER
+  EXISTS.** It assumes NixOS, a flake target, btrfs subvolumes including `@nix`, MangoWM,
+  greetd, and the F3 SafeShell session. The only thing in it still true here is the VT
+  key sequence. Treat it as history until it is rewritten. **The system currently has
+  no trusted written recovery procedure.** That is a gap, stated rather than assumed.
 
 ---
 
@@ -259,13 +275,25 @@ Project 0 prioritizes:
 
 - minimalism — every component justifies its existence
 - reproducibility — the system is described by configuration, not accumulated changes
-- transactional change — a change produces a new generation, verified before it is trusted
-- generation-based recovery — failure rolls back, it does not require repair
+- verified change — a change is trusted once it has been demonstrated, never once it has built
+- a known way back — and where there isn't one, the gap is written down rather than assumed
+  (`ship` has no rollback today)
 - security by default
 - explicit architectural boundaries
 - coherent, designed experience — designed, not decorated
 
 Do not add functionality merely because conventional Linux distributions include it.
+
+**Everything has an expiration date, including the choices this project has already
+made.** Rust is the right implementation language today. That is a measurement, not an
+identity. If something serves the architecture better -- another language, another toolkit,
+something not written yet -- the question is answered by building something small in it and
+comparing, not by how much has already been written in the current one.
+
+An idea earns its place by what it does, **never by how popular it is** -- neither by
+popularity outside the project nor by how settled it feels inside it. The architecture
+is the product; the implementation is this decade's best available answer to it. Design
+for where the project is going, not only for what it is now.
 
 **"No bloat" does not mean "we write everything ourselves."** If a proven Linux component does
 exactly what is needed, use it. The differentiator is integration, not authorship.
@@ -318,9 +346,10 @@ Full reasoning in `docs/CONVENTIONS.md` (INT-199); `fpatch`'s `_refuse` is the r
 
 ## Security
 
-- Secure Boot is enforcing. Any change to the kernel or boot chain re-signs the UKI.
-- Secure Boot keys live at `/var/lib/sbctl`, deliberately outside this repository. Never commit
-  them. A rebuild from this repo alone does not reproduce them.
+- ⚠️ **Secure Boot is NOT enforcing.** MEASURED 2026-09-05: `sbctl` is not installed and
+  `/var/lib/sbctl` does not exist. The custom-key setup went with NixOS and has not been
+  rebuilt. Do not describe the boot chain as signed until it is, and until that has been
+  demonstrated rather than configured.
 - Secrets are never committed. `gitleaks` scans before commits. Configs reference secrets, they
   do not embed them.
 - Passwords are set at install time, not declared in the repo.
@@ -335,7 +364,7 @@ directory.
 
 - **critical** — boot, login, disk. Failure means the machine does not come back.
 - **system** — shared across hosts. Failure breaks builds, loudly, but not boots.
-- **user** — home-manager scope. Failure is recoverable from a running session.
+- **user** — user-scope configuration and tools. Failure is recoverable from a running session.
 
 Promote a directory to critical the moment it starts carrying boot, login, or disk settings.
 
@@ -395,7 +424,7 @@ say afterwards which one moved the number.
 
 **History is not a whiteboard.** No rebase to tidy a month, no amend of anything
 pushed. A wrong commit gets a FOLLOW-UP that cites it by hash. Rewriting deletes
-the generation numbers and measurements the ledger depends on -- the evidence
+the measurements the ledger depends on -- the evidence
 lives in the bodies, not in a separate document.
 
 **Prefix the future, never rename the past.** Commit messages from July say
@@ -430,13 +459,19 @@ the file.
 Coherence does not move until the safety guard is on every execution door.
 Until then, more code means more comments to distrust. So:
 
-1. **`safety_guard` on `run_input`.** Today it runs in the REPL loop only, so
-   `nsh -c` skips it entirely. The comment saying "BEFORE any execution path"
-   is false until this lands. Requires a stated `-c` policy for
-   `challenge_gate`: no TTY means either block closed or documented skip.
-   Pick one and write it down.
-   ⚠️ nsh-test drives `-c` for over a hundred cases, so "block closed" changes
-   what the suite can run. Decide deliberately, not as a side effect.
+1. **The digit guard is absent from `nsh -c`.** MEASURED 2026-09-05:
+   `cd /tmp && nsh -c "echo test > 0.5"` creates a file named `0.5`, while the
+   interactive shell refuses the same line and prints it as text. The two doors
+   disagree about the LANGUAGE, in the one construct the history corpus proved is
+   a deliberate divergence -- `where cpu > 0.5` depends on it.
+   ⚠️ THIS REPLACES THE OLD ITEM 1, WHICH WAS FALSE IN BOTH HALVES. `-c` does
+   not delegate to sh (main.rs:905) and does not skip the safety guard
+   (main.rs:946; nsh-test `dashc_reaches_the_safety_guard` and
+   `dashc_guard_refusal_stays_off_stdout` both pass). The real gap is narrower
+   and worse: same shell, same guard, different redirect semantics.
+   ⏭ First move is recon: find where the REPL path applies the guard and the
+   `-c` branch does not. Delete the stale delegates-to-sh comment at
+   main.rs:860 in the same change.
 2. **One git policy.** `git` is in the `safe` set AND there is a
    `git reset --hard` arm in the heuristics. The arm is dead while git is
    safe. Remove git from safe, or delete the arm. Name the discarded half in
