@@ -803,8 +803,8 @@ fn execute_impl(
                 return CommandResult::Output(
                     "  conformance moved to nsh-test (INT-200, 2026-08-03)\n\
                      \n  Run:  nsh-test --failed        # cases named conform_*\n\
-                     \n  This command compared `fsh -c` against bash, and `fsh -c` delegates to sh --\n\
-                     \n  so it measured sh, not fsh. The cases now run over a real pty.\n"
+                     \n  It compared `fsh -c` against bash when that door still delegated to sh,\n\
+                     \n  so it measured sh. `-c` executes nsh now (INT-201 gate 4).\n"
                         .to_string(),
                 );
             }

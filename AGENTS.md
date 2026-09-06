@@ -177,8 +177,13 @@ why it needs privilege. Privilege escalation is never a convenience.
 - Shell behaviour must be exercised through the real REPL, not only `-c` -- but not
   for the old reason. **`nsh -c` executes nsh, not `sh`** (INT-201 gate 4,
   main.rs:905), and the safety guard is on that door (main.rs:946). The stale
-  comment at main.rs:860 still says it delegates to sh; it is wrong.
-  ⚠️ The two doors still disagree -- see Current Work item 1. Test both.
+  comment that said otherwise was deleted 2026-09-06, along with its copy in the
+  `spine conform` output.
+  ⚠️ THE DOORS ARE NOT THE DIVERGENCE. THE SPINE IS. Measured 2026-09-06:
+  `nsh -c "echo test > 0.5"` creates a file named 0.5; the same line under
+  `NSH_SPINE=0` is refused. Legacy honours the digit guard (expand.rs:491), the
+  spine does not, and the spine is the default -- so the interactive shell is
+  affected too. Test both, but test them with NSH_SPINE on and off.
 - **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
   blind.
 

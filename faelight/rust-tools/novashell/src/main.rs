@@ -854,12 +854,27 @@ fn main() -> Result<()> {
         // operand. The tolerant search is kept because `-l ... -c` is a legitimate POSIX
         // invocation -- INT-299's comment cited `exec -l '$SHELL' -c ...` from a niri session that
         // no longer exists, but removing a guard because today's config does not need it is how
-        // the next person gets locked out. `/bin/sh` is kept because on NixOS it is one of only
-        // two stable absolute paths.
+        // the next person gets locked out.
         //
-        // ⚠️⚠️ AND THIS DELEGATES TO sh, WHICH MEANS `fsh -c` IS NOT fsh: no aliases, no spine
-        // router, no digit guard, no job table. That is a DESIGN QUESTION still open, not an
-        // oversight -- see INT-200. It is why the conformance suite had to stop using this door.
+        // ⚠️ STALE CLAIM DELETED 2026-09-06. This comment said, in double-warning capitals, that
+        // the handler delegates to sh and so has no aliases, no spine router, no digit guard and no
+        // job table. THAT STOPPED BEING TRUE at INT-201 gate 4 -- see the handler below, which calls
+        // the SAME run_input the REPL calls, and the guard block above it. The text survived its own
+        // fix and was copied outward: into the `spine conform` deprecation message (USER-FACING) and
+        // into AGENTS.md, which carried a line whose only job was to say this comment is wrong.
+        // (The /bin/sh note went with it: it was kept "because on NixOS it is one of only two stable
+        // absolute paths", and there is no NixOS here since 2026-08-26.)
+        //
+        // ⚠️ THE REAL DIVERGENCE, measured 2026-09-06, is NOT this door:
+        //   cd /tmp && nsh -c "echo test > 0.5"                 -> creates a file named 0.5
+        //   cd /tmp && NSH_SPINE=0 nsh -c "echo test > 0.5"     -> refused; echo prints the text
+        // THE SPINE AND LEGACY DISAGREE about whether a digit-leading redirect target is a redirect
+        // at all. Legacy honours the digit guard (expand.rs:491); the spine does not, and the spine
+        // is the default. Both doors run the spine, so the interactive shell is affected too -- this
+        // is not a `-c` bug. `where cpu > 0.5` depends on that guard.
+        // `spine migrate` reports it TWICE without knowing they are one thing: 24 rows under
+        // "comparison, not a redirect (> 0.5) -- deliberate divergence" and 52 under "unexpected:
+        // spine redirects, legacy does not" -- the largest single shape in that report. NOT FIXED YET.
         boot_mark("reached -c handler");
         // --version and --help, because every tool has them and fsh had neither. Measured
         // 2026-08-22: `fsh --version` started an interactive shell and printed a banner,
