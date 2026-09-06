@@ -21,11 +21,22 @@ use std::path::PathBuf;
 /// census goes stale silently and the check keeps passing. tools.toml knows what
 /// exists and carries deployable and retired flags, so removing a tool now updates
 /// this check for free.
-pub fn expected_tools() -> Vec<String> {
+// INT-192: an unreadable registry is UNKNOWN, not an empty expectation. Returning
+// Vec::new() here meant nothing was expected, so nothing could be missing, so the
+// check reported clean -- the silent half of this check. (The loud half is
+// parse_aliases below, whose unwrap_or_default makes every tool read as missing.)
+// The doc comment above was written to kill a census that went stale silently; the
+// same disease was left sitting in its own error arm.
+pub fn expected_tools() -> faelight_core::check::Checked<Vec<String>> {
     let path = faelight_core::paths::tools_registry();
     let content = match fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(_) => return Vec::new(),
+        Err(e) => {
+            return Err(faelight_core::check::Skipped::new(
+                format!("tools registry at {}", path.display()),
+                e,
+            ))
+        }
     };
     let mut out: Vec<String> = Vec::new();
     let mut name = String::new();
@@ -56,7 +67,7 @@ pub fn expected_tools() -> Vec<String> {
     if !name.is_empty() && deployable && !retired && (usage == "high" || usage == "medium") {
         out.push(name);
     }
-    out
+    Ok(out)
 }
 
 pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
@@ -120,7 +131,14 @@ fn check_duplicates(aliases: &HashMap<String, String>) -> CoreResult<()> {
 fn check_missing(aliases: &HashMap<String, String>) -> CoreResult<()> {
     println!("{}", "🔍 Checking tool coverage...".cyan().bold());
     let mut missing = Vec::new();
-    let expected = expected_tools();
+    // INT-192: could-not-read must not render as full coverage.
+    let expected = match expected_tools() {
+        Ok(e) => e,
+        Err(skip) => {
+            println!("  [??] {}", skip);
+            return Ok(());
+        }
+    };
     for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
@@ -173,7 +191,14 @@ fn check_conflicts(aliases: &HashMap<String, String>) -> CoreResult<()> {
 fn show_tools(aliases: &HashMap<String, String>) -> CoreResult<()> {
     println!("{}", "🌲 FAELIGHT TOOLS ALIAS COVERAGE".cyan().bold());
     println!("{}", "═".repeat(60));
-    let expected = expected_tools();
+    // INT-192: could-not-read must not render as an empty tool list.
+    let expected = match expected_tools() {
+        Ok(e) => e,
+        Err(skip) => {
+            println!("  [??] {}", skip);
+            return Ok(());
+        }
+    };
     for tool in &expected {
         let tool_aliases: Vec<&String> = aliases
             .iter()
@@ -229,7 +254,14 @@ fn run_default(aliases: &HashMap<String, String>) -> CoreResult<()> {
 
 pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()> {
     let mut missing = Vec::new();
-    let expected = expected_tools();
+    // INT-192: could-not-read must not render as full coverage.
+    let expected = match expected_tools() {
+        Ok(e) => e,
+        Err(skip) => {
+            println!("  [??] Alias Coverage: {}", skip);
+            return Ok(());
+        }
+    };
     for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
@@ -241,7 +273,7 @@ pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()>
     if missing.is_empty() {
         println!(
             "✅ Alias Coverage: All {} tools have aliases ({} total)",
-            expected_tools().len(),
+            expected.len(),
             aliases.len()
         );
     } else {

@@ -897,7 +897,22 @@ pub fn check_alias_coverage() -> CheckResult {
     };
 
     let mut missing: Vec<&str> = Vec::new();
-    let expected = expected_tools();
+    // INT-192: a registry that could not be read means the expectation is unknown, not
+    // empty. Status::Unknown leaves this out of the health denominator (INT-148) rather
+    // than reporting full coverage against an expectation of nothing.
+    let expected = match expected_tools() {
+        Ok(e) => e,
+        Err(skip) => {
+            return CheckResult {
+                tier: Tier::User,
+                id: "alias_coverage".into(),
+                name: "Alias Coverage".into(),
+                status: Status::Unknown,
+                message: skip.to_string(),
+                fix: Some("Verify the tools registry is readable".into()),
+            };
+        }
+    };
     for tool in &expected {
         if *tool == "faelight-daemon" || *tool == "faelight-core" {
             continue;
