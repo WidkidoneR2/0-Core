@@ -531,12 +531,51 @@ impl MigrationReport {
         // feature gaps answer it directly -- each one is a line legacy runs and the spine
         // cannot -- so they are reported as what they are rather than as a blocker to a
         // decision already made.
+        // ⚠️ THIS TOTAL USED TO COUNT KINDS THIS FILE HAD ALREADY RULED DELIBERATE.
+        // The sentence offers two exits -- reach zero, OR rule each remaining kind -- and then
+        // added the ruled kinds to the number anyway, so the second exit could never register.
+        // That is the same defect the comment above diagnoses one screen up: a condition that
+        // cannot be satisfied is not a gate, it is a constant.
+        //
+        // The knowledge was already here. The dispatch at the top of this file says it outright:
+        // "A forest pipeline is declined FOREVER (legacy's apply_pipeline is the only
+        // implementation of those verbs); a shell pipeline is declined only until execution
+        // lands." The total did not use its own distinction.
+        //
+        // RULED KINDS, each tied to where the ruling is written:
+        //   forest value pipeline   -- migrate_audit.rs, dispatch comment above: legacy owns the
+        //                              forest verbs; apply_pipeline is their only implementation.
+        //   bare assignment         -- plan.rs, lower_command: an ExecutionPlan describes ONE
+        //                              PROCESS and a bare assignment is a session statement, so
+        //                              it "cannot be represented rather than merely being
+        //                              unimplemented". This kind can never reach zero.
+        //
+        // Matched on the kind strings because those strings are already load-bearing -- they are
+        // the keys of declined_by_reason, so a rename already changes the report. A marker on
+        // LowerError would survive renaming and is the better fix when someone touches that enum.
+        const RULED_DELIBERATE: [&str; 2] = [
+            "unlowerable: forest value pipeline (legacy owns these)",
+            "unlowerable: bare assignment with no command (a shell statement, not a process)",
+        ];
+        let ruled: usize = RULED_DELIBERATE
+            .iter()
+            .filter_map(|k| self.declined_by_reason.get(*k))
+            .sum();
+        let total = self.feature_gap + self.spine_unlowerable;
+        let blocking = total.saturating_sub(ruled);
+
         out.push_str(&format!(
-            "Legacy still owns {} lines in this corpus. Until that is zero, or until each
-  remaining kind is ruled deliberate, the legacy path cannot be deleted.
-",
-            self.feature_gap + self.spine_unlowerable
+            "Legacy still owns {total} lines in this corpus: {ruled} of ruled kinds and
+  {blocking} not yet ruled. THE {blocking} ARE THE BLOCKER -- the ruled kinds have taken the
+  second exit this sentence offers and are not waiting on anything.
+"
         ));
+        if blocking == 0 {
+            out.push_str(
+                "  Every remaining kind is ruled deliberate. Nothing in this corpus needs legacy.
+",
+            );
+        }
         out
     }
 }
