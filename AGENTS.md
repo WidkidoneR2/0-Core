@@ -196,7 +196,7 @@ Know the way back before you need it.
 - **snapper and limine are installed** -- but whether a snapshot rollback is configured
   and bootable is UNVERIFIED. Do not plan around it until someone has restored from one
   and written down what they did.
-- ⚠️ **`docs/recovery-runbook.md` IS STALE AND DESCRIBES A MACHINE THAT No LONGER
+- ⚠️ **`docs/recovery-runbook.md` IS STALE AND DESCRIBES A MACHINE THAT NO LONGER
   EXISTS.** It assumes NixOS, a flake target, btrfs subvolumes including `@nix`, MangoWM,
   greetd, and the F3 SafeShell session. The only thing in it still true here is the VT
   key sequence. Treat it as history until it is rewritten. **The system currently has
