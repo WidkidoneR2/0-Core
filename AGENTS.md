@@ -179,11 +179,17 @@ why it needs privilege. Privilege escalation is never a convenience.
   main.rs:905), and the safety guard is on that door (main.rs:946). The stale
   comment that said otherwise was deleted 2026-09-06, along with its copy in the
   `spine conform` output.
-  ⚠️ THE DOORS ARE NOT THE DIVERGENCE. THE SPINE IS. Measured 2026-09-06:
-  `nsh -c "echo test > 0.5"` creates a file named 0.5; the same line under
-  `NSH_SPINE=0` is refused. Legacy honours the digit guard (expand.rs:491), the
-  spine does not, and the spine is the default -- so the interactive shell is
-  affected too. Test both, but test them with NSH_SPINE on and off.
+  ⚠️ Test with NSH_SPINE on AND off -- the two executors do not always agree,
+  and the disagreements are not all defects. `nsh -c "echo test > 0.5"` writes a
+  file; the same line under `NSH_SPINE=0` is refused. That one is the SPINE being
+  right: it narrowed legacy's blanket digit guard so it fires only in the query
+  language (parser.rs:250-282), which is why `where cpu > 0.5` still works and
+  `echo test > 0.5` behaves like bash.
+  ⚠️ `spine migrate` CANNOT TELL THOSE APART. compare.rs is mechanical by design
+  (compare.rs:123) -- it diffs rendered IoPlans and never sees why legacy declined --
+  so a ruled improvement and a real defect land in the same bucket. Its 52 rows of
+  "spine redirects, legacy does not" are not a defect count. Read the parser before
+  treating any row in that report as a bug.
 - **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
   blind.
 

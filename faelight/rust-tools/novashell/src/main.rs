@@ -865,16 +865,21 @@ fn main() -> Result<()> {
         // (The /bin/sh note went with it: it was kept "because on NixOS it is one of only two stable
         // absolute paths", and there is no NixOS here since 2026-08-26.)
         //
-        // ⚠️ THE REAL DIVERGENCE, measured 2026-09-06, is NOT this door:
-        //   cd /tmp && nsh -c "echo test > 0.5"                 -> creates a file named 0.5
+        // ⚠️ MEASURED 2026-09-06, and the first reading of it was WRONG:
+        //   cd /tmp && nsh -c "echo test > 0.5"                 -> writes a file named 0.5
         //   cd /tmp && NSH_SPINE=0 nsh -c "echo test > 0.5"     -> refused; echo prints the text
-        // THE SPINE AND LEGACY DISAGREE about whether a digit-leading redirect target is a redirect
-        // at all. Legacy honours the digit guard (expand.rs:491); the spine does not, and the spine
-        // is the default. Both doors run the spine, so the interactive shell is affected too -- this
-        // is not a `-c` bug. `where cpu > 0.5` depends on that guard.
-        // `spine migrate` reports it TWICE without knowing they are one thing: 24 rows under
-        // "comparison, not a redirect (> 0.5) -- deliberate divergence" and 52 under "unexpected:
-        // spine redirects, legacy does not" -- the largest single shape in that report. NOT FIXED YET.
+        // This is NOT the spine missing legacy's digit guard. The spine HAS it --
+        // ParseError::ComparisonNotRedirect, parser.rs:278 -- and deliberately narrowed it: the
+        // guard fires only when a value verb or source appeared earlier in the line, so
+        // `where cpu > 0.5` is a comparison while `echo test > 0.5` is an ordinary redirect,
+        // as in bash. The reasoning is written at parser.rs:250. LEGACY is the over-broad one.
+        //
+        // ⚠️ WHAT IS ACTUALLY WRONG IS THE INSTRUMENT. `spine migrate` files this under
+        // "unexpected: io: spine redirects, legacy does not" -- 52 rows, its largest single shape --
+        // while ALSO reporting 24 rows as "deliberate divergence". compare.rs:127 is mechanical by
+        // design: it compares rendered IoPlans and cannot see WHY legacy declined, so a ruled
+        // improvement and a real defect share one bucket. compare.rs:123 warns about exactly this.
+        // Those 52 rows are not a defect count and should not be read as one.
         boot_mark("reached -c handler");
         // --version and --help, because every tool has them and fsh had neither. Measured
         // 2026-08-22: `fsh --version` started an interactive shell and printed a banner,
