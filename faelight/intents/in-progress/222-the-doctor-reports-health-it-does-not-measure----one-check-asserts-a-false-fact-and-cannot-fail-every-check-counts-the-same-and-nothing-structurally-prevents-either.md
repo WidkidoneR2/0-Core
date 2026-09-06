@@ -456,9 +456,65 @@ number is easier to ignore. Four warnings costing what four failures cost is del
 STILL OPEN in this area: labels excluded from the denominator. There are no labels today --
 the census found zero -- so there is nothing to exclude until the definition format exists.
 
-- [ ] The four-state / three-colour rendering is DECIDED, including the exact wording an UNKNOWN
+- [x] The four-state / three-colour rendering is DECIDED, including the exact wording an UNKNOWN
       check shows so it cannot be misread as a failure.
-- [ ] Quick scan and full scan are named, and it is stated which runs when and what each contains.
+<!-- DECIDED 2026-09-06, from shipped code rather than from design. Four states, three colours:
+       Pass     green    OK
+       Warn     amber    something is wrong and nothing is lost
+       Fail     red      something is wrong and something IS lost
+       Blocked  red      rendered with Fail; the check was prevented from running by policy
+       Unknown  amber    THE CHECK COULD NOT RUN
+     Unknown renders the glyph U+2754 and carries the check's OWN message as the reason, so the
+     line reads e.g. "could not check tools registry at <path>: No such file or directory". The
+     wording rule: the message says what could not be reached and why, never what is wrong --
+     that is what stops it being misread as a failure.
+
+     ⚠️ THE NON-OBVIOUS PART, and it is already in the code: UNKNOWN IS NOT UNIFORMLY NEUTRAL.
+     mod.rs:64 returns Verdict::Red for (Critical, Unknown) and (Critical, Blocked), while every
+     other Unknown only sets amber. A critical-tier gate that could not run HAS NOT PASSED --
+     the same rule faelight-deadwood --strict already applies by exiting 1 on a skip. So
+     "excluded from the verdict" is true at system/user/info tier and FALSE at critical tier.
+     Any future definition format must carry this distinction; flattening it would let the one
+     check that matters go quiet by failing to run.
+
+     Tier::Info is excluded from the verdict loop entirely (mod.rs:61), which is the separate
+     label case -- measured, never judged.
+
+     AND THE WORD AND THE COLOUR COME FROM ONE CALL. run_quick derives both from the same
+     verdict(&checks) (mod.rs:1236 and 1242). They used to be separate rules, so an Unknown at
+     critical tier printed DEGRADED in bright green -- the word and the colour disagreeing
+     inside one string. Fixed under this intent; recorded here because the fix is the decision. -->
+- [x] Quick scan and full scan are named, and it is stated which runs when and what each contains.
+<!-- DECIDED 2026-09-06. ⚠️ THE PREMISE OF THIS GATE WAS WRONG AND THE CODE IS BETTER THAN IT ASKED
+     FOR. The gate says "both lists already exist and neither is named". There is now ONE list:
+     run_quick (mod.rs:1202) calls all_checks() and filters to Tier::Critical. The six-check
+     second list this intent censused at mod.rs:1121-1126 on 2026-08-17 is GONE -- those line
+     numbers are forecast code today.
+
+       full scan   = all_checks(), 27 checks. Runs on `core doctor run` (the `d` alias) and is
+                     the panel everything else quotes.
+       quick scan  = the same all_checks(), filtered to Tier::Critical -- today check_binaries,
+                     check_boot_errors, check_disk_space. Runs on the hand-typed
+                     `core doctor quick`.
+
+     ★ QUICK SCAN IS DERIVED, NOT COPIED, and that is the durable result. The comment at
+     mod.rs:1208 records what the hardcoded version cost: the old five contained git-is-dirty and
+     scripts-executable while boot errors and disk space were absent ENTIRELY -- a quick scan
+     that skipped the boot chain. Deleting a check meant editing two lists and only the compiler
+     noticed the second. A tier filter cannot drift from the tier table; a hand-kept list always
+     will. This is the same argument as declaration-over-detection, applied to the scan lists.
+
+     CONSEQUENCE OF THE TIER RULING (gate above): the quick scan's contents are now decided by
+     the tier assignment, not chosen separately. So the check_disk_space disagreement recorded
+     there is ALSO a disagreement about what quick scan contains -- re-tiering it to System
+     would remove it from quick scan. That coupling is correct and should be preserved by any
+     definition format: what breaks the system is what a quick scan looks at.
+
+     ⚠️ NOT DECIDED HERE: run_quick still runs all 27 eagerly and discards 24 results. The
+     comment at mod.rs:1403 states this is deliberate -- one hand-typed caller, nobody waits on
+     it. That reasoning DIES if quick scan is ever wired into session start (INT-124 freshness),
+     which the Solution section proposes. Lazy evaluation is a prerequisite for that, not for
+     this gate. -->
 
 ### Phase 2 -- build, proving each gate by watching it fail
 
