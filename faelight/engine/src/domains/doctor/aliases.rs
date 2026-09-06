@@ -70,8 +70,14 @@ pub fn expected_tools() -> faelight_core::check::Checked<Vec<String>> {
     Ok(out)
 }
 
+// INT-222: this returned CoreResult and then threw the error away. unwrap_or_default turned an
+// unreadable config into an EMPTY alias map, so check_alias_coverage found every expected tool
+// missing -- and the Status::Fail arm in that check, the one that says "Could not read aliases
+// file", was UNREACHABLE because this function could not return Err. A failure branch that
+// cannot fire is this intent's thesis in the layer below the check.
+// CoreError::Io is #[from] std::io::Error, so `?` carries the real reason up.
 pub fn parse_aliases(path: &PathBuf) -> CoreResult<HashMap<String, String>> {
-    let content = fs::read_to_string(path).unwrap_or_default();
+    let content = fs::read_to_string(path)?;
     let mut aliases = HashMap::new();
     for line in content.lines() {
         let trimmed = line.trim();

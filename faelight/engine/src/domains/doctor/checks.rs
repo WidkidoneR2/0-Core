@@ -884,14 +884,18 @@ pub fn check_alias_coverage() -> CheckResult {
     let aliases_path = paths::shell_config();
     let aliases = match parse_aliases(&aliases_path) {
         Ok(a) => a,
-        Err(_) => {
+        // INT-222: this arm was unreachable until parse_aliases stopped swallowing the read
+        // error. It is Unknown rather than Fail: the aliases are not known to be missing, they
+        // are unknown -- and reporting Fail here would have said 21 tools lack aliases when the
+        // truth is that nobody could look.
+        Err(err) => {
             return CheckResult {
                 tier: Tier::User,
                 id: "alias_coverage".into(),
                 name: "Alias Coverage".into(),
-                status: Status::Fail,
-                message: "Could not read aliases file".into(),
-                fix: Some("Check aliases file exists".into()),
+                status: Status::Unknown,
+                message: format!("could not read {}: {}", aliases_path.display(), err),
+                fix: Some("Verify the shell config exists and is readable".into()),
             };
         }
     };
