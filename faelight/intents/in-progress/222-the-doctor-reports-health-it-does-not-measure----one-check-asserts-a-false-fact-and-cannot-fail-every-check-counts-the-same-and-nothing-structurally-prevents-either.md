@@ -341,8 +341,81 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       a failing Critical Disk Space and a Warn on Alias Coverage move the number by the
       same amount. Worse, Warn counts as not-passed, so today's four warnings cost exactly
       what four failures would. That is the scoring gate, not this one. -->
-- [ ] Every check is assigned a RISK.toml tier (critical / system / user), and the assignment is
+- [x] Every check is assigned a RISK.toml tier (critical / system / user), and the assignment is
       justified in one line each. Disagreement is expected and is the point.
+<!-- DONE 2026-09-06. Two corrections to the gate's own premises first:
+
+     (a) THE TIERS ARE ALREADY ASSIGNED. Every check sets `tier:` on every return arm today,
+     and all 27 are INTERNALLY CONSISTENT -- no check assigns two different tiers in two
+     branches. So this gate was never "assign them"; it is "justify them, and say where the
+     assignment is wrong". The tier IS repeated per arm rather than declared once per check,
+     which is the shape Phase 1's definition format should fix.
+
+     (b) THERE ARE FOUR TIERS, NOT THREE. Tier::Info exists in mod.rs:29 and the doc comment
+     above it explains why: the check measures something true but never renders a judgement,
+     so it is excluded from the verdict entirely. The gate's wording (critical/system/user)
+     predates it.
+
+     THE RULING THAT DECIDES THE TABLE, stated by Christian 2026-09-06: on Omarchy the tier
+     is about WHAT BREAKS THE SYSTEM, not what looks alarming. The only genuine lockout paths
+     are the boot chain and the login shell. Everything else is degradation, and TTY2 plus
+     bash is the way back from all of it.
+
+     population: all_checks() in mod.rs:1410, 27 entries, read 2026-09-06.
+
+     CRITICAL (3)
+       check_binaries         12 binaries absent means the system is not usable. Earns it.
+       check_boot_errors      the boot chain is one of the two real lockout paths.
+       check_disk_space       ** DISAGREE -- see below. Left as found.
+
+     SYSTEM (12)
+       check_services         a dead unit degrades a subsystem; login survives it.
+       check_broken_symlinks  breaks tools, not boot.
+       check_faelight_config  a bad config costs the shell session, not the machine.
+       check_security_hardening  firewall/sshd posture: serious, not a lockout.
+       check_security_audit   advisory over dependencies; nothing stops working.
+       check_rust_toolchain   no toolchain means no builds; the system still runs.
+       check_tool_installation  the forest is degraded, the OS is not.
+       check_path_resilience  deployment coverage; recoverable from any shell.
+       check_sandbox          policy enforcement absent is a posture loss, not a halt.
+       check_network          offline is severe and is not a lockout; local login works.
+       check_reboot_needed    a pending kernel is a scheduling fact about the system.
+       check_schema_validation (schema.rs) registry integrity; tools misbehave, boot does not.
+       check_boot_time        ** DISAGREE -- see below. Left as found.
+
+     USER (9)
+       check_rust_docs        stale docs cost a reader nothing but time.
+       check_git              a dirty tree is never an emergency.
+       check_hooks            hooks failing costs process discipline, not the machine.
+       check_intents          ledger validity is a workflow property.
+       check_alias_coverage   missing aliases cost convenience.
+       check_friday           the reasoning layer being quiet breaks no command.
+       check_update_readiness advisory before an update.
+       check_orphan_packages  housekeeping.
+       check_deadwood         (mod.rs:1332) reports only -- you decide every cut.
+
+     INFO (2)
+       check_vm_state         a running VM is reported without being a fault; VM-first
+                              development means VMs are often up by design.
+       check_package_cache    a cache size is a number, not a judgement.
+
+     ** TWO DISAGREEMENTS, RECORDED NOT CHANGED. Re-tiering moves the score, and the scoring
+     criterion above is already closed; changing an input to a closed decision without
+     re-proving it would be the thing this intent exists to stop.
+
+     1. check_disk_space is CRITICAL and should not be. Critical caps reported health
+        outright. A disk at 85% capping the system to at-risk is not the class of a boot
+        failure -- it is a gradient, and the check already has three arms to express it.
+        Nothing on Omarchy fails to boot at 85%.
+
+     2. check_boot_time is SYSTEM and is closer to INFO. A slow boot broke nothing; it is a
+        measurement, not a fault. check_vm_state already uses Info for exactly this reasoning
+        one screen away. Note the asymmetry that makes this visible: boot_errors (a real
+        lockout path) is Critical while boot_time (a stopwatch) is System -- two checks over
+        the same subsystem, tiered by subject rather than by consequence.
+
+     Both belong to the scoring work, not here. Fixing them means re-proving the critical-cap
+     and denominator gates against the new inputs. -->
 
 ### Phase 1 -- decide the format before writing engine code
 
