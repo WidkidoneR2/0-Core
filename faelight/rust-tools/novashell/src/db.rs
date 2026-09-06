@@ -297,17 +297,20 @@ impl ForestDb {
             .ok()
     }
 
-    pub fn list_aliases(&self) -> Vec<(String, String)> {
+    // INT-192: a failed read is UNKNOWN, not zero aliases. The prune loop in
+    // config.rs reconciles against this list, so an empty vec on error reads as
+    // "nothing worth keeping" -- the collapse that pruned 268 live aliases.
+    pub fn list_aliases(&self) -> faelight_core::check::Checked<Vec<(String, String)>> {
         let mut stmt = match self
             .conn
             .prepare("SELECT name, command FROM shell_aliases ORDER BY name")
         {
             Ok(s) => s,
-            Err(_) => return vec![],
+            Err(e) => return Err(faelight_core::check::Skipped::new("shell_aliases", e)),
         };
         stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| faelight_core::check::Skipped::new("shell_aliases", e))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
-            .unwrap_or_default()
     }
 
     pub fn save_history_entry(&self, command: &str) -> rusqlite::Result<i64> {

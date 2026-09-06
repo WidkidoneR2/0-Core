@@ -305,10 +305,18 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb, reconcile: bool) -> ApplyReport {
     if reconcile && !cfg.aliases.is_empty() {
         use std::collections::HashSet;
         let keep: HashSet<&str> = cfg.aliases.iter().map(|(n, _)| n.as_str()).collect();
-        for (name, _) in db.list_aliases() {
-            if !keep.contains(name.as_str()) && db.remove_alias(&name) {
-                pruned += 1;
+        // INT-192: an unreadable alias table is not an empty one. Reconciling
+        // against a list we could not read would report "0 pruned" as though it
+        // had looked.
+        match db.list_aliases() {
+            Ok(existing) => {
+                for (name, _) in existing {
+                    if !keep.contains(name.as_str()) && db.remove_alias(&name) {
+                        pruned += 1;
+                    }
+                }
             }
+            Err(skip) => eprintln!("  [??] aliases not reconciled: {}", skip),
         }
     }
 

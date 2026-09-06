@@ -144,11 +144,23 @@ fn match_trigger(trigger: &str, ctx: &TriggerContext, db: &ForestDb) -> bool {
         }
         ["event", domain] => {
             // Check if a recent event from this domain exists
-            let count: i64 = db.conn.query_row(
+            // INT-192: a failed count is not zero events. unwrap_or(0) disarmed the
+            // trigger with no message -- the automatic-decision case. A check that
+            // could not run must not fire, and must not do so silently.
+            let counted: rusqlite::Result<i64> = db.conn.query_row(
                 &format!("SELECT COUNT(*) FROM events WHERE domain='{}' AND timestamp > strftime('%s','now') - 5", domain),
                 [], |r| r.get(0)
-            ).unwrap_or(0);
-            count > 0
+            );
+            match counted {
+                Ok(count) => count > 0,
+                Err(e) => {
+                    eprintln!(
+                        "  [??] trigger {} not evaluated: could not count events: {}",
+                        trigger, e
+                    );
+                    false
+                }
+            }
         }
         ["run", cmd] => ctx.last_command.trim() == cmd.trim(),
         _ => false,

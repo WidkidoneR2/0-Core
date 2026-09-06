@@ -6959,7 +6959,11 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // alias h=health   — create
     // alias h "health" — create (space form)
     if args.is_empty() {
-        let aliases = db.list_aliases();
+        // INT-192: could-not-read must not render as "no aliases defined yet".
+        let aliases = match db.list_aliases() {
+            Ok(a) => a,
+            Err(skip) => return CommandResult::Output(format!("  [??] {}", skip)),
+        };
         if aliases.is_empty() {
             return CommandResult::Output(format!(
                 "  {} No aliases defined yet\n  Create one: {}",
