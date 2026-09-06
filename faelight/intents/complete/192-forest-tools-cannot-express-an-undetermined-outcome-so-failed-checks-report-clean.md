@@ -3,7 +3,7 @@ id: 192
 date: 2026-07-23
 type: arch
 title: "forest tools cannot express an undetermined outcome so failed checks report clean"
-status: in-progress
+status: complete
 tags: [arch, telemetry, observation-layer, correctness, cross-tool]
 ---
 
