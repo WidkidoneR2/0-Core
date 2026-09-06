@@ -1,11 +1,25 @@
-# INT-112: risk metadata.
 risk = "user"
 reason = """
-The PLATFORM half -- engine, rust-tools, intents, registry, policy, runtime. The whole
-0-Core dependency seam runs one way: nix/ (OS) depends on faelight/, never the reverse. So
-nothing in here can break the boot or the login.
-Break a tool and you lose the tool. Move fast here. This is where the work happens, and it
-is user-tier ON PURPOSE, not by neglect.
-Exception to watch: if fsh ever becomes the login shell (see nix/home/christian/RISK.toml),
-faelight/rust-tools/novashell/ joins the lockout chain.
+The PLATFORM half -- engine, rust-tools, intents, registry, policy, runtime.
+Break a tool and you lose the tool. Move fast here. This is where the work happens,
+and it is user-tier ON PURPOSE, not by neglect.
+
+⚠️ THE ORIGINAL JUSTIFICATION IS GONE. Until 2026-08-26 this file argued that the
+dependency seam ran one way -- nix/ (OS) depended on faelight/, never the reverse --
+so nothing here could break the boot or the login. That was a NixOS property. There is
+no nix/ any more.
+
+The tier is UNCHANGED, but for a different and weaker reason: Omarchy's boot and login
+do not run anything from this directory. That is an observation about the current setup,
+not a structural guarantee the way the seam was.
+
+⚠️ AND THE EXCEPTION IS CLOSER THAN IT WAS. This file used to flag as hypothetical:
+"if fsh ever becomes the login shell, novashell/ joins the lockout chain". Today nsh is
+the INTERACTIVE shell and bash remains the LOGIN shell, deliberately -- that split is the
+only thing keeping novashell/ out of the lockout chain. `ship` writes straight to
+~/.local/bin with no health gate and no rollback, so a bad nsh is live immediately in
+every new terminal. TTY2 and bash are the way back.
+
+If nsh ever becomes the login shell, faelight/rust-tools/novashell/ becomes critical-tier
+and this file must say so in the same change.
 """
