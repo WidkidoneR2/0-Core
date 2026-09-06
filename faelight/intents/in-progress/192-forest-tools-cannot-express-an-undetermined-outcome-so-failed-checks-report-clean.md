@@ -213,8 +213,45 @@ CORRECT, and no existing instrument would catch it.
      reconciling the live alias set, which deleted state rather than misreporting it. -->
 - [x] The tri-state is expressed in the TYPE SYSTEM, so a collapse fails to compile
       rather than relying on discipline
-- [ ] HIGH-severity sites first: anything feeding the health score or an automated decision
-- [ ] `Err(_)` is retired wherever the reason is needed -- the why survives to the report
+- [x] HIGH-severity sites first: anything feeding the health score or an automated decision
+<!-- evidence 2026-09-05: four HIGH sites converted, consumers included.
+     da8f684c2 -- nsh: db.rs list_aliases returns Checked, so config.rs skips the
+     prune and says so rather than reporting 0 pruned; triggers.rs match_trigger
+     no longer unwrap_or(0) a failed event count into does-not-fire.
+     975c74b5 -- core: expected_tools returns Checked, all five call sites;
+     check_alias_coverage returns Status::Unknown.
+     WATCHED FAIL THEN PASS on the SHIPPED binary (~/.local/bin/core, mtime
+     2026-09-05 22:33:43, built from 975c74b5):
+       before  warn     2 tools missing aliases: ship, zero-gate
+       hidden  unknown  could not check tools registry at ...: No such file
+                        Health 79% (19 of 24 determinable), Unknown 3
+       after   warn     back to the same two; registry restored, 11822 bytes
+     /tmp/dep-before.txt, /tmp/dep-hidden.txt, /tmp/dep-after.txt.
+     nsh-test 194/194 against ~/.local/bin/nsh.
+     CORRECTION TO THE TABLE ABOVE: doctor Alias Coverage was sorted LOW
+     (collapses LOUD). That was true of parse_aliases, which makes every tool
+     read as missing when config.nsh is hidden. expected_tools, one screen
+     above it, failed the other way: empty expectation, nothing can be
+     missing, reports clean, silently, into the health score. The sort was
+     right about the half it measured and wrong about the site. -->
+- [x] `Err(_)` is retired wherever the reason is needed -- the why survives to the report
+<!-- evidence 2026-09-05: every site converted in da8684c2 and 975c74b5 carries
+     Skipped {subject, reason}, and the reason reaches the REPORT, not just the
+     type: the shipped doctor printed the full path and the os error --
+     "could not check tools registry at /home/.../tools.toml: No such file or
+     directory (os error 2)". That is the gate: not that Err(_) is gone
+     everywhere, but that it is gone where the reason was needed.
+     TWELVE collapse sites REMAIN and are DELIBERATELY LEFT: four TUIs
+     (git_tui, history_tui, cheatsheet_tui, toolgen) and db.rs:477
+     query_events, whose six consumers are all rendered lists a human is
+     looking at; learning.rs:56, read by a human; deadwood:141, already
+     covered because the next line ORs in any_skipped so --strict still
+     exits 1; deadwood:684, clock skew hiding a stale back.
+     FIVE ENGINE SITES (bootstrap, friday/events x2, prioritize, reaction) are
+     OUTSIDE this intent POPULATION, which was scoped to the tools the July
+     table named. reaction/mod.rs:359 and prioritize/mod.rs:86 are automatic
+     decisions by name, so that scoping may have been too narrow. Recorded as
+     a DECISION, not an oversight. -->
 - [x] The doctor can distinguish "checked, clean" from "could not check", and says so
 - [x] Verified by breaking a check on purpose (rename config.fsh) and confirming the
       report says UNDETERMINED rather than clean
