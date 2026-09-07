@@ -69,6 +69,10 @@ emit_events = true
 # NOT enough: state_home reads XDG_STATE_HOME independently, so health, focus.toml
 # and the intent ledger stayed visible under a bare HOME redirect. Both move, plus
 # the two nsh-specific overrides.
+# The clean room starts you in the clean room. Explicit, because a policy that moved your
+# working directory without saying so would be a surprise for every other policy.
+set_cwd = "/tmp/devbox-{session}"
+
 [policy.set_env]
 HOME = "/tmp/devbox-{session}"
 XDG_STATE_HOME = "/tmp/devbox-{session}"

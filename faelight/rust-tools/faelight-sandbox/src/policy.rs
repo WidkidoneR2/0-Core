@@ -37,6 +37,17 @@ pub struct SandboxPolicy {
     /// `{session}` in a value is replaced with the sandbox session id.
     #[serde(default)]
     pub set_env: std::collections::HashMap<String, String>,
+    /// The working directory the child starts in.
+    ///
+    /// EXPLICIT, NOT INFERRED. A clean room that silently relocated your cwd would be a
+    /// surprise for every policy that does not want it, so nothing moves unless a policy says
+    /// so. Measured 2026-09-06: with HOME redirected but cwd inherited, nsh-test pwd_returns_path
+    /// compared the real cwd against the sandbox HOME and failed -- the case was right and the
+    /// sandbox was half-isolated.
+    ///
+    /// {session} is substituted as it is in set_env. The directory is created if absent.
+    #[serde(default)]
+    pub set_cwd: Option<String>,
     #[serde(default = "default_cpu")]
     pub max_cpu_seconds: u64,
     #[serde(default = "default_memory")]

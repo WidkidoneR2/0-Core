@@ -359,7 +359,17 @@ fn all_tests() -> Vec<TestResult> {
             if fd.is_empty() {
                 return Err("fd is not on PATH -- this case needs it".to_string());
             }
-            let out = run_fsh(&format!("{} Cargo.toml faelight/engine", fd))?;
+            // ⚠️ THE TARGET MUST EXIST ON ANY MACHINE. This searched "faelight/engine" for
+            // Cargo.toml -- a RELATIVE path into the author's checkout, so it resolved against
+            // whatever cwd the harness happened to have. It passed for a year because that cwd was
+            // always ~/0-core, and went red the moment DevBox set a working directory (2026-09-06).
+            // The contract this case states is CAN nsh LAUNCH AN EXTERNAL EXECUTABLE; the directory
+            // is scenery, so it is now scenery that exists everywhere.
+            let probe = std::env::temp_dir().join(format!("nsh-fd-probe-{}", std::process::id()));
+            std::fs::create_dir_all(&probe).map_err(|e| e.to_string())?;
+            std::fs::write(probe.join("Cargo.toml"), "[package]").map_err(|e| e.to_string())?;
+            let out = run_fsh(&format!("{} Cargo.toml {}", fd, probe.display()))?;
+            let _ = std::fs::remove_dir_all(&probe);
             expect_contains(&out, "Cargo.toml")
         },
     ));
@@ -752,7 +762,7 @@ fn all_tests() -> Vec<TestResult> {
     //
     // `pick intent` is used rather than `pick file`, which shells out to rg first: nothing else
     // can fail before the selector is reached.
-    results.push(test(
+    results.push(forest_test(
         "pick_without_fzf_names_the_dependency",
         Category::Regression,
         || {
@@ -981,7 +991,7 @@ fn all_tests() -> Vec<TestResult> {
             )
         },
     ));
-    results.push(test(
+    results.push(forest_test(
         "repl_206_forest_home_is_still_the_default",
         Category::Repl,
         || {

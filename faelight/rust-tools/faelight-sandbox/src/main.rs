@@ -571,6 +571,14 @@ fn main() -> Result<()> {
                         c.env(name, v);
                     }
                 }
+                // The same {session} substitution and the same create-if-absent rule as set_env
+                // below, because a cwd that does not exist fails the spawn with a message about
+                // the command rather than about the policy.
+                if let Some(dir) = &p.set_cwd {
+                    let dir = dir.replace("{session}", &session_id);
+                    let _ = std::fs::create_dir_all(&dir);
+                    c.current_dir(dir);
+                }
                 for (k, v) in &p.set_env {
                     let value = v.replace("{session}", &session_id);
                     // The sandbox creates the roots it points at. A policy that redirects HOME to a
@@ -1026,6 +1034,12 @@ fn main() -> Result<()> {
                 println!("  Env in:     none (cleared)");
             } else {
                 println!("  Env in:     {}", p.allow_env.join(", "));
+            }
+            // Displayed for the same reason allow_env and set_env are: a policy field the
+            // policy viewer hides is a field nobody reviews.
+            match &p.set_cwd {
+                Some(d) => println!("  Cwd:        {}", d),
+                None => println!("  Cwd:        inherited"),
             }
             if !p.set_env.is_empty() {
                 let mut keys: Vec<&String> = p.set_env.keys().collect();
