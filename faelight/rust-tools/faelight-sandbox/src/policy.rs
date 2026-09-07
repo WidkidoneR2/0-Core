@@ -14,8 +14,29 @@ pub struct SandboxPolicy {
     pub allow_fs_write: bool,
     #[serde(default)]
     pub allow_fs_read: Vec<String>,
+    /// Environment variables passed THROUGH from the parent, by name.
+    ///
+    /// ⚠️ THIS FIELD HAD NO READER UNTIL 2026-09-06. It parsed, it printed in policy-show,
+    /// and `Run` inherited the parent environment whole regardless of it -- so `untrusted`, whose
+    /// description says the command is isolated, handed the child every variable this shell has.
+    /// An allowlist nothing consults is not a restriction; it is a comment that deserialises.
+    ///
+    /// An EMPTY list now means EMPTY, not "everything". `default` declares `allow_env = []` and
+    /// gets a bare environment, which is the honest reading of what it says.
     #[serde(default)]
     pub allow_env: Vec<String>,
+    /// Variables the sandbox SETS for the child, applied after the allowlist so an entry here
+    /// overrides an inherited value of the same name.
+    ///
+    /// This is what makes a SHELL sandbox possible. Passing `HOME` through (as `untrusted` does)
+    /// is the opposite of isolation for a shell: nsh-test measured on 2026-09-05 that hiding the
+    /// forest takes HOME **and** XDG_STATE_HOME, because state_home reads XDG independently, so a
+    /// bare HOME redirect left health, focus.toml and the ledger visible. Redirecting is a
+    /// different act from permitting, and only one of them isolates.
+    ///
+    /// `{session}` in a value is replaced with the sandbox session id.
+    #[serde(default)]
+    pub set_env: std::collections::HashMap<String, String>,
     #[serde(default = "default_cpu")]
     pub max_cpu_seconds: u64,
     #[serde(default = "default_memory")]

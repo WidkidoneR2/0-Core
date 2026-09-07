@@ -510,7 +510,9 @@ fn main() -> Result<()> {
 
             // Build session
             let mut session = SandboxSession {
-                id: session_id,
+                // Cloned because apply_env below reads the id for {session} substitution in
+                // set_env values. The session struct owns one copy; the closure borrows another.
+                id: session_id.clone(),
                 started: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                 finished: None,
                 command: command_str.clone(),
@@ -546,6 +548,40 @@ fn main() -> Result<()> {
                     Err(e) => eprintln!("  ⚠ Seccomp filter failed: {} — continuing without", e),
                 }
             }
+
+            // ⭐ THE CHILD ENVIRONMENT IS BUILT, NOT INHERITED (2026-09-06).
+            //
+            // Every spawn below used to hand the child this process's whole environment, so a
+            // command run under any policy saw the real HOME, the real NSH_CONFIG and the real
+            // state.db. That is what made allow_env decorative and made a shell sandbox
+            // impossible: you cannot test a shell in isolation while its own config is visible.
+            //
+            // Order is deliberate: CLEAR, then allow named variables through, then apply set_env
+            // over the top. A name in both lists takes the set_env value -- overriding is the
+            // more specific instruction.
+            //
+            // ⚠️ NO POLICY MEANS NO CHANGE. `faelight-sandbox run` without --policy keeps
+            // inheriting, because clearing the environment for callers who asked for nothing
+            // would break every existing use of this tool for a benefit they did not request.
+            let apply_env = |c: &mut Command| {
+                let Some(ref p) = active_policy else { return };
+                c.env_clear();
+                for name in &p.allow_env {
+                    if let Ok(v) = std::env::var(name) {
+                        c.env(name, v);
+                    }
+                }
+                for (k, v) in &p.set_env {
+                    let value = v.replace("{session}", &session_id);
+                    // The sandbox creates the roots it points at. A policy that redirects HOME to a
+                    // directory that does not exist asks the child to fail in a way that looks
+                    // like a shell bug -- and it would be debugged as one.
+                    if k.starts_with("HOME") || k.starts_with("XDG_") {
+                        let _ = std::fs::create_dir_all(&value);
+                    }
+                    c.env(k, value);
+                }
+            };
 
             let max_cpu = active_policy
                 .as_ref()
@@ -588,6 +624,7 @@ fn main() -> Result<()> {
                 ns_args.push("--");
                 unshare_cmd.args(&ns_args);
                 unshare_cmd.args(&cmd);
+                apply_env(&mut unshare_cmd);
                 match unshare_cmd.status() {
                     Ok(s) => s.code().unwrap_or(1),
                     Err(e) => {
@@ -601,6 +638,7 @@ fn main() -> Result<()> {
                         if cmd.len() > 1 {
                             fallback.args(&cmd[1..]);
                         }
+                        apply_env(&mut fallback);
                         fallback
                             .status()
                             .map(|s| s.code().unwrap_or(1))
@@ -612,6 +650,7 @@ fn main() -> Result<()> {
                 if cmd.len() > 1 {
                     proc.args(&cmd[1..]);
                 }
+                apply_env(&mut proc);
                 proc.status().map(|s| s.code().unwrap_or(1)).unwrap_or(1)
             };
 
@@ -972,8 +1011,30 @@ fn main() -> Result<()> {
                     "blocked".bright_red()
                 }
             );
-            println!("  CPU limit:  {}s", p.max_cpu_seconds);
-            println!("  Memory:     {}MB", p.max_memory_mb);
+            println!(
+                "  CPU limit:  {}s (declared; enforcement in Phase 3)",
+                p.max_cpu_seconds
+            );
+            println!(
+                "  Memory:     {}MB (declared; not enforced)",
+                p.max_memory_mb
+            );
+            // A policy whose display hides the two fields that define it is a policy nobody can
+            // review. devbox is ENTIRELY allow_env + set_env; without these lines policy-show
+            // rendered it as identical to default.
+            if p.allow_env.is_empty() {
+                println!("  Env in:     none (cleared)");
+            } else {
+                println!("  Env in:     {}", p.allow_env.join(", "));
+            }
+            if !p.set_env.is_empty() {
+                let mut keys: Vec<&String> = p.set_env.keys().collect();
+                keys.sort();
+                println!("  Env set:");
+                for k in keys {
+                    println!("    {} = {}", k, p.set_env[k]);
+                }
+            }
             println!(
                 "  Events:     {}",
                 if p.emit_events {
