@@ -39,13 +39,40 @@ impl std::fmt::Display for Category {
     }
 }
 
+/// Whether a case ran, and if it did not, why not.
+///
+/// THREE STATES, NOT TWO. `passed: bool` could not say "this case never ran", so a case that
+/// needs a 0-Core checkout reported FAILED on a machine without one -- indistinguishable from
+/// the shell being broken. Measured 2026-09-06 by running this suite inside the devbox sandbox:
+/// 22 of 194 went red, and NONE was a shell defect. Nineteen were probes that use the shell as
+/// an instrument to check that a directory exists.
+///
+/// The same collapse INT-192 removed from the doctor, in the harness that tests the shell the
+/// doctor reports on: could-not-run and did-not-pass are different answers.
+#[derive(Debug, PartialEq)]
+enum Outcome {
+    Passed,
+    Failed,
+    /// The case did not run because a precondition it does not control was absent.
+    Skipped(&'static str),
+}
+
 #[derive(Debug)]
 struct TestResult {
     name: String,
     category: Category,
-    passed: bool,
+    outcome: Outcome,
     duration_ms: u64,
     error: Option<String>,
+}
+
+impl TestResult {
+    fn passed(&self) -> bool {
+        self.outcome == Outcome::Passed
+    }
+    fn skipped(&self) -> bool {
+        matches!(self.outcome, Outcome::Skipped(_))
+    }
 }
 
 /// INT-195 gate 6: invoke faelight-deadwood through the same seam pattern run_fsh uses for the
@@ -111,14 +138,51 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
     let start = Instant::now();
     let result = f();
     let duration_ms = start.elapsed().as_millis() as u64;
-    let passed = result.is_ok();
     TestResult {
         name: name.to_string(),
         category,
-        passed,
+        outcome: if result.is_ok() {
+            Outcome::Passed
+        } else {
+            Outcome::Failed
+        },
         duration_ms,
         error: result.err(),
     }
+}
+
+/// Is there a 0-Core checkout at $HOME/0-core?
+///
+/// ASKED OF $HOME, NOT HARDCODED. The class of case this guards exists because paths were
+/// written as `~/0-core/...` and the suite assumed one machine. Answering the question the same
+/// wrong way would be a joke at this file's expense.
+fn forest_present() -> bool {
+    std::path::Path::new(&home())
+        .join("0-core/faelight")
+        .is_dir()
+}
+
+/// Register a case that PROBES THE CHECKOUT rather than the shell.
+///
+/// These use the shell as an instrument to assert a directory exists -- `ls ~/0-core/docs` tells
+/// you about the tree, not about tilde expansion, because a shell that expanded `~` perfectly
+/// would still print nothing if the directory were absent. On the author's laptop the two
+/// questions have the same answer; nowhere else do they.
+///
+/// NOT DELETED, DELIBERATELY. On a machine WITH a checkout they are real coverage of tilde
+/// expansion through pipes, subshells and command substitution. The defect was never the
+/// assertion; it was that the case could not say which question it was answering.
+fn forest_test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> TestResult {
+    if !forest_present() {
+        return TestResult {
+            name: name.to_string(),
+            category,
+            outcome: Outcome::Skipped("needs a 0-Core checkout at $HOME/0-core"),
+            duration_ms: 0,
+            error: None,
+        };
+    }
+    test(name, category, f)
 }
 
 /// INT-202 coverage class 1: `-c` with the STATUS kept, instead of collapsed into an error.
@@ -434,10 +498,10 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("tilde_echo_subpath", Category::Tilde, || {
         expect_contains(&run_fsh("echo ~/0-core")?, &core_root())
     }));
-    results.push(test("tilde_ls_root", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_root", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core")?, "faelight")
     }));
-    results.push(test("tilde_ls_scripts", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_scripts", Category::Tilde, || {
         expect_contains(
             &run_fsh("ls ~/0-core/faelight/packages/faelight/scripts")?,
             "deploy",
@@ -446,19 +510,19 @@ fn all_tests() -> Vec<TestResult> {
     // Renamed from tilde_ls_runtime: runtime/ no longer exists. Machine-local
     // state moved to XDG state home, and a test named for a directory that is
     // gone is the same stale label this suite exists to catch.
-    results.push(test("tilde_ls_state", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_state", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/.local/state/faelight")?, "state.db")
     }));
-    results.push(test("tilde_cat_cargo", Category::Tilde, || {
+    results.push(forest_test("tilde_cat_cargo", Category::Tilde, || {
         expect_contains(
             &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml")?,
             "novashell",
         )
     }));
-    results.push(test("tilde_pipe_grep", Category::Tilde, || {
+    results.push(forest_test("tilde_pipe_grep", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
     }));
-    results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
+    results.push(forest_test("tilde_cat_pipe_grep", Category::Tilde, || {
         expect_contains(
             &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml | grep name")?,
             "name",
@@ -478,7 +542,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("pipe_twice", Category::Pipes, || {
         expect_eq(&run_fsh("echo hello | tr a-z A-Z | tr A-Z a-z")?, "hello")
     }));
-    results.push(test("pipe_ls_grep", Category::Pipes, || {
+    results.push(forest_test("pipe_ls_grep", Category::Pipes, || {
         expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
     }));
 
@@ -530,7 +594,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("grep_pattern_match", Category::Regression, || {
         expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
     }));
-    results.push(test("grep_r_in_src", Category::Regression, || {
+    results.push(forest_test("grep_r_in_src", Category::Regression, || {
         expect_contains(
             &run_fsh(
                 "grep -r 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
@@ -567,7 +631,7 @@ fn all_tests() -> Vec<TestResult> {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").ok();
         expect_contains(&run_fsh("ls /tmp | grep fsh")?, "fsh")
     }));
-    results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_pipe_sort", Category::Tilde, || {
         let out = run_fsh("ls ~/0-core | sort | head -1")?;
         if out.is_empty() {
             Err("no output".to_string())
@@ -575,7 +639,7 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         }
     }));
-    results.push(test("tilde_nested_pipe", Category::Tilde, || {
+    results.push(forest_test("tilde_nested_pipe", Category::Tilde, || {
         let out = run_fsh("ls ~/0-core/faelight/rust-tools | grep faelight | wc -l")?;
         let n: i32 = out.trim().parse().unwrap_or(0);
         if n > 0 {
@@ -590,15 +654,19 @@ fn all_tests() -> Vec<TestResult> {
             "vocabulary",
         )
     }));
-    results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
-        expect_contains(
-            &run_fsh(
-                "grep -r expand_braces ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
-            )?,
-            "expand_braces",
-        )
-    }));
-    results.push(test("grep_in_and_chain", Category::Regression, || {
+    results.push(forest_test(
+        "fsearch_rust_finds",
+        Category::Vocabulary,
+        || {
+            expect_contains(
+                &run_fsh(
+                    "grep -r expand_braces ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
+                )?,
+                "expand_braces",
+            )
+        },
+    ));
+    results.push(forest_test("grep_in_and_chain", Category::Regression, || {
         expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/main.rs | head -1")?, "expand_braces")
     }));
     results.push(test("cat_hostname", Category::Regression, || {
@@ -613,16 +681,16 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("echo $HOME")?, &home())
     }));
 
-    results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_rust_tools", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "novashell")
     }));
-    results.push(test("tilde_ls_docs", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_docs", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
     }));
-    results.push(test("tilde_ls_intents", Category::Tilde, || {
+    results.push(forest_test("tilde_ls_intents", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents")?, "future")
     }));
-    results.push(test("tilde_deep_nested", Category::Tilde, || {
+    results.push(forest_test("tilde_deep_nested", Category::Tilde, || {
         expect_contains(
             &run_fsh("ls ~/0-core/faelight/rust-tools/novashell/src")?,
             "main.rs",
@@ -632,7 +700,7 @@ fn all_tests() -> Vec<TestResult> {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
         expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "forest writes")
     }));
-    results.push(test("tilde_in_subshell", Category::Tilde, || {
+    results.push(forest_test("tilde_in_subshell", Category::Tilde, || {
         let out = run_fsh("echo $(ls ~/0-core | head -1)")?;
         if out.is_empty() {
             Err("empty output".to_string())
@@ -650,7 +718,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
-    results.push(test("state_db_exists", Category::Regression, || {
+    results.push(forest_test("state_db_exists", Category::Regression, || {
         expect_contains(&run_fsh("ls ~/.local/state/faelight/state.db")?, "state.db")
     }));
     // INT-097 claimed a correct tokenizer for nested quotes and escapes; the proptests said
@@ -837,9 +905,11 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("fsh_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which nsh")?, "nsh")
     }));
-    results.push(test("intents_future_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md")
-    }));
+    results.push(forest_test(
+        "intents_future_exists",
+        Category::Regression,
+        || expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md"),
+    ));
     results.push(test("pipe_multiline_output", Category::Pipes, || {
         let out = run_fsh("printf 'a\nb\nc\n' | wc -l")?;
         expect_eq(out.trim(), "3")
@@ -2741,16 +2811,21 @@ fn store_results(results: &[TestResult]) {
     let _ = conn.execute_batch("BEGIN");
     let mut stored = 0;
     for r in results {
+        // A skipped case produces NO ROW. `passed INTEGER NOT NULL` has two states, and writing
+        // 0 for a case that never ran would put the collapse back in the database.
+        if r.skipped() {
+            continue;
+        }
         if conn.execute(
             "INSERT INTO nsh_test_results (test_name, category, passed, duration_ms, commit_hash, timestamp, nsh_version) VALUES (?1,?2,?3,?4,?5,?6,?7)",
-            rusqlite::params![r.name, r.category.to_string(), r.passed as i32, r.duration_ms as i64, commit, ts, nsh_version],
+            rusqlite::params![r.name, r.category.to_string(), r.passed() as i32, r.duration_ms as i64, commit, ts, nsh_version],
         ).is_ok() { stored += 1; }
     }
     let _ = conn.execute_batch("COMMIT");
     println!("  💾 {} results stored in state.db", stored);
     // Phase 5: update Friday knowledge with test health
     let total = results.len();
-    let passed_count = results.iter().filter(|r| r.passed).count();
+    let passed_count = results.iter().filter(|r| r.passed()).count();
     let pass_rate = (passed_count * 100) / total.max(1);
     let _ = conn.execute(
         "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
@@ -2985,6 +3060,7 @@ fn main() {
     let results = all_tests();
     let mut passed = 0;
     let mut failed = 0;
+    let mut skipped = 0;
 
     for r in &results {
         if let Some(ref cat) = category_filter {
@@ -2992,14 +3068,16 @@ fn main() {
                 continue;
             }
         }
-        if show_only_failed && r.passed {
+        if show_only_failed && r.passed() {
             continue;
         }
 
-        let status = if r.passed {
-            "✅".to_string()
-        } else {
-            "❌".to_string()
+        let status = match r.outcome {
+            Outcome::Passed => "\u{2705}".to_string(),
+            Outcome::Failed => "\u{274c}".to_string(),
+            // Not a tick and not a cross. A skip rendered as either is the collapse the
+            // Outcome enum exists to prevent.
+            Outcome::Skipped(_) => "\u{2754}".to_string(),
         };
 
         println!(
@@ -3010,13 +3088,18 @@ fn main() {
             r.duration_ms.to_string().dimmed()
         );
 
-        if !r.passed {
-            if let Some(ref err) = r.error {
-                println!("      {}", err.red());
+        match r.outcome {
+            Outcome::Passed => passed += 1,
+            Outcome::Failed => {
+                if let Some(ref err) = r.error {
+                    println!("      {}", err.red());
+                }
+                failed += 1;
             }
-            failed += 1;
-        } else {
-            passed += 1;
+            Outcome::Skipped(why) => {
+                println!("      {}", why.dimmed());
+                skipped += 1;
+            }
         }
     }
 
@@ -3029,6 +3112,15 @@ fn main() {
         passed.to_string().green().bold(),
         (passed + failed).to_string().bold()
     );
+    // Reported SEPARATELY and NOT in the denominator. A case that could not run has not passed
+    // and has not failed; folding it into either number makes the headline lie one way or the
+    // other.
+    if skipped > 0 {
+        println!(
+            "  {} skipped -- a precondition was absent, not a failure",
+            skipped.to_string().yellow().bold()
+        );
+    }
     store_results(&results);
     // Phase 5: coverage reporting
     if args.contains(&"--coverage".to_string()) {
@@ -3052,7 +3144,7 @@ fn main() {
                 .count();
             let passed = results
                 .iter()
-                .filter(|r| r.category.to_string() == *cat && r.passed)
+                .filter(|r| r.category.to_string() == *cat && r.passed())
                 .count();
             let pct = if count > 0 { (passed * 100) / count } else { 0 };
             let bar = "█".repeat(pct / 10);
