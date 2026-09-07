@@ -1305,7 +1305,7 @@ fn execute_dispatch(
                 }
             }
         }
-        "sandbox" => sandbox(db),
+        "sandbox" | "devbox" => sandbox(db, args),
         "checkpoint" | "cpc" => checkpoint(db),
         "let" => scripting_let_cmd(db, core_root, args),
         "run" => scripting_run_cmd(db, core_root, args),
@@ -5352,23 +5352,72 @@ fn execute_dispatch(
     result
 }
 
-fn sandbox(db: &ForestDb) -> CommandResult {
+/// The DevBox front door.
+///
+/// `sandbox` (or `devbox`) with no argument keeps its original job: the last ten runs. The
+/// subcommands are the reason this is a verb at all -- the useful invocation was
+/// `faelight-sandbox run --policy devbox -- /usr/bin/env NSH_BIN=... nsh-test`, which nobody
+/// types twice.
+///
+/// NOT A NEW BINARY, DELIBERATELY. INT-167's own guardrail: extend the consumer that exists
+/// before minting one. faelight-sandbox does the work; this is the door.
+fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
+    match args.first() {
+        Some(&"test") => return devbox_test(),
+        Some(&"shell") => return devbox_shell(),
+        Some(&"run") => return devbox_run(&args[1..]),
+        Some(&"help") | Some(&"--help") => {
+            let mut h = String::new();
+            h.push_str("\n  devbox -- run things where the forest cannot see them\n\n");
+            h.push_str("    devbox            the last ten sandbox runs\n");
+            h.push_str("    devbox test       the nsh suite in a clean room\n");
+            h.push_str("    devbox shell      an interactive nsh with no forest\n");
+            h.push_str("    devbox run CMD    one command under the devbox policy\n");
+            return CommandResult::Output(h);
+        }
+        Some(other) => {
+            return CommandResult::Error(
+                format!("devbox: unknown subcommand {} -- try: devbox help", other).into(),
+                1,
+            )
+        }
+        None => {}
+    }
+
     let rows: Vec<(String, String, i64)> = {
         let mut stmt = match db.conn.prepare(
             "SELECT payload, action, timestamp FROM events WHERE domain='sandbox' ORDER BY timestamp DESC LIMIT 10"
         ) {
             Ok(s) => s,
-            Err(_) => return CommandResult::Output(format!("  {} No sandbox runs yet", "○".dimmed())),
+            // INT-192: a failed read is UNKNOWN, not zero runs. This reported "No sandbox runs
+            // yet" whether the table was empty or unreachable -- the same collapse, in the
+            // builtin that reports on the tool built to find it.
+            Err(e) => {
+                return CommandResult::Output(format!(
+                    "  [??] could not read sandbox history: {}",
+                    e
+                ))
+            }
         };
-        stmt.query_map([], |r| {
+        // Bound rather than left as the block tail: MappedRows borrows stmt, and a tail
+        // match keeps that temporary alive past the end of the block, so stmt is dropped
+        // while still borrowed. rustc names this fix precisely.
+        let collected = match stmt.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
                 r.get::<_, i64>(2)?,
             ))
-        })
-        .map(|rows| rows.filter_map(|r| r.ok()).collect())
-        .unwrap_or_default()
+        }) {
+            Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+            Err(e) => {
+                return CommandResult::Output(format!(
+                    "  [??] could not read sandbox history: {}",
+                    e
+                ))
+            }
+        };
+        collected
     };
 
     if rows.is_empty() {
@@ -5413,6 +5462,100 @@ fn sandbox(db: &ForestDb) -> CommandResult {
             .to_string(),
     );
     CommandResult::Output(out)
+}
+
+/// The sandbox binary, resolved once.
+///
+/// SANDBOX_BIN first so a debug build can be exercised before it is shipped -- the same seam
+/// NSH_BIN and DEADWOOD_BIN already use, and the reason two-binaries discipline works.
+fn sandbox_bin() -> String {
+    std::env::var("SANDBOX_BIN").unwrap_or_else(|_| "faelight-sandbox".to_string())
+}
+
+/// The binary under test, for the two doors that launch a shell.
+fn devbox_nsh() -> String {
+    std::env::var("NSH_BIN").unwrap_or_else(|_| {
+        format!(
+            "{}/.local/bin/nsh",
+            std::env::var("HOME").unwrap_or_default()
+        )
+    })
+}
+
+/// Run the nsh suite inside the devbox policy.
+///
+/// NSH_BIN is passed as an ARGUMENT rather than added to the policy's allow_env: the policy
+/// decides what a sandboxed process may see, and letting the host name the binary under test
+/// through a general allowlist would be a hole in the thing being tested.
+///
+/// Measured 2026-09-06: 194/194 on this machine, 172/175 with 19 skipped inside the sandbox.
+fn devbox_test() -> CommandResult {
+    let status = std::process::Command::new(sandbox_bin())
+        .args(["run", "--policy", "devbox", "--"])
+        .arg("/usr/bin/env")
+        .arg(format!("NSH_BIN={}", devbox_nsh()))
+        .arg("nsh-test")
+        .status();
+    match status {
+        // NOT CommandResult::Exit. That variant means THE USER ASKED THE SHELL TO QUIT --
+        // its only other construction is the exit/quit/q builtin. Returning it here to carry a
+        // child status closed the terminal the moment devbox test reported a non-zero suite.
+        // Error carries the code without terminating, which is what ls /nonexistent already does.
+        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) => CommandResult::Error(
+            format!("devbox test exited {}", s.code().unwrap_or(-1)).into(),
+            s.code().unwrap_or(1),
+        ),
+        Err(e) => CommandResult::Error(format!("devbox test: {}", e).into(), 127),
+    }
+}
+
+/// An interactive nsh with no forest in sight.
+///
+/// STDIO IS INHERITED, and that is the whole point. This file already records what happens when
+/// an interactive program runs as a captured builtin: python3 was broken exactly that way until
+/// INT-143 sent it to run_external with stdio inherited. A shell needs the same. `status()`
+/// inherits by default -- do not "improve" this into `output()`.
+fn devbox_shell() -> CommandResult {
+    let status = std::process::Command::new(sandbox_bin())
+        .args(["run", "--policy", "devbox", "--"])
+        .arg(devbox_nsh())
+        .status();
+    match status {
+        // NOT CommandResult::Exit. That variant means THE USER ASKED THE SHELL TO QUIT --
+        // its only other construction is the exit/quit/q builtin. Returning it here to carry a
+        // child status closed the terminal the moment devbox test reported a non-zero suite.
+        // Error carries the code without terminating, which is what ls /nonexistent already does.
+        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) => CommandResult::Error(
+            format!("devbox shell exited {}", s.code().unwrap_or(-1)).into(),
+            s.code().unwrap_or(1),
+        ),
+        Err(e) => CommandResult::Error(format!("devbox shell: {}", e).into(), 127),
+    }
+}
+
+/// One command under the devbox policy.
+fn devbox_run(rest: &[&str]) -> CommandResult {
+    if rest.is_empty() {
+        return CommandResult::Error("Usage: devbox run <command>".to_string().into(), 1);
+    }
+    let status = std::process::Command::new(sandbox_bin())
+        .args(["run", "--policy", "devbox", "--"])
+        .args(rest)
+        .status();
+    match status {
+        // NOT CommandResult::Exit. That variant means THE USER ASKED THE SHELL TO QUIT --
+        // its only other construction is the exit/quit/q builtin. Returning it here to carry a
+        // child status closed the terminal the moment devbox test reported a non-zero suite.
+        // Error carries the code without terminating, which is what ls /nonexistent already does.
+        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) => CommandResult::Error(
+            format!("devbox run exited {}", s.code().unwrap_or(-1)).into(),
+            s.code().unwrap_or(1),
+        ),
+        Err(e) => CommandResult::Error(format!("devbox run: {}", e).into(), 127),
+    }
 }
 
 fn checkpoint(db: &ForestDb) -> CommandResult {
@@ -11451,7 +11594,7 @@ fn help() -> CommandResult {
         ("tools", "tool deployment status"),
         ("audit", "tool intelligence scores"),
         ("forecast", "health trend and forecast"),
-        ("sandbox", "recent sandbox runs"),
+        ("sandbox", "devbox: test, shell, run, or recent runs"),
         ("checkpoint", "recent checkpoints"),
         ("git", "git status and recent commits"),
         ("search", "search command history  [query]"),
