@@ -176,8 +176,32 @@ impl Difference {
         if l.to_lowercase() == s.to_lowercase() && l != s {
             return "argv: case only".to_string();
         }
-        // One side produced more or fewer words -- a splitting disagreement, not a text one.
         let (lw, sw) = (l.split_whitespace().count(), s.split_whitespace().count());
+        // ⭐ COMMENT STRIPPING, named before the word-count arm because that arm would swallow it.
+        // The spine LEXES comments: an unquoted `#` between words ends the line, a `#` mid-word does
+        // not, and a comment-only line lexes to nothing -- three rules, three tests in lexer.rs.
+        // commands::tokenize has NO comment rule at all, so legacy carries `#` and everything after
+        // it into argv as ordinary words. `echo ZZA hi # ZZB tail` is 6 words to legacy and 3 to the
+        // spine, and it arrived here as a bare "word count (6 vs 3)" with nothing saying why.
+        //
+        // ⚠️ THIS IS THE SPINE BEING RIGHT. bash ends a line at an unquoted `#` too. The row is
+        // named rather than promoted to a KnownDifference because that is a POLICY call (see the
+        // fact-vs-policy note at the top of this file) and the language spec is silent on comments.
+        // Naming it stops the audit reporting a ruled, tested behaviour as unexplained.
+        //
+        // Mechanical, per the rule this file holds itself to: it tests a checkable property of the
+        // two renderings -- legacy has a word that begins with `#`, the spine does not, and legacy
+        // has more words. No reparse, no source heuristic.
+        let starts_a_comment = |t: &str| {
+            t.split_whitespace().any(|w| {
+                w.trim_start_matches(|c: char| !c.is_ascii_alphanumeric() && c != '#')
+                    .starts_with('#')
+            })
+        };
+        if lw > sw && starts_a_comment(l) && !starts_a_comment(s) {
+            return "argv: comment stripped by spine, kept by legacy".to_string();
+        }
+        // One side produced more or fewer words -- a splitting disagreement, not a text one.
         if lw != sw {
             return format!("argv: word count ({lw} vs {sw})");
         }
