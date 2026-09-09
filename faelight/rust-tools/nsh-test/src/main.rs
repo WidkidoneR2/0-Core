@@ -828,8 +828,19 @@ fn all_tests() -> Vec<TestResult> {
     results.push(forest_test("tilde_ls_rust_tools", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "novashell")
     }));
-    results.push(forest_test("tilde_ls_docs", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
+    // PHASE 2 of the fixture work (2026-09-10). THE FIRST CONVERSION, done alone so the pattern
+    // is proven before eighteen more follow it.
+    //
+    // The command string is UNCHANGED.  still does the work -- that is the whole reason these
+    // cases are worth keeping rather than deleting. What changed is the HOME they expand against:
+    // the fixture, so the case tests tilde expansion instead of testing that one laptop has a
+    // checkout. It is now  rather than  because it no longer needs one.
+    results.push(test("tilde_ls_docs", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env("ls ~/0-core/docs", &[("HOME", home.as_str())])?,
+            "PHILOSOPHY",
+        )
     }));
     results.push(forest_test("tilde_ls_intents", Category::Tilde, || {
         expect_contains(&run_fsh("ls ~/0-core/faelight/intents")?, "future")
