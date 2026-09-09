@@ -874,8 +874,15 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("echo $HOME")?, &home())
     }));
 
-    results.push(forest_test("tilde_ls_rust_tools", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/rust-tools")?, "novashell")
+    results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "ls ~/0-core/faelight/rust-tools",
+                &[("HOME", home.as_str())],
+            )?,
+            "novashell",
+        )
     }));
     // PHASE 2 of the fixture work (2026-09-10). THE FIRST CONVERSION, done alone so the pattern
     // is proven before eighteen more follow it.
@@ -891,12 +898,20 @@ fn all_tests() -> Vec<TestResult> {
             "PHILOSOPHY",
         )
     }));
-    results.push(forest_test("tilde_ls_intents", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core/faelight/intents")?, "future")
-    }));
-    results.push(forest_test("tilde_deep_nested", Category::Tilde, || {
+    results.push(test("tilde_ls_intents", Category::Tilde, || {
+        let home = fixture_home()?;
         expect_contains(
-            &run_fsh("ls ~/0-core/faelight/rust-tools/novashell/src")?,
+            &run_fsh_env("ls ~/0-core/faelight/intents", &[("HOME", home.as_str())])?,
+            "future",
+        )
+    }));
+    results.push(test("tilde_deep_nested", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "ls ~/0-core/faelight/rust-tools/novashell/src",
+                &[("HOME", home.as_str())],
+            )?,
             "main.rs",
         )
     }));
@@ -904,8 +919,9 @@ fn all_tests() -> Vec<TestResult> {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
         expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "forest writes")
     }));
-    results.push(forest_test("tilde_in_subshell", Category::Tilde, || {
-        let out = run_fsh("echo $(ls ~/0-core | head -1)")?;
+    results.push(test("tilde_in_subshell", Category::Tilde, || {
+        let home = fixture_home()?;
+        let out = run_fsh_env("echo $(ls ~/0-core | head -1)", &[("HOME", home.as_str())])?;
         if out.is_empty() {
             Err("empty output".to_string())
         } else {
@@ -922,8 +938,30 @@ fn all_tests() -> Vec<TestResult> {
     }));
 
     // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
-    results.push(forest_test("state_db_exists", Category::Regression, || {
-        expect_contains(&run_fsh("ls ~/.local/state/faelight/state.db")?, "state.db")
+    // RED ON PURPOSE, 2026-09-10, AND IT IS THE SHELL THAT IS WRONG.
+    //
+    // Converting this case to the fixture surfaced a divergence nobody had written down. Listing
+    // a DIRECTORY works everywhere. Naming the FILE directly answers "No results." under the
+    // fixture HOME, while the same command against the real HOME prints the path.
+    //
+    // Reproduced by hand inside devbox: create the directory, write two bytes into state.db,
+    // then list it both ways. The directory listing shows state.db at 2 bytes; naming the file
+    // answers "No results." -- which is value.rs:175, the EMPTY-TABLE renderer. So the builtin
+    // handed back an empty Value rather than saying it could not do what was asked. That is
+    // INT-245's collapse again: a refusal and an empty result are one value.
+    //
+    // LEFT FAILING DELIBERATELY. Rewriting the assertion to list the directory instead would go
+    // green and duplicate tilde_ls_state, which already covers that. A suite that goes green by
+    // asking an easier question is the defect this whole exercise exists to remove.
+    results.push(test("state_db_exists", Category::Regression, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "ls ~/.local/state/faelight/state.db",
+                &[("HOME", home.as_str())],
+            )?,
+            "state.db",
+        )
     }));
     // INT-097 claimed a correct tokenizer for nested quotes and escapes; the proptests said
     // in writing that escaped quoting was NOT YET INTERPRETED. It was declared done and never
@@ -1109,11 +1147,16 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("fsh_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which nsh")?, "nsh")
     }));
-    results.push(forest_test(
-        "intents_future_exists",
-        Category::Regression,
-        || expect_contains(&run_fsh("ls ~/0-core/faelight/intents/future")?, ".md"),
-    ));
+    results.push(test("intents_future_exists", Category::Regression, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "ls ~/0-core/faelight/intents/future",
+                &[("HOME", home.as_str())],
+            )?,
+            ".md",
+        )
+    }));
     results.push(test("pipe_multiline_output", Category::Pipes, || {
         let out = run_fsh("printf 'a\nb\nc\n' | wc -l")?;
         expect_eq(out.trim(), "3")
