@@ -156,6 +156,92 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
 /// ASKED OF $HOME, NOT HARDCODED. The class of case this guards exists because paths were
 /// written as `~/0-core/...` and the suite assumed one machine. Answering the question the same
 /// wrong way would be a joke at this file's expense.
+/// The directory this run's FIXTURE lives in, named from the pid so two runs never collide.
+///
+/// Same discipline as repl::case_db_dir: the run owns one directory, creates it once, and removes
+/// it at the end on the path that always executes.
+fn fixture_dir() -> String {
+    format!("/tmp/nsh-fixture-{}", std::process::id())
+}
+
+/// Build a MINIMAL tree that the checkout-probing cases can be pointed at, and hand back a path
+/// to use as HOME.
+///
+/// WHY THIS EXISTS. Nineteen cases assert things like `ls ~/0-core/docs` contains PHILOSOPHY.
+/// Measured 2026-09-06 by running this suite inside the devbox sandbox: they are real coverage of
+/// tilde expansion through pipes, subshells and command substitution, but they use the AUTHOR'S
+/// CHECKOUT as their subject, so they can only run on one machine. A fixture lets them run
+/// everywhere without weakening what they assert.
+///
+/// ⚠️ THIS IS NOT A CHECKOUT AND MUST NEVER LOOK LIKE ONE. It lives under a REDIRECTED HOME that
+/// only the converted cases pass, so forest_present() -- which reads the real $HOME -- is
+/// unaffected. Two cases genuinely need a forest rather than a directory shaped like one
+/// (repl_206 asserts nsh starts in the forest home; pick_without_fzf cannot reach its dependency
+/// check because INT-230 refuses first), and they must keep skipping. A fixture that satisfied
+/// forest_present would make both of them pass against three stub files and mean nothing.
+///
+/// ⚠️ EVERY FILE HERE EXISTS TO SATISFY A NAMED ASSERTION. The contents are the exact strings the
+/// cases look for and nothing else, so a reader can see at a glance that this is scaffolding.
+/// If a case needs something not in this list, add it HERE rather than widening the case.
+fn fixture_home() -> Result<String, String> {
+    let root = fixture_dir();
+    let core = format!("{}/0-core", root);
+
+    // `ls ~/0-core/docs` contains PHILOSOPHY
+    mkdir(&format!("{}/docs", core))?;
+    write(&format!("{}/docs/PHILOSOPHY.md", core), "fixture")?;
+
+    // `ls ~/0-core/faelight/packages/faelight/scripts` contains deploy
+    mkdir(&format!("{}/faelight/packages/faelight/scripts", core))?;
+    write(
+        &format!("{}/faelight/packages/faelight/scripts/deploy.sh", core),
+        "fixture",
+    )?;
+
+    // `ls ~/0-core/faelight/intents` contains future, and future contains a .md
+    mkdir(&format!("{}/faelight/intents/future", core))?;
+    write(
+        &format!("{}/faelight/intents/future/placeholder.md", core),
+        "fixture",
+    )?;
+
+    // `ls ~/0-core/faelight/rust-tools` contains novashell, AND
+    // `ls ~/0-core/faelight/rust-tools | grep faelight | wc -l` must be > 0 -- novashell alone
+    // does not contain the string "faelight", so a second entry that does is REQUIRED.
+    mkdir(&format!("{}/faelight/rust-tools/faelight-core", core))?;
+    mkdir(&format!("{}/faelight/rust-tools/novashell/src", core))?;
+
+    // `cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml` contains novashell, and piped
+    // through `grep name` contains name.
+    write(
+        &format!("{}/faelight/rust-tools/novashell/Cargo.toml", core),
+        "[package]\nname = \"novashell\"\n",
+    )?;
+
+    // `grep -r expand_braces .../novashell/src/` and the same against src/main.rs
+    write(
+        &format!("{}/faelight/rust-tools/novashell/src/main.rs", core),
+        "fn expand_braces() {}\n",
+    )?;
+
+    // `ls ~/.local/state/faelight/state.db` contains state.db
+    mkdir(&format!("{}/.local/state/faelight", root))?;
+    write(
+        &format!("{}/.local/state/faelight/state.db", root),
+        "fixture",
+    )?;
+
+    Ok(root)
+}
+
+fn mkdir(p: &str) -> Result<(), String> {
+    std::fs::create_dir_all(p).map_err(|e| format!("fixture mkdir {}: {}", p, e))
+}
+
+fn write(p: &str, body: &str) -> Result<(), String> {
+    std::fs::write(p, body).map_err(|e| format!("fixture write {}: {}", p, e))
+}
+
 fn forest_present() -> bool {
     std::path::Path::new(&home())
         .join("0-core/faelight")
@@ -463,6 +549,54 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("pwd_returns_path", Category::Regression, || {
         expect_contains(&run_fsh("pwd")?, &home())
     }));
+    // PHASE 1 of the fixture work (2026-09-10). The fixture is built and PROVEN here; nothing
+    // consumes it yet. Converting the nineteen checkout probes to use it is phase 2 onward, one
+    // small batch at a time, so a mistake has a blast radius of one batch.
+    //
+    // This case runs EVERYWHERE, including inside devbox, because it checks the harness's own
+    // scaffolding rather than the author's checkout. If it ever skips, something is wrong with
+    // the fixture rather than with the machine.
+    results.push(test(
+        "fixture_tree_is_complete",
+        Category::Regression,
+        || {
+            let root = fixture_home()?;
+            let core = format!("{}/0-core", root);
+            let needed = [
+                format!("{}/docs/PHILOSOPHY.md", core),
+                format!("{}/faelight/packages/faelight/scripts/deploy.sh", core),
+                format!("{}/faelight/intents/future/placeholder.md", core),
+                format!("{}/faelight/rust-tools/faelight-core", core),
+                format!("{}/faelight/rust-tools/novashell/Cargo.toml", core),
+                format!("{}/faelight/rust-tools/novashell/src/main.rs", core),
+                format!("{}/.local/state/faelight/state.db", root),
+            ];
+            for p in &needed {
+                if !std::path::Path::new(p).exists() {
+                    return Err(format!("fixture is missing {}", p));
+                }
+            }
+            // The two content assertions the cases rely on, checked here so a later batch cannot
+            // fail for a reason that has nothing to do with the shell.
+            let cargo = std::fs::read_to_string(format!(
+                "{}/faelight/rust-tools/novashell/Cargo.toml",
+                core
+            ))
+            .map_err(|e| e.to_string())?;
+            if !cargo.contains("novashell") || !cargo.contains("name") {
+                return Err("fixture Cargo.toml lost its novashell/name strings".to_string());
+            }
+            let main_rs = std::fs::read_to_string(format!(
+                "{}/faelight/rust-tools/novashell/src/main.rs",
+                core
+            ))
+            .map_err(|e| e.to_string())?;
+            if !main_rs.contains("expand_braces") {
+                return Err("fixture main.rs lost expand_braces".to_string());
+            }
+            Ok(())
+        },
+    ));
     results.push(test("uname_linux", Category::Regression, || {
         expect_contains(&run_fsh("uname")?, "Linux")
     }));
@@ -3210,6 +3344,10 @@ fn main() {
     // A crash still leaves them, and that is deliberate -- a run that collapsed is one you want to be
     // able to look inside.
     let _ = std::fs::remove_dir_all(repl::case_db_dir());
+    // The fixture goes with it, and for the same reason it is removed HERE rather than after the
+    // exit branch below: that branch never runs on a red run, which is exactly when files get
+    // left behind.
+    let _ = std::fs::remove_dir_all(fixture_dir());
     if failed > 0 {
         println!("  {} tests failed", failed.to_string().red().bold());
         std::process::exit(1);
