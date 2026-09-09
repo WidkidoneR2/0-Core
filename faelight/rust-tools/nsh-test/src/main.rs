@@ -642,33 +642,61 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("tilde_echo_subpath", Category::Tilde, || {
         expect_contains(&run_fsh("echo ~/0-core")?, &core_root())
     }));
-    results.push(forest_test("tilde_ls_root", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core")?, "faelight")
-    }));
-    results.push(forest_test("tilde_ls_scripts", Category::Tilde, || {
+    // PHASE 3 batch 1 (2026-09-10). Same conversion as tilde_ls_docs: the command string is
+    // unchanged so `~` still does the work, and only the HOME it expands against moves.
+    results.push(test("tilde_ls_root", Category::Tilde, || {
+        let home = fixture_home()?;
         expect_contains(
-            &run_fsh("ls ~/0-core/faelight/packages/faelight/scripts")?,
+            &run_fsh_env("ls ~/0-core", &[("HOME", home.as_str())])?,
+            "faelight",
+        )
+    }));
+    results.push(test("tilde_ls_scripts", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "ls ~/0-core/faelight/packages/faelight/scripts",
+                &[("HOME", home.as_str())],
+            )?,
             "deploy",
         )
     }));
     // Renamed from tilde_ls_runtime: runtime/ no longer exists. Machine-local
     // state moved to XDG state home, and a test named for a directory that is
     // gone is the same stale label this suite exists to catch.
-    results.push(forest_test("tilde_ls_state", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/.local/state/faelight")?, "state.db")
-    }));
-    results.push(forest_test("tilde_cat_cargo", Category::Tilde, || {
+    // NOT a ~/0-core path -- this one reaches the fixture ROOT, which is why fixture_home
+    // creates .local/state/faelight as well as the 0-core tree.
+    results.push(test("tilde_ls_state", Category::Tilde, || {
+        let home = fixture_home()?;
         expect_contains(
-            &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml")?,
+            &run_fsh_env("ls ~/.local/state/faelight", &[("HOME", home.as_str())])?,
+            "state.db",
+        )
+    }));
+    results.push(test("tilde_cat_cargo", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml",
+                &[("HOME", home.as_str())],
+            )?,
             "novashell",
         )
     }));
-    results.push(forest_test("tilde_pipe_grep", Category::Tilde, || {
-        expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
-    }));
-    results.push(forest_test("tilde_cat_pipe_grep", Category::Tilde, || {
+    results.push(test("tilde_pipe_grep", Category::Tilde, || {
+        let home = fixture_home()?;
         expect_contains(
-            &run_fsh("cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml | grep name")?,
+            &run_fsh_env("ls ~/0-core | grep faelight", &[("HOME", home.as_str())])?,
+            "faelight",
+        )
+    }));
+    results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "cat ~/0-core/faelight/rust-tools/novashell/Cargo.toml | grep name",
+                &[("HOME", home.as_str())],
+            )?,
             "name",
         )
     }));
