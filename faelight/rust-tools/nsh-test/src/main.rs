@@ -258,12 +258,23 @@ fn forest_present() -> bool {
 /// NOT DELETED, DELIBERATELY. On a machine WITH a checkout they are real coverage of tilde
 /// expansion through pipes, subshells and command substitution. The defect was never the
 /// assertion; it was that the case could not say which question it was answering.
-fn forest_test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> TestResult {
+///
+/// PHASE 4 (2026-09-10): `why` IS PER CASE, NOT SHARED. Nineteen callers were converted to run
+/// against a fixture and no longer need this at all. The two that remain skip for DIFFERENT
+/// reasons, and a single message could only ever describe one of them -- which is the same
+/// collapse in miniature that Outcome::Skipped(&str) exists to prevent. If the reason is worth
+/// carrying, it is worth carrying accurately.
+fn forest_test(
+    name: &str,
+    category: Category,
+    why: &'static str,
+    f: impl Fn() -> Result<(), String>,
+) -> TestResult {
     if !forest_present() {
         return TestResult {
             name: name.to_string(),
             category,
-            outcome: Outcome::Skipped("needs a 0-Core checkout at $HOME/0-core"),
+            outcome: Outcome::Skipped(why),
             duration_ms: 0,
             error: None,
         };
@@ -994,9 +1005,14 @@ fn all_tests() -> Vec<TestResult> {
     //
     // `pick intent` is used rather than `pick file`, which shells out to rg first: nothing else
     // can fail before the selector is reached.
+    // A FIXTURE CANNOT FIX THIS ONE. The case strips fzf from PATH and asserts the failure names
+    // the missing dependency. Without a forest, INT-230 refuses FIRST -- "pick intent: needs
+    // 0-Core, which is not present" -- so the dependency check is never reached and the case
+    // measures nothing. It needs a forest that MEANS something, not a directory shaped like one.
     results.push(forest_test(
         "pick_without_fzf_names_the_dependency",
         Category::Regression,
+        "needs a real 0-Core: INT-230 refuses before the fzf check is reached",
         || {
             let stripped: Vec<String> = std::env::var("PATH")
                 .unwrap_or_default()
@@ -1228,9 +1244,13 @@ fn all_tests() -> Vec<TestResult> {
             )
         },
     ));
+    // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
+    // FOREST HOME -- a default that only exists when a forest does. Pointed at a fixture it would
+    // pass against three stub files and prove nothing about the behaviour it guards.
     results.push(forest_test(
         "repl_206_forest_home_is_still_the_default",
         Category::Repl,
+        "needs a real 0-Core: the forest-home default only exists when a forest does",
         || {
             // INT-206 GUARDIAN. The harness sets NSH_KEEP_CWD for every other case so that a case which
             // writes a file cannot write it into the repository. That is the right default, and it has a
