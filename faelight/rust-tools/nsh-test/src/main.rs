@@ -714,8 +714,12 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("pipe_twice", Category::Pipes, || {
         expect_eq(&run_fsh("echo hello | tr a-z A-Z | tr A-Z a-z")?, "hello")
     }));
-    results.push(forest_test("pipe_ls_grep", Category::Pipes, || {
-        expect_contains(&run_fsh("ls ~/0-core | grep faelight")?, "faelight")
+    results.push(test("pipe_ls_grep", Category::Pipes, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env("ls ~/0-core | grep faelight", &[("HOME", home.as_str())])?,
+            "faelight",
+        )
     }));
 
     // --- REGRESSION ---
@@ -766,10 +770,12 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("grep_pattern_match", Category::Regression, || {
         expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
     }));
-    results.push(forest_test("grep_r_in_src", Category::Regression, || {
+    results.push(test("grep_r_in_src", Category::Regression, || {
+        let home = fixture_home()?;
         expect_contains(
-            &run_fsh(
+            &run_fsh_env(
                 "grep -r 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
+                &[("HOME", home.as_str())],
             )?,
             "expand_braces",
         )
@@ -803,16 +809,23 @@ fn all_tests() -> Vec<TestResult> {
         std::fs::write("/tmp/fsh_t1.txt", "forest writes").ok();
         expect_contains(&run_fsh("ls /tmp | grep fsh")?, "fsh")
     }));
-    results.push(forest_test("tilde_ls_pipe_sort", Category::Tilde, || {
-        let out = run_fsh("ls ~/0-core | sort | head -1")?;
+    results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
+        let home = fixture_home()?;
+        let out = run_fsh_env("ls ~/0-core | sort | head -1", &[("HOME", home.as_str())])?;
         if out.is_empty() {
             Err("no output".to_string())
         } else {
             Ok(())
         }
     }));
-    results.push(forest_test("tilde_nested_pipe", Category::Tilde, || {
-        let out = run_fsh("ls ~/0-core/faelight/rust-tools | grep faelight | wc -l")?;
+    // The fixture puts faelight-core beside novashell under rust-tools for exactly this case:
+    // novashell alone does not contain the string "faelight", so grep would count zero.
+    results.push(test("tilde_nested_pipe", Category::Tilde, || {
+        let home = fixture_home()?;
+        let out = run_fsh_env(
+            "ls ~/0-core/faelight/rust-tools | grep faelight | wc -l",
+            &[("HOME", home.as_str())],
+        )?;
         let n: i32 = out.trim().parse().unwrap_or(0);
         if n > 0 {
             Ok(())
@@ -826,20 +839,28 @@ fn all_tests() -> Vec<TestResult> {
             "vocabulary",
         )
     }));
-    results.push(forest_test(
-        "fsearch_rust_finds",
-        Category::Vocabulary,
-        || {
-            expect_contains(
-                &run_fsh(
-                    "grep -r expand_braces ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
-                )?,
-                "expand_braces",
-            )
-        },
-    ));
-    results.push(forest_test("grep_in_and_chain", Category::Regression, || {
-        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/main.rs | head -1")?, "expand_braces")
+    // ⚠️ THIS IS grep_r_in_src UNDER A DIFFERENT NAME. Same command, same assertion, different
+    // category -- and it does not test `fsearch` at all despite the name. Converted rather than
+    // deduplicated because deleting a case is a decision and this patch is a mechanical move.
+    results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "grep -r expand_braces ~/0-core/faelight/rust-tools/novashell/src/ | head -1",
+                &[("HOME", home.as_str())],
+            )?,
+            "expand_braces",
+        )
+    }));
+    results.push(test("grep_in_and_chain", Category::Regression, || {
+        let home = fixture_home()?;
+        expect_contains(
+            &run_fsh_env(
+                "echo ok && grep 'expand_braces' ~/0-core/faelight/rust-tools/novashell/src/main.rs | head -1",
+                &[("HOME", home.as_str())],
+            )?,
+            "expand_braces",
+        )
     }));
     results.push(test("cat_hostname", Category::Regression, || {
         let out = run_fsh("cat /etc/hostname")?;
