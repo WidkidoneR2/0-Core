@@ -48,6 +48,25 @@ pub struct SandboxPolicy {
     /// {session} is substituted as it is in set_env. The directory is created if absent.
     #[serde(default)]
     pub set_cwd: Option<String>,
+    /// Controls that MUST actually apply, or the run does not happen.
+    ///
+    /// THE POLICY IS THE CONTRACT, so this is where "what must be true for this to count as
+    /// sandboxed" belongs -- not in the caller, who already said what they wanted by naming the
+    /// policy. Recognised names: "net", "seccomp", "pid", "fs".
+    ///
+    /// Measured 2026-09-12, and this is why it exists. Three separate ways a control could be
+    /// absent while the run continued and the report claimed otherwise:
+    ///   main.rs  seccomp failing printed "continuing without" and carried on
+    ///   main.rs  unshare failing FELL BACK TO NORMAL EXECUTION -- no isolation of any kind,
+    ///            after the header had already printed "Network: OFF (isolated)"
+    ///   main.rs  seccomp was SILENTLY SKIPPED whenever network isolation was on, which
+    ///            `--isolate full` always turns on. No message at all.
+    ///
+    /// The escape hatch is `--allow-degraded` on the command line: the policy still declares the
+    /// requirement, the operator overrides it deliberately, and the override is recorded in the
+    /// session report and the emitted event rather than scrolling past on stderr.
+    #[serde(default)]
+    pub require: Vec<String>,
     #[serde(default = "default_cpu")]
     pub max_cpu_seconds: u64,
     #[serde(default = "default_memory")]

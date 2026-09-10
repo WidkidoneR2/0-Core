@@ -79,3 +79,11 @@ XDG_STATE_HOME = "/tmp/devbox-{session}"
 XDG_CONFIG_HOME = "/tmp/devbox-{session}/.config"
 FAELIGHT_STATE_DB = "/tmp/devbox-{session}/state.db"
 NSH_CONFIG = "/tmp/devbox-{session}/config.nsh"
+
+[[policy]]
+name = "hardened"
+description = "Requires what it claims -- refuses rather than degrading"
+allow_net = false
+allow_fs_write = true
+allow_env = ["PATH", "TERM"]
+require = ["seccomp"]

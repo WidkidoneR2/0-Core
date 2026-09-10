@@ -43,6 +43,14 @@ enum Commands {
         #[arg(long)]
         profile: bool,
 
+        /// Run even when a control the policy REQUIRES could not be applied.
+        ///
+        /// Without this, a sandbox that cannot deliver what it promised refuses rather than
+        /// running the command anyway and reporting success. With it, the run proceeds and the
+        /// degradation is named in the report and the event.
+        #[arg(long)]
+        allow_degraded: bool,
+
         /// Watch a directory for changes (default: ~/0-core)
         #[arg(long)]
         watch: Option<String>,
@@ -117,6 +125,14 @@ struct SandboxSession {
     net_off: bool,
     watch_dir: String,
     exit_code: Option<i32>,
+    /// Controls that were asked for and could not be delivered.
+    ///
+    /// A FACT ABOUT THE SESSION, not a line on stderr. The report reads net_off to print
+    /// "OFF (isolated)" -- which is the INTENT, not what happened -- so after an unshare
+    /// fallback it claimed isolation that was never applied. This is how the report, and
+    /// anything reading the session later, finds out.
+    #[serde(default)]
+    degraded: Vec<String>,
     before: HashMap<String, FileSnapshot>,
     after: HashMap<String, FileSnapshot>,
 }
@@ -261,6 +277,19 @@ fn print_diff(session: &SandboxSession) {
         }
     );
     println!("   Watch:   {}", session.watch_dir.dimmed());
+    // WHAT ACTUALLY HAPPENED, not what was asked for. The Network line above reads net_off,
+    // which is the INTENT -- after an unshare fallback it printed "OFF (isolated)" for a run
+    // that had no isolation at all. These lines are how the report stops claiming a posture it
+    // did not deliver.
+    if !session.degraded.is_empty() {
+        println!(
+            "   {}  THE SANDBOX DID NOT DELIVER EVERYTHING IT WAS ASKED FOR",
+            "[!!]".bright_red()
+        );
+        for d in &session.degraded {
+            println!("          {}", d.yellow());
+        }
+    }
     if let Some(code) = session.exit_code {
         println!(
             "   Exit:    {}",
@@ -426,6 +455,7 @@ fn main() -> Result<()> {
             profile,
             watch,
             cmd,
+            allow_degraded,
         } => {
             ensure_state_dir()?;
 
@@ -519,6 +549,9 @@ fn main() -> Result<()> {
                 net_off,
                 watch_dir: watch_dir.clone(),
                 exit_code: None,
+                // Empty here and filled after the run: unshare failing is only discovered at
+                // spawn time, a couple of hundred lines below this.
+                degraded: Vec::new(),
                 before,
                 after: HashMap::new(),
             };
@@ -539,14 +572,61 @@ fn main() -> Result<()> {
             let fs_isolated = isolate_level == "full";
             let seccomp_enabled = matches!(isolate_level, "seccomp" | "full");
 
-            // Seccomp applied only in non-network-isolated path
-            // (unshare needs syscalls blocked by strict seccomp)
+            // ⭐ WHAT THE POLICY REQUIRES, AND WHAT ACTUALLY HAPPENED.
+            //
+            // Everything below records DEGRADATIONS: a control that was asked for and could not be
+            // delivered. They are collected rather than printed and forgotten, because three
+            // separate paths used to let one slip past (2026-09-12):
+            //   - seccomp failing printed "continuing without" and carried on
+            //   - unshare failing fell back to NO isolation at all, after the header had already
+            //     printed "Network: OFF (isolated)"
+            //   - seccomp was silently dropped whenever net isolation was on, with no message
+            let required: Vec<String> = active_policy
+                .as_ref()
+                .map(|p| p.require.clone())
+                .unwrap_or_default();
+            let mut degraded: Vec<String> = Vec::new();
+
+            // ⚠ THIS WAS SILENT AND IS NOW NOT. `--isolate full` sets BOTH seccomp and net,
+            // and the old line dropped seccomp without a word. Whether the two are genuinely
+            // incompatible or the filter is merely too strict is UNRESOLVED -- the comment claimed
+            // "unshare needs syscalls blocked by strict seccomp" and nobody has tested it since.
+            // Until that is settled the behaviour is unchanged; what changed is that it says so.
             let apply_seccomp = seccomp_enabled && !network_isolated;
+            if seccomp_enabled && network_isolated {
+                degraded.push(
+                    "seccomp: not applied because network isolation is on (unresolved: the filter \
+                     may block the syscalls unshare needs)"
+                        .to_string(),
+                );
+            }
             if apply_seccomp {
                 match seccomp_filter::apply_filter(false) {
                     Ok(()) => eprintln!("  ✅ Seccomp filter applied"),
-                    Err(e) => eprintln!("  ⚠ Seccomp filter failed: {} — continuing without", e),
+                    Err(e) => degraded.push(format!("seccomp: filter failed to apply: {}", e)),
                 }
+            }
+
+            // The refusal happens BEFORE the command runs. A sandbox that has already executed
+            // something cannot un-execute it, so the check sits here rather than in the report.
+            let unmet: Vec<String> = degraded
+                .iter()
+                .filter(|d| required.iter().any(|r| d.starts_with(r.as_str())))
+                .cloned()
+                .collect();
+            if !unmet.is_empty() && !allow_degraded {
+                println!();
+                println!(
+                    "  {} REFUSED -- the policy requires a control that could not be applied",
+                    "✗".bright_red()
+                );
+                for d in &unmet {
+                    println!("      {}", d);
+                }
+                println!();
+                println!("  run with --allow-degraded to proceed anyway; the degradation is then");
+                println!("  recorded in the session report rather than hidden");
+                std::process::exit(3);
             }
 
             // ⭐ THE CHILD ENVIRONMENT IS BUILT, NOT INHERITED (2026-09-06).
@@ -636,12 +716,48 @@ fn main() -> Result<()> {
                 match unshare_cmd.status() {
                     Ok(s) => s.code().unwrap_or(1),
                     Err(e) => {
+                        // ⭐ THE WORST OF THE THREE, AND IT RAN AFTER THE HEADER HAD ALREADY LIED.
+                        //
+                        // This printed "Falling back to normal execution" and then ran the command
+                        // with NO ISOLATION OF ANY KIND -- no namespace, no seccomp -- while the
+                        // header above had already printed "Network: OFF (isolated)" and the session
+                        // report at the end would say the policy was applied. A sandbox that stops
+                        // sandboxing and keeps going is the defect this whole tool exists to find.
+                        //
+                        // ⚠️ THE FALLBACK IS KEPT, DELIBERATELY. unshare fails for reasons the
+                        // caller cannot fix -- a nested container, a kernel without user namespaces --
+                        // and refusing outright would make DevBox unusable there even for policies
+                        // that never asked for network isolation. What changed is that it is now a
+                        // RECORDED DEGRADATION rather than a line that scrolls past.
+                        //
+                        // ⚠️ AND THE GATE ABOVE CANNOT CATCH THIS ONE. That gate runs before the
+                        // command; this failure is only discovered at spawn time. So a policy that
+                        // REQUIRES net has to be refused here, separately, or the requirement would
+                        // be checked and then quietly broken a few lines later.
+                        if required.iter().any(|r| r == "net") && !allow_degraded {
+                            println!();
+                            println!(
+                                "  {} REFUSED -- the policy requires network isolation and unshare \
+                                 could not provide it: {}",
+                                "✗".bright_red(),
+                                e
+                            );
+                            println!("  run with --allow-degraded to run without it");
+                            std::process::exit(3);
+                        }
+                        degraded.push(format!(
+                            "net: unshare failed, ran with NO isolation at all: {}",
+                            e
+                        ));
                         println!(
                             "  {} Failed to run with network isolation: {}",
                             "✗".bright_red(),
                             e
                         );
-                        println!("  {} Falling back to normal execution", "⚠️".yellow());
+                        println!(
+                            "  {} Running WITHOUT isolation -- this is recorded in the report",
+                            "⚠️".yellow()
+                        );
                         let mut fallback = Command::new(&cmd[0]);
                         if cmd.len() > 1 {
                             fallback.args(&cmd[1..]);
@@ -679,6 +795,9 @@ fn main() -> Result<()> {
             println!(" done");
 
             session.after = after;
+            // The degradations travel WITH the session, so the report and anything that reads
+            // the session later see what actually happened rather than what was intended.
+            session.degraded = degraded;
             session.exit_code = Some(exit_code);
             session.finished = Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
 
@@ -1037,6 +1156,11 @@ fn main() -> Result<()> {
             }
             // Displayed for the same reason allow_env and set_env are: a policy field the
             // policy viewer hides is a field nobody reviews.
+            if !p.require.is_empty() {
+                // The field that defines a policy like  -- omitting it from the
+                // viewer would make it look identical to one that promises nothing.
+                println!("  Requires:   {}", p.require.join(", "));
+            }
             match &p.set_cwd {
                 Some(d) => println!("  Cwd:        {}", d),
                 None => println!("  Cwd:        inherited"),
