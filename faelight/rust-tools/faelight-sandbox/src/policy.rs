@@ -147,10 +147,7 @@ impl SandboxPolicy {
         if !self.allow_fs_write {
             // A printed warning at run time, not an enforcement. bwrap could do this
             // properly and is installed; nobody has wired it.
-            r.push(
-                "filesystem: read-only (NOT ENFORCED -- writes are detected, not blocked)"
-                    .to_string(),
-            );
+            r.push("filesystem: read-only except the sandbox home (bwrap)".to_string());
         }
         if self.max_cpu_seconds < 300 {
             r.push(format!(

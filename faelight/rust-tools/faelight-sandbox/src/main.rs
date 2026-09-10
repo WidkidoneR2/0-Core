@@ -157,6 +157,21 @@ struct SandboxSession {
     after: HashMap<String, FileSnapshot>,
 }
 
+/// Where bwrap is, if it is anywhere.
+///
+/// Looked up rather than assumed: 246 rules that a control which cannot be applied is a
+/// DEGRADATION, and "bwrap is missing" is exactly that. Hardcoding /usr/bin/bwrap would turn a
+/// reportable absence into a spawn failure with a confusing message.
+fn which_bwrap() -> Option<String> {
+    for dir in std::env::var("PATH").unwrap_or_default().split(':') {
+        let p = std::path::Path::new(dir).join("bwrap");
+        if p.is_file() {
+            return Some(p.to_string_lossy().to_string());
+        }
+    }
+    None
+}
+
 fn state_dir() -> PathBuf {
     let home = home();
     PathBuf::from(&home).join(".local/state/0-core/sandbox")
@@ -773,7 +788,7 @@ fn main() -> Result<()> {
             if let Some(ref p) = active_policy {
                 if !p.allow_fs_write {
                     println!(
-                        "  {} Policy: filesystem writes will be detected and flagged",
+                        "  {} Policy: filesystem is READ-ONLY except the sandbox home",
                         "🛡".yellow()
                     );
                 }
@@ -846,6 +861,106 @@ fn main() -> Result<()> {
                     });
                 }
             };
+
+            // ⭐ INT-246: THE FILESYSTEM LIMIT, VIA BWRAP.
+            //
+            // allow_fs_write = false printed "filesystem: read-only" and blocked nothing -- writes
+            // were DETECTED afterwards by the snapshot diff, which is a report, not a control.
+            //
+            // ⚠️ "READ-ONLY" HAS ONE EXCEPTION AND IT IS DELIBERATE. A sandbox where nothing at all
+            // is writable fails for reasons that have nothing to do with what is being tested:
+            // python3 cannot make a temp file, cargo cannot build. The exception is the sandbox's
+            // OWN HOME -- /tmp/devbox-{session}, which the devbox policy already creates, already
+            // redirects HOME to, and already throws away. Writes go to the disposable directory
+            // and nowhere else.
+            //
+            // MEASURED 2026-09-12: with / read-only and that one --bind, `python3 tempfile` lands
+            // inside the sandbox home and `cargo --version` runs. TMPDIR is set as well so that is
+            // deterministic rather than a fallback that happens to work.
+            //
+            // ⚠️ BWRAP NESTS INSIDE unshare RATHER THAN REPLACING IT. bwrap has --unshare-net and
+            // could do both jobs; measured, it works. It is NOT used that way because unshare
+            // already carries --pid/--fork/--mount for `--isolate full`, all of which would need
+            // re-verifying for nothing measurable. Each mechanism owns one domain: unshare the
+            // namespaces, bwrap the filesystem, cgroups the resources.
+            let fs_readonly = active_policy
+                .as_ref()
+                .map(|p| !p.allow_fs_write)
+                .unwrap_or(false);
+
+            let cmd: Vec<String> = if fs_readonly {
+                match which_bwrap() {
+                    Some(bw) => {
+                        // The writable exception: whatever the policy set HOME to, or the real one
+                        // if it set nothing. A policy that blocks writes without redirecting HOME
+                        // would otherwise leave the user's actual home writable.
+                        let writable = active_policy
+                            .as_ref()
+                            .and_then(|p| p.set_env.get("HOME").cloned())
+                            .map(|h| h.replace("{session}", &session_id))
+                            // ⚠️ NEVER THE REAL HOME. This fell back to std::env::var("HOME") and then
+                            // bound it READ-WRITE -- so , whose whole point is blocking
+                            // writes, made /home/christian writable and a probe file landed there.
+                            // Measured 2026-09-12; the comment above this block claimed to guard
+                            // against exactly that and did the opposite.
+                            //
+                            // A policy that blocks writes and names no writable HOME gets a fresh
+                            // disposable directory. Something must be writable or nothing runs;
+                            // it must not be anything the user cares about.
+                            .unwrap_or_else(|| format!("/tmp/sandbox-rw-{}", session_id));
+                        let _ = std::fs::create_dir_all(&writable);
+                        let mut v: Vec<String> = vec![
+                            bw,
+                            "--ro-bind".into(),
+                            "/".into(),
+                            "/".into(),
+                            "--dev".into(),
+                            "/dev".into(),
+                            "--proc".into(),
+                            "/proc".into(),
+                            "--bind".into(),
+                            writable.clone(),
+                            writable.clone(),
+                            "--setenv".into(),
+                            "TMPDIR".into(),
+                            writable,
+                            "--".into(),
+                        ];
+                        v.extend(cmd.iter().cloned());
+                        v
+                    }
+                    None => {
+                        degraded.push(
+                            "fs: bwrap is not installed, so allow_fs_write = false blocked nothing \
+                             -- writes are only detected afterwards"
+                                .to_string(),
+                        );
+                        cmd.iter().cloned().collect()
+                    }
+                }
+            } else {
+                cmd.iter().cloned().collect()
+            };
+
+            // The refusal gate runs once more: fs is only now known to have failed, for the same
+            // reason the cgroup gate needed its own pass.
+            let unmet_fs: Vec<String> = degraded
+                .iter()
+                .filter(|d| required.iter().any(|r| d.starts_with(r.as_str())))
+                .cloned()
+                .collect();
+            if !unmet_fs.is_empty() && !allow_degraded {
+                println!();
+                println!(
+                    "  {} REFUSED -- the policy requires a control that could not be applied",
+                    "✗".bright_red()
+                );
+                for d in &unmet_fs {
+                    println!("      {}", d);
+                }
+                println!("  run with --allow-degraded to proceed anyway");
+                std::process::exit(3);
+            }
 
             let exit_code = if network_isolated {
                 let mut unshare_cmd = Command::new("unshare");
