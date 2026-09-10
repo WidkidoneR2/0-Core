@@ -174,24 +174,27 @@ Two wrong turns worth keeping:
 
 - memory.max ALONE let a 200MB allocation through under a 32MB cap. cgroup v2 reclaims before
   it kills, so with swap available the cap is a swap threshold. memory.swap.max=0 makes it real.
-- The first bwrap wiring bound the REAL HOME read-write when a policy set none, so 
+- The first bwrap wiring bound the REAL HOME read-write when a policy set none, so the
+  untrusted policy
   made /home/christian writable while claiming to block writes. Found by running it.
 - The first cgroup wiring read cgroup.controllers instead of cgroup.subtree_control, creating
   the cap somewhere it could never apply. The degradation message located it.
 
 ## FOUND ALONGSIDE: the sandbox did not exit with its child
 
- reported Exit: 1 and returned rc=0. The status was displayed
-and thrown away, so no script, no , and no  could tell pass from fail. Fixed in
+Running the untrusted policy against the command false reported Exit: 1 and returned rc=0.
+The status was displayed
+and thrown away, so no script, no and-chain, and no devbox test run could tell pass from
+fail. Fixed in
 2b611b70: true->0, false->1, OOM->137. Exit 3 stays reserved for a refusal.
 
-## NEXT SESSION:  on a zero grep count
+## NEXT SESSION: the general-error message on a zero grep count
 
     cargo build ... | grep -cE "^warning"   ->  0,  then  x exited 1 -- general error
 
- printed 0 and exited 1, because grep returns non-zero when it finds no matches. Zero
+grep -c printed 0 and exited 1, because grep returns non-zero when it finds no matches. Zero
 warnings is the result we wanted -- the exit 1 is grep reporting "nothing found", which is
-success here.  as the last command in a chain will ALWAYS look like a failure when the
+success here. A grep -c as the last command in a chain will ALWAYS look like a failure when the
 count is zero.
 
 NOT a sandbox defect and not this intent's work -- recorded so it is not forgotten. The thing to
