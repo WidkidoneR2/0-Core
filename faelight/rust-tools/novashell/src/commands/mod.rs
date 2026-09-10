@@ -9312,6 +9312,9 @@ fn explain_exit_code(code: i32) -> &'static str {
 /// Returns the raw wait() result. Classification is the CALLER's job, because the two paths
 /// detect the same situation differently: `sh` reports a missing command as exit 127, while a
 /// direct spawn fails with io::ErrorKind::NotFound before any process exists.
+#[allow(unused_imports)]
+use std::os::unix::process::ExitStatusExt as _JcExitStatusExt;
+
 fn spawn_with_tee(
     mut cmd: std::process::Command,
     db: &ForestDb,
@@ -9325,6 +9328,53 @@ fn spawn_with_tee(
     // They were set here unconditionally, so a caller attaching a redirect file to stdout had it
     // silently clobbered. Only stderr belongs to this function -- the tee is its whole purpose.
     cmd.stderr(std::process::Stdio::piped());
+
+    // INT-188 STEP 4: THE FOREGROUND COMMAND GETS ITS OWN PROCESS GROUP.
+    //
+    // THIS IS THE OTHER SPAWN CONTRACT, and it is NOT the background one. Background jobs use
+    // process_group(0) alone, which is sufficient because the parent only READS the pid
+    // afterwards. Here the parent is about to coordinate tcsetpgrp AROUND the group, so it
+    // must know the group EXISTS before the child runs -- hence pre_exec, which runs in the
+    // child between fork and exec. process_group() uses posix_spawn, which races here;
+    // pre_exec disables that fast path, which is the correct trade for a foreground job.
+    //
+    // ⚠️ INTERACTIVE ONLY. nsh -c, a script, or a piped stdin has no terminal to hand over,
+    // and calling tcsetpgrp there would fail or fight whoever does own it.
+    let job_control = crate::tty::is_interactive();
+    if job_control {
+        crate::tty::ignore_ttou_once();
+        #[cfg(unix)]
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            cmd.pre_exec(|| {
+                // CHILD SIDE. Async-signal-safe only: setpgid and signal both are.
+                // 0, 0 means "me, as my own leader", so the pgid becomes this child's pid.
+                libc::setpgid(0, 0);
+
+                // ⭐ SIG_IGN IS INHERITED ACROSS exec, AND THAT WAS THE WHOLE BUG.
+                //
+                // Measured 2026-09-13. Everything else was correct: the child had its own
+                // group, the terminal's foreground group WAS that group (ps showed S+),
+                // isig was on and susp was ^Z. Ctrl+Z was delivered perfectly -- to a
+                // process that had been told to ignore it.
+                //
+                //     /proc/<child>/status  SigIgn: 0000000000380000
+                //     bits 19/20/21 = SIGTSTP, SIGTTIN, SIGTTOU
+                //
+                // The shell ignores those so it cannot suspend ITSELF -- reasonable for the
+                // shell, fatal for a child. A foreground job must be born with DEFAULT
+                // dispositions regardless of what the shell did to itself. Every real
+                // shell does this reset here, between fork and exec.
+                libc::signal(libc::SIGTSTP, libc::SIG_DFL);
+                libc::signal(libc::SIGTTIN, libc::SIG_DFL);
+                libc::signal(libc::SIGTTOU, libc::SIG_DFL);
+                libc::signal(libc::SIGINT, libc::SIG_DFL);
+                libc::signal(libc::SIGQUIT, libc::SIG_DFL);
+                libc::signal(libc::SIGCHLD, libc::SIG_DFL);
+                Ok(())
+            });
+        }
+    }
 
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -9361,7 +9411,93 @@ fn spawn_with_tee(
         captured
     });
 
-    let status = child.wait();
+    // PARENT SIDE OF THE DUAL setpgid, and THEN the handover.
+    //
+    // Both sides call setpgid on purpose: whichever runs first wins and the other is a
+    // harmless no-op. Without the parent call there is a window where tcsetpgrp names a
+    // group that does not exist yet.
+    let pgid = child.id();
+    let trace = std::env::var("NSH_JOB_TRACE").is_ok();
+    if trace {
+        eprintln!("[jc] spawned pgid={} job_control={}", pgid, job_control);
+    }
+    if job_control {
+        unsafe {
+            libc::setpgid(pgid as i32, pgid as i32);
+        }
+        // GIVE THE TERMINAL BEFORE WAITING, not after. The child must own the terminal
+        // while it runs, or Ctrl+Z goes to the SHELL'S group -- which is exactly why Ctrl+Z
+        // suspended nsh itself before today.
+        let gave = crate::tty::give_terminal(pgid);
+        if trace {
+            eprintln!("[jc] gave_terminal={}", gave);
+        }
+    }
+
+    // WUNTRACED IS WHAT MAKES Ctrl+Z RETURN THE PROMPT. A plain wait() blocks until the
+    // child DIES; a stopped child never does, so the shell would hang forever.
+    let (status, stopped) = if job_control {
+        crate::tty::wait_foreground(&mut child)
+    } else {
+        (child.wait(), false)
+    };
+
+    // TAKE IT BACK ON EVERY PATH. Stopped, exited, signalled, or failed -- if the shell does
+    // not reclaim the terminal here, the prompt returns to a shell the kernel will not let
+    // read from the keyboard. The recovery for getting this wrong is another terminal.
+    if trace {
+        eprintln!("[jc] wait returned stopped={}", stopped);
+    }
+    if job_control {
+        let took = crate::tty::take_terminal();
+        if trace {
+            eprintln!("[jc] take_terminal={}", took);
+        }
+    }
+
+    if stopped {
+        // ⭐ A SUSPENDED JOB IS NOT A FAILED COMMAND.
+        //
+        // wait_foreground returns a PLACEHOLDER status for a stop -- there is no exit
+        // code to report, because the process has not exited. Letting that placeholder
+        // reach the caller printed "exited 148 -- non-zero exit" for a job that is
+        // alive and well and merely paused. The same class of lie as everything else
+        // this week: a state the type cannot express, smuggled through one that means
+        // something else.
+        //
+        // The stop is reported HERE, where the fact is known, and success is returned
+        // because nothing failed.
+        //
+        // ⏭ THE JOB IS NOT YET IN THE TABLE. spawn_with_tee cannot reach a JobTable --
+        // exec.rs deliberately never learns what one is -- so the pid is PRINTED rather
+        // than registered. Step 5 builds that seam properly; smuggling a table in here
+        // would break the boundary to save one step.
+        use colored::Colorize;
+        println!(
+            "\n  {} {} -- {} (pid {})",
+            "♸".bright_yellow(),
+            "suspended".bright_yellow(),
+            "not yet resumable: job registration is INT-188 step 5".dimmed(),
+            pgid
+        );
+        // ⭐ THE READER IS NOT JOINED, AND last_stderr IS NOT WRITTEN.
+        //
+        // The tee thread is blocked on read() of a pipe that a STOPPED child will never
+        // close. Joining it would hang the shell -- worse than the bug this step fixes. The
+        // reader is left parked; it drains and exits when the job is resumed and finishes.
+        //
+        // ⚠️ AND last_stderr IS LEFT ALONE RATHER THAN SET TO "". Writing an empty string
+        // here would report "I did not collect it" as "there was none" -- the exact collapse
+        // INT-192, INT-245 and INT-246 each removed from somewhere else this week.
+        if trace {
+            eprintln!("[jc] returning early (stopped), tee not joined");
+        }
+        // SUCCESS, because nothing failed. The caller renders a non-zero status as an
+        // error, and a suspended job is not an error. The user has already been told
+        // what happened, in words that are true.
+        return Ok(std::process::ExitStatus::from_raw(0));
+    }
+
     let captured_stderr = tee.join().unwrap_or_default();
     let _ = db.conn.execute(
         "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_stderr', ?1)",

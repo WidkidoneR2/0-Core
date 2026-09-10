@@ -46,6 +46,7 @@ mod semantic;
 mod session;
 mod spine;
 mod triggers;
+mod tty;
 mod value;
 use expand::*;
 
