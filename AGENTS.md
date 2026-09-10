@@ -457,17 +457,22 @@ The rule:
   path instead.** If there is a way to eliminate an interpretation boundary rather than escape
   around it, eliminate it.
 
-⚠️ Heredocs are the standard answer to this and nsh HANDLES THEM CORRECTLY. Measured
-2026-09-13: `cat > f << XEOF` writes the file through both doors, `-c` and the REPL, matching
-bash; four heredoc cases pass in nsh-test.
+Heredocs WORK. Measured 2026-09-13 against bash, all eight combinations identical:
 
-They are still banned in PASTE BLOCKS, for the reason above this section: a quoted delimiter
-(`<< 'EOF'`) contains APOSTROPHES, and apostrophes do not survive the paste path.
+    << XEOF      unquoted, USER expands          both executors match bash
+    << quoted    single or double, USER literal  both executors match bash
+    <<- XEOF     tab strip                        both executors match bash
 
-**This entry previously claimed nsh dropped the redirect. That was WRONG** -- a layer-1 transport
-failure (apostrophes in a paste block, against a rule already written here) reported as a layer-2
-shell defect. Kept visible rather than deleted: misdiagnosing the layer is the failure mode the
-Engineering Protocol exists to catch, and it was committed to this file as fact.
+Tested through -c and the REPL, with NSH_SPINE on and off.
+
+They remain banned in PASTE BLOCKS for ONE reason only: a quoted delimiter contains
+APOSTROPHES, and apostrophes do not survive the paste path. That is a transport
+constraint, not a shell limitation.
+
+THIS ENTRY HAS BEEN WRONG TWICE, both times by generalising from one observation:
+first claiming nsh dropped the redirect (it was apostrophes in the paste), then claiming
+heredocs worked on the strength of testing only the unquoted form. The matrix above is
+what an answer looks like: every shape, both doors, both executors, against a control.
 
 Base64 is the AI-to-shell transport mechanism. It is **not** a requirement of the shell's own
 user-facing architecture.
