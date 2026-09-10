@@ -7407,6 +7407,64 @@ fn sys_services() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+/// One row describing one filesystem entry.
+///
+/// ⭐ LIFTED OUT OF THE filter_map SO THERE IS ONE OWNER OF THE ROW SHAPE. sys_files now builds
+/// rows in two places -- a directory listing and a single named file -- and two copies of the
+/// same six fields is how the columns start disagreeing depending on which path you took.
+fn file_row(
+    name: String,
+    meta: &std::fs::Metadata,
+) -> std::collections::HashMap<String, crate::value::Value> {
+    use crate::value::Value;
+    use std::collections::HashMap;
+
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| {
+            chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                .map(|t| t.format("%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "?".to_string())
+        })
+        .unwrap_or_else(|| "?".to_string());
+
+    let mut row = HashMap::new();
+    row.insert("name".to_string(), Value::Text(name));
+    row.insert(
+        "kind".to_string(),
+        Value::Text(if meta.is_dir() { "dir" } else { "file" }.to_string()),
+    );
+    row.insert("size".to_string(), Value::Int(meta.len() as i64));
+    row.insert("modified".to_string(), Value::Text(modified));
+    row
+}
+
+/// `ls` / `files` -- list a directory, or describe one file.
+///
+/// ⭐ INT-245's WORKED EXAMPLE, AND THE CLEAREST STATEMENT OF THE DEFECT IN THE WHOLE INTENT.
+///
+/// This was:
+///
+///     std::fs::read_dir(&path).ok() ... .unwrap_or_default()
+///
+/// read_dir on a FILE fails. `.ok()` discarded WHY. `unwrap_or_default()` turned the failure into
+/// an empty Vec, which became Value::Table(vec![]), which rendered as "No results." So
+/// `ls somefile.txt` reported AN EMPTY DIRECTORY for a file that exists.
+///
+/// ⚠️ AND IT WAS INVISIBLE HERE FOR AS LONG AS THE ALIAS EXISTED. `ls = eza --icons=auto` shadows
+/// this builtin on the author's machine, so ls was always eza, which handles files correctly.
+/// Inside the devbox sandbox no config loads, the builtin wins, and the lie appears. Found
+/// 2026-09-10 on the first clean-room run of nsh-test, by the case state_db_exists.
+///
+/// THREE OUTCOMES NOW, because there were always three facts:
+///   - read_dir succeeds        -> the directory listing
+///   - the path is a FILE       -> a one-row table describing it. Every other ls does this, and
+///                                 it is something the shell CAN do and simply did not
+///   - anything else            -> Value::Unknown. Permission denied, path gone, not a directory
+///                                 for some other reason -- the case `.ok()` has been swallowing
+///                                 since this function was written
 fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
@@ -7421,38 +7479,45 @@ fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
         std::path::PathBuf::from(dir)
     };
 
-    let rows: Vec<HashMap<String, Value>> = std::fs::read_dir(&path)
-        .ok()
-        .map(|entries| {
-            entries
+    match std::fs::read_dir(&path) {
+        Ok(entries) => {
+            let rows: Vec<HashMap<String, Value>> = entries
                 .flatten()
                 .filter_map(|e| {
                     let meta = e.metadata().ok()?;
-                    let name = e.file_name().to_string_lossy().to_string();
-                    let size = meta.len();
-                    let kind = if meta.is_dir() { "dir" } else { "file" }.to_string();
-                    let modified = meta
-                        .modified()
-                        .ok()
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| {
-                            chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
-                                .map(|t| t.format("%m-%d %H:%M").to_string())
-                                .unwrap_or_else(|| "?".to_string())
-                        })
-                        .unwrap_or_else(|| "?".to_string());
-                    let mut row = HashMap::new();
-                    row.insert("name".to_string(), Value::Text(name));
-                    row.insert("kind".to_string(), Value::Text(kind));
-                    row.insert("size".to_string(), Value::Int(size as i64));
-                    row.insert("modified".to_string(), Value::Text(modified));
-                    Some(row)
+                    Some(file_row(e.file_name().to_string_lossy().to_string(), &meta))
                 })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    CommandResult::Value(Value::Table(rows))
+                .collect();
+            CommandResult::Value(Value::Table(rows))
+        }
+        Err(e) => {
+            // A FILE IS NOT A FAILURE. read_dir refuses it, but naming a file is a perfectly
+            // ordinary thing to ask ls to do, and the answer is that file.
+            if path.is_file() {
+                return match std::fs::metadata(&path) {
+                    Ok(meta) => {
+                        let name = path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| path.display().to_string());
+                        CommandResult::Value(Value::Table(vec![file_row(name, &meta)]))
+                    }
+                    // It is a file and its metadata is unreadable -- rare, and still not an
+                    // empty directory.
+                    Err(e) => CommandResult::Value(Value::Unknown(
+                        faelight_core::check::Skipped::new(format!("read {}", path.display()), e),
+                    )),
+                };
+            }
+            // ⭐ THE REASON SURVIVES. This is the branch `.ok()` erased: permission denied, a
+            // path that does not exist, a broken symlink. Each of them used to render as an
+            // empty directory, which is a different fact entirely.
+            CommandResult::Value(Value::Unknown(faelight_core::check::Skipped::new(
+                format!("list {}", path.display()),
+                e,
+            )))
+        }
+    }
 }
 
 /// INT-307: power -- power profile management with Friday awareness

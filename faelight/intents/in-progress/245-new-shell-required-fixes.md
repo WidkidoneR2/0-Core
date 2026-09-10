@@ -177,8 +177,41 @@ in: what the pipeline can EXPRESS, not how it serialises at the edge.
 <!-- DECIDED 2026-09-10 by Christian: ONE state. See the RULED section above for the reason --
      no value source can currently report that it could not read its input, so the second state
      has nothing to describe. Widening later is a compile error, so it stays available. -->
-- [ ] `Value` carries the decided state, and the widening is proven by the compiler rather
+- [x] `Value` carries the decided state, and the widening is proven by the compiler rather
       than by audit: every match site is visited because it had to be
+<!-- DONE 2026-09-12, commit da2c28b5. Value::Unknown(faelight_core::check::Skipped) -- the
+     existing type, no second owner.
+
+     ⚠️ AND THE SECOND HALF OF THIS GATE IS FALSE AS WRITTEN. See the finding below: the
+     compiler named TWO sites. It is recorded rather than quietly satisfied. -->
+
+## ⚠️ FINDING: "WIDENING MAKES IT A COMPILE ERROR" IS ONLY TRUE WHERE NO WILDCARD EXISTS
+
+This codebase leans on an argument, written into CommandResult twice and repeated when this
+intent was drafted: *a new variant is swallowed by `_` arms, while widening an existing one makes
+every site a COMPILE ERROR -- completeness proven, not audited.*
+
+Measured 2026-09-12 by doing it. Widening `Value` produced **two** errors: `as_text` and
+`render`. Everything else compiled clean and was wrong anyway:
+
+    value.rs  9 wildcard arms on Value, THREE of them wrong for a refusal
+              is_truthy   `_ => true`   -- A REFUSAL READ AS SUCCESS. The worst of them.
+              to_pipe_text `other => as_text()` -- would have piped "could not reduce: ..." into
+                           grep AS DATA, once as_text was taught to return the reason
+              stage_count  `_ => 1`      -- --explain claiming a refusing stage produced a row
+
+    engine.rs SIX sites setting exit status, none of them a match on Value at all:
+              four hardcoded Some(0) for any Value; the two that actually run a value pipeline
+              (838-876) never set it, so the optimistic Some(0) at 829 stood
+
+⭐ THE COMPILER PROVED COMPLETENESS FOR EXHAUSTIVE MATCHES AND NOTHING ELSE. Wildcards, and any
+code that reasons about a value WITHOUT matching on it, are invisible to it. Four of the six
+engine.rs sites were found by reading; the live one was found only by running the command and
+watching `$?` stay 0 through four wrong fixes.
+
+The argument is not wrong -- widening beats adding a variant. But it is not proof, and this
+intent's own gate said it was. Anywhere else that claim is repeated, it deserves the same
+qualifier: **exhaustive matches only.**
 
 ## THE WORKED EXAMPLE -- `ls` on a file, found 2026-09-10
 
@@ -220,18 +253,69 @@ read, say. A refusal is the right answer when the shell cannot do what was asked
 is something it can do and simply does not. Deciding that is part of this intent's work, and the
 answer may be BOTH: list the file, and use the new state for the permission case that `.ok()`
 currently swallows too.
-- [ ] BOTH renderers say what happened. `render` and `to_pipe_text` must not print an empty
+- [x] BOTH renderers say what happened. `render` and `to_pipe_text` must not print an empty
       string for a refusal -- that is the defect, and fixing the enum without fixing the
       renderers changes nothing a user can see
-- [ ] Proven by watching it fail: `ps | reduce median cpu` names the unsupported aggregate,
+<!-- DONE 2026-09-12. render prints "[??] could not <subject>: <reason>". to_pipe_text is the
+     OPPOSITE and deliberately so -- see the pipe-boundary gate below. -->
+- [x] Proven by watching it fail: `ps | reduce median cpu` names the unsupported aggregate,
       and `ps | where cpu > 999 | reduce sum cpu` still reports an honest empty result. The
       two must not look alike
-- [ ] The pipe boundary is decided: what an external command receives when the value is
+<!-- DONE 2026-09-12. Four inputs, four distinct answers, where a week earlier all four printed
+     nothing:
+
+       ps | reduce median cpu        -> could not reduce: `median` is not an aggregate
+                                        (sum, avg, min, max)
+       ps | reduce sum nosuchcolumn  -> could not reduce: no column named `nosuchcolumn`
+       ps | reduce sum name          -> could not reduce: column `name` holds no numeric values
+       ps | where cpu > 9999 | reduce sum cpu -> (blank -- an honest empty result)
+
+     The fourth is the CONTROL. If it had printed a reason too, the split would have been
+     cosmetic. -->
+- [x] The pipe boundary is decided: what an external command receives when the value is
       "could not compute". Silence is a choice and must be an explicit one
-- [ ] `$?` is decided for a refusing pipeline. A stage that refused did not succeed, and the
+<!-- RULED 2026-09-12 by Christian: EMPTY STDOUT, reason to stderr, PIPELINE CONTINUES.
+
+     A refusal behaves like a stage that produced ZERO ROWS. Downstream stages still run and
+     receive nothing.
+
+     His reasoning, recorded because the alternative is defensible and was rejected on purpose:
+     this keeps the pipe Unix-like and the pipeline COMPOSITIONAL. A stage can fail to produce
+     rows without making the entire pipeline control flow disappear, which is what Nu-style
+     short-circuiting does. And the diagnostic must never become ordinary pipeline data --
+     without this ruling, `ps | reduce median cpu | grep x` would have handed grep the string
+     "could not reduce: ..." as though it were a row, because to_pipe_text fell through to
+     as_text.
+
+     ⚠️ THE COST IS DELIBERATE AND IT IS WHY THE $? GATE BELOW IS LOAD-BEARING: stdout is now
+     IDENTICAL for a refusal and an honest empty result. The distinction lives entirely in
+     stderr and the exit status. -->
+- [x] `$?` is decided for a refusing pipeline. A stage that refused did not succeed, and the
       exit status is how a script finds out
-- [ ] Nothing here becomes a second owner. `faelight_core::check` already has the type; use it
+<!-- DONE 2026-09-12, commit 31b93e0b. A refusal exits 1; an honest empty result exits 0.
+
+       ps | reduce median cpu; echo $?                  -> 1
+       ps | where cpu > 9999 | reduce sum cpu; echo $?  -> 0
+       ps | reduce median cpu && echo X                 -> X does NOT print
+       ps | reduce sum cpu && echo X                    -> X prints
+
+     ⭐ ONE OWNER OF THE RULE: Value::exit_status(), asked by the call sites rather than decided
+     at each. engine.rs already carries twelve lines about a SECOND SOURCE OF TRUTH for exit
+     status that was wrong in both directions, and a per-arm judgement would have been that
+     mistake again.
+
+     ⭐ AND IT ANSWERED A QUESTION INT-189 LEFT OPEN, WITHOUT TOUCHING IT. 189 deferred "is
+     pipeline status the last command or the first failure" -- that is about EXTERNAL pipelines
+     spawned through sh. A builtin returning its own refusal has no such ambiguity. The comment
+     at engine.rs:1859 said "if that signature ever becomes fallible, this arm must change with
+     it"; the signature did not change, but Value's expressiveness did, and the condition fired
+     exactly as predicted. -->
+- [x] Nothing here becomes a second owner. `faelight_core::check` already has the type; use it
       or state why the pipeline needs its own
+<!-- DONE 2026-09-12. Value::Unknown wraps faelight_core::check::Skipped directly. novashell
+     already depended on faelight-core (Cargo.toml:22), so this added no dependency and minted
+     no new type. INT-192 built it, the doctor proved it, and this is its second consumer --
+     which was the open question in the Relationship section: it generalises. -->
 
 ## Relationship
 
