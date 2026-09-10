@@ -278,6 +278,94 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 
 ---
 
+## Engineering Protocol
+
+This is a real systems project, not a collection of scripts. The shell is intended to be good
+enough to become a default environment for other people.
+
+### Diagnose the layer before changing anything
+
+When something fails, name which layer failed before touching code:
+
+    1. message transport / quoting      4. program logic
+    2. shell parsing                    5. dependency or environment
+    3. file creation / filesystem       6. architecture
+
+**Do not rewrite application logic when the fault is payload corruption or shell interpretation.**
+Measured 2026-09-12: four code sites were patched chasing an exit status that stayed 0, when the
+command was never reaching any of them. The correct first move was instrumenting the live path.
+
+### Inspect before changing
+
+Read the implementation, understand current behaviour, identify the smallest correct change, make
+it, test it, report what changed and what was actually verified. **Never guess what existing code
+does when it can be inspected** -- and never guess a line number when the file can be read.
+
+### Small and reversible
+
+One concern per change. Do not bundle cleanup, refactoring or architectural work with a requested
+feature without a compelling reason. Avoid abstractions, compatibility layers and helper systems
+that do not solve a problem that exists today.
+
+### Choosing between implementations
+
+Prefer, in order: correct, simple, composable, testable, predictable, safe, performant,
+understandable by both humans and AI, compatible with Unix convention, extensible without
+complexity. **Optimise for a strong foundation, never for the shortest code.**
+
+### Communication
+
+Concise and technical. State intent before a meaningful architectural change. Name uncertainty as
+uncertainty. After meaningful work, summarise what changed, why, which components were affected,
+what was tested, and what still concerns you. Do not bury a decision in explanation.
+
+### Lessons are invariants
+
+When a recurring failure mode or design rule is established, it becomes a project invariant and
+gets written down here. **Do not rediscover the same lesson twice.**
+
+---
+
+## Shell Architecture
+
+Keep these concerns separate. Coupling them is how a shell becomes unmaintainable:
+
+    input -> lexer/parser -> command representation -> expansion -> execution
+          -> process management -> streams -> UI and events
+
+When introducing a subsystem, state its boundary and its API.
+
+### Primitives over features
+
+Before implementing, ask what the underlying primitive is: whether other features can reuse it,
+whether it is composable, scriptable, testable, comprehensible to a human and reliably usable by
+an AI, and **what happens when it fails**. Prefer a strong reusable primitive to one-off
+behaviour. Do not build hypothetically -- but recognise a primitive when one emerges.
+
+### AI-native, without ceasing to be a shell
+
+AI will be a significant way people use this shell, so AI usability is a first-class constraint:
+predictable semantics, structured output where it helps, machine-readable errors, discoverable
+commands, deterministic behaviour, clear exit and status semantics, excellent diagnostics, safe
+handling of arbitrary text.
+
+**Not at the expense of being a good shell for humans.** The goal is excellent for both.
+
+### Performance
+
+An interactive shell is judged on startup latency, execution overhead, memory, process creation,
+IPC, rendering cost, and needless filesystem access. Do not optimise prematurely; do not adopt
+obviously expensive architecture when a simpler equivalent exists.
+
+### Omarchy
+
+Do not assume compatibility because something works here. Where integration matters, consider
+shell conventions, environment variables, process lifecycle, IPC, terminal behaviour,
+configuration, existing Omarchy interfaces, and interoperability with ordinary Linux tooling.
+**Preserve standard Unix concepts rather than inventing replacements without a strong reason.**
+
+---
+
 ## Design Philosophy
 
 **Manual control over automation. Understanding over convenience.**
@@ -333,6 +421,35 @@ Edits go through **`fpatch`** (`faelight/scripts/dev/fpatch.py`), not ad-hoc rew
 
 Command blocks written for a human to paste must contain no apostrophes, no heredocs (`<<`),
 and no bare `--help` invocations.
+
+### Transport: generated content crosses the shell as DATA
+
+**Separate DATA, CODE and COMMANDS. Do not let generated text become shell syntax merely because
+the shell is carrying it.**
+
+Shell interpretation of generated content is this project's most repeated failure. Measured on
+2026-09-12 alone, three separate payloads were corrupted before the interpreter saw them:
+backticks command-substituted out of an intent file, `$?` expanded inside a `python3 -c` string,
+and `&&` breaking a command substitution. Each looked like a logic bug and was not one.
+
+The rule:
+
+- Non-trivial generated source or text goes **base64 -> temp file -> execute**, never inline:
+
+      echo 'PAYLOAD' | base64 -d > /tmp/p.py && python3 /tmp/p.py && rm -f /tmp/p.py
+
+- Anything small enough to stay inline uses **single quotes** -- `python3 -c '...'` -- which
+  disables every expansion. Double quotes do not.
+- Do not solve a transport problem by adding more escaping. **Remove the shell from the transport
+  path instead.** If there is a way to eliminate an interpretation boundary rather than escape
+  around it, eliminate it.
+
+⚠️ Heredocs are the standard answer to this and are BANNED above because nsh does not handle them
+-- `cat > f << 'EOF'` ran `cat` against the filename and dropped the redirect. That is a shell
+defect, not a style choice, and fixing it would remove most of the need for base64.
+
+Base64 is the AI-to-shell transport mechanism. It is **not** a requirement of the shell's own
+user-facing architecture.
 
 ### Known aliases that change command behaviour
 
