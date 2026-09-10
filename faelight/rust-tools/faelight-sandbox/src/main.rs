@@ -132,6 +132,15 @@ struct SandboxSession {
     finished: Option<String>,
     command: String,
     net_off: bool,
+    /// Whether the network was ACTUALLY isolated, as against net_off which records only
+    /// whether the flag was passed.
+    ///
+    /// Both are kept, deliberately: what was asked for and what happened are different facts
+    /// and a reader wants both. net_off alone was driving the report AND both event emitters,
+    /// so every row in state.db recorded the flag rather than the outcome -- an --isolate full
+    /// run was logged as not isolated, and an unshare fallback was logged as isolated.
+    #[serde(default)]
+    network_isolated: bool,
     watch_dir: String,
     exit_code: Option<i32>,
     /// Controls that were asked for and could not be delivered.
@@ -337,7 +346,7 @@ fn print_diff(session: &SandboxSession, patch: bool) {
     println!("   Command: {}", session.command.bright_white());
     println!(
         "   Network: {}",
-        if session.net_off {
+        if session.network_isolated {
             "OFF (isolated)".bright_red()
         } else {
             "ON".bright_green()
@@ -479,7 +488,7 @@ fn emit_to_ledger_with_policy(
         exit_code,
         duration_secs,
         files_changed,
-        session.net_off,
+        session.network_isolated,
         policy_str,
     );
     conn.execute(
@@ -511,7 +520,7 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
         exit_code,
         duration_secs,
         files_changed,
-        session.net_off,
+        session.network_isolated,
     );
     conn.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
@@ -566,9 +575,12 @@ fn main() -> Result<()> {
                 .as_ref()
                 .map(|p| !p.allow_net)
                 .unwrap_or(false);
+            // "requested" because this prints BEFORE the run, so it can only state intent.
+            // The session report at the end prints what actually happened, and the two can
+            // legitimately differ -- an --isolate flag, or an unshare fallback.
             if !policy_controls_net {
                 println!(
-                    "   Network: {}",
+                    "   Network: {} (requested)",
                     if net_off {
                         "OFF (isolated)".bright_red()
                     } else {
@@ -623,6 +635,9 @@ fn main() -> Result<()> {
                 finished: None,
                 command: command_str.clone(),
                 net_off,
+                // Set after the run: network_isolated is not known until the spawn has been
+                // attempted, because the unshare fallback can take it away again.
+                network_isolated: false,
                 watch_dir: watch_dir.clone(),
                 exit_code: None,
                 // Empty here and filled after the run: unshare failing is only discovered at
@@ -874,6 +889,10 @@ fn main() -> Result<()> {
             // The degradations travel WITH the session, so the report and anything that reads
             // the session later see what actually happened rather than what was intended.
             session.degraded = degraded;
+            // WHAT HAPPENED, not what was asked for. If the fallback ran, this is false even
+            // though the flag or the policy asked for isolation.
+            session.network_isolated =
+                network_isolated && !session.degraded.iter().any(|d| d.starts_with("net:"));
             session.exit_code = Some(exit_code);
             session.finished = Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
 
@@ -966,7 +985,7 @@ fn main() -> Result<()> {
             println!("  Started: {}", session.started.dimmed());
             println!(
                 "  Network: {}",
-                if session.net_off {
+                if session.network_isolated {
                     "isolated".bright_red()
                 } else {
                     "normal".bright_green()
