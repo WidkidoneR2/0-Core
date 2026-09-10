@@ -65,8 +65,6 @@ pub struct SandboxPolicy {
     /// session report and the emitted event rather than scrolling past on stderr.
     #[serde(default)]
     pub require: Vec<String>,
-    #[serde(default = "default_cpu")]
-    pub max_cpu_seconds: u64,
     #[serde(default = "default_memory")]
     pub max_memory_mb: u64,
     #[serde(default = "default_true")]
@@ -77,9 +75,6 @@ pub struct SandboxPolicy {
 
 fn default_true() -> bool {
     true
-}
-fn default_cpu() -> u64 {
-    300
 }
 fn default_memory() -> u64 {
     1024
@@ -148,12 +143,6 @@ impl SandboxPolicy {
             // A printed warning at run time, not an enforcement. bwrap could do this
             // properly and is installed; nobody has wired it.
             r.push("filesystem: read-only except the sandbox home (bwrap)".to_string());
-        }
-        if self.max_cpu_seconds < 300 {
-            r.push(format!(
-                "cpu: {}s (DECLARED, not enforced)",
-                self.max_cpu_seconds
-            ));
         }
         if self.max_memory_mb < 1024 {
             r.push(format!(

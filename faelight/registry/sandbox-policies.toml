@@ -8,7 +8,6 @@ description = "Standard sandbox — filesystem watched, network allowed"
 allow_net = true
 allow_fs_write = true
 allow_env = []
-max_cpu_seconds = 300
 max_memory_mb = 1024
 emit_events = true
 
@@ -18,7 +17,6 @@ description = "Untrusted command — network isolated, filesystem read-only"
 allow_net = false
 allow_fs_write = false
 allow_env = ["PATH", "HOME", "TERM"]
-max_cpu_seconds = 60
 max_memory_mb = 256
 emit_events = true
 
@@ -28,7 +26,6 @@ description = "Network access allowed, no filesystem writes"
 allow_net = true
 allow_fs_write = false
 allow_env = ["PATH", "HOME", "TERM", "WAYLAND_DISPLAY"]
-max_cpu_seconds = 120
 max_memory_mb = 512
 emit_events = true
 
@@ -38,7 +35,6 @@ description = "Build environment — full access, resource tracked"
 allow_net = true
 allow_fs_write = true
 allow_env = []
-max_cpu_seconds = 600
 max_memory_mb = 4096
 emit_events = true
 
@@ -48,7 +44,6 @@ description = "Maximum isolation — no network, no writes, minimal env"
 allow_net = false
 allow_fs_write = false
 allow_env = ["PATH"]
-max_cpu_seconds = 30
 max_memory_mb = 128
 emit_events = true
 
@@ -61,7 +56,6 @@ allow_fs_write = true
 # LANG so text is not mangled. Nothing else: every other variable is either
 # irrelevant to a shell test or a way for the host to leak in.
 allow_env = ["PATH", "TERM", "LANG", "USER"]
-max_cpu_seconds = 300
 max_memory_mb = 1024
 emit_events = true
 

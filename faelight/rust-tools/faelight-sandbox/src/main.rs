@@ -781,24 +781,11 @@ fn main() -> Result<()> {
                 }
             };
 
-            let max_cpu = active_policy
-                .as_ref()
-                .map(|p| p.max_cpu_seconds)
-                .unwrap_or(0);
-
-            // Warn about fs write restriction (full enforcement in v3 Phase 3)
             if let Some(ref p) = active_policy {
                 if !p.allow_fs_write {
                     println!(
                         "  {} Policy: filesystem is READ-ONLY except the sandbox home",
                         "🛡".yellow()
-                    );
-                }
-                if max_cpu > 0 && max_cpu < 300 {
-                    println!(
-                        "  {} Policy: CPU limit {}s -- DECLARED, NOT ENFORCED",
-                        "🛡".yellow(),
-                        max_cpu
                     );
                 }
             }
@@ -1437,14 +1424,7 @@ fn main() -> Result<()> {
                     "blocked".bright_red()
                 }
             );
-            println!(
-                "  CPU limit:  {}s (declared; enforcement in Phase 3)",
-                p.max_cpu_seconds
-            );
-            println!(
-                "  Memory:     {}MB (declared; not enforced)",
-                p.max_memory_mb
-            );
+            println!("  Memory:     {}MB (cgroup v2)", p.max_memory_mb);
             // A policy whose display hides the two fields that define it is a policy nobody can
             // review. devbox is ENTIRELY allow_env + set_env; without these lines policy-show
             // rendered it as identical to default.
