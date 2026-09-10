@@ -61,7 +61,16 @@ enum Commands {
     },
 
     /// Show what changed in last sandbox session
-    Diff,
+    Diff {
+        /// Show the CHANGED LINES, not just which files changed.
+        ///
+        /// Only for files inside a git work tree, and deliberately so: the session stores a
+        /// path, size, mtime and hash -- NOT content -- so there is no "before" to diff
+        /// against. git already has it. A file outside a repo is reported honestly as
+        /// unshowable rather than guessed at.
+        #[arg(long)]
+        patch: bool,
+    },
 
     /// Show current sandbox status
     Status,
@@ -240,7 +249,65 @@ fn snapshot_dir(dir: &Path) -> HashMap<String, FileSnapshot> {
     map
 }
 
-fn print_diff(session: &SandboxSession) {
+/// The hunks for one path, or None when they cannot be produced.
+///
+/// ⭐ GIT IS THE BEFORE. The session records a hash, not content, so DevBox has no copy of
+/// what a file looked like before the run. `~/0-core` is a git work tree and git does have it --
+/// so for anything tracked, `git diff` gives exactly what is wanted: the changed lines only, in
+/// red and green, without DevBox storing a byte.
+///
+/// ⚠️ AND IT RETURNS None RATHER THAN AN EMPTY STRING when it cannot show a file. A file
+/// outside a repo, or a repo with no HEAD, has no before -- reporting that as "no changes" would
+/// be the collapse this codebase keeps finding. The caller says so instead.
+fn git_hunks(path: &str, added: bool) -> Option<String> {
+    let dir = std::path::Path::new(path).parent()?;
+    let inside = Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !inside.status.success() {
+        return None;
+    }
+    // An added file is untracked, so there is nothing in the index to compare against.
+    // --no-index against /dev/null renders every line as green, which is the truth for a file
+    // that did not exist before.
+    let out = if added {
+        Command::new("git")
+            .args(["diff", "--no-index", "--color=always", "/dev/null", path])
+            .current_dir(dir)
+            .output()
+            .ok()?
+    } else {
+        Command::new("git")
+            .args(["diff", "--color=always", "--", path])
+            .current_dir(dir)
+            .output()
+            .ok()?
+    };
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    if text.trim().is_empty() {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+fn print_hunks(path: &str, added: bool) {
+    match git_hunks(path, added) {
+        Some(text) => {
+            for line in text.lines().skip(4) {
+                println!("      {}", line);
+            }
+        }
+        None => println!(
+            "      {}",
+            "(no git history for this path -- the change cannot be shown, only reported)".dimmed()
+        ),
+    }
+}
+
+fn print_diff(session: &SandboxSession, patch: bool) {
     let mut added: Vec<&str> = vec![];
     let mut modified: Vec<&str> = vec![];
     let mut removed: Vec<&str> = vec![];
@@ -312,6 +379,9 @@ fn print_diff(session: &SandboxSession) {
         for p in &added {
             let short = p.replace(&home(), "~");
             println!("    {} {}", "+".bright_green(), short);
+            if patch {
+                print_hunks(p, true);
+            }
         }
     }
 
@@ -320,6 +390,9 @@ fn print_diff(session: &SandboxSession) {
         for p in &modified {
             let short = p.replace(&home(), "~");
             println!("    {} {}", "~".bright_yellow(), short);
+            if patch {
+                print_hunks(p, false);
+            }
         }
     }
 
@@ -328,6 +401,9 @@ fn print_diff(session: &SandboxSession) {
         for p in &removed {
             let short = p.replace(&home(), "~");
             println!("    {} {}", "-".bright_red(), short);
+            if patch {
+                print_hunks(p, false);
+            }
         }
     }
 
@@ -855,14 +931,16 @@ fn main() -> Result<()> {
 
             // Print diff
             println!();
-            print_diff(&session);
+            // false: the post-run report stays a SUMMARY. Twenty diffs after a devbox test
+            // would bury the result. Hunks are a deliberate second look: devbox diff --patch.
+            print_diff(&session, false);
             println!(
                 "\n  {} Session saved — run 'faelight-sandbox diff' to review again",
                 "💾".dimmed()
             );
         }
 
-        Commands::Diff => {
+        Commands::Diff { patch } => {
             if !session_path().exists() {
                 println!(
                     "  {} No sandbox session found — run: faelight-sandbox run <cmd>",
@@ -872,7 +950,7 @@ fn main() -> Result<()> {
             }
             let data = fs::read_to_string(session_path())?;
             let session: SandboxSession = serde_json::from_str(&data)?;
-            print_diff(&session);
+            print_diff(&session, patch);
         }
 
         Commands::Status => {
