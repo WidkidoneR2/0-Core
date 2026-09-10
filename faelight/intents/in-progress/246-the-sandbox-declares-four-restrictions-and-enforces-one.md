@@ -123,21 +123,21 @@ in the struct looking like a control.
 
 ## Success Criteria
 
-- [ ] Every field in SandboxPolicy is classified ENFORCED / DECLARED / DELETE, with the mechanism
+- [x] Every field in SandboxPolicy is classified ENFORCED / DECLARED / DELETE, with the mechanism
       named for each enforced one. No field stays in the middle
-- [ ] `max_memory_mb` is enforced by cgroup v2 memory.max. **Proven by watching it fail:** a
+- [x] `max_memory_mb` is enforced by cgroup v2 memory.max. **Proven by watching it fail:** a
       policy with a small cap runs something that allocates past it and IS KILLED, and the report
       says the cap was the reason rather than reporting a bare non-zero exit
-- [ ] `max_cpu_seconds` is enforced by cpu.max, or DELETED with the reason written here. A
+- [x] `max_cpu_seconds` is enforced by cpu.max, or DELETED with the reason written here. A
       declared-forever field is a decision and needs to be made rather than inherited
-- [ ] `allow_fs_write` is enforced by bwrap. **Proven by watching it fail:** a policy with
+- [x] `allow_fs_write` is enforced by bwrap. **Proven by watching it fail:** a policy with
       allow_fs_write = false runs a command that writes, and the WRITE FAILS -- not "is detected
       afterwards"
-- [ ] `restrictions()` loses its DECLARED / NOT ENFORCED markers, because there is nothing left to
+- [x] `restrictions()` loses its DECLARED / NOT ENFORCED markers, because there is nothing left to
       mark. If a marker survives, that field belongs in the DELETE column instead
-- [ ] The cgroup is CLEANED UP when the run ends, including on a red run. INT-204 already records
+- [x] The cgroup is CLEANED UP when the run ends, including on a red run. INT-204 already records
       this trap for the test harness: clean on the path that always executes, not the happy one
-- [ ] Enforcement failing is a DEGRADATION, not a warning. It joins the `degraded` list added
+- [x] Enforcement failing is a DEGRADATION, not a warning. It joins the `degraded` list added
       2026-09-12 and can be named in a policy's `require` list, so a policy that must have its
       memory cap refuses rather than running without it
 - [ ] What happens on a machine WITHOUT cgroup v2 is decided and written down. Refuse, degrade, or
@@ -152,3 +152,49 @@ in the struct looking like a control.
   that says it was
 - INT-167's guardrail applies to the mechanism choice: do not reinvent what the system already
   provides. cgroups and bwrap are the system providing it
+
+## What landed, 2026-09-12
+
+    allow_net         ENFORCED  unshare --net
+    max_memory_mb     ENFORCED  cgroup v2 memory.max + memory.swap.max=0   (961f84a1)
+    allow_fs_write    ENFORCED  bwrap --ro-bind / / + one writable HOME    (83d6230a)
+    max_cpu_seconds   DELETED   cpu.max is a quota, not a time limit       (fce202f9)
+    allow_fs_read     DELETED   no policy ever set it
+    emit_events       UNEXAMINED -- read only to print itself. Not checked this session.
+
+Proofs, each by watching it fail:
+
+    400MB under a 256MB cap  -> rc=137, report names the cap as the reason
+    10MB under the same cap  -> rc=0, no degradation (the control)
+    touch ~/zz under untrusted -> Read-only file system, file absent afterwards
+    devbox test              -> 193/193, 2 skipped -- bwrap breaks nothing
+    cgroup leftovers after 0/1/137 -> 0 every time (cleanup is in Drop)
+
+Two wrong turns worth keeping:
+
+- memory.max ALONE let a 200MB allocation through under a 32MB cap. cgroup v2 reclaims before
+  it kills, so with swap available the cap is a swap threshold. memory.swap.max=0 makes it real.
+- The first bwrap wiring bound the REAL HOME read-write when a policy set none, so 
+  made /home/christian writable while claiming to block writes. Found by running it.
+- The first cgroup wiring read cgroup.controllers instead of cgroup.subtree_control, creating
+  the cap somewhere it could never apply. The degradation message located it.
+
+## FOUND ALONGSIDE: the sandbox did not exit with its child
+
+ reported Exit: 1 and returned rc=0. The status was displayed
+and thrown away, so no script, no , and no  could tell pass from fail. Fixed in
+2b611b70: true->0, false->1, OOM->137. Exit 3 stays reserved for a refusal.
+
+## NEXT SESSION:  on a zero grep count
+
+    cargo build ... | grep -cE "^warning"   ->  0,  then  x exited 1 -- general error
+
+ printed 0 and exited 1, because grep returns non-zero when it finds no matches. Zero
+warnings is the result we wanted -- the exit 1 is grep reporting "nothing found", which is
+success here.  as the last command in a chain will ALWAYS look like a failure when the
+count is zero.
+
+NOT a sandbox defect and not this intent's work -- recorded so it is not forgotten. The thing to
+look at is nsh's MESSAGE: "general error" is what it says for any exit 1, and for grep that is a
+well-known "no matches". Whether nsh should know that, or be less confident when it does not,
+is a NovaShell question and needs its own home.
