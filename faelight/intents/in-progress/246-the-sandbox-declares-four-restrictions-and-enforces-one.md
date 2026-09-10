@@ -3,7 +3,7 @@ id: 246
 date: 2026-09-09
 type: future
 title: "the sandbox declares four restrictions and enforces one"
-status: planned
+status: in-progress
 tags: [devbox, sandbox, policy, enforcement]
 ---
 
@@ -46,6 +46,41 @@ them.
 
 Four fields enforced four different ways is how a tool ends up with four different failure modes
 and a header nobody trusts. The policy engine gets ONE enforcement layer.
+
+### ⚠️ MEASURED 2026-09-12, BEFORE ANY CODE: memory.max ALONE IS NOT A MEMORY LIMIT
+
+The ruling below was right about the mechanism and would still have shipped a cap that does not
+cap. Two probes on this machine, same cgroup, same 32MB value, same 200MB allocation:
+
+    memory.max = 33554432                          -> "ALLOCATED -- cap did NOT hold", rc=0
+    memory.max = 33554432, memory.swap.max = 0     -> Killed, rc=137
+                                                      memory.events: oom 1 oom_kill 1
+
+cgroup v2 reclaims before it kills. With swap available, a process over `memory.max` is SWAPPED
+rather than stopped, so the cap behaves as a swap threshold and the allocation succeeds.
+`memory.swap.max = 0` is what makes it a memory limit.
+
+⭐ THIS IS THE INTENT'S OWN THESIS ARRIVING FROM AN UNEXPECTED DOOR. RLIMIT_AS was rejected below
+for enforcing the WRONG THING. This would have enforced the RIGHT THING and then not enforced it
+-- a `memory: 256MB` line that prints, writes a real kernel file, and lets a 2GB process run.
+Strictly worse than the decoration it replaced, because it would have looked verified.
+
+RULED: `max_memory_mb` is TWO writes, not one. If the `memory.swap.max` write fails, the cap is
+NOT enforced -- that is a DEGRADATION, it joins the degraded list, and a policy with
+`require = ["memory"]` refuses rather than running under a limit that does not limit.
+
+### ALSO MEASURED, and it decides the implementation
+
+    /sys/fs/cgroup                     cgroup2fs
+    root controllers                   cpuset cpu io memory hugetlb pids rdma misc dmem
+    user@1000.service controllers      cpu memory pids     <- DELEGATED
+    user@1000.service subtree_control  cpu memory pids     <- ENABLED FOR CHILDREN
+    mkdir under user@1000.service      rc=0, rmdir rc=0    <- NO ROOT NEEDED
+
+So DevBox writes the cgroup files DIRECTLY. `systemd-run --user --scope -p MemoryMax=` was the
+fallback if delegation were absent; it is not needed here. Recorded because the fallback becomes
+correct again on any machine where that mkdir fails, which is the same question as the
+no-cgroup-v2 gate below.
 
 ### RULED: CGROUP v2, AND NOT RLIMIT_AS
 
