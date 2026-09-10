@@ -457,9 +457,17 @@ The rule:
   path instead.** If there is a way to eliminate an interpretation boundary rather than escape
   around it, eliminate it.
 
-⚠️ Heredocs are the standard answer to this and are BANNED above because nsh does not handle them
--- `cat > f << 'EOF'` ran `cat` against the filename and dropped the redirect. That is a shell
-defect, not a style choice, and fixing it would remove most of the need for base64.
+⚠️ Heredocs are the standard answer to this and nsh HANDLES THEM CORRECTLY. Measured
+2026-09-13: `cat > f << XEOF` writes the file through both doors, `-c` and the REPL, matching
+bash; four heredoc cases pass in nsh-test.
+
+They are still banned in PASTE BLOCKS, for the reason above this section: a quoted delimiter
+(`<< 'EOF'`) contains APOSTROPHES, and apostrophes do not survive the paste path.
+
+**This entry previously claimed nsh dropped the redirect. That was WRONG** -- a layer-1 transport
+failure (apostrophes in a paste block, against a rule already written here) reported as a layer-2
+shell defect. Kept visible rather than deleted: misdiagnosing the layer is the failure mode the
+Engineering Protocol exists to catch, and it was committed to this file as fact.
 
 Base64 is the AI-to-shell transport mechanism. It is **not** a requirement of the shell's own
 user-facing architecture.
