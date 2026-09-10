@@ -2,6 +2,7 @@
 //! Controlled experimentation environment for Faelight Forest
 //! Philosophy: Experiment freely. Understand completely. Revert instantly.
 
+mod cgroup;
 mod policy;
 mod seccomp_filter;
 use anyhow::{bail, Result};
@@ -11,6 +12,7 @@ use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -789,6 +791,62 @@ fn main() -> Result<()> {
             let start_mem = if profile { get_memory_kb() } else { 0 };
             let start_io = if profile { get_io_bytes() } else { (0, 0) };
 
+            // ⭐ INT-246: THE MEMORY CAP, CREATED BEFORE ANYTHING SPAWNS.
+            //
+            // Its degradations join the same list the seccomp and unshare paths use, so a policy
+            // with require = ["memory"] refuses through the gate that already exists rather than
+            // needing one of its own.
+            let (cgroup, cg_degraded) = cgroup::Cgroup::create(
+                &session_id,
+                active_policy.as_ref().and_then(|p| {
+                    // 1024 is the struct default and means "no cap declared". A policy that
+                    // genuinely wants 1GB says so and gets it; this only skips the default.
+                    if p.max_memory_mb > 0 && p.max_memory_mb < 1024 {
+                        Some(p.max_memory_mb)
+                    } else {
+                        None
+                    }
+                }),
+            );
+            degraded.extend(cg_degraded);
+
+            // ⚠️ THE REFUSAL GATE RUNS AGAIN, because the cap is only now known to have failed.
+            // The earlier gate could not see this: the cgroup did not exist when it ran.
+            let unmet_now: Vec<String> = degraded
+                .iter()
+                .filter(|d| required.iter().any(|r| d.starts_with(r.as_str())))
+                .cloned()
+                .collect();
+            if !unmet_now.is_empty() && !allow_degraded {
+                println!();
+                println!(
+                    "  {} REFUSED -- the policy requires a control that could not be applied",
+                    "✗".bright_red()
+                );
+                for d in &unmet_now {
+                    println!("      {}", d);
+                }
+                println!("  run with --allow-degraded to proceed anyway");
+                std::process::exit(3);
+            }
+
+            // Joining is done by the CHILD, between fork and exec, by writing 0 to cgroup.procs
+            // -- 0 means "the process doing the writing". Doing it here would move the sandbox
+            // itself under the cap.
+            let procs_path = cgroup.as_ref().map(|c| c.procs_file());
+            let join_cgroup = move |c: &mut Command| {
+                let Some(ref p) = procs_path else { return };
+                let p = p.clone();
+                unsafe {
+                    c.pre_exec(move || {
+                        std::fs::write(&p, "0").map_err(|e| {
+                            std::io::Error::other(format!("could not join cgroup: {}", e))
+                        })?;
+                        Ok(())
+                    });
+                }
+            };
+
             let exit_code = if network_isolated {
                 let mut unshare_cmd = Command::new("unshare");
                 // Build namespace flags based on isolation level
@@ -804,6 +862,7 @@ fn main() -> Result<()> {
                 unshare_cmd.args(&ns_args);
                 unshare_cmd.args(&cmd);
                 apply_env(&mut unshare_cmd);
+                join_cgroup(&mut unshare_cmd);
                 match unshare_cmd.status() {
                     Ok(s) => s.code().unwrap_or(1),
                     Err(e) => {
@@ -854,6 +913,7 @@ fn main() -> Result<()> {
                             fallback.args(&cmd[1..]);
                         }
                         apply_env(&mut fallback);
+                        join_cgroup(&mut fallback);
                         fallback
                             .status()
                             .map(|s| s.code().unwrap_or(1))
@@ -866,6 +926,7 @@ fn main() -> Result<()> {
                     proc.args(&cmd[1..]);
                 }
                 apply_env(&mut proc);
+                join_cgroup(&mut proc);
                 proc.status().map(|s| s.code().unwrap_or(1)).unwrap_or(1)
             };
 
@@ -888,6 +949,18 @@ fn main() -> Result<()> {
             session.after = after;
             // The degradations travel WITH the session, so the report and anything that reads
             // the session later see what actually happened rather than what was intended.
+            // ⭐ A BARE 137 TELLS A USER NOTHING. memory.events records whether the kernel
+            // OOM-killed anything in this cgroup, so the report can name the cap as the reason
+            // instead of leaving a mysterious signal death. Read BEFORE the cgroup drops.
+            if let Some(ref cg) = cgroup {
+                if cg.oom_killed() {
+                    degraded.push(format!(
+                        "memory: the {}MB cap KILLED the command (kernel OOM in this sandbox's \
+                         cgroup) -- this is the limit working, not a crash",
+                        active_policy.as_ref().map(|p| p.max_memory_mb).unwrap_or(0)
+                    ));
+                }
+            }
             session.degraded = degraded;
             // WHAT HAPPENED, not what was asked for. If the fallback ran, this is false even
             // though the flag or the policy asked for isolation.
