@@ -3,7 +3,7 @@ id: 245
 date: 2026-09-09
 type: future
 title: "New Shell required fixes"
-status: planned
+status: in-progress
 tags: [nsh, shell]
 ---
 

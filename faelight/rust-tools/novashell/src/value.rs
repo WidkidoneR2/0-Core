@@ -15,6 +15,23 @@ pub enum Value {
     Row(HashMap<String, Value>),
     Table(Vec<HashMap<String, Value>>),
     Nothing,
+    /// A stage could not do what it was asked.
+    ///
+    /// INT-245. Nothing carried TWO meanings that must never be one value: the answer is
+    /// genuinely empty, and I could not produce an answer. Both rendered as the empty string in
+    /// both renderers, so  -- an aggregate this shell does not implement
+    /// -- was indistinguishable from a reduce over an empty table.
+    ///
+    /// ⭐ ONE STATE, NOT TWO, RULED 2026-09-10. The doctor distinguishes Fail from Unknown
+    /// because it has both to describe. The pipeline does not yet: every site measured is a
+    /// REFUSAL, and none is a SKIP, because no value SOURCE can currently report that it could
+    /// not read its input. The day one can, widening this is a compile error -- the same move
+    /// CommandResult made twice -- so completeness stays proven rather than audited.
+    ///
+    /// ⚠️ THE TYPE IS faelight_core::check::Skipped AND NOT A NEW ONE. INT-192 built it,
+    /// the doctor proved it, and a second owner of the same idea is the defect this codebase
+    /// keeps finding.
+    Unknown(faelight_core::check::Skipped),
 }
 
 impl Value {
@@ -25,6 +42,9 @@ impl Value {
             Value::Float(f) => format!("{:.2}", f),
             Value::Bool(b) => b.to_string(),
             Value::Nothing => "".to_string(),
+            // THE REASON, NOT AN EMPTY STRING. as_text feeds things that expect something a
+            // human can read; handing them "" would put the collapse back one layer down.
+            Value::Unknown(s) => format!("could not {}: {}", s.subject, s.reason),
             Value::Row(_) => "[row]".to_string(),
             Value::Table(t) => format!("[table: {} rows]", t.len()),
         }
@@ -47,6 +67,9 @@ impl Value {
             Value::Int(i) => *i != 0,
             Value::Text(s) => !s.is_empty(),
             Value::Nothing => false,
+            // A refusal is NOT success. Nothing is already false and this is the same class:
+            // anything branching on truthiness must not read "I could not" as yes.
+            Value::Unknown(_) => false,
             _ => true,
         }
     }
@@ -100,6 +123,21 @@ impl Value {
                 format!("{}\n", line.join("\t"))
             }
             Value::Nothing => String::new(),
+            // A REFUSAL PRODUCES NO STDOUT. RULED 2026-09-10.
+            //
+            // It fell through to the arm below, and as_text now returns the REASON -- so a
+            // refusal piped into grep would arrive as though it were a row. A diagnostic must
+            // never become pipeline data.
+            //
+            // A failed stage behaves like one that produced ZERO ROWS: downstream still runs and
+            // receives nothing. That keeps the pipe Unix-like and the pipeline compositional --
+            // a stage can fail to produce rows without making the whole control flow disappear,
+            // which is what Nu-style short-circuiting does.
+            //
+            // AND THE CONSEQUENCE IS DELIBERATE: stdout is now identical for a refusal and an
+            // honest empty result. The distinction lives in stderr and the exit status, which
+            // makes the $? gate in INT-245 load-bearing rather than optional.
+            Value::Unknown(_) => String::new(),
             other => format!("{}\n", other.as_text()),
         }
     }
@@ -121,6 +159,17 @@ impl Value {
                 }
             ),
             Value::Nothing => String::new(),
+            // ⭐ THE LINE THE WHOLE INTENT TURNS ON. Nothing renders as an empty string --
+            // correct, an empty result has nothing to show. A REFUSAL rendering as an empty
+            // string is the defect: the user typed something the shell could not do and saw
+            // silence. Widening the enum without changing this line would satisfy the compiler
+            // and change nothing a user can see.
+            Value::Unknown(s) => format!(
+                "  {} could not {}: {}",
+                "[??]".yellow(),
+                s.subject,
+                s.reason
+            ),
         }
     }
 }
@@ -273,6 +322,9 @@ pub fn apply_pipeline_with_stats(
         let duration_ms = start.elapsed().as_millis();
         let row_count = match &current {
             Value::Table(rows) => rows.len(),
+            // Zero rows, not one. A stage that refused produced nothing, and --explain claiming
+            // it emitted a row would be the same lie in the stats.
+            Value::Unknown(_) => 0,
             _ => 1,
         };
         let label = stage_labels
@@ -617,31 +669,91 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             Value::Table(mapped)
         }
         // Phase 3 — reduce: aggregate a numeric field to a single value
+        //
+        // ⭐ INT-245: THE COLLAPSE WAS AT THE filter_map, NOT AT THE EMPTINESS CHECK.
+        //
+        // This returned Value::Nothing from FOUR different places, and only one of them meant
+        // "the answer is nothing". `r.get(field)?` erased "no such column"; `parse().ok()` and the
+        // `_` arm erased "that column is not numeric"; then the is_empty check erased the
+        // difference between all of those and an empty table. Four answers, one value -- so
+        // `ps | reduce median cpu` was indistinguishable from a reduce over no rows.
+        //
+        // ⭐ THE FIX IS TO COUNT, NOT TO CLASSIFY. present and parsed are both knowable here and
+        // were being thrown away. Nothing is labelled ambiguous because nothing needs to be: the
+        // ambiguity was manufactured by filtering, and counting removes it.
         (Value::Table(rows), PipeOp::Reduce { expr }) => {
             let parts: Vec<&str> = expr.splitn(2, ' ').collect();
             let (agg, field) = if parts.len() == 2 {
                 (parts[0], parts[1])
             } else {
-                return Value::Nothing;
+                return Value::Unknown(faelight_core::check::Skipped::new(
+                    "reduce",
+                    format!("expected `reduce <agg> <field>`, got `{}`", expr),
+                ));
             };
-            let nums: Vec<f64> = rows
-                .iter()
-                .filter_map(|r| match r.get(field)? {
-                    Value::Float(f) => Some(*f),
-                    Value::Int(i) => Some(*i as f64),
-                    Value::Text(s) => s.parse::<f64>().ok(),
-                    _ => None,
-                })
-                .collect();
-            if nums.is_empty() {
+
+            // The aggregate is checked BEFORE the data is walked. `reduce median cpu` is wrong
+            // whatever the table holds, and reporting "column not numeric" for it would be a
+            // second wrong answer stacked on the first.
+            if !matches!(agg, "sum" | "avg" | "min" | "max") {
+                return Value::Unknown(faelight_core::check::Skipped::new(
+                    "reduce",
+                    format!("`{}` is not an aggregate (sum, avg, min, max)", agg),
+                ));
+            }
+
+            let mut present = 0usize;
+            let mut nums: Vec<f64> = Vec::new();
+            for r in rows.iter() {
+                let Some(v) = r.get(field) else { continue };
+                present += 1;
+                match v {
+                    Value::Float(f) => nums.push(*f),
+                    Value::Int(i) => nums.push(*i as f64),
+                    Value::Text(s) => {
+                        if let Ok(n) = s.parse::<f64>() {
+                            nums.push(n);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // An empty table has nothing to reduce. That is an HONEST empty answer and the only
+            // one of the four that Nothing was ever right for.
+            if rows.is_empty() {
                 return Value::Nothing;
             }
-            let result = match agg {
+            // The rows exist and not one of them carries the field. That is a typo, not a result.
+            if present == 0 {
+                return Value::Unknown(faelight_core::check::Skipped::new(
+                    "reduce",
+                    format!("no column named `{}`", field),
+                ));
+            }
+            // The field is there and nothing in it is a number. Different from the case above and
+            // a reader needs the difference: one is a typo, the other is a misunderstanding about
+            // the data.
+            if nums.is_empty() {
+                return Value::Unknown(faelight_core::check::Skipped::new(
+                    "reduce",
+                    format!("column `{}` holds no numeric values", field),
+                ));
+            }
+
+            let result: f64 = match agg {
                 "sum" => nums.iter().sum(),
                 "avg" => nums.iter().sum::<f64>() / nums.len() as f64,
                 "min" => nums.iter().cloned().fold(f64::INFINITY, f64::min),
                 "max" => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-                _ => return Value::Nothing,
+                // Unreachable: the aggregate was validated above. Kept as a refusal rather than a
+                // panic because an unreachable that lies is worse than one that explains itself.
+                other => {
+                    return Value::Unknown(faelight_core::check::Skipped::new(
+                        "reduce",
+                        format!("`{}` passed validation but has no implementation", other),
+                    ))
+                }
             };
             Value::Float(result)
         }
