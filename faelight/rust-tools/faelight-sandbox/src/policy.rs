@@ -12,8 +12,6 @@ pub struct SandboxPolicy {
     pub allow_net: bool,
     #[serde(default = "default_true")]
     pub allow_fs_write: bool,
-    #[serde(default)]
-    pub allow_fs_read: Vec<String>,
     /// Environment variables passed THROUGH from the parent, by name.
     ///
     /// ⚠️ THIS FIELD HAD NO READER UNTIL 2026-09-06. It parsed, it printed in policy-show,
@@ -133,20 +131,38 @@ impl SandboxPolicy {
         Ok(file.policies)
     }
 
-    /// Describe what this policy restricts
+    /// Describe what this policy restricts, AND WHICH OF THOSE ARE REAL.
+    ///
+    /// This prints to the user before their command runs, so an unqualified "memory: 256MB
+    /// limit" is a promise. Measured 2026-09-12: of the four things it listed, ONE was
+    /// enforced. Network isolation drives unshare; the other three drove nothing at all.
+    ///
+    /// Marking them is not a substitute for enforcing them -- it is what makes the gap
+    /// visible instead of letting the header do the lying.
     pub fn restrictions(&self) -> Vec<String> {
         let mut r = vec![];
         if !self.allow_net {
             r.push("network: isolated".to_string());
         }
         if !self.allow_fs_write {
-            r.push("filesystem: read-only".to_string());
+            // A printed warning at run time, not an enforcement. bwrap could do this
+            // properly and is installed; nobody has wired it.
+            r.push(
+                "filesystem: read-only (NOT ENFORCED -- writes are detected, not blocked)"
+                    .to_string(),
+            );
         }
         if self.max_cpu_seconds < 300 {
-            r.push(format!("cpu: {}s limit", self.max_cpu_seconds));
+            r.push(format!(
+                "cpu: {}s (DECLARED, not enforced)",
+                self.max_cpu_seconds
+            ));
         }
         if self.max_memory_mb < 1024 {
-            r.push(format!("memory: {}MB limit", self.max_memory_mb));
+            r.push(format!(
+                "memory: {}MB (DECLARED, not enforced)",
+                self.max_memory_mb
+            ));
         }
         r
     }
