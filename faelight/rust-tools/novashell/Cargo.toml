@@ -33,6 +33,15 @@ toml = "0.8"
 faelight-git = { path = "../faelight-git" }
 git2 = "0.18"
 libc = "0.2"
+# INT-188 step 3: setpgid, waitpid, tcsetpgrp, tcgetpgrp and Termios, on typed fds.
+#
+# ALREADY IN THE LOCK at 0.38.44, pulled in transitively, so this line adds A NAME and
+# not a build. The intent originally recorded "one more dependency" as the cost; measured
+# 2026-09-13, that cost is zero compilation and zero new supply chain.
+#
+# ⚠️ libc STAYS. It is used for the SIGPIPE reset in pre_exec, which must be
+# async-signal-safe and is already correct. New job-control calls go through rustix.
+rustix = { version = "0.38", features = ["process", "termios", "stdio"] }
 ratatui = "0.28"
 crossterm = "0.28"
 portable-pty = "0.8"

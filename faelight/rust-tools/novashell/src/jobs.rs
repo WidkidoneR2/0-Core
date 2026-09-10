@@ -3,6 +3,89 @@
 use colored::*;
 use std::time::Instant;
 
+/// What the shell has OBSERVED about a job. Not a guess, and not a default.
+///
+/// INT-188 STEP 3. Before this, a job was running or absent, and check_completed decided which
+/// by asking Child::try_wait() -- waitpid(WNOHANG) with no WUNTRACED. That call is STRUCTURALLY
+/// BLIND to a stopped process: Ctrl+Z could suspend a job forever and the table would report it
+/// running until the end of the session. The wrong syscall for the question.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JobState {
+    /// Seen alive, or seen nothing and the members are still waitable.
+    Running,
+    /// WIFSTOPPED. The state this shell could not previously express at all.
+    Stopped,
+    /// Every member reached a terminal observation.
+    Done(JobResult),
+    /// NOT A LIFECYCLE STATE. THE SHELL COULD NOT ESTABLISH ONE.
+    ///
+    /// Running / Stopped / Done are things a PROCESS does. Unknown is a thing the SHELL failed
+    /// to do, and conflating them is how "I could not look" becomes "there is nothing there" --
+    /// the same collapse INT-192 built check::Skipped for, INT-245 gave the value pipeline a
+    /// word for, and INT-246 made the sandbox admit.
+    ///
+    /// AND THE ARROW THAT DOES NOT EXIST:  Unknown --X--> Done
+    ///
+    /// Inability to observe death is never evidence of death. A job in this state STAYS IN THE
+    /// TABLE with its reason visible. It does not age out: a timeout would convert "the shell
+    /// does not know" into "the shell stopped caring", which are different facts and only one
+    /// of them is true.
+    Unknown(JobObservationError),
+}
+
+/// A TERMINAL observation -- how a process actually ended.
+///
+/// Separate from JobState because Exited and Signaled are facts about a FINISHED process, while
+/// Running and Stopped are facts about a live one. Keeping them apart is what lets a job be
+/// "stopped, and one member has already exited" without the type fighting the truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobResult {
+    Exited(i32),
+    /// NOT Exited(128 + n). A signalled death is a different fact from an exit code that happens
+    /// to be large, and folding one into the other is how kill -9 becomes indistinguishable
+    /// from a program that returned 137 on purpose.
+    Signaled(i32),
+}
+
+/// Why the shell could not establish a job's state.
+///
+/// STRUCTURED, NOT A STRING. A UI that has to parse a diagnostic to decide what to show is a UI
+/// that will one day parse it wrong. The variants can grow without every consumer breaking.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JobObservationError {
+    /// waitpid failed with this errno.
+    Waitpid(i32),
+    /// The job was registered with no process group, so there is nothing to ask about. This is
+    /// the state INT-188 exists to end; a job here cannot be signalled without signalling the
+    /// SHELL, which is why it is named rather than hidden.
+    NoProcessGroup,
+}
+
+impl std::fmt::Display for JobObservationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JobObservationError::Waitpid(e) => write!(f, "waitpid failed: errno {}", e),
+            JobObservationError::NoProcessGroup => write!(f, "job has no process group"),
+        }
+    }
+}
+
+/// One process inside a job, and what has been observed about IT.
+///
+/// PER-MEMBER ACCOUNTING, BECAUSE waitpid IS AN OBSERVATION MECHANISM AND NOT THE JOB'S IDENTITY.
+/// The table knows a job consists of pids X, Y, Z in group G. Asking the kernel returns something
+/// that happened to ONE of them. Those observations ACCUMULATE; the job's state is derived from
+/// them rather than guessed from one anonymous answer.
+#[derive(Debug)]
+pub struct JobMember {
+    pub pid: u32,
+    /// None while live. Some once terminal, after which the pid MUST NOT be waited on or
+    /// signalled again -- pids are recycled.
+    pub result: Option<JobResult>,
+    /// True between a WIFSTOPPED and the next WIFCONTINUED.
+    pub stopped: bool,
+}
+
 #[derive(Debug)]
 pub struct Job {
     pub id: JobId,
@@ -12,6 +95,17 @@ pub struct Job {
     /// Upstream stages of a backgrounded pipeline, in stage order. Empty for a single
     /// command. Held so check_completed can reap them -- registering only the tail would
     /// leave every earlier stage a zombie.
+    /// INT-188: NO READER, AND KEPT ANYWAY -- THIS FIELD IS OWNERSHIP, NOT DATA.
+    ///
+    /// It existed so check_completed could reap upstream stages with up.wait(). observe()
+    /// now waits on EVERY member by pid, so nothing reads it. Deleting it would DROP the
+    /// Child handles, and a dropped Child is NEVER waited on -- which is precisely how
+    /// zerombies are leaked. The handles must outlive the job even though no code asks
+    /// them anything.
+    ///
+    /// The allow is a DECISION, not a suppression: the compiler is right that nothing
+    /// reads it, and wrong that it is therefore useless.
+    #[allow(dead_code)]
     pub rest: Vec<std::process::Child>,
     /// The OS's job-control identity for this job -- the process group every stage shares.
     ///
@@ -25,12 +119,119 @@ pub struct Job {
     /// state INT-188 exists to end: signalling it would signal the SHELL. Never treat None
     /// as "use the current group".
     pub pgid: Option<u32>,
+    /// Every process in this job, in stage order. members[0] is the group leader.
+    pub members: Vec<JobMember>,
+    /// The last state the shell OBSERVED. Never inferred from absence.
+    pub state: JobState,
     pub started: Instant,
 }
 
 impl Job {
     pub fn elapsed(&self) -> f64 {
         self.started.elapsed().as_secs_f64()
+    }
+
+    /// Ask the kernel about every LIVE member, and fold the answers into one state.
+    ///
+    /// PER PID, NOT PER GROUP. waitpid(-pgid, ..) returns a status with NO PID attached, so it
+    /// can say "something in this job stopped" and never which thing. Every member is a direct
+    /// child of this shell, so each can be asked individually -- and the job's state is DERIVED
+    /// from what its members reported rather than guessed from one anonymous answer.
+    ///
+    /// A MEMBER IS ASKED ONCE AND THEN NEVER AGAIN. After a terminal result, its pid is released
+    /// by the kernel and may be REUSED. Waiting on it again is at best ECHILD and at worst an
+    /// answer about somebody else's program.
+    pub fn observe(&mut self) -> JobState {
+        use rustix::process::WaitOptions;
+
+        if self.pgid.is_none() {
+            return JobState::Unknown(JobObservationError::NoProcessGroup);
+        }
+
+        let mut any_live = false;
+        let mut any_stopped = false;
+        let mut failure: Option<JobObservationError> = None;
+
+        for m in self.members.iter_mut() {
+            if m.result.is_some() {
+                continue;
+            }
+            let pid = match rustix::process::Pid::from_raw(m.pid as i32) {
+                Some(p) => p,
+                None => {
+                    failure = Some(JobObservationError::Waitpid(0));
+                    continue;
+                }
+            };
+            // WUNTRACED makes a stop visible; CONTINUED makes a resume visible. try_wait
+            // passes neither, which is why it could never report either one.
+            let opts = WaitOptions::NOHANG | WaitOptions::UNTRACED | WaitOptions::CONTINUED;
+            match rustix::process::waitpid(Some(pid), opts) {
+                Ok(None) => {
+                    // NOTHING NEW -- WHICH IS NOT THE SAME AS NOTHING IS WRONG.
+                    //
+                    // Measured 2026-09-13: a stopped job reported "stopped" once and then
+                    // "continued" on the very next prompt, without anyone resuming it.
+                    // waitpid reports a stop ONCE; every poll after that returns Ok(None).
+                    // This arm set any_live and ignored m.stopped, so the fold computed
+                    // Running and the change detector faithfully announced a resume that
+                    // never happened.
+                    //
+                    // THE FLAG IS THE MEMORY. A stop is an EVENT the kernel delivers once;
+                    // "still stopped" is a STATE only the shell remembers. Reading only
+                    // fresh events makes the shell forget every fact the instant it is
+                    // delivered.
+                    any_live = true;
+                    if m.stopped {
+                        any_stopped = true;
+                    }
+                }
+                Ok(Some(status)) => {
+                    if let Some(code) = status.exit_status() {
+                        m.result = Some(JobResult::Exited(code as i32));
+                        m.stopped = false;
+                    } else if let Some(sig) = status.terminating_signal() {
+                        m.result = Some(JobResult::Signaled(sig as i32));
+                        m.stopped = false;
+                    } else if status.stopping_signal().is_some() {
+                        m.stopped = true;
+                        any_stopped = true;
+                        any_live = true;
+                    } else {
+                        // A CONTINUED report, or something unclassified. Either way the
+                        // process is running again, and this is the ONLY place a stop is
+                        // cleared -- because it is the only place the kernel said so.
+                        m.stopped = false;
+                        any_live = true;
+                    }
+                }
+                Err(e) => {
+                    // ECHILD IS NOT "THE JOB FINISHED". It means this pid is not a waitable
+                    // child of ours -- reaped elsewhere, never ours, or gone in a way we did
+                    // not witness. Recording the errno keeps the difference; assuming
+                    // completion would manufacture an ending nobody observed.
+                    failure = Some(JobObservationError::Waitpid(e.raw_os_error()));
+                }
+            }
+        }
+
+        if let Some(err) = failure {
+            return JobState::Unknown(err);
+        }
+        if any_stopped {
+            return JobState::Stopped;
+        }
+        if any_live {
+            return JobState::Running;
+        }
+        // Every member reached a terminal observation. POSIX gives the job the LAST stage's
+        // status, which members.last() is by construction -- spawn order is stage order.
+        let last = self
+            .members
+            .last()
+            .and_then(|m| m.result)
+            .unwrap_or(JobResult::Exited(-1));
+        JobState::Done(last)
     }
 }
 
@@ -171,12 +372,28 @@ impl JobTable {
         };
         let id = JobId(self.next_id);
         self.next_id += 1;
+        // Stage order, leader first -- children is upstream stages, child is the tail.
+        let mut members: Vec<JobMember> = children
+            .iter()
+            .map(|c| JobMember {
+                pid: c.id(),
+                result: None,
+                stopped: false,
+            })
+            .collect();
+        members.push(JobMember {
+            pid: child.id(),
+            result: None,
+            stopped: false,
+        });
         self.jobs.push(Job {
             id,
             cmd: label.to_string(),
             child,
             rest: children,
             pgid,
+            members,
+            state: JobState::Running,
             started: Instant::now(),
         });
         println!(
@@ -188,45 +405,95 @@ impl JobTable {
         Ok(id)
     }
 
-    /// Check all jobs for completion — announce finished ones.
-    /// Call this before every prompt render.
+    /// Reconcile every job against the kernel, and announce what changed.
+    ///
+    /// INT-188 STEP 3. This used to ask child.try_wait() and treat ERR AS DEATH:
+    ///
+    ///     Err(_) => { completed.push(job.id); }
+    ///
+    /// That is the collapse this shell keeps finding: an unanswerable question reported as a
+    /// definite answer. A job the shell could not ask about was silently declared finished and
+    /// dropped from the table.
+    ///
+    /// THE INVARIANT NOW: a job leaves this table ONLY after a positive terminal observation,
+    /// or because the user explicitly discarded it. Never because we failed to look.
     pub fn check_completed(&mut self) {
         let mut completed = vec![];
         for job in &mut self.jobs {
-            match job.child.try_wait() {
-                Ok(Some(status)) => {
-                    let elapsed = job.started.elapsed().as_secs_f64();
-                    let code = status.code().unwrap_or(-1);
-                    if code == 0 {
+            let was = job.state.clone();
+            let now = job.observe();
+            job.state = now.clone();
+            if was == now {
+                continue;
+            }
+            let elapsed = job.started.elapsed().as_secs_f64();
+            match &now {
+                JobState::Running => {
+                    // Resumed after a stop. Worth saying -- the user was told it stopped.
+                    if was == JobState::Stopped {
                         println!(
-                            "\n  {} [{}] {} — {} ({:.1}s)",
+                            "\n  {} [{}] {} -- {}",
+                            "▶".bright_cyan(),
+                            job.id.to_string().bright_white(),
+                            job.cmd.bright_white(),
+                            "continued".bright_cyan()
+                        );
+                    }
+                }
+                JobState::Stopped => {
+                    // THE ANNOUNCEMENT THIS SHELL COULD NEVER MAKE BEFORE TODAY.
+                    println!(
+                        "\n  {} [{}] {} -- {} ({:.1}s)",
+                        "♸".bright_yellow(),
+                        job.id.to_string().bright_white(),
+                        job.cmd.bright_white(),
+                        "stopped".bright_yellow(),
+                        elapsed
+                    );
+                }
+                JobState::Done(r) => {
+                    match r {
+                        JobResult::Exited(0) => println!(
+                            "\n  {} [{}] {} -- {} ({:.1}s)",
                             "✅".normal(),
                             job.id.to_string().bright_white(),
                             job.cmd.bright_green(),
                             "done".bright_green(),
                             elapsed
-                        );
-                    } else {
-                        println!(
-                            "\n  {} [{}] {} — {} ({:.1}s) exit {}",
+                        ),
+                        JobResult::Exited(c) => println!(
+                            "\n  {} [{}] {} -- {} ({:.1}s) exit {}",
                             "✗".bright_red(),
                             job.id.to_string().bright_white(),
                             job.cmd.bright_red(),
                             "failed".bright_red(),
                             elapsed,
-                            code
-                        );
-                    }
-                    // Reap upstream stages before dropping the job -- their writer end is
-                    // already closed, so they have exited or are about to.
-                    for up in &mut job.rest {
-                        let _ = up.wait();
+                            c
+                        ),
+                        // A SIGNALLED DEATH SAYS SO. This used to render as "exit -1"
+                        // because status.code() is None for a signal.
+                        JobResult::Signaled(s) => println!(
+                            "\n  {} [{}] {} -- {} ({:.1}s)",
+                            "⚠".bright_red(),
+                            job.id.to_string().bright_white(),
+                            job.cmd.bright_red(),
+                            format!("killed by signal {}", s).bright_red(),
+                            elapsed
+                        ),
                     }
                     completed.push(job.id);
                 }
-                Ok(None) => {} // still running
-                Err(_) => {
-                    completed.push(job.id);
+                JobState::Unknown(why) => {
+                    // THE JOB STAYS. See the JobState::Unknown doc: inability to observe
+                    // death is not evidence of death, and a row the shell cannot account
+                    // for is EVIDENCE worth keeping visible.
+                    println!(
+                        "\n  {} [{}] {} -- {}",
+                        "[?]".bright_yellow(),
+                        job.id.to_string().bright_white(),
+                        job.cmd.bright_white(),
+                        format!("state unknown: {}", why).yellow()
+                    );
                 }
             }
         }
