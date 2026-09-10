@@ -13,6 +13,18 @@ pub struct Job {
     /// command. Held so check_completed can reap them -- registering only the tail would
     /// leave every earlier stage a zombie.
     pub rest: Vec<std::process::Child>,
+    /// The OS's job-control identity for this job -- the process group every stage shares.
+    ///
+    /// ⭐ INT-188 STEP 1. The JobId doc below already names the three-level model -- JobId,
+    /// ProcessGroupId, Pid -- and says INT-188 would lean on it. This is the middle one
+    /// arriving. Without it the table knows WHICH job and WHICH process, and has no way to
+    /// name the thing a signal is actually delivered to.
+    ///
+    /// ⚠️ None means THIS JOB HAS NO GROUP OF ITS OWN, not "unknown". A job registered
+    /// before the group could be established shares the shell's group, which is exactly the
+    /// state INT-188 exists to end: signalling it would signal the SHELL. Never treat None
+    /// as "use the current group".
+    pub pgid: Option<u32>,
     pub started: Instant,
 }
 
@@ -124,16 +136,46 @@ impl JobTable {
         mut command: std::process::Command,
         label: &str,
     ) -> std::io::Result<JobId> {
+        // ⭐ INT-188 STEP 1: THE JOB GETS ITS OWN PROCESS GROUP, and this is the one
+        // line that does it for a single background command.
+        //
+        // process_group(0) means setpgid(0, 0) in the child: new group, and the child is
+        // its leader -- so the pgid IS the pid. That identity is why no second lookup is
+        // needed to learn the group after spawning.
+        //
+        // ⚠️ THIS IS THE BACKGROUND PATH ONLY, where process_group is sufficient. The
+        // FOREGROUND path cannot use it: giving a child the terminal races with posix_spawn,
+        // so that path needs pre_exec and a dual setpgid in both parent and child. Step 4.
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
         let child = command.spawn()?;
-        self.register_chain(vec![child], label)
+        let pgid = child.id();
+        self.register_chain_with_group(vec![child], label, Some(pgid))
     }
 
     /// Register an already-spawned CHAIN as one job. The last child carries the status;
     /// the rest are held so they are reaped rather than leaked.
     pub fn register_chain(
         &mut self,
+        children: Vec<std::process::Child>,
+        label: &str,
+    ) -> std::io::Result<JobId> {
+        // ⚠️ NO GROUP. A caller that already spawned its children is the only place that
+        // could have established one, and INT-188 step 2 is where background_pipeline learns
+        // to. Until then this records the truth -- No group -- rather than inventing one.
+        self.register_chain_with_group(children, label, None)
+    }
+
+    /// Register a chain whose process group the caller ALREADY ESTABLISHED.
+    ///
+    /// ⭐ THE PGID ARRIVES AS DATA. jobs.rs does not call setpgid and must not -- for a
+    /// pipeline it never saw the spawn, and only the spawner knows stage order. That is the
+    /// boundary exec.rs:1157 already declares: it spawns and never learns what a JobTable is.
+    pub fn register_chain_with_group(
+        &mut self,
         mut children: Vec<std::process::Child>,
         label: &str,
+        pgid: Option<u32>,
     ) -> std::io::Result<JobId> {
         let Some(child) = children.pop() else {
             return Err(std::io::Error::other("empty pipeline"));
@@ -145,6 +187,7 @@ impl JobTable {
             cmd: label.to_string(),
             child,
             rest: children,
+            pgid,
             started: Instant::now(),
         });
         println!(
@@ -210,10 +253,25 @@ impl JobTable {
             println!("  {}", "Background Jobs".bright_white().bold());
             println!("{}", "  ────────────────────────────────".dimmed());
             for job in &self.jobs {
+                // ⭐ INT-188: THE GROUP IS SHOWN, NOT MERELY STORED.
+                //
+                // A pgid that nothing displays is a field nobody can check. This column is
+                // how a user -- and a test -- confirms the job really left the shell's group,
+                // by comparing it against `ps -o pid,pgid`.
+                //
+                // ⚠️ None prints as "no group", never as blank and never as the shell's own.
+                // A job sharing the shell's group cannot be signalled without signalling the
+                // shell, and a display that hides that would be the same class of lie INT-246
+                // spent a session removing from the sandbox.
+                let group = match job.pgid {
+                    Some(p) => format!("pgid {}", p),
+                    None => "no group".to_string(),
+                };
                 println!(
-                    "  [{}] {}  ({:.0}s elapsed)",
+                    "  [{}] {}  ({}, {:.0}s elapsed)",
                     job.id.to_string().bright_cyan(),
                     job.cmd.bright_white(),
+                    group.dimmed(),
                     job.elapsed()
                 );
             }
