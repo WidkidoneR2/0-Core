@@ -192,6 +192,10 @@ why it needs privilege. Privilege escalation is never a convenience.
   treating any row in that report as a bug.
 - **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
   blind.
+- **Test the CLASS, not the example.** When a bug involves quoting, `$`, `&&`, Unicode,
+  multiline input, pipes, redirection, command substitution, escaping or any other parser or
+  transport edge, the regression test covers the FAMILY of inputs -- not only the one line that
+  failed. The shell should get harder to break over time, which a single-case test does not do.
 
 ---
 
@@ -350,6 +354,15 @@ commands, deterministic behaviour, clear exit and status semantics, excellent di
 handling of arbitrary text.
 
 **Not at the expense of being a good shell for humans.** The goal is excellent for both.
+
+### Destructive actions are explicit
+
+Filesystem modification, process termination, privileged operations and configuration changes are
+predictable and visible in the shell itself. **Never silently perform a significant destructive
+action, and never hide dangerous behaviour behind a convenience feature.**
+
+(This governs what nsh does to its users. What an agent must stop and ask about in THIS repository
+is a separate list: see ## Dangerous Operations.)
 
 ### Performance
 
