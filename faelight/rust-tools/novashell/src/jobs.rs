@@ -523,9 +523,24 @@ impl JobTable {
                     Some(p) => format!("pgid {}", p),
                     None => "no group".to_string(),
                 };
+                // THE STATE IS THE POINT OF THE TABLE. Without this column a stopped job and a
+                // running one render IDENTICALLY -- which is what it looked like before INT-188
+                // step 3, and the reason a user could not tell a job working from a job suspended.
+                let state = match &job.state {
+                    JobState::Running => "running".bright_green(),
+                    JobState::Stopped => "stopped".bright_yellow(),
+                    JobState::Done(JobResult::Exited(c)) => format!("exited {}", c).dimmed(),
+                    JobState::Done(JobResult::Signaled(s)) => {
+                        format!("killed by {}", s).bright_red()
+                    }
+                    // A row the shell cannot account for SAYS SO, in the place a user actually
+                    // looks. This is the whole reason Unknown exists.
+                    JobState::Unknown(why) => format!("UNKNOWN: {}", why).bright_yellow(),
+                };
                 println!(
-                    "  [{}] {}  ({}, {:.0}s elapsed)",
+                    "  [{}] {:<9} {}  ({}, {:.0}s elapsed)",
                     job.id.to_string().bright_cyan(),
+                    state,
                     job.cmd.bright_white(),
                     group.dimmed(),
                     job.elapsed()
