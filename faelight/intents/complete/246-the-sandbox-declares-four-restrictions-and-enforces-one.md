@@ -3,7 +3,7 @@ id: 246
 date: 2026-09-09
 type: future
 title: "the sandbox declares four restrictions and enforces one"
-status: in-progress
+status: complete
 tags: [devbox, sandbox, policy, enforcement]
 ---
 
@@ -140,8 +140,36 @@ in the struct looking like a control.
 - [x] Enforcement failing is a DEGRADATION, not a warning. It joins the `degraded` list added
       2026-09-12 and can be named in a policy's `require` list, so a policy that must have its
       memory cap refuses rather than running without it
-- [ ] What happens on a machine WITHOUT cgroup v2 is decided and written down. Refuse, degrade, or
+- [x] What happens on a machine WITHOUT cgroup v2 is decided and written down. Refuse, degrade, or
       require -- silence is not one of the options
+
+## RULED: no cgroup v2 means DEGRADE, and REFUSE if the policy required it
+
+Decided 2026-09-13, closing the last open gate. The behaviour existed in code; what was missing
+was saying it out loud.
+
+On a machine with no writable cgroup v2 subtree delegated to the user -- an older kernel, a
+nested container, a systemd that does not delegate -- `Cgroup::create` pushes a degradation
+naming the reason and returns no cgroup (cgroup.rs:82-89). The run then goes one of two ways:
+
+    policy has require = ["memory"]  -> REFUSED, exit 3, reason printed
+    policy does not                 -> runs UNCAPPED, and the report says so
+
+**This is the SAME rule net and fs already follow.** Three mechanisms, one answer to the same
+question: a control that cannot be applied is recorded, never assumed, and a policy that cannot
+live without it says so in its own text rather than relying on the machine to cooperate.
+
+NOT chosen: refusing outright everywhere. That would make DevBox unusable on any machine without
+delegation, including for policies that never asked for a memory cap. The escape hatch belongs to
+the POLICY, which declares what it cannot do without.
+
+NOT chosen: `systemd-run --user --scope -p MemoryMax=` as a fallback. It would work, but it is a
+SECOND MECHANISM for the same field, and this intent ruled against that. Recorded as the answer
+if the no-delegation case ever stops being hypothetical on machines that matter.
+
+⚠️ UNTESTED ON SUCH A MACHINE. The delegation probe is real -- it mkdirs and removes rather than
+reading a declaration -- but every run so far has been on a machine that DOES delegate. The
+degraded path is reasoned, not demonstrated, and saying so is the point of the gate.
 
 ## Relationship
 
