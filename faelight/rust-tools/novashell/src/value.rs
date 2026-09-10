@@ -142,6 +142,28 @@ impl Value {
         }
     }
 
+    /// The exit status this value implies.
+    ///
+    /// INT-245. A refusal is not success, and after to_pipe_text was ruled to produce NO
+    /// STDOUT, this is the ONLY machine-readable difference between a stage that could not do
+    /// its job and one that honestly produced nothing. A script testing  sees
+    /// identical output either way; the status is what tells it apart.
+    ///
+    /// ⚠️ ONE OWNER, ASKED BY THE CALL SITES, NOT DECIDED AT EACH. engine.rs already
+    /// carries twelve lines about a SECOND SOURCE OF TRUTH for exit status that was wrong in
+    /// both directions; adding a per-arm judgement would be the same mistake again.
+    ///
+    /// ⚠️ AND THIS IS NOT THE DEFERRED QUESTION. INT-189 left open "is pipeline status
+    /// the last command or the first failure" -- that is about EXTERNAL pipelines spawned
+    /// through sh. A builtin returning its own refusal has no such ambiguity: the stage
+    /// refused, the status is 1, and nothing about sh is involved.
+    pub fn exit_status(&self) -> i32 {
+        match self {
+            Value::Unknown(_) => 1,
+            _ => 0,
+        }
+    }
+
     /// Render as a formatted table for display
     pub fn render(&self) -> String {
         match self {

@@ -217,7 +217,10 @@ impl Engine {
             }
             CommandResult::Value(v) => {
                 println!("{}", v.render());
-                self.set_last_exit(Some(0));
+                // INT-245: ASK THE VALUE. This was Some(0) unconditionally, so a stage that
+                // refused reported success -- and since a refusal now produces no stdout, the
+                // status is the only thing a script can test.
+                self.set_last_exit(Some(v.exit_status()));
             }
             // INT-169: the REAL status, not an assumed 1. `ls /nonexistent` printed "exited 2"
             // while `$?` reported 1 -- the code was formatted into the message and thrown away.
@@ -824,6 +827,10 @@ impl Engine {
             // INT-169: default to success, then let the Error arm below override with the
             // REAL code. Without this the whole branch left `$?` reporting the previous
             // command -- invisible today, load-bearing once `&&` reads it.
+            //
+            // ⚠️ INT-245: THE VALUE ARM OVERRIDES IT TOO, NOW. A Value carrying a refusal never
+            // reaches the Error arm, so this optimistic default stood for a stage that could not
+            // do its job. The arm below re-sets it from the pipeline RESULT.
             self.set_last_exit(Some(0));
             match source_result {
                 crate::commands::CommandResult::Value(v) => {
@@ -840,6 +847,7 @@ impl Engine {
                             .collect();
                         let (result, stats) =
                             crate::value::apply_pipeline_with_stats(v, &ops, &stage_labels);
+                        self.set_last_exit(Some(result.exit_status()));
                         println!("{}", result.render());
                         println!();
                         println!("  {} pipeline explain", "─".repeat(10).dimmed());
@@ -866,6 +874,12 @@ impl Engine {
                         }
                     } else {
                         let result = crate::value::apply_pipeline(v, &ops);
+                        // INT-245: THE LIVE PATH for a value pipeline. The Some(0) set before
+                        // this match was never revised here, so a refusing stage reported
+                        // success. Measured: four other Value arms hardcoded 0 as well and none
+                        // of them handles this input -- the status has to be read where the
+                        // pipeline actually runs.
+                        self.set_last_exit(Some(result.exit_status()));
                         println!("{}", result.render());
                     }
                 }
@@ -1854,13 +1868,18 @@ pub fn execute_and_record(
         crate::commands::CommandResult::Value(v)
             if !pipeline_ops.is_empty() && !has_external_op =>
         {
-            // INT-189: `apply_pipeline` returns `Value`, not `Result`, so an
-            // in-process value pipeline cannot report failure. 0 is not a chosen
-            // policy here, it is the only coherent answer the type permits.
-            // ⚠️ If that signature ever becomes fallible, this arm must change with
-            // it -- a silent 0 over a real error would be the INT-189 bug returning.
+            // INT-189 wrote, of the Some(0) that stood here: "apply_pipeline returns Value,
+            // not Result, so an in-process value pipeline cannot report failure. 0 is not a
+            // chosen policy here, it is the only coherent answer the type permits. ⚠️ If that
+            // signature ever becomes fallible, this arm must change with it -- a silent 0 over a
+            // real error would be the INT-189 bug returning."
+            //
+            // ⭐ THAT CONDITION HAS NOW FIRED. INT-245 gave Value a variant that MEANS failure,
+            // so the signature did not change but its expressiveness did. The status is read
+            // from the RESULT, not the input: the refusal is produced INSIDE apply_pipeline, so
+            // the value that went in has nothing to say about it.
             let result = crate::value::apply_pipeline(v, &pipeline_ops);
-            engine.set_last_exit(Some(0));
+            engine.set_last_exit(Some(result.exit_status()));
             Some(result.render())
         }
         crate::commands::CommandResult::Value(_) if has_external_op => {
@@ -1897,7 +1916,9 @@ pub fn execute_and_record(
         crate::commands::CommandResult::Value(v) => {
             // INT-189: rendering a value is success; this arm previously left
             // `last_exit_code` carrying the previous command's result.
-            engine.set_last_exit(Some(0));
+            // INT-245 CORRECTS THE LINE ABOVE: rendering a value is success UNLESS the value
+            // is itself a refusal, which Value could not express when that comment was written.
+            engine.set_last_exit(Some(v.exit_status()));
             Some(v.render())
         }
         crate::commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
