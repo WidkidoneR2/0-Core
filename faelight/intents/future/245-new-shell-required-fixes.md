@@ -130,8 +130,48 @@ in: what the pipeline can EXPRESS, not how it serialises at the edge.
 
 ## Success Criteria
 
-- [ ] The four Nothing sites are re-read and each is classified refusal / honest-absence /
+- [x] The four Nothing sites are re-read and each is classified refusal / honest-absence /
       ambiguous, with the deciding lines quoted. 636 is SPLIT before it is classified
+<!-- DONE 2026-09-12. Line numbers from value.rs at 9ab878e9; the earlier note said 509/625/637/644
+     and the code has shifted by one since.
+
+     508  HONEST ABSENCE.  rows[0].get(field).cloned().unwrap_or(Value::Nothing)
+          `Get` against a SINGLE row. The field is genuinely not in that row. Nothing is hidden and
+          nothing is refused -- this is what Nothing is for.
+
+     624  REFUSAL.  expr.splitn(2, ' ') produced fewer than 2 parts
+          `reduce` typed with no field. The shell knows exactly what is wrong: the expression is
+          malformed. It answers with the same value as an empty result.
+
+     643  REFUSAL.  the `_` arm of match agg { "sum" | "avg" | "min" | "max" }
+          `reduce median cpu`. The shell knows `median` is not an aggregate it implements, and says
+          nothing. This is the example in the Vision above.
+
+     636  ⭐ SPLITS FOUR WAYS, NOT THREE. The earlier note called it three facts; reading line 628
+          finds four, and only the first is honest:
+
+            a. `rows` is empty                     -- nothing to reduce. HONEST EMPTY.
+            b. field ABSENT from every row         -- `r.get(field)?` returns None at 628. The user
+                                                      named a column that does not exist. REFUSAL.
+            c. field present, Text that won't parse -- `s.parse::<f64>().ok()` is None at 631. That
+                                                      column is not numeric. REFUSAL.
+            d. field present, Row/Table/Bool        -- `_ => None` at 632. Same as (c) but the type
+                                                      is wrong rather than the text. REFUSAL.
+
+          THE COLLAPSE IS AT 628, NOT 636. `filter_map` with `?` inside erases the difference
+          between "no such field" and "field is not a number" before 636 ever runs, and 636 then
+          erases the difference between those and "no rows". By the time a value is returned, four
+          answers have become one.
+
+     ⚠️ (b) AND (c) ARE DIFFERENT REFUSALS AND MUST STAY DIFFERENT. "No such column" and "that
+     column is not numbers" need different responses from a reader: one is a typo, the other is a
+     misunderstanding about the data. Collapsing them into a single Unknown would rebuild this
+     defect one level up, which is the trap this intent's own 636-is-a-fix section warns about.
+
+     ⭐ THE FIX IS TO COUNT, NOT TO CLASSIFY. Lines 626-634 can tell all four apart today by
+     counting instead of filtering: how many rows carried the field at all, and how many of those
+     parsed as numbers. rows.len() == 0, present == 0, and parsed == 0 with present > 0 are three
+     distinct observations available at that point and thrown away. -->
 - [x] ONE state or TWO is DECIDED and written into this intent, with the reason. A decision to
       start with one and widen later is a valid discharge -- declining with reasons is proof
 <!-- DECIDED 2026-09-10 by Christian: ONE state. See the RULED section above for the reason --
@@ -139,6 +179,47 @@ in: what the pipeline can EXPRESS, not how it serialises at the edge.
      has nothing to describe. Widening later is a compile error, so it stays available. -->
 - [ ] `Value` carries the decided state, and the widening is proven by the compiler rather
       than by audit: every match site is visited because it had to be
+
+## THE WORKED EXAMPLE -- `ls` on a file, found 2026-09-10
+
+The instances above are query-language edges. This one is `ls`, which every user types, and it is
+the clearest statement of the defect in the whole intent.
+
+    commands/mod.rs:7410  fn sys_files(...)   -- the `files` / `ls` builtin
+    commands/mod.rs:7424  std::fs::read_dir(&path).ok()
+    commands/mod.rs:7453  .unwrap_or_default()
+
+`read_dir` on a FILE fails. `.ok()` discards WHY. `unwrap_or_default()` turns the failure into an
+empty Vec, which becomes `Value::Table(vec![])`, which renders as "No results." at value.rs:174.
+
+So `ls somefile.txt` reports AN EMPTY DIRECTORY for a file that exists and is two bytes long.
+
+### Why nobody had seen it
+
+    nsh> alias | grep ls
+    ls = eza --icons=auto   shadows builtin
+
+The alias shadows the builtin on this machine, so `ls` has always been eza, which handles files
+correctly. Inside the devbox sandbox NSH_CONFIG points at a config that does not exist, no aliases
+load, and `which ls` reports the forest builtin FIRST and /usr/bin/ls second. The builtin wins,
+and the lie appears.
+
+    devbox: ls ~/.local/state/faelight/state.db   -> "No results."
+    devbox: ls ~/.local/state/faelight            -> a table listing state.db, 2 bytes, file
+
+⭐ THE INSTRUMENT FOUND IT, WHICH IS THE POINT. This was invisible for as long as the suite only
+ran on one machine with one config. Converting nsh-test to run against a fixture (phases 1-4,
+2026-09-10) surfaced it on the first clean-room run. `state_db_exists` is LEFT RED in the suite
+with the reproduction in a comment, deliberately, rather than rewritten to ask an easier question.
+
+### AND THE HONEST FIX HERE MAY NOT BE A THIRD STATE
+
+⏭ Not ruled. `ls <file>` arguably should LIST THE FILE, the way every other ls does, and then the
+third state is reserved for when it genuinely cannot look -- a directory it lacks permission to
+read, say. A refusal is the right answer when the shell cannot do what was asked; listing one file
+is something it can do and simply does not. Deciding that is part of this intent's work, and the
+answer may be BOTH: list the file, and use the new state for the permission case that `.ok()`
+currently swallows too.
 - [ ] BOTH renderers say what happened. `render` and `to_pipe_text` must not print an empty
       string for a refusal -- that is the defect, and fixing the enum without fixing the
       renderers changes nothing a user can see
