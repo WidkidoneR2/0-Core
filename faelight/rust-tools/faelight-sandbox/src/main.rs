@@ -547,6 +547,8 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
 }
 
 fn main() -> Result<()> {
+    // The exit status of the command the sandbox ran. 0 until a Run arm sets it.
+    let mut child_exit_code = 0i32;
     let cli = Cli::parse();
 
     match cli.command {
@@ -794,7 +796,7 @@ fn main() -> Result<()> {
                 }
                 if max_cpu > 0 && max_cpu < 300 {
                     println!(
-                        "  {} Policy: CPU limit {}s (enforcement in Phase 3)",
+                        "  {} Policy: CPU limit {}s -- DECLARED, NOT ENFORCED",
                         "🛡".yellow(),
                         max_cpu
                     );
@@ -1082,6 +1084,18 @@ fn main() -> Result<()> {
             session.network_isolated =
                 network_isolated && !session.degraded.iter().any(|d| d.starts_with("net:"));
             session.exit_code = Some(exit_code);
+            // ⭐ REMEMBERED SO main CAN EXIT WITH IT. Measured 2026-09-12:
+            //     faelight-sandbox run --policy untrusted -- false
+            //     report says "Exit: 1", the binary returns rc=0
+            // The child status was DISPLAYED and thrown away, so no script, no CI job, no
+            // and no  could tell a passing run from a failing one. Every other
+            // wrapper -- env, nice, timeout, sudo -- exits with its child.
+            //
+            // ⚠️ 3 STAYS RESERVED FOR A REFUSAL. A caller can distinguish "the sandbox refused
+            // to run this" from "your command failed". A child that genuinely exits 3 is
+            // ambiguous with that, which is accepted: the refusal prints a distinctive message,
+            // and a wider protocol would trade one ambiguity for a stranger one.
+            child_exit_code = exit_code;
             session.finished = Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
 
             // Save session + archive to history ring buffer
@@ -1579,5 +1593,11 @@ fn main() -> Result<()> {
         }
     }
 
+    // ⭐ THE SANDBOX EXITS WITH ITS CHILD. Everything above prints a report; this is the only
+    // thing a caller can act on. Placed at the very end so the report has printed and the cgroup
+    // has dropped -- process::exit runs no destructors, so anything after it would not happen.
+    if child_exit_code != 0 {
+        std::process::exit(child_exit_code);
+    }
     Ok(())
 }

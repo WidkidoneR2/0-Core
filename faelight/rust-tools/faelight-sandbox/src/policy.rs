@@ -157,7 +157,7 @@ impl SandboxPolicy {
         }
         if self.max_memory_mb < 1024 {
             r.push(format!(
-                "memory: {}MB (DECLARED, not enforced)",
+                "memory: {}MB (cgroup v2 memory.max + swap.max=0)",
                 self.max_memory_mb
             ));
         }
