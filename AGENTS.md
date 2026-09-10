@@ -364,6 +364,35 @@ action, and never hide dangerous behaviour behind a convenience feature.**
 (This governs what nsh does to its users. What an agent must stop and ask about in THIS repository
 is a separate list: see ## Dangerous Operations.)
 
+### Messages
+
+**A message says what happened, what the shell could not do, and what the reader can act on.**
+
+Three failures, in order of how often they occur here:
+
+- **A category where a fact belongs.** `exited 1 -- general error` names a bucket. It is what the
+  shell says for ANY exit 1, including `grep` finding no matches -- which is not an error at all.
+  The shell is guessing and sounding certain.
+- **Confidence the shell has not earned.** If it does not know why something failed, the message
+  says so. "Could not establish X" beats a wrong specific reason and beats a vague general one.
+- **Nothing to act on.** A pid, a path, a signal number, a command to run. A message that leaves
+  the reader with no next move has told them only that they are stuck.
+
+The shape that works, measured against the one this shell shipped on 2026-09-13:
+
+    ♸ suspended -- not yet resumable: job registration is INT-188 step 5 (pid 20622)
+      ^ what happened   ^ what the shell cannot do yet          ^ what you can act on
+
+⭐ THIS IS THE SAME RULE AS `Unknown`, `Skipped` AND THE DEGRADATION LIST, APPLIED TO PROSE. INT-192
+gave the doctor a word for "I could not check". INT-245 gave the value pipeline one for "I could
+not compute". INT-246 made the sandbox admit what it did not enforce. A message that says "general
+error" when it means "grep found nothing" is the same defect in the only layer a user actually
+reads.
+
+Corollary: an exit code is not a diagnosis. 1 means a thousand things, and several of them are
+success in context. Where the shell knows the command, it should say what that command's non-zero
+status actually means -- and where it does not know, say that instead of inventing a category.
+
 ### Performance
 
 An interactive shell is judged on startup latency, execution overhead, memory, process creation,

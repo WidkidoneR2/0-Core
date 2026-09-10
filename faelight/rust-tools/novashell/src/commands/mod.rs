@@ -9281,9 +9281,50 @@ fn cmd_in_path(cmd: &str) -> bool {
         .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
 }
 
+/// What a non-zero status MEANS, given what ran.
+///
+/// ⭐ THE COMMAND IS THE POINT. This took only a code and answered "general error" for every
+/// exit 1 -- including `grep` finding no matches, which is not an error at all. The shell was
+/// guessing and sounding certain; AGENTS.md's message rule calls that a category where a fact
+/// belongs.
+///
+/// Exit 1 is the only code that needs the command: it is the universal "something" code and its
+/// meaning is entirely up to the program. The signal codes and 126/127 mean the same thing no
+/// matter who ran.
+///
+/// ⚠️ WHERE THE COMMAND IS UNKNOWN, SAY SO. An exit 1 from a program this list does not know
+/// gets "non-zero exit" -- true and useless -- rather than "general error", which is a diagnosis
+/// nobody made.
+fn explain_exit_code_for(code: i32, command: &str) -> String {
+    // The command word may be a path; only the final component names the program.
+    let name = command.rsplit('/').next().unwrap_or(command);
+    if code == 1 {
+        let known = match name {
+            // NOT ERRORS. These are ordinary answers that happen to use exit 1.
+            "grep" | "egrep" | "fgrep" | "rg" | "ag" => Some("no matches"),
+            "diff" | "cmp" => Some("files differ"),
+            "test" | "[" => Some("condition was false"),
+            "false" => Some("that is what false does"),
+            "pgrep" | "pkill" => Some("no processes matched"),
+            // Real failures, but NAMED ones.
+            "git" => Some("git reported a problem -- see its output above"),
+            "cargo" => Some("cargo reported a problem -- see its output above"),
+            "curl" => Some("unsupported protocol or failed init"),
+            _ => None,
+        };
+        return match known {
+            Some(m) => m.to_string(),
+            // Not a diagnosis. The shell does not know what this program's 1 means.
+            None => "non-zero exit".to_string(),
+        };
+    }
+    explain_exit_code(code).to_string()
+}
+
 fn explain_exit_code(code: i32) -> &'static str {
     match code {
-        1 => "general error",
+        // NO "general error" ARM. 1 without a command is undiagnosed, and saying so is
+        // the only true option. explain_exit_code_for is the one that can do better.
         2 => "misuse of shell builtin",
         126 => "permission denied -- command exists but not executable. Try: chmod +x <file>",
         127 => "command not found",
@@ -10081,6 +10122,9 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
             let code = crate::exit_status_code(&s);
             record_failure(db, "pipeline", code);
             CommandResult::Error(
+                // CODE-ONLY, DELIBERATELY. The status belongs to the LAST stage, and this
+                // scope does not hold its name. Naming the wrong command would be worse
+                // than naming none.
                 format!("  exited {} -- {}", code, explain_exit_code(code)).into(),
                 code,
             )
@@ -10310,7 +10354,13 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     let code = crate::exit_status_code(&o.status);
                     record_failure(db, &word, code);
                     CommandResult::Error(
-                        format!("  exited {} -- {}", code, explain_exit_code(code)).into(),
+                        // The command is in scope, so the message can say what its status MEANS.
+                        format!(
+                            "  exited {} -- {}",
+                            code,
+                            explain_exit_code_for(code, &word)
+                        )
+                        .into(),
                         code,
                     )
                 }
@@ -10336,7 +10386,13 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
                     CommandResult::Error(
-                        format!("  exited {} -- {}", code, explain_exit_code(code)).into(),
+                        // The command is in scope, so the message can say what its status MEANS.
+                        format!(
+                            "  exited {} -- {}",
+                            code,
+                            explain_exit_code_for(code, &word)
+                        )
+                        .into(),
                         code,
                     )
                 }
@@ -10379,7 +10435,13 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                     let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
                     CommandResult::Error(
-                        format!("  exited {} -- {}", code, explain_exit_code(code)).into(),
+                        // The command is in scope, so the message can say what its status MEANS.
+                        format!(
+                            "  exited {} -- {}",
+                            code,
+                            explain_exit_code_for(code, &word)
+                        )
+                        .into(),
                         code,
                     )
                 }
@@ -10621,7 +10683,12 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 }
                 record_failure(db, &command_word(line), code);
                 CommandResult::Error(
-                    format!("  exited {} -- {}", code, explain_exit_code(code)).into(),
+                    format!(
+                        "  exited {} -- {}",
+                        code,
+                        explain_exit_code_for(code, &command_word(line))
+                    )
+                    .into(),
                     code,
                 )
             }
