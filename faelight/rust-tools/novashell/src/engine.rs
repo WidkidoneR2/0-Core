@@ -1087,7 +1087,25 @@ impl Engine {
                         let started = match attempt {
                             crate::exec::BackgroundAttempt::Single(c, l) => jobs.register(c, &l),
                             crate::exec::BackgroundAttempt::Chain(ch, l) => {
-                                jobs.register_chain(ch, &l)
+                                // ⭐ INT-188 step 2: THE PGID IS DERIVED, NOT PASSED.
+                                //
+                                // spawn_pipeline guarantees stage 0 is the group leader, so its
+                                // pid IS the pgid. Widening BackgroundAttempt to carry the group
+                                // would duplicate something already present in the value -- a
+                                // second copy that can disagree with the first.
+                                //
+                                // ⚠️ An empty chain is an INVARIANT FAILURE, not "no group".
+                                // spawn_pipeline refuses an empty stage list and reaps on error,
+                                // so reaching here with none means the contract broke. Say so
+                                // rather than registering a job nothing can signal.
+                                match ch.first().map(|c| c.id()) {
+                                    Some(pgid) => {
+                                        jobs.register_chain_with_group(ch, &l, Some(pgid))
+                                    }
+                                    None => {
+                                        Err(std::io::Error::other("pipeline produced no children"))
+                                    }
+                                }
                             }
                         };
                         match started {

@@ -155,17 +155,6 @@ impl JobTable {
 
     /// Register an already-spawned CHAIN as one job. The last child carries the status;
     /// the rest are held so they are reaped rather than leaked.
-    pub fn register_chain(
-        &mut self,
-        children: Vec<std::process::Child>,
-        label: &str,
-    ) -> std::io::Result<JobId> {
-        // ⚠️ NO GROUP. A caller that already spawned its children is the only place that
-        // could have established one, and INT-188 step 2 is where background_pipeline learns
-        // to. Until then this records the truth -- No group -- rather than inventing one.
-        self.register_chain_with_group(children, label, None)
-    }
-
     /// Register a chain whose process group the caller ALREADY ESTABLISHED.
     ///
     /// ⭐ THE PGID ARRIVES AS DATA. jobs.rs does not call setpgid and must not -- for a

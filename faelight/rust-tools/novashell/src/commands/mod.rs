@@ -9600,6 +9600,29 @@ fn spawn_pipeline(
     use crate::spine::plan::IoPlan;
     use std::io::Write;
     let mut children: Vec<std::process::Child> = Vec::new();
+    // ⭐ INT-188 STEP 2: EVERY STAGE OF A PIPELINE SHARES ONE PROCESS GROUP, LED BY STAGE 0.
+    //
+    // A pipeline is ONE job. If its stages sat in different groups, Ctrl+C would reach some
+    // of them, `kill` would kill part of it, and the user's idea of the job would not match
+    // the kernel's. The group is what makes "the job" a thing the OS agrees exists.
+    //
+    // Stage 0 uses process_group(0) -- new group, itself as leader, so pgid == its pid.
+    // Every later stage uses process_group(first_pid) to JOIN that group. The resulting
+    // invariant is the one jobs.rs relies on and never has to recompute:
+    //
+    //     for every registered pipeline, Job.pgid == the pid of its first child
+    //
+    // ⚠️ TWO SPAWN CONTRACTS EXIST, DELIBERATELY, AND THIS IS THE BACKGROUND ONE:
+    //
+    //     background  process_group() alone is sufficient. The parent only READS
+    //                 children[0].id(), which is valid the moment spawn returns. No
+    //                 terminal handover, so no race to close, and posix_spawn is kept.
+    //     foreground  will need pre_exec PLUS a parent-side setpgid, because the parent
+    //                 then coordinates tcsetpgrp AROUND the group and must know it exists
+    //                 before the child runs. That is step 4, and it is an ADDITION, not a
+    //                 fix to this line. Do not make one path reuse the other's idiom for
+    //                 uniformity; fish makes the same split for the same reason.
+    let mut first_pid: Option<u32> = None;
     let mut prev_stdout: Option<std::process::ChildStdout> = None;
     // INT-205: text produced by a builtin stage that execute_pipeline already ran and peeled off.
     // It arrives as a String because a builtin returns a value, not a file descriptor.
@@ -9616,6 +9639,12 @@ fn spawn_pipeline(
         };
         let mut cmd = std::process::Command::new(program);
         cmd.args(&plan.argv[1..]);
+        // INT-188 step 2: stage 0 leads, the rest join. See the contract at the top.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(first_pid.unwrap_or(0) as i32);
+        }
         // THE THIRD SPAWNER, AND IT NEVER APPLIED THE PLAN'S ENVIRONMENT.
         //
         // Lowering builds Environment::Overlay from the assignments; the other two
@@ -9770,6 +9799,11 @@ fn spawn_pipeline(
                         feed = Some((sink, text));
                     }
                 }
+                // INT-188 step 2: remember the leader so every LATER stage joins its group
+                // rather than starting one of its own. Set ONCE, from the first successful
+                // spawn -- get_or_insert rather than an assignment, so a later stage can never
+                // overwrite the leader and split the pipeline across two groups.
+                first_pid.get_or_insert(child.id());
                 children.push(child);
             }
             Err(e) => {
