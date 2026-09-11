@@ -652,6 +652,60 @@ impl JobTable {
         }
     }
 
+    /// `bg <id>` -- let a stopped job carry on IN THE BACKGROUND.
+    ///
+    /// ⭐ THE WHOLE DIFFERENCE FROM fg IS WHAT IT DOES NOT DO. One signal, then return:
+    /// no tcsetpgrp, because the SHELL keeps the terminal, and no wait, because the point
+    /// is to get the prompt back while the job runs.
+    ///
+    /// ⚠️ A BACKGROUND JOB THAT READS THE TERMINAL WILL STOP AGAIN, with SIGTTIN, and
+    /// that is CORRECT Unix behaviour rather than a defect -- it is why `vim` in the
+    /// background stops instead of fighting the shell for keystrokes. check_completed
+    /// will observe the stop and say so.
+    pub fn bg(&mut self, id: JobId) {
+        let pos = self.jobs.iter().position(|j| j.id == id);
+        let Some(i) = pos else {
+            println!("  {} No job [{}]", "x".bright_red(), id);
+            return;
+        };
+        // REFUSE RATHER THAN NO-OP. A job that is already running does not need resuming,
+        // and silently sending it SIGCONT would look like success while answering nothing.
+        if self.jobs[i].state != JobState::Stopped {
+            println!(
+                "  {} [{}] {} is not stopped -- nothing to resume",
+                "x".bright_red(),
+                id,
+                self.jobs[i].cmd.dimmed()
+            );
+            return;
+        }
+        let Some(g) = self.jobs[i].pgid else {
+            // No group means nothing to signal WITHOUT signalling the shell. Say so.
+            println!(
+                "  {} [{}] {} has no process group -- cannot be resumed safely",
+                "x".bright_red(),
+                id,
+                self.jobs[i].cmd.dimmed()
+            );
+            return;
+        };
+        // The negative pid is what makes this a GROUP signal.
+        unsafe {
+            libc::kill(-(g as i32), libc::SIGCONT);
+        }
+        self.jobs[i].state = JobState::Running;
+        for m in self.jobs[i].members.iter_mut() {
+            m.stopped = false;
+        }
+        println!(
+            "  {} [{}] {} -- {}",
+            "\u{25b6}",
+            id.to_string().bright_white(),
+            self.jobs[i].cmd.bright_white(),
+            "continued in the background".bright_cyan()
+        );
+    }
+
     /// Kill a job by id.
     pub fn kill_job(&mut self, id: JobId) {
         let pos = self.jobs.iter().position(|j| j.id == id);

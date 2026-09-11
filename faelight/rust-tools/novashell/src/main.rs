@@ -237,6 +237,10 @@ pub(crate) fn is_repl_state_command(line: &str) -> bool {
         "jobs" => true,
         // Job-control `fg` takes a job id or nothing; anything else is a different command.
         "fg" => second.is_empty() || second.parse::<usize>().is_ok(),
+        // Same rule as fg. A reserved job-control name must be reachable whatever the user
+        // has aliased -- and without an arm here, `bg 1` would not even be CLASSIFIED as job
+        // control, so the builtin would be unreachable by name the way fg was.
+        "bg" => second.is_empty() || second.parse::<usize>().is_ok(),
         // ONLY `kill %N` is a job-spec. Every other form belongs to the real kill.
         "kill" => second.starts_with('%'),
         _ => false,
@@ -1927,6 +1931,14 @@ fn run_input(
             }
         }
         if let Some(outcome) = engine.try_fg(line, Some(&mut job_table)) {
+            match outcome {
+                crate::engine::SegmentOutcome::Next => continue,
+                crate::engine::SegmentOutcome::ExitShell => {
+                    return crate::engine::SegmentOutcome::ExitShell
+                }
+            }
+        }
+        if let Some(outcome) = engine.try_bg(line, Some(&mut job_table)) {
             match outcome {
                 crate::engine::SegmentOutcome::Next => continue,
                 crate::engine::SegmentOutcome::ExitShell => {

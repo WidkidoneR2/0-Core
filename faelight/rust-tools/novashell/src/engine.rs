@@ -979,6 +979,37 @@ impl Engine {
     ///
     /// ⚠️ WITHOUT A JOB TABLE this declines entirely and the line falls through to normal
     /// execution -- correct for a non-interactive caller, which has no jobs to control.
+    /// `bg <id>` -- resume a stopped job WITHOUT giving it the terminal.
+    ///
+    /// ⭐ THE DIFFERENCE FROM fg IS TWO THINGS MISSING, not anything added: no tcsetpgrp, and
+    /// no wait. The job continues in its own group while the SHELL keeps the terminal and
+    /// returns to the prompt.
+    ///
+    /// After this the job is an ordinary background job, and check_completed already polls it
+    /// every prompt -- so its eventual exit is announced by machinery built in step 3.
+    pub fn try_bg(
+        &mut self,
+        line: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> Option<SegmentOutcome> {
+        if crate::commands::command_word(line) != "bg" {
+            return None;
+        }
+        let jobs = jobs?;
+        let second = line.split_whitespace().nth(1).unwrap_or("");
+        if !crate::is_repl_state_command(line) {
+            return None;
+        }
+        // Same refusal as fg: JobId::parse refuses anything that is not a positive number,
+        // and there is no plausible job to fall back on.
+        let Some(id) = crate::jobs::JobId::parse(second) else {
+            println!("  usage: bg <job_id>");
+            return Some(SegmentOutcome::Next);
+        };
+        jobs.bg(id);
+        Some(SegmentOutcome::Next)
+    }
+
     pub fn try_kill(
         &mut self,
         line: &str,
