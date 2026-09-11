@@ -80,11 +80,11 @@ table would be the same category error as `TIMING:` rows living in shell_history
       is the shape INT-207 and INT-221 both existed to end
 - [ ] G3 THE REQUIRED SET IS HANDLED AND EACH ONE'S PURPOSE IS STATED: SIGCHLD, SIGTSTP, SIGCONT,
       SIGINT, SIGWINCH, SIGTTIN, SIGTTOU, and SIGHUP
-- [ ] G4 PROCESS GROUPS: children are placed in groups deliberately, with the requirement stated --
+- [x] G4 PROCESS GROUPS: children are placed in groups deliberately, with the requirement stated --
       what gets its own group, what shares one, and what happens to a pipeline
-- [ ] G5 TERMINAL FOREGROUND OWNERSHIP: the shell-versus-job foreground model is defined and
+- [x] G5 TERMINAL FOREGROUND OWNERSHIP: the shell-versus-job foreground model is defined and
       implemented, including what happens when a background job reads from the terminal
-- [ ] G6 ONLY THEN: the implementation is chosen -- signal-hook, rustix, nix or libc -- with the
+- [x] G6 ONLY THEN: the implementation is chosen -- signal-hook, rustix, nix or libc -- with the
       reason recorded and what it gives up
 - [ ] G7 DEMONSTRATED ON A REAL COMMAND: Ctrl+Z suspends, `bg` resumes in background, `fg` returns
       it to the foreground, and `jobs` reports state that matches reality
@@ -236,6 +236,103 @@ same primitives. They are not the v1 interface, and `&` is not being replaced.
 Steps 1-3 are invisible to a user and break nothing. Step 4 is where behaviour changes and where
 `ctrlc` goes. `bg` prints an honest "not implemented" until step 6 -- OSH shipped exactly that
 way, and a surface that refuses is better than one that lies.
+
+---
+
+## STEPS 1-4 BUILT AND DEMONSTRATED, 2026-09-13
+
+Four commits, each proven by watching the kernel rather than reading the code.
+
+### Step 1 -- a background job gets its own group (1b188dab)
+
+    sleep 300 &
+    jobs                  [1] sleep  (pgid 71379, 4s elapsed)
+    ps -o pid,pgid        71379   71379 sleep      <- pgid == pid, it leads its own group
+    nsh pgid              3259                     <- and it is NOT the shell's
+
+One line does it: `command.process_group(0)` before spawn in `register`, and the pgid is then
+`child.id()` because a group leader's pgid IS its pid.
+
+### Step 2 -- a pipeline is ONE group (351872ff)
+
+    sleep 300 | cat &
+    ps -eo pid,pgid       86267    3259 sleep   <- OLD binary: shares the shell's group
+                          86268    3259 cat
+                          86430   86430 sleep   <- NEW: stage 0 leads
+                          86431   86430 cat     <- and stage 1 joined it
+
+Both shapes visible in one listing, which is as clear a before/after as this work produced.
+`register_chain` was DELETED in the same commit -- its only caller now knows its group, so the
+group-less variant had no reason to exist.
+
+### Step 3 -- states are OBSERVED, never assumed (95fdcca3, 44faa9e5)
+
+    kill -STOP -119597    ♸ [1] sleep -- stopped (44.2s)
+    jobs                  [1] stopped   sleep  (pgid 119597, ...)
+    jobs                  [1] stopped   sleep  (...)        <- HELD across polls
+    kill -CONT -119597    ▶ [1] sleep -- continued          <- fired ONCE, on the real resume
+
+⚠️ AND THE BUG THAT FOUND ITSELF HERE. The first version reported "stopped" and then "continued"
+on the very next prompt, with nobody resuming anything. waitpid reports a stop ONCE; every poll
+after returns Ok(None). The fold read only fresh events, so it computed Running and the change
+detector faithfully announced a resume that never happened.
+
+    A stop is an EVENT the kernel delivers once.
+    "Still stopped" is a STATE only the shell remembers.
+
+Code that reads only fresh events forgets every fact the instant it arrives.
+
+### Step 4 -- Ctrl+Z reaches the JOB (15e400b1)
+
+    sleep 300
+    ^Z
+      ♸ suspended -- not yet resumable: job registration is INT-188 step 5 (pid 20622)
+    echo still alive      still alive        <- the shell survived and can read the keyboard
+    ps                    17613 17613 T sleep <- genuinely stopped, own group
+
+## ⭐ THE FINDING THAT COST THREE WRONG THEORIES: SIG_IGN SURVIVES exec
+
+Step 4 was built correctly and did not work. Everything measured clean:
+
+    child pgid         15061          its own group
+    tpgid              15061          the TERMINAL's foreground group IS the child's
+    ps state           S+             running, in the foreground group
+    stty isig          on             Ctrl+Z generates a signal
+    stty susp          ^Z             and that signal is SIGTSTP
+    gave_terminal      true           the handover was accepted
+
+Ctrl+Z was delivered perfectly, to a process that had been told to ignore it:
+
+    /proc/<child>/status    SigIgn: 0000000000380000
+                                     bits 19/20/21 = SIGTSTP, SIGTTIN, SIGTTOU
+
+**A disposition of SIG_IGN is INHERITED ACROSS exec.** The shell ignores those three so it cannot
+suspend ITSELF -- correct for the shell, fatal for a child. Every foreground job must be born with
+DEFAULT dispositions regardless of what the shell did to itself, and the reset belongs in
+`pre_exec`, between fork and exec:
+
+    libc::signal(SIGTSTP, SIG_DFL);   libc::signal(SIGINT,  SIG_DFL);
+    libc::signal(SIGTTIN, SIG_DFL);   libc::signal(SIGQUIT, SIG_DFL);
+    libc::signal(SIGTTOU, SIG_DFL);   libc::signal(SIGCHLD, SIG_DFL);
+
+⚠️ THREE THEORIES WERE WRONG BEFORE THE MEASUREMENT WAS RIGHT: that rustix's WUNTRACED was
+failing, that the terminal was in raw mode with ISIG off, and that a placeholder exit code was
+triggering a shell exit. Each was plausible and each was disproved by one command. The fact that
+ended it -- `SigIgn` in /proc -- was available from the first minute and was the last thing
+looked at.
+
+⭐ AND THE ONE FACT NEVER CHECKED UNTIL LATE: `ps` was run four times with `pid,pgid,comm` and no
+STAT column. The question the whole session turned on -- WAS THE CHILD STOPPED -- was invisible in
+every one of those listings. Ask for the column that answers the question.
+
+## G7 IS NOT CLOSED, AND HERE IS WHAT IS MISSING
+
+Ctrl+Z suspends. `bg`, `fg` and `jobs` do not see the suspended job, because `spawn_with_tee`
+cannot reach a JobTable -- exec.rs deliberately never learns what one is (exec.rs:1157).
+
+The suspended job currently prints its pid and is otherwise lost. That is honest, and it is
+temporary: step 5 builds the seam the way `BackgroundAttempt` already does it -- exec returns
+something, the caller registers it -- rather than smuggling a table across the boundary.
 
 ## Sequencing
 - INT-168 (reedline) owns keystroke handling and the same terminal territory. Do not build job
