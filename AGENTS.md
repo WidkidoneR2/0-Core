@@ -299,6 +299,36 @@ When something fails, name which layer failed before touching code:
 Measured 2026-09-12: four code sites were patched chasing an exit status that stayed 0, when the
 command was never reaching any of them. The correct first move was instrumenting the live path.
 
+### Establish that nsh is responsible before changing nsh
+
+**Before fixing a behaviour, establish whether this shell caused it.** Three times on 2026-09-14 a
+confident bug report survived one command and no further:
+
+    "the -c shell orphans a stopped child"     It does not. An orphaned process group with
+                                               stopped members gets SIGHUP then SIGCONT from the
+                                               KERNEL. Measured: nothing left behind.
+
+    "a stale ctrlc handler steals Ctrl+C"      It cannot. A foreground job is in its own process
+                                               group with clean dispositions, so the kernel
+                                               delivers there regardless. The leak was real and
+                                               had NO symptom.
+
+    "the redirect path drops the exit status"  It does not. `diff` is aliased to `difft`, and
+                                               difftastic exits 0 whether files differ or not.
+                                               The shell ran exactly what was asked.
+
+Each was plausible, each named this shell as the culprit, and each was wrong. The layers that
+actually owned the behaviour were the kernel, a library's lifetime semantics, and the user's own
+alias table.
+
+⭐ THIS IS RULE 2 (DIAGNOSE THE LAYER) WITH ONE LAYER ADDED AT THE BOTTOM: before the six listed
+there, ask whether the behaviour belongs to nsh AT ALL. A shell that accumulates fixes for things
+it did not do becomes a pile of superstitions -- and every one of them is load-bearing to the next
+reader, who has no way to tell which were ever real.
+
+The cost of asking is one command. The cost of not asking is a permanent wrong belief in the
+codebase.
+
 ### Inspect before changing
 
 Read the implementation, understand current behaviour, identify the smallest correct change, make
