@@ -423,6 +423,127 @@ the first time these parts composed without being individually driven.
 the shell's and starts being the job's. Worth its own careful pass rather than a tidy-up at the
 end of a session.
 
+---
+
+## G2 RULED 2026-09-14 -- THE GATE'S PREMISE DID NOT SURVIVE MEASUREMENT
+
+The gate says: *ONE SIGNAL OWNER. `ctrlc` is removed or subsumed -- two mechanisms answering one
+question.* There are not two mechanisms. Measured, not assumed:
+
+    fresh nsh            SigCgt: 0x100000440    SIGINT NOT caught
+    during `watch`       SigCgt: 0x100000442    SIGINT caught      (bit 1 appears)
+    after `watch` exits  SigCgt: 0x100000442    still caught
+
+A fresh shell installs NO SIGINT handler. `ctrlc` has exactly one caller in the crate --
+`watch_cmd` (commands/mod.rs:6979) -- and it does a job that needs doing: without it, Ctrl+C
+during a polling loop would terminate the shell by default disposition. Demonstrated working:
+`^C` during `watch health 2` prints `watch stopped` and returns the prompt.
+
+⭐ THE DEFECT IS THE HANDLER'S LIFETIME, NOT ITS EXISTENCE. `ctrlc::set_handler` changes a
+PROCESS-WIDE disposition and offers no scoped restoration. After `watch` returns, SIGINT remains
+caught by the handler that command installed; its state is no longer observed by anything.
+
+### ⚠️ AND THE CONSEQUENCE IS SMALLER THAN THIS GATE ASSUMED. SAY SO.
+
+The tempting claim -- "a stale handler steals Ctrl+C from sleep, vim and every pipeline" -- is
+FALSE, and the fix from step 4 is why. With job control working, the kernel delivers SIGINT to
+the FOREGROUND PROCESS GROUP, and a foreground child is in its own group with a clean slate:
+
+    child of `nsh -c sleep 20`    SigIgn: 0    SigCgt: 0
+
+So the shell's disposition is irrelevant to a foreground job. The stale handler can only matter
+when the SHELL ITSELF is the foreground group -- at the prompt, or inside a builtin.
+
+And there, measured interactively: typing `abc` then Ctrl+C clears the line and returns a fresh
+prompt, IDENTICALLY before and after `watch` has run. rustyline handles the keystroke itself.
+
+**THE LEAK IS LATENT, NOT OBSERVABLE.** No symptom was found. It is still wrong -- a disposition
+outliving the command that set it is a fact waiting to become a bug when something else starts
+caring about SIGINT at the prompt -- but this ledger does not record symptoms it did not see.
+
+### RULED
+
+`watch` keeps its interrupt mechanism. Its SIGINT disposition is SCOPED to the lifetime of the
+command: save, install, restore on exit. The `ctrlc` crate cannot express that -- it installs and
+never restores -- so the dependency goes and the disposition is managed directly.
+
+⭐ AND THE GATE IS NOT TICKED ON A PREMISE THAT WAS WRONG. What is recorded is the measured
+behaviour and the narrower defect actually found. Signal behaviour in a shell is subtle and easy
+to misattribute; a gate closed on the wrong reasoning is worse than one left open, because the
+next reader inherits the wrong model.
+
+---
+
+## G1 DISPOSITION 2026-09-14: PREMISE OVER-BROAD, NO CORRECTIVE CHANGE WARRANTED
+
+G1 ruled *"nsh -c and scripts: NO job control at all."* Measured, that is not what the code does:
+
+    stdin = tty         SigIgn 0x301000   TTIN/TTOU ignored -- job control ENGAGED
+    stdin = /dev/null   SigIgn 0x001000   not ignored       -- job control OFF
+
+`nsh -c` enables job control whenever it is invoked from a terminal, because initialization is
+gated by TERMINAL OWNERSHIP rather than by shell mode. `is_interactive()` asks "is there a
+terminal and do we own it" -- the right question for a shell, the wrong question for deciding
+which door we came in through.
+
+### ⭐ AND THE FEARED FAILURE DOES NOT OCCUR. MEASURED, NOT ASSUMED.
+
+The argument for stripping job control from `-c` was that Ctrl+Z would strand a stopped child
+nobody could resume. Tested under a bare pty with no job-control parent above it:
+
+    BEFORE   15489 15489 Ssl  nsh        15490 15490 S+  sleep
+    stop the sleep's group, as the terminal would
+    AFTER    (nothing left)
+
+Both gone. The reason is POSIX rather than anything this shell does: **when a process group
+becomes orphaned while it contains stopped members, the kernel sends it SIGHUP followed by
+SIGCONT.** The `-c` shell exits, the group is orphaned, the kernel cleans up.
+
+Commands needing the terminal (`vim`, `less`, `top`) work either way -- not having shell job
+control never meant children could not use the tty.
+
+### RULED
+
+Premise over-broad; no corrective change warranted. No concrete correctness or resource-lifetime
+failure has been demonstrated, and working behaviour is not changed merely because an earlier
+statement was too broad.
+
+⭐ THE DISTINCTION REMAINS ARCHITECTURALLY VALUABLE AND IS WORTH STATING FOR LATER:
+
+    TTY PRESENCE tells you what the process is CAPABLE of doing.
+    SHELL MODE tells you what the shell is SUPPOSED to do.
+
+Job-control initialization should eventually depend on a declared mode rather than on
+`stdin.isatty()`. Defer that redesign until a concrete requirement or failure establishes one --
+and do NOT fix it by redefining `is_interactive()` until it returns the wanted answer, which
+would hide the conflation rather than remove it.
+
+## G2: THE RULING ABOVE NEEDS ONE CORRECTION BEFORE IT IS TICKED
+
+The G2 ruling says *"a fresh shell installs NO SIGINT handler"*. That is true of `nsh -c` and
+FALSE of the interactive shell. Measured side by side:
+
+    nsh -c        SigIgn  PIPE, TTIN, TTOU        SigCgt  7, 11, 33
+    interactive   SigIgn  PIPE, 25                SigCgt  INT, 7, 11, WINCH, 33
+
+**rustyline catches SIGINT and SIGWINCH.** So there ARE two SIGINT mechanisms in an interactive
+shell -- rustyline's and, until today, `watch`'s. The gate was right about the shape and wrong
+about the members, and the ruling as written overclaims.
+
+The `watch` fix itself is verified: SigCgt is IDENTICAL before and after running and interrupting
+`watch` in one live process (0x108000442 both times). The disposition is restored.
+
+⚠️ NOT TICKED. The fix is done and demonstrated; the ruling's supporting claim is wrong and must
+be corrected first. A gate closed on a wrong premise is worse than one left open.
+
+### Would reedline solve this? No -- and the measurement says why.
+
+The mode conflation is in `tty.rs`, in this project's own code, on the exec path. No line editor
+participates in that decision. Reedline WOULD change the SIGINT/SIGWINCH half of the picture,
+because those handlers are rustyline's -- but swapping line editors to fix a mode-detection
+problem is treating a symptom two layers from the cause, and INT-168 already owns that swap with
+preconditions of its own.
+
 ## Sequencing
 - INT-168 (reedline) owns keystroke handling and the same terminal territory. Do not build job
   control on rustyline immediately before swapping the editor -- coordinate or sequence after.

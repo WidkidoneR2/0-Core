@@ -6974,13 +6974,36 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     );
 
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Arc;
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-    let _ = ctrlc::set_handler(move || {
-        r.store(false, Ordering::SeqCst);
-    });
-    while running.load(Ordering::SeqCst) {
+
+    // INT-188 G2: A SIGNAL DISPOSITION MUST NOT OUTLIVE THE COMMAND THAT SET IT.
+    //
+    // This used ctrlc::set_handler, which changes a PROCESS-WIDE disposition and never restores
+    // it. Measured 2026-09-14: SIGINT is uncaught in a fresh shell (SigCgt 0x100000440), caught
+    // during `watch` (0x100000442), and STILL CAUGHT after `watch` returns -- by a handler whose
+    // state nothing observes any more.
+    //
+    // No symptom was found, and the intent says so rather than inventing one: rustyline handles
+    // Ctrl+C at the prompt itself, and a foreground job sits in its own process group with clean
+    // dispositions (measured: SigIgn 0, SigCgt 0), so the kernel delivers SIGINT there whatever
+    // the shell has installed. The leak is LATENT. It is fixed anyway, because a disposition
+    // outliving its command is a fact waiting to become a bug.
+    //
+    // ⚠️ THE FLAG IS A static, NOT A CAPTURED Arc. A signal handler must be async-signal-safe,
+    // and an atomic store is; the previous closure captured an Arc, which means allocation and
+    // refcounting reachable from a handler -- and nothing that could ever be reclaimed.
+    static WATCH_INTERRUPTED: AtomicBool = AtomicBool::new(false);
+
+    extern "C" fn on_sigint(_: libc::c_int) {
+        WATCH_INTERRUPTED.store(true, Ordering::SeqCst);
+    }
+
+    WATCH_INTERRUPTED.store(false, Ordering::SeqCst);
+    // SAVE what was there. The restore below returns the shell to exactly its prior state --
+    // whether that was SIG_DFL or something another command legitimately installed.
+    let previous_sigint =
+        unsafe { libc::signal(libc::SIGINT, on_sigint as *const () as libc::sighandler_t) };
+
+    while !WATCH_INTERRUPTED.load(Ordering::SeqCst) {
         // Clear screen and move to top
         print!("[2J[1;1H");
 
@@ -7071,17 +7094,25 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             _ => {
                 println!("  {} Unknown watch target: {}", "✗".bright_red(), target);
                 println!("  Available: health, events");
-                running.store(false, Ordering::SeqCst);
+                WATCH_INTERRUPTED.store(true, Ordering::SeqCst);
             }
         }
 
-        // Sleep in small increments to check running flag
+        // Sleep in small increments so the interrupt is noticed promptly.
         for _ in 0..(interval * 10) {
-            if !running.load(Ordering::SeqCst) {
+            if WATCH_INTERRUPTED.load(Ordering::SeqCst) {
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
+    }
+
+    // RESTORE, ON THE ONLY EXIT THIS FUNCTION HAS. Every path out of the loop arrives here --
+    // the interrupt, an unknown target, and a normal end all fall through to this line. If a
+    // `return` is ever added above, it must restore too, or the leak this fix removes comes back
+    // by a different door.
+    unsafe {
+        libc::signal(libc::SIGINT, previous_sigint);
     }
 
     println!();
