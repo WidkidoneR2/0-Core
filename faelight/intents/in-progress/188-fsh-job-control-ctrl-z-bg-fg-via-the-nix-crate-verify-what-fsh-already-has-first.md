@@ -88,7 +88,7 @@ table would be the same category error as `TIMING:` rows living in shell_history
       reason recorded and what it gives up
 - [x] G7 DEMONSTRATED ON A REAL COMMAND: Ctrl+Z suspends, `bg` resumes in background, `fg` returns
       it to the foreground, and `jobs` reports state that matches reality
-- [ ] G8 NO REGRESSION: the line editor, Ctrl+C, login, and deploy all still work. fsh-test green
+- [x] G8 NO REGRESSION: the line editor, Ctrl+C, login, and deploy all still work. fsh-test green
 - [ ] G9 each gate carries evidence per INT-158
 
 ---
@@ -543,6 +543,112 @@ participates in that decision. Reedline WOULD change the SIGINT/SIGWINCH half of
 because those handlers are rustyline's -- but swapping line editors to fix a mode-detection
 problem is treating a symptom two layers from the cause, and INT-168 already owns that swap with
 preconditions of its own.
+
+---
+
+## G3: THE SIGNAL INVENTORY, 2026-09-14
+
+Every signal in the gate's required set, what it is for here, and where that lives. Measured by
+census plus the /proc masks taken today, not by intention.
+
+    SIGNAL     DISPOSITION                    PURPOSE IN THIS SHELL
+    --------   ----------------------------   ------------------------------------------------
+    SIGCHLD    default; SIG_DFL in pre_exec   NOT handled, DELIBERATELY (G1). check_completed
+                                              asks waitpid before every prompt, so a handler
+                                              would add a second source of truth for no new
+                                              capability. Earns its place when something needs
+                                              to know BETWEEN prompts. Nothing does yet.
+    SIGTSTP    default; SIG_DFL in pre_exec   The stop. Delivered by the tty to the FOREGROUND
+                                              GROUP, which after step 4 is the job rather than
+                                              the shell. The pre_exec reset is what makes it
+                                              reach the child at all -- see the SIG_IGN finding.
+    SIGCONT    sent, never caught             `fg` and `bg` resume a GROUP with
+                                              kill(-pgid, SIGCONT). kill_job sends it too,
+                                              because SIGTERM to a stopped process is queued
+                                              rather than delivered.
+    SIGINT     rustyline catches it;          Ctrl+C at the prompt is rustyline's. `watch` now
+               `watch` scopes its own         installs and RESTORES its own for the life of the
+                                              command. A foreground job gets SIGINT from the
+                                              kernel directly -- its group, its clean slate.
+    SIGTTOU    SIG_IGN at job-control init    Without it the shell SUSPENDS ITSELF: handing the
+               SIG_DFL in pre_exec            terminal to a child makes the shell a background
+                                              process, and taking it back then raises SIGTTOU.
+    SIGTTIN    SIG_IGN at job-control init    Same reason, for a background READ of the terminal.
+               SIG_DFL in pre_exec            A backgrounded job that reads the tty stops with
+                                              this -- correct Unix behaviour, not a defect.
+    SIGPIPE    SIG_DFL at startup (INT-299)   The shell needs EPIPE rather than death on a broken
+               SIG_DFL in pre_exec            pipe; a child needs the opposite, or `yes | head`
+                                              spins forever.
+    SIGQUIT    SIG_DFL in pre_exec            Reset for children with the rest. The shell itself
+                                              takes the default.
+    SIGTERM    sent, never caught             kill_job, after SIGCONT.
+
+### ⚠️ TWO IN THE REQUIRED SET ARE NOT HANDLED BY THIS SHELL AT ALL. SAY SO.
+
+    SIGWINCH   ZERO references in the crate. The interactive mask shows it CAUGHT -- by
+               rustyline, for redraw on resize. The intent's own non-goals already say
+               "SIGWINCH-driven redraw belongs to the editor; this intent only routes the
+               signal", and in fact it does not route it either: the editor owns it end to end.
+               That is a working arrangement, not a gap, but the gate cannot claim nsh handles
+               it.
+
+    SIGHUP     ZERO references. Nothing in this shell has a story for the terminal going away.
+               Today's orphan test showed the KERNEL doing the right thing -- an orphaned group
+               with stopped members gets SIGHUP then SIGCONT -- but that is the kernel cleaning
+               up after us, not us deciding anything. What should happen to REGISTERED BACKGROUND
+               JOBS when the shell's terminal closes is undefined. A real shell either hups them
+               or disowns them; nsh does neither on purpose.
+
+⭐ SIGHUP IS THE ONE GENUINE GAP THIS INVENTORY FOUND, and it is out of scope here: it is about
+job LIFETIME across a session ending, not about the suspend/resume loop INT-188 exists to build.
+Worth its own intent rather than a rushed arm in this one.
+
+G3 is therefore ANSWERED but NOT TICKED: nine of eleven have a stated purpose and a site, one is
+owned by the editor, and one is an admitted absence with no design behind it.
+
+---
+
+## G8 CLOSED 2026-09-14
+
+The gate asks that the line editor, Ctrl+C, login and deploy all still work, and that the suite
+is green. Taken one at a time, after a session that widened an enum across 65 sites, added a
+module, and rewrote `fg` and `kill_job`:
+
+    nsh-test          193 / 193 passed, 2 skipped, exit 0, run in the DevBox sandbox.
+                      The 2 skips are absent preconditions, not failures -- both say so.
+                      Three cases cover today's path directly:
+                          repl_jobs_lists_a_running_job
+                          repl_background_job_honours_its_redirect
+                          repl_background_job_keeps_quoted_arguments
+                      No file changes detected by the sandbox after the run.
+
+    line editor       Exercised by hand throughout: typing, history, and `abc` + Ctrl+C
+                      clearing the line and returning a fresh prompt.
+
+    Ctrl+C            Measured before and after the `watch` fix, in one live process.
+                      SigCgt identical (0x108000442), prompt behaviour identical.
+
+    deploy            `ship` run repeatedly across the session -- 1-2 crates each time,
+                      0 failed, and the shipped binary re-exec'd and used immediately after.
+
+    login             ⭐ NOT AT RISK BY ARCHITECTURE, not by luck.
+
+                          /etc/passwd: christian ... /usr/bin/bash
+
+                      bash is the login shell. nsh is started FROM a terminal and is never
+                      invoked by `login`, which is the interactive-not-login split the Omarchy
+                      port chose deliberately. A shell that cannot start therefore costs a
+                      terminal tab, not a session -- and `exec bash` is the recovery, which is
+                      what this session's riskiest tests relied on.
+
+⚠️ THE ONE THING THIS GATE CANNOT CLAIM: that job control is exercised by the suite in the way it
+is exercised by hand. `nsh-test` has three background-job cases and NO suspend/resume case --
+Ctrl+Z needs a pty and a signal, and the harness drives the REPL rather than a terminal. Every
+proof in this intent for steps 4, 5 and 6 is a hand-run measurement recorded above.
+
+⭐ THAT IS A REGRESSION RISK WITH A NAME: the suspend/resume loop could break tomorrow and
+nothing would catch it. A pty-driven job-control case belongs in nsh-test, and INT-202's capture
+window already solved the hard half of that problem. Worth its own work rather than a claim here.
 
 ## Sequencing
 - INT-168 (reedline) owns keystroke handling and the same terminal territory. Do not build job
