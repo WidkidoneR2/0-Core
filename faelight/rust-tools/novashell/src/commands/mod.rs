@@ -1457,7 +1457,7 @@ fn execute_dispatch(
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
         "logs" => sys_logs(args),
-        "ps" | "processes" => sys_processes(),
+        "ps" | "processes" => sys_processes(args),
         "ports" => sys_ports(),
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
@@ -7339,32 +7339,91 @@ fn list_plugins(_db: &ForestDb) -> CommandResult {
 
 // ── Phase 8 — System Tables ───────────────────────────────────────────────────
 
-fn sys_processes() -> CommandResult {
+/// `ps` -- the process table as a VALUE.
+///
+/// INT-188: TWO CHANGES, ONE OF THEM A REFUSAL.
+///
+/// 1. A `pgid` column. Every process-group question this shell now answers -- which job owns the
+///    terminal, what `fg` resumes, whether a pipeline shares one group -- needs it, and it was
+///    the one column a job-control session could not get from its own shell.
+///
+/// 2. ⚠️ FLAGS ARE NO LONGER SILENTLY DISCARDED. This took NO arguments, so `ps -eo pid,pgid`
+///    quietly printed the default table and ignored the request. Measured repeatedly on
+///    2026-09-13/14: every probe that asked for specific columns got all of them instead, which
+///    sent one debugging session looking for a bug in the wrong place. A command that accepts
+///    flags and throws them away is lying about what it did -- the message rule in AGENTS.md
+///    applies to behaviour as much as to prose.
+///
+/// `-p <pid>` is supported because job control needs it. Anything else is REFUSED with a pointer
+/// to the real binary, which is honest and one keystroke from working.
+fn sys_processes(args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
+    let mut only_pid: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i] {
+            "-p" | "--pid" => {
+                let Some(v) = args.get(i + 1) else {
+                    return CommandResult::Error(
+                        "  ps: -p needs a pid -- try: ps -p 1234".to_string().into(),
+                        2,
+                    );
+                };
+                if v.parse::<u32>().is_err() {
+                    return CommandResult::Error(format!("  ps: not a pid: {}", v).into(), 2);
+                }
+                only_pid = Some(v.to_string());
+                i += 2;
+            }
+            other => {
+                // REFUSE, do not ignore. The user asked for something specific.
+                return CommandResult::Error(
+                    format!(
+                        "  ps: this builtin understands -p <pid> only, not {}\n  \u{2192} for the full ps: /usr/bin/ps {}",
+                        other,
+                        args.join(" ")
+                    )
+                    .into(),
+                    2,
+                );
+            }
+        }
+    }
+
     let output = std::process::Command::new("ps")
-        .args(["-eo", "user:32,pid,pcpu,pmem,stat,comm", "--no-headers"])
+        .args([
+            "-eo",
+            "user:32,pid,pgid,pcpu,pmem,stat,comm",
+            "--no-headers",
+        ])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    // Format: user:32 pid pcpu pmem stat comm
+    // Format: user:32 pid pgid pcpu pmem stat comm
     let rows: Vec<HashMap<String, Value>> = output
         .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 6 {
+            if parts.len() < 7 {
                 return None;
+            }
+            if let Some(want) = only_pid.as_deref() {
+                if parts[1] != want {
+                    return None;
+                }
             }
             let mut row = HashMap::new();
             row.insert("user".to_string(), Value::Text(parts[0].to_string()));
             row.insert("pid".to_string(), Value::Text(parts[1].to_string()));
-            row.insert("cpu".to_string(), Value::Text(parts[2].to_string()));
-            row.insert("memory".to_string(), Value::Text(parts[3].to_string()));
-            row.insert("status".to_string(), Value::Text(parts[4].to_string()));
-            row.insert("name".to_string(), Value::Text(parts[5].to_string()));
+            row.insert("pgid".to_string(), Value::Text(parts[2].to_string()));
+            row.insert("cpu".to_string(), Value::Text(parts[3].to_string()));
+            row.insert("memory".to_string(), Value::Text(parts[4].to_string()));
+            row.insert("status".to_string(), Value::Text(parts[5].to_string()));
+            row.insert("name".to_string(), Value::Text(parts[6].to_string()));
             Some(row)
         })
         .collect();
