@@ -91,7 +91,18 @@ pub struct Job {
     pub id: JobId,
     pub cmd: String,
     /// The status-bearing stage. For a pipeline this is the LAST one, per POSIX.
-    pub child: std::process::Child,
+    /// The status-bearing stage, WHEN THE TABLE STARTED IT.
+    ///
+    /// None FOR A SUSPENDED FOREGROUND JOB. That job was started by the execution path and
+    /// already waited on with waitpid -- the Child was consumed there and cannot be handed
+    /// over. The job is no less real: its pgid and members are what job control actually
+    /// needs, and observe() has never read this field.
+    ///
+    /// WHICH MAKES THE TWO REMAINING READERS THE INTERESTING ONES. fg() waits on this Child
+    /// rather than resuming a GROUP, and kill_job() kills this one pid and removes the row
+    /// without reaping -- the zombie seen on 2026-09-13. Both are wrong for a pipeline and
+    /// wrong for a suspended job; making the field optional is what stops them compiling.
+    pub child: Option<std::process::Child>,
     /// Upstream stages of a backgrounded pipeline, in stage order. Empty for a single
     /// command. Held so check_completed can reap them -- registering only the tail would
     /// leave every earlier stage a zombie.
@@ -389,7 +400,7 @@ impl JobTable {
         self.jobs.push(Job {
             id,
             cmd: label.to_string(),
-            child,
+            child: Some(child),
             rest: children,
             pgid,
             members,
@@ -417,6 +428,34 @@ impl JobTable {
     ///
     /// THE INVARIANT NOW: a job leaves this table ONLY after a positive terminal observation,
     /// or because the user explicitly discarded it. Never because we failed to look.
+    pub fn register_suspended(&mut self, pgid: u32, label: &str) -> JobId {
+        let id = JobId(self.next_id);
+        self.next_id += 1;
+        self.jobs.push(Job {
+            id,
+            cmd: label.to_string(),
+            child: None,
+            rest: vec![],
+            pgid: Some(pgid),
+            members: vec![JobMember {
+                pid: pgid,
+                result: None,
+                stopped: true,
+            }],
+            state: JobState::Stopped,
+            started: Instant::now(),
+        });
+        println!(
+            "\n  {} [{}] {} -- {} ({})",
+            "\u{2638}",
+            id.to_string().bright_white(),
+            label.bright_white(),
+            "suspended".bright_yellow(),
+            format!("fg {} to resume", id).dimmed()
+        );
+        id
+    }
+
     pub fn check_completed(&mut self) {
         let mut completed = vec![];
         for job in &mut self.jobs {
@@ -563,7 +602,43 @@ impl JobTable {
                     id,
                     cmd.dimmed()
                 );
-                let _ = self.jobs[i].child.wait();
+                // RESUME THE GROUP, THEN WAIT -- and give it the terminal first.
+                //
+                // This used to call child.wait(), which is wrong three ways: it waits on one
+                // PROCESS rather than the job, it never SIGCONTs so a stopped job would hang
+                // the shell forever, and it never hands over the terminal so the resumed job
+                // could not read the keyboard.
+                let pgid = self.jobs[i].pgid;
+                if let Some(g) = pgid {
+                    // SIGCONT to the GROUP -- the negative pid is what makes it a group.
+                    unsafe {
+                        libc::kill(-(g as i32), libc::SIGCONT);
+                    }
+                    crate::tty::give_terminal(g);
+                }
+                // Wait the way the foreground path does: a resumed job can be Ctrl+Z'd again.
+                let stopped_again = if let Some(g) = pgid {
+                    crate::tty::wait_group_foreground(g)
+                } else {
+                    false
+                };
+                // TAKE THE TERMINAL BACK ON EVERY PATH, including a second stop.
+                crate::tty::take_terminal();
+                if stopped_again {
+                    self.jobs[i].state = JobState::Stopped;
+                    if let Some(m) = self.jobs[i].members.first_mut() {
+                        m.stopped = true;
+                    }
+                    println!(
+                        "\n  {} [{}] {} -- {} ({})",
+                        "\u{2638}",
+                        id.to_string().bright_white(),
+                        cmd.bright_white(),
+                        "suspended again".bright_yellow(),
+                        format!("fg {} to resume", id).dimmed()
+                    );
+                    return;
+                }
                 let elapsed = self.jobs[i].elapsed();
                 println!(
                     "  {} [{}] {} — done ({:.1}s)",
@@ -584,7 +659,25 @@ impl JobTable {
             None => println!("  {} No job [{}]", "✗".bright_red(), id),
             Some(i) => {
                 let cmd = self.jobs[i].cmd.clone();
-                let _ = self.jobs[i].child.kill();
+                // KILL THE GROUP, AND REAP IT.
+                //
+                // child.kill() signalled ONE pid and the row was then removed without a wait,
+                // which left a zombie -- observed 2026-09-13 as `sleep <defunct>`. A stopped
+                // job also needs SIGCONT first: SIGTERM to a stopped process is queued, not
+                // delivered, so without the continue it would sit there stopped and unkilled.
+                if let Some(g) = self.jobs[i].pgid {
+                    unsafe {
+                        libc::kill(-(g as i32), libc::SIGCONT);
+                        libc::kill(-(g as i32), libc::SIGTERM);
+                    }
+                }
+                // Reap every handle we hold so nothing is left defunct.
+                if let Some(c) = self.jobs[i].child.as_mut() {
+                    let _ = c.wait();
+                }
+                for up in self.jobs[i].rest.iter_mut() {
+                    let _ = up.wait();
+                }
                 println!("  {} [{}] {} killed", "○".dimmed(), id, cmd.dimmed());
                 self.jobs.remove(i);
             }

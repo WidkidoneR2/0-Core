@@ -127,3 +127,39 @@ pub fn wait_foreground(
         }
     }
 }
+
+/// Wait for a resumed GROUP. Returns true if it stopped AGAIN.
+///
+/// The `fg` counterpart of wait_foreground, and it cannot share that function for a reason
+/// worth naming: there is NO Child here. A resumed job was started by an earlier command and
+/// its handle was consumed by the wait that saw it stop -- all the shell still has is the pgid,
+/// which is exactly what job control is about.
+///
+/// ⭐ AND THAT IS WHY Suspension CARRIES A pgid AND NOT A pid. For a single command the two
+/// happen to be equal; here the difference becomes load-bearing, and a pipeline will make it
+/// visible in step 6.
+pub fn wait_group_foreground(pgid: u32) -> bool {
+    use rustix::process::{waitpgid, Pid, WaitOptions};
+
+    let Some(g) = Pid::from_raw(pgid as i32) else {
+        return false;
+    };
+
+    loop {
+        match waitpgid(g, WaitOptions::UNTRACED) {
+            // STOPPED AGAIN -- the user pressed Ctrl+Z on the resumed job. Still alive,
+            // still a job, and the caller must keep it in the table.
+            Ok(Some(s)) if s.stopping_signal().is_some() => return true,
+            // Finished -- exited or killed. Either way the job is over.
+            Ok(Some(_)) => return false,
+            Ok(None) => continue,
+            // ⚠️ EINTR IS NOT AN ANSWER, it is an interruption of the QUESTION. Retrying
+            // is the only honest response; treating it as done would hand the terminal
+            // back while the job is still using it.
+            Err(e) if e.raw_os_error() == libc::EINTR => continue,
+            // ECHILD or anything else: the group is not waitable by us. NOT stopped -- the
+            // caller should stop treating it as a running foreground job.
+            Err(_) => return false,
+        }
+    }
+}

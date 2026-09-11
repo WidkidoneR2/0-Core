@@ -423,7 +423,7 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
                     stmts.len()
                 );
                 println!();
-                return CommandResult::Empty;
+                return CommandResult::Empty { suspension: None };
             }
 
             println!("  {} {}", "🌿 running".dimmed(), path.bright_white());
@@ -514,7 +514,7 @@ pub fn run_source(source: &str, db: &ForestDb, core_root: &str) -> CommandResult
     let mut scope = Scope::new();
     let ok = run_stmts(&stmts, &mut scope, db, core_root);
     if ok {
-        CommandResult::Empty
+        CommandResult::Empty { suspension: None }
     } else {
         CommandResult::Error("script exited with error".to_string().into(), 1)
     }

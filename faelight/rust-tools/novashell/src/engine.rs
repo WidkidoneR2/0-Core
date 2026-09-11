@@ -206,6 +206,23 @@ impl Engine {
         result: crate::commands::CommandResult,
         source_label: &str,
     ) -> SegmentOutcome {
+        self.absorb_result_with_jobs(result, source_label, None)
+    }
+
+    /// As absorb_result, but able to REGISTER a suspended job.
+    ///
+    /// THIS IS WHERE THE EVENT BECOMES A JOB. exec discovered the stop and could not act on it;
+    /// this function has the table. The invariant: JobTable is the source of truth for jobs, and
+    /// CommandResult was only the transport.
+    ///
+    /// None is HONEST, not a gap. `spine-exec` and any non-interactive caller have no job table
+    /// -- the same split try_fg and try_kill already make.
+    pub fn absorb_result_with_jobs(
+        &mut self,
+        result: crate::commands::CommandResult,
+        source_label: &str,
+        jobs: Option<&mut crate::jobs::JobTable>,
+    ) -> SegmentOutcome {
         use crate::commands::CommandResult;
         match result {
             // INT-169: a command that PRINTED succeeded. Without this the previous failure's code
@@ -243,7 +260,12 @@ impl Engine {
                 }
                 self.set_last_exit(Some(code));
             }
-            CommandResult::Empty => self.set_last_exit(Some(0)),
+            CommandResult::Empty { suspension } => {
+                if let (Some(s), Some(j)) = (suspension, jobs) {
+                    j.register_suspended(s.pgid, &s.label);
+                }
+                self.set_last_exit(Some(0));
+            }
             // Named rather than a catch-all: a `_` arm would silently swallow Exit, so
             // `spine-exec exit` would print instead of leaving the shell.
             // INT-201: the code travels too. Its neighbours above already record one for Error
@@ -1141,7 +1163,7 @@ impl Engine {
                         });
                         crate::mark("spine claimed, execution done");
                     }
-                    if self.absorb_result(result, "spine")
+                    if self.absorb_result_with_jobs(result, "spine", Some(jobs))
                         == crate::engine::SegmentOutcome::ExitShell
                     {
                         return RouteOutcome::ExitShell;
@@ -1967,7 +1989,7 @@ pub fn execute_and_record(
             engine.set_last_exit(Some(0));
             Some(out)
         }
-        crate::commands::CommandResult::Empty => {
+        crate::commands::CommandResult::Empty { suspension: _ } => {
             engine.set_last_exit(Some(0));
             None
         }

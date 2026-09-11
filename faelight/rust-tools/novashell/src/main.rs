@@ -1518,7 +1518,29 @@ fn run_input(
         // INT-171 gate 2: command word is quote-aware (`"ll" foo` -> ll), so the
         // alias lookup below resolves a quoted command instead of missing it.
         mark("aliases expanded");
-        let line = engine.expand_aliases(line);
+        // ⭐ RESERVED NAMES WIN OVER ALIASES, AND THIS IS THE PRECEDENCE POINT.
+        //
+        // `fg` was an alias for faelight-git, so `fg 1` became `faelight-git 1` HERE --
+        // and try_fg below then asked `command_word`, got `faelight-git`, and declined.
+        // The job control builtin was unreachable by name. Measured 2026-09-13:
+        // `fg 1` -> `error: unrecognized subcommand '1'` from git.
+        //
+        // ⚠️ RENAMING THE ALIAS WOULD NOT FIX THIS. It would remove one collision and
+        // leave the shape intact: any user aliasing `fg`, `bg` or `jobs` would make the
+        // shell's own job control disappear. Reserved names must be a property of the
+        // SHELL, not of a config file.
+        //
+        // ⭐ AND THE TEST IS THE RAW LINE, NOT THE EXPANDED ONE. Once expansion has run the
+        // evidence is gone -- which is why the question is asked first.
+        //
+        // Scoped to what is_repl_state_command actually claims, so `fg commit` and
+        // `fg push` still expand to the git alias. ONLY `fg <n>`, bare `fg`, `jobs` and
+        // `kill %N` are reserved.
+        let line = if is_repl_state_command(line) {
+            line.to_string()
+        } else {
+            engine.expand_aliases(line)
+        };
         let line = line.as_str();
         // INT-169 blocker 6: THE ROUTING POINT. Placed HERE, above expand_vars,
         // because the spine performs variable, substitution and glob expansion

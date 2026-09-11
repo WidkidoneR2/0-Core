@@ -14,10 +14,44 @@ fn fmt_time(ts: i64, fmt: &str) -> String {
         .unwrap_or_else(|| "?".to_string())
 }
 
+/// A foreground job that STOPPED rather than finished.
+///
+/// Discovered by the execution path, which cannot act on it: exec deliberately never learns
+/// what a JobTable is (exec.rs:1157). So the EVENT travels back as DATA and the engine --
+/// which HAS the table -- registers it.
+///
+/// ⭐ pgid, NOT pid. For a single foreground command they are equal, and that is COINCIDENCE.
+/// `fg` resumes a GROUP with kill(-pgid, SIGCONT), and a pipeline makes the two different while
+/// the job-control identity stays the group. Encoding today's equality would buy one step and
+/// cost an architectural correction at the next one -- the same reason JobId is a newtype
+/// rather than a usize.
+#[derive(Debug, Clone)]
+pub struct Suspension {
+    /// The process GROUP that stopped. What a signal is addressed to.
+    pub pgid: u32,
+    /// What to show in `jobs`. Display only.
+    pub label: String,
+}
+
 pub enum CommandResult {
     Output(String),
     Value(crate::value::Value),
-    Empty,
+    /// Nothing was produced.
+    ///
+    /// ⭐ WIDENED, NOT JOINED BY A NEW VARIANT -- the rule this enum has already followed twice
+    /// above. 18 of its match sites carry a `_` arm and would swallow a new variant silently;
+    /// widening this one makes all 67 constructions a COMPILE ERROR, so the compiler is the
+    /// checklist rather than an audit.
+    ///
+    /// ⚠️ THE FIELD IS THE EXTENSION POINT, NOT THE VARIANT. Empty still means "nothing was
+    /// produced" -- which is true of a suspended command. Other execution-side events can
+    /// cross the same boundary later without this variant becoming about suspension.
+    ///
+    /// Invariant: JobTable is the source of truth for jobs; this is only the TRANSPORT for an
+    /// event discovered during execution.
+    Empty {
+        suspension: Option<Suspension>,
+    },
     /// INT-169: the message AND the real exit status. The code was previously formatted
     /// INTO the message and then discarded, so `$?` reported 1 for every failure while the
     /// shell printed the true code one line above -- `ls /nonexistent` displayed "exited 2"
@@ -1791,7 +1825,7 @@ fn execute_dispatch(
                     };
                     println!("{} {}", format!("{:4}", i + 1).dimmed(), colored);
                 }
-                return CommandResult::Empty;
+                return CommandResult::Empty { suspension: None };
             }
             let spec = args[1];
             // Range: 100:150, :50, 900:, 100:+30
@@ -1836,7 +1870,7 @@ fn execute_dispatch(
                     };
                     println!("{} {}", format!("{:4}", start + i + 1).dimmed(), colored);
                 }
-                CommandResult::Empty
+                CommandResult::Empty { suspension: None }
             } else {
                 // Pattern match
                 let pattern = spec.to_lowercase();
@@ -1852,7 +1886,7 @@ fn execute_dispatch(
                     for (i, l) in matches {
                         println!("{} {}", format!("{:4}", i + 1).dimmed(), colorize_line(*l));
                     }
-                    CommandResult::Empty
+                    CommandResult::Empty { suspension: None }
                 }
             }
         }
@@ -1895,7 +1929,7 @@ fn execute_dispatch(
                     .stderr(std::process::Stdio::inherit())
                     .status();
                 return match status {
-                    Ok(_) => CommandResult::Empty,
+                    Ok(_) => CommandResult::Empty { suspension: None },
                     Err(e) => CommandResult::Error(format!("goto: {}", e).into(), 1),
                 };
             }
@@ -1961,7 +1995,7 @@ fn execute_dispatch(
                         .stderr(std::process::Stdio::inherit())
                         .status();
                     match status {
-                        Ok(_) => CommandResult::Empty,
+                        Ok(_) => CommandResult::Empty { suspension: None },
                         Err(e) => CommandResult::Error(format!("goto: {}", e).into(), 1),
                     }
                 }
@@ -2660,7 +2694,7 @@ fn execute_dispatch(
                         "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
                         rusqlite::params![target, correlation()]
                     );
-                    CommandResult::Empty
+                    CommandResult::Empty { suspension: None }
                 }
                 Ok(_) => CommandResult::Error(format!("launch: {} failed", handler).into(), 1),
                 Err(e) => CommandResult::Error(format!("launch: {}: {}", handler, e).into(), 1),
@@ -2863,7 +2897,7 @@ fn execute_dispatch(
             }
             if dry_run {
                 println!("  {} dry-run -- no changes made", "○".dimmed());
-                return CommandResult::Empty;
+                return CommandResult::Empty { suspension: None };
             }
             // Confirm
             print!("  Rename all? (y/n): ");
@@ -2873,7 +2907,7 @@ fn execute_dispatch(
             std::io::stdin().read_line(&mut ans).ok();
             if ans.trim().to_lowercase() != "y" {
                 println!("  {} cancelled", "○".dimmed());
-                return CommandResult::Empty;
+                return CommandResult::Empty { suspension: None };
             }
             let mut renamed_files = 0usize;
             let mut renamed_count = 0usize;
@@ -3110,7 +3144,7 @@ fn execute_dispatch(
                 for e in &errors {
                     println!("{}", e);
                 }
-                return CommandResult::Empty;
+                return CommandResult::Empty { suspension: None };
             }
             // Apply all replacements
             let mut result = content_str.clone();
@@ -3176,7 +3210,7 @@ fn execute_dispatch(
                         ))
                     } else {
                         print!("{}", stdout);
-                        CommandResult::Empty
+                        CommandResult::Empty { suspension: None }
                     }
                 }
                 Err(e) => CommandResult::Error(format!("diff: {}", e).into(), 1),
@@ -4241,7 +4275,7 @@ fn execute_dispatch(
                 .stderr(std::process::Stdio::inherit())
                 .status();
             match status {
-                Ok(_) => CommandResult::Empty,
+                Ok(_) => CommandResult::Empty { suspension: None },
                 Err(e) => CommandResult::Error(format!("gt: git not available: {}", e).into(), 1),
             }
         }
@@ -4942,7 +4976,7 @@ fn execute_dispatch(
             // And spawn_sh_with_leak_check INHERITS stdin, so a piped `cat -b` still reads the pipe.
             if args.iter().any(|a| a.starts_with("-")) {
                 return match crate::db::spawn_sh_with_leak_check(line) {
-                    Ok(s) if s.success() => CommandResult::Empty,
+                    Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                     Ok(s) => {
                         let code = crate::exit_status_code(&s);
                         CommandResult::Error(format!("cat: exited with code {}", code).into(), code)
@@ -5265,7 +5299,7 @@ fn execute_dispatch(
                             .to_string();
                         let _ = std::fs::remove_file(tmp);
                         if edited.is_empty() {
-                            CommandResult::Empty
+                            CommandResult::Empty { suspension: None }
                         } else {
                             println!("  {} {}", "→".bright_cyan(), edited.dimmed());
                             execute(&edited, db, core_root)
@@ -5318,7 +5352,7 @@ fn execute_dispatch(
                 .stderr(std::process::Stdio::inherit())
                 .status();
             match status {
-                Ok(_) => CommandResult::Empty,
+                Ok(_) => CommandResult::Empty { suspension: None },
                 Err(e) => CommandResult::Error(format!("edit: {}", e).into(), 1),
             }
         }
@@ -5327,7 +5361,7 @@ fn execute_dispatch(
             print!("\x1B[3J\x1B[2J\x1B[H");
             use std::io::Write;
             std::io::stdout().flush().ok();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         // INT-143: a probe (try_builtin) stops here and ANSWERS. Nothing is spawned.
         _ if !allow_external => CommandResult::NotBuiltin,
@@ -5345,7 +5379,7 @@ fn execute_dispatch(
     let result_str = match &result {
         CommandResult::Error(_, _) => "error",
         CommandResult::Exit(_) => "exit",
-        CommandResult::Empty => "empty",
+        CommandResult::Empty { suspension: _ } => "empty",
         _ => "ok",
     };
     emit_command(db, &cmd, result_str);
@@ -5501,7 +5535,7 @@ fn devbox_test() -> CommandResult {
         // its only other construction is the exit/quit/q builtin. Returning it here to carry a
         // child status closed the terminal the moment devbox test reported a non-zero suite.
         // Error carries the code without terminating, which is what ls /nonexistent already does.
-        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) if s.success() => CommandResult::Empty { suspension: None },
         Ok(s) => CommandResult::Error(
             format!("devbox test exited {}", s.code().unwrap_or(-1)).into(),
             s.code().unwrap_or(1),
@@ -5526,7 +5560,7 @@ fn devbox_shell() -> CommandResult {
         // its only other construction is the exit/quit/q builtin. Returning it here to carry a
         // child status closed the terminal the moment devbox test reported a non-zero suite.
         // Error carries the code without terminating, which is what ls /nonexistent already does.
-        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) if s.success() => CommandResult::Empty { suspension: None },
         Ok(s) => CommandResult::Error(
             format!("devbox shell exited {}", s.code().unwrap_or(-1)).into(),
             s.code().unwrap_or(1),
@@ -5549,7 +5583,7 @@ fn devbox_run(rest: &[&str]) -> CommandResult {
         // its only other construction is the exit/quit/q builtin. Returning it here to carry a
         // child status closed the terminal the moment devbox test reported a non-zero suite.
         // Error carries the code without terminating, which is what ls /nonexistent already does.
-        Ok(s) if s.success() => CommandResult::Empty,
+        Ok(s) if s.success() => CommandResult::Empty { suspension: None },
         Ok(s) => CommandResult::Error(
             format!("devbox run exited {}", s.code().unwrap_or(-1)).into(),
             s.code().unwrap_or(1),
@@ -6134,7 +6168,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
     println!();
     println!("  {} Welcome back to NovaShell 🌲", "✅".green());
     println!();
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 /// INT-167 DEVBOX: what happened during one command?
 ///
@@ -7052,7 +7086,7 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     println!();
     println!("{}", "  watch stopped".dimmed());
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 fn decisions_table(db: &ForestDb) -> CommandResult {
@@ -8070,7 +8104,7 @@ fn sys_logs(args: &[&str]) -> CommandResult {
                 "  {}",
                 "logs are read from the systemd journal; this machine has none".dimmed()
             );
-            return CommandResult::Empty;
+            return CommandResult::Empty { suspension: None };
         }
         let r = running.clone();
         std::thread::spawn(move || {
@@ -8123,7 +8157,7 @@ fn sys_logs(args: &[&str]) -> CommandResult {
   {} log stream stopped",
             "○".dimmed()
         );
-        return CommandResult::Empty;
+        return CommandResult::Empty { suspension: None };
     }
 
     // Static mode — return as table
@@ -8672,7 +8706,7 @@ fn devshell_enter(args: &[&str]) -> CommandResult {
     }
     cmd.args(["--command", &fsh]).current_dir(&cwd);
     match cmd.status() {
-        Ok(_) => CommandResult::Empty,
+        Ok(_) => CommandResult::Empty { suspension: None },
         Err(e) => CommandResult::Error(format!("devshell enter: {}", e).into(), 1),
     }
 }
@@ -8701,7 +8735,7 @@ fn cache(args: &[&str]) -> CommandResult {
                 .stderr(std::process::Stdio::inherit())
                 .status();
             match status {
-                Ok(_) => CommandResult::Empty,
+                Ok(_) => CommandResult::Empty { suspension: None },
                 Err(e) => CommandResult::Error(format!("cache push: {}", e).into(), 1),
             }
         }
@@ -8725,7 +8759,7 @@ fn cd(args: &[&str]) -> CommandResult {
             let _ = std::process::Command::new("zoxide")
                 .args(["add", &path.to_string_lossy()])
                 .status();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e).into(), 1),
     }
@@ -9192,7 +9226,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
                 let _ = std::process::Command::new("zoxide")
                     .args(["add", &home])
                     .status();
-                CommandResult::Empty
+                CommandResult::Empty { suspension: None }
             }
             Err(e) => CommandResult::Error(format!("z: {}", e).into(), 1),
         };
@@ -9212,7 +9246,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
                     let _ = std::process::Command::new("zoxide")
                         .args(["add", &path])
                         .status();
-                    CommandResult::Empty
+                    CommandResult::Empty { suspension: None }
                 }
                 Err(e) => CommandResult::Error(format!("z: {}: {}", path, e).into(), 1),
             }
@@ -9357,9 +9391,23 @@ fn explain_exit_code(code: i32) -> &'static str {
 use std::os::unix::process::ExitStatusExt as _JcExitStatusExt;
 
 fn spawn_with_tee(
+    cmd: std::process::Command,
+    db: &ForestDb,
+    sink: Option<std::fs::File>,
+) -> std::io::Result<std::process::ExitStatus> {
+    spawn_with_tee_jc(cmd, db, sink, &mut None)
+}
+
+/// As spawn_with_tee, but REPORTS A SUSPENSION to the caller.
+///
+/// ⭐ THE EVENT LEAVES AS DATA. This function discovers that a job stopped and CANNOT act on
+/// it -- exec never learns what a JobTable is (exec.rs:1157). Writing to the out param is how
+/// the fact travels to someone who can register it, without this function growing a table.
+fn spawn_with_tee_jc(
     mut cmd: std::process::Command,
     db: &ForestDb,
     sink: Option<std::fs::File>,
+    out_suspended: &mut Option<Suspension>,
 ) -> std::io::Result<std::process::ExitStatus> {
     // ★ `sink` IS WHERE THE TEE WRITES. `None` is the terminal, which every caller wanted until
     // `2> file` existed. Passing a file makes stderr redirection work WITHOUT losing the capture,
@@ -9368,6 +9416,8 @@ fn spawn_with_tee(
     // INT-200: stdin and stdout are the CALLER's, which is what the doc above already claimed.
     // They were set here unconditionally, so a caller attaching a redirect file to stdout had it
     // silently clobbered. Only stderr belongs to this function -- the tee is its whole purpose.
+    // Captured now because spawn() consumes what it names. Display only.
+    let cmd_label = cmd.get_program().to_string_lossy().to_string();
     cmd.stderr(std::process::Stdio::piped());
 
     // INT-188 STEP 4: THE FOREGROUND COMMAND GETS ITS OWN PROCESS GROUP.
@@ -9513,14 +9563,12 @@ fn spawn_with_tee(
         // exec.rs deliberately never learns what one is -- so the pid is PRINTED rather
         // than registered. Step 5 builds that seam properly; smuggling a table in here
         // would break the boundary to save one step.
-        use colored::Colorize;
-        println!(
-            "\n  {} {} -- {} (pid {})",
-            "♸".bright_yellow(),
-            "suspended".bright_yellow(),
-            "not yet resumable: job registration is INT-188 step 5".dimmed(),
-            pgid
-        );
+        // THE FACT GOES OUT AS DATA. The caller registers it and announces the job id;
+        // printing here too would give the user two messages for one event.
+        *out_suspended = Some(Suspension {
+            pgid,
+            label: cmd_label,
+        });
         // ⭐ THE READER IS NOT JOINED, AND last_stderr IS NOT WRITTEN.
         //
         // The tee thread is blocked on read() of a pipe that a STOPPED child will never
@@ -9695,7 +9743,7 @@ pub fn execute_plan_dispatch(
                                 text + "\n"
                             };
                             match f.write_all(body.as_bytes()) {
-                                Ok(()) => CommandResult::Empty,
+                                Ok(()) => CommandResult::Empty { suspension: None },
                                 Err(e) => CommandResult::Error(
                                     format!("  cannot write {}: {e}", path.display()).into(),
                                     1,
@@ -10081,7 +10129,7 @@ fn peel_builtin_first_stage<'a>(
     match execute_impl(&argv, &source, db, &core_root, ExecutionMode::Spine) {
         CommandResult::NotBuiltin => Peeled::Spawn(plans),
         CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
-        CommandResult::Empty => Peeled::Piped(&plans[1..], String::new()),
+        CommandResult::Empty { suspension: _ } => Peeled::Piped(&plans[1..], String::new()),
         // THIS ARM WAS THE SILENT DROP. A structured result fell into the
         // catch-all below and Peeled::Finished abandoned the pipeline, so
         // history piped to head printed the entire history and ignored head:
@@ -10117,7 +10165,7 @@ fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) 
         last_status = child.wait().ok();
     }
     match last_status {
-        Some(s) if s.success() => CommandResult::Empty,
+        Some(s) if s.success() => CommandResult::Empty { suspension: None },
         Some(s) => {
             let code = crate::exit_status_code(&s);
             record_failure(db, "pipeline", code);
@@ -10380,8 +10428,17 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
         IoPlan::Simple => {
             cmd.stdin(std::process::Stdio::inherit())
                 .stdout(std::process::Stdio::inherit());
-            match spawn_with_tee(cmd, db, None) {
-                Ok(s) if s.success() => CommandResult::Empty,
+            // THE FOREGROUND PATH. The only one that can be Ctrl+Z'd, so the only one that asks
+            // for the suspension back. The redirected site and the sh fallback keep the plain
+            // wrapper -- they are step 6.
+            let mut suspended: Option<Suspension> = None;
+            match spawn_with_tee_jc(cmd, db, None, &mut suspended) {
+                // A suspended job succeeded at nothing and failed at nothing; it is paused.
+                // The fact rides out on Empty and the engine turns it into a job.
+                Ok(_) if suspended.is_some() => CommandResult::Empty {
+                    suspension: suspended,
+                },
+                Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                 Ok(s) => {
                     let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
@@ -10430,7 +10487,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
                 Err(e) => return CommandResult::Error(e.into(), 1),
             };
             match spawn_with_tee(cmd, db, stderr_sink) {
-                Ok(s) if s.success() => CommandResult::Empty,
+                Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                 Ok(s) => {
                     let code = crate::exit_status_code(&s);
                     record_failure(db, &word, code);
@@ -10599,7 +10656,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     match status {
         Ok(s) => {
             if s.success() {
-                CommandResult::Empty
+                CommandResult::Empty { suspension: None }
             } else {
                 let code = crate::exit_status_code(&s);
                 // INT-233 -- command not found: suggest nearest known alternative
@@ -12391,7 +12448,7 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
         .stderr(std::process::Stdio::inherit())
         .status();
     match st {
-        Ok(_) => CommandResult::Empty,
+        Ok(_) => CommandResult::Empty { suspension: None },
         Err(e) => CommandResult::Error(format!("vm: {}", e).into(), 1),
     }
 }
@@ -12867,7 +12924,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         // Call grep via shared helper (INT-249)
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
-            Ok(s) if s.success() => CommandResult::Empty,
+            Ok(s) if s.success() => CommandResult::Empty { suspension: None },
             Ok(s) => {
                 // Bound ONCE so the printed number and the reported status come from
                 // the same value -- disagreeing is the bug being fixed here.
@@ -12894,7 +12951,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
-            Ok(s) if s.success() => CommandResult::Empty,
+            Ok(s) if s.success() => CommandResult::Empty { suspension: None },
             Ok(s) => {
                 // Bound ONCE so the printed number and the reported status come from
                 // the same value -- disagreeing is the bug being fixed here.
@@ -13202,7 +13259,7 @@ fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> Comman
     if let CommandResult::Exit(code) = result {
         return CommandResult::Exit(code);
     }
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 fn resolve_fsh_binary() -> String {
@@ -13985,7 +14042,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         // on list
         [] | ["list"] => {
             crate::triggers::render_list(db);
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         // on remove <id>
         ["remove", id] => {
@@ -14132,7 +14189,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let _ = std::process::Command::new("cargo")
                 .args(["watch", "--manifest-path", &manifest, "-x", "build"])
                 .status();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         "audit-deps" => {
             // cargo udeps -- find unused dependencies
@@ -14166,7 +14223,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 );
             }
             let _ = std::process::Command::new("hyperfine").arg(&cmd).status();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         "deps" => {
             // dev deps <crate> -- why is <crate> in the build? (INT-134, Lane 3).
@@ -14446,7 +14503,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             let _ = std::process::Command::new("cargo")
                 .args(["geiger", "--manifest-path", &manifest])
                 .status();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         "check" => {
             // bacon -- background checker
@@ -14469,7 +14526,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .args(["--manifest-path", &manifest])
                     .status();
             }
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         "workspace" | "ws" => {
             // Cargo workspace navigation. No arg -> list all members (authoritative, from
@@ -14648,7 +14705,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                     .current_dir(core_root)
                     .status();
                 match status {
-                    Ok(s) if s.success() => CommandResult::Empty,
+                    Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                     Ok(_) => CommandResult::Error(
                         format!("  dev doc: cargo doc failed for {}", target).into(),
                         1,
@@ -15794,7 +15851,7 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     );
     println!();
 
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 // ── Phase 21 — Query Language ─────────────────────────────────────────────────
@@ -15947,7 +16004,7 @@ fn dashboard_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult
             dashboard_system();
             println!();
             dashboard_forest(db, core_root);
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
     }
 }
@@ -16049,7 +16106,7 @@ fn dashboard_system() -> CommandResult {
     }
 
     println!("{}", "└────────────────────────────────────".dimmed());
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
@@ -16145,7 +16202,7 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
     }
 
     println!("{}", "└────────────────────────────────────".dimmed());
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 // ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────
@@ -16182,7 +16239,7 @@ fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             rusqlite::params![format!("var:{}", name), val],
         )
         .ok();
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 fn smart_preview_cmd(args: &[&str]) -> CommandResult {
@@ -16456,7 +16513,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
             .stderr(std::process::Stdio::inherit())
             .status();
         return match status {
-            Ok(_) => CommandResult::Empty,
+            Ok(_) => CommandResult::Empty { suspension: None },
             Err(e) => CommandResult::Error(format!("python: {}", e).into(), 1),
         };
     }
@@ -16473,7 +16530,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
                 eprintln!("  {}", stderr.bright_red());
             }
             if stdout.is_empty() {
-                CommandResult::Empty
+                CommandResult::Empty { suspension: None }
             } else {
                 CommandResult::Output(stdout)
             }
@@ -16506,7 +16563,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
             .status();
-        return CommandResult::Empty;
+        return CommandResult::Empty { suspension: None };
     }
     let first = args[0];
     let home = std::env::var("HOME").unwrap_or_default();
@@ -16526,7 +16583,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
             .status();
-        return CommandResult::Empty;
+        return CommandResult::Empty { suspension: None };
     }
     // Inline code
     let code = args.join(" ");
@@ -16542,7 +16599,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
                 eprintln!("  {}", stderr.bright_red());
             }
             if stdout.is_empty() {
-                CommandResult::Empty
+                CommandResult::Empty { suspension: None }
             } else {
                 CommandResult::Output(stdout)
             }
@@ -16652,7 +16709,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                 );
             }
             println!();
-            CommandResult::Empty
+            CommandResult::Empty { suspension: None }
         }
         Some(path) => {
             // INT-223 Phase 3 -- run .py, .sh, .fsh files natively
@@ -16686,7 +16743,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                         .stderr(std::process::Stdio::inherit())
                         .status();
                     return match status {
-                        Ok(s) if s.success() => CommandResult::Empty,
+                        Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                         Ok(s) => CommandResult::Error(
                             format!("run: python3 exited with {}", s).into(),
                             1,
@@ -16709,7 +16766,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                         .stderr(std::process::Stdio::inherit())
                         .status();
                     return match status {
-                        Ok(s) if s.success() => CommandResult::Empty,
+                        Ok(s) if s.success() => CommandResult::Empty { suspension: None },
                         Ok(s) => {
                             CommandResult::Error(format!("run: sh exited with {}", s).into(), 1)
                         }
@@ -16799,7 +16856,7 @@ fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         );
     }
     println!();
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 // ── Phase 10 — chart command ──────────────────────────────────────────────────
@@ -16894,7 +16951,7 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
         );
     }
     println!();
-    CommandResult::Empty
+    CommandResult::Empty { suspension: None }
 }
 
 // INT-238 -- forest-stats: The Forest Visualizes Its Own Growth

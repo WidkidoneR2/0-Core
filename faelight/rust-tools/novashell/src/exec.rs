@@ -1050,7 +1050,7 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
         match commands::execute_plan_dispatch(plan, "", self.db, self.core_root) {
             CommandResult::Output(s) => Ok(s),
             // Produced nothing, so substituted nothing. Correct, not an error.
-            CommandResult::Empty => Ok(String::new()),
+            CommandResult::Empty { suspension: _ } => Ok(String::new()),
             // INT-208: CaptureError still carries a String. A capture failure arguably wants the
             // whole diagnostic, but widening it is a separate change with its own callers.
             CommandResult::Error(d, _) => {
@@ -1740,7 +1740,7 @@ pub fn execution_state(result: &CommandResult) -> &'static str {
         // state answers what KIND of outcome occurred; the status is a different question.
         CommandResult::Exit(_) => crate::db::EXEC_EXIT,
         CommandResult::Error(_, _) => crate::db::EXEC_ERROR,
-        CommandResult::Empty => crate::db::EXEC_EMPTY,
+        CommandResult::Empty { suspension: _ } => crate::db::EXEC_EMPTY,
         _ => crate::db::EXEC_OK,
     }
 }
