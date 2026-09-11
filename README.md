@@ -48,10 +48,54 @@ _Release notes for 1.0.0 and everything since live in the [changelog](faelight/m
 
 <!-- STATIC SECTION -->
 
+## The shell
+
+The work is the shell now. **NovaShell** -- `nsh` -- is a structured shell: commands return
+tables rather than text, and the pipeline filters values instead of re-parsing strings.
+
+```
+ps | where pgid == 1
+
+  name     cpu  memory  pgid  pid  status  user
+  systemd  0.0  0.0     1     1    Ss      root
+```
+
+### Job control
+
+As of September 2026, `nsh` owns process groups and the terminal:
+
+```
+sleep 300
+^Z
+  ☸ [1] sleep -- suspended (fg 1 to resume)
+
+jobs
+  [1] stopped   sleep  (pgid 46310, 8s elapsed)
+
+bg 1
+  ▲ [1] sleep -- continued in the background
+```
+
+A pipeline is ONE job in one process group. A suspended job is registered and resumable, not
+announced and lost. Job state is OBSERVED per process, never inferred -- a job the shell cannot
+account for says `UNKNOWN` with its reason rather than vanishing from the table.
+
+### What it is not
+
+`nsh` is **not POSIX** and does not pretend to be. It is **not a login shell**: `bash` is still
+what `/etc/passwd` names, deliberately, so a shell that cannot start costs a terminal tab rather
+than a session. And where it has not modelled a construct, it hands the line to `sh` rather than
+guessing.
+
+The principle the shell keeps relearning: **a tool that cannot answer must say so**, rather than
+reporting an answer it never established.
+
+---
+
 ## What is Faelight Forest?
 
 A self-aware personal computing environment, built from first principles. Every piece a
-modern desktop needs -- a shell, an intelligence layer, and 38 custom Rust tools --
+modern desktop needs -- a shell, an intelligence layer, and 30 custom Rust tools --
 written or fully understood. No mystery packages. No magic. No convenience at the
 cost of comprehension.
 

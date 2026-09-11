@@ -1,5 +1,82 @@
 # Changelog
 
+## [Unreleased] -- The Shell Takes Over (since 2026-08-26)
+
+208 commits since the Omarchy migration, and the centre of gravity moved. The environment was
+the project; the shell is now the work.
+
+**This section is deliberately unversioned.** No release has been cut since 1.0.0, and writing a
+version number for work that has not shipped would be the kind of claim this project spends its
+time removing.
+
+### The shell learned job control (INT-188, in progress)
+
+`nsh` had none: no process groups, no terminal ownership, one signal handler. Ctrl+Z suspended
+the shell itself. Now:
+
+    sleep 300
+    ^Z        suspended (fg 1 to resume)
+    jobs      [1] stopped   sleep  (pgid 46310, 8s elapsed)
+    bg 1      continued in the background
+    fg 1      back in the foreground
+    kill %1   signalled, reaped, no zombie
+
+Built in six steps, each demonstrated against the kernel rather than the code:
+
+- background jobs get their own process group; a pipeline shares ONE group led by stage 0
+- job state is OBSERVED per member with `waitpid(WUNTRACED)`, never inferred from absence
+- a foreground command gets the terminal, and the shell takes it back on EVERY exit path
+- a suspended job is registered and resumable, not announced and lost
+- `fg`, `bg` and `jobs` are reserved names that beat aliases -- a user's `fg` alias can no
+  longer make the shell's own job control unreachable
+
+⭐ THE BUG THAT COST THREE WRONG THEORIES: everything was correct -- the group, the terminal
+handover, `isig`, the suspend character -- and Ctrl+Z still did nothing. The child had inherited
+SIGTSTP as SIG_IGN across `exec`. A disposition of SIG_IGN survives `exec`; every foreground job
+must be born with defaults restored in `pre_exec`. Found by reading `/proc/<pid>/status`, which
+was available from the first minute and looked at last.
+
+### The shell stopped reporting things it had not established
+
+Three intents, one idea: a tool that cannot answer must say so rather than inventing one.
+
+- **INT-192** -- forest checks could not express an undetermined outcome, so a check that could
+  not run reported clean.
+- **INT-245** -- the value pipeline could not say "I could not compute that". `reduce` now splits
+  four ways by counting rather than filtering, and a refusal sets `$?` while printing nothing.
+- **INT-246** -- the sandbox declared four restrictions and enforced one. `max_memory_mb` is now
+  cgroup v2, `allow_fs_write` is bwrap, and two fields that could not be enforced were DELETED
+  rather than left as decoration.
+
+### Messages say what happened
+
+`exited 1 -- general error` was what the shell said for any exit 1, including `grep` finding no
+matches -- which is not an error. Exit 1 now means what it means for the command that ran, or
+admits the shell does not know:
+
+    grep     no matches
+    diff     files differ
+    false    that is what false does
+    pgrep    no processes matched
+
+### Also
+
+- **INT-230** -- `fsh` could not be installed without 0-Core; the shell and its integration were
+  the same thing. Absent-forest behaviour is now a refusal with a reason, not an empty result.
+- **INT-237** -- the session target died with Nix, leaving five services unsupervised and the
+  doctor unable to see it.
+- `ps` grew a `pgid` column, honours `-p`, and REFUSES flags it does not implement instead of
+  silently ignoring them -- with the `/usr/bin/ps` invocation that would work.
+- `watch` no longer leaves a process-wide SIGINT handler behind after it exits.
+
+### Engineering protocol
+
+`AGENTS.md` gained the rules this period earned: diagnose which layer failed before changing
+code, transport generated text as data rather than shell syntax, test the CLASS of failure
+rather than the example, and -- newest, after three bug reports that turned out to be the kernel,
+a library, and an alias -- **establish that nsh is responsible before changing nsh.**
+
+
 ## [1.0.0] — Morphwood (2026-07-06)
 
 ### 🎯 Completed Intents
