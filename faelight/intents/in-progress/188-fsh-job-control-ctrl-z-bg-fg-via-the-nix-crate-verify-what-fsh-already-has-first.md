@@ -650,6 +650,59 @@ proof in this intent for steps 4, 5 and 6 is a hand-run measurement recorded abo
 nothing would catch it. A pty-driven job-control case belongs in nsh-test, and INT-202's capture
 window already solved the hard half of that problem. Worth its own work rather than a claim here.
 
+---
+
+## SESSION CLOSE, 2026-09-14
+
+Eight of eleven gates closed. G2 and G3 are ANSWERED but deliberately NOT TICKED -- both rulings
+contain a claim that did not survive measurement, and correcting them comes before closing them.
+
+### Three open items CLOSED as not-a-bug
+
+    "redirect drops the child's status"   FALSE. `diff` is aliased to `difft`, and difftastic
+                                           exits 0 whether files differ or not. The redirect
+                                           path preserves status correctly: measured,
+                                           `false > /dev/null` and `grep > /dev/null` both
+                                           return 1, matching bash.
+
+    "ps has no STAT column"               FALSE. It has had one all along, called `status`, and
+                                           it was on screen every time I said it was missing.
+
+### What was actually fixed
+
+    ps         gained a `pgid` column -- the one a job-control session could not get from its
+                own shell -- honours `-p <pid>`, and REFUSES flags it does not implement.
+
+            ⚠️ IT SILENTLY DISCARDED EVERY FLAG BEFORE TODAY. `ps -eo pid,pgid,stat` printed
+            the default table and ignored the request. Every process probe in this intent that
+            asked for specific columns got all of them instead, which is why the question the
+            whole step-4 hunt turned on -- WAS THE CHILD STOPPED -- stayed invisible.
+
+    watch      no longer leaves a process-wide SIGINT handler behind. Save, install, restore:
+                SigCgt is identical before and after in one live process. `ctrlc` removed.
+
+### The pattern, written into AGENTS.md
+
+Three confident bug reports this session, three layers that were not this shell:
+
+    the orphaned stopped child   the KERNEL (SIGHUP + SIGCONT on group orphaning)
+    the stolen Ctrl+C            a LIBRARY's lifetime semantics (and no symptom at all)
+    the dropped exit status      the USER's own alias table
+
+**Establish that nsh is responsible before changing nsh.** The cost of asking is one command;
+the cost of not asking is a permanent wrong belief in the codebase.
+
+### Carries-forward
+
+    SIGHUP           no story for the terminal going away. Own intent.
+    pty job test     suspend/resume has no automated cover. Own work.
+    command resolution  `which` shows an alias; ordinary use does not. Observability, not a
+                        restriction -- aliases replacing commands is legitimate.
+    `&` routing      a line containing `&` goes to sh wholesale, so the structured pipeline is
+                      unavailable there. Observed, not yet judged.
+    NSH_JOB_TRACE    kept while job-control work continues. It earned its place: the trace is
+                     what revealed `line=difft` and ended the status-path theory.
+
 ## Sequencing
 - INT-168 (reedline) owns keystroke handling and the same terminal territory. Do not build job
   control on rustyline immediately before swapping the editor -- coordinate or sequence after.
