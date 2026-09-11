@@ -86,7 +86,7 @@ table would be the same category error as `TIMING:` rows living in shell_history
       implemented, including what happens when a background job reads from the terminal
 - [x] G6 ONLY THEN: the implementation is chosen -- signal-hook, rustix, nix or libc -- with the
       reason recorded and what it gives up
-- [ ] G7 DEMONSTRATED ON A REAL COMMAND: Ctrl+Z suspends, `bg` resumes in background, `fg` returns
+- [x] G7 DEMONSTRATED ON A REAL COMMAND: Ctrl+Z suspends, `bg` resumes in background, `fg` returns
       it to the foreground, and `jobs` reports state that matches reality
 - [ ] G8 NO REGRESSION: the line editor, Ctrl+C, login, and deploy all still work. fsh-test green
 - [ ] G9 each gate carries evidence per INT-158
@@ -333,6 +333,95 @@ cannot reach a JobTable -- exec.rs deliberately never learns what one is (exec.r
 The suspended job currently prints its pid and is otherwise lost. That is honest, and it is
 temporary: step 5 builds the seam the way `BackgroundAttempt` already does it -- exec returns
 something, the caller registers it -- rather than smuggling a table across the boundary.
+
+---
+
+## STEPS 5-6: THE LOOP CLOSES, 2026-09-13
+
+### Step 5 -- a suspended job is REGISTERED, not lost (09ddfcff)
+
+Step 4 left the job alive, stopped, and unreachable: the shell printed its pid and forgot it.
+The gap was structural -- `spawn_with_tee` discovers the stop and cannot reach a JobTable,
+because exec deliberately never learns what one is (exec.rs:1157).
+
+RULED: the event travels back as DATA and the engine registers it.
+
+    spawn_with_tee_jc  ->  Suspension { pgid, label }
+                       ->  CommandResult::Empty { suspension }
+                       ->  absorb_result_with_jobs
+                       ->  JobTable::register_suspended
+
+⭐ `Empty` WAS WIDENED RATHER THAN A VARIANT ADDED -- the rule this enum already states twice in
+its own doc. 18 of its match sites carry a `_` arm and would have swallowed a new variant
+silently; widening made all 65 construction sites a COMPILE ERROR. The compiler was the
+checklist, and one mechanical pass over its own JSON diagnostics fixed every one.
+
+⚠️ AND THE FIELD IS THE EXTENSION POINT, NOT THE VARIANT. `Empty` still means "nothing was
+produced", which is true of a suspended command. Other execution-side events can cross the same
+boundary later without this variant becoming about suspension.
+
+⭐ Suspension CARRIES A pgid, NOT A pid. For a single foreground command the two are equal and
+that is COINCIDENCE: `fg` resumes a GROUP, and a pipeline makes them differ while the
+job-control identity stays the group. Encoding today's equality would have bought one step and
+cost an architectural correction at the next.
+
+### The type change that forced two latent bugs into the open
+
+`Job.child` became `Option<Child>` -- a suspended job has no Child, because the wait that saw it
+stop consumed the handle. That broke exactly two call sites, and both were already wrong:
+
+    fg()        waited on ONE Child instead of resuming a GROUP, never sent SIGCONT (so a
+                stopped job would have hung the shell forever), and never handed over the
+                terminal (so the resumed job could not read the keyboard).
+    kill_job()  killed one pid and removed the row WITHOUT reaping -- the `sleep <defunct>`
+                observed during step 4. It also needed SIGCONT first: SIGTERM to a stopped
+                process is queued, not delivered.
+
+Making the field optional is what stopped them compiling unchanged. Verified after the fix: zero
+`sleep <defunct>` in the process table.
+
+### ⭐ RESERVED NAMES BEAT ALIASES, AND THAT IS A PROPERTY OF THE SHELL
+
+`fg 1` reached faelight-git, not job control:
+
+    raw "fg 1"  ->  expand_aliases (main.rs:1520)  ->  "faelight-git 1"  ->  try_fg asks
+                    command_word, gets "faelight-git", declines
+
+The builtin was unreachable BY NAME. Renaming the git alias would have removed one collision and
+left the shape intact -- any user aliasing `fg`, `bg` or `jobs` would make the shell's own job
+control disappear.
+
+RULED: classify against the RAW line before expanding. Once expansion has run the evidence is
+gone, which is why the question is asked first. Scoped to what `is_repl_state_command` actually
+claims, so `fg commit` and `fg status` still reach git -- verified.
+
+### Step 6 -- bg (65bf9f79)
+
+The whole difference from `fg` is two things MISSING, not anything added: no tcsetpgrp, no wait.
+
+    sleep 60
+    ^Z            suspended (fg 1 to resume)
+    bg 1          continued in the background
+    jobs          [1] running   sleep  (pgid 46310, 8s elapsed)
+    bg 1          x [1] sleep is not stopped -- nothing to resume
+    (waits)       done (66.4s)
+
+⭐ THE LAST LINE IS THE ONE THAT MATTERS. Nobody asked for it. The job was suspended from the
+terminal, resumed by a builtin, finished on its own, and was reported by step 3's reconciler --
+the first time these parts composed without being individually driven.
+
+## G7 CLOSED. WHAT REMAINS
+
+    G2  ctrlc is still installed, and the ruling says it becomes wrong at exactly the point
+        that is now true: a foreground group owns the terminal, so the kernel delivers SIGINT
+        to IT, and a process-wide handler steals it from sleep, vim and every pipeline.
+    G3  each signal's purpose stated -- mostly written across these sections, needs collecting.
+    G8  no regression: nsh-test green, line editor, Ctrl+C, login, deploy.
+    G9  evidence per gate.
+
+⚠️ G2 IS A REAL BEHAVIOUR CHANGE, not a cleanup. Removing the handler means Ctrl+C stops being
+the shell's and starts being the job's. Worth its own careful pass rather than a tidy-up at the
+end of a session.
 
 ## Sequencing
 - INT-168 (reedline) owns keystroke handling and the same terminal territory. Do not build job
