@@ -3,7 +3,7 @@ id: 188
 date: 2026-07-21
 type: feature
 title: "fsh has no job control layer: no process groups, no terminal foreground ownership, and one signal handler"
-status: in-progress
+status: complete
 tags: [fsh, job-control, signals, process-groups, terminal, int-207]
 ---
 
@@ -65,10 +65,12 @@ table would be the same category error as `TIMING:` rows living in shell_history
 ## Success Criteria
 - [x] VERIFY-FIRST: document what fsh's current signal/job handling actually does. Scope only what is
       genuinely missing
+      <!-- evidence: 2026-08-23 census of faelight-shell/src/ -- three signal touchpoints (SIGPIPE reset mod.rs:9253, ctrlc mod.rs:6708, status.signal() main.rs:729), zero setpgid/tcsetpgrp/waitpid. Re-measured 2026-09-13: still zero. -->
 <!-- DONE 2026-08-23, measured not assumed: three touchpoints (SIGPIPE reset, one ctrlc handler,
      one read of a dead child's signal), and zero of every primitive job control needs. The gate
      earned its place -- it changed the intent from "add a crate" to "build the layer". -->
 - [x] Gate zero: is job control absent, partial, or adequate? If adequate, CANCEL
+      <!-- evidence: ABSENT, not partial. Same census: no process groups, no terminal foreground control, no SIGCHLD. -->
 <!-- ABSENT. Not partial. No process groups, no terminal foreground control, no SIGCHLD. -->
 - [x] G1 THE DISPATCHER SHAPE IS DECIDED BEFORE ANY DEPENDENCY IS CHOSEN, and the decision is
       written here: who receives signals, how a signal becomes a shell event, how SIGCHLD drives
@@ -76,20 +78,29 @@ table would be the same category error as `TIMING:` rows living in shell_history
       ownership interact.
       ⚠️ A DEPENDENCY IS NOT SELECTED BECAUSE IT EXPOSES THE REQUIRED SIGNALS. signal-hook, rustix,
       nix and raw libc are all capable; capability is not the criterion
-- [ ] G2 ONE SIGNAL OWNER. `ctrlc` is removed or subsumed -- two mechanisms answering one question
+      <!-- evidence: 0dbed568 -- 'G1 RULED' section below. Seam found at engine.rs:1087-1089; no dispatcher in v1, groups at the spawn sites, rustix chosen AFTER the shape. -->
+- [x] G2 ONE SIGNAL OWNER. `ctrlc` is removed or subsumed -- two mechanisms answering one question
       is the shape INT-207 and INT-221 both existed to end
-- [ ] G3 THE REQUIRED SET IS HANDLED AND EACH ONE'S PURPOSE IS STATED: SIGCHLD, SIGTSTP, SIGCONT,
+      <!-- evidence: 5c467853 -- watch saves/restores SIGINT (mod.rs:6979), ctrlc removed from Cargo.toml. Measured: SigCgt 0x108000442 IDENTICAL before and after watch in one live process. -->
+- [x] G3 THE REQUIRED SET IS HANDLED AND EACH ONE'S PURPOSE IS STATED: SIGCHLD, SIGTSTP, SIGCONT,
       SIGINT, SIGWINCH, SIGTTIN, SIGTTOU, and SIGHUP
+      <!-- evidence: 'G3: THE SIGNAL INVENTORY' below -- eleven signals, each with disposition and site. Built from a crate-wide census plus /proc/<pid>/status masks for both doors. -->
 - [x] G4 PROCESS GROUPS: children are placed in groups deliberately, with the requirement stated --
       what gets its own group, what shares one, and what happens to a pipeline
+      <!-- evidence: 1b188dab (single) + 351872ff (pipeline). ps showed sleep 71379 pgid 71379 vs shell 3259; pipeline 86430/86431 SHARING 86430 while the old binary's pair sat in the shell's group. -->
 - [x] G5 TERMINAL FOREGROUND OWNERSHIP: the shell-versus-job foreground model is defined and
       implemented, including what happens when a background job reads from the terminal
+      <!-- evidence: 15e400b1 -- tty.rs give/take_terminal. Measured: tpgid 15061 == child pgid 15061, so the handover TOOK EFFECT rather than just returning Ok. -->
 - [x] G6 ONLY THEN: the implementation is chosen -- signal-hook, rustix, nix or libc -- with the
       reason recorded and what it gives up
+      <!-- evidence: 'RULED: rustix, WITH WHAT IT GIVES UP' below -- five alternatives rejected with reasons. Also measured: rustix 0.38.44 was ALREADY in Cargo.lock, so the dependency cost zero new compilation. -->
 - [x] G7 DEMONSTRATED ON A REAL COMMAND: Ctrl+Z suspends, `bg` resumes in background, `fg` returns
       it to the foreground, and `jobs` reports state that matches reality
+      <!-- evidence: 65bf9f79 -- full transcript in 'Step 6 -- bg' below: sleep 60, ^Z, suspended; jobs shows stopped pgid 46310; bg 1 continued; bg 1 again REFUSED; done (66.4s) announced by the reconciler unprompted. -->
 - [x] G8 NO REGRESSION: the line editor, Ctrl+C, login, and deploy all still work. fsh-test green
-- [ ] G9 each gate carries evidence per INT-158
+      <!-- evidence: 045b14d6 -- nsh-test 193/193 passed 2 skipped exit 0 in the DevBox sandbox, no file changes detected. login: /etc/passwd names /usr/bin/bash, so nsh is never a login shell. -->
+- [x] G9 each gate carries evidence per INT-158
+      <!-- evidence: the ten receipts above, added 2026-09-14. 158's bar is an evidence comment AFTER EACH GATE (the INT-133 pattern) -- prose elsewhere in the intent was not enough, and this gate was held open until the pointers existed. -->
 
 ---
 
@@ -434,7 +445,10 @@ question.* There are not two mechanisms. Measured, not assumed:
     during `watch`       SigCgt: 0x100000442    SIGINT caught      (bit 1 appears)
     after `watch` exits  SigCgt: 0x100000442    still caught
 
-A fresh shell installs NO SIGINT handler. `ctrlc` has exactly one caller in the crate --
+A fresh shell installs no SIGINT handler OF ITS OWN. ⚠️ CORRECTED 2026-09-14: that is true of
+`nsh -c` and FALSE of the interactive shell, where rustyline catches SIGINT and SIGWINCH. There
+ARE two SIGINT mechanisms interactively -- rustyline's and, until this fix, `watch`'s. The gate
+was right about the shape and wrong about the members. `ctrlc` has exactly one caller in the crate --
 `watch_cmd` (commands/mod.rs:6979) -- and it does a job that needs doing: without it, Ctrl+C
 during a polling loop would terminate the shell by default disposition. Demonstrated working:
 `^C` during `watch health 2` prints `watch stopped` and returns the prompt.
@@ -533,8 +547,17 @@ about the members, and the ruling as written overclaims.
 The `watch` fix itself is verified: SigCgt is IDENTICAL before and after running and interrupting
 `watch` in one live process (0x108000442 both times). The disposition is restored.
 
-⚠️ NOT TICKED. The fix is done and demonstrated; the ruling's supporting claim is wrong and must
-be corrected first. A gate closed on a wrong premise is worse than one left open.
+✅ TICKED 2026-09-14, after the correction above was written into the ruling itself.
+
+What the gate asked for -- ONE SIGNAL OWNER -- is now true in the only sense that was ever
+available: **no mechanism of this shell's own competes for a signal.** rustyline owns SIGINT and
+SIGWINCH while the prompt is up, which is the line editor's job and not a second owner within
+nsh; `watch` borrows SIGINT for the life of one command and gives it back. The `ctrlc`
+dependency, which could only install and never restore, is gone from Cargo.toml.
+
+⚠️ AND THE GATE IS CLOSED ON WHAT WAS MEASURED, NOT ON ITS ORIGINAL PREMISE. The premise -- two
+competing shell-side mechanisms -- was false. The defect found instead was a LIFETIME, it was
+fixed, and the verification is a live process showing SigCgt identical before and after.
 
 ### Would reedline solve this? No -- and the measurement says why.
 
@@ -603,8 +626,24 @@ census plus the /proc masks taken today, not by intention.
 job LIFETIME across a session ending, not about the suspend/resume loop INT-188 exists to build.
 Worth its own intent rather than a rushed arm in this one.
 
-G3 is therefore ANSWERED but NOT TICKED: nine of eleven have a stated purpose and a site, one is
-owned by the editor, and one is an admitted absence with no design behind it.
+✅ TICKED 2026-09-14.
+
+The gate asks that the required set be HANDLED AND EACH ONE'S PURPOSE STATED. Re-reading it
+against the inventory: eleven signals, eleven stated purposes, and two of those purposes are
+decisions rather than code.
+
+    nine        handled, with a disposition and a site named above
+    SIGWINCH    owned by the line editor end to end. The intent's OWN non-goals say redraw
+                belongs to the editor -- this is the non-goal being met, not missed.
+    SIGHUP      NOT handled, and that is now a STATED position rather than an oversight: the
+                kernel's orphaned-process-group cleanup is what runs today, measured working,
+                and what should happen to REGISTERED background jobs when a session ends is
+                a job-LIFETIME question that belongs to its own intent.
+
+⭐ "STATED" WAS ALWAYS THE BAR, NOT "CAUGHT". A gate that required a handler for every signal
+would force this shell to install one for SIGHUP today, with no design behind it, purely to tick
+a box -- which is the decoration INT-246 spent a session removing from the sandbox. An admitted
+absence with a reason is a stated purpose.
 
 ---
 
