@@ -9,14 +9,66 @@ tags: [naming, migration, infrastructure, zero-core]
 
 ## Vision
 
-The project is Project 0. `faelight` is a name it used to have, and one day nothing in the tree
-says it except history. Getting there costs nothing if it is done slowly and could cost the
+The project is **Project 0**. `faelight` is a name it used to have, and one day nothing in the
+tree says it except history. Getting there costs nothing if it is done slowly and could cost the
 machine if it is done fast.
 
 ⭐ THIS IS DELIBERATELY NOT URGENT, AND THAT IS THE MOST IMPORTANT LINE IN THIS FILE. The label
-costs nothing to keep. The shell is the priority, job control is the real deadline, and the
-failure mode of rushing a rename is a machine that does not boot or a ledger that silently reads
-empty. Slow is not a compromise here -- it is the requirement.
+costs nothing to keep. The shell is the priority, and the failure mode of rushing a rename is a
+machine that does not boot or a ledger that silently reads empty. Slow is not a compromise here --
+it is the requirement.
+
+## THE NAME, DECIDED 2026-09-14 -- AND THE TOOLING DECIDED HALF OF IT
+
+The name was chosen in four registers, not one, because a name that only works in conversation
+gets quietly abandoned the first time it will not compile.
+
+    REGISTER          FORM          WHY
+    ---------------   -----------   ------------------------------------------------------
+    spoken, docs      Project 0     What it IS: a minimal starting point, not a rebuilt
+                                    ecosystem. "Faelight Forest" promised a world;
+                                    "Zero Core" promised a framework; this promises only
+                                    what is needed.
+    repo and root     0-core        UNCHANGED. The riskiest thing to move does not move.
+    the CLI           0             Measured: a binary named `0` runs fine. And it is a
+                                    lovely thing to type.
+    crates            zero-*        FORCED -- see below.
+    env vars          ZERO_*        FORCED -- see below.
+
+### ⭐ THE CONSTRAINTS ARE MEASURED, NOT ASSUMED. Both were tested on this machine, 2026-09-14.
+
+    export 0_FOO=bar
+    -> bash: export: `0_FOO=bar': not a valid identifier
+
+POSIX names are `[a-zA-Z_][a-zA-Z0-9_]*`. **An environment variable cannot begin with a digit.**
+Not a style preference -- the shell refuses the assignment.
+
+    [package] name = "0-core"
+    -> error: invalid character `0` in package name: the name cannot start with a digit
+
+**Cargo refuses the PACKAGE name**, not merely the lib identifier. No crate in this workspace can
+ever be `0-*`.
+
+What DOES work, also measured: directories (`~/0-core`), globs (`0-*/`), and an executable named
+`0`. So the split above is not a compromise between tastes. It is the shape the tooling allows,
+found by asking it instead of by arguing.
+
+⭐ AND THE SPLIT IS A FEATURE THIS PROJECT HAS ALREADY PROVEN. `NovaShell` is what it is called;
+`nsh` is what is typed. Nobody has ever been confused by that. "Project 0" and `0-core` is the
+same arrangement, and it means the name can be beautiful in prose without having to be legal in
+a linker.
+
+### What this REMOVES from the work
+
+The original plan implied moving the root, the repo, and every crate. Two of those are now off
+the table by measurement rather than by decision:
+
+    ~/0-core             stays. Every path in AGENTS.md, every intent citation, `ship`,
+                         every muscle-memory `cd` -- untouched.
+    WidkidoneR2/0-Core   stays. No remote rename, no broken clone URLs.
+
+The remaining surface is smaller than it looked: documentation, the `faelight` CLI, crate names
+as crates are rewritten anyway, and the state paths.
 
 ## The Problem
 
@@ -68,8 +120,8 @@ of the census. It stops the problem growing while everything else is still being
 
 ### LAYER 1 -- IDENTITY IN WHAT YOU READ
 
-README, ROADMAP, AGENTS.md, the catalog generator. Project name becomes Project 0; a subtitle may
-honestly say *formerly Faelight Forest*.
+README, ROADMAP, AGENTS.md, the catalog generator. Project name becomes **Project 0**; a subtitle
+may honestly say *formerly Faelight Forest*.
 
 ⚠️ AND STOP GENERATING FICTION. `faelight-docs` currently produces a catalog listing
 `faelight-shell` when the crate has been `novashell` since 2026-09-01. A generator that
@@ -83,6 +135,10 @@ exactly how faelight-shell became novashell without anyone doing a rename pass.
 
 Old crate directories stay until they are DELETED, not until they are renamed.
 
+⚠️ AND THE NEW NAME IS `zero-*`, NOT `0-*`. Cargo refuses a package name starting with a digit --
+measured above. A future session that reaches for `0-git` will get a compile error and should
+read this line rather than re-deriving the rule.
+
 ### LAYER 3 -- STATE PATHS, LAST AND MOST CAREFULLY
 
 ⚠️ THIS IS THE ONE THAT CAN BREAK THE MACHINE. Alias first, flip later:
@@ -92,6 +148,10 @@ Old crate directories stay until they are DELETED, not until they are renamed.
 
 Only flip the code default after `core doctor` and `nsh history` both work through the alias for
 A FULL WEEK.
+
+⚠️ THE ENV VAR IS `ZERO_STATE_DB`, NOT `0_STATE_DB`. Measured: bash rejects the second as "not a
+valid identifier". A rename that produced it would fail at the moment of use, in the one layer
+that can silently empty the ledger.
 
 ⭐ AND IT IS FOUR THINGS THAT MUST AGREE, NOT ONE. nsh-test measured on 2026-09-05 that hiding
 the forest takes HOME *and* XDG_STATE_HOME, because state_home reads XDG independently -- a bare
@@ -123,6 +183,9 @@ the old one is polished.
 
 ## WHAT NOT TO DO -- each with the reason, so it survives being re-argued
 
+  - ⛔ DO NOT RENAME THE ROOT OR THE REPO. `~/0-core` and `WidkidoneR2/0-Core` are correct under
+    the decided name and moving them buys nothing. This is the single biggest change from the
+    original plan and it is a REDUCTION in work, which is the rarest kind of good news.
   - ⛔ DO NOT RENAME 30 CRATES IN ONE COMMIT. A month spent on identifiers is a month not spent on
     the shell, and the shell is what has a deadline.
   - ⛔ DO NOT COMMENT A CRATE OUT OF THE WORKSPACE. A suppression is not a decision. This is the
@@ -146,10 +209,29 @@ the suite only ran on one machine.
 The same question asked of each crate: does it work on a machine that is not this one? That is
 the question the whole Omarchy-default ambition rests on, and it is answerable today.
 
+## THE MENTAL MODEL THIS RENAME IS FOR
+
+    Omarchy                 the base. Someone else's good work, kept.
+    └── Project 0           only what is needed, and nothing carried over out of habit.
+        ├── the shell       NovaShell -- where the attention goes
+        ├── the tools       what survived the decision test
+        └── the memory      state, history, intents: the part no other shell has
+
+Faelight Forest was an ecosystem, and rebuilding an ecosystem after changing distros is the exact
+trap this avoids. **Omarchy provides the forest. Project 0 provides only what I need.**
+
+⚠️ A DIRECTORY RESTRUCTURE (`core/ tools/ scripts/ config/ modules/`) IS A SEPARATE DECISION AND
+IS NOT PART OF THIS INTENT. It would break every path in AGENTS.md, every intent citation, and
+`ship`, in exchange for tidiness. If it happens it gets its own intent and its own pace gate.
+Naming and moving are two risks; this intent takes one of them.
+
 ## Success Criteria
 
 - [ ] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
       plan. Nothing new is named faelight from that commit onward
+- [x] The NAME is decided in every register it has to survive, with the constraints measured
+      rather than assumed
+      <!-- evidence: 2026-09-14. `export 0_FOO=bar` -> "not a valid identifier"; cargo -> "invalid character `0` in package name". A binary named `0`, the directory `0-core` and the glob `0-*/` all work. Project 0 / 0-core / 0 / zero-* / ZERO_*. -->
 - [ ] Week 1 census exists as `docs/inventory.md`: every crate with keep / replace / retire, the
       four decision-test answers, last invocation, and whether it runs under DevBox
 - [ ] The COUNT is reconciled. README, the generated catalog, tools.toml and the actual tree agree
@@ -166,19 +248,24 @@ the question the whole Omarchy-default ambition rests on, and it is answerable t
       code default changes. Evidence: the dates
 - [ ] Whatever reads the state paths reports UNREADABLE as unreadable. A silent empty ledger is
       the failure this intent most needs to avoid, and it is INT-192's collapse in a new place
-- [ ] The `faelight` unified CLI is decided: renamed to `zero` / `0` with the same subcommands, or
-      deleted with `nsh` and `core` called directly. Written down either way
+- [ ] The `faelight` unified CLI is decided: renamed to `0` with the same subcommands, or deleted
+      with `nsh` and `core` called directly. Written down either way
 - [ ] No layer was done in the same week as another. If one was, say so here and say why -- the
       pace rule is a gate and breaking it is a thing to record, not hide
 
 ## Relationship
 
-- ⏭ PRIORITY: BELOW INT-245 AND INT-246, and far below job control. Both of those are correctness
-  in the shell and the sandbox; this is spelling. If a session has to choose, this loses. Recorded
-  so the ordering survives the enthusiasm of whoever picks it up
-- INT-245 and INT-246 share this intent's central failure mode: something unreadable or
+- ⏭ PRIORITY: BELOW the shell, always. This is spelling. If a session has to choose, this loses.
+  Recorded so the ordering survives the enthusiasm of whoever picks it up
+- INT-245, INT-246 and INT-192 share this intent's central failure mode: something unreadable or
   unenforceable answering as though it were empty or applied. Layer 3's silent-empty-ledger risk
   is the same defect, which is why it is last
 - DevBox (INT-167 lineage) is the instrument, per the section above
 - The naming policy in the existing identity notes stands: Faelight is not renamed WHOLESALE. This
   intent is how it is retired gradually instead
+
+## The Rule
+
+"A name has to survive four registers: what you say, what you type, what compiles, and what the
+shell will export. Three of those were decided by asking the tooling rather than by choosing.
+`~/0-core` does not move, and the rename got smaller the day it got serious." 🌲
