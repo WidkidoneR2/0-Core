@@ -1458,6 +1458,7 @@ fn execute_dispatch(
         "domains" => domains(db),
         "logs" => sys_logs(args),
         "ps" | "processes" => sys_processes(args),
+        "signals" | "sig" => sys_signals(args),
         "ports" => sys_ports(),
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
@@ -7338,6 +7339,130 @@ fn list_plugins(_db: &ForestDb) -> CommandResult {
 }
 
 // ── Phase 8 — System Tables ───────────────────────────────────────────────────
+
+/// `signals [pid]` -- WHAT A PROCESS DOES WITH EACH SIGNAL, by name.
+///
+/// INT-188 built job control and spent a session unable to ask the one question that mattered.
+/// Everything was correct -- the process group, the terminal handover, `isig`, the suspend
+/// character -- and Ctrl+Z still did nothing, because the child had inherited SIGTSTP as
+/// SIG_IGN across `exec`. The fact that ended three wrong theories was one line of
+/// /proc/<pid>/status, available from the first minute.
+///
+/// A shell that owns process groups should be able to say what its children inherited. This is
+/// that question, in the shell's own vocabulary:
+///
+///     signals                    this shell
+///     signals 1234               any process
+///     signals | where handling == "ignored"
+///     signals $! | where signal == "TSTP"
+///
+/// ⚠️ WHY NOT COLUMNS ON `ps`: dispositions cost a /proc read PER PROCESS. On this machine that
+/// is four hundred file reads for one listing, to answer a question almost no listing is asking.
+/// A separate verb that defaults to the shell itself is the honest shape.
+///
+/// ⭐ NAMES, NOT A HEX MASK. `SigIgn: 0000000000380000` is a correct answer to a question nobody
+/// can read. The bug was bits 19/20/21; the ANSWER is "TSTP, TTIN and TTOU are ignored". A tool
+/// that makes you decode its output has not finished answering.
+fn sys_signals(args: &[&str]) -> CommandResult {
+    use crate::value::Value;
+    use std::collections::HashMap;
+
+    // POSIX names in signal order. The number IS the index + 1 -- that identity is what makes
+    // a bit position readable, and getting it wrong is how "bit 19" becomes the wrong signal.
+    const NAMES: &[&str] = &[
+        "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "BUS", "FPE", "KILL", "USR1", "SEGV", "USR2",
+        "PIPE", "ALRM", "TERM", "STKFLT", "CHLD", "CONT", "STOP", "TSTP", "TTIN", "TTOU", "URG",
+        "XCPU", "XFSZ", "VTALRM", "PROF", "WINCH", "IO", "PWR", "SYS",
+    ];
+
+    let pid: String = match args.first() {
+        None => "self".to_string(),
+        Some(v) => {
+            if v.parse::<u32>().is_err() {
+                return CommandResult::Error(
+                    format!(
+                        "  signals: not a pid: {}\n  \u{2192} signals        for this shell\n  \u{2192} signals <pid>  for another process",
+                        v
+                    )
+                    .into(),
+                    2,
+                );
+            }
+            v.to_string()
+        }
+    };
+
+    let path = format!("/proc/{}/status", pid);
+    let status = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => {
+            // The refusal names the pid AND why. "No such process" beats "could not read".
+            let why = if e.kind() == std::io::ErrorKind::NotFound {
+                format!("no such process: {}", pid)
+            } else {
+                format!("cannot read {}: {}", path, e)
+            };
+            return CommandResult::Error(format!("  signals: {}", why).into(), 1);
+        }
+    };
+
+    let mask = |key: &str| -> u64 {
+        status
+            .lines()
+            .find(|l| l.starts_with(key))
+            .and_then(|l| l.split_whitespace().nth(1))
+            .and_then(|h| u64::from_str_radix(h, 16).ok())
+            .unwrap_or(0)
+    };
+    let ignored = mask("SigIgn:");
+    let caught = mask("SigCgt:");
+    let blocked = mask("SigBlk:");
+
+    let name_of = |i: usize| -> String {
+        NAMES
+            .get(i)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("{}", i + 1))
+    };
+
+    let mut rows: Vec<HashMap<String, Value>> = Vec::new();
+    for i in 0..31usize {
+        let bit = 1u64 << i;
+        // ⭐ EVERY SIGNAL GETS A ROW, INCLUDING THE DEFAULTED ONES. A table that lists only the
+        // interesting signals cannot answer "is TSTP ignored?" with a NO -- and the whole point
+        // of this builtin is that ABSENCE was the answer we needed and could not see.
+        let handling = if blocked & bit != 0 {
+            "blocked"
+        } else if ignored & bit != 0 {
+            "ignored"
+        } else if caught & bit != 0 {
+            "caught"
+        } else {
+            "default"
+        };
+        let mut row = HashMap::new();
+        row.insert("num".to_string(), Value::Text(format!("{}", i + 1)));
+        row.insert("signal".to_string(), Value::Text(name_of(i)));
+        row.insert("handling".to_string(), Value::Text(handling.to_string()));
+        // What it MEANS for a shell, so the table teaches rather than just reports.
+        let note = match name_of(i).as_str() {
+            "INT" => "Ctrl+C -- goes to the foreground process group",
+            "TSTP" => "Ctrl+Z -- SIG_IGN here is inherited across exec and stops nothing",
+            "CONT" => "what fg and bg send to resume a group",
+            "TTIN" => "a background read of the terminal",
+            "TTOU" => "a background write -- the shell ignores it to hand the tty over",
+            "CHLD" => "a child changed state",
+            "WINCH" => "the terminal resized",
+            "PIPE" => "a write to a closed pipe",
+            "HUP" => "the terminal went away",
+            _ => "",
+        };
+        row.insert("means".to_string(), Value::Text(note.to_string()));
+        rows.push(row);
+    }
+
+    CommandResult::Value(Value::Table(rows))
+}
 
 /// `ps` -- the process table as a VALUE.
 ///

@@ -895,6 +895,10 @@ pub const VALUE_SOURCES: &[&str] = &[
     "friday",
     "ps",
     "processes",
+    // INT-188: `signals` answers a process question and returns a table, so it belongs
+    // beside `ps`. The namespace cost the doc above names is nil here: there is no
+    // program called `signals` on this system to shadow.
+    "signals",
     "files",
     "tools",
     "events",
