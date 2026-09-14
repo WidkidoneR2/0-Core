@@ -35,12 +35,33 @@ pub fn is_interactive() -> bool {
     }
 }
 
-/// Ignore SIGTTOU, once per process.
+/// Establish the SHELL'S OWN signal posture. Idempotent, and called at startup.
 ///
 /// WITHOUT THIS THE SHELL SUSPENDS ITSELF. A background process calling tcsetpgrp is sent
 /// SIGTTOU by the kernel -- and the moment the shell hands the terminal to a child, the shell
 /// IS a background process. Taking the terminal back would stop the shell stone dead.
-pub fn ignore_ttou_once() {
+/// SIGTTIN is the same hazard for a read, and SIGTSTP is a shell being told to suspend while
+/// it is mid-handover, which is a job-control shell's business to refuse.
+///
+/// ⭐ THIS WAS `establish_shell_signals` AND IT RAN LAZILY, FROM INSIDE give_terminal/take_terminal.
+/// Measured 2026-09-14 with the new `signals` builtin -- the tool paying for itself the same
+/// hour it was written:
+///
+///     fresh shell, no foreground command yet    TTOU, TTIN: default
+///     after one foreground command              TTOU, TTIN: ignored
+///
+/// So the shell's own disposition depended on WHETHER YOU HAD RUN ANYTHING YET. The window is
+/// small and the failure is nasty: a background write to the terminal in that window suspends
+/// the shell with the exact signal this function exists to ignore.
+///
+/// ⚠️ AND THE OLD NAME CLAIMED OTHERWISE. `_once` is true -- it is idempotent -- but "once"
+/// says nothing about WHEN, and the G3 inventory recorded "SIG_IGN at job-control init" for a
+/// call that happened at first terminal handover. A name that hides its timing is how a
+/// document comes to describe code that does something else.
+///
+/// Children are unaffected: pre_exec restores SIG_DFL for all three, which is what makes Ctrl+Z
+/// reach a foreground job at all.
+pub fn establish_shell_signals() {
     if TTOU_IGNORED.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -48,6 +69,9 @@ pub fn ignore_ttou_once() {
         libc::signal(libc::SIGTTOU, libc::SIG_IGN);
         // SIGTTIN for the same reason: a background read of the terminal.
         libc::signal(libc::SIGTTIN, libc::SIG_IGN);
+        // SIGTSTP: the shell does not suspend itself. A job-control shell decides what gets
+        // stopped, and Ctrl+Z belongs to the FOREGROUND GROUP, which is the job, not us.
+        libc::signal(libc::SIGTSTP, libc::SIG_IGN);
     }
 }
 
@@ -55,7 +79,7 @@ pub fn ignore_ttou_once() {
 ///
 /// Never called without is_interactive() first.
 pub fn give_terminal(pgid: u32) -> bool {
-    ignore_ttou_once();
+    establish_shell_signals();
     let Some(p) = rustix::process::Pid::from_raw(pgid as i32) else {
         return false;
     };
@@ -69,7 +93,7 @@ pub fn give_terminal(pgid: u32) -> bool {
 /// class as the cgroup cleanup that had to move into Drop in INT-246. The recovery from getting
 /// this wrong is `exec bash` from another tty.
 pub fn take_terminal() -> bool {
-    ignore_ttou_once();
+    establish_shell_signals();
     rustix::termios::tcsetpgrp(rustix::stdio::stdin(), rustix::process::getpgrp()).is_ok()
 }
 

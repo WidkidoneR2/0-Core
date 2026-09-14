@@ -9648,7 +9648,7 @@ fn spawn_with_tee_jc(
     // and calling tcsetpgrp there would fail or fight whoever does own it.
     let job_control = crate::tty::is_interactive();
     if job_control {
-        crate::tty::ignore_ttou_once();
+        crate::tty::establish_shell_signals();
         #[cfg(unix)]
         unsafe {
             use std::os::unix::process::CommandExt;

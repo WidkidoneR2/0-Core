@@ -792,6 +792,16 @@ fn main() -> Result<()> {
     observe::init();
     let boot_mark = mark;
     boot_mark("main entered");
+    // INT-188: THE SHELL'S OWN SIGNAL POSTURE, ESTABLISHED ONCE, HERE.
+    //
+    // TTOU/TTIN/TSTP ignored so the shell cannot be suspended by its own terminal handover or
+    // by a stray background read or write. This used to happen LAZILY inside give_terminal, so
+    // a shell that had not yet run a foreground command was still suspendable -- found with the
+    // `signals` builtin, which exists because that class of question used to cost an afternoon.
+    //
+    // Cheap and unconditional: it is three libc::signal calls, and a non-interactive shell
+    // wanting them makes no difference to anything it does.
+    crate::tty::establish_shell_signals();
     boot_mark("SIGPIPE + SHLVL + identity exports done");
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
