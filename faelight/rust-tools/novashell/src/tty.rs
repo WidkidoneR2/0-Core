@@ -162,20 +162,50 @@ pub fn wait_foreground(
 /// ⭐ AND THAT IS WHY Suspension CARRIES A pgid AND NOT A pid. For a single command the two
 /// happen to be equal; here the difference becomes load-bearing, and a pipeline will make it
 /// visible in step 6.
-pub fn wait_group_foreground(pgid: u32) -> bool {
+/// How a resumed foreground group left the foreground.
+///
+/// THIS WAS A `bool` AND THE BOOL WAS A LIE BY OMISSION. It answered "did it stop again?", so
+/// every other ending collapsed into `false` -- and `fg` then announced `done` for a job the
+/// user had just Ctrl+C'd. A signalled death reported as success is the same defect as
+/// `exited 1 -- general error`: a message stating something the shell never established.
+///
+/// The information was always there. waitpgid returns a full WaitStatus and the old code
+/// matched it with `_`. This type is that status, kept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForegroundEnd {
+    /// Ctrl+Z again. STILL ALIVE, still a job, and the caller must keep it in the table.
+    Stopped,
+    Exited(i32),
+    /// NOT Exited(128 + n) -- the same distinction jobs::JobResult makes, for the same reason.
+    Signaled(i32),
+    /// Not waitable by us (ECHILD, or a pid rustix refused). NOT a claim about how it ended --
+    /// a claim that we CANNOT SAY, which the caller must never render as success.
+    Unobservable,
+}
+
+pub fn wait_group_foreground(pgid: u32) -> ForegroundEnd {
     use rustix::process::{waitpgid, Pid, WaitOptions};
 
     let Some(g) = Pid::from_raw(pgid as i32) else {
-        return false;
+        return ForegroundEnd::Unobservable;
     };
 
     loop {
         match waitpgid(g, WaitOptions::UNTRACED) {
             // STOPPED AGAIN -- the user pressed Ctrl+Z on the resumed job. Still alive,
             // still a job, and the caller must keep it in the table.
-            Ok(Some(s)) if s.stopping_signal().is_some() => return true,
+            Ok(Some(s)) if s.stopping_signal().is_some() => return ForegroundEnd::Stopped,
             // Finished -- exited or killed. Either way the job is over.
-            Ok(Some(_)) => return false,
+            Ok(Some(s)) => {
+                if let Some(code) = s.exit_status() {
+                    return ForegroundEnd::Exited(code as i32);
+                }
+                if let Some(sig) = s.terminating_signal() {
+                    return ForegroundEnd::Signaled(sig as i32);
+                }
+                // None of the three. Say we cannot tell rather than picking one.
+                return ForegroundEnd::Unobservable;
+            }
             Ok(None) => continue,
             // ⚠️ EINTR IS NOT AN ANSWER, it is an interruption of the QUESTION. Retrying
             // is the only honest response; treating it as done would hand the terminal
@@ -183,7 +213,7 @@ pub fn wait_group_foreground(pgid: u32) -> bool {
             Err(e) if e.raw_os_error() == libc::EINTR => continue,
             // ECHILD or anything else: the group is not waitable by us. NOT stopped -- the
             // caller should stop treating it as a running foreground job.
-            Err(_) => return false,
+            Err(_) => return ForegroundEnd::Unobservable,
         }
     }
 }

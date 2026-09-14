@@ -617,11 +617,15 @@ impl JobTable {
                     crate::tty::give_terminal(g);
                 }
                 // Wait the way the foreground path does: a resumed job can be Ctrl+Z'd again.
-                let stopped_again = if let Some(g) = pgid {
+                // THE OUTCOME, NOT A BOOL. `fg` used to announce `done` for every ending that
+                // was not a stop, so a job you Ctrl+C'd reported success with a green tick.
+                let end = if let Some(g) = pgid {
                     crate::tty::wait_group_foreground(g)
                 } else {
-                    false
+                    // No group means nothing to wait on. Not success, not failure -- unknown.
+                    crate::tty::ForegroundEnd::Unobservable
                 };
+                let stopped_again = end == crate::tty::ForegroundEnd::Stopped;
                 // TAKE THE TERMINAL BACK ON EVERY PATH, including a second stop.
                 crate::tty::take_terminal();
                 if stopped_again {
@@ -640,13 +644,44 @@ impl JobTable {
                     return;
                 }
                 let elapsed = self.jobs[i].elapsed();
-                println!(
-                    "  {} [{}] {} — done ({:.1}s)",
-                    "✅".normal(),
-                    id,
-                    cmd.bright_green(),
-                    elapsed
-                );
+                // SAY HOW IT ENDED. The green tick is for a clean exit and nothing else.
+                match end {
+                    crate::tty::ForegroundEnd::Exited(0) => println!(
+                        "  {} [{}] {} -- done ({:.1}s)",
+                        "✅".normal(),
+                        id,
+                        cmd.bright_green(),
+                        elapsed
+                    ),
+                    crate::tty::ForegroundEnd::Exited(c) => println!(
+                        "  {} [{}] {} -- exit {} ({:.1}s)",
+                        "✗".bright_red(),
+                        id,
+                        cmd.bright_white(),
+                        c,
+                        elapsed
+                    ),
+                    crate::tty::ForegroundEnd::Signaled(s) => println!(
+                        "  {} [{}] {} -- {} ({:.1}s)",
+                        "⊘".bright_yellow(),
+                        id,
+                        cmd.bright_white(),
+                        signal_word(s),
+                        elapsed
+                    ),
+                    // WE CANNOT SAY, so we do not. That the job left the foreground is the only
+                    // thing established.
+                    crate::tty::ForegroundEnd::Unobservable => println!(
+                        "  {} [{}] {} -- left the foreground; how it ended was not observable ({:.1}s)",
+                        "○".dimmed(),
+                        id,
+                        cmd.bright_white(),
+                        elapsed
+                    ),
+                    // Returned early above. NAMED rather than wildcarded so a new variant is a
+                    // compile error instead of a silently wrong message.
+                    crate::tty::ForegroundEnd::Stopped => {}
+                }
                 self.jobs.remove(i);
             }
         }
@@ -783,5 +818,20 @@ mod tests {
     fn a_job_id_still_displays_as_the_number_it_always_was() {
         let id = JobId::parse("3").expect("3 is a job id");
         assert_eq!(format!("{}", id), "3");
+    }
+}
+
+/// A signal number as a WORD. "interrupted" is what happened; 2 is trivia the reader must look
+/// up. Same reason the `signals` builtin renders names rather than a hex mask.
+fn signal_word(sig: i32) -> String {
+    match sig {
+        2 => "interrupted (Ctrl+C)".to_string(),
+        3 => "quit".to_string(),
+        6 => "aborted".to_string(),
+        9 => "killed (SIGKILL)".to_string(),
+        11 => "segmentation fault".to_string(),
+        13 => "broken pipe".to_string(),
+        15 => "terminated".to_string(),
+        n => format!("killed by signal {}", n),
     }
 }
