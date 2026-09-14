@@ -50,3 +50,81 @@ late intent in the arc, not a now.
 ## The Rule
 "Highlighting is display, execution is 169. The honest first question is not 'which tree-sitter grammar'
 -- it is 'do we need a second grammar at all, or can the parser we're already building show its work?'" 🌲
+
+---
+
+## VERIFY-FIRST AND GATE ZERO, ANSWERED 2026-09-14 -- INTENT STAYS OPEN
+
+### What the current highlighting actually does
+
+`ForestHelper::highlight` (completion.rs:1193). Read, not remembered:
+
+    let first_word = trimmed.split_whitespace().next().unwrap_or("");
+
+That is the entire parse. One word, taken by whitespace, coloured by a four-way lookup --
+dangerous / forest-native / known / unknown -- plus an amber wash over the REST of the line when
+the command is dangerous. Natural-language lines get one purple sweep.
+
+**There is no shadow grammar here. There is no grammar at all.** Pipes, redirects, strings,
+substitutions, operators, assignments -- none of them are seen. Everything this intent imagined
+adding is ABSENT rather than done badly, so the gain it describes is real.
+
+⚠️ AND IT IS NOT QUOTE-AWARE, which is the INT-171 gate-2 defect in a place nobody looked:
+`"my file" ls` takes `"my` as the command word and colours it unknown-red. `command_word()` --
+the quote-aware derivation INT-171 built and INT-195 made canonical -- is right there and unused.
+
+### Gate zero: tree-sitter, or the parser we already have?
+
+⭐ THE SPINE ALREADY CARRIES SPANS. Measured in spine/lexer.rs:
+
+    Token { text, span, segments }
+    WordPart::Literal { text, span }
+    WordPart::CommandSub { source, span }
+
+Every token and every lexical segment knows where it started and ended, in the parser this shell
+ALREADY runs on every line. The structure a role-based highlighter needs is not missing -- it is
+produced and then discarded at the prompt.
+
+So the comparison is not "two grammars vs one". It is:
+
+    tree-sitter    a SECOND grammar for a language this shell already parses, kept in sync by
+                   hand, plus a dependency. Its advantages -- incremental, error-tolerant --
+                   are real for an EDITOR parsing files it did not write. This shell owns its
+                   grammar and reparses one line at a time.
+
+    spans          ONE grammar, two outputs. The AST for execution, spans for colour. Drift is
+                   impossible because there is nothing to drift from.
+
+**RULED for the HIGHLIGHTING problem: spans, not tree-sitter.** The duplication this intent
+named as the real cost is the whole cost, and the alternative it named as maybe-better is
+measurably available.
+
+### ⚠️ NOT CANCELLED, AND THAT IS DELIBERATE
+
+The ruling above is about ONE use -- colouring an fsh line at the prompt. tree-sitter's actual
+strength is parsing languages this project does NOT own, which is a different problem that has
+not been scoped:
+
+    a code-aware fsearch that finds a FUNCTION rather than a line matching a regex
+    structural navigation of Rust, markdown, TOML
+    anything where the shell must understand a file it did not write
+
+None of that is this intent's stated vision, and none of it is decided here. The intent stays
+open because the tool may be right for a problem not yet written down -- and closing it would
+mean re-deriving this recon when that problem arrives.
+
+### What proceeds now, neither of which needs this intent
+
+    NOW, one line    `ForestHelper::highlight` calls `command_word()` instead of
+                     split_whitespace. Fixes a real quote bug, needs no spans.
+
+    LATER            `highlight_spans(line) -> Vec<(Span, Role)>` on the spine, consumed by
+                     whichever line editor is in place. Belongs beside INT-168, which owns the
+                     hook it feeds.
+
+### Success criteria
+
+- [x] Verify-first: document what the CURRENT highlighting does and cannot do.
+      <!-- evidence: completion.rs:1193-1242 read 2026-09-14. One word by split_whitespace, four-way lookup, amber rest for dangerous commands. Not quote-aware. -->
+- [x] Gate zero answered: tree-sitter vs parser-emits-spans, FOR HIGHLIGHTING.
+      <!-- evidence: spine/lexer.rs carries Span on Token, WordPart::Literal and WordPart::CommandSub. One grammar already produces what a highlighter needs; a second would only add drift. Highlighting proceeds via spans. -->

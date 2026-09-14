@@ -1209,11 +1209,40 @@ impl<'a> Highlighter for ForestHelper<'a> {
             ));
         }
 
-        let first_word = trimmed.split_whitespace().next().unwrap_or("");
+        // INT-186: THE COMMAND WORD COMES FROM THE LEXER, NOT FROM split_whitespace.
+        //
+        // This took the first whitespace-delimited word, so `"my file" ls` coloured `"my` as an
+        // unknown command in red. The shell has had a quote-aware derivation since INT-171 and a
+        // spanned lexer since INT-169; the prompt was the last place still splitting on spaces.
+        //
+        // The SPAN is what makes this correct rather than merely better: it covers the word's
+        // full source extent INCLUDING its quotes, so the coloured region matches what the user
+        // typed while the LOOKUP uses the quote-stripped text.
+        //
+        // Incomplete is not an error -- it is a line still being typed, which at a prompt is the
+        // normal case. Falling back to whitespace there keeps a half-typed quote coloured
+        // plausibly instead of flickering to nothing.
+        let (first_word, word_end) = match crate::spine::lexer::lex(trimmed) {
+            crate::spine::lexer::LexResult::Complete(tokens) => match tokens.first() {
+                Some(tok) => (tok.text.clone(), leading + tok.span.end),
+                None => return Cow::Borrowed(line),
+            },
+            crate::spine::lexer::LexResult::Incomplete(_) => {
+                let w = trimmed.split_whitespace().next().unwrap_or("");
+                (w.to_string(), leading + w.len())
+            }
+        };
+        let first_word = first_word.as_str();
         if first_word.is_empty() {
             return Cow::Borrowed(line);
         }
-        let rest = &line[leading + first_word.len()..];
+        // The span is a byte offset into `trimmed`; guard the slice rather than trusting it.
+        let word_end = word_end.min(line.len());
+        if !line.is_char_boundary(word_end) || word_end < leading {
+            return Cow::Borrowed(line);
+        }
+        let shown = &line[leading..word_end];
+        let rest = &line[word_end..];
 
         let cmd_color = if is_dangerous_command(first_word) {
             NEON_MAGENTA // hot magenta -- dangerous
@@ -1236,7 +1265,9 @@ impl<'a> Highlighter for ForestHelper<'a> {
             "{}{}{}{}{}",
             &line[..leading],
             cmd_color,
-            first_word,
+            // SHOWN, not first_word: the source text with its quotes, so the line reads back
+            // exactly as typed. first_word is the quote-stripped name, used for the lookup only.
+            shown,
             RESET,
             rest_colored
         ))
