@@ -334,7 +334,10 @@ NOTES / OPEN QUESTIONS for when this is built:
 - The three rectangles map to DevBox's core actions: test the config, edit it, trigger a rebuild.
 - Ties to 167's existing scope: DevBox as the debugging platform, and fsh's dead instrumentation
   columns (correlation_id + source_tool). The TUI is the FRONT of that platform.
-- Framework: ratatui (matches ArchTUI's approach and the forest's Rust-TUI tools like faelight-fm).
+- Framework: ratatui (matches ArchTUI's approach). The original line cited `faelight-fm`
+  as the in-repo precedent; that crate was retired 2026-09-15 (INT-247 Layer 2).
+  The RULING above already says NO TUI, so this whole section is captured history
+  rather than a plan -- the reference is corrected, not revived.
 
 ## ============================================================
 ## MEASURED 2026-08-21 -- P0 IS NOT WIRING. THE NUMBER IS 36.

@@ -37,13 +37,40 @@ Do not let glog sprawl into a dashboard by accident. This intent CAPTURES the id
 not commit glog to becoming a floating window.
 
 ## Success Criteria (draft -- refine at build)
-- [ ] Author filter: narrow the log to a chosen author
-- [ ] Date-range filter: narrow to a from/to window (reuse ISO date-compare)
-- [ ] Fuzzy search covers the commit BODY, not just the subject
-- [ ] Floating-window direction DECIDED (glog v0.2 vs fold into INT-014) before any float build
-- [ ] Each new filter demonstrated live on the real repo (demonstrated-not-declared)
+⏸ Author filter: narrow the log to a chosen author -- deferred: the tool was retired 2026-09-15 (INT-247 Layer 2) -- approved by: christian 2026-09-15
+⏸ Date-range filter: narrow to a from/to window (reuse ISO date-compare) -- deferred: the tool was retired 2026-09-15 (INT-247 Layer 2) -- approved by: christian 2026-09-15
+⏸ Fuzzy search covers the commit BODY, not just the subject -- deferred: the tool was retired 2026-09-15 (INT-247 Layer 2) -- approved by: christian 2026-09-15
+⏸ Floating-window direction DECIDED (glog v0.2 vs fold into INT-014) before any float build -- deferred: the tool was retired 2026-09-15 (INT-247 Layer 2) -- approved by: christian 2026-09-15
+⏸ Each new filter demonstrated live on the real repo (demonstrated-not-declared) -- deferred: the tool was retired 2026-09-15 (INT-247 Layer 2) -- approved by: christian 2026-09-15
 
 ## Depends On / Relates To
 - INT-139 (faelight-glog v0.1 -- shipped; this extends it)
 - INT-014 (faelight-dashboard v2 -- the floating-window idea overlaps; resolve ownership)
 - git2 (workspace dep in faelight-shell -- the likely path for body-fuzzy + richer queries)
+
+---
+
+## CANCELLED 2026-09-15 -- THE TOOL IS GONE
+
+`faelight-glog` was retired (INT-247 Layer 2, evidence from the INT-249 census): 0
+invocations through `fgl` since the migration. This intent is v0.2 of a crate that
+no longer exists, so the author/date/body filters go with it.
+
+⭐ AND `glog` -- the alias that looked like evidence this tool was alive -- was
+`git log --oneline -10` all along. It never pointed at this crate. The tool had been
+replaced without being retired, and only counting ALIASES showed which was which.
+
+### ⚠️ THE FLOATING-WINDOW IDEA HAS NO HOME, AND THAT IS THE HONEST RECORD
+
+This intent said the float would belong to INT-014 if it were a forest-info panel
+rather than a git-log one. That branch is also closed: **INT-014 is CANCELLED** -- it
+was "full NixOS replacement, ratatui, forest-native", and the machine has not been
+NixOS since 2026-08-26.
+
+So the idea is not being handed on. It is being RECORDED AS UNHOMED: a candy-neon
+summonable panel showing recent commits, active intent, health and Friday signal.
+
+Written down because the idea outlived both intents that tried to hold it, which is
+evidence it is real -- but Omarchy already has Waybar and walker, and the honest first
+question next time is whether this is a NEW panel or a Waybar module. Do not reopen it
+as "glog v0.2".
