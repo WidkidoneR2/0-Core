@@ -1796,10 +1796,35 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
     cmd.arg("timeout").arg(format!("{}", secs));
     cmd.arg("sh").arg("-c").arg(&case.command);
 
+    // ⭐ THE CLEAN ROOM DID NOT ISOLATE THE TERMINAL. Measured 2026-09-14: the first
+    // census run killed five TUI tools by timeout, and a TUI killed mid-draw never
+    // restores the tty. Every command in the session afterwards rendered as a
+    // staircase -- `stty -a` showed `-icanon -echo` in a FRESH shell, because the
+    // damage is to the TERMINAL, not to a process.
+    //
+    // Save, run, restore -- the same shape as the SIGINT lifetime fix. A tool that
+    // deliberately kills other programs must clean up after them.
+    let saved_tty = std::process::Command::new("stty")
+        .arg("-g")
+        .stdin(std::process::Stdio::inherit())
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
     let out = match cmd.output() {
         Ok(o) => o,
         Err(e) => return Outcome::Undetermined(format!("could not start the sandbox: {}", e)),
     };
+
+    // RESTORE ON EVERY PATH BELOW -- this runs before any of the expectation checks,
+    // which all return early.
+    if let Some(mode) = &saved_tty {
+        let _ = std::process::Command::new("stty")
+            .arg(mode)
+            .stdin(std::process::Stdio::inherit())
+            .status();
+    }
 
     let code = out.status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&out.stdout).to_string();
