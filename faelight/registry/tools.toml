@@ -38,8 +38,14 @@ category = "core"
 description = "Core launcher and entry point"
 expected_usage = "high"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+# RETIRED 2026-09-15 (INT-247 Layer 2). Four invocations since the migration.
+# Every verb existed elsewhere: health -> `core doctor` (alias `d`), intent ->
+# `core intent` (`ints`, `inta`, `intl`), profile -> `core profile`. `launch`
+# shimmed to omarchy-menu and named faelight-launcher, already retired. `config`
+# managed ~/.config/faelight/cli.toml -- a file for itself, which never existed.
+# No Hyprland bind, no systemd unit, no desktop file. Alias `f` removed.
+retired = true
 [[tool]]
 name = "faelight-bootstrap"
 version = "2.1.0"

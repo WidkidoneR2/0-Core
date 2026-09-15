@@ -1050,18 +1050,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight"
-version = "2.1.0"
-dependencies = [
- "clap",
- "colored",
- "faelight-core",
- "serde",
- "toml 0.8.23",
- "which",
-]
-
-[[package]]
 name = "faelight-ade"
 version = "1.0.0"
 dependencies = [
