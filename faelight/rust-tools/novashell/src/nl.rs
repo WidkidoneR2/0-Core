@@ -218,6 +218,12 @@ pub const PATTERNS: &[Pattern] = &[
     Pattern {
         phrases: &[
             "check forest",
+            // "show health" is the phrase the README ADVERTISES, and it was the one
+            // phrasing missing here. Measured 2026-09-15: `? show health` scored
+            // `files` higher than this pattern and proposed a filesystem listing at
+            // LOW confidence. The gate worked -- it asked before running -- but the
+            // docs promised a phrase the vocabulary did not know.
+            "show health",
             "check health",
             "forest health",
             "how healthy",
