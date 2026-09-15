@@ -92,34 +92,44 @@ reporting an answer it never established.
 
 ---
 
-## What is Faelight Forest?
+## What is Project 0?
 
-A self-aware personal computing environment, built from first principles. Every piece a
-modern desktop needs -- a shell, an intelligence layer, and 30 custom Rust tools --
-written or fully understood. No mystery packages. No magic. No convenience at the
-cost of comprehension.
+Only what is needed, and nothing carried over out of habit.
 
-**~97% Rust** (125k lines across 239 files), with small amounts of Lua and shell where
-they serve best. The forest is not Rust
-for its own sake -- it is Rust because understanding every line is the point.
-POSIX shells:      text -> text -> text
-Nu shell:          table -> filter -> transform
-Faelight Forest:   forest_data -> judgment -> wisdom -> anticipation -> alignment
+Omarchy is the base -- someone else's good work, kept. Project 0 is the layer on top: a shell
+being made good, a sandbox that tests it, and the tools that survived asking "what breaks
+tomorrow if I delete this?"
+
+**Twenty-six crates**, and honestly: most have not been touched since the Omarchy migration in
+August 2026. The shell needed the attention, so the shell got it. That is a statement of where
+the work went, not a claim that the rest is finished.
+
+**~141,000 lines of Rust across 284 files**, with small amounts of Lua and shell where they
+serve best. Rust not for its own sake -- Rust because understanding every line is the point.
+
+    POSIX shells   text  -> text   -> text
+    Nu shell       table -> filter -> transform
+    nsh            table -> filter -> judgment, and a refusal when it cannot answer
+
+The third line is the only one this project had to earn rather than adopt.
 
 ## Origin
 
-Faelight Forest began in a failure. A catastrophic update broke a working system, and the
-rebuild that followed asked a harder question than "how do I fix this?" -- it asked "why
-don't I understand my own machine?" The answer became a principle: build it from parts you
-understand, or don't run it at all.
+Project 0 began in August 2026, when the machine moved to Omarchy and the real question turned
+out to be what to carry over.
 
-That rebuild started on Arch Linux. In June 2026, after another Arch failure, the forest
-migrated to **NixOS 26.05** -- a deliberate move toward declarative, reproducible,
-rollback-safe computing.
+The answer was: less than expected.
 
-In August 2026 it moved again, to **Omarchy**. The reasons are in the commit history
-rather than in a manifesto. What the move made plain is that a system which claims to
-understand itself has to be tested by taking the ground out from under it.
+**Faelight Forest was not a failure.** It was more projects than one person could keep honest at
+the pace they were arriving -- eight or nine months of ideas, each worth building, none with
+enough attention left over. Nothing was broken. Everything was half-tended, which is a different
+problem and a harder one to see.
+
+Project 0 is the same person with a shorter list.
+
+The principle underneath has not moved: build it from parts you understand, or do not run it at
+all. What changed is the admission that understanding has a budget, and that a system which
+claims to understand itself has to be tested by taking the ground out from under it.
 
 ## Philosophy
 
@@ -134,31 +144,42 @@ This is stewardship, not consumption: the forest is tended intentionally, every 
 
 ## The thesis
 
-A computing environment can be coherent, self-documenting, and self-aware -- grown one
-intent at a time, with understanding rather than assembly at its core. Faelight Forest is
-that proof, in daily use: a shell that speaks human, an engine that reasons about its own
-health, and an intelligence layer that learns. Not text streams. Not configuration.
-Structured wisdom.
+A shell can know what it did.
+
+Not "logged it" -- KNOWN it: which session, which command, what it exited with, what you ran
+next. `nsh` has 200,000 commands of that, and the tool inventory in `docs/inventory.md` was
+decided from it rather than from memory. Counting only tool names said twelve crates were dead;
+counting the ALIASES that actually reach them said nine, and three working tools were three
+weeks from a wrong deletion.
+
+No other shell on this machine could have answered that question about itself.
 
 ## Architecture
 
-The forest rests on three pillars, plus an ecosystem of tools:
+Three pieces carry the weight:
 
-- **nsh (NovaShell)** -- the forest's own shell. Speaks human first, UNIX as fallback.
-- **core** -- a single Rust engine of native domains: health, intent ledger, integrity,
-  prediction, decisions, strategy.
-- **Friday** -- an intelligence layer that watches, learns, and speaks only when confident.
-  Persistent memory across sessions; confidence-gated voice.
+- **nsh (NovaShell)** -- the shell. Structured values, its own job control, and a habit of
+  refusing rather than guessing.
+- **core** -- one Rust engine of native domains: health, the intent ledger, integrity.
+- **Friday** -- the intelligence layer. Partly built, deliberately quiet, and not claimed here
+  as finished.
+
+Real commands, each copied from a working terminal:
 
 ```sh
-? show health                  # natural language -> health dashboard
-deploy core                    # intelligent deploy with audit
-build ||| test                 # true parallel execution
-friday where risk > medium     # Friday intelligence query
+ps | where pgid == 1              # structured: filter processes by process group
+fsearch "pub fn" --type rs | count   # search returns rows, not lines
+signals | where handling != "default"  # what this process does with each signal
+? show health                     # natural language -- PROPOSES, then asks before running
 ```
 
-Around these sit 38 custom Rust tools -- compositor helpers, a GPU terminal, a file
-manager, git governance, a release manager, a credential vault, a sandbox, and more.
+The last one matters more than it looks. `?` translates and shows you the pipeline with a
+confidence level; it does not run anything until you say yes. When it has no pattern, it says so
+instead of guessing.
+
+Around these sit the remaining crates -- git governance, a release manager, a credential vault,
+the sandbox. `docs/inventory.md` says which are used, which are kept for a stated reason, and
+which are neither.
 
 **See the full, always-current tool catalog:** [rust-tools/](faelight/rust-tools/)
 
@@ -172,7 +193,8 @@ This README is the front door. The depth lives here:
 - [Shell Philosophy](docs/NSH-PHILOSOPHY.md) -- the case for a human-first shell
 - [Release Process](docs/RELEASE.md) -- how the forest publishes itself
 - [Tool Catalog](faelight/rust-tools/) -- every active tool, generated from source
-- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS and back
+- [Inventory](docs/inventory.md) -- what is used, what is kept, and what the numbers say
+- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS to Omarchy
 
 ## Security
 
