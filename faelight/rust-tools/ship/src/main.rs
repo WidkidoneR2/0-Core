@@ -288,6 +288,25 @@ fn main() {
     println!("     to    {}", bin.display());
 
     if !args.no_build {
+        // SAY WHICH THING IS MISSING.
+        //
+        // `Command::status()` returns ENOENT for TWO different facts: cargo is not
+        // installed, and the current_dir does not exist. The arm below reported the
+        // first for both, so a missing REPO read as a missing TOOLCHAIN.
+        //
+        // Measured 2026-09-15: under the devbox policy HOME is /tmp/devbox-*, so
+        // core_dir() points somewhere that does not exist, and `ship` said
+        // "cargo did not run" while cargo sat at /usr/bin/cargo. Ten minutes went
+        // into looking for a toolchain problem that did not exist.
+        if !root.is_dir() {
+            eprintln!();
+            eprintln!("  x nothing to build: {} does not exist", root.display());
+            eprintln!(
+                "    the repo root comes from HOME, which is {}",
+                std::env::var("HOME").unwrap_or_else(|_| "<unset>".to_string())
+            );
+            std::process::exit(1);
+        }
         println!();
         println!("  building release profile...");
         let started = Instant::now();
@@ -304,6 +323,7 @@ fn main() {
                 std::process::exit(1);
             }
             Err(e) => {
+                // The directory was checked above, so this is now genuinely about cargo.
                 eprintln!("  cargo did not run: {}", e);
                 std::process::exit(1);
             }

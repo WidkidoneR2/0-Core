@@ -1,13 +1,23 @@
-# INT-247 census via INT-249. The question is not 'is this tool good' -- it is
-# 'does it run at all on a machine that is not the author's'.
+# INT-247 census via INT-249.
 #
-# ASKS `help`, NOT `--version`. Measured 2026-09-14: this crate does not implement
-# --version and said so (usage error, or 'see: help'). That was a wrong QUESTION,
-# not a broken crate, and a census that counts it as a failure is measuring the
-# author's assumptions rather than the tool.
-description = "ship runs on a machine that is not the author's"
+# THIS CRATE CANNOT BE ASKED THE ORDINARY QUESTION, AND THAT IS A PROPERTY,
+# NOT A DEFECT. `ship` BUILDS the repo: it derives its root from HOME, and
+# the devbox policy redirects HOME to /tmp/devbox-* on purpose. Asking it to
+# build there is asking it to build something that is not there.
+#
+# Measured 2026-09-15, and it took two wrong theories to get here:
+#   - `ship help` was never a real subcommand -- `ship` takes BINARY NAMES
+#   - the clean-room failure said "cargo did not run" while cargo sat at
+#     /usr/bin/cargo. The missing thing was the WORKING DIRECTORY.
+#
+# `--no-build` is the question this crate CAN answer without a repo: it still
+# reads its arguments, still resolves its paths, and still reports honestly.
+description = "ship starts and reports honestly with no repo present"
 policy      = "devbox"
-command     = "ship help"
+command     = "ship nsh"
 
 [expect]
-exit = 0
+# It SHOULD fail -- there is nothing to build. What matters is that it says
+# which thing is missing rather than blaming the toolchain.
+exit             = 1
+stderr_contains = "nothing to build"
