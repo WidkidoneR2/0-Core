@@ -97,7 +97,18 @@ fn build_dynamic_section(
     let mut s = String::new();
     s.push_str(DYNAMIC_START);
     s.push('\n');
-    s.push_str(&format!("# Project 0 {}\n\n", version));
+    // NO VERSION IN THE TITLE, DECIDED 2026-09-15.
+    //
+    // The headline said "Faelight Forest 1.0.0". Renaming it to "Project 0 1.0.0" would carry
+    // a number earned by a DIFFERENT project, and 1.0 reads as FINISHED. The honest state is
+    // one shell being made good and twenty-four tools waiting their turn.
+    //
+    // The version still appears -- in the BADGE below and in the release heading -- where it
+    // reads as a release number rather than a claim about maturity. The subtitle carries the
+    // history instead, which is what INT-247 Layer 1 permits: "a subtitle may honestly say
+    // *formerly Faelight Forest*".
+    s.push_str("# Project 0\n");
+    s.push_str("\n*_formerly Faelight Forest_*\n\n");
     s.push_str(&format!(
         "![Version](https://img.shields.io/badge/version-{}-green?style=flat-square)\n",
         version.replace('-', "--")

@@ -10,7 +10,10 @@ duplicate it here. Where a rule below has a "why", it points there.
 ## Project Identity
 
 - **Codename:** Project 0
-- **Public name (eventual):** Zero Core
+- **Public name:** Project 0 -- not "eventual". Decided 2026-09-14 in four registers:
+  spoken `Project 0`, root and repo `0-core` (UNCHANGED), CLI `0`, crates `zero-*`,
+  env vars `ZERO_*`. The last two are FORCED: cargo refuses a package name starting
+  with a digit, and bash refuses an env var that does. See INT-247.
 - **One line:** Project 0 — a new computing system built around objects, state, and capabilities.
 - **Repository:** `0-Core`. Historical identity: Faelight Forest / Faelight Shell.
 
@@ -230,9 +233,21 @@ Know the way back before you need it.
 
 ## Naming and Identity
 
-The project is migrating from the historical "Faelight" identity to Zero Core. New user-facing
-functionality uses Zero Core terminology. Historical Faelight names remain where changing them
-would create compatibility or migration risk.
+The project is migrating from the historical "Faelight" identity to **Project 0**. New
+user-facing functionality uses Project 0 terminology. Historical Faelight names remain where
+changing them would create compatibility or migration risk.
+
+### ⭐ LAYER 0 -- THE FREEZE. THIS IS A RULE, NOT A PLAN.
+
+**No new crate, binary, path, doc heading or config key begins with `faelight`.** New work
+is named `nsh`, `core`, `friday`, `devbox`, or `zero-*`.
+
+Free, permanent, and it cannot break anything -- which is why it applies from today rather
+than waiting for the rest of the rename. It stops the problem GROWING while everything else
+is still being decided.
+
+⚠️ `zero-*`, NOT `0-*`. Cargo refuses a package name starting with a digit -- measured.
+A session that reaches for `0-git` gets a compile error and should read this line.
 
 **Do not perform broad mechanical renames of Faelight identifiers.**
 
@@ -241,7 +256,7 @@ Classify before migrating:
 | Category | Strategy |
 | --- | --- |
 | User-facing name | Rename |
-| New APIs, new files | Use Zero |
+| New APIs, new files | Use `zero-*` |
 | Documentation | Rename |
 | Internal identifiers | Migrate gradually |
 | Package/module names | Deliberate migration |
@@ -262,7 +277,7 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 
 - Rust: `faelight-core/src/paths.rs`, `faelight-deadwood/src/main.rs`, `integrity/mod.rs`,
   `doctor/checks.rs`, `cheatsheet_tui.rs`
-- Nix: `environment.etc."faelight/VERSION"`, `xdg.configFile."faelight/profiles.toml"`
+// (Nix paths removed 2026-09-15: the machine has not been NixOS since 2026-08-26)
 - Persistent data: `~/.config/faelight*`, `faelight/runtime/state.db`
 
 ---
@@ -271,7 +286,7 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 
 1. Do not perform repository-wide search-and-replace renames.
 2. Preserve compatibility where practical.
-3. New APIs and components use Zero Core terminology.
+3. New APIs and components use Project 0 terminology.
 4. Classify every legacy identifier before migrating it.
 5. Persistent data formats require an explicit migration strategy.
 6. Package and module renames must preserve dependency correctness.

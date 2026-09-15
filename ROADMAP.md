@@ -1,4 +1,4 @@
-# Zero Core 1.0 -- Transformation Roadmap
+# Project 0 1.0 -- Transformation Roadmap
 
 **Written:** 2026-08-17
 **Status:** draft, for review before any build work begins
@@ -10,7 +10,7 @@
 
 Three things, in his words:
 
-1. **Bring the Omarchy ideas and tools to Zero Core** -- selectively, not wholesale
+1. **Bring the Omarchy ideas and tools to Project 0** -- selectively, not wholesale
 2. **The restructure** -- an improved tree and a better understanding of it
 3. **The beginning of DevBox**
 
@@ -240,7 +240,7 @@ roll back the generation if they misbehave. That is what generations are for.
 needed before it can be evaluated.
 
 📍 For reference, an Omarchy theme styles: desktop, terminal, neovim, btop, mako, waybar, walker,
-hyprlock. **Only terminal, neovim and the lock screen map to what Zero Core runs.** The palette is
+hyprlock. **Only terminal, neovim and the lock screen map to what Project 0 runs.** The palette is
 portable; the theme files are not.
 
 ---
@@ -262,4 +262,4 @@ portable; the theme files are not.
 - Renaming existing `faelight-*` identifiers. Decision 144 is forward-only.
 - Friday's own development. Still the system assistant; simply not reached yet.
 - Restarting intent numbering, or any era prefix.
-- Making Zero Core installable by anyone else.
+- Making Project 0 installable by anyone else.
