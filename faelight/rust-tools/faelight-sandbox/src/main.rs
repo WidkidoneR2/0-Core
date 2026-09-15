@@ -581,7 +581,21 @@ fn main() -> Result<()> {
                     Ok(p) => Some(p),
                     Err(e) => {
                         eprintln!("  ✗ Policy error: {}", e);
-                        return Ok(());
+                        // INT-249: EXIT 3, NOT Ok(()).
+                        //
+                        // This printed the error and returned SUCCESS. Measured 2026-09-14:
+                        // `run --policy nosuchpolicy -- echo hi` said "Policy error" and exited 0.
+                        // The message was right and the STATUS LIED, so anything asking the
+                        // shell "did that work?" -- a script, CI, or INT-249's `verify` -- got yes.
+                        //
+                        // The same collapse as INT-246: a sandbox that cannot deliver what it
+                        // promised, reporting success. `--allow-degraded` guards APPLYING a
+                        // policy; nothing guarded FINDING one.
+                        //
+                        // 3 is this crate's existing "could not do my job" code -- four other
+                        // sites use it -- and it is distinguishable from a command's own exit
+                        // because the command NEVER RAN.
+                        std::process::exit(3);
                     }
                 }
             } else {

@@ -3,7 +3,7 @@ id: 249
 date: 2026-09-14
 type: future
 title: "devbox verify: a bug report and a crate census are the same question -- does this reproduce in a clean room"
-status: planned
+status: in-progress
 tags: [devbox, sandbox, testing, reproduction, census, 247, 167]
 ---
 
