@@ -3210,6 +3210,36 @@ fn main() {
     }
 
     let args: Vec<String> = std::env::args().collect();
+    // AN IDENTITY QUESTION IS ANSWERED BEFORE THE WORK STARTS.
+    //
+    // Unrecognised arguments fell through to "run everything", so `nsh-test help` ran
+    // all 193 cases for 31 seconds. The INT-249 census read that as a HANG and filed
+    // it UNDETERMINED against a 10-second timeout -- a tool that runs a full suite
+    // when asked its own name cannot be surveyed, installed by anything automated, or
+    // safely poked at by someone who does not know its flags yet.
+    //
+    // Same ruling as zero-gate on 2026-09-15: what a tool can answer without doing its
+    // job, it answers first.
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("nsh-test {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if args
+        .iter()
+        .any(|a| a == "--help" || a == "-h" || a == "help")
+    {
+        println!("nsh-test -- the NovaShell behaviour suite");
+        println!();
+        println!("  nsh-test                  run every case");
+        println!("  nsh-test --failed         show only what failed");
+        println!("  nsh-test --category=<c>   one category (repl, pipes, hostile, ...)");
+        println!();
+        println!("The shell under test is NSH_BIN, and the suite ASKS it who it is rather");
+        println!("than trusting the path. A path that exists and is the wrong build is the");
+        println!("case that cost a session.");
+        return;
+    }
+
     let show_only_failed = args.contains(&"--failed".to_string());
     let category_filter = args
         .iter()
