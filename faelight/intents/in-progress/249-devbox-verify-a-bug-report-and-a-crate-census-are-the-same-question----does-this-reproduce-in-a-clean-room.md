@@ -122,6 +122,30 @@ how that gets caught early rather than after both exist.
     case, it should be one.
   - ⛔ NO CASE DEPENDENCIES OR ORDERING. A case that needs another case to have run first is
     stateful, and the clean room exists to remove exactly that.
+
+    ⭐ AMENDED 2026-09-14, AND THE AMENDMENT IS THE MEASUREMENT. "No parallelism" was listed
+    beside this rule in v1. It should not have been: the two are opposites, not neighbours.
+    Independence is exactly what MAKES parallel execution safe, and this rule is the guarantee
+    of independence.
+
+    Measured on the 27-case census:
+
+        default timeout 30s, sequential    158s
+        default timeout 10s, sequential     58s
+        of which: five blocking tools       50s
+        of which: actual work                8s
+
+    So the floor is the SLOWEST CASE, not the sum -- and only while cases run one at a time.
+    Parallel, the same census is bounded by its longest timeout: about ten seconds.
+
+    ⚠️ PARALLELISM IS THEREFORE PERMITTED, WITH ONE CONDITION THAT IS NOT NEGOTIABLE: the
+    REPORT stays deterministic. Cases are named and sorted; running them concurrently must not
+    reorder the output, or a diff between two runs becomes unreadable and the tool stops being
+    usable as evidence. Collect results, then print in case order.
+
+    NOT DONE YET, and that is a choice rather than an oversight: 58 seconds is tolerable for
+    something run weekly, and the census is not run hourly. This is recorded so the next session
+    has the numbers instead of the argument.
   - ⛔ DO NOT INSTRUMENT THE SHELL FOR THIS. 167 imagined an instrumentation API feeding the
     debugger. `observe.rs` (INT-207) already exists and `verify` observes from OUTSIDE -- exit
     codes, output, the process table. Outside-in is what makes a case portable to a machine that

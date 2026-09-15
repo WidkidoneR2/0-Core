@@ -299,6 +299,27 @@ When something fails, name which layer failed before touching code:
 Measured 2026-09-12: four code sites were patched chasing an exit status that stayed 0, when the
 command was never reaching any of them. The correct first move was instrumenting the live path.
 
+### A tool nobody will wait for is a tool nobody will run
+
+**When something is too slow, measure where the time goes before making it faster.** The census
+took 158 seconds and the instinct was to parallelise it. The measurement said otherwise:
+
+    27 cases, sequential, 30s default timeout    158s
+    the same run at a 10s default                 58s
+    the actual work in both                        8s
+
+150 of the original 158 seconds were five tools sitting through a timeout they were never going
+to beat. One constant, changed after measuring, removed 100 seconds. Parallelism -- the harder
+change, with a determinism cost -- would have hidden that by making the waste concurrent instead
+of removing it.
+
+⭐ AND THE DEFAULT IS WHERE THE COST LIVES. A generous timeout looks harmless in one case and
+is paid by every case that does not need it. Put the exception in the case that needs it; keep
+the default at what the ordinary case actually requires.
+
+The order is the same as everywhere else in this file: measure, then change, then measure again
+to see whether the change did what you claimed.
+
 ### Establish that nsh is responsible before changing nsh
 
 **Before fixing a behaviour, establish whether this shell caused it.** Three times on 2026-09-14 a
