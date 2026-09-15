@@ -170,6 +170,53 @@ Hyprland binds, the bash login shim, systemd user units, PATH wrappers, completi
 WHOLE HOME as well as the repo, for `faelight`, `fsh`, and `faelight-fm`, before deleting any
 crate.
 
+## TWO RULES THE LEDGER NEEDS BEFORE LAYER 1 -- both learned 2026-09-15
+
+### 1. A COMPLETED INTENT IS HISTORY. DO NOT REWRITE IT.
+
+When `faelight-fm` and `faelight-glog` were retired, tWENTY-FOUR intents mentioned them.
+Only THREE needed touching:
+
+    complete/    16   what was true then -- LEAVE
+    decisions/    4   records of decisions made -- LEAVE
+    philosophy/   1   LEAVE
+    cancelled/    1   already dead -- LEAVE
+    future/       3   LIVE -- the only ones that matter
+
+Layer 1 covers README, ROADMAP, AGENTS.md and the catalog generator -- documents that
+describe the PRESENT. The intent archive describes the PAST. Rewriting history to match
+the present destroys the reason the ledger exists, and a rename sweep is exactly the
+kind of well-meaning tidying that would do it.
+
+### 2. ⚠️ INTENT NUMBERS ARE NOT UNIQUE ACROSS DIRECTORIES.
+
+There are TWO intents numbered 141:
+
+    future/141-faelight-glog-v02-...md
+    decisions/141-look-at-project-dawnwood-...md
+
+A glob like `intents/*/141-*.md` matches both, and taking `[0]` silently picks whichever
+sorts first. That happened on 2026-09-15: a cancellation note for the glog intent was
+written into the Dawnwood intent instead, and the file it was meant for was moved to
+`cancelled/` with its gates untouched. Both edits reported success.
+
+*THE RULE: edit an intent by EXPLICIT PATH, and guard the write -- refuse unless the
+file contains something only the intended target contains.* Layer 1 will touch many
+intent files at once; without this, the same mistake happens quietly in a layer where
+nobody is watching each edit.
+
+### 3. THERE IS NO `cancel` VERB.
+
+`core intent` has start and complete, and `intc` REFUSES to complete an intent with
+open gates -- correctly. Cancelling is therefore a `git mv` plus a hand-written note,
+and the gates must be deferred with the ledger's own format so they read as CLOSED
+rather than FORGOTTEN:
+
+    ⏸ gate description -- deferred: [reason] -- approved by: christian <date>
+
+Layer 2 will retire more tools, and some will have a live intent behind them. Worth
+building the verb if it happens more than twice more.
+
 ## THE DECISION TEST -- ask these in order, every time
 
     1. Did I run this after 2026-08-26, on Omarchy?
@@ -236,8 +283,9 @@ Naming and moving are two risks; this intent takes one of them.
       four decision-test answers, last invocation, and whether it runs under DevBox
 - [ ] The COUNT is reconciled. README, the generated catalog, tools.toml and the actual tree agree
       on how many tools exist. Today they do not
-- [ ] faelight-fm is gone -- workspace, PATH, docs, teach, Friday facts, command registry, and the
+- [x] faelight-fm is gone -- workspace, PATH, docs, teach, Friday facts, command registry, and the
       Hyprland bind. Moved to `retired/` or deleted, NOT commented out
+      <!-- evidence: 2026-09-15. Crate deleted, binary retired with `ship --retire`, registry marked retired = true, aliases fm/fmd removed, census case deleted. deadwood reports registry orphans clean. faelight-glog went with it on the same evidence. 9,893 lines removed; 193/193 green after. -->
 - [ ] The NixOS-era crates are gone by the same standard. The machine has not been NixOS since
       2026-08-26
 - [ ] `faelight-docs` cannot resurrect a retired tool. Proven by running it after a retirement and
