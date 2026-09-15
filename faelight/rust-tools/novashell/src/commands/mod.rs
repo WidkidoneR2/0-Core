@@ -17827,6 +17827,28 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
 
 /// One fsearch hit as a ROW.
 ///
+/// ⭐ TAB-SEPARATED, NOT `file:line:text` -- DECIDED TWICE, REVERSED ON EVIDENCE.
+///
+/// The first ruling chose colons because "every editor and compiler agrees on them". Then the
+/// tab-separated form was seen working and the argument collapsed:
+///
+///     PATHS AND CODE BOTH CONTAIN COLONS. `crate::tty::wait_group_foreground` has four.
+///     Anything splitting `file:line:text` on `:` gets garbage -- which is why `cut -d:`
+///     on grep output is a workaround rather than a convention people enjoy.
+///
+/// Tabs keep the fields fields:
+///
+///     fsearch pgid | cut -f1 | sort -u    which files mention it
+///     fsearch pgid | awk '$2 > 600'       by line number
+///     fsearch pgid | cut -f3              just the code
+///
+/// ⚠️ AND IT IS THE SAME CHOICE THE REST OF THIS SHELL MAKES. `ps`, `signals` and every
+/// other source return ROWS; tab-separated is the TEXT form of a table. Colon-joining is the
+/// text form of a LINE, which is the thing the value pipeline exists to move away from.
+///
+/// The editor case is better served by a VERB than by a format -- `fsearch x | first 1 | edit`
+/// can use the columns rather than re-parsing them.
+///
 /// Three columns and no more: where, which line, what it says. `line` is a Number so
 /// `where line > 500` compares numerically rather than as text -- the kind of thing that only
 /// works if the type is right at the source.
