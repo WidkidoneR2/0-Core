@@ -174,7 +174,11 @@ fn build_dynamic_section(
         stats.intents_complete
     ));
     s.push_str(&format!("| 🏥 **Health** | {}% |\n", stats.health));
-    s.push_str("| ⚡ **Stack** | Rust · Wayland · Smithay · ratatui · wgpu |\n");
+    // THE STACK IS WHAT IS ACTUALLY USED. Smithay (a Wayland compositor library) and
+    // wgpu (GPU rendering) belonged to a compositor and a GPU terminal this project no
+    // longer builds -- Hyprland is the compositor. Listing a library nothing links is the
+    // same class of claim as a tool count nobody measured.
+    s.push_str("| ⚡ **Stack** | Rust · SQLite · ratatui · Hyprland · Wayland |\n");
     s.push_str("| 🌍 **Philosophy** | Understanding over convenience · No mystery packages |\n");
     s.push('\n');
     s.push_str("> Every tool written or fully understood. Nothing runs blindly.\n\n");

@@ -327,9 +327,30 @@ fn gather_state() -> ForestState {
         // Splitting on [[tool]] rather than scanning lines, because retired = true and
         // name = are different lines of the same entry and a line filter cannot relate
         // them. 51 entries, 13 retired, 38 live.
+        // ⭐ AND NOT type = "cargo" EITHER, MEASURED 2026-09-15.
+        //
+        // This said 36 while the tree held 26 crates. The arithmetic was honest; the SET
+        // was wrong. Eleven live entries name nothing in rust-tools/:
+        //
+        //   nine cargo-*   cargo-nextest, -watch, -udeps, -flamegraph, -cache,
+        //                 -install-update, -set-version, -upgrade, -miri.
+        //                 They are EXTERNAL cargo subcommands, not tools this
+        //                 project wrote.
+        //   core, nsh     REAL, and correctly `type = "rust"` -- they just live
+        //                 elsewhere (faelight/engine/, and novashell's binary).
+        //
+        // The registry ALREADY KNEW. Every cargo entry carries `type = "cargo"` and
+        // `deployable = false`. This counter read neither field, so a sentence about
+        // tools THIS PROJECT WROTE included nine it merely INSTALLS.
+        //
+        // 26 crates + the engine = 27, which is what this now returns.
         Ok(t) => t
             .split("[[tool]]")
-            .filter(|b| b.contains("name = ") && !b.contains("retired = true"))
+            .filter(|b| {
+                b.contains("name = ")
+                    && !b.contains("retired = true")
+                    && !b.contains("type = \"cargo\"")
+            })
             .count(),
         Err(e) => {
             eprintln!(

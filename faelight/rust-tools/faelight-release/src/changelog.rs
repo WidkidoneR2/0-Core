@@ -532,34 +532,39 @@ impl ReleaseStats {
 }
 
 fn count_tools(_core_root: &PathBuf) -> u32 {
+    // THE SAME PREDICATE faelight-docs USES, and for the same reason.
+    //
+    // This counted EVERY non-retired entry, which includes nine external cargo
+    // subcommands -- cargo-nextest, -watch, -udeps and six more. They are marked
+    // `type = "cargo"` and `deployable = false`: the registry knew, the counter did not.
+    //
+    // THAT IS WHY THE README SAID 30 HERE AND 36 THERE: two generators, two counting
+    // rules, neither wrong about its own arithmetic and both wrong about the SET.
+    //
+    // ⚠️ AND `Err(_) => 0` WAS THE OTHER HALF. A registry this cannot read is not
+    // zero tools -- it is a fact this cannot establish. faelight-docs hit exactly this
+    // on 2026-09-02, wrote "0 custom Rust tools" onto the front page, and printed a
+    // green check. It refuses now; so does this.
     let tools_toml = faelight_core::paths::tools_registry();
     let content = match std::fs::read_to_string(&tools_toml) {
         Ok(c) => c,
-        Err(_) => return 0,
-    };
-    // Count only non-retired tools — split by [[tool]] blocks
-    let mut count = 0u32;
-    let mut in_retired = false;
-    let mut saw_name = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed == "[[tool]]" {
-            if saw_name && !in_retired {
-                count += 1;
-            }
-            in_retired = false;
-            saw_name = false;
-        } else if trimmed == "retired = true" {
-            in_retired = true;
-        } else if trimmed.starts_with("name =") {
-            saw_name = true;
+        Err(e) => {
+            eprintln!(
+                "  cannot read {} ({}) -- refusing to report a tool count it did not measure",
+                tools_toml.display(),
+                e
+            );
+            std::process::exit(1);
         }
-    }
-    // Count last block
-    if saw_name && !in_retired {
-        count += 1;
-    }
-    count
+    };
+    content
+        .split("[[tool]]")
+        .filter(|b| {
+            b.contains("name = ")
+                && !b.contains("retired = true")
+                && !b.contains("type = \"cargo\"")
+        })
+        .count() as u32
 }
 
 fn count_complete_intents(_core_root: &PathBuf) -> u32 {
