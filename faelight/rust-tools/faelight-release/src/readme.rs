@@ -9,73 +9,22 @@ use std::path::PathBuf;
 const DYNAMIC_START: &str = "<!-- DYNAMIC SECTION - Updated by bump-system-version -->";
 const DYNAMIC_END: &str = "<!-- END DYNAMIC SECTION -->";
 
-/// Update static tool count references throughout README
-#[allow(dead_code)]
-pub fn update_tool_counts(readme_path: &std::path::Path, _core_root: &str) {
-    let Ok(mut content) = std::fs::read_to_string(readme_path) else {
-        return;
-    };
-
-    // Count tools from registry
-    let registry_path = faelight_core::paths::tools_registry();
-    let tool_count = {
-        let raw = std::fs::read_to_string(&registry_path).unwrap_or_default();
-        let mut count = 0usize;
-        let mut in_retired = false;
-        let mut saw_name = false;
-        for line in raw.lines() {
-            let t = line.trim();
-            if t == "[[tool]]" {
-                if saw_name && !in_retired {
-                    count += 1;
-                }
-                in_retired = false;
-                saw_name = false;
-            } else if t == "retired = true" {
-                in_retired = true;
-            } else if t.starts_with("name =") {
-                saw_name = true;
-            }
-        }
-        if saw_name && !in_retired {
-            count += 1;
-        }
-        count
-    };
-
-    if tool_count == 0 {
-        return;
-    }
-
-    // Replace all tool count references
-    for old in 50..60 {
-        if old == tool_count {
-            continue;
-        }
-        content = content.replace(
-            &format!("{} Rust tools you fully understand", old),
-            &format!("{} Rust tools you fully understand", tool_count),
-        );
-        content = content.replace(
-            &format!("# {} custom Rust tools", old),
-            &format!("# {} custom Rust tools", tool_count),
-        );
-        content = content.replace(
-            &format!("score all {} tools", old),
-            &format!("score all {} tools", tool_count),
-        );
-        content = content.replace(
-            &format!("The Rust Ecosystem ({} Tools)", old),
-            &format!("The Rust Ecosystem ({} Tools)", tool_count),
-        );
-        content = content.replace(
-            &format!("Build all {} tools", old),
-            &format!("Build all {} tools", tool_count),
-        );
-    }
-
-    std::fs::write(readme_path, content).ok();
-}
+// REMOVED 2026-09-15: update_tool_counts (INT-247 Layer 1).
+//
+// Sixty-five lines that had never run and could not have worked:
+//
+//   #[allow(dead_code)]   no callers, anywhere in the workspace -- grepped
+//   for old in 50..60     it only tried counts between 50 and 59
+//
+// The real count is 26. So even called, every substitution would have matched nothing. And it
+// did not compute -- it string-replaced six HARDCODED PHRASINGS with the old number spliced
+// in. Reword the sentence and the replace silently stops firing.
+//
+// That is why the README said 30 in two places and 38 in a third: the numbers were never
+// generated. They were typed once, in different sentences, and drifted apart.
+//
+// The README now states its numbers in prose a person has to mean. That is more reliable than
+// a machine that silently matches nothing -- the INT-119 lesson, one layer up.
 
 pub fn update_readme(
     path: &PathBuf,
@@ -148,15 +97,15 @@ fn build_dynamic_section(
     let mut s = String::new();
     s.push_str(DYNAMIC_START);
     s.push('\n');
-    s.push_str(&format!("# 🌲 Faelight Forest {}\n\n", version));
+    s.push_str(&format!("# Project 0 {}\n\n", version));
     s.push_str(&format!(
         "![Version](https://img.shields.io/badge/version-{}-green?style=flat-square)\n",
         version.replace('-', "--")
     ));
-    s.push_str("![Rust](https://img.shields.io/badge/Rust-96.5%25-dea584?style=flat-square)\n");
-    s.push_str("![Lines](https://img.shields.io/badge/lines-113k-blue?style=flat-square)\n");
+    s.push_str("![Rust](https://img.shields.io/badge/Rust-97%25-dea584?style=flat-square)\n");
+    s.push_str("![Lines](https://img.shields.io/badge/lines-141k-blue?style=flat-square)\n");
     s.push_str("![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)\n\n");
-    s.push_str("> **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**\n\n");
+    s.push_str("> **Only what is needed. A shell being made good, and the tools that survived the question.**\n\n");
     s.push_str(&format!("## 🎊 {} -- {} ({})\n\n", version, theme, date));
     // What Shipped -- public titles only, no INT numbers
     let public_intents: Vec<String> = data
