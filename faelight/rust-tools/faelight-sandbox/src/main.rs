@@ -1659,6 +1659,17 @@ struct Expect {
     no_process: Option<String>,
 }
 
+/// How long a case waits before it is UNDETERMINED.
+///
+/// MEASURED, NOT CHOSEN. At 30s the 27-case census took 158 seconds, and 150 of those were five
+/// TUI tools sitting through their full timeout -- the run was almost entirely spent waiting for
+/// programs that were never going to answer. A `--version` or `help` check that has not replied
+/// in ten seconds is not going to.
+///
+/// A case that genuinely needs longer says so with `timeout_secs`, which is the right place for
+/// that knowledge: in the case that needs it, not in the default everything else pays for.
+const DEFAULT_TIMEOUT_SECS: u64 = 10;
+
 enum Outcome {
     Pass,
     Fail(String),
@@ -1792,7 +1803,7 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
     cmd.arg("--");
     // `timeout` does the waiting, INSIDE the sandbox, so a blocking command is killed
     // with the rest of the session rather than left behind. 124 is its "I fired" code.
-    let secs = case.timeout_secs.unwrap_or(30);
+    let secs = case.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS);
     cmd.arg("timeout").arg(format!("{}", secs));
     cmd.arg("sh").arg("-c").arg(&case.command);
 
@@ -1833,7 +1844,7 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
     // ⭐ 124 IS NOT A FAILURE, IT IS A NON-ANSWER. The command did not finish, so
     // nothing was established about what it would have done.
     if code == 124 {
-        let secs = case.timeout_secs.unwrap_or(30);
+        let secs = case.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS);
         return Outcome::Undetermined(format!(
             "did not finish within {}s -- it may be waiting for input",
             secs

@@ -1,6 +1,14 @@
-# INT-247 census via INT-249. The question is not 'is this tool good' -- it is
-# 'does it run at all on a machine that is not the author's'. A crate that
-# cannot answer --version in a clean room is already halfway retired.
+# INT-247 census via INT-249.
+#
+# KEPT AS A FAILING CASE, DELIBERATELY. Measured 2026-09-14:
+#
+#     on this machine      zero-gate --version -> rc=0
+#     in the clean room    zero-gate --version -> rc=1
+#
+# That divergence IS the census finding. A tool that works here and not in a room
+# without the author's HOME is depending on something it has not declared, and this
+# case stays red until that is understood rather than being edited until it is green.
+# Making a red case pass by changing the question is how a census becomes decoration.
 description = "zero-gate runs on a machine that is not the author's"
 policy      = "devbox"
 command     = "zero-gate --version"

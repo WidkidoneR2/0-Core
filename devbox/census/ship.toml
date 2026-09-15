@@ -1,9 +1,13 @@
 # INT-247 census via INT-249. The question is not 'is this tool good' -- it is
-# 'does it run at all on a machine that is not the author's'. A crate that
-# cannot answer --version in a clean room is already halfway retired.
+# 'does it run at all on a machine that is not the author's'.
+#
+# ASKS `help`, NOT `--version`. Measured 2026-09-14: this crate does not implement
+# --version and said so (usage error, or 'see: help'). That was a wrong QUESTION,
+# not a broken crate, and a census that counts it as a failure is measuring the
+# author's assumptions rather than the tool.
 description = "ship runs on a machine that is not the author's"
 policy      = "devbox"
-command     = "ship --version"
+command     = "ship help"
 
 [expect]
 exit = 0
