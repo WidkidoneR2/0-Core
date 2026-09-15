@@ -74,6 +74,23 @@ enum Commands {
         patch: bool,
     },
 
+    /// Run every case in a directory and report PASS / FAIL / UNDETERMINED.
+    ///
+    /// A case is a .toml file stating a command and what should happen. The same mechanism
+    /// answers two questions: "does this bug reproduce?" and "does this crate run on a machine
+    /// that is not mine?" -- INT-249.
+    Verify {
+        /// Directory of .toml case files
+        dir: String,
+
+        /// Exit 0 even when a case could not be ASKED.
+        ///
+        /// Without this, UNDETERMINED fails the run. An unanswerable question passing CI
+        /// silently is the collapse INT-192, INT-245 and INT-246 all describe.
+        #[arg(long)]
+        allow_undetermined: bool,
+    },
+
     /// Show current sandbox status
     Status,
 
@@ -1175,6 +1192,13 @@ fn main() -> Result<()> {
             print_diff(&session, patch);
         }
 
+        Commands::Verify {
+            dir,
+            allow_undetermined,
+        } => {
+            return run_verify(&dir, allow_undetermined);
+        }
+
         Commands::Status => {
             if !session_path().exists() {
                 println!("  {} No active sandbox session", "○".bright_black());
@@ -1594,4 +1618,214 @@ fn main() -> Result<()> {
         std::process::exit(child_exit_code);
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------------------------
+// INT-249: verify -- a case is a file, and the clean room already exists.
+// ---------------------------------------------------------------------------------------------
+
+/// A case: what to run, and what should happen.
+///
+/// EVERY FIELD MAPS TO A FLAG `run` ALREADY TAKES. That is rule 1 of INT-249 and it is what stops
+/// this format promising something the sandbox cannot do.
+#[derive(serde::Deserialize)]
+struct Case {
+    /// What this case establishes, in a sentence. Shown in the report.
+    description: String,
+    /// -> --policy
+    policy: Option<String>,
+    /// -> --net-off  ("off" disables the network)
+    net: Option<String>,
+    /// The command, as a shell word list would be typed.
+    command: String,
+    expect: Expect,
+}
+
+/// ⚠️ EVERY FIELD IS OPTIONAL AND AN EMPTY `[expect]` IS A CASE THAT CHECKS NOTHING. That is
+/// UNDETERMINED, not PASS -- a case with no expectation has not asked a question.
+#[derive(serde::Deserialize)]
+struct Expect {
+    exit: Option<i32>,
+    stdout_contains: Option<String>,
+    stderr_contains: Option<String>,
+    /// No process with this name survives the run. The -c orphan question, written down.
+    no_process: Option<String>,
+}
+
+enum Outcome {
+    Pass,
+    Fail(String),
+    /// The question could not be ASKED. Carries WHY -- "skipped" is not a result.
+    Undetermined(String),
+}
+
+fn run_verify(dir: &str, allow_undetermined: bool) -> Result<()> {
+    use colored::*;
+
+    let path = std::path::Path::new(dir);
+    if !path.is_dir() {
+        eprintln!("  {} not a directory: {}", "x".bright_red(), dir);
+        std::process::exit(3);
+    }
+
+    let mut cases: Vec<std::path::PathBuf> = std::fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().map(|x| x == "toml").unwrap_or(false))
+        .collect();
+    cases.sort();
+
+    if cases.is_empty() {
+        // An empty directory is not a green run. Nothing was asked.
+        eprintln!("  {} no .toml cases in {}", "x".bright_red(), dir);
+        std::process::exit(3);
+    }
+
+    println!("{}", "\u{2501}".repeat(46).dimmed());
+    println!("  {} verify -- {} cases", "\u{1f9ea}".normal(), cases.len());
+    println!("{}", "\u{2501}".repeat(46).dimmed());
+
+    let (mut pass, mut fail, mut undet) = (0, 0, 0);
+
+    for file in &cases {
+        let name = file
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "?".to_string());
+
+        let outcome = run_one_case(file);
+        match &outcome {
+            Outcome::Pass => {
+                pass += 1;
+                println!("  {} [{}]", "\u{2705}".normal(), name.bright_green());
+            }
+            Outcome::Fail(why) => {
+                fail += 1;
+                println!("  {} [{}]", "\u{2717}".bright_red(), name.bright_white());
+                println!("      {}", why.bright_red());
+            }
+            Outcome::Undetermined(why) => {
+                undet += 1;
+                println!("  {} [{}]", "\u{2754}".normal(), name.bright_white());
+                // THE REASON IS THE RESULT. Without it this is just "skipped".
+                println!("      {}", why.dimmed());
+            }
+        }
+    }
+
+    println!("{}", "\u{2501}".repeat(46).dimmed());
+    println!(
+        "  {} passed   {} failed   {} undetermined",
+        pass.to_string().bright_green(),
+        if fail > 0 {
+            fail.to_string().bright_red().to_string()
+        } else {
+            fail.to_string()
+        },
+        undet.to_string()
+    );
+
+    // ⭐ AN UNASKABLE QUESTION DOES NOT PASS SILENTLY. --allow-undetermined is how a caller says
+    // "I know, and I accept it" -- out loud, in the invocation, rather than by the tool deciding
+    // for them.
+    if fail > 0 {
+        std::process::exit(1);
+    }
+    if undet > 0 && !allow_undetermined {
+        println!(
+            "  {}",
+            "undetermined cases fail the run -- pass --allow-undetermined to accept them".dimmed()
+        );
+        std::process::exit(2);
+    }
+    Ok(())
+}
+
+fn run_one_case(file: &std::path::Path) -> Outcome {
+    let text = match std::fs::read_to_string(file) {
+        Ok(t) => t,
+        Err(e) => return Outcome::Undetermined(format!("cannot read the case file: {}", e)),
+    };
+    let case: Case = match toml::from_str(&text) {
+        Ok(c) => c,
+        // A malformed case is UNDETERMINED, not FAIL: the question was never asked, and calling
+        // it a failure would blame the code under test for a typo in the question.
+        Err(e) => return Outcome::Undetermined(format!("cannot parse the case: {}", e)),
+    };
+
+    if case.expect.exit.is_none()
+        && case.expect.stdout_contains.is_none()
+        && case.expect.stderr_contains.is_none()
+        && case.expect.no_process.is_none()
+    {
+        return Outcome::Undetermined(format!(
+            "{} -- the case states no expectation, so it asks nothing",
+            case.description
+        ));
+    }
+
+    // A named policy that does not exist is UNDETERMINED BY INSPECTION, decided here rather than
+    // from an exit code: the sandbox exits 3 both for "could not load the policy" and for "the
+    // command exited 3", and those are different facts.
+    if let Some(p) = &case.policy {
+        if policy::SandboxPolicy::load(p).is_err() {
+            return Outcome::Undetermined(format!("policy '{}' is not installed", p));
+        }
+    }
+
+    let exe = std::env::current_exe().unwrap_or_else(|_| "faelight-sandbox".into());
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("run");
+    if let Some(p) = &case.policy {
+        cmd.arg("--policy").arg(p);
+    }
+    if case.net.as_deref() == Some("off") {
+        cmd.arg("--net-off");
+    }
+    cmd.arg("--");
+    cmd.arg("sh").arg("-c").arg(&case.command);
+
+    let out = match cmd.output() {
+        Ok(o) => o,
+        Err(e) => return Outcome::Undetermined(format!("could not start the sandbox: {}", e)),
+    };
+
+    let code = out.status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+    if let Some(want) = case.expect.exit {
+        if code != want {
+            return Outcome::Fail(format!("expected exit {}, got {}", want, code));
+        }
+    }
+    if let Some(want) = &case.expect.stdout_contains {
+        if !stdout.contains(want.as_str()) {
+            return Outcome::Fail(format!("stdout does not contain {:?}", want));
+        }
+    }
+    if let Some(want) = &case.expect.stderr_contains {
+        if !stderr.contains(want.as_str()) {
+            return Outcome::Fail(format!("stderr does not contain {:?}", want));
+        }
+    }
+    if let Some(name) = &case.expect.no_process {
+        match std::process::Command::new("pgrep")
+            .arg("-x")
+            .arg(name)
+            .output()
+        {
+            Ok(p) => {
+                if p.status.success() {
+                    return Outcome::Fail(format!("a process named {:?} survived the run", name));
+                }
+            }
+            // pgrep absent is a missing PRECONDITION, not a failing expectation.
+            Err(e) => {
+                return Outcome::Undetermined(format!("cannot check processes: pgrep: {}", e))
+            }
+        }
+    }
+
+    Outcome::Pass
 }

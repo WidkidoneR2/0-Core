@@ -1,0 +1,8 @@
+# INT-189/INT-188. A shell that swallows its child's status is lying about
+# what happened. This is the cheapest possible check that it does not.
+description = "nsh -c passes the command's exit code through"
+policy      = "devbox"
+command     = "nsh -c 'exit 7'"
+
+[expect]
+exit = 7

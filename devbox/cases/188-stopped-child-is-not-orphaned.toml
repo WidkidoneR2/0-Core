@@ -1,0 +1,10 @@
+# INT-188. Measured 2026-09-14: the fear was that a -c shell's stopped child
+# would outlive it. It does not -- POSIX sends SIGHUP+SIGCONT to an orphaned
+# group with stopped members. This case keeps that true.
+description = "a -c shell leaves no sleep behind"
+policy      = "devbox"
+command     = "nsh -c 'sleep 0.2' ; sleep 0.5"
+
+[expect]
+exit       = 0
+no_process = "sleep"

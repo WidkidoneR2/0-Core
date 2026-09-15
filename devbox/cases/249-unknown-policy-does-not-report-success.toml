@@ -1,0 +1,15 @@
+# INT-249, found in the first ten minutes of the intent. The sandbox printed
+# "Policy error" and exited 0 -- the message was right and the STATUS LIED.
+# INT-246's collapse in a new place.
+#
+# ⚠️ NO `policy =` HERE, DELIBERATELY. Measured 2026-09-14: the sandbox is not
+# re-entrant under a policy that moves HOME -- a nested run dies with
+# "Watch directory does not exist: /tmp/devbox-.../0-core" before it ever
+# reaches the policy check, and the case then measures the wrong failure.
+# Run plain, the question is asked cleanly.
+description = "asking for a policy that does not exist must not succeed"
+command     = "faelight-sandbox run --policy nosuchpolicy -- echo hi"
+
+[expect]
+exit            = 3
+stderr_contains = "Policy error"
