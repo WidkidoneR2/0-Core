@@ -252,6 +252,22 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let stage = args.first().map(String::as_str).unwrap_or("pre-commit");
 
+    // WHAT A TOOL CAN ANSWER WITHOUT ITS ENVIRONMENT, IT ANSWERS FIRST.
+    //
+    // `--version` does not need a git repository, but it fell through to the repo check
+    // below and was refused with "not a git repository". Measured 2026-09-15 in the
+    // INT-247 census: this crate exited 0 on the author's machine and 1 in a clean room,
+    // and the divergence was entirely this ordering.
+    //
+    // ⭐ THE PRINCIPLE, AND `--help` ALREADY FOLLOWED IT: identity questions must be
+    // answerable on a BROKEN system, because a broken system is exactly when you ask
+    // "wnich version is this?". A tool that needs its world intact to say its own name
+    // cannot be diagnosed.
+    if stage == "--version" || stage == "-V" {
+        println!("zero-gate {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+
     if stage == "--help" || stage == "-h" {
         eprintln!("zero-gate -- repository-owned quality gates");
         eprintln!();
