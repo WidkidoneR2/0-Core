@@ -802,6 +802,41 @@ fn main() -> Result<()> {
     // Cheap and unconditional: it is three libc::signal calls, and a non-interactive shell
     // wanting them makes no difference to anything it does.
     crate::tty::establish_shell_signals();
+
+    // EPIPE IS NOT A CRASH. ONE HOOK, NOT EVERY PRINT SITE.
+    //
+    // The comment below explains why SIGPIPE stays IGNORED here, and that ruling is right:
+    // resetting it process-wide traded a visible panic for an INVISIBLE DEATH. But
+    // ignoring the signal only changes HOW the failure arrives: the write returns EPIPE,
+    // and `println!` PANICS on that error. Nothing handled it.
+    //
+    // Measured 2026-09-15: `nsh -c '? show health' | head -3` printed
+    // "failed printing to stdout: Broken pipe" and a backtrace note. A shell that
+    // panics when you pipe it to `head` is a shell you cannot explore with.
+    //
+    // nsh-test solved this for itself at INT-219 and nsh never inherited the fix.
+    // The payload is matched on TWO substrings rather than the whole message, because
+    // the exact wording is a std implementation detail that moves between Rust versions.
+    //
+    // EXIT 141 -- 128 + SIGPIPE(13) -- BECAUSE A SHELL IS NOT A TEST HARNESS.
+    // nsh-test chose 2 from its own vocabulary and said so; a shell's vocabulary is
+    // POSIX's, and 141 is what every other program on this machine reports when a
+    // pipeline consumer closes early. A script testing for 141 should find it.
+    //
+    // ⚠️ AND SILENTLY -- NO MESSAGE. The consumer closing the pipe is NORMAL
+    // (`| head` does it every time). `head` itself says nothing; neither does `ls.
+    // nsh-test prints a TRUNCATED marker because a half-run SUITE that looks
+    // complete is a wrong answer; a half-printed listing is just what `head` means.
+    {
+        let prior = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let msg = info.to_string();
+            if msg.contains("failed printing to stdout") && msg.contains("Broken pipe") {
+                std::process::exit(141);
+            }
+            prior(info);
+        }));
+    }
     boot_mark("SIGPIPE + SHLVL + identity exports done");
     // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
     // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
