@@ -1638,6 +1638,13 @@ struct Case {
     net: Option<String>,
     /// The command, as a shell word list would be typed.
     command: String,
+    /// How long to wait before calling it UNDETERMINED. Default 30s.
+    ///
+    /// ⭐ A HANG IS AN ANSWER THE TOOL MUST BE ABLE TO GIVE. Measured 2026-09-14:
+    /// `db-browse --version` ignores the flag and opens its TUI, so the first census
+    /// run hung on case one of twenty-eight. Without a timeout, one blocking case
+    /// takes the whole run with it -- and "did not finish" is a RESULT, not a crash.
+    timeout_secs: Option<u64>,
     expect: Expect,
 }
 
@@ -1783,6 +1790,10 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
         cmd.arg("--net-off");
     }
     cmd.arg("--");
+    // `timeout` does the waiting, INSIDE the sandbox, so a blocking command is killed
+    // with the rest of the session rather than left behind. 124 is its "I fired" code.
+    let secs = case.timeout_secs.unwrap_or(30);
+    cmd.arg("timeout").arg(format!("{}", secs));
     cmd.arg("sh").arg("-c").arg(&case.command);
 
     let out = match cmd.output() {
@@ -1794,6 +1805,15 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
     let stdout = String::from_utf8_lossy(&out.stdout).to_string();
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
 
+    // ⭐ 124 IS NOT A FAILURE, IT IS A NON-ANSWER. The command did not finish, so
+    // nothing was established about what it would have done.
+    if code == 124 {
+        let secs = case.timeout_secs.unwrap_or(30);
+        return Outcome::Undetermined(format!(
+            "did not finish within {}s -- it may be waiting for input",
+            secs
+        ));
+    }
     if let Some(want) = case.expect.exit {
         if code != want {
             return Outcome::Fail(format!("expected exit {}, got {}", want, code));

@@ -1,0 +1,9 @@
+# INT-247 census via INT-249. The question is not 'is this tool good' -- it is
+# 'does it run at all on a machine that is not the author's'. A crate that
+# cannot answer --version in a clean room is already halfway retired.
+description = "faelight-zone runs on a machine that is not the author's"
+policy      = "devbox"
+command     = "faelight-zone --version"
+
+[expect]
+exit = 0
