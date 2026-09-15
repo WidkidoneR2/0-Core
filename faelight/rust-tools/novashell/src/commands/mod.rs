@@ -10322,9 +10322,42 @@ fn peel_builtin_first_stage<'a>(
     if program_on_path(program) {
         return Peeled::Spawn(plans);
     }
-    if argv
-        .iter()
-        .any(|a| a.contains(' ') || a.contains('"') || a.contains('\''))
+    // A VALUE SOURCE DOES NOT READ ITS SOURCE TEXT, SO QUOTING CANNOT HURT IT.
+    //
+    // Measured 2026-09-15: this guard fires only when the NEXT stage is an EXTERNAL
+    // program -- a value verb like `count` is handled by the value pipeline and never
+    // reaches here:
+    //
+    //     fsearch "pub fn" | count    -> 1349, works
+    //     fsearch "pub fn" | wc -l    -> REFUSED
+    //
+    // The refusal is right for most builtins. An arm of execute_dispatch that reads
+    // `line` would be corrupted by a lossy rejoin:
+    //
+    //     select => sql_query_cmd(db, root, line)  `where name = "a b"` must keep quotes
+    //     time   => time_cmd(line, args, ..)       the command being timed
+    //     clean  => semantic_ambiguous_cmd(db, line)
+    //
+    // Verified 2026-09-15: `select "a b" | head` is still REFUSED after this change.
+    //
+    // ⚠️ NOT grep, though the dispatch table has `"grep" => grep_cmd(line, args)`.
+    // `program_on_path("grep")` is true, so it Spawns twenty lines above and never reaches
+    // this guard at all. Written down because the first version of this comment cited grep
+    // as the motivating case -- reasoned from the dispatch table without checking which
+    // arms are REACHABLE from here.
+    //
+    // A VALUE SOURCE is the opposite by construction: `fsearch`, `ps` and `signals`
+    // build rows from ARGV and never look at the source string, so nothing can be
+    // corrupted by a rejoin nothing reads.
+    //
+    // CAVEAT, NAMED RATHER THAN GLOSSED: `friday` is a value source AND reads `line`,
+    // in an arm guarded by `line.trim() == "friday"` -- which only fires with NO
+    // arguments and so cannot be reached by a quoted one. The next person to add a
+    // value source should check the same thing rather than trusting the category.
+    if !crate::value::is_value_source(program)
+        && argv
+            .iter()
+            .any(|a| a.contains(' ') || a.contains('"') || a.contains('\''))
     {
         // ⚠️ SAY WHY, because falling through here would report "no such file or directory" for a
         // command that IS supported -- only its quoting stopped it. The reason is the lossless-join
