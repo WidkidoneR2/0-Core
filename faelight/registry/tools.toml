@@ -83,9 +83,13 @@ category = "tools"
 description = "Terminal file manager with daemon integration"
 expected_usage = "medium"
 type = "rust"
-# Deferred: planned post-migration rebuild on NixOS (libcosmic + tokio). Not retired.
+# RETIRED 2026-09-15 (INT-247 Layer 2, evidence from the INT-249 census).
+# The deferral above said "rebuild on NixOS" -- the machine has not been NixOS
+# since 2026-08-26. Yazi and Flea do this job, 0 invocations through `fm` or
+# `fmd` since the migration, and ROADMAP.md already recorded yazi as the
+# replacement. Crate deleted; git history keeps it.
 deployable = false
-retired = false
+retired = true
 [[tool]]
 name = "faelight-glog"
 version = "0.1.0"
@@ -93,8 +97,11 @@ category = "tools"
 description = "TUI git-log reader -- filter by INT-number/author/date/keyword, candy-neon, Arch/NixOS era disambiguation (INT-139)"
 expected_usage = "medium"
 type = "rust"
-deployable = true
-retired = false
+# RETIRED 2026-09-15 (INT-247 Layer 2). `git log --oneline -10` does this,
+# which is what the `glog` alias actually ran -- it never pointed at this tool.
+# 0 invocations through `fgl` since the migration. Crate deleted.
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-git"
 version = "4.4.1"
