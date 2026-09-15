@@ -218,8 +218,12 @@ fn escape_field(s: &str) -> String {
 
 pub fn headers_for(rows: &[HashMap<String, Value>]) -> Vec<String> {
     let raw_keys: Vec<String> = rows[0].keys().cloned().collect();
+    // INT-249c: `file` leads, so a search table reads left-to-right as a LOCATION -- the same
+    // order every editor, linter and compiler in the world prints it in. `line` already sat in
+    // this list; without `file` ahead of it the columns came out line-first, which reads as a
+    // number followed by an explanation rather than a place.
     let priority = [
-        "name", "line", "n", "size", "type", "kind", "domain", "action",
+        "file", "name", "line", "n", "size", "type", "kind", "domain", "action",
     ];
     let mut headers: Vec<String> = priority
         .iter()
@@ -899,6 +903,8 @@ pub const VALUE_SOURCES: &[&str] = &[
     // beside `ps`. The namespace cost the doc above names is nil here: there is no
     // program called `signals` on this system to shadow.
     "signals",
+    // INT-249c: fsearch returns a table of {file, line, text}, so a pipeline may BEGIN with it.
+    "fsearch",
     "files",
     "tools",
     "events",

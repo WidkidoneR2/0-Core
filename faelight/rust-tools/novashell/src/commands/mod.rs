@@ -4620,13 +4620,20 @@ fn execute_dispatch(
                 );
             }
             let cwd = search_root.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-            let mut results: Vec<String> = Vec::new();
+            // INT-249c: ROWS, NOT FORMATTED STRINGS.
+            //
+            // fsearch printed `path  line  text` with colour baked in, which made it a DISPLAY
+            // rather than an answer: it could not be filtered, counted, or pasted into an editor.
+            // The shell has had a value pipeline since INT-201, and the tool that produces more
+            // rows than anything else here was not in it.
+            let mut results: Vec<std::collections::HashMap<String, crate::value::Value>> =
+                Vec::new();
             fn walk_dir(
                 dir: &std::path::Path,
                 pattern: &str,
                 filter_type: Option<&str>,
                 filter_file: Option<&str>,
-                results: &mut Vec<String>,
+                results: &mut Vec<std::collections::HashMap<String, crate::value::Value>>,
             ) {
                 let entries = match std::fs::read_dir(dir) {
                     Ok(e) => e,
@@ -4681,12 +4688,7 @@ fn execute_dispatch(
                                         .unwrap_or(&path)
                                         .display()
                                         .to_string();
-                                    results.push(format!(
-                                        "{:30} {:4}  {}",
-                                        rel.bright_cyan(),
-                                        (lineno + 1).to_string().bright_green(),
-                                        colorize_line(line.trim())
-                                    ));
+                                    results.push(fsearch_row(&rel, lineno + 1, line.trim()));
                                 }
                             }
                         }
@@ -4711,12 +4713,7 @@ fn execute_dispatch(
                                 .unwrap_or(&cwd)
                                 .display()
                                 .to_string();
-                            results.push(format!(
-                                "{:30} {:4}  {}",
-                                rel.bright_cyan(),
-                                (lineno + 1).to_string().bright_green(),
-                                colorize_line(line.trim())
-                            ));
+                            results.push(fsearch_row(&rel, lineno + 1, line.trim()));
                         }
                     }
                 } else {
@@ -4728,11 +4725,11 @@ fn execute_dispatch(
             } else {
                 walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
             }
-            if results.is_empty() {
-                CommandResult::Output(format!("  (no matches for '{}')", pattern))
-            } else {
-                CommandResult::Output(results.join("\n"))
-            }
+            // AN EMPTY TABLE, NOT AN EMPTY STRING AND NOT AN ERROR. "No matches" is a real
+            // answer: the files were read, the pattern did not appear. An error would claim the
+            // SEARCH failed, which is a different fact -- the distinction INT-192 and INT-245
+            // are both about.
+            CommandResult::Value(crate::value::Value::Table(results))
         }
         "patch" => {
             // patch file.rs --old "old text" --new "new text"
@@ -17826,4 +17823,22 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
     // INT-346: launch faelight-ade directly
     let _ = std::process::Command::new("faelight-ade").spawn();
     CommandResult::Output(String::new())
+}
+
+/// One fsearch hit as a ROW.
+///
+/// Three columns and no more: where, which line, what it says. `line` is a Number so
+/// `where line > 500` compares numerically rather than as text -- the kind of thing that only
+/// works if the type is right at the source.
+fn fsearch_row(
+    file: &str,
+    line: usize,
+    text: &str,
+) -> std::collections::HashMap<String, crate::value::Value> {
+    use crate::value::Value;
+    let mut row = std::collections::HashMap::new();
+    row.insert("file".to_string(), Value::Text(file.to_string()));
+    row.insert("line".to_string(), Value::Int(line as i64));
+    row.insert("text".to_string(), Value::Text(text.to_string()));
+    row
 }
