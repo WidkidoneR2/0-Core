@@ -1772,17 +1772,33 @@ pub fn execute_with_context(
     // INT-191: the lifecycle record opens HERE, before anything can return. postexec cannot own it:
     // it never runs for a blocked command, and it deliberately skips `exit`. Those are precisely
     // the events worth having, so recording only after an outcome would lose them.
-    let started_at = unix_seconds(ctx.timestamp);
-    if let Err(e) = db.begin_command_execution(&crate::db::ExecutionStart {
-        session_id: ctx.session_id,
-        execution_id: ctx.execution_id,
-        typed_text: &ctx.raw,
-        cwd: &ctx.cwd.to_string_lossy(),
-        intent_id: ctx.intent.as_deref(),
-        started_at,
-    }) {
-        eprintln!("warning: failed to open command_execution record: {e}");
-    }
+    // THE RECORD IS ALREADY OPEN. THIS WAS THE SECOND OPENER.
+    //
+    // Measured 2026-09-15: the shell printed
+    //   warning: failed to open command_execution record:
+    //   UNIQUE constraint failed: command_execution.session_id, ..execution_id
+    // on an ordinary command line, then carried on.
+    //
+    // main.rs opens the lifecycle ABOVE THE FORK (INT-167 P0 / INT-191), deliberately:
+    // a spine-handled command `continue`s and never reaches this function, so recording
+    // here left three days of commands with no row at all. That fix was right.
+    //
+    // What it left behind was THIS insert, which then ran a SECOND time on the legacy
+    // path -- with the SAME id, because `from_line` reads `current_execution_id()`
+    // rather than allocating. The row was never lost; the first insert wins and this
+    // one collides. But a shell that prints a write failure on every legacy command
+    // teaches you to ignore write failures.
+    //
+    // ⭐ TWO OWNERS, AND BOTH COMMENTS CLAIMED TO BE THE ONE. exec.rs said "the
+    // lifecycle record opens HERE"; main.rs said "One owner, above the fork." The
+    // second is correct because it is the only one EVERY path reaches.
+    //
+    // Both callers of this function (engine.rs:1433 and :1893) are downstream of
+    // `run_input`, which is where the record opens. Verified by grep: two call sites,
+    // both in engine.rs, and `run_input` has two callers, both in main.rs.
+    //
+    // CLOSING stays here's callers' job and is unchanged: both sites call
+    // complete_command_execution with `result.execution_id`, which is the same id.
 
     // Preexec — can block execution
     if let Some(block_reason) = preexec(&ctx, core_root, rules) {
