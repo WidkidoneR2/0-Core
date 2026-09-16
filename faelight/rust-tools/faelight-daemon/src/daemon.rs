@@ -532,11 +532,9 @@ fn get_db_path() -> String {
         .to_string()
 }
 fn read_health_cache() -> u32 {
-    let home = std::env::var("HOME").unwrap_or_default();
-    std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
-        .unwrap_or_else(|_| "100".to_string())
-        .trim()
-        .parse()
+    // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
+    faelight_core::paths::read_health()
+        .map(|h| h as u32)
         .unwrap_or(100)
 }
 async fn get_forest_context() -> crate::protocol::Response {

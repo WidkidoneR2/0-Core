@@ -282,13 +282,13 @@ fn print_system_identity() {
             .unwrap_or_else(|_| "unknown".to_string()),
     };
     // Get health from cache
-    let health = std::fs::read_to_string(
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status"),
-    )
-    .unwrap_or_else(|_| "?".to_string())
-    .trim()
-    .to_string();
+    // INT-247 Layer 3a: the PATH only. This one DISPLAYS rather than computes, and its
+    // absent-value is the string "?" -- the honest one of the fourteen: it shows that it could
+    // not read rather than inventing a number. Kept exactly as it was.
+    let health = std::fs::read_to_string(faelight_core::paths::health_status_file())
+        .unwrap_or_else(|_| "?".to_string())
+        .trim()
+        .to_string();
     println!("{}", "🧬 System Profile".cyan().bold());
     println!("{}", "─".repeat(40).dimmed());
     println!("  {:<12} {}", "Host:".dimmed(), hostname.bright_white());

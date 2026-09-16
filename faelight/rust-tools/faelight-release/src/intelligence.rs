@@ -17,7 +17,6 @@ pub struct RichStats {
 }
 impl RichStats {
     pub fn load(core_root: &PathBuf) -> Self {
-        let home = std::env::var("HOME").unwrap_or_default();
         let db_path = faelight_core::paths::state_db();
         let mut stats = RichStats {
             sessions: 0,
@@ -74,12 +73,10 @@ impl RichStats {
             )
             .unwrap_or(0) as u32;
         // Current health
-        stats.health_at_release =
-            std::fs::read_to_string(PathBuf::from(&home).join(".cache/faelight/health-status"))
-                .unwrap_or_else(|_| "100".to_string())
-                .trim()
-                .parse::<u32>()
-                .unwrap_or(100);
+        // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
+        stats.health_at_release = faelight_core::paths::read_health()
+            .map(|h| h as u32)
+            .unwrap_or(100);
         // Lines from git
         if let Ok(output) = std::process::Command::new("git")
             .args([

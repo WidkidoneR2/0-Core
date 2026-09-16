@@ -169,12 +169,17 @@ pub fn emit_friday_signal(message: String, confidence: f64) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn read_health() -> u32 {
-    let home = std::env::var("HOME").unwrap_or_default();
     std::fs::read_to_string("/etc/faelight/HEALTH")
         .ok()
         .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
         .or_else(|| {
-            std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
+            // INT-247 Layer 3a: the PATH only. read_health() is deliberately NOT adopted here,
+            // because this function has a source read_health() knows nothing about -- the
+            // /etc/faelight/HEALTH read above. Collapsing them would silently drop it.
+            //
+            // AND THAT SOURCE IS DEAD: /etc/faelight/ has not existed since Omarchy. INT-250
+            // owns that; this pass only stops the path being built by hand.
+            std::fs::read_to_string(faelight_core::paths::health_status_file())
                 .ok()
                 .and_then(|s| s.trim().parse().ok())
         })

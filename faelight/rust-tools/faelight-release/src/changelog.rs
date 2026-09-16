@@ -516,14 +516,10 @@ impl ReleaseStats {
         let intents = count_complete_intents(core_root);
 
         Self {
-            health: {
-                let cache = std::fs::read_to_string(
-                    std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-                        .join(".cache/faelight/health-status"),
-                )
-                .unwrap_or_else(|_| "100".to_string());
-                cache.trim().parse::<u32>().unwrap_or(100)
-            },
+            // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
+            health: faelight_core::paths::read_health()
+                .map(|h| h as u32)
+                .unwrap_or(100),
             total_commits: commits,
             tools_deployed: tools,
             intents_complete: intents,

@@ -199,7 +199,6 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── v4 Risk Assessment ─────────────────────────────────
     {
-        let home = std::env::var("HOME").unwrap_or_default();
         let db_path = faelight_core::paths::state_db();
         if let Ok(conn) = rusqlite::Connection::open(&db_path) {
             let ts = std::time::SystemTime::now()
@@ -222,13 +221,10 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
                 );
             }
             // Health warning
-            let health: i64 = std::fs::read_to_string(
-                std::path::Path::new(&home).join(".cache/faelight/health-status"),
-            )
-            .unwrap_or_else(|_| "100".to_string())
-            .trim()
-            .parse()
-            .unwrap_or(100);
+            // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
+            let health: i64 = faelight_core::paths::read_health()
+                .map(|h| h as i64)
+                .unwrap_or(100);
             if health < 95 {
                 println!(
                     "  {} health: {}% -- below peak, review before committing",
