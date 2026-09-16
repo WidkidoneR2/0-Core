@@ -415,7 +415,7 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
 
     let mut out = String::new();
-    out.push_str("# Faelight Forest -- Rust Tools\n\n");
+    out.push_str("# Project 0 -- Rust Tools\n\n");
     out.push_str(&format!(
         "The forest's tool ecosystem: {} active tools (plus {} retired), each a purpose-built Rust program.\n\n",
         active.len(), retired.len()
@@ -486,6 +486,43 @@ fn cap_first(s: &str) -> String {
 }
 
 /// PIECE 2c: generate per-tool READMEs + the index. dry_run prints what WOULD be written.
+/// Write ONLY the top-level index. Not the per-tool READMEs.
+///
+/// ⚠️ `cmd_generate` BELOW WOULD DESTROY HAND-WRITTEN DOCUMENTATION. Measured 2026-09-15
+/// on novashell/README.md: the file on disk explains why nsh is not the login shell and why
+/// it is not POSIX. The generated replacement is a metadata stub plus a changelog dump,
+/// headed "active (unregistered) -- uncategorized" because it looks the CRATE name
+/// (novashell) up in a registry keyed by BINARY name (nsh). It would lose real writing
+/// and introduce a false claim in one write.
+///
+/// The INDEX has no such problem: it is entirely derived, nobody hand-edits it, and it
+/// is built from `gather_all()` -- which reads DISK, so a deleted crate cannot survive
+/// in it. That is why the two are separable and why only this one is safe to run.
+pub fn cmd_index(dry_run: bool) {
+    let metas = gather_all();
+    let rt = faelight_core::paths::rust_tools_dir();
+    let index = render_index(&metas);
+    let path = rt.join("README.md");
+    if dry_run {
+        println!(
+            "  would write: rust-tools/README.md (index, {} bytes, {} tools)",
+            index.len(),
+            metas.len()
+        );
+        return;
+    }
+    match std::fs::write(&path, &index) {
+        Ok(_) => println!(
+            "  wrote: rust-tools/README.md (index, {} tools)",
+            metas.len()
+        ),
+        Err(e) => {
+            eprintln!("  failed: index -- {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
 pub fn cmd_generate(dry_run: bool) {
     let metas = gather_all();
     let rt = faelight_core::paths::rust_tools_dir();

@@ -255,6 +255,10 @@ fn main() {
             let name = args.get(2).map(|s| s.as_str()).unwrap_or("");
             toolgen::cmd_preview_one(name);
         }
+        "readme-index" => {
+            let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
+            toolgen::cmd_index(dry);
+        }
         "readme-generate" => {
             let dry = args.get(2).map(|s| s == "--dry-run").unwrap_or(false);
             toolgen::cmd_generate(dry);
