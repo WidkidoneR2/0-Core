@@ -407,9 +407,10 @@ fn gather_state() -> ForestState {
 
     // Read live health — prefer ~/.cache/faelight/health-status, fall back to state.db cache
     let health = {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let cache_path = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
-        std::fs::read_to_string(&cache_path)
+        // INT-247 Layer 3a: the PATH only. The `.or_else` below is a SECOND source -- the
+        // state.db cache -- which read_health() knows nothing about, so adopting it would
+        // silently drop the fallback. Only the hand-built path changes here.
+        std::fs::read_to_string(faelight_core::paths::health_status_file())
             .or_else(|_| {
                 std::fs::read_to_string(faelight_core::paths::cache_dir().join("health.txt"))
             })
