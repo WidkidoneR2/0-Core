@@ -421,7 +421,7 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
         active.len(), retired.len()
     ));
     out.push_str(&format!(
-        "**Generated:** {} by `faelight-docs sync`\n\n",
+        "**Generated:** {} by `faelight-docs readme-index`\n\n",
         date
     ));
     out.push_str("---\n\n");

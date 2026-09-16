@@ -2,7 +2,7 @@
 
 The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-09-15 by `faelight-docs sync`
+**Generated:** 2026-09-15 by `faelight-docs readme-index`
 
 ---
 
