@@ -4,7 +4,6 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
-use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Status {
@@ -823,10 +822,15 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         }
     }
     // Write health score to cache for bar/prompt/palette
-    let cache_dir =
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight");
-    let _ = std::fs::create_dir_all(&cache_dir);
-    let _ = std::fs::write(cache_dir.join("health-status"), format!("{}", health));
+    // INT-247 Layer 3a: THE ONLY WRITER of the health cache, and it now names the file through
+    // the same accessor its fourteen readers use. Before this, the writer built the directory by
+    // hand and every reader built the file by hand -- so nothing tied them together except the
+    // string ".cache/faelight", repeated fifteen times.
+    let health_file = faelight_core::paths::health_status_file();
+    if let Some(dir) = health_file.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&health_file, format!("{}", health));
 
     // Event Ledger
     let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
@@ -869,12 +873,18 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
     let core_root = ctx.core_root.clone();
 
     // Read current cached health
-    let cached: u32 =
-        fs::read_to_string(PathBuf::from(&home).join(".cache/faelight/health-status"))
-            .unwrap_or_default()
-            .trim()
-            .parse()
-            .unwrap_or(0);
+    // ⚠️ THIS ONE FALLS BACK TO ZERO, NOT 100 -- deliberately preserved.
+    //
+    // Every other reader treats an absent cache as 100. This one treats it as 0, and the
+    // difference is not a bug to normalise away in a consolidation pass: it compares CACHED
+    // against freshly computed health to decide whether the score moved. A missing file meaning
+    // "no previous score" is the right reading for a DELTA, where 100 would fabricate one.
+    //
+    // Recorded rather than changed. Layer 3a moves the PATH to one owner; what absence means is
+    // each caller's own statement, which is exactly why read_health() returns Option.
+    let cached: u32 = faelight_core::paths::read_health()
+        .map(|h| h as u32)
+        .unwrap_or(0);
 
     // Run all checks silently
     let checks = all_checks(&core_root, &home);

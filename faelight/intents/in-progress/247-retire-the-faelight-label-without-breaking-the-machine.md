@@ -3,7 +3,7 @@ id: 247
 date: 2026-09-09
 type: future
 title: "retire the Faelight label without breaking the machine"
-status: planned
+status: in-progress
 tags: [naming, migration, infrastructure, zero-core]
 ---
 

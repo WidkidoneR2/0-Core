@@ -36,15 +36,9 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // 1. Health
-    let health: u32 = std::fs::read_to_string(
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status"),
-    )
-    .unwrap_or_else(|_| "100".into())
-    .trim()
-    .trim_end_matches('%')
-    .parse()
-    .unwrap_or(100);
+    let health: u32 = faelight_core::paths::read_health()
+        .map(|h| h as u32)
+        .unwrap_or(100);
     // 2. Alignment
     let alignment: f64 = db.query_row(
         "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",

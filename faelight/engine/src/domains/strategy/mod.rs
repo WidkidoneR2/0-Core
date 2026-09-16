@@ -47,12 +47,10 @@ fn now_ts() -> i64 {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 fn get_health(_ctx: &AppContext) -> u32 {
-    let home = std::env::var("HOME").unwrap_or_default();
-    std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
-        .unwrap_or_else(|_| "100".into())
-        .trim()
-        .trim_end_matches('%')
-        .parse()
+    // INT-247 Layer 3a. The `%`-stripping this used to do by hand lives in read_health() already
+    // -- it trims the suffix before parsing -- so nothing is lost by adopting it.
+    faelight_core::paths::read_health()
+        .map(|h| h as u32)
         .unwrap_or(100)
 }
 

@@ -23,12 +23,16 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     // Ensure table exists
     db.execute_batch(CREATE_TABLE)?;
     // Read health from cache
-    let health_cache = std::fs::read_to_string(
-        std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status"),
-    )
-    .unwrap_or_else(|_| "100".to_string());
-    let health: i64 = health_cache.trim().parse().unwrap_or(100);
+    // INT-247 Layer 3a: the path has ONE owner. paths::read_health() already existed and this
+    // site built the path by hand -- one of fourteen that did.
+    //
+    // THE FALLBACK IS UNCHANGED AND NOW VISIBLE. read_health() returns Option precisely so each
+    // caller states what absence means for itself; `unwrap_or(100)` says "treat a machine that
+    // has never run the doctor as healthy", which is what this line did before. It is now said
+    // here, where it can be argued with, rather than inside a read_to_string chain.
+    let health: i64 = faelight_core::paths::read_health()
+        .map(|h| h as i64)
+        .unwrap_or(100);
     println!();
     println!(
         "  {} pre-deploy check: {}",
@@ -108,14 +112,9 @@ pub fn record(
     db.execute_batch(CREATE_TABLE)?;
     let now = chrono::Utc::now().timestamp();
     // Read health
-    let health: i64 = std::fs::read_to_string(
-        std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status"),
-    )
-    .unwrap_or_else(|_| "100".to_string())
-    .trim()
-    .parse()
-    .unwrap_or(100);
+    let health: i64 = faelight_core::paths::read_health()
+        .map(|h| h as i64)
+        .unwrap_or(100);
     // Read active intents from db
     let active_intents: String = db
         .query_row(
