@@ -3,7 +3,7 @@ id: 141
 date: 2026-07-11
 type: future
 title: "faelight-glog v0.2: author/date filters + floating-window view"
-status: planned
+status: cancelled
 tags: [glog, git, tui, filters, floating-window]
 priority: low
 ---
