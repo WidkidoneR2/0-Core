@@ -67,10 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
-        .open(format!(
-            "{}/.cache/faelight/friday.log",
-            std::env::var("HOME").unwrap_or_default()
-        ))
+        .open(faelight_core::paths::friday_log())
         .map(|mut f| {
             use std::io::Write;
             let _ = f.write_all(format!("[friday] daemon started on {}\n", socket_path).as_bytes());

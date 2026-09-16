@@ -2159,10 +2159,12 @@ pub fn execute_and_record(
         // bundled with a telemetry-corruption fix.
         let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
         let status_val = if exit_ok { "success" } else { "failure" };
-        let cache_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight");
-        let _ = std::fs::create_dir_all(&cache_dir);
-        let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
+        // INT-247 Layer 3a: THE WRITER of the caret channel, through one owner.
+        let status_file = faelight_core::paths::last_exit_status_file();
+        if let Some(dir) = status_file.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(&status_file, status_val);
     }
     // INT-201: the redirect branch that stood here was DEAD and is deleted with executor (a).
     // detect_redirect ran in the REPL loop and the inline redirect executor consumed every Some,

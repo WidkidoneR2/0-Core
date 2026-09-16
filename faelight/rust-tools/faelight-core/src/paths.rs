@@ -276,6 +276,28 @@ pub fn read_health() -> Option<u8> {
     raw.trim().trim_end_matches('%').parse().ok()
 }
 
+/// Friday's diagnostic log. Append-only, and three sites write to it.
+///
+/// Not `logs_dir()`: that lives under runtime_dir() and holds the forest's structured logs.
+/// This is a plain text trail the daemon appends to, and it has always sat in the cache
+/// beside the health status. INT-247 Layer 3a names it rather than moving it.
+pub fn friday_log() -> PathBuf {
+    xdg_cache_home().join("faelight/friday.log")
+}
+
+/// Whether the last command succeeded -- written by the shell, read by the prompt to colour
+/// the caret.
+///
+/// ⚠️ THIS IS A FILE DOING A VARIABLE'S JOB, and that is worth knowing rather than hiding.
+/// `prompt::render_line` already RECEIVES the exit status as `_last_exit: Option<i32>` and
+/// ignores it, then reads this file instead. One writer (engine.rs), two readers.
+///
+/// Named here so the path has one owner; whether the channel should be a file at all is a
+/// separate question this accessor does not answer.
+pub fn last_exit_status_file() -> PathBuf {
+    xdg_cache_home().join("faelight/last-exit-status")
+}
+
 pub fn journal_dir() -> PathBuf {
     runtime_dir().join("journal")
 }

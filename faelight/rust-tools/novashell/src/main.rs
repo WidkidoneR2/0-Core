@@ -3737,10 +3737,10 @@ fn friday_daemon_event(
     let cmd_str = base_cmd;
     // Read exit status from cache file written above
     let exit_code: i32 = {
-        let cache_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight");
-        let status =
-            std::fs::read_to_string(cache_dir.join("last-exit-status")).unwrap_or_default();
+        // INT-247 Layer 3a: the second reader of the caret channel. Writer and both readers
+        // now name the same accessor, so the file has one owner instead of three spellings.
+        let status = std::fs::read_to_string(faelight_core::paths::last_exit_status_file())
+            .unwrap_or_default();
         if status.trim() == "success" {
             0
         } else {

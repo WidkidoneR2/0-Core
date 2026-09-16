@@ -106,10 +106,8 @@ impl Daemon {
         let listener = UnixListener::bind(&self.socket_path)?;
         let mut connection_count = 0;
 
-        let log_path = {
-            let home = std::env::var("HOME").unwrap_or_default();
-            format!("{}/.cache/faelight/friday.log", home)
-        };
+        // INT-247 Layer 3a: one owner for the path.
+        let log_path = faelight_core::paths::friday_log();
         // Ensure log dir exists
         if let Some(parent) = std::path::Path::new(&log_path).parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -801,8 +799,7 @@ async fn friday_record_event(
     }
     // Log to friday.log for diagnostics
     if let Some(ref msg) = speak_msg {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let log = format!("{}/.cache/faelight/friday.log", home);
+        let log = faelight_core::paths::friday_log();
         let entry = format!("[friday] speak: {}\n", msg);
         let _ = std::fs::OpenOptions::new()
             .append(true)
