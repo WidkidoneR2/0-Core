@@ -7,6 +7,37 @@ status: planned
 tags: [naming, migration, infrastructure, zero-core]
 ---
 
+## WHERE THINGS ARE
+
+This file is the RECORD of the rename, not just its plan -- what was decided, what was
+measured, and why. It is long because the reasoning is the point; a record that has to be
+assembled from three files is worse than one that has to be scrolled.
+
+    sections, in order -- search the NAME, not a line number:
+    Vision
+    THE NAME, DECIDED 2026-09-14 -- AND THE TOOLING DECIDED HALF OF IT
+    The Problem
+    The Solution -- FIVE LAYERS, ONE PER WEEK AT MOST
+    TWO RULES THE LEDGER NEEDS BEFORE LAYER 1 -- both learned 2026-09-15
+    THE DECISION TEST -- ask these in order, every time
+    WHAT NOT TO DO -- each with the reason, so it survives being re-argued
+    ⭐ DEVBOX IS THE CENSUS INSTRUMENT
+    THE MENTAL MODEL THIS RENAME IS FOR
+    LAYERS 1 AND 2 -- DONE 2026-09-15
+    THE PATH AUDIT -- DONE 2026-09-15, BEFORE LAYER 3 STARTS
+    Success Criteria
+    Relationship
+    The Rule
+
+READ FIRST, depending on why you are here:
+
+    picking up the work    -> THE SOLUTION (the five layers), then the audit
+    about to edit a file   -> TWO RULES THE LEDGER NEEDS, and WHAT NOT TO DO
+    naming something new   -> THE NAME, and LAYER 0 -- the freeze is a RULE
+    starting Layer 3       -> THE PATH AUDIT. It splits the layer in two, and the
+                              order matters: consolidate BEFORE moving.
+
+---
 ## Vision
 
 The project is **Project 0**. `faelight` is a name it used to have, and one day nothing in the
