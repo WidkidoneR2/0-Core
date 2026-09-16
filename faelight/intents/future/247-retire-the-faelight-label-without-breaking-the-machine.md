@@ -272,10 +272,96 @@ IS NOT PART OF THIS INTENT. It would break every path in AGENTS.md, every intent
 `ship`, in exchange for tidiness. If it happens it gets its own intent and its own pace gate.
 Naming and moving are two risks; this intent takes one of them.
 
+## LAYERS 1 AND 2 -- DONE 2026-09-15
+
+Both landed in one day. The pace rule said one layer per week; that rule was written when
+there were fifty tools. There are twenty-six, and the INT-249 census had already done the
+analysis both layers existed to perform.
+
+⭐ THE PACE RULE STILL HOLDS FOR LAYER 3. Its teeth were never about VOLUME -- they are
+about the state paths, the four inputs that must agree, and the silent empty ledger. That
+risk did not shrink with the tool count.
+
+### Layer 1 -- identity in what you read
+
+The three documents disagreed with each other, which was the real finding:
+
+    README    "Faelight Forest 1.0.0"       the oldest name
+    ROADMAP   "Zero Core 1.0"               the middle name
+    AGENTS    "Codename: Project 0" AND
+              "Public name (eventual): Zero Core"   -- contradicting itself
+
+Three files stopped at three different points in the same migration. All three now say
+Project 0, and the Layer 0 freeze is written into AGENTS.md as a RULE.
+
+⭐ AND THE README WAS NOT JUST MISNAMED -- IT WAS UNTRUE. Measured:
+
+    claimed 30 tools, then 30 again, then 38     actual: 26
+    claimed 125k lines across 239 files          actual: 141,230 across 284
+    advertised `build ||| test`                  command not found
+    advertised `deploy core`                     the Nix verb, gone
+    listed Smithay and wgpu in the stack         nothing links them
+    "a self-aware personal computing environment" -- the ecosystem promise
+                                                 Project 0 explicitly rejects
+
+The static half is rewritten to say what is true: one shell being made good, a sandbox,
+and twenty-four tools that have not had attention since August.
+
+### AND THREE GENERATORS WERE WRITING FICTION
+
+    update_tool_counts()   ##[allow(dead_code)], no callers, AND `for old in 50..60`
+                          against a real count of 26 -- it could not have worked
+                          if woken. DELETED.
+    faelight-docs         counted nine EXTERNAL cargo subcommands as tools this
+                          project wrote -> 36
+    faelight-release      the same bug, independently -> 30. AND `Err(_) => 0`,
+                          which once wrote "0 custom Rust tools" onto the front page
+
+Both counters now use one predicate -- `type = "rust"`, not retired, not cargo -- and
+neither returns a number it did not measure.
+
+### Layer 2 -- binaries and crates
+
+THE `faelight` CLI IS RETIRED. Every gate of the decision test answered:
+
+    used             4 invocations since the migration, two verbs tried
+    health           `core doctor` -- and the alias `d` is what is typed
+    intent           `core intent` -- `ints`, `inta`, `intl`
+    profile          `core profile`
+    launch           shimmed to omarchy-menu, and named faelight-launcher --
+                     a tool already retired
+    config           managed ~/.config/faelight/cli.toml -- a file for itself,
+                     which never existed
+    desktop          no Hyprland bind, no systemd unit, no .desktop file
+
+`core` IS KEPT AND NOT RENAMED. It was never a faelight name, it is not being rewritten,
+and Layer 2's own rule forbids renaming a crate for spelling. `0` stays unclaimed.
+
+⭐ AND ONE REPORTED DEFECT WAS NOT ONE. "novashell is unregistered" was wrong: the
+registry names BINARIES (`nsh`), the tree holds CRATES (`novashell`), and the crate's own
+Cargo.toml says the split was deliberate. Two representations that were never meant to
+match were compared and found to disagree.
+
+### ⚠️ DEVIATION, RECORDED RATHER THAN HIDDEN
+
+Layer 1 was meant to be DOCUMENTATION. It required code: a deleted function, two corrected
+counters, and a NEW SUBCOMMAND (`faelight-docs readme-index`).
+
+The new verb exists because `readme-generate` writes the catalog AND twenty-six per-tool
+READMEs together, and the second half is destructive: it would replace novashell's
+hand-written README -- the one explaining why nsh is not the login shell -- with a
+metadata stub labelled "active (unregistered) -- uncategorized". That label is the SAME
+crate-vs-binary confusion as above, this time made by the TOOL.
+
+The alternatives were: leave a catalog that lists three deleted crates, or run a generator
+that destroys real writing. Neither was acceptable, so the smallest third option was
+built -- and `readme-generate` now carries a comment saying why it must not be run.
+
 ## Success Criteria
 
-- [ ] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
+- [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
       plan. Nothing new is named faelight from that commit onward
+      <!-- evidence: 2026-09-15. AGENTS.md section "LAYER 0 -- THE FREEZE. THIS IS A RULE, NOT A PLAN." -->
 - [x] The NAME is decided in every register it has to survive, with the constraints measured
       rather than assumed
       <!-- evidence: 2026-09-14. `export 0_FOO=bar` -> "not a valid identifier"; cargo -> "invalid character `0` in package name". A binary named `0`, the directory `0-core` and the glob `0-*/` all work. Project 0 / 0-core / 0 / zero-* / ZERO_*. -->
@@ -288,8 +374,9 @@ Naming and moving are two risks; this intent takes one of them.
       <!-- evidence: 2026-09-15. Crate deleted, binary retired with `ship --retire`, registry marked retired = true, aliases fm/fmd removed, census case deleted. deadwood reports registry orphans clean. faelight-glog went with it on the same evidence. 9,893 lines removed; 193/193 green after. -->
 - [ ] The NixOS-era crates are gone by the same standard. The machine has not been NixOS since
       2026-08-26
-- [ ] `faelight-docs` cannot resurrect a retired tool. Proven by running it after a retirement and
+- [x] `faelight-docs` cannot resurrect a retired tool. Proven by running it after a retirement and
       confirming the catalog does not list it
+      <!-- evidence: 2026-09-15. gather_all() reads rust-tools/*/Cargo.toml from DISK, so a deleted crate cannot appear. Proven by running readme-index after three retirements: faelight-fm, faelight-glog and faelight are all absent from the catalog. -->
 - [ ] Layer 3 is NOT started until layers 0-2 are done and a path audit lists every hardcoded
       reference. The audit is a deliverable in its own right
 - [ ] The state alias runs for A FULL WEEK with `core doctor` and `nsh history` green before any
