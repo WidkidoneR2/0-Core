@@ -415,8 +415,34 @@ pub fn font_exists(font_path: &Path) -> bool {
 // ═══════════════════════════════════════════════════════════
 
 /// User's local data directory (~/.local/share)
+/// XDG data home: `$XDG_DATA_HOME`, or `~/.local/share` when unset.
+///
+/// ⚠️ THE XDG CHECK WAS MISSING AND EVERY SIBLING HAD ONE. state_home(), xdg_cache_home(),
+/// bin_dir() and shell_config() all consult their variable; this one went straight to HOME.
+///
+/// On a machine that sets XDG_DATA_HOME, this accessor and `dirs::data_local_dir()` -- which
+/// faelight-clipboard used -- returned DIFFERENT DIRECTORIES. Not a problem on the author's
+/// machine, where the variable is unset, and "not a problem on this machine" is precisely the
+/// reasoning that left five readers pointed at /etc/faelight for three weeks (INT-250).
+///
+/// Corrected during INT-247 Layer 3a rather than inherited by the accessors added beside it.
 pub fn local_data_dir() -> PathBuf {
-    home().join(".local/share")
+    match env::var("XDG_DATA_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v),
+        _ => home().join(".local/share"),
+    }
+}
+
+/// The forest's own data directory -- durable per-user data that is neither config nor cache.
+///
+/// Sibling of faelight_config_dir(); the name follows it deliberately.
+pub fn faelight_data_dir() -> PathBuf {
+    local_data_dir().join("faelight")
+}
+
+/// faelight-clipboard's history. The only thing under faelight_data_dir() today.
+pub fn clipboard_history_file() -> PathBuf {
+    faelight_data_dir().join("clipboard").join("history.json")
 }
 
 /// The daemon control socket. FULL PATH, not a directory: every caller joined daemon.sock
@@ -553,6 +579,40 @@ pub fn intents_incidents() -> PathBuf {
 /// The XDG copy is the one the shell loads (see faelight-shell config.rs) and
 /// the one that gets edited, so it is the only honest answer. Renamed from
 /// aliases_file because the file is the shell config; aliases are its contents.
+/// The directory holding the shell's own configuration: `config.nsh`, the `scripts/` folder,
+/// and `nl-patterns.toml`.
+///
+/// DERIVED FROM shell_config() SO A REDIRECT IS COMPLETE RATHER THAN PARTIAL. When NSH_CONFIG
+/// points at a file elsewhere, the scripts and patterns follow it -- pointing the shell at a
+/// different config and leaving its scripts behind is the same split shell_config()'s own note
+/// records: "the shell moved and left two readers on the default -- a split nothing reports."
+///
+/// A config path with no parent falls back to the XDG location rather than to `/`, because a
+/// bare filename ("NSH_CONFIG=test.nsh") would otherwise silently claim the root directory.
+pub fn shell_config_dir() -> PathBuf {
+    shell_config()
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| match env::var("XDG_CONFIG_HOME") {
+            Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell"),
+            _ => home().join(".config/faelight-shell"),
+        })
+}
+
+/// User `.fsh`/`.nsh` scripts, run by `run <name>`.
+///
+/// NOT scripts_dir(): that is `~/0-core/scripts`, the REPOSITORY's scripts. This is the user's
+/// own, beside their config. Two directories, two meanings, and the names now say which.
+pub fn shell_scripts_dir() -> PathBuf {
+    shell_config_dir().join("scripts")
+}
+
+/// User-defined natural-language patterns, loaded by `?` alongside the built-in table.
+pub fn nl_patterns_file() -> PathBuf {
+    shell_config_dir().join("nl-patterns.toml")
+}
+
 pub fn shell_config() -> PathBuf {
     // NSH_CONFIG FIRST, and it belongs here rather than in one consumer. config.rs honoured
     // it; the cheatsheet and the alias reporter did not, so pointing the shell at a different

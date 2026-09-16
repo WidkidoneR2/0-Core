@@ -488,7 +488,12 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
     }
 }
 
-pub fn check_faelight_config(home: &str) -> CheckResult {
+// INT-247 Layer 3a: the `home` parameter is gone, not underscored.
+//
+// It existed so this check could build `~/.config/faelight` itself. It now asks
+// paths::faelight_config_dir(), which derives from the same HOME -- so the parameter was
+// a second route to one answer, which is the thing this layer exists to remove.
+pub fn check_faelight_config() -> CheckResult {
     // ⚠️ A FILE THAT EXISTS BUT CANNOT BE READ COUNTED AS NO ISSUE. The else-if chain matched
     // only Ok(content), so a permissions error or an I/O failure fell through both arms and
     // the file was silently treated as valid. Classified 2026-09-04 in the INT-222 census as
@@ -497,7 +502,10 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
     // ⭐ AND A COUNT IS NOT A FINDING. The message said N config issues, which tells a reader
     // how many and nothing about which -- so the warning could not be acted on without
     // repeating the check by hand. Each issue names its file and what is wrong with it.
-    let config_dir = PathBuf::from(home).join(".config/faelight");
+    // INT-247 Layer 3a: one owner. THE DOCTOR ESPECIALLY -- a health check that builds its own
+    // path checks whatever it happened to construct, not what the forest actually uses, and
+    // reports clean either way.
+    let config_dir = faelight_core::paths::faelight_config_dir();
     let files = ["config.toml", "profiles.toml", "themes.toml"];
     let mut issues: Vec<String> = Vec::new();
     for file in files {

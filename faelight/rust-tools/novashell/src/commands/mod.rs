@@ -16922,8 +16922,9 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
         Some(&"--list") => {
             // List .fsh scripts in core_root
             let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
-            let home_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                .join(".config/faelight-shell/scripts");
+            // INT-247 Layer 3a: one owner. NOT paths::scripts_dir(), which is the REPO's
+            // scripts -- this is the user's own, beside their config.
+            let home_path = faelight_core::paths::shell_scripts_dir();
 
             println!();
             println!("  {} .fsh scripts", "🌿".normal());
@@ -17029,8 +17030,8 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             let candidates = vec![
                 resolved.clone(),
                 format!("{}/scripts/fsh/{}", core_root, resolved),
-                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                    .join(format!(".config/faelight-shell/scripts/{}", resolved))
+                faelight_core::paths::shell_scripts_dir()
+                    .join(&resolved)
                     .to_string_lossy()
                     .to_string(),
             ];

@@ -11,6 +11,7 @@ name = "faelight-clipboard"
 path = "src/main.rs"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 wayland-client = { workspace = true }
 wayland-protocols-wlr = { workspace = true }
 serde = { workspace = true }

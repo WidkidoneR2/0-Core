@@ -64,11 +64,12 @@ struct ClipEntry {
 }
 
 fn history_path() -> PathBuf {
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("~/.local/share"))
-        .join("faelight")
-        .join("clipboard")
-        .join("history.json")
+    // INT-247 Layer 3a: one owner.
+    //
+    // The old form fell back to the LITERAL string "~/.local/share" when data_local_dir()
+    // returned None -- a tilde no filesystem call expands, so the history would have been
+    // written to a directory named "~" in the current working directory.
+    faelight_core::paths::clipboard_history_file()
 }
 
 fn load_history() -> Vec<ClipEntry> {

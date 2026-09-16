@@ -476,10 +476,10 @@ pub fn load_toml_patterns(_core_root: &str) -> Vec<CustomPattern> {
     let mut patterns = vec![];
 
     let paths = vec![
-        format!(
-            "{}/.config/faelight-shell/nl-patterns.toml",
-            std::env::var("HOME").unwrap_or_default()
-        ),
+        // INT-247 Layer 3a: one owner.
+        faelight_core::paths::nl_patterns_file()
+            .to_string_lossy()
+            .to_string(),
         crate::core_integration::registry_root()
             .map(|r| r.join("shell-patterns.toml").to_string_lossy().to_string())
             .unwrap_or_default(),
