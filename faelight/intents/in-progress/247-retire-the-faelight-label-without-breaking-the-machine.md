@@ -451,6 +451,76 @@ and can start whenever; the week-long alias gate belongs to 3b alone.
 `.local/state/faelight` in five places. Those are CORRECT today -- a fixture should
 mirror reality -- and they move with 3b, not before it.
 
+## LAYER 3a -- DONE 2026-09-15/16. CONSOLIDATION ONLY; NOTHING MOVED.
+
+All 26 sites from the audit above now name their paths through paths.rs. The directories are
+exactly where they were, which is the point: 3b changes one file, and 3a is what makes that true.
+
+### What was adopted
+
+    14  the health cache        11 adopt read_health(), 3 the path only
+     3  friday.log              new: friday_log()
+     3  last-exit-status        new: last_exit_status_file() -- 1 writer, 2 readers
+     3  shell config            new: shell_config_dir(), shell_scripts_dir(), nl_patterns_file()
+     1  the doctor's config     adopted the existing faelight_config_dir()
+     1  clipboard history       new: faelight_data_dir(), clipboard_history_file()
+
+### THREE SITES KEPT THEIR OWN LOGIC, DELIBERATELY
+
+read_health() was NOT adopted where a caller had something it does not know about:
+
+    dbus.rs           reads /etc/faelight/HEALTH FIRST -- collapsing would drop that source
+    faelight-docs     falls back to the state.db cache -- same
+    faelight-update   absent is the string "?" -- the ONE honest reader of the fourteen, showing
+                      that it could not read rather than inventing a number
+
+Each took the PATH from paths.rs and kept its own reading. A consolidation that quietly changes
+behaviour is not a consolidation.
+
+### AND ONE READER FALLS BACK TO ZERO ON PURPOSE
+
+doctor/mod.rs compares CACHED health against freshly computed health to decide whether the score
+moved. For a DELTA, a missing file meaning "no previous score" is right, where 100 would
+fabricate one. Preserved and commented rather than normalised away.
+
+### ⚠️ DEVIATION: ONE BEHAVIOUR CHANGE, AGREED BEFORE MAKING IT
+
+`local_data_dir()` did not consult XDG_DATA_HOME while state_home(), xdg_cache_home(), bin_dir()
+and shell_config() all consult theirs. On a machine that sets it, paths.rs and the
+`dirs::data_local_dir()` faelight-clipboard used returned DIFFERENT DIRECTORIES.
+
+Nil effect here -- the variable is unset. "Nil on this machine" is exactly the reasoning that
+left five readers pointed at /etc/faelight for three weeks, so it was fixed rather than inherited
+by the accessors added beside it.
+
+### TWO DEFECTS FOUND BY WALKING PAST THEM
+
+Neither was caused by this work and neither is fixed by it:
+
+  - INT-250: five /etc/faelight reads, dead since Omarchy, answering "" and 0. The D-Bus service
+    has reported NO ACTIVE INTENT for three weeks.
+  - INT-251: the prompt caret is green when the shell has lost track of the exit status.
+    `unwrap_or(true)` reads unknown as success. Proven pre-existing by rebuilding the previous
+    binary and reproducing it there.
+
+⭐ AND `last-system-rev` GOT NO ACCESSOR. One reader, ZERO writers -- another NixOS-era casualty.
+Naming a path nothing writes would dignify it; it belongs to INT-250.
+
+### The shape all of it shares
+
+    health cache      unwrap_or(100)          absent reads as HEALTHY
+    /etc/faelight     unwrap_or_default()     absent reads as EMPTY
+    the caret         unwrap_or(true)         unknown reads as SUCCESS
+
+Three files, one habit: when the answer is not known, supply the happy one. That is INT-192's
+collapse, and the reason Layer 3's own gate exists.
+
+### What 3b now is
+
+One change in one file, with one place to verify -- because every site asks paths.rs and no site
+builds its own answer. The week-long alias gate still applies; it was never about the number of
+sites.
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
