@@ -357,6 +357,69 @@ The alternatives were: leave a catalog that lists three deleted crates, or run a
 that destroys real writing. Neither was acceptable, so the smallest third option was
 built -- and `readme-generate` now carries a comment saying why it must not be run.
 
+## THE PATH AUDIT -- DONE 2026-09-15, BEFORE LAYER 3 STARTS
+
+The audit this intent calls "a deliverable in its own right". It changes the shape of
+Layer 3, so it is recorded in full.
+
+### The inputs are FIVE, not four, and they form TWO CHAINS
+
+    state     XDG_STATE_HOME  ->  FAELIGHT_STATE_DB  ->  HOME
+    config    NSH_CONFIG      ->  XDG_CONFIG_HOME    ->  HOME
+
+The intent said four inputs must agree. There is a FIFTH -- XDG_CONFIG_HOME -- and
+the important part is not the count but the SPLIT: a redirect that satisfies the
+STATE chain leaves the CONFIG chain on its defaults. That is the silent-empty-ledger
+mechanism, stated precisely.
+
+Measured today: none of FAELIGHT_STATE_DB, NSH_CONFIG or ZERO_STATE_DB is set. Everything
+currently derives from HOME, which is why nothing has broken.
+
+### paths.rs is smaller than feared: SIX functions, FOUR that matter
+
+    runtime_dir           ~/.local/state/faelight        the ledger -- state.db
+    faelight_config_dir   ~/.config/faelight             config, profiles, themes
+    shell_config          ~/.config/faelight-shell/...   the aliases
+    health_status_file    ~/.cache/faelight/health-status
+
+    faelight_dir          ~/0-core/faelight              NOT state -- a REPO directory,
+                                                        and this intent says it stays
+    sway_config           a suffix check, not a path
+
+### ⚠️ AND THE REAL FINDING: TWENTY-SIX LIVE SITES BYPASS paths.rs
+
+    14   ~/.cache/faelight/health-status    built BY HAND
+     3   ~/.cache/faelight/friday.log
+     2   ~/.cache/faelight/last-*           prompt state
+     4   ~/.config/faelight-shell/...        scripts dir, nl-patterns
+     1   ~/.config/faelight                  the DOCTOR's own check
+     1   join("faelight")                     faelight-clipboard
+
+**`health_status_file()` EXISTS IN paths.rs AND FOURTEEN CALLERS IGNORE IT.** The
+doctor, the daemon, three release tools, faelight-docs, faelight-git, and the shell's
+own prompt each build the path themselves. That is INT-195's shape: one owner declared,
+fourteen sites deriving it independently.
+
+⭠ WHICH MEANS LAYER 3'S RISK IS NOT THE MOVE. It is that the health cache has no
+owner. Move the directory and fourteen readers keep looking at the old place, find
+nothing, and `unwrap_or(100)` reports PERFECT HEALTH. The silent failure is already
+loaded; the move would merely pull the trigger.
+
+### SO LAYER 3 SPLITS IN TWO, IN THIS ORDER
+
+    3a  CONSOLIDATE -- every site adopts the paths.rs accessor. NOTHING MOVES.
+        Testable immediately: the paths resolve IDENTICALLY before and after, so a
+        mistake is visible at once rather than after a relocation.
+
+    3b  MOVE -- one change, in one file, with one place to verify.
+
+Doing 3b first is exactly how the silent failure happens. 3a is safe work with no move
+and can start whenever; the week-long alias gate belongs to 3b alone.
+
+⚠️ THE TEST FIXTURES COUNT TOO. nsh-test builds a fake forest at
+`.local/state/faelight` in five places. Those are CORRECT today -- a fixture should
+mirror reality -- and they move with 3b, not before it.
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
@@ -379,6 +442,7 @@ built -- and `readme-generate` now carries a comment saying why it must not be r
       <!-- evidence: 2026-09-15. gather_all() reads rust-tools/*/Cargo.toml from DISK, so a deleted crate cannot appear. Proven by running readme-index after three retirements: faelight-fm, faelight-glog and faelight are all absent from the catalog. -->
 - [ ] Layer 3 is NOT started until layers 0-2 are done and a path audit lists every hardcoded
       reference. The audit is a deliverable in its own right
+      <!-- the audit is DONE 2026-09-15 -- see THE PATH AUDIT above: 6 functions in paths.rs, 26 live sites outside it, 14 of them the health cache. Layers 0-2 are also done. The gate is open for 3a. -->
 - [ ] The state alias runs for A FULL WEEK with `core doctor` and `nsh history` green before any
       code default changes. Evidence: the dates
 - [ ] Whatever reads the state paths reports UNREADABLE as unreadable. A silent empty ledger is
