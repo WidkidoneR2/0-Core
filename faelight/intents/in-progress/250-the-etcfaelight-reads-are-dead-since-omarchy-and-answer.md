@@ -56,17 +56,17 @@ Nothing is lost. Five readers are pointed at a source that stopped existing.
 
 ## Success Criteria
 
-- [ ] Every `/etc/faelight` read is gone. Not repointed to a different hardcoded path -- GONE,
+- [x] Every `/etc/faelight` read is gone. Not repointed to a different hardcoded path -- GONE,
       or reading the real source through an accessor
-- [ ] `read_intent()` returns the actual active intent, demonstrated against a ledger with a
+- [x] `read_intent()` returns the actual active intent, demonstrated against a ledger with a
       known active intent -- not `""`
-- [ ] `read_intent_id()` returns that intent's number -- not 0
-- [ ] The commit counters show a number or say they cannot -- not `""`
-- [ ] NO NEW SILENT FALLBACK. Where a source cannot be read, the caller SAYS SO. That is the
+- [x] `read_intent_id()` returns that intent's number -- not 0
+- [x] The commit counters show a number or say they cannot -- not `""`
+- [x] NO NEW SILENT FALLBACK. Where a source cannot be read, the caller SAYS SO. That is the
       whole lesson here; replacing one `unwrap_or_default()` with another would fix the path and
       keep the defect
-- [ ] A grep for `/etc/faelight` returns nothing in `.rs` files, proven after the fix
-- [ ] The NixOS-era assumption is written where a future session will see it: declarative
+- [x] A grep for `/etc/faelight` returns nothing in `.rs` files, proven after the fix
+- [x] The NixOS-era assumption is written where a future session will see it: declarative
       generation is gone, and ANY `/etc/` path in this repository is suspect until checked
 
 ## Relationship
