@@ -86,10 +86,30 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     let accepted = goals.iter().filter(|g| g.5 == "accepted").count();
     let rejected = goals.iter().filter(|g| g.5 == "rejected").count();
     let pending = total - accepted - rejected;
-    let total_commits: String = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    // INT-250: git, not /etc/faelight/COMMITS.
+    //
+    // NixOS generated that file declaratively; the machine has not been NixOS since 2026-08-26,
+    // so the read returned "" and line 120's `if !total_commits.is_empty()` skipped the stat
+    // entirely. Three weeks of an autobiography quietly missing its commit count -- no error,
+    // no empty value on screen, just an absent line nobody could notice.
+    //
+    // "?" rather than "" or 0 when git cannot answer: the same convention faelight-update uses
+    // for health. It says COULD NOT DETERMINE, which is different from zero and different from
+    // a line that was never printed.
+    let total_commits: String = std::process::Command::new("git")
+        .args([
+            "-C",
+            &faelight_core::paths::core_dir().to_string_lossy(),
+            "rev-list",
+            "--count",
+            "HEAD",
+        ])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "?".to_string());
 
     let display_version = version_filter.unwrap_or(&version);
 

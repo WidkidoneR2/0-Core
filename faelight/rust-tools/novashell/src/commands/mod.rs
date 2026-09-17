@@ -11034,11 +11034,25 @@ fn observe_session(db: &ForestDb) -> CommandResult {
         )
         .unwrap_or(0);
 
-    // Count commits this session
-    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_else(|_| "0".to_string())
-        .trim()
-        .to_string();
+    // INT-250: git, not /etc/faelight/COMMITS -- which has not existed since Omarchy.
+    //
+    // ⚠ ️ AND ITS FALLBACK WAS "0", NOT "". This did not hide a missing stat the way the
+    // autobiography did; it printed a confident ZERO COMMITS. An invented number is worse than
+    // a blank, because a blank invites a question and a zero answers one.
+    let commits = std::process::Command::new("git")
+        .args([
+            "-C",
+            &faelight_core::paths::core_dir().to_string_lossy(),
+            "rev-list",
+            "--count",
+            "HEAD",
+        ])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "?".to_string());
 
     // Active intent
     let intent = db.get_focus_intent().unwrap_or_else(|| "none".to_string());
@@ -11122,10 +11136,21 @@ fn observe_commands(db: &ForestDb) -> CommandResult {
 }
 
 fn observe_diff(db: &ForestDb) -> CommandResult {
-    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_else(|_| "0".to_string())
-        .trim()
-        .to_string();
+    // INT-250: git, not /etc/faelight/COMMITS. Same confident-zero fallback as above.
+    let commits = std::process::Command::new("git")
+        .args([
+            "-C",
+            &faelight_core::paths::core_dir().to_string_lossy(),
+            "rev-list",
+            "--count",
+            "HEAD",
+        ])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "?".to_string());
 
     let failures: i64 = db
         .conn
@@ -13347,11 +13372,17 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         "  {:<16} {}
 ",
         "Forest".dimmed(),
-        std::fs::read_to_string("/etc/faelight/VERSION")
-            .unwrap_or_else(|_| "v14.0.0".to_string())
-            .trim()
-            .trim_start_matches("v")
-            .to_string()
+        // INT-250: paths::version_file() -- faelight/meta/VERSION, which holds 1.0.0 and has
+        // been the real owner all along.
+        //
+        // ⚠ ️ THE FALLBACK WAS "v14.0.0": a version number that is not this system's, invented at
+        // some point and stated as fact whenever the read failed -- which, since Omarchy, was
+        // EVERY TIME. The forest has been reporting a version it has never had.
+        std::fs::read_to_string(faelight_core::paths::version_file())
+            .ok()
+            .map(|s| s.trim().trim_start_matches('v').to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "?".to_string())
             .bright_green()
     ));
     out.push_str(&format!(

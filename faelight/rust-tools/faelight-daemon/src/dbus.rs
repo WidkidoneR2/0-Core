@@ -169,40 +169,47 @@ pub fn emit_friday_signal(message: String, confidence: f64) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn read_health() -> u32 {
-    std::fs::read_to_string("/etc/faelight/HEALTH")
-        .ok()
-        .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
-        .or_else(|| {
-            // INT-247 Layer 3a: the PATH only. read_health() is deliberately NOT adopted here,
-            // because this function has a source read_health() knows nothing about -- the
-            // /etc/faelight/HEALTH read above. Collapsing them would silently drop it.
-            //
-            // AND THAT SOURCE IS DEAD: /etc/faelight/ has not existed since Omarchy. INT-250
-            // owns that; this pass only stops the path being built by hand.
-            std::fs::read_to_string(faelight_core::paths::health_status_file())
-                .ok()
-                .and_then(|s| s.trim().parse().ok())
-        })
+    // INT-250: the /etc/faelight/HEALTH read that stood here is DELETED, not repointed.
+    //
+    // It was tried FIRST and always failed, so every call fell through to the cache -- which
+    // is the real source and was already correct. Removing it changes nothing about what this
+    // function returns and removes a branch that could only ever fail.
+    //
+    // With the second source gone, the Layer 3a note that sat here -- explaining why
+    // read_health() could not be adopted -- is no longer true either, so this now uses the
+    // shared accessor like every other reader. The fallback of 100 is unchanged.
+    faelight_core::paths::read_health()
+        .map(|h| h as u32)
         .unwrap_or(100)
 }
 
 pub fn read_intent() -> String {
-    std::fs::read_to_string("/etc/faelight/INTENT")
+    // INT-250: focus.toml, the source that is actually correct.
+    //
+    // This read /etc/faelight/INTENT, gone since Omarchy, and returned "" -- so the D-Bus
+    // service told every caller there was NO ACTIVE INTENT while the ledger held several.
+    std::fs::read_to_string(faelight_core::paths::focus_file())
+        .ok()
+        .and_then(|c| {
+            c.lines().find_map(|line| {
+                line.strip_prefix("title = ")
+                    .map(|r| r.trim().trim_matches('"').to_string())
+            })
+        })
+        .map(|t| t.chars().take(80).collect())
         .unwrap_or_default()
-        .trim()
-        .chars()
-        .take(80)
-        .collect()
 }
 
 pub fn read_intent_id() -> u32 {
-    // Try to extract INT-NNN from the INTENT file content
-    let content = std::fs::read_to_string("/etc/faelight/INTENT").unwrap_or_default();
-    // Look for pattern "INT-NNN" in content
-    content
-        .split_whitespace()
-        .find(|w| w.starts_with("INT-"))
-        .and_then(|s| s.trim_start_matches("INT-").parse().ok())
+    // INT-250: focus.toml carries the id directly -- no INT-NNN scraping required.
+    std::fs::read_to_string(faelight_core::paths::focus_file())
+        .ok()
+        .and_then(|c| {
+            c.lines().find_map(|line| {
+                line.strip_prefix("id = ")
+                    .and_then(|r| r.trim().trim_matches('"').parse().ok())
+            })
+        })
         .unwrap_or(0)
 }
 

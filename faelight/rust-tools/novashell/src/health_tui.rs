@@ -347,9 +347,14 @@ fn draw_health_ui(
             _ => s,
         });
     let border_color = severity_color(worst);
-    let forest_version =
-        std::fs::read_to_string("/etc/faelight/VERSION").unwrap_or_else(|_| "v14.0.0".to_string());
-    let forest_version = forest_version.trim();
+    // INT-250: paths::version_file(). The "v14.0.0" fallback that stood here was invented --
+    // see the note at the `status` site in commands/mod.rs.
+    let forest_version = std::fs::read_to_string(faelight_core::paths::version_file())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "?".to_string());
+    let forest_version = forest_version.as_str();
     let health_str = format!(
         // ⚠️ THE DENOMINATOR WAS HARDCODED TO 23 AND THE SYSTEM NOW RUNS 32 CHECKS, so this header
         // printed `32/23` -- a ratio of the real total over a number frozen at some earlier moment.

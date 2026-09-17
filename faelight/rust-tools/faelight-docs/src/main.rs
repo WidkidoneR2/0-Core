@@ -400,10 +400,21 @@ fn gather_state() -> ForestState {
         (complete, planned)
     };
 
-    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    // INT-250: git, not /etc/faelight/COMMITS. See the note in autobiography/mod.rs.
+    let commits = std::process::Command::new("git")
+        .args([
+            "-C",
+            &faelight_core::paths::core_dir().to_string_lossy(),
+            "rev-list",
+            "--count",
+            "HEAD",
+        ])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "?".to_string());
 
     // Read live health — prefer ~/.cache/faelight/health-status, fall back to state.db cache
     let health = {
