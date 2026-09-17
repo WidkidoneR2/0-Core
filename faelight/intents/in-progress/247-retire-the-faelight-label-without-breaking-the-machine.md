@@ -521,6 +521,39 @@ One change in one file, with one place to verify -- because every site asks path
 builds its own answer. The week-long alias gate still applies; it was never about the number of
 sites.
 
+## LAYER 3b -- THE CLOCK STARTED 2026-09-17
+
+    ~/.local/state/zero  ->  faelight    (symlink, RELATIVE target)
+    ~/.config/zero       ->  faelight
+
+Nothing moved. 314M of state -- 303M of it state.db -- is exactly where it was, and BOTH names
+resolve to it. The targets are relative so the links survive a home that moves.
+
+### BOTH GATES GREEN ON DAY ONE
+
+    nsh -c 'history'                      through faelight  -> 104 lines
+    FAELIGHT_STATE_DIR=../zero nsh ...    through zero      -> 104 lines
+    core doctor run through zero          clean, 92%, trend stable
+
+### ⭐ AND STEP 3 WAS ALREADY DEAD, WHICH REMOVED THE LANDMINE
+
+runtime_dir() resolves in four steps, and step 3 is `faelight_dir()/runtime` -- INSIDE THE REPO.
+Had that directory existed, the flip could have silently adopted a different state directory
+when step 2 stopped matching.
+
+Checked before creating anything: it does not exist. Step 3 cannot fire, so the flip has no
+hidden branch.
+
+### What the week is FOR
+
+Not ceremony. The alias must survive ordinary use -- every tool, every session, every reboot --
+before a default changes. A path that works once in a test and fails on the third day is exactly
+the failure this gate exists to catch.
+
+    FLIP NO EARLIER THAN  2026-09-24
+
+And the flip is one line in paths.rs, because Layer 3a made every site ask that file.
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
