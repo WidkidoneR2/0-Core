@@ -1428,6 +1428,7 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_intents(core_root),
         check_deadwood(core_root),
         check_faelight_config(),
+        check_zero_alias(),
         check_security_hardening(),
         check_security_audit(home),
         check_alias_coverage(),

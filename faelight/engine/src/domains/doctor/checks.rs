@@ -493,6 +493,88 @@ pub fn check_intents(_core_root: &str) -> CheckResult {
 // It existed so this check could build `~/.config/faelight` itself. It now asks
 // paths::faelight_config_dir(), which derives from the same HOME -- so the parameter was
 // a second route to one answer, which is the thing this layer exists to remove.
+/// INT-247 Layer 3b: the migration aliases resolve.
+///
+/// `~/.local/state/zero` and `~/.config/zero` are symlinks to their `faelight` counterparts for
+/// the duration of the rename. They exist so BOTH names reach one directory while the new one
+/// proves itself -- there is never a moment where only one is correct.
+///
+/// ⚠️ THE WEEK THIS CHECK GUARDS IS NOT CEREMONY. A link that works the day it is made and is
+/// gone by the third day -- a stray cleanup, a botched restore, a `rm` in the wrong place --
+/// would otherwise be discovered by the FLIP, which is the worst possible moment.
+///
+/// FOUR STATES, and three of them are not Pass:
+///   both resolve      Pass
+///   absent            Warn  -- the migration alias is gone; the clock should restart
+///   dangling          Warn  -- points at nothing; the flip would land on a broken link
+///   a REAL DIRECTORY  Warn  -- the worst case: two directories, and writes are splitting
+///                             between them RIGHT NOW
+///
+/// Absence is deliberately not Pass. Before the aliases existed this check did not exist either;
+/// now that it does, "not there" is a finding rather than a quiet success.
+pub fn check_zero_alias() -> CheckResult {
+    let pairs = [
+        (
+            faelight_core::paths::state_home().join("zero"),
+            faelight_core::paths::state_home().join("faelight"),
+        ),
+        (
+            faelight_core::paths::config_dir().join("zero"),
+            faelight_core::paths::faelight_config_dir(),
+        ),
+    ];
+
+    let mut issues: Vec<String> = Vec::new();
+    for (link, target) in &pairs {
+        let name = link.display().to_string();
+        match fs::symlink_metadata(link) {
+            Err(_) => issues.push(format!("{} absent", name)),
+            Ok(meta) => {
+                if !meta.file_type().is_symlink() {
+                    // A real directory here means writes are splitting between two places.
+                    issues.push(format!("{} is a REAL DIRECTORY, not a link", name));
+                } else if !link.exists() {
+                    // exists() follows the link -- false here means dangling.
+                    issues.push(format!("{} dangles", name));
+                } else {
+                    match (fs::canonicalize(link), fs::canonicalize(target)) {
+                        (Ok(a), Ok(b)) if a == b => {}
+                        (Ok(a), Ok(b)) => issues.push(format!(
+                            "{} resolves to {}, not {}",
+                            name,
+                            a.display(),
+                            b.display()
+                        )),
+                        _ => issues.push(format!("{} could not be resolved", name)),
+                    }
+                }
+            }
+        }
+    }
+
+    if issues.is_empty() {
+        CheckResult {
+            tier: Tier::System,
+            id: "zero_alias".into(),
+            name: "Zero Alias".into(),
+            status: Status::Pass,
+            message: "state and config aliases resolve to the faelight directories".into(),
+            fix: None,
+        }
+    } else {
+        CheckResult {
+            tier: Tier::System,
+            id: "zero_alias".into(),
+            name: "Zero Alias".into(),
+            status: Status::Warn,
+            message: issues.join("; "),
+            fix: Some(
+                "INT-247 Layer 3b: ln -s faelight ~/.local/state/zero (and ~/.config/zero)".into(),
+            ),
+        }
+    }
+}
+
 pub fn check_faelight_config() -> CheckResult {
     // ⚠️ A FILE THAT EXISTS BUT CANNOT BE READ COUNTED AS NO ISSUE. The else-if chain matched
     // only Ok(content), so a permissions error or an I/O failure fell through both arms and
@@ -540,7 +622,8 @@ pub fn check_faelight_config() -> CheckResult {
             name: "Zero Config".into(),
             status: Status::Warn,
             message: issues.join(", "),
-            fix: Some("Run: faelight config validate".into()),
+            // INT-247 Layer 2 retired the `faelight` CLI; this hint outlived it.
+            fix: Some("Check the files named above in ~/.config/faelight".into()),
         }
     }
 }
