@@ -21,9 +21,18 @@ pub struct ForestBusState {
 impl ForestBusState {
     pub fn new() -> Self {
         Self {
+            // INT-250: intent_id is SEEDED from read_intent_id() like its two siblings.
+            //
+            // ⚠️ IT WAS Mutex::new(0) -- a literal zero -- while health and intent_title both called
+            // their readers. The id then only became correct if the focus CHANGED while the
+            // daemon was running, because the watch loop is the only other writer.
+            //
+            // So INT-250's read_intent_id() fix was correct and still reported 0: the defect was
+            // one layer up, in the seeding, which no amount of reading the function would show.
+            // MEASURED live over D-Bus, 2026-09-17.
             health: Arc::new(Mutex::new(read_health())),
             intent_title: Arc::new(Mutex::new(read_intent())),
-            intent_id: Arc::new(Mutex::new(0)),
+            intent_id: Arc::new(Mutex::new(read_intent_id())),
         }
     }
 }
