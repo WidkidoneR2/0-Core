@@ -822,8 +822,12 @@ pub fn check_security_hardening() -> CheckResult {
     }
 }
 
-pub fn check_security_audit(home: &str) -> CheckResult {
-    let scan_path = PathBuf::from(home).join(".local/state/0-core/security/last-scan.json");
+// INT-250: the `home` parameter existed only to build the scan path, which paths.rs
+// now owns. One caller, so the signature changes rather than carrying an unused argument.
+pub fn check_security_audit() -> CheckResult {
+    // INT-250: one owner for the path.
+    // THE DOCTOR AGAIN: a health check with its own copy of a path the security domain owns.
+    let scan_path = faelight_core::paths::security_last_scan();
     if !scan_path.exists() {
         return CheckResult {
             tier: Tier::System,

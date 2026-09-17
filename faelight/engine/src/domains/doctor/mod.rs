@@ -1430,7 +1430,7 @@ fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
         check_faelight_config(),
         check_zero_alias(),
         check_security_hardening(),
-        check_security_audit(home),
+        check_security_audit(),
         check_alias_coverage(),
         check_rust_toolchain(),
         check_disk_space(),

@@ -57,8 +57,8 @@ struct ScanResult {
 }
 
 fn last_scan_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".local/state/0-core/security/last-scan.json")
+    // INT-250: one owner for the path.
+    faelight_core::paths::security_last_scan()
 }
 
 // INT-192: THREE WAYS TO REPORT ZERO WITHOUT LOOKING, and all three fired on this
@@ -467,8 +467,8 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
 }
 
 pub fn history(_ctx: &AppContext) -> CoreResult<()> {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let hist_path = PathBuf::from(home).join(".local/state/0-core/security/scan-history.json");
+    // INT-250: one owner for the path.
+    let hist_path = faelight_core::paths::security_state_dir().join("scan-history.json");
     let content = fs::read_to_string(&hist_path).unwrap_or_default();
     let history: Vec<serde_json::Value> = serde_json::from_str(&content).unwrap_or_default();
 
@@ -490,13 +490,13 @@ pub fn history(_ctx: &AppContext) -> CoreResult<()> {
 }
 
 fn history_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".local/state/0-core/security/scan-history.jsonl")
+    // INT-250: one owner for the path.
+    faelight_core::paths::security_state_dir().join("scan-history.jsonl")
 }
 
 fn first_seen_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".local/state/0-core/security/first-seen.json")
+    // INT-250: one owner for the path.
+    faelight_core::paths::security_state_dir().join("first-seen.json")
 }
 
 #[derive(Debug, Serialize, Deserialize)]

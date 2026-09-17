@@ -8,15 +8,13 @@ use std::fs;
 use std::path::PathBuf;
 
 fn state_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join(".local/state/0-core/sandbox")
+    // INT-250: one owner for the path.
+    faelight_core::paths::sandbox_state_dir()
 }
 
 fn snapshots_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join(".local/state/0-core/sandbox/snapshots")
+    // INT-250: one owner for the path.
+    faelight_core::paths::sandbox_snapshots_dir()
 }
 
 #[derive(Debug, Deserialize)]

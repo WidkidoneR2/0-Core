@@ -19,15 +19,13 @@ fn profiles_toml(ctx: &AppContext) -> PathBuf {
 }
 
 fn state_file() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join(".local/state/0-core/current-profile")
+    // INT-250: one owner for the path.
+    faelight_core::paths::current_profile_file()
 }
 
 fn log_file() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join(".local/state/0-core/profile.log")
+    // INT-250: one owner for the path.
+    faelight_core::paths::profile_log()
 }
 
 fn load_profiles(ctx: &AppContext) -> Vec<Profile> {

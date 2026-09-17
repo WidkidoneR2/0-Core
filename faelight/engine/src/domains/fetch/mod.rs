@@ -80,8 +80,8 @@ fn get_zone(ctx: &AppContext) -> String {
 }
 
 fn get_profile() -> String {
-    dirs::home_dir()
-        .map(|h| h.join(".local/state/0-core/current-profile"))
+    // INT-250: one owner for the path.
+    Some(faelight_core::paths::current_profile_file())
         .and_then(|p| fs::read_to_string(p).ok())
         .map(|s| s.trim().to_uppercase()[..3.min(s.trim().len())].to_string())
         .unwrap_or_else(|| "DEF".to_string())

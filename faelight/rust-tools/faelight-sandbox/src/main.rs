@@ -190,8 +190,8 @@ fn which_bwrap() -> Option<String> {
 }
 
 fn state_dir() -> PathBuf {
-    let home = home();
-    PathBuf::from(&home).join(".local/state/0-core/sandbox")
+    // INT-250: one owner for the path.
+    faelight_core::paths::sandbox_state_dir()
 }
 
 fn session_path() -> PathBuf {
