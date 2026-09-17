@@ -497,10 +497,8 @@ impl ForestDb {
 
     pub fn get_focus_intent(&self) -> Option<String> {
         // Read from focus.toml (written by cistart via core engine)
-        let home = std::env::var("HOME").unwrap_or_default();
-        let focus_file =
-            std::path::PathBuf::from(&home).join(".local/state/0-core/intent/focus.toml");
-        if let Ok(content) = std::fs::read_to_string(&focus_file) {
+        // INT-250: one owner for the path.
+        if let Ok(content) = std::fs::read_to_string(faelight_core::paths::focus_file()) {
             for line in content.lines() {
                 if let Some(rest) = line.strip_prefix("id = ") {
                     return Some(rest.trim().trim_matches('"').to_string());

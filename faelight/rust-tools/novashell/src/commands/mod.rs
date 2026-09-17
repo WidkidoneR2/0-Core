@@ -15600,9 +15600,8 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ));
 
     // 3. focus.toml readable
-    let home = std::env::var("HOME").unwrap_or_default();
-    let focus_path = format!("{}/.local/state/0-core/intent/focus.toml", home);
-    let focus_ok = std::path::Path::new(&focus_path).exists();
+    // INT-250: one owner for the path.
+    let focus_ok = faelight_core::paths::focus_file().exists();
     let focus_note = if focus_ok {
         db.get_focus_intent()
             .map(|i| format!("INT-{} active", i))

@@ -445,6 +445,80 @@ pub fn clipboard_history_file() -> PathBuf {
     faelight_data_dir().join("clipboard").join("history.json")
 }
 
+// ═══════════════════════════════════════════════════════════
+// THE SECOND STATE TREE: ~/.local/state/0-core
+// ═══════════════════════════════════════════════════════════
+
+/// The OTHER state directory. Yes, there are two.
+///
+/// ⚠️ THIS IS NOT runtime_dir(), AND IT MUST NOT BE DERIVED FROM IT. Measured 2026-09-17:
+///
+///     ~/.local/state/faelight   314M   db, events, journal, logs, cache, snapshots, socket
+///     ~/.local/state/0-core     6.4M   intent focus, sandbox snapshots, security scans
+///
+/// Disjoint contents, both live, both written to today. Deriving this from runtime_dir() would
+/// silently RELOCATE 6.4M of data while calling itself a consolidation -- exactly the move this
+/// accessor exists to make visible rather than accidental.
+///
+/// ⭐ HOW THE SPLIT HAPPENED, and daemon_socket() below records the same story from its side:
+/// during an earlier rename one function was repointed at the new name and the others were left.
+/// The result was daemon.sock in one tree and state.db in the other. That was fixed for the
+/// socket; SIXTEEN sites kept building this path by hand, in eight files, and the INT-247
+/// Layer 3a audit missed every one -- it grepped for `faelight`, and these say `0-core`.
+///
+/// Naming it does not decide its future. Whether the two trees merge is an INT-247 Layer 3b
+/// question, and it can only be asked once something owns this one.
+pub fn zero_state_dir() -> PathBuf {
+    state_home().join("0-core")
+}
+
+/// The focused intent -- `core intent focus` writes it, and it is the ONLY source that is
+/// actually correct.
+///
+/// ⚠️ FIVE READERS BUILT THIS PATH THEMSELVES, and three other routes to the same fact are
+/// broken. Measured 2026-09-17, while the focus was INT-250:
+///
+///     focus.toml                        id = "250"        CORRECT
+///     shell_state key 'focus_intent'    ABSENT from the db entirely -- 4 readers get None
+///     /etc/faelight/INTENT              directory gone since Omarchy -- 2 readers get ""
+///     scan of intents/future/           cistart MOVES started intents to in-progress/
+///
+/// Four ways to ask one question, one of which works. attention.rs already knew -- its comment
+/// says the shell_state row "went stale at the NixOS migration" -- and read this file instead.
+pub fn focus_file() -> PathBuf {
+    zero_state_dir().join("intent").join("focus.toml")
+}
+
+/// Sandbox snapshots, written by faelight-sandbox.
+pub fn sandbox_state_dir() -> PathBuf {
+    zero_state_dir().join("sandbox")
+}
+
+/// Where a sandbox session stores the tree it snapshotted.
+pub fn sandbox_snapshots_dir() -> PathBuf {
+    sandbox_state_dir().join("snapshots")
+}
+
+/// The security domain's own state: the last scan, its history, and first-seen findings.
+pub fn security_state_dir() -> PathBuf {
+    zero_state_dir().join("security")
+}
+
+/// The most recent security scan result.
+pub fn security_last_scan() -> PathBuf {
+    security_state_dir().join("last-scan.json")
+}
+
+/// Which profile is active. A single line of text, read by three domains.
+pub fn current_profile_file() -> PathBuf {
+    zero_state_dir().join("current-profile")
+}
+
+/// The profile switch log.
+pub fn profile_log() -> PathBuf {
+    zero_state_dir().join("profile.log")
+}
+
 /// The daemon control socket. FULL PATH, not a directory: every caller joined daemon.sock
 /// onto it immediately and none used it for anything else, so the directory was an
 /// abstraction that existed only to be discarded.

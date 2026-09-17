@@ -102,9 +102,8 @@ impl App {
 fn get_active_intent(db: &Connection) -> String {
     // INT-071: focus.toml is source of truth (written by cistart). shell_state row
     // went stale at the NixOS migration. Read the toml first, fall back to the row.
-    let home = std::env::var("HOME").unwrap_or_default();
-    let focus_file = std::path::PathBuf::from(&home).join(".local/state/0-core/intent/focus.toml");
-    if let Ok(content) = std::fs::read_to_string(&focus_file) {
+    // INT-250: one owner for the path.
+    if let Ok(content) = std::fs::read_to_string(faelight_core::paths::focus_file()) {
         for line in content.lines() {
             if let Some(rest) = line.strip_prefix("id = ") {
                 let id = rest.trim().trim_matches('"').to_string();

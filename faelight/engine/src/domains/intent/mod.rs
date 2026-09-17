@@ -666,14 +666,17 @@ pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
 
 // ── Phase 2 — Focus + Workflow States ─────────────────────────────────────
 
+// INT-250: THE WRITER delegates to paths.rs, so writer and five readers resolve identically.
+//
+// These two built the path themselves, in the file that DEFINES the focus format. Five readers
+// then built it again, each with its own line-parser, each carrying a copy of the INT-071 note
+// explaining that focus.toml is the source of truth. The knowledge propagated; the path did not.
 fn intent_state_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/root"))
-        .join(".local/state/0-core/intent")
+    faelight_core::paths::zero_state_dir().join("intent")
 }
 
 fn focus_file() -> PathBuf {
-    intent_state_dir().join("focus.toml")
+    faelight_core::paths::focus_file()
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

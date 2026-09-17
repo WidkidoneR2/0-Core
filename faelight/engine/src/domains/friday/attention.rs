@@ -100,10 +100,8 @@ pub fn compute_strategic_relevance(db: &Connection, event_detail: &str) -> f64 {
     // friday-chat and faelight-shell. Without this, every event scored at the
     // no-active-intent baseline even during focused work.
     let active_intent: Option<String> = {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let focus_file =
-            std::path::PathBuf::from(&home).join(".local/state/0-core/intent/focus.toml");
-        let from_toml = std::fs::read_to_string(&focus_file)
+        // INT-250: one owner for the path.
+        let from_toml = std::fs::read_to_string(faelight_core::paths::focus_file())
             .ok()
             .and_then(|c| {
                 c.lines().find_map(|line| {
