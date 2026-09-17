@@ -3,7 +3,7 @@ id: 250
 date: 2026-09-15
 type: future
 title: "the /etc/faelight reads are dead since Omarchy and answer as empty"
-status: in-progress
+status: complete
 tags: [omarchy, migration, nixos-debt, state, dbus, int-192]
 ---
 
