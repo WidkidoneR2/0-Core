@@ -3,7 +3,7 @@ id: 251
 date: 2026-09-16
 type: future
 title: "the caret is green when the shell has lost track of the exit status"
-status: in-progress
+status: complete
 tags: [prompt, exit-code, telemetry, int-192, pipeline]
 ---
 
