@@ -423,8 +423,11 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
       declared severity range, assertion or probe, threshold source, and recovery text.
       See "THE SIXTH PROBLEM IS ANSWERED" below -- the format is decided together with WHERE it
       lives, because the two questions could not be separated.
-- [ ] The probe registry is enumerated and closed. Adding a probe is a deliberate, reviewable act;
+- [x] The probe registry is enumerated and closed. Adding a probe is a deliberate, reviewable act;
       **there is no path from a definition to arbitrary code.**
+      Enumerated by census, not by design -- see "THE PROBE REGISTRY, MEASURED" below. FIFTEEN
+      probes. One of them, resolve_binary_path, is the arbitrary-code door and is flagged for
+      rewrite in Phase 2.
 - [x] Scoring is DECIDED and written: severity x tier, critical caps, labels excluded from the
       denominator. ★ A decision to keep flat scoring is a valid discharge of this criterion --
       declining with reasons is still proof.
@@ -578,6 +581,73 @@ Decision 147's own warning applies to this intent as much as to the event bus:
 DECIDED NOW: the format, and that it lives in its own crate.
 BUILT AT: Phase 2 of this intent, in phase order, with each gate proven by watching it fail.
 NOT AUTHORISED: engine slimming, domain retirement, or any crate split beyond the doctor.
+
+## THE PROBE REGISTRY, MEASURED 2026-09-18
+
+Enumerated from what the code ALREADY DOES, not from what a design imagined it would need.
+
+### Method, and the false start worth keeping
+
+The first census scanned `check_` function BODIES for external calls and reported SEVEN of 33 as
+"pure -- no external access", which would have made them labels by the rule above.
+
+⚠️ IT WAS WRONG, and `check_reboot_needed` proved it: reported pure, while visibly comparing the
+running kernel against the installed one in every `d` run. It calls `running_kernel()` and
+`installed_kernels()` -- the access is ONE LEVEL DOWN, in helpers.
+
+★ THAT IS THE FINDING, not a footnote. The probes are not the checks; they are the HELPERS the
+checks call. A registry derived from check bodies would have been confidently empty in seven
+places. Re-run against helpers: SEVENTEEN touch the outside world.
+
+### The twelve binaries
+
+`subprocess` is too coarse to be a probe. The doctor shells out to twelve distinct commands:
+
+    systemctl 7   git 5   which 4   sh 2   rustc 2   cargo 2
+    uname 1   systemd-analyze 1   pgrep 1   pacman 1   journalctl 1
+    faelight-deadwood 1
+
+A definition saying `probe: subprocess` is not reviewable. One saying `probe: pacman_orphans` is.
+⭐ THE PROBE IS NAMED FOR WHAT IT ASKS, NEVER FOR HOW IT ASKS.
+
+### The registry -- fifteen, closed
+
+    systemctl_units        is a unit loaded / active
+    git_status             working tree state, hooks path, HEAD
+    which_binary           is a command on PATH
+    rustc_version          toolchain present and its version
+    cargo_doc              doc build clean
+    kernel_running         uname -r
+    installed_kernels      what is on disk to boot
+    boot_time              systemd-analyze
+    process_running        pgrep
+    pacman_orphans         pacman -Qdtq
+    journal_errors         journalctl since boot
+    deadwood_scan          faelight-deadwood
+    resolve_binary_path    package name -> real binary path      ⚠️ SEE BELOW
+    sqlite_query           the forest database
+    fs_read                read_to_string / read_dir / exists / metadata
+
+⚠️ ADDING A PROBE IS AN EDIT TO THIS LIST AND TO THE CRATE. A definition can only NAME one. There
+is no field that carries a command string, and that absence is the gate.
+
+### ⚠️ resolve_binary_path IS THE DOOR, AND IT IS OPEN TODAY
+
+Two sites in `entropy.rs` (156, 250) -- the same operation, written twice:
+
+    Command::new("sh").args(["-c", &format!("readlink -f $(command -v {}) 2>/dev/null", pkg)])
+
+`pkg` is INTERPOLATED INTO A SHELL STRING. Today the names come from a registry rather than from
+input, so nothing exploits it -- but this is structurally the "path from a definition to arbitrary
+code" this gate exists to forbid, sitting inside the doctor that is supposed to forbid it.
+
+RECORDED HERE, REWRITTEN IN PHASE 2: the probe is defined as the OPERATION -- resolve a package
+name to its real binary path -- and its implementation becomes native Rust (`which`, already a
+workspace dependency, plus `fs::canonicalize`). No `sh`, no interpolation, and the duplication
+collapses to one.
+
+★ The registry cannot be called CLOSED while one of its members is a shell. It is enumerated now;
+it is closed when that rewrite lands.
 
 ### Phase 2 -- build, proving each gate by watching it fail
 
