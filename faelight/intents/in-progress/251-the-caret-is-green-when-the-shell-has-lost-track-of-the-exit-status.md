@@ -3,7 +3,7 @@ id: 251
 date: 2026-09-16
 type: future
 title: "the caret is green when the shell has lost track of the exit status"
-status: planned
+status: in-progress
 tags: [prompt, exit-code, telemetry, int-192, pipeline]
 ---
 
@@ -21,6 +21,36 @@ lost track of the exit status, which it does on four of its execution paths.
 
 Reproduced against the previous binary as well, so this predates the INT-247 path work; it was
 found BY that work rather than caused by it.
+
+## ⚠️ THE FILED DIAGNOSIS WAS WRONG -- CORRECTED 2026-09-18
+
+This intent blamed four CommandResult arms that never set `last_exit_code`, and said the fix
+required deciding pipeline semantics first. BOTH WERE ALREADY UNTRUE WHEN 251 WAS FILED:
+
+    the four arms      INT-189 and INT-245 fixed them. 41 setters, one None, at construction.
+    pipeline semantics MEASURED against bash -- nsh ALREADY agrees:
+                           nsh  false | true -> 0      bash  false | true -> 0
+                           nsh  true | false -> 1
+                       There was nothing to decide. Only something to document.
+
+The engine.rs comment that this intent treated as its specification was a correct record of a
+bug that OTHER INTENTS HAD SINCE FIXED. It was read as current and it was history.
+
+⭐ THE REAL CAUSE WAS THE TWO-DOOR SPLIT, AND IT WAS TWENTY LINES ABOVE THE COMMENT.
+
+`execute_and_record` holds the ONLY caret write. A spine-claimed line hits `continue` in the
+router branch and never reaches it -- so the caret reflected LEGACY-ROUTED COMMANDS ONLY, and a
+spine-claimed `false` left whatever the previous legacy command had written.
+
+The same file already carries the same lesson, learned the same way:
+
+    "CLOSE THE RECORD WHERE IT WAS OPENED. The opening moved above this fork so every executor
+     is recorded, but the COMPLETION stayed in execute_and_record, which a spine-claimed line
+     skips. Measured: 339 rows left in state started. Every healthy spine command looked like
+     a crash."
+
+That was the lifecycle record. This was the caret. Two pieces of state, one fork, and the fix
+applied to only one of them.
 
 ## The chain, and where it breaks
 
@@ -75,15 +105,22 @@ answer rather than a quick one.
 
 ## Success Criteria
 
-- [ ] All four arms set `last_exit_code`, or the value is made unavailable rather than stale --
+- [x] All four arms set `last_exit_code`, or the value is made unavailable rather than stale --
       no arm leaves the previous command's status in place
-- [ ] The pipeline question is ANSWERED IN WRITING before any code changes: last command, or
+- [x] The pipeline question is ANSWERED IN WRITING before any code changes: last command, or
       first failure? With the reason, and with what bash does noted for comparison
-- [ ] `false` turns the caret red, demonstrated live -- not asserted
-- [ ] `false | true` behaves as the written decision says, demonstrated live
-- [ ] ⭐ UNKNOWN IS NOT SUCCESS. If the shell genuinely cannot determine a status, the caret says
-      so -- a third colour, a different glyph, anything but the green that means "fine". Replacing
-      `unwrap_or(true)` with `unwrap_or(false)` would be the same bug pointed the other way
+- [x] `false` turns the caret red, demonstrated live -- not asserted
+- [x] `false | true` behaves as the written decision says, demonstrated live
+- [x] ⭐ UNKNOWN IS NOT SUCCESS -- ANSWERED BY MEASUREMENT, NOT BY BUILDING THE THIRD STATE.
+      Census 2026-09-18: `set_last_exit` has 41 call sites and `last_exit_code: None` appears
+      ONCE, at construction (engine.rs:136). Every CommandResult arm sets it. A fresh shell was
+      then started with the cache file DELETED and it wrote `success` -- because config.nsh
+      loading is a real command that really succeeded, not an unknown.
+      So the unknown state is UNREACHABLE after construction and `unwrap_or(true)` never fires.
+      A third colour would be dead code for a state that cannot occur, which is the thing three
+      sessions of this work have been deleting.
+      ⚠️ THIS GATE RE-OPENS if an arm is ever added without a setter. The census is the proof and
+      the census is what must be re-run.
 - [ ] A regression case in nsh-test covers the CLASS: a command whose path does not set the exit
       code does not inherit the previous command's caret
 - [ ] The engine.rs note that predicted this is updated rather than deleted -- it was right, and

@@ -1732,6 +1732,34 @@ fn run_input(
                 {
                     eprintln!("warning: failed to close command_execution record: {e}");
                 }
+
+                // INT-251: WRITE THE CARET STATUS HERE TOO, for exactly the reason the lifecycle
+                // close above sits here rather than in execute_and_record.
+                //
+                // ⚠️ THE CARET FILE HAD ONE WRITER, INSIDE execute_and_record, WHICH THIS BRANCH
+                // SKIPS VIA THE `continue` BELOW. So the caret only ever reflected legacy-routed
+                // commands, and a spine-claimed `false` left whatever the previous legacy command
+                // had written. Measured 2026-09-18: the prompt showed [✗ 1] while the file still
+                // said "success" -- the shell KNEW, and the file disagreed.
+                //
+                // This is the same two-door split that cost 339 lifecycle rows and three days of
+                // records, found again in a second piece of state. The lesson the comment above
+                // states -- ONE OWNER, ABOVE OR BESIDE THE FORK, NEVER INSIDE ONE BRANCH -- was
+                // applied to the record and not to the caret.
+                //
+                // The VALUE is unchanged: engine.last_exit(), the same source execute_and_record
+                // reads, with the same unwrap_or(true) meaning. INT-251 does not decide pipeline
+                // semantics -- measured against bash, nsh already agrees (`false | true` -> 0 in
+                // both), so there was nothing to decide, only something to reach.
+                {
+                    let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
+                    let status_val = if exit_ok { "success" } else { "failure" };
+                    let status_file = faelight_core::paths::last_exit_status_file();
+                    if let Some(dir) = status_file.parent() {
+                        let _ = std::fs::create_dir_all(dir);
+                    }
+                    let _ = std::fs::write(&status_file, status_val);
+                }
                 continue;
             }
             crate::engine::RouteOutcome::ExitShell => {

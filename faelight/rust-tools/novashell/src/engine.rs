@@ -2157,6 +2157,23 @@ pub fn execute_and_record(
         // (is pipeline status the last command? the first failure?) and belongs
         // in its own intent with its own verification -- deliberately NOT
         // bundled with a telemetry-corruption fix.
+        //
+        // CLOSED 2026-09-18. The note above was CORRECT WHEN WRITTEN and is now HISTORY --
+        // kept, not deleted, because a prediction that came true is worth more than a tidy file.
+        //
+        //   the four arms      INT-189 and INT-245 set them. Census: set_last_exit has 41 call
+        //                      sites; last_exit_code: None appears ONCE, at construction.
+        //   pipeline semantics NOT decided, MEASURED. nsh already agrees with bash:
+        //                      false | true -> 0 in both, true | false -> 1.
+        //
+        // AND THE NOTE COST SOMETHING BY SURVIVING. INT-251 was filed FROM it, treating a closed
+        // gap as current, and opened on a decision already made by measurement. The real defect
+        // was twenty lines away and of a different kind: this write is the caret's ONLY writer,
+        // and the spine path never reaches it -- fixed in main.rs, beside the lifecycle close
+        // that learned this exact lesson first.
+        //
+        // A comment recording a fixed bug without saying it is fixed is a trap for the next
+        // reader. This one is now dated.
         let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
         let status_val = if exit_ok { "success" } else { "failure" };
         // INT-247 Layer 3a: THE WRITER of the caret channel, through one owner.

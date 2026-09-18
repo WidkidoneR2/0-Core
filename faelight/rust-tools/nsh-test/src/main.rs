@@ -744,6 +744,50 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "repl_251_caret_agrees_with_exit_status",
+        Category::Repl,
+        || {
+            // INT-251: THE CLASS IS "one door writes state the other door owns".
+            //
+            // DRIVEN THROUGH THE REPL ON PURPOSE. The first version of this case used
+            // run_fsh_status, which spawns `nsh -c` -- the door that was ALREADY correct. It
+            // passed, and it would NOT have caught the bug it was written for. The harness note
+            // on run_repl_lines_env says exactly this about a different case: a test that can
+            // only knock on one door cannot report on the other.
+            //
+            // The caret cache had ONE writer, inside execute_and_record, which the spine path
+            // skips via `continue`. A spine-claimed `false` left the previous verdict standing:
+            // the prompt said fail, the file said success.
+            //
+            // This does NOT assert "false writes failure" -- that passes again the moment a
+            // third executor arrives with its own missing write. It asserts the INVARIANT: the
+            // cache agrees with the status the shell itself reported, whichever door ran it.
+            //
+            // XDG_CACHE_HOME is redirected so the case reads its OWN caret file rather than the
+            // live one, which would otherwise make this depend on whatever ran last.
+            let tmp = std::env::temp_dir().join(format!("nsh-test-caret-{}", std::process::id()));
+            let _ = std::fs::create_dir_all(&tmp);
+            let cache = tmp.join("faelight").join("last-exit-status");
+            let env = [("XDG_CACHE_HOME", tmp.to_string_lossy().to_string())];
+            let env: Vec<(&str, &str)> = env.iter().map(|(k, v)| (*k, v.as_str())).collect();
+
+            for line in ["false", "true"] {
+                let (_, code) = repl::run_repl_lines_status(&[line], &env)?;
+                let cached = std::fs::read_to_string(&cache).unwrap_or_default();
+                let cached = cached.trim().to_string();
+                if (code.unwrap_or(0) == 0) != (cached == "success") {
+                    let _ = std::fs::remove_dir_all(&tmp);
+                    return Err(format!(
+                        "caret disagrees after {} in the REPL: status {:?}, cache {}",
+                        line, code, cached
+                    ));
+                }
+            }
+            let _ = std::fs::remove_dir_all(&tmp);
+            Ok(())
+        },
+    ));
+    results.push(test(
         "regression_tilde_not_literal",
         Category::Regression,
         || {
