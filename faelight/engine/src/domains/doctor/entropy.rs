@@ -152,24 +152,56 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
     // version+build). Resolving the binary's realpath captures that; any change to
     // the package changes the store path, which is a stronger drift signal than a
     // version string. (Replaces the Arch-era `pacman -Q` baseline.)
+    //
+    // ⚠️ DATED 2026-09-18. THE REASONING ABOVE DESCRIBES A MACHINE THAT NO LONGER EXISTS.
+    // Measured: `/nix/store` is No such file or directory. The realpath still carries a
+    // useful drift signal on Omarchy -- /usr/bin/nvim changing is worth noticing -- but it
+    // is No LONGER a content hash, so it detects REPLACEMENT, not REBUILD.
+    //
+    // ⭐ AND TWO OF THE THREE TRACKED PACKAGES ARE ABSENT, measured the same day:
+    //     nvim        /usr/bin/nvim    present
+    //     alacritty   absent           Omarchy ships a different terminal
+    //     greetd      absent           NixOS-era display manager
+    // So the baseline has tracked ONE real package and two ghosts since 2026-08-26. They
+    // simply never insert, so nothing is WRONG -- the drift check is just two-thirds blind.
+    // WHAT THE LIST SHOULD CONTAIN IS NOT DECIDED HERE: it is a content question for the
+    // INT-222 registry, not part of removing a shell from a probe.
     for pkg in ["nvim", "alacritty", "greetd"] {
-        if let Ok(output) = Command::new("sh")
-            .args([
-                "-c",
-                &format!("readlink -f $(command -v {}) 2>/dev/null", pkg),
-            ])
-            .output()
-        {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                baseline.package_versions.insert(pkg.to_string(), path);
-            }
+        if let Some(path) = resolve_binary_path(pkg) {
+            baseline.package_versions.insert(pkg.to_string(), path);
         }
     }
     println!("   🔗 Scanning symlinks...");
     baseline.symlinks = collect_symlinks();
     println!("   ✅ Baseline created");
     Ok(baseline)
+}
+
+/// PROBE `resolve_binary_path` -- a package name to the real path of its binary.
+///
+/// INT-222 gate 2. This is one of fifteen enumerated probes, and it was the ONLY one that
+/// reached the outside world through a shell:
+///
+///     Command::new("sh").args(["-c", &format!("readlink -f $(command -v {}) ...", pkg)])
+///
+/// written TWICE, with `pkg` interpolated into the shell string. The names come from a fixed
+/// list rather than from input, so nothing exploited it -- but a definition format whose whole
+/// premise is "no path from a definition to arbitrary code" cannot contain a shell.
+///
+/// Native now: `which` resolves the name on PATH, `canonicalize` follows the symlinks that
+/// `readlink -f` was following. No shell, no interpolation, and the two sites are one function.
+///
+/// Returns None when the binary is absent or the path cannot be resolved -- ABSENCE, not an
+/// empty string, so callers state for themselves what missing means.
+fn resolve_binary_path(pkg: &str) -> Option<String> {
+    let found = which::which(pkg).ok()?;
+    let real = std::fs::canonicalize(&found).unwrap_or(found);
+    let s = real.to_string_lossy().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
 
 fn save_baseline(baseline: &EntropyBaseline) -> CoreResult<()> {
@@ -247,15 +279,8 @@ fn check_drift(baseline: &EntropyBaseline) -> DriftReport {
         }
     }
     for (pkg, baseline_version) in &baseline.package_versions {
-        if let Ok(output) = Command::new("sh")
-            .args([
-                "-c",
-                &format!("readlink -f $(command -v {}) 2>/dev/null", pkg),
-            ])
-            .output()
-        {
-            let current = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !current.is_empty() && &current != baseline_version {
+        if let Some(current) = resolve_binary_path(pkg) {
+            if &current != baseline_version {
                 report
                     .binary_drifts
                     .push(format!("{}: {} → {}", pkg, baseline_version, current));

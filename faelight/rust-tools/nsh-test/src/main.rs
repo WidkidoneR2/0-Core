@@ -1,5 +1,9 @@
 //! nsh-test -- permanent regression suite for faelight-shell
-//! INT-304 Phase 1: port fsh_audit.sh 75 tests to Rust
+//! INT-202 (Fsh-Test 2.0). Phase 1 ported fsh_audit.sh's 75 tests to Rust.
+//!
+//! ⚠️ The citation here read INT-304 until 2026-09-18. `ints 304` reports NOT FOUND:
+//! it is one of the phantom citations the intent-citations audit records. INT-202 is
+//! real, complete 2026-08-05, and is the intent this suite actually belongs to.
 
 mod repl;
 
@@ -3294,10 +3298,7 @@ fn main() {
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
-    println!(
-        "{}",
-        "  🌲 nsh-test v2.0.0 -- INT-202 (orig. INT-304)".bold()
-    );
+    println!("{}", "  🌲 nsh-test v2.0.0".bold());
     // ASK THE SHELL WHO IT IS, rather than trusting the path we passed it. Refusing a
     // MISSING binary catches a typo; this catches the case that actually cost a session --
     // a path that exists and is the WRONG BUILD. /run/current-system/... exists perfectly
