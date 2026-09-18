@@ -121,6 +121,44 @@ original parts of the system.**
 
 **Exit:** every doc has a verdict; every desktop component has an owner and a running status.
 
+#### Two rows measured early, 2026-09-18 -- not decided, just no longer unknown
+
+These came up in conversation and were measured rather than argued. The DECISIONS still belong to
+P2; what follows removes the investigation from them.
+
+**`faelight-insightd` -- KEEP. Already ruled, and retirement is not supported by evidence.**
+
+INT-237 examined it and recorded: *"faelight-insightd -- KEEP, unexamined. It answered with live
+data, 93,182 events"* and *"was doing real work, invisible for weeks"*. The inventory's `2 | 0` is
+an INVOCATION COUNT -- how often it is run -- not a measure of whether it works.
+
+⚠️ THE REAL QUESTION IS ITS NAME, NOT ITS EXISTENCE. INT-237 also found it *"is a COMMAND with a
+daemon name -- --help prints a status report"*. Something called `insightd` that is not a daemon
+will keep being mistaken for one, exactly as it was here.
+
+**`faelight-wallpaper` -- NOTHING SETS THE WALLPAPER ON THIS MACHINE, by anyone.**
+
+Measured four ways, all negative:
+
+    faelight-wallpaper    0 invocations, 0 sites, alias `wallpaper` exists
+                          never mentioned in ANY intent file
+    wpaperd               installed, NOT running
+    ~/.config/hypr/*.lua  no wallpaper reference anywhere
+    autostart.lua         empty except its own example comment
+    process table         no swww, hyprpaper, swaybg, wpaperd
+
+★ THIS IS NOT THE "THIRD-PARTY WON" ROW IT LOOKED LIKE. The crate is not losing to wpaperd;
+wpaperd is not running either. The capability is absent from the desktop entirely, and the crate
+has never been invoked once.
+
+So the P2 decision for this row is not "keep or adopt" -- it is first *"is a wallpaper wanted at
+all?"*, and only then which owner. A crate at 0|0 competing with nothing is not a comparison.
+
+⚠️ AND THE CONFIG IS LUA, NOT CONF. `~/.config/hypr/` holds `hyprland.lua`, `autostart.lua`,
+`bindings.lua` and friends. The first greps here looked for `*.conf` and came back empty, which
+would have "proven" the same conclusion for the wrong reason. Anything auditing the Hyprland
+setup must read `.lua`.
+
 ---
 
 ### P3 -- The module shape
