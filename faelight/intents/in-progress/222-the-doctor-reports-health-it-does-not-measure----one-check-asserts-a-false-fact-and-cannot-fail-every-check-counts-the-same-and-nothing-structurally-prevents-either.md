@@ -649,6 +649,71 @@ collapses to one.
 ★ The registry cannot be called CLOSED while one of its members is a shell. It is enumerated now;
 it is closed when that rewrite lands.
 
+## PHASE 2 SCOPE, AGREED 2026-09-18 -- WHAT GETS BUILT
+
+### The crate
+
+    faelight-doctor     the ENGINE. Depends on faelight-core ONLY.
+        ^          ^
+    core        novashell        each brings its own registry
+
+### Contents
+
+    Definition    id, name, tier, declared severity range, assertion | probe,
+                  threshold source, recovery text
+    Status        Pass / Warn / Fail / Unknown
+    Tier          FROM RISK.toml -- critical / system / user. Not invented; 222 already
+                  ruled "do not invent a second scale".
+    Probe         the fifteen, AS AN ENUM. A definition NAMES one. There is no field that
+                  takes a string, and that absence is the gate.
+    Scoring       critical-Fail caps the verdict; labels excluded from the denominator;
+                  output states its basis, not a bare percentage
+    Render        INT-199 shape for red: result, reason, comparison, likely cause, recovery
+    Validation    no assertion and no probe -> REJECTED
+                  pass-only -> LABEL, excluded from the denominator
+
+### DECIDED: definitions are TOML, in faelight/registry/doctor/
+
+222 already said "the runner is code, the checks are data -- updating the check set does not
+rebuild the engine". TOML honours that; a const array in Rust does not.
+
+⚠️ THE COST, STATED: a malformed definition becomes a RUNTIME failure where a Rust array would
+have been a compile error. That is acceptable ONLY because validation is a gate of this intent --
+a definition with no assertion and no probe is REJECTED, and the rejection is proven by watching
+it happen. Without that gate, TOML would be trading one silent failure for another.
+
+`faelight/registry/` already holds tools.toml and the schema-validated registry files, and the
+doctor check-set is the same kind of thing.
+
+### DECIDED: all 27 checks migrate AT ONCE, not incrementally
+
+★ CHRISTIAN'S CALL, AND IT IS THE RIGHT ONE. Incremental migration means two mechanisms both
+claiming to be the doctor for however long it takes -- which is EXACTLY the defect class this
+whole week has been spent removing: two alias owners, two doctors, two state trees, two writers
+of the caret. A migration that creates a second owner to fix a second owner has not understood
+its own thesis.
+
+Big-bang is longer and it is honest. There is never a moment where "which doctor answered this"
+is a question anyone has to ask.
+
+### What lands in what order
+
+    1. the crate, the types, the validation -- with NO registry. Gates 3 and 4 are proven here,
+       against fabricated definitions, before any real check moves.
+    2. the fifteen probes, ported from the helpers the census enumerated
+    3. all 27 core-doctor definitions, in one change
+    4. `nsh doctor`'s seven, in one change
+    5. gate 5 -- the INT-199 red render
+
+⚠️ STEP 1 PROVES GATES 3 AND 4 BEFORE STEP 3 EXISTS. That ordering is deliberate: the rejection
+and the label rule must be demonstrated on definitions written to fail, not discovered while
+migrating real ones.
+
+### Not in scope, again
+
+Engine slimming. Domain retirement. The 57-domain question. `nsh doctor`'s three known defects
+beyond routing them through the new engine. INT-102's version bump for nsh-test.
+
 ### Phase 2 -- build, proving each gate by watching it fail
 
 - [x] `check_dotmeta` is corrected or removed, and `docs/.dotmeta` is dealt with in the same change
