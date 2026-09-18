@@ -419,8 +419,10 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
 
 ### Phase 1 -- decide the format before writing engine code
 
-- [ ] The definition format is DECIDED and written into this intent: fields for id, name, tier,
+- [x] The definition format is DECIDED and written into this intent: fields for id, name, tier,
       declared severity range, assertion or probe, threshold source, and recovery text.
+      See "THE SIXTH PROBLEM IS ANSWERED" below -- the format is decided together with WHERE it
+      lives, because the two questions could not be separated.
 - [ ] The probe registry is enumerated and closed. Adding a probe is a deliberate, reviewable act;
       **there is no path from a definition to arbitrary code.**
 - [x] Scoring is DECIDED and written: severity x tier, critical caps, labels excluded from the
@@ -515,6 +517,67 @@ the census found zero -- so there is nothing to exclude until the definition for
      it. That reasoning DIES if quick scan is ever wired into session start (INT-124 freshness),
      which the Solution section proposes. Lazy evaluation is a prerequisite for that, not for
      this gate. -->
+
+## THE SIXTH PROBLEM IS ANSWERED, 2026-09-18 -- A SEPARATE CRATE
+
+The sixth problem asked whether the definition format, probe registry and scoring serve BOTH
+doctors, or whether `nsh doctor` stays separate and drifts the same way.
+
+**DECIDED: neither. The doctor engine becomes its own crate, and both doctors use it.**
+
+### Why not "share by importing core"
+
+Measured 2026-09-18:
+
+    novashell/Cargo.toml   faelight-core, faelight-git.  NO EDGE TO `core`.
+    engine/Cargo.toml      name = "core", 57 domains in one crate
+
+For `nsh doctor` to use a format defined inside `core`, novashell would have to depend on
+`core` -- which today means depending on ~57 domains including Intelligence. ⚠️ THAT IS THE
+EXACT EDGE INT-223 EXISTS TO REMOVE, and decision 147 built its whole ownership model around
+not creating it.
+
+So "one shared engine, living in core" is not available. It was the obvious answer and it is
+the wrong one, for a reason that has nothing to do with doctors.
+
+### Why not "leave them separate"
+
+Both doctors were wrong at a similar rate the first time anyone read them -- 27 of 34 in the
+big one, 3 of 7 in the small one -- and the defects were STRUCTURAL, not domain-specific:
+a hardcoded path, a hand-built path beside a correct one, a check that could never succeed.
+Separate implementations reproduce that class forever.
+
+### What the crate owns, and what it does not
+
+    THE CRATE OWNS      the definition format, the four states, the three colours, the
+                        scoring rule, pass-only-is-a-label, the no-assertion-no-probe
+                        rejection, the INT-199 red-render shape, the probe registry MECHANISM
+    EACH CALLER OWNS    its own registry CONTENTS and its own tiers
+
+⭐ SEPARATE REGISTRIES ARE THE POINT. `core doctor` checks the SYSTEM; `nsh doctor` checks the
+SHELL -- its binary, its database, its aliases. They genuinely want different tiers, and 222
+already said so. A shared engine prevents the structural class; separate registries keep each
+doctor's subject its own.
+
+### ★ AND THE EXTRACTION IS A MEASUREMENT, NOT JUST A MOVE
+
+`domains/doctor/` holds 35 `check_` sites and is among the largest domains in a crate that now
+carries FIFTY-SEVEN of them -- including `nix`, `friday_arch`, `bootstrap` and `daemon`, written
+when the system had more tools and a different operating system.
+
+Pulling the doctor out is the first honest answer to "how much of `core` is actually core".
+Whatever slimming that reveals is NOT authorised here and is not this intent's work.
+
+### ⚠️ WHAT THIS DECISION DOES NOT AUTHORISE
+
+Decision 147's own warning applies to this intent as much as to the event bus:
+
+    "Treating a resolved decision as permission to start work is the thread-proliferation
+     failure already named in this project's own history."
+
+DECIDED NOW: the format, and that it lives in its own crate.
+BUILT AT: Phase 2 of this intent, in phase order, with each gate proven by watching it fail.
+NOT AUTHORISED: engine slimming, domain retirement, or any crate split beyond the doctor.
 
 ### Phase 2 -- build, proving each gate by watching it fail
 
