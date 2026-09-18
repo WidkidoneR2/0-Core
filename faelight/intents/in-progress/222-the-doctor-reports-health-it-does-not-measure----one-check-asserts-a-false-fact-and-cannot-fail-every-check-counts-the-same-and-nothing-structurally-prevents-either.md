@@ -649,6 +649,61 @@ collapses to one.
 ★ The registry cannot be called CLOSED while one of its members is a shell. It is enumerated now;
 it is closed when that rewrite lands.
 
+## WHAT IS ALREADY BUILT, AND THE DEFECT THAT PROVES GATE 3, 2026-09-18
+
+Read before Phase 2 writes anything: MORE OF THIS INTENT EXISTS IN CODE THAN THE GATE LIST
+IMPLIES, and the new crate should ADOPT that vocabulary rather than invent a parallel one.
+
+### Already in domains/doctor/mod.rs
+
+    Status       Pass, Warn, Fail, Blocked, Unknown
+                 Unknown is documented exactly as this intent wanted: "the check could not
+                 run -- NOT a failure: excluded from the health denominator" (INT-148)
+    Tier         Critical, System, User, Info
+                 The first three are RISK.toml's, deliberately. Info is NOT RISK.toml's
+                 fourth and the code says so: it means "measures truly but never judges".
+    verdict()    critical-Fail -> Red. critical-Unknown or Blocked -> Red. Anything else
+                 bad -> Amber. Info EXCLUDED from the loop entirely.
+                 And it refuses arithmetic on purpose: "a weight factor is subjective and a
+                 number built from one has to be defended forever."
+
+★ SO THE SCORING SECTION OF THIS INTENT IS SUBSTANTIALLY IMPLEMENTED. `Tier::Info` is the label
+mechanism, built by tier rather than by declared severity range.
+
+### ⚠️ AND THAT IS WHERE THE DEFECT IS. THEY ARE NOT THE SAME THING.
+
+    Tier::Info    THIS CHECK never judges          -- a property of the CHECK
+    pass-only     THIS DEFINITION can only pass    -- a property of the DEFINITION
+
+Nothing enforces that an Info-tier check emits only Pass. `check_vm_state` proves it, at
+checks.rs:1556-1564:
+
+    Err(_) => {
+        return CheckResult {
+            tier: Tier::Info,
+            status: Status::Warn,
+            message: "Could not check for running VMs",
+
+⭐ AN INFO-TIER CHECK RETURNING WARN IS A WARNING THAT CANNOT REACH THE VERDICT. `verdict()`
+filters Info out at line 60, so this branch renders a yellow line and changes nothing. The
+system can say "could not check" and still report Green.
+
+AND THE STATUS IS WRONG TWICE OVER: "could not check" is precisely what `Status::Unknown` was
+added for, per its own doc comment. This arm reaches for Warn instead, in a tier where Warn is
+inert -- so the one state that WOULD have been honoured is the one not used.
+
+### What gate 3 therefore means, concretely
+
+Not "add a label concept" -- one exists. It means: **a definition's declared severity range is a
+CONSTRAINT the engine enforces, so a pass-only definition CANNOT return Warn.** `check_vm_state`'s
+shape must become unrepresentable, not merely discouraged.
+
+That is the difference between the tier mechanism (a convention two of three checks happen to
+follow) and the format mechanism (a rule the engine applies).
+
+⚠️ NOT FIXED HERE. `check_vm_state` is corrected when it migrates in Phase 2 step 3, by the
+engine refusing it -- which is also how gate 3 gets its "proven by watching it work".
+
 ## PHASE 2 SCOPE, AGREED 2026-09-18 -- WHAT GETS BUILT
 
 ### The crate
