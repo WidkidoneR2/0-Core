@@ -121,9 +121,16 @@ answer rather than a quick one.
       sessions of this work have been deleting.
       ⚠️ THIS GATE RE-OPENS if an arm is ever added without a setter. The census is the proof and
       the census is what must be re-run.
-- [ ] A regression case in nsh-test covers the CLASS: a command whose path does not set the exit
+- [x] A regression case in nsh-test covers the CLASS -- AND IT WAS PROVEN TO FAIL.
+      repl_251_caret_agrees_with_exit_status. The FIRST version used run_fsh_status,
+      which spawns `nsh -c` -- the door that was ALREADY CORRECT. It passed and would not
+      have caught the bug. Rewritten to drive the REPL, then verified by stashing ONLY
+      the main.rs fix and re-running: 193/194, this case RED, with
+      `caret disagrees after true in the REPL: status Some(0), cache ` -- the empty
+      cache being the proof that nothing wrote it. Restored: 194/194.
+      ⭐ A TEST THAT HAS NEVER BEEN SEEN RED IS AN ASSERTION, NOT A REGRESSION TEST. a command whose path does not set the exit
       code does not inherit the previous command's caret
-- [ ] The engine.rs note that predicted this is updated rather than deleted -- it was right, and
+- [x] The engine.rs note that predicted this is updated rather than deleted -- it was right, and
       the record should show that it was right
 
 ## Relationship
