@@ -17,6 +17,24 @@ pub fn run_all(reg: &Registry) -> Vec<Outcome> {
     reg.checks.iter().map(run_one).collect()
 }
 
+/// ⭐ QUICK SCAN IS DERIVED, NOT COPIED.
+///
+/// ⚠️ THE DEFECT THIS REPLACES WAS A SECOND HARDCODED LIST. The old quick scan named six checks
+/// by hand beside a full scan that ran a different set, and they drifted: the short list still
+/// named scripts-executable while boot errors and disk space were absent entirely. Deleting a
+/// check meant editing two lists, AND ONLY THE COMPILER NOTICED THE SECOND.
+///
+/// Here the quick scan is the same registry filtered by the tier each definition already
+/// declares. There is no second list to drift from, and adding a critical check puts it in the
+/// quick scan by itself -- the same move as asking systemd which services it wants.
+pub fn run_quick(reg: &Registry) -> Vec<Outcome> {
+    reg.checks
+        .iter()
+        .filter(|d| d.tier == Tier::Critical)
+        .map(run_one)
+        .collect()
+}
+
 /// Run one definition.
 pub fn run_one(d: &Definition) -> Outcome {
     let m = match d.probe {
@@ -117,6 +135,26 @@ mod tests {
             threshold_source: None,
             recovery: None,
         }
+    }
+
+    #[test]
+    fn the_quick_scan_is_the_critical_tier_and_nothing_else() {
+        // ⭐ DERIVED, NOT COPIED. Every outcome the quick scan produces must be one the
+        // registry declared critical -- there is no second list it could disagree with.
+        let text =
+            std::fs::read_to_string("/home/christian/0-core/faelight/registry/doctor/checks.toml")
+                .expect("the check set is readable");
+        let reg = Registry::parse(&text, "checks.toml").expect("it parses");
+        let quick = run_quick(&reg);
+        assert!(
+            !quick.is_empty(),
+            "a quick scan of nothing is not a quick scan"
+        );
+        for o in &quick {
+            assert_eq!(o.tier, Tier::Critical, "{} is not critical", o.id);
+        }
+        // And it is a strict subset: the full run covers everything the quick one did.
+        assert!(quick.len() < reg.checks.len());
     }
 
     #[test]
