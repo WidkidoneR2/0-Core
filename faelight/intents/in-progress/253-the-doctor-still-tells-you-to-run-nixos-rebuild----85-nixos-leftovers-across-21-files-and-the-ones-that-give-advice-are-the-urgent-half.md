@@ -3,7 +3,7 @@ id: 253
 date: 2026-09-19
 type: future
 title: "the doctor still tells you to run nixos-rebuild -- 85 NixOS leftovers across 21 files, and the ones that give advice are the urgent half"
-status: planned
+status: in-progress
 tags: [NixOS, deadcode, novashell, nova]
 ---
 
