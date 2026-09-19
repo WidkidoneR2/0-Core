@@ -39,4 +39,12 @@ fn main() {
         s.measured, s.declared, s.passing, s.warning, s.failing, s.unknown
     );
     println!("VERDICT: {:?}", faelight_doctor::verdict(&out));
+
+    // INT-199 shape, on every red outcome.
+    for o in &out {
+        if faelight_doctor::is_red(o.status) {
+            println!();
+            print!("{}", faelight_doctor::render(o));
+        }
+    }
 }
