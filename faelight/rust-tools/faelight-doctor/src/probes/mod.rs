@@ -10,6 +10,7 @@
 pub mod files;
 pub mod git;
 pub mod runtime;
+pub mod security;
 pub mod system;
 pub mod tools;
 
@@ -45,6 +46,8 @@ pub fn run(p: Probe) -> Measurement {
         Probe::PathResilience => tools::path_resilience(),
         Probe::SchemaValidation => tools::schema_validation(),
         Probe::AliasCoverage => tools::alias_coverage(),
+        Probe::Sandbox => security::sandbox(),
+        Probe::SecurityAudit => security::security_audit(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
@@ -52,8 +55,6 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::IntentLedger
         | Probe::DeadwoodScan
         | Probe::SecurityHardening
-        | Probe::SecurityAudit
-        | Probe::Sandbox
         | Probe::UpdateReadiness
         | Probe::OrphanPackages
         | Probe::Friday => Measurement::unknown(format!("probe {} is not ported yet", p.as_str())),

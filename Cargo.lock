@@ -1147,8 +1147,10 @@ dependencies = [
 name = "faelight-doctor"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "faelight-core",
  "serde",
+ "serde_json",
  "toml 0.8.23",
  "walkdir",
  "which",
