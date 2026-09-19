@@ -1,0 +1,256 @@
+# THE DOCTOR's CHECK SET -- DECLARATIONS, NOT MEASUREMENTS.
+#
+# INT-222. Each entry DECLARES what a check is: how much it matters, what severities it may
+# produce, and what to do when it is red. The MEASUREMENT lives in Rust, behind the probe name.
+#
+# ==========================================================================================
+# WHY THIS FILE EXISTS
+# ==========================================================================================
+#
+# Every defect INT-222 was filed against lived in a hand-written CheckResult literal:
+#
+#     check_dotmeta     status: Status::Pass, typed, unconditional -- a check that COULD NOT FAIL
+#     check_vm_state    tier: Tier::Info beside status: Status::Warn -- a warning the verdict
+#                       filters out, saying "could not check" where nothing can hear it
+#     27 of 34          no declared severity range at all, because a struct literal cannot
+#                       declare one
+#
+# Nobody wrote those on purpose. They wrote them because constructing a result by hand means
+# re-deciding the tier and the status at every site, with nothing checking the answer.
+#
+# Here the range is DECLARED ONCE and the engine ENFORCES it. A check that declares ["pass"]
+# is a LABEL: excluded from the denominator, reported as declared rather than measured. A check
+# that declares ["pass","warn"] CANNOT report fail -- the engine refuses the outcome.
+#
+# ==========================================================================================
+# THE RULES THE ENGINE APPLIES
+# =========================================================================================
+#
+#   severities        what this check MAY report. Never empty. ["pass"] alone means LABEL.
+#   probe             a name from the closed registry in faelight-doctor. There is no field
+#                     that carries a command string, and that absence is the gate.
+#   tier              critical / system / user, from RISK.toml -- plus `info`, which here means
+#                     MEASURES TRULY BUT NEVER JUDGES, excluded from the verdict entirely.
+#   recovery          what to do when this is red. INT-199 shape.
+#
+# ⚠️ AND `info` REQUIRES ["pass"]. A tier that means "never judges" cannot hold a check that
+# declares warn or fail -- that is a contradiction, and it is exactly the shape check_vm_state
+# has today. The engine refuses it by name.
+#
+# `unknown` and `blocked` are ALWAYS permitted and are never declared: they say the check did
+# not run, which is not a severity it chose to report.
+#
+# ==========================================================================================
+# THESE VALUES WERE MEASURED, NOT CHOSEN
+# ==========================================================================================
+#
+# Every tier and every severity below was read out of the registered function in
+# domains/doctor/, on 2026-09-18, against the all_checks() list -- which is the authority for
+# what actually runs. Three earlier censuses were wrong (counting a function that shares a name,
+# sweeping in the next function's comment, and counting check_drift, which is not a doctor check
+# at all) and each error pointed the same way. This table came from the registration list.
+#
+# ⭐ vm_state IS WRITTEN AS THE CODE HAS IT TODAY -- info + warn -- ON PURPOSE. It should fail
+# to load. That refusal is gate 3 proven on live data rather than on a fabricated example.
+
+[[check]]
+id = "services_running"
+name = "System Services"
+tier = "system"
+probe = "services_running"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "broken_symlinks"
+name = "Broken Symlinks"
+tier = "system"
+probe = "broken_symlinks"
+severities = ["pass", "fail"]
+recovery = "Re-run the dotfile deployment"
+
+[[check]]
+id = "binaries"
+name = "Binary Dependencies"
+tier = "critical"
+probe = "binaries"
+severities = ["pass", "fail"]
+recovery = "Install the missing binaries"
+
+[[check]]
+id = "git_status"
+name = "Git Repository"
+tier = "user"
+probe = "git_status"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "git_hooks"
+name = "Git Hooks"
+tier = "user"
+probe = "git_hooks"
+severities = ["pass", "fail"]
+recovery = "Set core.hooksPath and make the hooks executable"
+
+[[check]]
+id = "rust_docs"
+name = "Rust Docs"
+tier = "user"
+probe = "rust_docs"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "intent_ledger"
+name = "Intent Ledger"
+tier = "user"
+probe = "intent_ledger"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "deadwood_scan"
+name = "Deadwood"
+tier = "user"
+probe = "deadwood_scan"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "zero_config"
+name = "Zero Config"
+tier = "system"
+probe = "zero_config"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "zero_alias"
+name = "Zero Alias"
+tier = "system"
+probe = "zero_alias"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "security_hardening"
+name = "Security Hardening"
+tier = "system"
+probe = "security_hardening"
+severities = ["pass", "warn", "fail"]
+
+[[check]]
+id = "security_audit"
+name = "Security Audit"
+tier = "system"
+probe = "security_audit"
+severities = ["pass", "warn", "fail"]
+
+[[check]]
+id = "alias_coverage"
+name = "Alias Coverage"
+tier = "user"
+probe = "alias_coverage"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "rust_toolchain"
+name = "Rust Toolchain"
+tier = "system"
+probe = "rust_toolchain"
+severities = ["pass", "fail"]
+recovery = "Install the Rust toolchain"
+
+[[check]]
+id = "disk_space"
+name = "Disk Space"
+tier = "critical"
+probe = "disk_space"
+severities = ["pass", "warn"]
+recovery = "Free space on the filesystem"
+
+[[check]]
+id = "tool_installation"
+name = "Tool Installation"
+tier = "system"
+probe = "tool_installation"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "path_resilience"
+name = "Path Resilience"
+tier = "system"
+probe = "path_resilience"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "schema_validation"
+name = "Schema Validation"
+tier = "system"
+probe = "schema_validation"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "sandbox"
+name = "Sandbox"
+tier = "system"
+probe = "sandbox"
+severities = ["pass", "warn", "fail"]
+
+[[check]]
+id = "boot_errors"
+name = "Boot Errors"
+tier = "critical"
+probe = "boot_errors"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "boot_time"
+name = "Boot Time"
+tier = "system"
+probe = "boot_time"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "reboot_needed"
+name = "Reboot Needed"
+tier = "system"
+probe = "reboot_needed"
+severities = ["pass", "warn"]
+recovery = "Reboot to load the installed kernel"
+
+[[check]]
+id = "update_readiness"
+name = "Update Readiness"
+tier = "user"
+probe = "update_readiness"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "package_cache"
+name = "Package Cache"
+tier = "info"
+probe = "package_cache"
+severities = ["pass"]
+
+[[check]]
+id = "orphan_packages"
+name = "Orphan Packages"
+tier = "user"
+probe = "orphan_packages"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "friday"
+name = "Friday"
+tier = "user"
+probe = "friday"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "network"
+name = "Network"
+tier = "system"
+probe = "network"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "vm_state"
+name = "VM State"
+tier = "info"
+probe = "vm_state"
+severities = ["pass", "warn"]

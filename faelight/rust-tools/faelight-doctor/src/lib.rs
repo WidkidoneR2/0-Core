@@ -14,8 +14,10 @@
 
 pub mod definition;
 pub mod probe;
+pub mod registry;
 pub mod status;
 
 pub use definition::{Definition, DefinitionError, Severity};
 pub use probe::Probe;
+pub use registry::{LoadError, Registry};
 pub use status::{verdict, Status, Tier, Verdict};

@@ -64,6 +64,17 @@ pub enum DefinitionError {
     NoSeverities { id: String },
     /// An id or name nobody can act on.
     Empty { field: &'static str },
+    /// ⚠️ `info` means MEASURES TRULY BUT NEVER JUDGES, and the verdict excludes it entirely.
+    /// A definition in that tier declaring `warn` or `fail` is a contradiction: the severity
+    /// could never reach the verdict, so it would render a colour and change nothing.
+    ///
+    /// ⭐ THIS IS `check_vm_state`'s SHAPE, MADE UNREPRESENTABLE. It returns Tier::Info with
+    /// Status::Warn to say "could not check for running VMs" -- in a tier where Warn is inert,
+    /// when `Unknown` exists for exactly that and IS always permitted.
+    JudgingInfoTier {
+        id: String,
+        offending: Vec<Severity>,
+    },
 }
 
 impl std::fmt::Display for DefinitionError {
@@ -87,6 +98,13 @@ impl std::fmt::Display for DefinitionError {
                 )
             }
             DefinitionError::Empty { field } => write!(f, "definition: {} is empty", field),
+            DefinitionError::JudgingInfoTier { id, offending } => write!(
+                f,
+                "definition {}: tier is info -- which never judges -- but it declares {:?}. \
+                 An info check that warns is a colour nothing can act on; use unknown, which is \
+                 always permitted, or give it a tier whose verdict counts.",
+                id, offending
+            ),
         }
     }
 }
@@ -107,6 +125,20 @@ impl Definition {
             return Err(DefinitionError::NoSeverities {
                 id: self.id.clone(),
             });
+        }
+        if self.tier == Tier::Info {
+            let offending: Vec<Severity> = self
+                .severities
+                .iter()
+                .copied()
+                .filter(|s| *s != Severity::Pass)
+                .collect();
+            if !offending.is_empty() {
+                return Err(DefinitionError::JudgingInfoTier {
+                    id: self.id.clone(),
+                    offending,
+                });
+            }
         }
         match (&self.assertion, &self.probe) {
             (None, None) => Err(DefinitionError::NoAssertionNoProbe {
@@ -209,6 +241,35 @@ mod tests {
     }
 
     // ── GATE 3: pass-only is a LABEL, and the range is a CONSTRAINT ──────────────────────
+
+    #[test]
+    fn an_info_tier_definition_that_judges_is_refused() {
+        // ⭐ check_vm_state's ACTUAL shape: info tier, declaring warn.
+        let mut d = base();
+        d.tier = Tier::Info;
+        d.severities = vec![Severity::Pass, Severity::Warn];
+        assert_eq!(
+            d.validate(),
+            Err(DefinitionError::JudgingInfoTier {
+                id: "example".into(),
+                offending: vec![Severity::Warn],
+            })
+        );
+    }
+
+    #[test]
+    fn an_info_tier_label_is_accepted() {
+        // check_package_cache's shape -- the same tier, done correctly.
+        let mut d = base();
+        d.tier = Tier::Info;
+        d.severities = vec![Severity::Pass];
+        assert!(d.validate().is_ok());
+        assert!(d.is_label());
+        assert!(
+            d.permits(Status::Unknown),
+            "a label may still be unable to run"
+        );
+    }
 
     #[test]
     fn pass_only_is_a_label() {
