@@ -13,3 +13,8 @@ path = "src/lib.rs"
 serde = { workspace = true }
 toml = { workspace = true }
 which = "6"
+# ⭐ The paths crate. No probe hand-builds a path: that is the defect `nsh doctor` had
+# (a focus.toml path built as a string beside a neighbour that looked it up properly),
+# and it is also what makes this crate survive INT-247 Layer 3b -- the alias flip moves
+# paths.rs, and everything that asks it moves with it.
+faelight-core = { path = "../faelight-core" }
