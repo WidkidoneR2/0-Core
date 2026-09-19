@@ -168,7 +168,7 @@ pub fn boot_errors() -> Measurement {
     }
 }
 
-fn running_kernel() -> Result<String, String> {
+pub(crate) fn running_kernel() -> Result<String, String> {
     match Command::new("uname").arg("-r").output() {
         Ok(o) => {
             let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
@@ -182,7 +182,7 @@ fn running_kernel() -> Result<String, String> {
     }
 }
 
-fn installed_kernels() -> Result<Vec<String>, String> {
+pub(crate) fn installed_kernels() -> Result<Vec<String>, String> {
     let rd = std::fs::read_dir("/usr/lib/modules")
         .map_err(|e| format!("cannot read /usr/lib/modules: {}", e))?;
     let out: Vec<String> = rd

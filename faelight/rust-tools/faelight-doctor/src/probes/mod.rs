@@ -10,6 +10,7 @@
 pub mod files;
 pub mod forest;
 pub mod git;
+pub mod hardening;
 pub mod runtime;
 pub mod security;
 pub mod system;
@@ -57,8 +58,7 @@ pub fn run(p: Probe) -> Measurement {
         Probe::OrphanPackages => forest::orphan_packages(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
-        Probe::SecurityHardening | Probe::UpdateReadiness => {
-            Measurement::unknown(format!("probe {} is not ported yet", p.as_str()))
-        }
+        Probe::SecurityHardening => hardening::security_hardening(),
+        Probe::UpdateReadiness => hardening::update_readiness(),
     }
 }
