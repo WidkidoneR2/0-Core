@@ -1149,6 +1149,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "toml 0.8.23",
+ "which",
 ]
 
 [[package]]

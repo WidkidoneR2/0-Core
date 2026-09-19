@@ -26,11 +26,12 @@ pub fn run(p: Probe) -> Measurement {
         Probe::PackageCache => system::package_cache(),
         Probe::RebootNeeded => system::reboot_needed(),
         Probe::DiskSpace => system::disk_space(),
+        Probe::Binaries => system::binaries(),
+        Probe::BootErrors => system::boot_errors(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
         | Probe::BrokenSymlinks
-        | Probe::Binaries
         | Probe::GitStatus
         | Probe::GitHooks
         | Probe::RustDocs
@@ -46,7 +47,6 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::PathResilience
         | Probe::SchemaValidation
         | Probe::Sandbox
-        | Probe::BootErrors
         | Probe::BootTime
         | Probe::UpdateReadiness
         | Probe::OrphanPackages

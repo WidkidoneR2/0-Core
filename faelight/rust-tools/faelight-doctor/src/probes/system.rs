@@ -95,6 +95,79 @@ pub fn disk_space() -> Measurement {
     }
 }
 
+/// Every binary the system expects is present.
+///
+/// ⚠️ THE LIST IS HAND-MAINTAINED AND IT DRIFTS, exactly the way the check counts did. It once
+/// named a compositor, a terminal and two package-manager tools from the PREVIOUS system --
+/// four critical-tier failures for facilities this machine deliberately does not have, which
+/// kept a notification on screen that could not be acted on.
+///
+/// ⏭ The durable fix is deriving this from something declared rather than typed. Until then a
+/// wrong entry here reports a CRITICAL failure, so treat it as code, not as a note.
+pub fn binaries() -> Measurement {
+    const BINS: [&str; 12] = [
+        "hyprland",
+        "foot",
+        "nvim",
+        "git",
+        "bat",
+        "eza",
+        "fd",
+        "rg",
+        "zoxide",
+        "brightnessctl",
+        "wpctl",
+        "wl-copy",
+    ];
+    let missing: Vec<&str> = BINS
+        .iter()
+        .copied()
+        .filter(|b| which::which(b).is_err())
+        .collect();
+    if missing.is_empty() {
+        Measurement::pass(format!("all {} binaries found", BINS.len()))
+    } else {
+        Measurement::fail(format!("{} missing: {}", missing.len(), missing.join(", ")))
+    }
+}
+
+/// Critical kernel events since boot.
+///
+/// Benign error-priority noise (USB-C, EC, HID init) is the baseline on this hardware, so this
+/// judges on CRITICAL-or-worse only and reports the error-level count for transparency.
+///
+/// ⭐ AND IT CORRECTS A DEFECT IN THE PORT. The original returned `Status::Warn` when it could
+/// not read the journal at all -- "could not check" rendered as a judgement, the same confusion
+/// `check_vm_state` has. A journal it cannot read is UNKNOWN: the check did not run.
+pub fn boot_errors() -> Measurement {
+    let count = |args: &[&str]| -> Option<usize> {
+        Command::new("journalctl")
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .count()
+            })
+    };
+    let crit = count(&["-b", "-k", "-p", "crit", "--no-pager", "-q"]);
+    let errs = count(&["-b", "-k", "-p", "err", "--no-pager", "-q"]);
+    match crit {
+        Some(0) => match errs {
+            Some(0) | None => Measurement::pass("no kernel errors since last boot"),
+            Some(n) => Measurement::pass(format!(
+                "no critical kernel errors since boot ({} low-priority notices)",
+                n
+            )),
+        },
+        Some(n) => Measurement::warn(format!("{} critical kernel error(s) since last boot", n)),
+        None => Measurement::unknown("could not read the kernel journal"),
+    }
+}
+
 fn running_kernel() -> Result<String, String> {
     match Command::new("uname").arg("-r").output() {
         Ok(o) => {
@@ -134,6 +207,32 @@ mod tests {
     ///
     /// What they do assert is the rule this whole design exists for: A PROBE NEVER RETURNS A
     /// STATUS IT WAS NOT ABLE TO JUSTIFY. If it could not measure, it says unknown.
+    #[test]
+    fn binaries_reports_or_says_it_could_not() {
+        let m = binaries();
+        assert!(!m.message.is_empty());
+        assert!(matches!(m.status, Status::Pass | Status::Fail));
+    }
+
+    #[test]
+    fn boot_errors_never_warns_about_its_own_blindness() {
+        // ⭐ THE CORRECTED DEFECT. The original said Warn when the journal was unreadable.
+        // Whatever this returns, a warn must be about the KERNEL, not about the check.
+        let m = boot_errors();
+        assert!(!m.message.is_empty());
+        assert!(matches!(
+            m.status,
+            Status::Pass | Status::Warn | Status::Unknown
+        ));
+        if m.status == Status::Warn {
+            assert!(
+                m.message.contains("kernel error"),
+                "a warn here must be about the kernel, not about reading the journal: {}",
+                m.message
+            );
+        }
+    }
+
     #[test]
     fn package_cache_reports_or_says_it_could_not() {
         let m = package_cache();
