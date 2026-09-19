@@ -990,8 +990,39 @@ beyond routing them through the new engine. INT-102's version bump for nsh-test.
         [MED] checks.rs:1859 check_zzdecoy can only return Pass -- it cannot fail
       Decoy removed: clean. git diff --stat empty, no residue. -->
 - [x] The health output states its basis rather than a bare percentage.
-- [ ] Every red check renders INT-199 shape: result first, reason, comparison, likely cause,
-      recovery.
+- [x] Every red check renders INT-199 shape. DONE 2026-09-19 in `faelight-doctor/src/render.rs`,
+      proven on live red outcomes (alias_coverage, update_readiness, security_audit).
+      <!-- THE SHAPE ABOVE WAS WRITTEN WRONG AND IS CORRECTED HERE. This gate said "result
+      first, reason, comparison, likely cause, recovery" -- it OMITTED Status and invented a
+      "comparison" section INT-199 does not have. Read from 199 itself on 2026-09-19, the real
+      shape is: Status, Result, Reason, Possible causes, Recovery, Debug. The four questions it
+      answers, in order, are WHAT HAPPENED / DID ANYTHING CHANGE / WHY / WHAT DO I DO NEXT.
+
+      Two deliberate departures, both recorded rather than silent:
+
+      NO "POSSIBLE CAUSES" SECTION. fpatch could list causes because it knew what it had
+      attempted. A CHECK KNOWS WHAT IT MEASURED, NOT WHY THE MACHINE IS THAT WAY. Inventing
+      plausible causes would be decoration presented as diagnosis -- the defect this intent
+      exists to remove -- so the section is omitted rather than guessed.
+
+      RESULT IS CONSTANT, AND THAT IS WHY IT IS STATED. INT-199 principle 2 is "tell the user
+      what did not happen". A doctor only reads, so the answer never varies: "Nothing was
+      changed." A reader who has just been told something is wrong must not be left wondering
+      whether the checking made it worse. That is the exact fact fpatch never printed.
+
+      Status maps onto 199's taxonomy: Pass->Info, Warn->Warning, Fail->Failure, and
+      Unknown/Blocked->SAFE ABORT -- the check stopped rather than report something it could not
+      stand behind, which is 199's central distinction seen from the other side.
+
+      RED ONLY, per 199's own scope guardrail ("adopt it where failures are actually being
+      read"). A passing line is read as a tick; six sections would bury the report.
+
+      ⚠️ AND IT IMMEDIATELY FOUND SOMETHING: only 6 of 28 definitions declare a recovery, so 22
+      red checks render "No recovery step is declared for this check." That is honest and it is
+      not finished -- the old fix: strings exist but several are stale (configuration.nix, a
+      scripts/ deploy path, `deploy <tool>`, and a 3b link instruction already carried out).
+      Auditing each against this machine is INT-253's group 1, whose gate demands every
+      replacement be RUN here before it is declared. Recorded there, not absorbed here. -->
 - [~] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
       constants.
       <!-- DEAD 2026-09-04. ESP size and configurationLimit are NixOS concepts and there
