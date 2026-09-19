@@ -17,10 +17,12 @@ pub mod measurement;
 pub mod probe;
 pub mod probes;
 pub mod registry;
+pub mod run;
 pub mod status;
 
 pub use definition::{Definition, DefinitionError, Severity};
 pub use measurement::Measurement;
 pub use probe::Probe;
 pub use registry::{LoadError, Registry};
+pub use run::{run_all, run_one, Summary};
 pub use status::{verdict, Status, Tier, Verdict};
