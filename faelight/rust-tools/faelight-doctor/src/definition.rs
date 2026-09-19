@@ -180,14 +180,14 @@ mod tests {
         d.assertion = None;
         d.probe = None;
         assert!(d.validate().is_err());
-        d.probe = Some(Probe::WhichBinary);
+        d.probe = Some(Probe::DiskSpace);
         assert!(d.validate().is_ok());
     }
 
     #[test]
     fn both_assertion_and_probe_is_refused() {
         let mut d = base();
-        d.probe = Some(Probe::GitStatus);
+        d.probe = Some(Probe::BootTime);
         assert_eq!(
             d.validate(),
             Err(DefinitionError::BothAssertionAndProbe {
@@ -266,7 +266,11 @@ mod tests {
     #[test]
     fn every_probe_has_a_stable_name_and_the_registry_is_closed() {
         let all = Probe::all();
-        assert_eq!(all.len(), 15, "the registry is enumerated, not open-ended");
+        assert_eq!(
+            all.len(),
+            28,
+            "one probe per measurement -- 28 checks in all_checks(), 28 probes",
+        );
         let mut seen = std::collections::HashSet::new();
         for p in all {
             assert!(!p.as_str().is_empty());
