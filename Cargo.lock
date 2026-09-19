@@ -1144,6 +1144,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-doctor"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "faelight-gen"
 version = "1.0.0"
 dependencies = [

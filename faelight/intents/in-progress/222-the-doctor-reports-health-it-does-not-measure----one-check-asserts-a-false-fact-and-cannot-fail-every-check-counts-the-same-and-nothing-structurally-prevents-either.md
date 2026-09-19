@@ -704,6 +704,43 @@ follow) and the format mechanism (a rule the engine applies).
 ⚠️ NOT FIXED HERE. `check_vm_state` is corrected when it migrates in Phase 2 step 3, by the
 engine refusing it -- which is also how gate 3 gets its "proven by watching it work".
 
+## GATES 3 AND 4: BUILT, AND PROVEN RED FIRST, 2026-09-18
+
+`faelight-doctor` exists: `status.rs` (adopted vocabulary), `probe.rs` (the fifteen, closed),
+`definition.rs` (the format and the rules). 10 tests, 10 passing, zero warnings.
+
+### The rules, in code
+
+    validate()    no assertion + no probe -> NoAssertionNoProbe, NAMING THE ID
+                  both -> BothAssertionAndProbe (one answer, two sources)
+                  no severities -> NoSeverities
+    is_label()    declares only Pass -> it is a label, by construction
+    permits()     the declared range is a CONSTRAINT, not a description
+
+### ⭐ PROVEN RED FIRST, WHICH IS THE POINT OF "proven by watching"
+
+Both rules were DELIBERATELY STUBBED and the suite re-run:
+
+    (None, None) => Ok(())               // gate 4 broken
+    _ => true                            // gate 3 broken
+
+    FAILED  no_assertion_and_no_probe_is_refused
+    FAILED  completing_it_makes_it_accepted
+    FAILED  a_label_cannot_report_warn_or_fail
+    FAILED  a_warn_only_definition_cannot_fail
+    ok      the six unrelated to the broken rules
+
+And the compiler added its own evidence: `warning: method `permits` is never used` -- stubbing
+the rule made its helper dead code. Restored: 10/10, no warnings.
+
+⭐ A TEST THAT HAS NEVER BEEN SEEN RED IS AN ASSERTION, NOT A PROOF. The same rule caught a
+false pass in INT-251 the day before.
+
+### Still open
+
+The TOML registry (step 3), the probes (step 2), and gate 5's INT-199 render. The engine is
+built and no check has moved -- which is the order the scope asked for.
+
 ## PHASE 2 SCOPE, AGREED 2026-09-18 -- WHAT GETS BUILT
 
 ### The crate
@@ -784,10 +821,10 @@ beyond routing them through the new engine. INT-102's version bump for nsh-test.
       42, last_updated February, tools compile to ~/0-core/scripts/ (deleted in e733287d),
       registry at 01-registry/tools.toml (moved long ago). Nothing read it, so nothing
       corrected it. Both files removed; the check and the repo now agree. -->
-- [ ] A definition declaring pass-only is treated as a label and excluded from the denominator.
+- [x] A definition declaring pass-only is treated as a label and excluded from the denominator.
       **Proven by watching it work: fabricate a pass-only definition, watch it be excluded and
       reported as declared, then remove it and watch the denominator return.**
-- [ ] A definition with no assertion and no probe is REJECTED. **Proven by watching it fail:** write
+- [x] A definition with no assertion and no probe is REJECTED. **Proven by watching it fail:** write
       one, watch it be refused, then complete it and watch it accepted.
 - [x] A critical-tier ERROR caps the reported health. **Proven by watching it fail:** force a
       critical check red and confirm the verdict cannot read healthy.
