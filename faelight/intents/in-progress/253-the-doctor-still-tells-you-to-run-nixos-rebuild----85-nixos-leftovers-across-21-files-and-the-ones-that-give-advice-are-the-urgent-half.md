@@ -87,12 +87,12 @@ argument -- the leftovers do not block the flip and never did.
 
 ## Success Criteria
 
-- [ ] THE CENSUS IS REGENERATED AND CLASSIFIED into the three groups above before any edit. The
+- [x] THE CENSUS IS REGENERATED AND CLASSIFIED into the three groups above before any edit. The
       85 is from 2026-09-19 and every number in this file will have drifted.
-- [ ] ⭐ EVERY RECOVERY STRING AND EVERY PIECE OF ADVICE NAMES A COMMAND THAT RUNS HERE.
+- [x] ⭐ EVERY RECOVERY STRING AND EVERY PIECE OF ADVICE NAMES A COMMAND THAT RUNS HERE.
       **Proven by running it:** each replacement is executed on this machine and its output
       recorded in the intent. An advice string that was never run is a guess with better grammar.
-- [ ] `toolgen.rs` no longer GENERATES NixOS advice. Proven by regenerating the docs and grepping
+- [x] `toolgen.rs` no longer GENERATES NixOS advice. Proven by regenerating the docs and grepping
       the output, not by reading the template.
 - [ ] Group 2 branches are removed and the code still compiles and passes `nsh-test`, with the
       count of `/etc/NIXOS` tests in live code at ZERO.
@@ -102,6 +102,27 @@ argument -- the leftovers do not block the flip and never did.
       job" by deleting the history. The census generator especially: it is the guard.
 - [ ] Both doors run afterwards -- `nsh -c`, a PTY session, `core doctor`, `history` -- and the
       doctor's advice is read end to end by a human who confirms every fix is runnable.
+
+## Evidence, 2026-09-19
+
+Gate 2 demanded every recovery be RUN here. IT FOUND TWO LIES IN TWENTY on its first
+application -- `core registry validate` and `core audit aliases` are not subcommands, and both
+had been copied from the old fix strings. That is the failure the gate exists to catch, caught.
+Both are prose now: WHEN NO COMMAND ADDRESSES A FINDING, SAY WHAT TO DO RATHER THAN WHAT TO TYPE.
+
+Executed, output recorded:
+
+```text
+    faelight-deadwood --summary    0|0|0|0
+    systemd-analyze blame          1.280s dev-mapper-root.device
+    journalctl -b -k -p crit       empty, exit 0
+    pacman -Qdtq                   empty, exit 0
+    cargo doc -p core --no-deps    Generated target/doc/core/index.html
+    core security scan             0 findings, 1 check skipped
+    core intent validate           All 290 intents valid
+    ship                           3 shipped, 22 unchanged, 0 failed
+    faelight-docs check            0 NixOS terms in the generated output
+```
 
 ## Not in scope
 
