@@ -155,7 +155,7 @@ name = "Alias Coverage"
 tier = "user"
 probe = "alias_coverage"
 severities = ["pass", "warn"]
-recovery = "Run: core audit aliases"
+recovery = "Add an alias for each tool named above"
 
 [[check]]
 id = "rust_toolchain"
@@ -195,7 +195,7 @@ name = "Schema Validation"
 tier = "system"
 probe = "schema_validation"
 severities = ["pass", "warn"]
-recovery = "Run: core registry validate"
+recovery = "Fix the registry file named above"
 
 [[check]]
 id = "sandbox"
