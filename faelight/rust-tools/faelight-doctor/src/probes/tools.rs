@@ -134,6 +134,80 @@ pub fn path_resilience() -> Measurement {
     }
 }
 
+/// The registry files are present and their declared fields check out.
+///
+/// ⚠️ A FILE THIS CHECK COULD NOT REACH IS NOT A FILE IT VALIDATED. The count in the message was
+/// once the size of the list it MEANT to check, so with tools.toml deleted the loop skipped it,
+/// issues stayed empty, and the check reported "All 4 registry files valid" having looked at
+/// three. PROVEN LIVE 2026-09-05: the registry was moved aside and this check stayed green.
+///
+/// ⭐ AND "VALID" OVERSTATED IT. This confirms a .schema.json EXISTS and then searches the TOML
+/// for empty fields. It parses neither. Real schema validation is separate work, so the message
+/// says what it did: present, and field checks clean.
+///
+/// ⚠️ ONE THING CORRECTED IN THE PORT: the old warn read `"{} schema issue(s): {}", len, [0]` --
+/// the count plus THE FIRST ISSUE ONLY. With three problems you were told about one. This
+/// intent's own rule is that a count is not a finding, applied here only halfway.
+pub fn schema_validation() -> Measurement {
+    let schema_dir = faelight_core::paths::schema_dir();
+    let registry_dir = faelight_core::paths::registry_dir();
+    if !schema_dir.exists() {
+        return Measurement::unknown(format!("{} not found", schema_dir.display()));
+    }
+    const PAIRS: [(&str, &str); 4] = [
+        ("tools.toml", "tools.schema.json"),
+        ("zones.toml", "zones.schema.json"),
+        ("profiles.toml", "profiles.schema.json"),
+        ("sandbox-policies.toml", "policies.schema.json"),
+    ];
+    let mut issues: Vec<String> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
+    let mut validated = 0usize;
+    for (registry_file, schema_file) in PAIRS {
+        let registry_path = registry_dir.join(registry_file);
+        let schema_path = schema_dir.join(schema_file);
+        if !registry_path.exists() {
+            skipped.push(format!("{} not found", registry_file));
+            continue;
+        }
+        if !schema_path.exists() {
+            // A MISSING SCHEMA IS A FINDING, NOT A SKIP. The registry file is right there and
+            // unvalidatable, which is a fact about the system rather than an absence of one.
+            issues.push(format!("missing schema: {}", schema_file));
+            continue;
+        }
+        match std::fs::read_to_string(&registry_path) {
+            Ok(content) => {
+                if content.contains("name = \"\"") {
+                    issues.push(format!("{}: empty name field", registry_file));
+                }
+                if content.contains("description = \"\"") {
+                    issues.push(format!("{}: empty description", registry_file));
+                }
+                validated += 1;
+            }
+            // Exists but unreadable: not missing, not valid.
+            Err(err) => skipped.push(format!("{}: {}", registry_file, err)),
+        }
+    }
+    if !skipped.is_empty() {
+        return Measurement::unknown(format!(
+            "checked {} of {} registry files; could not check: {}",
+            validated,
+            PAIRS.len(),
+            skipped.join(", ")
+        ));
+    }
+    if issues.is_empty() {
+        Measurement::pass(format!(
+            "{} registry files present, field checks clean",
+            validated
+        ))
+    } else {
+        Measurement::warn(issues.join(", "))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,6 +232,21 @@ mod tests {
             assert!(
                 !m.message.contains("all 0 "),
                 "a pass over zero tools is the defect, not a result: {}",
+                m.message
+            );
+        }
+    }
+
+    #[test]
+    fn schema_validation_names_every_issue_not_just_the_first() {
+        let m = schema_validation();
+        assert!(!m.message.is_empty());
+        if m.status == Status::Warn {
+            // ⭐ The old message was "N schema issue(s): <the first one>". A warn here must
+            // carry what it found, not a count plus a sample.
+            assert!(
+                !m.message.contains("issue(s):"),
+                "a count plus one example is not a finding: {}",
                 m.message
             );
         }

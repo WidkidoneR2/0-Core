@@ -43,6 +43,7 @@ pub fn run(p: Probe) -> Measurement {
         Probe::ZeroConfig => files::zero_config(),
         Probe::ToolInstallation => tools::tool_installation(),
         Probe::PathResilience => tools::path_resilience(),
+        Probe::SchemaValidation => tools::schema_validation(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
@@ -52,7 +53,6 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::SecurityHardening
         | Probe::SecurityAudit
         | Probe::AliasCoverage
-        | Probe::SchemaValidation
         | Probe::Sandbox
         | Probe::UpdateReadiness
         | Probe::OrphanPackages
