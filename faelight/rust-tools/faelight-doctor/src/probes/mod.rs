@@ -11,6 +11,7 @@ pub mod files;
 pub mod git;
 pub mod runtime;
 pub mod system;
+pub mod tools;
 
 use crate::measurement::Measurement;
 use crate::probe::Probe;
@@ -40,6 +41,8 @@ pub fn run(p: Probe) -> Measurement {
         Probe::BrokenSymlinks => files::broken_symlinks(),
         Probe::ZeroAlias => files::zero_alias(),
         Probe::ZeroConfig => files::zero_config(),
+        Probe::ToolInstallation => tools::tool_installation(),
+        Probe::PathResilience => tools::path_resilience(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
@@ -49,8 +52,6 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::SecurityHardening
         | Probe::SecurityAudit
         | Probe::AliasCoverage
-        | Probe::ToolInstallation
-        | Probe::PathResilience
         | Probe::SchemaValidation
         | Probe::Sandbox
         | Probe::UpdateReadiness
