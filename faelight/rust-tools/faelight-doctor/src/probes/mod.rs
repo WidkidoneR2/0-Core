@@ -7,6 +7,7 @@
 //! `Measurement::unknown` with the reason -- never a pass, and never a warn standing in for
 //! "I could not look".
 
+pub mod files;
 pub mod git;
 pub mod runtime;
 pub mod system;
@@ -36,15 +37,15 @@ pub fn run(p: Probe) -> Measurement {
         Probe::Network => runtime::network(),
         Probe::VmState => runtime::vm_state(),
         Probe::BootTime => runtime::boot_time(),
+        Probe::BrokenSymlinks => files::broken_symlinks(),
+        Probe::ZeroAlias => files::zero_alias(),
+        Probe::ZeroConfig => files::zero_config(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
-        | Probe::BrokenSymlinks
         | Probe::RustDocs
         | Probe::IntentLedger
         | Probe::DeadwoodScan
-        | Probe::ZeroConfig
-        | Probe::ZeroAlias
         | Probe::SecurityHardening
         | Probe::SecurityAudit
         | Probe::AliasCoverage

@@ -1150,6 +1150,7 @@ dependencies = [
  "faelight-core",
  "serde",
  "toml 0.8.23",
+ "walkdir",
  "which",
 ]
 
