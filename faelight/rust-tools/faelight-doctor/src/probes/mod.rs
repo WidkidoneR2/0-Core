@@ -8,6 +8,7 @@
 //! "I could not look".
 
 pub mod files;
+pub mod forest;
 pub mod git;
 pub mod runtime;
 pub mod security;
@@ -48,15 +49,17 @@ pub fn run(p: Probe) -> Measurement {
         Probe::AliasCoverage => tools::alias_coverage(),
         Probe::Sandbox => security::sandbox(),
         Probe::SecurityAudit => security::security_audit(),
+        Probe::ServicesRunning => forest::services_running(),
+        Probe::IntentLedger => forest::intent_ledger(),
+        Probe::Friday => forest::friday(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
-        Probe::ServicesRunning
-        | Probe::RustDocs
-        | Probe::IntentLedger
-        | Probe::DeadwoodScan
+        Probe::RustDocs
         | Probe::SecurityHardening
         | Probe::UpdateReadiness
         | Probe::OrphanPackages
-        | Probe::Friday => Measurement::unknown(format!("probe {} is not ported yet", p.as_str())),
+        | Probe::DeadwoodScan => {
+            Measurement::unknown(format!("probe {} is not ported yet", p.as_str()))
+        }
     }
 }
