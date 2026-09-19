@@ -372,7 +372,7 @@ pub fn render_readme(m: &ToolMeta) -> String {
     out.push_str("```\n\n");
     out.push_str("## Deploy\n\n");
     out.push_str("```sh\n");
-    out.push_str("deploy   # sudo nixos-rebuild switch --flake .#framework16\n");
+    out.push_str("ship   # builds the release and deploys to ~/.local/bin\n");
     out.push_str("```\n\n");
 
     // Dependencies
