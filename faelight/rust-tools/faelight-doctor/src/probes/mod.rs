@@ -1,0 +1,57 @@
+//! The probe implementations -- one per measurement, answering the names in `probe::Probe`.
+//!
+//! ⚠️ A PROBE MEASURES AND JUDGES HOW BAD IT IS. It does not decide its tier, its name, or what
+//! to tell the user to do about it -- those are DECLARED, and the engine supplies them.
+//!
+//! Each probe returns a `Measurement`. Where it cannot take the measurement at all, it returns
+//! `Measurement::unknown` with the reason -- never a pass, and never a warn standing in for
+//! "I could not look".
+
+pub mod system;
+
+use crate::measurement::Measurement;
+use crate::probe::Probe;
+
+/// Run one probe.
+///
+/// ⚠️ EVERY VARIANT IS MATCHED EXPLICITLY, with no catch-all arm. That is deliberate: adding a
+/// probe to the enum makes this fail to compile until it is answered, which is what "adding a
+/// probe is a deliberate, reviewable act" means in practice.
+///
+/// Probes not yet ported return `unknown` NAMING THEMSELVES -- so a partially-ported engine
+/// says "not yet implemented" out loud rather than reporting a clean pass for a check that has
+/// never run. A missing measurement rendered as a pass is the defect INT-222 exists to remove.
+pub fn run(p: Probe) -> Measurement {
+    match p {
+        Probe::PackageCache => system::package_cache(),
+        Probe::RebootNeeded => system::reboot_needed(),
+        Probe::DiskSpace => system::disk_space(),
+
+        // ── not yet ported ─────────────────────────────────────────────────────────────
+        Probe::ServicesRunning
+        | Probe::BrokenSymlinks
+        | Probe::Binaries
+        | Probe::GitStatus
+        | Probe::GitHooks
+        | Probe::RustDocs
+        | Probe::IntentLedger
+        | Probe::DeadwoodScan
+        | Probe::ZeroConfig
+        | Probe::ZeroAlias
+        | Probe::SecurityHardening
+        | Probe::SecurityAudit
+        | Probe::AliasCoverage
+        | Probe::RustToolchain
+        | Probe::ToolInstallation
+        | Probe::PathResilience
+        | Probe::SchemaValidation
+        | Probe::Sandbox
+        | Probe::BootErrors
+        | Probe::BootTime
+        | Probe::UpdateReadiness
+        | Probe::OrphanPackages
+        | Probe::Friday
+        | Probe::Network
+        | Probe::VmState => Measurement::unknown(format!("probe {} is not ported yet", p.as_str())),
+    }
+}

@@ -13,11 +13,14 @@
 //! INT-223 exists to remove and decision 147 built its ownership model around not creating.
 
 pub mod definition;
+pub mod measurement;
 pub mod probe;
+pub mod probes;
 pub mod registry;
 pub mod status;
 
 pub use definition::{Definition, DefinitionError, Severity};
+pub use measurement::Measurement;
 pub use probe::Probe;
 pub use registry::{LoadError, Registry};
 pub use status::{verdict, Status, Tier, Verdict};
