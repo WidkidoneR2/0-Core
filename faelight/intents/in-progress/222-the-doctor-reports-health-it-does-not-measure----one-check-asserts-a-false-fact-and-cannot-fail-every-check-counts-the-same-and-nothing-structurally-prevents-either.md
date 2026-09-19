@@ -704,6 +704,71 @@ follow) and the format mechanism (a rule the engine applies).
 ⚠️ NOT FIXED HERE. `check_vm_state` is corrected when it migrates in Phase 2 step 3, by the
 engine refusing it -- which is also how gate 3 gets its "proven by watching it work".
 
+## THE DIVISION OF LABOUR, DECIDED 2026-09-18 -- AND IT NARROWS AN EARLIER PROMISE
+
+Step 2 began by asking what argument a probe takes. The census answered a bigger question instead.
+
+### What the 33 checks actually look like
+
+Counting external calls per check body (Command::new, read_to_string, read_dir, exists, sqlite,
+plus calls to the doctor's own helpers):
+
+    14 of 33    SIMPLE      one call or none
+     6          two calls
+    13          COMPOSE     three or more
+
+    check_drift              1608 lines, 24 calls
+    check_orphan_packages     519 lines,  8 calls
+    check_conflicts           276 lines, 15 calls
+    check_services            102 lines,  3 calls -- and it DISCOVERS its own unit list from
+                              `systemctl show -p Wants`, then asks is-active for each
+
+⚠️ `check_drift` IS NOT A CHECK. It is a subsystem with a check-shaped return value. No TOML
+format short of a programming language expresses it, and this intent explicitly forbids becoming
+one: "there is no path from a definition to arbitrary code."
+
+### ★ THE DECISION: THE DEFINITION DECLARES, THE PROBE MEASURES
+
+    THE DEFINITION OWNS      id, name, tier, declared severity range, threshold source,
+                             recovery text                    -- DATA, for all 27
+    THE PROBE OWNS           the measurement, however complex, behind a name in the closed
+                             registry                         -- RUST
+
+`check_drift` becomes `probe: drift_scan`. Its 1608 lines stay in Rust, reachable only through a
+registered name. The definition beside it declares what tier it is, what severities it may emit,
+and what to do when it is red.
+
+### Why this is the right split, and not a retreat
+
+⭐ LOOK AT WHAT THE DEFECTS ACTUALLY WERE. Every one this intent was filed against:
+
+    check_dotmeta          hardcoded Pass, could not fail          DECLARATION
+    check_vm_state         Tier::Info + Status::Warn, inert        DECLARATION
+    "Login shell ✅"        asserts a fact it never verifies        DECLARATION
+    27 of 34 structural    no declared range at all                DECLARATION
+
+NONE OF THEM WERE MEASUREMENT BUGS. The lying was in what the checks CLAIMED ABOUT THEMSELVES,
+and that half is uniform, small, and data -- for all 27, including the 1608-line one.
+
+Putting the declaration in TOML fixes the entire defect class. Putting the measurement there
+would fix nothing that was broken and would build the arbitrary-code door this intent forbids.
+
+### ⚠️ AND IT NARROWS "THE CHECKS ARE DATA", HONESTLY
+
+The Solution section above says "updating the check set does not rebuild the engine". Under this
+split that is HALF TRUE, and the half matters:
+
+    NO REBUILD      retier a check, change its severity range, fix its recovery text, mark it
+                    a label, add or remove a check from the active set
+    REBUILD         a genuinely NEW measurement -- because that is a new probe, and adding a
+                    probe was always meant to be a deliberate, reviewable act
+
+★ That second line is not a regression. It is the probe-registry gate restated: the registry is
+closed, and closed means new measurements cost a code review. What changed is the admission that
+t
+MOST checks need a probe rather than an assertion -- the `assertion` field serves the 14 simple
+ones, not the majority.
+
 ## GATES 3 AND 4: BUILT, AND PROVEN RED FIRST, 2026-09-18
 
 `faelight-doctor` exists: `status.rs` (adopted vocabulary), `probe.rs` (the fifteen, closed),
