@@ -727,6 +727,71 @@ plus calls to the doctor's own helpers):
 format short of a programming language expresses it, and this intent explicitly forbids becoming
 one: "there is no path from a definition to arbitrary code."
 
+### ⚠️⚠️ THE NUMBERS ABOVE ARE WRONG. CORRECTED 2026-09-18, SAME DAY.
+
+The census that produced "13 of 33 compose, check_drift 1608 lines" was WRONG THREE WAYS, and
+every error inflated the complexity in the direction that flattered the decision:
+
+    counted check_binaries TWICE       two functions share the name in different files
+    swept in the NEXT function's       `check_update_readiness` showed Info+User because the
+    trailing comment                   scan ran to the next `fn` and caught a comment about
+                                       the function AFTER it
+    counted code that never runs       `check_drift` is `fn check_drift(&EntropyBaseline) ->
+                                       DriftReport` in entropy.rs, referenced ZERO times in
+                                       mod.rs. IT IS NOT A DOCTOR CHECK. It is doctor entropy's
+                                       own machinery that happens to start with `check_`.
+
+Re-run against `all_checks()` -- the registration list, which is the authority:
+
+    28 registered
+    6 of 28 compose (3+ external calls)
+    LARGEST IS check_security_audit AT 147 LINES
+    check_orphan_packages is 50 lines, not 519
+
+★ NOTHING IN THE DOCTOR IS 1608 LINES. The argument "no TOML expresses this without becoming a
+programming language" was made against a function that is not in the check set.
+
+### THE DECISION SURVIVES, FOR A BETTER REASON -- READ THIS ONE INSTEAD
+
+`check_reboot_needed` was read in full as the strongest case AGAINST the split: 60 lines, zero
+subprocess calls in its own body, about as simple as a check gets. What it contains:
+
+    MEASURE      running_kernel(), installed_kernels()
+    COMPARE      installed.iter().any(|k| k == &running)          <- ONE LINE
+    CONSTRUCT    four CheckResult literals                        <- ~45 OF ITS 60 LINES
+
+⭐ THE LOGIC IS A MEMBERSHIP TEST. THE BULK IS BOILERPLATE.
+
+So the real division is not "simple checks are data, complex ones are code". It is:
+
+    THE MEASUREMENT AND ITS COMPARISON ARE INSEPARABLE. "is the running kernel among the
+    installed ones" means nothing without knowing what those two calls return. Splitting them
+    into a probe that fetches and a TOML that compares would put half a thought in each place.
+
+    THE DECLARATION IS ENTIRELY SEPARABLE. Tier, severity range, recovery text -- none of it
+    depends on what the measurement returns.
+
+    AND THE CONSTRUCTION IS PURE BOILERPLATE THE ENGINE SHOULD OWN. Four near-identical struct
+    literals per check, times 28. The `Err(_) => Status::Unknown` arms are copied verbatim
+    everywhere.
+
+### ★ THAT THIRD LINE IS THE REAL PRIZE, AND IT WAS NOT IN THE ORIGINAL ARGUMENT
+
+EVERY DEFECT THIS INTENT WAS FILED AGAINST LIVED IN A HAND-WRITTEN `CheckResult` LITERAL:
+
+    check_vm_state        `tier: Tier::Info` beside `status: Status::Warn`, in one literal
+    check_dotmeta         `status: Status::Pass`, typed, unconditional
+    "Login shell ✅"       the same
+    27 of 34 structural   no declared range, because a literal cannot declare one
+
+Nobody wrote those defects on purpose. They wrote them because writing a CheckResult by hand
+means re-deciding the tier and the status at every construction site, forty-five lines at a time,
+with nothing checking the answer.
+
+Under this design a probe returns a measurement and its verdict; the ENGINE constructs the
+result, enforces the declared range, decides the denominator and renders. NOBODY HAND-WRITES A
+CheckResult AGAIN, and the class of defect becomes unwritable rather than merely discouraged.
+
 ### ★ THE DECISION: THE DEFINITION DECLARES, THE PROBE MEASURES
 
     THE DEFINITION OWNS      id, name, tier, declared severity range, threshold source,
