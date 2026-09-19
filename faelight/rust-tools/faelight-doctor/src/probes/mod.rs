@@ -7,6 +7,7 @@
 //! `Measurement::unknown` with the reason -- never a pass, and never a warn standing in for
 //! "I could not look".
 
+pub mod git;
 pub mod system;
 
 use crate::measurement::Measurement;
@@ -28,12 +29,12 @@ pub fn run(p: Probe) -> Measurement {
         Probe::DiskSpace => system::disk_space(),
         Probe::Binaries => system::binaries(),
         Probe::BootErrors => system::boot_errors(),
+        Probe::GitStatus => git::status(),
+        Probe::GitHooks => git::hooks(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
         | Probe::BrokenSymlinks
-        | Probe::GitStatus
-        | Probe::GitHooks
         | Probe::RustDocs
         | Probe::IntentLedger
         | Probe::DeadwoodScan
