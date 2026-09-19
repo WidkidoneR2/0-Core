@@ -494,5 +494,3 @@ expected_usage = "high"
 type = "rust"
 deployable = true
 retired = false
-
-retired = false
