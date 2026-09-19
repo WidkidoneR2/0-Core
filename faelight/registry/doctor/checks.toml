@@ -249,8 +249,12 @@ probe = "network"
 severities = ["pass", "warn"]
 
 [[check]]
+# ⭐ THE CHECK THIS INTENT IS NAMED AFTER, NOW CORRECT.
+# It was written here AS THE CODE HAD IT -- info tier, declaring warn -- and the engine
+# REFUSED IT BY NAME on every load from 2026-09-18 until the probe was ported.
+# The probe now returns pass or unknown and never warn, so the declaration can be true.
 id = "vm_state"
 name = "VM State"
 tier = "info"
 probe = "vm_state"
-severities = ["pass", "warn"]
+severities = ["pass"]

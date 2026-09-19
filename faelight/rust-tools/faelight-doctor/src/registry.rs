@@ -132,34 +132,37 @@ mod tests {
     ));
 
     #[test]
-    fn the_real_check_set_loads_and_refuses_vm_state() {
+    fn the_real_check_set_is_entirely_valid() {
         let r = Registry::parse(REAL, "checks.toml").expect("the check set parses");
 
-        // ⭐ GATE 3, ON LIVE DATA. vm_state is written as the code has it today --
-        // info tier, declaring warn -- and the engine refuses it BY NAME.
+        // ⭐ THIS TEST USED TO ASSERT THE OPPOSITE, AND THAT IS THE POINT.
+        //
+        // It was written as `the_real_check_set_loads_and_refuses_vm_state`, because
+        // vm_state was transcribed into TOML exactly as the old code had it -- info tier,
+        // declaring warn -- so the engine refused it by name on every load. That refusal
+        // was gate 3 proven on live data rather than on a fabricated example.
+        //
+        // The probe has since been ported and returns pass or unknown, never warn, so the
+        // declaration was made true and the refusal correctly stopped. What is asserted now
+        // is the INVARIANT, not the snapshot: EVERY DEFINITION HOLDS UP.
         assert!(
-            r.refused.iter().any(|(id, _)| id == "vm_state"),
-            "vm_state declares info+warn and MUST be refused; refused = {:?}",
+            r.refused.is_empty(),
+            "the shipped check set must not contain a definition the engine refuses: {:?}",
             r.refused
         );
-
-        // And nothing ELSE is refused: the other 27 hold up.
-        assert_eq!(
-            r.refused.len(),
-            1,
-            "only vm_state should fail: {:?}",
-            r.refused
-        );
-        assert_eq!(r.checks.len(), 27);
+        assert_eq!(r.checks.len(), 28, "all 28 registered checks are declared");
     }
 
     #[test]
-    fn package_cache_is_the_only_label() {
+    fn labels_are_excluded_from_the_denominator() {
         let r = Registry::parse(REAL, "checks.toml").unwrap();
-        let labels: Vec<&str> = r.labels().map(|d| d.id.as_str()).collect();
-        assert_eq!(labels, vec!["package_cache"]);
-        // the denominator excludes it
+        let mut labels: Vec<&str> = r.labels().map(|d| d.id.as_str()).collect();
+        labels.sort();
+        // Both measure truly and never judge: the cache size and the VM count are facts
+        // a human interprets, not verdicts.
+        assert_eq!(labels, vec!["package_cache", "vm_state"]);
         assert_eq!(r.judging().count(), 26);
+        assert_eq!(r.judging().count() + labels.len(), r.checks.len());
     }
 
     #[test]

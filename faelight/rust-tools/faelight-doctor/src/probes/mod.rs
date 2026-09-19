@@ -8,6 +8,7 @@
 //! "I could not look".
 
 pub mod git;
+pub mod runtime;
 pub mod system;
 
 use crate::measurement::Measurement;
@@ -31,6 +32,10 @@ pub fn run(p: Probe) -> Measurement {
         Probe::BootErrors => system::boot_errors(),
         Probe::GitStatus => git::status(),
         Probe::GitHooks => git::hooks(),
+        Probe::RustToolchain => runtime::rust_toolchain(),
+        Probe::Network => runtime::network(),
+        Probe::VmState => runtime::vm_state(),
+        Probe::BootTime => runtime::boot_time(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
@@ -43,16 +48,12 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::SecurityHardening
         | Probe::SecurityAudit
         | Probe::AliasCoverage
-        | Probe::RustToolchain
         | Probe::ToolInstallation
         | Probe::PathResilience
         | Probe::SchemaValidation
         | Probe::Sandbox
-        | Probe::BootTime
         | Probe::UpdateReadiness
         | Probe::OrphanPackages
-        | Probe::Friday
-        | Probe::Network
-        | Probe::VmState => Measurement::unknown(format!("probe {} is not ported yet", p.as_str())),
+        | Probe::Friday => Measurement::unknown(format!("probe {} is not ported yet", p.as_str())),
     }
 }
