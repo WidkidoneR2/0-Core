@@ -208,6 +208,87 @@ pub fn schema_validation() -> Measurement {
     }
 }
 
+/// Every deployed tool has an alias.
+///
+/// ⚠️ BOTH HALVES OF THIS CHECK USED TO COLLAPSE, IN OPPOSITE DIRECTIONS.
+///
+/// The expectation half returned an empty Vec when the registry could not be read, so nothing
+/// was expected, so nothing could be missing, and the check reported clean -- THE SILENT HALF.
+///
+/// The alias half ended `unwrap_or_default`, turning an unreadable shell config into an EMPTY
+/// alias map, so every expected tool read as missing -- THE LOUD HALF. And the Fail arm that
+/// said "could not read aliases file" was UNREACHABLE, because the function it called could not
+/// return an error. A failure branch that cannot fire is this intent's thesis one layer down.
+///
+/// ⭐ BOTH ARE `unknown` HERE, AND FOR THE SAME REASON: the aliases are not known to be missing,
+/// they are unknown. Reporting Fail would have said twenty-one tools lack aliases when the truth
+/// is that nobody could look.
+pub fn alias_coverage() -> Measurement {
+    let reg = match read_registry() {
+        Ok(r) => r,
+        Err(e) => return Measurement::unknown(format!("cannot say what needs an alias -- {}", e)),
+    };
+    let path = faelight_core::paths::shell_config();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            return Measurement::unknown(format!("could not read {} -- {}", path.display(), e))
+        }
+    };
+
+    // The alias VALUES are what matter: an alias is covered when some alias runs the tool.
+    let values: Vec<String> = text
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.starts_with('#'))
+        .filter_map(|l| l.strip_prefix("alias "))
+        .filter_map(|rest| rest.split_once('='))
+        .map(|(_, target)| {
+            target
+                .trim()
+                .trim_matches('\'')
+                .trim_matches('"')
+                .to_string()
+        })
+        .collect();
+    if values.is_empty() {
+        return Measurement::unknown(format!("no aliases found in {}", path.display()));
+    }
+
+    let expected: Vec<&str> = reg
+        .tool
+        .iter()
+        .filter(|t| {
+            t.deployable
+                && !t.retired
+                && (t.expected_usage == "high" || t.expected_usage == "medium")
+        })
+        .map(|t| t.name.as_str())
+        // A library crate and a background service are not things anyone types.
+        .filter(|n| *n != "faelight-core" && *n != "faelight-daemon")
+        .collect();
+
+    let missing: Vec<&str> = expected
+        .iter()
+        .copied()
+        .filter(|tool| !values.iter().any(|v| v.contains(tool)))
+        .collect();
+
+    if missing.is_empty() {
+        Measurement::pass(format!(
+            "all {} tools have aliases ({} aliases total)",
+            expected.len(),
+            values.len()
+        ))
+    } else {
+        Measurement::warn(format!(
+            "{} tools missing aliases: {}",
+            missing.len(),
+            missing.join(", ")
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,6 +313,21 @@ mod tests {
             assert!(
                 !m.message.contains("all 0 "),
                 "a pass over zero tools is the defect, not a result: {}",
+                m.message
+            );
+        }
+    }
+
+    #[test]
+    fn alias_coverage_never_blames_tools_for_its_own_blindness() {
+        // ⭐ THE LOUD HALF. An unreadable shell config once made EVERY tool read as missing.
+        // If this probe cannot read the config it must say so, not accuse the tools.
+        let m = alias_coverage();
+        assert!(!m.message.is_empty());
+        if m.status == Status::Warn {
+            assert!(
+                m.message.contains("missing aliases"),
+                "a warn must be about aliases, not about reading the config: {}",
                 m.message
             );
         }

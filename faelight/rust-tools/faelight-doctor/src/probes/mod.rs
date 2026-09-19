@@ -44,6 +44,7 @@ pub fn run(p: Probe) -> Measurement {
         Probe::ToolInstallation => tools::tool_installation(),
         Probe::PathResilience => tools::path_resilience(),
         Probe::SchemaValidation => tools::schema_validation(),
+        Probe::AliasCoverage => tools::alias_coverage(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::ServicesRunning
@@ -52,7 +53,6 @@ pub fn run(p: Probe) -> Measurement {
         | Probe::DeadwoodScan
         | Probe::SecurityHardening
         | Probe::SecurityAudit
-        | Probe::AliasCoverage
         | Probe::Sandbox
         | Probe::UpdateReadiness
         | Probe::OrphanPackages
