@@ -23,7 +23,7 @@ are NOT one thing, and treating them as one is how a cleanup breaks something.
     checks.rs:222    "Add the package to configuration.nix, or: nix profile install nixpkgs#<pkg>"
     checks.rs:811    "Enable firewall: networking.firewall.enable = true in configuration.nix"
     checks.rs:968    "Run: update  (or: sudo nixos-rebuild switch)"
-    friday/mod.rs    advice naming nixos-rebuild, nix-env, nix-store, configuration.nix, flake.nix
+    (friday/mod.rs   RECLASSIFIED 2026-09-19 -- see below. It is a TRANSLATION TABLE, group 3.)
     toolgen.rs:375   GENERATES documentation saying "deploy # sudo nixos-rebuild switch --flake"
 ```
 
@@ -63,6 +63,12 @@ THESE ARE THE RECORD OF WHAT WAS FIXED AND WHY. Deleting them destroys the reaso
 the current code. ⭐ AND THE CENSUS GENERATOR IS THE OPPOSITE OF A LEFTOVER: it TESTS FOR THE
 ABSENCE of these assumptions. Its own comment says "Naming a tool is not assuming a capability."
 It is the guard, not the thing guarded.
+
+FRIDAY'S TRANSLATION TABLE BELONGS HERE TOO, RECLASSIFIED 2026-09-19 AFTER READING IT. The first
+census called it group 1 on the strength of a grep. It is `TRANSLATIONS` in sync_knowledge_meta:
+pairs whose PRIMARY is the Arch command and whose second element is the NixOS equivalent, so
+Friday can answer what the Nix version of a pacman command was. Deleting the NixOS half would
+remove the ability to relate the two systems, which is knowledge rather than residue.
 
 ## The Solution
 
