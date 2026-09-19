@@ -52,13 +52,12 @@ pub fn run(p: Probe) -> Measurement {
         Probe::ServicesRunning => forest::services_running(),
         Probe::IntentLedger => forest::intent_ledger(),
         Probe::Friday => forest::friday(),
+        Probe::RustDocs => forest::rust_docs(),
+        Probe::DeadwoodScan => forest::deadwood_scan(),
+        Probe::OrphanPackages => forest::orphan_packages(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
-        Probe::RustDocs
-        | Probe::SecurityHardening
-        | Probe::UpdateReadiness
-        | Probe::OrphanPackages
-        | Probe::DeadwoodScan => {
+        Probe::SecurityHardening | Probe::UpdateReadiness => {
             Measurement::unknown(format!("probe {} is not ported yet", p.as_str()))
         }
     }

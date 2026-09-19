@@ -177,10 +177,139 @@ pub fn friday() -> Measurement {
     }
 }
 
+/// `cargo doc` emits no warnings.
+///
+/// Bounded at 3 seconds by a worker thread, so a stuck or locked cargo yields `unknown` rather
+/// than hanging the doctor. Warnings here are cosmetic, so they warn and never fail.
+///
+/// ⭐ PARSE RUSTDOC'S OWN SUMMARY LINE, DO NOT COUNT "warning:" LINES. The summary is itself a
+/// line containing the word, so counting would double-count -- confirmed by INT-151 calibration.
+pub fn rust_docs() -> Measurement {
+    let manifest = faelight_core::paths::core_root_string() + "/faelight/engine/Cargo.toml";
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = Command::new("cargo")
+            .args([
+                "doc",
+                "-p",
+                "core",
+                "--no-deps",
+                "--manifest-path",
+                &manifest,
+            ])
+            .output();
+        let _ = tx.send(out);
+    });
+    match rx.recv_timeout(std::time::Duration::from_secs(3)) {
+        Ok(Ok(output)) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            // No summary line means clean docs: rustdoc emits none when there is nothing to say.
+            let warns: u32 = stderr
+                .lines()
+                .find(|l| l.contains("generated") && l.contains("warning"))
+                .and_then(|l| l.split_whitespace().find_map(|w| w.parse::<u32>().ok()))
+                .unwrap_or(0);
+            if warns == 0 {
+                Measurement::pass("cargo doc clean, 0 warnings")
+            } else {
+                Measurement::warn(format!("{} rustdoc warning(s)", warns))
+            }
+        }
+        // Timed out, or cargo could not be spawned. Neither is a statement about the docs.
+        _ => Measurement::unknown("docs not checked (cargo busy or unavailable)"),
+    }
+}
+
+/// Structural orphans in the tree, as `faelight-deadwood` counts them.
+///
+/// ⚠️ A NON-NUMERIC FIELD MEANS THE CHECK COULD NOT RUN. deadwood emits `?` where it could not
+/// look, and `unwrap_or(0)` read that as zero findings -- the exact collapse INT-192 ended.
+/// PROVEN 2026-09-04: moving config.nsh aside gave `?|?|0|0` and the doctor called it healthy.
+pub fn deadwood_scan() -> Measurement {
+    let out = match Command::new("faelight-deadwood").arg("--summary").output() {
+        Ok(o) if o.status.success() => o,
+        _ => {
+            return Measurement::unknown(
+                "faelight-deadwood did not run -- hygiene is unmeasured, not clean",
+            )
+        }
+    };
+    let line = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let parts: Vec<&str> = line.split('|').collect();
+    let field = |n: usize| -> Option<usize> { parts.get(n).and_then(|s| s.parse::<usize>().ok()) };
+    let (total, registry) = match (field(0), field(3)) {
+        (Some(t), Some(r)) => (t, r),
+        _ => {
+            return Measurement::unknown(format!(
+                "deadwood could not complete every check: {}",
+                line
+            ))
+        }
+    };
+    if registry > 0 {
+        Measurement::warn(format!(
+            "{} orphans flagged ({} structural: {} registry)",
+            total, registry, registry
+        ))
+    } else {
+        Measurement::pass(format!(
+            "{} low-priority items (stale .baks); no structural orphans",
+            total
+        ))
+    }
+}
+
+/// Packages pacman considers orphaned.
+pub fn orphan_packages() -> Measurement {
+    let out = match Command::new("pacman").arg("-Qdtq").output() {
+        Ok(o) => o,
+        Err(e) => return Measurement::unknown(format!("could not run pacman -- {}", e)),
+    };
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let names: Vec<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if names.is_empty() {
+        Measurement::pass("no orphaned packages")
+    } else {
+        Measurement::warn(format!(
+            "{} orphaned package(s): {}",
+            names.len(),
+            names.iter().take(5).cloned().collect::<Vec<_>>().join(", ")
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::status::Status;
+
+    #[test]
+    fn deadwood_never_reads_a_question_mark_as_zero() {
+        // ⭐ THE COLLAPSE INT-192 ENDED. A `?` field is "could not look", not "found none".
+        let m = deadwood_scan();
+        assert!(!m.message.is_empty());
+        if m.status == Status::Pass {
+            assert!(
+                !m.message.contains('?'),
+                "a question mark is not a count: {}",
+                m.message
+            );
+        }
+    }
+
+    #[test]
+    fn orphan_packages_reports_or_says_it_could_not() {
+        let m = orphan_packages();
+        assert!(!m.message.is_empty());
+        assert!(matches!(
+            m.status,
+            Status::Pass | Status::Warn | Status::Unknown
+        ));
+    }
 
     #[test]
     fn services_never_reports_zero_of_zero_as_healthy() {
