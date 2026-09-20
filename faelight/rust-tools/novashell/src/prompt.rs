@@ -64,14 +64,12 @@ const C_DIR_DOTFILES: (u8, u8, u8) = (255, 130, 168); // dotfiles/: rose (neon70
 const C_DIR_HOME: (u8, u8, u8) = (40, 242, 216); // elsewhere in ~: aqua (neon70)
 const C_DIR_SYSTEM: (u8, u8, u8) = (252, 213, 78); // system: gold (neon70)
 const C_DIR_ROOT: (u8, u8, u8) = (200, 90, 110); // outside home entirely: dim rose
-const C_DEVSHELL: (u8, u8, u8) = (40, 242, 216); // devshell: aqua (neon70)
 
 // ── Powerline (INT-103) ─────────────────────────────────────────────────────
 // Nerd Font glyphs (JetBrainsMono NF confirmed present)
 const PL_ARROW: &str = "\u{e0b0}"; // right-filled arrow (segment flow)
 const PL_FOLDER: &str = "\u{e5ff}"; // folder
 const PL_GIT: &str = "\u{e0a0}"; // git branch
-const PL_NIX: &str = "\u{f313}"; // nix snowflake-ish
 const DARK: (u8, u8, u8) = (12, 20, 15); // near-black-green text on candy bg
 
 struct Seg {
@@ -165,9 +163,6 @@ fn cwd_color() -> (u8, u8, u8) {
     if Path::new("Cargo.toml").exists() {
         return C_DIR_RUST; // a Rust project anywhere
     }
-    if Path::new("flake.nix").exists() {
-        return C_DIR_NIX; // a Nix project anywhere
-    }
     // System dirs -- careful
     if cwd.starts_with("/etc")
         || cwd.starts_with("/nix")
@@ -204,7 +199,7 @@ fn health_str(health: i64) -> String {
     }
 }
 
-fn git_info() -> Option<(String, bool, bool)> {
+fn git_info() -> Option<(String, bool)> {
     let cwd = std::env::current_dir().ok()?;
     let mut dir = cwd.as_path();
     let git_root = loop {
@@ -226,28 +221,9 @@ fn git_info() -> Option<(String, bool, bool)> {
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
         .unwrap_or_default();
     let dirty = !porcelain.is_empty();
-    let flake_dirty = porcelain.lines().any(|l| {
-        let path = l.get(3..).unwrap_or("");
-        path == "flake.nix"
-            || path == "flake.lock"
-            || path.ends_with("/flake.nix")
-            || path.ends_with("/flake.lock")
-    });
-    Some((branch, dirty, flake_dirty))
-}
-
-fn flake_info() -> Option<String> {
-    let cwd = std::env::current_dir().ok()?;
-    let mut dir = cwd.as_path();
-    let flake_root = loop {
-        if dir.join("flake.nix").exists() {
-            break dir;
-        }
-        dir = dir.parent()?;
-    };
-    flake_root
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+    // The third element was flake_dirty: whether flake.nix or flake.lock were among the
+    // uncommitted paths. A git feature keyed on filenames that cannot exist here.
+    Some((branch, dirty))
 }
 
 fn system_drift() -> Option<bool> {
@@ -325,35 +301,23 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         bg: dir_bg,
         fg: DARK,
     });
-    if let Some((ref b, dirty, flake_dirty)) = git {
+    if let Some((ref b, dirty)) = git {
         let star = if dirty { "*" } else { "" };
         let bg = if dirty {
             C_BRANCH_DIRTY
         } else {
             C_BRANCH_CLEAN
         };
-        let fx = if flake_dirty {
-            format!(" {}", PL_NIX)
-        } else {
-            String::new()
-        };
         segs.push(Seg {
-            text: format!("{} {}{}{}", PL_GIT, b, star, fx),
+            text: format!("{} {}{}", PL_GIT, b, star),
             bg,
             fg: DARK,
         });
     }
-    let devshell = std::env::var("name")
-        .ok()
-        .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
-        .filter(|n| !n.is_empty() && n != "0-core");
-    if let Some(d) = devshell {
-        segs.push(Seg {
-            text: format!("{} {}", PL_NIX, d),
-            bg: C_DEVSHELL,
-            fg: DARK,
-        });
-    }
+    // ⚠️ A SECOND DEVSHELL SEGMENT WAS HERE, removed 2026-09-20 (INT-255). It read the same
+    // $name variable, stripped the same -env suffix, and drew the same snowflake as the block
+    // already removed from the other theme -- TWO COPIES OF ONE IDEA, each unaware of the
+    // other. Neither could ever fire: $name is empty on this machine.
     let mut line1 = format!("  {}", powerline(&segs));
     // INT-153: debug-build marker -- prefix. cfg!(debug_assertions) is
     // compile-time true in debug, false in release; both blocks vanish in release.
@@ -539,33 +503,22 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     } else {
         fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "❯")
     };
-    let devshell_name = std::env::var("name")
-        .ok()
-        .map(|n| n.strip_suffix("-env").unwrap_or(n.as_str()).to_string())
-        .filter(|n| !n.is_empty());
-    let flake = flake_info();
-    let label = match (&flake, &devshell_name) {
-        (Some(f), Some(d)) => Some(format!("{}·{}", f, d)),
-        (Some(f), None) => Some(f.clone()),
-        (None, Some(d)) => Some(d.clone()),
-        (None, None) => None,
-    };
-    // ⚠️ TWO DIFFERENT FACTS, AND THEY WERE PRINTING THE SAME GLYPH.
-    //   IN_NIX_SHELL  -- a Nix environment IS LOADED. The snowflake is earned.
-    //   DIRENV_DIR    -- direnv KNOWS ABOUT a directory with an .envrc. That is all it means:
-    //                    direnv sets it on discovery, before and regardless of whether the file
-    //                    was allowed or the environment loaded. On a machine with no Nix and an
-    //                    .envrc reading `use flake`, this was set while nothing had loaded --
-    //                    so the prompt claimed an environment that did not exist.
-    // A snowflake means Nix. direnv is not Nix, and knowing about a file is not loading it.
-    let nix_indicator = if std::env::var("IN_NIX_SHELL").is_ok() {
-        let _ = &label;
-        format!("{} ", fc_rl(54, 224, 208, "❄"))
-    } else {
-        String::new()
-    };
+    // ⚠️ THE NIX SEGMENT WAS REMOVED HERE, 2026-09-20 (INT-255): flake_info(), devshell_name,
+    // the label joining them, and the snowflake indicator. Measured: name empty,
+    // IN_NIX_SHELL empty. Nothing on this machine can set either.
+    //
+    // ⭐ THE REASONING IS KEPT, because it was right and it is the kind of thing that gets
+    // re-broken. TWO DIFFERENT FACTS WERE PRINTING THE SAME GLYPH:
+    //   IN_NIX_SHELL  a Nix environment IS LOADED -- the snowflake was earned
+    //   DIRENV_DIR    direnv KNOWS ABOUT a directory with an .envrc. It is set on discovery,
+    //                 before and regardless of whether the file was allowed or loaded.
+    // On a machine with no Nix and an .envrc reading use flake, DIRENV_DIR was set while
+    // nothing had loaded, and the prompt claimed an environment that did not exist.
+    // KNOWING ABOUT A FILE IS NOT LOADING IT -- true of any environment manager.
+    //
+    // DIRENV_DIR is still set here today. The trap is live; only the glyph is gone.
     let raw = match theme.as_str() {
-        "minimal" => format!("  {}{} ", nix_indicator, caret),
+        "minimal" => format!("  {} ", caret),
         "classic" => {
             let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
             let host =
@@ -573,16 +526,14 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
             let host = host.trim();
             let cwd = cwd_str(30);
             format!(
-                "  {}{}@{} {} $ ",
-                nix_indicator,
+                "  {}@{} {} $ ",
                 fc_rl(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, &user),
                 fc_rl(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, host),
                 fc_rl(C_CWD.0, C_CWD.1, C_CWD.2, &cwd)
             )
         }
         _ => format!(
-            "  {}{}{}  ",
-            nix_indicator,
+            "  {}{}  ",
             fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "nsh"),
             caret
         ),
