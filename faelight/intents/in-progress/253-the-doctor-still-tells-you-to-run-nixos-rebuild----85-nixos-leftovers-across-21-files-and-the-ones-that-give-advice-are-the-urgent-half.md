@@ -96,7 +96,16 @@ argument -- the leftovers do not block the flip and never did.
       the output, not by reading the template.
 - [ ] Group 2 branches are removed and the code still compiles and passes `nsh-test`, with the
       count of `/etc/NIXOS` tests in live code at ZERO.
-- [ ] `domains/nix/` is NOT deleted by this intent. Its fate is recorded as an open decision with
+- [x] `domains/nix/` is NOT deleted by this intent. MEASURED AND RECORDED 2026-09-19.
+      <!-- 399 lines, ONE public function (`inspect`), ONE caller: dispatcher.rs:246 wires it
+      to `core nix inspect <option>`. The command is LIVE and it degrades honestly -- run here
+      it prints "could not resolve option" and invents nothing, so it is NOT group 1.
+      It is dead weight that behaves, which is why deleting it is a decision rather than a
+      cleanup: removing the domain also removes a dispatcher command, and that belongs with the
+      domain-split work where every domain gets the same question asked.
+      ONE DEFECT NOTED IN PASSING, NOT FIXED HERE: it exits 0 having failed to resolve. A
+      command that could not do its job reporting success is the same shape as a check that
+      passes without looking -- the defect INT-222 exists for, in a different file. --> Its fate is recorded as an open decision with
       the domain-split work, and the reason is stated.
 - [ ] GROUP 3 IS UNTOUCHED AND THE LIST IS WRITTEN DOWN, so a later sweep does not "finish the
       job" by deleting the history. The census generator especially: it is the guard.
