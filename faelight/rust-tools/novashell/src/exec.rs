@@ -89,7 +89,7 @@ pub fn next_execution_id() -> u64 {
 /// The value is the EXECUTABLE PATH, which is what engine.rs already writes to the instrument
 /// log for exactly this purpose. INT-096 avoids current_exe() for build identity because the
 /// deployed binary is makeWrapper-wrapped, but for WHICH BINARY IS RUNNING the wrapper path is
-/// the honest answer and it differs per rebuild -- target/debug/... versus /nix/store/... is
+/// the honest answer and it differs per rebuild -- target/debug/... versus ~/.local/bin/... is
 /// unmistakable, which is the entire point.
 ///
 /// ONE OWNER: the instrument log calls this too, so the log and the exported variable cannot
