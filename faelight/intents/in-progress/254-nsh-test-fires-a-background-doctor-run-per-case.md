@@ -109,17 +109,51 @@ spawns the refresh with `.spawn()` and never waits on it, so each finished child
 its parent exits. Harmless in a login shell that lives for hours; less so when the suite creates
 a hundred short-lived parents.
 
+## THE PERFORMANCE PREMISE WAS WRONG -- measured 2026-09-20
+
+This intent is titled "fires a background doctor run per case" and its body estimated 196 runs
+at ~450ms. BOTH NUMBERS WERE MINE, NOT MEASURED. The real figures:
+
+```text
+    suite wall clock        32.1s
+    suite user + sys        8.6s
+    one real doctor run     963ms
+    one fake-HOME run       5ms   -- the check set fails to load instantly and it
+                                     returns a single Unknown without running a probe
+    spawn sites in source   133
+```
+
+★ 133 REAL DOCTOR RUNS WOULD COST ~128 SECONDS OF CPU. The suite spends 8.6. The runs are not
+happening at that rate: the fake-HOME ones are nearly free, and the INT-124 freshness check
+throttles the rest -- once one run writes an event, the others in that session see it as fresh
+and skip.
+
+⚠️ SO THE COST THIS INTENT WAS FILED TO REMOVE LARGELY DOES NOT EXIST. The notification was
+real, was measured, and is fixed. The performance half was an estimate dressed as a finding,
+and it is recorded here as wrong rather than quietly dropped.
+
 ## Success Criteria
 
-- [ ] The background refresh does not run once per test case. **Proven by counting:** a full
+- ⏸ The background refresh does not run once per test case -- deferred: THE PREMISE WAS
+      WRONG. Measured 2026-09-20, the suite spends 8.6s of CPU where 133 real doctor runs
+      would cost ~128s. The fake-HOME spawns cost 5ms and the freshness check throttles the
+      rest. There is no cost here to remove -- approved by: christian 2026-09-20
+      <!-- original gate text: **Proven by counting:** a full
       nsh-test produces at most ONE doctor run, and the number is measured before and after.
-- [ ] The time it costs is measured first, so the fix has a number to beat rather than a feeling.
-- [ ] ⭐ THE NOTIFICATION IS TRACED TO ITS ACTUAL CAUSE, not to a plausible one. Seven theories
+- [x] The time it costs is measured first. DONE, and the measurement RETIRED the fix: 32.1s
+      wall, 8.6s CPU, 963ms per real run, 5ms per fake-HOME run, 133 spawn sites. The number
+      to beat turned out not to need beating.
+- [x] ⭐ THE NOTIFICATION IS TRACED TO ITS ACTUAL CAUSE. The eighth was demonstrated, not
+      argued: nsh-test case INT-230 fakes HOME, the spawned shell refreshes health, that
+      doctor cannot find checks.toml, the load error is correctly critical, verdict is Red.
+      Reproduced exactly with HOME=/tmp/probe-home, notification appearing on cue.
+      <!-- Seven theories
       were ruled out by measurement on 2026-09-20; the eighth must be demonstrated, not argued.
-- [ ] Whatever the fix, a REAL stale health event still refreshes -- INT-124 exists because a
+- [x] Whatever the fix, a REAL stale health event still refreshes -- INT-124 exists because a
       stale banner number is a lie, and INT-176 because a 700ms block at the prompt is felt.
       Neither is undone by this.
-- [ ] nsh-test still 196/196, and the suite still exercises the shell it is testing.
+- [x] nsh-test still 196/196 against the pre-push gate, which builds and tests the code
+      being sent rather than the deployed shell.
 
 ## Relationship
 
