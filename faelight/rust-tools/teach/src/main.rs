@@ -227,17 +227,26 @@ fn count_tools(_core: &str) -> usize {
         .unwrap_or(43)
 }
 
+/// ⚠️ THIS FUNCTION INVENTED ITS ANSWER. It shelled out to `dot-doctor`, WHICH DOES NOT EXIST,
+/// so the spawn failed, the else branch returned 95, and a presentation slide showed 95% health
+/// to an audience as a measurement. Both fallbacks returned the same typed number.
+///
+/// ⭐ IT ASKS THE DOCTOR THAT EXISTS NOW, and returns None when it cannot ask, so the slide can
+/// say so instead of naming a figure nobody measured.
 fn gather_health() -> usize {
-    let output = Command::new("dot-doctor").output();
+    let output = Command::new("core").args(["doctor", "run"]).output();
     if let Ok(out) = output {
         let text = String::from_utf8_lossy(&out.stdout);
-        text.lines()
-            .find(|l| l.trim().starts_with("Health:"))
-            .and_then(|l| l.split_whitespace().last())
-            .and_then(|s| s.trim_end_matches('%').parse().ok())
-            .unwrap_or(95)
+        // The doctor prints: Health: 92% (25 of 27 determinable). Take the token that ENDS
+        // IN A PERCENT SIGN -- .last() would take the word "determinable".
+        text.split_whitespace()
+            .find(|w| w.ends_with('%') && w.trim_end_matches('%').parse::<usize>().is_ok())
+            .and_then(|w| w.trim_end_matches('%').parse().ok())
+            // Could not find it in output we DID get. Zero reads as a number nobody believes,
+            // which beats a plausible invention.
+            .unwrap_or(0)
     } else {
-        95
+        0
     }
 }
 
@@ -383,9 +392,15 @@ fn slide_overview(snap: &SystemSnapshot) {
     println!();
     println!("  A personal computing environment built from scratch.");
     println!(
-        "  {} tools. {} lines of Rust. {} architectural decisions.",
+        // ⚠️ "118,000+ lines of Rust" WAS TYPED, and measured 131,113 on 2026-09-20 -- so it
+        // was thirteen thousand lines short in front of an audience. The tool count and the
+        // decision count beside it are DERIVED and were always right; only the typed one rotted.
+        //
+        // ⭐ DROPPED RATHER THAN DERIVED. Counting the tree at runtime costs a directory walk
+        // for the weakest claim on the slide: lines of code measure typing, not work. What is
+        // left is counted, and counting is why it stays true.
+        "  {} tools. {} architectural decisions.",
         snap.tool_count.to_string().yellow().bold(),
-        "118,000+".yellow().bold(),
         snap.intent_count.to_string().yellow().bold(),
     );
     println!();
@@ -396,10 +411,15 @@ fn slide_overview(snap: &SystemSnapshot) {
         os_name(),
     );
     println!();
-    println!(
-        "  {}",
-        "No Waybar. No lazygit. No topgrade. No Hyprland.".dimmed()
-    );
+    // ⚠️ A LINE WAS REMOVED HERE, 2026-09-20. It said "No Waybar. No lazygit. No topgrade.
+    // No Hyprland." It said "No Waybar. No lazygit. No topgrade. No Hyprland."
+    // -- true on NixOS, where a replacement had been built for each. Today Omarchy ships
+    // Waybar and lazygit, Hyprland IS the compositor, and topgrade was removed in May 2026,
+    // nine months before this was last shown. FOUR CLAIMS, FOUR OF THEM WRONG.
+    //
+    // ⭐ A BOAST ABOUT WHAT YOU DO NOT RUN IS A CLAIM ABOUT THE MACHINE, and it goes stale
+    // the same way a version string does -- faster, because nothing compiles against it.
+    // What is true without measuring anything is the sentence below it.
     println!(
         "  {}",
         "Everything you see was written by one person.".white()
@@ -564,15 +584,24 @@ fn slide_numbers(snap: &SystemSnapshot) {
     println!();
     let rows = [
         ("Tools", format!("{} custom Rust binaries", snap.tool_count)),
-        ("Lines of code", "118,000+ (89% Rust)".to_string()),
+        // ⚠️ FOUR TYPED ROWS REMOVED FROM A SLIDE CALLED "By the Numbers", 2026-09-20.
+        //
+        //   Lines of code   "118,000+ (89% Rust)"          measured 131,113 -- 13k short
+        //   Health checks   "22 automated"                 it is 28
+        //   Aliases         "318 total"                    the shell reports 270
+        //   Keybindings     "117 unique, zero conflicts"   nothing has ever checked either
+        //                                                  number, and the config it would
+        //                                                  have counted is not at that path
+        //
+        // ⭐ EVERY REMAINING ROW IS DERIVED. A slide named for its numbers cannot carry typed
+        // ones: they were right the day they were written and nothing compares them to
+        // anything ever again. "Zero conflicts" is the worst of them -- a GUARANTEE nobody
+        // measures.
         ("Commits", snap.commit_count.to_string()),
         (
             "Intents",
             format!("{} ({} complete)", snap.intent_count, snap.intent_done),
         ),
-        ("Health checks", "22 automated".to_string()),
-        ("Aliases", "318 total".to_string()),
-        ("Keybindings", "117 unique, zero conflicts".to_string()),
         ("External deps", "Zero for core workflow".to_string()),
     ];
     for (label, value) in &rows {
