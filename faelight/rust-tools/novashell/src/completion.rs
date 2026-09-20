@@ -96,7 +96,8 @@ const COMMANDS: &[&str] = &[
     "exit",
     "quit",
     // Forest core
-    "deploy",
+    // `deploy` was the Nix rebuild verb and is gone; ship builds the release and deploys.
+    "ship",
     "cistart",
     "cicomplete",
     "intent",
@@ -474,73 +475,17 @@ impl<'a> ForestHelper<'a> {
                 }
             }
         }
-        // rebuild <TAB> -- complete with flake host names (INT-040 fix: leaf name, no dup)
-        if let Some(rest) = line.strip_prefix("rebuild ") {
-            let partial = rest.split_whitespace().last().unwrap_or("");
-            let home = std::env::var("HOME").unwrap_or_default();
-            let flake = format!("{}/0-core/flake.nix", home);
-            let mut hosts: Vec<String> = Vec::new();
-            if let Ok(src) = std::fs::read_to_string(&flake) {
-                let mut in_nixos = false;
-                for l in src.lines() {
-                    let t = l.trim();
-                    if t.contains("nixosConfigurations") && t.contains('{') {
-                        in_nixos = true;
-                    }
-                    if in_nixos && t.contains("= nixpkgs.lib.nixosSystem") {
-                        if let Some(tok) = t.split_whitespace().next() {
-                            let host = tok.rsplit('.').next().unwrap_or(tok);
-                            if !host.is_empty() && (partial.is_empty() || host.starts_with(partial))
-                            {
-                                hosts.push(host.to_string());
-                            }
-                        }
-                    }
-                    if in_nixos && t == "};" {
-                        in_nixos = false;
-                    }
-                }
-            }
-            hosts.sort();
-            hosts.dedup();
-            if !hosts.is_empty() {
-                let start = line.len() - partial.len();
-                return (start, hosts);
-            }
-        }
-        // nix develop <TAB> -- complete with devShell + package names (INT-040)
-        if let Some(rest) = line.strip_prefix("nix develop ") {
-            let partial = rest.split_whitespace().last().unwrap_or("");
-            let home = std::env::var("HOME").unwrap_or_default();
-            let flake = format!("{}/0-core/flake.nix", home);
-            let mut names: Vec<String> = Vec::new();
-            if let Ok(fsrc) = std::fs::read_to_string(&flake) {
-                for l in fsrc.lines() {
-                    let t = l.trim();
-                    if let Some(after) = t.strip_prefix("devShells.${system}.") {
-                        let name = after
-                            .split(|c: char| c == ' ' || c == '=')
-                            .next()
-                            .unwrap_or("");
-                        if !name.is_empty() {
-                            names.push(name.to_string());
-                        }
-                    }
-                    if t.contains("= pkgs.rustPlatform.buildRustPackage") {
-                        if let Some(name) = t.split_whitespace().next() {
-                            names.push(name.to_string());
-                        }
-                    }
-                }
-            }
-            names.retain(|n| partial.is_empty() || n.starts_with(partial));
-            names.sort();
-            names.dedup();
-            if !names.is_empty() {
-                let start = line.len() - partial.len();
-                return (start, names);
-            }
-        }
+        // ⚠️ TWO COMPLETION BLOCKS WERE REMOVED HERE, 2026-09-20 (INT-255).
+        //
+        //   rebuild <TAB>       completed host names by PARSING ~/0-core/flake.nix for
+        //                       nixosConfigurations and nixpkgs.lib.nixosSystem
+        //   nix develop <TAB>   completed devShell names from the same file
+        //
+        // ⭐ THREE LAYERS OF ABSENT. Neither command exists -- rebuild belongs to the
+        // nixos-rebuild cluster that went with the OS, and nix is not installed -- and the
+        // file they parsed has not existed since 2026-08-28. Tab completion that offers a
+        // command you cannot run, filled from a file that is not there, teaches the reader
+        // to distrust the completion rather than the shell.
         // pkg-search <TAB> -- complete package names from the last `pkg-search` result
         // (INT-134, Lane 2). Reads /tmp/fsh-pkg-search.json ONLY -- never the network, so no
         // TAB stall. Empty until you have run `pkg-search <term>` at least once; then falls
@@ -853,7 +798,7 @@ fn binary_completions(partial: &str) -> Vec<String> {
 
 fn cmd_description(cmd: &str) -> &'static str {
     match cmd {
-        "deploy" => "build + deploy a forest tool",
+        "ship" => "build the release and deploy forest tools",
         "cistart" => "start an intent",
         "cicomplete" => "complete an intent",
         "intent" => "manage the intent ledger",
@@ -936,13 +881,10 @@ fn is_forest_command(cmd: &str) -> bool {
         "cicomplete",
         "ds",
         "dc",
-        "deploy",
-        "rebuild",
-        "rebuild-safe",
-        "rebuild-dry",
-        "rebuild-check",
-        "rollback",
-        "update-flake",
+        // ⚠️ SEVEN DEAD COMMAND NAMES REMOVED HERE, 2026-09-20 (INT-255): deploy, rebuild,
+        // rebuild-safe, rebuild-dry, rebuild-check, rollback, update-flake. Every one wrapped
+        // nixos-rebuild or operated on generations; none exists as a binary. INT-222
+        // annotated the same cluster. `ship` is the deploy verb here.
         "friday",
         "intent",
         "intents",
@@ -1009,14 +951,11 @@ fn is_known_command(cmd: &str) -> bool {
         "cicomplete",
         "dc",
         "ds",
-        "deploy",
+        // ⚠️ SEVEN DEAD COMMAND NAMES REMOVED HERE, 2026-09-20 (INT-255): deploy, rebuild,
+        // rebuild-safe, rebuild-dry, rebuild-check, rollback, update-flake. Every one wrapped
+        // nixos-rebuild or operated on generations; none exists as a binary. INT-222
+        // annotated the same cluster. `ship` is the deploy verb here.
         "d",
-        "rebuild",
-        "rebuild-safe",
-        "rebuild-dry",
-        "rebuild-check",
-        "rollback",
-        "update-flake",
         "friday",
         "intent",
         "intents",
