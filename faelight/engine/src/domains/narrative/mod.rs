@@ -38,8 +38,9 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter I — Identity".bright_white().bold());
     println!("  │");
     println!(
-        "  │  Zero Core {} runs on NixOS 26.05 (Yarara),",
-        version.bright_green()
+        "  │  Zero Core {} runs on {},",
+        version.bright_green(),
+        crate::domains::bootstrap::os_name()
     );
     println!("  │  entirely in Rust by a single developer.");
     println!("  │  Nothing runs without explicit human authorization.");

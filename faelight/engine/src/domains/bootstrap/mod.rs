@@ -31,7 +31,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
 
     // 1. System requirements
     println!("  │  {}", "① System Requirements".bright_white().bold());
-    println!("  │    OS:      NixOS 26.05 (Yarara)");
+    println!("  │    OS:      {}", os_name());
     println!("  │    Shell:   bash + nsh");
     println!("  │    Rust:    {}", get_rust_version());
 
@@ -333,6 +333,29 @@ fn get_commit_count(core_root: &str) -> usize {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0)
+}
+
+/// The operating system, READ rather than typed.
+///
+/// This line said NixOS 26.05 (Yarara) until 2026-09-20, twenty-five days after the machine
+/// stopped being NixOS -- in the SYSTEM REQUIREMENTS of a rebuild guide, where a wrong answer
+/// sends someone to install the wrong operating system.
+///
+/// A TYPED FACT ABOUT THE MACHINE GOES STALE THE DAY THE MACHINE CHANGES, and nothing notices,
+/// because nothing compares it to anything. /etc/os-release is standard and every distribution
+/// ships it, so this is true here and true on the next machine. get_rust_version() beside it
+/// already worked this way; the OS never got the same treatment.
+pub(crate) fn os_name() -> String {
+    let text = match std::fs::read_to_string("/etc/os-release") {
+        Ok(t) => t,
+        Err(_) => return "unknown (could not read /etc/os-release)".to_string(),
+    };
+    for line in text.lines() {
+        if let Some(v) = line.strip_prefix("PRETTY_NAME=") {
+            return v.trim_matches(0x22 as char).to_string();
+        }
+    }
+    "unknown (/etc/os-release names no PRETTY_NAME)".to_string()
 }
 
 fn read_registry_tools(_core_root: &str) -> Vec<String> {
