@@ -3,7 +3,7 @@ id: 254
 date: 2026-09-20
 type: future
 title: "nsh-test fires a background doctor run per case"
-status: in-progress
+status: complete
 tags: [nsh-test, notification, marko, doctor]
 ---
 
