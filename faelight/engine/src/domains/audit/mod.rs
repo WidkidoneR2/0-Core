@@ -756,7 +756,7 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
     );
     if old_count > 0 {
         println!(
-            "  {} {} deferrals older than 30 days -- review before NixOS migration",
+            "  {} {} deferrals older than 30 days -- review them",
             "⚠️".normal(),
             old_count.to_string().bright_red()
         );

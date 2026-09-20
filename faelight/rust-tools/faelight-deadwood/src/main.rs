@@ -256,14 +256,10 @@ const BUILTINS: &[&str] = &[
     "cicomplete",
     "dc",
     "ds",
-    "deploy",
     "d",
-    "rebuild",
-    "rebuild-safe",
-    "rebuild-dry",
-    "rebuild-check",
-    "rollback",
-    "update-flake",
+    // ⚠️ SEVEN DEAD NAMES REMOVED, 2026-09-20 (INT-255): deploy, rebuild, rebuild-safe,
+    // rebuild-dry, rebuild-check, rollback, update-flake. Every one wrapped nixos-rebuild.
+    // THIS IS THE THIRD COPY OF THIS LIST -- two in novashell/completion.rs and this one.
     "friday",
     "intent",
     "intents",

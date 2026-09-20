@@ -257,7 +257,10 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    println!("  │  💡 NixOS reproduces state.");
+    // The comparator was "NixOS reproduces state." -- a live contrast when the machine
+    // ran it. THE POINT SURVIVES WITHOUT IT: reproducing state is the ordinary claim any
+    // configuration system makes, and reproducing the REASONING is the one this does not.
+    println!("  │  💡 A configuration reproduces state.");
     println!(
         "  │    Zero Core reproduces state {} reasoning.",
         "AND".bright_green().bold()
