@@ -704,7 +704,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "3.2.12"
+version = "3.2.13"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1455,7 +1455,7 @@ dependencies = [
 
 [[package]]
 name = "friday-chat"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",

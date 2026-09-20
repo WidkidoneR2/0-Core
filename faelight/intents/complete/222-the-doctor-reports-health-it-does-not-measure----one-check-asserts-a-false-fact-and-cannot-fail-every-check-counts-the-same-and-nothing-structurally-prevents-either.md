@@ -3,7 +3,7 @@ id: 222
 date: 2026-08-17
 type: arch
 title: "the doctor reports health it does not measure -- one check asserts a false fact and cannot fail, every check counts the same, and nothing structurally prevents either"
-status: in-progress
+status: complete
 tags: [architecture, rust, design]
 ---
 
@@ -1101,8 +1101,7 @@ beyond routing them through the new engine. INT-102's version bump for nsh-test.
       scripts/ deploy path, `deploy <tool>`, and a 3b link instruction already carried out).
       Auditing each against this machine is INT-253's group 1, whose gate demands every
       replacement be RUN here before it is declared. Recorded there, not absorbed here. -->
-- [~] Generation-count thresholds derive from ESP size and `configurationLimit` rather than typed
-      constants.
+- ⏸ Generation-count thresholds derive from ESP size and configurationLimit -- deferred: the subject is gone, ESP generations and configurationLimit are NixOS concepts and there is nothing left to count -- approved by: christian 2026-09-20
       <!-- DEAD 2026-09-04. ESP size and configurationLimit are NixOS concepts and there
       are no generations to count. The subject went with the migration on 2026-08-28,
       the same way INT-129's adapt-or-retire options did. Kept as history. -->
@@ -1126,8 +1125,7 @@ beyond routing them through the new engine. INT-102's version bump for nsh-test.
       TODAY: 27 checks. 2026-08-17: 34. The difference is checks deleted with their
       subjects at the Omarchy migration -- stow, mango, the NixOS theme packages, and
       check_dotmeta itself. -->
-- [~] `rebuild-safe` is reviewed against the new scoring and it is stated -- with a reason --
-      whether it gates on the percentage or on critical-tier status.
+- ⏸ rebuild-safe is reviewed against the new scoring -- deferred: there is no rebuild-safe binary, only three dead references in a NixOS command cluster, and update_readiness answers the question by gating on blockers rather than a percentage -- approved by: christian 2026-09-20
       <!-- DEAD 2026-09-20, the same way the generation-count gate above is. THERE IS NO
       rebuild-safe. `which` finds no binary; the only three references left are two completion
       word lists and one faelight-deadwood entry, and they sit in a cluster that is entirely
