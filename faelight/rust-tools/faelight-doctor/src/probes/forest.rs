@@ -111,6 +111,9 @@ pub fn intent_ledger() -> Measurement {
             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
             .last()
             .unwrap_or("validated");
+        // The validator prefixes its own tick. The render states the status itself, so
+        // carrying it here would put a tick inside a tick.
+        let finding = finding.trim_start_matches(['\u{2705}', ' ']);
         Measurement::pass(finding.to_string())
     } else {
         // ⚠️ AND A COUNT IS NOT A FINDING. The old message was "N issue(s) -- first: X", the
