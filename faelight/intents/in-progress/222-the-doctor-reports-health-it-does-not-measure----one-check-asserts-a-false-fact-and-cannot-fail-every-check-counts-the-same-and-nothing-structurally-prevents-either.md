@@ -218,6 +218,35 @@ Generation-count red derives from the physical limit -- `/boot` is 4G and lanzab
 ⚠️ A typed threshold goes stale exactly the way the check COUNT did: 22 in one doc, 14 in another,
 34 in the code.
 
+## The switch, planned 2026-09-19
+
+★ ONE COMMIT, AND THE MEASUREMENT DECIDED IT RATHER THAN A PREFERENCE.
+
+The question was whether to switch and delete together, or switch first and delete after. Easier
+is not the same as right, so it was measured: DO THE 28 CHECK FUNCTIONS HAVE ANY CALLER BESIDES
+all_checks()? They do not. One caller, so there is no window in which two producers coexist and
+nothing separate to isolate. One commit.
+
+```text
+    checks.rs       26 functions
+    mod.rs:1342     check_deadwood
+    schema.rs:5     check_schema_validation
+    ------------------------------------------
+    bins.rs:157     check_binaries(quiet)   NOT ONE OF THE 28
+```
+
+⚠️ DELETE BY LOCATION, NEVER BY NAME. `bins.rs:157` is a DIFFERENT `check_binaries`, serving
+`core doctor bins`, and it stays. Two functions sharing a name is exactly what made the first
+census miscount, and deleting the wrong one would take a live command with it.
+
+The adapter is mechanical: `CheckResult` and `Outcome` are field-for-field identical (six fields,
+same names, same order, `fix` vs `recovery` the only difference), and both `Status` and `Tier`
+have the same variants in the same order. `all_checks()` is rewritten IN PLACE -- same name,
+same signature -- so both call sites and everything downstream are untouched.
+
+The enum mapping is EXHAUSTIVE with no catch-all, so a new variant fails to compile instead of
+defaulting silently. Same rule as the probe dispatcher.
+
 ## Success Criteria
 
 ### Phase 0 -- establish the truth
