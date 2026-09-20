@@ -1154,10 +1154,14 @@ fn all_tests() -> Vec<TestResult> {
     ));
 
     results.push(test(
-        "packages_without_nix_store_reports_unavailable",
+        "packages_without_pacman_reports_unavailable",
         Category::Regression,
         || {
-            let path = path_without("nix-store");
+            // REPOINTED 2026-09-20 (INT-255). packages read the Nix store until then; it
+            // reads pacman now. THE PRINCIPLE IS UNCHANGED and is the whole point of the
+            // case: a query that COULD NOT RUN must be named, never reported as an empty
+            // list. INT-227 built that distinction; only the command underneath it moved.
+            let path = path_without("pacman");
             let got = match run_fsh_env("packages", &[("PATH", path.as_str())]) {
                 Ok(o) => o,
                 Err(e) => e,
@@ -1165,9 +1169,9 @@ fn all_tests() -> Vec<TestResult> {
             // The defect: one helper returned vec![] on spawn failure, feeding four callers that
             // each read it as "nothing found".
             let lower = got.to_lowercase();
-            if !(lower.contains("nix-store") || lower.contains("cannot query")) {
+            if !(lower.contains("pacman") || lower.contains("cannot query")) {
                 return Err(format!(
-                    "an unqueryable store must be named, not reported as an empty package list: {}",
+                    "an unqueryable package database must be named, not reported as an empty list: {}",
                     got.trim()
                 ));
             }
