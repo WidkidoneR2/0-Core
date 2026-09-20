@@ -99,6 +99,33 @@ branch this machine takes.
 degrade-honestly diagnostics. Removing it would make the code LESS correct on a machine that
 has the indirection, in exchange for deleting the word nix.
 
+### THE MENU ALIAS LIVED IN THREE PLACES -- found 2026-09-20
+
+Removing `faelight-logout` took three edits, in three files, with nothing linking them:
+
+```text
+    faelight/registry/aliases.toml        the DECLARATION -- documentation of the alias
+    ~/.config/faelight-shell/config.nsh   the DEFINITION -- what actually creates it
+    ~/.local/bin/faelight-logout          the TARGET -- a binary dated 26 August
+```
+
+⚠️ AND REMOVING TWO OF THE THREE LEFT THE SYSTEM WORSE THAN BEFORE. The registry entry and the
+binary went first, so the shell still defined `menu` pointing at a command that no longer
+existed. `faelight-deadwood --strict` caught it at the pre-push gate:
+
+```text
+    [MED ] alias menu -> 'faelight-logout' (target 'faelight-logout' not found)
+```
+
+⭐ THE GATE DID ITS JOB AND THAT IS THE ONLY REASON IT WAS CAUGHT. Nothing links the three
+locations, so nothing could have told me the removal was partial. The registry is not the
+source of truth for aliases -- config.nsh is -- and the registry describes it without being
+consulted by it.
+
+★ THE SAME SHAPE AS DECISION 149 (nine readers of tools.toml) AND INT-256 (three of
+twenty-six tools calling restore_sigpipe): not carelessness, THE ABSENCE OF A PLACE WHERE THE
+QUESTION GETS ASKED. Here the question is "what else knows about this alias?" and nothing does.
+
 ### Still to do, measured 2026-09-20
 
 ```text
