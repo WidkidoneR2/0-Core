@@ -77,15 +77,10 @@ pub fn verdict(checks: &[CheckResult]) -> Verdict {
 
 pub mod aliases;
 pub mod bins;
-mod checks;
 mod cockpit;
 pub mod entropy;
-mod schema;
 
-use checks::check_sandbox;
-use checks::*;
 pub(crate) use cockpit::render_cockpit;
-use schema::check_schema_validation;
 
 pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities.require(
@@ -1332,76 +1327,6 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 
 /// INT-094: forest hygiene -- orphan accumulation surfaced from faelight-deadwood --summary.
 /// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
-fn check_deadwood(_core_root: &str) -> CheckResult {
-    let out = std::process::Command::new("faelight-deadwood")
-        .arg("--summary")
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {
-            let line = String::from_utf8_lossy(&o.stdout);
-            let line = line.trim();
-            let parts: Vec<&str> = line.split('|').collect();
-            // INT-192: A NON-NUMERIC FIELD MEANS THE CHECK COULD NOT RUN. deadwood emits ?
-            // where it could not look, and unwrap_or(0) read that as zero findings -- the
-            // exact collapse this pair of commits exists to end. Proven 2026-09-04:
-            // config.nsh moved aside gave ?|?|0|0 and the doctor called it healthy.
-            let field =
-                |n: usize| -> Option<usize> { parts.get(n).and_then(|s| s.parse::<usize>().ok()) };
-            let total_opt = field(0);
-            let registry_opt = field(3);
-            if total_opt.is_none() || registry_opt.is_none() {
-                return CheckResult {
-                    tier: Tier::User,
-                    id: "deadwood".into(),
-                    name: "Deadwood".into(),
-                    status: Status::Unknown,
-                    message: format!("deadwood could not complete every check: {}", line),
-                    fix: Some(
-                        "Run: faelight-deadwood to see which check was skipped and why".into(),
-                    ),
-                };
-            }
-            let total = total_opt.unwrap_or(0);
-            let registry = registry_opt.unwrap_or(0);
-            let structural = registry;
-            if structural > 0 {
-                CheckResult {
-                    tier: Tier::User,
-                    id: "deadwood".into(),
-                    name: "Deadwood".into(),
-                    status: Status::Warn,
-                    message: format!(
-                        "{} orphans flagged ({} structural: {} registry)",
-                        total, structural, registry
-                    ),
-                    fix: Some(
-                        "Run: faelight-deadwood (reports only -- you decide every cut)".into(),
-                    ),
-                }
-            } else {
-                CheckResult {
-                    tier: Tier::User,
-                    id: "deadwood".into(),
-                    name: "Deadwood".into(),
-                    status: Status::Pass,
-                    message: format!(
-                        "{} low-priority items (stale .baks); no structural orphans",
-                        total
-                    ),
-                    fix: None,
-                }
-            }
-        }
-        _ => CheckResult {
-            tier: Tier::User,
-            id: "deadwood".into(),
-            name: "Deadwood".into(),
-            status: Status::Unknown,
-            message: "faelight-deadwood did not run -- hygiene is unmeasured, not clean".into(),
-            fix: None,
-        },
-    }
-}
 
 /// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
 /// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
@@ -1481,37 +1406,4 @@ fn from_engine() -> Vec<CheckResult> {
         });
     }
     out
-}
-
-fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
-    vec![
-        check_services(),
-        check_broken_symlinks(core_root, home),
-        check_binaries(),
-        check_git(core_root),
-        check_hooks(core_root),
-        check_rust_docs(core_root),
-        check_intents(core_root),
-        check_deadwood(core_root),
-        check_faelight_config(),
-        check_zero_alias(),
-        check_security_hardening(),
-        check_security_audit(),
-        check_alias_coverage(),
-        check_rust_toolchain(),
-        check_disk_space(),
-        check_tool_installation(),
-        check_path_resilience(core_root),
-        check_schema_validation(core_root),
-        check_sandbox(core_root),
-        check_boot_errors(),
-        check_boot_time(),
-        check_reboot_needed(),
-        check_update_readiness(core_root),
-        check_package_cache(),
-        check_orphan_packages(),
-        check_friday(core_root),
-        check_network(),
-        check_vm_state(),
-    ]
 }
