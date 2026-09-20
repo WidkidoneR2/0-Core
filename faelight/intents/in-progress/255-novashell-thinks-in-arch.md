@@ -144,25 +144,44 @@ QUESTION GETS ASKED. Here the question is "what else knows about this alias?" an
 has alias_coverage, which asks whether every TOOL has an alias. Nothing asks whether every
 ALIAS has a tool. That is the inverse, and `menu` is proof it happens.
 
+## Evidence -- every repointed command RUN here, 2026-09-20
+
+```text
+    packages              992 installed packages, three columns
+    packages rust         3 matches: rust, rust-analyzer, rust-src
+    pkg-search ripgrep    repgrep, ripgrep [installed], ripgrep-all
+    store                 command not found  -- retired
+    generations           command not found  -- retired
+    devshell              command not found  -- retired
+    pacman -Q rust        rust 1:1.98.1-1, no suggestion attached
+```
+
+The last line is the misdirection gone: `pacman` used to print "That isn't a NixOS command,
+apply changes with deploy". It had TWO copies, one live in exec.rs and one dead in
+commands/mod.rs, and the second was only found by a census after the first was fixed.
+
 ## Success Criteria
 
-- [ ] THE CENSUS IS REGENERATED FIRST. Every NixOS reference in novashell/, classified per item:
+- [x] THE CENSUS IS REGENERATED FIRST. Every NixOS reference in novashell/, classified per item:
       repoint / retire / keep-and-explain. No item is actioned before it is classified.
-- [ ] ⭐ EVERY REPOINTED COMMAND IS RUN HERE AND ITS OUTPUT RECORDED IN THIS FILE. The same gate
+- [x] ⭐ EVERY REPOINTED COMMAND IS RUN HERE AND ITS OUTPUT RECORDED IN THIS FILE. The same gate
       caught two lies in twenty recoveries on 2026-09-20 -- a command that was never run is a
       guess with better grammar.
-- [ ] `packages` either answers from pacman or is retired, and the choice is stated with a reason.
-- [ ] `generations` is ruled on against what INT-129 already measured about snapper, rather than
+- [x] `packages` either answers from pacman or is retired, and the choice is stated with a reason.
+- [x] `generations` is ruled on against what INT-129 already measured about snapper, rather than
       re-deriving it.
-- [ ] `store` is ruled on. "No Arch equivalent" is an acceptable answer IF it is written down.
-- [ ] The prompt shows nothing that depends on a file this system does not use.
-- [ ] Completion offers nothing that cannot exist here. **Proven by typing it**, not by reading
-      the list.
-- [ ] `nix_query_lines` and its callers are gone, or the survivors are named and justified.
-- [ ] THE DOCS ARE CORRECT ABOUT WHAT THE SHELL DOES TODAY -- checked against the binary, not
-      against the source, and stale-for-other-reasons counts as stale.
-- [ ] nsh-test still green, and the suite gains a case for anything repointed.
-- [ ] Nothing in INT-253's group 3 is deleted: the historical comments and the census generator
+- [x] `store` is ruled on. "No Arch equivalent" is an acceptable answer IF it is written down.
+- [x] The prompt shows nothing that depends on a file this system does not use.
+- [x] Completion offers nothing that cannot exist here. **PROVEN BY TYPING IT** 2026-09-20:
+      `reb` + TAB completes to `reboot`, `dev` + TAB to `devlink`. Both real commands; neither
+      offers `rebuild` or `devshell`, which the lists used to carry.
+- [x] `nix_query_lines` and its callers are gone, or the survivors are named and justified.
+- ⏸ THE DOCS ARE CORRECT ABOUT WHAT THE SHELL DOES TODAY -- deferred: 103 Nix references
+      across 19 documents, and the docs are being rewritten after the INT-247 flip anyway, so
+      correcting them now is work done twice. The gate is right and it moves with that rewrite
+      -- approved by: christian 2026-09-20
+- [x] nsh-test still green, and the suite gains a case for anything repointed.
+- [x] Nothing in INT-253's group 3 is deleted: the historical comments and the census generator
       stay, and the generator especially, because it is the guard that tests for the absence of
       these assumptions.
 
