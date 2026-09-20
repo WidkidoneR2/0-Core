@@ -3,7 +3,7 @@ id: 255
 date: 2026-09-20
 type: future
 title: "NovaShell thinks in Arch"
-status: in-progress
+status: complete
 tags: [nsh, novashell, arch]
 ---
 
