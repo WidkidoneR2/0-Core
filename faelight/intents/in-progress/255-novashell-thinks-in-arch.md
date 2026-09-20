@@ -3,7 +3,7 @@ id: 255
 date: 2026-09-20
 type: future
 title: "NovaShell thinks in Arch"
-status: planned
+status: in-progress
 tags: [nsh, novashell, arch]
 ---
 
@@ -59,6 +59,29 @@ here the way the advice strings were in INT-253.
 Stale for Nix, and stale for other reasons. Both get fixed, and the second is not a bonus --
 a doc that is wrong about anything teaches the reader to check the code instead, which is how
 documentation stops being read at all.
+
+## The rulings, 2026-09-20 -- EACH COMMAND RUN BEFORE IT WAS JUDGED
+
+```text
+    packages    REPOINT    fails with a good diagnostic: "this machine has no nix-store".
+                           pacman -Q answers exactly the question it asks. It is used.
+    generations RETIRE     CRASHES. "No such file or directory" -- it spawns nixos-rebuild
+                           and does not guard the spawn, so it is not honest degradation,
+                           it is an unhandled error. And INT-129 already measured the
+                           replacement and rejected it: limine-snapper-sync puts snapshots
+                           in the BOOT MENU, which works when the system will not boot and
+                           a TUI cannot, and snapper list is already a formatted table that
+                           needs root. A TUI here would prompt for a password to show what
+                           one command shows.
+    store       RETIRE     THE WORST OF THE THREE. It prints a full help menu -- why,
+                           reclaim, big -- as if it works, and only fails once a subcommand
+                           runs. A tool that advertises capability it cannot deliver is
+                           worse than one that errors. No Arch equivalent: closure queries
+                           are a content-addressed-store idea and pacman has no counterpart.
+```
+
+★ THE STANDARD: WHEN YOU MOVE INTO A NEW HOUSE YOU CLEAN IT BEFORE YOU MOVE IN. Christian,
+2026-09-20, ruling that this finishes before INT-247 Layer 3b flips.
 
 ## Success Criteria
 

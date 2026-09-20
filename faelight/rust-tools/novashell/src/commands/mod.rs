@@ -1478,52 +1478,63 @@ fn execute_dispatch(
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
-        "store" => store_cmd(args),
+        // ⚠️ THE "store" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255), with its 361
+        // lines of implementation: store_cmd, store_reclaim, store_summarize_matches,
+        // store_resolve, size_tail, nix_query and nix_query_lines.
+        //
+        // ⭐ IT WAS THE WORST OF THE THREE NIX COMMANDS BECAUSE IT LOOKED LIKE IT WORKED.
+        // Bare `store` printed a full help menu -- why, reclaim, big -- and only failed once
+        // a subcommand ran. A tool that advertises capability it cannot deliver is worse than
+        // one that errors, because the reader believes it.
+        //
+        // No Arch equivalent, and that is a real answer rather than an omission: closure
+        // queries, reference roots and self-size are content-addressed-store ideas. pacman
+        // has no counterpart and inventing one would be pretending.
         "packages" | "pkgs" => {
-            // packages [filter]  -- list installed packages from the current system
-            // environment (INT-134). Source: references of /run/current-system/sw, each a
-            // /nix/store/<hash>-<name>-<version> path. Optional filter matches the name.
+            // packages [filter]  -- installed packages, from the system package manager.
+            //
+            // REPOINTED 2026-09-20 (INT-255). It read /run/current-system/sw references and
+            // stripped a /nix/store/<hash>- prefix. On this machine it failed with a correct
+            // diagnostic rather than lying, which is why it survived the migration -- but the
+            // QUESTION it asks is one pacman answers directly.
+            //
+            // INT-227 preserved: a query that COULD NOT RUN is a different fact from a system
+            // with no packages, and the message still says which.
             let filter = args.first().copied().unwrap_or("");
-            let paths =
-                nix_query_lines(&["nix-store", "-q", "--references", "/run/current-system/sw"]);
-            // INT-227: None means the query could not run AT ALL, which is a different fact from
-            // a system whose profile references nothing. The message says which.
-            let Some(paths) = paths else {
+            let out = std::process::Command::new("pacman").arg("-Q").output();
+            let Ok(out) = out else {
                 return CommandResult::Error(
-                    crate::diagnostic::Diagnostic::error("cannot query the Nix store")
-                        .with_help("packages are read from the current system's references; this machine has no nix-store")
-                        .with_code("fsh::platform::no_nix_store"),
+                    crate::diagnostic::Diagnostic::error("cannot query installed packages")
+                        .with_help("packages are read from pacman; it is not on PATH here")
+                        .with_code("nsh::platform::no_pacman"),
                     1,
                 );
             };
-            if paths.is_empty() {
+            if !out.status.success() {
                 return CommandResult::Error(
-                    "packages: /run/current-system/sw references nothing"
-                        .to_string()
-                        .into(),
+                    crate::diagnostic::Diagnostic::error("pacman -Q failed")
+                        .with_help("the package database could not be read")
+                        .with_code("nsh::platform::pacman_failed"),
                     1,
                 );
             }
-            // Strip /nix/store/<hash>- prefix -> name-version. Hash is 32 chars + one dash.
-            let mut names: Vec<String> = paths
-                .iter()
-                .filter_map(|p| {
-                    let base = p.rsplit('/').next().unwrap_or(p);
-                    // base = <32-hash>-<name-version>; drop the hash + first dash.
-                    base.split_once('-').map(|(_, rest)| rest.to_string())
-                })
+            let text = String::from_utf8_lossy(&out.stdout).to_string();
+            let mut names: Vec<String> = text
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
                 .filter(|nv| filter.is_empty() || nv.contains(filter))
                 .collect();
             names.sort();
             names.dedup();
             if names.is_empty() {
-                return CommandResult::Output(format!("  no packages matching '{}'", filter));
+                return CommandResult::Output(format!("  no packages matching {}", filter));
             }
             let header = if filter.is_empty() {
                 format!("  \u{1f4e6} Installed packages ({})\n", names.len())
             } else {
                 format!(
-                    "  \u{1f4e6} Installed packages matching '{}' ({})\n",
+                    "  \u{1f4e6} Installed packages matching {} ({})\n",
                     filter,
                     names.len()
                 )
@@ -1536,113 +1547,18 @@ fn execute_dispatch(
             CommandResult::Output(out)
         }
         "pkg-search" | "pkgsearch" => pkg_search(args),
-        "generations" | "gens" => {
-            // generations [all|<N>]  -- browse NixOS generations (INT-134). Read-only.
-            // Source: nixos-rebuild list-generations --json (same source main.rs uses for
-            // the prompt). Rollback is SHOWN, never executed -- switching generations is a
-            // sudo-level system mutation that deserves deliberate action, not a builtin.
-            let out_raw = std::process::Command::new("nixos-rebuild")
-                .args(["list-generations", "--json"])
-                .output();
-            let json = match out_raw {
-                Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
-                Err(e) => return CommandResult::Error(format!("generations: {}", e).into(), 1),
-            };
-            let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(&json);
-            let gens = match parsed {
-                Ok(g) => g,
-                Err(e) => {
-                    return CommandResult::Error(format!("generations: parse: {}", e).into(), 1)
-                }
-            };
-            if gens.is_empty() {
-                return CommandResult::Output("  no generations found".to_string());
-            }
-            let sub = args.first().copied().unwrap_or("");
-
-            // generations <N> -- detail + rollback command for one generation.
-            if let Ok(n) = sub.parse::<u64>() {
-                let found = gens.iter().find(|g| g["generation"].as_u64() == Some(n));
-                match found {
-                    None => {
-                        return CommandResult::Error(
-                            format!("generations: {} not found", n).into(),
-                            1,
-                        )
-                    }
-                    Some(g) => {
-                        let date = g["date"].as_str().unwrap_or("?");
-                        let ver = g["nixosVersion"].as_str().unwrap_or("?");
-                        let kernel = g["kernelVersion"].as_str().unwrap_or("?");
-                        let rev = g["configurationRevision"].as_str().unwrap_or("?");
-                        let cur = g["current"].as_bool().unwrap_or(false);
-                        let mut out = format!(
-                            "  \u{2744} Generation {}{}\n",
-                            n,
-                            if cur { "  (current)" } else { "" }
-                        );
-                        out.push_str(&"\u{2500}".repeat(44));
-                        out.push_str(&format!("\n  date    : {}", date));
-                        out.push_str(&format!("\n  nixos   : {}", ver));
-                        out.push_str(&format!("\n  kernel  : {}", kernel));
-                        out.push_str(&format!("\n  config  : {}", rev));
-                        if cur {
-                            out.push_str(
-                                "\n\n  this is the current generation -- nothing to roll back to.",
-                            );
-                        } else {
-                            out.push_str(
-                                "\n\n  to roll back to this generation (deliberate, sudo):",
-                            );
-                            out.push_str(&format!(
-                                "\n    sudo nix-env --switch-generation {} -p /nix/var/nix/profiles/system", n
-                            ));
-                            out.push_str("\n    sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch");
-                        }
-                        return CommandResult::Output(out);
-                    }
-                }
-            }
-
-            // generations [all] -- browse.
-            let show_all = sub == "all";
-            let limit = if show_all {
-                gens.len()
-            } else {
-                15.min(gens.len())
-            };
-            let mut out = format!(
-                "  \u{2744} NixOS Generations ({} total{})\n",
-                gens.len(),
-                if show_all {
-                    String::new()
-                } else {
-                    format!(", showing {}", limit)
-                }
-            );
-            out.push_str(&"\u{2500}".repeat(52));
-            for g in gens.iter().take(limit) {
-                let num = g["generation"].as_u64().unwrap_or(0);
-                let date = g["date"].as_str().unwrap_or("?");
-                let cur = g["current"].as_bool().unwrap_or(false);
-                let rev = g["configurationRevision"].as_str().unwrap_or("");
-                let short_rev = rev.split('-').next().unwrap_or(rev);
-                let short_rev = short_rev.chars().take(8).collect::<String>();
-                let dirty = if rev.ends_with("-dirty") { " *" } else { "" };
-                let marker = if cur { "\u{25cf}" } else { " " };
-                out.push_str(&format!(
-                    "\n  {} {:>4}  {}  {}{}",
-                    marker, num, date, short_rev, dirty
-                ));
-            }
-            if !show_all && gens.len() > limit {
-                out.push_str(&format!("\n\n  ... {} older. `generations all` to see all, `generations <N>` for detail + rollback.",
-                    gens.len() - limit));
-            } else {
-                out.push_str("\n\n  \u{25cf} = current   * = dirty tree.  `generations <N>` for detail + rollback.");
-            }
-            CommandResult::Output(out)
-        }
+        // ⚠️ THE "generations" / "gens" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255).
+        //
+        // 107 lines browsing NixOS generations via nixos-rebuild list-generations --json.
+        // Run on this machine it did not degrade, it CRASHED: "generations: No such file or
+        // directory" -- the spawn was unguarded.
+        //
+        // ⭐ AND THE REPLACEMENT WAS MEASURED AND REJECTED BY INT-129, so this is not a gap.
+        // Omarchy has generations: snapper snapshots on package transactions, and
+        // limine-snapper-sync puts them in the BOOT MENU -- which works when the system will
+        // not boot and a TUI cannot. The timeline half is `snapper list`, already a formatted
+        // table, and it needs root: a builtin here would prompt for a password to show what
+        // one command already shows.
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "git-churn" | "gchurn" | "git.files" => git_churn(core_root, args),
@@ -7928,367 +7844,6 @@ fn sys_network() -> CommandResult {
 // INT-075: nix store explorer. `store why <path|name>` answers "what keeps this
 // alive + how big is it" using fast per-path nix queries (NO --print-dead; that walks
 // the whole store and is slow). Read-only: inspects, never collects or deletes.
-fn store_cmd(args: &[&str]) -> CommandResult {
-    let sub = args.first().copied().unwrap_or("help");
-    match sub {
-        "why" => {
-            let target = match args.get(1) {
-                Some(t) => *t,
-                None => return CommandResult::Error(
-                    "  store why <path|name> -- what keeps a store path alive + its size".to_string().into(), 1),
-            };
-            // Resolve target -> a concrete /nix/store path.
-            let path = match store_resolve(target) {
-                Ok(p) => p,
-                Err(msg) => return CommandResult::Error(msg.into(), 1),
-            };
-            let mut out = String::new();
-            out.push_str(&format!("  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  {}\n", path));
-
-            // Sizes: self + closure
-            let self_sz = nix_query(&["path-info", "-sh", &path])
-                .map(|s| size_tail(&s)).unwrap_or_else(|| "?".into());
-            let clos_sz = nix_query(&["path-info", "-Sh", &path])
-                .map(|s| size_tail(&s)).unwrap_or_else(|| "?".into());
-            out.push_str(&format!("  self size    : {}\n", self_sz));
-            out.push_str(&format!("  closure size : {}\n", clos_sz));
-
-            // GC roots: is anything pinning it?
-            // ⚠️ INT-227: "no GC roots -- nothing pins this" is a CLAIM ABOUT THE STORE. Printing
-            // it when the query never ran would assert something nobody asked. unwrap_or_default
-            // is honest here only because the branch below distinguishes them in the text.
-            let roots = match nix_query_lines(&["nix-store", "--query", "--roots", &path]) {
-                Some(r) => r,
-                None => {
-                    out.push_str("  pinned by    : (unknown -- cannot query the store here)\n");
-                    out.push_str("  referrers    : (unknown -- cannot query the store here)\n");
-                    return CommandResult::Output(out);
-                }
-            };
-            if roots.is_empty() {
-                out.push_str("  pinned by    : \u{1b}[38;2;255;200;50m(no GC roots -- not directly pinned)\u{1b}[0m\n");
-            } else {
-                out.push_str(&format!("  pinned by    : {} GC root(s):\n", roots.len()));
-                for r in roots.iter().take(8) {
-                    out.push_str(&format!("      {}\n", r));
-                }
-                if roots.len() > 8 { out.push_str(&format!("      ... and {} more\n", roots.len()-8)); }
-            }
-
-            // Direct referrers (reverse-deps)
-            // Reachable only when the roots query above succeeded, so the store is answerable.
-            // PLATFORM-CHECKED: unreachable unless the roots query above returned Some, which
-            // establishes that the store is answerable here. The default is empty referrers, which
-            // is a real answer on a store that can be queried.
-            let refs = nix_query_lines(&["nix-store", "--query", "--referrers", &path])
-                .unwrap_or_default();
-            let refs: Vec<&String> = refs.iter().filter(|r| **r != path).collect();
-            if refs.is_empty() {
-                out.push_str("  referrers    : (none -- nothing else depends on it directly)\n");
-            } else {
-                out.push_str(&format!("  referrers    : {} direct:\n", refs.len()));
-                for r in refs.iter().take(6) {
-                    let base = r.rsplit('/').next().unwrap_or(r);
-                    out.push_str(&format!("      {}\n", base));
-                }
-                if refs.len() > 6 { out.push_str(&format!("      ... and {} more\n", refs.len()-6)); }
-            }
-            CommandResult::Output(out)
-        }
-        "reclaim" => store_reclaim(),
-        "big" => {
-            // store big [N] -- the N largest store paths by SELF size (INT-134, Lane 2).
-            // Read-only: `nix path-info --all -S --json` (self size, not closure, to avoid
-            // double-counting shared deps -- same honesty as store reclaim). Default N=20.
-            // Slow: walks the whole store. Pairs with `store why <name>` to investigate a hit.
-            let n: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(20);
-            let out = std::process::Command::new("nix")
-                .args(["path-info", "-r", "-S", "--json", "--json-format", "1",
-                       "/run/current-system"])
-                .output();
-            let out = match out {
-                Ok(o) if o.status.success() => o,
-                Ok(o) => return CommandResult::Error(format!(
-                    "store big: nix path-info failed: {}",
-                    String::from_utf8_lossy(&o.stderr).trim()).into(), 1),
-                Err(e) => return CommandResult::Error(format!("store big: {}", e).into(), 1),
-            };
-            let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
-                Ok(v) => v,
-                Err(e) => return CommandResult::Error(format!("store big: parse: {}", e).into(), 1),
-            };
-            // nix 2.34: top-level object keyed by store path -> { narSize, ... }.
-            let map = match json.as_object() {
-                Some(m) if !m.is_empty() => m,
-                _ => return CommandResult::Output("  store big: no paths reported".to_string()),
-            };
-            let mut rows: Vec<(u64, String)> = Vec::new();
-            for (path, v) in map.iter() {
-                let sz = v.get("narSize").and_then(|x| x.as_u64()).unwrap_or(0);
-                let base = path.rsplit('/').next().unwrap_or(path).to_string();
-                rows.push((sz, base));
-            }
-            rows.sort_by(|a, b| b.0.cmp(&a.0));
-            let total = rows.len();
-            let mut lines = vec![format!("  \u{1f4be} largest paths in the live system closure by self size (top {} of {})", n.min(total), total)];
-            lines.push("\u{2500}".repeat(60));
-            for (sz, base) in rows.iter().take(n) {
-                let mib = *sz as f64 / (1024.0 * 1024.0);
-                lines.push(format!("  {:>9.1} MiB  {}", mib, base));
-            }
-            lines.push(String::new());
-            lines.push("  investigate any of these with  store why <name>".to_string());
-            CommandResult::Output(lines.join("\n"))
-        }
-        "help" | _ => CommandResult::Output(
-            "  store -- nix store explorer (INT-075)\n  store why <path|name>  what keeps a path alive + its size\n  store reclaim          honest GC preview: real freeable size (slow, walks store)\n  store big [N]          the N largest store paths by self size (slow, walks store)\n".to_string()),
-    }
-}
-
-// Resolve a user arg to a concrete /nix/store path. Accepts a full store path, or a
-// partial name we grep from /nix/store (unique match used; ambiguous -> list candidates).
-// INT-075 Phase 2: honest GC preview. The freeable disk = sum of each DEAD path's
-// SELF size (nix path-info -s), NOT closure size (-S double-counts shared deps massively
-// -- e.g. one path: 174 KiB self vs 1.1 GiB closure). Computing the dead set walks the
-// whole store (~30s); we say so. Read-only: NEVER runs gc, NEVER deletes.
-fn store_reclaim() -> CommandResult {
-    let mut out = String::new();
-    out.push_str("  \u{1b}[38;2;50;220;255mstore reclaim\u{1b}[0m  (honest GC preview -- read-only, deletes nothing)\n");
-    out.push_str("  computing dead set (walks the whole store, ~30s)...\n");
-
-    // 1. dead set (read-only)
-    let dead_out = std::process::Command::new("nix-store")
-        .args(["--gc", "--print-dead"])
-        .output();
-    let dead_paths: Vec<String> = match dead_out {
-        Ok(o) => String::from_utf8_lossy(&o.stdout)
-            .lines()
-            .filter(|l| l.starts_with("/nix/store"))
-            .map(|s| s.to_string())
-            .collect(),
-        Err(e) => {
-            return CommandResult::Error(
-                format!("  store reclaim: nix-store failed: {}", e).into(),
-                1,
-            )
-        }
-    };
-    let n = dead_paths.len();
-    if n == 0 {
-        out.push_str("  no dead paths -- nothing a GC would free right now.\n");
-        return CommandResult::Output(out);
-    }
-
-    // 2. batch nix path-info -s over ALL dead paths (one query), sum SELF bytes
-    let mut args: Vec<String> = vec!["path-info".into(), "-s".into()];
-    args.extend(dead_paths.iter().cloned());
-    let argref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    let info = std::process::Command::new("nix").args(&argref).output();
-    let mut total: u64 = 0;
-    let mut counted = 0usize;
-    if let Ok(o) = info {
-        for line in String::from_utf8_lossy(&o.stdout).lines() {
-            // line: "<path>\t<self-bytes>"  -- last whitespace token is the byte count
-            if let Some(tok) = line.split_whitespace().last() {
-                if let Ok(b) = tok.parse::<u64>() {
-                    total += b;
-                    counted += 1;
-                }
-            }
-        }
-    }
-
-    let human = |b: u64| -> String {
-        let (mut v, units) = (b as f64, ["B", "KiB", "MiB", "GiB", "TiB"]);
-        let mut i = 0;
-        while v >= 1024.0 && i < units.len() - 1 {
-            v /= 1024.0;
-            i += 1;
-        }
-        format!("{:.2} {}", v, units[i])
-    };
-
-    out.push_str(&format!("  dead paths    : {}\n", n));
-    out.push_str(&format!("  \u{1b}[38;2;57;255;20mfreeable\u{1b}[0m      : {}  (sum of SELF sizes -- the true disk a GC frees)\n", human(total)));
-    if counted < n {
-        out.push_str(&format!(
-            "  note          : sized {}/{} paths ({} had no size info)\n",
-            counted,
-            n,
-            n - counted
-        ));
-    }
-    out.push_str("  method        : self-size (-s) summed, NOT closure (-S would double-count shared deps).\n");
-    out.push_str("  to actually free: run  nix-collect-garbage  (or nix-collect-garbage -d for old generations).\n");
-    out.push_str("  (this command did NOT delete anything.)\n");
-    CommandResult::Output(out)
-}
-
-// INT-075 Phase 1.5: when a name matches many store paths, summarize the reclaim
-// picture: total closure size across matches, and how many are GC-rooted (pinned) vs
-// unrooted (reclaimable). Turns "138 matches" into "here's what they cost + what's free".
-fn store_summarize_matches(target: &str, matches: &[String], n: usize) -> String {
-    let mut rooted = 0usize;
-    let mut unrooted = 0usize;
-    // ⚠️ INT-227: A COUNT NOBODY SEES IS THE SAME SILENCE ONE LEVEL UP. Reported below, and only
-    // when it happened, so a machine that CAN answer sees no change at all.
-    let mut unknown_roots = 0usize;
-    let mut total_bytes: u64 = 0;
-    for p in matches {
-        // closure size in bytes (-S = closure, default bytes when no -h)
-        if let Some(s) = nix_query(&["path-info", "-S", p]) {
-            if let Some(tok) = s.split_whitespace().last() {
-                if let Ok(b) = tok.parse::<u64>() {
-                    total_bytes += b;
-                }
-            }
-        }
-        // pinned? (any GC root)
-        // ⚠️ INT-227: THE WORST OF THE FOUR. An unanswerable query counted as UNROOTED, so on a
-        // machine without nix-store every path tallied as reclaimable and a size figure was
-        // computed from a question that was never asked. Unknown is its own count now.
-        match nix_query_lines(&["nix-store", "--query", "--roots", p]) {
-            Some(roots) if roots.is_empty() => unrooted += 1,
-            Some(_) => rooted += 1,
-            None => unknown_roots += 1,
-        }
-    }
-    let human = |b: u64| -> String {
-        let (mut v, units) = (b as f64, ["B", "KiB", "MiB", "GiB", "TiB"]);
-        let mut i = 0;
-        while v >= 1024.0 && i < units.len() - 1 {
-            v /= 1024.0;
-            i += 1;
-        }
-        format!("{:.1} {}", v, units[i])
-    };
-    let mut msg = String::new();
-    msg.push_str(&format!(
-        "  \u{1b}[38;2;50;220;255mstore why\u{1b}[0m  '{}' matches {} store paths:\n",
-        target, n
-    ));
-    // ⚠️ AND THE SAME DEFECT ONE LINE UP, found by reading rather than guessing: path-info also
-    // returns None where nix is absent, so total_bytes stays zero and this printed "0.0 B" as a
-    // measured total. A size nobody could measure is not a size.
-    if unknown_roots == matches.len() && total_bytes == 0 {
-        msg.push_str("  total closure : (unknown -- the store could not be queried here)\n");
-    } else {
-        msg.push_str(&format!("  total closure : {}\n", human(total_bytes)));
-    }
-    msg.push_str(&format!(
-        "  pinned        : {} (GC-rooted -- a generation/result holds them)\n",
-        rooted
-    ));
-    msg.push_str(&format!(
-        "  \u{1b}[38;2;255;200;50mreclaimable\u{1b}[0m   : {} (no GC root -- would be freed by a GC)\n", unrooted));
-    if unknown_roots > 0 {
-        msg.push_str(&format!(
-            "  unknown       : {} (store not queryable -- NOT counted as reclaimable)\n",
-            unknown_roots
-        ));
-    }
-    msg.push_str(
-        "  (note: closure sizes overlap heavily via shared deps; total is an upper bound,\n",
-    );
-    msg.push_str(
-        "   not additive disk usage. Use `store why <full-path>` for one specific build.)\n",
-    );
-    msg.push_str("  first few matches:\n");
-    for m in matches.iter().take(6) {
-        msg.push_str(&format!("      {}\n", m.rsplit('/').next().unwrap_or(m)));
-    }
-    if n > 6 {
-        msg.push_str(&format!("      ... and {} more\n", n - 6));
-    }
-    msg
-}
-
-fn store_resolve(target: &str) -> Result<String, String> {
-    if target.starts_with("/nix/store/") && std::path::Path::new(target).exists() {
-        return Ok(target.to_string());
-    }
-    // grep store dir entries for the name
-    let entries =
-        std::fs::read_dir("/nix/store").map_err(|e| format!("  cannot read /nix/store: {}", e))?;
-    let mut matches: Vec<String> = entries
-        .filter_map(|e| e.ok())
-        .map(|e| e.path().to_string_lossy().to_string())
-        .filter(|p| !p.ends_with(".drv") && p.contains(target))
-        .collect();
-    matches.sort();
-    matches.dedup();
-    match matches.len() {
-        0 => Err(format!("  no store path matches '{}'", target)),
-        1 => Ok(matches.remove(0)),
-        n => {
-            // Phase 1.5: ambiguity is the reclaim insight. Summarize instead of just listing.
-            Err(store_summarize_matches(target, &matches, n))
-        }
-    }
-}
-
-// Extract "<num> <unit>" (the last two tokens) from a `nix path-info -sh` line
-// of the form "<path>\t<num> <unit>". Falls back to the whole trimmed string.
-fn size_tail(s: &str) -> String {
-    let toks: Vec<&str> = s.split_whitespace().collect();
-    let n = toks.len();
-    if n >= 2 {
-        format!("{} {}", toks[n - 2], toks[n - 1])
-    } else {
-        s.trim().to_string()
-    }
-}
-
-// Run `nix <args>` and capture trimmed stdout (single line/value).
-fn nix_query(args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new("nix").args(args).output().ok()?;
-    let s = String::from_utf8(out.stdout).ok()?;
-    let t = s.trim();
-    if t.is_empty() {
-        None
-    } else {
-        Some(t.to_string())
-    }
-}
-
-// Run a command (first arg = binary) and capture stdout lines.
-/// Run a store query and return its lines.
-///
-/// ⚠️ INT-227: THIS RETURNED `vec![]` ON SPAWN FAILURE, and that was a lie in one place feeding
-/// four callers. On a system without `nix-store` every caller received an empty list and read it
-/// as "no roots", "no referrers", "no references" -- confidently wrong, and indistinguishable
-/// from a query that genuinely found nothing.
-///
-/// ⭐ THE ABSENCE IS REPRESENTABLE NOW, so the compiler finds every consumer rather than four
-/// hand-maintained guards:
-///   Some(entries)  -- the query ran and produced these
-///   Some(vec![])   -- the query RAN and found nothing. A real answer.
-///   None           -- the query could not be performed at all
-///
-/// ★ THE HELPER STAYS PURE: no printing, no diagnostics, no fabricated fallback. A helper that
-/// prints has two jobs, and the caller is the one that knows what silence should mean to it.
-///
-/// ⏭ AND THE KNOWN LIMIT, recorded so the next change is the right one: `None` currently conflates
-/// "the tool is missing" with "the query failed after starting". If a caller ever needs those
-/// apart, the answer is `Result<Vec<String>, Diagnostic>` -- NOT a boolean beside this, and NOT
-/// printing from in here.
-fn nix_query_lines(argv: &[&str]) -> Option<Vec<String>> {
-    if argv.is_empty() {
-        return None;
-    }
-    let out = std::process::Command::new(argv[0])
-        .args(&argv[1..])
-        .output()
-        .ok()?;
-    Some(
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .map(|l| l.trim().to_string())
-            .filter(|l| !l.is_empty())
-            .collect(),
-    )
-}
-
 fn sys_logs(args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
