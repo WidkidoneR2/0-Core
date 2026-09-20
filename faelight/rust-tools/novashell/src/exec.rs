@@ -702,10 +702,13 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             "fg" if ctx.args.first().map(|s| s.as_str()) == Some("commit") => {
                 Some("💡 Suggestion: run d — verify health after committing")
             }
-            "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
+            "ship" => Some("💡 Suggestion: run d to verify health after shipping"),
             "cicomplete" => Some("💡 Next: fg commit — record the completion"),
             "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
-            "paru" | "pacman" => Some("💡 That isn't a NixOS command — apply changes with deploy (it rebuilds + health-checks)"),
+            // AN ARM HERE INTERCEPTED paru AND pacman to say "That isn't a NixOS command,
+            // apply changes with deploy". ON ARCH. Where pacman IS the package manager and
+            // deploy does not exist -- the shell was talking you out of the right command and
+            // into a dead one. Removed 2026-09-20 (INT-255).
             _ => None,
         };
         crate::mark("    postexec @655");
