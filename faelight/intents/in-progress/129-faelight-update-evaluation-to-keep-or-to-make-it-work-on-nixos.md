@@ -43,14 +43,14 @@ Option B -- RETIRE: the flake-native path (update-flake alias = nix flake update
 to NixOS or RETIRE it for the flake-native path. Both options went with NixOS on
 2026-08-28. The live criteria are in the RESCOPED section further down; work those.
 
-- [ ] Decision made: adapt (A) or retire (B), with reasoning recorded
-- [ ] If A: shell detection fixed (fsh recognized); cargo-install-update dependency
+- ⏸ Decision made: adapt (A) or retire (B), with reasoning recorded -- deferred: dead with NixOS. This block asks whether to adapt the tool to the flake era or retire it for update-flake; both options went with the OS on 2026-08-28, and the banner above already marks them history. The live criteria are the RESCOPED set below -- approved by: christian 2026-09-20
+- ⏸ If A: shell detection fixed (fsh recognized); cargo-install-update dependency -- deferred: dead with NixOS. This block asks whether to adapt the tool to the flake era or retire it for update-flake; both options went with the OS on 2026-08-28, and the banner above already marks them history. The live criteria are the RESCOPED set below -- approved by: christian 2026-09-20
       removed/replaced; "apply updates" routes through flake update + deploy safely
-- [ ] If A: demonstrated applying a flake input update end-to-end (e.g. git-hooks) via
+- ⏸ If A: demonstrated applying a flake input update end-to-end (e.g. git-hooks) via -- deferred: dead with NixOS. This block asks whether to adapt the tool to the flake era or retire it for update-flake; both options went with the OS on 2026-08-28, and the banner above already marks them history. The live criteria are the RESCOPED set below -- approved by: christian 2026-09-20
       the tool, landing in a new generation
-- [ ] If B: update-flake/deploy confirmed as the sanctioned path; aliases reconciled;
+- ⏸ If B: update-flake/deploy confirmed as the sanctioned path; aliases reconciled; -- deferred: dead with NixOS. This block asks whether to adapt the tool to the flake era or retire it for update-flake; both options went with the OS on 2026-08-28, and the banner above already marks them history. The live criteria are the RESCOPED set below -- approved by: christian 2026-09-20
       faelight-update retired or reduced to status-only
-- [ ] Once resolved: Friday can teach the verified update command (unblocks the INT-117
+- ⏸ Once resolved: Friday can teach the verified update command (unblocks the INT-117 -- deferred: dead with NixOS. This block asks whether to adapt the tool to the flake era or retire it for update-flake; both options went with the OS on 2026-08-28, and the banner above already marks them history. The live criteria are the RESCOPED set below -- approved by: christian 2026-09-20
       `fu` fact that was deliberately omitted)
 
 ## Relationship
@@ -102,7 +102,7 @@ SUCCESS CRITERIA
 - [x] generation.rs reads snapper; the closure-diff path degrades honestly
 - [x] omarchy-update availability REPORTED, never invoked -- the distribution
       owns system packages
-- [ ] --count-only verified against a Quickshell bar widget
+- ⏸ --count-only verified against a Quickshell bar widget -- deferred: the premise narrowed. This tool owns npm, pip, cargo, rustup, neovim, yazi, flatpak and firmware, none of which are system packages, and Omarchy already reports the system ones. A full check takes 20 seconds so a live bar number is impossible and a cached one is as fresh as the last run rather than current. Unresolved rather than unattempted -- approved by: christian 2026-09-20
 
 ## DONE 2026-09-04 -- three of four, and the fourth is a question rather than work
 
