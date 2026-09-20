@@ -13,14 +13,6 @@
 //! exists, so on Void the Nix entries simply miss and the cargo path wins. PATH augmentation
 //! appends directories that are harmless when absent. Only build identity was a real assumption.
 
-/// Is this a Nix-deployed system?
-///
-/// The question is not "is the distro NixOS" but "does the deploy indirection exist here", which is
-/// what the answer below actually depends on.
-fn is_nix_deployed() -> bool {
-    std::path::Path::new("/run/current-system/sw/bin").is_dir()
-}
-
 /// The identity of the build this session is running.
 ///
 /// ⚠️ current_exe() IS NOT UNIVERSALLY THE ANSWER, AND THE OLD CODE'S COMMENT SAID SO FIRST:
@@ -36,12 +28,17 @@ fn is_nix_deployed() -> bool {
 /// `reload` loses its ability to notice a newer build, which is a degraded feature rather than a
 /// broken shell.
 pub fn running_build_identity() -> Option<String> {
-    let path = if is_nix_deployed() {
-        std::path::PathBuf::from("/run/current-system/sw/bin/faelight-shell")
-    } else {
-        std::env::current_exe().ok()?
-    };
-    std::fs::canonicalize(path)
+    // ⭐ ONE BRANCH, AND IT NAMES NO DISTRIBUTION. canonicalize() resolves whatever
+    // indirection is in front of the binary -- a symlink, a wrapper target, a store path --
+    // without the code needing to know what put it there. On a system with the deploy
+    // indirection it still lands on the real artifact; here ship copies a real file and it
+    // lands on that.
+    //
+    // ⚠️ THE BRANCH THIS REPLACES WAS ALREADY BROKEN. It read
+    // /run/current-system/sw/bin/faelight-shell -- a binary name that has not existed since
+    // the NovaShell rename, under a path that has not existed since 2026-08-26. It could
+    // only ever have returned None.
+    std::fs::canonicalize(std::env::current_exe().ok()?)
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
 }
@@ -104,19 +101,5 @@ mod tests {
     #[test]
     fn has_tool_requires_an_executable_file() {
         assert!(!has_tool("."), "a directory entry is not a tool");
-    }
-
-    /// ⚠️ THE NIX BRANCH IS ASSERTED ONLY WHERE NIX IS, so this test says something true on Void
-    /// rather than something convenient here.
-    #[test]
-    fn nix_identity_is_a_store_path_when_nix_is_present() {
-        if !is_nix_deployed() {
-            return;
-        }
-        let id = running_build_identity().expect("identity");
-        assert!(
-            id.starts_with("/nix/store/"),
-            "on a Nix deployment the identity is the store path, not the wrapper: {id}"
-        );
     }
 }

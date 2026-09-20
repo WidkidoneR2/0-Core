@@ -31,7 +31,6 @@ mod registry;
 mod safety_guard;
 #[cfg(test)]
 mod tests;
-mod triage;
 use colored::Colorize;
 mod completion;
 mod config;
@@ -1080,21 +1079,14 @@ fn main() -> Result<()> {
         }
     }
 
-    // INT-140: --triage-deploy [logfile] classifies deploy output and exits.
-    // Read-only; called by the deploy script AFTER the rebuild. Never alters
-    // deploy success/failure -- the deploy script keeps its own exit status.
-    {
-        let args: Vec<String> = std::env::args().collect();
-        if let Some(pos) = args.iter().position(|a| a == "--triage-deploy") {
-            let logfile = args.get(pos + 1).map(|s| s.as_str());
-            // Second argument is the rebuild's real exit code (PIPESTATUS[0] in
-            // the deploy script). Triage reads it to spot a failure it could not
-            // explain; it never uses it to override classification.
-            let rebuild_rc = args.get(pos + 2).and_then(|s| s.parse::<i32>().ok());
-            let code = triage::run_triage(logfile, rebuild_rc);
-            std::process::exit(code);
-        }
-    }
+    // ⚠️ THE --triage-deploy HANDLER WAS REMOVED HERE, 2026-09-20 (INT-255), with
+    // triage.rs (13KB). It classified nixos-rebuild output into recognised failure shapes:
+    // an untracked file the flake could not see, home-manager refusing to overwrite a
+    // hand-written file, a /nix/store path that did not exist.
+    //
+    // Its ONLY invoker was faelight/packages/faelight/scripts/deploy, deleted earlier today,
+    // which called it as `faelight-shell --triage-deploy` -- a binary name that has not
+    // existed since the NovaShell rename. UNREACHABLE BY ANY PATH.
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .name("faelight-repl".into())

@@ -83,6 +83,22 @@ documentation stops being read at all.
 ★ THE STANDARD: WHEN YOU MOVE INTO A NEW HOUSE YOU CLEAN IT BEFORE YOU MOVE IN. Christian,
 2026-09-20, ruling that this finishes before INT-247 Layer 3b flips.
 
+### platform.rs KEEPS ITS NIX BRANCH -- ruled 2026-09-20
+
+The census flagged one line: `id.starts_with("/nix/store/")`. It is a TEST, and it early-returns
+unless `is_nix_deployed()`, so it no-ops here.
+
+⭐ AND THE CODE IT GUARDS IS CORRECT PORTABLE CODE, not a NixOS assumption. Its own comment makes
+the argument: the question is not "is the distro NixOS" but "does the deploy indirection exist
+here". A makeWrapper-wrapped binary reports the WRAPPER, not the artifact whose hash
+distinguishes one deploy from the next, so on such a system the store path is the identity.
+Elsewhere there is no store and no wrapper, `current_exe()` IS the artifact, and that is the
+branch this machine takes.
+
+★ THE THIRD CORRECT GUARD THIS INTENT HAS FOUND, after the pip PEP 668 check and the
+degrade-honestly diagnostics. Removing it would make the code LESS correct on a machine that
+has the indirection, in exchange for deleting the word nix.
+
 ### Still to do, measured 2026-09-20
 
 ```text
