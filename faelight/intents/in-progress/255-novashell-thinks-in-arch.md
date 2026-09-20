@@ -83,6 +83,24 @@ documentation stops being read at all.
 ★ THE STANDARD: WHEN YOU MOVE INTO A NEW HOUSE YOU CLEAN IT BEFORE YOU MOVE IN. Christian,
 2026-09-20, ruling that this finishes before INT-247 Layer 3b flips.
 
+### Still to do, measured 2026-09-20
+
+```text
+    triage.rs              13KB classifying nixos-rebuild output. Its ONLY invoker was the
+                           deploy script deleted today, so it is now unreachable by any path.
+    platform.rs            one line: a package is identified by its /nix/store prefix
+    faelight-logout        NOT IN tools.toml. The binary on PATH is dated 26 Aug -- the
+                           migration day -- so it is a leftover from the last NixOS deploy,
+                           not something ship manages. Christian confirms it was removed.
+                           The package source, the binary and the `menu` alias in
+                           aliases.toml all go.
+    the docs               stale for Nix and stale for other reasons
+```
+
+⚠️ AND AN ALIAS POINTING AT A TOOL THAT DOES NOT EXIST IS A DEFECT NOTHING CHECKS. The doctor
+has alias_coverage, which asks whether every TOOL has an alias. Nothing asks whether every
+ALIAS has a tool. That is the inverse, and `menu` is proof it happens.
+
 ## Success Criteria
 
 - [ ] THE CENSUS IS REGENERATED FIRST. Every NixOS reference in novashell/, classified per item:
