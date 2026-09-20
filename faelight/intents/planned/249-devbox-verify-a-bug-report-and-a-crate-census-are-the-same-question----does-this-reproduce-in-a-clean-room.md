@@ -7,6 +7,12 @@ status: in-progress
 tags: [devbox, sandbox, testing, reproduction, census, 247, 167]
 ---
 
+> MOVED BACK TO PLANNED 2026-09-20. Filed 2026-09-14 and never started: `devbox verify` does
+> not exist, no case file has been written, and all ten gates are untouched. The sandbox it
+> builds on IS built and in daily use -- run, snapshot, restore, diff, history, audit, seven
+> policies, 1,973 lines -- so this is unstarted work resting on a finished foundation, not
+> stalled work. Calling it in-progress was the bookkeeping this project has been burned by.
+
 ## Vision
 
 One mechanism answers two questions that turned out to be the same one:
