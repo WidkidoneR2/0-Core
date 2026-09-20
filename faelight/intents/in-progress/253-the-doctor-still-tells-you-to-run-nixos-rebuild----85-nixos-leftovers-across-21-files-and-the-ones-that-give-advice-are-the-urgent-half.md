@@ -94,8 +94,20 @@ argument -- the leftovers do not block the flip and never did.
       recorded in the intent. An advice string that was never run is a guess with better grammar.
 - [x] `toolgen.rs` no longer GENERATES NixOS advice. Proven by regenerating the docs and grepping
       the output, not by reading the template.
-- [ ] Group 2 branches are removed and the code still compiles and passes `nsh-test`, with the
-      count of `/etc/NIXOS` tests in live code at ZERO.
+- [x] Group 2 branches are removed and the code still compiles and passes `nsh-test`, with the
+      count of `/etc/NIXOS` tests in live code at ZERO. DONE 2026-09-20 -- and one of them was
+      not a dead branch.
+      <!-- /etc/NIXOS IS AT ZERO in live code; the two remaining hits are comments recording
+      what was fixed. But pip_checker was a CORRECTION, not a removal: its guard tested for
+      NixOS and its CONCERN was PEP 668, which Arch has too. Measured:
+      /usr/lib/python3.14/EXTERNALLY-MANAGED is present. Deleting the branch as dead would
+      have left the tool attempting a pip upgrade this system blocks. It now asks the
+      interpreter instead of the distribution.
+
+      THE OTHER GROUP 2 ITEMS WENT TO INT-255, and that is a scope decision rather than an
+      omission: 67 of the 104 live lines are NovaShell commands that RUN and degrade honestly
+      (INT-227 built that diagnostic). Repointing  at pacman is a ruling about what
+      the shell knows. This intent removed advice; 255 changes knowledge. -->
 - [x] `domains/nix/` is NOT deleted by this intent. MEASURED AND RECORDED 2026-09-19.
       <!-- 399 lines, ONE public function (`inspect`), ONE caller: dispatcher.rs:246 wires it
       to `core nix inspect <option>`. The command is LIVE and it degrades honestly -- run here
@@ -107,9 +119,9 @@ argument -- the leftovers do not block the flip and never did.
       command that could not do its job reporting success is the same shape as a check that
       passes without looking -- the defect INT-222 exists for, in a different file. --> Its fate is recorded as an open decision with
       the domain-split work, and the reason is stated.
-- [ ] GROUP 3 IS UNTOUCHED AND THE LIST IS WRITTEN DOWN, so a later sweep does not "finish the
+- [x] GROUP 3 IS UNTOUCHED AND THE LIST IS WRITTEN DOWN, so a later sweep does not "finish the
       job" by deleting the history. The census generator especially: it is the guard.
-- [ ] Both doors run afterwards -- `nsh -c`, a PTY session, `core doctor`, `history` -- and the
+- [x] Both doors run afterwards -- `nsh -c`, a PTY session, `core doctor`, `history` -- and the
       doctor's advice is read end to end by a human who confirms every fix is runnable.
 
 ## Evidence, 2026-09-19
@@ -132,6 +144,34 @@ Executed, output recorded:
     ship                           3 shipped, 22 unchanged, 0 failed
     faelight-docs check            0 NixOS terms in the generated output
 ```
+
+## The census, CORRECTED 2026-09-20
+
+The 85 in the title came from a loose pattern. A tighter one -- NixOS, nixos, /nix/store,
+nix-store, nix-env, nixpkgs, flake, home-manager, with bare `nix` dropped because it matches
+std::os::unix -- gives a different picture:
+
+```text
+    198 occurrences across 37 files, not 85 across 21
+    104 live code lines
+     94 comments -- group 3 by definition, and they stay
+```
+
+Where the 104 live lines are:
+
+```text
+    67   NovaShell      commands 31, prompt 16, completion 12, triage 6, platform 1, exec 1
+    11   domains/nix    deferred above: a decision, not a deletion
+    11   friday         the TRANSLATION TABLE -- group 3, stays
+     4   teach          FIXED in this intent
+     3   faelight-update/main.rs   flake.lock drift, dead but HONEST: the file is absent and
+                                   it reports unknown rather than a number
+     2   nsh-test       group 3, the NSH_BIN example
+```
+
+⭐ THE 67 NOVASHELL LINES ARE INT-255. That intent exists because repointing a live command at
+pacman is a decision about what the shell KNOWS, not a string sweep -- and every one of those
+commands degrades honestly today rather than lying.
 
 ## Not in scope
 
