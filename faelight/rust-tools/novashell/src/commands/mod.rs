@@ -5173,10 +5173,13 @@ fn execute_dispatch(
         }
         "cd" => cd(args),
         "cache" => cache(args),
-        "devshell" => match args.first().copied() {
-            Some("enter") => devshell_enter(&args[1..]),
-            _ => devshell_list(args),
-        },
+        // ⚠️ THE "devshell" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255). It ran
+        // `nix flake show --json` to list devShells and `nix develop` to enter one.
+        //
+        // NO ARCH EQUIVALENT, AND THAT IS A REAL ANSWER RATHER THAN AN OMISSION. A
+        // per-project declarative shell built from a lockfile is a Nix idea; pacman has no
+        // counterpart and inventing one would be pretending. It failed honestly here --
+        // "no flake found" -- which is why it survived the migration.
         "d" => {
             // forest built-in: d → core doctor run
             let output = std::process::Command::new("core")
@@ -8325,57 +8328,16 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     }
 }
 
-fn devshell_list(args: &[&str]) -> CommandResult {
-    if let Some(&sub) = args.first() {
-        if sub != "list" {
-            return CommandResult::Error(
-                format!("unknown devshell subcommand '{}' (try: devshell list)", sub).into(),
-                1,
-            );
-        }
-    }
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let output = std::process::Command::new("nix")
-        .args(["flake", "show", "--json"])
-        .current_dir(&cwd)
-        .output();
-    let out = match output {
-        Ok(o) if o.status.success() => o,
-        _ => {
-            return CommandResult::Error(
-                format!(
-                    "no flake found in {} (nix flake show failed)",
-                    cwd.display()
-                )
-                .into(),
-                1,
-            )
-        }
-    };
-    let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
-        Ok(v) => v,
-        Err(_) => {
-            return CommandResult::Error("could not parse nix flake output".to_string().into(), 1)
-        }
-    };
-    let system = format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS);
-    let shells = json.get("devShells").and_then(|d| d.get(system.as_str()));
-    let map = match shells {
-        Some(serde_json::Value::Object(m)) if !m.is_empty() => m,
-        _ => return CommandResult::Output(format!("  no devShells for {} in this flake", system)),
-    };
-    let mut lines = vec![format!("  devShells in current flake ({}):", system)];
-    for name in map.keys() {
-        lines.push(format!("    {}", name));
-    }
-    CommandResult::Output(lines.join("\n"))
-}
-
 fn pkg_search(args: &[&str]) -> CommandResult {
-    // pkg-search <term> -- search nixpkgs, print name/version/description (INT-134, Lane 2).
-    // Deliberate, read-only: runs `nix search nixpkgs <regex> --json` (nix 2.34 form, regex
-    // as a separate arg). Latency is expected because you asked -- this is NOT a TAB handler.
-    // Caches results to /tmp/fsh-pkg-search.json so completion can read them without a network hit.
+    // pkg-search <term> -- search the package repositories, print name/version/description.
+    //
+    // REPOINTED 2026-09-20 (INT-255). It ran `nix search nixpkgs <regex> --json`, and on this
+    // machine that CRASHED rather than degrading: the spawn was unguarded, so a missing nix
+    // gave "No such file or directory" instead of a diagnostic. `pacman -Ss` answers the same
+    // question and marks what is installed.
+    //
+    // Deliberate and read-only. Latency is expected because you asked -- this is NOT a TAB
+    // handler.
     let term = args.join(" ");
     if term.trim().is_empty() {
         return CommandResult::Error(
@@ -8385,97 +8347,55 @@ fn pkg_search(args: &[&str]) -> CommandResult {
             1,
         );
     }
-    let out = std::process::Command::new("nix")
-        .args(["search", "nixpkgs", &term, "--json"])
+    let out = std::process::Command::new("pacman")
+        .args(["-Ss", &term])
         .output();
     let out = match out {
         Ok(o) if o.status.success() => o,
+        // pacman -Ss exits non-zero when nothing matched, which is an ANSWER, not a failure.
+        Ok(o) if o.stdout.is_empty() && o.stderr.is_empty() => {
+            return CommandResult::Output(format!("  no packages matching {}", term))
+        }
         Ok(o) => {
             let err = String::from_utf8_lossy(&o.stderr);
-            return CommandResult::Error(
-                format!("pkg-search: nix search failed: {}", err.trim()).into(),
-                1,
-            );
+            if err.trim().is_empty() {
+                return CommandResult::Output(format!("  no packages matching {}", term));
+            }
+            return CommandResult::Error(format!("pkg-search: {}", err.trim()).into(), 1);
         }
-        Err(e) => return CommandResult::Error(format!("pkg-search: {}", e).into(), 1),
+        Err(_) => {
+            return CommandResult::Error(
+                crate::diagnostic::Diagnostic::error("cannot search packages")
+                    .with_help("pkg-search reads pacman; it is not on PATH here")
+                    .with_code("nsh::platform::no_pacman"),
+                1,
+            )
+        }
     };
-    let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
-        Ok(v) => v,
-        Err(e) => return CommandResult::Error(format!("pkg-search: parse: {}", e).into(), 1),
-    };
-    let map = match json.as_object() {
-        Some(m) if !m.is_empty() => m,
-        _ => return CommandResult::Output(format!("  no packages matching '{}'", term)),
-    };
-    // Cache raw JSON for completion (piece 2). Best-effort: a failed write never fails the search.
-    let _ = std::fs::write("/tmp/fsh-pkg-search.json", &out.stdout);
-    let mut rows: Vec<(String, String, String)> = Vec::new();
-    for (attr, v) in map.iter() {
-        let name = attr.rsplit('.').next().unwrap_or(attr).to_string();
-        let ver = v
-            .get("version")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_string();
-        let desc = v
-            .get("description")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_string();
-        rows.push((name, ver, desc));
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let mut lines: Vec<String> = vec![format!("  packages matching {}", term)];
+    let mut shown = 0usize;
+    let mut total = 0usize;
+    let mut it = text.lines();
+    while let Some(head) = it.next() {
+        if head.starts_with(char::is_whitespace) || head.trim().is_empty() {
+            continue;
+        }
+        total += 1;
+        let desc = it.next().unwrap_or("").trim().to_string();
+        if shown >= 40 {
+            continue;
+        }
+        shown += 1;
+        let mut parts = head.split_whitespace();
+        let name = parts.next().unwrap_or("");
+        let ver = parts.next().unwrap_or("");
+        lines.push(format!("  {:<34} {:<16} {}", name, ver, desc));
     }
-    rows.sort();
-    rows.dedup();
-    let mut lines = vec![format!(
-        "  \u{1f50d} nixpkgs matches for '{}' ({})",
-        term,
-        rows.len()
-    )];
-    lines.push("\u{2500}".repeat(52));
-    for (name, ver, desc) in rows.iter().take(40) {
-        let d = if desc.len() > 60 {
-            format!("{}...", &desc[..57])
-        } else {
-            desc.clone()
-        };
-        lines.push(format!("  {:<28} {:<14} {}", name, ver, d));
-    }
-    if rows.len() > 40 {
-        lines.push(format!(
-            "\n  ... {} more (narrow the term)",
-            rows.len() - 40
-        ));
+    if total > shown {
+        lines.push(format!("\n  ... {} more (narrow the term)", total - shown));
     }
     CommandResult::Output(lines.join("\n"))
-}
-
-fn devshell_enter(args: &[&str]) -> CommandResult {
-    // devshell enter [name] -- enter a flake devShell reproducibly (INT-134, Lane 2).
-    // fsh IS the shell; it cannot inject a devShell into its own process. It execs
-    // `nix develop` and runs a nested fsh inside the real nix env -- `exit` returns here.
-    // Authorized + reproducible: nix does the eval, you type the command, nothing auto-runs.
-    // Nesting is allowed -- nix stacks devShells cleanly, and this session normally
-    // starts inside friday-dev, so a hard nix-shell block would make enter unusable.
-    let cwd = std::env::current_dir().unwrap_or_default();
-    if !cwd.join("flake.nix").exists() {
-        return CommandResult::Error(
-            format!("devshell: no flake.nix in {}", cwd.display()).into(),
-            1,
-        );
-    }
-    let fsh = std::env::current_exe()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "faelight-shell".to_string());
-    let mut cmd = std::process::Command::new("nix");
-    cmd.arg("develop");
-    if let Some(name) = args.first() {
-        cmd.arg(format!(".#{}", name));
-    }
-    cmd.args(["--command", &fsh]).current_dir(&cwd);
-    match cmd.status() {
-        Ok(_) => CommandResult::Empty { suspension: None },
-        Err(e) => CommandResult::Error(format!("devshell enter: {}", e).into(), 1),
-    }
 }
 
 fn cache(args: &[&str]) -> CommandResult {
@@ -11744,26 +11664,13 @@ fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-#[allow(dead_code)]
-fn suggest_after_external(line: &str, cmd_lower: &str) {
-    let suggestion: Option<&str> = match cmd_lower {
-        "cicomplete" => Some("💡 Next: fg commit — record the completion"),
-        "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
-        "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
-        "paru" | "pacman" => Some("💡 That isn't a NixOS command — apply changes with deploy (it rebuilds + health-checks)"),
-        "core" if line.contains("intent complete") => {
-            Some("💡 Next: fg commit — record the completion")
-        }
-        "core" if line.contains("intent start") => {
-            Some("💡 Next: read the intent carefully before writing any code")
-        }
-        _ => None,
-    };
-    if let Some(msg) = suggestion {
-        println!("  {}", msg);
-    }
-}
-
+// ⚠️ suggest_after_external WAS REMOVED HERE, 2026-09-20 (INT-255). Dead code, and a
+// DUPLICATE of the live suggestion table in exec.rs -- the same arms, including the one for
+// paru and pacman reading "That isn't a NixOS command, apply changes with deploy".
+//
+// ⭐ THAT STRING HAD TO BE FOUND TWICE. It was corrected in exec.rs earlier today and the
+// second copy sat here, in the same 759KB file, unnoticed until a census listed it. Two
+// copies of one suggestion table is the shape this ledger keeps removing.
 fn help() -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
@@ -12278,340 +12185,19 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
     }
 }
 
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_snapshot(snap: Option<&str>) -> CommandResult {
-    use colored::Colorize;
-    let domain = "nixos-lab";
-    let name = match snap {
-        Some(n) if !n.is_empty() => n,
-        _ => {
-            return CommandResult::Output(format!(
-                "  {}\n",
-                "vm snapshot: needs a name -- e.g. vm snapshot before-greetd-test".bright_red()
-            ))
-        }
-    };
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "snapshot-create-as", domain, name])
-        .output();
-    let mut out = String::new();
-    match result {
-        Ok(o) if o.status.success() => {
-            out.push_str(&format!(
-                "  {} {}  {}\n",
-                "📸 snapshot".bright_green().bold(),
-                name.bright_white(),
-                format!("(on {})", domain).dimmed()
-            ));
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!(
-                "  {} {}\n  {}\n",
-                "vm snapshot failed:".bright_red().bold(),
-                name.bright_white(),
-                stderr.trim().dimmed()
-            ));
-        }
-        Err(e) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "vm snapshot: could not run virsh".bright_red().bold(),
-                e.to_string().dimmed()
-            ));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_restore(snap: Option<&str>) -> CommandResult {
-    use colored::Colorize;
-    let domain = "nixos-lab";
-    let name = match snap {
-        Some(n) if !n.is_empty() => n,
-        _ => {
-            return CommandResult::Output(format!(
-                "  {}\n",
-                "vm restore: needs a name -- e.g. vm restore before-greetd-test".bright_red()
-            ))
-        }
-    };
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "snapshot-revert", domain, name])
-        .output();
-    let mut out = String::new();
-    match result {
-        Ok(o) if o.status.success() => {
-            out.push_str(&format!(
-                "  {} {}  {}\n",
-                "⟲ restored".bright_green().bold(),
-                name.bright_white(),
-                format!("(on {})", domain).dimmed()
-            ));
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!(
-                "  {} {}\n  {}\n",
-                "vm restore failed:".bright_red().bold(),
-                name.bright_white(),
-                stderr.trim().dimmed()
-            ));
-        }
-        Err(e) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "vm restore: could not run virsh".bright_red().bold(),
-                e.to_string().dimmed()
-            ));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_snapshots() -> CommandResult {
-    use colored::Colorize;
-    let domain = "nixos-lab";
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "snapshot-list", domain])
-        .output();
-    let mut out = String::new();
-    out.push_str(&format!(
-        "\n  {}\n",
-        format!("📸 Snapshots ({})", domain).bright_cyan().bold()
-    ));
-    match result {
-        Ok(o) if o.status.success() => {
-            let listing = String::from_utf8_lossy(&o.stdout);
-            let body = listing.trim_end();
-            if body.is_empty() {
-                out.push_str(&format!("  {}\n", "(none)".dimmed()));
-            } else {
-                for line in body.lines() {
-                    out.push_str(&format!("  {}\n", line));
-                }
-            }
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!("  {}\n", stderr.trim().dimmed()));
-        }
-        Err(e) => {
-            out.push_str(&format!("  {}\n", e.to_string().dimmed()));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_status(name: Option<&str>) -> CommandResult {
-    use colored::Colorize;
-    let domain = name.unwrap_or("nixos-lab");
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "domstate", domain])
-        .output();
-    let mut out = String::new();
-    match result {
-        Ok(o) if o.status.success() => {
-            let state = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            let state_colored = match state.as_str() {
-                "running" => state.bright_green().bold().to_string(),
-                "shut off" => state.dimmed().to_string(),
-                other => other.bright_yellow().to_string(),
-            };
-            out.push_str(&format!(
-                "  🖥  {}  {}\n",
-                domain.bright_white().bold(),
-                state_colored
-            ));
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!(
-                "  {} {}\n  {}\n",
-                "vm status failed:".bright_red().bold(),
-                domain.bright_white(),
-                stderr.trim().dimmed()
-            ));
-        }
-        Err(e) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "vm status: could not run virsh".bright_red().bold(),
-                e.to_string().dimmed()
-            ));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_stop(name: Option<&str>) -> CommandResult {
-    use colored::Colorize;
-    let domain = name.unwrap_or("nixos-lab");
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "shutdown", domain])
-        .output();
-    let mut out = String::new();
-    match result {
-        Ok(o) if o.status.success() => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "🖥  stopping".bright_yellow().bold(),
-                domain.bright_white()
-            ));
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            if !stdout.trim().is_empty() {
-                out.push_str(&format!("  {}\n", stdout.trim().dimmed()));
-            }
-            out.push_str(&format!(
-                "  {}\n",
-                "(graceful shutdown -- give it a few seconds)".dimmed()
-            ));
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!(
-                "  {} {}\n  {}\n",
-                "vm stop failed:".bright_red().bold(),
-                domain.bright_white(),
-                stderr.trim().dimmed()
-            ));
-        }
-        Err(e) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "vm stop: could not run virsh".bright_red().bold(),
-                e.to_string().dimmed()
-            ));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_start(name: Option<&str>) -> CommandResult {
-    use colored::Colorize;
-    let domain = name.unwrap_or("nixos-lab");
-    let result = std::process::Command::new("virsh")
-        .args(["-c", "qemu:///system", "start", domain])
-        .output();
-    let mut out = String::new();
-    match result {
-        Ok(o) if o.status.success() => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "🖥  started".bright_green().bold(),
-                domain.bright_white()
-            ));
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            if !stdout.trim().is_empty() {
-                out.push_str(&format!("  {}\n", stdout.trim().dimmed()));
-            }
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            out.push_str(&format!(
-                "  {} {}\n  {}\n",
-                "vm start failed:".bright_red().bold(),
-                domain.bright_white(),
-                stderr.trim().dimmed()
-            ));
-        }
-        Err(e) => {
-            out.push_str(&format!(
-                "  {} {}\n",
-                "vm start: could not run virsh".bright_red().bold(),
-                e.to_string().dimmed()
-            ));
-        }
-    }
-    CommandResult::Output(out)
-}
-
-// INT-027 libvirt nixos-lab tooling: preserved, unwired from `vm` (now faelight-vm).
-#[allow(dead_code)]
-fn vm_list() -> CommandResult {
-    use colored::Colorize;
-    let mut out = String::new();
-    out.push_str(&format!(
-        "\n{}\n",
-        "  🖥  Virtual Machines".bright_cyan().bold()
-    ));
-    out.push_str(&format!(
-        "{}\n",
-        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
-    ));
-    // INT-030: scan ~/vms/*.qcow2 -- no virsh dependency
-    // INT-227 category A: the fallback used to be one user's home directory, which is
-    // wrong for EVERY other user and silently scans somebody else's disk. If HOME is
-    // unset there is no home to guess at, so the list is empty and says so.
-    let Some(home) = std::env::var("HOME").ok() else {
-        out.push_str("  HOME is not set, so there is no ~/vms to scan\n");
-        return CommandResult::Output(out);
-    };
-    let vms_dir = std::path::PathBuf::from(&home).join("vms");
-    // Check which qcow2 names are currently running via qemu process list
-    let running_output = std::process::Command::new("pgrep")
-        .args(["-a", "qemu"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
-    let mut count = 0;
-    if let Ok(entries) = std::fs::read_dir(&vms_dir) {
-        let mut disks: Vec<_> = entries
-            .flatten()
-            .filter(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
-            .collect();
-        disks.sort_by_key(|e| e.file_name());
-        for entry in &disks {
-            let fname = entry.file_name().to_string_lossy().to_string();
-            let name = fname.trim_end_matches(".qcow2").to_string();
-            let disk_path = entry.path().to_string_lossy().to_string();
-            let is_running = running_output.contains(&disk_path) || running_output.contains(&name);
-            let state_str = if is_running { "running" } else { "stopped" };
-            let state_colored = if is_running {
-                state_str.bright_green().to_string()
-            } else {
-                state_str.dimmed().to_string()
-            };
-            let size = std::fs::metadata(entry.path())
-                .map(|m| {
-                    let mb = m.len() / 1_048_576;
-                    if mb >= 1024 {
-                        format!("{}G", mb / 1024)
-                    } else {
-                        format!("{}M", mb)
-                    }
-                })
-                .unwrap_or_else(|_| "?".to_string());
-            out.push_str(&format!(
-                "  {}  {}  {}\n",
-                name.bright_white().bold(),
-                state_colored,
-                size.dimmed()
-            ));
-            count += 1;
-        }
-    }
-    if count == 0 {
-        out.push_str(&format!(
-            "  {}\n",
-            "No VMs found -- place .qcow2 files in ~/vms/".dimmed()
-        ));
-    }
-    out.push_str(&format!("  {}\n", format!("{}/vms/", home).dimmed()));
-    CommandResult::Output(out)
-}
-
+// ⚠️ SEVEN libvirt nixos-lab FUNCTIONS WERE REMOVED HERE, 2026-09-20 (INT-255):
+// vm_snapshot, vm_restore, vm_snapshots, vm_status, vm_stop, vm_start, vm_list -- 334 lines,
+// every one #[allow(dead_code)] and each carrying the same INT-027 note: preserved, unwired
+// from `vm` when faelight-vm took over.
+//
+// ⭐ PARKED DELIBERATELY, AND THE NOTE SAID SO -- but measured 2026-09-20, VIRSH IS NOT
+// INSTALLED. There is no libvirt here and no domain for the code to be parked for. Keeping
+// code against a future need is a reasonable choice; keeping it against a runtime that is
+// not on the machine is a different thing, and git holds it either way.
+//
+// ⚠️ vm_dispatch ABOVE IS LIVE AND STAYS. It drives faelight-vm (INT-077) and has nothing to
+// do with this block -- it simply sits next to it, which is how a boundary taken from the
+// first function that looks related deletes a working command.
 fn version(_core_root: &str) -> CommandResult {
     let version =
         crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
