@@ -93,93 +93,27 @@ pub fn render_cockpit(
     );
 
     // ── Group checks ─────────────────────────────────────────────────
-    let system_names = [
-        "System Services",
-        "Broken Symlinks",
-        "Binary Dependencies",
-        "Disk Space",
-    ];
-    // "Scripts" was here and no check produces it -- a name carried by the display alone, which
-    // the filter_map swallowed as quietly as it swallowed Git Hooks in the other direction.
-    let git_names = ["Git Repository", "Git Hooks", "Rust Toolchain", "Rust Docs"];
-    let tools_names = ["Tool Installation", "Path Resilience", "Alias Coverage"];
-    let forest_names = [
-        "Intent Ledger",
-        "Zero Config",
-        "Schema Validation",
-        "Friday",
-        "Deadwood",
-    ];
-    let security_names = ["Security Hardening", "Security Audit", "Sandbox"];
-    let boot_names = ["Boot Errors", "Boot Time"];
-    let system_state_names = [
-        "Reboot Needed",
-        "Update Readiness",
-        "Package Cache",
-        "Orphan Packages",
-    ];
-    // ⚠️ FOUR PHANTOM NAMES REMOVED 2026-09-04 (INT-222 gate: the census).
+    // SECTIONS ARE DECLARED, NOT LISTED HERE.
     //
-    // Dotfile Symlinks, Compositor Keybinds, Theme Packages, Package Metadata and Compositor
-    // named checks that no longer exist -- stow went with INT-107, mango and the NixOS theme
-    // packages went with the migration, and Package Metadata was check_dotmeta, the hardcoded
-    // Pass this whole intent was written about.
+    // This block used to be EIGHT HARDCODED NAME LISTS -- a SECOND REGISTRY deciding what was
+    // SEEN while the check set decided what RAN. They drifted in both directions and the file
+    // said so: check_hooks ran for weeks while invisible because no list named it, four names
+    // outlived the checks they pointed at, and Zero Alias fell to Uncategorised from the day
+    // it was written.
     //
-    // A NAME WITH NO CHECK IS THE OTHER HALF OF THE DRIFT. The catch-all added 2026-09-02
-    // makes an unclaimed CHECK visible; filter_map still drops a claimed NAME silently, so
-    // these sat here reading as coverage. The census called this class PHANTOM: not real,
-    // label or lie, because there is nothing behind it to classify.
-    let runtime_names = ["VM State", "Network"];
-
-    let group = |names: &[&str]| -> Vec<&CheckResult> {
-        names
-            .iter()
-            .filter_map(|n| checks.iter().find(|c| c.name == *n))
-            .collect()
-    };
-
-    render_section("🖥  System", &group(&system_names));
-    render_section("🌿 Git & Code", &group(&git_names));
-    render_section("🛠  Tools", &group(&tools_names));
-    render_section("📋 Forest", &group(&forest_names));
-    render_section("🥾 Boot", &group(&boot_names));
-    render_section("📦 System State", &group(&system_state_names));
-    render_section("🖥  Runtime", &group(&runtime_names));
-    render_section("🔒 Security", &group(&security_names));
-
-    // ⭐ ANYTHING NOT CLAIMED ABOVE STILL RENDERS. The eight lists are a SECOND registry of check
-    // names -- all_checks() decides what RUNS, these decide what is SEEN, and they drift apart
-    // silently in both directions.
-    //
-    // MEASURED 2026-09-02: check_hooks was written, registered in all_checks, compiled, and
-    // invisible. filter_map drops a name nobody listed, with no error. In the other direction
-    // git_names carries "Scripts", which no check produces, and the forest and system lists still
-    // name Dotfile Symlinks, Compositor Keybinds, Theme Packages and Package Metadata -- checks
-    // deleted when Omarchy replaced their subjects.
-    //
-    // That is the check-count discrepancy this file's sibling already recorded: "it said 23 while
-    // this file held 30, and the docs said 22 and 14". Two owners of one set.
-    //
-    // A catch-all does not fix the drift, it makes the drift VISIBLE -- the same move INT-148 made
-    // for Unknown. Forgetting to categorise a check is now cosmetic instead of silent, and a check
-    // can never again run without being seen.
-    let claimed: Vec<&str> = system_names
-        .iter()
-        .chain(git_names.iter())
-        .chain(tools_names.iter())
-        .chain(forest_names.iter())
-        .chain(boot_names.iter())
-        .chain(system_state_names.iter())
-        .chain(runtime_names.iter())
-        .chain(security_names.iter())
-        .copied()
-        .collect();
-    let unclaimed: Vec<&CheckResult> = checks
-        .iter()
-        .filter(|c| !claimed.contains(&c.name.as_str()))
-        .collect();
-    if !unclaimed.is_empty() {
-        render_section("❔ Uncategorised", &unclaimed);
+    // Now each check DECLARES its section in checks.toml and carries it through. A check
+    // cannot be unclaimed, a section cannot outlive its checks, and the order is the order of
+    // the file -- so rearranging the panel means rearranging the declarations, which is the
+    // one place the answer lives.
+    let mut order: Vec<&str> = Vec::new();
+    for c in checks {
+        if !order.contains(&c.section.as_str()) {
+            order.push(&c.section);
+        }
+    }
+    for sec in order {
+        let group: Vec<&CheckResult> = checks.iter().filter(|c| c.section == sec).collect();
+        render_section(sec, &group);
     }
 
     // ── Stats strip ───────────────────────────────────────────────────

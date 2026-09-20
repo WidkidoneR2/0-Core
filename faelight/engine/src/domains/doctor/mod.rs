@@ -30,6 +30,10 @@ pub enum Tier {
 
 #[derive(Debug)]
 pub struct CheckResult {
+    /// Which panel section this appears under, DECLARED by the check itself.
+    /// The cockpit used to hold eight hardcoded name lists deciding this, and they drifted
+    /// from what actually ran in both directions.
+    pub section: String,
     pub id: String,
     pub name: String,
     pub status: Status,
@@ -1364,6 +1368,7 @@ fn from_engine() -> Vec<CheckResult> {
         Err(e) => {
             return vec![CheckResult {
                 tier: Tier::Critical,
+                section: "Refused".into(),
                 id: "check_set".into(),
                 name: "Check Set".into(),
                 status: Status::Unknown,
@@ -1377,6 +1382,7 @@ fn from_engine() -> Vec<CheckResult> {
         .iter()
         .map(|(id, e)| CheckResult {
             tier: Tier::System,
+            section: "Refused".into(),
             id: id.clone(),
             name: id.clone(),
             status: Status::Unknown,
@@ -1392,6 +1398,7 @@ fn from_engine() -> Vec<CheckResult> {
                 ET::User => Tier::User,
                 ET::Info => Tier::Info,
             },
+            section: o.section,
             id: o.id,
             name: o.name,
             status: match o.status {

@@ -179,12 +179,14 @@ mod tests {
             [[check]]
             id = "a"
             name = "A"
+            section = "Test"
             tier = "user"
             probe = "friday"
             severities = ["pass"]
             [[check]]
             id = "a"
             name = "Again"
+            section = "Test"
             tier = "user"
             probe = "network"
             severities = ["pass"]

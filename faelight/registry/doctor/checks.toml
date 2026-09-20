@@ -56,6 +56,7 @@
 [[check]]
 id = "services_running"
 name = "System Services"
+section = "\U0001F5A5  System"
 tier = "system"
 probe = "services_running"
 severities = ["pass", "warn"]
@@ -64,6 +65,7 @@ recovery = "Start the unit: systemctl --user start <name>"
 [[check]]
 id = "broken_symlinks"
 name = "Broken Symlinks"
+section = "\U0001F5A5  System"
 tier = "system"
 probe = "broken_symlinks"
 severities = ["pass", "fail"]
@@ -72,6 +74,7 @@ recovery = "Re-run the dotfile deployment"
 [[check]]
 id = "binaries"
 name = "Binary Dependencies"
+section = "\U0001F5A5  System"
 tier = "critical"
 probe = "binaries"
 severities = ["pass", "fail"]
@@ -80,6 +83,7 @@ recovery = "Install the missing binaries"
 [[check]]
 id = "git_status"
 name = "Git Repository"
+section = "\U0001F33F Git & Code"
 tier = "user"
 probe = "git_status"
 severities = ["pass", "warn"]
@@ -88,6 +92,7 @@ recovery = "Commit and push, or stash"
 [[check]]
 id = "git_hooks"
 name = "Git Hooks"
+section = "\U0001F33F Git & Code"
 tier = "user"
 probe = "git_hooks"
 severities = ["pass", "fail"]
@@ -96,6 +101,7 @@ recovery = "Set core.hooksPath and make the hooks executable"
 [[check]]
 id = "rust_docs"
 name = "Rust Docs"
+section = "\U0001F33F Git & Code"
 tier = "user"
 probe = "rust_docs"
 severities = ["pass", "warn"]
@@ -104,6 +110,7 @@ recovery = "See them: cargo doc -p core --no-deps"
 [[check]]
 id = "intent_ledger"
 name = "Intent Ledger"
+section = "\U0001F4CB Forest"
 tier = "user"
 probe = "intent_ledger"
 severities = ["pass", "warn"]
@@ -112,6 +119,7 @@ recovery = "Run: core intent validate"
 [[check]]
 id = "deadwood_scan"
 name = "Deadwood"
+section = "\U0001F4CB Forest"
 tier = "user"
 probe = "deadwood_scan"
 severities = ["pass", "warn"]
@@ -120,6 +128,7 @@ recovery = "Run: faelight-deadwood"
 [[check]]
 id = "zero_config"
 name = "Zero Config"
+section = "\U0001F4CB Forest"
 tier = "system"
 probe = "zero_config"
 severities = ["pass", "warn"]
@@ -128,6 +137,7 @@ recovery = "Check the files named above in ~/.config/faelight"
 [[check]]
 id = "zero_alias"
 name = "Zero Alias"
+section = "\U0001F4CB Forest"
 tier = "system"
 probe = "zero_alias"
 severities = ["pass", "warn"]
@@ -136,6 +146,7 @@ recovery = "Recreate: ln -s faelight ~/.local/state/zero"
 [[check]]
 id = "security_hardening"
 name = "Security Hardening"
+section = "\U0001F512 Security"
 tier = "system"
 probe = "security_hardening"
 severities = ["pass", "warn", "fail"]
@@ -144,6 +155,7 @@ recovery = "Start it: sudo systemctl enable --now ufw"
 [[check]]
 id = "security_audit"
 name = "Security Audit"
+section = "\U0001F512 Security"
 tier = "system"
 probe = "security_audit"
 severities = ["pass", "warn", "fail"]
@@ -152,6 +164,7 @@ recovery = "Run: core security scan"
 [[check]]
 id = "alias_coverage"
 name = "Alias Coverage"
+section = "\U0001F6E0  Tools"
 tier = "user"
 probe = "alias_coverage"
 severities = ["pass", "warn"]
@@ -160,6 +173,7 @@ recovery = "Add an alias for each tool named above"
 [[check]]
 id = "rust_toolchain"
 name = "Rust Toolchain"
+section = "\U0001F33F Git & Code"
 tier = "system"
 probe = "rust_toolchain"
 severities = ["pass", "fail"]
@@ -168,6 +182,7 @@ recovery = "Install the Rust toolchain"
 [[check]]
 id = "disk_space"
 name = "Disk Space"
+section = "\U0001F5A5  System"
 tier = "critical"
 probe = "disk_space"
 severities = ["pass", "warn"]
@@ -176,6 +191,7 @@ recovery = "Free space on the filesystem"
 [[check]]
 id = "tool_installation"
 name = "Tool Installation"
+section = "\U0001F6E0  Tools"
 tier = "system"
 probe = "tool_installation"
 severities = ["pass", "warn"]
@@ -184,6 +200,7 @@ recovery = "Rebuild and deploy: ship"
 [[check]]
 id = "path_resilience"
 name = "Path Resilience"
+section = "\U0001F6E0  Tools"
 tier = "system"
 probe = "path_resilience"
 severities = ["pass", "warn"]
@@ -192,6 +209,7 @@ recovery = "Rebuild and deploy: ship"
 [[check]]
 id = "schema_validation"
 name = "Schema Validation"
+section = "\U0001F4CB Forest"
 tier = "system"
 probe = "schema_validation"
 severities = ["pass", "warn"]
@@ -200,6 +218,7 @@ recovery = "Fix the registry file named above"
 [[check]]
 id = "sandbox"
 name = "Sandbox"
+section = "\U0001F512 Security"
 tier = "system"
 probe = "sandbox"
 severities = ["pass", "warn", "fail"]
@@ -208,6 +227,7 @@ recovery = "Build and deploy it: ship"
 [[check]]
 id = "boot_errors"
 name = "Boot Errors"
+section = "\U0001F97E Boot"
 tier = "critical"
 probe = "boot_errors"
 severities = ["pass", "warn"]
@@ -216,6 +236,7 @@ recovery = "See them: journalctl -b -k -p crit"
 [[check]]
 id = "boot_time"
 name = "Boot Time"
+section = "\U0001F97E Boot"
 tier = "system"
 probe = "boot_time"
 severities = ["pass", "warn"]
@@ -224,6 +245,7 @@ recovery = "See what is slow: systemd-analyze blame"
 [[check]]
 id = "reboot_needed"
 name = "Reboot Needed"
+section = "\U0001F4E6 System State"
 tier = "system"
 probe = "reboot_needed"
 severities = ["pass", "warn"]
@@ -232,6 +254,7 @@ recovery = "Reboot to load the installed kernel"
 [[check]]
 id = "update_readiness"
 name = "Update Readiness"
+section = "\U0001F4E6 System State"
 tier = "user"
 probe = "update_readiness"
 severities = ["pass", "warn"]
@@ -240,6 +263,7 @@ recovery = "Resolve the above first"
 [[check]]
 id = "package_cache"
 name = "Package Cache"
+section = "\U0001F4E6 System State"
 tier = "info"
 probe = "package_cache"
 severities = ["pass"]
@@ -247,6 +271,7 @@ severities = ["pass"]
 [[check]]
 id = "orphan_packages"
 name = "Orphan Packages"
+section = "\U0001F4E6 System State"
 tier = "user"
 probe = "orphan_packages"
 severities = ["pass", "warn"]
@@ -255,6 +280,7 @@ recovery = "Review them: pacman -Qdtq"
 [[check]]
 id = "friday"
 name = "Friday"
+section = "\U0001F4CB Forest"
 tier = "user"
 probe = "friday"
 severities = ["pass", "warn"]
@@ -263,6 +289,7 @@ recovery = "Friday learns from use; patterns build over time"
 [[check]]
 id = "network"
 name = "Network"
+section = "\U0001F5A5  Runtime"
 tier = "system"
 probe = "network"
 severities = ["pass", "warn"]
@@ -275,6 +302,7 @@ recovery = "Check the connection"
 # The probe now returns pass or unknown and never warn, so the declaration can be true.
 id = "vm_state"
 name = "VM State"
+section = "\U0001F5A5  Runtime"
 tier = "info"
 probe = "vm_state"
 severities = ["pass"]

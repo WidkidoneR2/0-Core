@@ -80,6 +80,7 @@ mod tests {
 
     fn outcome(status: Status, recovery: Option<&str>) -> Outcome {
         Outcome {
+            section: "Test".into(),
             id: "example".into(),
             name: "Example Check".into(),
             tier: Tier::System,

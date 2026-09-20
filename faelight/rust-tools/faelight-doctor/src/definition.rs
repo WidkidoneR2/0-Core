@@ -38,6 +38,15 @@ pub struct Definition {
     pub id: String,
     pub name: String,
     pub tier: Tier,
+    /// Which panel section this check appears under.
+    ///
+    /// REQUIRED, and that is the point. The cockpit used to hold EIGHT HARDCODED NAME LISTS
+    /// deciding what was SEEN, while the registry decided what RAN, and they drifted in both
+    /// directions: check_hooks ran for weeks while invisible, four names survived checks that
+    /// had been deleted, and Zero Alias fell to Uncategorised from the day it was written.
+    /// A check that declares its own section cannot be unclaimed, and a section that claims
+    /// no check cannot exist.
+    pub section: String,
     /// Which severities this check may produce. NEVER EMPTY -- see `validate`.
     pub severities: Vec<Severity>,
     /// A plain condition the engine evaluates itself. Mutually exclusive with `probe`.
@@ -179,6 +188,7 @@ mod tests {
 
     fn base() -> Definition {
         Definition {
+            section: "Test".into(),
             id: "example".into(),
             name: "Example".into(),
             tier: Tier::System,

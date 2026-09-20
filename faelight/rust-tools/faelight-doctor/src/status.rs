@@ -49,6 +49,8 @@ pub enum Verdict {
 /// One result, as produced by running a definition.
 #[derive(Debug, Clone)]
 pub struct Outcome {
+    /// Declared by the check, carried through so nothing downstream keeps its own list.
+    pub section: String,
     pub id: String,
     pub name: String,
     pub tier: Tier,

@@ -58,6 +58,7 @@ pub fn run_one(d: &Definition) -> Outcome {
 fn enforce(d: &Definition, m: Measurement) -> Outcome {
     if d.permits(m.status) {
         return Outcome {
+            section: d.section.clone(),
             id: d.id.clone(),
             name: d.name.clone(),
             tier: d.tier,
@@ -67,6 +68,7 @@ fn enforce(d: &Definition, m: Measurement) -> Outcome {
         };
     }
     Outcome {
+        section: d.section.clone(),
         id: d.id.clone(),
         name: d.name.clone(),
         tier: d.tier,
@@ -126,6 +128,7 @@ mod tests {
 
     fn def(id: &str, tier: Tier, sev: Vec<Severity>) -> Definition {
         Definition {
+            section: "Test".into(),
             id: id.into(),
             name: id.into(),
             tier,
@@ -204,6 +207,7 @@ mod tests {
     fn the_summary_excludes_labels_from_the_denominator() {
         let outcomes = vec![
             Outcome {
+                section: "Test".into(),
                 id: "a".into(),
                 name: "A".into(),
                 tier: Tier::System,
@@ -212,6 +216,7 @@ mod tests {
                 recovery: None,
             },
             Outcome {
+                section: "Test".into(),
                 id: "b".into(),
                 name: "B".into(),
                 tier: Tier::Info,
