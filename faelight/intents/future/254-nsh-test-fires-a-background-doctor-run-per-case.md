@@ -32,6 +32,21 @@ pacman, cargo and git -- and writing the result into a throwaway file nobody rea
 Confirmed by absence: the real state.db has NO doctor events during the test window, because
 every one of those runs wrote somewhere else.
 
+### The correlation, narrowed 2026-09-20
+
+Observed across a dozen commands: the notifications appear WHEN AND ONLY WHEN nsh-test runs.
+
+```text
+    plain commands, a 3-command chain    none
+    git commit --allow-empty             none  -- nothing staged, the hook skips the suite
+    git commit with staged changes       YES   -- pre-commit runs zero-gate runs nsh-test
+    bare gp, nothing to commit           YES   -- pre-push does the same
+    nsh-test run directly                YES
+```
+
+One notification per burst of roughly four, against ~196 cases -- so not one per case. Something
+about a subset of those background runs reaches Red, and it is that subset that has to be found.
+
 ## What is NOT known
 
 ⚠️ THE NOTIFICATIONS ARE NOT EXPLAINED. Running the suite produces desktop notifications reading

@@ -258,15 +258,15 @@ fn build_tool_registry() -> Vec<ToolInfo> {
         },
         ToolInfo {
             name: "faelight-update".to_string(),
-            version: "3.3.0".to_string(),
-            description: "Update dashboard. Scans flake inputs, cargo tools, neovim, workspace, git, firmware, flatpak; runs a health gate before applying.".to_string(),
+            version: "1.0.0".to_string(),
+            description: "Update dashboard. Scans cargo tools, neovim, workspace, git, firmware, flatpak; runs a health gate before applying.".to_string(),
             commands: vec![
                 "faelight-update             # interactive TUI with category selection".to_string(),
                 "faelight-update --dry-run   # preview all updates".to_string(),
-                "faelight-update --only flake,cargo  # targeted categories".to_string(),
+                "faelight-update --only cargo,npm  # targeted categories".to_string(),
             ],
             philosophy: "Updates are not automatic. You see what changes before it changes. The health gate ensures you never update a broken system.".to_string(),
-            replaces: Some("topgrade".to_string()),
+            replaces: None,
         },
         ToolInfo {
             name: "dot-doctor".to_string(),
@@ -390,9 +390,10 @@ fn slide_overview(snap: &SystemSnapshot) {
     );
     println!();
     println!(
-        "  {} commits. {} health. Running on NixOS 26.05 + mango.",
+        "  {} commits. {} health. Running on {}.",
         snap.commit_count.to_string().cyan(),
         format!("{}%", snap.health_pct).green(),
+        os_name(),
     );
     println!();
     println!(
@@ -433,11 +434,36 @@ fn slide_philosophy(_snap: &SystemSnapshot) {
     }
 }
 
+/// The OS and compositor, READ rather than typed.
+///
+/// teach exists to state true facts about the system, and Friday learns from it, so a wrong
+/// fact here does not merely mislead -- it propagates into what the system believes about
+/// itself. These lines said NixOS 26.05 and Sway. The OS was replaced on 2026-08-26, and Sway
+/// was wrong even before that: it was mango, and it is Hyprland now. WRONG THROUGH TWO
+/// COMPOSITORS, because nothing ever compared the claim to the machine.
+fn os_name() -> String {
+    std::fs::read_to_string("/etc/os-release")
+        .ok()
+        .and_then(|t| {
+            t.lines().find_map(|l| {
+                l.strip_prefix("PRETTY_NAME=")
+                    .map(|v| v.trim_matches(0x22 as char).to_string())
+            })
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn compositor() -> String {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("XDG_SESSION_DESKTOP"))
+        .unwrap_or_else(|_| "unknown".to_string())
+}
+
 fn slide_architecture(snap: &SystemSnapshot) {
     println!("  {}", "Stack".cyan().bold());
     println!();
-    println!("  {} NixOS 26.05 (Yarara)", "OS".dimmed());
-    println!("  {} Sway (wlroots Wayland compositor)", "WM".dimmed());
+    println!("  {} {}", "OS".dimmed(), os_name());
+    println!("  {} {}", "WM".dimmed(), compositor());
     println!(
         "  {} {} tools in a Cargo workspace",
         "Tools".dimmed(),
