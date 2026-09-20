@@ -247,6 +247,55 @@ same signature -- so both call sites and everything downstream are untouched.
 The enum mapping is EXHAUSTIVE with no catch-all, so a new variant fails to compile instead of
 defaulting silently. Same rule as the probe dispatcher.
 
+## The switch, DONE 2026-09-19
+
+Three commits, in the order the plan set out.
+
+```text
+    662852dd   THE SWITCH        core doctor measures through faelight-doctor
+    5c9c129d   THE DELETION      2,189 lines removed, nothing added
+    42ec8388   THE SECOND REGISTRY GONE   sections declared, not listed
+```
+
+BEFORE ANY OF IT, THE TWO ENGINES WERE COMPARED ON THIS MACHINE AT THE SAME MOMENT. 28 checks
+paired by name: 24 agreed on status AND message, and ZERO disagreed on status. The four message
+differences were each the new engine being more honest -- disk_space reporting 3600.8 GB free
+instead of the judgement "Sufficient disk space", security_hardening dropping a tick from inside
+a message that might be a Fail, sandbox using the house double dash, intent_ledger no longer
+nesting the validator tick inside the render.
+
+★ THAT COMPARISON IS THE EVIDENCE NEITHER PREVIOUS MIGRATION HAD. Arch to Nix and Nix to Omarchy
+were both taken on faith. This one was measured first.
+
+### What the deletion took, and what it deliberately did not
+
+checks.rs (1970 lines: 26 checks, 4 helpers) and schema.rs (111) deleted entirely; check_deadwood
+and all_checks cut from mod.rs by LINE SPAN. All four helpers were already ported and nothing
+outside the file referenced them.
+
+DELETED BY LOCATION, NEVER BY NAME. bins.rs has its own check_binaries serving `core doctor bins`
+and it is untouched, as are entropy.rs and aliases.rs. Two functions sharing a name is what made
+the first census miscount; deleting the wrong one would have taken a live command with it.
+
+### The cockpit, and why sections are declared
+
+Eight hardcoded name lists decided what was SEEN while the registry decided what RAN. The file
+recorded its own drift in both directions: check_hooks ran for weeks while invisible, four names
+outlived the checks they pointed at, and Zero Alias sat in Uncategorised from the day it was
+written. `section` is now a REQUIRED field on every definition, carried through Outcome to
+CheckResult, so a check cannot be unclaimed and a section cannot outlive its checks.
+
+### ⭐ AND THE DESIGN WAS TESTED BY ACCIDENT, ON LIVE HARDWARE
+
+Between adding `section` to the declarations and shipping the binary that understood it, the
+deployed doctor could not parse its own check set. It did not report a clean 85%. The load
+failed, the adapter emitted a critical-tier Unknown, verdict() returned Red, and a desktop
+notification fired at critical urgency saying a critical check could not run.
+
+THAT IS EXACTLY WHAT THIS INTENT WAS BUILT TO DO, and it happened without anyone arranging it.
+A doctor that cannot read its check set says so, loudly, instead of describing a machine it
+never measured.
+
 ## Success Criteria
 
 ### Phase 0 -- establish the truth
