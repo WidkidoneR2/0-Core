@@ -1,9 +1,32 @@
 use std::path::Path;
 use std::process::Command;
 
+/// Whether this interpreter refuses pip installs, per PEP 668.
+///
+/// A marker file beside the standard library, which both Arch and NixOS ship and which pip
+/// itself honours. Reading it asks the interpreter rather than guessing from the distribution.
+fn externally_managed() -> bool {
+    let out = match Command::new("python3")
+        .args([
+            "-c",
+            "import sysconfig; print(sysconfig.get_path('stdlib'))",
+        ])
+        .output()
+    {
+        Ok(o) if o.status.success() => o,
+        _ => return false,
+    };
+    let stdlib = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    !stdlib.is_empty() && Path::new(&stdlib).join("EXTERNALLY-MANAGED").exists()
+}
+
 pub fn check_pip_updates() -> Vec<String> {
-    // Skip on NixOS (externally-managed / PEP 668) -- python via nixpkgs, not pip
-    if Path::new("/etc/NIXOS").exists() {
+    // ⚠️ THE GUARD WAS RIGHT AND ITS TEST WAS WRONG. It read /etc/NIXOS, so it stopped
+    // firing when NixOS went -- but PEP 668 is not a NixOS idea. ARCH SHIPS
+    // EXTERNALLY-MANAGED TOO (measured 2026-09-20: /usr/lib/python3.14/EXTERNALLY-MANAGED
+    // is present), and pip refuses to touch a managed environment on either system.
+    // Ask the question the interpreter answers, not the one a dead distribution did.
+    if externally_managed() {
         return vec![];
     }
 
@@ -32,10 +55,8 @@ pub fn check_pip_updates() -> Vec<String> {
 }
 
 pub fn update_pip() -> std::io::Result<()> {
-    // Skip on NixOS (externally-managed environment / PEP 668) -- python packages
-    // are managed declaratively via nixpkgs, not pip.
-    if Path::new("/etc/NIXOS").exists() {
-        println!("   ⏭️  Skipping pip on NixOS (use nixpkgs for Python packages)");
+    if externally_managed() {
+        println!("   ⏭️  Skipping pip -- this Python is externally managed (PEP 668)");
         return Ok(());
     }
 
