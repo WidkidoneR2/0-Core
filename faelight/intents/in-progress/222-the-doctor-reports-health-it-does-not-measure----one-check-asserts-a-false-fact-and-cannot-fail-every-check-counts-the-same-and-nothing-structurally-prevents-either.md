@@ -1128,6 +1128,17 @@ beyond routing them through the new engine. INT-102's version bump for nsh-test.
       check_dotmeta itself. -->
 - [~] `rebuild-safe` is reviewed against the new scoring and it is stated -- with a reason --
       whether it gates on the percentage or on critical-tier status.
+      <!-- DEAD 2026-09-20, the same way the generation-count gate above is. THERE IS NO
+      rebuild-safe. `which` finds no binary; the only three references left are two completion
+      word lists and one faelight-deadwood entry, and they sit in a cluster that is entirely
+      NixOS: rebuild, rebuild-safe, rebuild-dry, rebuild-check, rollback, update-flake, deploy.
+      Every one of those wrapped nixos-rebuild or operated on generations, and they went with
+      the OS on 2026-08-28.
+
+      THE QUESTION THE GATE ASKED IS STILL A GOOD ONE, and it is answered elsewhere:
+      update_readiness gates on BLOCKERS, not on a percentage -- an out-of-date kernel or a
+      dirty tree -- and says so per finding. The three dead names in the completion lists are
+      INT-253 group 2, recorded there rather than fixed here. -->
 
 ## Prior art -- do not duplicate
 
