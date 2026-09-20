@@ -99,6 +99,11 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::ForestDb) {
     let _ = std::process::Command::new("core")
         .args(["doctor", "run"])
         .env("NO_COLOR", "1")
+        // ⭐ DECLARE THE SILENCE THAT THE REDIRECTS BELOW ONLY HALF ACHIEVE. stdout and stderr
+        // go to /dev/null, but notify::desktop speaks over busctl and does not pass through
+        // either. Without this, a cache-warm nobody asked for can interrupt at critical
+        // urgency -- measured 2026-09-20 (INT-254), four notifications per nsh-test run.
+        .env("ZERO_NO_NOTIFY", "1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

@@ -124,7 +124,25 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
 
 /// Fire-and-forget desktop notification via D-Bus (org.freedesktop.Notifications).
 /// Proven path: busctl. Used by forest reactions (intent complete, health/integrity drops).
+///
+/// ⚠️ HONOURS ZERO_NO_NOTIFY, AND HERE IS WHAT THAT IS FOR. nsh spawns `core doctor run` at
+/// startup to refresh a stale health event (INT-124), detached and with stdout and stderr to
+/// /dev/null so it is invisible (INT-176). BUT THIS FUNCTION GOES OVER busctl, WHICH THOSE
+/// REDIRECTS DO NOT TOUCH -- so a cache-warm nobody asked for could interrupt at critical
+/// urgency.
+///
+/// ⭐ MEASURED 2026-09-20 (INT-254): nsh-test runs a case with HOME pointed at an empty
+/// directory, deliberately. The spawned shell refreshes health, that doctor cannot find
+/// checks.toml under the fake HOME, the load error is correctly Tier::Critical, verdict() is
+/// correctly Red -- and four notifications arrived per suite run. Every part of that chain is
+/// right except a silent process being able to shout.
+///
+/// ★ THE VARIABLE IS SET BY THE CALLER THAT WANTS SILENCE, NEVER READ AS A DEFAULT. An
+/// interactive `d` still notifies; only a spawn that declared itself invisible is quiet.
 pub fn desktop(summary: &str, body: &str, critical: bool) {
+    if std::env::var("ZERO_NO_NOTIFY").is_ok() {
+        return;
+    }
     let urgency = if critical { "2" } else { "1" };
     let _ = Command::new("busctl")
         .args([

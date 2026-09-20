@@ -3,7 +3,7 @@ id: 254
 date: 2026-09-20
 type: future
 title: "nsh-test fires a background doctor run per case"
-status: planned
+status: in-progress
 tags: [nsh-test, notification, marko, doctor]
 ---
 
@@ -46,6 +46,40 @@ Observed across a dozen commands: the notifications appear WHEN AND ONLY WHEN ns
 
 One notification per burst of roughly four, against ~196 cases -- so not one per case. Something
 about a subset of those background runs reaches Red, and it is that subset that has to be found.
+
+## SOLVED 2026-09-20 -- the cause, measured
+
+```text
+    nsh-test case INT-230 runs a shell with HOME and XDG_STATE_HOME pointed at an
+    empty directory, deliberately: it asserts that nsh says "needs 0-Core, which is
+    not present" instead of pretending.
+
+    nsh startup (main.rs:60) spawns `core doctor run` when the health event is stale.
+    An empty HOME has no events, so it always is.
+
+    That doctor resolves registry/doctor/checks.toml under the FAKE HOME, does not
+    find it, and from_engine() emits Tier::Critical + Status::Unknown -- the
+    load-error path INT-222 built so a missing check set could never render as a
+    clean pass.
+
+    verdict() reads a critical-tier Unknown as RED. The notification fires.
+```
+
+REPRODUCED EXACTLY, and the notification appeared as it ran:
+
+```text
+    HOME=/tmp/probe-home XDG_STATE_HOME=/tmp/probe-home core doctor run
+    -> Passed: 0  Warnings: 0  Failed: 0  Unknown: 1 (Check Set)  Health: 0%
+```
+
+★ FOUR REPL SESSIONS IN THAT ONE CASE, FOUR SPAWNED SHELLS, FOUR DOCTORS, FOUR
+NOTIFICATIONS -- which is the burst size observed all along.
+
+⭐ AND EVERY PART OF THIS IS WORKING AS DESIGNED EXCEPT ONE. The test is right to fake HOME.
+The doctor is right to call a missing check set critical. verdict() is right to read that as
+Red. THE DEFECT IS THAT A BACKGROUND CACHE-WARM CAN SHOUT: INT-176 silenced that spawn with
+stdout and stderr to /dev/null, and notify::desktop goes over busctl, which those redirects
+do not touch.
 
 ## What is NOT known
 
