@@ -51,19 +51,27 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         tools.len().to_string().bright_white()
     );
     println!("  │    cargo build --release --workspace");
+    // ⚠️ THIS SAID ~/0-core/scripts/, WHICH NOTHING HAS DEPLOYED TO SINCE THE MIGRATION.
+    // `ship` asks paths::bin_dir() for its destination, so naming the COMMAND rather than a
+    // path is both true today and true after the tree moves.
     println!(
-        "  │    {} tools to deploy to ~/0-core/scripts/",
+        "  │    ship   -- builds the release and deploys {} tools",
         tools.len().to_string().bright_white()
     );
 
-    // 4. Interfaces (dotfiles owned by home-manager on NixOS)
-    println!("  │");
-    println!("  │  {}", "④ Interfaces".bright_white().bold());
-    println!("  │    dotfiles managed by home-manager (NixOS)");
+    // ⚠️ THE "④ Interfaces" SECTION IS GONE, 2026-09-20. It said "dotfiles managed by
+    // home-manager (NixOS)" -- on a machine where home-manager is not installed and NOTHING
+    // deploys dotfiles. Measured: ~/.config holds no symlink into 0-core, and 0-core/config
+    // does not exist.
+    //
+    // ⭐ THIS IS A BOOTSTRAP GUIDE, so a wrong step is worse here than anywhere else: someone
+    // rebuilding from scratch would wait for a mechanism that was never going to run. A guide
+    // that omits a step it does not have is honest; one that describes a fiction is not.
+    // When something does deploy dotfiles, it earns a section by existing.
 
     // 5. Active intents
     println!("  │");
-    println!("  │  {}", "⑤ Active Intents".bright_white().bold());
+    println!("  │  {}", "④ Active Intents".bright_white().bold());
     let intents = read_active_intents(core_root);
     println!(
         "  │    {} intents in-progress or planned",

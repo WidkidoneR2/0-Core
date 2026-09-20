@@ -91,7 +91,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "doctor",
         &[crate::capabilities::Capability::FilesystemReadHome],
     )?;
-    let core_root = &ctx.core_root;
 
     println!();
     println!(
@@ -125,10 +124,17 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     );
     println!("  │    → git clone <remote>");
     println!("  │    → cargo build --release --workspace");
-    println!(
-        "  │    → deploy all {} binaries to ~/0-core/scripts/",
-        tools.len()
-    );
+    // ⚠️ SAID "deploy all N binaries to ~/0-core/scripts/". Nothing has read scripts/ since
+    // the migration -- `ship` asks paths::bin_dir() -- and the count is every registry entry
+    // including RETIRED ones, so it promised to deploy things that are deliberately absent.
+    // The number above is honest as "registered"; it was a lie as a deployment target.
+    //
+    // ⭐ AND THE READER ABOVE IS ONE OF NINE. Decision 149: tools.toml is parsed in nine
+    // places, four of them ending unwrap_or_default() so an unreadable registry prints as
+    // zero tools. This one is a line scan with no deployable or retired filter, which is why
+    // it says 51 while the doctor says 24/24 and bootstrap verify says 25 missing. The fix is
+    // one owner in faelight-core, and it belongs to 149 rather than to a string correction.
+    println!("  │    → ship   -- deploys every tool the registry marks deployable");
 
     // ── Source 2: Intents ─────────────────────────────────────────────────
     println!("  │");
@@ -149,27 +155,25 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │    → read intents/complete/ to understand WHY each tool exists");
     println!("  │    → cross-reference with CHANGELOG.md for version context");
 
-    // ── Source 3: Interfaces ──────────────────────────────────────────────
-    println!("  │");
-    println!(
-        "  │  {} {} → what the environment looks like",
-        "③".bright_white().bold(),
-        "config/".bright_cyan()
-    );
+    // ⚠️ "Source 3: Interfaces" IS GONE, 2026-09-20, AND IT WAS WRONG THREE TIMES OVER.
+    //
+    // It read 0-core/config, WHICH DOES NOT EXIST. read_dir returned Err, `.unwrap_or(0)` made
+    // that a zero, and the zero was printed as a COUNT -- a failed read rendered as a
+    // measurement, the exact collapse INT-222 was written to remove. It survived the port
+    // because this block LISTS SOURCES rather than running checks, so no probe replaced it.
+    //
+    // And it attributed the number to home-manager, which is not installed and deploys
+    // nothing here. Measured: no symlink in ~/.config points into 0-core.
+    //
+    // ⭐ A SOURCE THAT DOES NOT EXIST IS NOT A SOURCE. When something does describe the
+    // environment, it earns an entry by existing. The numbering closes up rather than
+    // leaving a gap where a fiction used to be.
 
-    let dotfile_count = std::fs::read_dir(std::path::PathBuf::from(core_root).join("config"))
-        .map(|d| d.flatten().filter(|e| e.path().is_dir()).count())
-        .unwrap_or(0);
-    println!(
-        "  │    {} dotfile packages (deployed by home-manager)",
-        dotfile_count.to_string().bright_white()
-    );
-
-    // ── Source 4: Schema ──────────────────────────────────────────────────
+    // ── Source 3: Schema ──────────────────────────────────────────────────
     println!("  │");
     println!(
         "  │  {} {} → what is valid",
-        "④".bright_white().bold(),
+        "③".bright_white().bold(),
         "schema/".bright_cyan()
     );
 
@@ -191,7 +195,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │");
     println!(
         "  │  {} {} → what happened",
-        "⑤".bright_white().bold(),
+        "④".bright_white().bold(),
         "runtime/events/".bright_cyan()
     );
 
@@ -218,23 +222,33 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     );
     println!("  │  {}", "Reconstruction Steps".bright_white().bold());
     println!("  │");
-    println!("  │  {}  Install NixOS 26.05 (Yarara)", "①".bright_white());
+    // ⚠️ FIVE OF THESE SIX STEPS WERE WRONG, CORRECTED 2026-09-20. This is the guide for
+    // rebuilding the machine from nothing, so a wrong step here is worse than anywhere else:
+    // following it got you the wrong operating system, binaries copied where nothing looks,
+    // and a cd into a directory that does not exist.
+    //
+    //   was  Install NixOS 26.05 (Yarara)     the OS was replaced on 2026-08-26
+    //   was  cp target/release/* scripts/     nothing has read scripts/ since; ship deploys
+    //   was  Deploy interfaces / cd config/   0-core/config does not exist and cd deploys
+    //                                         nothing -- the step described no action at all
+    //   was  should show 23/23                A TYPED EXPECTATION, stale by five checks. The
+    //                                         count is 28 and it is derived; naming a number
+    //                                         here is the same defect INT-222 removed from
+    //                                         the doctor header.
+    println!("  │  {}  Install Omarchy", "①".bright_white());
     println!("  │");
     println!("  │  {}  Clone the forest", "②".bright_white());
     println!("  │     git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core");
     println!("  │");
-    println!("  │  {}  Build all tools", "③".bright_white());
+    println!("  │  {}  Build and deploy the tools", "③".bright_white());
     println!("  │     cd ~/0-core && cargo build --release --workspace");
-    println!("  │     cp target/release/* scripts/");
+    println!("  │     ship   -- deploys every registered tool");
     println!("  │");
-    println!("  │  {}  Deploy interfaces", "④".bright_white());
-    println!("  │     cd ~/0-core/config");
-    println!("  │");
-    println!("  │  {}  Validate", "⑤".bright_white());
-    println!("  │     core doctor run  → should show 23/23 ✅");
+    println!("  │  {}  Validate", "④".bright_white());
+    println!("  │     core doctor run  → every check green or honestly unknown");
     println!("  │     core bootstrap verify → confirms state consistency");
     println!("  │");
-    println!("  │  {}  Review history", "⑥".bright_white());
+    println!("  │  {}  Review history", "⑤".bright_white());
     println!("  │     core narrative → understand the full story");
     println!("  │     core snapshot  → see the last known good state");
     println!("  │     intents/complete/ → understand every decision");
