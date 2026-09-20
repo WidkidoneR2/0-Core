@@ -53,6 +53,13 @@ What was ruled out, each by measurement rather than argument:
 The reproduction is exact and it is Amber. Something else fires the notification, and finding it
 is part of this intent rather than a guess to be recorded as a cause.
 
+### And the spawn is never reaped
+
+Sampling the process table during a suite run caught `[core] <defunct>` -- a zombie. main.rs
+spawns the refresh with `.spawn()` and never waits on it, so each finished child lingers until
+its parent exits. Harmless in a login shell that lives for hours; less so when the suite creates
+a hundred short-lived parents.
+
 ## Success Criteria
 
 - [ ] The background refresh does not run once per test case. **Proven by counting:** a full
