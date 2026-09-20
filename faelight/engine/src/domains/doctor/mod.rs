@@ -272,15 +272,13 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             Capability::FilesystemReadHome,
         ],
     )?;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let core_root = ctx.core_root.clone();
 
     let version = fs::read_to_string(faelight_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();
 
-    let checks = all_checks(&core_root, &home);
+    let checks = from_engine();
 
     let scored: Vec<_> = checks.iter().collect();
     let total = scored.len() as u32;
@@ -869,9 +867,6 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         ],
     )?;
 
-    let home = std::env::var("HOME").unwrap_or_default();
-    let core_root = ctx.core_root.clone();
-
     // Read current cached health
     // ⚠️ THIS ONE FALLS BACK TO ZERO, NOT 100 -- deliberately preserved.
     //
@@ -887,7 +882,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
 
     // Run all checks silently
-    let checks = all_checks(&core_root, &home);
+    let checks = from_engine();
 
     let total = checks.len() as u32;
     let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
@@ -1209,15 +1204,13 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
+pub fn run_quick(_ctx: &AppContext) -> CoreResult<()> {
     use colored::*;
-    let home = std::env::var("HOME").unwrap_or_default();
-    let core_root = ctx.core_root.clone();
     // Only run critical checks — fast subset
     // INT-222: DERIVED, not copied. The old hardcoded five contained git-is-dirty and
     // scripts-executable, while boot errors and disk space were absent entirely. Deleting a
     // check also meant editing two lists, and only the compiler noticed the second.
-    let checks: Vec<CheckResult> = all_checks(&core_root, &home)
+    let checks: Vec<CheckResult> = from_engine()
         .into_iter()
         .filter(|c| c.tier == Tier::Critical)
         .collect();
@@ -1430,6 +1423,66 @@ fn check_deadwood(_core_root: &str) -> CheckResult {
 ///
 /// And the performance point survives untouched: all_checks stays eager, because the
 /// registry is a list of DECLARATIONS, not of closures to call lazily.
+/// THE DOCTOR MEASUREMENTS COME FROM faelight-doctor.
+///
+/// The check set is DECLARED in registry/doctor/checks.toml and measured by probes in that
+/// crate. This function is the seam: it loads the declarations, runs them, and maps each
+/// Outcome to the CheckResult the panel already consumes. Everything downstream is untouched.
+///
+/// BOTH MAPPINGS BELOW ARE EXHAUSTIVE WITH NO CATCH-ALL. A new variant fails to compile here
+/// instead of quietly defaulting -- the same rule the probe dispatcher uses.
+fn from_engine() -> Vec<CheckResult> {
+    use faelight_doctor::{Status as ES, Tier as ET};
+    let path = faelight_core::paths::registry_dir().join("doctor/checks.toml");
+    let reg = match faelight_doctor::Registry::load(&path) {
+        Ok(r) => r,
+        Err(e) => {
+            return vec![CheckResult {
+                tier: Tier::Critical,
+                id: "check_set".into(),
+                name: "Check Set".into(),
+                status: Status::Unknown,
+                message: format!("could not load the check set -- {}", e),
+                fix: Some("Verify registry/doctor/checks.toml".into()),
+            }];
+        }
+    };
+    let mut out: Vec<CheckResult> = reg
+        .refused
+        .iter()
+        .map(|(id, e)| CheckResult {
+            tier: Tier::System,
+            id: id.clone(),
+            name: id.clone(),
+            status: Status::Unknown,
+            message: format!("definition refused -- {}", e),
+            fix: Some("Correct the declaration in checks.toml".into()),
+        })
+        .collect();
+    for o in faelight_doctor::run_all(&reg) {
+        out.push(CheckResult {
+            tier: match o.tier {
+                ET::Critical => Tier::Critical,
+                ET::System => Tier::System,
+                ET::User => Tier::User,
+                ET::Info => Tier::Info,
+            },
+            id: o.id,
+            name: o.name,
+            status: match o.status {
+                ES::Pass => Status::Pass,
+                ES::Warn => Status::Warn,
+                ES::Fail => Status::Fail,
+                ES::Blocked => Status::Blocked,
+                ES::Unknown => Status::Unknown,
+            },
+            message: o.message,
+            fix: o.recovery,
+        });
+    }
+    out
+}
+
 fn all_checks(core_root: &str, home: &str) -> Vec<CheckResult> {
     vec![
         check_services(),

@@ -712,6 +712,7 @@ dependencies = [
  "colored",
  "dirs",
  "faelight-core",
+ "faelight-doctor",
  "faelight-zone",
  "flate2",
  "libc",

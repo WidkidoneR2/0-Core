@@ -18,6 +18,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 flate2 = "1"
 faelight-core = { path = "../rust-tools/faelight-core" }
+faelight-doctor = { path = "../rust-tools/faelight-doctor" }
 faelight-zone = { path = "../rust-tools/faelight-zone" }
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
