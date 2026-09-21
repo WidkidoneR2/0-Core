@@ -27,8 +27,11 @@ mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
 # The banner used to PRINT the laws. Printing is what --isolate full did about pid isolation
 # while 415 host processes were visible inside it. So the laws are TESTED here, in the world
 # they govern, before anything is handed over.
-VERIFY='printf "%s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -c \"^[0-9]\")" "$(ls /etc | wc -l)"'
-read -r V_UID V_HOST V_PROCS V_ETC <<< "$(bwrap \
+# ⭐ THOROUGH AND FAST TURNED OUT NOT TO BE A TRADE-OFF. Measured 2026-09-20: the whole
+# launch is 21ms, and a network probe costs 13ms because with no route at all curl fails
+# INSTANTLY rather than waiting out its timeout. So every law is checked on every launch.
+VERIFY='printf "%s %s %s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -c \"^[0-9]\")" "$(ls /etc | wc -l)" "$(curl -s -m1 https://1.1.1.1 >/dev/null 2>&1 && echo REACH || echo BLOCKED)" "$(sudo -n true >/dev/null 2>&1 && echo SUDO || echo NOSUDO)"'
+read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
   --dev-bind / / --proc /proc \
   --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
@@ -40,6 +43,8 @@ FAILED=""
 [ "$V_HOST" = "devshell" ]  || FAILED="$FAILED machine(host=$V_HOST)"
 [ "${V_PROCS:-999}" -lt 20 ] 2>/dev/null || FAILED="$FAILED process(procs=$V_PROCS)"
 [ "${V_ETC:-0}" -gt 50 ] 2>/dev/null    || FAILED="$FAILED filesystem(etc=$V_ETC)"
+[ "$V_NET" = "BLOCKED" ]    || FAILED="$FAILED network($V_NET)"
+[ "$V_SUDO" = "NOSUDO" ]    || FAILED="$FAILED sudo($V_SUDO)"
 
 if [ -n "$FAILED" ]; then
     echo "" >&2
