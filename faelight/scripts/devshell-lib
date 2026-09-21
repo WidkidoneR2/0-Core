@@ -1,0 +1,50 @@
+# devshell-lib -- the facts every devshell script shares. INT-257. Sourced, never run.
+#
+# ONE definition of where sessions live and which layers a session has. Four scripts used to
+# carry their own copies, and it cost twice: `ls | tail -1` picked the wrong session once, and
+# checkpoint SILENTLY SKIPPED /usr and the pacman database because it knew two layers by name --
+# a restore would have rolled a session back while leaving an installed package in place.
+
+DEVSHELL_DATA="$HOME/.local/share/devshell"
+DEVSHELL_LOWER="$DEVSHELL_DATA/lower"
+# Sessions stay in /tmp until the declared HOME (C) lands: today HOME's lower layer is all of
+# HOME, so a session under it would be an upper layer inside its own lower -- measured to mount,
+# documented as undefined. The move rides with C.
+DEVSHELL_SESSIONS="/tmp"
+DEVSHELL_PREFIX="devshell-"
+
+# The newest session by mtime -- never by name.
+last_session() {
+    local s
+    s="$(ls -dt "$DEVSHELL_SESSIONS/$DEVSHELL_PREFIX"*/ 2>/dev/null | head -1)" || true
+    printf '%s\n' "${s%/}"
+}
+
+# THE LAYER TABLE: one line per layer -- name, mount point, lower -- tab separated. Upper and
+# work are always $ROOT/upper-<name> and $ROOT/work-<name>. Written ONCE, when a session is
+# born, so a resumed session keeps the layers it was born with even after the defaults change.
+layers_new() {
+    local root="$1"
+    {
+        printf 'etc\t/etc\t/etc\n'
+        if [ -d "$DEVSHELL_LOWER/usr" ] && [ -d "$DEVSHELL_LOWER/var/lib/pacman/local" ]; then
+            printf 'usr\t/usr\t%s\n' "$DEVSHELL_LOWER/usr"
+            printf 'pacman\t/var/lib/pacman\t%s\n' "$DEVSHELL_LOWER/var/lib/pacman"
+        fi
+        printf 'home\t%s\t%s\n' "$HOME" "$HOME"
+    } > "$root/layers"
+}
+
+# A session born before the table existed gets the table it ACTUALLY had, read off its upper
+# directories -- never today's defaults, which could name a layer it never mounted.
+layers_read() {
+    local root="$1"
+    if [ -f "$root/layers" ]; then
+        cat "$root/layers"
+        return 0
+    fi
+    printf 'etc\t/etc\t/etc\n'
+    if [ -d "$root/upper-usr" ]; then printf 'usr\t/usr\t%s\n' "$DEVSHELL_LOWER/usr"; fi
+    if [ -d "$root/upper-pacman" ]; then printf 'pacman\t/var/lib/pacman\t%s\n' "$DEVSHELL_LOWER/var/lib/pacman"; fi
+    printf 'home\t%s\t%s\n' "$HOME" "$HOME"
+}

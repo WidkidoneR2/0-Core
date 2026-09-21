@@ -14,13 +14,16 @@
 #   0 a sandbox that cannot deliver a law REFUSES
 set -euo pipefail
 
+# The facts every devshell script shares -- ONE definition, INT-257.
+source "$(dirname "$(readlink -f "$0")")/devshell-lib"
+
 # --resume <session|last> walks back into a world you left. Without it every launch was a
 # new session, and checkpoints could be saved but never used -- the sandbox was one-shot,
 # not a transaction.
 CREATED=1
 if [ "${1:-}" = "--resume" ]; then
     target="${2:-}"
-    [ "$target" = "last" ] && target="$(ls -dt /tmp/devshell-* 2>/dev/null | head -1)"
+    [ "$target" = "last" ] && target="$(last_session)"
     [ -d "$target/upper-home" ] || { echo "devshell: no session to resume: ${2:-}" >&2; exit 1; }
     ROOT="$target"
     SESSION="${ROOT#/tmp/devshell-}"
@@ -37,17 +40,16 @@ fi
 # nobody inside, and root inside cannot install anything. Law 4 is not weakened to fix that --
 # the sandbox gets a lower layer it owns instead. Absent copy: /usr stays the host's, and the
 # banner says so rather than implying otherwise.
-LOWER="$HOME/.local/share/devshell/lower"
-SYSLAYERS=()
+# THE LAYER TABLE decides every overlay, for the Law 0 probe and the session alike. A new
+# session writes its table once; a resumed one reads the table it was born with.
+[ "$CREATED" = "1" ] && layers_new "$ROOT"
+OVERLAYS=()
 USR_MODE="host"
-if [ -d "$LOWER/usr" ] && [ -d "$LOWER/var/lib/pacman/local" ]; then
-    mkdir -p "$ROOT/upper-usr" "$ROOT/work-usr" "$ROOT/upper-pacman" "$ROOT/work-pacman"
-    SYSLAYERS=(
-        --overlay-src "$LOWER/usr" --overlay "$ROOT/upper-usr" "$ROOT/work-usr" /usr
-        --overlay-src "$LOWER/var/lib/pacman" --overlay "$ROOT/upper-pacman" "$ROOT/work-pacman" /var/lib/pacman
-    )
-    USR_MODE="copy"
-fi
+while IFS=$'\t' read -r name mnt lower; do
+    mkdir -p "$ROOT/upper-$name" "$ROOT/work-$name"
+    OVERLAYS+=(--overlay-src "$lower" --overlay "$ROOT/upper-$name" "$ROOT/work-$name" "$mnt")
+    [ "$name" = "usr" ] && USR_MODE="copy"
+done < <(layers_read "$ROOT")
 
 # THE SESSION'S OWN pacman.conf, INT-257 item 3. Host pacman drops privileges to DownloadUser
 # (alpm) and chowns its download dir to it -- but only root is mapped inside, so that chown can
@@ -104,7 +106,7 @@ VERIFY="$VERIFY"'; printf " %s %s" "$(sed -n "s/^CapEff:[[:space:]]*//p" /proc/s
 read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO V_CAP V_SOCK <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
   "${BASE[@]}" \
-  --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
+  "${OVERLAYS[@]}" \
   --clearenv --setenv PATH "/usr/local/bin:/usr/bin:/bin" \
   -- /bin/sh -c "$VERIFY" 2>/dev/null)" || true
 
@@ -143,9 +145,7 @@ exec bwrap \
   --uid 0 --gid 0 \
   --hostname devshell \
   "${BASE[@]}" \
-  --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
-  "${SYSLAYERS[@]}" \
-  --overlay-src "$HOME" --overlay "$ROOT/upper-home" "$ROOT/work-home" "$HOME" \
+  "${OVERLAYS[@]}" \
   --clearenv \
   --setenv PATH "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
   --setenv HOME "$HOME" \

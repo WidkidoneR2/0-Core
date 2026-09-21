@@ -698,6 +698,37 @@ Law 0 caught it. Proven, not assumed.
 ★ AND THE TMP BREAK WAS CAUGHT TWICE, by two different checks -- the socket count saw the host's
 /tmp sockets, and the host-side probe saw the write land. Either alone would have refused.
 
+## ⭐ ONE LAYER TABLE, 2026-09-21 -- and a rollback that now takes the package with it
+
+`faelight/scripts/devshell-lib`, sourced by all four scripts: where sessions live, the newest
+session by mtime, and THE LAYER TABLE -- one line per layer, name / mount point / lower, written
+ONCE when a session is born, so a resumed session keeps the layers it was born with. The Law 0
+probe now mounts the full table too: it used to check a world with only /etc overlaid.
+
+⚠️ THE GAP IT CLOSES WAS SILENT. checkpoint knew two layers by name, so a restore rolled /etc and
+HOME back and left /usr and the pacman database exactly as they were -- a package installed
+after the checkpoint SURVIVED the rollback, reported as a full restore. Proven closed:
+
+```text
+    new session             table: etc  usr  pacman  home
+    checkpoint clean        layers upper-etc upper-home upper-pacman upper-usr
+    resume, pacman -U       m17n-db 1.8.14-1
+    diff --last             724 m17n lines -- /usr and /var/lib/pacman now walked
+    restore clean           restored
+    resume                  package 'm17n-db' was not found
+                            /usr/share/m17n: No such file
+                            ~/ck.txt, written BEFORE the checkpoint: base
+    host                    neither the package nor ck.txt
+```
+
+★ A SESSION BORN BEFORE THE TABLE reads the table it ACTUALLY had, from its own upper dirs --
+never today's defaults. The 00:04 session from item 3 has no table file and diff read 724 m17n
+lines from it.
+
+★ AND TWO NEW REFUSALS, proven before shipping: restore REFUSES a checkpoint missing a layer the
+session has ("no copy of: usr pacman") before anything moves, and promote routes by the LONGEST
+mount point -- so a declared path inside HOME will beat HOME itself when C lands.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality

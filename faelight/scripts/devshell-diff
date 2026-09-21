@@ -9,12 +9,15 @@
 #   directory       traversed
 set -euo pipefail
 
+# The facts every devshell script shares -- ONE definition, INT-257.
+source "$(dirname "$(readlink -f "$0")")/devshell-lib"
+
 # --last picks the NEWEST session by mtime. `ls | tail -1` sorts alphabetically and
 # promoted from the wrong session once already; picking the last one is something you want
 # constantly, so it is a flag rather than a habit.
 if [ "${1:-}" = "--last" ]; then
     shift
-    set -- "$(ls -dt /tmp/devshell-* 2>/dev/null | head -1)" "$@"
+    set -- "$(last_session)" "$@"
 fi
 ROOT="${1:-${DEVSHELL_UPPER:-}}"
 if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
@@ -25,12 +28,11 @@ fi
 echo "  devshell diff -- $ROOT"
 echo ""
 
-for layer in upper-etc upper-home; do
+# Every layer in the session's table, not two by name.
+while IFS=$'\t' read -r name mnt _; do
+    layer="upper-$name"
+    real="$mnt"
     [ -d "$ROOT/$layer" ] || continue
-    case "$layer" in
-        upper-etc)  real="/etc" ;;
-        upper-home) real="$HOME" ;;
-    esac
     find "$ROOT/$layer" -mindepth 1 \( -type f -o -type c -o -type l \) 2>/dev/null |
     while read -r p; do
         rel="${p#$ROOT/$layer}"
@@ -42,5 +44,5 @@ for layer in upper-etc upper-home; do
             printf "  A  %s%s\n" "$real" "$rel"
         fi
     done
-done
+done < <(layers_read "$ROOT")
 echo ""
