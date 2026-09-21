@@ -3,7 +3,7 @@ id: 257
 date: 2026-09-20
 type: future
 title: "what laws govern the universe inside devshell"
-status: planned
+status: in-progress
 tags: [devbox, devshell, novashell, nsh, nova]
 ---
 
@@ -56,6 +56,66 @@ and reports no changes, six times in one session.
 ⭐ AND THE HARDEST DECISION IS ALREADY MADE, IN THE INTERFACE. `--allow-degraded` reads: "without
 this, a sandbox that cannot deliver what it promised REFUSES rather than running the command
 anyway and reporting success." That is the law behind all the others.
+
+## RECON, 2026-09-20 -- what is real, measured by violating it
+
+### The sandbox is more honest than it is complete, and that is the good news
+
+```text
+    network      REAL      drives unshare --net
+    memory       REAL      cgroup v2 memory.max, swap.max=0
+    environment  REAL      allow_env is already a capability allowlist
+    fs_write     DECLARED  and policy.rs SAYS SO: "Marking them is not a substitute for
+                           enforcing them -- it is what makes the gap visible instead of
+                           letting the header do the lying."
+    process      BROKEN    see below
+    identity     PARTIAL   --map-root-user is passed
+    hardware     ABSENT
+    promote      ABSENT
+```
+
+### ⚠️ PID ISOLATION IS CLAIMED AND DOES NOT WORK
+
+`--isolate full` prints "pid: isolated". Measured:
+
+```text
+    host                                              411 processes
+    faelight-sandbox run --isolate full -- ps aux     415
+```
+
+⭐ THE CAUSE IS ONE MISSING STEP, NOT A WRONG DESIGN. main.rs:989 passes `--pid --fork` and
+:993 passes `--mount`, which is right -- but a PID namespace changes what PIDs ARE, while `ps`
+reads /proc, and /proc is still the host's. Without a fresh proc mounted inside the new mount
+namespace, ps walks the host tree regardless.
+
+Both fixes measured:
+
+```text
+    unshare --net --map-root-user --pid --fork --mount --
+        sh -c 'mount -t proc proc /proc; ps aux | wc -l'        4
+    bwrap --unshare-all --dev-bind / / --proc /proc --
+        sh -c 'ps aux | wc -l'                                  5
+```
+
+★ bubblewrap 0.12.0 IS INSTALLED, and policy.rs already notes it: "bwrap could do this properly
+and is installed; nobody has wired it." It mounts /proc as part of namespace setup, which is
+exactly the step unshare leaves to the caller.
+
+### ⚠️ AND TWO LAWS ALREADY CONFLICT
+
+```text
+    seccomp: not applied because network isolation is on
+    (unresolved: the filter may block the syscalls unshare needs)
+```
+
+`--isolate full` gives namespaces OR seccomp, never both, and says so at run time. A law that
+cannot coexist with another law is a design decision this intent has to make, not a bug.
+
+### ⚠️ AND THE NAMESPACE BLOCK ONLY RUNS IF THE NETWORK IS ISOLATED
+
+main.rs:985: the whole unshare path is inside `if network_isolated`. So `--isolate full` on a
+policy with `allow_net = true` gets NO namespaces at all -- pid, mount and user isolation are
+silently conditional on a network decision that has nothing to do with them.
 
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
