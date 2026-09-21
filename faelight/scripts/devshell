@@ -32,6 +32,23 @@ else
     mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
 fi
 
+# THE SANDBOX'S OWN SYSTEM TREE, INT-257. A btrfs reflink copy of /usr and the pacman database,
+# owned by christian and so ROOT inside. Without it, host root owns /usr, host root maps to
+# nobody inside, and root inside cannot install anything. Law 4 is not weakened to fix that --
+# the sandbox gets a lower layer it owns instead. Absent copy: /usr stays the host's, and the
+# banner says so rather than implying otherwise.
+LOWER="$HOME/.local/share/devshell/lower"
+SYSLAYERS=()
+USR_MODE="host"
+if [ -d "$LOWER/usr" ] && [ -d "$LOWER/var/lib/pacman/local" ]; then
+    mkdir -p "$ROOT/upper-usr" "$ROOT/work-usr" "$ROOT/upper-pacman" "$ROOT/work-pacman"
+    SYSLAYERS=(
+        --overlay-src "$LOWER/usr" --overlay "$ROOT/upper-usr" "$ROOT/work-usr" /usr
+        --overlay-src "$LOWER/var/lib/pacman" --overlay "$ROOT/upper-pacman" "$ROOT/work-pacman" /var/lib/pacman
+    )
+    USR_MODE="copy"
+fi
+
 if [ "$#" -eq 0 ]; then
     set -- /bin/bash --norc --noprofile -i
 fi
@@ -73,7 +90,7 @@ fi
 
 echo "  devshell $SESSION"
 echo "  upper: $ROOT"
-echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared"
+echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE"
 echo ""
 
 exec bwrap \
@@ -83,6 +100,7 @@ exec bwrap \
   --dev-bind / / \
   --proc /proc \
   --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
+  "${SYSLAYERS[@]}" \
   --overlay-src "$HOME" --overlay "$ROOT/upper-home" "$ROOT/work-home" "$HOME" \
   --clearenv \
   --setenv PATH "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
