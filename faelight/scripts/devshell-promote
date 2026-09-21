@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# devshell-promote -- take one change out of a session. INT-257 Law 1.
+#
+# "Every mutation is disposable UNLESS EXPLICITLY PROMOTED." This is the unless, and it is
+# the only door in the wall -- so it is narrow on purpose:
+#
+#   one path at a time      no --all, no globs. Promotion is a decision per file.
+#   never a whiteout        a deletion inside is not a deletion outside. Ever.
+#   shows the diff first    you approve what actually changed, not what you remember doing.
+#   refuses silently never  a promote that cannot happen says why.
+set -euo pipefail
+
+ROOT="${1:-}"
+TARGET="${2:-}"
+if [ -z "$ROOT" ] || [ -z "$TARGET" ]; then
+    echo "devshell-promote <session-dir> <path>" >&2
+    echo "  e.g. devshell-promote /tmp/devshell-20260920-210053 /etc/foo.conf" >&2
+    exit 1
+fi
+[ -d "$ROOT" ] || { echo "no such session: $ROOT" >&2; exit 1; }
+
+case "$TARGET" in
+    /etc/*) LAYER="$ROOT/upper-etc"; REL="${TARGET#/etc}" ;;
+    "$HOME"/*) LAYER="$ROOT/upper-home"; REL="${TARGET#$HOME}" ;;
+    *) echo "promote: only /etc and \$HOME are overlaid; $TARGET is neither" >&2; exit 1 ;;
+esac
+
+SRC="$LAYER$REL"
+if [ ! -e "$SRC" ]; then
+    echo "promote: $TARGET was not changed in this session" >&2
+    exit 1
+fi
+
+if [ -c "$SRC" ]; then
+    echo "promote: REFUSED -- $TARGET is a DELETION inside the sandbox." >&2
+    echo "  A deletion inside is not a deletion outside. Remove it yourself if you mean it." >&2
+    exit 1
+fi
+
+echo "  promote  $TARGET"
+echo "  from     $SRC"
+echo ""
+if [ -e "$TARGET" ]; then
+    echo "  --- host (current)"
+    echo "  +++ sandbox (promoting)"
+    diff -u "$TARGET" "$SRC" 2>/dev/null | tail -n +3 | head -40 || true
+else
+    echo "  NEW FILE, $(wc -l < "$SRC" 2>/dev/null || echo 0) lines"
+fi
+echo ""
+printf "  Type PROMOTE to write this to the host: "
+read -r answer
+[ "$answer" = "PROMOTE" ] || { echo "  aborted"; exit 1; }
+
+mkdir -p "$(dirname "$TARGET")"
+cp -a "$SRC" "$TARGET"
+echo "  promoted: $TARGET"

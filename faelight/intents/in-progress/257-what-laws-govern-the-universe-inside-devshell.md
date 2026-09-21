@@ -332,6 +332,38 @@ was UNINFORMATIVE, and it would have supported the conclusion that git does not 
 ★ THE SANDBOX ANSWERED A QUESTION THE HOST COULD NOT, on its second day, about a tool nobody
 was investigating.
 
+## Law 1 completed, 2026-09-20 -- the door in the wall
+
+`devshell-promote` is the "unless" in "disposable unless explicitly promoted", and it is
+narrow on purpose: one path at a time, no globs, the diff shown before you approve, and the
+word PROMOTE typed in full.
+
+```text
+    inside:   echo proof > ~/devshell-proof.txt
+    diff:     A  /home/christian/devshell-proof.txt
+    promote:  NEW FILE, 1 lines  ->  Type PROMOTE  ->  promoted
+    host:     proof
+```
+
+### ⭐ TWO REFUSALS, BOTH PROVEN, BOTH LAWS HOLDING AT THE DOOR
+
+```text
+    a whiteout          promote /0-core/faelight/schema
+                        REFUSED -- "a deletion inside is not a deletion outside"
+                        The schema directory was rm -rf'd in that session. Promoting the
+                        whiteout would have deleted it for real.
+
+    a root-owned path   promote /etc/devshell-proof
+                        Permission denied as christian.
+                        ★ LAW 9 HOLDING AT THE PROMOTION BOUNDARY: you were root INSIDE,
+                        and the door out grants no privilege the session never had.
+```
+
+⚠️ AND ONE USABILITY FINDING: `ls -d /tmp/devshell-* | tail -1` sorts alphabetically, not by
+time, and promoted from the wrong session. The script said "was not changed in this session"
+rather than inventing something -- correct behaviour -- but picking the last session is
+something you want constantly and doing it by hand is a trap. A `--last` belongs here.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
