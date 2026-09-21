@@ -1179,6 +1179,63 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
 
+    // INT-257 LAW 1: a write inside the devshell never reaches the host.
+    //
+    // The law everything else rests on, asserted the way the intent demands -- by the HOST
+    // checking afterwards, never by the sandbox reporting on itself. The command proves it ran
+    // inside (the hostname), writes a probe into HOME, and the case then looks for that probe
+    // on the real filesystem. If the law ever breaks, the probe is found, removed, and the case
+    // fails loudly. The session directory it creates is removed whatever happens.
+    results.push(forest_test(
+        "devshell_write_inside_never_reaches_host",
+        Category::Regression,
+        "devshell lives in the forest scripts directory and needs the checkout",
+        || {
+            let home = std::env::var("HOME").map_err(|e| format!("HOME: {e}"))?;
+            let script = format!("{}/0-core/faelight/scripts/devshell", home);
+            let probe = format!("{}/.nsh-test-devshell-probe", home);
+            let _ = std::fs::remove_file(&probe);
+            let out = std::process::Command::new("bash")
+                .arg(&script)
+                .args([
+                    "/bin/sh",
+                    "-c",
+                    "touch ~/.nsh-test-devshell-probe; echo INSIDE-$(hostname)",
+                ])
+                .output()
+                .map_err(|e| format!("could not run devshell: {e}"))?;
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            if let Some(line) = stdout
+                .lines()
+                .find(|l| l.trim_start().starts_with("upper: "))
+            {
+                let dir = line.trim_start().trim_start_matches("upper: ").trim();
+                if dir.starts_with("/tmp/devshell-") {
+                    let _ = std::fs::remove_dir_all(dir);
+                }
+            }
+            if !out.status.success() {
+                return Err(format!(
+                    "devshell exited {:?}: {}",
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ));
+            }
+            if !stdout.contains("INSIDE-devshell") {
+                return Err(format!(
+                    "the command did not run inside the devshell: {}",
+                    stdout.trim()
+                ));
+            }
+            if std::path::Path::new(&probe).exists() {
+                let _ = std::fs::remove_file(&probe);
+                return Err(
+                    "LAW 1 BROKEN: a file written inside the devshell exists on the host".into(),
+                );
+            }
+            Ok(())
+        },
+    ));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which core")?, "core")
     }));
