@@ -14,13 +14,27 @@
 #   0 a sandbox that cannot deliver a law REFUSES
 set -euo pipefail
 
+# --resume <session|last> walks back into a world you left. Without it every launch was a
+# new session, and checkpoints could be saved but never used -- the sandbox was one-shot,
+# not a transaction.
+CREATED=1
+if [ "${1:-}" = "--resume" ]; then
+    target="${2:-}"
+    [ "$target" = "last" ] && target="$(ls -dt /tmp/devshell-* 2>/dev/null | head -1)"
+    [ -d "$target/upper-home" ] || { echo "devshell: no session to resume: ${2:-}" >&2; exit 1; }
+    ROOT="$target"
+    SESSION="${ROOT#/tmp/devshell-}"
+    CREATED=0
+    shift 2
+else
+    SESSION="$(date +%Y%m%d-%H%M%S)"
+    ROOT="/tmp/devshell-$SESSION"
+    mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
+fi
+
 if [ "$#" -eq 0 ]; then
     set -- /bin/bash --norc --noprofile -i
 fi
-
-SESSION="$(date +%Y%m%d-%H%M%S)"
-ROOT="/tmp/devshell-$SESSION"
-mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
 
 # LAW 0 -- A SANDBOX THAT CANNOT DELIVER A LAW REFUSES.
 #
@@ -51,7 +65,9 @@ if [ -n "$FAILED" ]; then
     echo "  devshell REFUSES -- these laws were not delivered:$FAILED" >&2
     echo "  A sandbox that cannot deliver what it promised refuses rather than" >&2
     echo "  running the command anyway and reporting success." >&2
-    rm -rf "$ROOT"
+    # ⚠️ ONLY A SESSION THIS RUN CREATED IS REMOVED. A refusal on --resume must never delete
+    # the world someone is returning to -- that would turn a safety check into data loss.
+    [ "$CREATED" = "1" ] && rm -rf "$ROOT"
     exit 1
 fi
 

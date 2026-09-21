@@ -364,6 +364,59 @@ time, and promoted from the wrong session. The script said "was not changed in t
 rather than inventing something -- correct behaviour -- but picking the last session is
 something you want constantly and doing it by hand is a trap. A `--last` belongs here.
 
+## Law 5 and Law 7 proven, 2026-09-20 -- the sandbox becomes a transaction
+
+### LAW 5 -- ENVIRONMENT
+
+```text
+    host:    207 variables
+    inside:  PATH HOME TERM DEVSHELL DEVSHELL_UPPER PS1 -- every one declared
+             PWD -- set by bwrap after chdir, the working directory, not a capability
+    absent:  SSH_AUTH_SOCK, DBUS_SESSION_BUS_ADDRESS, WAYLAND_DISPLAY and 196 more
+```
+★ THE THREE THAT MATTER ARE THE THREE THAT WOULD LET A PROCESS REACH OUT: the SSH agent, the
+session bus, the display. None crossed.
+
+### LAW 7 -- REVERSIBILITY, and the gap that had to be found first
+
+⚠️ CHECKPOINT WAS USELESS UNTIL RESUME EXISTED. Every launch created a new session, so a
+checkpoint could be saved and never used. `devshell --resume last` walks back into a world you
+left -- the thing that turns the sandbox from a one-shot room into a transaction.
+
+```text
+    devshell            echo v1 > ~/tx.txt
+    checkpoint save alpha
+    devshell --resume   echo v2 > ~/tx.txt; echo extra > ~/tx-extra.txt   -> v2
+    diff --last         A ~/tx-extra.txt   A ~/tx.txt
+    checkpoint restore alpha
+    devshell --resume   cat ~/tx.txt -> v1     tx-extra.txt -> No such file
+    HOST                neither file exists
+```
+
+### ⭐ THE RESTORE GUARD, PROVEN BY VIOLATING IT -- AND THE FIRST ATTEMPT DID NOT COUNT
+
+overlayfs documents changing a layer under a mounted overlay as UNDEFINED, so restore refuses
+a live session, detected by the session path in the running bwrap's command line.
+
+The first test restored successfully -- but the backgrounded `sleep 8` had almost certainly
+exited before the restore was typed. INCONCLUSIVE, AND NOT COUNTED EITHER WAY. Rerun
+deterministically, both halves in one process two seconds apart:
+
+```text
+    pid 5574  bwrap ... --overlay /tmp/devshell-20260920-232022/upper-etc ...
+    restore: REFUSED -- this session is still running.    exit 1
+```
+
+pgrep also matched the test wrapper, whose command line contained the session name. Checked
+before counting: the guard's pattern includes the leading /tmp/, which the wrapper lacks, so
+only the live bwrap could have triggered the refusal. THE EVIDENCE IS NOT CONTAMINATED.
+
+### ⚠️ AND A SAFETY BUG CAUGHT BEFORE IT SHIPPED
+
+Law 0's refusal path ran `rm -rf \$ROOT`. With --resume, a failed verification would have
+DELETED THE WORLD SOMEONE WAS RETURNING TO -- a safety check turned into data loss. Cleanup now
+removes only a session the same run created.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# devshell-checkpoint -- save, restore and list points in a session. INT-257 Law 7.
+#
+#   devshell-checkpoint [--last|<session>] save <name>
+#   devshell-checkpoint [--last|<session>] restore <name>
+#   devshell-checkpoint [--last|<session>] list
+#
+# A checkpoint is a copy of the upper layers -- the session IS its upper layer, so saving
+# one is a cp and restoring one is a cp back. No format, no index, nothing to drift.
+#
+# ⚠️ RESTORE REFUSES A LIVE SESSION. overlayfs documents changes to a layer underneath a
+# mounted overlay as UNDEFINED. A running session's bwrap carries the session path in its
+# command line, so liveness is measured, not assumed.
+set -euo pipefail
+
+if [ "${1:-}" = "--last" ]; then
+    shift
+    set -- "$(ls -dt /tmp/devshell-* 2>/dev/null | head -1)" "$@"
+fi
+ROOT="${1:-}"; ACTION="${2:-}"; NAME="${3:-}"
+[ -d "$ROOT" ] || { echo "no such session: $ROOT" >&2; exit 1; }
+CP="$ROOT/checkpoints"
+
+case "$ACTION" in
+  save)
+    [ -n "$NAME" ] || { echo "save needs a name" >&2; exit 1; }
+    [ -e "$CP/$NAME" ] && { echo "checkpoint $NAME already exists" >&2; exit 1; }
+    mkdir -p "$CP/$NAME"
+    cp -a "$ROOT/upper-etc" "$ROOT/upper-home" "$CP/$NAME/"
+    echo "  checkpoint saved: $NAME"
+    ;;
+  restore)
+    [ -d "$CP/$NAME" ] || { echo "no checkpoint named $NAME" >&2; exit 1; }
+    if pgrep -f "$ROOT/upper" > /dev/null 2>&1; then
+        echo "  restore: REFUSED -- this session is still running." >&2
+        echo "  Changing a layer underneath a mounted overlay is undefined behaviour." >&2
+        echo "  Exit the devshell first." >&2
+        exit 1
+    fi
+    rm -rf "$ROOT/upper-etc" "$ROOT/upper-home"
+    cp -a "$CP/$NAME/upper-etc" "$CP/$NAME/upper-home" "$ROOT/"
+    echo "  restored to checkpoint: $NAME"
+    ;;
+  list)
+    if [ -d "$CP" ] && [ -n "$(ls -A "$CP" 2>/dev/null)" ]; then
+        ls -1t "$CP" | sed "s/^/  /"
+    else
+        echo "  no checkpoints"
+    fi
+    ;;
+  *)
+    echo "devshell-checkpoint [--last|<session>] save|restore|list [name]" >&2
+    exit 1
+    ;;
+esac
