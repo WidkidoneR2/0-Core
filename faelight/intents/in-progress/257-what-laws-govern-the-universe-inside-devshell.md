@@ -767,6 +767,55 @@ caught a moment apart. The sqlite backup is consistent BY DESIGN. Decision: stat
 backup, the rest of the dir by reflink, daemon.sock never copied. Once per NEW session only;
 a resume reuses its snapshot. A torn database inside would be a false nsh bug.
 
+## ⭐ C-a LANDED, 2026-09-21 -- the declared HOME, and credentials absent by construction
+
+HOME's lower is an EMPTY directory; five declared rows mount on top (0-core, .local/bin,
+.config/faelight-shell and .cargo live; the state dir a snapshot); .gitconfig is seeded. The
+declared list is DATA in devshell-lib, so a rename is one line per path.
+
+```text
+    launch, snapshot included     0.59 s
+    HOME inside                   .cargo .config .gitconfig .local 0-core
+    .ssh .git-credentials secureboot-framework16 .claude.json Documents     absent, all five
+    git identity                  WidkidoneR2         -- the seed works
+    state dir                     no daemon.sock      -- sockets dropped from the snapshot
+    shell_history in snapshot     209,820 rows        -- the real history, consistent
+    nsh -c inside                 NSH-ALIVE
+    rollback via live 0-core      v1 after restore    -- the new layers are checkpointed
+    host                          no probe file, no socket files, git shows only the two scripts
+```
+
+### Law 0 refuses a leaking HOME -- by name
+
+A throwaway copy with HOME's lower set back to the real HOME:
+
+```text
+    REFUSES home(undeclared=.XCompose,.agents,.bash_history,...,.git-credentials,.hermes,
+                 .ssh,Documents,...,secureboot-framework16,...)
+```
+
+★ "CREDENTIALS ABSENT" IS NO LONGER A THING TESTED ONCE. It is checked on every launch, and a
+future change that puts the real HOME back refuses the session and names every leak.
+
+Before shipping, with NO sandbox at all, the same check named exactly the leaks and nothing else,
+and the snapshot of a WAL-mode database carried a row that existed ONLY in the WAL -- the sqlite
+backup took it; a byte copy of state.db alone would not have. And a filesystem that cannot
+reflink made the new layer-build refusal fire cleanly; --reflink=auto keeps btrfs cloning and
+lets any other home copy instead of refusing.
+
+### The CONTROLLED socket test -- the one that proves something
+
+The test started its own listeners and first proved BOTH answer on the host.
+
+```text
+    live 0-core layer        socket file PRESENT inside, connect REFUSED, listener saw nothing
+    snapshot state dir       socket file ABSENT inside
+```
+
+★ MEASURED ON THIS KERNEL: a socket in a LIVE overlay lower is visible but NOT connectable from
+inside. That is a property of this kernel's overlayfs, not a law this intent wrote -- so the
+nsh-test class case tests CONNECTABILITY across the whole tree, rather than trusting it.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality

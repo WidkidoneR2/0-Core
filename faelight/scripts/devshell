@@ -42,13 +42,23 @@ fi
 # banner says so rather than implying otherwise.
 # THE LAYER TABLE decides every overlay, for the Law 0 probe and the session alike. A new
 # session writes its table once; a resumed one reads the table it was born with.
-[ "$CREATED" = "1" ] && layers_new "$ROOT"
+# Building the layers can FAIL -- a snapshot that could not be taken, a copy that broke. A
+# failure here is a refusal, never a session with a layer quietly missing (Law 0).
+if [ "$CREATED" = "1" ]; then
+    if ! layers_new "$ROOT"; then
+        echo "  devshell REFUSES -- the session's layers could not be built" >&2
+        rm -rf "$ROOT"
+        exit 1
+    fi
+fi
 OVERLAYS=()
 USR_MODE="host"
+HOME_MODE="full"
 while IFS=$'\t' read -r name mnt lower; do
     mkdir -p "$ROOT/upper-$name" "$ROOT/work-$name"
     OVERLAYS+=(--overlay-src "$lower" --overlay "$ROOT/upper-$name" "$ROOT/work-$name" "$mnt")
     [ "$name" = "usr" ] && USR_MODE="copy"
+    [ "$name" = "home" ] && [ "$lower" != "$HOME" ] && HOME_MODE="declared"
 done < <(layers_read "$ROOT")
 
 # THE SESSION'S OWN pacman.conf, INT-257 item 3. Host pacman drops privileges to DownloadUser
@@ -58,6 +68,13 @@ done < <(layers_read "$ROOT")
 # session keeps whatever it already has.
 if [ "$USR_MODE" = "copy" ] && [ "$CREATED" = "1" ]; then
     grep -v '^[[:space:]]*DownloadUser' /etc/pacman.conf > "$ROOT/upper-etc/pacman.conf"
+fi
+
+# .gitconfig is SEEDED, not overlaid: a single file cannot be an overlay, and identity for
+# commits inside is the one thing the session needs from it. Its credential.helper points at a
+# store that does not exist inside -- and the network is off regardless.
+if [ "$HOME_MODE" = "declared" ] && [ "$CREATED" = "1" ] && [ -f "$HOME/.gitconfig" ]; then
+    cp "$HOME/.gitconfig" "$ROOT/upper-home/.gitconfig"
 fi
 
 # THE BASE, INT-257 step 1 -- NOTHING PASSES THROUGH UNLESS A LAW NAMES IT.
@@ -103,7 +120,9 @@ VERIFY='printf "%s %s %s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -
 #                 checked from the HOST, never by the sandbox reporting on itself.
 L0PROBE="/tmp/.devshell-law0-$SESSION"
 VERIFY="$VERIFY"'; printf " %s %s" "$(sed -n "s/^CapEff:[[:space:]]*//p" /proc/self/status)" "$(find /run /tmp /var/tmp -type s 2>/dev/null | wc -l)"'"; touch $L0PROBE"
-read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO V_CAP V_SOCK <<< "$(bwrap \
+# And what HOME holds inside -- the last field, so the listing can carry any number of names.
+VERIFY="$VERIFY"'; printf " %s" "$(ls -A '"$HOME"' | tr "\n" " ")"'
+read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO V_CAP V_SOCK V_HOME <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
   "${BASE[@]}" \
   "${OVERLAYS[@]}" \
@@ -123,6 +142,23 @@ if [ -e "$L0PROBE" ]; then
     rm -f "$L0PROBE"
     FAILED="$FAILED tmp(reached-host)"
 fi
+# LAW 0, THE DECLARED HOME: nothing from the host's HOME that the table never declared may be
+# visible inside. The session's own writes (its upper) are its own; anything else named here
+# LEAKED. A session born before the declared HOME is refused on resume, not grandfathered --
+# it was born able to read credentials.
+ALLOWED=" .gitconfig "
+while IFS=$'\t' read -r name mnt _; do
+    case "$mnt" in
+        "$HOME"/*) top="${mnt#"$HOME"/}"; ALLOWED="$ALLOWED${top%%/*} " ;;
+    esac
+done < <(layers_read "$ROOT")
+LEAKED=""
+for n in ${V_HOME:-}; do
+    case "$ALLOWED" in *" $n "*) continue ;; esac
+    [ -e "$ROOT/upper-home/$n" ] && continue
+    LEAKED="$LEAKED,$n"
+done
+[ -z "$LEAKED" ] || FAILED="$FAILED home(undeclared=${LEAKED#,})"
 
 if [ -n "$FAILED" ]; then
     echo "" >&2
@@ -137,7 +173,7 @@ fi
 
 echo "  devshell $SESSION"
 echo "  upper: $ROOT"
-echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE base=ro"
+echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE base=ro home=$HOME_MODE"
 echo ""
 
 exec bwrap \

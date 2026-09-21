@@ -13,6 +13,39 @@ DEVSHELL_LOWER="$DEVSHELL_DATA/lower"
 DEVSHELL_SESSIONS="/tmp"
 DEVSHELL_PREFIX="devshell-"
 
+# THE DECLARED HOME -- Christian's ruling, 2026-09-21. One row per path: name, path under HOME,
+# mode. HOME inside starts EMPTY and only these cross; everything else -- .ssh, .git-credentials,
+# secureboot keys, tokens nobody has listed yet -- is absent BY CONSTRUCTION, not hidden.
+#   live      the host's directory, overlaid: edits on the host are seen inside
+#   snapshot  a consistent copy taken when the session is born -- for what the host writes on
+#             every command, where a live lower layer would be overlayfs's undefined case
+DEVSHELL_DECLARED=$'core\t0-core\tlive
+bin\t.local/bin\tlive
+nshconf\t.config/faelight-shell\tlive
+cargo\t.cargo\tlive
+state\t.local/state/faelight\tsnapshot'
+
+# A consistent copy of a directory the host keeps writing. Reflink for the bulk (auto: a clone on btrfs, a real copy elsewhere) -- near-zero
+# bytes, measured 78 ms. Sockets DROPPED: a copied socket is a door to nothing, and nothing
+# inside should look like a door. Every SQLite database RE-TAKEN with sqlite's own online
+# backup, because a plain copy of a busy database can catch the db and its WAL a moment apart.
+snapshot_dir() {
+    local src="$1" dst="$2" f
+    local -a dbs
+    mkdir -p "$dst" || return 1
+    cp -a --reflink=auto "$src/." "$dst/" || return 1
+    find "$dst" -type s -delete || return 1
+    mapfile -t dbs < <(find "$dst" -maxdepth 1 -type f -name '*.db')
+    for f in "${dbs[@]}"; do
+        rm -f "$f" "$f-wal" "$f-shm"
+        python3 -c 'import sqlite3, sys
+s = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
+d = sqlite3.connect(sys.argv[2])
+s.backup(d)
+d.close()' "$src/${f##*/}" "$f" || return 1
+    done
+}
+
 # The newest session by mtime -- never by name.
 last_session() {
     local s
@@ -24,15 +57,27 @@ last_session() {
 # work are always $ROOT/upper-<name> and $ROOT/work-<name>. Written ONCE, when a session is
 # born, so a resumed session keeps the layers it was born with even after the defaults change.
 layers_new() {
-    local root="$1"
+    local root="$1" name rel mode
+    mkdir -p "$root/empty-home" || return 1
     {
         printf 'etc\t/etc\t/etc\n'
         if [ -d "$DEVSHELL_LOWER/usr" ] && [ -d "$DEVSHELL_LOWER/var/lib/pacman/local" ]; then
             printf 'usr\t/usr\t%s\n' "$DEVSHELL_LOWER/usr"
             printf 'pacman\t/var/lib/pacman\t%s\n' "$DEVSHELL_LOWER/var/lib/pacman"
         fi
-        printf 'home\t%s\t%s\n' "$HOME" "$HOME"
-    } > "$root/layers"
+        # HOME's lower is an EMPTY directory. Declared rows follow it, so they mount on top.
+        printf 'home\t%s\t%s\n' "$HOME" "$root/empty-home"
+    } > "$root/layers" || return 1
+    while IFS=$'\t' read -r name rel mode; do
+        [ -n "$name" ] || continue
+        [ -d "$HOME/$rel" ] || continue
+        if [ "$mode" = "snapshot" ]; then
+            snapshot_dir "$HOME/$rel" "$root/snap-$name" || return 1
+            printf '%s\t%s\t%s\n' "$name" "$HOME/$rel" "$root/snap-$name" >> "$root/layers"
+        else
+            printf '%s\t%s\t%s\n' "$name" "$HOME/$rel" "$HOME/$rel" >> "$root/layers"
+        fi
+    done <<< "$DEVSHELL_DECLARED"
 }
 
 # A session born before the table existed gets the table it ACTUALLY had, read off its upper
