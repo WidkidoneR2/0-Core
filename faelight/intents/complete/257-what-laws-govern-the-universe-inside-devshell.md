@@ -3,7 +3,7 @@ id: 257
 date: 2026-09-20
 type: future
 title: "what laws govern the universe inside devshell"
-status: in-progress
+status: complete
 tags: [devbox, devshell, novashell, nsh, nova]
 ---
 
