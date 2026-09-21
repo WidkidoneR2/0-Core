@@ -10,6 +10,13 @@
 #   refuses silently never  a promote that cannot happen says why.
 set -euo pipefail
 
+# --last picks the NEWEST session by mtime. `ls | tail -1` sorts alphabetically and
+# promoted from the wrong session once already; picking the last one is something you want
+# constantly, so it is a flag rather than a habit.
+if [ "${1:-}" = "--last" ]; then
+    shift
+    set -- "$(ls -dt /tmp/devshell-* 2>/dev/null | head -1)" "$@"
+fi
 ROOT="${1:-}"
 TARGET="${2:-}"
 if [ -z "$ROOT" ] || [ -z "$TARGET" ]; then
