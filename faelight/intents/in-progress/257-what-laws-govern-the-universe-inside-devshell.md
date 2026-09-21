@@ -165,6 +165,86 @@ attempting to violate it.
     The overlay is why this is a world rather than an empty room.
 ```
 
+## THE LAWS -- decided 2026-09-20, each against what bwrap can enforce
+
+★ These are the laws of the world inside `devshell`. Each was chosen after measuring, not
+before; each names the primitive; and each is proven by attempting to break it.
+
+### LAW 1 -- FILESYSTEM. / looks real. Every mutation is disposable unless promoted.
+
+`--dev-bind / /` for the view, `--overlay-src DIR --overlay UPPER WORK DIR` for each writable
+region. The upper layer is the session. Nothing reaches the host without `promote`.
+
+⚠️ NOT tmpfs. Measured: a tmpfs /etc has one file in it and nothing that reads config works.
+A world you cannot use is not a world.
+
+### LAW 2 -- PROCESS. You cannot see or signal anything outside.
+
+`--unshare-pid --proc /proc`. THE SECOND HALF IS THE WHOLE TRICK: a PID namespace changes what
+PIDs are, but ps reads /proc, so without a fresh proc the old view survives. That is exactly
+the bug this intent found in the existing --isolate full.
+
+### LAW 3 -- NETWORK. Nothing by default. The experiment asks.
+
+`--unshare-net`. Chosen over "Internet but not the LAN" because the strict default is the one
+that makes package installers and untrusted scripts interesting to test, and because a law you
+can relax per-session is safer than one you must remember to tighten.
+
+### LAW 4 -- IDENTITY. Root inside. No authority outside.
+
+`--unshare-user --uid 0 --gid 0`. Proven: id says 0, whoami says root, and /etc refuses.
+
+### LAW 5 -- ENVIRONMENT. Nothing crosses unless declared.
+
+`--clearenv` plus explicit `--setenv`. The policy's existing `allow_env` list IS this law, and
+it is already written -- the devshell profile names what crosses and nothing else does.
+
+### LAW 6 -- HARDWARE AND IDENTITY OF THE MACHINE. The sandbox says what it is.
+
+`--unshare-uts --hostname devshell`. Profiles name universes rather than flags: minimal, linux,
+gui, gpu, network, hostile. Only the first two exist on day one.
+
+### LAW 7 -- REVERSIBILITY. Leaving restores the prior state.
+
+The upper layer is discarded on exit unless promoted. checkpoint is a copy of the upper layer;
+rollback is restoring one; commit is promote applied to everything.
+
+### LAW 8 -- OBSERVABILITY. What changed is enumerable, and checked against reality.
+
+The upper directory IS the diff -- no tracking layer to write, none to drift. And the report is
+verified against the real filesystem rather than trusted, which is the rule the doctor earned.
+
+### LAW 9 -- SUDO IS NOT A DOOR. Christian, 2026-09-20.
+
+The devshell does not touch sudo, its configuration, or its credential cache -- and nothing
+inside can use it to become root outside.
+
+⭐ MEASURED, AND IT ALREADY HOLDS FOR A GOOD REASON:
+
+```text
+    inside:  which sudo   ->  /usr/bin/sudo        the binary is visible
+             sudo -n true ->  "/etc/sudo.conf is owned by uid 65534, should be 0"
+    host:    /run/sudo    ->  permission denied
+             sudo -n true ->  "a password is required"   no cached credential
+```
+
+★ THE USER NAMESPACE DEFEATS SUDO BY ITSELF. Host root maps to nobody inside, so sudo's own
+ownership check on /etc/sudo.conf fails and it refuses to run. Law 4 protects Law 9 without
+either being written for the other.
+
+⚠️ SO THIS LAW IS "KEEP IT THAT WAY", AND IT IS THE ONE MOST EASILY BROKEN BY A CONVENIENCE.
+Binding /run/sudo for some future reason, or dropping --unshare-user to make a tool work,
+would hand the sandbox a route to real root. Any change that touches the user namespace
+re-runs this law's test.
+
+### LAW 0 -- THE ONE THE OTHERS REST ON
+
+⚠️ A SANDBOX THAT CANNOT DELIVER A LAW REFUSES. Already shipped as `--allow-degraded`: "without
+this, a sandbox that cannot deliver what it promised refuses rather than running the command
+anyway and reporting success." Every law above inherits it. A namespace that could not be
+created is a REFUSAL, never a quiet downgrade -- and never a printed claim, which is what
+--isolate full was doing about pid isolation.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
