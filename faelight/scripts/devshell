@@ -49,6 +49,15 @@ if [ -d "$LOWER/usr" ] && [ -d "$LOWER/var/lib/pacman/local" ]; then
     USR_MODE="copy"
 fi
 
+# THE SESSION'S OWN pacman.conf, INT-257 item 3. Host pacman drops privileges to DownloadUser
+# (alpm) and chowns its download dir to it -- but only root is mapped inside, so that chown can
+# never succeed. Each NEW session gets /etc/pacman.conf without the line, seeded into upper-etc
+# before launch: inside it replaces the real one, and the host file is only ever read. A resumed
+# session keeps whatever it already has.
+if [ "$USR_MODE" = "copy" ] && [ "$CREATED" = "1" ]; then
+    grep -v '^[[:space:]]*DownloadUser' /etc/pacman.conf > "$ROOT/upper-etc/pacman.conf"
+fi
+
 if [ "$#" -eq 0 ]; then
     set -- /bin/bash --norc --noprofile -i
 fi
