@@ -508,6 +508,35 @@ christian would otherwise hold setuid-to-christian binaries -- a convenience tha
   roll back a session while leaving a package installed
 - Law 0 verifies /usr is root-owned inside when the copy is in use
 
+## ⚠️ TWO HOLES, MEASURED 2026-09-21 -- the laws hold where they were built, not where they were not
+
+`--dev-bind / /` passes through every path that is not overlaid. Tested by violating it:
+
+```text
+    INSIDE                                   HOST
+    touch /tmp/devshell-leak-probe   OK      -rw-r--r-- christian /tmp/devshell-leak-probe
+    ls -d /tmp/devshell-*            every session's layers, visible from inside
+    ls /run/user/1000                bus gnupg at-spi dconf doc emacs gvfs gvfsd
+    busctl --user list               THE HOST SESSION BUS ANSWERED -- :1.0 :1.1 :1.10 ...
+```
+
+★ LAW 1 IS BROKEN FOR /tmp. A write inside is a write on the host, and the session's own layers
+are within reach -- and changing a layer under a mounted overlay is undefined.
+
+★ THE SESSION BUS ANSWERED. --unshare-net removes the network; a socket reached by PATH is not
+the network, and --clearenv removed the variable, not the socket. The session bus is how
+systemd --user starts units ON THE HOST, and gnupg sits beside it. The Vision's "reaching host
+services" and "reading host credentials" are NOT yet impossible.
+
+⚠️ LAW 0 PASSED ON EVERY LAUNCH AND SAW NEITHER. It probes what was built; both holes are in what
+was passed through. THE CLASS: any host path writable or connectable inside that no law
+claimed. The fix is a census of that class, then one rule -- not two patches.
+
+Host boot lock after the in-sandbox install: /run/lock/boot-partition.lock, mtime 23:26, before
+the 00:04 install. The limine-snapper-sync hook was refused, and the host side confirms it.
+
+FILESYSTEM and NETWORK gates cannot be ticked until this class is closed.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
