@@ -17,6 +17,13 @@ set -euo pipefail
 # The facts every devshell script shares -- ONE definition, INT-257.
 source "$(dirname "$(readlink -f "$0")")/devshell-lib"
 
+# --where prints where sessions live -- the ONE definition, asked of devshell itself by anything
+# that needs it (nsh-test), so no second copy of the path can drift.
+if [ "${1:-}" = "--where" ]; then
+    printf '%s\n' "$DEVSHELL_SESSIONS"
+    exit 0
+fi
+
 # --resume <session|last> walks back into a world you left. Without it every launch was a
 # new session, and checkpoints could be saved but never used -- the sandbox was one-shot,
 # not a transaction.
@@ -26,14 +33,18 @@ if [ "${1:-}" = "--resume" ]; then
     [ "$target" = "last" ] && target="$(last_session)"
     [ -d "$target/upper-home" ] || { echo "devshell: no session to resume: ${2:-}" >&2; exit 1; }
     ROOT="$target"
-    SESSION="${ROOT#/tmp/devshell-}"
+    SESSION="$(basename "$ROOT")"
+    SESSION="${SESSION#"$DEVSHELL_PREFIX"}"
     CREATED=0
     shift 2
 else
     SESSION="$(date +%Y%m%d-%H%M%S)"
-    ROOT="/tmp/devshell-$SESSION"
+    sessions_gc
+    ROOT="$DEVSHELL_SESSIONS/$DEVSHELL_PREFIX$SESSION"
     mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
 fi
+# Every launch -- new or resumed -- marks its session as used, which is what the gc and --last read.
+touch "$ROOT"
 
 # THE SANDBOX'S OWN SYSTEM TREE, INT-257. A btrfs reflink copy of /usr and the pacman database,
 # owned by christian and so ROOT inside. Without it, host root owns /usr, host root maps to
@@ -52,11 +63,24 @@ if [ "$CREATED" = "1" ]; then
     fi
 fi
 OVERLAYS=()
+# LAW 0 PROBES ON ITS OWN UPPER LAYERS -- same lowers, same base, same laws, never the session's.
+# Measured 2026-09-21: the kernel releases a sandbox's overlay mounts a moment AFTER it exits,
+# and on btrfs (index=on) an upper directory still held is refused: two mounts back to back
+# failed 5 of 5; 50 ms apart succeeded 5 of 5. The probe used to mount the session's own uppers
+# an instant before the session did -- so every launch from disk was refused. On tmpfs the same
+# double use was silently ALLOWED, which is why it never showed in /tmp.
+PROBE_OVERLAYS=()
+chmod -R u+rwX "$ROOT"/probe-* 2> /dev/null || true
+rm -rf "$ROOT"/probe-* 2> /dev/null || true
+PROBE="$ROOT/probe-$$"
+mkdir -p "$PROBE"
 USR_MODE="host"
 HOME_MODE="full"
 while IFS=$'\t' read -r name mnt lower; do
     mkdir -p "$ROOT/upper-$name" "$ROOT/work-$name"
     OVERLAYS+=(--overlay-src "$lower" --overlay "$ROOT/upper-$name" "$ROOT/work-$name" "$mnt")
+    mkdir -p "$PROBE/upper-$name" "$PROBE/work-$name"
+    PROBE_OVERLAYS+=(--overlay-src "$lower" --overlay "$PROBE/upper-$name" "$PROBE/work-$name" "$mnt")
     [ "$name" = "usr" ] && USR_MODE="copy"
     [ "$name" = "home" ] && [ "$lower" != "$HOME" ] && HOME_MODE="declared"
 done < <(layers_read "$ROOT")
@@ -125,9 +149,11 @@ VERIFY="$VERIFY"'; printf " %s" "$(ls -A '"$HOME"' | tr "\n" " ")"'
 read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO V_CAP V_SOCK V_HOME <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
   "${BASE[@]}" \
-  "${OVERLAYS[@]}" \
+  "${PROBE_OVERLAYS[@]}" \
   --clearenv --setenv PATH "/usr/local/bin:/usr/bin:/bin" \
   -- /bin/sh -c "$VERIFY" 2>/dev/null)" || true
+chmod -R u+rwX "$PROBE" 2> /dev/null || true
+rm -rf "$PROBE" 2> /dev/null || true
 
 FAILED=""
 [ "$V_UID" = "0" ]          || FAILED="$FAILED identity(uid=$V_UID)"
@@ -175,6 +201,13 @@ echo "  devshell $SESSION"
 echo "  upper: $ROOT"
 echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE base=ro home=$HOME_MODE"
 echo ""
+
+# RE-ENTERING A SESSION waits briefly first. Its uppers may still be held by the mounts of the
+# run that just exited -- measured under 50 ms, so 200 ms is four times the margin. Should the
+# kernel ever be slower, bwrap REFUSES the mount and nothing runs: a delay, never a leak.
+if [ "$CREATED" = "0" ]; then
+    sleep 0.2
+fi
 
 exec bwrap \
   --unshare-all \

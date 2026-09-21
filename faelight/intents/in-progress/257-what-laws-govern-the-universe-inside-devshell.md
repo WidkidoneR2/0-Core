@@ -816,6 +816,74 @@ The test started its own listeners and first proved BOTH answer on the host.
 inside. That is a property of this kernel's overlayfs, not a law this intent wrote -- so the
 nsh-test class case tests CONNECTABILITY across the whole tree, rather than trusting it.
 
+## ⭐ C-b LANDED, 2026-09-21 -- sessions on disk, a zero-byte snapshot, and a lock found by moving
+
+Sessions live in ~/.local/share/devshell/sessions: same btrfs as HOME, they survive a reboot,
+and `devshell --where` is the ONE definition -- nsh-test asks it instead of hardcoding a path.
+
+### What forced it: the snapshot was costing RAM, measured
+
+30 sessions in /tmp held 2.3G of RAM; 1.5G of it was state.db copies from the five sessions made
+since C-a -- the sqlite backup is a FULL copy per session. My oversight: the time was measured,
+the per-session total was not weighed.
+
+### The snapshot is now a VERIFIED CLONE -- zero bytes, consistent by proof
+
+A db and its WAL copied while nothing wrote to them are a crash image, which SQLite recovers
+exactly. So: size and nanosecond mtime of both, clone both, look again -- a change means a write
+landed mid-copy, discard and retry -- then quick_check. Five failures fall back to the backup.
+
+```text
+    quiet WAL db, last row ONLY in the WAL       image-verified attempt=1, all 4 rows
+    a writer committing DURING the snapshot      5 of 5 attempts caught changing -> sqlite-backup,
+                                                 quick_check ok -- it DETECTS, not hopes
+    on this machine                              image-verified attempt=1, 209,868 rows,
+                                                 btrfs Exclusive 0.00B of 333 MiB
+```
+
+### ⚠️ THE LOCK THE MOVE EXPOSED
+
+The first run from disk failed every launch: "Device or resource busy". The kernel named it --
+"upperdir is in-use as upperdir/workdir of another mount". Measured, not assumed:
+
+```text
+    same upper, btrfs, back to back      ok FAILED FAILED       1 s apart   ok ok
+    same upper, tmpfs, back to back      ok ok ok
+    gap 0 ms: 0/5    gap 50 ms: 5/5    100 / 200 / 300 / 500 ms: 5/5
+```
+
+★ THE KERNEL RELEASES A SANDBOX'S MOUNTS A MOMENT AFTER IT EXITS, and on btrfs (index=on) an
+upper still held is REFUSED. Law 0's probe mounted the session's own uppers an instant before the
+session did. On tmpfs index falls back off and the SAME DOUBLE USE WAS SILENTLY ALLOWED -- the
+move to disk did not create the fault, it exposed it. The failure was safe: bwrap refused the
+mount and the command never ran; the suite went red at 196/197, which is the suite working.
+
+Fixed two ways: Law 0 probes on its OWN throwaway uppers (same lowers, base and laws -- it checks
+the laws, not what a resumed session wrote), and re-entering a session waits 200 ms, four times
+the measured maximum; slower still and bwrap refuses, nothing runs.
+
+```text
+    re-entry x3, back to back       IN-1 IN-2 IN-3, ~0.27 s each, same session
+    probe dirs left behind          0
+```
+
+### Old sessions go on their own -- Christian's ruling, 2026-09-21
+
+Unused for more than 7 days they are removed when a new session is born; kept if they hold a
+checkpoint, never while running. Proven against the real sessions dir: an unused 10-day-old
+session with a mode-000 work dir REMOVED, a 10-day-old one with a checkpoint KEPT.
+
+★ AND A SILENT LEAK FIXED ON THE WAY: nsh-test cleaned up with remove_dir_all, which cannot read
+overlayfs's mode-000 work dir -- sessions stayed behind unseen. Now rm -rf.
+
+```text
+    nsh-test, fresh build          197 / 197, devshell_write_inside_never_reaches_host passing
+    sessions the suite left        0
+```
+
+⚠️ STILL OPEN, named: a NEW session takes 5.2 s (0.59 s after C-a); a resume takes 0.27 s. The
+suspect is the quick_check reading all 300 MB -- unmeasured, so a separate change.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality

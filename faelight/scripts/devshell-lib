@@ -7,10 +7,11 @@
 
 DEVSHELL_DATA="$HOME/.local/share/devshell"
 DEVSHELL_LOWER="$DEVSHELL_DATA/lower"
-# Sessions stay in /tmp until the declared HOME (C) lands: today HOME's lower layer is all of
-# HOME, so a session under it would be an upper layer inside its own lower -- measured to mount,
-# documented as undefined. The move rides with C.
-DEVSHELL_SESSIONS="/tmp"
+# Sessions live ON DISK, beside the /usr copy, on the same btrfs as HOME: they survive a reboot,
+# and a session's copy-up is a clone (measured: 300 MB in 31 ms, 0 bytes exclusive). Safe only
+# since the declared HOME (C-a): HOME's lower is an empty directory and ~/.local/share is in no
+# declared row, so no session sits inside any overlay's lower layer.
+DEVSHELL_SESSIONS="$DEVSHELL_DATA/sessions"
 DEVSHELL_PREFIX="devshell-"
 
 # THE DECLARED HOME -- Christian's ruling, 2026-09-21. One row per path: name, path under HOME,
@@ -25,10 +26,17 @@ nshconf\t.config/faelight-shell\tlive
 cargo\t.cargo\tlive
 state\t.local/state/faelight\tsnapshot'
 
-# A consistent copy of a directory the host keeps writing. Reflink for the bulk (auto: a clone on btrfs, a real copy elsewhere) -- near-zero
-# bytes, measured 78 ms. Sockets DROPPED: a copied socket is a door to nothing, and nothing
-# inside should look like a door. Every SQLite database RE-TAKEN with sqlite's own online
-# backup, because a plain copy of a busy database can catch the db and its WAL a moment apart.
+# A consistent copy of a directory the host keeps writing. Reflink for the bulk (auto: a clone on
+# btrfs, a real copy elsewhere). Sockets DROPPED: a copied socket is a door to nothing, and nothing
+# inside should look like a door.
+#
+# Every SQLite database is taken as a VERIFIED CLONE. A db and its WAL copied while nothing wrote
+# to them are a crash image, and SQLite recovers a crash image exactly. So: record size and
+# nanosecond mtime of both, clone both, record again -- any change means a write landed mid-copy,
+# discard and retry -- then quick_check the clone. Five failures fall back to sqlite's own online
+# backup. The clone shares every extent with the host: ZERO bytes per session, where the backup
+# alone cost a full 300 MB copy EVERY session (1.5G of RAM across five sessions, measured).
+# Prints the method used, so the session records how its snapshot was made.
 snapshot_dir() {
     local src="$1" dst="$2" f
     local -a dbs
@@ -37,12 +45,43 @@ snapshot_dir() {
     find "$dst" -type s -delete || return 1
     mapfile -t dbs < <(find "$dst" -maxdepth 1 -type f -name '*.db')
     for f in "${dbs[@]}"; do
-        rm -f "$f" "$f-wal" "$f-shm"
-        python3 -c 'import sqlite3, sys
-s = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
-d = sqlite3.connect(sys.argv[2])
+        python3 -c 'import os, sqlite3, subprocess, sys
+src, dst = sys.argv[1], sys.argv[2]
+def sig():
+    out = []
+    for p in (src, src + "-wal"):
+        try:
+            st = os.stat(p)
+            out.append((st.st_size, st.st_mtime_ns))
+        except FileNotFoundError:
+            out.append(None)
+    return out
+def clear():
+    for p in (dst, dst + "-wal", dst + "-shm"):
+        try:
+            os.unlink(p)
+        except FileNotFoundError:
+            pass
+for attempt in range(5):
+    clear()
+    before = sig()
+    subprocess.run(["cp", "--reflink=auto", src, dst], check=True)
+    if os.path.exists(src + "-wal"):
+        subprocess.run(["cp", "--reflink=auto", src + "-wal", dst + "-wal"], check=True)
+    if sig() != before:
+        continue
+    c = sqlite3.connect(dst)
+    ok = c.execute("pragma quick_check").fetchone()[0] == "ok"
+    c.close()
+    if ok:
+        print("image-verified attempt=%d" % (attempt + 1))
+        sys.exit(0)
+clear()
+s = sqlite3.connect("file:" + src + "?mode=ro", uri=True)
+d = sqlite3.connect(dst)
 s.backup(d)
-d.close()' "$src/${f##*/}" "$f" || return 1
+d.close()
+print("sqlite-backup")' "$src/${f##*/}" "$f" || return 1
     done
 }
 
@@ -53,11 +92,34 @@ last_session() {
     printf '%s\n' "${s%/}"
 }
 
+# OLD SESSIONS GO AWAY ON THEIR OWN -- Christian's ruling, 2026-09-21. When a new session is born,
+# every session UNUSED for more than DEVSHELL_KEEP_DAYS is removed -- unless it holds a checkpoint
+# (someone chose to keep a point in it) or it is running. Every launch touches its session, so
+# "unused" means not entered, not merely old.
+DEVSHELL_KEEP_DAYS=7
+sessions_gc() {
+    local d removed=0
+    [ -d "$DEVSHELL_SESSIONS" ] || return 0
+    for d in "$DEVSHELL_SESSIONS/$DEVSHELL_PREFIX"*/; do
+        d="${d%/}"
+        [ -d "$d" ] || continue
+        [ -n "$(find "$d" -maxdepth 0 -mtime +"$DEVSHELL_KEEP_DAYS")" ] || continue
+        [ -n "$(ls -A "$d/checkpoints" 2>/dev/null)" ] && continue
+        pgrep -f "$d/upper" > /dev/null 2>&1 && continue
+        chmod -R u+rwX "$d" 2> /dev/null
+        rm -rf "$d" && removed=$((removed + 1))
+    done
+    if [ "$removed" -gt 0 ]; then
+        echo "  gc: removed $removed session(s) unused for over $DEVSHELL_KEEP_DAYS days"
+    fi
+    return 0
+}
+
 # THE LAYER TABLE: one line per layer -- name, mount point, lower -- tab separated. Upper and
 # work are always $ROOT/upper-<name> and $ROOT/work-<name>. Written ONCE, when a session is
 # born, so a resumed session keeps the layers it was born with even after the defaults change.
 layers_new() {
-    local root="$1" name rel mode
+    local root="$1" name rel mode m
     mkdir -p "$root/empty-home" || return 1
     {
         printf 'etc\t/etc\t/etc\n'
@@ -72,7 +134,8 @@ layers_new() {
         [ -n "$name" ] || continue
         [ -d "$HOME/$rel" ] || continue
         if [ "$mode" = "snapshot" ]; then
-            snapshot_dir "$HOME/$rel" "$root/snap-$name" || return 1
+            m="$(snapshot_dir "$HOME/$rel" "$root/snap-$name")" || return 1
+            printf '%s\n' "$m" > "$root/snap-$name.method"
             printf '%s\t%s\t%s\n' "$name" "$HOME/$rel" "$root/snap-$name" >> "$root/layers"
         else
             printf '%s\t%s\t%s\n' "$name" "$HOME/$rel" "$HOME/$rel" >> "$root/layers"

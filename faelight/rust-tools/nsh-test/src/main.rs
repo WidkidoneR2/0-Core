@@ -1210,8 +1210,18 @@ fn all_tests() -> Vec<TestResult> {
                 .find(|l| l.trim_start().starts_with("upper: "))
             {
                 let dir = line.trim_start().trim_start_matches("upper: ").trim();
-                if dir.starts_with("/tmp/devshell-") {
-                    let _ = std::fs::remove_dir_all(dir);
+                // The sessions directory is ASKED OF DEVSHELL ITSELF (INT-257): one definition,
+                // never a path hardcoded here to drift from the script's.
+                let sessions = std::process::Command::new("bash")
+                    .arg(&script)
+                    .arg("--where")
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                    .unwrap_or_default();
+                if !sessions.is_empty() && dir.starts_with(&format!("{}/", sessions)) {
+                    // rm -rf, not remove_dir_all: overlayfs leaves a mode-000 work dir that
+                    // remove_dir_all cannot read, and the session would silently stay behind.
+                    let _ = std::process::Command::new("rm").args(["-rf", dir]).status();
                 }
             }
             if !out.status.success() {
