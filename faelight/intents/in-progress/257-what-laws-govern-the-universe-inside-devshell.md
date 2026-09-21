@@ -245,6 +245,50 @@ anyway and reporting success." Every law above inherits it. A namespace that cou
 created is a REFUSAL, never a quiet downgrade -- and never a printed claim, which is what
 --isolate full was doing about pid isolation.
 
+## ⭐ FIRST LIGHT, 2026-09-20 -- the world exists and was attacked
+
+A 30-line bash script invoking bwrap with the ten laws. Entered, used, and deliberately abused:
+
+```text
+    devshell> whoami; hostname; ps aux | wc -l
+    root
+    devshell
+    5
+
+    devshell> touch /etc/i-was-here
+    devshell> rm -rf ~/0-core/faelight/registry
+    devshell> ls ~/0-core/faelight/
+    RISK.toml engine intents meta policy rust-tools schema scripts     <- REGISTRY GONE
+    devshell> exit
+
+    HOST:
+    ls faelight/registry/   ->  aliases.toml doctor packages.txt       <- INTACT
+    ls /etc/i-was-here      ->  No such file or directory
+```
+
+★ THE REGISTRY WAS DELETED INSIDE AND IS UNHARMED OUTSIDE. Not a probe -- a real rm -rf on the
+directory this project keeps its declarations in.
+
+### And the upper layer really is the diff
+
+```text
+    upper-etc/i-was-here                          added
+    upper-home/.bash_history                      modified
+    upper-home/0-core/faelight/registry           c--------- 0,0
+```
+
+⚠️ A DELETION IS A WHITEOUT, NOT AN ABSENCE. overlayfs records `rm` as a CHARACTER DEVICE 0,0
+in the upper layer, so `find -type f` misses it entirely -- the first listing showed two files
+and hid the most destructive thing that happened.
+
+★ SO `diff` HAS THREE CASES AND ONLY ONE IS OBVIOUS:
+```text
+    regular file      added or modified
+    char dev 0,0      DELETED
+    directory         traversed; may carry an opaque xattr when wholly replaced
+```
+A diff that lists only regular files would report a destroyed tree as two harmless changes.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
