@@ -22,6 +22,34 @@ SESSION="$(date +%Y%m%d-%H%M%S)"
 ROOT="/tmp/devshell-$SESSION"
 mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
 
+# LAW 0 -- A SANDBOX THAT CANNOT DELIVER A LAW REFUSES.
+#
+# The banner used to PRINT the laws. Printing is what --isolate full did about pid isolation
+# while 415 host processes were visible inside it. So the laws are TESTED here, in the world
+# they govern, before anything is handed over.
+VERIFY='printf "%s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -c \"^[0-9]\")" "$(ls /etc | wc -l)"'
+read -r V_UID V_HOST V_PROCS V_ETC <<< "$(bwrap \
+  --unshare-all --uid 0 --gid 0 --hostname devshell \
+  --dev-bind / / --proc /proc \
+  --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
+  --clearenv --setenv PATH "/usr/local/bin:/usr/bin:/bin" \
+  -- /bin/sh -c "$VERIFY" 2>/dev/null)" || true
+
+FAILED=""
+[ "$V_UID" = "0" ]          || FAILED="$FAILED identity(uid=$V_UID)"
+[ "$V_HOST" = "devshell" ]  || FAILED="$FAILED machine(host=$V_HOST)"
+[ "${V_PROCS:-999}" -lt 20 ] 2>/dev/null || FAILED="$FAILED process(procs=$V_PROCS)"
+[ "${V_ETC:-0}" -gt 50 ] 2>/dev/null    || FAILED="$FAILED filesystem(etc=$V_ETC)"
+
+if [ -n "$FAILED" ]; then
+    echo "" >&2
+    echo "  devshell REFUSES -- these laws were not delivered:$FAILED" >&2
+    echo "  A sandbox that cannot deliver what it promised refuses rather than" >&2
+    echo "  running the command anyway and reporting success." >&2
+    rm -rf "$ROOT"
+    exit 1
+fi
+
 echo "  devshell $SESSION"
 echo "  upper: $ROOT"
 echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared"
