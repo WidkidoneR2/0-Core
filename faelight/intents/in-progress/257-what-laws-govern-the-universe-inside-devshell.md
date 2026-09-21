@@ -417,6 +417,97 @@ Law 0's refusal path ran `rm -rf \$ROOT`. With --resume, a failed verification w
 DELETED THE WORLD SOMEONE WAS RETURNING TO -- a safety check turned into data loss. Cleanup now
 removes only a session the same run created.
 
+## ⚠️ THE LAW CONFLICT, MEASURED 2026-09-20 -- and 257 stays open until it is resolved
+
+The Vision says "install a package". Attempted inside, with /usr, /var/lib/pacman and /etc all
+overlaid, pacman -U from the local cache:
+
+```text
+    DownloadUser = alpm   -> chown to alpm impossible, only root is mapped
+                             FIXED INSIDE: sed on /etc/pacman.conf. The host still counts 1
+                             DownloadUser line -- a system config edited as root, host untouched.
+    then:                 -> could not create /var/lib/pacman/local/m17n-db-1.8.14-1/:
+                             Permission denied
+```
+
+THE CAUSE, MEASURED, NOT GUESSED:
+
+```text
+    id -u                   0
+    /var/lib/pacman         root    755   the overlay ROOT takes the upper dir owner: us
+    /var/lib/pacman/local   nobody  755   owned by the HOST'S real root
+```
+
+★ HOST ROOT CAN NEVER BE MAPPED INTO AN UNPRIVILEGED USER NAMESPACE -- a kernel boundary. Every
+directory it owns appears as nobody, and root inside has no authority over it. That is LAW 4
+working exactly as written, and it is the same property that makes sudo inert (Law 9). The laws
+are not failing. TWO OF THEM CONFLICT WITH ONE LINE OF THE VISION.
+
+⚠️ AND /var ITSELF WILL NOT OVERLAY: EINVAL, while /usr and /var/lib/pacman each overlay fine.
+Suspected cause: nested btrfs subvolumes under /var (log, pacman cache). Not yet confirmed.
+
+### Decision, Christian 2026-09-20: B -- keep 257 open and resolve it, do not defer it
+
+### The hypothesis to measure next -- NOT a claim
+
+Give the sandbox a LOWER LAYER IT OWNS. A btrfs reflink copy of /usr and /var/lib/pacman, made
+as christian, shares the underlying extents -- near-zero space -- and every copied file is owned
+by christian, which maps to ROOT inside. pacman could install into it and it would still be
+disposable. This is how rootless containers work, with a copy-on-write copy of THIS system in
+place of a downloaded image.
+
+Risks to measure before trusting it: whether every file under /usr is readable to christian,
+how long the copy takes, whether reflink works from the root subvolume into /home, and SETUID
+BITS -- a copy made by christian would carry setuid-to-christian binaries, so the copy must be
+stripped of setuid and setgid. That last one is a law, not a detail.
+
+## ⭐ THE CONFLICT RESOLVED, 2026-09-20 -- a package installed inside, the host untouched
+
+The hypothesis, measured step by step:
+
+```text
+    / and /home         btrfs, SAME device (@ and @home) -- reflink crosses subvolumes
+    reflink probe       --reflink=always succeeded; btrfs du: Exclusive 0.00B
+    /usr                11G, 296,536 entries
+    cp -a --no-preserve=ownership --reflink=always /usr
+                        7.3 SECONDS, no errors beyond files you cannot read
+    btrfs du of copy    Total 10.16GiB   Exclusive 0.00B   Shared 6.11GiB
+    setuid/setgid       24 in the copy, 24 stripped, 0 left
+```
+
+★ THE COPY CANNOT CONTAIN WHAT YOU CANNOT READ. The 15 unreadable files stay out on their own:
+/usr/share/factory/etc/shadow, gshadow and crypttab; ssh-keysign; dbus-daemon-launch-helper;
+the ufw rules. The kernel's permissions filter the secrets out of the sandbox's system tree.
+
+Then the same install that failed, with the COPY as the lower layer:
+
+```text
+    INSIDE                                        HOST
+    root /usr/share
+    root /var/lib/pacman/local   <- was nobody
+    installing m17n-db...
+    Running post-transaction hooks...
+    pacman -Q -> m17n-db 1.8.14-1                 pacman -Q -> package not found
+    /usr/share/m17n -> 8859-10.map ...            /usr/share/m17n -> No such file
+```
+
+⭐ NO LAW WAS WEAKENED TO GET HERE. Law 4 holds absolutely: nothing the host's root owns became
+writable. The sandbox got ITS OWN SYSTEM TREE -- a copy-on-write copy of this machine, owned by
+christian, which maps to root inside. This is how rootless containers work, except the image is
+THIS SYSTEM, made in 7 seconds for zero bytes.
+
+⚠️ NEW LAW, earned here: THE LOWER COPY CARRIES NO SETUID OR SETGID BITS. A copy made by
+christian would otherwise hold setuid-to-christian binaries -- a convenience that is a hole.
+
+### Still to do before 257 closes
+
+- devshell uses the copy: /usr and /var/lib/pacman overlaid from it when it exists
+- a command that builds and refreshes the copy, stripping setuid/setgid every time
+- pacman.conf DownloadUser removed in the SESSION's /etc, seeded before launch
+- diff, checkpoint and promote learn the new layers -- a checkpoint that skipped /usr would
+  roll back a session while leaving a package installed
+- Law 0 verifies /usr is root-owned inside when the copy is in use
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
