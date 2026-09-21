@@ -117,6 +117,54 @@ main.rs:985: the whole unshare path is inside `if network_isolated`. So `--isola
 policy with `allow_net = true` gets NO namespaces at all -- pid, mount and user isolation are
 silently conditional on a network decision that has nothing to do with them.
 
+## ⭐ PROVEN ON THIS MACHINE, 2026-09-20 -- one primitive, six dimensions
+
+bubblewrap 0.12.0, already installed. Every line below was RUN, and each is a law tested by
+attempting to violate it.
+
+```text
+  DIMENSION 2 -- PROCESS
+    bwrap --unshare-all --dev-bind / / --proc /proc -- ps aux | wc -l
+      4          against 411 on the host
+    kill -0 <a host pid>
+      "No such process"    -- NOT MERELY HIDDEN. Unreachable.
+
+  DIMENSION 3 -- NETWORK
+    curl -s -m2 https://github.com
+      NET-BLOCKED          -- and only loopback exists inside
+
+  DIMENSION 4 -- IDENTITY
+    bwrap --unshare-all --uid 0 --gid 0 ...
+      id -u  ->  0
+      whoami ->  root
+      touch /etc/oops-test  ->  Permission denied
+    ★ THE LAW, ENFORCED: root inside has no root authority over the host. Software that
+      expects root will run; it buys nothing outside.
+
+  DIMENSION 6 -- HOSTNAME
+    bwrap --unshare-uts --hostname devshell ...
+      hostname -> devshell
+    The sandbox can announce itself WITHOUT the shell being told.
+
+  DIMENSION 1 -- FILESYSTEM, and this is the one that makes it a world
+    bwrap ... --overlay-src /etc --overlay /tmp/ds-upper /tmp/ds-work /etc
+      ls /etc | wc -l   ->  174     the REAL /etc, visible
+      touch /etc/oops   ->  WROTE
+      /tmp/ds-upper     ->  oops    the write landed in the upper layer
+      /etc/oops on host ->  absent
+    ★ THE INVARIANT FROM THE VISION, ENFORCED: inside, / looks real, but every mutation is
+      disposable unless explicitly promoted.
+
+  DIMENSION 8 -- OBSERVABILITY, for free
+    THE UPPER DIRECTORY IS THE DIFF. Everything changed sits in one place, already
+    enumerated. `devshell diff` is a directory listing, and `promote` is copying a file
+    out of it. No tracking layer to write and none to drift.
+
+  ⚠️ WHAT tmpfs COSTS, measured, because the obvious approach is worse:
+    --tmpfs /etc  ->  writable, and ONE FILE IN IT. Nothing that reads config works.
+    The overlay is why this is a world rather than an empty room.
+```
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
