@@ -537,6 +537,89 @@ the 00:04 install. The limine-snapper-sync hook was refused, and the host side c
 
 FILESYSTEM and NETWORK gates cannot be ticked until this class is closed.
 
+## THE CENSUS, 2026-09-21 -- everything the sandbox could reach that no law claimed
+
+Root inside IS christian on the host, so whatever christian can write or connect to here, the
+sandbox reaches unless an overlay covers it. Measured on the host:
+
+```text
+    WAYS TO ACT ON THE HOST
+      hypr/.socket.sock              hyprctl dispatch exec -- runs any command on the host
+      /run/user/1000/bus, systemd/private, io.systemd.Manager   starts user units on the host
+      gnupg/S.gpg-agent.ssh, keyring/control, ssh-unix-local    uses keys without reading them
+      /run/dbus/system_bus_socket, /run/systemd/*               system services, behind polkit
+      pipewire-0, pulse/native, /dev/video0                     microphone and camera
+      /dev/input/event*, hidraw*, rfkill, kvm, vfio, net/tun, i2c-*
+      wayland-1, /tmp/.X11-unix/X0
+    WRITABLE
+      /tmp, /var/tmp, /var/spool/mail, all of /run/user/1000, 975 files under /sys
+    READABLE, and the overlay does nothing about reads
+      ~/.ssh/id_ed25519, ~/.git-credentials (credential.helper = store, plaintext),
+      secureboot-framework16, .claude.json, .codex, .hermes
+    CLOSED BY THE KERNEL
+      /proc/sys/dev/tty/legacy_tiocsti = 0 -- nothing inside can type into the host terminal
+```
+
+⭐ THE RULE: NOTHING PASSES THROUGH UNLESS A LAW NAMES IT.
+
+```text
+    --ro-bind / /           the host is read-only inside -- the whole writable class at once
+    --dev /dev              minimal devices; Law 6 already said no hardware on day one
+    --tmpfs /tmp /var/tmp /run    private and empty -- every /run and /tmp socket gone
+    overlays on top         /etc, /usr, pacman, and the declared HOME
+```
+
+⚠️ READ-ONLY IS NOT ENOUGH ALONE: a read-only mount refuses writes to files and directories,
+not connect() on a socket. The tmpfs mounts are what remove the sockets, and the test must
+prove it.
+
+### HOME -- three options, and why C
+
+```text
+    A  mask the secrets      a denylist; misses what nobody listed -- fails SILENTLY
+    B  snapshot declared     one overlay, but 0-core inside is stale -- wrong for breaking nsh
+    C  declared, live        HOME starts EMPTY; each declared path is its own live overlay
+```
+
+Decision, Christian 2026-09-21: C. Credentials are absent by construction, including ones that
+do not exist yet, and the repository is live.
+
+### The declared HOME, each entry with its reason
+
+```text
+    0-core                   the project, live                                 overlay
+    .local/bin               nsh and the tools on PATH; ship deploys here      overlay
+    .local/state/faelight    state.db, the ONLY file a running nsh holds open  overlay
+                             daemon.sock lives here -- its own violation test
+    .config/faelight-shell   config.nsh                                        overlay
+    .cargo                   crate cache for offline builds; NO credentials    overlay
+    .gitconfig               identity for commits inside                       seeded copy
+```
+
+Toolchain needs nothing: cargo and rustc are /usr/bin, already inside through the copy. Left
+out on purpose: .ssh, .git-credentials, secureboot-framework16, the AI tool dirs, mise (4.5G,
+not on PATH inside), .cache/faelight and forest-trash -- a missing path shows on first run and
+is added WITH its reason; it can never leak the other way.
+
+### Sessions move to disk: ~/.local/share/devshell/sessions
+
+Same btrfs as HOME and the /usr copy. Checkpoints survive a reboot; private /tmp inside stops
+contradicting layers that live in /tmp; and state.db (300 MB) is copied up on every session's
+first command, where same-filesystem copy-up may be a clone -- to be MEASURED, not assumed.
+Not a RAM emergency: 92G total, /tmp capped at 46G.
+
+### Each session records its own layer table
+
+diff, checkpoint and promote walk the table rather than hardcoding paths, so a resumed session
+uses the layers it was born with even after the declared list changes.
+
+### Build order, each step tested by repeating every census violation
+
+1. sessions on disk
+2. read-only base, minimal /dev, private /tmp /var/tmp /run
+3. the layer table
+4. the declared HOME
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
