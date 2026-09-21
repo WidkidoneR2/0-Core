@@ -33,8 +33,10 @@ state\t.local/state/faelight\tsnapshot'
 # Every SQLite database is taken as a VERIFIED CLONE. A db and its WAL copied while nothing wrote
 # to them are a crash image, and SQLite recovers a crash image exactly. So: record size and
 # nanosecond mtime of both, clone both, record again -- any change means a write landed mid-copy,
-# discard and retry -- then quick_check the clone. Five failures fall back to sqlite's own online
-# backup. The clone shares every extent with the host: ZERO bytes per session, where the backup
+# discard and retry -- then OPEN the clone: its header, schema and the WAL's checksummed frames are
+# read, which is what recovering a crash image requires. Five failures fall back to sqlite's own
+# online backup. NOT quick_check: measured 2026-09-21, it read all 76,857 pages for 4.63 s of a
+# 4.89 s launch, re-proving what the size-and-mtime check already proved -- that nothing wrote. The clone shares every extent with the host: ZERO bytes per session, where the backup
 # alone cost a full 300 MB copy EVERY session (1.5G of RAM across five sessions, measured).
 # Prints the method used, so the session records how its snapshot was made.
 snapshot_dir() {
@@ -71,7 +73,7 @@ for attempt in range(5):
     if sig() != before:
         continue
     c = sqlite3.connect(dst)
-    ok = c.execute("pragma quick_check").fetchone()[0] == "ok"
+    ok = c.execute("pragma page_count").fetchone()[0] > 0 and c.execute("select count(*) from sqlite_master").fetchone()[0] > 0
     c.close()
     if ok:
         print("image-verified attempt=%d" % (attempt + 1))

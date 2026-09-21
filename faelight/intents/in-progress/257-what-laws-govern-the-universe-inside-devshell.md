@@ -884,6 +884,33 @@ overlayfs's mode-000 work dir -- sessions stayed behind unseen. Now rm -rf.
 ⚠️ STILL OPEN, named: a NEW session takes 5.2 s (0.59 s after C-a); a resume takes 0.27 s. The
 suspect is the quick_check reading all 300 MB -- unmeasured, so a separate change.
 
+## The 5.2 s launch -- measured, then fixed, 2026-09-21
+
+A new session took 5.2 s after C-b (0.59 s after C-a). Traced line by line with a microsecond
+clock, then the database step taken apart on a scratch clone:
+
+```text
+    the snapshot's python step      4.89 s of a 5.00 s launch
+      clone db + wal                0.067 s
+      open                          0.004 s
+      quick_check                   4.631 s   -- every one of 76,857 pages
+      close                         0.019 s
+```
+
+★ quick_check WAS RE-PROVING WHAT WAS ALREADY PROVEN. Size and nanosecond mtime unchanged across
+the clone means nothing wrote, and a copy nothing wrote to is a crash image SQLite recovers
+exactly. Replaced by OPENING the clone -- header, schema, and WAL recovery, which checks every
+frame's checksum -- so a malformed image still falls back.
+
+⚠️ THE TRADE, stated: a corruption ALREADY in the host's state.db is no longer caught at snapshot
+time. It would already be on the host; guarding the host database is not the snapshot's job.
+
+```text
+    three new sessions              0.25 s  0.47 s  0.28 s     image-verified, 209,902 rows
+    writer DURING the snapshot      sqlite-backup, quick_check of the result ok -- detection intact
+    nsh-test                        197 / 197; the devshell case 5,186 ms -> 213 ms
+```
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
