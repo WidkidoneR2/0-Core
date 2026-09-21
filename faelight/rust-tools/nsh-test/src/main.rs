@@ -1246,6 +1246,118 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         },
     ));
+    // INT-257, THE CLASS: nothing the sandbox can reach is writable-and-persistent, or connectable.
+    // Asked from INSIDE a real session for every path, not a list of the famous ones:
+    //   mounts   every mount not shadowed by a later one is read-only, or dies with the session
+    //            (overlay, tmpfs, proc, devpts, mqueue, and bwrap's own /dev nodes). Any other rw
+    //            mount writes to a real disk. The mount table answers that exactly; a walk of
+    //            24 GB of build output checking directories would be slow and still miss files.
+    //   sockets  every socket file in the tree, /proc and /sys aside, REFUSES a connection.
+    // The launch probe checks the worst holes on every launch; this checks the whole class.
+    results.push(forest_test(
+        "devshell_class_nothing_writable_or_connectable",
+        Category::Regression,
+        "devshell lives in the forest scripts directory and needs the checkout",
+        || {
+            let home = std::env::var("HOME").map_err(|e| format!("HOME: {e}"))?;
+            let script = format!("{}/0-core/faelight/scripts/devshell", home);
+            let inside = r##"import os, socket, stat
+holes = []
+mounts = []
+with open('/proc/self/mountinfo') as f:
+    for line in f:
+        a, b = line.rstrip('\n').split(' - ', 1)
+        pa, pb = a.split(' '), b.split(' ')
+        mounts.append((pa[4], pa[5].split(','), pb[0]))
+DISPOSABLE = {'overlay', 'tmpfs', 'proc', 'devpts', 'mqueue'}
+DEVNODES = {'/dev/null', '/dev/zero', '/dev/full', '/dev/random', '/dev/urandom', '/dev/tty'}
+checked = 0
+for i, (mp, opts, fs) in enumerate(mounts):
+    later = mounts[i + 1:]
+    if any(m == mp or (m != '/' and mp.startswith(m + '/')) for m, _, _ in later):
+        continue
+    checked += 1
+    if 'ro' in opts or fs in DISPOSABLE or (fs == 'devtmpfs' and mp in DEVNODES):
+        continue
+    holes.append('HOLE mount %s %s rw' % (mp, fs))
+sockets = 0
+stack = ['/']
+while stack:
+    d = stack.pop()
+    try:
+        it = os.scandir(d)
+    except OSError:
+        continue
+    with it:
+        for e in it:
+            try:
+                if e.is_dir(follow_symlinks=False):
+                    if d == '/' and e.name in ('proc', 'sys'):
+                        continue
+                    stack.append(e.path)
+                elif not e.is_file(follow_symlinks=False) and not e.is_symlink():
+                    if stat.S_ISSOCK(e.stat(follow_symlinks=False).st_mode):
+                        sockets += 1
+                        s = socket.socket(socket.AF_UNIX)
+                        s.settimeout(1)
+                        try:
+                            s.connect(e.path)
+                            holes.append('HOLE socket %s connected' % e.path)
+                        except OSError:
+                            pass
+                        finally:
+                            s.close()
+            except OSError:
+                pass
+print('CLASS host=%s mounts=%d sockets=%d' % (socket.gethostname(), checked, sockets))
+for h in holes:
+    print(h)
+print('CLASS-DONE')"##;
+            let out = std::process::Command::new("bash")
+                .arg(&script)
+                .args(["python3", "-c", inside])
+                .output()
+                .map_err(|e| format!("could not run devshell: {e}"))?;
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            if let Some(line) = stdout
+                .lines()
+                .find(|l| l.trim_start().starts_with("upper: "))
+            {
+                let dir = line.trim_start().trim_start_matches("upper: ").trim();
+                let sessions = std::process::Command::new("bash")
+                    .arg(&script)
+                    .arg("--where")
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                    .unwrap_or_default();
+                if !sessions.is_empty() && dir.starts_with(&format!("{}/", sessions)) {
+                    let _ = std::process::Command::new("rm").args(["-rf", dir]).status();
+                }
+            }
+            if !out.status.success() {
+                return Err(format!(
+                    "devshell exited {:?}: {}",
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ));
+            }
+            if !stdout.contains("CLASS-DONE") || !stdout.contains("host=devshell") {
+                return Err(format!(
+                    "the class walk did not complete inside the devshell: {}",
+                    stdout.trim()
+                ));
+            }
+            let holes: Vec<&str> = stdout.lines().filter(|l| l.starts_with("HOLE ")).collect();
+            if !holes.is_empty() {
+                return Err(format!(
+                    "LAW BROKEN, {} hole(s): {}",
+                    holes.len(),
+                    holes.join("; ")
+                ));
+            }
+            Ok(())
+        },
+    ));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which core")?, "core")
     }));

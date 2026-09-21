@@ -911,6 +911,39 @@ time. It would already be on the host; guarding the host database is not the sna
     nsh-test                        197 / 197; the devshell case 5,186 ms -> 213 ms
 ```
 
+## ⭐ THE CLASS CASE, 2026-09-21 -- nsh-test checks the whole class, not the famous holes
+
+`devshell_class_nothing_writable_or_connectable`: a walk that runs INSIDE a real session and asks
+two questions of everything, not of a list.
+
+```text
+    mounts    every mount not shadowed by a later one is read-only, or dies with the session
+              (overlay, tmpfs, proc, devpts, mqueue, bwrap's own /dev nodes) -- any other rw
+              mount would write to a real disk
+    sockets   every socket file in the tree, /proc and /sys aside, must REFUSE a connection
+```
+
+The mount TABLE answers the write question exactly; walking 24 GB of build output would be slow
+and still miss a writable file in a read-only directory. The socket walk only stats entries that
+are not files, directories or symlinks, so the whole tree costs 0.8 s.
+
+```text
+    the real devshell            CLASS host=devshell mounts=37 sockets=6 -- NO holes
+    a broken copy, Law 0 PASSING   a rw host directory on /mnt, a live listener on /srv:
+                                 HOLE mount /mnt btrfs rw
+                                 HOLE socket /srv/live.sock connected -- the listener saw it
+    unsandboxed, as a control    HOLE mount / ext4 rw, /sys, /dev, cgroups -- it finds real holes
+    nsh-test                     198 / 198
+```
+
+★ THE CASE CATCHES WHAT THE LAUNCH PROBE CANNOT. The broken copy passed Law 0 -- /mnt and /srv
+are not where the launch probe looks -- and the class case named both. The two layers are not
+redundant: Law 0 is fast and checks the worst on every launch; the class case is complete and
+checks everything on every suite run.
+
+★ AND THE KERNEL OBSERVATION IS NOW A CHECKED FACT. Six socket files are visible inside; all six
+refused. "Visible but not connectable" was measured once in C-a; it is now asserted every run.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
