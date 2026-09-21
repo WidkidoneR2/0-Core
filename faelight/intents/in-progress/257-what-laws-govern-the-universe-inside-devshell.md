@@ -312,6 +312,26 @@ ran three commands touched the git index. On the host that is a real modificatio
 repository, and nothing would have reported it. THE SANDBOX IS ALREADY AN INSTRUMENT, not just
 a shield.
 
+### Resolved: what touched .git/index
+
+A session running ONE command:
+
+```text
+    devshell -- bash -c 'cd ~/0-core && git status --porcelain > /dev/null'
+    devshell-diff  ->  M  /home/christian/0-core/.git/index
+```
+
+`git status` WRITES THE INDEX when its cached stat data is stale: it refreshes and saves the
+result. Inside a fresh overlay every file looks new to git, so it always refreshes.
+
+⚠️ AND THE HOST TEST SAID OTHERWISE, WHICH IS WHY THIS NEEDED THE SANDBOX. Running
+`git status --porcelain` on the host left the index mtime unchanged -- because git had already
+refreshed it moments earlier and had nothing to write. The host measurement was not wrong, it
+was UNINFORMATIVE, and it would have supported the conclusion that git does not write on read.
+
+★ THE SANDBOX ANSWERED A QUESTION THE HOST COULD NOT, on its second day, about a tool nobody
+was investigating.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
