@@ -729,6 +729,44 @@ lines from it.
 session has ("no copy of: usr pacman") before anything moves, and promote routes by the LONGEST
 mount point -- so a declared path inside HOME will beat HOME itself when C lands.
 
+## C, PROBED BEFORE BUILDING, 2026-09-21 -- an empty HOME, measured
+
+One bwrap call, no devshell code: an EMPTY directory as HOME's lower, with 0-core, .local/bin
+and the state dir overlaid on top.
+
+```text
+    HOME inside                  0-core .local                  -- nothing else exists
+    ~/.ssh, ~/.git-credentials,
+    ~/secureboot-framework16     No such file or directory      -- absent BY CONSTRUCTION
+    ~/0-core                     AGENTS.md assets bin ...       -- live
+    mount points                 bwrap CREATED them in the empty HOME's upper:
+                                 /0-core /.local /.local/bin /.local/state/faelight
+    state.db copy-up             31 ms; btrfs du Total 299.56MiB, Exclusive 0.00B
+```
+
+★ COPY-UP ON THE SAME BTRFS IS A CLONE. Predicted earlier, now MEASURED: touching the 300 MB
+state.db copied it up in 31 ms for ZERO exclusive bytes. Sessions on disk cost nothing.
+
+⚠️ daemon.sock: REFUSED inside -- AND REFUSED ON THE HOST. The daemon was not running, so the
+live-overlay socket test PROVED NOTHING. Recorded as inconclusive, not as a pass. It gets a
+CONTROLLED test: a listener started for the purpose, so "refused" can only mean the law held.
+
+### The state dir is a SNAPSHOT, not a live overlay -- and why
+
+overlayfs calls a lower layer changing under a mounted overlay UNDEFINED. For 0-core that happens
+only when the host edits during a session -- occasional, and live is the point. But host nsh writes
+state.db and its WAL on EVERY COMMAND, so a live state dir is the undefined case, continuously.
+
+```text
+    reflink copy of the state dir     78 ms   Exclusive 0.00B   quick_check ok
+    sqlite online backup of state.db  556 ms                    quick_check ok
+```
+
+★ THE REFLINK PASSED THIS TIME, BUT A PLAIN COPY OF A BUSY DATABASE CAN BE TORN -- db and WAL
+caught a moment apart. The sqlite backup is consistent BY DESIGN. Decision: state.db by sqlite
+backup, the rest of the dir by reflink, daemon.sock never copied. Once per NEW session only;
+a resume reuses its snapshot. A torn database inside would be a false nsh bug.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
