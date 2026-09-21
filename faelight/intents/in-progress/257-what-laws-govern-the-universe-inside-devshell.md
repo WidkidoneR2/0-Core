@@ -289,6 +289,29 @@ and hid the most destructive thing that happened.
 ```
 A diff that lists only regular files would report a destroyed tree as two harmless changes.
 
+## Law 8 built, and what it caught, 2026-09-20
+
+`devshell-diff` against the session that attacked the tree:
+
+```text
+    M  ~/.cache/faelight/last-exit-status
+    D  ~/0-core/faelight/rust-tools/novashell/src        <- the rm -rf
+    M  ~/0-core/.git/index
+    D  ~/.local/state/faelight/state.db-wal
+    D  ~/.local/state/faelight/state.db-shm
+    M  ~/.local/state/faelight/state.db
+```
+
+Host afterwards: 36 files present, `cargo build -p novashell` clean, `git status` EMPTY.
+
+★ NOVASHELL'S ENTIRE SOURCE WAS DELETED FROM INSIDE A SHELL RUNNING FROM THAT SOURCE, AND THE
+HOST NEVER NOTICED. Not a probe and not a fixture -- the real directory.
+
+⚠️ AND THE DIFF CAUGHT SOMETHING NOBODY ASKED ABOUT: `M ~/0-core/.git/index`. A session that
+ran three commands touched the git index. On the host that is a real modification to the
+repository, and nothing would have reported it. THE SANDBOX IS ALREADY AN INSTRUMENT, not just
+a shield.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
