@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# devshell-diff -- what changed inside a devshell session. INT-257 Law 8.
+#
+# THE UPPER LAYER IS THE DIFF. No tracking layer to write and none to drift.
+# Three cases, and only one is obvious:
+#   regular file    A added or M modified
+#   char dev 0,0    D deleted -- overlayfs records rm as a WHITEOUT, so a listing
+#                   that walks only regular files reports a destroyed tree as clean
+#   directory       traversed
+set -euo pipefail
+
+ROOT="${1:-${DEVSHELL_UPPER:-}}"
+if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
+    echo "devshell-diff <session-dir>   -- or run inside a devshell" >&2
+    exit 1
+fi
+
+echo "  devshell diff -- $ROOT"
+echo ""
+
+for layer in upper-etc upper-home; do
+    [ -d "$ROOT/$layer" ] || continue
+    case "$layer" in
+        upper-etc)  real="/etc" ;;
+        upper-home) real="$HOME" ;;
+    esac
+    find "$ROOT/$layer" -mindepth 1 \( -type f -o -type c -o -type l \) 2>/dev/null |
+    while read -r p; do
+        rel="${p#$ROOT/$layer}"
+        if [ -c "$p" ]; then
+            printf "  D  %s%s\n" "$real" "$rel"
+        elif [ -e "$real$rel" ]; then
+            printf "  M  %s%s\n" "$real" "$rel"
+        else
+            printf "  A  %s%s\n" "$real" "$rel"
+        fi
+    done
+done
+echo ""
