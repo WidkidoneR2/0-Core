@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# devshell -- a world you live in. INT-257.
+#
+# Ten laws, enforced by bubblewrap:
+#   1 filesystem  / looks real, every mutation disposable unless promoted
+#   2 process     cannot see or signal anything outside
+#   3 network     nothing, unless asked for
+#   4 identity    root inside, no authority outside
+#   5 environment nothing crosses unless declared
+#   6 machine     it says what it is
+#   7 reversible  leaving restores the prior state
+#   8 observable  the upper layer IS the diff
+#   9 sudo        not a door
+#   0 a sandbox that cannot deliver a law REFUSES
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+    set -- /bin/bash --norc --noprofile -i
+fi
+
+SESSION="$(date +%Y%m%d-%H%M%S)"
+ROOT="/tmp/devshell-$SESSION"
+mkdir -p "$ROOT/upper-etc" "$ROOT/work-etc" "$ROOT/upper-home" "$ROOT/work-home"
+
+echo "  devshell $SESSION"
+echo "  upper: $ROOT"
+echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared"
+echo ""
+
+exec bwrap \
+  --unshare-all \
+  --uid 0 --gid 0 \
+  --hostname devshell \
+  --dev-bind / / \
+  --proc /proc \
+  --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
+  --overlay-src "$HOME" --overlay "$ROOT/upper-home" "$ROOT/work-home" "$HOME" \
+  --clearenv \
+  --setenv PATH "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+  --setenv HOME "$HOME" \
+  --setenv TERM "${TERM:-xterm-256color}" \
+  --setenv DEVSHELL "$SESSION" \
+  --setenv DEVSHELL_UPPER "$ROOT" \
+  --setenv PS1 "devshell> " \
+  -- "$@"
