@@ -667,6 +667,37 @@ Still open, and named so nobody reads this as done:
 - daemon.sock in ~/.local/state/faelight is untested -- its test rides with C
 - Law 0's launch probe does not yet check the three worst holes -- the next change
 
+## ⭐ LAW 0 GROWS TEETH, 2026-09-21 -- three checks for three CLASSES, each proven by breaking it
+
+The six launch checks passed on every launch while the session bus answered and /tmp was the
+host's. They probed what was BUILT, not what was PASSED THROUGH. Three more, in the same probe,
+in the same BASE the session gets:
+
+```text
+    capabilities  CapEff must be 0 -- any capability could lift the private /run
+    sockets       no socket anywhere under /run, /tmp, /var/tmp -- one count, the whole class
+    tmp           a probe written to /tmp inside must NOT exist on the HOST afterwards
+```
+
+Proven before shipping, with NO sandbox at all: all three refused at once, 8 fields parsed,
+the probe file cleaned up. Then on this machine, each law broken ALONE in a throwaway copy, the
+break shown by diff before it ran:
+
+```text
+    the real script              LAUNCHED
+    - --tmpfs /run               REFUSES  sockets(n=70)
+    --dev-bind, - --tmpfs /tmp   REFUSES  sockets(n=4) tmp(reached-host)
+    + --cap-add ALL              REFUSES  capabilities(eff=000001ffffffffff)
+    leftovers in host /tmp       none
+```
+
+★ THE CAPS CASE WAS NAMED IN ADVANCE AS POSSIBLY INCONCLUSIVE -- bwrap might have refused
+--cap-add itself, before Law 0 ran. It did not: the session launched WITH every capability, and
+Law 0 caught it. Proven, not assumed.
+
+★ AND THE TMP BREAK WAS CAUGHT TWICE, by two different checks -- the socket count saw the host's
+/tmp sockets, and the host-side probe saw the write land. Either alone would have refused.
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality

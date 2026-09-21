@@ -90,7 +90,18 @@ fi
 # launch is 21ms, and a network probe costs 13ms because with no route at all curl fails
 # INSTANTLY rather than waiting out its timeout. So every law is checked on every launch.
 VERIFY='printf "%s %s %s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -c \"^[0-9]\")" "$(ls /etc | wc -l)" "$(curl -s -m1 https://1.1.1.1 >/dev/null 2>&1 && echo REACH || echo BLOCKED)" "$(sudo -n true >/dev/null 2>&1 && echo SUDO || echo NOSUDO)"'
-read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO <<< "$(bwrap \
+# LAW 0 GROWS TEETH FOR THE CENSUS, INT-257. The six checks above passed on EVERY launch while
+# the session bus answered and /tmp was the host's -- they probed what was built, not what was
+# passed through. Three more, each written for a CLASS rather than an example:
+#   capabilities  CapEff must be zero. With any capability, root inside could unmount the
+#                 private /run and expose the host's, where read-only still lets connect() in.
+#   sockets       NO socket anywhere under /run, /tmp or /var/tmp. The buses, Hyprland, the
+#                 agents, pipewire, X11 -- one count covers all of them, and whatever comes next.
+#   tmp           a probe written to /tmp inside must NOT exist on the host afterwards --
+#                 checked from the HOST, never by the sandbox reporting on itself.
+L0PROBE="/tmp/.devshell-law0-$SESSION"
+VERIFY="$VERIFY"'; printf " %s %s" "$(sed -n "s/^CapEff:[[:space:]]*//p" /proc/self/status)" "$(find /run /tmp /var/tmp -type s 2>/dev/null | wc -l)"'"; touch $L0PROBE"
+read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO V_CAP V_SOCK <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
   "${BASE[@]}" \
   --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
@@ -104,6 +115,12 @@ FAILED=""
 [ "${V_ETC:-0}" -gt 50 ] 2>/dev/null    || FAILED="$FAILED filesystem(etc=$V_ETC)"
 [ "$V_NET" = "BLOCKED" ]    || FAILED="$FAILED network($V_NET)"
 [ "$V_SUDO" = "NOSUDO" ]    || FAILED="$FAILED sudo($V_SUDO)"
+[ "$V_CAP" = "0000000000000000" ] || FAILED="$FAILED capabilities(eff=${V_CAP:-none})"
+[ "${V_SOCK:-x}" = "0" ]    || FAILED="$FAILED sockets(n=${V_SOCK:-none})"
+if [ -e "$L0PROBE" ]; then
+    rm -f "$L0PROBE"
+    FAILED="$FAILED tmp(reached-host)"
+fi
 
 if [ -n "$FAILED" ]; then
     echo "" >&2
