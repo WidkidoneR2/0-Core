@@ -613,12 +613,59 @@ Not a RAM emergency: 92G total, /tmp capped at 46G.
 diff, checkpoint and promote walk the table rather than hardcoding paths, so a resumed session
 uses the layers it was born with even after the declared list changes.
 
-### Build order, each step tested by repeating every census violation
+### Build order, each step tested by repeating every census violation -- CORRECTED 2026-09-21
 
-1. sessions on disk
-2. read-only base, minimal /dev, private /tmp /var/tmp /run
-3. the layer table
-4. the declared HOME
+⚠️ THE FIRST ORDER PUT SESSIONS ON DISK FIRST, AND THAT IS WRONG. Sessions under
+~/.local/share/devshell would put the HOME overlay's upper layer INSIDE its own lower layer,
+because today that lower is all of HOME. Measured: the kernel MOUNTS it (bwrap exit 0) -- the
+expected refusal did not happen, and that is recorded as measured. But every write inside would
+then change the lower layer of a mounted overlay, which overlayfs documents as UNDEFINED. The
+conclusion stands for a documented reason rather than a kernel refusal. Under C, HOME's lower is
+an empty directory and the sessions path is in no declared entry -- so the move rides with C.
+
+1. read-only base, minimal /dev, private /tmp /var/tmp /run, a private runtime dir for nsh
+2. the shared file and the layer table
+3. the declared HOME, and sessions move to disk in the same step
+
+## ⭐ STEP 1 LANDED, 2026-09-21 -- the base is read-only and nothing acts on the host
+
+`--dev-bind / /` replaced by ONE array, BASE, used by both the Law 0 probe and the session --
+so the world Law 0 approves is the world it hands over:
+`--ro-bind / /  --dev /dev  --proc /proc  --tmpfs /tmp /var/tmp /run  --dir /run/user/1000`,
+and XDG_RUNTIME_DIR declared so nsh's runtime_dir() finds its own, empty one.
+
+Every census attack repeated from inside:
+
+```text
+    touch /tmp/...                 private -- absent on the host
+    touch /var/spool/mail/...      Read-only file system
+    /run/user/1000                 empty, XDG_RUNTIME_DIR=/run/user/1000
+    Hyprland socket                No such file
+    session bus (busctl --user)    Failed to connect
+    system bus                     No such file
+    /dev                           14 entries -- no input, no video0
+    /usr overlay                   still writable, absent on the host
+```
+
+EVERY MOUNT INSIDE, LISTED IN FULL (findmnt -l -R, nothing filtered): every host mount is `ro`
+-- /, /home, /boot, /var/log, the pacman cache, and all of /sys INCLUDING efivars. The only
+`rw` mounts are the ones this intent put there: the private /dev, /proc, /run, /tmp, /var/tmp,
+and the four overlays.
+
+⚠️ AND THE QUESTION THE LISTING RAISED: the host's /run and /tmp are still THERE, shadowed
+underneath the private ones. Unmounting the private /run would expose the host's -- where a
+read-only mount still lets connect() reach a socket. So "cannot unmount" is a law, and it was
+tested rather than assumed: inside, CapEff and CapPrm are 0, NoNewPrivs is 1, and umount /run
+is REFUSED. Root inside holds no capability to lift a mount.
+
+⚠️ A MISTAKE OF MINE, KEPT: the first mount check used findmnt without -l, whose tree drawing
+put every submount behind box characters, so `^/sys` could only ever match the root line. It
+looked like /sys had been checked. It had not. The second run lists everything.
+
+Still open, and named so nobody reads this as done:
+- ~/.ssh and ~/.git-credentials are still READABLE -- C closes that
+- daemon.sock in ~/.local/state/faelight is untested -- its test rides with C
+- Law 0's launch probe does not yet check the three worst holes -- the next change
 
 ## The eight dimensions -- each one a law to be chosen, not inherited
 

@@ -58,6 +58,25 @@ if [ "$USR_MODE" = "copy" ] && [ "$CREATED" = "1" ]; then
     grep -v '^[[:space:]]*DownloadUser' /etc/pacman.conf > "$ROOT/upper-etc/pacman.conf"
 fi
 
+# THE BASE, INT-257 step 1 -- NOTHING PASSES THROUGH UNLESS A LAW NAMES IT.
+# --dev-bind / / handed the sandbox every path no overlay covered: the Hyprland control socket,
+# the session and system buses, the gpg and ssh agents, /dev/input, the camera, and a /tmp that
+# was the host's. Now the host is READ-ONLY inside, /dev is bwrap's minimal set, and /tmp,
+# /var/tmp and /run are private and empty. Read-only alone would not do it: a read-only mount
+# refuses writes, not connect() on a socket -- the tmpfs mounts are what remove the sockets.
+# nsh asks for a runtime dir, so it gets its own, empty one. The verify probe and the session
+# use this SAME array, so Law 0 checks the world it hands over, not a neighbouring one.
+RUNDIR="/run/user/$(id -u)"
+BASE=(
+    --ro-bind / /
+    --dev /dev
+    --proc /proc
+    --tmpfs /tmp
+    --tmpfs /var/tmp
+    --tmpfs /run
+    --perms 0700 --dir "$RUNDIR"
+)
+
 if [ "$#" -eq 0 ]; then
     set -- /bin/bash --norc --noprofile -i
 fi
@@ -73,7 +92,7 @@ fi
 VERIFY='printf "%s %s %s %s %s %s" "$(id -u)" "$(hostname)" "$(ls /proc | grep -c \"^[0-9]\")" "$(ls /etc | wc -l)" "$(curl -s -m1 https://1.1.1.1 >/dev/null 2>&1 && echo REACH || echo BLOCKED)" "$(sudo -n true >/dev/null 2>&1 && echo SUDO || echo NOSUDO)"'
 read -r V_UID V_HOST V_PROCS V_ETC V_NET V_SUDO <<< "$(bwrap \
   --unshare-all --uid 0 --gid 0 --hostname devshell \
-  --dev-bind / / --proc /proc \
+  "${BASE[@]}" \
   --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
   --clearenv --setenv PATH "/usr/local/bin:/usr/bin:/bin" \
   -- /bin/sh -c "$VERIFY" 2>/dev/null)" || true
@@ -99,15 +118,14 @@ fi
 
 echo "  devshell $SESSION"
 echo "  upper: $ROOT"
-echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE"
+echo "  laws:  fs=overlay pid=isolated net=none uid=0 host=devshell env=declared usr=$USR_MODE base=ro"
 echo ""
 
 exec bwrap \
   --unshare-all \
   --uid 0 --gid 0 \
   --hostname devshell \
-  --dev-bind / / \
-  --proc /proc \
+  "${BASE[@]}" \
   --overlay-src /etc --overlay "$ROOT/upper-etc" "$ROOT/work-etc" /etc \
   "${SYSLAYERS[@]}" \
   --overlay-src "$HOME" --overlay "$ROOT/upper-home" "$ROOT/work-home" "$HOME" \
@@ -115,6 +133,7 @@ exec bwrap \
   --setenv PATH "$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
   --setenv HOME "$HOME" \
   --setenv TERM "${TERM:-xterm-256color}" \
+  --setenv XDG_RUNTIME_DIR "$RUNDIR" \
   --setenv DEVSHELL "$SESSION" \
   --setenv DEVSHELL_UPPER "$ROOT" \
   --setenv PS1 "devshell> " \
