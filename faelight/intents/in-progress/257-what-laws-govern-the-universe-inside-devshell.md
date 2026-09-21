@@ -944,6 +944,30 @@ checks everything on every suite run.
 ★ AND THE KERNEL OBSERVATION IS NOW A CHECKED FACT. Six socket files are visible inside; all six
 refused. "Visible but not connectable" was measured once in C-a; it is now asserted every run.
 
+## ⭐ THE GATE WALK, 2026-09-21 -- every box re-proven against the FINAL design
+
+The 2026-09-20 proofs were made in the --dev-bind world and prove nothing about this one. One
+harness re-ran every law's violation against today's devshell; all ten gates PASS, 33.9 s including
+the suite. Each box above carries its own line of that output.
+
+Two things the walk showed that are NOT failures, recorded so nobody rediscovers them:
+- `ls /sys/class/net` inside lists `lo wlp4s0`: /sys is the host's, bound READ-ONLY, so host
+  hardware names are visible. No connection leaves the network namespace (gate 5), but it is a
+  read-only view of the host's devices -- carried forward below.
+- PS1 is declared yet absent from `sh -c env`: a non-interactive shell drops it. The interactive
+  session sets it.
+
+## Carried forward -- named so closing 257 loses none of it
+
+- ⚠️ faelight-sandbox --isolate full PRINTS "pid: isolated" while host processes are visible -- the
+  printed claim Law 0 forbids, still true today. NOT filed as its own intent (Christian, 2026-09-21);
+  it lives in box 2 above and here. Anyone touching faelight-sandbox's isolation reads this first.
+- Christian, 2026-09-21: the devshell laws belong in AGENTS.md -- his, on Wednesday, before Faelight
+  becomes Project 0.
+- /sys is the host's, read-only: device names visible inside. A hardware law beyond Law 6's
+  "minimal" would decide whether that matters.
+- nsh mislabels an external command's exit 2 as "misuse of shell builtin" (ls, seen all session).
+
 ## The eight dimensions -- each one a law to be chosen, not inherited
 
 ### 1. Filesystem reality
@@ -1051,31 +1075,48 @@ requested, syscalls. THAT IS A LABORATORY RATHER THAN A CONTAINER.
 ⭐ EVERY LAW IS PROVEN BY VIOLATING IT. A law nobody tested is a wish. Each gate below is
 demonstrated by ATTEMPTING the forbidden thing from inside and recording what happened.
 
-- [ ] THE LAWS ARE WRITTEN DOWN BEFORE ANY PRIMITIVE IS CHOSEN. Each of the eight dimensions
-      gets a decided law with a reason, including the ones deliberately left permissive.
-- [ ] The census first: what faelight-sandbox already enforces, per dimension, measured rather
-      than assumed. This intent EXTENDS a working sandbox; it does not rebuild one.
-- [ ] ⭐ PROCESS: from inside, `kill` a host PID and `ps` for host processes. Both must fail,
-      and the failure output is recorded here.
-- [ ] ⭐ FILESYSTEM: from inside, write to a real file outside the sandbox, then exit and
-      confirm from the host that it is unchanged. The host check is the evidence, not the
-      sandbox's own report.
-- [ ] ⭐ NETWORK: from inside, reach whatever the chosen law forbids -- localhost, the LAN, or
-      the Internet -- and record the refusal.
-- [ ] ⭐ IDENTITY: from inside as root, attempt something only host root could do, and record
-      that it fails.
-- [ ] ENVIRONMENT: the variables that cross are a DECLARED LIST, and a variable not on it is
-      absent inside. Proven by printing the environment in there.
-- [ ] REVERSIBILITY: the session in the Vision runs end to end -- touch /etc, install a
-      package, rm -rf a project, exit -- and `git status` on the host is clean.
-- [ ] PROMOTION EXISTS AND IS EXPLICIT. Something survives only because it was named, and the
-      diff before and after shows exactly that one thing.
-- [ ] OBSERVABILITY: `diff` reports what changed, and its report is checked against the real
-      filesystem rather than trusted.
-- [ ] ⚠️ A SANDBOX THAT CANNOT DELIVER ITS LAWS REFUSES. The --allow-degraded rule already
-      shipped for the existing policies extends to every new law here: a namespace that could
-      not be created is a REFUSAL, never a quiet downgrade.
-- [ ] nsh-test green, and the suite gains a case for at least one law.
+- [x] EACH LAW IS DECIDED AGAINST WHAT BWRAP WAS MEASURED TO ENFORCE, WITH ITS REASON -- including
+      the ones deliberately left permissive. Reworded 2026-09-21, Christian's ruling: the original
+      "before any primitive is chosen" is not what happened -- bwrap was measured first, and each law
+      was then chosen against what it could enforce. Evidence: "THE LAWS -- decided 2026-09-20",
+      laws 0-9 each naming its primitive and its reason.
+- [x] THE CENSUS WAS TAKEN, AND A SEPARATE PRIMITIVE WAS CHOSEN -- WITH THE REASON RECORDED.
+      Reworded 2026-09-21, Christian's ruling: the original "this intent EXTENDS faelight-sandbox"
+      is not what happened. The census (RECON 2026-09-20) measured faelight-sandbox per dimension;
+      devshell was built as its own bwrap tool, because the laws needed a world to live in, not
+      flags on a runner. ⚠️ THE FINDING THE CENSUS LEFT BEHIND, recorded HERE rather than in an
+      intent of its own (Christian, 2026-09-21 -- no new intent): faelight-sandbox's --isolate full
+      PRINTS "pid: isolated" while the host's 411 processes are visible inside it. That is the
+      printed claim Law 0 forbids, and it is STILL TRUE of faelight-sandbox today. devshell does not
+      fix it and never touched it.
+- [x] PROCESS -- gate walk 2026-09-21: 417 host processes, 4 inside; `kill -0` on a live host pid
+      -> "No such process", and the host process still alive afterwards.
+- [x] FILESYSTEM -- gate walk 2026-09-21: wrote ~/0-core/.gate-fs-probe and /etc/gate-fs-probe
+      inside; on the HOST both absent. The host check is the evidence.
+- [x] NETWORK -- gate walk 2026-09-21: the Internet refused, and a listener the test started on the
+      host's 127.0.0.1 refused -- the listener saw 0 connections.
+- [x] IDENTITY -- gate walk 2026-09-21: uid 0 (root) inside; /boot write "Permission denied",
+      mount "permission denied", umount /run "must be superuser", sudo refuses (sudo.conf owned by
+      65534); on the host /boot/gate-probe absent. CapEff 0 and NoNewPrivs 1, measured in step 1.
+- [x] ENVIRONMENT -- gate walk 2026-09-21: inside DEVSHELL DEVSHELL_UPPER HOME PATH TERM
+      XDG_RUNTIME_DIR plus the shell's own PWD SHLVL _ -- nothing undeclared; of the host's 208, the
+      agent, bus and display variables are absent.
+- [x] REVERSIBILITY -- gate walk 2026-09-21, the Vision session end to end in ONE session: touch
+      /etc/i-was-here, pacman -U m17n-db (installed inside), rm -rf ~/0-core/faelight/registry (gone
+      inside). Host: the file absent, the package not found, the registry intact with all 8 files,
+      git status --porcelain EMPTY.
+- [x] PROMOTION -- gate walk 2026-09-21: two files written inside, ONE promoted by name with
+      PROMOTE typed; the only new entry in the host HOME is that file, with its content. The door's
+      two refusals -- a whiteout, a root-owned path -- proven 2026-09-20.
+- [x] OBSERVABILITY -- gate walk 2026-09-21: the Vision session's diff reported 729 changes, and
+      EVERY ONE was checked against the host (A absent there, M and D present): all consistent.
+      Among them A /etc/i-was-here, D ~/0-core/faelight/registry, A /usr/bin/m17n-db.
+- [x] A SANDBOX THAT CANNOT DELIVER ITS LAWS REFUSES -- gate walk 2026-09-21: a copy without the
+      private /run REFUSES sockets(n=70), exit 1, and the command NEVER RAN (its marker absent).
+      Law 0 checks ten laws on every launch; each new check was proven by breaking it alone.
+- [x] nsh-test green -- 198 / 198. Two devshell cases: devshell_write_inside_never_reaches_host
+      (Law 1, proven red when broken on 2026-09-20) and devshell_class_nothing_writable_or_connectable
+      (every mount and every socket, proven to name holes the launch probe misses).
 
 ## Not in scope
 
