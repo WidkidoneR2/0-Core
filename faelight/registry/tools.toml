@@ -190,8 +190,8 @@ category = "planning"
 description = "Intent discipline and focus enforcement"
 expected_usage = "low"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "keyscan"
 version = "3.0.0"
@@ -226,8 +226,8 @@ category = "desktop"
 description = "Rust clipboard manager — wlr-data-control, history, fzf picker"
 expected_usage = "medium"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-release"
 version = "1.0.3"

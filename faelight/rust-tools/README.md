@@ -1,6 +1,6 @@
 # Project 0 -- Rust Tools
 
-The forest's tool ecosystem: 24 active tools (plus 1 retired), each a purpose-built Rust program.
+The forest's tool ecosystem: 22 active tools (plus 1 retired), each a purpose-built Rust program.
 
 **Generated:** 2026-09-23 by `faelight-docs readme-index`
 
@@ -13,12 +13,6 @@ The forest's tool ecosystem: 24 active tools (plus 1 retired), each a purpose-bu
 | [`core`](./core/) | 3.2.16 | The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`faelight-core`](./faelight-core/) | 1.0.0 | - |
 | [`faelight-daemon`](./faelight-daemon/) | 4.0.0 | Background daemon for Faelight Forest operations |
-
-## Desktop
-
-| Tool | Version | Description |
-|------|---------|-------------|
-| [`faelight-clipboard`](./faelight-clipboard/) | 0.2.0 | Rust clipboard manager — native wlr-data-control, zero C dependencies |
 
 ## Development
 
@@ -48,12 +42,6 @@ The forest's tool ecosystem: 24 active tools (plus 1 retired), each a purpose-bu
 | [`faelight-context`](./faelight-context/) | 1.0.0 | - |
 | [`faelight-insightd`](./faelight-insightd/) | 0.1.0 | Background awareness daemon — the nervous system of Faelight Forest |
 | [`friday-chat`](./friday-chat/) | 1.0.1 | - |
-
-## Planning
-
-| Tool | Version | Description |
-|------|---------|-------------|
-| [`intent-guard`](./intent-guard/) | 2.1.0 | Command safety guard - protecting your system 🛡️ |
 
 ## Release
 

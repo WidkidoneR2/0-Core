@@ -820,22 +820,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-clipboard"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "dirs",
- "faelight-core",
- "libc",
- "serde",
- "serde_json",
- "wayland-client",
- "wayland-protocols-wlr",
-]
-
-[[package]]
 name = "faelight-context"
 version = "1.0.0"
 dependencies = [
@@ -1502,14 +1486,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "intent-guard"
-version = "2.1.0"
-dependencies = [
- "colored",
- "faelight-core",
 ]
 
 [[package]]
@@ -3325,31 +3301,6 @@ dependencies = [
  "bitflags 2.10.0",
  "rustix 1.1.3",
  "wayland-backend",
- "wayland-scanner",
-]
-
-[[package]]
-name = "wayland-protocols"
-version = "0.31.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f81f365b8b4a97f422ac0e8737c438024b5951734506b0e1d775c73030561f4"
-dependencies = [
- "bitflags 2.10.0",
- "wayland-backend",
- "wayland-client",
- "wayland-scanner",
-]
-
-[[package]]
-name = "wayland-protocols-wlr"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad1f61b76b6c2d8742e10f9ba5c3737f6530b4c243132c2a2ccc8aa96fe25cd6"
-dependencies = [
- "bitflags 2.10.0",
- "wayland-backend",
- "wayland-client",
- "wayland-protocols",
  "wayland-scanner",
 ]
 
