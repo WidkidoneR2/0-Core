@@ -173,14 +173,16 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
+# binary retired 2026-09-23; the CRATE STAYS -- engine dispatcher, fetch and the
+# doctor import faelight_zone as a LIBRARY. Retiring the command is not deleting it.
 name = "faelight-zone"
 version = "2.1.0"
 category = "system"
 description = "Zone management and context switching"
 expected_usage = "medium"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "intent-guard"
 version = "2.1.0"
@@ -242,8 +244,8 @@ category = "desktop"
 description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
 expected_usage = "rare"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-gen"
 version = "1.0.0"
@@ -260,8 +262,8 @@ category = "security"
 description = "Forest-native credential manager — Argon2id encryption, health scores, audit, faelight-gen integration"
 expected_usage = "medium"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 name = "faelight-docs"
 version = "2.0.0"
