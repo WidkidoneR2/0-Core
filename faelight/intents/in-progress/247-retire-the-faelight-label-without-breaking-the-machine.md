@@ -705,6 +705,76 @@ either way, so both names keep resolving and nothing is stranded.
 NOT part of the flip: the directory rename (INT-252 -- source one week, state the next), the doc
 rewrite, and any crate rename.
 
+## LAYER 3b -- THE RECON, 2026-09-23. THE FLIP IS FOUR FILES, NOT ONE LINE.
+
+Step 2 of the ordered plan, run the evening before. It changed the plan, which is what recon is for.
+
+### runtime_dir() resolves in FOUR steps and step 2 is the one that wins
+
+```text
+    1  $FAELIGHT_STATE_DIR          explicit override; fsh-test isolates per-case state with it
+    2  state_home()/faelight        EXISTS, so it wins today                     <- line 165
+    3  faelight_dir()/runtime       legacy; checked 2026-09-17: DOES NOT EXIST
+    4  state_home()/faelight        fresh install, no repo required
+```
+
+The function's own comment states the design: "there is deliberately no window where the code
+points somewhere the data is not."
+
+### ⚠️ FOUR SITES, NOT ONE. THE RECON FOUND THREE MORE.
+
+```text
+    paths.rs:165    state_home().join("faelight")      runtime_dir -- the state chain
+    paths.rs:354    config_dir().join("faelight")      faelight_config_dir -- the CONFIG chain,
+                                                       a second edit, aliased the same way
+    doctor probes/files.rs:70   state_home().join("faelight")   ⚠️ ITS OWN COPY. The doctor does
+                                NOT call runtime_dir(). Flip paths.rs alone and the doctor keeps
+                                reading the old name -- one site that escaped Layer 3a
+    nsh-test main.rs   SEVEN fixture sites building .local/state/faelight (231, 232, 234, 587,
+                       683, 687, 1019)
+```
+
+★ AND THE FIXTURES ARE THE SUBTLE ONE. Flip the code and leave them, and they still pass THROUGH
+THE SYMLINK -- so the suite stays green either way, which means it is not testing the flip at all.
+A green suite that cannot go red is the same defect as a check that cannot fail.
+
+`shell_config_dir()` keeps `faelight-shell` and is CORRECTLY out of scope: that directory has no
+zero alias and belongs to INT-252.
+
+### DECISION, Christian 2026-09-23: (b) -- THE DIRECTORY MOVES, NOT JUST THE CODE
+
+```text
+    (a)  flip the code, keep the symlink    the real directory stays named faelight forever,
+                                            reached through a link. One line, reversible.
+    (b)  flip the code AND rename the       the data takes the new name; the symlink REVERSES
+         directory                          (faelight -> zero) so old references still work
+```
+
+(b) chosen. (a) would have left the label alive on disk indefinitely, which is the thing this
+intent exists to end.
+
+### THE ORDER, AND WHY IT IS FIVE STEPS RATHER THAN ONE
+
+Measured before deciding: ONE process holds state.db -- nsh pid 9099, four handles. The daemon is
+INACTIVE. Nothing else is attached. And a rename within one filesystem does not change the inode,
+so an open handle follows the data to the new name.
+
+```text
+    1  BASELINE      d, git status, nsh-test 198/198
+    2  CODE ONLY     the four files above, ONE commit, NOT pushed yet.
+                     The code says zero, the data is still faelight, and the EXISTING
+                     symlink resolves it -- so this step is safe on its own.
+    3  BOTH DOORS    nsh -c, a PTY session, d, history. Proves the code change alone.
+    4  THE DATA      from BASH, not nsh: rm the zero symlink, mv faelight zero,
+                     ln -s zero faelight. Old references keep working in the other direction.
+    5  DEPLOY        both doors again, ship, nsh-test, exec /home/christian/.local/bin/nsh
+```
+
+ROLLBACK AT EACH POINT: after step 2, `git revert`. After step 4, reverse the rename. A symlink is
+present in one direction or the other throughout, so BOTH names resolve at every moment.
+
+⚠️ IF ANY DOOR LOOKS EMPTY, STOP AND REVERSE. Do not fix forward on state.
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
