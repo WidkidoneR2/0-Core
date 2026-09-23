@@ -2196,7 +2196,7 @@ pub fn execute_and_record(
         if let Ok(cwd) = std::fs::read_to_string(&fm_cwd_file) {
             let cwd = cwd.trim();
             if !cwd.is_empty() {
-                let _ = std::env::set_current_dir(cwd);
+                let _ = crate::cwd::chdir(cwd);
             }
         }
         let _ = std::fs::remove_file(&fm_cwd_file);

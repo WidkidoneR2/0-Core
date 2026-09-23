@@ -2012,7 +2012,7 @@ fn execute_dispatch(
                     match row {
                         None => CommandResult::Error(format!("session: '{}' not found. Use: session list", name).into(), 1),
                         Some((dir, intent, cmds_json, env_json)) => {
-                            let _ = std::env::set_current_dir(&dir);
+                            let _ = crate::cwd::chdir(&dir);
                             // INT-134: restore the captured environment so the session is reproducible.
                             let env_map: std::collections::BTreeMap<String, String> =
                                 serde_json::from_str(&env_json).unwrap_or_default();
@@ -8441,7 +8441,7 @@ fn cd(args: &[&str]) -> CommandResult {
         std::path::PathBuf::from(target)
     };
 
-    match std::env::set_current_dir(&path) {
+    match crate::cwd::chdir(&path) {
         Ok(_) => {
             let _ = std::process::Command::new("zoxide")
                 .args(["add", &path.to_string_lossy()])
@@ -8908,7 +8908,7 @@ fn usage_report(db: &ForestDb) -> CommandResult {
 fn z_jump(args: &[&str]) -> CommandResult {
     if args.is_empty() {
         let home = std::env::var("HOME").unwrap_or_default();
-        return match std::env::set_current_dir(&home) {
+        return match crate::cwd::chdir(&home) {
             Ok(_) => {
                 let _ = std::process::Command::new("zoxide")
                     .args(["add", &home])
@@ -8928,7 +8928,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
             if path.is_empty() {
                 return CommandResult::Error(format!("z: no match for '{}'", query).into(), 1);
             }
-            match std::env::set_current_dir(&path) {
+            match crate::cwd::chdir(&path) {
                 Ok(_) => {
                     let _ = std::process::Command::new("zoxide")
                         .args(["add", &path])
@@ -14032,7 +14032,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             }
             // jump mode
             match crates.iter().find(|(name, _, _)| name == want) {
-                Some((name, _, dir)) => match std::env::set_current_dir(dir) {
+                Some((name, _, dir)) => match crate::cwd::chdir(dir) {
                     Ok(_) => {
                         let _ = std::process::Command::new("zoxide")
                             .args(["add", dir])
@@ -14611,7 +14611,7 @@ fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
     ];
     let target = candidates.iter().find(|p| p.is_dir());
     if let Some(path) = target {
-        let _ = std::env::set_current_dir(path);
+        let _ = crate::cwd::chdir(path);
         let resolved = std::env::current_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
@@ -14673,7 +14673,7 @@ fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
     }
     let name = scope_name.as_deref().unwrap_or("unknown");
     if let Some(path) = &return_path {
-        let _ = std::env::set_current_dir(path);
+        let _ = crate::cwd::chdir(path);
     }
     let _ = db.conn.execute("DELETE FROM shell_state WHERE key IN ('scope_name', 'scope_return_path', 'scope_return_intent')", []);
     let restored = std::env::current_dir()

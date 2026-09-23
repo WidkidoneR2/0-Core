@@ -9,6 +9,7 @@
 mod cheatsheet_tui;
 mod commands;
 mod core_integration;
+mod cwd;
 mod db;
 /// INT-208: a failure is a value before it is a string.
 mod diagnostic;
@@ -2330,7 +2331,7 @@ fn repl_main() -> Result<()> {
     // that chose a working directory keeps it. Unset -- which is every interactive session -- the
     // forest-home default is exactly as it was.
     if !keep_launch_cwd() {
-        let _ = std::env::set_current_dir(&core_root);
+        let _ = cwd::chdir(&core_root);
     }
 
     // INT-201: the engine takes ownership of the resources from here down. core_root is
@@ -3601,7 +3602,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
             } else {
                 std::path::Path::new(core_root)
             };
-            let _ = std::env::set_current_dir(restore_path);
+            let _ = cwd::chdir(restore_path);
         }
         let msg = session::render(&mem, core_root, db);
         if !msg.is_empty() {

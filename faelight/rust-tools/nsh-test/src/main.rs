@@ -1499,6 +1499,38 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "repl_241_pwd_follows_the_working_directory",
+        Category::Repl,
+        || {
+            // INT-241. `set_current_dir` moves the process; POSIX says the shell must also set
+            // PWD, and nsh never did -- so PWD held whatever the bash that exec'd it exported at
+            // login, for the whole life of the shell.
+            //
+            // ⚠️ THREE THINGS THIS CASE DOES DELIBERATELY, each because the obvious version of the
+            // test PASSES ON THE BROKEN SHELL:
+            //
+            // 1. THE REPL DOOR, not -c. `-c` delegates to sh, which inherits a correct PWD from
+            //    its caller, so it agreed with bash the whole time. A -c test proves nothing here.
+            // 2. cd SOMEWHERE THE LAUNCH DIRECTORY IS NOT. Measured 2026-09-23: on the broken
+            //    binary `cd ~/0-core` then `echo $PWD` AGREED, because the stale value happened to
+            //    equal the destination. /tmp is where the accident stops.
+            // 3. A CHILD PROCESS reads it. printenv is a separate process, and a child reading a
+            //    stale PWD is what sent the harness to a binary that does not exist -- the failure
+            //    this intent was filed on.
+            // ONE echo, not two: measured 2026-09-23, run_repl_lines_status returns the output of
+            // the LAST command only, so a case spread over two echo lines silently asserts on half
+            // of what it thinks it is checking.
+            let (out, _) = repl::run_repl_lines_status(
+                &[
+                    "cd /tmp",
+                    "echo AGREE pwd=$(pwd) var=$PWD child=$(printenv PWD)",
+                ],
+                &[],
+            )?;
+            expect_contains(&out.join("\n"), "AGREE pwd=/tmp var=/tmp child=/tmp")
+        },
+    ));
+    results.push(test(
         "repl_230_absent_forest_refuses_not_empties",
         Category::Repl,
         || {
