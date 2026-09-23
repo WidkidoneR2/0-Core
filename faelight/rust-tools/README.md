@@ -1,8 +1,8 @@
 # Project 0 -- Rust Tools
 
-The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-built Rust program.
+The forest's tool ecosystem: 24 active tools (plus 1 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-09-15 by `faelight-docs readme-index`
+**Generated:** 2026-09-23 by `faelight-docs readme-index`
 
 ---
 
@@ -10,7 +10,7 @@ The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-bu
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](./core/) | 3.2.12 | The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](./core/) | 3.2.16 | The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`faelight-core`](./faelight-core/) | 1.0.0 | - |
 | [`faelight-daemon`](./faelight-daemon/) | 4.0.0 | Background daemon for Faelight Forest operations |
 
@@ -19,7 +19,6 @@ The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-bu
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`faelight-clipboard`](./faelight-clipboard/) | 0.2.0 | Rust clipboard manager — native wlr-data-control, zero C dependencies |
-| [`faelight-wallpaper`](./faelight-wallpaper/) | 0.1.0 | 🌲 Rust wallpaper daemon — the backdrop knows the forest's mood |
 
 ## Development
 
@@ -48,7 +47,7 @@ The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-bu
 | [`faelight-ade`](./faelight-ade/) | 1.0.0 | - |
 | [`faelight-context`](./faelight-context/) | 1.0.0 | - |
 | [`faelight-insightd`](./faelight-insightd/) | 0.1.0 | Background awareness daemon — the nervous system of Faelight Forest |
-| [`friday-chat`](./friday-chat/) | 1.0.0 | - |
+| [`friday-chat`](./friday-chat/) | 1.0.1 | - |
 
 ## Planning
 
@@ -67,20 +66,23 @@ The forest's tool ecosystem: 26 active tools (plus 0 retired), each a purpose-bu
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`faelight-gen`](./faelight-gen/) | 1.0.0 | - |
-| [`faelight-vault`](./faelight-vault/) | 1.0.0 | Forest-native credential manager — faelight-gen with memory |
 
 ## System
 
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`faelight-update`](./faelight-update/) | 1.0.0 | - |
-| [`faelight-zone`](./faelight-zone/) | 2.1.0 | Zone detection - identify numbered gravity zones |
 
 ## Uncategorized
 
 | Tool | Version | Description |
 |------|---------|-------------|
+| [`faelight-doctor`](./faelight-doctor/) | 0.1.0 | The doctor ENGINE -- definition format, states, tiers, probe registry, validation. Shared by core doctor and nsh doctor; owns neither check set. |
 | [`novashell`](./novashell/) | 3.9.0 | The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+
+## Retired
+
+- `faelight-zone` (v2.1.0)
 
 ---
 
