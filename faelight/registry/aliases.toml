@@ -31,11 +31,6 @@ aliases = ["fetch"]
 category = "automation"
 
 [[alias]]
-command = "faelight-fm"
-aliases = ["fm"]
-category = "desktop"
-
-[[alias]]
 command = "faelight-git"
 aliases = ["fg"]
 category = "development"

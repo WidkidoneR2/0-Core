@@ -224,6 +224,7 @@ fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
     println!("  📦 retire  {}", tool);
     if !dest.exists() {
         println!("     {} is not installed at {}", tool, bin.display());
+        leftovers(tool);
         return 1;
     }
     let stamp = std::fs::metadata(&dest)
@@ -236,6 +237,7 @@ fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
     if dry_run {
         println!("     would move  {}", dest.display());
         println!("             to  {}", keep.display());
+        leftovers(tool);
         return 0;
     }
     let _ = std::fs::create_dir_all(backup_dir);
@@ -255,19 +257,116 @@ fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
     for e in &errors {
         println!("     deploy record: {}", e);
     }
+    leftovers(tool);
+    0
+}
+
+/// INT-260: what still names a retired tool -- the registry entry and every alias -- reported on
+/// EVERY way out of `retire`, not only after a real removal.
+///
+/// Measured 2026-09-23: both checks sat after the removal, so `--dry-run` skipped them (the one
+/// run meant to show you what you are about to do), and a tool already gone -- faelight-clipboard,
+/// retired that morning -- exited "not installed" before either ran. The tool whose aliases were
+/// dangling was exactly the one ship could no longer say anything about.
+fn leftovers(tool: &str) {
     let registry = faelight_core::paths::core_dir().join("faelight/registry/tools.toml");
     let needle = format!("name = \"{}\"", tool);
-    if let Ok(text) = std::fs::read_to_string(&registry) {
-        let claimed = text.split("[[tool]]").any(|b| {
+    // INT-260: an unreadable registry SAYS SO. This was `if let Ok(text)`, which printed nothing
+    // when the file could not be read -- and silence there reads as "the registry is fine".
+    let claimed = match std::fs::read_to_string(&registry) {
+        Ok(text) => text.split("[[tool]]").any(|b| {
             b.contains(&needle) && b.contains("deployable = true") && !b.contains("retired = true")
-        });
-        if claimed {
+        }),
+        Err(e) => {
             println!();
-            println!("     ⚠ the registry still lists {} as deployable.", tool);
-            println!("     deadwood flags it as an orphan until that entry says retired = true.");
+            println!("     could not read {} -- {}", registry.display(), e);
+            println!(
+                "     so whether the registry still claims {} is UNKNOWN, not clean.",
+                tool
+            );
+            false
+        }
+    };
+    if claimed {
+        println!();
+        println!("     the registry still lists {} as deployable.", tool);
+        println!("     deadwood flags it as an orphan until that entry says retired = true.");
+    }
+    alias_report(tool);
+}
+
+/// INT-260: every alias still naming the retired tool, in BOTH files, at the moment you can act.
+///
+/// Measured 2026-09-23 over two retirement rounds in one session: six dead aliases, then four, and
+/// nsh-test went red on deadwood ONE RUN LATER both times. The second round missed `guard` because
+/// the search was for a guessed alias name rather than the TOOL name.
+///
+/// IT REPORTS; IT DOES NOT REMOVE. ship tells you when you can act, deadwood proves afterwards
+/// that you did. A ship that removed silently would make deadwood's check go quiet and the proof
+/// would vanish with the problem.
+///
+/// One of these files is NOT in the repository: config.nsh is the live shell, and no commit
+/// records a change to it. That is why removal would need a flag, and why this only reports.
+///
+/// Matching is by the tool name in the line, deliberately loose: over-reporting costs a glance,
+/// under-reporting costs a red suite one run later.
+fn alias_report(tool: &str) {
+    let repo = faelight_core::paths::core_dir().join("faelight/registry/aliases.toml");
+    let live = faelight_core::paths::shell_config();
+    let mut found: Vec<String> = Vec::new();
+    for path in [repo, live] {
+        match std::fs::read_to_string(&path) {
+            Ok(text) => {
+                // INT-260: the toml is scanned by BLOCK, not by neighbour. The old check looked
+                // only at the line after `command =`, so faelight-gen (primary before aliases)
+                // lost both of its alias lines. Field order inside a block is not a contract.
+                fn key(l: &str) -> &str {
+                    l.split('=').next().unwrap_or("").trim()
+                }
+                let lines: Vec<&str> = text.lines().collect();
+                let mut start = 0;
+                while start < lines.len() {
+                    let mut end = start + 1;
+                    while end < lines.len() && !lines[end].trim_start().starts_with("[[") {
+                        end += 1;
+                    }
+                    let block = &lines[start..end];
+                    let owns = block
+                        .iter()
+                        .any(|l| key(l) == "command" && l.contains(tool));
+                    for (k, line) in block.iter().enumerate() {
+                        let named = owns && matches!(key(line), "command" | "primary" | "aliases");
+                        let live_alias =
+                            line.trim_start().starts_with("alias ") && line.contains(tool);
+                        if named || live_alias {
+                            found.push(format!(
+                                "       {}:{}  {}",
+                                path.display(),
+                                start + k + 1,
+                                line.trim()
+                            ));
+                        }
+                    }
+                    start = end;
+                }
+            }
+            Err(e) => found.push(format!(
+                "       {} COULD NOT BE READ -- {}",
+                path.display(),
+                e
+            )),
         }
     }
-    0
+    if found.is_empty() {
+        return;
+    }
+    println!();
+    println!("     {} line(s) still name {}:", found.len(), tool);
+    for f in &found {
+        println!("{}", f);
+    }
+    println!("     the registry file is in the repository and belongs in this commit;");
+    println!("     config.nsh is your live shell, and no commit will record a change to it.");
 }
 
 fn main() {
@@ -279,7 +378,22 @@ fn main() {
     let backup_dir = root.join("bin");
 
     if let Some(tool) = args.retire.clone() {
-        std::process::exit(retire(&tool, &bin, &backup_dir, args.dry_run));
+        // INT-260: SHIP_BACKUP_DIR, so a TEST retirement does not write into the real tree.
+        //
+        // Measured 2026-09-23: XDG_BIN_HOME moved which binary was retired, but the backup still
+        // landed in 0-core/bin, because that path came straight from core_dir(). Exercising --retire
+        // therefore left stray copies behind every time -- and cleaning them up by wildcard deleted
+        // two legitimate backups that were not part of the test.
+        //
+        // Read HERE and nowhere else. The first version read it at the top of main(), where the
+        // deploy path's backups and prune_backups share the same variable -- so a stray
+        // SHIP_BACKUP_DIR would have moved every deploy backup and pruned the wrong directory.
+        // Unset -- which is every real retirement -- the backup goes where it always went.
+        let retire_dir = match std::env::var("SHIP_BACKUP_DIR") {
+            Ok(v) if !v.is_empty() => std::path::PathBuf::from(v),
+            _ => backup_dir.clone(),
+        };
+        std::process::exit(retire(&tool, &bin, &retire_dir, args.dry_run));
     }
 
     println!();
