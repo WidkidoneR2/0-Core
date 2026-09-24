@@ -3,7 +3,7 @@ id: 259
 date: 2026-09-23
 type: future
 title: "fsearch has two usage strings naming different commands, no way to exclude the intent archive, and a hardcoded 0-core root"
-status: in-progress
+status: complete
 tags: [fsearch, novashell, search, paths]
 ---
 
