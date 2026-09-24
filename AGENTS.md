@@ -199,6 +199,9 @@ why it needs privilege. Privilege escalation is never a convenience.
   multiline input, pipes, redirection, command substitution, escaping or any other parser or
   transport edge, the regression test covers the FAMILY of inputs -- not only the one line that
   failed. The shell should get harder to break over time, which a single-case test does not do.
+- **Red first.** A new test is watched FAILING on the old code before the fix lands. A test
+  that has only ever passed has not been shown to test anything. (INT-247 item 4: the cache
+  tests read 7 passed, 2 failed before the flip, and 9 passed after it.)
 
 ---
 
@@ -278,7 +281,10 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 - Rust: `faelight-core/src/paths.rs`, `faelight-deadwood/src/main.rs`, `integrity/mod.rs`,
   `doctor/checks.rs`, `cheatsheet_tui.rs`
 // (Nix paths removed 2026-09-15: the machine has not been NixOS since 2026-08-26)
-- Persistent data: `~/.config/faelight*`, `faelight/runtime/state.db`
+- Persistent data, as of 2026-09-24 (INT-247): `~/.local/state/zero` (state.db), `~/.config/zero`
+  and `~/.cache/zero` are the REAL directories; the `faelight` names beside them are compatibility
+  links. Still named faelight: `~/.local/share/faelight`, `~/.local/share/forest-trash`,
+  `~/.config/faelight-shell`.
 
 ---
 
@@ -299,6 +305,13 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
     so those files vanished on 2026-08-26 and EIGHT readers spent three weeks answering `""`,
     `0`, and an invented `v14.0.0` -- silently, because every read was wrapped in a fallback.
     Verify any `/etc/` path resolves before trusting it, and make absence SAY SO. (INT-250)
+12. **Moving a directory that holds data: alias, flip, swap -- never rm, mv, ln.** First the new
+    name is a relative link to the old one, proven by inode. Then the code flips in one commit,
+    red first. Then one renameat2(RENAME_EXCHANGE) swaps the names, rehearsed on the same
+    filesystem, and the old name is repointed at the new one; inodes are compared before and
+    after. The name the code uses exists at every instant. rm, mv, ln leaves a window in which a
+    tool starting up creates an empty directory -- the silent empty ledger. (INT-247 Layer 3b and
+    item 4.)
 
 ---
 
@@ -375,6 +388,12 @@ codebase.
 Read the implementation, understand current behaviour, identify the smallest correct change, make
 it, test it, report what changed and what was actually verified. **Never guess what existing code
 does when it can be inspected** -- and never guess a line number when the file can be read.
+
+**Recon uses `fsearch`**, the project's own search tool, not grep or awk:
+`fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]`. Its table
+truncates long paths and lines, so when the exact text matters, read the region with a read-only
+python payload that prints numbered lines. Disk state -- what a directory holds, what a process has
+open -- is read the same way, before anything touches it.
 
 ### Small and reversible
 
@@ -546,6 +565,17 @@ shell syntax, which is the failure that rule exists to prevent.
   locates a span by two SHORT ASCII markers and replaces it BY INDEX, so the body is never
   retyped. fpatch.patch refuses a non-ASCII anchor outright and names the offending characters.
 - Never make unrequested changes. Surface improvements for discussion instead.
+- **A payload defines, then acts on its LAST line.** The top level holds only definitions and the
+  one call is the final line, so a paste cut short fails to parse or never calls main() -- it
+  cannot run half an edit. Proven 2026-09-24, when cut pastes wrote nothing.
+- **Modes, and a guard in each.** `dry` prints the plan and writes nothing. Every writing mode
+  refuses unless its preconditions hold -- anchors found exactly once, tree clean, the previous
+  step committed and pushed -- and says Nothing written when it refuses.
+- **Rehearse what has not been read.** When an edit depends on behaviour nobody has read --
+  patch_between's span rule, a filesystem call -- run it first on a copy made with mktemp and
+  refuse unless the result is byte-identical to the planned file.
+- **A record checks its own claims.** An intent section that says a commit is pushed or a path is
+  real verifies that against git and the disk before it is written.
 
 ### Paste blocks
 
@@ -784,6 +814,10 @@ used.
 standing convention; this is what is being worked on right now and in what
 order. If the date is stale, distrust the list before you distrust the rest of
 the file.
+
+**Picking up the Faelight -> Project 0 rename (INT-247)?** Open its section "END OF SESSION --
+START HERE" -- search the name, not a line number. It holds the state, the next step and the
+method, and it supersedes every earlier "where this stopped" section in that intent.
 
 ### The ordering, and why it is an ordering
 
