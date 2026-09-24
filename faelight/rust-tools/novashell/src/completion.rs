@@ -798,24 +798,24 @@ fn binary_completions(partial: &str) -> Vec<String> {
 
 fn cmd_description(cmd: &str) -> &'static str {
     match cmd {
-        "ship" => "build the release and deploy forest tools",
+        "ship" => "build the release and deploy Project 0 tools",
         "cistart" => "start an intent",
         "cicomplete" => "complete an intent",
         "intent" => "manage the intent ledger",
         "friday" => "talk to Friday AI",
         "friday dismiss" => "dismiss Friday suggestion",
-        "d" => "forest health check",
+        "d" => "health check",
         "delete" | "del" => "safely delete a file",
-        "find" => "search the forest",
+        "find" => "search the repo",
         "fg" => "faelight-git helper",
         "patch" => "apply a patch to a file",
         "rspatch" => "anchor-based Rust patch",
         "edit" => "edit a file",
-        "fsearch" => "search forest files",
-        "core" => "forest intelligence engine",
+        "fsearch" => "search repo files",
+        "core" => "Project 0 intelligence engine",
         "gc" => "git commit shorthand",
         "tt" | "tools" => "tool registry",
-        "et" | "events" => "forest events",
+        "et" | "events" => "events",
         _ => "",
     }
 }

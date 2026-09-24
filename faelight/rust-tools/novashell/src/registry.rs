@@ -63,7 +63,7 @@ impl CommandEntry {
             name: name.to_string(),
             kind: CommandKind::Script,
             source: path.to_string(),
-            description: "forest script".to_string(),
+            description: "repo script".to_string(),
             usage: name.to_string(),
         }
     }
@@ -99,11 +99,11 @@ pub struct Registry {
 pub const BUILTINS: &[(&str, &str, &str)] = &[
     ("d", "Run health check", "d"),
     ("health", "System health and status", "health"),
-    ("events", "Recent forest events", "events [today|domain]"),
+    ("events", "Recent events", "events [today|domain]"),
     ("decisions", "Open decisions from ledger", "decisions"),
     ("intents", "Active intents", "intents"),
     ("tools", "Tool deployment status", "tools"),
-    ("version", "Forest version", "version"),
+    ("version", "Project 0 version", "version"),
     ("gc", "Git commits as structured table", "gc [n]"),
     ("ps", "Running processes as table", "ps"),
     ("history", "Command history as table", "history [n]"),

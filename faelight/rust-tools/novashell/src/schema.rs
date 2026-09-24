@@ -251,7 +251,7 @@ fn schema_tt() -> TableSchema {
         name: "tt".to_string(),
         aliases: vec!["tools".to_string()],
         source: SchemaSource::Registry,
-        description: "Forest tool registry".to_string(),
+        description: "Project 0 tool registry".to_string(),
         columns: vec![
             Column::new("name", ColumnType::Text, "tool name"),
             Column::new("version", ColumnType::Text, "deployed version"),
@@ -266,7 +266,7 @@ fn schema_et() -> TableSchema {
         name: "et".to_string(),
         aliases: vec!["events".to_string()],
         source: SchemaSource::ForestDb,
-        description: "Forest event log from state.db".to_string(),
+        description: "Event log from state.db".to_string(),
         columns: vec![
             Column::new(
                 "domain",
@@ -319,7 +319,7 @@ fn schema_intents() -> TableSchema {
         name: "intents".to_string(),
         aliases: vec!["intent".to_string()],
         source: SchemaSource::Filesystem,
-        description: "Forest intent ledger".to_string(),
+        description: "Project 0 intent ledger".to_string(),
         columns: vec![
             Column::new("id", ColumnType::Int, "intent ID"),
             Column::new("title", ColumnType::Text, "intent title"),
