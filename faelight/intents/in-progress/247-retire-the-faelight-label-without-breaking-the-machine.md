@@ -1219,6 +1219,78 @@ Every name the rename touches and what it becomes. Rows marked PROPOSED are reco
                                                        DevBox config lives inside the shell
 ```
 
+## 2026-09-24, NIGHT -- THE CENSUS: THE NEW STARTING LINE
+
+Measured at de954f49, tree clean, read-only. The definitions differ from the two earlier censuses,
+so this is a new starting line, not a delta against 4,077 or 534.
+
+```text
+    LINES containing the name, any case, in tracked files
+      faelight  history  2,013 in 212 files   complete 1,115, CHANGELOG 569, cancelled 145,
+                                              decisions 134, incidents 34, philosophy 16
+                live     2,104 in 303 files   rust 1,086, markdown 410, in-progress 164,
+                                              future 124, config 102, cargo 101, docs/public 63,
+                                              other 22, scripts 18, intents top 10, planned 4
+      forest    history    841 in 157 files   complete 500, CHANGELOG 181, cancelled 83,
+                                              decisions 73, philosophy 4
+                live     1,513 in 223 files   rust 1,050, markdown 203, future 67, in-progress 63,
+                                              docs/public 58, config 36, other 17, cargo 13,
+                                              intents top 3, planned 2, scripts 1
+
+    RUST, comments skipped
+      faelight  439 literals in 78 files      D-Bus 7, other 432
+                identifiers 12 distinct, 408 uses -- faelight_core alone 355
+      forest    496 literals in 78 files      schema-shaped 126, D-Bus 7, other 363
+                identifiers 34 distinct, 285 uses -- ForestDb alone 164
+      Zero Core 0 literals (guarded)
+
+    LARGEST LIVE FILES                        faelight  forest
+      novashell commands/mod.rs                     98     190
+      nsh-test main.rs                              69      38
+      faelight-core paths.rs                        50       -
+      faelight-daemon dbus.rs                       31      54
+      engine domains/friday                          -      48
+      forest literals by area: novashell 85, friday 48, faelight-daemon 34, strategy 33, partner 26
+
+    TREE
+      722 tracked files, 646 under faelight/ (INT-252)
+      15 faelight-* crate directories, and all 15 package names carry it; zero-gate is the one zero-*
+
+    OUTSIDE THE REPO
+      ~/.local/state, ~/.config      zero is REAL, faelight -> zero
+      ~/.cache, ~/.local/share       faelight is REAL, no zero yet
+      ~/.config/faelight-shell       REAL, no nsh yet
+      /etc/faelight                  absent
+```
+
+### How it was counted
+
+  - HISTORY is intents in complete/, decisions/, philosophy/, cancelled/ and incidents/, plus every
+    CHANGELOG -- rule 1 above and rule 2 of the documentation plan. The first run counted incidents
+    as live; corrected before this line was recorded.
+  - Paths come from git ls-files -z. Without -z git quotes non-ASCII paths, and the incident file
+    whose name holds an em dash was skipped. The census printed it under NOT COUNTED rather than
+    reading it as empty, which is how it was caught.
+  - INT-247 is itself the largest live faelight file (164 lines). It stays live until it completes;
+    that count is the record of the rename, not its debt.
+
+### Fixed on the way
+
+```text
+    898c3d19   ~/0-core/.config removed. A tracked link (mode 120000) to dotfiles/helix/.config,
+               dangling since helix went (INT-149, before Omarchy). Referenced only by INT-149,
+               which is history, and by this file. A dangling link already reads as absent, so
+               removing it could not change what any reader sees.
+```
+
+### Found, not fixed
+
+```text
+    FOREST_TEST=hello   set in the live shell. No startup file sets it (bashrc, bash_profile,
+                        profile, config.nsh, environment.d, hypr) and no repo code reads it --
+                        fsearch finds only nsh-test's forest_test function. Being traced.
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
