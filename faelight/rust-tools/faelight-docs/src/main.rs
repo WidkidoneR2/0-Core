@@ -427,7 +427,9 @@ fn gather_state() -> ForestState {
             .or_else(|_| {
                 std::fs::read_to_string(faelight_core::paths::cache_dir().join("health.txt"))
             })
-            .unwrap_or_else(|_| "100".to_string())
+            // Neither source readable: "?", not "100". Unknown is not a perfect score -- the
+            // INT-192 class, fixed on the way under INT-247.
+            .unwrap_or_else(|_| "?".to_string())
             .trim()
             .trim_end_matches('%')
             .to_string()
