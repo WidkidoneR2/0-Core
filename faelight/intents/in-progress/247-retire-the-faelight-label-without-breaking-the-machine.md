@@ -775,6 +775,115 @@ present in one direction or the other throughout, so BOTH names resolve at every
 
 ⚠️ IF ANY DOOR LOOKS EMPTY, STOP AND REVERSE. Do not fix forward on state.
 
+## LAYER 3b -- DONE 2026-09-24. THE DATA IS NAMED zero.
+
+```text
+    ~/.local/state/zero      REAL directory   state.db 59:41436, 319037440 bytes
+    ~/.local/state/faelight  -> zero          kept so every old reference still resolves
+    ~/.config/zero           REAL directory
+    ~/.config/faelight       -> zero
+```
+
+Proven after the move: `d` 0 failed, Zero Alias reading `real: state=zero, config=zero`; nsh-test
+200/200 on the committed tree; `nsh -c history` 104 lines; a fresh `exec nsh` opened state.db
+through zero and showed the whole day. Pushed.
+
+### The commits
+
+```text
+    d89e3638   zero_alias probe rewritten -- landed and deployed BEFORE the flip
+    4cca17ad   full-week alias gate ticked with evidence
+    7fdc90a0   the flip: runtime_dir and faelight_config_dir name zero; seven nsh-test
+               fixture lines; the paths contract test; two lines of runtime_dir's doc comment
+```
+
+The data move is not a commit. It is on disk, and this section is its record.
+
+### ⚠️ THE RECON'S FOURTH SITE WAS A CHECK THAT WOULD HAVE STOPPED CHECKING
+
+doctor probes/files.rs:70 was not a copy of the state path. It was zero_alias(), the probe
+watching this migration. It asserted ONE direction -- zero links to faelight -- and read the config
+side through faelight_config_dir(). Flipping paths.rs:354 would have made that side compare
+`~/.config/zero` with itself: a check that cannot fail. Moving the data would have turned the state
+side red on the correct end state.
+
+Rewritten around the invariant that holds at every moment of the migration: exactly one name is a
+real directory, the other links to it, both resolve to the same place. Direction-agnostic, so it
+landed BEFORE the flip as its own commit and watched every step after. Its pass message names the
+real directory, so the flip showed in `d` as `real: faelight` becoming `real: zero`.
+
+It also stopped reporting UNREADABLE as ABSENT -- this intent's own criterion, applied in the one
+place that was in reach today. Three class-of-failure tests: both directions pass; two real
+directories, two links, dangling, absent and resolves-elsewhere are each named; unreadable is not
+absent.
+
+### ⚠️ THE MOVE WAS NOT rm / mv / ln
+
+The ordered plan above said: rm the zero link, mv faelight zero, ln -s zero faelight. That leaves a
+window where zero does not exist -- and the deployed code asks for zero. A tool starting inside it
+falls through runtime_dir() to "fresh install" and can create an empty zero; the mv then lands
+faelight INSIDE it as zero/faelight. Split state: the silent empty ledger.
+
+Replaced by an atomic swap, per chain:
+
+```text
+    mv -T --exchange faelight zero    one renameat2(RENAME_EXCHANGE); zero exists at every instant
+    ln -sfT zero faelight             repoint the old name; only the unused name is briefly wrong
+```
+
+⚠️ -T IS REQUIRED. Without it mv follows the zero link to a directory, treats it as a target
+directory, and tries to exchange faelight with zero/faelight. The first attempt failed exactly that
+way (coreutils 9.11: "cannot exchange ... and .../zero/faelight"). Nothing moved -- set -eu stopped
+at the first mv. The retry REHEARSED the exact commands in a mktemp directory and refused unless the
+rehearsal produced the right layout.
+
+### ⚠️ A GATE THAT PRINTS IS NOT A GATE
+
+`cargo test ... | grep "test result"` matches FAILED as happily as ok.
+paths::tests::test_numbered_gravity went red -- "unexpected runtime_dir:
+/home/christian/.local/state/zero" -- and the chain carried on into ship. No harm: the data had not
+moved and zero already resolved to it. The test accepted `runtime` or `faelight`; after the flip
+runtime_dir can only return runtime or zero, so it now accepts those. Keeping faelight would have
+been a branch that cannot fail.
+
+★ THE RED TEST WAS THE FIRST RUNTIME PROOF THAT THE CODE ASKS FOR zero. The doors could not show it,
+because both names reached one inode. From then on every gate matched the PASSING string
+(`ok. 4 passed`, `200 / 200 passed`, ` 0 failed`), so a failure stops the chain instead of scrolling
+past.
+
+### Two smaller things the record needs
+
+  - 7fdc90a0's nsh-test diff is not byte-identical to the file that was built and run 200/200. A
+    formatter -- believed to be the pre-commit hook, NOT confirmed -- collapsed the fixture's
+    write(...) onto one line once `zero` made it fit. Meaning unchanged, proven by the diff; the
+    final ship rebuilt from the committed tree and ran 200/200 again.
+  - The move was reversed once by mistake -- the undo block sat directly under the success
+    criteria -- and redone. Lossless both ways. An undo command belongs in a reply only after it is
+    needed.
+
+### ⚠️ CORRECTION TO "LAYER 3b -- THE RECON" ABOVE
+
+It says the fixtures are the subtle one because the suite "stays green either way, which means it
+is not testing the flip at all". The conclusion holds for a different reason: no nsh-test case calls
+runtime_dir() against the fixture. Lines 231-234 BUILD the fake forest, 587 checks the scaffolding,
+687 and 1019 test tilde expansion. They MIRROR the layout and were never a test of it. What tested
+the flip was the probe, the paths contract test and the doors.
+
+### OPEN -- NONE URGENT
+
+```text
+    faelight links       ~/.local/state/faelight and ~/.config/faelight stay until Layer 4 has
+                         swept every non-Rust reference: scripts, Hyprland, systemd, config.nsh
+    third chain          faelight_data_dir() = ~/.local/share/faelight (clipboard history).
+                         No alias exists; not flipped
+    FAELIGHT_STATE_DIR   the override env var still carries the old name (-> ZERO_*)
+    runtime_dir comment  lines 156-158 are INT-061's migration narrative, stale before today
+    startup cwd          a fresh nsh starts INSIDE the state directory. Not caused by the flip --
+                         every changed path resolves to the same physical directory. Its own
+                         intent, not this one
+    the docs             the seven-document rewrite, per THE DOCUMENTATION PLAN
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
