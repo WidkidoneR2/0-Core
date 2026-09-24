@@ -3,7 +3,7 @@ id: 258
 date: 2026-09-23
 type: future
 title: "fpatch is not reachable: it has no CLI, its import path is undocumented, and two invocations since the migration were both failed --help attempts"
-status: in-progress
+status: complete
 tags: [fpatch, tooling, dx, claude]
 ---
 
