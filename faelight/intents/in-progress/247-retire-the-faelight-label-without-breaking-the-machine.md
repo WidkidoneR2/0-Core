@@ -798,8 +798,9 @@ present in one direction or the other throughout, so BOTH names resolve at every
 - [ ] Layer 3 is NOT started until layers 0-2 are done and a path audit lists every hardcoded
       reference. The audit is a deliverable in its own right
       <!-- the audit is DONE 2026-09-15 -- see THE PATH AUDIT above: 6 functions in paths.rs, 26 live sites outside it, 14 of them the health cache. Layers 0-2 are also done. The gate is open for 3a. -->
-- [ ] The state alias runs for A FULL WEEK with `core doctor` and `nsh history` green before any
+- [x] The state alias runs for A FULL WEEK with `core doctor` and `nsh history` green before any
       code default changes. Evidence: the dates
+      <!-- evidence: 2026-09-24. Alias created 2026-09-17, seven days of ordinary use. Measured today BEFORE any code default changed: d 92%, 25/28, 0 failed, Zero Alias probe green (state and config aliases resolve to the faelight directories); nsh -c history -> 104 lines; state.db is ONE inode under both names (59:41436, 319037440 bytes); sole holder nsh pid 123517. Baseline HEAD e9eb743a, pushed, tree clean, nsh-test 200/200. -->
 - [ ] Whatever reads the state paths reports UNREADABLE as unreadable. A silent empty ledger is
       the failure this intent most needs to avoid, and it is INT-192's collapse in a new place
 - [ ] The `faelight` unified CLI is decided: renamed to `0` with the same subcommands, or deleted
