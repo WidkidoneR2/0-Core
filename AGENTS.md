@@ -661,6 +661,61 @@ Stop and ask before:
 If something breaks: stop immediately, assess, roll back, document it in the ledger, then update
 the rule that failed to prevent it.
 
+### devshell: the place to break things
+
+`devshell` is a sandbox where a dangerous operation can be done for real. Your live 0-core is
+inside it. Your credentials are not. Packages install as root. Leaving undoes everything.
+
+⭐ TEN LAWS. Each one was proven by breaking it (INT-257 carries the evidence).
+
+    0.  A sandbox that cannot keep one of these laws refuses to start.
+        It never starts anyway and hopes.
+
+    1.  Everything written inside is thrown away when you leave,
+        unless you promote it by name.
+
+    2.  Nothing inside can see or signal a process outside.
+
+    3.  Nothing inside reaches the network.
+
+    4.  You are root inside, and root inside has no authority outside.
+
+    5.  Nothing from your environment crosses unless it is declared.
+
+    6.  The sandbox tells the truth about what it is. It never claims
+        an isolation it did not get.
+
+    7.  Leaving puts the machine back exactly as it was.
+
+    8.  Everything that changed can be listed before you decide to keep any of it.
+
+    9.  sudo inside is not a way out.
+
+Law 0 runs at every launch: ten checks, and any one of them failing means the session refuses to
+start rather than starting degraded. Each check was proven by breaking it on its own.
+
+    devshell                          start a session, about 0.3 seconds
+    devshell --resume last            the same session again
+    devshell-diff --last              list what changed
+    devshell-promote --last <path>    keep one named file; you type PROMOTE to confirm
+
+⚠️ WHAT IS NOT DECLARED IS NOT THERE. Your home directory inside starts EMPTY, and five paths are
+declared into it: the repository, your local bin, the shell's config directory and cargo cache are
+live; the shell's state directory is a snapshot. Anything else is absent -- not hidden, absent.
+Your ssh keys, your git credentials and your AI tool directories cannot be read from inside
+because they do not exist there. A path you need that is missing fails loudly the first time, and
+is added with its reason.
+
+The declared list lives in `devshell-lib`. That file is the authority; this is a summary.
+
+⚠️ THE SCRIPTS ARE AT `faelight/scripts/devshell` AND `devshell-lib` TODAY. INT-252 renames that
+directory to `zero/`. When it does, these two references move with it, along with the two paths
+nsh-test builds to reach them. Written here so the rename has a checklist entry rather than a
+surprise.
+
+nsh-test keeps two of these laws honest on every run: a write inside never reaches the host, and
+every mount is read-only or disposable while every socket refuses a connection.
+
 ---
 
 ## Generated Files
