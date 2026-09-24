@@ -1119,6 +1119,73 @@ step proves nothing about the step; the empty status line is what showed nothing
                         three sayings (247, 255, 443) for item 2
 ```
 
+## 2026-09-24, NIGHT -- PASSES 3 AND 4, TWO RULINGS, AND THE ORDER FOR NEXT SESSION
+
+### a4be9088 -- the banner and the identity label
+
+The welcome banner's forest labelled the HEALTH number; it now says health. Proven by reading the
+chain: ONE writer (core doctor run -- d is an alias for it -- at engine doctor/mod.rs:840) and one
+reader (banner -> core_integration::health -> paths::read_health). The number is a SNAPSHOT of the
+last doctor run. That is why the banner said 84 while d said 92: a later run on a dirty tree wrote
+84, and a doctor run rewrote it 84 -> 85 while this was measured. Lag, not a second measure.
+
+### de8eabbb -- one version reader, and a test that was passing on an invented number
+
+state.db holds NO forest version key -- a read-only query returned []. So core version printed an
+invented "Forest: 13.0.0" on every run. paths::read_version() now reads meta/VERSION, the one owner,
+and returns None when it cannot. core version and the identity label both use it, so they cannot
+disagree, and an unreadable version prints ? rather than a number. Three tests pin missing and blank
+to None. core version now prints Project 0: 1.0.0.
+
+THE RED THAT PROVED IT: nsh-test and_chain_fsh_builtin expected "3.0.0" -- core's version when the
+test was written -- and kept passing after core moved to 3.2.17 only because "13.0.0" contains it.
+Two stale numbers vouching for each other. It now asserts the SHAPE: both sides ran, in order.
+
+AND faelight-core's doc-tests had been failing unseen. Two doc tables in paths.rs (zero_state_dir,
+focus_file) were indented four spaces, which rustdoc compiles as Rust. Nothing ran them: d checks
+cargo doc, which does not run doc-tests, and the pre-push hook runs nsh-test. Fenced as text: 2
+failed -> 0.
+
+### RULINGS, Christian 2026-09-24
+
+```text
+    SCHEMA and CONTRACTS are their own items, to be filed with inta.
+      schema     ten forest_* tables (~116k rows) renamed with ALTER TABLE, every SQL string in the
+                 same commit, rollback rehearsed first -- Layer 3's rules
+      contracts  D-Bus org.faelight.Forest.*, forest-stats cp-forest mv-forest forest-ade, the
+                 --forest flags, the FOREST_ prefix, the nl.rs vocabulary -- alias first
+    PATHS say Project 0 or zero, not faelight: the paths.rs accessor names, the three outside
+      directories, and the repo directory (INT-252)
+    FIX AND IMPROVE ON THE WAY: what the rename finds broken is fixed, so the brand starts clean --
+      as the version reader and the doc-tests were today
+    THE FINISH LINE: see Success Criteria
+```
+
+### NEXT SESSION, IN ORDER
+
+```text
+    1  re-run the census: forest and faelight counts by kind -- the new starting line
+    2  inta: file SCHEMA and CONTRACTS as their own intents
+    3  paths.rs accessor names -- faelight_dir, faelight_config_dir, faelight_data_dir -- to zero
+       names; the compiler finds every caller
+    4  the outside directories, ONE PER SESSION, alias first: ~/.cache/faelight (the health cache,
+       regenerable) first, ~/.local/share/faelight next, ~/.config/faelight-shell (the aliases) last
+    5  the remaining forest labels, about 60, one engine domain at a time
+    6  the sayings (Christian's voice) and Forest DNA / the README (item 3)
+```
+
+### Found, not fixed
+
+```text
+    intelligence name   core version prints intelligence v53 (Forest Mind) -- a name STORED in
+                        state.db; it belongs to the schema item
+    guard blind spots   reads only .rs under rust-tools/ and engine/, one line at a time; TOML
+                        registries and multi-line strings are outside it
+    health_tui          still recognises 5 of the 8 doctor sections (pass 2)
+    one unseen value    tail cut off the Health line of the measuring doctor run, so what it
+                        printed on that run was not seen -- the cache change 84 -> 85 was
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
@@ -1151,6 +1218,11 @@ step proves nothing about the step; the empty status line is what showed nothing
       with `nsh` and `core` called directly. Written down either way
 - [ ] No layer was done in the same week as another. If one was, say so here and say why -- the
       pace rule is a gate and breaking it is a thing to record, not hide
+
+- [ ] THE FINISH LINE, ruled by Christian 2026-09-24: no LIVE file, path, identifier, table or
+      command says faelight or forest. History is exempt by the standing rule -- completed intents,
+      CHANGELOGs and git history are never rewritten. Each name is held out by a guard once its pass
+      is finished, and the guard reads every file type the name lives in, not only .rs
 
 ## Relationship
 
