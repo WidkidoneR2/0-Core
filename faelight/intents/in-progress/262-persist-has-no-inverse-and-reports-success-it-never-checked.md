@@ -3,7 +3,7 @@ id: 262
 date: 2026-09-24
 type: future
 title: "persist has no inverse and reports success it never checked"
-status: planned
+status: in-progress
 tags: [novashell, builtins, state]
 ---
 
