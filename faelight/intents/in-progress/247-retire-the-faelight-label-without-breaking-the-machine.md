@@ -1466,6 +1466,69 @@ AGENTS.md, ship, and intent citations.
     faelight_data_dir     unchanged             renamed with ~/.local/share/faelight, item 4
 ```
 
+## 2026-09-24, LATE NIGHT -- ITEM 4 BEGINS: ~/.cache IS NAMED zero
+
+```text
+    ~/.cache/zero        REAL directory   health-status, friday.log, last-exit-status
+    ~/.cache/faelight    -> zero          kept so every old reference still resolves
+```
+
+### The recon
+
+Three small files; no process held them; nothing outside the repo named the path. In code, three
+accessors in paths.rs each joined "faelight/<file>" onto xdg_cache_home() -- the cache directory had
+no owner. read_health() already answers None for an absent file, so the move could not fabricate a
+health number through it.
+
+### The order -- alias, red, flip, swap
+
+```text
+    alias      ~/.cache/zero -> faelight (relative); all three files one inode under both names
+    red        zero_cache_dir() and two tests added, accessors untouched: faelight-core
+               7 passed, 2 failed -- the two new tests and nothing else
+    004c0d16   the flip. zero_cache_dir() is the ONE function that joins onto xdg_cache_home();
+               the three accessors join onto it; the nsh-test caret fixture reads tmp/zero.
+               faelight-core 9 passed 0 failed; nsh-test 202/202 including the caret case;
+               d 0 failed; health-status read through zero matched d
+    swap       renameat2(RENAME_EXCHANGE), then faelight repointed to zero by an atomic replace --
+               from python, not mv/ln. Rehearsed first in a mktemp directory inside ~/.cache, same
+               filesystem; refused unless the tree was clean and the flip pushed.
+               Inodes KEPT: health-status 46763, friday.log 290174, last-exit-status 596566
+```
+
+After the swap: d 92%, 25/27, 0 failed, tree clean and pushed; health-status read through zero said
+92, matching d; a fresh exec nsh, then false, and last-exit-status read failure.
+
+### The two tests
+
+cache_files_live_under_zero_cache_dir -- every cache file's parent is zero_cache_dir().
+
+xdg_cache_home_is_joined_by_one_owner -- the CLASS. paths.rs, read with include_str!, must join onto
+xdg_cache_home() exactly once. A future accessor that joins its own directory name there goes red.
+The needle is split with concat! so the test's own source does not match it.
+
+### Found, not fixed
+
+```text
+    prompt.rs:242       reads ~/.cache/faelight/last-system-rev: one reader, zero writers since
+                        NixOS, so .ok()? always answers None. NOT renamed -- naming a dead path zero
+                        would dignify it. Belongs to INT-250: delete the read
+    faelight-docs:430   health unreadable from both sources becomes "100" -- unknown reported as
+                        perfect, the INT-192 class. Fix-on-the-way candidate, its own commit.
+                        NOT YET RULED
+    paths.rs tests      the new tests sit above use super::* in mod tests. Compiles; cosmetic
+    docs                ARCHITECTURE.md:148 names ~/.cache/faelight -- the seven-document rewrite
+```
+
+### Item 4, what remains
+
+```text
+    ~/.cache/faelight             DONE -- zero real, faelight -> zero
+    ~/.local/share/faelight       next -- with faelight_data_dir (clipboard history)
+    ~/.local/share/forest-trash   found in passes 5-6, commands/mod.rs :4016 and :4092
+    ~/.config/faelight-shell      last -> ~/.config/nsh; it holds the aliases
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
