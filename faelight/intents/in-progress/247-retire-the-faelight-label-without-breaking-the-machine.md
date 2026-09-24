@@ -884,6 +884,107 @@ the flip was the probe, the paths contract test and the doors.
     the docs             the seven-document rewrite, per THE DOCUMENTATION PLAN
 ```
 
+## 2026-09-24, LATER -- THE RENAME IS A PROJECT. RULINGS, COMMITS, AND THE NEW CENSUS
+
+### The rulings, Christian 2026-09-24
+
+```text
+    "Omarchy is my operating system. Anything else that has faelight is mine.
+     I am changing it to Project 0 (Zero)."
+    "changing faelight to 0 or to zero is important to me" -- a new project, for good.
+```
+
+What that supersedes, recorded here rather than deleted above:
+
+```text
+    Vision         "DELIBERATELY NOT URGENT"             -> the rename is a first-class goal
+    Layer 2        "DO NOT RENAME A CRATE FOR SPELLING"  -> every faelight-* crate that is KEPT
+                                                            becomes zero-*, one at a time
+    Relationship   "PRIORITY: BELOW the shell, always"   -> OPEN. Not yet ruled: how the rename
+                                                            shares time with the shell before
+                                                            the October evaluation
+    forest         DROPPED from Project 0's own screens and labels. This intent's own mental
+                   model says "Omarchy provides the forest" -- Project 0 uses plain words.
+                   Stored data keys that contain it (domain = 'forest' in state.db) are a
+                   DATA MIGRATION, never a text edit.
+    versions       No version number in a title: "Project 0 1.0.0" read as one number. The
+                   same ruling faelight-release made for the README on 2026-09-15.
+```
+
+UNCHANGED: history is never rewritten; ~/0-core and WidkidoneR2/0-Core stay; one crate at a time,
+never a repository-wide sweep; anything touching state follows Layer 3's rules.
+
+### What landed -- each seen RED before it went green
+
+```text
+    7c446407 81f769c5            INT-261 COMPLETE: new terminals open in ~/0-core. The last_dir
+                                 restore is retired. The OPEN item "startup cwd" below is DONE.
+    9f5f3c3d                     No intent template defaults to the faelight tag. `inta` offered
+                                 it on every new intent -- a Layer 0 breach. template_tests.
+    2ed55e4f e4d7c773 ec64ce16   Zero Core -> Project 0 in 12 display strings, and the guard.
+    954718fd                     Version dropped from four titles; the guard refuses the run-on.
+```
+
+### THE GUARD -- nsh-test no_retired_display_name_in_printed_strings
+
+Reads every string literal under rust-tools/ and engine/ and fails naming each file:line that
+prints a retired form. It found a 12th site the hand-written census had missed, and it goes red
+on a planted probe. A form joins its list only when its pass is FINISHED, so the suite is green at
+every commit and red the moment one comes back. forest and faelight join it as their passes land.
+
+### WARNING -- A COMMIT MESSAGE THAT PROMISED WHAT WAS NOT THERE
+
+2ed55e4f says the guard exists. The step that added it had not been run: the suite read 201/201,
+not 202. The guard landed in e4d7c773, whose message was corrected before it was pushed -- the
+pre-push gate had refused a red tree, which is how the gap stayed local. History is not
+rewritten; this paragraph is the record.
+
+### THE CENSUS, 2026-09-24 -- the new starting line
+
+```text
+    4,077 lines in 515 tracked files still say faelight
+      history (never rewritten)   2,013   completed intents 1,444, CHANGELOGs 569
+      live                        2,064   Rust 1,083, markdown 410, config 142,
+                                          live intents 265, Cargo 101, docs/public 63
+    646 of 722 tracked files sit under faelight/ (INT-252)
+    15 faelight-* crate directories
+    outside the repo  ~/.config/faelight-shell, ~/.local/share/faelight and ~/.cache/faelight
+                      are REAL directories; state and config are links -> zero
+    string literals   forest 479, faelight 311, Zero Core 0 (guarded)
+```
+
+The live lines come from roughly twenty NAMES -- the directory, the crates, a handful of
+generators -- not from 2,000 separate edits.
+
+### Found, not fixed -- each its own discussion
+
+```text
+    checkpoint/mod.rs:573   runs `sudo btrfs subvolume list` itself. Automation plus sudo is the
+                            2025-12-14 lockout class. Nothing changed -- decide first.
+    System Services probe   reads faelight-session.target, likely a NixOS-era unit on Omarchy.
+                            Reports Unknown honestly.
+    deps/mod.rs:308         categorize_tool groups by the faelight- PREFIX. The first crate
+                            rename must change it in the same commit, or every zero-* tool
+                            silently lands in "Utilities".
+    ~/0-core/.config        a tracked symlink to dotfiles/helix/.config -- dead since INT-149
+                            and INT-107.
+    the inta prompt         prompt() falls back with unwrap_or_default, so an interrupted Tags
+                            prompt may file a real intent rather than cancel. UNVERIFIED.
+```
+
+### Next, in order
+
+```text
+    1  forest labels -- through the guard, same method as Zero Core
+    2  the sayings -- Christian rewrites them; they are his voice
+    3  faelight-release (Forest DNA) and the README; the faelight-docs footer and command
+       reference; deadwood's own header
+    4  the outside directories, one per session, alias first
+    5  crates -- decision test, then one at a time, faelight-core last
+    6  INT-252 -- the directory
+    7  the compatibility links
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
