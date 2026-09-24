@@ -290,7 +290,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         0.58
     };
     // Print state snapshot
-    println!("  {} Forest state:", "→".bright_cyan());
+    println!("  {} State:", "→".bright_cyan());
     println!(
         "    {} Health: {}%  ·  Open intents: {}  ·  Velocity: {}/7d",
         "·".dimmed(),

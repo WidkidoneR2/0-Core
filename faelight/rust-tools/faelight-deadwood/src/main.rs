@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 #[command(
     name = "faelight-deadwood",
     version,
-    about = "Forest dead-code & orphan detector (reports, never deletes)"
+    about = "Project 0 dead-code & orphan detector (reports, never deletes)"
 )]
 struct Cli {
     /// Only run one check: aliases, baks, keybinds
@@ -145,10 +145,7 @@ fn main() {
         return;
     }
 
-    println!(
-        "{}",
-        "Faelight Deadwood -- forest hygiene report".green().bold()
-    );
+    println!("{}", "Deadwood -- Project 0 hygiene report".green().bold());
     println!("{}", "-".repeat(56).dimmed());
     println!(
         "{}",

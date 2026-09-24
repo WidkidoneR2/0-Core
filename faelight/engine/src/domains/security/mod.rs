@@ -992,7 +992,7 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
 
     if signals.is_empty() {
         println!(
-            "    {} No action required — forest is secure",
+            "    {} No action required — Project 0 is secure",
             "→".green().to_string().dimmed()
         );
     }
@@ -1054,7 +1054,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
         println!("  │  🔍 CVE reference detected");
         println!("  │");
         println!("  │  {} Impact Analysis:", "①".bright_white().bold());
-        println!("  │    Checking forest tools for affected packages...");
+        println!("  │    Checking Project 0 tools for affected packages...");
 
         // Scan Cargo.lock for affected dependencies
         let lock_path = std::path::PathBuf::from(&ctx.core_root).join("Cargo.lock");

@@ -23,7 +23,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ╭─ 🌱 Bootstrap Plan ────────────────────────────────".bright_cyan()
     );
-    println!("  │  What would it take to rebuild this forest?");
+    println!("  │  What would it take to rebuild Project 0?");
     println!(
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
@@ -202,7 +202,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     );
     if issues.is_empty() {
         println!(
-            "  │  {} All {} checks passed — forest is consistent",
+            "  │  {} All {} checks passed — Project 0 is consistent",
             "✅".green(),
             passed
         );

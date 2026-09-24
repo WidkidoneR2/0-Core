@@ -53,7 +53,9 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!(
         "{}",
-        "🗺️  Architecture Map — Forest Self-Analysis".cyan().bold()
+        "🗺️  Architecture Map — Project 0 Self-Analysis"
+            .cyan()
+            .bold()
     );
     println!("{}", "━".repeat(60).dimmed());
     println!();
@@ -308,7 +310,7 @@ pub fn evolve(ctx: &AppContext) -> CoreResult<()> {
     if proposals.is_empty() {
         println!("  {} No structural proposals at this time.", "○".dimmed());
         println!(
-            "  {} Forest architecture is healthy — no changes suggested.",
+            "  {} Architecture is healthy — no changes suggested.",
             "→".dimmed()
         );
         println!();
@@ -434,7 +436,7 @@ pub fn apply(
     // The system records the decision and learns from it
     println!("  {} Proposal accepted and recorded", "✅".green().bold());
     println!(
-        "  {} The forest will factor this into future proposals",
+        "  {} Project 0 will factor this into future proposals",
         "→".dimmed()
     );
     println!(
@@ -570,7 +572,7 @@ pub fn learn(ctx: &AppContext, proposal_id: i64, outcome: &str) -> CoreResult<()
             );
         } else {
             println!(
-                "  {} Failure penalizes similar proposals — the forest learns",
+                "  {} Failure penalizes similar proposals — Project 0 learns",
                 "→".dimmed()
             );
         }
@@ -673,7 +675,7 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
         );
     } else if success_rate >= 80.0 {
         println!(
-            "  {} Proposal quality is HIGH — the forest is learning well",
+            "  {} Proposal quality is HIGH — Project 0 is learning well",
             "✅".green()
         );
     } else if success_rate >= 60.0 {
@@ -683,7 +685,7 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
         );
     } else {
         println!(
-            "  {} Proposal quality needs improvement — the forest is still learning",
+            "  {} Proposal quality needs improvement — Project 0 is still learning",
             "⚠️ ".yellow()
         );
     }
@@ -774,7 +776,7 @@ pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     println!();
     println!("  {}", "Prove Me Wrong Mode".bright_white().bold());
     println!(
-        "  {} The forest stress-tests your current plan.",
+        "  {} Project 0 stress-tests your current plan.",
         "→".dimmed()
     );
     println!();

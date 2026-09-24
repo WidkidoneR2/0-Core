@@ -1183,13 +1183,13 @@ pub fn lessons(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
 
     println!();
-    println!("{}", "📖 What the Forest Has Learned".bright_cyan().bold());
+    println!("{}", "📖 What Project 0 Has Learned".bright_cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!("  Based on {} decisions ({} resolved)", total, resolved);
     println!();
 
     if derived.is_empty() {
-        println!("  {} The forest is still learning.", "○".dimmed());
+        println!("  {} Project 0 is still learning.", "○".dimmed());
         println!("  Keep recording decisions and outcomes.");
         println!("  Lessons emerge after 3+ observations per pattern.");
     } else {
@@ -1369,13 +1369,13 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!(
         "{}",
-        "📜 The Forest's Story — Last 30 Days".bright_cyan().bold()
+        "📜 Project 0's Story — Last 30 Days".bright_cyan().bold()
     );
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
     // Narrative
-    println!("  In the last 30 days, the forest was active.");
+    println!("  In the last 30 days, Project 0 was active.");
     println!();
     println!(
         "  {} events flowed through the ledger.",
@@ -1386,7 +1386,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
         doctor_runs.to_string().bright_green()
     );
     println!(
-        "  {} commits made to the forest.",
+        "  {} commits made to the repo.",
         git_commits.to_string().bright_cyan()
     );
     if window_opens > 0 {
@@ -1435,7 +1435,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
     } else {
         println!("  No decisions recorded in this period.");
         println!(
-            "  Use {} to start building the forest's memory.",
+            "  Use {} to start building Project 0's memory.",
             "core decide".bright_cyan()
         );
     }

@@ -1122,7 +1122,7 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
 
     if !conflict_found {
         println!(
-            "  {} No conflicts detected — the forest is coherent",
+            "  {} No conflicts detected — Project 0 is coherent",
             "✅".bright_green()
         );
     }

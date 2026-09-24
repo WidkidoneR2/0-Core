@@ -392,7 +392,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
         }
     } else {
         println!(
-            "  {} No cross-layer patterns detected -- forest is coherent",
+            "  {} No cross-layer patterns detected -- Project 0 is coherent",
             "✅".green()
         );
     }
@@ -921,10 +921,10 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
         )
     } else {
         (
-            "Forest health check -- routine verification".to_string(),
+            "Health check -- routine verification".to_string(),
             "core doctor run".to_string(),
             0.65f64,
-            "Regular verification keeps the forest coherent".to_string(),
+            "Regular verification keeps Project 0 coherent".to_string(),
         )
     };
     db.execute(
@@ -1151,7 +1151,7 @@ fn simulate_commit(db: &rusqlite::Connection) -> CoreResult<()> {
         .unwrap_or(0);
 
     println!("  {} Commit simulation", "→".dimmed());
-    println!("  {} Risk: LOW -- standard forest operation", "→".dimmed());
+    println!("  {} Risk: LOW -- standard operation", "→".dimmed());
     println!(
         "  {} Predicted: SUCCESS -- pre-push hooks will validate",
         "→".dimmed()

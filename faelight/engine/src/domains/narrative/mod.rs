@@ -75,7 +75,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
         .unwrap_or(0);
 
     println!(
-        "  │  Since {}, the forest has grown through",
+        "  │  Since {}, Project 0 has grown through",
         first_commit_date.bright_yellow()
     );
     println!(
@@ -112,7 +112,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
         );
     } else {
         println!(
-            "  │  {} architectural decisions shaped this forest:",
+            "  │  {} architectural decisions shaped Project 0:",
             decisions.len()
         );
         for (desc, outcome) in &decisions {
@@ -192,7 +192,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     ).unwrap_or_else(|_| "unknown".to_string());
 
     println!(
-        "  │  The forest is {}. {} checks pass.",
+        "  │  Project 0 is {}. {} checks pass.",
         "healthy".bright_green().bold(),
         "23/23".bright_white()
     );

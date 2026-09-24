@@ -442,7 +442,7 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
         println!(
             "  {} {}",
             "✅".green(),
-            "No architectural concerns detected. The forest looks healthy.".dimmed()
+            "No architectural concerns detected. Project 0 looks healthy.".dimmed()
         );
     } else {
         println!(
@@ -1102,7 +1102,7 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
         0..=10 => "CONTAINED — minimal blast radius",
         11..=30 => "MODERATE — several domains affected",
         31..=60 => "SIGNIFICANT — major subsystem affected",
-        _ => "WIDE — forest-wide impact",
+        _ => "WIDE — project-wide impact",
     };
 
     println!(

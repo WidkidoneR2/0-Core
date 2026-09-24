@@ -885,7 +885,7 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
             "✅".green(),
             id_mentions
         );
-        println!("  {} Forest is on course", "✓".bright_green());
+        println!("  {} Project 0 is on course", "✓".bright_green());
     } else {
         println!(
             "  {} No recent commits reference focused intent",
@@ -3082,7 +3082,7 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
     // Forest state
-    println!("  {} Forest state:", "→".dimmed());
+    println!("  {} State:", "→".dimmed());
     println!(
         "    {} {} complete  {} planned",
         "◦".dimmed(),

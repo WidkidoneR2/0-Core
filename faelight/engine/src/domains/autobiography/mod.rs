@@ -139,7 +139,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     );
     if !total_commits.is_empty() {
         println!(
-            "  {} commits in the forest's memory",
+            "  {} commits in Project 0's memory",
             total_commits.bright_white()
         );
     }
