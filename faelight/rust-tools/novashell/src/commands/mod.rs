@@ -1575,7 +1575,7 @@ fn execute_dispatch(
             }
             let mut out = String::new();
 
-            // Check forest builtins
+            // Check shell builtins
             let builtins = [
                 "cd",
                 "pwd",
@@ -1639,7 +1639,7 @@ fn execute_dispatch(
 
             if builtins.contains(&cmd) {
                 out.push_str(&format!(
-                    "  {} {} — forest builtin\n",
+                    "  {} {} — shell builtin\n",
                     "🌲".normal(),
                     cmd.bright_green()
                 ));
@@ -1655,12 +1655,12 @@ fn execute_dispatch(
                 ));
             }
 
-            // Check forest scripts
+            // Check shell scripts
             let home = std::env::var("HOME").unwrap_or_default();
             let script_path = format!("{}/0-core/scripts/{}", home, cmd);
             if std::path::Path::new(&script_path).exists() {
                 out.push_str(&format!(
-                    "  {} {} — forest script\n",
+                    "  {} {} — shell script\n",
                     "🌲".normal(),
                     script_path.bright_white()
                 ));
@@ -4179,7 +4179,7 @@ fn execute_dispatch(
             // gt status, gt commit, gt push -- maps directly to git
             if args.is_empty() {
                 return CommandResult::Error(
-                    "usage: gt <git-command> [args]\n  gt is the forest word for git"
+                    "usage: gt <git-command> [args]\n  gt is the Project 0 word for git"
                         .to_string()
                         .into(),
                     1,
@@ -4801,7 +4801,7 @@ fn execute_dispatch(
                 format!("🌲 type: {}", cmd).cyan().bold()
             ));
 
-            // 1. Check forest builtins
+            // 1. Check shell builtins
             let builtins = [
                 "cd",
                 "pwd",
@@ -4869,7 +4869,7 @@ fn execute_dispatch(
             ];
 
             if builtins.contains(&cmd) {
-                out.push_str(&format!("  {} forest builtin\n", "▶".bright_green()));
+                out.push_str(&format!("  {} shell builtin\n", "▶".bright_green()));
                 out.push_str(&format!(
                     "    {} handled natively by fsh — no PATH lookup\n",
                     "·".dimmed()
@@ -5384,10 +5384,10 @@ fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
         Some(&"run") => return devbox_run(&args[1..]),
         Some(&"help") | Some(&"--help") => {
             let mut h = String::new();
-            h.push_str("\n  devbox -- run things where the forest cannot see them\n\n");
+            h.push_str("\n  devbox -- run things where Project 0 cannot see them\n\n");
             h.push_str("    devbox            the last ten sandbox runs\n");
             h.push_str("    devbox test       the nsh suite in a clean room\n");
-            h.push_str("    devbox shell      an interactive nsh with no forest\n");
+            h.push_str("    devbox shell      an interactive nsh with no Project 0 state\n");
             h.push_str("    devbox run CMD    one command under the devbox policy\n");
             return CommandResult::Output(h);
         }
@@ -6719,7 +6719,7 @@ fn fsh_gaps(db: &ForestDb) -> CommandResult {
     }
     if !any_gaps {
         out.push_str(&format!(
-            "  {} No gaps detected -- you are using the forest well\n",
+            "  {} No gaps detected -- you are using Project 0 well\n",
             "✅".green()
         ));
     }
@@ -8577,7 +8577,7 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "{}\n",
-        "\u{1f332} Since \u{2014} Forest Timeline".cyan().bold()
+        "\u{1f332} Since \u{2014} Project 0 Timeline".cyan().bold()
     ));
     out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
     out.push_str(&format!(
@@ -8692,7 +8692,7 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     let elapsed_h = (now - since_ts) / 3600;
     out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
     out.push_str(&format!(
-        "  \u{23f1}\u{fe0f}  {}h of forest history\n",
+        "  \u{23f1}\u{fe0f}  {}h of history\n",
         elapsed_h.to_string().bright_white()
     ));
 
@@ -8738,7 +8738,7 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     match first_tok {
                         "cd" | "ls" | "pwd" | "health" | "events" | "intents" | "since" | "gc"
                         | "ps" | "forecast" | "checkpoint" | "git" | "commits" | "story"
-                        | "advise" | "debug" | "usage" => "forest builtin",
+                        | "advise" | "debug" | "usage" => "shell builtin",
                         "q" | "exit" | "quit" => "shell control",
                         "flow" => "flow mode",
                         _ => "external PATH",
@@ -11550,7 +11550,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     ];
     if vocab_words.contains(&cmd) {
         out.push_str(&format!(
-            "  {} vocabulary  forest word (INT-261)
+            "  {} vocabulary  Project 0 word (INT-261)
 ",
             "▶".bright_magenta()
         ));
@@ -11782,7 +11782,7 @@ fn help() -> CommandResult {
         ("alias", "manage aliases  [name=command]"),
         ("unalias", "remove an alias"),
         ("plugins", "list loaded plugins"),
-        ("story", "30-day forest narrative"),
+        ("story", "30-day narrative"),
         ("advise", "judgment advisory"),
         ("version", "system version"),
         ("commits", "commit count and last commit"),
@@ -12097,7 +12097,7 @@ fn project_list(core_root: &str) -> CommandResult {
         "
 {}
 ",
-        "  🌲 Forest Projects".bright_green().bold()
+        "  🌲 Projects".bright_green().bold()
     ));
     out.push_str(&format!(
         "{}
@@ -14480,7 +14480,7 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
     // This tool exists to answer "why does fsh interpret this the way it does", and it was deriving
     // the word with split_whitespace while the shell derives it quote-aware. Measured on the debug
     // build: `why rm -rf /tmp` reported a destructive verb at 100% confidence, and
-    // `why "rm" -rf /tmp` reported that the word is not in the forest vocabulary -- for a line the
+    // `why "rm" -rf /tmp` reported that the word is not in the Project 0 vocabulary -- for a line the
     // shell treats identically and challenges either way. The explainer contradicted the shell in
     // the one place a user goes to find out what the shell will do.
     let cmd_word = command_word(input);
@@ -14507,7 +14507,7 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
             "  reversible: {}\n",
             if si.reversible { "yes" } else { "no" }
         ));
-        out.push_str(&format!("\n  Forest vocabulary rule:\n"));
+        out.push_str(&format!("\n  Project 0 vocabulary rule:\n"));
         match si.category {
             crate::semantic::VerbCategory::Observation => {
                 out.push_str("  Observation verbs never mutate state.\n");
@@ -14516,7 +14516,7 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
             crate::semantic::VerbCategory::Destructive => {
                 out.push_str("  Destructive verbs always show what will be destroyed.\n");
                 out.push_str("  Always require explicit confirmation.\n");
-                out.push_str("  Always logged to forest audit trail.\n");
+                out.push_str("  Always logged to the audit trail.\n");
             }
             crate::semantic::VerbCategory::Deployment => {
                 out.push_str("  Deployment verbs write to deploy_patterns.\n");
@@ -14528,7 +14528,7 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
         }
     } else {
         out.push_str(&format!(
-            "  {} is not in the forest vocabulary\n",
+            "  {} is not in the Project 0 vocabulary\n",
             first_word.bright_red()
         ));
         out.push_str("  Treated as raw UNIX command (Layer 3 direct)\n");

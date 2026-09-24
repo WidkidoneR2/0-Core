@@ -321,7 +321,7 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
             {
                 if expanded.contains(protected) {
                     return Some(format!(
-                        "🛡  Blocked: rm -rf on forest source '{}' — use git to manage removals",
+                        "🛡  Blocked: rm -rf on repo source '{}' — use git to manage removals",
                         protected
                     ));
                 }

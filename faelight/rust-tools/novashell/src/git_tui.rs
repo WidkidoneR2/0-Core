@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::process::Command;
 pub fn run_git_tui(core_root: &str, active_intent: Option<&str>) {
     println!();
-    println!("  {} gt -- forest git workflow", "🌿".green());
+    println!("  {} gt -- git workflow", "🌿".green());
     println!("  {}", "━".repeat(48).dimmed());
     println!();
     // Phase 1: Status

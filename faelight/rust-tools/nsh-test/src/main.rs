@@ -1198,7 +1198,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(forest_test(
         "devshell_write_inside_never_reaches_host",
         Category::Regression,
-        "devshell lives in the forest scripts directory and needs the checkout",
+        "devshell lives in the shell scripts directory and needs the checkout",
         || {
             let home = std::env::var("HOME").map_err(|e| format!("HOME: {e}"))?;
             let script = format!("{}/0-core/faelight/scripts/devshell", home);
@@ -1266,7 +1266,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(forest_test(
         "devshell_class_nothing_writable_or_connectable",
         Category::Regression,
-        "devshell lives in the forest scripts directory and needs the checkout",
+        "devshell lives in the shell scripts directory and needs the checkout",
         || {
             let home = std::env::var("HOME").map_err(|e| format!("HOME: {e}"))?;
             let script = format!("{}/0-core/faelight/scripts/devshell", home);
@@ -2016,16 +2016,16 @@ print('CLASS-DONE')"##;
     // neither fsh's builtins nor fsh's aliases), and neither was covered by the
     // 172/171 REPL tests. These two close that gap. Probed on gen 402 before writing.
     results.push(test("repl_173_builtin_dispatch", Category::Repl, || {
-        // fsh's own `type` builtin prints "forest builtin / handled natively by fsh".
+        // fsh's own `type` builtin prints "shell builtin / handled natively by fsh".
         // sh's `type` prints nothing like it, so this output PROVES fsh dispatched
         // its builtin -- invisible through `-c`, which would run sh's `type`.
         let out = repl::run_repl("type pwd")?;
         let joined = out.join("\n");
-        if joined.contains("forest builtin") {
+        if joined.contains("shell builtin") {
             Ok(())
         } else {
             Err(format!(
-                "fsh builtin dispatch not seen (expected 'forest builtin'): {joined:?}"
+                "fsh builtin dispatch not seen (expected 'shell builtin'): {joined:?}"
             ))
         }
     }));
