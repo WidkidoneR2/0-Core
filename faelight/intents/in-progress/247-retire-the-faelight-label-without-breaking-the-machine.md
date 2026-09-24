@@ -985,6 +985,83 @@ generators -- not from 2,000 separate edits.
     7  the compatibility links
 ```
 
+## 2026-09-24, EVENING -- FOREST IS FOUR LAYERS, NOT ONE. THE FIRST PASS.
+
+### The census, measured
+
+534 string literals in 289 .rs files contain forest, any case. The earlier 479 used a different
+definition; the two are not comparable line for line.
+
+```text
+    DATA    115   SQL: forest_* table names and domain = 'forest' keys
+    TOKEN    72   bare words: command names, D-Bus names, stored keys, nl.rs vocabulary
+    PATH     26
+    NAME      9   Faelight Forest
+    PROSE   234   154 in the engine: Friday sentences, help text, the sayings
+    LABEL    78
+    identifiers   35 distinct, 287 uses (ForestDb alone 164) -- code names, crate-rename territory
+```
+
+THE BUCKETS ARE HEURISTIC. Two help strings were sorted DATA and PATH only because they mention
+domain and state.db; one was sorted PROSE only for having five words. Sort by meaning, check by line.
+
+### The four layers
+
+```text
+    1  SCHEMA      ten forest_* tables in state.db, counted read-only 2026-09-24:
+                   forest_events 94,558 rows, forest_predictions 21,614, forest_insights 226,
+                   forest_events_v2 6, forest_memory 4, forest_goals 1, forest_mandates 1,
+                   forest_plans 1, forest_tradeoffs 1, forest_strategies 0.
+                   A DATA MIGRATION under Layer 3's rules. Never a text edit.
+    2  CONTRACTS   D-Bus org.faelight.Forest.*, daemon GetForestContext and ForestContext,
+                   commands forest-stats cp-forest mv-forest forest-ade, the --forest flags,
+                   the FOREST_ prefix, thirteen nl.rs words. Alias first, like a crate.
+    3  PROSE       the sayings are Christian's (item 2); the rest is sorted per crate.
+    4  LABELS      item 1 proper.
+```
+
+Layers 1 and 2 have no line in "Next, in order". Proposed as their own items -- NOT YET RULED.
+
+### The vocabulary, approved by Christian 2026-09-24
+
+```text
+    forest meaning the whole project        ->  Project 0
+    forest meaning state, health, events    ->  the word is dropped
+    forest meaning the repo                 ->  repo
+    the tree emoji                          stays until the sayings pass
+```
+
+### Pass 1 -- cf7db6b9
+
+26 strings in novashell's help text: cheatsheet_tui.rs, completion.rs, registry.rs, schema.rs. Every
+anchor was preflighted -- once in its file, on its census line -- before anything was written, and
+fpatch verified each on disk. novashell 221 passed; nsh-test 202/202 after ship. One forest literal
+remains in those files: the forest-stats command name, a contract.
+
+It was applied in two halves. The first 18 were the census LABEL bucket; fpatch's own context then
+printed a help string the bucket had missed, and eight more were found. THE COMMIT WAITED until the
+four files were finished, so its message is true.
+
+### The guard cannot take forest yet
+
+no_retired_display_name_in_printed_strings matches with lit.contains(name), case-sensitive. A plain
+forest entry would go red on the SQL literals and stored keys forever. It also reads one line at a
+time, so a literal spanning lines is seen only on its first line, and it skips only whole-line
+comments. How forest joins is decided when the label pass is finished, not before.
+
+### Found, not fixed
+
+```text
+    forest_memory            a table with 4 rows that no code reads
+    forest_lesson,
+    forest_operations        named in code, no such table
+    doctor section header    prints Forest, but not from a literal the guard can see;
+                             faelight-doctor probes/mod.rs has a forest identifier. Next read.
+    welcome banner           prints a forest label and the growing-fast saying; source not located
+    cheatsheet_tui.rs        Reload fsh configuration (old shell name); Nix store operations (NixOS)
+    completion.rs:810        faelight-git helper -- the faelight pass
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
