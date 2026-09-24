@@ -1339,6 +1339,45 @@ section above.
     the tree emoji on Friday   the sayings (item 6)
 ```
 
+## 2026-09-24, NIGHT -- ITEM 1 DONE; ITEM 2 PASSES 5 AND 6
+
+```text
+    2d376e42   ITEM 1 DONE: System Services retired. d shows no Unknown and no
+               faelight-session.target. INT-237 ruled on 2026-09-02 that Project 0 runs no user
+               services on Omarchy, so the probe could only ever answer Unknown. 27 checks now;
+               three count tests pin 27 checks, 27 probes and 25 judging
+    cfd5961d   PASS 5: 27 NovaShell lines. forest builtin/script -> shell builtin/script, bash's
+               own wording. The type test in nsh-test changed in the same commit as the text it
+               checks
+    c6b9a934   PASS 6: 33 lines across nine engine domains and deadwood. Deadwood's header also
+               lost "Faelight"
+```
+
+### Left on purpose, and where each goes
+
+```text
+    the sayings     every personified line -- "The forest advises. You decide.", "...The human
+                    decides.", "The forest observes.", "The forest remembers", "The Living
+                    Forest", "sheds dead wood", "The forest is tidy", the banner's "growing
+                    fast". Christian's voice: item 6
+    box headers     Forest Health and the Forest box in NovaShell, Forest Narrative in the
+                    engine -- the whole box is read before its title changes width
+    spine terms     "forest value pipeline", "forest value verb": refusal reasons the migrate
+                    audit may compare as text. Recon first
+    contracts       the nl.rs phrases, the forest theme name, Forest ADE: the contracts intent
+```
+
+### Found on the way
+
+```text
+    ~/.local/share/forest-trash   a sixth outside directory, named at mod.rs:4016 and :4092.
+                                  Joins item 4
+    "handled natively by fsh"     type still prints the shell's pre-NovaShell name
+    a check that hid its answer   cargo test piped to tail -5 showed only the doc-test line
+                                  (0 tests) and scrolled the unit-test result away. Test runs
+                                  now print every "test result" line through a filter
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
