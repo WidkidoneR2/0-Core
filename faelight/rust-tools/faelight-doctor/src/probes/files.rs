@@ -53,56 +53,101 @@ pub fn broken_symlinks() -> Measurement {
     }
 }
 
-/// The `zero` aliases resolve to the `faelight` directories.
+/// The two names of each migrating directory, `zero` and `faelight`, are ONE directory.
 ///
-/// ⭐ THIS CHECK EXISTS TO WATCH A MIGRATION IN PROGRESS. INT-247 Layer 3b created
-/// `~/.local/state/zero -> faelight` and `~/.config/zero -> faelight`, and the week between
-/// creating them and flipping the writers is exactly when something could quietly disturb them.
+/// ⭐ DIRECTION-AGNOSTIC, 2026-09-24 (INT-247 Layer 3b). Before the flip `zero` links to
+/// `faelight`; after it `faelight` links to `zero`. The invariant true at EVERY moment of the
+/// migration is the one checked: exactly one name is a real directory and the other links to
+/// it. The pass message names the real one, so the flip is visible in `d` as it happens.
 ///
-/// ⚠️ FOUR DISTINCT STATES, NOT TWO. Absent, a REAL DIRECTORY where a link should be (which
-/// means writes are splitting between two places), dangling, and resolving somewhere else are
-/// all different problems with different fixes. Collapsing them to "broken" would lose the one
-/// that matters most -- a real directory looks fine until you notice half your state is missing.
+/// ⚠️ DISTINCT STATES, NOT COLLAPSED. Absent, unreadable, dangling, resolving elsewhere,
+/// two links, and TWO REAL DIRECTORIES -- the last means writes are splitting between two places,
+/// and it looks fine until you notice half your state is missing. Unreadable is NOT reported as
+/// absent: an entry the probe could not read is a different finding from one that is not there.
+///
+/// The previous version asserted one direction and read the config side through
+/// faelight_config_dir(), which returns the `zero` path once paths.rs flips -- it would have
+/// compared a name with itself, a check that cannot fail. Both names are spelled out here.
 pub fn zero_alias() -> Measurement {
-    let pairs = [
-        (
-            faelight_core::paths::state_home().join("zero"),
-            faelight_core::paths::state_home().join("faelight"),
-        ),
-        (
-            faelight_core::paths::config_dir().join("zero"),
-            faelight_core::paths::faelight_config_dir(),
-        ),
+    let chains = [
+        ("state", faelight_core::paths::state_home()),
+        ("config", faelight_core::paths::config_dir()),
     ];
     let mut issues: Vec<String> = Vec::new();
-    for (link, target) in &pairs {
-        let name = link.display().to_string();
-        match fs::symlink_metadata(link) {
-            Err(_) => issues.push(format!("{} absent", name)),
-            Ok(meta) => {
-                if !meta.file_type().is_symlink() {
-                    issues.push(format!("{} is a REAL DIRECTORY, not a link", name));
-                } else if !link.exists() {
-                    issues.push(format!("{} dangles", name));
-                } else {
-                    match (fs::canonicalize(link), fs::canonicalize(target)) {
-                        (Ok(a), Ok(b)) if a == b => {}
-                        (Ok(a), Ok(b)) => issues.push(format!(
-                            "{} resolves to {}, not {}",
-                            name,
-                            a.display(),
-                            b.display()
-                        )),
-                        _ => issues.push(format!("{} could not be resolved", name)),
-                    }
-                }
-            }
+    let mut real: Vec<String> = Vec::new();
+    for (label, base) in &chains {
+        match alias_pair(&base.join("zero"), &base.join("faelight")) {
+            Ok(name) => real.push(format!("{}={}", label, name)),
+            Err(e) => issues.push(e),
         }
     }
     if issues.is_empty() {
-        Measurement::pass("state and config aliases resolve to the faelight directories")
+        let msg = format!(
+            "both names resolve to one directory -- real: {}",
+            real.join(", ")
+        );
+        Measurement::pass(&msg)
     } else {
         Measurement::warn(issues.join("; "))
+    }
+}
+
+/// One entry, read without following a link. NotFound is "absent"; any other error is
+/// "could not be read" -- the two are different findings and must not collapse.
+fn alias_entry(p: &std::path::Path) -> Result<fs::Metadata, String> {
+    fs::symlink_metadata(p).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!("{} absent", p.display())
+        } else {
+            format!("{} could not be read: {}", p.display(), e)
+        }
+    })
+}
+
+/// One chain: `zero` and `faelight` must be ONE directory under two names, in EITHER direction.
+/// Ok carries the name that is the real directory; Err is the finding, naming the path.
+fn alias_pair(zero: &std::path::Path, old: &std::path::Path) -> Result<String, String> {
+    let (mz, mo) = match (alias_entry(zero), alias_entry(old)) {
+        (Ok(a), Ok(b)) => (a, b),
+        (Err(a), Err(b)) => return Err(format!("{}; {}", a, b)),
+        (Err(e), _) | (_, Err(e)) => return Err(e),
+    };
+    let (real, link) = match (mz.file_type().is_symlink(), mo.file_type().is_symlink()) {
+        (false, true) => (zero, old),
+        (true, false) => (old, zero),
+        (false, false) => {
+            return Err(format!(
+                "{} and {} are BOTH REAL, neither is a link -- writes are splitting between them",
+                zero.display(),
+                old.display()
+            ))
+        }
+        (true, true) => {
+            return Err(format!(
+                "{} and {} are both links -- neither is the real directory",
+                zero.display(),
+                old.display()
+            ))
+        }
+    };
+    if !real.is_dir() {
+        return Err(format!("{} is not a directory", real.display()));
+    }
+    if !link.exists() {
+        return Err(format!("{} dangles", link.display()));
+    }
+    match (fs::canonicalize(link), fs::canonicalize(real)) {
+        (Ok(a), Ok(b)) if a == b => Ok(real
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| real.display().to_string())),
+        (Ok(a), Ok(b)) => Err(format!(
+            "{} resolves to {}, not {}",
+            link.display(),
+            a.display(),
+            b.display()
+        )),
+        _ => Err(format!("{} could not be resolved", link.display())),
     }
 }
 
@@ -168,6 +213,104 @@ mod tests {
                 m.message
             );
         }
+    }
+
+    /// A pid-unique scratch base, recreated empty so a rerun starts clean.
+    fn alias_scratch(name: &str) -> std::path::PathBuf {
+        let d =
+            std::env::temp_dir().join(format!("doctor-zero-alias-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn alias_pair_passes_in_both_directions() {
+        use std::os::unix::fs::symlink;
+        // BEFORE the flip: faelight is real, zero links to it
+        let b = alias_scratch("before");
+        std::fs::create_dir(b.join("faelight")).unwrap();
+        symlink("faelight", b.join("zero")).unwrap();
+        assert_eq!(
+            alias_pair(&b.join("zero"), &b.join("faelight")),
+            Ok("faelight".to_string())
+        );
+        // AFTER the flip: zero is real, faelight links to it
+        let a = alias_scratch("after");
+        std::fs::create_dir(a.join("zero")).unwrap();
+        symlink("zero", a.join("faelight")).unwrap();
+        assert_eq!(
+            alias_pair(&a.join("zero"), &a.join("faelight")),
+            Ok("zero".to_string())
+        );
+        let _ = std::fs::remove_dir_all(&b);
+        let _ = std::fs::remove_dir_all(&a);
+    }
+
+    #[test]
+    fn alias_pair_names_every_broken_state() {
+        use std::os::unix::fs::symlink;
+        let two_real = alias_scratch("two-real");
+        std::fs::create_dir(two_real.join("zero")).unwrap();
+        std::fs::create_dir(two_real.join("faelight")).unwrap();
+
+        let two_links = alias_scratch("two-links");
+        symlink("faelight", two_links.join("zero")).unwrap();
+        symlink("zero", two_links.join("faelight")).unwrap();
+
+        let dangling = alias_scratch("dangling");
+        std::fs::create_dir(dangling.join("faelight")).unwrap();
+        symlink("nowhere", dangling.join("zero")).unwrap();
+
+        let absent = alias_scratch("absent");
+        std::fs::create_dir(absent.join("faelight")).unwrap();
+
+        let elsewhere = alias_scratch("elsewhere");
+        std::fs::create_dir(elsewhere.join("faelight")).unwrap();
+        std::fs::create_dir(elsewhere.join("other")).unwrap();
+        symlink("other", elsewhere.join("zero")).unwrap();
+
+        for (base, finding) in [
+            (&two_real, "BOTH REAL"),
+            (&two_links, "both links"),
+            (&dangling, "dangles"),
+            (&absent, "absent"),
+            (&elsewhere, "resolves to"),
+        ] {
+            let r = alias_pair(&base.join("zero"), &base.join("faelight"));
+            let e = r.expect_err(finding);
+            assert!(e.contains(finding), "expected {:?} in: {}", finding, e);
+            assert!(e.contains('/'), "a finding must name its path: {}", e);
+            let _ = std::fs::remove_dir_all(base);
+        }
+    }
+
+    #[test]
+    fn alias_pair_says_unreadable_not_absent() {
+        use std::os::unix::fs::PermissionsExt;
+        let b = alias_scratch("unreadable");
+        let locked = b.join("locked");
+        std::fs::create_dir(&locked).unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+        // root reads through 000, so the case cannot be built there -- skip rather than lie
+        let can_bypass = std::fs::read_dir(&locked).is_ok();
+        let r = alias_pair(&locked.join("zero"), &locked.join("faelight"));
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let _ = std::fs::remove_dir_all(&b);
+        if can_bypass {
+            return;
+        }
+        let e = r.expect_err("an unreadable parent must not pass");
+        assert!(
+            e.contains("could not be read"),
+            "unreadable reported as: {}",
+            e
+        );
+        assert!(
+            !e.contains("absent"),
+            "unreadable collapsed to absent: {}",
+            e
+        );
     }
 
     #[test]
