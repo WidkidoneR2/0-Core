@@ -1456,6 +1456,8 @@ fn show_shell_progress(lessons: &[Lesson]) {
 }
 
 fn main() {
+    // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
+    faelight_core::restore_sigpipe();
     let args: Vec<String> = std::env::args().collect();
 
     // Fast flags

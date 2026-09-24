@@ -204,6 +204,8 @@ fn cmd_public(dry_run: bool) {
 }
 
 fn main() {
+    // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
+    faelight_core::restore_sigpipe();
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
 

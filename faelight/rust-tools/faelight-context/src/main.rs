@@ -460,6 +460,8 @@ fn cmd_decisions(path: &str) {
 }
 
 fn main() {
+    // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
+    faelight_core::restore_sigpipe();
     let cli = Cli::parse();
 
     if cli.health {

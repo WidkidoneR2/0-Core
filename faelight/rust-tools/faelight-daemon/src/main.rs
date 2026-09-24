@@ -25,6 +25,7 @@ struct Cli {
 }
 
 #[tokio::main]
+// INT-256-EXEMPT: A daemon. It has no stdout consumer to close a pipe on it.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 

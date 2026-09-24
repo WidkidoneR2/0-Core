@@ -100,6 +100,40 @@ pub fn differs(a: &std::path::Path, b: &std::path::Path) -> bool {
     }
 }
 
+/// Die on a broken pipe the way every Unix tool has since pipes existed.
+///
+/// Call it as the FIRST statement of `main`, before any output.
+///
+/// The Rust runtime sets SIGPIPE to SIG_IGN at startup, so a write to a closed pipe returns EPIPE
+/// instead of killing the process -- and `println!` unwraps that and panics. `tool | head -3`
+/// then prints a panic where output should be.
+///
+/// ⭐ MEASURED 2026-09-23, three identical programs printing 100,000 lines into `head -2`:
+///
+/// ```text
+///     nothing                       exit 101   thread 'main' panicked at io/stdio.rs
+///     signal(SIGPIPE, SIG_DFL)      exit 141   silent
+///     signal + a panic hook         exit 141   silent -- THE HOOK NEVER FIRES
+///     seq 1 100000 (the reference)  exit 141
+/// ```
+///
+/// ⚠️ SO THE ONE LINE IS ENOUGH, AND A PANIC HOOK BESIDE IT IS DEAD CODE. The process is killed by
+/// the signal before stdio ever reports EPIPE, so a hook that converts "Broken pipe" panics into
+/// `exit(0)` never runs. Two tools in this workspace carry such a hook (INT-249b in `core`, whose
+/// comment claims SIG_DFL alone is insufficient -- measured false on this Rust version). The claim
+/// was tested rather than inherited; if a future Rust changes the ordering, re-run the three
+/// programs above before adding one back.
+///
+/// ⭐ AND 141 IS THE POINT, NOT A SIDE EFFECT. `seq` and `yes` exit 141 when `head` closes the
+/// pipe, because they die by SIGPIPE. A tool that exits 0 instead is claiming it finished when it
+/// was cut off. `nsh-test` is the deliberate exception -- INT-219 -- and exits 2 with its own hook,
+/// because a truncated test run must not read as a complete one.
+///
+/// ⚠️ NOT FOR THE SHELL. `novashell` must IGNORE SIGPIPE so its own writes return EPIPE and can be
+/// handled, while children get SIG_DFL restored in `spawn_pipeline`'s `pre_exec`. Calling this in
+/// nsh would reintroduce INT-299's defect: a process-wide reset that turned a visible panic into a
+/// silent fatal signal. Both halves of that arrangement are load-bearing -- without the per-child
+/// restore, `yes | head -3` spins forever.
 pub fn restore_sigpipe() {
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);

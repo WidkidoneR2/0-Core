@@ -5,6 +5,9 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+# INT-256: libc for the broken-pipe signal only -- see main.rs. NOT faelight-core: one
+# signal call does not justify carrying the ledger crate.
+libc = "0.2"
 rand = "0.8"
 colored = "2"
 clap = { version = "4", features = ["derive"] }

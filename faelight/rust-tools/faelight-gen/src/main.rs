@@ -69,6 +69,13 @@ enum Commands {
 }
 
 fn main() {
+    // INT-256: FIRST statement, before any output. INLINE rather than the faelight_core
+    // helper, because this crate does not depend on faelight-core and one signal call is not
+    // worth a ledger crate. The reasoning -- why SIG_DFL, why 141, why no panic hook -- lives in
+    // faelight_core::restore_sigpipe's doc comment.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let cli = Cli::parse();
     match cli.command {
         None => run_tui(),

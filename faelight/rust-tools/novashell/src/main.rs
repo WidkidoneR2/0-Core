@@ -787,6 +787,7 @@ pub(crate) fn mark(what: &str) {
     });
 }
 
+// INT-256-EXEMPT: INT-299. The SHELL must IGNORE SIGPIPE so its own writes return EPIPE and can be handled; children get SIG_DFL restored in spawn_pipeline pre_exec. A process-wide reset here turned a visible panic into a silent fatal signal once already.
 fn main() -> Result<()> {
     // INT-182 profiled startup once and INT-176 found a 643ms doctor run inside it. This is
     // the same instrument, kept: fsh -c true costs 305ms in release against bash's 3ms, and

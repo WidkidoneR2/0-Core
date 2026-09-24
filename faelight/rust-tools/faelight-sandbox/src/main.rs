@@ -564,6 +564,8 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
 }
 
 fn main() -> Result<()> {
+    // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
+    faelight_core::restore_sigpipe();
     // The exit status of the command the sandbox ran. 0 until a Run arm sets it.
     let mut child_exit_code = 0i32;
     let cli = Cli::parse();

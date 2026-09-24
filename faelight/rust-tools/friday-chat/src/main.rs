@@ -717,6 +717,7 @@ fn friday_explain(db: &Connection, subject: &str) -> String {
     }
 }
 
+// INT-256-EXEMPT: An interactive chat TUI. Nothing pipes it to head.
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     // Support: friday chat why [term] -- direct query mode

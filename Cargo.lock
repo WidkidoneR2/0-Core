@@ -905,6 +905,7 @@ dependencies = [
  "clap",
  "colored",
  "crossterm 0.27.0",
+ "libc",
  "rand 0.8.6",
  "ratatui 0.26.3",
  "sha2",
@@ -1002,6 +1003,9 @@ dependencies = [
 [[package]]
 name = "faelight-vm"
 version = "0.1.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "faelight-zone"
@@ -3879,6 +3883,9 @@ dependencies = [
 [[package]]
 name = "zero-gate"
 version = "0.1.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "zerocopy"

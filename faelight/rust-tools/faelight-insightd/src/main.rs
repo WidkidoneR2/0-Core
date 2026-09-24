@@ -255,6 +255,7 @@ fn run_once(conn: &Connection) {
         params![now],
     );
 }
+// INT-256-EXEMPT: A daemon. It has no stdout consumer to close a pipe on it.
 fn main() {
     match Cmd::from_args() {
         Cmd::Status => {

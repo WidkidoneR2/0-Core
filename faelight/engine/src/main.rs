@@ -16,26 +16,25 @@ mod logging;
 mod runtime;
 
 fn main() {
-    // INT-249b: SIGPIPE handling -- exit silently when piped to head/grep/etc
-    // SIG_DFL alone is insufficient because Rust stdio panics on EPIPE before SIGPIPE fires.
-    // Combine: signal handler + panic hook for broken-pipe writes.
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-    }
-    std::panic::set_hook(Box::new(|info| {
-        let msg = info
-            .payload()
-            .downcast_ref::<String>()
-            .map(|s| s.as_str())
-            .or_else(|| info.payload().downcast_ref::<&str>().copied())
-            .unwrap_or("");
-        if msg.contains("Broken pipe") || msg.contains("os error 32") {
-            std::process::exit(0);
-        }
-        // Other panics: print and exit non-zero like default
-        eprintln!("{}", info);
-        std::process::exit(101);
-    }));
+    // INT-256, correcting INT-249b. The signal stays; THE PANIC HOOK IS GONE, and the comment
+    // that justified it was measured FALSE on 2026-09-23.
+    //
+    // It claimed "SIG_DFL alone is insufficient because Rust stdio panics on EPIPE before SIGPIPE
+    // fires". Three identical programs printing 100,000 lines into `head -2`:
+    //
+    //     nothing                   exit 101   panicked at io/stdio.rs
+    //     signal(SIGPIPE, SIG_DFL)  exit 141   silent
+    //     signal + this hook        exit 141   silent -- THE HOOK NEVER RAN
+    //     seq 1 100000              exit 141   the reference
+    //
+    // The process is killed by the signal before stdio reports EPIPE, so the hook's exit(0) was
+    // unreachable -- and had it run it would have been WRONG: exit 0 claims the command finished
+    // when `head` cut it off. 141 is what seq and yes report.
+    //
+    // ⚠️ THE HOOK ALSO HANDLED EVERY OTHER PANIC (eprintln then exit 101). That is what Rust does
+    // by default, so nothing is lost -- but it was a second behaviour riding along inside a
+    // broken-pipe fix, and removing it is a deliberate change rather than a side effect.
+    faelight_core::restore_sigpipe();
     let cmd = cli::parse();
 
     let ctx = match app::context::AppContext::init() {

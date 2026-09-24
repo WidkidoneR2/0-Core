@@ -249,6 +249,14 @@ fn gate_rustfmt(root: &Path, staged: &[String]) -> Verdict {
 }
 
 fn main() -> ExitCode {
+    // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
+    // INLINE, NOT the faelight_core helper: this crate DELIBERATELY has no faelight-core
+    // dependency -- see the comment in its Cargo.toml: "a gate that needs an intent ledger to
+    // run `cargo fmt` is carrying a house to hold a door open." The body is one line; the
+    // reasoning lives in faelight_core::restore_sigpipe's doc comment.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let stage = args.first().map(String::as_str).unwrap_or("pre-commit");
 

@@ -8,3 +8,6 @@ edition = "2021"
 # faelight-core: that crate carries 0-Core's directory layout, and a gate that needs an intent
 # ledger to run `cargo fmt` is carrying a house to hold a door open.
 [dependencies]
+# INT-256: libc ONLY, not faelight-core. The broken-pipe fix is one signal call, and the
+# comment above records why this gate does not carry the ledger crate to get it.
+libc = "0.2"

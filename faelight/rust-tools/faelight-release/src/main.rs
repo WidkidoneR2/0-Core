@@ -78,10 +78,10 @@ fn core_root() -> PathBuf {
 }
 
 fn main() -> Result<()> {
-    // Handle broken pipe gracefully (e.g. when piped to head)
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-    }
+    // INT-256: was its own inline copy of the same signal call. The reasoning -- why SIG_DFL,
+    // why exit 141, why not a panic hook -- lives in faelight_core::restore_sigpipe's doc comment
+    // rather than being restated in each of the tools that need it.
+    faelight_core::restore_sigpipe();
 
     let cli = Cli::parse();
     let root = core_root();

@@ -3437,6 +3437,7 @@ fn slug(line: &str) -> String {
     s
 }
 
+// INT-256-EXEMPT: INT-219. Exits 2 with its own hook ON PURPOSE -- a truncated test run must not read as a complete one, and 141 would claim we died of SIGPIPE when we caught EPIPE and chose to stop.
 fn main() {
     // INT-219: A TRUNCATED RUN MUST NOT LOOK LIKE A COMPLETE ONE.
     //

@@ -199,6 +199,9 @@ fn main() {
             check_registry_orphans(&root),
         );
     }
+    if run("sigpipe") {
+        reported += report("SIGPIPE adoption (INT-256)", check_sigpipe_adoption(&root));
+    }
     if run("cmdword") {
         let (found, exempt) = check_command_word_derivations(&root);
         reported += report(
@@ -656,6 +659,75 @@ fn parse_alias(line: &str) -> Option<(String, String)> {
 }
 
 const BAK_PROTECT: &[&str] = &["regreet"];
+
+/// INT-256: every binary that prints must survive `tool | head -3`, or say why it is exempt.
+///
+/// THE DEFECT THIS EXISTS FOR IS NOT THE MISSING FIX, IT IS THE MISSING ADOPTION. On 2026-08-27
+/// someone found a fleet-wide bug, wrote the one-line cure in faelight_core::restore_sigpipe,
+/// documented it well, and fixed the three tools in front of them. Nothing asked the other twenty.
+/// By 2026-09-23 four were measured still panicking -- teach, faelight-docs, faelight-git,
+/// faelight-context -- and SIX tools had solved it independently in FOUR different shapes: the
+/// helper, an inline signal call, a signal plus a panic hook, and a hook with its own exit code.
+///
+/// ⭐ THE RULE IS ONLY REAL ONCE SOMETHING ELSE ENFORCES IT. Same reasoning as the INT-195
+/// command-word check beneath this one.
+///
+/// ⚠️ AND THE EXEMPTIONS ARE PART OF THE CHECK, NOT A WEAKNESS IN IT. novashell must IGNORE
+/// SIGPIPE (INT-299), nsh-test exits 2 on purpose (INT-219), TUIs are never piped, daemons do not
+/// print. A check that flags those forever is a check that gets muted -- INT-195 G5's finding.
+/// An exemption must SAY ITS REASON on the marker line.
+fn check_sigpipe_adoption(root: &Path) -> Checked<Vec<Finding>> {
+    let mut out = Vec::new();
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    let tools = root.join("faelight/rust-tools");
+    let entries =
+        std::fs::read_dir(&tools).map_err(|e| Skipped::new(tools.display().to_string(), e))?;
+    for e in entries.flatten() {
+        if e.path().is_dir() {
+            dirs.push(e.path());
+        }
+    }
+    dirs.push(root.join("faelight/engine"));
+    dirs.sort();
+    for d in dirs {
+        let main_rs = d.join("src/main.rs");
+        if !main_rs.exists() {
+            continue; // a library crate has no main to guard
+        }
+        // INT-192: an unreadable source must not report clean.
+        let text = std::fs::read_to_string(&main_rs)
+            .map_err(|e| Skipped::new(main_rs.display().to_string(), e))?;
+        if text.contains("INT-256-EXEMPT") {
+            continue;
+        }
+        let Some(pos) = text
+            .find("\nfn main")
+            .or_else(|| text.find("\nasync fn main"))
+        else {
+            continue; // no main in this file
+        };
+        // The call must be EARLY -- "first statement, before any output" -- so only the opening
+        // of main is inspected. A signal call buried three hundred lines down is not the contract.
+        let head: String = text[pos..].lines().take(12).collect::<Vec<_>>().join("\n");
+        if head.contains("restore_sigpipe") || head.contains("SIGPIPE") {
+            continue;
+        }
+        let name = d
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        out.push(Finding {
+            confidence: Confidence::High,
+            detail: format!(
+                "{} does not call faelight_core::restore_sigpipe() in the first statements of main, \
+                 and carries no `// INT-256-EXEMPT: <reason>` -- `{} ... | head -3` will print a panic",
+                name, name
+            ),
+            action: None,
+        });
+    }
+    Ok(out)
+}
 
 fn check_stale_baks(root: &Path, age_days: u64) -> Vec<Finding> {
     let now = std::time::SystemTime::now();

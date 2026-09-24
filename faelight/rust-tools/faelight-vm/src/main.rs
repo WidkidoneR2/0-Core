@@ -646,6 +646,13 @@ fn usage() -> ! {
 }
 
 fn main() {
+    // INT-256: FIRST statement, before any output. INLINE rather than the faelight_core
+    // helper, because this crate does not depend on faelight-core and one signal call is not
+    // worth a ledger crate. The reasoning -- why SIG_DFL, why 141, why no panic hook -- lives in
+    // faelight_core::restore_sigpipe's doc comment.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let a: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = a.iter().map(|s| s.as_str()).collect();
     match args.as_slice() {

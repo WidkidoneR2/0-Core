@@ -599,6 +599,7 @@ fn draw_status(f: &mut ratatui::Frame, app: &App, area: Rect) {
     f.render_widget(p, area);
 }
 
+// INT-256-EXEMPT: A full-screen TUI. Nothing pipes it to head; it owns the terminal.
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let initial_table = args.get(1).map(|s| s.as_str());

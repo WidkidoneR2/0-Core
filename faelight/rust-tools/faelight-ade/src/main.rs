@@ -614,6 +614,7 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
 }
 
 #[tokio::main]
+// INT-256-EXEMPT: A full-screen TUI (raw mode, alternate screen). Nothing pipes it to head.
 async fn main() -> anyhow::Result<()> {
     let mut app = App::new()?;
 
