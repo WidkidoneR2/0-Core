@@ -1,9 +1,26 @@
-"""Guarded source patching. Import from a python heredoc:
+"""Guarded source patching. Invoked as ONE argv word, from anywhere:
 
-    import sys; sys.path.insert(0, "faelight/scripts/dev")
-    from fpatch import patch
+    python3 -c 'import base64,sys; exec(base64.b64decode(sys.argv[1]).decode("utf-8"))' <b64>
+
+    ...where the decoded payload begins:
+
+    import sys
+    sys.path.insert(0, "/home/christian/0-core/faelight/scripts/dev")
+    from fpatch import patch, patch_between
     patch("path/to.rs", old, new)          # expects exactly one match
     patch("path/to.rs", old, new, count=2) # or state the count
+
+⚠️ THE PATH IS ABSOLUTE, AND THAT IS THE FIX FOR INT-258. This example said
+"faelight/scripts/dev" for months -- a RELATIVE path, which resolves only when the caller happens
+to be in the repository root. Verified 2026-09-23: the absolute form imports from /tmp; the
+relative one cannot.
+
+⭐ AND THERE IS DELIBERATELY NO CLI. A command line would take `old` and `new` as SHELL arguments,
+putting generated text back into shell syntax -- the failure AGENTS.md calls this project's most
+repeated, and whose own rule says "remove the shell from the transport path instead". Inside a
+python payload the anchors stay Python string literals, where no shell can touch them.
+
+Set FPATCH_COLOR=0 when the output is captured rather than read in a terminal.
 
 Every guard here exists because a real edit failed without it.
 

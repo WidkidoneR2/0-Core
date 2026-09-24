@@ -517,6 +517,23 @@ Build to understand, replace when better exists, keep the intelligence in our ow
 
 Edits go through **`fpatch`** (`faelight/scripts/dev/fpatch.py`), not ad-hoc rewriting.
 
+⚠️ INT-258: THIS RULE EXISTED FOR MONTHS WITHOUT SAYING HOW TO OBEY IT. fpatch has no CLI, nothing
+imported it, and its own docstring gave a RELATIVE sys.path -- so the only two invocations since
+the migration were `fpatch --help`, which is not a command and never was. The form is now stated
+here, because a mandated tool nobody can call is a rule that gets worked around:
+
+    import sys
+    sys.path.insert(0, "/home/christian/0-core/faelight/scripts/dev")
+    from fpatch import patch, patch_between
+    patch("path/to.rs", old, new)
+
+ABSOLUTE path, always -- the relative one resolves only from the repository root. The payload
+crosses the shell as ONE argv word per the transport rule below, so `old` and `new` stay Python
+string literals. That is also why there is NO CLI: shell arguments would put the anchors back into
+shell syntax, which is the failure that rule exists to prevent.
+
+`_refuse` exits 1 and promises nothing was written; `_internal` exits 2 and promises nothing.
+
 - Anchors must match the file byte for byte, including whitespace. An anchor that matches three
   lines is refused; widen it until it is unique rather than guessing.
 - Any edit invalidates every line number below it. Re-read before the next edit — never patch
@@ -549,7 +566,12 @@ The rule:
 
 - Non-trivial generated source or text goes **base64 -> temp file -> execute**, never inline:
 
-      echo 'PAYLOAD' | base64 -d > /tmp/p.py && python3 /tmp/p.py && rm -f /tmp/p.py
+      python3 -c 'import base64,sys; exec(base64.b64decode(sys.argv[1]).decode("utf-8"))' PAYLOAD
+
+  ⚠️ SUPERSEDED 2026-09-13, corrected here 2026-09-23. This block still showed
+  `echo PAYLOAD | base64 -d > /tmp/p.py`, which the ruling replaced: a fixed /tmp path collides
+  between concurrent runs, and the redirect puts the payload through shell syntax on the way in.
+  ONE argv word, or mktemp -- never a fixed temporary file.
 
 - Anything small enough to stay inline uses **single quotes** -- `python3 -c '...'` -- which
   disables every expansion. Double quotes do not.
