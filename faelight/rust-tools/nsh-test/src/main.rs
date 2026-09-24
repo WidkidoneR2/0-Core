@@ -1358,6 +1358,56 @@ print('CLASS-DONE')"##;
             Ok(())
         },
     ));
+    // INT-259: the live filter, proven by the CONTRAST rather than by a count.
+    //
+    // A row count would drift with every commit; "the archive appears without the flag and does
+    // not appear with it" stays true as the tree grows. Measured 2026-09-23: `fsearch paths.rs`
+    // returned 68 rows and 61 of them were the intent archive.
+    //
+    // ⚠️ AN EXPLICIT ROOT, not the harness's working directory. The harness sets NSH_KEEP_CWD, so
+    // the shell stays wherever it was launched -- a case that relied on the cwd would be asserting
+    // about whatever directory the runner happened to be in.
+    results.push(forest_test(
+        "repl_259_live_excludes_the_archive",
+        Category::Repl,
+        "the live filter is about this repository's own archive, so it needs the checkout",
+        || {
+            let root = format!("{}/0-core/faelight", std::env::var("HOME").unwrap_or_default());
+            let (all, _) = repl::run_repl_lines_status(
+                &[&format!("fsearch restore_sigpipe {}", root)],
+                &[],
+            )?;
+            let all = all.join("\n");
+            // RED FIRST, INSIDE THE CASE: if the unfiltered search does not reach the archive,
+            // the filtered one proving empty would mean nothing.
+            // "faelight/inten", not "intents/": the table TRUNCATES the path column --
+            // rows read "/home/.../faelight/inten...", so the string I first asserted on
+            // could never appear. The case failed and the shell was right.
+            if !all.contains("faelight/inten") {
+                return Err(format!(
+                    "the unfiltered search found no archive rows, so this case cannot test the filter: {}",
+                    all.chars().take(200).collect::<String>()
+                ));
+            }
+            let (live, _) = repl::run_repl_lines_status(
+                &[&format!("fsearch restore_sigpipe {} --live", root)],
+                &[],
+            )?;
+            let live = live.join("\n");
+            if live.contains("faelight/inten") {
+                return Err(format!(
+                    "--live still returned archive rows: {}",
+                    live.lines().filter(|l| l.contains("faelight/inten")).take(2).collect::<Vec<_>>().join(" | ")
+                ));
+            }
+            // AND IT MUST STILL FIND THE LIVE CODE. A filter that returns nothing at all would
+            // pass the assertion above while being useless -- the empty-is-an-answer trap.
+            if !live.contains("restore_sigpipe") {
+                return Err(format!("--live returned no live code either: {}", live.chars().take(200).collect::<String>()));
+            }
+            Ok(())
+        },
+    ));
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which core")?, "core")
     }));

@@ -4414,14 +4414,11 @@ fn execute_dispatch(
             // fsearch "fn expand" --type rs          -- only .rs files
             // fsearch "fn expand" --file main.rs     -- only in specific file
             if args.is_empty() {
-                return CommandResult::Error(
-                    "usage: search <pattern> [--type ext] [--file name]"
-                        .to_string()
-                        .into(),
-                    1,
-                );
+                return CommandResult::Error(FSEARCH_USAGE.to_string().into(), 1);
             }
             // INT-249b: collect all positional args before flags as pattern phrase
+            // INT-259: see the --live arm below for what "history" means and why.
+            let mut exclude_history = false;
             let mut filter_type: Option<&str> = None;
             let mut filter_file: Option<&str> = None;
             let mut search_root: Option<std::path::PathBuf> = None;
@@ -4481,15 +4478,53 @@ fn execute_dispatch(
                         }
                         i += 1;
                     }
+                    // INT-259: ASKED FOR, NOT TYPED. Both arms built format!("{}/0-core", home)
+                    // by hand -- the exact thing paths.rs::core_root_string's own comment forbids
+                    // ("single source of truth: derived from core_dir(), NOT re-computed via
+                    // format!"). And --scripts was WRONG as well as hand-built: it pointed at
+                    // 0-core/scripts, which does not exist; the scripts are in faelight/scripts.
+                    // It returned an empty table, which this builtin defines as "the files were
+                    // read, the pattern did not appear" -- a real answer to a search never run.
                     "--forest" | "--all" => {
-                        let home = std::env::var("HOME").unwrap_or_default();
-                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core", home)));
+                        match crate::core_integration::tools_root() {
+                            Some(d) => {
+                                search_root =
+                                    d.parent().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+                            }
+                            None => {
+                                return CommandResult::Error(
+                                    "  fsearch: --all needs 0-Core, which is not present"
+                                        .to_string()
+                                        .into(),
+                                    1,
+                                );
+                            }
+                        }
                         i += 1;
                     }
                     "--scripts" => {
-                        let home = std::env::var("HOME").unwrap_or_default();
-                        search_root =
-                            Some(std::path::PathBuf::from(format!("{}/0-core/scripts", home)));
+                        match crate::core_integration::tools_root() {
+                            Some(d) => search_root = d.parent().map(|p| p.join("scripts")),
+                            None => {
+                                return CommandResult::Error(
+                                    "  fsearch: --scripts needs 0-Core, which is not present"
+                                        .to_string()
+                                        .into(),
+                                    1,
+                                );
+                            }
+                        }
+                        i += 1;
+                    }
+                    // INT-259: THE INVERSE OF --intent. Measured 2026-09-23: `fsearch paths.rs`
+                    // returns 136 rows and 111 of them are the intent archive.
+                    //
+                    // THREE EXCLUSIONS, THREE REASONS, NAMED SEPARATELY:
+                    //   faelight/intents/   HISTORY; INT-247 forbids rewriting it.
+                    //   meta/CHANGELOG.md   a record of what was.
+                    //   docs/public/        GENERATED from docs/ -- every hit is a duplicate.
+                    "--live" | "--code" => {
+                        exclude_history = true;
                         i += 1;
                     }
                     arg if !arg.starts_with("--") => {
@@ -4520,12 +4555,7 @@ fn execute_dispatch(
                 }
             }
             if pattern_parts.is_empty() {
-                return CommandResult::Error(
-                    "usage: fsearch <pattern> [--type ext] [--file name]"
-                        .to_string()
-                        .into(),
-                    1,
-                );
+                return CommandResult::Error(FSEARCH_USAGE.to_string().into(), 1);
             }
             let pattern = pattern_parts.join(" ").to_lowercase();
             if !unknown.is_empty() {
@@ -4549,8 +4579,16 @@ fn execute_dispatch(
                 pattern: &str,
                 filter_type: Option<&str>,
                 filter_file: Option<&str>,
+                exclude_history: bool,
                 results: &mut Vec<std::collections::HashMap<String, crate::value::Value>>,
             ) {
+                // INT-259: excluded by PATH rather than by name.
+                if exclude_history {
+                    let p = dir.to_string_lossy();
+                    if p.contains("/faelight/intents") || p.contains("/docs/public") {
+                        return;
+                    }
+                }
                 let entries = match std::fs::read_dir(dir) {
                     Ok(e) => e,
                     Err(_) => return,
@@ -4564,8 +4602,18 @@ fn execute_dispatch(
                         }
                     }
                     if path.is_dir() {
-                        walk_dir(&path, pattern, filter_type, filter_file, results);
+                        walk_dir(
+                            &path,
+                            pattern,
+                            filter_type,
+                            filter_file,
+                            exclude_history,
+                            results,
+                        );
                     } else if path.is_file() {
+                        if exclude_history && path.ends_with("meta/CHANGELOG.md") {
+                            continue;
+                        }
                         // Type filter
                         if let Some(ext) = filter_type {
                             if path.extension().and_then(|e| e.to_str()) != Some(ext) {
@@ -4585,7 +4633,17 @@ fn execute_dispatch(
                             "yml", "html", "css", "js", "ts", "lua", "conf", "desktop", "service",
                             "lock",
                         ];
-                        if !text_exts.contains(&ext) {
+                        // INT-259: AN EXTENSIONLESS FILE IS READ, NOT SKIPPED. Every file in
+                        // faelight/scripts has no extension -- devshell, devshell-lib, dev -- so
+                        // the allow-list skipped ALL of them. Measured 2026-09-23: searching that
+                        // directory for a string that is in two of those files returned ZERO rows,
+                        // and this builtin calls zero rows "the files were read, the pattern did
+                        // not appear". It never opened them.
+                        //
+                        // No extension is a better signal than any list of names: a shebang script
+                        // on PATH is conventionally extensionless. Read it; if it turns out to be
+                        // binary, read_to_string fails and the loop moves on anyway.
+                        if !ext.is_empty() && !text_exts.contains(&ext) {
                             continue;
                         }
                         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -4639,7 +4697,14 @@ fn execute_dispatch(
                     );
                 }
             } else {
-                walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
+                walk_dir(
+                    &cwd,
+                    &pattern,
+                    filter_type,
+                    filter_file,
+                    exclude_history,
+                    &mut results,
+                );
             }
             // AN EMPTY TABLE, NOT AN EMPTY STRING AND NOT AN ERROR. "No matches" is a real
             // answer: the files were read, the pattern did not appear. An error would claim the
@@ -8451,6 +8516,11 @@ fn cd(args: &[&str]) -> CommandResult {
         Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e).into(), 1),
     }
 }
+
+/// INT-259: ONE usage string. There were two, and the first named a command that does not exist
+/// ("usage: search ..."), so half the time the builtin told you to run something else.
+const FSEARCH_USAGE: &str =
+    "usage: fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]";
 
 fn parse_since_time(arg: &str) -> i64 {
     let now = chrono::Local::now().timestamp();
