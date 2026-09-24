@@ -245,7 +245,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Partner Proposals", "🤝".normal());
     println!("  {}", "─".repeat(48).dimmed());
-    println!("  {} Analyzing forest patterns...", "→".dimmed());
+    println!("  {} Analyzing patterns...", "→".dimmed());
     println!();
 
     let mut proposals: Vec<(String, String)> = Vec::new();
@@ -555,7 +555,7 @@ fn reflect(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Partner Reflection", "🤝".normal());
     println!("  {}", "─".repeat(48).dimmed());
-    println!("  What the forest has learned about your work:");
+    println!("  What Project 0 has learned about your work:");
     println!();
     println!(
         "  {:<28} {} events ({} succeeded, {} failed)",
@@ -656,7 +656,7 @@ fn growth(ctx: &AppContext) -> CoreResult<()> {
     };
 
     println!();
-    println!("  {} Forest Growth", "🤝".normal());
+    println!("  {} Growth", "🤝".normal());
     println!("  {}", "─".repeat(48).dimmed());
     println!(
         "  {:<28} {} intents",
@@ -731,7 +731,7 @@ fn roadmap(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Co-Authored Roadmap", "🤝".normal());
     println!("  {}", "─".repeat(48).dimmed());
-    println!("  Forest view of the optimal path forward:");
+    println!("  Project 0's view of the optimal path forward:");
     println!();
 
     // Dynamic roadmap based on current state
@@ -754,18 +754,14 @@ fn roadmap(ctx: &AppContext) -> CoreResult<()> {
         (
             "SOON",
             "INT-193 Tool Retirement",
-            "prune dead tools -- cleaner forest",
+            "prune dead tools -- cleaner repo",
         ),
         (
             "SOON",
             "INT-194 fsh v4",
             "shell intelligence -- prediction-aware suggestions",
         ),
-        (
-            "SOON",
-            "INT-195 Forest Journal",
-            "system writes its own story",
-        ),
+        ("SOON", "INT-195 Journal", "system writes its own story"),
         (
             "MAY 3",
             "Jarvis 100/100",
@@ -797,7 +793,7 @@ fn roadmap_why(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Roadmap Reasoning", "🤝".normal());
     println!("  {}", "─".repeat(48).dimmed());
-    println!("  Why the forest recommends this order:");
+    println!("  Why Project 0 recommends this order:");
     println!();
     println!(
         "  {} INT-187 first — delegation trust data needed for v14 partnership",
@@ -826,18 +822,21 @@ fn roadmap_diff(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx);
     print_gate_warning(ctx);
     println!();
-    println!("  {} Roadmap Diff — Forest vs Current Plan", "🤝".normal());
+    println!(
+        "  {} Roadmap Diff — Project 0 vs Current Plan",
+        "🤝".normal()
+    );
     println!("  {}", "─".repeat(48).dimmed());
-    println!("  Where forest view diverges from ledger order:");
+    println!("  Where Project 0's view diverges from ledger order:");
     println!();
     println!(
-        "  {} Forest prioritizes INT-195 (journal) before fsh v4",
+        "  {} Project 0 prioritizes INT-195 (journal) before fsh v4",
         "→".bright_yellow()
     );
     println!("    Reason: longitudinal memory is a v14 prerequisite, not optional");
     println!();
     println!(
-        "  {} Forest suggests deferring voice I/O (INT-142, INT-147) until after v14",
+        "  {} Project 0 suggests deferring voice I/O (INT-142, INT-147) until after v14",
         "→".bright_yellow()
     );
     println!("    Reason: partnership model should be stable before adding new I/O channels");

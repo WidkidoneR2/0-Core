@@ -168,7 +168,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: TraceCommands,
     },
-    /// Goal engine — the forest chooses where to grow (Core v9)
+    /// Goal engine — Project 0 chooses where to grow (Core v9)
     Goals {
         #[command(subcommand)]
         command: GoalsCommands,
@@ -183,12 +183,12 @@ pub enum Commands {
         #[command(subcommand)]
         command: PredictCommands,
     },
-    /// Reaction engine — the forest responds without being asked (Core v10)
+    /// Reaction engine — Project 0 responds without being asked (Core v10)
     React {
         #[command(subcommand)]
         command: ReactCommands,
     },
-    /// Strategy engine — the forest plans across horizons (Core v12)
+    /// Strategy engine — Project 0 plans across horizons (Core v12)
     Strategy {
         #[command(subcommand)]
         command: StrategyCommands,

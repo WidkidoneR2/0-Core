@@ -1238,19 +1238,19 @@ fn build_shell_lessons() -> Vec<Lesson> {
     vec![
         Lesson {
             title: "The Basics — Your First Commands".to_string(),
-            intro: "NovaShell is a forest-native shell. Everything here knows about your system.".to_string(),
+            intro: "NovaShell is Project 0's native shell. Everything here knows about your system.".to_string(),
             steps: vec![
                 Step {
-                    instruction: "Check the forest health".to_string(),
+                    instruction: "Check Project 0 health".to_string(),
                     expected: "health".to_string(),
                     hint: "Type: health".to_string(),
                     success: "The health command shows version, status and recent events.".to_string(),
                 },
                 Step {
-                    instruction: "See what version the forest is on".to_string(),
+                    instruction: "See what version Project 0 is on".to_string(),
                     expected: "version".to_string(),
                     hint: "Type: version".to_string(),
-                    success: "Version shows the current Faelight Forest release.".to_string(),
+                    success: "Version shows the current Project 0 release.".to_string(),
                 },
                 Step {
                     instruction: "List all available commands".to_string(),
@@ -1380,7 +1380,7 @@ fn run_lesson(lesson: &Lesson) {
         println!();
 
         loop {
-            print!("  🌲 forest❯ ");
+            print!("  🌲 nsh❯ ");
             io::stdout().flush().ok();
             let stdin = io::stdin();
             let input = stdin

@@ -23,7 +23,7 @@ pub fn write_entry(_ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<
     let entry = format!("**{}** — [{}] {}\n\n", date, time, message);
     // Add header if file is new
     let header = if !path.exists() {
-        format!("# Forest Journal — {}\n\n", date)
+        format!("# Journal — {}\n\n", date)
     } else {
         String::new()
     };
@@ -39,13 +39,13 @@ pub fn write_entry(_ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<
 pub fn today(_ctx: &AppContext) -> CoreResult<()> {
     let path = today_path();
     println!();
-    println!("{}", "📖 Forest Journal — Today".cyan().bold());
+    println!("{}", "📖 Journal — Today".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
     if !path.exists() {
         println!("  {} No journal entries yet today.", "○".dimmed());
         println!(
-            "  {} The forest is quiet — entries appear as the day unfolds.",
+            "  {} The journal is quiet — entries appear as the day unfolds.",
             "→".dimmed()
         );
         println!();
@@ -76,7 +76,7 @@ pub fn yesterday(_ctx: &AppContext) -> CoreResult<()> {
 /// core journal week
 pub fn week(_ctx: &AppContext) -> CoreResult<()> {
     println!();
-    println!("{}", "📖 Forest Journal — This Week".cyan().bold());
+    println!("{}", "📖 Journal — This Week".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
     let dir = faelight_core::paths::journal_dir();
@@ -179,7 +179,7 @@ fn show_date(date: &str, label: &str) -> CoreResult<()> {
     println!();
     println!(
         "{} {}",
-        "📖 Forest Journal —".cyan().bold(),
+        "📖 Journal —".cyan().bold(),
         label.bright_white().bold()
     );
     println!("{}", "━".repeat(60).dimmed());
@@ -262,7 +262,7 @@ pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
             commits_today, active
         )
     } else {
-        "Session started. Forest is ready.".to_string()
+        "Session started. Project 0 is ready.".to_string()
     };
     write_entry(ctx, "session", &message)
 }
@@ -306,7 +306,7 @@ pub fn daily_summary(ctx: &AppContext) -> CoreResult<()> {
         )
         .unwrap_or(0);
     let message = format!(
-        "Session ended. {} commits, {} deploys today. Forest health: 100%.",
+        "Session ended. {} commits, {} deploys today. Health: 100%.",
         commits, deploys
     );
     write_entry(ctx, "summary", &message)

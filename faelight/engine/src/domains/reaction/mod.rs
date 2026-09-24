@@ -819,7 +819,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
 
     if rows.is_empty() {
         println!("  {} No reactions fired today", "○".dimmed());
-        println!("  The forest has been quiet — run: core react run");
+        println!("  Project 0 has been quiet — run: core react run");
         println!();
         println!("{}", "━".repeat(52).dimmed());
         return Ok(());
@@ -855,13 +855,13 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
 
         // Narrative sentence
         let narrative = match rule_id.as_str() {
-            "health.advisory" => "The forest noticed health declining across recent runs.",
-            "health.stale" => "The forest detected no health check in over a day.",
-            "security.aging" => "The forest flagged aging security scan data.",
-            "checkpoint.stale" => "The forest suggested a snapshot — no checkpoint recently.",
-            "intent.overflow" => "The forest detected too many intents in flight simultaneously.",
-            "forecast.declining" => "The forest saw the health forecast trending downward.",
-            _ => "The forest detected a condition worth surfacing.",
+            "health.advisory" => "Project 0 noticed health declining across recent runs.",
+            "health.stale" => "Project 0 detected no health check in over a day.",
+            "security.aging" => "Project 0 flagged aging security scan data.",
+            "checkpoint.stale" => "Project 0 suggested a snapshot — no checkpoint recently.",
+            "intent.overflow" => "Project 0 detected too many intents in flight simultaneously.",
+            "forecast.declining" => "Project 0 saw the health forecast trending downward.",
+            _ => "Project 0 detected a condition worth surfacing.",
         };
 
         println!(
@@ -907,7 +907,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
         );
     } else {
         println!(
-            "  {} Low-priority day — forest signalling within normal range",
+            "  {} Low-priority day — signals within normal range",
             "✅".green()
         );
     }
@@ -1166,7 +1166,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
 
     if fired.is_empty() {
         println!(
-            "  {} No reactions triggered — forest is stable",
+            "  {} No reactions triggered — Project 0 is stable",
             "✅".green()
         );
         println!("  All rules within bounds or on cooldown");

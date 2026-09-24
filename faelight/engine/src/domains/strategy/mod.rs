@@ -421,27 +421,27 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
         "Core intelligence timeline:".bright_white().bold()
     );
     println!(
-        "    {} v9  Intent     {} the forest chooses where to grow",
+        "    {} v9  Intent     {} Project 0 chooses where to grow",
         "·".dimmed(),
         "✅".bright_green()
     );
     println!(
-        "    {} v10 Reaction   {} the forest responds without being asked",
+        "    {} v10 Reaction   {} Project 0 responds without being asked",
         "·".dimmed(),
         "✅".bright_green()
     );
     println!(
-        "    {} v11 Prediction {} the forest anticipates before it happens",
+        "    {} v11 Prediction {} Project 0 anticipates before it happens",
         "·".dimmed(),
         "✅".bright_green()
     );
     println!(
-        "    {} v12 Strategy   {} the forest plans across horizons  ← NOW",
+        "    {} v12 Strategy   {} Project 0 plans across horizons  ← NOW",
         "·".dimmed(),
         "🔄".bright_yellow()
     );
     println!(
-        "    {} v13 Autonomy   ⬜ the forest chooses its own purpose",
+        "    {} v13 Autonomy   ⬜ Project 0 chooses its own purpose",
         "·".dimmed()
     );
     println!();
@@ -471,7 +471,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  {} {}",
         "▶".bright_cyan(),
-        "Forest health:".bright_white().bold()
+        "Health:".bright_white().bold()
     );
     println!("    {} {} intents complete", "·".dimmed(), complete_count);
     println!("    {} {} intents planned", "·".dimmed(), planned.len());
@@ -745,14 +745,14 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     if goal_count == 0 {
         blockers.push((
             40,
-            "No accepted goals — forest has no direction".to_string(),
+            "No accepted goals — Project 0 has no direction".to_string(),
             "Run: core goals generate — to create goals from evidence".to_string(),
         ));
     }
 
     if blockers.is_empty() {
         println!(
-            "  {} No blockers detected — the forest is clear to build",
+            "  {} No blockers detected — clear to build",
             "✅".bright_green()
         );
         println!();
@@ -1789,13 +1789,13 @@ pub fn friday_readiness(ctx: &AppContext) -> CoreResult<()> {
 
     // Level description
     let level = match score {
-        s if s > 100 => "Jarvis — the forest thinks alongside you",
+        s if s > 100 => "Jarvis — Project 0 thinks alongside you",
         98..=100 => "Autonomous Agent — v14 Partnership ACTIVE",
         80..=97 => "Strategic Advisor — approaching Jarvis",
-        60..=79 => "Anticipatory Partner — forest sees ahead",
-        40..=59 => "Reactive Assistant — forest responds",
-        20..=39 => "Aware System — forest observes",
-        _ => "Basic Tool — forest executes",
+        60..=79 => "Anticipatory Partner — Project 0 sees ahead",
+        40..=59 => "Reactive Assistant — Project 0 responds",
+        20..=39 => "Aware System — Project 0 observes",
+        _ => "Basic Tool — Project 0 executes",
     };
     println!("  {} Level: {}", "·".dimmed(), level.bright_white());
     println!();
@@ -1942,7 +1942,7 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
 
     println!("  {} v13 Autonomy is earned, not given.", "·".dimmed());
     println!(
-        "  {} The forest must demonstrate it is right more often than wrong.",
+        "  {} Project 0 must demonstrate it is right more often than wrong.",
         "·".dimmed()
     );
     println!();
@@ -2381,7 +2381,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
         "Key insight:".bright_white().bold()
     );
     println!(
-        "    {} The forest learns by recording outcomes.",
+        "    {} Project 0 learns by recording outcomes.",
         "·".dimmed()
     );
     println!(
@@ -2664,7 +2664,7 @@ pub fn next(ctx: &AppContext, list: bool, why: Option<&str>) -> CoreResult<()> {
     let alt = scored.get(1);
 
     println!();
-    println!("  {} Forest Recommendation", "🎯".normal());
+    println!("  {} Recommendation", "🎯".normal());
     println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!();
     println!(

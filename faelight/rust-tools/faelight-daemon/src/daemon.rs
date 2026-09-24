@@ -857,7 +857,7 @@ async fn friday_answer_query(
             )
             .ok();
         Some(format!(
-            "Forest health: {}%. All systems nominal.",
+            "Health: {}%. All systems nominal.",
             health.unwrap_or(100)
         ))
     } else if q_lower.contains("pattern") || q_lower.contains("learn") {

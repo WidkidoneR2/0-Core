@@ -1459,7 +1459,7 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
         Some(d) => d,
         None => {
             println!("  ✅ No health drops found in recent history");
-            println!("  The forest is stable.");
+            println!("  Project 0 is stable.");
             return Ok(());
         }
     };

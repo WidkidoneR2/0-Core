@@ -13,7 +13,7 @@ use faelight_git::commands;
 
 #[derive(Parser)]
 #[command(name = "faelight-git")]
-#[command(about = "🌲 Git Governance for Faelight Forest")]
+#[command(about = "🌲 Git Governance for Project 0")]
 #[command(version = "4.0.0")]
 struct Cli {
     #[command(subcommand)]

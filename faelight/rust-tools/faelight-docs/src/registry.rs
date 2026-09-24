@@ -13,7 +13,7 @@ pub const REGISTRY: &[DocEntry] = &[
         name: "README.md",
         path: "meta/README.md",
         owner_intent: "INT-228",
-        description: "Primary GitHub README -- forest identity and status",
+        description: "Primary GitHub README -- Project 0 identity and status",
         auto_update: false, // DYNAMIC section only -- faelight-release owns that
     },
     DocEntry {

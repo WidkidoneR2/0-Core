@@ -75,8 +75,8 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
 
     if goals.is_empty() {
         println!();
-        println!("  The forest has not yet set its intentions.");
-        println!("  Run: core goals generate — let the forest speak.");
+        println!("  Project 0 has not yet set its intentions.");
+        println!("  Run: core goals generate — let Project 0 speak.");
         println!();
         return Ok(());
     }
@@ -116,7 +116,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     println!();
     println!(
         "  {} {}",
-        "📖  Forest Autobiography".bright_cyan().bold(),
+        "📖  Autobiography".bright_cyan().bold(),
         format!("v{}", display_version).dimmed()
     );
     println!("{}", "━".repeat(60).dimmed());
@@ -129,7 +129,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
         theme.bright_green()
     );
     println!();
-    println!("  {}", "The forest set its intentions.".dimmed().italic());
+    println!("  {}", "Project 0 set its intentions.".dimmed().italic());
     println!(
         "  {} goals proposed  ·  {} authorized  ·  {} set aside  ·  {} pending",
         total.to_string().bright_white(),
@@ -202,7 +202,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
         println!();
         println!(
             "  {} {}",
-            "Why the forest wanted this:".dimmed(),
+            "Why Project 0 wanted this:".dimmed(),
             reason.italic()
         );
         println!("  {} {}", "Originally planned:".dimmed(), plan.dimmed());
@@ -267,7 +267,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     println!(
         "  {} {}",
         "Next:".dimmed(),
-        "core goals generate  — let the forest propose new intentions".bright_cyan()
+        "core goals generate  — let Project 0 propose new intentions".bright_cyan()
     );
     println!();
 
