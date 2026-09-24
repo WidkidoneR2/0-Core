@@ -1378,6 +1378,55 @@ section above.
                                   now print every "test result" line through a filter
 ```
 
+## 2026-09-24, NIGHT -- ITEM 2 PASSES 7 AND 8
+
+```text
+    82efb936   PASS 7: 70 lines -- strategy, partner, reaction, journal, autobiography, events,
+               core --help, teach, faelight-docs, faelight-git, faelight-daemon
+    618f3ec0   PASS 8: 43 lines -- Friday, autonomy, goals, status, tradeoffs, weight engine,
+               core --help, db-browse, gen, insightd, update, daemon, deps, docs, engines,
+               integrity, predict, stress, synthesis, friday-chat, knowledge
+```
+
+This session: item 1 done, and 173 display lines across passes 5 to 8 say Project 0, repo or plain
+words. Every pass refused at least once on text it also found elsewhere, and each time the other
+site was folded in rather than left behind.
+
+### Fixed on the way
+
+```text
+    faelight-docs toolgen   generated tool READMEs said "nix develop ~/0-core#faelight-forest -c
+                            cargo build" -- a NixOS command. Now "cargo build"
+```
+
+### Found, not fixed -- invented numbers and stale facts
+
+```text
+    journal/mod.rs:309      every session-end entry says "Health: 100%." as fixed text
+    daemon.rs:861           health.unwrap_or(100) answers "All systems nominal" when health
+                            could not be read -- unknown reported as perfect
+    Friday seeds            friday/mod.rs:275 "all 22 checks" (27 now) and "never ships below
+                            95%" (nothing enforces it); :1046 "50+ custom Rust tools" (22);
+                            daemon.rs:886 still lists faelight-fm, retired 2026-09-15
+    a goal title            goals/mod.rs:104 "Restore forest health to 95%+" is matched by title
+                            in forest_goals (:143), so renaming it would re-propose the goal.
+                            With the schema intent
+```
+
+### Still deferred, and why
+
+```text
+    multi-line prose        partner 428/435/508, Friday 1234/1240/1255/1272 -- the text is not on
+                            the line the census reports, so the guard refuses them
+    nsh-test fixtures       "echo forest | grep forest", "forest writes", repl_206_forest_home,
+                            repl_230_absent_forest -- one small pass, tests and names together
+    faelight-git hooks      three hook templates written into .githooks -- with that crate
+    palette text            faelight-context "forest green" -- with the design work
+    the census instrument   its line numbers drift by one in at least one file (insightd 321 was
+                            322). The pass script now looks three lines either way and prints a
+                            note for every adjustment
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
