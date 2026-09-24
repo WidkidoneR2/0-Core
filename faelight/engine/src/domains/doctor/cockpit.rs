@@ -48,7 +48,6 @@ pub fn render_section(title: &str, checks: &[&CheckResult]) {
 
 pub fn render_cockpit(
     checks: &[CheckResult],
-    version: &str,
     health: u32,
     passed: u32,
     warnings: u32,
@@ -81,7 +80,7 @@ pub fn render_cockpit(
     );
     println!(
         "  │  🏥 {}  {}  {}  │  {}/{} checks  │",
-        format!("Project 0 {}", version).bright_white().bold(),
+        format!("{:<15}", "Project 0").bright_white().bold(),
         status_str,
         health_color,
         passed,

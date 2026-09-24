@@ -3,7 +3,6 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
-use std::fs;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Status {
@@ -289,11 +288,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         ],
     )?;
 
-    let version = fs::read_to_string(faelight_core::paths::version_file())
-        .unwrap_or_else(|_| "unknown".into())
-        .trim()
-        .to_string();
-
     let checks = from_engine();
 
     let scored: Vec<_> = checks.iter().collect();
@@ -362,7 +356,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
     render_cockpit(
         &checks,
-        &version,
         health,
         passed,
         warnings,

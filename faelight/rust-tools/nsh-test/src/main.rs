@@ -1448,7 +1448,10 @@ print('CLASS-DONE')"##;
                 }
                 out
             }
-            let retired: Vec<String> = vec![["Zero", " Core"].concat()];
+            // 2026-09-24: also the RUN-ON form. The name followed directly by a version placeholder
+            // reads as one long number. A `v` separates them, so `v{}` passes.
+            let retired: Vec<String> =
+                vec![["Zero", " Core"].concat(), ["Project 0", " {}"].concat()];
             let base = std::path::Path::new(&home()).join("0-core/faelight");
             let mut stack = vec![base.join("rust-tools"), base.join("engine")];
             let mut hits: Vec<String> = Vec::new();

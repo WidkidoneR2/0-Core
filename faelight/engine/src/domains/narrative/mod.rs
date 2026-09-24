@@ -30,16 +30,11 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
 
     // Chapter 1 — Identity
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
-        .unwrap_or_else(|_| "unknown".to_string());
-    let version = version.trim();
-
     println!("  │");
     println!("  │  {}", "Chapter I — Identity".bright_white().bold());
     println!("  │");
     println!(
-        "  │  Project 0 {} runs on {},",
-        version.bright_green(),
+        "  │  Project 0 runs on {},",
         crate::domains::bootstrap::os_name()
     );
     println!("  │  entirely in Rust by a single developer.");
