@@ -1529,6 +1529,27 @@ The needle is split with concat! so the test's own source does not match it.
     ~/.config/faelight-shell      last -> ~/.config/nsh; it holds the aliases
 ```
 
+## 2026-09-24, LATE NIGHT -- TWO FIXES ON THE WAY, RULED BY CHRISTIAN
+
+```text
+    7b764b2c   system_drift removed from novashell prompt.rs, with its one call. It read
+               ~/.cache/faelight/last-system-rev, which nothing has written since NixOS, so it
+               answered None on every render and the prompt never showed its hint. Behaviour
+               unchanged; one .git/HEAD read per prompt render gone. Deleted, not renamed --
+               a dead path does not get the new name
+    c1db03e2   faelight-docs: health unreadable from both sources is "?", not "100"
+```
+
+Proven: the prompt edit ran first on a copy and matched the planned file byte for byte; novashell
+221 passed 0 failed; faelight-docs builds (it has no unit tests); ship 10 shipped 0 failed; nsh-test
+202/202; the prompt renders as before.
+
+These resolve the prompt.rs:242 and faelight-docs:430 lines under ITEM 4 BEGINS, Found, not fixed.
+That section stays as written; this one records the fix.
+
+Still open, the same class: daemon.rs:861 health.unwrap_or(100) answers "All systems nominal" when
+health could not be read -- recorded under PASSES 7 AND 8.
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
