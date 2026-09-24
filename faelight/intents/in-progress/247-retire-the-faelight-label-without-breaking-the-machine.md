@@ -1062,6 +1062,63 @@ comments. How forest joins is decided when the label pass is finished, not befor
     completion.rs:810        faelight-git helper -- the faelight pass
 ```
 
+## 2026-09-24, EVENING -- PASS 2: THE DOCTOR, AND A PAYLOAD THAT RAN IN HALF
+
+### 2968a60a -- the doctor section Forest becomes Internals
+
+The doctor's section titles are DATA, in faelight/registry/doctor/checks.toml -- six checks under
+section = "\U0001F4CB Forest" -- not Rust. That is why neither the census nor the guard saw them. The
+panel was already titled Project 0 by the Zero Core pass, so the section is named for what it holds:
+the ledger, deadwood, config, the alias probe, schema and Friday. Name approved by Christian.
+
+THE NAME IS A CONTRACT. novashell health_tui.rs reads the doctor's PRINTED output and finds sections
+by substring (line 110, is_section; 191-192, parse_section_header). Renaming the registry alone would
+have left the TUI unable to see the section -- a lookup that stops matching and answers with nothing.
+Registry and parser changed in ONE commit. Proven: d prints Internals with its six checks, and the
+health TUI shows Internals as its own section.
+
+### a102eca3 -- five engine doctor strings
+
+The rebuild guide (reconstruct Project 0 from first principles; what was happening before any
+failure; Clone the repo), the integrity notification (Integrity below 80%) and the stable line
+(Stable). The engine crate has TWO unit tests and neither covers these strings. What covers them is
+the guard, which reads engine/, and what the doctor prints.
+
+### THE GUARD CANNOT SEE THE REGISTRY
+
+It reads .rs files under rust-tools/ and engine/. checks.toml is outside it, so nothing stops Forest
+coming back as a section title. A registry-to-parser contract test is the right guard -- see below.
+
+### A PAYLOAD THAT RAN IN HALF -- AND THE CLASS FIX
+
+A reply split one base64 argument across two lines. Line one decoded a partial script; line two ran
+as a command ("File name too long"). It stopped at a syntax error before any write -- by the luck of
+where the cut fell. A cut at a statement boundary would have run half a pass.
+
+THE RULE FROM THIS SESSION ON: an edit script does nothing at top level except define, and its ONE
+call to act is the LAST line. A payload cut short either fails to compile, or defines main() and
+never calls it. Proven on a stand-in tree: all 1,029 possible truncations of the pass 2 payload
+wrote nothing to any target; only the whole payload patched. Importing fpatch writes the Python
+bytecode cache -- that is not a target.
+
+And the test runs after the failed step passed on the UNCHANGED tree. A green run after a failed
+step proves nothing about the step; the empty status line is what showed nothing had been written.
+
+### Found, not fixed
+
+```text
+    health_tui          recognises 5 of the doctor's 8 sections. Boot, System State and Runtime are
+                        missing from its hand-written name and emoji lists, so each folds into the
+                        section above it. A test that every registry section is one the parser
+                        recognises would be red on three today. PROPOSED, not built.
+    dispatcher.rs:56    a failed version read prints 13.0.0 -- an invented version, the class INT-250
+                        found as v14.0.0
+    version labels      Forest: at dispatcher.rs:57 and commands/mod.rs:12585 -- the next label pass
+    welcome banner      built in novashell main.rs near 3472-3478, found by its clean-and-pushed
+                        text; its forest label and shell percentage are read next. session.rs holds
+                        three sayings (247, 255, 443) for item 2
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
