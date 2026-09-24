@@ -1186,6 +1186,39 @@ failed -> 0.
                         printed on that run was not seen -- the cache change 84 -> 85 was
 ```
 
+## 2026-09-24, NIGHT -- THE NAMING MAP, RULED BY CHRISTIAN
+
+Every name the rename touches and what it becomes. Rows marked PROPOSED are recorded, not ruled.
+
+```text
+    WHAT                         BECOMES
+    screens, docs, spoken        Project 0
+    repo root ~/0-core           unchanged
+    faelight-* tools/crates      zero-*, ONLY if they survive the decision test; otherwise retired.
+                                 Tools already zero-* (zero-gate) stay as they are.
+    FAELIGHT_* / FOREST_* env    ZERO_*
+    org.faelight.Forest.*        org.zero.*
+    ~/.cache/faelight            ~/.cache/zero
+    ~/.local/share/faelight      ~/.local/share/zero
+    ~/.config/faelight-shell     ~/.config/nsh -- NovaShell and DevBox config (devshell is in the shell)
+    forest_* tables              plain words; zero_* only where a plain name collides (schema intent)
+    one Project 0 command        0
+    ~/0-core/faelight/           ~/0-core/zero/ -- PROPOSED, one-to-one under INT-252, not yet ruled
+    FINISH LINE                  no live faelight or forest anywhere; history exempt
+    METHOD (PROPOSED)            rename what is kept, retire what is not, rewrite pieces whose design
+                                 is the bug, turn invented defaults into honest unknowns
+```
+
+### What the map overrides, recorded here rather than edited above
+
+```text
+    Layer 2          "0 stays unclaimed"            -> 0 is the one Project 0 command
+    PATHS ruling     "Project 0 or zero"            -> ~/.config/faelight-shell is the exception:
+                                                       it becomes ~/.config/nsh, because NovaShell
+                                                       keeps its own name (ruled 2026-09-21) and
+                                                       DevBox config lives inside the shell
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
