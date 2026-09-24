@@ -12582,7 +12582,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     out.push_str(&format!(
         "  {:<16} {}
 ",
-        "Forest".dimmed(),
+        "Project 0".dimmed(),
         // INT-250: paths::version_file() -- faelight/meta/VERSION, which holds 1.0.0 and has
         // been the real owner all along.
         //

@@ -3510,7 +3510,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         fc_bold(50, 220, 255, &fsh_score),
         fc_dim(100, 180, 200, "shell"),
         fc_bold(57, 255, 20, &health_display),
-        fc_dim(100, 160, 100, "forest")
+        fc_dim(100, 160, 100, "health")
     );
 
     // -- ledger row --
