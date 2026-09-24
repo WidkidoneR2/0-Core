@@ -21,7 +21,7 @@ impl AppContext {
         // INT-061 v2: the faelight/ platform domain root. Dirs moved under
         // faelight/ (registry, meta, schema, runtime, intents, policy) resolve
         // from here via ctx.fpath(); root-staying dirs keep using core_root.
-        let faelight_root = faelight_core::paths::faelight_dir()
+        let faelight_root = faelight_core::paths::source_dir()
             .to_string_lossy()
             .to_string();
         let runtime = Runtime::init()?;

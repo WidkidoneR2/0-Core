@@ -29,7 +29,7 @@ pub fn core_dir() -> PathBuf {
 /// the platform (policy, registry, intents, engine state, etc.) live here so the
 /// tree encodes the OS/platform seam. Relocating the platform half = editing this
 /// one helper + the per-dir accessors that build on it.
-pub fn faelight_dir() -> PathBuf {
+pub fn source_dir() -> PathBuf {
     core_dir().join("faelight")
 }
 
@@ -38,7 +38,7 @@ pub fn faelight_dir() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn meta_dir() -> PathBuf {
-    faelight_dir().join("meta")
+    source_dir().join("meta")
 }
 
 pub fn version_file() -> PathBuf {
@@ -105,7 +105,7 @@ pub fn readme_file() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn registry_dir() -> PathBuf {
-    faelight_dir().join("registry")
+    source_dir().join("registry")
 }
 
 pub fn tools_registry() -> PathBuf {
@@ -125,7 +125,7 @@ pub fn zones_registry() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn policy_dir() -> PathBuf {
-    faelight_dir().join("policy")
+    source_dir().join("policy")
 }
 
 pub fn hooks_dir() -> PathBuf {
@@ -185,7 +185,7 @@ pub fn bin_dir() -> PathBuf {
 /// Machine-local state: state.db, logs, cache, snapshots, locks, backups,
 /// journal, events.
 ///
-/// ⚠️ THIS USED TO LIVE AT faelight_dir()/runtime, INSIDE THE REPO, under a
+/// ⚠️ THIS USED TO LIVE AT source_dir()/runtime, INSIDE THE REPO, under a
 /// header reading "Execution & Build Artifacts". Nothing in it is a build
 /// artifact -- those are in core_dir()/target -- so it was misfiled against its
 /// own section. Measured 2026-08-21: starting fsh with a HOME that had no forest
@@ -197,7 +197,7 @@ pub fn bin_dir() -> PathBuf {
 ///   1. $FAELIGHT_STATE_DIR       -- explicit override; also lets fsh-test
 ///                                   isolate per-case state off the live db
 ///   2. state_home()/zero         -- if it already exists, it wins
-///   3. faelight_dir()/runtime    -- legacy, only while it still exists
+///   3. source_dir()/runtime    -- legacy, only while it still exists
 ///   4. state_home()/zero         -- fresh install, no repo required
 ///
 /// There is deliberately no window where the code points somewhere the data is
@@ -213,7 +213,7 @@ pub fn runtime_dir() -> PathBuf {
     if xdg.exists() {
         return xdg;
     }
-    let legacy = faelight_dir().join("runtime");
+    let legacy = source_dir().join("runtime");
     if legacy.exists() {
         return legacy;
     }
@@ -248,7 +248,7 @@ pub fn state_db() -> PathBuf {
 
 /// Schema directory (registry JSON schemas read by engine doctor/bootstrap).
 pub fn schema_dir() -> PathBuf {
-    faelight_dir().join("schema")
+    source_dir().join("schema")
 }
 
 /// core_root as a String, for consumers (e.g. engine AppContext) that store the
@@ -374,7 +374,7 @@ pub fn capabilities_log() -> PathBuf {
 // ═══════════════════════════════════════════════════════════
 
 pub fn intents_dir() -> PathBuf {
-    faelight_dir().join("intents")
+    source_dir().join("intents")
 }
 
 pub fn docs_dir() -> PathBuf {
@@ -382,7 +382,7 @@ pub fn docs_dir() -> PathBuf {
 }
 
 pub fn rust_tools_dir() -> PathBuf {
-    faelight_dir().join("rust-tools")
+    source_dir().join("rust-tools")
 }
 
 pub fn scripts_dir() -> PathBuf {
@@ -397,12 +397,12 @@ pub fn config_dir() -> PathBuf {
     home().join(".config")
 }
 
-pub fn faelight_config_dir() -> PathBuf {
+pub fn zero_config_dir() -> PathBuf {
     config_dir().join("zero")
 }
 
 pub fn profile_file() -> PathBuf {
-    faelight_config_dir().join("profile")
+    zero_config_dir().join("profile")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -482,7 +482,7 @@ pub fn local_data_dir() -> PathBuf {
 
 /// The forest's own data directory -- durable per-user data that is neither config nor cache.
 ///
-/// Sibling of faelight_config_dir(); the name follows it deliberately.
+/// Sibling of zero_config_dir(); the name follows it deliberately.
 pub fn faelight_data_dir() -> PathBuf {
     local_data_dir().join("faelight")
 }
@@ -759,12 +759,12 @@ pub fn shell_config() -> PathBuf {
 
 /// Entropy baseline file
 pub fn entropy_baseline_file() -> PathBuf {
-    faelight_config_dir().join("entropy-baseline.json")
+    zero_config_dir().join("entropy-baseline.json")
 }
 
 /// Entropy history file
 pub fn entropy_history_file() -> PathBuf {
-    faelight_config_dir().join("entropy-history.json")
+    zero_config_dir().join("entropy-history.json")
 }
 
 // ═══════════════════════════════════════════════════════════

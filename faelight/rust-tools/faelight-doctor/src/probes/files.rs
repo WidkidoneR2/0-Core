@@ -66,7 +66,7 @@ pub fn broken_symlinks() -> Measurement {
 /// absent: an entry the probe could not read is a different finding from one that is not there.
 ///
 /// The previous version asserted one direction and read the config side through
-/// faelight_config_dir(), which returns the `zero` path once paths.rs flips -- it would have
+/// zero_config_dir(), which returns the `zero` path once paths.rs flips -- it would have
 /// compared a name with itself, a check that cannot fail. Both names are spelled out here.
 pub fn zero_alias() -> Measurement {
     let chains = [
@@ -161,7 +161,7 @@ fn alias_pair(zero: &std::path::Path, old: &std::path::Path) -> Result<String, S
 /// how many and nothing about which -- so the warning could not be acted on without repeating
 /// the check by hand. Each issue names its file and what is wrong with it.
 pub fn zero_config() -> Measurement {
-    let dir = faelight_core::paths::faelight_config_dir();
+    let dir = faelight_core::paths::zero_config_dir();
     let mut issues: Vec<String> = Vec::new();
     for file in ["config.toml", "profiles.toml", "themes.toml"] {
         let path = dir.join(file);
