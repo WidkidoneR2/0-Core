@@ -1539,11 +1539,13 @@ pub const CATEGORIES: &[&str] = &[
 /// document IS. The wizard used to write `type: decisions` (the plural folder name) while
 /// hand-written records said `type: decision`.
 pub const TEMPLATES: &[(&str, &str, &str, &str)] = &[
-    ("feature", "feature", "feature, rust, faelight", "planned"),
+    // No default names the retired project (INT-247 Layer 0); template_tests enforces it. An
+    // empty default is fine: the wizard drops empty tags and offers tags from active work.
+    ("feature", "feature", "feature, rust", "planned"),
     ("fix", "fix", "fix, bugfix", "planned"),
     ("arch", "arch", "architecture, rust, design", "planned"),
     ("study", "study", "study, research, learning", "planned"),
-    ("future", "future", "faelight", "planned"),
+    ("future", "future", "", "planned"),
     ("decision", "decision", "decision", "decided"),
     ("incident", "incident", "incident", "resolved"),
     ("experiment", "experiment", "experiment", "complete"),
@@ -3423,6 +3425,32 @@ mod absent_ledger_tests {
             issues[0].contains("not found"),
             "and it must name the real problem: {}",
             issues[0]
+        );
+    }
+}
+
+#[cfg(test)]
+mod template_tests {
+    /// INT-247 LAYER 0: NOTHING NEW IS NAMED faelight. The wizard broke that rule on every use:
+    /// `inta` offered `Tags [faelight]:`, so pressing Enter filed the retired name into the
+    /// ledger that is being renamed. Found 2026-09-24.
+    ///
+    /// Checks EVERY template, not the one that was noticed -- `feature` carried it too. And it
+    /// matches any tag CONTAINING the name, so `faelight-shell` cannot slip past as a variant.
+    #[test]
+    fn no_template_defaults_to_the_retired_name() {
+        let offenders: Vec<&str> = super::TEMPLATES
+            .iter()
+            .filter(|(_, _, tags, _)| {
+                tags.split(',')
+                    .any(|t| t.trim().to_lowercase().contains("faelight"))
+            })
+            .map(|(name, _, _, _)| *name)
+            .collect();
+        assert!(
+            offenders.is_empty(),
+            "templates still default to the retired name faelight: {:?}",
+            offenders
         );
     }
 }
