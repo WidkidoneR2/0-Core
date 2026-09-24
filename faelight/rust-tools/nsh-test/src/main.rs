@@ -1535,7 +1535,7 @@ print('CLASS-DONE')"##;
             // cost: every other case then runs a shell configuration nobody uses interactively.
             //
             // This case buys that back. It passes "0" to get the ORDINARY shell -- the one that starts in
-            // the forest home on purpose and restores its last directory on purpose -- and asserts that
+            // the forest home on purpose -- and asserts that
             // behaviour is intact. So what daily use actually gets is covered by a case that says what it
             // is testing, rather than left uncovered because every other case quietly opted out of it.
             //
@@ -1543,6 +1543,51 @@ print('CLASS-DONE')"##;
             // is the off switch and no env_remove is needed.
             let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("NSH_KEEP_CWD", "0")])?;
             expect_contains(&out.join("\n"), "0-core")
+        },
+    ));
+    results.push(forest_test(
+        "repl_start_directory_ignores_remembered_last_dir",
+        Category::Repl,
+        "needs a real 0-Core: the start directory it asserts only exists when a forest does",
+        || {
+            // THE STARTUP DIRECTORY MUST NOT DEPEND ON REMEMBERED STATE.
+            //
+            // repl_206 cannot see this. Every case gets a FRESH database (repl.rs, INT-204), so its
+            // shell never has a last_dir to restore -- it passes on a binary that sends every real
+            // terminal to wherever the previous session exited. Found 2026-09-24, when a terminal
+            // opened in ~/.local/state/zero because the flip session had ended there.
+            //
+            // So this case PLANTS one. Session 1 lets nsh create its own schema (NSH_KEEP_CWD is
+            // the harness default, so it saves no last_dir). The row is then written into THAT
+            // database, and session 2 starts the ordinary shell against it. The planted directory
+            // is not /tmp on purpose: every case launches from /tmp, so a red result pointing at
+            // /tmp could not tell a restore from a missing start move.
+            let db = repl::case_db_path();
+            let planted = format!("{}/planted-last-dir", repl::case_db_dir());
+            std::fs::create_dir_all(&planted).map_err(|e| format!("create {}: {}", planted, e))?;
+
+            repl::run_repl_lines_status(&["true"], &[("FAELIGHT_STATE_DB", db.as_str())])?;
+            let conn =
+                rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+            conn.execute(
+                "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_dir', ?1)",
+                rusqlite::params![planted],
+            )
+            .map_err(|e| format!("seed last_dir: {}", e))?;
+            drop(conn);
+
+            let (out, _) = repl::run_repl_lines_status(
+                &["pwd"],
+                &[("NSH_KEEP_CWD", "0"), ("FAELIGHT_STATE_DB", db.as_str())],
+            )?;
+            let got = out.join("\n");
+            if got.contains("planted-last-dir") {
+                return Err(format!(
+                    "restored the remembered last_dir instead of starting in 0-core: {:?}",
+                    got
+                ));
+            }
+            expect_contains(&got, "0-core")
         },
     ));
     results.push(test(

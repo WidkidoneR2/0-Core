@@ -2325,12 +2325,12 @@ fn repl_main() -> Result<()> {
     // Start in ~/0-core by default. INT-201 2026-08-07: this call was here twice, identically,
     // with the comment between the two copies -- one was dead and is deleted.
     //
-    // NOTE this OVERRIDES the directory fsh was spawned in, and so does the last_dir restore near
-    // the end of the banner. Both are deliberate ("keep work in forest home"), but there is no way
-    // to opt out, so a harness that spawns fsh with a chosen working directory cannot make it stick.
-    // INT-206 fixed that: NSH_KEEP_CWD suppresses this and the last_dir restore below, so a caller
-    // that chose a working directory keeps it. Unset -- which is every interactive session -- the
-    // forest-home default is exactly as it was.
+    // THE ONE STARTUP DIRECTORY RULE. This OVERRIDES the directory nsh was spawned in, on purpose:
+    // a fresh interactive session starts in the core root. INT-206: NSH_KEEP_CWD suppresses it, so
+    // a caller that chose a working directory (nsh-test) keeps it.
+    //
+    // There used to be a second override -- a restore of the remembered last_dir after the banner.
+    // Removed 2026-09-24; the note where it stood says why.
     if !keep_launch_cwd() {
         let _ = cwd::chdir(&core_root);
     }
@@ -3586,25 +3586,11 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     println!();
     // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root, db) {
-        // Phase 23 — restore last working directory
-        // INT-206: the restore is skipped entirely when the caller chose the directory. Guarding
-        // the whole block rather than the set_current_dir inside it, because the fallback below is
-        // itself an override -- an unusable last_dir sends the shell to the forest home, which is
-        // exactly what a harness asking for /tmp does not want either.
-        if let Some(ref last_dir) = mem.last_dir.as_ref().filter(|_| !keep_launch_cwd()) {
-            let path = std::path::Path::new(last_dir.as_str());
-            // Always restore to core_root — keep work in forest home
-            let restore_path = if path.exists()
-                && path.is_dir()
-                && !last_dir.contains("/engine/src")
-                && !last_dir.contains("/rust-tools/")
-            {
-                path
-            } else {
-                std::path::Path::new(core_root)
-            };
-            let _ = cwd::chdir(restore_path);
-        }
+        // NO RESTORE. Removed 2026-09-24. "Resume where I left off" sent every new terminal to
+        // wherever the previous session happened to exit -- found when one opened in
+        // ~/.local/state/zero after the flip session ended there. A fresh session starts in the
+        // core root, set once by the startup rule above, and nothing overrides it afterwards.
+        // Guarded by nsh-test repl_start_directory_ignores_remembered_last_dir.
         let msg = session::render(&mem, core_root, db);
         if !msg.is_empty() {
             println!("{}", msg);

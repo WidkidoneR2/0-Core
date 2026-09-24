@@ -16,7 +16,6 @@ pub struct SessionMemory {
     #[allow(dead_code)]
     pub last_intent: Option<String>,
     pub last_session_ts: Option<i64>,
-    pub last_dir: Option<String>,
 }
 
 impl SessionMemory {
@@ -62,14 +61,6 @@ impl SessionMemory {
             .ok()
             .and_then(|v| v.parse().ok());
 
-        let last_dir: Option<String> = conn
-            .query_row(
-                "SELECT value FROM session_state WHERE key='last_dir'",
-                [],
-                |r| r.get(0),
-            )
-            .ok();
-
         // Read current commit count — live from git
         let current_commits: u64 = std::process::Command::new("git")
             .args(["-C", core_root, "rev-list", "--count", "HEAD"])
@@ -84,7 +75,6 @@ impl SessionMemory {
             current_commit_count: current_commits,
             last_intent,
             last_session_ts: last_ts,
-            last_dir,
         })
     }
 
@@ -120,24 +110,9 @@ impl SessionMemory {
                 "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_session_ts', ?1)",
                 rusqlite::params![ts],
             );
-            // Save current directory.
-            //
-            // INT-206: NOT WHEN THE CALLER CHOSE IT. A session running with NSH_KEEP_CWD stays
-            // where it was spawned, and writing that here would teach the NEXT ordinary session
-            // that the user's last directory was wherever a harness happened to run. Suppressing
-            // only the restore was not enough -- the poisoned value simply waited in session_state
-            // for the next start. Found by the guardian case, which was written to cover something
-            // else entirely.
-            //
-            // The other three writes here are untouched: a test run still has a commit count, a
-            // timestamp and an intent worth remembering. Only the directory is a lie.
-            if crate::keep_launch_cwd() {
-            } else if let Ok(cwd) = std::env::current_dir() {
-                let _ = conn.execute(
-                    "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_dir', ?1)",
-                    rusqlite::params![cwd.to_string_lossy().to_string()],
-                );
-            }
+            // No last_dir is saved: nothing restores it any more (removed 2026-09-24, see main.rs
+            // where the restore stood). Rows already in session_state are left alone -- a stale row
+            // is harmless now, and deleting state is not this change.
             if let Some(intent) = current_intent {
                 let _ = conn.execute(
                     "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_intent', ?1)",

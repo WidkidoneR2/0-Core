@@ -381,9 +381,9 @@ fn run_session(
 
     let mut child = Command::new(fsh_bin())
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
-        // forest home and restores its last directory, both deliberately, so the current_dir below
+        // forest home deliberately (it once also restored its last directory), so the current_dir below
         // was silently ignored for months and conformance cases wrote their files into the
-        // repository. NSH_KEEP_CWD suppresses both overrides.
+        // repository. NSH_KEEP_CWD suppresses that override.
         //
         // Set for every case rather than per-case, so a case added later cannot pollute the repo by
         // forgetting to opt in. One guardian case passes "0" and asserts the forest-home default,
