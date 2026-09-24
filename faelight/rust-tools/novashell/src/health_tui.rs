@@ -107,7 +107,7 @@ fn parse_doctor_output(raw: &str) -> (Vec<Section>, String, String, u8) {
             || s.contains("Git & Code")
             || s.contains("Git")
             || s.contains("Tools")
-            || s.contains("Forest")
+            || s.contains("Internals")
             || s.contains("Security"))
             && (s.contains("🖥")
                 || s.contains("🌿")
@@ -188,8 +188,8 @@ fn parse_section_header(s: &str) -> (String, String) {
     if s.contains("Tools") {
         return ("🛠 ".to_string(), "Tools".to_string());
     }
-    if s.contains("Forest") {
-        return ("📋".to_string(), "Forest".to_string());
+    if s.contains("Internals") {
+        return ("📋".to_string(), "Internals".to_string());
     }
     if s.contains("Security") {
         return ("🔒".to_string(), "Security".to_string());

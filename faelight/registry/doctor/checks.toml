@@ -110,7 +110,7 @@ recovery = "See them: cargo doc -p core --no-deps"
 [[check]]
 id = "intent_ledger"
 name = "Intent Ledger"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "user"
 probe = "intent_ledger"
 severities = ["pass", "warn"]
@@ -119,7 +119,7 @@ recovery = "Run: core intent validate"
 [[check]]
 id = "deadwood_scan"
 name = "Deadwood"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "user"
 probe = "deadwood_scan"
 severities = ["pass", "warn"]
@@ -128,7 +128,7 @@ recovery = "Run: faelight-deadwood"
 [[check]]
 id = "zero_config"
 name = "Zero Config"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "system"
 probe = "zero_config"
 severities = ["pass", "warn"]
@@ -137,7 +137,7 @@ recovery = "Check the files named above in ~/.config/faelight"
 [[check]]
 id = "zero_alias"
 name = "Zero Alias"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "system"
 probe = "zero_alias"
 severities = ["pass", "warn"]
@@ -209,7 +209,7 @@ recovery = "Rebuild and deploy: ship"
 [[check]]
 id = "schema_validation"
 name = "Schema Validation"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "system"
 probe = "schema_validation"
 severities = ["pass", "warn"]
@@ -280,7 +280,7 @@ recovery = "Review them: pacman -Qdtq"
 [[check]]
 id = "friday"
 name = "Friday"
-section = "\U0001F4CB Forest"
+section = "\U0001F4CB Internals"
 tier = "user"
 probe = "friday"
 severities = ["pass", "warn"]
