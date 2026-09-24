@@ -210,7 +210,7 @@ fn render_markdown(d: &SnapshotData) -> String {
         "Identity".bright_white().bold()
     ));
     out.push_str(&format!(
-        "  │  Zero Core {} — built entirely in Rust
+        "  │  Project 0 {} — built entirely in Rust
 ",
         d.version
     ));
