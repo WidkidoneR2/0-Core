@@ -1408,6 +1408,96 @@ print('CLASS-DONE')"##;
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which core")?, "core")
     }));
+    results.push(forest_test(
+        "no_retired_display_name_in_printed_strings",
+        Category::Regression,
+        "needs a real 0-Core: it reads the source tree, which only a checkout has",
+        || {
+            // INT-247: A RETIRED NAME MUST NOT BE PRINTED. Project 0 was Zero Core, and Faelight
+            // Forest before that, and the old names lived on in banners, headers and messages
+            // long after the decision -- written by CODE, so no document edit could remove them.
+            //
+            // Reads every ordinary string literal under rust-tools/ and engine/ and fails naming
+            // each file:line that still carries a retired name. Comment lines are skipped:
+            // history and reasoning may say the old names. A name joins RETIRED only when its
+            // pass is finished, so this case is green at every commit and red the moment one
+            // comes back.
+            //
+            // The phrases are built from PIECES so this file does not flag itself.
+            fn string_literals(line: &str) -> Vec<String> {
+                let c: Vec<char> = line.chars().collect();
+                let mut out = Vec::new();
+                let mut i = 0;
+                while i < c.len() {
+                    let char_literal = i > 0
+                        && (c[i - 1] == '\\' || (c[i - 1] == '\'' && c.get(i + 1) == Some(&'\'')));
+                    if c[i] == '"' && !char_literal {
+                        let mut s = String::new();
+                        i += 1;
+                        while i < c.len() && c[i] != '"' {
+                            if c[i] == '\\' && i + 1 < c.len() {
+                                s.push(c[i]);
+                                i += 1;
+                            }
+                            s.push(c[i]);
+                            i += 1;
+                        }
+                        out.push(s);
+                    }
+                    i += 1;
+                }
+                out
+            }
+            let retired: Vec<String> = vec![["Zero", " Core"].concat()];
+            let base = std::path::Path::new(&home()).join("0-core/faelight");
+            let mut stack = vec![base.join("rust-tools"), base.join("engine")];
+            let mut hits: Vec<String> = Vec::new();
+            let mut files = 0usize;
+            while let Some(dir) = stack.pop() {
+                let entries = std::fs::read_dir(&dir)
+                    .map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if path.file_name().map(|n| n != "target").unwrap_or(false) {
+                            stack.push(path);
+                        }
+                        continue;
+                    }
+                    if path.extension().map(|x| x != "rs").unwrap_or(true) {
+                        continue;
+                    }
+                    files += 1;
+                    let text = std::fs::read_to_string(&path)
+                        .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
+                    for (n, line) in text.lines().enumerate() {
+                        if line.trim_start().starts_with("//") {
+                            continue;
+                        }
+                        for lit in string_literals(line) {
+                            if retired.iter().any(|name| lit.contains(name.as_str())) {
+                                let shown = path.strip_prefix(&base).unwrap_or(&path);
+                                hits.push(format!("{}:{}  \"{}\"", shown.display(), n + 1, lit));
+                            }
+                        }
+                    }
+                }
+            }
+            // AN EMPTY TREE IS NOT A CLEAN ONE. Reading nothing must not pass as finding nothing.
+            if files == 0 {
+                return Err("read no .rs files at all -- that is not a clean tree".to_string());
+            }
+            if hits.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} retired display name(s) still printed:\n  {}",
+                    hits.len(),
+                    hits.join("\n  ")
+                ))
+            }
+        },
+    ));
     results.push(test(
         "deadwood_strict_gate_passes",
         Category::Regression,
