@@ -3484,7 +3484,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     // -- header --
     println!(
         "  {}  {}",
-        fc_bold(57, 255, 20, "◉ Zero Core"),
+        fc_bold(57, 255, 20, "◉ Project 0"),
         fc_dim(140, 220, 100, &compositor)
     );
     println!();

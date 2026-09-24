@@ -81,7 +81,7 @@ pub fn render_cockpit(
     );
     println!(
         "  │  🏥 {}  {}  {}  │  {}/{} checks  │",
-        format!("Zero Core {}", version).bright_white().bold(),
+        format!("Project 0 {}", version).bright_white().bold(),
         status_str,
         health_color,
         passed,

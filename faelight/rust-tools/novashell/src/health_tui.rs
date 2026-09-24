@@ -359,7 +359,7 @@ fn draw_health_ui(
         // ⚠️ THE DENOMINATOR WAS HARDCODED TO 23 AND THE SYSTEM NOW RUNS 32 CHECKS, so this header
         // printed `32/23` -- a ratio of the real total over a number frozen at some earlier moment.
         // The count was already being computed on the line below; only the second half was invented.
-        "🏥 Zero Core {} -- {}% -- {} checks",
+        "🏥 Project 0 {} -- {}% -- {} checks",
         forest_version,
         health_pct,
         sections.iter().map(|s| s.checks.len()).sum::<usize>()

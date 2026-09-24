@@ -153,7 +153,7 @@ pub fn desktop(summary: &str, body: &str, critical: bool) {
             "org.freedesktop.Notifications",
             "Notify",
             "susssasa{sv}i",
-            "Zero Core",
+            "Project 0",
             "0",
             "",
             summary,

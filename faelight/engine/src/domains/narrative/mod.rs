@@ -38,7 +38,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter I — Identity".bright_white().bold());
     println!("  │");
     println!(
-        "  │  Zero Core {} runs on {},",
+        "  │  Project 0 {} runs on {},",
         version.bright_green(),
         crate::domains::bootstrap::os_name()
     );

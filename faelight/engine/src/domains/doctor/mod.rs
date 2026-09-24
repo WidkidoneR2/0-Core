@@ -262,7 +262,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     // configuration system makes, and reproducing the REASONING is the one this does not.
     println!("  │  💡 A configuration reproduces state.");
     println!(
-        "  │    Zero Core reproduces state {} reasoning.",
+        "  │    Project 0 reproduces state {} reasoning.",
         "AND".bright_green().bold()
     );
     println!(

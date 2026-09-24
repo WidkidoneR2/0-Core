@@ -67,7 +67,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
-    println!("{}", "◉ Git Status — Zero Core".bold());
+    println!("{}", "◉ Git Status — Project 0".bold());
     println!(
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
