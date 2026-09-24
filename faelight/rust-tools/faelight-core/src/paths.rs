@@ -302,9 +302,16 @@ pub fn xdg_cache_home() -> PathBuf {
     }
 }
 
+/// Project 0's directory in the XDG cache home: ~/.cache/zero. The ONE owner of that name --
+/// the health status, Friday's log and the caret's last exit status all join onto it, so the
+/// directory can move by changing this function alone. INT-247 item 4.
+pub fn zero_cache_dir() -> PathBuf {
+    xdg_cache_home().join("zero")
+}
+
 /// The health percentage the doctor last wrote. Derived, not authoritative.
 pub fn health_status_file() -> PathBuf {
-    xdg_cache_home().join("faelight/health-status")
+    zero_cache_dir().join("health-status")
 }
 
 /// The health percentage, or None when it has never been written or cannot be
@@ -329,7 +336,7 @@ pub fn read_health() -> Option<u8> {
 /// This is a plain text trail the daemon appends to, and it has always sat in the cache
 /// beside the health status. INT-247 Layer 3a names it rather than moving it.
 pub fn friday_log() -> PathBuf {
-    xdg_cache_home().join("faelight/friday.log")
+    zero_cache_dir().join("friday.log")
 }
 
 /// Whether the last command succeeded -- written by the shell, read by the prompt to colour
@@ -342,7 +349,7 @@ pub fn friday_log() -> PathBuf {
 /// Named here so the path has one owner; whether the channel should be a file at all is a
 /// separate question this accessor does not answer.
 pub fn last_exit_status_file() -> PathBuf {
-    xdg_cache_home().join("faelight/last-exit-status")
+    zero_cache_dir().join("last-exit-status")
 }
 
 pub fn journal_dir() -> PathBuf {
@@ -781,6 +788,41 @@ pub fn sway_config() -> PathBuf {
 }
 #[cfg(test)]
 mod tests {
+    /// INT-247 item 4: every cache file sits directly under zero_cache_dir().
+    #[test]
+    fn cache_files_live_under_zero_cache_dir() {
+        let dir = super::zero_cache_dir();
+        assert_eq!(dir.file_name().and_then(|n| n.to_str()), Some("zero"));
+        for f in [
+            super::health_status_file(),
+            super::friday_log(),
+            super::last_exit_status_file(),
+        ] {
+            assert_eq!(
+                f.parent(),
+                Some(dir.as_path()),
+                "{} is not under {}",
+                f.display(),
+                dir.display()
+            );
+        }
+    }
+
+    /// INT-247 item 4, the CLASS: the cache directory has one owner. Before this, three
+    /// accessors each joined their own directory name onto xdg_cache_home(), so moving the
+    /// directory meant finding all of them. A new accessor that does that again fails here.
+    /// The needle is split with concat! so this test's own source does not match it.
+    #[test]
+    fn xdg_cache_home_is_joined_by_one_owner() {
+        let needle = concat!("xdg_cache_home", "().join(");
+        let n = include_str!("paths.rs").matches(needle).count();
+        assert_eq!(
+            n, 1,
+            "{} sites join onto xdg_cache_home(); only zero_cache_dir() may",
+            n
+        );
+    }
+
     use super::*;
 
     #[test]

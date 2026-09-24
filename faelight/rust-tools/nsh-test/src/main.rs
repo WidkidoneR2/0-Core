@@ -780,7 +780,7 @@ fn all_tests() -> Vec<TestResult> {
             // live one, which would otherwise make this depend on whatever ran last.
             let tmp = std::env::temp_dir().join(format!("nsh-test-caret-{}", std::process::id()));
             let _ = std::fs::create_dir_all(&tmp);
-            let cache = tmp.join("faelight").join("last-exit-status");
+            let cache = tmp.join("zero").join("last-exit-status");
             let env = [("XDG_CACHE_HOME", tmp.to_string_lossy().to_string())];
             let env: Vec<(&str, &str)> = env.iter().map(|(k, v)| (*k, v.as_str())).collect();
 
