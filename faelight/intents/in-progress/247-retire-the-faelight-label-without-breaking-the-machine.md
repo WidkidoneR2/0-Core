@@ -1427,6 +1427,45 @@ site was folded in rather than left behind.
                             note for every adjustment
 ```
 
+## 2026-09-24, LATE NIGHT -- ITEM 3: TWO ACCESSORS RENAMED, AND ~/0-core/zero RULED
+
+### 4d4d245b -- faelight_config_dir -> zero_config_dir, faelight_dir -> source_dir
+
+```text
+    zero_config_dir   paths.rs 5 uses, doctor probes/files.rs 2 (the Zero Alias probe)
+    source_dir        paths.rs 10 uses, engine app/context.rs 1
+    18 uses in 4 files -- the recon count; the payload refused unless it matched exactly
+```
+
+The payload surveyed every .rs file first and refused on any mismatch: a different file set or
+count, a new name already in use, or an old name inside a longer word. It renamed through fpatch,
+re-surveyed, and no old name remained.
+
+Proven: cargo test faelight-core 7, faelight-doctor 60, core 2 -- each 0 failed, no error line;
+ship 17 shipped, 0 failed; d 0 failed, and Zero Alias green reading real: state=zero,
+config=zero -- the probe that now calls zero_config_dir, so the rename is proven end to end.
+Pushed.
+
+source_dir is named so it is true both ways: today it returns ~/0-core/faelight, after INT-252
+~/0-core/zero. Only the path inside it changes, never the name.
+
+faelight_data_dir is NOT renamed. It still returns ~/.local/share/faelight, so it is renamed
+together with that directory's move (item 4), and its name never says something untrue.
+
+### RULED, Christian 2026-09-24: ~/0-core/faelight/ -> ~/0-core/zero/
+
+The naming map row marked PROPOSED is now RULED. The ruling fixes the DESTINATION only. The move
+stays INT-252: its own session, its own gate, done last -- it touches 646 files, every path in
+AGENTS.md, ship, and intent citations.
+
+### Item 3 of the order
+
+```text
+    faelight_dir          -> source_dir         DONE 4d4d245b
+    faelight_config_dir   -> zero_config_dir    DONE 4d4d245b
+    faelight_data_dir     unchanged             renamed with ~/.local/share/faelight, item 4
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
