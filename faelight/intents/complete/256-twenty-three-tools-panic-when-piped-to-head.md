@@ -3,7 +3,7 @@ id: 256
 date: 2026-09-20
 type: future
 title: "twenty-three tools panic when piped to head"
-status: in-progress
+status: complete
 tags: [panic, nsh, novashell]
 ---
 
