@@ -96,7 +96,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ╭─ 🔧 Deterministic Rebuild Plan ────────────────────".bright_cyan()
     );
-    println!("  │  How to reconstruct this forest from first principles");
+    println!("  │  How to reconstruct Project 0 from first principles");
     println!("  │  Every step is traceable to an intent or decision.");
     println!(
         "{}",
@@ -211,7 +211,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         event_files.to_string().bright_white()
     );
     println!("  │    → replay with: core events replay --date <date>");
-    println!("  │    → shows exactly what the forest was doing before any failure");
+    println!("  │    → shows exactly what was happening before any failure");
 
     // ── Reconstruction Steps ──────────────────────────────────────────────
     println!("  │");
@@ -236,7 +236,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     //                                         the doctor header.
     println!("  │  {}  Install Omarchy", "①".bright_white());
     println!("  │");
-    println!("  │  {}  Clone the forest", "②".bright_white());
+    println!("  │  {}  Clone the repo", "②".bright_white());
     println!("  │     git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core");
     println!("  │");
     println!("  │  {}  Build and deploy the tools", "③".bright_white());
@@ -418,7 +418,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // ⭐ Only the Red verdict above keeps critical urgency, because that is what Red MEANS.
     if integrity_pct < 80 {
         crate::domains::notify::desktop(
-            "Forest integrity below 80%",
+            "Integrity below 80%",
             &format!("Integrity is {}%", integrity_pct),
             false,
         );
@@ -541,7 +541,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     && trend.abs() <= 0.5
                     && intent_count == 0
                 {
-                    Some(("💚", "Forest is stable — no concerns".to_string()))
+                    Some(("💚", "Stable — no concerns".to_string()))
                 } else if trend < -1.0 && intent_count > 0 {
                     Some(("💡", format!(
                         "Health dip during active development — expected pattern ({} intent{} in progress)",
