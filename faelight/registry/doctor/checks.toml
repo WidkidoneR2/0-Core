@@ -54,15 +54,6 @@
 # to load. That refusal is gate 3 proven on live data rather than on a fabricated example.
 
 [[check]]
-id = "services_running"
-name = "System Services"
-section = "\U0001F5A5  System"
-tier = "system"
-probe = "services_running"
-severities = ["pass", "warn"]
-recovery = "Start the unit: systemctl --user start <name>"
-
-[[check]]
 id = "broken_symlinks"
 name = "Broken Symlinks"
 section = "\U0001F5A5  System"

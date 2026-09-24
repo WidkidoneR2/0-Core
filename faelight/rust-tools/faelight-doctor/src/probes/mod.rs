@@ -50,7 +50,6 @@ pub fn run(p: Probe) -> Measurement {
         Probe::AliasCoverage => tools::alias_coverage(),
         Probe::Sandbox => security::sandbox(),
         Probe::SecurityAudit => security::security_audit(),
-        Probe::ServicesRunning => forest::services_running(),
         Probe::IntentLedger => forest::intent_ledger(),
         Probe::Friday => forest::friday(),
         Probe::RustDocs => forest::rust_docs(),

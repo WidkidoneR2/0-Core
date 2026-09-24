@@ -150,7 +150,7 @@ mod tests {
             "the shipped check set must not contain a definition the engine refuses: {:?}",
             r.refused
         );
-        assert_eq!(r.checks.len(), 28, "all 28 registered checks are declared");
+        assert_eq!(r.checks.len(), 27, "all 27 registered checks are declared");
     }
 
     #[test]
@@ -161,7 +161,7 @@ mod tests {
         // Both measure truly and never judge: the cache size and the VM count are facts
         // a human interprets, not verdicts.
         assert_eq!(labels, vec!["package_cache", "vm_state"]);
-        assert_eq!(r.judging().count(), 26);
+        assert_eq!(r.judging().count(), 25);
         assert_eq!(r.judging().count() + labels.len(), r.checks.len());
     }
 

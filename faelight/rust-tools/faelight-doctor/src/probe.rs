@@ -30,8 +30,6 @@ use serde::Deserialize;
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Probe {
-    /// Every unit faelight-session.target wants, and whether each is active. DISCOVERS its own list -- a hardcoded three against a set of five reports its own memory, not health.
-    ServicesRunning,
     /// Dotfile symlinks that point at nothing.
     BrokenSymlinks,
     /// Every binary the manifest expects is present.
@@ -92,7 +90,6 @@ impl Probe {
     /// The stable name used in TOML, and in any message naming the probe.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Probe::ServicesRunning => "services_running",
             Probe::BrokenSymlinks => "broken_symlinks",
             Probe::Binaries => "binaries",
             Probe::GitStatus => "git_status",
@@ -126,7 +123,6 @@ impl Probe {
     /// Every probe the engine knows. Finite, and the test proves it.
     pub fn all() -> &'static [Probe] {
         &[
-            Probe::ServicesRunning,
             Probe::BrokenSymlinks,
             Probe::Binaries,
             Probe::GitStatus,
