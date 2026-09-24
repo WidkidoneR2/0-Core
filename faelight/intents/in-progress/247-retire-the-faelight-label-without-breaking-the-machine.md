@@ -1291,6 +1291,54 @@ so this is a new starting line, not a delta against 4,077 or 534.
                         fsearch finds only nsh-test's forest_test function. Being traced.
 ```
 
+## 2026-09-24, NIGHT -- WHERE THIS SESSION STOPPED, AND THE ORDER NEXT
+
+READ THIS SECTION FIRST WHEN PICKING UP. It supersedes "NEXT SESSION, IN ORDER" in the PASSES 3 AND 4
+section above.
+
+### Done this session
+
+```text
+    de954f49   the naming map, ruled by Christian
+    898c3d19   ~/0-core/.config removed -- dead link to dotfiles/helix
+    382dfd8e   the census, the new starting line
+    (data)     FOREST_TEST removed from shell_persist. It came from a test export on 2026-04-09
+               and nsh re-exported it into every shell for five and a half months. Traced through
+               the process tree (no ancestor carried it, nor nsh's own start environment) to
+               shell_persist rowid 1; the startup restore was read before the row was deleted.
+               RESOLVES the FOREST_TEST line under the census's "Found, not fixed"
+    683a890b   INT-262 filed -- persist has no inverse and reports success it never checked.
+               STARTED, THEN PARKED behind this intent. Its next step: how nsh-test's
+               repl::run_repl starts the shell, and whether it already isolates state
+```
+
+### THE ORDER, ruled by Christian 2026-09-24 -- what he SEES first
+
+```text
+    1  System Services probe   d prints "could not read faelight-session.target" on every run:
+                               a NixOS-era unit that does not exist on Omarchy, and d's only
+                               Unknown. Recon what it is for, then fix or retire it
+    2  forest labels           the remaining ~60, one engine area at a time, through the guard
+    3  paths.rs accessors      faelight_dir, faelight_config_dir, faelight_data_dir to zero
+                               names; the compiler finds every caller
+    4  outside directories     ONE PER SESSION, alias first: ~/.cache/faelight -> zero first,
+                               ~/.local/share/faelight -> zero next, ~/.config/faelight-shell
+                               -> ~/.config/nsh last (it holds the aliases)
+    5  inta                    SCHEMA and CONTRACTS as their own intents -- any time, a minute each
+    6  the words               the sayings (his voice, the tree emoji with them), then README and
+                               the seven-document rewrite
+    7  the structure           crates through the decision test, faelight-core last; INT-252
+                               the directory; the compatibility links last of all
+```
+
+### Still visible in d after this session
+
+```text
+    faelight-session.target    item 1
+    faelight-sandbox deployed  a crate name -- goes when the crate is renamed or retired (item 7)
+    the tree emoji on Friday   the sayings (item 6)
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
