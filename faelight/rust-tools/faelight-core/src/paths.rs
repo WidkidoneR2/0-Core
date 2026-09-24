@@ -149,9 +149,9 @@ pub fn bin_dir() -> PathBuf {
 /// RESOLUTION ORDER, chosen so the code can ship before the data moves:
 ///   1. $FAELIGHT_STATE_DIR       -- explicit override; also lets fsh-test
 ///                                   isolate per-case state off the live db
-///   2. state_home()/faelight     -- if it already exists, it wins
+///   2. state_home()/zero         -- if it already exists, it wins
 ///   3. faelight_dir()/runtime    -- legacy, only while it still exists
-///   4. state_home()/faelight     -- fresh install, no repo required
+///   4. state_home()/zero         -- fresh install, no repo required
 ///
 /// There is deliberately no window where the code points somewhere the data is
 /// not: today (3) holds and nothing changes; after the move (2) takes over on
@@ -162,7 +162,7 @@ pub fn runtime_dir() -> PathBuf {
             return PathBuf::from(v);
         }
     }
-    let xdg = state_home().join("faelight");
+    let xdg = state_home().join("zero");
     if xdg.exists() {
         return xdg;
     }
@@ -351,7 +351,7 @@ pub fn config_dir() -> PathBuf {
 }
 
 pub fn faelight_config_dir() -> PathBuf {
-    config_dir().join("faelight")
+    config_dir().join("zero")
 }
 
 pub fn profile_file() -> PathBuf {
@@ -755,7 +755,7 @@ mod tests {
         // path while that still exists, or XDG state.
         let r = runtime_dir();
         assert!(
-            r.ends_with("runtime") || r.ends_with("faelight"),
+            r.ends_with("runtime") || r.ends_with("zero"),
             "unexpected runtime_dir: {}",
             r.display()
         );

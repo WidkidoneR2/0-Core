@@ -228,12 +228,9 @@ fn fixture_home() -> Result<String, String> {
         "fn expand_braces() {}\n",
     )?;
 
-    // `ls ~/.local/state/faelight/state.db` contains state.db
-    mkdir(&format!("{}/.local/state/faelight", root))?;
-    write(
-        &format!("{}/.local/state/faelight/state.db", root),
-        "fixture",
-    )?;
+    // `ls ~/.local/state/zero/state.db` contains state.db
+    mkdir(&format!("{}/.local/state/zero", root))?;
+    write(&format!("{}/.local/state/zero/state.db", root), "fixture")?;
 
     Ok(root)
 }
@@ -584,7 +581,7 @@ fn all_tests() -> Vec<TestResult> {
                 format!("{}/faelight/rust-tools/faelight-core", core),
                 format!("{}/faelight/rust-tools/novashell/Cargo.toml", core),
                 format!("{}/faelight/rust-tools/novashell/src/main.rs", core),
-                format!("{}/.local/state/faelight/state.db", root),
+                format!("{}/.local/state/zero/state.db", root),
             ];
             for p in &needed {
                 if !std::path::Path::new(p).exists() {
@@ -680,11 +677,11 @@ fn all_tests() -> Vec<TestResult> {
     // state moved to XDG state home, and a test named for a directory that is
     // gone is the same stale label this suite exists to catch.
     // NOT a ~/0-core path -- this one reaches the fixture ROOT, which is why fixture_home
-    // creates .local/state/faelight as well as the 0-core tree.
+    // creates .local/state/zero as well as the 0-core tree.
     results.push(test("tilde_ls_state", Category::Tilde, || {
         let home = fixture_home()?;
         expect_contains(
-            &run_fsh_env("ls ~/.local/state/faelight", &[("HOME", home.as_str())])?,
+            &run_fsh_env("ls ~/.local/state/zero", &[("HOME", home.as_str())])?,
             "state.db",
         )
     }));
@@ -1016,7 +1013,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "ls ~/.local/state/faelight/state.db",
+                "ls ~/.local/state/zero/state.db",
                 &[("HOME", home.as_str())],
             )?,
             "state.db",
