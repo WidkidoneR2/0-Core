@@ -319,7 +319,7 @@ pub fn check(ctx: &AppContext) -> CoreResult<()> {
     println!();
     if issues == 0 {
         println!(
-            "  {} All engines consistent — forest thinks as one",
+            "  {} All engines consistent — Project 0 thinks as one",
             "✅".green().bold()
         );
     } else {

@@ -1506,7 +1506,7 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
     } else if healed > 0 {
         println!("  {} {} issues healed", "✅".normal(), healed);
     } else {
-        println!("  {} Nothing to heal — forest is clean", "✅".normal());
+        println!("  {} Nothing to heal — Project 0 is clean", "✅".normal());
     }
     println!();
     Ok(())

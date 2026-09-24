@@ -300,7 +300,7 @@ pub fn seed_forest_lessons(ctx: &AppContext) -> CoreResult<()> {
          "database",
          None,
          "state.db WAL mode required for concurrent access",
-         "Run: PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; on state.db. Already done in forest setup.",
+         "Run: PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; on state.db. Already done in setup.",
          0.99),
         ("git_checkout_recovery",
          "git",

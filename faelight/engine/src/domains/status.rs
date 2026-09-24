@@ -20,7 +20,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     let day_ago = now - 86400;
 
     println!();
-    println!("  {} Forest Status -- One-Mind Answer", "🌲".normal());
+    println!("  {} Status -- One-Mind Answer", "🌲".normal());
     println!("  {}", "━".repeat(55).dimmed());
     println!();
 
@@ -143,7 +143,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} Recommendation:", "💡".normal());
     if intent_count >= 4 {
         println!(
-            "    {} Focus -- {} intents is above the forest's focus threshold",
+            "    {} Focus -- {} intents is above the focus threshold",
             "→".bright_cyan(),
             intent_count
         );
@@ -155,7 +155,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
         );
     } else {
         println!(
-            "    {} Forest is coherent -- continue current intent work",
+            "    {} Project 0 is coherent -- continue current intent work",
             "→".bright_cyan()
         );
     }

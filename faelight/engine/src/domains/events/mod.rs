@@ -1883,7 +1883,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     if suggestions.is_empty() {
-        println!("  ✅ No suggestions — forest is in excellent shape");
+        println!("  ✅ No suggestions — Project 0 is in excellent shape");
         println!(
             "  {} Keep running d regularly to maintain health data",
             "💡".cyan()

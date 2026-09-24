@@ -449,7 +449,7 @@ async fn health_watchdog(db_path: String) {
                 .args([
                     "--urgency=critical",
                     "--app-name=Friday",
-                    "[Friday] Forest Health Alert",
+                    "[Friday] Health Alert",
                     &format!(
                         "Health dropped to {}% (was {}%). Run: d",
                         health, last_health
@@ -463,7 +463,7 @@ async fn health_watchdog(db_path: String) {
                 .args([
                     "--urgency=normal",
                     "--app-name=Friday",
-                    "[Friday] Forest Health Restored",
+                    "[Friday] Health Restored",
                     &format!("Health back to {}%. All systems nominal.", health),
                 ])
                 .spawn();

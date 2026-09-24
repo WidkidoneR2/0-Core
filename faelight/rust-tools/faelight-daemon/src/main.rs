@@ -12,7 +12,7 @@ use faelight_core::paths;
 
 #[derive(Parser)]
 #[command(name = "faelight-daemon")]
-#[command(about = "🌲 Faelight Forest Daemon - Background operations", long_about = None)]
+#[command(about = "🌲 Project 0 Daemon - Background operations", long_about = None)]
 #[command(version)]
 struct Cli {
     /// Socket path (default: paths::daemon_socket)

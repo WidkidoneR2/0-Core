@@ -982,7 +982,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         }
     } else {
         println!(
-            "  {} No risk factors detected. Forest trajectory is stable.",
+            "  {} No risk factors detected. Trajectory is stable.",
             "✅".green()
         );
     }
@@ -1180,7 +1180,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     if intelligence_count > 0 {
         let intel_pct = (intelligence_count as f64 / total_complete as f64) * 100.0;
         println!(
-            "  {} Intelligence arc ({} intents, {:.0}% of forest):",
+            "  {} Intelligence arc ({} intents, {:.0}% of all intents):",
             "💡".dimmed(),
             intelligence_count,
             intel_pct

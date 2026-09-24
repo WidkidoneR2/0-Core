@@ -265,7 +265,7 @@ impl App {
 
     fn export_csv(&self) -> std::io::Result<()> {
         use std::io::Write;
-        let mut f = std::fs::File::create("/tmp/forest-export.csv")?;
+        let mut f = std::fs::File::create("/tmp/db-export.csv")?;
         writeln!(f, "{}", self.data_headers.join(","))?;
         for row in &self.filtered_rows {
             writeln!(f, "{}", row.join(","))?;
@@ -845,7 +845,7 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::Char('x') => match app.export_csv() {
                         Ok(_) => {
                             app.status_msg = format!(
-                                "Exported {} rows to /tmp/forest-export.csv",
+                                "Exported {} rows to /tmp/db-export.csv",
                                 app.filtered_rows.len()
                             )
                         }

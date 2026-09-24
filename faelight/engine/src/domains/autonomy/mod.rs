@@ -160,7 +160,7 @@ pub fn mandate_set(ctx: &AppContext, rule: &str) -> CoreResult<()> {
         JARVIS_GATE
     );
     println!(
-        "  {} The forest will act on this when score reaches gate",
+        "  {} Project 0 will act on this when score reaches gate",
         "→".dimmed()
     );
     println!();
@@ -176,7 +176,7 @@ pub fn mandate_revoke(ctx: &AppContext, id: &str) -> CoreResult<()> {
     )?;
     println!();
     println!("  {} Mandate #{} revoked", "✅".normal(), id);
-    println!("  {} Forest will not act on this mandate", "→".dimmed());
+    println!("  {} Project 0 will not act on this mandate", "→".dimmed());
     println!();
     Ok(())
 }
@@ -189,7 +189,7 @@ pub fn mandate_revoke_all(ctx: &AppContext) -> CoreResult<()> {
     )?;
     println!();
     println!(
-        "  {} All mandates revoked — forest returned to fully manual mode",
+        "  {} All mandates revoked — Project 0 returned to fully manual mode",
         "🔒".normal()
     );
     println!();
@@ -205,7 +205,7 @@ pub fn autonomy_pending(ctx: &AppContext) -> CoreResult<()> {
     }
     println!("  {} No autonomous actions pending", "○".dimmed());
     println!(
-        "  {} Mandates define what the forest may suggest",
+        "  {} Mandates define what Project 0 may suggest",
         "→".dimmed()
     );
     Ok(())

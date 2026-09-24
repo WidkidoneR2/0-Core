@@ -488,7 +488,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!("    Stability  {}", score_bar(stability));
     println!("    Evolution  {}", score_bar(evolution));
     let se_state = if stability > 0.85 && evolution < 0.5 {
-        "Forest is stable — capacity for evolution exists".yellow()
+        "Project 0 is stable — capacity for evolution exists".yellow()
     } else if stability < 0.9 {
         "Stability focus recommended before expanding".bright_red()
     } else {

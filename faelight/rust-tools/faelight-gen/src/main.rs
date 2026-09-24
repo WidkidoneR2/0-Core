@@ -7,7 +7,7 @@ use colored::*;
 use rand::Rng;
 
 #[derive(Parser)]
-#[command(name = "faelight-gen", about = "🔐 Forest-native secret generator")]
+#[command(name = "faelight-gen", about = "🔐 Project 0 secret generator")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

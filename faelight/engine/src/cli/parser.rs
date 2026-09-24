@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "core")]
-#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v53 (Forest Mind)"))]
+#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v53"))]
 #[command(about = "0-Core \u{2014} single orchestrator binary")]
 pub struct Cli {
     #[command(subcommand)]
@@ -12,7 +12,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// INT-251 v23 Pillar 5 -- The One-Mind Answer
-    #[command(name = "status", about = "Forest state in one coherent narrative")]
+    #[command(name = "status", about = "State in one coherent narrative")]
     Status,
     /// Deploy intelligence -- check, record, log
     Deploy {
@@ -1300,7 +1300,7 @@ pub enum BootstrapCommands {
 
 #[derive(Subcommand)]
 pub enum DepsCommands {
-    /// Visual dependency map of all forest tools
+    /// Visual dependency map of all Project 0 tools
     Graph,
     /// Which dependencies carry the most risk?
     Risk,

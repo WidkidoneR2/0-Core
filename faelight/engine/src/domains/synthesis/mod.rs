@@ -217,7 +217,7 @@ fn generate_brief(
     }
     // Health and alignment
     if health == 100 && alignment >= 0.99 {
-        parts.push("Forest is healthy and aligned. No concerns.".to_string());
+        parts.push("Project 0 is healthy and aligned. No concerns.".to_string());
     } else if health < 95 {
         parts.push(format!(
             "Health at {}% -- investigate before continuing.",

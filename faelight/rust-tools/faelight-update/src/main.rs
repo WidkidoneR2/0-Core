@@ -21,7 +21,7 @@ use std::process::Command;
 #[derive(Parser)]
 #[command(
     name = "faelight-update",
-    about = "🌲 Intelligent update manager for Faelight Forest",
+    about = "🌲 Intelligent update manager for Project 0",
     version  // Automatically uses CARGO_PKG_VERSION from Cargo.toml
 )]
 struct Cli {

@@ -44,7 +44,7 @@ pub fn commands(ctx: &AppContext) -> CoreResult<()> {
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
     let docs_dir = std::path::PathBuf::from(&ctx.core_root).join("docs");
     println!();
-    println!("{}", "📚 Forest Documentation".cyan().bold());
+    println!("{}", "📚 Project 0 Documentation".cyan().bold());
     println!("{}", "━".repeat(50).dimmed());
     println!();
     if !docs_dir.exists() {

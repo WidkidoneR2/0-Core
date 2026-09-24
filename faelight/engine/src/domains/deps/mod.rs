@@ -21,7 +21,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ╭─ 🌐 Dependency Graph ───────────────────────────────".bright_cyan()
     );
-    println!("  │  Visual dependency map of all forest tools");
+    println!("  │  Visual dependency map of all Project 0 tools");
     println!(
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()

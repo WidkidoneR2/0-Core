@@ -522,7 +522,7 @@ pub fn decline(ctx: &AppContext) -> CoreResult<()> {
     } else if recent_avg >= 98 {
         println!();
         println!(
-            "  {} {} Forest health is excellent — no warnings detected",
+            "  {} {} Health is excellent — no warnings detected",
             "✅".normal(),
             "".normal()
         );

@@ -323,10 +323,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
             "  {} No patterns yet — run: core weight compute",
             "○".dimmed()
         );
-        println!(
-            "  {} Weights are built from forest events over time",
-            "→".dimmed()
-        );
+        println!("  {} Weights are built from events over time", "→".dimmed());
         println!();
         return Ok(());
     }
@@ -828,7 +825,7 @@ pub fn calibrate(ctx: &AppContext, id: &str, outcome: &str) -> CoreResult<()> {
                 outcome,
                 success
             );
-            println!("  {} The forest learns from this outcome", "→".dimmed());
+            println!("  {} Project 0 learns from this outcome", "→".dimmed());
         }
     }
     Ok(())

@@ -95,7 +95,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
 pub fn generate(ctx: &AppContext) -> CoreResult<()> {
     ensure_schema(ctx);
     println!();
-    println!("  Analyzing forest evidence...");
+    println!("  Analyzing evidence...");
     println!();
     let health = read_health(ctx);
     let mut proposed: Vec<(String, String, String, String)> = vec![];
@@ -122,10 +122,7 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
         "Run: core evolution tools — review dormant tools".to_string(),
         "LOW".to_string(),
     ));
-    println!(
-        "  {} goal(s) proposed from forest evidence:",
-        proposed.len()
-    );
+    println!("  {} goal(s) proposed from evidence:", proposed.len());
     println!();
     let now = chrono::Utc::now().timestamp();
     for (title, reason, plan, priority) in &proposed {

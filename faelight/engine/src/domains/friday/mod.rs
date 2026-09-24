@@ -234,7 +234,7 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
             "forest",
             "forest_stats",
             format!(
-                "This forest has {} complete intents representing {} commits of deliberate work.",
+                "Project 0 has {} complete intents representing {} commits of deliberate work.",
                 complete_count, commit_count
             ),
         ),
@@ -1073,7 +1073,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!(
-        "  {} Linux/Rust/Forest knowledge seeded -- {} facts added",
+        "  {} Linux/Rust/Project 0 knowledge seeded -- {} facts added",
         "✅".green(),
         added.to_string().bright_white()
     );
@@ -1228,7 +1228,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
     // Determine what to propose based on what Friday sees
     let (title, tags, rationale, proposal) = if vocab_count < 3 {
         (
-            "Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats",
+            "Friday Vocabulary Expansion -- Name the Patterns Project 0 Repeats",
             "friday, vocabulary, abstraction, language, patterns",
             format!(
                 "Friday has observed {} patterns and named {} abstractions. \

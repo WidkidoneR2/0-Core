@@ -147,7 +147,7 @@ fn friday_respond(db: &Connection, input: &str) -> String {
 
     // Slash commands
     if lower.starts_with("/help") || lower == "help" {
-        return "Commands:\n  /status   -- forest health + active intent\n  /intent   -- current intent details\n  /events   -- recent event bus activity\n  /patterns -- Friday's learned patterns\n  /facts    -- recent friday_knowledge\n  /why [x]  -- explain a recent event\n  /recall [x] -- search past events\n  q / /quit -- exit".to_string();
+        return "Commands:\n  /status   -- health + active intent\n  /intent   -- current intent details\n  /events   -- recent event bus activity\n  /patterns -- Friday's learned patterns\n  /facts    -- recent friday_knowledge\n  /why [x]  -- explain a recent event\n  /recall [x] -- search past events\n  q / /quit -- exit".to_string();
     }
 
     if lower.starts_with("/status") || lower == "status" {
@@ -245,7 +245,7 @@ fn friday_status(db: &Connection) -> String {
         )
         .unwrap_or(0);
     format!(
-        "Forest Status:\n  Health: {}\n  Active intent: {}\n  Facts: {}\n  Patterns: {}\n  Decisions: {}\n  Attention events spoken: {}",
+        "Status:\n  Health: {}\n  Active intent: {}\n  Facts: {}\n  Patterns: {}\n  Decisions: {}\n  Attention events spoken: {}",
         health, intent, facts, patterns, decisions, attention
     )
 }

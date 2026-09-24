@@ -631,7 +631,7 @@ pub fn scenario3(ctx: &AppContext) -> CoreResult<()> {
 
     if current >= 95 {
         println!(
-            "  {} PASS — forest is healthy, recovery baseline confirmed",
+            "  {} PASS — Project 0 is healthy, recovery baseline confirmed",
             "✅".normal()
         );
         println!(

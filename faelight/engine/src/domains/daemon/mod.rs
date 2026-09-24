@@ -118,7 +118,7 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
 /// core daemon context
 pub fn context(_ctx: &AppContext) -> CoreResult<()> {
     println!();
-    println!("{}", "🌿 Forest Context (via daemon)".cyan().bold());
+    println!("{}", "🌿 Context (via daemon)".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     match send_command(serde_json::json!("GetForestContext")) {

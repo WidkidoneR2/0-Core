@@ -424,7 +424,7 @@ fn check_session_velocity(ctx: &AppContext) -> CoreResult<Option<String>> {
             0
         };
         let msg = format!(
-            "{} commits today -- high velocity. {}% of total forest commits ({}) in one day. Per facts #255 and #256, this session exceeds sustainable cadence.",
+            "{} commits today -- high velocity. {}% of total commits ({}) in one day. Per facts #255 and #256, this session exceeds sustainable cadence.",
             today_commits, pct, total_commits
         );
         return Ok(Some(msg));
@@ -504,7 +504,7 @@ fn check_pushback(ctx: &AppContext) -> CoreResult<Option<String>> {
     // Push back if 4+ intents in progress
     let intents = active_intents();
     if intents.len() >= 4 {
-        return Ok(Some(format!("{} intents in progress simultaneously -- forest values focus. Consider closing one before opening another.", intents.len())));
+        return Ok(Some(format!("{} intents in progress simultaneously -- Project 0 values focus. Consider closing one before opening another.", intents.len())));
     }
     Ok(None)
 }
@@ -528,7 +528,7 @@ fn check_recent_activity(ctx: &AppContext) -> CoreResult<Option<String>> {
         .unwrap_or(0);
     if deploys > 0 || commits > 0 {
         return Ok(Some(format!(
-            "{} deploy(s) and {} commit(s) today -- forest is active",
+            "{} deploy(s) and {} commit(s) today -- Project 0 is active",
             deploys, commits
         )));
     }

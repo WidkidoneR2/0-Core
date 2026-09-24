@@ -319,7 +319,7 @@ fn main() {
                 .collect();
             println!(
                 "
-  📋 Recent forest events
+  📋 Recent events
   {}",
                 "─".repeat(48).dimmed()
             );
