@@ -633,7 +633,7 @@ user-facing architecture.
 
 - `cat` is `bat`
 - `ls` is `eza` — **`ls -lt` fails**; eza spells it `--sort=modified`
-- `d` health check · `gc` git commit · `gp` git push · `fm` / `fmd` file manager
+- `d` health check · `gc` git commit · `gp` git push
 
 ---
 
