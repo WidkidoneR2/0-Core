@@ -45,16 +45,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 .db
                 .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
                 .unwrap_or(0);
-            let forest_ver: String = ctx
-                .runtime
-                .db
-                .query_row(
-                    "SELECT value FROM domain_state WHERE domain = 'forest' AND key = 'version'",
-                    [],
-                    |r| r.get(0),
-                )
-                .unwrap_or_else(|_| "13.0.0".to_string());
-            println!("  {} {}", "Forest:".dimmed(), forest_ver.bright_cyan());
+            // INT-247: the version has ONE owner, meta/VERSION, read through paths::read_version().
+            // This used to query a domain_state key that state.db has never held, so every run
+            // printed an invented 13.0.0. An unreadable version prints ?, never a number.
+            let version = faelight_core::paths::read_version().unwrap_or_else(|| "?".to_string());
+            println!("  {} {}", "Project 0:".dimmed(), version.bright_cyan());
             println!(
                 "  {} {} facts · {} patterns",
                 "Friday:".dimmed(),

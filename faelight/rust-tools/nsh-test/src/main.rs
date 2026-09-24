@@ -644,7 +644,19 @@ fn all_tests() -> Vec<TestResult> {
         expect_contains(&run_fsh("echo a && echo b")?, "b")
     }));
     results.push(test("and_chain_fsh_builtin", Category::Regression, || {
-        expect_contains(&run_fsh("echo ok && core version")?, "3.0.0")
+        // The chain must run BOTH sides, in order. This expected "3.0.0" -- core's version when it
+        // was written -- and kept passing after core moved on only because core version printed an
+        // invented "Forest: 13.0.0" that happened to contain it. INT-247 removed the invention and
+        // this went red. Assert the SHAPE of the output, never a version number.
+        let out = run_fsh("echo ok && core version")?;
+        let mut lines = out.lines();
+        if lines.next().map(str::trim) != Some("ok") {
+            return Err(format!("the left side did not run first: {:?}", out));
+        }
+        if !lines.any(|l| l.starts_with("core ")) {
+            return Err(format!("the right side did not run: {:?}", out));
+        }
+        Ok(())
     }));
     results.push(test("subshell_expansion", Category::Regression, || {
         expect_eq(&run_fsh("echo $(echo nested)")?, "nested")

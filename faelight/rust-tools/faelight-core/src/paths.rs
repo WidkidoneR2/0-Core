@@ -45,6 +45,53 @@ pub fn version_file() -> PathBuf {
     meta_dir().join("VERSION")
 }
 
+/// The version, read from its ONE owner, meta/VERSION. None when the file is missing, unreadable or
+/// empty -- never an invented number. INT-250 found v14.0.0 and INT-247 found 13.0.0, each printed
+/// as fact on a failed read. A leading v is stripped so every caller prints one format.
+pub fn read_version() -> Option<String> {
+    read_version_at(&version_file())
+}
+
+fn read_version_at(path: &std::path::Path) -> Option<String> {
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().trim_start_matches('v').to_string())
+        .filter(|s| !s.is_empty())
+}
+
+#[cfg(test)]
+mod read_version_tests {
+    use super::read_version_at;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("p0-read-version-{}-{}", std::process::id(), name))
+    }
+
+    // THE CLASS: a version that cannot be read is None -- the caller shows it as unknown.
+    #[test]
+    fn missing_file_is_none_not_a_number() {
+        assert_eq!(read_version_at(&scratch("never-written")), None);
+    }
+
+    #[test]
+    fn empty_or_blank_file_is_none_not_a_number() {
+        let p = scratch("blank");
+        std::fs::write(&p, "  \n").unwrap();
+        let got = read_version_at(&p);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    fn real_version_is_read_trimmed_and_without_v() {
+        let p = scratch("real");
+        std::fs::write(&p, "v1.0.0\n").unwrap();
+        let got = read_version_at(&p);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(got.as_deref(), Some("1.0.0"));
+    }
+}
+
 pub fn changelog_file() -> PathBuf {
     meta_dir().join("CHANGELOG.md")
 }
@@ -453,8 +500,10 @@ pub fn clipboard_history_file() -> PathBuf {
 ///
 /// ⚠️ THIS IS NOT runtime_dir(), AND IT MUST NOT BE DERIVED FROM IT. Measured 2026-09-17:
 ///
+/// ```text
 ///     ~/.local/state/faelight   314M   db, events, journal, logs, cache, snapshots, socket
 ///     ~/.local/state/0-core     6.4M   intent focus, sandbox snapshots, security scans
+/// ```
 ///
 /// Disjoint contents, both live, both written to today. Deriving this from runtime_dir() would
 /// silently RELOCATE 6.4M of data while calling itself a consolidation -- exactly the move this
@@ -478,10 +527,12 @@ pub fn zero_state_dir() -> PathBuf {
 /// ⚠️ FIVE READERS BUILT THIS PATH THEMSELVES, and three other routes to the same fact are
 /// broken. Measured 2026-09-17, while the focus was INT-250:
 ///
+/// ```text
 ///     focus.toml                        id = "250"        CORRECT
 ///     shell_state key 'focus_intent'    ABSENT from the db entirely -- 4 readers get None
 ///     /etc/faelight/INTENT              directory gone since Omarchy -- 2 readers get ""
 ///     scan of intents/future/           cistart MOVES started intents to in-progress/
+/// ```
 ///
 /// Four ways to ask one question, one of which works. attention.rs already knew -- its comment
 /// says the shell_state row "went stale at the NixOS migration" -- and read this file instead.

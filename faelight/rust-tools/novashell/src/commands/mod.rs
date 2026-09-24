@@ -12589,10 +12589,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         // ⚠ ️ THE FALLBACK WAS "v14.0.0": a version number that is not this system's, invented at
         // some point and stated as fact whenever the read failed -- which, since Omarchy, was
         // EVERY TIME. The forest has been reporting a version it has never had.
-        std::fs::read_to_string(faelight_core::paths::version_file())
-            .ok()
-            .map(|s| s.trim().trim_start_matches('v').to_string())
-            .filter(|s| !s.is_empty())
+        faelight_core::paths::read_version()
             .unwrap_or_else(|| "?".to_string())
             .bright_green()
     ));
