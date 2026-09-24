@@ -1550,6 +1550,68 @@ That section stays as written; this one records the fix.
 Still open, the same class: daemon.rs:861 health.unwrap_or(100) answers "All systems nominal" when
 health could not be read -- recorded under PASSES 7 AND 8.
 
+## 2026-09-24, END OF SESSION -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "WHERE THIS SESSION STOPPED, AND THE ORDER NEXT"
+above, which was written earlier the same day.
+
+### State at bb08745c -- tree clean, pushed, d 92%, 0 failed
+
+```text
+    state, config, cache      zero is the REAL directory; faelight -> zero links kept
+    paths.rs accessors        source_dir, zero_config_dir, zero_cache_dir; faelight_data_dir remains
+    outside, still faelight   ~/.local/share/faelight, ~/.local/share/forest-trash,
+                              ~/.config/faelight-shell
+```
+
+### RULED, Christian 2026-09-24: faelight-clipboard is not needed -- RETIRE it
+
+The decision test is answered: 0 invocations since the migration, and Christian does not need it.
+The next session is therefore a RETIREMENT, not a migration:
+
+```text
+    1  baseline    git status, d
+    2  recon       what is in ~/.local/share/faelight; every caller of faelight_data_dir(),
+                   clipboard_history_file() and faelight_clipboard; its aliases in config.nsh;
+                   its registry entry; INT-221's pick/sk site inside the crate
+    3  retire      ship --retire, then the five places ship does not cover (2026-09-23, "What a
+                   retirement actually costs"): tools.toml retired = true and deployable = false,
+                   the crate directory deleted, workspace members, the devbox census case, its
+                   aliases in config.nsh
+    4  accessors   faelight_data_dir() and clipboard_history_file() lose their last callers --
+                   DELETE them, do not rename them. A path nothing uses does not get the new name
+    5  the data    if ~/.local/share/faelight holds only clipboard history, Christian decides:
+                   delete, or archive with a date. Nothing is removed before he sees the listing
+```
+
+If the directory holds anything else, that part follows the cache method instead.
+
+### THE METHOD -- how every step since the cache has been done
+
+```text
+    recon       fsearch for code; read-only python for disk. Look before touch
+    transport   one argv word: python3 -c 'import base64,sys; exec(...)' <b64> <mode>
+    payloads    define only; the ONE call is the last line, so a cut paste does nothing
+    edits       through fpatch: patch() for ASCII anchors read in the same run; patch_between()
+                where a region holds non-ASCII, rehearsed on a copy and compared byte for byte
+    guards      every payload refuses unless its preconditions hold: anchors found once, tree
+                clean, the previous step committed and pushed
+    tests       red first, then green; a class test, not only the example
+    moves       alias, flip the code, then an atomic renameat2(RENAME_EXCHANGE) swap rehearsed
+                on the same filesystem; inodes compared before and after
+    records     each INT-247 section checks its own claims against disk and git before writing
+```
+
+### Then, in order
+
+```text
+    after clipboard   daemon.rs:861 -- "All systems nominal" on unreadable health, the class
+                      c1db03e2 fixed in faelight-docs
+    next directory    ~/.local/share/forest-trash
+    last directory    ~/.config/faelight-shell -> ~/.config/nsh (it holds the aliases)
+    then              items 5, 6 and 7 of the order above: inta, the words, the structure
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
