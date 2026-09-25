@@ -1383,11 +1383,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if touched.contains("faelight-git") {
             tools.push(("faelight-git", "zero/rust-tools/faelight-git/Cargo.toml"));
         }
-        if touched.contains("faelight-release") {
-            tools.push((
-                "faelight-release",
-                "zero/rust-tools/faelight-release/Cargo.toml",
-            ));
+        if touched.contains("zero-release") {
+            tools.push(("zero-release", "zero/rust-tools/zero-release/Cargo.toml"));
         }
         if touched.contains("friday-chat") {
             tools.push(("friday-chat", "zero/rust-tools/friday-chat/Cargo.toml"));

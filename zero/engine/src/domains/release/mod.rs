@@ -55,8 +55,8 @@ pub fn bump_tool(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
 }
 
 pub fn bump_system(_ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
-    // bump-system-version replaced by faelight-release (INT-311)
+    // bump-system-version replaced by zero-release (INT-311)
     let sub = if dry_run { "plan" } else { "publish" };
-    println!("  {} use: faelight-release {}", "→".bright_cyan(), sub);
+    println!("  {} use: zero-release {}", "→".bright_cyan(), sub);
     Ok(())
 }

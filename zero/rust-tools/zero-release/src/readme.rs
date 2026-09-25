@@ -162,8 +162,8 @@ fn build_dynamic_section(
         }
         s.push('\n');
     }
-    // Forest DNA
-    s.push_str("## 🌲 Forest DNA\n\n");
+    // Project 0 DNA
+    s.push_str("## Project 0 DNA\n\n");
     s.push_str("| | |\n|---|---|\n");
     s.push_str(&format!(
         "| 🛠 **Tools** | {} custom Rust tools |\n",

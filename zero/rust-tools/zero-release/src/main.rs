@@ -1,6 +1,6 @@
 #![allow(clippy::ptr_arg)]
-//! faelight-release
-//! 🌲 Intelligent release and generation manager
+//! zero-release
+//! Intelligent release and generation manager
 
 mod changelog;
 mod intelligence;
@@ -15,8 +15,8 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
-    name = "faelight-release",
-    about = "🌲 Intelligent release and generation manager",
+    name = "zero-release",
+    about = "Intelligent release and generation manager",
     version = env!("CARGO_PKG_VERSION")
 )]
 struct Cli {
@@ -209,8 +209,7 @@ fn main() -> Result<()> {
                     }
                 }
                 // Auto-commit the release
-                let commit_msg =
-                    format!("release: Faelight Forest {} — {}", version_str, final_theme);
+                let commit_msg = format!("release: {} — {}", version_str, final_theme);
                 let _ = std::process::Command::new("git")
                     .args(["-C", root.to_str().unwrap_or("."), "add", "-A"])
                     .status();
@@ -227,14 +226,14 @@ fn main() -> Result<()> {
                     Ok(s) if s.success() => println!("✅ Release committed: {}", commit_msg),
                     _ => println!("⚠️  Auto-commit failed — run: fg commit"),
                 }
-                println!("🌲 Release complete! Push with: gp");
+                println!("Release complete! Push with: gp");
             } else {
                 println!("Release aborted.");
             }
         }
         Command::Plan { version } => {
             // INT-255: dry-run -- show what publish would do
-            println!("🌲 faelight-release -- release plan for {}", version);
+            println!("zero-release -- release plan for {}", version);
             println!("{}", "━".repeat(42));
             println!();
             // cargo audit check
@@ -306,7 +305,7 @@ fn main() -> Result<()> {
             println!("  💡 Suggested version bump: {}", bump);
             println!();
             println!(
-                "  -> To publish: faelight-release publish {} --theme \"<theme>\"",
+                "  -> To publish: zero-release publish {} --theme \"<theme>\"",
                 version
             );
         }
@@ -317,7 +316,7 @@ fn main() -> Result<()> {
                 theme
             };
 
-            println!("🌲 faelight-release — changelog preview for {}", version);
+            println!("zero-release — changelog preview for {}", version);
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             let data = changelog::ChangelogData::build(&root, &version, &theme)?;
@@ -389,7 +388,7 @@ fn main() -> Result<()> {
                 std::fs::read_to_string(&gen_path).unwrap_or_else(|_| "unknown".to_string());
             let current = current.trim();
 
-            println!("🌲 faelight-release status");
+            println!("zero-release status");
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("  Current generation: {}", current);
 
@@ -409,7 +408,7 @@ fn main() -> Result<()> {
             let current = std::fs::read_to_string(&gen_path).unwrap_or_default();
             let current = current.trim();
 
-            println!("🌲 Release History");
+            println!("Release History");
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             let mut versions: Vec<String> = std::fs::read_dir(&releases_dir)?
@@ -553,7 +552,7 @@ fn main() -> Result<()> {
         }
         Command::Diff { version } => {
             let tag = format!("v{}", version);
-            println!("🌲 Changes since {}", tag);
+            println!("Changes since {}", tag);
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             let commits = changelog::get_commits_since(&root, &tag)?;

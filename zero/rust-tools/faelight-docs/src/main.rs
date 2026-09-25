@@ -1,7 +1,7 @@
 // faelight-docs v2.0.0 — Living Documentation Engine
 // INT-145 — Keeps README and welcome message in sync with forest state
 //
-// BOUNDARY RULE: faelight-release owns README lines 1-37 (dynamic section)
+// BOUNDARY RULE: zero-release owns README lines 1-37 (dynamic section)
 //                faelight-docs owns README lines 38+ (static section)
 //                These two tools NEVER cross this boundary.
 //
@@ -990,11 +990,11 @@ fn cmd_help() {
     }
     println!();
     println!(
-        "  {} faelight-release calls faelight-docs sync automatically",
+        "  {} zero-release calls faelight-docs sync automatically",
         "Note:".dimmed()
     );
     println!(
-        "  {} README lines 1-37 are owned by faelight-release",
+        "  {} README lines 1-37 are owned by zero-release",
         "     ".dimmed()
     );
     println!();

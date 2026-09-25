@@ -16864,7 +16864,7 @@ fn tool_cargo_path(name: &str) -> Option<&'static str> {
         "novashell" => Some("zero/rust-tools/novashell/Cargo.toml"),
         "core" | "engine" => Some("zero/engine/Cargo.toml"),
         "faelight-git" => Some("zero/rust-tools/faelight-git/Cargo.toml"),
-        "faelight-release" => Some("zero/rust-tools/faelight-release/Cargo.toml"),
+        "zero-release" => Some("zero/rust-tools/zero-release/Cargo.toml"),
         "friday-chat" => Some("zero/rust-tools/friday-chat/Cargo.toml"),
         "db-browse" => Some("zero/rust-tools/db-browse/Cargo.toml"),
         _ => None,
@@ -16962,10 +16962,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         ("novashell", "zero/rust-tools/novashell/Cargo.toml"),
         ("core", "zero/engine/Cargo.toml"),
         ("faelight-git", "zero/rust-tools/faelight-git/Cargo.toml"),
-        (
-            "faelight-release",
-            "zero/rust-tools/faelight-release/Cargo.toml",
-        ),
+        ("zero-release", "zero/rust-tools/zero-release/Cargo.toml"),
         ("friday-chat", "zero/rust-tools/friday-chat/Cargo.toml"),
         ("db-browse", "zero/rust-tools/db-browse/Cargo.toml"),
     ];

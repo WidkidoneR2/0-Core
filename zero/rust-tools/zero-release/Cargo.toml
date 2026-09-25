@@ -1,13 +1,13 @@
 [package]
-name = "faelight-release"
+name = "zero-release"
 version = "1.0.4"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "The forest publishes itself -- plan, preview, and cut releases as bootable, rollback-safe generations."
+description = "Project 0 publishes itself -- plan, preview, and cut releases as bootable, rollback-safe generations."
 
 [[bin]]
-name = "faelight-release"
+name = "zero-release"
 path = "src/main.rs"
 
 [dependencies]

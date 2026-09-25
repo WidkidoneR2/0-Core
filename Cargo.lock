@@ -871,24 +871,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-release"
-version = "1.0.4"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossterm 0.28.1",
- "dirs",
- "faelight-core",
- "libc",
- "ratatui 0.29.0",
- "rusqlite",
- "serde",
- "serde_json",
- "toml",
-]
-
-[[package]]
 name = "faelight-zone"
 version = "2.1.0"
 dependencies = [
@@ -3836,6 +3818,24 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "zero-release"
+version = "1.0.4"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "crossterm 0.28.1",
+ "dirs",
+ "faelight-core",
+ "libc",
+ "ratatui 0.29.0",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

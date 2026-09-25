@@ -104,7 +104,7 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     let target_info = GenerationInfo::load(&releases_dir, &target_version)?;
 
     // Show diff
-    println!("🌲 faelight-release rollback");
+    println!("zero-release rollback");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
     println!(
@@ -181,7 +181,7 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     println!("✅ Rollback complete — now at v{}", target_version);
     println!();
     println!("  Run: d   to verify health");
-    println!("  Run: faelight-release status   to confirm generation");
+    println!("  Run: zero-release status   to confirm generation");
 
     Ok(())
 }
@@ -193,7 +193,7 @@ fn emit_rollback_event(from: &str, to: &str) {
     }
 
     let payload = serde_json::json!({
-        "actor": "faelight-release",
+        "actor": "zero-release",
         "result": "ok",
         "detail": {
             "from": from,

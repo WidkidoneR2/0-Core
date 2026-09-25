@@ -1,4 +1,4 @@
-//! faelight-release TUI — the release ceremony made visible.
+//! zero-release TUI — the release ceremony made visible.
 
 use crate::changelog::{ChangelogData, ReleaseStats};
 use anyhow::Result;
@@ -179,9 +179,9 @@ impl ReleaseTui {
         };
 
         let left = Paragraph::new(Line::from(vec![
-            Span::styled(" 🌲 ", Style::default().fg(ACCENT)),
+            Span::styled(" ", Style::default().fg(ACCENT)),
             Span::styled(
-                "faelight-release",
+                "zero-release",
                 Style::default().fg(FG).add_modifier(Modifier::BOLD),
             ),
             Span::styled(format!("  {}", self.version), Style::default().fg(DIM)),
@@ -618,7 +618,7 @@ intents_complete = {}
                 core_root.to_str().unwrap_or("."),
                 "commit",
                 "-m",
-                &format!("feat: Release v{} - 🌲 {}", self.version, self.theme),
+                &format!("feat: Release v{} - {}", self.version, self.theme),
             ])
             .output()?;
         self.log.push("✅ Git commit created".to_string());
@@ -638,7 +638,7 @@ intents_complete = {}
         self.log.push(format!("✅ Tag v{} created", self.version));
 
         self.log
-            .push("🌲 Release complete — push with: fg sync".to_string());
+            .push("Release complete — push with: fg sync".to_string());
         Ok(())
     }
 }

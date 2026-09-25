@@ -473,7 +473,7 @@ impl ChangelogData {
         }
 
         // Internal section intentionally excluded from public output
-        // Internal commit history is private -- forest ledger only
+        // Internal commit history is private -- the ledger only
         // Stats
         out.push_str(&format!(
             "### 📊 Stats\n- Health: {}%  ·  Commits: {}  ·  Tools: {} deployed  ·  Intents: {} complete\n\n",

@@ -1,10 +1,10 @@
-# faelight-release
+# zero-release
 
 **Version:** 1.0.3 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** release
 
 ## 📖 Description
 
-The forest publishes itself -- plan, preview, and cut releases as bootable, rollback-safe generations.
+Project 0 publishes itself -- plan, preview, and cut releases as bootable, rollback-safe generations.
 
 ---
 
@@ -26,7 +26,7 @@ The forest publishes itself -- plan, preview, and cut releases as bootable, roll
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-release
+cargo build -p zero-release
 ```
 
 ## Deploy

@@ -1,4 +1,4 @@
-//! INT-225 -- faelight-release v2 intelligence layer
+//! INT-225 -- zero-release v2 intelligence layer
 //! synthesize_narrative, suggest_themes_v2, load_release_stats_from_db
 use crate::changelog::{ChangelogData, ReleaseStats};
 use std::path::PathBuf;
