@@ -487,18 +487,6 @@ pub fn local_data_dir() -> PathBuf {
     }
 }
 
-/// The forest's own data directory -- durable per-user data that is neither config nor cache.
-///
-/// Sibling of zero_config_dir(); the name follows it deliberately.
-pub fn faelight_data_dir() -> PathBuf {
-    local_data_dir().join("faelight")
-}
-
-/// faelight-clipboard's history. The only thing under faelight_data_dir() today.
-pub fn clipboard_history_file() -> PathBuf {
-    faelight_data_dir().join("clipboard").join("history.json")
-}
-
 // ═══════════════════════════════════════════════════════════
 // THE SECOND STATE TREE: ~/.local/state/0-core
 // ═══════════════════════════════════════════════════════════
