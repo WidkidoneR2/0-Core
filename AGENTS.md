@@ -536,7 +536,7 @@ Build to understand, replace when better exists, keep the intelligence in our ow
 
 ## Edit Discipline
 
-Edits go through **`fpatch`** (`faelight/scripts/dev/fpatch.py`), not ad-hoc rewriting.
+Edits go through **`fpatch`** (`zero/scripts/dev/fpatch.py`), not ad-hoc rewriting.
 
 ⚠️ INT-258: THIS RULE EXISTED FOR MONTHS WITHOUT SAYING HOW TO OBEY IT. fpatch has no CLI, nothing
 imported it, and its own docstring gave a RELATIVE sys.path -- so the only two invocations since
@@ -544,7 +544,7 @@ the migration were `fpatch --help`, which is not a command and never was. The fo
 here, because a mandated tool nobody can call is a rule that gets worked around:
 
     import sys
-    sys.path.insert(0, "/home/christian/0-core/faelight/scripts/dev")
+    sys.path.insert(0, "/home/christian/0-core/zero/scripts/dev")
     from fpatch import patch, patch_between
     patch("path/to.rs", old, new)
 
@@ -740,7 +740,7 @@ is added with its reason.
 
 The declared list lives in `devshell-lib`. That file is the authority; this is a summary.
 
-⚠️ THE SCRIPTS ARE AT `faelight/scripts/devshell` AND `devshell-lib` TODAY. INT-252 renames that
+⚠️ THE SCRIPTS ARE AT `zero/scripts/devshell` AND `devshell-lib` TODAY. INT-252 renames that
 directory to `zero/`. When it does, these two references move with it, along with the two paths
 nsh-test builds to reach them. Written here so the rename has a checklist entry rather than a
 surprise.
