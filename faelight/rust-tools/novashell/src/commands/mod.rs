@@ -2356,7 +2356,7 @@ fn execute_dispatch(
                         serde_json::from_str(&vars_json);
                     let vars = parsed.unwrap_or_default();
                     let mut manifest = String::new();
-                    manifest.push_str("# Faelight environment manifest (INT-134)\n");
+                    manifest.push_str("# Project 0 environment manifest (INT-134)\n");
                     manifest.push_str(&format!("# Exported from snapshot '{}'\n", name));
                     manifest.push_str(&format!("name = \"{}\"\n", name));
                     manifest.push_str(&format!("exported_at = {}\n\n", ts));
@@ -12544,7 +12544,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     out.push_str(&format!(
         "  {} {}
 ",
-        "🌲 Faelight Shell".bright_green().bold(),
+        "🌲 NovaShell".bright_green().bold(),
         format!("v{}", version).dimmed()
     ));
     out.push_str(&format!(

@@ -1466,6 +1466,7 @@ print('CLASS-DONE')"##;
                 ["Zero", " Core"].concat(),
                 ["Project 0", " {}"].concat(),
                 ["faelight", "-shell"].concat(),
+                ["Faelight", " Shell"].concat(),
             ];
             let base = std::path::Path::new(&home()).join("0-core/faelight");
             let mut stack = vec![base.join("rust-tools"), base.join("engine")];
