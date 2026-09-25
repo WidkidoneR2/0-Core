@@ -1550,7 +1550,7 @@ That section stays as written; this one records the fix.
 Still open, the same class: daemon.rs:861 health.unwrap_or(100) answers "All systems nominal" when
 health could not be read -- recorded under PASSES 7 AND 8.
 
-## 2026-09-24, END OF SESSION -- START HERE
+## 2026-09-24, END OF SESSION -- superseded by the 2026-09-25 section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "WHERE THIS SESSION STOPPED, AND THE ORDER NEXT"
 above, which was written earlier the same day.
@@ -1610,6 +1610,76 @@ If the directory holds anything else, that part follows the cache method instead
     next directory    ~/.local/share/forest-trash
     last directory    ~/.config/faelight-shell -> ~/.config/nsh (it holds the aliases)
     then              items 5, 6 and 7 of the order above: inta, the words, the structure
+```
+
+## 2026-09-25, END OF SESSION -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" and "where this
+stopped" section in this file. Every claim below was checked against git and the disk by the
+script that wrote it.
+
+### A CORRECTION FIRST
+
+The 2026-09-24 START HERE ordered faelight-clipboard retired. It had ALREADY been retired on
+2026-09-23 (INT-260's evidence names it): no crate files, not on PATH, registry retired = true,
+aliases only in .bak files. A session went into planning a retirement that was done.
+
+RULE: before starting a step a START HERE names, check it against disk and git. A list can be
+stale on the day it is written.
+
+### Done this session
+
+```text
+    002bfa78   faelight_data_dir() and clipboard_history_file() deleted -- no callers
+    2a514845   zero_data_dir() and teach_progress_file(); teach stops building its path from
+               HOME. Class test: local_data_dir() is joined exactly once. Red, then green
+    c7ca9b32   trash_dir() = zero_data_dir()/trash; the delete builtin uses it; help text and
+               comment say zero. Red (compile error), then green. Proven on the deployed shell:
+               delete put a probe file in ~/.local/share/zero/trash
+    (disk)     ~/.local/share/zero is REAL, faelight -> zero. teach-progress.json kept its inode
+               through the renameat2 swap. forest-trash never existed on this machine
+    (tool)     cargo-audit installed; a fresh core security scan ran it -- 0 findings.
+               d 96%, 26/27, 0 failed
+```
+
+### State
+
+```text
+    state, config, cache, share   zero is REAL; the faelight names are links to it
+    outside, still faelight       ~/.config/faelight-shell only
+    paths.rs                      no accessor is named faelight; FAELIGHT_STATE_DIR remains
+```
+
+### Next, in order
+
+```text
+    1  ~/.config/faelight-shell -> ~/.config/nsh. The last outside directory; it holds the
+       aliases (config.nsh). Alias, flip, swap. Accessors: shell_config_dir(),
+       shell_scripts_dir(), nl_patterns_file(). NSH_CONFIG is the override
+    2  the crates, one at a time: kept -> zero-*, otherwise retired. From disk today:
+       faelight-ade, faelight-context, faelight-core, faelight-daemon, faelight-deadwood
+       faelight-docs, faelight-doctor, faelight-gen, faelight-git, faelight-insightd
+       faelight-release, faelight-sandbox, faelight-update, faelight-vm, faelight-zone
+       Decision-test answers for most are in "2026-09-23 -- THREE MORE RETIREMENTS".
+       faelight-insightd and faelight-context are UNDECIDED -- Christian rules first.
+       deps/mod.rs categorize_tool groups tools by the faelight- prefix: change it in the SAME
+       commit as the first rename. faelight-core goes LAST (355 uses)
+    3  items 5 to 7 of "THE ORDER, ruled by Christian 2026-09-24": inta for SCHEMA and
+       CONTRACTS, the words, INT-252
+```
+
+### Found, not fixed
+
+```text
+    doctor security_audit   the pass line says "scanned today"; the skipped/warn line does not
+                            say how old the scan is, so a scan from before a fix reads as the
+                            current state. Christian noticed it too -- to look into
+    Alias Coverage          ship and zero-gate have no aliases; zero-gate as a risk audit is
+                            for another day
+    the untrue facts        daemon.rs:861 and :886, friday/mod.rs:275, :1046, :1047, :1052,
+                            journal/mod.rs:309, and 25 unwrap_or(100) sites, measured
+                            2026-09-25. PROPOSED as their own intent (the INT-192 class),
+                            not yet ruled
 ```
 
 ## Success Criteria

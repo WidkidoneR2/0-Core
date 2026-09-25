@@ -283,8 +283,8 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 // (Nix paths removed 2026-09-15: the machine has not been NixOS since 2026-08-26)
 - Persistent data, as of 2026-09-24 (INT-247): `~/.local/state/zero` (state.db), `~/.config/zero`
   and `~/.cache/zero` are the REAL directories; the `faelight` names beside them are compatibility
-  links. Still named faelight: `~/.local/share/faelight`, `~/.local/share/forest-trash`,
-  `~/.config/faelight-shell`.
+  links. `~/.local/share/zero` is real too (teach progress, the delete trash) and
+  `~/.local/share/faelight` links to it. Still named faelight: `~/.config/faelight-shell`.
 
 ---
 
