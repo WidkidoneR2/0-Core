@@ -1,14 +1,13 @@
-//! faelight-zone v2.1.0 - Spatial awareness for Faelight Forest
-//! 🌲 Faelight Forest
+//! zero-zone v2.1.0 - Spatial awareness for Project 0
 
 use clap::Parser;
-use faelight_zone::current_zone;
 use std::env;
 use std::path::PathBuf;
 use std::process;
+use zero_zone::current_zone;
 
 #[derive(Parser)]
-#[command(name = "faelight-zone")]
+#[command(name = "zero-zone")]
 #[command(about = "Detect current filesystem zone", long_about = None)]
 #[command(version = "2.1.0")]
 struct Cli {
@@ -83,7 +82,7 @@ fn main() {
 }
 
 fn health_check() {
-    println!("🏥 faelight-zone v2.1.0 health check");
+    println!("🏥 zero-zone v2.1.0 health check");
 
     // Check HOME
     match env::var("HOME") {

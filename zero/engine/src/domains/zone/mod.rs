@@ -34,7 +34,7 @@ pub fn detect(ctx: &AppContext) -> ZoneInfo {
         ZoneInfo {
             zone: "Core".to_string(),
             label: "CORE".to_string(),
-            icon: "🌲".to_string(),
+            icon: "◉".to_string(),
             path: rel,
             critical: true,
         }
@@ -136,7 +136,7 @@ pub fn run(ctx: &AppContext, icon: bool, label: bool, json: bool, health: bool) 
         return Ok(());
     }
 
-    // Default: icon + path (matches faelight-zone output)
+    // Default: icon + path (matches zero-zone output)
     println!("{} {}", zone.icon, zone.path);
     Ok(())
 }

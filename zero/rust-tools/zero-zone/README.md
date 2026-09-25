@@ -1,4 +1,4 @@
-# faelight-zone
+# zero-zone
 
 **Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** system
 
@@ -22,7 +22,7 @@ Zone detection - identify numbered gravity zones
 - GitHub tree cleanup: removed 14 backup files, foot stow package, Zellij layout,…
 - Friday Architecture v2 -- INT-297: cargo-deny fully configured --…
 - feat: Change Scratch icon to 🌿 and hide username in paths for privacy
-- faelight-zone v2.1.0 - Production ready with Quick Wins
+- zero-zone v2.1.0 - Production ready with Quick Wins
 - Workspace-wide quality improvements - Zero clippy warnings
 
 > _Auto-seeded from history; curated entries coming._
@@ -32,7 +32,7 @@ Zone detection - identify numbered gravity zones
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-zone
+cargo build -p zero-zone
 ```
 
 ## Deploy

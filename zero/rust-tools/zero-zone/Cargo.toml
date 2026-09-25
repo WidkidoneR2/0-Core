@@ -1,5 +1,5 @@
 [package]
-name = "faelight-zone"
+name = "zero-zone"
 license = "MIT"
 version = "2.1.0"
 edition = "2021"
@@ -11,9 +11,9 @@ clap = { version = "4", features = ["derive"] }
 faelight-core = { path = "../faelight-core" }
 
 [lib]
-name = "faelight_zone"
+name = "zero_zone"
 path = "src/lib.rs"
 
 [[bin]]
-name = "faelight-zone"
+name = "zero-zone"
 path = "src/main.rs"

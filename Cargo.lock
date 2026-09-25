@@ -512,7 +512,6 @@ dependencies = [
  "colored",
  "dirs",
  "faelight-core",
- "faelight-zone",
  "flate2",
  "libc",
  "rusqlite",
@@ -526,6 +525,7 @@ dependencies = [
  "walkdir",
  "which",
  "zero-doctor",
+ "zero-zone",
 ]
 
 [[package]]
@@ -827,14 +827,6 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "faelight-zone"
-version = "2.1.0"
-dependencies = [
- "clap",
- "faelight-core",
 ]
 
 [[package]]
@@ -3885,6 +3877,14 @@ name = "zero-vm"
 version = "0.1.0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "zero-zone"
+version = "2.1.0"
+dependencies = [
+ "clap",
+ "faelight-core",
 ]
 
 [[package]]
