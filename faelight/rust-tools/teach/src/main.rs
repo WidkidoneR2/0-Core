@@ -43,8 +43,7 @@ struct Progress {
 
 impl Progress {
     fn path() -> PathBuf {
-        let home = std::env::var("HOME").unwrap_or_default();
-        PathBuf::from(home).join(".local/share/faelight/teach-progress.json")
+        faelight_core::paths::teach_progress_file()
     }
 
     fn load() -> Self {

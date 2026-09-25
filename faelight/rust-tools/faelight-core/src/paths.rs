@@ -487,6 +487,33 @@ pub fn local_data_dir() -> PathBuf {
     }
 }
 
+/// Project 0's own data directory -- durable per-user data that is neither config nor cache.
+/// The ONE owner of the data directory: every data file joins onto this.
+pub fn zero_data_dir() -> PathBuf {
+    local_data_dir().join("zero")
+}
+
+/// teach's saved progress: sessions, lessons completed, persona override.
+pub fn teach_progress_file() -> PathBuf {
+    zero_data_dir().join("teach-progress.json")
+}
+
+#[cfg(test)]
+mod data_dir_tests {
+    /// INT-247: the data directory has ONE owner. An accessor that joins its own directory
+    /// name onto local_data_dir() goes red here; everything joins onto zero_data_dir().
+    #[test]
+    fn local_data_dir_is_joined_by_one_owner() {
+        let src = include_str!("paths.rs");
+        let needle = concat!("local_data_dir()", ".join(");
+        assert_eq!(
+            src.matches(needle).count(),
+            1,
+            "local_data_dir() must be joined exactly once, by zero_data_dir()"
+        );
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // THE SECOND STATE TREE: ~/.local/state/0-core
 // ═══════════════════════════════════════════════════════════
