@@ -488,7 +488,7 @@ deployable = true
 retired = false
 
 [[tool]]
-name = "faelight-vm"
+name = "zero-vm"
 version = "1.0.0"
 category = "development"
 description = "VM launcher -- q35, SMM, swtpm. NixOS-era; unverified since Omarchy."

@@ -1,6 +1,6 @@
-# faelight-vm
+# zero-vm
 
-**Version:** 0.1.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
+**Version:** 0.1.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 
 ## 📖 Description
 
@@ -14,7 +14,7 @@
 - COMPLETE: vm down now presses the power button, not the cord. 6/6. vm…
 - COMPLETE: the VM owns its children -- and the launcher rewrite was…
 - vm up tells the truth -- wait-ready reads the SSH banner, not the…
-- vm snapshot/rollback/snapshots/delete/prune -- the Rust faelight-vm…
+- vm snapshot/rollback/snapshots/delete/prune -- the Rust zero-vm…
 
 > _Auto-seeded from history; curated entries coming._
 
@@ -23,7 +23,7 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-vm
+nix develop ~/0-core#faelight-forest -c cargo build -p zero-vm
 ```
 
 ## Deploy

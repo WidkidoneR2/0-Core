@@ -1,11 +1,11 @@
-//! faelight-vm -- snapshot/rollback for the forest's proving ground (INT-027).
+//! zero-vm -- snapshot/rollback for the forest's proving ground (INT-027).
 //!
 //! The START of the organic Rust migration: NEW capability built in Rust; the bash
 //! script (INT-077/079) stays the front door and forwards these verbs here.
 //!
 //! TWO pieces of state must move together (INT-027, 2026-07-15):
-//!   1. faelight-vm.qcow2         -- disk. Internal snapshots via `qemu-img snapshot`.
-//!   2. faelight-vm-efi-vars.fd   -- OVMF EFI variables (raw; qemu-img cannot snapshot it).
+//!   1. zero-vm.qcow2         -- disk. Internal snapshots via `qemu-img snapshot`.
+//!   2. zero-vm-efi-vars.fd   -- OVMF EFI variables (raw; qemu-img cannot snapshot it).
 //!      Since useEFIBoot landed, this holds boot entries and will hold Secure Boot keys
 //!      (INT-059). A rollback restoring the disk but NOT the firmware vars is a LIE.
 //! Both or neither.
@@ -39,19 +39,19 @@ fn state_dir() -> PathBuf {
         .unwrap_or_else(|_| {
             PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state")
         })
-        .join("faelight-vm")
+        .join("zero-vm")
 }
 fn disk() -> PathBuf {
-    state_dir().join("faelight-vm.qcow2")
+    state_dir().join("zero-vm.qcow2")
 }
 fn efivars() -> PathBuf {
-    state_dir().join("faelight-vm-efi-vars.fd")
+    state_dir().join("zero-vm-efi-vars.fd")
 }
 fn efivars_for(tag: &str) -> PathBuf {
-    state_dir().join(format!("faelight-vm-efi-vars.fd.{tag}"))
+    state_dir().join(format!("zero-vm-efi-vars.fd.{tag}"))
 }
 
-/// Scan /proc for a live faelight-vm qemu. The port check is a FALSE signal
+/// Scan /proc for a live zero-vm qemu. The port check is a FALSE signal
 /// (qemu binds the forward port before the guest boots) -- process truth only.
 fn vm_pids() -> Vec<u32> {
     let mut out = Vec::new();
@@ -67,7 +67,7 @@ fn vm_pids() -> Vec<u32> {
             continue;
         };
         let cmd = String::from_utf8_lossy(&raw).replace('\0', " ");
-        if cmd.contains("qemu-system") && cmd.contains("faelight-vm") {
+        if cmd.contains("qemu-system") && cmd.contains("zero-vm") {
             out.push(pid);
         }
     }
@@ -370,7 +370,7 @@ fn cmd_wait_ready(port: u16, timeout_s: u64, quiet: bool) {
 /// (pid 79844) survived `vm down`, inherited the launcher's lock fd, and held it invisibly:
 /// swtpm is not qemu, so vm_pids could not see it, the janitor could not clean it, and vm debug
 /// reported "qemu alive: 0 / lock HELD" -- the symptom with no way to learn more.
-/// Scope is the STATE DIR in the cmdline, not the name: qemu carries file=<state>/faelight-vm.qcow2,
+/// Scope is the STATE DIR in the cmdline, not the name: qemu carries file=<state>/zero-vm.qcow2,
 /// swtpm carries --tpmstate dir=<state>/faelight-vm-swtpm. Anything else in there is ours too.
 struct VmProc {
     pid: u32,
@@ -453,7 +453,7 @@ fn vm_procs() -> Vec<VmProc> {
 fn cmd_procs() {
     let procs = vm_procs();
     if procs.is_empty() {
-        ok("no faelight-vm processes running");
+        ok("no zero-vm processes running");
         // NOTE: do NOT advise `vm unlock` just because vm.lock exists. An flock is released when
         // its holder DIES -- the FILE always survives. "file present, nobody holding" is the
         // NORMAL state after every clean `vm down`. Advising a fix here would fire every single
@@ -581,7 +581,7 @@ fn cmd_kill() {
     std::thread::sleep(Duration::from_millis(600));
     let left = vm_procs();
     if left.is_empty() {
-        ok("all faelight-vm processes gone");
+        ok("all zero-vm processes gone");
     } else {
         for p in &left {
             let _ = Command::new("kill")
@@ -622,7 +622,7 @@ fn cmd_unlock() {
 
 fn usage() -> ! {
     println!(
-        "faelight-vm -- snapshot/rollback for the proving ground (INT-027)
+        "zero-vm -- snapshot/rollback for the proving ground (INT-027)
 
   vm snapshot <tag>     snapshot disk + EFI vars (VM must be down)
   vm rollback <tag>     restore a snapshot (auto-snapshots current state first)

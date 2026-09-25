@@ -984,13 +984,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-vm"
-version = "0.1.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "faelight-zone"
 version = "2.1.0"
 dependencies = [
@@ -3885,6 +3878,13 @@ dependencies = [
  "sha2",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "zero-vm"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

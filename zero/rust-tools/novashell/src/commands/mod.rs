@@ -12207,12 +12207,12 @@ fn experiment_list(core_root: &str) -> CommandResult {
 }
 
 fn vm_dispatch(args: &[&str]) -> CommandResult {
-    // INT-077: `vm` drives faelight-vm (build-vm + SSH loop) via
+    // INT-077: `vm` drives zero-vm (build-vm + SSH loop) via
     // pkgs/faelight/scripts/vm. Inherited stdio throughout so `vm ssh` is
     // interactive (password + guest shell) and build/up/down stream live.
     // INT-027's libvirt nixos-lab tooling (vm_start/stop/snapshot/restore/...)
     // remains defined below but is intentionally unwired from this verb; the
-    // nixos-lab domain is dormant. Snapshot support for faelight-vm (qcow2) is
+    // nixos-lab domain is dormant. Snapshot support for zero-vm (qcow2) is
     // a later decision, not wired here.
     // INT-079 G3 (Option B): the script is the single source of truth for which
     // `vm` subcommands exist. fsh forwards ALL args to it (including an empty arg,
@@ -12237,14 +12237,14 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
 // ⚠️ SEVEN libvirt nixos-lab FUNCTIONS WERE REMOVED HERE, 2026-09-20 (INT-255):
 // vm_snapshot, vm_restore, vm_snapshots, vm_status, vm_stop, vm_start, vm_list -- 334 lines,
 // every one #[allow(dead_code)] and each carrying the same INT-027 note: preserved, unwired
-// from `vm` when faelight-vm took over.
+// from `vm` when zero-vm took over.
 //
 // ⭐ PARKED DELIBERATELY, AND THE NOTE SAID SO -- but measured 2026-09-20, VIRSH IS NOT
 // INSTALLED. There is no libvirt here and no domain for the code to be parked for. Keeping
 // code against a future need is a reasonable choice; keeping it against a runtime that is
 // not on the machine is a different thing, and git holds it either way.
 //
-// ⚠️ vm_dispatch ABOVE IS LIVE AND STAYS. It drives faelight-vm (INT-077) and has nothing to
+// ⚠️ vm_dispatch ABOVE IS LIVE AND STAYS. It drives zero-vm (INT-077) and has nothing to
 // do with this block -- it simply sits next to it, which is how a boundary taken from the
 // first function that looks related deletes a working command.
 fn version(_core_root: &str) -> CommandResult {
