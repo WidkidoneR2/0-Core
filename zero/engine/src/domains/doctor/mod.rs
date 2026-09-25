@@ -1339,7 +1339,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// INT-094: forest hygiene -- orphan accumulation surfaced from faelight-deadwood --summary.
+/// INT-094: forest hygiene -- orphan accumulation surfaced from zero-deadwood --summary.
 /// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
 
 /// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --

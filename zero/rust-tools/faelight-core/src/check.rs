@@ -4,7 +4,7 @@
 //! path makes "nothing found" and "could not look" THE SAME VALUE, and every
 //! consumer downstream reads the first meaning.
 //!
-//! PROVEN LIVE 2026-09-04: config.nsh was moved aside and faelight-deadwood reported
+//! PROVEN LIVE 2026-09-04: config.nsh was moved aside and zero-deadwood reported
 //! Dead aliases: clean, 0|0|0|0. It could not read the file and said clean. That number
 //! feeds the doctor health score, so a missing config reads as a healthy system.
 //!

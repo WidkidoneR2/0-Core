@@ -79,11 +79,11 @@ impl TestResult {
     }
 }
 
-/// INT-195 gate 6: invoke faelight-deadwood through the same seam pattern run_fsh uses for the
+/// INT-195 gate 6: invoke zero-deadwood through the same seam pattern run_fsh uses for the
 /// shell. DEADWOOD_BIN lets one test prove the debug build before a deploy and the deployed
 /// artifact after -- the two-binaries discipline the rest of this work relies on.
 fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
-    let bin = std::env::var("DEADWOOD_BIN").unwrap_or_else(|_| "faelight-deadwood".to_string());
+    let bin = std::env::var("DEADWOOD_BIN").unwrap_or_else(|_| "zero-deadwood".to_string());
     Command::new(&bin)
         .args(args)
         .stdout(Stdio::piped())
@@ -1528,7 +1528,7 @@ print('CLASS-DONE')"##;
                 .map(|l| l.trim().to_string())
                 .collect();
             Err(format!(
-                "faelight-deadwood --strict exited {:?}: {}",
+                "zero-deadwood --strict exited {:?}: {}",
                 out.status.code(),
                 if flagged.is_empty() {
                     String::from_utf8_lossy(&out.stderr).trim().to_string()

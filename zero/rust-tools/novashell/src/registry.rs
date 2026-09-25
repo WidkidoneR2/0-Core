@@ -88,7 +88,7 @@ pub struct Registry {
 ///
 /// ONE SOURCE, deliberately. fsh has at least SEVEN separate builtin-name lists
 /// (completion.rs, four in commands/mod.rs, a `vocab_builtins`, and one in the separate
-/// faelight-deadwood tool) -- the same shape as INT-143's four tokenizers, one layer up.
+/// zero-deadwood tool) -- the same shape as INT-143's four tokenizers, one layer up.
 /// Anything needing to ask "is this a builtin?" should read THIS, not add an eighth.
 ///
 /// SCOPE, stated so it is not mistaken for completeness: these are the USER-FACING builtins --

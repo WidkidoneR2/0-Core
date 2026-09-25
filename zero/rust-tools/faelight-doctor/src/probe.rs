@@ -42,7 +42,7 @@ pub enum Probe {
     RustDocs,
     /// Every intent file parses and validates.
     IntentLedger,
-    /// faelight-deadwood: stale files and structural orphans.
+    /// zero-deadwood: stale files and structural orphans.
     DeadwoodScan,
     /// The config files parse.
     ZeroConfig,

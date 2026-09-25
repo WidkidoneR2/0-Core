@@ -114,7 +114,7 @@ section = "\U0001F4CB Internals"
 tier = "user"
 probe = "deadwood_scan"
 severities = ["pass", "warn"]
-recovery = "Run: faelight-deadwood"
+recovery = "Run: zero-deadwood"
 
 [[check]]
 id = "zero_config"

@@ -1,4 +1,4 @@
-// faelight-deadwood -- forest-native dead-code & orphan detector (INT-094).
+// zero-deadwood -- forest-native dead-code & orphan detector (INT-094).
 // CARDINAL RULE: reports, never deletes. Every finding carries a confidence level.
 // "Know what's dead before you cut -- and never cut what only looks dead."
 // Phase 1: dead aliases, stale .bak files, dead keybinds.
@@ -12,7 +12,7 @@ use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(
-    name = "faelight-deadwood",
+    name = "zero-deadwood",
     version,
     about = "Project 0 dead-code & orphan detector (reports, never deletes)"
 )]

@@ -151,17 +151,17 @@ pub fn rust_docs() -> Measurement {
     }
 }
 
-/// Structural orphans in the tree, as `faelight-deadwood` counts them.
+/// Structural orphans in the tree, as `zero-deadwood` counts them.
 ///
 /// ⚠️ A NON-NUMERIC FIELD MEANS THE CHECK COULD NOT RUN. deadwood emits `?` where it could not
 /// look, and `unwrap_or(0)` read that as zero findings -- the exact collapse INT-192 ended.
 /// PROVEN 2026-09-04: moving config.nsh aside gave `?|?|0|0` and the doctor called it healthy.
 pub fn deadwood_scan() -> Measurement {
-    let out = match Command::new("faelight-deadwood").arg("--summary").output() {
+    let out = match Command::new("zero-deadwood").arg("--summary").output() {
         Ok(o) if o.status.success() => o,
         _ => {
             return Measurement::unknown(
-                "faelight-deadwood did not run -- hygiene is unmeasured, not clean",
+                "zero-deadwood did not run -- hygiene is unmeasured, not clean",
             )
         }
     };

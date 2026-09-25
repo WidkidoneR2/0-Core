@@ -442,7 +442,7 @@ type = "rust"
 deployable = false
 retired = false
 [[tool]]
-name = "faelight-deadwood"
+name = "zero-deadwood"
 version = "1.0.0"
 category = "development"
 description = "Forest dead-code and orphan detector (reports, never deletes)"
