@@ -9,7 +9,7 @@ BUCKETS is a hard failure (exit 2). A new coupling site cannot land silently
 and be discovered later -- it fails the census the day it appears.
 
 Usage, from the repo root:
-    python3 census-core-coupling.py > faelight/rust-tools/novashell/CORE-COUPLING.md
+    python3 census-core-coupling.py > zero/rust-tools/novashell/CORE-COUPLING.md
     echo $?
 """
 
@@ -17,7 +17,7 @@ import os
 import re
 import sys
 
-SRC = "faelight/rust-tools/novashell/src"
+SRC = "zero/rust-tools/novashell/src"
 
 # The five capability buckets from INT-230. The classification is the finding,
 # so it lives here in the open rather than being inferred at read time.

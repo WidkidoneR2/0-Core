@@ -2,9 +2,9 @@
 # faelight-fm v3: ratatui rewrite, no git deps
 resolver = "2"
 members = [
-    "faelight/rust-tools/faelight-docs",
-    "faelight/rust-tools/*",
-    "faelight/engine",
+    "zero/rust-tools/faelight-docs",
+    "zero/rust-tools/*",
+    "zero/engine",
 ]
 
 [workspace.package]
