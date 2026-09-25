@@ -426,7 +426,7 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
         "novashell",
         "core",
         "faelight-git",
-        "faelight-update",
+        "zero-update",
         "faelight-daemon",
     ];
     let mut upstream: Vec<&str> = Vec::new();

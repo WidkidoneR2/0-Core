@@ -93,7 +93,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     // entirely. Three weeks of an autobiography quietly missing its commit count -- no error,
     // no empty value on screen, just an absent line nobody could notice.
     //
-    // "?" rather than "" or 0 when git cannot answer: the same convention faelight-update uses
+    // "?" rather than "" or 0 when git cannot answer: the same convention zero-update uses
     // for health. It says COULD NOT DETERMINE, which is different from zero and different from
     // a line that was never printed.
     let total_commits: String = std::process::Command::new("git")

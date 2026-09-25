@@ -105,7 +105,7 @@ fn scan_cargo(ctx: &AppContext) -> Checked<Vec<Finding>> {
                     category: "Rust Crate".to_string(),
                     package,
                     description,
-                    fix: Some("Run: faelight-update --only cargo".to_string()),
+                    fix: Some("Run: zero-update --only cargo".to_string()),
                     url,
                 });
             }

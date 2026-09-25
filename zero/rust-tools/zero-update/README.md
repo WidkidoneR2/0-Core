@@ -1,4 +1,4 @@
-# faelight-update
+# zero-update
 
 **Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** system
 
@@ -18,7 +18,7 @@
 - final Arch sweep -- purge all executable Arch code for a true…
 - Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
 - route ALL rust-tools intents consumers through intents_dir() --…
-- faelight-update sweep -- route 2 state.db refs through…
+- zero-update sweep -- route 2 state.db refs through…
 - generate 39 per-tool CHANGELOGs (NixOS migration entry + git history)
 - generate 39 per-tool READMEs + rust-tools index (first full pass)
 - Phase 3: generations tied to commit + intent -- 074 COMPLETE Added…
@@ -30,7 +30,7 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-update
+cargo build -p zero-update
 ```
 
 ## Deploy

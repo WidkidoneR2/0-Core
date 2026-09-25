@@ -975,7 +975,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         }
         if days_since_deploy > 7 {
             println!(
-                "    {} {} days since last deploy -- run faelight-update --preview",
+                "    {} {} days since last deploy -- run zero-update --preview",
                 "·".dimmed(),
                 days_since_deploy
             );

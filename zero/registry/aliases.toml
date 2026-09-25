@@ -37,7 +37,7 @@ category = "development"
 
 
 [[alias]]
-command = "faelight-update"
+command = "zero-update"
 aliases = ["fu", "update"]
 category = "automation"
 

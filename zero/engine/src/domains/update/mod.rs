@@ -8,7 +8,7 @@ pub fn update(ctx: &AppContext, args: &[String]) -> CoreResult<()> {
         "update",
         &[Capability::FilesystemReadHome, Capability::SpawnProcess],
     )?;
-    let bin = format!("{}/target/release/faelight-update", ctx.core_root);
+    let bin = format!("{}/target/release/zero-update", ctx.core_root);
     let status = Command::new(&bin).args(args).status()?;
 
     // Event Ledger

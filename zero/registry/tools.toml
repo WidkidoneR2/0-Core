@@ -164,7 +164,7 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-update"
+name = "zero-update"
 version = "1.0.0"
 category = "system"
 description = "System update manager with rollback"

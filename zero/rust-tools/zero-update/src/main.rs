@@ -20,7 +20,7 @@ use std::process::Command;
 /// CLI Arguments
 #[derive(Parser)]
 #[command(
-    name = "faelight-update",
+    name = "zero-update",
     about = "🌲 Intelligent update manager for Project 0",
     version  // Automatically uses CARGO_PKG_VERSION from Cargo.toml
 )]
@@ -195,14 +195,14 @@ fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: 
             0.3
         };
         let _ = conn.execute(
-            "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('faelight-update', 'update', ?1, ?2, ?3)",
+            "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('zero-update', 'update', ?1, ?2, ?3)",
             rusqlite::params![payload, weight, now],
         );
     }
 }
 /// Run system maintenance tasks
 fn run_maintenance() -> Result<()> {
-    println!("{}", "🧹 Faelight Maintenance Mode".green().bold());
+    println!("{}", "🧹 Project 0 Maintenance Mode".green().bold());
     println!("{}", "─".repeat(48).dimmed());
     println!();
 
@@ -401,7 +401,7 @@ fn run() -> Result<()> {
     if !cli.json && !cli.count_only {
         println!(
             "{} v{}",
-            "🌲 Faelight Update Manager".green().bold(),
+            "🌲 Project 0 Update Manager".green().bold(),
             env!("CARGO_PKG_VERSION").cyan()
         );
         println!();

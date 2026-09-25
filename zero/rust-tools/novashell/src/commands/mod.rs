@@ -14254,7 +14254,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "cargo-udeps -- find unused deps"
             ));
             out.push_str(&format!(
-                "\n  tools with tests: novashell, faelight-core, faelight-update, core-diff\n"
+                "\n  tools with tests: novashell, faelight-core, zero-update, core-diff\n"
             ));
             CommandResult::Output(out)
         }

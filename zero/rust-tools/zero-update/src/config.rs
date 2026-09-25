@@ -89,7 +89,7 @@ impl Config {
         let home = std::env::var("HOME").context("HOME environment variable not set")?;
         Ok(PathBuf::from(home)
             .join(".config")
-            .join("faelight-update")
+            .join("zero-update")
             .join("config.toml"))
     }
 

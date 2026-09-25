@@ -265,13 +265,13 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             replaces: Some("lazygit".to_string()),
         },
         ToolInfo {
-            name: "faelight-update".to_string(),
+            name: "zero-update".to_string(),
             version: "1.0.0".to_string(),
             description: "Update dashboard. Scans cargo tools, neovim, workspace, git, firmware, flatpak; runs a health gate before applying.".to_string(),
             commands: vec![
-                "faelight-update             # interactive TUI with category selection".to_string(),
-                "faelight-update --dry-run   # preview all updates".to_string(),
-                "faelight-update --only cargo,npm  # targeted categories".to_string(),
+                "zero-update             # interactive TUI with category selection".to_string(),
+                "zero-update --dry-run   # preview all updates".to_string(),
+                "zero-update --only cargo,npm  # targeted categories".to_string(),
             ],
             philosophy: "Updates are not automatic. You see what changes before it changes. The health gate ensures you never update a broken system.".to_string(),
             replaces: None,
@@ -575,7 +575,7 @@ fn slide_live_demo(snap: &SystemSnapshot) {
     println!("  {}", "Try these live:".yellow().bold());
     println!("  {} faelight-git status", "→".dimmed());
     println!("  {} doctor", "→".dimmed());
-    println!("  {} faelight-update --dry-run", "→".dimmed());
+    println!("  {} zero-update --dry-run", "→".dimmed());
 }
 
 fn slide_numbers(snap: &SystemSnapshot) {
@@ -824,7 +824,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
         ("workflow", "Daily Workflow", lesson_workflow),
         ("intent", "Intent Ledger", lesson_intent),
         ("git", "faelight-git", lesson_git),
-        ("update", "faelight-update", lesson_update),
+        ("update", "zero-update", lesson_update),
     ];
 
     loop {
@@ -1058,7 +1058,7 @@ fn lesson_workflow(snap: &SystemSnapshot) {
     println!();
     println!("  {}", "Weekly:".white().bold());
     println!(
-        "  {} faelight-update          # everything in one TUI",
+        "  {} zero-update          # everything in one TUI",
         "→".dimmed()
     );
     println!();
@@ -1113,8 +1113,8 @@ fn lesson_git(snap: &SystemSnapshot) {
 }
 
 fn lesson_update(snap: &SystemSnapshot) {
-    let tool = snap.tools.iter().find(|t| t.name == "faelight-update");
-    show_tool_lesson(tool, "faelight-update");
+    let tool = snap.tools.iter().find(|t| t.name == "zero-update");
+    show_tool_lesson(tool, "zero-update");
 }
 
 fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {

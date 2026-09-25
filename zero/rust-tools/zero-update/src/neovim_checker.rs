@@ -146,7 +146,7 @@ fn check_via_lockfile() -> Checked<Vec<String>> {
                 // let _, so the comparison the comment promised never happened.
                 //
                 // AND IT BLOCKED. Without GIT_TERMINAL_PROMPT=0 a remote needing auth stops
-                // and waits for a username. Measured 2026-09-04: faelight-update --dry-run
+                // and waits for a username. Measured 2026-09-04: zero-update --dry-run
                 // hung on a github prompt and never reached the remaining checkers, so one
                 // plugin with an HTTPS remote silently disabled the whole category.
                 let head = Command::new("git")

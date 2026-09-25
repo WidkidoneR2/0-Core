@@ -533,7 +533,7 @@ fn route_signal(
             "engines-coordinator".to_string()
         }
         // Critical update → suggest engine sync
-        ("faelight-update", "update") => {
+        ("zero-update", "update") => {
             if weight < 0.8 {
                 reactions.push(
                     "update completed with reduced health -- verify no breaking changes"

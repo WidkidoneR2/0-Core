@@ -1023,7 +1023,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     let knowledge = vec![
         // NixOS (INT-117: de-Arched -- native facts only. Arch recognition + translation
-        // is INT-128's job as data, not taught here. `fu` omitted until faelight-update
+        // is INT-128's job as data, not taught here. `fu` omitted until zero-update
         // is verified on NixOS. All commands verified against scripts/deploy.)
         ("nixos", "deploy rebuilds and switches the whole system from the flake, then runs a health check. Packages are declared in the flake, not installed imperatively.", 0.95),
         ("nixos", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
