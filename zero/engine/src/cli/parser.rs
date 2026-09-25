@@ -1160,7 +1160,7 @@ pub enum PluginCommands {
     List,
     /// Register a plugin
     Add {
-        /// Plugin name (e.g. faelight-git)
+        /// Plugin name (e.g. zero-git)
         name: String,
     },
     /// Remove a plugin from registry

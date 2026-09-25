@@ -1,9 +1,9 @@
 [package]
-name = "faelight-git"
+name = "zero-git"
 license = "MIT"
 version = "4.4.2"
 edition = "2021"
-description = "Git governance for the forest -- guarded commits, health-aware verification, and intent-commit genealogy."
+description = "Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy."
 
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }
@@ -23,5 +23,5 @@ thiserror = "1.0"
 serde_json = "1.0"
 chrono = "0.4"
 
-# NEW: Shared Faelight infrastructure
+# NEW: Shared Project 0 infrastructure
 

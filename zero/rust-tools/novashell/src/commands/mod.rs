@@ -6806,12 +6806,12 @@ fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
         .and_then(|a| a.parse::<usize>().ok())
         .unwrap_or(20);
 
-    // Phase 15 — use faelight-git Repo directly (no subprocess)
-    let repo_result = faelight_git::git::repo::GitRepo::open_at(core_root);
+    // Phase 15 — use zero-git Repo directly (no subprocess)
+    let repo_result = zero_git::git::repo::GitRepo::open_at(core_root);
 
     match repo_result {
         Ok(repo) => {
-            let log_entries: anyhow::Result<Vec<faelight_git::git::repo::CommitEntry>> =
+            let log_entries: anyhow::Result<Vec<zero_git::git::repo::CommitEntry>> =
                 repo.log(limit);
             match log_entries {
                 Ok(entries) => {
@@ -10452,7 +10452,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "gc",
                             "gp",
                             "core",
-                            "faelight-git",
+                            "zero-git",
                             "fg",
                             "zero-daemon",
                             "git",
@@ -16863,7 +16863,7 @@ fn tool_cargo_path(name: &str) -> Option<&'static str> {
     match name {
         "novashell" => Some("zero/rust-tools/novashell/Cargo.toml"),
         "core" | "engine" => Some("zero/engine/Cargo.toml"),
-        "faelight-git" => Some("zero/rust-tools/faelight-git/Cargo.toml"),
+        "zero-git" => Some("zero/rust-tools/zero-git/Cargo.toml"),
         "zero-release" => Some("zero/rust-tools/zero-release/Cargo.toml"),
         "friday-chat" => Some("zero/rust-tools/friday-chat/Cargo.toml"),
         "db-browse" => Some("zero/rust-tools/db-browse/Cargo.toml"),
@@ -16961,7 +16961,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     let tools = [
         ("novashell", "zero/rust-tools/novashell/Cargo.toml"),
         ("core", "zero/engine/Cargo.toml"),
-        ("faelight-git", "zero/rust-tools/faelight-git/Cargo.toml"),
+        ("zero-git", "zero/rust-tools/zero-git/Cargo.toml"),
         ("zero-release", "zero/rust-tools/zero-release/Cargo.toml"),
         ("friday-chat", "zero/rust-tools/friday-chat/Cargo.toml"),
         ("db-browse", "zero/rust-tools/db-browse/Cargo.toml"),

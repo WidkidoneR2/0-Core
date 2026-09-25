@@ -37,7 +37,7 @@ pub fn run() -> Result<()> {
 }
 
 fn show_branches(repo: &GitRepo) -> Result<()> {
-    println!("{}", "🌲 faelight-git branch".cyan().bold());
+    println!("{}", "zero-git branch".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 

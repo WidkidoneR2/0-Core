@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::process::Command;
 
 pub fn run() -> Result<()> {
-    println!("{}", "🌲 Faelight Git Sync v3.0".cyan().bold());
+    println!("{}", "zero-git sync v3.0".cyan().bold());
     println!("{}", "━".repeat(50));
     println!();
 

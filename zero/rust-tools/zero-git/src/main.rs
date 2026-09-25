@@ -1,5 +1,5 @@
-//! faelight-git v2.1 - Git Governance Layer
-//! 🌲 Git becomes a policy boundary
+//! zero-git v2.1 - Git Governance Layer
+//! Git becomes a policy boundary
 
 use clap::{Parser, Subcommand};
 use colored::*;
@@ -9,11 +9,11 @@ use std::process::{exit, Command};
 
 // Import our library modules
 use faelight_core::paths;
-use faelight_git::commands;
+use zero_git::commands;
 
 #[derive(Parser)]
-#[command(name = "faelight-git")]
-#[command(about = "🌲 Git Governance for Project 0")]
+#[command(name = "zero-git")]
+#[command(about = "Git Governance for Project 0")]
 #[command(version = "4.0.0")]
 struct Cli {
     #[command(subcommand)]
@@ -229,7 +229,7 @@ fn install_hooks() -> i32 {
     }
 
     println!();
-    println!("{}", "Git hooks installed! 🌲".green());
+    println!("{}", "Git hooks installed!".green());
     println!();
     println!("Hooks will:");
     println!(
@@ -253,7 +253,7 @@ fn remove_hooks() -> i32 {
         if path.exists() {
             // Check if it's ours
             if let Ok(content) = fs::read_to_string(&path) {
-                if content.contains("faelight-git") {
+                if content.contains("zero-git") {
                     fs::remove_file(&path).ok();
                     println!("   {} Removed {}", "✅".green(), name);
 
@@ -265,7 +265,7 @@ fn remove_hooks() -> i32 {
                     }
                 } else {
                     println!(
-                        "   {} {} is not a faelight hook, skipping",
+                        "   {} {} is not a zero-git hook, skipping",
                         "⚠️".yellow(),
                         name
                     );
@@ -339,7 +339,7 @@ fn verify() -> i32 {
         .filter(|h| {
             let path = hooks_dir.join(h);
             if let Ok(content) = fs::read_to_string(&path) {
-                content.contains("faelight-git")
+                content.contains("zero-git")
             } else {
                 false
             }
@@ -350,10 +350,7 @@ fn verify() -> i32 {
         println!("  {} All hooks installed", "✅".green());
     } else {
         println!("  {} {}/3 hooks installed", "⚠️".yellow(), hooks_installed);
-        println!(
-            "     Run: {} to install",
-            "faelight-git install-hooks".cyan()
-        );
+        println!("     Run: {} to install", "zero-git install-hooks".cyan());
     }
 
     println!();
@@ -361,7 +358,7 @@ fn verify() -> i32 {
         println!("{}", "Some issues found. Fix before committing.".red());
         1
     } else {
-        println!("{}", "Ready to commit! 🌲".green());
+        println!("{}", "Ready to commit!".green());
         0
     }
 }
@@ -473,19 +470,19 @@ fn hook_pre_push() -> i32 {
 // ═══════════════════════════════════════════════════════════
 
 const PRE_COMMIT_HOOK: &str = r#"#!/bin/bash
-# Faelight Forest Git Hook - Pre-Commit
-# Managed by faelight-git
-exec faelight-git hook-pre-commit
+# Project 0 Git Hook - Pre-Commit
+# Managed by zero-git
+exec zero-git hook-pre-commit
 "#;
 
 const COMMIT_MSG_HOOK: &str = r#"#!/bin/bash
-# Faelight Forest Git Hook - Commit Message
-# Managed by faelight-git
-exec faelight-git hook-commit-msg "$1"
+# Project 0 Git Hook - Commit Message
+# Managed by zero-git
+exec zero-git hook-commit-msg "$1"
 "#;
 
 const PRE_PUSH_HOOK: &str = r#"#!/bin/bash
-# Faelight Forest Git Hook - Pre-Push
-# Managed by faelight-git
-exec faelight-git hook-pre-push
+# Project 0 Git Hook - Pre-Push
+# Managed by zero-git
+exec zero-git hook-pre-push
 "#;

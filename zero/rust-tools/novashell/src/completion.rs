@@ -807,7 +807,7 @@ fn cmd_description(cmd: &str) -> &'static str {
         "d" => "health check",
         "delete" | "del" => "safely delete a file",
         "find" => "search the repo",
-        "fg" => "faelight-git helper",
+        "fg" => "zero-git helper",
         "patch" => "apply a patch to a file",
         "rspatch" => "anchor-based Rust patch",
         "edit" => "edit a file",

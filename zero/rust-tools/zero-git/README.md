@@ -1,10 +1,10 @@
-# faelight-git
+# zero-git
 
 **Version:** 4.4.1 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 
 ## 📖 Description
 
-Git governance for the forest -- guarded commits, health-aware verification, and intent-commit genealogy.
+Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy.
 
 ---
 
@@ -32,7 +32,7 @@ Git governance for the forest -- guarded commits, health-aware verification, and
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-git
+cargo build -p zero-git
 ```
 
 ## Deploy

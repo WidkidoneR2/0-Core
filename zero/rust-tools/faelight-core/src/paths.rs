@@ -632,7 +632,7 @@ pub fn git_dir() -> PathBuf {
     core_dir().join(".git")
 }
 
-/// Git hooks directory (for faelight-git governance)
+/// Git hooks directory (for zero-git governance)
 pub fn git_hooks_dir() -> PathBuf {
     git_dir().join("hooks")
 }

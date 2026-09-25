@@ -29,7 +29,7 @@ anyhow = "1"
 thiserror = "1"
 miette = { version = "7", features = ["fancy"] }
 toml = "0.8"
-faelight-git = { path = "../faelight-git" }
+zero-git = { path = "../zero-git" }
 git2 = "0.18"
 libc = "0.2"
 # INT-188 step 3: setpgid, waitpid, tcsetpgrp, tcgetpgrp and Termios, on typed fds.

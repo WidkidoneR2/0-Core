@@ -1380,8 +1380,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if touched.contains("engine/src") || touched.contains("engine/Cargo") {
             tools.push(("core (engine)", "zero/engine/Cargo.toml"));
         }
-        if touched.contains("faelight-git") {
-            tools.push(("faelight-git", "zero/rust-tools/faelight-git/Cargo.toml"));
+        if touched.contains("zero-git") {
+            tools.push(("zero-git", "zero/rust-tools/zero-git/Cargo.toml"));
         }
         if touched.contains("zero-release") {
             tools.push(("zero-release", "zero/rust-tools/zero-release/Cargo.toml"));

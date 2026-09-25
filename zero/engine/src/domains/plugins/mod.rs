@@ -277,10 +277,10 @@ pub fn status(_ctx: &AppContext, name: &str) -> CoreResult<()> {
 /// Known first-party plugins with curated metadata
 fn known_plugin(name: &str) -> Option<Plugin> {
     match name {
-        "faelight-git" => Some(Plugin {
-            name: "faelight-git".to_string(),
+        "zero-git" => Some(Plugin {
+            name: "zero-git".to_string(),
             description: "Git operations with Risk Score engine".to_string(),
-            binary: "faelight-git".to_string(),
+            binary: "zero-git".to_string(),
             version: None,
             event_domains: vec!["git".to_string()],
             enabled: true,

@@ -13,7 +13,7 @@ pub fn run(message: &str) -> Result<()> {
         return Ok(());
     }
 
-    println!("{}", "🌲 faelight-git quick".cyan().bold());
+    println!("{}", "zero-git quick".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     // Show what's being committed

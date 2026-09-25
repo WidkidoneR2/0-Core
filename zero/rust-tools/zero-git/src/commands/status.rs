@@ -14,7 +14,7 @@ pub fn run() -> Result<()> {
     let (ahead, behind) = repo.ahead_behind()?;
 
     // ── Header ────────────────────────────────────────────────
-    println!("{}", "🌲 faelight-git status".cyan().bold());
+    println!("{}", "zero-git status".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     // Branch line
@@ -132,7 +132,7 @@ pub fn run() -> Result<()> {
         println!(
             "  {} {}",
             "hint:".dimmed(),
-            "faelight-git commit to commit staged files".dimmed()
+            "zero-git commit to commit staged files".dimmed()
         );
     }
 

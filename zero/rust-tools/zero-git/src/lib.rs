@@ -1,4 +1,4 @@
-//! Shared library functions for faelight-git
+//! Shared library functions for zero-git
 //! Using faelight-core for all path management
 
 pub mod commands;

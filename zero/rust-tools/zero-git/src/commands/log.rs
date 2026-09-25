@@ -18,7 +18,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
     }
 
     // ── Header ────────────────────────────────────────────────
-    println!("{}", "🌲 faelight-git log".cyan().bold());
+    println!("{}", "zero-git log".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
 
     // Branch status line
@@ -82,7 +82,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
         "  {} {}  {} to show more",
         "showing".dimmed(),
         format!("{} commits", total).white(),
-        "faelight-git log -n <count>".to_string().dimmed()
+        "zero-git log -n <count>".to_string().dimmed()
     );
     println!();
 

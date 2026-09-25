@@ -1564,8 +1564,8 @@ fn run_input(
         mark("aliases expanded");
         // ⭐ RESERVED NAMES WIN OVER ALIASES, AND THIS IS THE PRECEDENCE POINT.
         //
-        // `fg` was an alias for faelight-git, so `fg 1` became `faelight-git 1` HERE --
-        // and try_fg below then asked `command_word`, got `faelight-git`, and declined.
+        // `fg` was an alias for zero-git, so `fg 1` became `zero-git 1` HERE --
+        // and try_fg below then asked `command_word`, got `zero-git`, and declined.
         // The job control builtin was unreachable by name. Measured 2026-09-13:
         // `fg 1` -> `error: unrecognized subcommand '1'` from git.
         //

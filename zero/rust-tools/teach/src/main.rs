@@ -252,14 +252,14 @@ fn gather_health() -> usize {
 fn build_tool_registry() -> Vec<ToolInfo> {
     vec![
         ToolInfo {
-            name: "faelight-git".to_string(),
+            name: "zero-git".to_string(),
             version: "3.3.0".to_string(),
             description: "Intent-aware git with Risk Score engine. Shows exact files, stages, commits, pushes — all native via git2. No shell-out for core ops.".to_string(),
             commands: vec![
-                "faelight-git status   # file-level status + risk score".to_string(),
-                "faelight-git commit   # staged → intent link → commit → push".to_string(),
-                "faelight-git log      # graph log with conventional commit colors".to_string(),
-                "faelight-git branch   # branch manager with upstream tracking".to_string(),
+                "zero-git status   # file-level status + risk score".to_string(),
+                "zero-git commit   # staged → intent link → commit → push".to_string(),
+                "zero-git log      # graph log with conventional commit colors".to_string(),
+                "zero-git branch   # branch manager with upstream tracking".to_string(),
             ],
             philosophy: "Every commit is a decision. The risk score makes the cost of that decision visible before you make it.".to_string(),
             replaces: Some("lazygit".to_string()),
@@ -573,7 +573,7 @@ fn slide_live_demo(snap: &SystemSnapshot) {
     println!("  {} Uptime:   {}", "›".dimmed(), snap.uptime.dimmed());
     println!();
     println!("  {}", "Try these live:".yellow().bold());
-    println!("  {} faelight-git status", "→".dimmed());
+    println!("  {} zero-git status", "→".dimmed());
     println!("  {} doctor", "→".dimmed());
     println!("  {} zero-update --dry-run", "→".dimmed());
 }
@@ -823,7 +823,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
         ("tools", "Core Tools", lesson_tools),
         ("workflow", "Daily Workflow", lesson_workflow),
         ("intent", "Intent Ledger", lesson_intent),
-        ("git", "faelight-git", lesson_git),
+        ("git", "zero-git", lesson_git),
         ("update", "zero-update", lesson_update),
     ];
 
@@ -1046,13 +1046,13 @@ fn lesson_workflow(snap: &SystemSnapshot) {
         "→".dimmed()
     );
     println!(
-        "  {} faelight-git status      # what changed overnight",
+        "  {} zero-git status      # what changed overnight",
         "→".dimmed()
     );
     println!();
     println!("  {}", "Before changes:".white().bold());
     println!(
-        "  {} faelight-git commit      # intent-linked commit",
+        "  {} zero-git commit      # intent-linked commit",
         "→".dimmed()
     );
     println!();
@@ -1081,7 +1081,7 @@ fn lesson_intent(snap: &SystemSnapshot) {
     println!();
     println!("  Every architectural decision gets an entry:");
     println!();
-    println!("  {}", "INT-042  Replace lazygit with faelight-git".white());
+    println!("  {}", "INT-042  Replace lazygit with zero-git".white());
     println!("  {}", "Status:   Complete".green().dimmed());
     println!(
         "  {}",
@@ -1108,8 +1108,8 @@ fn lesson_intent(snap: &SystemSnapshot) {
 }
 
 fn lesson_git(snap: &SystemSnapshot) {
-    let tool = snap.tools.iter().find(|t| t.name == "faelight-git");
-    show_tool_lesson(tool, "faelight-git");
+    let tool = snap.tools.iter().find(|t| t.name == "zero-git");
+    show_tool_lesson(tool, "zero-git");
 }
 
 fn lesson_update(snap: &SystemSnapshot) {

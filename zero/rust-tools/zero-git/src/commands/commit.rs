@@ -63,12 +63,12 @@ fn emit_git_event(action: &str, detail: &str) {
             .unwrap_or_default()
             .as_secs() as i64;
         let payload = format!(
-            r#"{{"actor":"faelight-git","result":"ok","detail":{{{}}}}}"#,
+            r#"{{"actor":"zero-git","result":"ok","detail":{{{}}}}}"#,
             detail
         );
         // INT-333 v5: use v23 schema with source_tool
         let _ = conn.execute(
-            "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('git', ?, ?, ?, 'faelight-git', '')",
+            "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('git', ?, ?, ?, 'zero-git', '')",
             rusqlite::params![action, payload, ts],
         );
         // INT-333 v5: also write to git_operations table
@@ -78,12 +78,12 @@ fn emit_git_event(action: &str, detail: &str) {
                 timestamp INTEGER NOT NULL,
                 operation TEXT NOT NULL,
                 detail TEXT,
-                source_tool TEXT DEFAULT 'faelight-git'
+                source_tool TEXT DEFAULT 'zero-git'
             )",
             [],
         );
         let _ = conn.execute(
-            "INSERT INTO git_operations (timestamp, operation, detail, source_tool) VALUES (?, ?, ?, 'faelight-git')",
+            "INSERT INTO git_operations (timestamp, operation, detail, source_tool) VALUES (?, ?, ?, 'zero-git')",
             rusqlite::params![ts, action, detail],
         );
     }
@@ -100,7 +100,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     }
 
     // ── Show current state ────────────────────────────────────
-    println!("{}", "🌲 faelight-git commit".cyan().bold());
+    println!("{}", "zero-git commit".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     // INT-207 L1 — Show active intents context
     {

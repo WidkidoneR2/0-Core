@@ -347,9 +347,9 @@ fn lesson_tools() {
     println!("  Detect system drift and unexpected changes.");
     println!("  Try: entropy-check");
     println!();
-    gum_style("faelight-git v2.1.0", 11);
+    gum_style("zero-git v2.1.0", 11);
     println!("  Git intelligence with Risk Score engine.");
-    println!("  Try: faelight-git status");
+    println!("  Try: zero-git status");
     println!();
     gum_style("core-protect v1.0.1", 11);
     println!("  Lock/unlock 0-core for safe editing.");

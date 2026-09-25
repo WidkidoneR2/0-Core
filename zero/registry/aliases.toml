@@ -31,7 +31,7 @@ aliases = ["fetch"]
 category = "automation"
 
 [[alias]]
-command = "faelight-git"
+command = "zero-git"
 aliases = ["fg"]
 category = "development"
 

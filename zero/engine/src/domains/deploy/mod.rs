@@ -425,7 +425,7 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
     let all_tools = [
         "novashell",
         "core",
-        "faelight-git",
+        "zero-git",
         "zero-update",
         "zero-daemon",
     ];
@@ -449,7 +449,7 @@ fn tool_dependencies(tool: &str) -> Vec<&'static str> {
     match tool {
         "novashell" => vec![],
         "core" => vec!["all tools using core commands"],
-        "faelight-git" => vec!["fg alias", "cistart/cicomplete hooks"],
+        "zero-git" => vec!["fg alias", "cistart/cicomplete hooks"],
         _ => vec![],
     }
 }

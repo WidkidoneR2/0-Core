@@ -1,7 +1,7 @@
 [[plugins]]
-name = "faelight-git"
+name = "zero-git"
 description = "Git operations with Risk Score engine"
-binary = "faelight-git"
+binary = "zero-git"
 event_domains = ["git"]
 enabled = true
 

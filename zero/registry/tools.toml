@@ -109,7 +109,7 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-git"
+name = "zero-git"
 version = "4.4.1"
 category = "development"
 description = "Git operations with Risk Score engine"
@@ -153,7 +153,7 @@ expected_usage = "high"
 type = "rust"
 deployable = true
 retired = false
-depends_on = ["faelight-git"]
+depends_on = ["zero-git"]
 [[tool]]
 name = "faelight-term"
 version = "3.1.0"

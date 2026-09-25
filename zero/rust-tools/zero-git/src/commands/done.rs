@@ -10,7 +10,7 @@ pub fn run(extra: Option<&str>) -> Result<()> {
         println!("{}", "  ✅ Nothing to commit -- tree is clean".green());
         return Ok(());
     }
-    println!("{}", "🌲 fg done".cyan().bold());
+    println!("{}", "fg done".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     // Show staged files
     for f in &status.files {
