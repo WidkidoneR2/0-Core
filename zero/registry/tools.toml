@@ -424,7 +424,7 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-ade"
+name = "zero-ade"
 version = "1.0.0"
 category = "intelligence"
 description = "Agentic dev environment -- fsh PTY + Friday Chat split-pane TUI"

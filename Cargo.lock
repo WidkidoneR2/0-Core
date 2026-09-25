@@ -805,21 +805,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-ade"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "crossterm 0.28.1",
- "dirs",
- "faelight-core",
- "portable-pty",
- "ratatui 0.28.1",
- "rusqlite",
- "tokio",
-]
-
-[[package]]
 name = "faelight-context"
 version = "1.0.0"
 dependencies = [
@@ -3854,6 +3839,21 @@ dependencies = [
  "serde",
  "static_assertions",
  "zvariant",
+]
+
+[[package]]
+name = "zero-ade"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "crossterm 0.28.1",
+ "dirs",
+ "faelight-core",
+ "portable-pty",
+ "ratatui 0.28.1",
+ "rusqlite",
+ "tokio",
 ]
 
 [[package]]

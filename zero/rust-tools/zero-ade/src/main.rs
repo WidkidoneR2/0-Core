@@ -1,4 +1,4 @@
-// INT-346: faelight-ade v1 -- Forest ADE
+// INT-346: zero-ade v1 -- Forest ADE
 // ratatui layout + portable-pty (fsh) + friday-chat (state.db)
 // Left pane: real fsh PTY | Right pane: Friday Chat TUI
 

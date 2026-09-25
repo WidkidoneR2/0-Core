@@ -17060,8 +17060,8 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
             .output();
     }
 
-    // INT-346: launch faelight-ade directly
-    let _ = std::process::Command::new("faelight-ade").spawn();
+    // INT-346: launch zero-ade directly
+    let _ = std::process::Command::new("zero-ade").spawn();
     CommandResult::Output(String::new())
 }
 

@@ -1,4 +1,4 @@
-# faelight-ade
+# zero-ade
 
 **Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** intelligence
 
@@ -20,8 +20,8 @@
 - Phase 2: register 11 unregistered tools + regenerate catalog
 - generate 39 per-tool CHANGELOGs (NixOS migration entry + git history)
 - generate 39 per-tool READMEs + rust-tools index (first full pass)
-- faelight-term v4 -- INT-346 faelight-ade mouse tracking fixed, menu…
-- faelight-term v4 -- INT-346 Phase 1+2+3: faelight-ade v1 live --…
+- faelight-term v4 -- INT-346 zero-ade mouse tracking fixed, menu…
+- faelight-term v4 -- INT-346 Phase 1+2+3: zero-ade v1 live --…
 
 > _Auto-seeded from history; curated entries coming._
 
@@ -30,7 +30,7 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-ade
+cargo build -p zero-ade
 ```
 
 ## Deploy

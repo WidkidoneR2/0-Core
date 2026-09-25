@@ -105,7 +105,7 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "pkgs" => "Package operations",
         "goto" => "Jump to a repo location",
         "run" => "Run a script file",
-        "ade" => "Launch faelight-ade (paired shell + Friday)",
+        "ade" => "Launch zero-ade (paired shell + Friday)",
         "audit-table" => "Audit results in table form",
         "bump-versions" => "Bump version numbers across the repo",
         "chart" => "Render a chart",
