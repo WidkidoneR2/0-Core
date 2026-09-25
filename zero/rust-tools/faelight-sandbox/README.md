@@ -1,4 +1,4 @@
-# 🌲 faelight-sandbox
+# faelight-sandbox
 
 **Version:** 3.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 

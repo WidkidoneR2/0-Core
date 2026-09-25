@@ -1,4 +1,4 @@
-# 🌲 NovaShell
+# NovaShell
 
 **Version:** 3.9.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Binary:** `nsh`
 

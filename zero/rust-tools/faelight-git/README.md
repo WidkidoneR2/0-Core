@@ -1,4 +1,4 @@
-# 🌲 faelight-git
+# faelight-git
 
 **Version:** 4.4.1 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 

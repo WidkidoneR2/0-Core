@@ -1,4 +1,4 @@
-# 🌲 faelight-vm
+# faelight-vm
 
 **Version:** 0.1.0 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active (unregistered) &nbsp;|&nbsp; **Category:** uncategorized
 

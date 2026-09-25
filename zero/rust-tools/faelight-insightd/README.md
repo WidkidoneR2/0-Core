@@ -1,4 +1,4 @@
-# 🌲 faelight-insightd
+# faelight-insightd
 
 **Version:** 0.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** intelligence
 

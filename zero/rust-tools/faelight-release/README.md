@@ -1,4 +1,4 @@
-# 🌲 faelight-release
+# faelight-release
 
 **Version:** 1.0.3 &nbsp;|&nbsp; **License:** - &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** release
 

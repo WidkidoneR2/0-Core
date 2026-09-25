@@ -1,4 +1,4 @@
-# 🌲 faelight-zone
+# faelight-zone
 
 **Version:** 2.1.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** system
 
