@@ -284,7 +284,9 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 - Persistent data, as of 2026-09-24 (INT-247): `~/.local/state/zero` (state.db), `~/.config/zero`
   and `~/.cache/zero` are the REAL directories; the `faelight` names beside them are compatibility
   links. `~/.local/share/zero` is real too (teach progress, the delete trash) and
-  `~/.local/share/faelight` links to it. Still named faelight: `~/.config/faelight-shell`.
+  `~/.local/share/faelight` links to it. NovaShell's config is `~/.config/nsh`, real, and
+  `~/.config/faelight-shell` links to it (2026-09-24). Nothing outside the repo is real under a
+  faelight name.
 
 ---
 

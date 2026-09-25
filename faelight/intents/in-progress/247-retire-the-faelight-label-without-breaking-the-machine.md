@@ -1612,7 +1612,7 @@ If the directory holds anything else, that part follows the cache method instead
     then              items 5, 6 and 7 of the order above: inta, the words, the structure
 ```
 
-## 2026-09-25, END OF SESSION -- START HERE
+## 2026-09-25 (written 2026-09-24), END OF SESSION -- superseded by the section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" and "where this
 stopped" section in this file. Every claim below was checked against git and the disk by the
@@ -1680,6 +1680,82 @@ stale on the day it is written.
                             journal/mod.rs:309, and 25 unwrap_or(100) sites, measured
                             2026-09-25. PROPOSED as their own intent (the INT-192 class),
                             not yet ruled
+```
+
+## 2026-09-24, NIGHT, END OF SESSION -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" in this file. Every
+claim below was checked against git and the disk by the script that wrote it.
+
+### A DATE CORRECTION FIRST
+
+The section above headed 2026-09-25 was written on the night of 2026-09-24 -- measured: the
+machine read 2026-09-24T20:14-05:00 at the start of this session. Left as written; this line is
+the record.
+
+### Done this session -- the last outside directory
+
+```text
+    c000b4dc   nsh_config_home() is the ONE place ~/.config/nsh is named. shell_config_dir()
+               falls back to it; shell_config() joins config.nsh onto it. Class test: the
+               retired directory name appears nowhere in paths.rs, and the nsh name is joined
+               exactly twice -- the XDG and HOME branches of the owner. The default template
+               config.rs writes and the devshell nshconf row follow. faelight-core 13 passed,
+               novashell 221, ship 17 shipped 0 failed, nsh-test 202/202
+    (disk)     alias first: ~/.config/nsh -> faelight-shell, config.nsh one inode (58:341584)
+               under both names. Then one renameat2(RENAME_EXCHANGE), rehearsed in a mktemp
+               directory inside ~/.config: ~/.config/nsh is REAL, faelight-shell -> nsh.
+               5 entries, every inode kept
+    (disk)     config.nsh's two stale header lines rewritten in place, inode kept
+    doors      exec nsh after the flip and again after the swap: 256 aliases loaded; d 96%,
+               26/27, 0 failed both times
+```
+
+RED, HONESTLY: the two tests landed first, and the flip refused unless they were present, but
+the failing run was not captured in this session's log. Red was proven on a stand-in crate built
+from the same regions: 2 failed, then 4 passed with XDG_CONFIG_HOME set, unset, and with
+NSH_CONFIG set.
+
+### State
+
+```text
+    state, config, cache, share   zero is REAL; the faelight names are links to it
+    shell config                  ~/.config/nsh is REAL; ~/.config/faelight-shell links to it
+    outside the repo              NOTHING is real under a faelight name. What remains are the
+                                  compatibility links, removed last (item 7 of THE ORDER)
+```
+
+### Next, in order
+
+```text
+    1  the faelight-shell NAME in live code: file headers, help text, the teach module, and the
+       dead /run/current-system/sw/bin/faelight-shell lookups (commands/mod.rs near 12755,
+       main.rs near 2732). Then faelight-shell joins the display-name guard
+    2  the crates, one at a time: kept -> zero-*, otherwise retired. faelight-insightd and
+       faelight-context need Christian's ruling first. categorize_tool changes in the same
+       commit as the first rename. faelight-core last
+    3  inta for SCHEMA and CONTRACTS, the words, INT-252
+```
+
+### PROPOSED by Christian, not ruled
+
+```text
+    the shell branch   NovaShell, nsh-test and DevBox grouped as the shell in the tree, as in
+                       THE MENTAL MODEL. A layout question, so it belongs with INT-252 -- and it
+                       should be decided BEFORE INT-252 runs, so every path moves once
+```
+
+### Found, not fixed
+
+```text
+    devshell-lib:27          the state row snapshots .local/state/faelight -- a link to zero
+                             now. Should name zero
+    paths.rs near 730-750    shell_config()'s doc comment sits above shell_config_dir(): two
+                             doc blocks run together over one function, none over the other
+    ~/.config/nsh leftovers  config.fsh.bak-20260623T213049, config.fsh.stub,
+                             config.nsh.bak-1790169521 -- Christian decides keep or delete
+    still open               everything under "Found, not fixed" in the section above:
+                             security_audit age, Alias Coverage, the untrue facts
 ```
 
 ## Success Criteria
