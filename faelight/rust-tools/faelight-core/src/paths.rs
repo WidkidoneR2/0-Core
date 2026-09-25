@@ -498,6 +498,11 @@ pub fn teach_progress_file() -> PathBuf {
     zero_data_dir().join("teach-progress.json")
 }
 
+/// The delete builtin moves files here instead of removing them.
+pub fn trash_dir() -> PathBuf {
+    zero_data_dir().join("trash")
+}
+
 #[cfg(test)]
 mod data_dir_tests {
     /// INT-247: the data directory has ONE owner. An accessor that joins its own directory
@@ -511,6 +516,13 @@ mod data_dir_tests {
             1,
             "local_data_dir() must be joined exactly once, by zero_data_dir()"
         );
+    }
+
+    /// INT-247: the delete builtin puts files under zero_data_dir(), never under a
+    /// ~/.local/share path built by hand.
+    #[test]
+    fn trash_dir_is_under_zero_data_dir() {
+        assert_eq!(super::trash_dir(), super::zero_data_dir().join("trash"));
     }
 }
 

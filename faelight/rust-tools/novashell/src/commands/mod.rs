@@ -4010,10 +4010,10 @@ fn execute_dispatch(
         }
         "delete" | "del" => {
             // delete <path> [--force]
-            // Forest vocabulary: human-readable rm with safety checks
+            // human-readable rm with safety checks
             if args.is_empty() {
                 return CommandResult::Error(
-                    "usage: delete <path> [--force]\n  delete moves to ~/.local/share/forest-trash/ by default\n  --force skips trash for permanent delete".to_string()
+                    "usage: delete <path> [--force]\n  delete moves to ~/.local/share/zero/trash/ by default\n  --force skips trash for permanent delete".to_string()
                 .into(), 1);
             }
             let force = args.contains(&"--force");
@@ -4089,7 +4089,9 @@ fn execute_dispatch(
                     Err(e) => CommandResult::Error(format!("delete: {}", e).into(), 1),
                 }
             } else {
-                let trash_dir = format!("{}/.local/share/forest-trash", home);
+                let trash_dir = faelight_core::paths::trash_dir()
+                    .to_string_lossy()
+                    .to_string();
                 let _ = std::fs::create_dir_all(&trash_dir);
                 let file_name = target
                     .file_name()
