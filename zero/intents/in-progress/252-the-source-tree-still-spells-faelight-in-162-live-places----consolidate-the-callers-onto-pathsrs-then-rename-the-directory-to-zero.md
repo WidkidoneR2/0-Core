@@ -133,6 +133,34 @@ dead /etc/faelight reads (INT-250).
     comments     a few say faelight/ as a word, not a path ("directories under faelight/")
 ```
 
+## 2026-09-25, NIGHT -- CORRECTION: THE GREP-FAELIGHT CASE READS A FIXTURE
+
+The rulings above say the main.rs:881 gate "goes red on the first crate rename". Read at
+0d3be1b8, before the crate pass, that is not what the case does.
+
+```text
+    main.rs:212-216   the FIXTURE: mkdir zero/rust-tools/faelight-core and novashell/src
+                      inside a temporary HOME
+    main.rs:885-897   tilde_nested_pipe: ls ~/0-core/zero/rust-tools | grep faelight | wc -l
+                      with HOME set to that fixture; passes while the count is > 0
+```
+
+It never reads the real tree. Renaming real crates cannot turn it red; six have been renamed and
+it is green. It goes red when the fixture line naming faelight-core changes -- and the crate
+script renames that line in faelight-core's own commit, the LAST of the pass. So the gate
+closes at the end of the crate pass, not the start, and its red will come from the fixture, which
+is the part of the case that encodes the old name.
+
+### Done since the move
+
+```text
+    70d31161   AGENTS.md names zero/scripts/dev for fpatch -- the Still open line above
+    33857379 .. a7a6376a   six crates renamed faelight-* -> zero-*; see INT-247
+```
+
+AGENTS.md:743 still describes the pre-move layout (the scripts "TODAY" and "INT-252 renames
+that"); it goes with the docs pass.
+
 ## Success Criteria
 
 - [ ] THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves: every occurrence of

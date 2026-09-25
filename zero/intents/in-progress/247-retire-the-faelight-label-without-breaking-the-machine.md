@@ -1758,7 +1758,7 @@ NSH_CONFIG set.
                              security_audit age, Alias Coverage, the untrue facts
 ```
 
-## 2026-09-25, END OF SESSION -- START HERE
+## 2026-09-25, END OF SESSION -- superseded by the NIGHT section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" in this file. Before
 starting a step it names, check the step against disk and git.
@@ -1812,6 +1812,95 @@ starting a step it names, check the step against disk and git.
                           template test does not cover
     nsh identity          "Login shell since 2026-04-03" is untrue: bash is the login shell
     printed Faelight      9 strings, all inside faelight-* crates -- they go with each crate
+```
+
+## 2026-09-25, NIGHT -- THE CRATE PASS AT 6 OF 15 -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes the 2026-09-25 END OF SESSION section above.
+Before starting a step it names, check the step against disk and git. Every claim below was
+checked against git and the disk by the script that wrote it.
+
+### Done this session
+
+```text
+    70d31161   AGENTS.md names zero/scripts/dev for fpatch (lines 539, 547, 743)
+    33857379   1/15 faelight-gen -> zero-gen. categorize_tool groups zero- like faelight-,
+               red first (zero_prefix_is_categorized_like_faelight). Fixed on the way: the gen
+               box header, the README build line
+    85ae8690   the tree emoji dropped from all 19 crate README headings -- RULED by Christian:
+               README headings, now and for good
+    fda6fb9f   2/15 faelight-vm -> zero-vm, and its own data names (no VM data existed on disk)
+    443393a6   3/15 faelight-ade -> zero-ade
+    4f9feeb5   4/15 faelight-context -> zero-context
+    650a647c   5/15 faelight-insightd -> zero-insightd
+    a7a6376a   6/15 faelight-deadwood -> zero-deadwood
+```
+
+Every crate went through the same doors before its commit: the renamed binary on PATH,
+nsh-test 202/202, d 0 failed. ship --retire kept each old binary in ~/0-core/bin/<name>@<stamp>.
+
+### THE METHOD -- one script, named by its own hash
+
+```text
+    SCRIPT ~/.cache/zero/crate-rename-d38dedd39c13.py  (the name is its sha256 prefix;
+           delete it when the pass ends)
+    plan <crate>          read-only: every edit; REVIEW on lines that build a path or run or
+                          match a process; SKIPPED for systemctl, journalctl, is-active, qcow2,
+                          org.faelight, .sock, .service; collisions; a FINGERPRINT
+    apply <crate> <fp>    refuses unless the plan still matches what was reviewed; git mv plus
+                          fpatch, each file verified against the plan; never commits
+    alias <crate>         config.nsh; refuses until ~/.local/bin/zero-<crate> exists
+    per crate             plan -> review -> apply -> README build line -> cargo test -> ship
+                          -> alias -> ship --retire faelight-<crate> -> exec nsh -> doors -> commit
+```
+
+A REVIEW line is renamed only if the thing it names is renamed in the same commit. A line that
+must stay (a dead path, a history entry a rename would make false) is put back through fpatch
+after apply, before the build -- done for strategy/mod.rs:1628 and the insightd README.
+
+THE HOME SWEEP RAN before ade: nothing outside the repo calls a faelight-* binary -- no Hyprland
+bind, .desktop file, systemd unit, script in ~/.local/bin, rc file or crontab. The only hits were
+two backups in ~/.config/nsh that nsh does not load.
+
+### Next, in order
+
+```text
+    leaves    update, sandbox, release, docs, then daemon. daemon last of them: its systemd
+              unit, D-Bus names and socket are contracts the SKIP list holds as data.
+              release needs Christian's name for the Forest DNA README section --
+              faelight-release readme.rs:166 writes it with the tree emoji
+    engine    doctor, zone -- the engine imports both (zone as a library; its binary is retired)
+    git       novashell imports it; its hook templates are written into .githooks
+    core      LAST, its own reviewed payload -- the script refuses core. 101 importers
+    then      INT-252's fixture case goes red with core (see INT-252), the compatibility links,
+              INT-263 schema, INT-264 contracts, the docs and README last
+```
+
+### Found, not fixed -- each needs a ruling
+
+```text
+    strategy/mod.rs:1628  Factor 7 checks scripts/faelight-context and scripts/faelight-memory;
+                          neither exists, so it always scores 0 of 7 and says "Neither context nor
+                          memory built yet" while zero-context is built and deployed. Left
+                          unrenamed: a dead path does not get the new name. With the untrue facts
+    strategy/mod.rs:1564  systemctl is-active faelight-insightd -- a unit name; Project 0 runs no
+                          user services on Omarchy (INT-237)
+    zero-vm               run-faelight-vm-vm, faelight-vm.qcow2 in .gitignore and faelight-vm-swtpm
+                          are names the NixOS build-vm runner made, and are kept. No VM image exists
+                          and nothing builds that runner on Omarchy: does zero-vm drive anything?
+    zero-vm state_dir()   builds ~/.local/state/zero-vm itself instead of asking paths.rs
+    devbox census         zero-ade ignores its arguments, so zero-ade --version opens the ADE;
+                          that census case cannot pass in a clean room
+    README history        auto-seeded changelog lines in crate READMEs now say zero-*: an
+                          anachronism, not a falsehood. The one a rename made false (insightd's
+                          rename record) was restored
+    AGENTS.md:743         still says the scripts are at zero/scripts/devshell TODAY and that
+                          INT-252 renames that -- the move is done
+    ~/.config/nsh         config.nsh.bak-1790169521 and config.fsh.bak-20260623T213049 name
+                          faelight-* tools; nothing loads them. Keep or delete is Christian's
+    a one-off payload     the vm data-name step wrote main.rs, then refused before .gitignore --
+                          it checked after writing. Every check belongs before the first write;
+                          the crate script already works that way
 ```
 
 ## Success Criteria
