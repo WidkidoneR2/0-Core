@@ -84,27 +84,83 @@ bad idea -- `ls` shows something that looks like a typo, every relative path rea
 ONE PARENT RENAME. Not 29 crate directories. `novashell` keeps its name; `faelight-core` keeps
 its name until that crate is actually rewritten, because A RENAME IS NOT A REWRITE.
 
+## 2026-09-25 -- THE MOVE LANDED, AND THE RULINGS
+
+```text
+    7b79c725   git mv faelight zero, 133 path strings in 28 files, ONE commit, pushed.
+               ls ~/0-core shows zero; there is no faelight/ at the root
+```
+
+### THE ORDER CHANGED, RULED BY CHRISTIAN
+
+The Solution above says callers first, then the move, because editing 138 strings BY HAND is how
+a tree half-moves. The move was not done by hand. One payload took a census of every live path
+string, refused unless it matched the reviewed fingerprint (12cb33529e87), did the git mv, and
+rewrote every site through fpatch, checking each file against the planned text. Rehearsed on the
+pushed tree first; the result was byte-identical to an independent rewrite, and the rollback
+(git checkout, git mv back) was rehearsed too. The compiler and nsh-test were the gate.
+
+NOT rewritten, on purpose: markdown, every intent, CHANGELOGs, the D-Bus names (INT-264) and the
+dead /etc/faelight reads (INT-250).
+
+### THREE TESTS PROTECTED THE OLD NAME -- RED ON THE RENAMED TREE
+
+```text
+    tilde_ls_root     ls ~/0-core                  required "faelight"
+    tilde_pipe_grep   ls ~/0-core | grep faelight  required "faelight"
+    pipe_ls_grep      ls ~/0-core | grep faelight  required "faelight"
+```
+
+199/202 on the moved tree, then 202/202 once they expect zero. Same commit.
+
+### RULINGS, Christian 2026-09-25
+
+```text
+    the callers gate      rewritten to what was done, with evidence
+    the audit gate        LEFT OPEN -- classified by file kind, not by comment
+    the main.rs:881 gate  STAYS HERE. It checks ls zero/rust-tools | grep faelight, so it goes
+                          red on the first crate rename -- that red is its proof
+    completion            INT-252 is NOT completed until the entire flip is: no live faelight or
+                          forest anywhere in the code. For completion this supersedes Not in scope
+    the crates            faelight-insightd and faelight-context are KEPT, renamed zero-*
+```
+
+### Still open
+
+```text
+    AGENTS.md    names faelight/scripts/dev/fpatch.py; the file is zero/scripts/dev/fpatch.py
+    markdown     the docs still say faelight/ -- the docs pass, last
+    comments     a few say faelight/ as a word, not a path ("directories under faelight/")
+```
+
 ## Success Criteria
 
 - [ ] THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves: every occurrence of
       `faelight/` in live code, manifests, scripts and docs, each marked live / historical /
       comment. The numbers above are from 2026-09-19 and will have drifted.
-- [ ] ⭐ THE CALLERS ASK FIRST. Every live site resolves its path through `faelight_core::paths`
-      rather than typing the prefix. Proven by the count: `faelight/` in live .rs falls from 144
-      to what paths.rs itself contains, BEFORE the directory moves.
-- [ ] `git mv faelight zero` lands in ONE commit together with the workspace members, RISK.toml
+- [x] THE CALLERS -- RULED 2026-09-25: the order changed. Instead of converting the callers one
+      crate at a time, the move ran as ONE scripted commit: a census of every live `faelight/`
+      path string, reviewed and fingerprinted, rewritten through fpatch in the same commit as
+      the git mv. Rehearsed on the pushed tree first; byte-identical to an independent rewrite.
+      <!-- evidence: 7b79c725. Census 12cb33529e87: 133 sites in 28 files, then 'repo-path sites left in live files: 0'. Gate rewritten by Christian's ruling 2026-09-25. -->
+- [x] `git mv faelight zero` lands in ONE commit together with the workspace members, RISK.toml
       and every path edit. Two commits is how half the tree moves and the other half compiles
       against a folder that is gone.
-- [ ] `cargo check --workspace` is clean and `nsh-test` is green on a tree containing ZERO live
+      <!-- evidence: 7b79c725: 652 paths, every file a rename; Cargo.toml members, zero/RISK.toml, .gitignore and all 133 path strings in the one commit. -->
+- [x] `cargo check --workspace` is clean and `nsh-test` is green on a tree containing ZERO live
       `faelight/` path strings. Historical intents excluded, and the exclusion is stated.
+      <!-- evidence: 2026-09-25, on the moved tree before the commit: faelight-core 13, novashell 221, core 2 passed; ship 21 shipped 0 failed; nsh-test 202/202; 0 repo-path sites left. Excluded and stated in the commit: markdown, every intent, CHANGELOGs. The D-Bus /org/faelight names and the dead /etc/faelight reads are not repo paths. -->
 - [ ] The nsh-test case at main.rs:881 asserts what it means instead of requiring the old word.
       **Proven by watching it fail first:** it must go red on the renamed tree before it is
       rewritten, or it was never testing what its comment claims.
-- [ ] BOTH DOORS RUN AFTER THE MOVE: `nsh -c`, a PTY session, `core doctor`, and `history`.
+- [x] BOTH DOORS RUN AFTER THE MOVE: `nsh -c`, a PTY session, `core doctor`, and `history`.
       ⚠️ IF ANY OF THOSE LOOKS EMPTY, REVERT THE COMMIT. Do not fix forward on state.
-- [ ] The state directories were NOT touched by this intent, and `~/.local/state/faelight` is
+      <!-- evidence: 2026-09-25 after 7b79c725: nsh-test 202/202 covers nsh -c and the PTY; d 0 failed; history returned rows; nsh -c 'ls ~/0-core' listed zero; 27 shell_history rows written after the move commit, read through ~/.local/state/zero. -->
+- [x] The state directories were NOT touched by this intent, and `~/.local/state/faelight` is
       exactly where it was. Demonstrated, not assumed.
-- [ ] Historical intents still say `faelight/` and that is recorded as correct, not as debt.
+      <!-- evidence: d after the move, before and after the commit: Zero Alias 'both names resolve to one directory -- real: state=zero, config=zero', unchanged since Layer 3b. The move touched tracked files under ~/0-core only. -->
+- [x] Historical intents still say `faelight/` and that is recorded as correct, not as debt.
+      <!-- evidence: 7b79c725 renames every intent at 100% similarity; the move excluded zero/intents/ by rule. Correct, not debt: INT-247 rule 1, history is never rewritten. -->
 
 ## Not in scope
 

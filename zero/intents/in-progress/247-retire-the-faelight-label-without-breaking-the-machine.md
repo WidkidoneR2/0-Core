@@ -1682,7 +1682,7 @@ stale on the day it is written.
                             not yet ruled
 ```
 
-## 2026-09-24, NIGHT, END OF SESSION -- START HERE
+## 2026-09-24, NIGHT, END OF SESSION -- superseded by the 2026-09-25 section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" in this file. Every
 claim below was checked against git and the disk by the script that wrote it.
@@ -1756,6 +1756,62 @@ NSH_CONFIG set.
                              config.nsh.bak-1790169521 -- Christian decides keep or delete
     still open               everything under "Found, not fixed" in the section above:
                              security_audit age, Alias Coverage, the untrue facts
+```
+
+## 2026-09-25, END OF SESSION -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes every earlier "START HERE" in this file. Before
+starting a step it names, check the step against disk and git.
+
+### Done this session
+
+```text
+    1ac46d19   the old shell name: 37 header, help and comment lines say NovaShell or nsh
+    408a731f   faelight-shell 48 -> 0 in live code. Events write nsh; diag, gaps and identity
+               moved under nsh; exec and reload ask paths::bin_dir, so bare exec nsh works;
+               four broken defaults fixed on the way. Guard + faelight-shell, red first 201/202
+    9793e9f0   nsh identity says NovaShell; the snapshot manifest header says Project 0.
+               Guard + Faelight Shell, red first 201/202
+    bae75273   INT-263 (schema) and INT-264 (contracts) filed with details and gates
+    7b79c725   INT-252: the source tree is zero/ -- the record is in INT-252
+```
+
+### State
+
+```text
+    outside the repo   nothing real under a faelight name; the old names are links, removed last
+    source tree        ~/0-core/zero/ -- no faelight/ at the root
+    the guard          Zero Core, "Project 0 {}", faelight-shell, Faelight Shell
+    fpatch             ~/0-core/zero/scripts/dev/fpatch.py -- AGENTS.md still names the old path
+```
+
+### RULED, Christian 2026-09-25
+
+```text
+    faelight-insightd and faelight-context are KEPT and renamed zero-*
+    INT-252 is not completed until the entire flip is: no live faelight or forest in the code
+```
+
+### Next, in order -- THE CRATE PASS
+
+```text
+    1  ONE crate per commit. Each: the directory, [package] and [[bin]] names, every import,
+       tools.toml and aliases.toml, the aliases in ~/.config/nsh/config.nsh (outside the repo),
+       ship --retire for the old binary name, doctor lines that name the binary. deps/mod.rs
+       categorize_tool changes in the FIRST rename's commit
+    2  the fifteen: ade context daemon deadwood docs doctor gen git insightd release sandbox
+       update vm zone -- small leaf crates first, faelight-core LAST (355 uses)
+    3  nsh-test main.rs:881 goes red on the first rename. That red is INT-252's open gate
+    4  then INT-263 schema, INT-264 contracts, the compatibility links, the docs and README last
+```
+
+### Found, not fixed
+
+```text
+    intent/mod.rs ~1656   the fallback template default tags "faelight" -- a Layer 0 breach the
+                          template test does not cover
+    nsh identity          "Login shell since 2026-04-03" is untrue: bash is the login shell
+    printed Faelight      9 strings, all inside faelight-* crates -- they go with each crate
 ```
 
 ## Success Criteria
