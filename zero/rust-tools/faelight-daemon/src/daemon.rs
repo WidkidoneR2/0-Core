@@ -883,7 +883,7 @@ async fn friday_answer_query(
             ))
         }
     } else if q_lower.contains("tool") {
-        Some("The forest tools are written in Rust. Key tools: core, nsh, faelight-daemon, faelight-git, faelight-fm, faelight-insightd. Nothing runs without human authorization.".to_string())
+        Some("The forest tools are written in Rust. Key tools: core, nsh, faelight-daemon, faelight-git, faelight-fm, zero-insightd. Nothing runs without human authorization.".to_string())
     } else if q_lower.contains("commit") || q_lower.contains("today") {
         let commits: i64 = conn
             .query_row(

@@ -313,7 +313,7 @@ retired = false
 
 
 [[tool]]
-name = "faelight-insightd"
+name = "zero-insightd"
 version = "0.1.0"
 category = "intelligence"
 description = "Insight daemon -- watches state.db, polls for signals, surfaces insights (the forest's nervous system)"

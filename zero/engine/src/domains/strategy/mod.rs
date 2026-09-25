@@ -1559,7 +1559,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     };
     factors.push(("Shell Intelligence".to_string(), shell_score, shell_note));
     total += shell_score;
-    // Factor 8: Nervous System (+5) — faelight-insightd operational
+    // Factor 8: Nervous System (+5) — zero-insightd operational
     let insightd_running = std::process::Command::new("systemctl")
         .args(["--user", "is-active", "faelight-insightd"])
         .output()
@@ -1573,10 +1573,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let (nervous_score, nervous_note) = if insightd_running && events_count > 0 {
         (
             5,
-            format!(
-                "faelight-insightd active -- {} events observed",
-                events_count
-            ),
+            format!("zero-insightd active -- {} events observed", events_count),
         )
     } else if events_count > 0 {
         (

@@ -885,18 +885,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-insightd"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "colored",
- "faelight-core",
- "rusqlite",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "faelight-release"
 version = "1.0.4"
 dependencies = [
@@ -3878,6 +3866,18 @@ dependencies = [
  "sha2",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "zero-insightd"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "faelight-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

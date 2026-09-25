@@ -272,7 +272,7 @@ fn main() {
                 .unwrap_or(0);
             println!(
                 "
-  🧠 faelight-insightd"
+  🧠 zero-insightd"
             );
             println!("  {}", "─".repeat(40).dimmed());
             println!(
@@ -293,7 +293,7 @@ fn main() {
             show_insights(&conn);
         }
         Cmd::Start => {
-            println!("  🧠 faelight-insightd starting (30s poll interval)...");
+            println!("  🧠 zero-insightd starting (30s poll interval)...");
             let conn = open_db().expect("db error");
             // INT-249b: WAL checkpoint every 10 iterations (5 minutes) to keep
             // WAL trimmed and prevent morning-after-suspend SQLITE_READONLY warnings.
