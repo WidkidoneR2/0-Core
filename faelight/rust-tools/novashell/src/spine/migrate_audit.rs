@@ -337,7 +337,7 @@ impl MigrationReport {
             );
             out.push_str(
                 "     for the working tree: cargo build -p novashell && \
-                 ./target/debug/faelight-shell -c 'spine migrate'\n",
+                 ./target/debug/nsh -c 'spine migrate'\n",
             );
         }
         out.push('\n');

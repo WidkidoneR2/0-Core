@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-// faelight-shell — output formatting
+// NovaShell — output formatting
 use colored::*;
 
 #[allow(dead_code)]

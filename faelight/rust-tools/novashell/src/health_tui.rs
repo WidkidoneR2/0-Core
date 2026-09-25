@@ -1,4 +1,4 @@
-// INT-258: Ctrl+D health TUI for faelight-shell
+// INT-258: Ctrl+D health TUI for NovaShell
 // Same pattern as history_tui (INT-250): ratatui + crossterm, ConditionalEventHandler
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},

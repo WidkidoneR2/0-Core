@@ -1074,7 +1074,7 @@ fn semver_level_for_type(intent_type: &str) -> &'static str {
     }
 }
 
-// INT-111: engine-side version writer (self-contained; no dependency on faelight-shell).
+// INT-111: engine-side version writer (self-contained; no dependency on NovaShell).
 // Reads a tool's Cargo.toml, count-asserts exactly one package `version = ` line,
 // writes the bumped version back in place. Returns (old, new).
 fn engine_apply_bump(

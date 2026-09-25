@@ -1,4 +1,4 @@
-// faelight-shell — Schema Registry
+// NovaShell — Schema Registry
 // Phase 11a: Formal schema system — the foundational layer
 // INT-120: "Build the schema system first. It unlocks everything."
 //

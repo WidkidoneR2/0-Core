@@ -1,4 +1,4 @@
-// faelight-shell — Session Memory
+// NovaShell — Session Memory
 // INT-135 Pillar 1: The shell remembers where you left off.
 //
 // Reads from state.db:

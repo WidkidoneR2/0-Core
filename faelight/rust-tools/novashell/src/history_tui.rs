@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-// INT-250: native Ctrl+R history search TUI for faelight-shell.
+// INT-250: native Ctrl+R history search TUI for NovaShell.
 // ratatui + crossterm based. Searches across full state.db shell_history.
 
 use crossterm::{

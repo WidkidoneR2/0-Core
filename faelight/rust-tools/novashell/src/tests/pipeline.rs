@@ -1,4 +1,4 @@
-// faelight-shell — Pipeline Operator Tests
+// NovaShell — Pipeline Operator Tests
 // INT-168 — Test Suite Foundation
 //
 // Tests for value.rs pipeline operators.

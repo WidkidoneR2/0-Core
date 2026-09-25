@@ -1173,7 +1173,7 @@ fn prompt(msg: &str) -> String {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-// ── faelight-shell Tutorial Module (INT-131) ─────────────────────────────────
+// ── NovaShell Tutorial Module (INT-131) ──────────────────────────────────────
 
 fn run_shell_tutorial(args: &[String]) {
     let lessons = build_shell_lessons();
@@ -1473,7 +1473,7 @@ fn main() {
     // Gather live system state
     let snap = SystemSnapshot::gather();
 
-    // faelight-shell tutorial module (INT-131)
+    // NovaShell tutorial module (INT-131)
     if args.iter().any(|a| a == "shell") {
         run_shell_tutorial(&args[1..]);
         return;

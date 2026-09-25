@@ -1,4 +1,4 @@
-// faelight-shell — Natural Language Pipeline Translation
+// NovaShell — Natural Language Pipeline Translation
 // INT-139 Layer 1: Pattern library — no AI required
 //
 // Usage:
@@ -462,7 +462,7 @@ pub fn render_pattern_list() -> String {
 }
 
 // ── Custom TOML Patterns — INT-139 Criterion 8 ───────────────────────────────
-// Load user-defined patterns from ~/.config/faelight-shell/nl-patterns.toml
+// Load user-defined patterns from ~/.config/nsh/nl-patterns.toml
 // or ~/0-core/registry/shell-patterns.toml (via paths::registry_dir())
 
 #[derive(Debug, Clone)]

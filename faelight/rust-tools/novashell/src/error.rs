@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-// faelight-shell — Structured Error System
+// NovaShell — Structured Error System
 // INT-174 — The Shell Explains Its Failures
 //
 // Every error becomes a structured value.

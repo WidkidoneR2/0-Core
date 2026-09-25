@@ -1,4 +1,4 @@
-//! nsh-test -- permanent regression suite for faelight-shell
+//! nsh-test -- permanent regression suite for NovaShell
 //! INT-202 (Fsh-Test 2.0). Phase 1 ported fsh_audit.sh's 75 tests to Rust.
 //!
 //! ⚠️ The citation here read INT-304 until 2026-09-18. `ints 304` reports NOT FOUND:
@@ -97,7 +97,7 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
 /// from a shell that did not contain the change being tested.
 ///
-///     cargo build -p novashell && NSH_BIN=target/debug/faelight-shell ./target/debug/nsh-test
+///     cargo build -p novashell && NSH_BIN=target/debug/nsh ./target/debug/nsh-test
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
@@ -2016,7 +2016,7 @@ print('CLASS-DONE')"##;
     // neither fsh's builtins nor fsh's aliases), and neither was covered by the
     // 172/171 REPL tests. These two close that gap. Probed on gen 402 before writing.
     results.push(test("repl_173_builtin_dispatch", Category::Repl, || {
-        // fsh's own `type` builtin prints "shell builtin / handled natively by fsh".
+        // fsh's own `type` builtin prints "shell builtin / handled natively by nsh".
         // sh's `type` prints nothing like it, so this output PROVES fsh dispatched
         // its builtin -- invisible through `-c`, which would run sh's `type`.
         let out = repl::run_repl("type pwd")?;

@@ -1,4 +1,4 @@
-// faelight-shell — Value type system
+// NovaShell — Value type system
 // Phase 2: structured data pipeline
 // "Not text streams. Structured wisdom."
 

@@ -1,4 +1,4 @@
-// faelight-shell — Command Registry
+// NovaShell — Command Registry
 // INT-173 — The Shell Knows What It Can Do
 //
 // One source of truth for every command the shell knows about.
@@ -42,7 +42,7 @@ impl CommandEntry {
         Self {
             name: name.to_string(),
             kind: CommandKind::Builtin,
-            source: "faelight-shell built-in".to_string(),
+            source: "NovaShell built-in".to_string(),
             description: description.to_string(),
             usage: usage.to_string(),
         }

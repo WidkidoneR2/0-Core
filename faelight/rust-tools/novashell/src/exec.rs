@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-// faelight-shell — Execution Context
+// NovaShell — Execution Context
 // INT-162 Phase 0 — ExecContext: From String-Driven to Context-Driven
 //
 // This is the foundation layer. Every command execution passes through

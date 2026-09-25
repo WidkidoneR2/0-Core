@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-// faelight-shell — state.db connection
+// NovaShell — state.db connection
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use rustyline::{history::FileHistory, Editor, Helper};

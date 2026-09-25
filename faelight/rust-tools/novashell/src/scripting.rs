@@ -1,4 +1,4 @@
-// faelight-shell Phase 6 — .fsh scripting language
+// NovaShell Phase 6 — .fsh scripting language
 // Variables, control flow, script execution
 // "Not for automating tasks. For expressing forest behavior."
 
@@ -181,7 +181,7 @@ fn is_literal(s: &str) -> bool {
         return true;
     }
     // Single word with no spaces — treat as literal value, not a command
-    // This covers $1 expansions like "faelight-shell", "0.7.0", etc.
+    // This covers $1 expansions like "nsh", "0.7.0", etc.
     if !s.contains(' ') && !s.contains('|') {
         return true;
     }

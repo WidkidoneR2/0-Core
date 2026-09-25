@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-//! config — load ~/.config/faelight-shell/config.nsh on startup (Phase 15)
+//! config — load ~/.config/nsh/config.nsh on startup (Phase 15)
 //!
 //! Supported directives:
 //!   alias ll = "ls -la"       — register shell alias

@@ -1,5 +1,5 @@
 #![allow(clippy::all)]
-// faelight-shell — command registry
+// NovaShell — command registry
 // Phase 1: 10 forest-native commands
 
 use crate::db::ForestDb;
@@ -4873,7 +4873,7 @@ fn execute_dispatch(
             if builtins.contains(&cmd) {
                 out.push_str(&format!("  {} shell builtin\n", "▶".bright_green()));
                 out.push_str(&format!(
-                    "    {} handled natively by fsh — no PATH lookup\n",
+                    "    {} handled natively by nsh — no PATH lookup\n",
                     "·".dimmed()
                 ));
             }
@@ -7308,7 +7308,7 @@ fn list_plugins(_db: &ForestDb) -> CommandResult {
     out.push_str("  can change what the shell is. NSH-PHILOSOPHY refuses that.\n\n");
     out.push_str(&format!(
         "  {:<24} {}\n",
-        "for your own shorthand", "alias, in ~/.config/faelight-shell/config.nsh"
+        "for your own shorthand", "alias, in ~/.config/nsh/config.nsh"
     ));
     out.push_str(&format!(
         "  {:<24} {}\n",
@@ -10410,7 +10410,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // second escape hatch would be a second escape path rather than instrumentation of the first.
     //
     // THE QUESTION THIS ANSWERS: over one deploy cycle, does a `-c` line ever reach this point? Zero
-    // rows means every `-c` line was handled natively by fsh. Any rows name the exact commands that
+    // rows means every `-c` line was handled natively by nsh. Any rows name the exact commands that
     // still need sh, which is strictly more useful than a boolean "the fallback fired".
     //
     // ★ THE DOOR FIELD IS WHAT MAKES A ROW MEAN ANYTHING. Interactive lines reach here too and always
@@ -11747,7 +11747,7 @@ fn help() -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "\n{}\n",
-        "  ╭─ 🌲 faelight-shell commands ──────────────────────────".bright_cyan()
+        "  ╭─ 🌲 NovaShell commands ───────────────────────────────".bright_cyan()
     ));
     let cmds = [
         ("health", "system health and status"),
@@ -11790,7 +11790,7 @@ fn help() -> CommandResult {
         ("commits", "commit count and last commit"),
         ("cd", "change directory"),
         ("clear", "clear the screen"),
-        ("exit", "leave faelight-shell"),
+        ("exit", "leave NovaShell"),
     ];
     for (cmd, desc) in &cmds {
         out.push_str(&format!(
@@ -14283,7 +14283,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "cargo-udeps -- find unused deps"
             ));
             out.push_str(&format!(
-                "\n  tools with tests: faelight-shell, faelight-core, faelight-update, core-diff\n"
+                "\n  tools with tests: novashell, faelight-core, faelight-update, core-diff\n"
             ));
             CommandResult::Output(out)
         }
@@ -14412,9 +14412,7 @@ fn semantic_explain_cmd(input: &str) -> CommandResult {
 fn semantic_plan_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {
-        return CommandResult::Output(
-            "  Usage: plan <command>\n  Example: plan deploy faelight-shell".to_string(),
-        );
+        return CommandResult::Output("  Usage: plan <command>\n  Example: plan ship".to_string());
     }
     let si = crate::semantic::interpret(input);
     let mut out = String::new();
@@ -14445,7 +14443,7 @@ fn semantic_dryrun_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {
         return CommandResult::Output(
-            "  Usage: dry-run <command>\n  Example: dry-run deploy faelight-shell".to_string(),
+            "  Usage: dry-run <command>\n  Example: dry-run ship".to_string(),
         );
     }
     let si = crate::semantic::interpret(input);
