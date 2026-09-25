@@ -1,4 +1,4 @@
-//! faelight-gen — Forest-Native Password & Secret Generator Suite
+//! zero-gen — Forest-Native Password & Secret Generator Suite
 //! INT-130: 12 generator types, colored output, TUI menu
 //! "Security through randomness. Beauty through color."
 
@@ -7,7 +7,7 @@ use colored::*;
 use rand::Rng;
 
 #[derive(Parser)]
-#[command(name = "faelight-gen", about = "🔐 Project 0 secret generator")]
+#[command(name = "zero-gen", about = "🔐 Project 0 secret generator")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -189,7 +189,7 @@ fn run_tui() {
     println!();
     println!(
         "{}",
-        "  ╭─ 🔐 faelight-gen ──────────────────────────────────╮".bright_cyan()
+        "  ╭─ 🔐 zero-gen ────────────────────────────────────────╮".bright_cyan()
     );
     println!("  │  Choose your generator:                              │");
     println!("  │                                                      │");

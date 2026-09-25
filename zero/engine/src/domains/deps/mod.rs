@@ -305,8 +305,10 @@ fn gather_deps(_core_root: &str) -> HashMap<String, Vec<String>> {
 }
 
 fn categorize_tool(name: &str) -> String {
-    if name.starts_with("faelight-") {
-        let suffix = name.trim_start_matches("faelight-");
+    if let Some(suffix) = name
+        .strip_prefix("zero-")
+        .or_else(|| name.strip_prefix("faelight-"))
+    {
         match suffix {
             "shell" | "term" | "browser" => "Shell & Terminal".to_string(),
             "bar" | "menu" | "palette" | "wallpaper" => "UI & Display".to_string(),
@@ -529,4 +531,24 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
     Ok(())
+}
+
+#[cfg(test)]
+mod categorize_tool_tests {
+    use super::categorize_tool;
+
+    /// The crate pass renames faelight-X to zero-X one crate at a time. A tool must land in the
+    /// same group under either name, or every renamed tool silently falls into "Utilities".
+    #[test]
+    fn zero_prefix_is_categorized_like_faelight() {
+        for suffix in ["gen", "git", "release", "sandbox", "zone"] {
+            let old = categorize_tool(&format!("faelight-{suffix}"));
+            let new = categorize_tool(&format!("zero-{suffix}"));
+            assert_eq!(
+                new, old,
+                "zero-{suffix} is grouped differently from faelight-{suffix}"
+            );
+            assert_ne!(new, "Utilities", "zero-{suffix} fell into Utilities");
+        }
+    }
 }

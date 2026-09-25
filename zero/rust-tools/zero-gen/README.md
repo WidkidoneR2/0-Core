@@ -1,4 +1,4 @@
-# 🌲 faelight-gen
+# 🌲 zero-gen
 
 **Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** security
 
@@ -20,7 +20,7 @@
 - Friday Architecture v2 -- INT-297: cargo-deny fully configured --…
 - fix(INT-245): friction items 3,5 from audit (partial)
 - fix: clippy — resolve all workspace warnings,…
-- feat: faelight-gen v1.0.0 — 12 generator types, colored output, entropy display…
+- feat: zero-gen v1.0.0 — 12 generator types, colored output, entropy display…
 
 > _Auto-seeded from history; curated entries coming._
 
@@ -29,7 +29,7 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-gen
+cargo build -p zero-gen
 ```
 
 ## Deploy

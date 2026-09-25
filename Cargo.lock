@@ -897,23 +897,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-gen"
-version = "1.0.0"
-dependencies = [
- "base32",
- "base64",
- "clap",
- "colored",
- "crossterm 0.27.0",
- "libc",
- "rand 0.8.6",
- "ratatui 0.26.3",
- "sha2",
- "uuid",
- "zeroize",
-]
-
-[[package]]
 name = "faelight-git"
 version = "4.4.2"
 dependencies = [
@@ -3885,6 +3868,23 @@ name = "zero-gate"
 version = "0.1.0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "zero-gen"
+version = "1.0.0"
+dependencies = [
+ "base32",
+ "base64",
+ "clap",
+ "colored",
+ "crossterm 0.27.0",
+ "libc",
+ "rand 0.8.6",
+ "ratatui 0.26.3",
+ "sha2",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

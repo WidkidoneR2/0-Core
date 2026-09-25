@@ -5,9 +5,9 @@
 # --version and said so (usage error, or 'see: help'). That was a wrong QUESTION,
 # not a broken crate, and a census that counts it as a failure is measuring the
 # author's assumptions rather than the tool.
-description = "faelight-gen runs on a machine that is not the author's"
+description = "zero-gen runs on a machine that is not the author's"
 policy      = "devbox"
-command     = "faelight-gen help"
+command     = "zero-gen help"
 
 [expect]
 exit = 0

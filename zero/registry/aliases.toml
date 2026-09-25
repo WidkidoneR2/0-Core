@@ -152,7 +152,7 @@ category = "desktop"
 
 
 [[alias]]
-command = "faelight-gen"
+command = "zero-gen"
 primary = "gen"
 aliases = ["fg-gen", "passgen", "secretgen"]
 description = "Secret generator"

@@ -1,5 +1,5 @@
 [package]
-name = "faelight-gen"
+name = "zero-gen"
 license = "MIT"
 version = "1.0.0"
 edition = "2021"

@@ -318,7 +318,7 @@ fn alias_report(tool: &str) {
         match std::fs::read_to_string(&path) {
             Ok(text) => {
                 // INT-260: the toml is scanned by BLOCK, not by neighbour. The old check looked
-                // only at the line after `command =`, so faelight-gen (primary before aliases)
+                // only at the line after `command =`, so zero-gen (primary before aliases)
                 // lost both of its alias lines. Field order inside a block is not a contract.
                 fn key(l: &str) -> &str {
                     l.split('=').next().unwrap_or("").trim()

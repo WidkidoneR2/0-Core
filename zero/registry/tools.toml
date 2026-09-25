@@ -247,7 +247,7 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-gen"
+name = "zero-gen"
 version = "1.0.0"
 category = "security"
 description = "Forest-native password and secret generator suite — 12 types, colored output"
@@ -259,7 +259,7 @@ retired = false
 name = "faelight-vault"
 version = "1.0.0"
 category = "security"
-description = "Forest-native credential manager — Argon2id encryption, health scores, audit, faelight-gen integration"
+description = "Forest-native credential manager — Argon2id encryption, health scores, audit, zero-gen integration"
 expected_usage = "medium"
 type = "rust"
 deployable = false
