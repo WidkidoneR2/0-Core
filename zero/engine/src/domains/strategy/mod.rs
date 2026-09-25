@@ -462,7 +462,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     );
     println!("    {} nsh daily driver (INT-146)", "→".bright_green());
     println!(
-        "    {} faelight-context + memory (INT-159, INT-160)",
+        "    {} zero-context + memory (INT-159, INT-160)",
         "→".bright_green()
     );
     println!();
@@ -1623,7 +1623,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push(("Delegation Engine".to_string(), deleg_score, deleg_note));
     total += deleg_score;
 
-    // Factor 7: Context awareness (max 7) — faelight-context + faelight-memory
+    // Factor 7: Context awareness (max 7) — zero-context + faelight-memory
     let context_exists = std::path::PathBuf::from(&ctx.core_root)
         .join("scripts/faelight-context")
         .exists();
@@ -1633,11 +1633,11 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let (ctx_score, ctx_note) = match (context_exists, memory_exists) {
         (true, true) => (
             7,
-            "faelight-context + faelight-memory both operational".to_string(),
+            "zero-context + faelight-memory both operational".to_string(),
         ),
         (true, false) => (
             4,
-            "faelight-context operational, faelight-memory pending INT-160".to_string(),
+            "zero-context operational, faelight-memory pending INT-160".to_string(),
         ),
         _ => (0, "Neither context nor memory built yet".to_string()),
     };
@@ -1917,7 +1917,7 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
         (false, "nsh as primary daily driver", "intent show 146"),
         (
             false,
-            "faelight-context + memory operational",
+            "zero-context + memory operational",
             "intent show 159",
         ),
         (
@@ -1999,7 +1999,7 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
         (
             false,
             "MEDIUM",
-            "faelight-context",
+            "zero-context",
             "INT-159",
             "No deep codebase understanding",
         ),

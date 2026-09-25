@@ -1,5 +1,5 @@
 [package]
-name = "faelight-context"
+name = "zero-context"
 license = "MIT"
 version = "1.0.0"
 edition = "2021"

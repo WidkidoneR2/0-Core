@@ -1,4 +1,4 @@
-# faelight-context
+# zero-context
 
 **Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** intelligence
 
@@ -30,7 +30,7 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-context
+cargo build -p zero-context
 ```
 
 ## Deploy

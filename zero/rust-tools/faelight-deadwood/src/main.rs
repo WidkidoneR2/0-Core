@@ -663,7 +663,7 @@ const BAK_PROTECT: &[&str] = &["regreet"];
 /// someone found a fleet-wide bug, wrote the one-line cure in faelight_core::restore_sigpipe,
 /// documented it well, and fixed the three tools in front of them. Nothing asked the other twenty.
 /// By 2026-09-23 four were measured still panicking -- teach, faelight-docs, faelight-git,
-/// faelight-context -- and SIX tools had solved it independently in FOUR different shapes: the
+/// zero-context -- and SIX tools had solved it independently in FOUR different shapes: the
 /// helper, an inline signal call, a signal plus a panic hook, and a hook with its own exit code.
 ///
 /// ⭐ THE RULE IS ONLY REAL ONCE SOMETHING ELSE ENFORCES IT. Same reasoning as the INT-195

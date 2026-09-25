@@ -302,7 +302,7 @@ deployable = true
 retired = true
 
 [[tool]]
-name = "faelight-context"
+name = "zero-context"
 version = "1.0.0"
 category = "intelligence"
 description = "Deep codebase understanding engine — scan, map, patterns, summary, decisions"

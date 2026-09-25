@@ -805,18 +805,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-context"
-version = "1.0.0"
-dependencies = [
- "clap",
- "colored",
- "faelight-core",
- "serde",
- "serde_json",
- "walkdir",
-]
-
-[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [
@@ -3854,6 +3842,18 @@ dependencies = [
  "ratatui 0.28.1",
  "rusqlite",
  "tokio",
+]
+
+[[package]]
+name = "zero-context"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "colored",
+ "faelight-core",
+ "serde",
+ "serde_json",
+ "walkdir",
 ]
 
 [[package]]

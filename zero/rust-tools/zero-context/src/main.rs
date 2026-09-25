@@ -1,4 +1,4 @@
-//! faelight-context v1.0.0 — Deep Codebase Understanding Engine
+//! zero-context v1.0.0 — Deep Codebase Understanding Engine
 //! INT-159 — The forest understands what it is made of.
 
 use clap::{Parser, Subcommand};
@@ -9,7 +9,7 @@ use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(
-    name = "faelight-context",
+    name = "zero-context",
     about = "🌲 Deep codebase understanding engine",
     version = "1.0.0"
 )]
@@ -465,7 +465,7 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.health {
-        println!("faelight-context v1.0.0 — healthy");
+        println!("zero-context v1.0.0 — healthy");
         return;
     }
 
@@ -477,7 +477,7 @@ fn main() {
         Some(Command::Decisions { path }) => cmd_decisions(&path),
         None => {
             println!();
-            println!("  {} faelight-context v1.0.0", "🌲".normal());
+            println!("  {} zero-context v1.0.0", "🌲".normal());
             println!("  {} Deep codebase understanding engine", "·".dimmed());
             println!();
             println!("  Commands:");
