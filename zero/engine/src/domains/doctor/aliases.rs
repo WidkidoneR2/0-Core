@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// (faelight-logout). It reported All 8 tools have aliases while asking only whether
 /// an alias EXISTED, never whether the tool did.
 ///
-/// Two consumers also skipped faelight-daemon and faelight-core by name -- exclusions
+/// Two consumers also skipped zero-daemon and faelight-core by name -- exclusions
 /// guarding entries the list did not contain.
 ///
 /// Same failure as check_scripts and the faelight-launcher registry entry: a hardcoded
@@ -146,7 +146,7 @@ fn check_missing(aliases: &HashMap<String, String>) -> CoreResult<()> {
         }
     };
     for tool in &expected {
-        if *tool == "faelight-daemon" || *tool == "faelight-core" {
+        if *tool == "zero-daemon" || *tool == "faelight-core" {
             continue;
         }
         if !aliases.values().any(|v| v.contains(tool)) {
@@ -211,7 +211,7 @@ fn show_tools(aliases: &HashMap<String, String>) -> CoreResult<()> {
             .filter(|(_, v)| v.contains(tool))
             .map(|(k, _)| k)
             .collect();
-        if *tool == "faelight-daemon" {
+        if *tool == "zero-daemon" {
             println!("{} {}", "N/A".dimmed(), tool.dimmed());
         } else if tool_aliases.is_empty() {
             println!("{} {}", "❌".red(), tool);
@@ -269,7 +269,7 @@ pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()>
         }
     };
     for tool in &expected {
-        if *tool == "faelight-daemon" || *tool == "faelight-core" {
+        if *tool == "zero-daemon" || *tool == "faelight-core" {
             continue;
         }
         if !aliases.values().any(|v| v.contains(tool)) {

@@ -815,22 +815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-daemon"
-version = "4.0.0"
-dependencies = [
- "chrono",
- "clap",
- "colored",
- "faelight-core",
- "futures-util",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
- "zbus",
-]
-
-[[package]]
 name = "faelight-doctor"
 version = "0.1.0"
 dependencies = [
@@ -3757,6 +3741,22 @@ dependencies = [
  "serde",
  "serde_json",
  "walkdir",
+]
+
+[[package]]
+name = "zero-daemon"
+version = "4.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "colored",
+ "faelight-core",
+ "futures-util",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]

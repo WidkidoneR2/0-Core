@@ -1,4 +1,4 @@
-//! RPC Protocol for faelight-daemon
+//! RPC Protocol for zero-daemon
 use serde::{Deserialize, Serialize};
 
 /// Commands sent from client to daemon
@@ -29,7 +29,7 @@ pub enum Command {
     },
     /// INT-220 -- Friday: dismiss last suggestion (negative learning)
     FridayDismiss { pattern_trigger: Option<String> },
-    /// INT-220 -- Friday: ask a question about the forest
+    /// INT-220 -- Friday: ask a question about Project 0
     FridayQuery {
         question: String,
         context: Option<String>,

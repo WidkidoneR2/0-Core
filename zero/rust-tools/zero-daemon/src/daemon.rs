@@ -1,4 +1,4 @@
-//! The faelight daemon server - LEGENDARY EDITION
+//! The Project 0 daemon server - LEGENDARY EDITION
 use crate::protocol::{Command, Entry, Message, MessagePayload, Response};
 use colored::*;
 use std::path::Path;
@@ -394,7 +394,7 @@ async fn process_command(cmd: Command) -> Response {
         // INT-220 Gate 11 -- Friday dismiss: negative learning
         Command::FridayDismiss { pattern_trigger } => friday_dismiss(pattern_trigger).await,
 
-        // INT-220 -- Friday query: answer a question about the forest
+        // INT-220 -- Friday query: answer a question about Project 0
         Command::FridayQuery { question, context } => friday_answer_query(question, context).await,
         // Streaming commands handled above — should not reach here
         Command::Subscribe { .. } | Command::EventStream => Response::Error {
@@ -816,7 +816,7 @@ async fn friday_record_event(
         priority: priority.to_string(),
     }
 }
-/// Answer a direct question about the forest -- live data first, knowledge base fallback
+/// Answer a direct question about Project 0 -- live data first, knowledge base fallback
 async fn friday_answer_query(
     question: String,
     _context: Option<String>,
@@ -883,7 +883,7 @@ async fn friday_answer_query(
             ))
         }
     } else if q_lower.contains("tool") {
-        Some("The forest tools are written in Rust. Key tools: core, nsh, faelight-daemon, faelight-git, faelight-fm, zero-insightd. Nothing runs without human authorization.".to_string())
+        Some("The forest tools are written in Rust. Key tools: core, nsh, zero-daemon, faelight-git, faelight-fm, zero-insightd. Nothing runs without human authorization.".to_string())
     } else if q_lower.contains("commit") || q_lower.contains("today") {
         let commits: i64 = conn
             .query_row(

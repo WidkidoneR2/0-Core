@@ -1,4 +1,4 @@
-//! daemon domain — query faelight-daemon v2 over Unix socket
+//! daemon domain — query zero-daemon v2 over Unix socket
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -30,7 +30,7 @@ fn send_command(cmd: serde_json::Value) -> Result<serde_json::Value, String> {
 /// core daemon status
 pub fn status(_ctx: &AppContext) -> CoreResult<()> {
     println!();
-    println!("{}", "🌲 faelight-daemon Status".cyan().bold());
+    println!("{}", "zero-daemon Status".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     // Check if daemon is responding
@@ -191,12 +191,7 @@ pub fn neovim(_ctx: &AppContext, file_path: &str) -> CoreResult<()> {
                     let title = nc["intent_title"].as_str().unwrap_or("");
                     let suggestion = nc["suggestion"].as_str();
                     println!();
-                    println!(
-                        "  {} {}: {}",
-                        "🌲".normal(),
-                        intent.bright_cyan(),
-                        title.dimmed()
-                    );
+                    println!("  {}: {}", intent.bright_cyan(), title.dimmed());
                     if let Some(s) = suggestion {
                         println!("  {} {}", "💡".normal(), s.bright_yellow());
                     }

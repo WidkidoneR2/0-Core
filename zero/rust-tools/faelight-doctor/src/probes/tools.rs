@@ -265,7 +265,7 @@ pub fn alias_coverage() -> Measurement {
         })
         .map(|t| t.name.as_str())
         // A library crate and a background service are not things anyone types.
-        .filter(|n| *n != "faelight-core" && *n != "faelight-daemon")
+        .filter(|n| *n != "faelight-core" && *n != "zero-daemon")
         .collect();
 
     let missing: Vec<&str> = expected

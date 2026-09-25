@@ -74,7 +74,7 @@ type = "rust"
 deployable = true
 retired = true
 [[tool]]
-name = "faelight-daemon"
+name = "zero-daemon"
 version = "4.0.0"
 category = "core"
 description = "Background daemon with event bus and pub/sub"

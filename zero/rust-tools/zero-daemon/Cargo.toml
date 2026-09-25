@@ -1,9 +1,9 @@
 [package]
-name = "faelight-daemon"
+name = "zero-daemon"
 license = "MIT"
 version = "4.0.0"
 edition = "2021"
-description = "Background daemon for Faelight Forest operations"
+description = "Background daemon for Project 0 operations"
 
 [dependencies]
 # Core infrastructure
@@ -32,6 +32,6 @@ colored = "2"
 chrono = { version = "0.4", features = ["clock"] }
 
 [[bin]]
-name = "faelight-daemon"
+name = "zero-daemon"
 path = "src/main.rs"
 

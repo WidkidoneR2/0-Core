@@ -593,7 +593,7 @@ impl Engine {
                 }
             }
         } else {
-            println!("  \u{26a0}  Friday daemon not running -- start with: faelight-daemon &");
+            println!("  \u{26a0}  Friday daemon not running -- start with: zero-daemon &");
         }
         // INT-169: record the status rather than leaving the PREVIOUS command's.
         // the friday query completed. A stale code here is invisible today, but `&&`

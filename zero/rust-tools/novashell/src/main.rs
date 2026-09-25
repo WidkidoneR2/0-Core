@@ -2147,7 +2147,7 @@ fn run_input(
         //   d -> core doctor run 612 · fg commit -> ~/0-core/scripts/faelight-git commit 370
         //
         // Those are TYPED -> EXECUTED pairs: the two halves of one command, not a workflow.
-        // INT-191 already documents this failure mode for faelight-daemon -- "it is learning
+        // INT-191 already documents this failure mode for zero-daemon -- "it is learning
         // the alias table" -- and this consumer had the same defect at a WEAKER threshold.
         // The rest of the top twelve were fsh-test artefacts, including the suite's own
         // exit -> echo loop boundary.

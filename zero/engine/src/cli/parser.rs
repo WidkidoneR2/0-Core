@@ -113,7 +113,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: WeightCommands,
     },
-    /// Query faelight-daemon v2 — background brain
+    /// Query zero-daemon v2 — background brain
     Daemon {
         #[command(subcommand)]
         command: DaemonCommands,

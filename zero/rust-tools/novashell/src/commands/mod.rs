@@ -10454,7 +10454,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "core",
                             "faelight-git",
                             "fg",
-                            "faelight-daemon",
+                            "zero-daemon",
                             "git",
                             "cargo",
                             "python3",

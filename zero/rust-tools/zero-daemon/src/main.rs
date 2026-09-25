@@ -1,5 +1,5 @@
-//! faelight-daemon v2.1.0 - Background daemon for Faelight Forest
-//! 🌲 LEGENDARY EDITION
+//! zero-daemon v2.1.0 - Background daemon for Project 0
+//! LEGENDARY EDITION
 
 mod daemon;
 mod dbus;
@@ -11,8 +11,8 @@ use daemon::Daemon;
 use faelight_core::paths;
 
 #[derive(Parser)]
-#[command(name = "faelight-daemon")]
-#[command(about = "🌲 Project 0 Daemon - Background operations", long_about = None)]
+#[command(name = "zero-daemon")]
+#[command(about = "Project 0 Daemon - Background operations", long_about = None)]
 #[command(version)]
 struct Cli {
     /// Socket path (default: paths::daemon_socket)
@@ -44,12 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| paths::daemon_socket().display().to_string());
         match std::os::unix::net::UnixStream::connect(&sock) {
             Ok(_) => {
-                println!("{} faelight-daemon: responding on {}", "OK".green(), sock);
+                println!("{} zero-daemon: responding on {}", "OK".green(), sock);
                 return Ok(());
             }
             Err(e) => {
                 println!(
-                    "{} faelight-daemon: not responding on {} -- {}",
+                    "{} zero-daemon: not responding on {} -- {}",
                     "DOWN".red(),
                     sock,
                     e

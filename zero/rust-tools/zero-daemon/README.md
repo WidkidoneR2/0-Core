@@ -1,10 +1,10 @@
-# faelight-daemon
+# zero-daemon
 
 **Version:** 4.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
 
 ## 📖 Description
 
-Background daemon for Faelight Forest operations
+Background daemon for Project 0 operations
 
 ---
 
@@ -19,7 +19,7 @@ Background daemon for Faelight Forest operations
 - README: Morphwood teaser (temporary) + remove 35 stale auto-dump CHANGELOG.md…
 - Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
 - route ALL rust-tools intents consumers through intents_dir() --…
-- faelight-daemon sweep -- route 10 state.db refs through…
+- zero-daemon sweep -- route 10 state.db refs through…
 - generate 39 per-tool CHANGELOGs (NixOS migration entry + git history)
 - generate 39 per-tool READMEs + rust-tools index (first full pass)
 - Faelight Forest COSMIC Direction -- INT-294: all gates complete --…
@@ -32,7 +32,7 @@ Background daemon for Faelight Forest operations
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-daemon
+cargo build -p zero-daemon
 ```
 
 ## Deploy

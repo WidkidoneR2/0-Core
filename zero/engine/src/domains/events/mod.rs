@@ -724,11 +724,11 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
         Ok(s) => s,
         Err(e) => {
             eprintln!(
-                "  {} Cannot connect to faelight-daemon: {}",
+                "  {} Cannot connect to zero-daemon: {}",
                 "✗".bright_red(),
                 e
             );
-            eprintln!("  {} Is faelight-daemon running?", "💡".yellow());
+            eprintln!("  {} Is zero-daemon running?", "💡".yellow());
             eprintln!("  {} systemctl --user status faelight-daemon", "→".dimmed());
             return Ok(());
         }
@@ -736,7 +736,7 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "🌲 Event Watch — Live Stream".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
-    println!("  {} Connected to faelight-daemon", "✓".green());
+    println!("  {} Connected to zero-daemon", "✓".green());
     println!("  {} Waiting for events... (Ctrl+C to stop)", "→".dimmed());
     println!();
 
