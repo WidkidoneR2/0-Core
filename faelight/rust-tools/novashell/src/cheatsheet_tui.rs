@@ -166,7 +166,6 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "why" => "Explain why a value or decision won",
         "z" => "Jump to a directory (zoxide-style)",
         "fsh" => "NovaShell meta-command (roadmap, version, etc.)",
-        "faelight-shell" => "The shell itself (meta-command + subcommands)",
         "command" => "Inspect a command's registry entry",
         _ => return None,
     })

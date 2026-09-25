@@ -1462,8 +1462,11 @@ print('CLASS-DONE')"##;
             }
             // 2026-09-24: also the RUN-ON form. The name followed directly by a version placeholder
             // reads as one long number. A `v` separates them, so `v{}` passes.
-            let retired: Vec<String> =
-                vec![["Zero", " Core"].concat(), ["Project 0", " {}"].concat()];
+            let retired: Vec<String> = vec![
+                ["Zero", " Core"].concat(),
+                ["Project 0", " {}"].concat(),
+                ["faelight", "-shell"].concat(),
+            ];
             let base = std::path::Path::new(&home()).join("0-core/faelight");
             let mut stack = vec![base.join("rust-tools"), base.join("engine")];
             let mut hits: Vec<String> = Vec::new();
@@ -2649,8 +2652,8 @@ print('CLASS-DONE')"##;
             // `sh -c "..." &` and handles the quoting correctly, so the test never reached the code
             // its name describes. The bug was found by hand instead, and fixed at d0c04825.
             //
-            // ★ THIS ONE HAS A RED YOU CAN STILL RUN. Gen 464's binary predates d0c04825:
-            //   NSH_BIN=/nix/store/86m8mhwx52s1ris35jp0v4b7kmffzyv7-faelight-forest-9.2.0/bin/faelight-shell
+            // THIS ONE HAD A RED YOU COULD RUN: gen 464's binary predates d0c04825. It lived in the
+            // NixOS store, which has not existed since 2026-08-26, so that red is history now.
             // Against it this case fails and the one above passes -- which is the whole argument for
             // per-case routing in one screen.
             let out = repl::run_repl_lines_env(

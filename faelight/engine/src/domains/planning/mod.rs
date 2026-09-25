@@ -49,12 +49,12 @@ fn generate_steps(title: &str, plan_hint: &str) -> Vec<String> {
             "Run: d — verify improvement after each fix".into(),
             "Run: core forecast — confirm trend stable".into(),
         ]
-    } else if lower.contains("shell") || lower.contains("faelight-shell") {
+    } else if lower.contains("shell") {
         vec![
             "Review INT-120 — identify next incomplete phase".into(),
             "Design: sketch the phase interface before coding".into(),
             plan_hint.to_string(),
-            "Build and test in faelight-shell".into(),
+            "Build and test in NovaShell".into(),
             "Update INT-120 gate check".into(),
             "Run: d — verify health after change".into(),
             "Commit with intent reference".into(),

@@ -478,7 +478,7 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         (&["build", "workspace"], "cargo build --workspace", 0.90),
         // Deploy rules
         (&["deploy", "core"], "deploy core", 0.95),
-        (&["deploy", "shell"], "deploy faelight-shell", 0.95),
+        (&["deploy", "shell"], "ship", 0.95),
         (
             &["deploy", "everything"],
             "parallel {deploy core; deploy novashell}",
@@ -533,11 +533,7 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         (&["fsh", "info"], "fsh", 0.90),
         (&["cheatsheet"], "cheat", 0.95),
         (&["help"], "cheat", 0.88),
-        (
-            &["parallel", "deploy"],
-            "parallel {deploy core; deploy faelight-shell}",
-            0.85,
-        ),
+        (&["parallel", "deploy"], "ship", 0.85),
     ];
     // Score each rule by how many pattern words appear in the query
     let mut best_cmd = None;
@@ -1092,7 +1088,7 @@ fn main() -> Result<()> {
     // hand-written file, a /nix/store path that did not exist.
     //
     // Its ONLY invoker was faelight/packages/faelight/scripts/deploy, deleted earlier today,
-    // which called it as `faelight-shell --triage-deploy` -- a binary name that has not
+    // which called it with --triage-deploy under the pre-NovaShell binary name -- one that has not
     // existed since the NovaShell rename. UNREACHABLE BY ANY PATH.
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
@@ -2726,17 +2722,11 @@ fn repl_main() -> Result<()> {
                         "🔄".to_string()
                     );
                     use std::os::unix::process::CommandExt;
-                    // Try known deploy paths in order
-                    let home = std::env::var("HOME").unwrap_or_default();
-                    let candidates = vec![
-                        "/run/current-system/sw/bin/faelight-shell".to_string(),
-                        format!(
-                            "/etc/profiles/per-user/{}/bin/faelight-shell",
-                            std::env::var("USER").unwrap_or_default()
-                        ),
-                        format!("{}/.cargo/bin/faelight-shell", home),
-                        format!("{}/0-core/scripts/faelight-shell", home),
-                    ];
+                    // The deployed shell: ship installs nsh into paths::bin_dir().
+                    let candidates = vec![faelight_core::paths::bin_dir()
+                        .join("nsh")
+                        .to_string_lossy()
+                        .to_string()];
                     let mut exec_err = None;
                     for path in &candidates {
                         if std::path::Path::new(path).exists() {

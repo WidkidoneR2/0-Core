@@ -48,7 +48,7 @@ pub fn fsh_bin() -> String {
             eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
             std::process::exit(2);
         }
-        // The fallback was /run/current-system/sw/bin/faelight-shell -- a NixOS store
+        // The fallback was under /run/current-system/sw/bin/ -- a NixOS store
         // path that has not existed since the migration. With NSH_BIN unset the suite
         // spawned a binary that is not there and 158 of 162 cases failed for that one
         // reason, reporting a 2% shell rather than a missing subject.
@@ -56,9 +56,9 @@ pub fn fsh_bin() -> String {
         // paths::bin_dir owns where a deployed binary lives, so the fallback follows it
         // instead of naming a location. Same accessor ship writes to.
         Err(_) => {
-            // THE BINARY IS nsh. It was faelight-shell until 2026-09-01, and this fallback
+            // THE BINARY IS nsh. It had the old project name until 2026-09-01, and this fallback
             // kept pointing at the old name after the rename -- so the suite reported
-            // "under test: .../faelight-shell" and passed 178 cases about a binary the
+            // "under test:" with the old binary name and passed 178 cases about a binary the
             // machine was no longer running. The same defect as the store path this
             // fallback was written to fix, arriving from the other side: then it could not
             // find its subject, now it finds the WRONG one confidently.

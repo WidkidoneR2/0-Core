@@ -1125,7 +1125,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
                             for tag in &[
                                 "friday",
                                 "core",
-                                "faelight-shell",
+                                "shell",
                                 "intelligence",
                                 "rust",
                                 "wayland",

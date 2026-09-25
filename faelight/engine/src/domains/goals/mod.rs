@@ -36,18 +36,6 @@ fn read_health(_ctx: &AppContext) -> u32 {
         .unwrap_or(95)
 }
 
-fn count_shell_phases(ctx: &AppContext) -> u32 {
-    let root = &ctx.core_root;
-    let p = std::path::PathBuf::from(&root).join("intents/complete/120-faelight-shell.md");
-    if let Ok(text) = std::fs::read_to_string(&p) {
-        text.lines()
-            .filter(|l| l.contains("DONE") || l.contains("\u{2705}"))
-            .count() as u32
-    } else {
-        0
-    }
-}
-
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
     ensure_schema(ctx);
     let db = &ctx.runtime.db;
@@ -105,15 +93,6 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
             format!("Health is {}% — below threshold", health),
             "Run: d — review warnings".to_string(),
             "HIGH".to_string(),
-        ));
-    }
-    let shell_phases = count_shell_phases(ctx);
-    if shell_phases < 20 {
-        proposed.push((
-            "Advance faelight-shell toward daily driver".to_string(),
-            format!("{} shell phases complete — Phase 7 next", shell_phases),
-            "Start INT-146 Phase 7 — external commands".to_string(),
-            "MEDIUM".to_string(),
         ));
     }
     proposed.push((

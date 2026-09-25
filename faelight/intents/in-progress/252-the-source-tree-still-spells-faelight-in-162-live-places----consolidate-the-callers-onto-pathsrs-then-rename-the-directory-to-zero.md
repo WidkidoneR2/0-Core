@@ -3,7 +3,7 @@ id: 252
 date: 2026-09-19
 type: future
 title: "the source tree still spells faelight in 162 live places -- consolidate the callers onto paths.rs, then rename the directory to zero"
-status: planned
+status: in-progress
 tags: [Zero, novashell, fixtures, caller, faelight, paths]
 ---
 

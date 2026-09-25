@@ -263,7 +263,7 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
     let payload = format!(
-        r#"{{"actor":"faelight-shell","result":"{}","detail":{{"command":"{}"}}}}"#,
+        r#"{{"actor":"nsh","result":"{}","detail":{{"command":"{}"}}}}"#,
         result,
         cmd.replace('"', "'")
     );
@@ -283,7 +283,7 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     db.conn
         .execute(
             "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) \
-         VALUES ('shell', 'command', ?1, ?2, 'faelight-shell', ?3)",
+         VALUES ('shell', 'command', ?1, ?2, 'nsh', ?3)",
             rusqlite::params![payload, ts, corr],
         )
         .ok();
@@ -1257,7 +1257,7 @@ fn execute_dispatch(
         "advise" => advise(db),
         "audit" => audit(db, core_root),
         // BOTH WORDS, and the file already worked this way: the two is_self checks below
-        // have always accepted fsh, shell and faelight-shell for one concept. nsh joins
+        // have always accepted fsh and shell for one concept. nsh joins
         // them rather than replacing fsh, because muscle memory is real and a verb that
         // stops working is a worse greeting than one that has two spellings.
         "nsh" | "fsh" => match args.first().copied() {
@@ -1265,6 +1265,9 @@ fn execute_dispatch(
             Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
             Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
             Some("scope") => fsh_scope_status(db),
+            Some("diag") => fsh_diag(db),
+            Some("gaps") => fsh_gaps(db),
+            Some("identity") => fsh_identity_cmd(db),
             Some("rename") => fsh_rename_cmd(
                 args.get(1).copied().unwrap_or(""),
                 args.get(2).copied().unwrap_or(""),
@@ -1367,30 +1370,6 @@ fn execute_dispatch(
         "js" | "node" => run_js_cmd(args),
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
-        "faelight-shell" => match args.first().copied() {
-            Some("-c") => {
-                // INT-299: fsh -c "cmd" — delegate to sh, mirrors external behavior
-                let cmd = args.get(1).copied().unwrap_or("");
-                if cmd.is_empty() {
-                    CommandResult::Error("fsh -c: missing command".to_string().into(), 1)
-                } else {
-                    let out = std::process::Command::new("sh").arg("-c").arg(cmd).output();
-                    match out {
-                        Ok(o) => {
-                            let mut s = String::from_utf8_lossy(&o.stdout).to_string();
-                            if !o.stderr.is_empty() {
-                                s.push_str(&String::from_utf8_lossy(&o.stderr));
-                            }
-                            CommandResult::Output(s.trim_end().to_string())
-                        }
-                        Err(e) => CommandResult::Error(format!("fsh -c: {}", e).into(), 1),
-                    }
-                }
-            }
-            Some("diag") => fsh_diag(db),
-            Some("gaps") => fsh_gaps(db),
-            _ => fsh_identity_cmd(db),
-        },
         "snapshot" => snapshot_cmd(db, args),
         "rewind" | "time-travel" => rewind_cmd(db),
         "debug" => debug_cmd(db, args),
@@ -2566,7 +2545,7 @@ fn execute_dispatch(
             match std::fs::create_dir_all(&dir_name) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'dir_created', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'dir_created', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![dir_name.clone(), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ created {}", dir_name))
@@ -2608,7 +2587,7 @@ fn execute_dispatch(
             match status {
                 Ok(s) if s.success() => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![target, correlation()]
                     );
                     CommandResult::Empty { suspension: None }
@@ -2702,7 +2681,7 @@ fn execute_dispatch(
                 Ok(_) => {
                     let payload = format!("src={},dst={}", src_path, dst_path);
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_renamed', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_renamed', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![payload, correlation()]
                     );
                     let verb = if is_same_dir { "renamed" } else { "moved" };
@@ -3632,7 +3611,7 @@ fn execute_dispatch(
             match std::fs::copy(&src_path, &dst_path) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_copied', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_copied', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ copied {} → {}", src_path, dst_path))
@@ -3711,7 +3690,7 @@ fn execute_dispatch(
             match std::fs::rename(&src_path, &dst_path) {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_moved', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_moved', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path), correlation()]
                     );
                     CommandResult::Output(format!("  ✅ moved {} → {}", src_path, dst_path))
@@ -3881,7 +3860,7 @@ fn execute_dispatch(
                 ));
             }
             let _ = db.conn.execute(
-                "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_read', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_read', ?1, strftime('%s','now'), 'nsh', ?2)",
                 rusqlite::params![format!("{{\"path\":\"{}\"}}", filepath), correlation()]
             );
             CommandResult::Output(out.trim_end().to_string())
@@ -3963,7 +3942,7 @@ fn execute_dispatch(
             match result {
                 Ok(_) => {
                     let _ = db.conn.execute(
-                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_written', ?1, strftime('%s','now'), 'faelight-shell', ?2)",
+                        "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('shell', 'file_written', ?1, strftime('%s','now'), 'nsh', ?2)",
                         rusqlite::params![format!("{{\"path\":\"{}\",\"append\":{}}}", dst_path, append), correlation()]
                     );
                     let action = if append { "appended to" } else { "wrote" };
@@ -10335,7 +10314,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             "gp",
             "core",
             "fg",
-            "faelight-shell",
             "git",
             "cargo",
             "python3",
@@ -10477,7 +10455,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "faelight-git",
                             "fg",
                             "faelight-daemon",
-                            "faelight-shell",
                             "git",
                             "cargo",
                             "python3",
@@ -12749,22 +12726,16 @@ fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> Comman
 }
 
 fn resolve_fsh_binary() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let user = std::env::var("USER").unwrap_or_default();
-    let candidates = vec![
-        "/run/current-system/sw/bin/faelight-shell".to_string(),
-        format!("/etc/profiles/per-user/{}/bin/faelight-shell", user),
-        format!("{}/.cargo/bin/faelight-shell", home),
-        format!("{}/0-core/scripts/faelight-shell", home),
-    ];
-    for path in &candidates {
-        if std::path::Path::new(path).exists() {
-            return path.clone();
-        }
+    // ship installs nsh into paths::bin_dir(), so that is asked for first. The four candidates
+    // this replaced were NixOS-era paths under the pre-NovaShell binary name; none has existed
+    // since 2026-08-26, so every call fell through to current_exe().
+    let deployed = faelight_core::paths::bin_dir().join("nsh");
+    if deployed.exists() {
+        return deployed.to_string_lossy().to_string();
     }
     std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "faelight-shell".to_string())
+        .unwrap_or_else(|_| "nsh".to_string())
 }
 
 // INT-081 G2: re-exec into the resolved (current-system-first) fsh. If that binary
@@ -12805,12 +12776,12 @@ fn reload_fsh() -> CommandResult {
 
 fn exec_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
-    // Special case: exec fsh or exec faelight-shell → re-exec current binary
+    // Special case: exec nsh or exec fsh → re-exec current binary
     let cmd = match args.first() {
         Some(c) => c,
         None => return CommandResult::Error("exec: missing command".to_string().into(), 1),
     };
-    let is_self = matches!(*cmd, "nsh" | "fsh" | "faelight-shell" | "shell");
+    let is_self = matches!(*cmd, "nsh" | "fsh" | "shell");
     let resolved = if is_self {
         resolve_fsh_binary() // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
@@ -12826,7 +12797,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
             Some(p) => p,
             None => {
                 // Last resort: try current_exe for any shell-like name
-                if matches!(*cmd, "nsh" | "fsh" | "shell" | "faelight-shell") {
+                if matches!(*cmd, "nsh" | "fsh" | "shell") {
                     std::env::current_exe()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or_else(|_| cmd.to_string())
@@ -13972,7 +13943,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         }
         "geiger" => {
             // cargo geiger -- count unsafe code
-            let tool = args.get(1).copied().unwrap_or("faelight-shell");
+            let tool = args.get(1).copied().unwrap_or("novashell");
             // INT-230: was unwrap_or_default(), which fed cargo an absolute path
             // into the filesystem root. tool_manifest already owns this pattern
             // and carries the existence check.
@@ -16988,7 +16959,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     }
 
     let tools = [
-        ("faelight-shell", "faelight/rust-tools/novashell/Cargo.toml"),
+        ("novashell", "faelight/rust-tools/novashell/Cargo.toml"),
         ("core", "faelight/engine/Cargo.toml"),
         (
             "faelight-git",

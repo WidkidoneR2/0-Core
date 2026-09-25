@@ -260,7 +260,7 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
                 // The pair travels with the event, same as every other emitter in the shell.
                 // A script's events belong to the command that ran the script.
                 "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) \
-                 VALUES (?1, ?2, ?3, ?4, 'faelight-shell', ?5)",
+                 VALUES (?1, ?2, ?3, ?4, 'nsh', ?5)",
                 rusqlite::params![
                     domain,
                     action,

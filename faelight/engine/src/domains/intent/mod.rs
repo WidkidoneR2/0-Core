@@ -1374,8 +1374,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .unwrap_or_default();
 
         let mut tools: Vec<(&str, &str)> = vec![];
-        if touched.contains("faelight-shell") {
-            tools.push(("faelight-shell", "faelight/rust-tools/novashell/Cargo.toml"));
+        if touched.contains("rust-tools/novashell") {
+            tools.push(("novashell", "faelight/rust-tools/novashell/Cargo.toml"));
         }
         if touched.contains("engine/src") || touched.contains("engine/Cargo") {
             tools.push(("core (engine)", "faelight/engine/Cargo.toml"));
@@ -3436,7 +3436,7 @@ mod template_tests {
     /// ledger that is being renamed. Found 2026-09-24.
     ///
     /// Checks EVERY template, not the one that was noticed -- `feature` carried it too. And it
-    /// matches any tag CONTAINING the name, so `faelight-shell` cannot slip past as a variant.
+    /// matches any tag CONTAINING the name, so a hyphenated variant cannot slip past.
     #[test]
     fn no_template_defaults_to_the_retired_name() {
         let offenders: Vec<&str> = super::TEMPLATES

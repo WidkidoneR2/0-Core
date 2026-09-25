@@ -35,7 +35,7 @@ pub fn running_build_identity() -> Option<String> {
     // lands on that.
     //
     // ⚠️ THE BRANCH THIS REPLACES WAS ALREADY BROKEN. It read
-    // /run/current-system/sw/bin/faelight-shell -- a binary name that has not existed since
+    // /run/current-system/sw/bin/, under the pre-NovaShell binary name -- a name that has not existed since
     // the NovaShell rename, under a path that has not existed since 2026-08-26. It could
     // only ever have returned None.
     std::fs::canonicalize(std::env::current_exe().ok()?)

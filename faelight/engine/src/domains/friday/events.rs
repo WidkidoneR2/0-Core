@@ -17,7 +17,7 @@ use colored::*;
 /// domain: the tool/subsystem emitting (e.g. "deploy", "shell", "git")
 /// kind:   what happened (e.g. "deploy_completed", "command_run")
 /// payload: JSON string with event details
-/// source_tool: which binary emitted this (e.g. "core", "faelight-shell")
+/// source_tool: which binary emitted this (e.g. "core", "nsh")
 /// correlation_id: optional session/workflow id for tracing causality
 #[allow(dead_code)]
 pub fn emit(
