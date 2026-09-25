@@ -265,7 +265,7 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-docs"
+name = "zero-docs"
 version = "2.0.0"
 category = "documentation"
 description = "Living documentation engine — syncs README and welcome message with forest state"

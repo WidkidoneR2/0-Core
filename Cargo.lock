@@ -831,17 +831,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-docs"
-version = "2.0.0"
-dependencies = [
- "chrono",
- "colored",
- "dirs",
- "faelight-core",
- "rusqlite",
-]
-
-[[package]]
 name = "faelight-doctor"
 version = "0.1.0"
 dependencies = [
@@ -3782,6 +3771,17 @@ dependencies = [
  "regex",
  "syn",
  "walkdir",
+]
+
+[[package]]
+name = "zero-docs"
+version = "2.0.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "dirs",
+ "faelight-core",
+ "rusqlite",
 ]
 
 [[package]]

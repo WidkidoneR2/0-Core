@@ -2,7 +2,7 @@
 
 The forest's tool ecosystem: 22 active tools (plus 1 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-09-23 by `faelight-docs readme-index`
+**Generated:** 2026-09-23 by `zero-docs readme-index`
 
 ---
 
@@ -74,4 +74,4 @@ The forest's tool ecosystem: 22 active tools (plus 1 retired), each a purpose-bu
 
 ---
 
-*This index is generated -- do not hand-edit; re-run `faelight-docs readme-generate` to refresh.*
+*This index is generated -- do not hand-edit; re-run `zero-docs readme-generate` to refresh.*

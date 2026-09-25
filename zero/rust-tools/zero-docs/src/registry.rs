@@ -1,4 +1,4 @@
-//! INT-228 -- faelight-docs document registry
+//! INT-228 -- zero-docs document registry
 //! Tracks all managed documents with freshness, ownership, and drift detection
 use std::path::{Path, PathBuf};
 pub struct DocEntry {
@@ -119,7 +119,7 @@ pub fn record_update(name: &str, action: &str, by: &str, note: &str) {
     let payload = format!(r#"{{"doc":"{}","action":"{}"}}"#, name, action);
     let _ = conn.execute(
         "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
-         VALUES ('faelight-docs', 'doc_synced', ?1, 1.0, ?2)",
+         VALUES ('zero-docs', 'doc_synced', ?1, 1.0, ?2)",
         rusqlite::params![payload, now],
     );
 }

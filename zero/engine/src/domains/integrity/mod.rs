@@ -231,7 +231,7 @@ fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
             false
         }
         FixAction::InsertDbRow { table: _, sql } => ctx.ctx.runtime.db.execute_batch(sql).is_ok(),
-        FixAction::SyncDocs => std::process::Command::new("faelight-docs")
+        FixAction::SyncDocs => std::process::Command::new("zero-docs")
             .arg("sync")
             .output()
             .map(|o| o.status.success())

@@ -75,7 +75,7 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
         "cistart",
         "cicomplete",
         "intent",
-        "faelight-docs",
+        "zero-docs",
         "docs",
         "cat",
         "echo",

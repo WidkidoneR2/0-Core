@@ -114,10 +114,8 @@ fn main() -> Result<()> {
                 } else {
                     println!("✅ README dynamic section updated");
                 }
-                // Auto-sync docs via faelight-docs
-                let _ = std::process::Command::new("faelight-docs")
-                    .arg("sync")
-                    .status();
+                // Auto-sync docs via zero-docs
+                let _ = std::process::Command::new("zero-docs").arg("sync").status();
 
                 // Re-write changelog with the actual theme from TUI
                 let changelog_path = std::path::PathBuf::from(&root).join("zero/meta/CHANGELOG.md");

@@ -2,7 +2,7 @@
 # faelight-fm v3: ratatui rewrite, no git deps
 resolver = "2"
 members = [
-    "zero/rust-tools/faelight-docs",
+    "zero/rust-tools/zero-docs",
     "zero/rust-tools/*",
     "zero/engine",
 ]
