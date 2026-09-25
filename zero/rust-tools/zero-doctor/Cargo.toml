@@ -1,12 +1,12 @@
 [package]
-name = "faelight-doctor"
+name = "zero-doctor"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "The doctor ENGINE -- definition format, states, tiers, probe registry, validation. Shared by core doctor and nsh doctor; owns neither check set."
 
 [lib]
-name = "faelight_doctor"
+name = "zero_doctor"
 path = "src/lib.rs"
 
 [dependencies]

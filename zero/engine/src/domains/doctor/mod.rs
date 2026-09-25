@@ -1362,7 +1362,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 ///
 /// And the performance point survives untouched: all_checks stays eager, because the
 /// registry is a list of DECLARATIONS, not of closures to call lazily.
-/// THE DOCTOR MEASUREMENTS COME FROM faelight-doctor.
+/// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
 ///
 /// The check set is DECLARED in registry/doctor/checks.toml and measured by probes in that
 /// crate. This function is the seam: it loads the declarations, runs them, and maps each
@@ -1371,9 +1371,9 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 /// BOTH MAPPINGS BELOW ARE EXHAUSTIVE WITH NO CATCH-ALL. A new variant fails to compile here
 /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
 fn from_engine() -> Vec<CheckResult> {
-    use faelight_doctor::{Status as ES, Tier as ET};
+    use zero_doctor::{Status as ES, Tier as ET};
     let path = faelight_core::paths::registry_dir().join("doctor/checks.toml");
-    let reg = match faelight_doctor::Registry::load(&path) {
+    let reg = match zero_doctor::Registry::load(&path) {
         Ok(r) => r,
         Err(e) => {
             return vec![CheckResult {
@@ -1400,7 +1400,7 @@ fn from_engine() -> Vec<CheckResult> {
             fix: Some("Correct the declaration in checks.toml".into()),
         })
         .collect();
-    for o in faelight_doctor::run_all(&reg) {
+    for o in zero_doctor::run_all(&reg) {
         out.push(CheckResult {
             tier: match o.tier {
                 ET::Critical => Tier::Critical,

@@ -1,8 +1,8 @@
-//! Run the real check set end to end. `cargo run -p faelight-doctor --example run`
+//! Run the real check set end to end. `cargo run -p zero-doctor --example run`
 
 fn main() {
     let path = std::path::Path::new("/home/christian/0-core/zero/registry/doctor/checks.toml");
-    let reg = match faelight_doctor::Registry::load(path) {
+    let reg = match zero_doctor::Registry::load(path) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("LOAD FAILED: {}", e);
@@ -20,12 +20,12 @@ fn main() {
     }
     println!();
 
-    let out = faelight_doctor::run_all(&reg);
+    let out = zero_doctor::run_all(&reg);
     for o in &out {
         let mark = match o.status {
-            faelight_doctor::Status::Pass => "✅",
-            faelight_doctor::Status::Warn => "⚠️",
-            faelight_doctor::Status::Fail => "❌",
+            zero_doctor::Status::Pass => "✅",
+            zero_doctor::Status::Warn => "⚠️",
+            zero_doctor::Status::Fail => "❌",
             _ => "─",
         };
         println!("  {} {:-20}  {}", mark, o.id, o.message);
@@ -33,18 +33,18 @@ fn main() {
     println!();
 
     let labels = reg.labels().count();
-    let s = faelight_doctor::Summary::of(&out, labels);
+    let s = zero_doctor::Summary::of(&out, labels);
     println!(
         "{} measured, {} declared | pass {}  warn {}  fail {}  unknown {}",
         s.measured, s.declared, s.passing, s.warning, s.failing, s.unknown
     );
-    println!("VERDICT: {:?}", faelight_doctor::verdict(&out));
+    println!("VERDICT: {:?}", zero_doctor::verdict(&out));
 
     // INT-199 shape, on every red outcome.
     for o in &out {
-        if faelight_doctor::is_red(o.status) {
+        if zero_doctor::is_red(o.status) {
             println!();
-            print!("{}", faelight_doctor::render(o));
+            print!("{}", zero_doctor::render(o));
         }
     }
 }

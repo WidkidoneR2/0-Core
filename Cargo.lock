@@ -512,7 +512,6 @@ dependencies = [
  "colored",
  "dirs",
  "faelight-core",
- "faelight-doctor",
  "faelight-zone",
  "flate2",
  "libc",
@@ -526,6 +525,7 @@ dependencies = [
  "tracing-subscriber",
  "walkdir",
  "which",
+ "zero-doctor",
 ]
 
 [[package]]
@@ -812,20 +812,6 @@ dependencies = [
  "libc",
  "thiserror",
  "wayland-client",
-]
-
-[[package]]
-name = "faelight-doctor"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "faelight-core",
- "rusqlite",
- "serde",
- "serde_json",
- "toml",
- "walkdir",
- "which",
 ]
 
 [[package]]
@@ -3782,6 +3768,20 @@ dependencies = [
  "dirs",
  "faelight-core",
  "rusqlite",
+]
+
+[[package]]
+name = "zero-doctor"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "faelight-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "toml",
+ "walkdir",
+ "which",
 ]
 
 [[package]]

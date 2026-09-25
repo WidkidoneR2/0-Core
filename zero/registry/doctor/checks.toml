@@ -27,7 +27,7 @@
 # =========================================================================================
 #
 #   severities        what this check MAY report. Never empty. ["pass"] alone means LABEL.
-#   probe             a name from the closed registry in faelight-doctor. There is no field
+#   probe             a name from the closed registry in zero-doctor. There is no field
 #                     that carries a command string, and that absence is the gate.
 #   tier              critical / system / user, from RISK.toml -- plus `info`, which here means
 #                     MEASURES TRULY BUT NEVER JUDGES, excluded from the verdict entirely.
@@ -123,7 +123,7 @@ section = "\U0001F4CB Internals"
 tier = "system"
 probe = "zero_config"
 severities = ["pass", "warn"]
-recovery = "Check the files named above in ~/.config/faelight"
+recovery = "Check the files named above in ~/.config/zero"
 
 [[check]]
 id = "zero_alias"
@@ -132,7 +132,7 @@ section = "\U0001F4CB Internals"
 tier = "system"
 probe = "zero_alias"
 severities = ["pass", "warn"]
-recovery = "Recreate: ln -s faelight ~/.local/state/zero"
+recovery = "Recreate the link: ln -s zero ~/.local/state/faelight (and the same under ~/.config)"
 
 [[check]]
 id = "security_hardening"

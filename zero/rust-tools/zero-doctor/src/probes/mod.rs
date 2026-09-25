@@ -8,9 +8,9 @@
 //! "I could not look".
 
 pub mod files;
-pub mod forest;
 pub mod git;
 pub mod hardening;
+pub mod internals;
 pub mod runtime;
 pub mod security;
 pub mod system;
@@ -50,11 +50,11 @@ pub fn run(p: Probe) -> Measurement {
         Probe::AliasCoverage => tools::alias_coverage(),
         Probe::Sandbox => security::sandbox(),
         Probe::SecurityAudit => security::security_audit(),
-        Probe::IntentLedger => forest::intent_ledger(),
-        Probe::Friday => forest::friday(),
-        Probe::RustDocs => forest::rust_docs(),
-        Probe::DeadwoodScan => forest::deadwood_scan(),
-        Probe::OrphanPackages => forest::orphan_packages(),
+        Probe::IntentLedger => internals::intent_ledger(),
+        Probe::Friday => internals::friday(),
+        Probe::RustDocs => internals::rust_docs(),
+        Probe::DeadwoodScan => internals::deadwood_scan(),
+        Probe::OrphanPackages => internals::orphan_packages(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::SecurityHardening => hardening::security_hardening(),
