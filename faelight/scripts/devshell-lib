@@ -22,7 +22,7 @@ DEVSHELL_PREFIX="devshell-"
 #             every command, where a live lower layer would be overlayfs's undefined case
 DEVSHELL_DECLARED=$'core\t0-core\tlive
 bin\t.local/bin\tlive
-nshconf\t.config/faelight-shell\tlive
+nshconf\t.config/nsh\tlive
 cargo\t.cargo\tlive
 state\t.local/state/faelight\tsnapshot'
 

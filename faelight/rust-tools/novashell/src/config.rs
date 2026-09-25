@@ -360,8 +360,8 @@ pub fn ensure_default() -> bool {
         let _ = std::fs::create_dir_all(dir);
     }
 
-    let default = r#"# faelight-shell configuration
-# ~/.config/faelight-shell/config.nsh
+    let default = r#"# NovaShell configuration
+# ~/.config/nsh/config.nsh
 #
 # Syntax:
 #   alias <name> = "<command>"

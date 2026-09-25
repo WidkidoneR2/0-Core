@@ -237,7 +237,7 @@ pub fn state_db() -> PathBuf {
     //
     // ⚠️ A LEAKED VALUE HERE IS SERIOUS -- a shell pointed at a scratch file has no history, no
     // aliases and no session memory. That is why callers announce a non-canonical database rather
-    // than resolving it silently; see the startup notice in faelight-shell.
+    // than resolving it silently; see the startup notice in novashell.
     if let Ok(p) = env::var("FAELIGHT_STATE_DB") {
         if !p.trim().is_empty() {
             return PathBuf::from(p);
@@ -735,7 +735,7 @@ pub fn intents_incidents() -> PathBuf {
 /// read the config across THREE different locations -- the repo copy, the XDG
 /// copy, and 0-core/config/... which has never existed on this machine.
 ///
-/// The XDG copy is the one the shell loads (see faelight-shell config.rs) and
+/// The XDG copy is the one the shell loads (see novashell config.rs) and
 /// the one that gets edited, so it is the only honest answer. Renamed from
 /// aliases_file because the file is the shell config; aliases are its contents.
 /// The directory holding the shell's own configuration: `config.nsh`, the `scripts/` folder,
@@ -753,10 +753,7 @@ pub fn shell_config_dir() -> PathBuf {
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| match env::var("XDG_CONFIG_HOME") {
-            Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell"),
-            _ => home().join(".config/faelight-shell"),
-        })
+        .unwrap_or_else(nsh_config_home)
 }
 
 /// User `.fsh`/`.nsh` scripts, run by `run <name>`.
@@ -772,6 +769,16 @@ pub fn nl_patterns_file() -> PathBuf {
     shell_config_dir().join("nl-patterns.toml")
 }
 
+/// `~/.config/nsh` -- NovaShell's own configuration directory, and the ONE place its name is
+/// written. NovaShell keeps its own name (ruled 2026-09-21), so this is nsh rather than zero.
+/// It carried the old project name until INT-247 moved it.
+fn nsh_config_home() -> PathBuf {
+    match env::var("XDG_CONFIG_HOME") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v).join("nsh"),
+        _ => home().join(".config/nsh"),
+    }
+}
+
 pub fn shell_config() -> PathBuf {
     // NSH_CONFIG FIRST, and it belongs here rather than in one consumer. config.rs honoured
     // it; the cheatsheet and the alias reporter did not, so pointing the shell at a different
@@ -781,10 +788,7 @@ pub fn shell_config() -> PathBuf {
             return PathBuf::from(p);
         }
     }
-    match env::var("XDG_CONFIG_HOME") {
-        Ok(v) if !v.is_empty() => PathBuf::from(v).join("faelight-shell/config.nsh"),
-        _ => home().join(".config/faelight-shell/config.nsh"),
-    }
+    nsh_config_home().join("config.nsh")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -839,6 +843,43 @@ mod tests {
     /// accessors each joined their own directory name onto xdg_cache_home(), so moving the
     /// directory meant finding all of them. A new accessor that does that again fails here.
     /// The needle is split with concat! so this test's own source does not match it.
+    #[test]
+    fn shell_config_default_lives_under_nsh() {
+        // INT-247: NovaShell's config lives in ~/.config/nsh. An explicit NSH_CONFIG still wins.
+        let p = shell_config();
+        match std::env::var("NSH_CONFIG") {
+            Ok(v) if !v.trim().is_empty() => assert_eq!(p, std::path::PathBuf::from(v)),
+            _ => {
+                assert_eq!(p.file_name().and_then(|n| n.to_str()), Some("config.nsh"));
+                let dir = p.parent().expect("config.nsh has a parent");
+                assert_eq!(
+                    dir.file_name().and_then(|n| n.to_str()),
+                    Some("nsh"),
+                    "unexpected shell_config: {}",
+                    p.display()
+                );
+                assert_eq!(shell_config_dir(), dir);
+            }
+        }
+    }
+
+    #[test]
+    fn shell_config_directory_is_named_by_one_owner() {
+        // The CLASS: the shell's directory name is written in one function, and the retired name
+        // is written nowhere. Needles are split with concat! so this test does not match itself.
+        let src = include_str!("paths.rs");
+        assert!(
+            !src.contains(concat!("faelight", "-shell")),
+            "paths.rs still names the retired shell directory"
+        );
+        let joins = src.matches(concat!(".join(\"", "nsh\")")).count()
+            + src.matches(concat!(".join(\".config/", "nsh")).count();
+        assert_eq!(
+            joins, 2,
+            "the nsh directory must be named only in nsh_config_home()"
+        );
+    }
+
     #[test]
     fn xdg_cache_home_is_joined_by_one_owner() {
         let needle = concat!("xdg_cache_home", "().join(");
