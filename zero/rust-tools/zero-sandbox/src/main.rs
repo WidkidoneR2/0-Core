@@ -1,5 +1,5 @@
-//! faelight-sandbox v3.0.0
-//! Controlled experimentation environment for Faelight Forest
+//! zero-sandbox v3.0.0
+//! Controlled experimentation environment for Project 0
 //! Philosophy: Experiment freely. Understand completely. Revert instantly.
 
 mod cgroup;
@@ -18,7 +18,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Parser)]
-#[command(name = "faelight-sandbox")]
+#[command(name = "zero-sandbox")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(
     about = "Controlled experimentation environment — experiment freely, understand completely"
@@ -516,7 +516,7 @@ fn emit_to_ledger_with_policy(
     let result = if exit_code == 0 { "ok" } else { "fail" };
     let policy_str = policy_name.unwrap_or("none");
     let payload = format!(
-        r#"{{"actor":"faelight-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{},"policy":"{}"}}}}"#,
+        r#"{{"actor":"zero-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{},"policy":"{}"}}}}"#,
         result,
         session.command.replace('"', "'"),
         exit_code,
@@ -548,7 +548,7 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
     let exit_code = session.exit_code.unwrap_or(-1);
     let result = if exit_code == 0 { "ok" } else { "fail" };
     let payload = format!(
-        r#"{{"actor":"faelight-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{}}}}}"#,
+        r#"{{"actor":"zero-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{}}}}}"#,
         result,
         session.command.replace('"', "'"),
         exit_code,
@@ -593,7 +593,7 @@ fn main() -> Result<()> {
             let command_str = cmd.join(" ");
 
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("{}", "🧪 faelight-sandbox".bold().bright_cyan());
+            println!("{}", "🧪 zero-sandbox".bold().bright_cyan());
             // Load policy if specified
             let active_policy = if let Some(policy_name) = &policy {
                 match policy::SandboxPolicy::load(policy_name) {
@@ -783,7 +783,7 @@ fn main() -> Result<()> {
             // over the top. A name in both lists takes the set_env value -- overriding is the
             // more specific instruction.
             //
-            // ⚠️ NO POLICY MEANS NO CHANGE. `faelight-sandbox run` without --policy keeps
+            // ⚠️ NO POLICY MEANS NO CHANGE. `zero-sandbox run` without --policy keeps
             // inheriting, because clearing the environment for callers who asked for nothing
             // would break every existing use of this tool for a benefit they did not request.
             let apply_env = |c: &mut Command| {
@@ -1105,7 +1105,7 @@ fn main() -> Result<()> {
                 network_isolated && !session.degraded.iter().any(|d| d.starts_with("net:"));
             session.exit_code = Some(exit_code);
             // ⭐ REMEMBERED SO main CAN EXIT WITH IT. Measured 2026-09-12:
-            //     faelight-sandbox run --policy untrusted -- false
+            //     zero-sandbox run --policy untrusted -- false
             //     report says "Exit: 1", the binary returns rc=0
             // The child status was DISPLAYED and thrown away, so no script, no CI job, no
             // and no  could tell a passing run from a failing one. Every other
@@ -1176,7 +1176,7 @@ fn main() -> Result<()> {
             // would bury the result. Hunks are a deliberate second look: devbox diff --patch.
             print_diff(&session, false);
             println!(
-                "\n  {} Session saved — run 'faelight-sandbox diff' to review again",
+                "\n  {} Session saved — run 'zero-sandbox diff' to review again",
                 "💾".dimmed()
             );
         }
@@ -1184,7 +1184,7 @@ fn main() -> Result<()> {
         Commands::Diff { patch } => {
             if !session_path().exists() {
                 println!(
-                    "  {} No sandbox session found — run: faelight-sandbox run <cmd>",
+                    "  {} No sandbox session found — run: zero-sandbox run <cmd>",
                     "⚠️".yellow()
                 );
                 return Ok(());
@@ -1266,7 +1266,7 @@ fn main() -> Result<()> {
             fs::create_dir_all(snap_dir.parent().unwrap())?;
 
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("{}", "📸 faelight-sandbox snapshot".bold().bright_cyan());
+            println!("{}", "📸 zero-sandbox snapshot".bold().bright_cyan());
             println!("   Source:   {}", target_dir.dimmed());
             println!("   Snapshot: {}", snap_name.bright_white());
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
@@ -1311,7 +1311,7 @@ fn main() -> Result<()> {
             let snap_dir = state_dir().join("snapshots").join(&name);
             if !snap_dir.exists() {
                 println!("  {} Snapshot '{}' not found", "⚠️".yellow(), name);
-                println!("  {} Run: faelight-sandbox snapshots", "💡".dimmed());
+                println!("  {} Run: zero-sandbox snapshots", "💡".dimmed());
                 return Ok(());
             }
 
@@ -1367,7 +1367,7 @@ fn main() -> Result<()> {
             let hist = history_dir();
             if !hist.exists() || fs::read_dir(&hist)?.count() == 0 {
                 println!("  {} No session history found", "○".bright_black());
-                println!("  {} Run: faelight-sandbox run <cmd>", "💡".dimmed());
+                println!("  {} Run: zero-sandbox run <cmd>", "💡".dimmed());
                 return Ok(());
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
@@ -1420,7 +1420,7 @@ fn main() -> Result<()> {
                 }
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("  View session: faelight-sandbox diff (loads most recent)");
+            println!("  View session: zero-sandbox diff (loads most recent)");
         }
         Commands::PolicyList => {
             let policies = policy::SandboxPolicy::list_all()?;
@@ -1440,7 +1440,7 @@ fn main() -> Result<()> {
                 }
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("  Use with: faelight-sandbox run --policy <name> -- <cmd>");
+            println!("  Use with: zero-sandbox run --policy <name> -- <cmd>");
         }
         Commands::PolicyShow { name } => {
             let p = policy::SandboxPolicy::load(&name)?;
@@ -1534,7 +1534,7 @@ fn main() -> Result<()> {
                 println!("  │  {} No sandbox runs recorded yet", "○".dimmed());
                 println!(
                     "  │  Use {} to run commands",
-                    "faelight-sandbox run".bright_cyan()
+                    "zero-sandbox run".bright_cyan()
                 );
             } else {
                 for (payload, _ts) in &rows {
@@ -1575,7 +1575,7 @@ fn main() -> Result<()> {
             let snap_root = state_dir().join("snapshots");
             if !snap_root.exists() || fs::read_dir(&snap_root)?.count() == 0 {
                 println!("  {} No snapshots found", "○".bright_black());
-                println!("  {} Run: faelight-sandbox snapshot", "💡".dimmed());
+                println!("  {} Run: zero-sandbox snapshot", "💡".dimmed());
                 return Ok(());
             }
 
@@ -1609,7 +1609,7 @@ fn main() -> Result<()> {
                 );
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("  Restore with: faelight-sandbox restore <name>");
+            println!("  Restore with: zero-sandbox restore <name>");
         }
     }
 
@@ -1793,7 +1793,7 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
         }
     }
 
-    let exe = std::env::current_exe().unwrap_or_else(|_| "faelight-sandbox".into());
+    let exe = std::env::current_exe().unwrap_or_else(|_| "zero-sandbox".into());
     let mut cmd = std::process::Command::new(exe);
     cmd.arg("run");
     if let Some(p) = &case.policy {

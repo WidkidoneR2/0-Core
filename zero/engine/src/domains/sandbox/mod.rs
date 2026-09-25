@@ -211,7 +211,7 @@ pub fn clear(_ctx: &AppContext) -> CoreResult<()> {
 
 pub fn run(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
     // Phase 2: delegate to v1 for actual execution
-    let status = std::process::Command::new("faelight-sandbox")
+    let status = std::process::Command::new("zero-sandbox")
         .arg("run")
         .args(args)
         .status()?;
@@ -222,7 +222,7 @@ pub fn run(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
 }
 
 pub fn diff(_ctx: &AppContext) -> CoreResult<()> {
-    let status = std::process::Command::new("faelight-sandbox")
+    let status = std::process::Command::new("zero-sandbox")
         .arg("diff")
         .status()?;
     if !status.success() {

@@ -12,8 +12,8 @@ use crate::measurement::Measurement;
 /// checks each answered "is this tool installed" their own way, and each was right about exactly
 /// one machine. In this crate they all ask `which`, once, in one helper.
 pub fn sandbox() -> Measurement {
-    if which::which("faelight-sandbox").is_err() {
-        return Measurement::fail("faelight-sandbox not deployed");
+    if which::which("zero-sandbox").is_err() {
+        return Measurement::fail("zero-sandbox not deployed");
     }
     let policies = faelight_core::paths::registry_dir().join("sandbox-policies.toml");
     if !policies.exists() {
@@ -26,10 +26,7 @@ pub fn sandbox() -> Measurement {
     match std::fs::read_to_string(&policies) {
         Ok(t) => {
             let n = t.lines().filter(|l| l.trim().starts_with("name =")).count();
-            Measurement::pass(format!(
-                "faelight-sandbox deployed -- {} policies active",
-                n
-            ))
+            Measurement::pass(format!("zero-sandbox deployed -- {} policies active", n))
         }
         Err(e) => Measurement::unknown(format!("could not read {} -- {}", policies.display(), e)),
     }
@@ -149,7 +146,7 @@ mod tests {
         ));
         // ⭐ The old check reported "not deployed" for a binary sitting on PATH. If the tool
         // resolves, this must not claim it is missing.
-        if which::which("faelight-sandbox").is_ok() {
+        if which::which("zero-sandbox").is_ok() {
             assert!(
                 !m.message.contains("not deployed"),
                 "the binary resolves on PATH: {}",

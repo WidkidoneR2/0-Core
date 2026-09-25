@@ -136,7 +136,7 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-sandbox"
+name = "zero-sandbox"
 version = "3.0.0"
 category = "development"
 description = "Safe execution sandbox with session history"

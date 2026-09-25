@@ -5353,11 +5353,11 @@ fn execute_dispatch(
 ///
 /// `sandbox` (or `devbox`) with no argument keeps its original job: the last ten runs. The
 /// subcommands are the reason this is a verb at all -- the useful invocation was
-/// `faelight-sandbox run --policy devbox -- /usr/bin/env NSH_BIN=... nsh-test`, which nobody
+/// `zero-sandbox run --policy devbox -- /usr/bin/env NSH_BIN=... nsh-test`, which nobody
 /// types twice.
 ///
 /// NOT A NEW BINARY, DELIBERATELY. INT-167's own guardrail: extend the consumer that exists
-/// before minting one. faelight-sandbox does the work; this is the door.
+/// before minting one. zero-sandbox does the work; this is the door.
 fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
     match args.first() {
         Some(&"test") => return devbox_test(),
@@ -5421,7 +5421,7 @@ fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
         return CommandResult::Output(format!(
             "  {} No sandbox runs recorded — use {}",
             "○".dimmed(),
-            "faelight-sandbox run".bright_cyan()
+            "zero-sandbox run".bright_cyan()
         ));
     }
 
@@ -5466,7 +5466,7 @@ fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
 /// SANDBOX_BIN first so a debug build can be exercised before it is shipped -- the same seam
 /// NSH_BIN and DEADWOOD_BIN already use, and the reason two-binaries discipline works.
 fn sandbox_bin() -> String {
-    std::env::var("SANDBOX_BIN").unwrap_or_else(|_| "faelight-sandbox".to_string())
+    std::env::var("SANDBOX_BIN").unwrap_or_else(|_| "zero-sandbox".to_string())
 }
 
 /// The binary under test, for the two doors that launch a shell.

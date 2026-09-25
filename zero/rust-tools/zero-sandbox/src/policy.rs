@@ -1,4 +1,4 @@
-//! faelight-sandbox v3 — Policy Engine
+//! zero-sandbox v3 — Policy Engine
 //! Declarative TOML policies for sandbox isolation
 //! INT-125 Phase 1: policy loading and enforcement
 
@@ -28,7 +28,7 @@ pub struct SandboxPolicy {
     ///
     /// This is what makes a SHELL sandbox possible. Passing `HOME` through (as `untrusted` does)
     /// is the opposite of isolation for a shell: nsh-test measured on 2026-09-05 that hiding the
-    /// forest takes HOME **and** XDG_STATE_HOME, because state_home reads XDG independently, so a
+    /// author's state takes HOME **and** XDG_STATE_HOME, because state_home reads XDG independently, so a
     /// bare HOME redirect left health, focus.toml and the ledger visible. Redirecting is a
     /// different act from permitting, and only one of them isolates.
     ///
@@ -108,7 +108,7 @@ impl SandboxPolicy {
             .find(|p| p.name == name)
             .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Policy '{}' not found — run: faelight-sandbox policy list",
+                    "Policy '{}' not found — run: zero-sandbox policy list",
                     name
                 )
             })

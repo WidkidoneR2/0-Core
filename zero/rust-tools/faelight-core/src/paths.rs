@@ -574,7 +574,7 @@ pub fn focus_file() -> PathBuf {
     zero_state_dir().join("intent").join("focus.toml")
 }
 
-/// Sandbox snapshots, written by faelight-sandbox.
+/// Sandbox snapshots, written by zero-sandbox.
 pub fn sandbox_state_dir() -> PathBuf {
     zero_state_dir().join("sandbox")
 }

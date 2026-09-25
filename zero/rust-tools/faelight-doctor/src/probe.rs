@@ -64,7 +64,7 @@ pub enum Probe {
     PathResilience,
     /// The registry files are present and their fields check out.
     SchemaValidation,
-    /// faelight-sandbox is deployed and its policies are active.
+    /// zero-sandbox is deployed and its policies are active.
     Sandbox,
     /// Critical kernel errors since boot.
     BootErrors,

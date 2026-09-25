@@ -8,7 +8,7 @@
 # reaches the policy check, and the case then measures the wrong failure.
 # Run plain, the question is asked cleanly.
 description = "asking for a policy that does not exist must not succeed"
-command     = "faelight-sandbox run --policy nosuchpolicy -- echo hi"
+command     = "zero-sandbox run --policy nosuchpolicy -- echo hi"
 
 [expect]
 exit            = 3

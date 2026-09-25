@@ -1,4 +1,4 @@
-// faelight-sandbox seccomp module
+// zero-sandbox seccomp module
 // INT-125 — Syscall filtering via seccompiler BPF
 
 use seccompiler::{BpfProgram, SeccompAction, SeccompFilter, SeccompRule};

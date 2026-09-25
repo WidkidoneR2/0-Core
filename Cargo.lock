@@ -889,25 +889,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-sandbox"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "dialoguer",
- "faelight-core",
- "libc",
- "rusqlite",
- "seccompiler",
- "serde",
- "serde_json",
- "toml",
- "walkdir",
-]
-
-[[package]]
 name = "faelight-zone"
 version = "2.1.0"
 dependencies = [
@@ -3855,6 +3836,25 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "zero-sandbox"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "dialoguer",
+ "faelight-core",
+ "libc",
+ "rusqlite",
+ "seccompiler",
+ "serde",
+ "serde_json",
+ "toml",
+ "walkdir",
 ]
 
 [[package]]

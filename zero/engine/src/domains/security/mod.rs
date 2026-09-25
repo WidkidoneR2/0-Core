@@ -1121,7 +1121,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
     );
     println!(
         "  │    2. Test in sandbox: {}",
-        "faelight-sandbox run --policy build -- cargo update".bright_cyan()
+        "zero-sandbox run --policy build -- cargo update".bright_cyan()
     );
     println!(
         "  │    3. Review with: {}",

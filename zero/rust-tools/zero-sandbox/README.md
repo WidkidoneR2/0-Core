@@ -1,10 +1,10 @@
-# faelight-sandbox
+# zero-sandbox
 
 **Version:** 3.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** development
 
 ## 📖 Description
 
-The forest's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization.
+Project 0's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization.
 
 ---
 
@@ -23,7 +23,7 @@ The forest's process boundary -- a policy engine with namespace isolation, so no
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-sandbox
+cargo build -p zero-sandbox
 ```
 
 ## Deploy
