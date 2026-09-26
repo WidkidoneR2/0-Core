@@ -176,6 +176,25 @@ line -- that commit is where this gate goes red and is rewritten to assert what 
 Ruled by Christian 2026-09-25: the crate pass renames and rebrands only until INT-247 and this
 intent are closed. What it found is filed as INT-265.
 
+## 2026-09-26 -- THE FIXTURE GATE IS PROVEN; THE CRATE PASS IS DONE
+
+```text
+    c4634250   faelight-core -> zero-core, the fifteenth and last crate (INT-247)
+```
+
+The fixture at main.rs:215 now creates zero-core, and tilde_nested_pipe went red on the renamed
+tree -- 201/202, expected >0 got 0, stored in state.db -- as the correction above predicted. In
+the same commit it was rewritten to assert what it means: a tilde path through a nested pipe,
+grep novashell, an exact count of 1, no brand name. 202/202. The gate "The nsh-test case at
+main.rs:881" below is ticked with that evidence.
+
+Open: the first gate, "THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves", cannot be
+ticked as written -- the move ran in 7b79c725 under the fingerprinted census 12cb33529e87. Christian
+rules: rewrite it to name that census, or defer it. Asked 2026-09-26.
+
+This intent still closes only when the entire flip is done -- no live faelight or forest in the
+code (Christian, 2026-09-25). INT-247's START HERE holds the order.
+
 ## Success Criteria
 
 - [ ] THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves: every occurrence of
@@ -193,9 +212,10 @@ intent are closed. What it found is filed as INT-265.
 - [x] `cargo check --workspace` is clean and `nsh-test` is green on a tree containing ZERO live
       `faelight/` path strings. Historical intents excluded, and the exclusion is stated.
       <!-- evidence: 2026-09-25, on the moved tree before the commit: faelight-core 13, novashell 221, core 2 passed; ship 21 shipped 0 failed; nsh-test 202/202; 0 repo-path sites left. Excluded and stated in the commit: markdown, every intent, CHANGELOGs. The D-Bus /org/faelight names and the dead /etc/faelight reads are not repo paths. -->
-- [ ] The nsh-test case at main.rs:881 asserts what it means instead of requiring the old word.
+- [x] The nsh-test case at main.rs:881 asserts what it means instead of requiring the old word.
       **Proven by watching it fail first:** it must go red on the renamed tree before it is
       rewritten, or it was never testing what its comment claims.
+      <!-- evidence: c4634250, 2026-09-26. The rename changed the fixture (main.rs:215 now creates zero-core); tilde_nested_pipe went red on the renamed tree, 201/202 expected >0 got 0, stored in state.db; rewritten to grep novashell with an exact count of 1 and no brand name: 202/202. Reviewed plans b218e73b9485 (rename) and e669c6b347ed (test). -->
 - [x] BOTH DOORS RUN AFTER THE MOVE: `nsh -c`, a PTY session, `core doctor`, and `history`.
       ⚠️ IF ANY OF THOSE LOOKS EMPTY, REVERT THE COMMIT. Do not fix forward on state.
       <!-- evidence: 2026-09-25 after 7b79c725: nsh-test 202/202 covers nsh -c and the PTY; d 0 failed; history returned rows; nsh -c 'ls ~/0-core' listed zero; 27 shell_history rows written after the move commit, read through ~/.local/state/zero. -->

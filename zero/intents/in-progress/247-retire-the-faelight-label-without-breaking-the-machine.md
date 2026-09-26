@@ -1903,7 +1903,7 @@ two backups in ~/.config/nsh that nsh does not load.
                           the crate script already works that way
 ```
 
-## 2026-09-25, MORNING -- THE CRATE PASS AT 14 OF 15 -- START HERE
+## 2026-09-25, MORNING -- THE CRATE PASS AT 14 OF 15 -- superseded by the 2026-09-26 section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS AT 6 OF 15" above. Before starting
 a step it names, check the step against disk and git. Every claim below was checked against git
@@ -1987,6 +1987,84 @@ INT-265 filed: every defect the pass walked past, with file and line, gates and 
     4  INT-263 schema, INT-264 contracts, the compatibility links, the docs rewrite, the guard
        for faelight and forest -- then the finish line
     5  INT-265, only after INT-247 and INT-252 are closed
+```
+
+## 2026-09-26, MORNING -- THE CRATE PASS IS DONE, 15 OF 15 -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS AT 14 OF 15" above. Before starting
+a step it names, check the step against disk and git. The script that wrote this checked the
+commits and the zero-core state against git and the disk; the test counts are from the runs made
+in the session.
+
+### Done this session
+
+```text
+    d7d561dd          the MORNING records for 247 and 252, written last session, committed
+    c4634250  15/15   faelight-core -> zero-core, the library every tool links: 374 faelight_core
+                      uses in 102 files, 19 dependency lines, the registry entry and the three
+                      name matchers that read it, moved together. Reviewed plan b218e73b9485.
+                      INT-252's fixture gate went red on the rename and green on the rewrite
+    b01efe38          INT-266 filed: finding, intent and commit linked by name, with the plan's
+                      fingerprint. depends_on 247, 252 and 265
+```
+
+### Proven for c4634250
+
+```text
+    cargo test --workspace   every result ok -- zero-core 13, novashell 221, zero-doctor 60
+    ship                     21 shipped, 0 failed; exec nsh loaded 256 aliases
+    nsh-test                 201/202 on the rename (tilde_nested_pipe), 202/202 after the rewrite
+    d                        0 failed
+    faelight_core            no live .rs file contains it -- checked again by this record's script
+```
+
+### Held on purpose -- these still name the old crate
+
+```text
+    census-core-coupling.py and novashell/CORE-COUPLING.md
+                             INT-230 G1's instrument and its record. Re-run after the rename, the
+                             script would count 0
+    teach/src/main.rs.v2.0.0 a tracked backup cargo does not compile (INT-265, hygiene)
+    zero-core/Cargo.lock     the stray lock, moved with the directory (INT-265)
+    the docs                 AGENTS.md:281, docs/ARCHITECTURE.md, docs/inventory.md, the generated
+                             rust-tools/README.md, novashell/README.md:58-59 -- the docs pass, each
+                             for the reason given at review: half-true, NixOS-era, a dated census,
+                             generator-owned, and the zero-git leftover beside it
+```
+
+### Found, not fixed
+
+```text
+    deploy line      "deploy # sudo nixos-rebuild switch" in 17 crate READMEs and in
+                     zero/engine/README.md: false on Omarchy. zero-docs writes those READMEs, so
+                     its template changes in the same commit or the next sync writes it back.
+                     zero-core's own README was fixed in c4634250
+    a word           c4634250's message calls teach/src/main.rs.v2.0.0 "untracked-by-cargo". Git
+                     tracks it; cargo does not compile it. History is not rewritten; this line
+                     is the record
+```
+
+### Next, in order
+
+```text
+    1  commit 2, zero-core only: FaelightError (error.rs, glyph.rs, the lib.rs re-export), the
+       theme's faelight_default, faelight_dark and faelight_light, and FOREST_GREEN. Other crates
+       call them: census of callers first, then plan, fingerprint, apply, doors, commit
+    2  the NixOS deploy lines: the zero-docs template and the 18 READMEs, one commit
+    3  the remaining word passes: the sayings, the tree emoji outside the renamed crates
+    4  INT-263 schema; INT-264 contracts, FAELIGHT_STATE_DIR and FAELIGHT_STATE_DB among them;
+       the compatibility links; the docs rewrite; the guard for faelight and forest
+    5  the finish line. INT-265 starts only after INT-247 and INT-252 close
+```
+
+### Open, needing Christian
+
+```text
+    INT-252 gate 1   "the audit is regenerated and classified before anything moves" cannot be
+                     ticked as written: the move ran in 7b79c725 under census 12cb33529e87.
+                     Rewrite it by ruling to name that census, or defer it. Asked 2026-09-26
+    trailers         whether commits carry Intent, Finding and Fingerprint trailers before
+                     INT-266 starts. Asked 2026-09-26
 ```
 
 ## Success Criteria

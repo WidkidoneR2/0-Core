@@ -95,8 +95,9 @@ The three questions -- the test of whether this worked:
 
 ## Success Criteria
 
-- [ ] depends_on: [247, 252, 265] is in the frontmatter, and core intent blocked names 266 as
+- [x] depends_on: [247, 252, 265] is in the frontmatter, and core intent blocked names 266 as
       waiting on all three
+      <!-- evidence: b01efe38, 2026-09-26. core intent blocked: INT-266 waiting on INT-247 (in-progress), INT-252 (in-progress), INT-265 (planned); core intent validate: all 303 intents valid. -->
 - [ ] The starting line is recorded: every place findings live today, counted by kind
 - [ ] Every ruling above is written into this file, with the date and who ruled, before any code
       is written
