@@ -161,6 +161,21 @@ is the part of the case that encodes the old name.
 AGENTS.md:743 still describes the pre-move layout (the scripts "TODAY" and "INT-252 renames
 that"); it goes with the docs pass.
 
+## 2026-09-25, MORNING -- 14 OF 15 CRATES RENAMED; THE FIXTURE GATE WAITS FOR CORE
+
+```text
+    02e29c06 .. e09dcaf2   update, sandbox, release, docs, daemon, doctor, zone and git
+                           renamed faelight-* -> zero-*, one crate per commit (INT-247)
+```
+
+The grep-faelight case (tilde_nested_pipe, main.rs:885-897) is still green, as the correction
+above predicted: it reads the fixture at main.rs:212-216, not the real tree, and the fixture
+names faelight-core. faelight-core is the one crate left, and its rename changes that fixture
+line -- that commit is where this gate goes red and is rewritten to assert what it means.
+
+Ruled by Christian 2026-09-25: the crate pass renames and rebrands only until INT-247 and this
+intent are closed. What it found is filed as INT-265.
+
 ## Success Criteria
 
 - [ ] THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves: every occurrence of

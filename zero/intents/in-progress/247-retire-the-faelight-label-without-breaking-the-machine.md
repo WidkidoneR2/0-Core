@@ -1814,7 +1814,7 @@ starting a step it names, check the step against disk and git.
     printed Faelight      9 strings, all inside faelight-* crates -- they go with each crate
 ```
 
-## 2026-09-25, NIGHT -- THE CRATE PASS AT 6 OF 15 -- START HERE
+## 2026-09-25, NIGHT -- THE CRATE PASS AT 6 OF 15 -- superseded by the MORNING section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes the 2026-09-25 END OF SESSION section above.
 Before starting a step it names, check the step against disk and git. Every claim below was
@@ -1901,6 +1901,92 @@ two backups in ~/.config/nsh that nsh does not load.
     a one-off payload     the vm data-name step wrote main.rs, then refused before .gitignore --
                           it checked after writing. Every check belongs before the first write;
                           the crate script already works that way
+```
+
+## 2026-09-25, MORNING -- THE CRATE PASS AT 14 OF 15 -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS AT 6 OF 15" above. Before starting
+a step it names, check the step against disk and git. Every claim below was checked against git
+and the disk by the script that wrote it.
+
+### Done this session -- eight crates, each its own commit, each through the doors
+
+```text
+    02e29c06   7/15  faelight-update  -> zero-update
+    40743cab   8/15  faelight-sandbox -> zero-sandbox
+    a302a404   9/15  faelight-release -> zero-release   Forest DNA is Project 0 DNA
+    09b9775e  10/15  faelight-docs    -> zero-docs      footer matchers moved WITH the footer
+                                                        they read; 18 README footers and the
+                                                        tools index name zero-docs; Part of
+                                                        Project 0 in 20 READMEs
+    3f22a1bc  11/15  faelight-daemon  -> zero-daemon    D-Bus, wire and unit names kept as data
+    4c084e7a  12/15  faelight-doctor  -> zero-doctor    a library; probe module forest is
+                                                        internals; the Zero Alias recovery hint
+                                                        no longer points the link the wrong way
+    06e4d6e8  13/15  faelight-zone    -> zero-zone      Core zone icon is the Project 0 mark
+    e09dcaf2  14/15  faelight-git     -> zero-git       hooks shown not to call it before retire
+```
+
+INT-265 filed: every defect the pass walked past, with file and line, gates and rulings needed.
+
+### RULINGS, Christian 2026-09-25
+
+```text
+    scope          until INT-247 and INT-252 are complete and closed, the crate pass renames
+                   and rebrands ONLY. Everything else goes to INT-265 and waits for them
+    Forest DNA     is Project 0 DNA (the README section zero-release writes)
+    tree emoji     leaves each crate as that crate passes -- sayings keep theirs until the
+                   sayings pass
+    Core zone      its icon is U+25C9, the mark the startup banner shows beside Project 0
+    READMEs        "Part of [Project 0]", not Faelight Forest
+    aliases        z replaces the f prefix (fg -> zg, fu -> zu, fr- -> zr-, fdocs -> zdocs...);
+                   the work is INT-265's
+    checks.toml    the Zero Alias recovery hint was fixed inside the doctor commit: it was the
+                   Layer 3b flip's own leftover, and following it would have pointed the link
+                   the wrong way over the state directory
+```
+
+### THE METHOD, what this session added
+
+```text
+    non-ASCII     fpatch patch() refuses a non-ASCII anchor by design. Emoji edits build the
+                  file's planned text in memory, apply each changed range bottom-up through
+                  patch_between, and compare the file with the plan after writing. A range with
+                  no unique line after it refuses (zero-git Cargo.toml) -- ASCII lines like that
+                  go through patch() instead
+    builds        every cargo test line is filtered for "test result|^error|FAILED|panicked",
+                  so a red is always named. A novashell red whose names are all observe::tests
+                  is INT-265's proven race, not the crate
+    matchers      a line that searches data on disk is renamed only with the data it reads in
+                  the same commit (the docs footer), or not at all (dead paths, unit names)
+    history       a comment quoting a measured path keeps the path that ran (faelight-git
+                  commit 370); an anachronism is left, a falsehood is put back
+    retire        a crate with no binary (doctor, zone's library) needs no alias and no retire;
+                  check ~/.local/bin for BOTH names before and after
+```
+
+### State
+
+```text
+    crates        14 of 15 renamed. faelight-core remains; the crate script refuses it
+    ~/.local/bin  no faelight-* binary of the fourteen is on PATH
+    zero-zone     on PATH although the registry says deployable = false -- INT-265, gate 1
+    hooks         .githooks never called faelight-git; commits and pushes run through them
+```
+
+### Next, in order
+
+```text
+    1  faelight-core -> zero-core, as its own reviewed payload: the package, every
+       faelight_core:: use, every Cargo.toml dependency, the nsh-test fixture at main.rs:212-216
+       (INT-252's gate -- it goes red with this rename, on purpose). Recon first
+    2  INT-252: regenerate and classify the audit; the fixture gate
+    3  the remaining word passes: sayings, the tree emoji outside the renamed crates (Friday's
+       banners, nsh type, d's Friday lines), faelight_data and the stale probe.rs:49 line with
+       the compatibility links
+    4  INT-263 schema, INT-264 contracts, the compatibility links, the docs rewrite, the guard
+       for faelight and forest -- then the finish line
+    5  INT-265, only after INT-247 and INT-252 are closed
 ```
 
 ## Success Criteria
