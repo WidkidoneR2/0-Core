@@ -1,10 +1,10 @@
 [package]
-name = "faelight-core"
+name = "zero-core"
 license = "MIT"
 version = "1.0.0"
 edition = "2021"
 
-# P2/INT-223: faelight-core was two crates wearing one name -- a portable
+# P2/INT-223: zero-core was two crates wearing one name -- a portable
 # foundation (paths, errors, theme) and a Wayland GUI toolkit (canvas, glyph,
 # layer-shell). Every consumer inherited the toolkit, so fsh linked Wayland and
 # could not build on a headless box -- which a distro's default shell must do.

@@ -30,7 +30,7 @@ struct Cli {
 
 fn main() {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let args = Cli::parse();
 
     if args.health {

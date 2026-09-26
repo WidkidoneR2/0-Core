@@ -131,7 +131,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
 
     // Check 1 — registry tools deployed
     let tools = read_registry_tools(core_root);
-    let bin_dir = faelight_core::paths::bin_dir();
+    let bin_dir = zero_core::paths::bin_dir();
     let mut missing = Vec::new();
     for tool in &tools {
         if !bin_dir.join(tool).exists() {
@@ -174,7 +174,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check 4 — schema layer present
-    let schema_dir = faelight_core::paths::schema_dir();
+    let schema_dir = zero_core::paths::schema_dir();
     if schema_dir.exists() {
         println!("  │  {} Schema layer present", "✅".green());
         passed += 1;
@@ -184,7 +184,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check 5 — runtime state db
-    let state_db = faelight_core::paths::state_db();
+    let state_db = zero_core::paths::state_db();
     if state_db.exists() {
         println!("  │  {} Runtime state.db present", "✅".green());
         passed += 1;
@@ -245,7 +245,7 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
 
     // Compare registry tools vs deployed tools
     let tools = read_registry_tools(core_root);
-    let bin_dir = faelight_core::paths::bin_dir();
+    let bin_dir = zero_core::paths::bin_dir();
 
     // Tools in registry but not deployed
     let not_deployed: Vec<&String> = tools.iter().filter(|t| !bin_dir.join(t).exists()).collect();
@@ -282,7 +282,7 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check for intent drift — intents in future/ that are stale
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let future_count = std::fs::read_dir(&future_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -359,7 +359,7 @@ pub(crate) fn os_name() -> String {
 }
 
 fn read_registry_tools(_core_root: &str) -> Vec<String> {
-    let path = faelight_core::paths::tools_registry();
+    let path = zero_core::paths::tools_registry();
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     content
         .lines()
@@ -370,7 +370,7 @@ fn read_registry_tools(_core_root: &str) -> Vec<String> {
 }
 
 fn read_active_intents(_core_root: &str) -> Vec<String> {
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     std::fs::read_dir(&future_dir)
         .map(|d| {
             d.flatten()

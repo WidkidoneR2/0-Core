@@ -28,10 +28,10 @@ pub enum Value {
     /// not read its input. The day one can, widening this is a compile error -- the same move
     /// CommandResult made twice -- so completeness stays proven rather than audited.
     ///
-    /// ⚠️ THE TYPE IS faelight_core::check::Skipped AND NOT A NEW ONE. INT-192 built it,
+    /// ⚠️ THE TYPE IS zero_core::check::Skipped AND NOT A NEW ONE. INT-192 built it,
     /// the doctor proved it, and a second owner of the same idea is the defect this codebase
     /// keeps finding.
-    Unknown(faelight_core::check::Skipped),
+    Unknown(zero_core::check::Skipped),
 }
 
 impl Value {
@@ -712,7 +712,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             let (agg, field) = if parts.len() == 2 {
                 (parts[0], parts[1])
             } else {
-                return Value::Unknown(faelight_core::check::Skipped::new(
+                return Value::Unknown(zero_core::check::Skipped::new(
                     "reduce",
                     format!("expected `reduce <agg> <field>`, got `{}`", expr),
                 ));
@@ -722,7 +722,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             // whatever the table holds, and reporting "column not numeric" for it would be a
             // second wrong answer stacked on the first.
             if !matches!(agg, "sum" | "avg" | "min" | "max") {
-                return Value::Unknown(faelight_core::check::Skipped::new(
+                return Value::Unknown(zero_core::check::Skipped::new(
                     "reduce",
                     format!("`{}` is not an aggregate (sum, avg, min, max)", agg),
                 ));
@@ -752,7 +752,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             }
             // The rows exist and not one of them carries the field. That is a typo, not a result.
             if present == 0 {
-                return Value::Unknown(faelight_core::check::Skipped::new(
+                return Value::Unknown(zero_core::check::Skipped::new(
                     "reduce",
                     format!("no column named `{}`", field),
                 ));
@@ -761,7 +761,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             // a reader needs the difference: one is a typo, the other is a misunderstanding about
             // the data.
             if nums.is_empty() {
-                return Value::Unknown(faelight_core::check::Skipped::new(
+                return Value::Unknown(zero_core::check::Skipped::new(
                     "reduce",
                     format!("column `{}` holds no numeric values", field),
                 ));
@@ -775,7 +775,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
                 // Unreachable: the aggregate was validated above. Kept as a refusal rather than a
                 // panic because an unreachable that lies is worse than one that explains itself.
                 other => {
-                    return Value::Unknown(faelight_core::check::Skipped::new(
+                    return Value::Unknown(zero_core::check::Skipped::new(
                         "reduce",
                         format!("`{}` passed validation but has no implementation", other),
                     ))

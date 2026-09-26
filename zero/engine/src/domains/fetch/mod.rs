@@ -68,7 +68,7 @@ fn get_term() -> String {
 }
 
 fn get_version(_ctx: &AppContext) -> String {
-    let version_file = faelight_core::paths::version_file();
+    let version_file = zero_core::paths::version_file();
     fs::read_to_string(&version_file)
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|_| "?.?.?".to_string())
@@ -81,7 +81,7 @@ fn get_zone(ctx: &AppContext) -> String {
 
 fn get_profile() -> String {
     // INT-250: one owner for the path.
-    Some(faelight_core::paths::current_profile_file())
+    Some(zero_core::paths::current_profile_file())
         .and_then(|p| fs::read_to_string(p).ok())
         .map(|s| s.trim().to_uppercase()[..3.min(s.trim().len())].to_string())
         .unwrap_or_else(|| "DEF".to_string())

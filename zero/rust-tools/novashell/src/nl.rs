@@ -477,7 +477,7 @@ pub fn load_toml_patterns(_core_root: &str) -> Vec<CustomPattern> {
 
     let paths = vec![
         // INT-247 Layer 3a: one owner.
-        faelight_core::paths::nl_patterns_file()
+        zero_core::paths::nl_patterns_file()
             .to_string_lossy()
             .to_string(),
         crate::core_integration::registry_root()

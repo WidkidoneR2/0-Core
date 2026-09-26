@@ -41,8 +41,7 @@ impl ToolScore {
 // ── Scoring Logic ─────────────────────────────────────────────────────────────
 
 fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
-    let registry =
-        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
+    let registry = std::fs::read_to_string(zero_core::paths::tools_registry()).unwrap_or_default();
 
     // Find the tool section and read expected_usage
     let mut in_tool = false;
@@ -71,7 +70,7 @@ fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
 }
 
 fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
-    let tool_path = faelight_core::paths::rust_tools_dir().join(name);
+    let tool_path = zero_core::paths::rust_tools_dir().join(name);
     let mut issues = Vec::new();
 
     // ── Usage score (25%) — calibrated by expected_usage ─────────────────
@@ -257,7 +256,7 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
 }
 
 fn get_all_tools(_core_root: &str) -> Vec<String> {
-    let tools_dir = faelight_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::rust_tools_dir();
     let mut tools = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
@@ -499,7 +498,7 @@ pub fn coverage(ctx: &AppContext) -> CoreResult<()> {
     let mut no_description = Vec::new();
 
     for tool in &tools {
-        let tool_path = faelight_core::paths::rust_tools_dir().join(tool);
+        let tool_path = zero_core::paths::rust_tools_dir().join(tool);
         if !tool_path.join("README.md").exists() {
             no_readme.push(tool.clone());
         }

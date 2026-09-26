@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn registry_path() -> PathBuf {
-    faelight_core::paths::meta_dir().join("plugins.toml")
+    zero_core::paths::meta_dir().join("plugins.toml")
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

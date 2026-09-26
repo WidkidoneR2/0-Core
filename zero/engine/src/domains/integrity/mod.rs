@@ -942,7 +942,7 @@ pub mod checks {
             // Both branches of the old conditional are gone: the Nix store is
             // not here, and scripts/ was deleted in e733287d. paths::bin_dir()
             // is the single owner of where a deployed binary lives.
-            let bin_dir = faelight_core::paths::bin_dir();
+            let bin_dir = zero_core::paths::bin_dir();
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
                 Err(_) => return issues,
@@ -1143,7 +1143,7 @@ pub mod checks {
                 std::env::var("HOME")
                     .map(|h| PathBuf::from(h).join(".zshrc"))
                     .unwrap_or_default(),
-                faelight_core::paths::shell_config(),
+                zero_core::paths::shell_config(),
             ];
 
             for config_path in &config_files {
@@ -1324,8 +1324,8 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
         "intent_status_directory" => {
             // Move complete intent from future/ to complete/
             let _root = std::path::PathBuf::from(&ctx.core_root);
-            let future_dir = faelight_core::paths::intents_dir().join("future");
-            let complete_dir = faelight_core::paths::intents_dir().join("complete");
+            let future_dir = zero_core::paths::intents_dir().join("future");
+            let complete_dir = zero_core::paths::intents_dir().join("complete");
             let mut moved = false;
             if let Ok(entries) = std::fs::read_dir(&future_dir) {
                 for entry in entries.flatten() {

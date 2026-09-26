@@ -1059,7 +1059,7 @@ fn main() -> Result<()> {
     {
         let args: Vec<String> = std::env::args().collect();
         if args.iter().any(|a| a == "--refresh-cheatsheet") {
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             match rusqlite::Connection::open(&db_path) {
                 Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                     Ok(stats) => {
@@ -1118,7 +1118,7 @@ struct RuntimeInit {
     db: db::ForestDb,
     cfg: config::ShellConfig,
     applied: config::ApplyReport,
-    diagnostics: faelight_core::check::Checked<Vec<String>>,
+    diagnostics: zero_core::check::Checked<Vec<String>>,
 }
 
 fn runtime_init() -> Result<RuntimeInit> {
@@ -1749,7 +1749,7 @@ fn run_input(
                 {
                     let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
                     let status_val = if exit_ok { "success" } else { "failure" };
-                    let status_file = faelight_core::paths::last_exit_status_file();
+                    let status_file = zero_core::paths::last_exit_status_file();
                     if let Some(dir) = status_file.parent() {
                         let _ = std::fs::create_dir_all(dir);
                     }
@@ -2304,8 +2304,8 @@ fn repl_main() -> Result<()> {
     // default instead of reading the variable again: the decision keeps one owner in paths.rs, and
     // this message cannot drift out of agreement with it.
     {
-        let resolved = faelight_core::paths::state_db();
-        if resolved != faelight_core::paths::runtime_dir().join("state.db") {
+        let resolved = zero_core::paths::state_db();
+        if resolved != zero_core::paths::runtime_dir().join("state.db") {
             eprintln!(
                 "  {} using a NON-CANONICAL database: {}",
                 colored::Colorize::bright_yellow("!"),
@@ -2723,7 +2723,7 @@ fn repl_main() -> Result<()> {
                     );
                     use std::os::unix::process::CommandExt;
                     // The deployed shell: ship installs nsh into paths::bin_dir().
-                    let candidates = vec![faelight_core::paths::bin_dir()
+                    let candidates = vec![zero_core::paths::bin_dir()
                         .join("nsh")
                         .to_string_lossy()
                         .to_string()];
@@ -2800,7 +2800,7 @@ fn repl_main() -> Result<()> {
                 // INT-260: cheat opens cheatsheet TUI
                 // INT-092: cheat --refresh rebuilds command_registry from live sources
                 if line.trim() == "cheat --refresh" {
-                    let db_path = faelight_core::paths::state_db();
+                    let db_path = zero_core::paths::state_db();
                     match rusqlite::Connection::open(&db_path) {
                         Ok(conn) => match cheatsheet_tui::refresh_registry(&conn) {
                             Ok(stats) => println!(
@@ -3259,7 +3259,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     let ledger_exists = crate::core_integration::present();
     mark("welcome: intent scan starting");
     let (complete_count, planned_count) = {
-        let intent_dir = faelight_core::paths::intents_dir();
+        let intent_dir = zero_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",
@@ -3742,8 +3742,8 @@ fn friday_daemon_event(
     let exit_code: i32 = {
         // INT-247 Layer 3a: the second reader of the caret channel. Writer and both readers
         // now name the same accessor, so the file has one owner instead of three spellings.
-        let status = std::fs::read_to_string(faelight_core::paths::last_exit_status_file())
-            .unwrap_or_default();
+        let status =
+            std::fs::read_to_string(zero_core::paths::last_exit_status_file()).unwrap_or_default();
         if status.trim() == "success" {
             0
         } else {
@@ -3755,7 +3755,7 @@ fn friday_daemon_event(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let sock_path_buf = faelight_core::paths::daemon_socket().display().to_string();
+    let sock_path_buf = zero_core::paths::daemon_socket().display().to_string();
     let sock_path = sock_path_buf.as_str();
     // Build JSON safely -- escape special chars in command
     let cmd_escaped = cmd_str

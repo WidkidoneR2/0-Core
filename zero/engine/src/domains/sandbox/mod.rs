@@ -9,12 +9,12 @@ use std::path::PathBuf;
 
 fn state_dir() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::sandbox_state_dir()
+    zero_core::paths::sandbox_state_dir()
 }
 
 fn snapshots_dir() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::sandbox_snapshots_dir()
+    zero_core::paths::sandbox_snapshots_dir()
 }
 
 #[derive(Debug, Deserialize)]

@@ -4,12 +4,12 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use chrono::Local;
 use colored::*;
-use faelight_core::check::{Checked, Skipped};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
+use zero_core::check::{Checked, Skipped};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 enum Severity {
@@ -58,7 +58,7 @@ struct ScanResult {
 
 fn last_scan_path() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::security_last_scan()
+    zero_core::paths::security_last_scan()
 }
 
 // INT-192: THREE WAYS TO REPORT ZERO WITHOUT LOOKING, and all three fired on this
@@ -468,7 +468,7 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
 pub fn history(_ctx: &AppContext) -> CoreResult<()> {
     // INT-250: one owner for the path.
-    let hist_path = faelight_core::paths::security_state_dir().join("scan-history.json");
+    let hist_path = zero_core::paths::security_state_dir().join("scan-history.json");
     let content = fs::read_to_string(&hist_path).unwrap_or_default();
     let history: Vec<serde_json::Value> = serde_json::from_str(&content).unwrap_or_default();
 
@@ -491,12 +491,12 @@ pub fn history(_ctx: &AppContext) -> CoreResult<()> {
 
 fn history_path() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::security_state_dir().join("scan-history.jsonl")
+    zero_core::paths::security_state_dir().join("scan-history.jsonl")
 }
 
 fn first_seen_path() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::security_state_dir().join("first-seen.json")
+    zero_core::paths::security_state_dir().join("first-seen.json")
 }
 
 #[derive(Debug, Serialize, Deserialize)]

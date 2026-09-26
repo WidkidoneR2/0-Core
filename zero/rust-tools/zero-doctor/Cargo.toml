@@ -21,4 +21,4 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # (a focus.toml path built as a string beside a neighbour that looked it up properly),
 # and it is also what makes this crate survive INT-247 Layer 3b -- the alias flip moves
 # paths.rs, and everything that asks it moves with it.
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }

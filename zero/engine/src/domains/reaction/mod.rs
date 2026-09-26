@@ -62,7 +62,7 @@ struct TomlRuleFile {
 }
 
 fn load_toml_overrides(_core_root: &str) -> Vec<TomlRule> {
-    let dir = faelight_core::paths::reactions_dir();
+    let dir = zero_core::paths::reactions_dir();
     let mut all = vec![];
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -261,7 +261,7 @@ fn eval_security_aging(ctx: &AppContext) -> Option<Reaction> {
 }
 
 fn eval_checkpoint_stale(_ctx: &AppContext) -> Option<Reaction> {
-    let cp_dir = faelight_core::paths::checkpoints_dir();
+    let cp_dir = zero_core::paths::checkpoints_dir();
     let latest = std::fs::read_dir(&cp_dir)
         .ok()?
         .filter_map(|e| e.ok())
@@ -315,7 +315,7 @@ fn eval_intent_overflow(ctx: &AppContext) -> Option<Reaction> {
 
 fn eval_forecast_declining(_ctx: &AppContext) -> Option<Reaction> {
     // Read forecast from cache file
-    let cache = faelight_core::paths::forecast_cache();
+    let cache = zero_core::paths::forecast_cache();
     let text = std::fs::read_to_string(&cache).ok()?;
     // Look for trend value
     let trend: f64 = text
@@ -394,7 +394,7 @@ fn goal_context_for(rule_id: &str, goals: &[GoalContext]) -> Option<String> {
 }
 
 fn current_health(_ctx: &AppContext) -> u32 {
-    std::fs::read_to_string(faelight_core::paths::health_cache())
+    std::fs::read_to_string(zero_core::paths::health_cache())
         .unwrap_or_else(|_| "95".to_string())
         .trim()
         .trim_end_matches('%')
@@ -481,7 +481,7 @@ pub fn disable(ctx: &AppContext, id: &str) -> CoreResult<()> {
 }
 
 fn toggle_rule(_ctx: &AppContext, id: &str, enabled: bool) -> CoreResult<()> {
-    let dir = faelight_core::paths::reactions_dir();
+    let dir = zero_core::paths::reactions_dir();
 
     let mut found = false;
     if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -546,7 +546,7 @@ pub fn add(
     priority: u8,
     cooldown_m: i64,
 ) -> CoreResult<()> {
-    let path = faelight_core::paths::reactions_config();
+    let path = zero_core::paths::reactions_config();
 
     let entry = format!(
         "\n[[rule]]\nid = \"{}\"\ndescription = \"{}\"\npriority = {}\ncooldown_m = {}\nenabled = true\n",
@@ -608,7 +608,7 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Show any custom rules
-    let custom_path = faelight_core::paths::reactions_config();
+    let custom_path = zero_core::paths::reactions_config();
     if custom_path.exists() {
         if let Ok(text) = std::fs::read_to_string(&custom_path) {
             if let Ok(parsed) = toml::from_str::<TomlRuleFile>(&text) {
@@ -930,7 +930,7 @@ struct DisciplineFile {
 }
 
 fn load_discipline(_core_root: &str) -> Vec<DisciplineRule> {
-    let path = faelight_core::paths::runtime_dir().join("reaction-discipline.toml");
+    let path = zero_core::paths::runtime_dir().join("reaction-discipline.toml");
     std::fs::read_to_string(&path)
         .ok()
         .and_then(|text| toml::from_str::<DisciplineFile>(&text).ok())

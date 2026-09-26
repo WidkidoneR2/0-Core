@@ -187,7 +187,7 @@ pub fn read_health() -> u32 {
     // With the second source gone, the Layer 3a note that sat here -- explaining why
     // read_health() could not be adopted -- is no longer true either, so this now uses the
     // shared accessor like every other reader. The fallback of 100 is unchanged.
-    faelight_core::paths::read_health()
+    zero_core::paths::read_health()
         .map(|h| h as u32)
         .unwrap_or(100)
 }
@@ -197,7 +197,7 @@ pub fn read_intent() -> String {
     //
     // This read /etc/faelight/INTENT, gone since Omarchy, and returned "" -- so the D-Bus
     // service told every caller there was NO ACTIVE INTENT while the ledger held several.
-    std::fs::read_to_string(faelight_core::paths::focus_file())
+    std::fs::read_to_string(zero_core::paths::focus_file())
         .ok()
         .and_then(|c| {
             c.lines().find_map(|line| {
@@ -211,7 +211,7 @@ pub fn read_intent() -> String {
 
 pub fn read_intent_id() -> u32 {
     // INT-250: focus.toml carries the id directly -- no INT-NNN scraping required.
-    std::fs::read_to_string(faelight_core::paths::focus_file())
+    std::fs::read_to_string(zero_core::paths::focus_file())
         .ok()
         .and_then(|c| {
             c.lines().find_map(|line| {
@@ -262,7 +262,7 @@ pub async fn run_forest_bus() {
     let mut last_health = read_health();
     let mut last_intent = read_intent();
     let mut last_deploy_id: i64 = {
-        let db = faelight_core::paths::state_db();
+        let db = zero_core::paths::state_db();
         rusqlite::Connection::open(&db)
             .ok()
             .and_then(|c| {
@@ -303,7 +303,7 @@ pub async fn run_forest_bus() {
                 if sleeping {
                     eprintln!("🌲 forest-bus: system suspending");
                     // Write suspend event to state.db
-                    let db = faelight_core::paths::state_db();
+                    let db = zero_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -316,7 +316,7 @@ pub async fn run_forest_bus() {
                     }
                 } else {
                     eprintln!("🌲 forest-bus: system waking");
-                    let db = faelight_core::paths::state_db();
+                    let db = zero_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -408,7 +408,7 @@ pub async fn run_forest_bus() {
 
         // ── Deploy check ──────────────────────────────────────────────────────
         {
-            let db = faelight_core::paths::state_db();
+            let db = zero_core::paths::state_db();
             if let Ok(conn_db) = rusqlite::Connection::open(&db) {
                 let rows: Vec<(i64, String, String, i64)> = conn_db
                     .prepare(

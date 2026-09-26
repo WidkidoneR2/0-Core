@@ -17,9 +17,7 @@ impl Cmd {
     }
 }
 fn db_path() -> String {
-    faelight_core::paths::state_db()
-        .to_string_lossy()
-        .to_string()
+    zero_core::paths::state_db().to_string_lossy().to_string()
 }
 fn open_db() -> rusqlite::Result<Connection> {
     let conn = Connection::open(db_path())?;

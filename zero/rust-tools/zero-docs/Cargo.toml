@@ -6,7 +6,7 @@ edition = "2021"
 description = "Living documentation engine — keeps README and welcome in sync with live state"
 
 [dependencies]
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 colored       = "2.1"
 dirs          = "5.0"
 chrono        = "0.4"

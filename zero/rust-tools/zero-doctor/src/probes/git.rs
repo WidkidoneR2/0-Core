@@ -16,7 +16,7 @@ use std::process::Command;
 /// with no tracking remote exits non-zero, and reading that as "nothing unpushed" is a different
 /// wrong answer from git being absent. It is reported as its own fact.
 pub fn status() -> Measurement {
-    let root = faelight_core::paths::core_root_string();
+    let root = zero_core::paths::core_root_string();
     let has_changes = match Command::new("git")
         .args(["-C", &root, "status", "--porcelain"])
         .output()
@@ -62,7 +62,7 @@ pub fn status() -> Measurement {
 /// ⭐ A HOOK THAT IS NOT EXECUTABLE IS SKIPPED SILENTLY BY GIT. That is the interesting failure
 /// here -- not a missing file, which anyone would notice, but a present one that never runs.
 pub fn hooks() -> Measurement {
-    let root = faelight_core::paths::core_root_string();
+    let root = zero_core::paths::core_root_string();
     let out = match Command::new("git")
         .args(["-C", &root, "config", "core.hooksPath"])
         .output()

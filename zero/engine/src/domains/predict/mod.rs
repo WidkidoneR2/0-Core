@@ -570,7 +570,7 @@ fn eligible_intents(
     planned: &[(String, String, String)],
 ) -> Vec<(String, String, String, Vec<u32>, String)> {
     // Load complete intent IDs
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
     let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
         .map(|d| {
             d.filter_map(|e| e.ok())
@@ -581,7 +581,7 @@ fn eligible_intents(
                 .collect()
         })
         .unwrap_or_default();
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     planned
         .iter()
         .filter_map(|(id, title, status)| {
@@ -634,8 +634,8 @@ fn strategic_boost(strategic: &str, unlocks_count: usize) -> f64 {
 pub fn predict_why(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     use colored::*;
     let _core_root = &ctx.core_root;
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
         .map(|d| {
             d.filter_map(|e| e.ok())
@@ -735,8 +735,8 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     let _core_root = &ctx.core_root;
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
 
     println!("{}", "🌲 Predict — Intent Velocity".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -861,7 +861,7 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     let _core_root = &ctx.core_root;
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
 
     println!("{}", "🌲 Predict — Next Intent".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());

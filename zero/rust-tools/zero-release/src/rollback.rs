@@ -68,8 +68,8 @@ pub fn get_sorted_versions(releases_dir: &PathBuf) -> Vec<String> {
 }
 
 pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
-    let gen_path = faelight_core::paths::runtime_dir().join("generation");
-    let releases_dir = faelight_core::paths::meta_dir().join("releases");
+    let gen_path = zero_core::paths::runtime_dir().join("generation");
+    let releases_dir = zero_core::paths::meta_dir().join("releases");
 
     let current = fs::read_to_string(&gen_path)
         .unwrap_or_default()
@@ -187,7 +187,7 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
 }
 
 fn emit_rollback_event(from: &str, to: &str) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
         return;
     }

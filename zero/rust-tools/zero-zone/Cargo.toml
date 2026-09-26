@@ -8,7 +8,7 @@ description = "Zone detection - identify numbered gravity zones"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 # Core infrastructure  
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 
 [lib]
 name = "zero_zone"

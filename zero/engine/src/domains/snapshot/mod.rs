@@ -61,7 +61,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     let now = chrono::Local::now();
 
     // Version
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
+    let version = std::fs::read_to_string(zero_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
@@ -76,8 +76,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .unwrap_or(0);
 
     // Tools from registry
-    let registry =
-        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
+    let registry = std::fs::read_to_string(zero_core::paths::tools_registry()).unwrap_or_default();
 
     let tool_names: Vec<String> = registry
         .lines()
@@ -105,7 +104,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .collect();
 
     // Health — read from cache or use default
-    let health: u32 = std::fs::read_to_string(faelight_core::paths::health_cache())
+    let health: u32 = std::fs::read_to_string(zero_core::paths::health_cache())
         .ok()
         .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
         .unwrap_or(95);
@@ -123,8 +122,8 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     };
 
     // Intent counts
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let intents_complete = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -134,7 +133,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
 
     // Active policies
     let policies_content =
-        std::fs::read_to_string(faelight_core::paths::registry_dir().join("sandbox-policies.toml"))
+        std::fs::read_to_string(zero_core::paths::registry_dir().join("sandbox-policies.toml"))
             .unwrap_or_default();
     let active_policies: Vec<String> = policies_content
         .lines()
@@ -447,7 +446,7 @@ fn render_json(d: &SnapshotData) -> String {
 // ── Save ──────────────────────────────────────────────────────────────────────
 
 fn save_snapshot(d: &SnapshotData, json_override: Option<&str>) -> CoreResult<()> {
-    let snapshots_dir = faelight_core::paths::snapshots_dir();
+    let snapshots_dir = zero_core::paths::snapshots_dir();
     std::fs::create_dir_all(&snapshots_dir).ok();
 
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();

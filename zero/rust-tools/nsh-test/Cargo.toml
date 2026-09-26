@@ -6,7 +6,7 @@ license = "MIT"
 description = "nsh permanent regression suite -- INT-202"
 
 [dependencies]
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 rusqlite = { version = "0.31", features = ["bundled"] }
 colored = "2"
 chrono = "0.4"

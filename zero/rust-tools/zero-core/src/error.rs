@@ -1,4 +1,4 @@
-//! Error types for faelight-core
+//! Error types for zero-core
 
 use thiserror::Error;
 

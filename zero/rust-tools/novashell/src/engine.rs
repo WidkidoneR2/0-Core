@@ -297,7 +297,7 @@ impl Engine {
         } else {
             format!("\"{}\"", line[15..].trim().replace('"', "'"))
         };
-        let sock_path = faelight_core::paths::daemon_socket().display().to_string();
+        let sock_path = zero_core::paths::daemon_socket().display().to_string();
         let dismiss_json = format!(
             r#"{{"id":3,"payload":{{"FridayDismiss":{{"pattern_trigger":{}}}}}}}"#,
             trigger
@@ -562,7 +562,7 @@ impl Engine {
             line[7..].trim().to_string()
         };
         println!("  \u{1f332} Friday: {}", "thinking...".dimmed());
-        let sock_path = faelight_core::paths::daemon_socket().display().to_string();
+        let sock_path = zero_core::paths::daemon_socket().display().to_string();
         let q_escaped = question.replace('"', "'");
         let query_json = format!(
             r#"{{"id":2,"payload":{{"FridayQuery":{{"question":"{}","context":null}}}}}}"#,
@@ -2177,7 +2177,7 @@ pub fn execute_and_record(
         let exit_ok = engine.last_exit().map(|c| c == 0).unwrap_or(true);
         let status_val = if exit_ok { "success" } else { "failure" };
         // INT-247 Layer 3a: THE WRITER of the caret channel, through one owner.
-        let status_file = faelight_core::paths::last_exit_status_file();
+        let status_file = zero_core::paths::last_exit_status_file();
         if let Some(dir) = status_file.parent() {
             let _ = std::fs::create_dir_all(dir);
         }

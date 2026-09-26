@@ -54,7 +54,7 @@ pub fn run_history_search(initial_query: &str) -> Option<String> {
 }
 
 fn resolve_db_path() -> Option<PathBuf> {
-    Some(faelight_core::paths::state_db())
+    Some(zero_core::paths::state_db())
 }
 
 fn run_loop(

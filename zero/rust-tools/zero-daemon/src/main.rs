@@ -8,7 +8,7 @@ mod protocol;
 use clap::Parser;
 use colored::*;
 use daemon::Daemon;
-use faelight_core::paths;
+use zero_core::paths;
 
 #[derive(Parser)]
 #[command(name = "zero-daemon")]
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
-        .open(faelight_core::paths::friday_log())
+        .open(zero_core::paths::friday_log())
         .map(|mut f| {
             use std::io::Write;
             let _ = f.write_all(format!("[friday] daemon started on {}\n", socket_path).as_bytes());

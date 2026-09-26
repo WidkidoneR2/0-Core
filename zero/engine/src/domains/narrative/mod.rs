@@ -70,7 +70,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
         .unwrap_or_else(|| "?".to_string());
 
     // Count tools from registry
-    let tool_count = std::fs::read_to_string(faelight_core::paths::tools_registry())
+    let tool_count = std::fs::read_to_string(zero_core::paths::tools_registry())
         .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
@@ -135,8 +135,8 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter IV — Intentions".bright_white().bold());
     println!("  │");
 
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let complete_count = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -162,7 +162,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
     println!("  │");
 
-    let releases_dir = faelight_core::paths::meta_dir().join("releases");
+    let releases_dir = zero_core::paths::meta_dir().join("releases");
     if releases_dir.exists() {
         let mut releases: Vec<String> = std::fs::read_dir(&releases_dir)
             .map(|d| {
@@ -240,8 +240,8 @@ fn intent_narrative(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     println!("  │");
 
     // Find the intent file
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
 
     let intent_file = std::fs::read_dir(&complete_dir)
         .ok()

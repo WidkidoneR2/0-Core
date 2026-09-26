@@ -1,5 +1,5 @@
 //! ⚠️ THE _ctx PARAMETERS ARE DELIBERATE. Journal stopped needing AppContext when
-//! its paths moved to faelight_core::paths, but &AppContext is the calling
+//! its paths moved to zero_core::paths, but &AppContext is the calling
 //! convention EVERY domain's public functions share, and journal will need it
 //! again the moment it reads the database. Breaking the convention for one
 //! domain costs more than an underscore.
@@ -11,11 +11,11 @@ use colored::*;
 use std::path::PathBuf;
 fn today_path() -> PathBuf {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    faelight_core::paths::journal_dir().join(format!("{}.md", date))
+    zero_core::paths::journal_dir().join(format!("{}.md", date))
 }
 /// Append an entry to today's journal
 pub fn write_entry(_ctx: &AppContext, _kind: &str, message: &str) -> CoreResult<()> {
-    let dir = faelight_core::paths::journal_dir();
+    let dir = zero_core::paths::journal_dir();
     std::fs::create_dir_all(&dir)?;
     let path = today_path();
     let time = chrono::Local::now().format("%H:%M").to_string();
@@ -79,7 +79,7 @@ pub fn week(_ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "📖 Journal — This Week".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let dir = faelight_core::paths::journal_dir();
+    let dir = zero_core::paths::journal_dir();
     let mut entries: Vec<(String, String)> = Vec::new();
     for i in 0..7 {
         let date = (chrono::Local::now() - chrono::Duration::days(i))
@@ -127,7 +127,7 @@ pub fn search(_ctx: &AppContext, term: &str) -> CoreResult<()> {
     );
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let dir = faelight_core::paths::journal_dir();
+    let dir = zero_core::paths::journal_dir();
     let mut found = 0;
     if let Ok(entries) = std::fs::read_dir(&dir) {
         let mut dates: Vec<String> = entries
@@ -175,7 +175,7 @@ pub fn show(_ctx: &AppContext, date: &str) -> CoreResult<()> {
     show_date(date, date)
 }
 fn show_date(date: &str, label: &str) -> CoreResult<()> {
-    let path = faelight_core::paths::journal_dir().join(format!("{}.md", date));
+    let path = zero_core::paths::journal_dir().join(format!("{}.md", date));
     println!();
     println!(
         "{} {}",

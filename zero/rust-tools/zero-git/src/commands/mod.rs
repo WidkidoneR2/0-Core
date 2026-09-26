@@ -16,7 +16,7 @@ use rusqlite;
 /// Returns (id, short_title). Single source of truth -- callers: done.rs, sync.rs.
 pub(crate) fn get_active_intent() -> Option<(String, String)> {
     let _home = std::env::var("HOME").ok()?;
-    let dir = faelight_core::paths::intents_dir()
+    let dir = zero_core::paths::intents_dir()
         .join("in-progress")
         .to_string_lossy()
         .to_string();
@@ -56,7 +56,7 @@ pub(crate) fn get_active_intent() -> Option<(String, String)> {
 /// Single recorder; called by BOTH `fg done` and `fg sync` so the table never goes stale again.
 /// gate_hint deferred to Phase 3; intent_status honest (in-progress when an intent is active, else none).
 pub(crate) fn record_commit(hash: &str, message: &str) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
         Err(_) => return,
@@ -83,7 +83,7 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
         let _home = std::env::var("HOME").unwrap_or_default();
         let prefix = format!("{:03}-", iid);
         for sub in ["in-progress", "future"] {
-            let dir = faelight_core::paths::intents_dir()
+            let dir = zero_core::paths::intents_dir()
                 .join(sub)
                 .to_string_lossy()
                 .to_string();

@@ -210,7 +210,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     // Read planned + in-progress intents from filesystem
     let mut open_intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
     for dir in &["future", "active"] {
-        let path = faelight_core::paths::intents_dir().join(dir);
+        let path = zero_core::paths::intents_dir().join(dir);
         if let Ok(entries) = std::fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let p = entry.path();
@@ -793,7 +793,7 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
                 let mut count = 0i64;
                 for dir in &["future"] {
                     if let Ok(entries) =
-                        std::fs::read_dir(faelight_core::paths::intents_dir().join(dir))
+                        std::fs::read_dir(zero_core::paths::intents_dir().join(dir))
                     {
                         for entry in entries.flatten() {
                             if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
@@ -886,7 +886,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     let active_intents: i64 = {
         let _root = std::path::PathBuf::from(&ctx.core_root);
         let mut count = 0i64;
-        if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join("future")) {
+        if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join("future")) {
             for entry in entries.flatten() {
                 if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                     if let Ok(c) = std::fs::read_to_string(entry.path()) {
@@ -1109,7 +1109,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Scan complete intents and extract domain patterns
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
     let mut domain_counts: std::collections::HashMap<String, i64> =
         std::collections::HashMap::new();
     let mut total_complete = 0i64;

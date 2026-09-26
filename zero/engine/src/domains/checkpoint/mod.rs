@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn checkpoints_dir() -> PathBuf {
-    faelight_core::paths::checkpoints_dir()
+    zero_core::paths::checkpoints_dir()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ fn timestamp() -> String {
 }
 
 fn read_version() -> String {
-    let version_file = faelight_core::paths::version_file();
+    let version_file = zero_core::paths::version_file();
     fs::read_to_string(version_file)
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
@@ -66,7 +66,7 @@ fn read_git_head() -> String {
 
 fn read_tool_versions() -> HashMap<String, String> {
     let mut versions = HashMap::new();
-    let tools_dir = faelight_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::rust_tools_dir();
     if let Ok(entries) = fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let cargo_toml = entry.path().join("Cargo.toml");
@@ -126,7 +126,7 @@ fn read_config_hashes() -> HashMap<String, String> {
 }
 
 fn read_last_health() -> u32 {
-    let state_db = faelight_core::paths::state_db();
+    let state_db = zero_core::paths::state_db();
     if !state_db.exists() {
         return 0;
     }

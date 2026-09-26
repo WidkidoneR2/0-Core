@@ -7,7 +7,7 @@ use colored::*;
 use std::io::{self, Write};
 
 fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pushed: bool) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -53,7 +53,7 @@ fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pu
     }
 }
 fn emit_git_event(action: &str, detail: &str) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -106,7 +106,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     {
         let _home = std::env::var("HOME").unwrap_or_default();
         // INT-333 v5: scan both future/ and in-progress/ for active intents
-        let base = faelight_core::paths::intents_dir();
+        let base = zero_core::paths::intents_dir();
         let mut active: Vec<String> = Vec::new();
         for dir_name in &["future", "in-progress"] {
             let dir = base.join(dir_name);
@@ -199,7 +199,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── v4 Risk Assessment ─────────────────────────────────
     {
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         if let Ok(conn) = rusqlite::Connection::open(&db_path) {
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -222,7 +222,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
             }
             // Health warning
             // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-            let health: i64 = faelight_core::paths::read_health()
+            let health: i64 = zero_core::paths::read_health()
                 .map(|h| h as i64)
                 .unwrap_or(100);
             if health < 95 {
@@ -272,7 +272,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     } else {
         let _home = std::env::var("HOME").unwrap_or_default();
         // INT-333 v5: scan both future/ and in-progress/ directories
-        let base = faelight_core::paths::intents_dir();
+        let base = zero_core::paths::intents_dir();
         let mut active: Vec<(String, String)> = Vec::new();
         for dir_name in &["future", "in-progress"] {
             let dir = base.join(dir_name);

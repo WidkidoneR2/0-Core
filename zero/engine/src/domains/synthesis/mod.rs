@@ -36,7 +36,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // 1. Health
-    let health: u32 = faelight_core::paths::read_health()
+    let health: u32 = zero_core::paths::read_health()
         .map(|h| h as u32)
         .unwrap_or(100);
     // 2. Alignment

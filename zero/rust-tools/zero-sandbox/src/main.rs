@@ -191,7 +191,7 @@ fn which_bwrap() -> Option<String> {
 
 fn state_dir() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::sandbox_state_dir()
+    zero_core::paths::sandbox_state_dir()
 }
 
 fn session_path() -> PathBuf {
@@ -501,7 +501,7 @@ fn emit_to_ledger_with_policy(
     files_changed: usize,
     policy_name: Option<&str>,
 ) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -534,7 +534,7 @@ fn emit_to_ledger_with_policy(
 
 #[allow(dead_code)]
 fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
         return;
     }
@@ -565,7 +565,7 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
 
 fn main() -> Result<()> {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     // The exit status of the command the sandbox ran. 0 until a Run arm sets it.
     let mut child_exit_code = 0i32;
     let cli = Cli::parse();
@@ -1503,7 +1503,7 @@ fn main() -> Result<()> {
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         }
         Commands::Audit { tool, limit } => {
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             if !db_path.exists() {
                 println!("  {} state.db not found — no audit data yet", "○".dimmed());
                 return Ok(());

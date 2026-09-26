@@ -19,7 +19,7 @@ name = "nsh"
 path = "src/main.rs"
 
 [dependencies]
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 rustyline = "17.0.2"
 colored = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }

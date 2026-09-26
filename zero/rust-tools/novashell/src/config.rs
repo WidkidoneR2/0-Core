@@ -75,7 +75,7 @@ pub fn config_path() -> std::path::PathBuf {
     // ONE OWNER. This built the path itself and honoured NSH_CONFIG; three other readers
     // built it too and honoured nothing. paths::shell_config now carries both, so pointing
     // the shell at a different config moves every reader with it.
-    faelight_core::paths::shell_config()
+    zero_core::paths::shell_config()
 }
 
 /// Parse config.fsh and return structured config.
@@ -212,12 +212,12 @@ pub fn load() -> ShellConfig {
 /// Validate config syntax without loading. Ok(errors) when the file was read;
 /// Err(Skipped) when it could not be. INT-192: an unreadable config used to
 /// validate CLEAN, and that clean reached the startup diagnostics.
-pub fn validate() -> faelight_core::check::Checked<Vec<String>> {
+pub fn validate() -> zero_core::check::Checked<Vec<String>> {
     let path = config_path();
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
         Err(e) => {
-            return Err(faelight_core::check::Skipped::new(
+            return Err(zero_core::check::Skipped::new(
                 format!("config {}", path.display()),
                 e,
             ))

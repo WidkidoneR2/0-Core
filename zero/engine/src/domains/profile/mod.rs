@@ -20,12 +20,12 @@ fn profiles_toml(ctx: &AppContext) -> PathBuf {
 
 fn state_file() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::current_profile_file()
+    zero_core::paths::current_profile_file()
 }
 
 fn log_file() -> PathBuf {
     // INT-250: one owner for the path.
-    faelight_core::paths::profile_log()
+    zero_core::paths::profile_log()
 }
 
 fn load_profiles(ctx: &AppContext) -> Vec<Profile> {

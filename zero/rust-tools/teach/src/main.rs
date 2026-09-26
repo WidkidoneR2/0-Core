@@ -43,7 +43,7 @@ struct Progress {
 
 impl Progress {
     fn path() -> PathBuf {
-        faelight_core::paths::teach_progress_file()
+        zero_core::paths::teach_progress_file()
     }
 
     fn load() -> Self {
@@ -109,7 +109,7 @@ impl SystemSnapshot {
         let core = format!("{}/0-core", home);
 
         // Core version — parse from CHANGELOG
-        let core_version = fs::read_to_string(faelight_core::paths::changelog_file())
+        let core_version = fs::read_to_string(zero_core::paths::changelog_file())
             .unwrap_or_default()
             .lines()
             .find(|l| l.starts_with("## v"))
@@ -183,7 +183,7 @@ impl SystemSnapshot {
 }
 
 fn gather_intent_counts(_core: &str) -> (usize, usize) {
-    let intent_dir = faelight_core::paths::intents_dir()
+    let intent_dir = zero_core::paths::intents_dir()
         .to_string_lossy()
         .to_string();
     let mut total = 0usize;
@@ -218,7 +218,7 @@ fn gather_intent_counts(_core: &str) -> (usize, usize) {
 }
 
 fn count_tools(_core: &str) -> usize {
-    let tools_dir = faelight_core::paths::rust_tools_dir()
+    let tools_dir = zero_core::paths::rust_tools_dir()
         .to_string_lossy()
         .to_string();
     std::fs::read_dir(&tools_dir)
@@ -1456,7 +1456,7 @@ fn show_shell_progress(lessons: &[Lesson]) {
 
 fn main() {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let args: Vec<String> = std::env::args().collect();
 
     // Fast flags

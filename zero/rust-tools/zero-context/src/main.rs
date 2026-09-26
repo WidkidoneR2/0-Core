@@ -407,7 +407,7 @@ fn cmd_summary(path: &str) {
 
 fn cmd_decisions(path: &str) {
     let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let intents_dir = faelight_core::paths::intents_dir().join("complete");
+    let intents_dir = zero_core::paths::intents_dir().join("complete");
 
     println!();
     println!("  {} Code ↔ Intent Links", "🔗".normal());
@@ -461,7 +461,7 @@ fn cmd_decisions(path: &str) {
 
 fn main() {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let cli = Cli::parse();
 
     if cli.health {

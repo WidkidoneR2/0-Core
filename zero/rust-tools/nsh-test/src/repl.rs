@@ -62,7 +62,7 @@ pub fn fsh_bin() -> String {
             // machine was no longer running. The same defect as the store path this
             // fallback was written to fix, arriving from the other side: then it could not
             // find its subject, now it finds the WRONG one confidently.
-            let p = faelight_core::paths::bin_dir().join("nsh");
+            let p = zero_core::paths::bin_dir().join("nsh");
             // BOTH ARMS REFUSE NOW. The Ok arm has always exited 2 when NSH_BIN names a
             // missing binary, with the right reasoning: refusing to fall back is how a
             // stale binary is kept from passing. The fallback arm did no such check, so

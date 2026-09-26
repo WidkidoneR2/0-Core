@@ -7,7 +7,7 @@ description = "Git governance for Project 0 -- guarded commits, health-aware ver
 
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 # Existing
 clap = { version = "4", features = ["derive"] }
 colored = "2"

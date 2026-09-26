@@ -1903,7 +1903,7 @@ fn execute_dispatch(
             // session load <name>   -- restore directory + show history
             // session list          -- show all saved sessions
             // session delete <name> -- remove a saved session (INT-269)
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -2076,7 +2076,7 @@ fn execute_dispatch(
                 .and_then(|a| a.parse().ok())
                 .unwrap_or(10)
                 .min(50);
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("history-replay: {}", e).into(), 1),
@@ -2107,7 +2107,7 @@ fn execute_dispatch(
         "env-save" => {
             // env-save <name>  -- save current environment snapshot (INT-269)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-save: {}", e).into(), 1),
@@ -2157,7 +2157,7 @@ fn execute_dispatch(
         "env-load" => {
             // env-load <name>  -- show vars from snapshot (can't set parent env)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-load: {}", e).into(), 1),
@@ -2209,7 +2209,7 @@ fn execute_dispatch(
             // env-rollback  -- restore the MOST RECENT env snapshot (INT-134).
             // Rollback = "undo my env changes back to the last saved version".
             // Reuses the env-load restore machinery; no name needed -- takes newest by saved_at.
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-rollback: {}", e).into(), 1),
@@ -2252,7 +2252,7 @@ fn execute_dispatch(
         "env-diff" => {
             // env-diff <name>  -- diff current env vs snapshot (INT-269)
             let name = args.first().copied().unwrap_or("default");
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-diff: {}", e).into(), 1),
@@ -2330,7 +2330,7 @@ fn execute_dispatch(
                 .copied()
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| format!("./{}.env.toml", name));
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-export: {}", e).into(), 1),
@@ -2419,7 +2419,7 @@ fn execute_dispatch(
             }
             let n_vars = vars.len();
             let vars_json = serde_json::Value::Object(vars).to_string();
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("env-import: {}", e).into(), 1),
@@ -2452,7 +2452,7 @@ fn execute_dispatch(
             // Reads shell_history_audit: append-only, DB-enforced (delete/update blocked
             // by triggers). This surfaces the tamper-proof record we capture on every command.
             let n: i64 = args.first().and_then(|s| s.parse().ok()).unwrap_or(20);
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => return CommandResult::Error(format!("audit-log: {}", e).into(), 1),
@@ -4068,9 +4068,7 @@ fn execute_dispatch(
                     Err(e) => CommandResult::Error(format!("delete: {}", e).into(), 1),
                 }
             } else {
-                let trash_dir = faelight_core::paths::trash_dir()
-                    .to_string_lossy()
-                    .to_string();
+                let trash_dir = zero_core::paths::trash_dir().to_string_lossy().to_string();
                 let _ = std::fs::create_dir_all(&trash_dir);
                 let file_name = target
                     .file_name()
@@ -4869,7 +4867,7 @@ fn execute_dispatch(
             }
 
             // 3. Check config.nsh aliases
-            let config_path = faelight_core::paths::shell_config();
+            let config_path = zero_core::paths::shell_config();
             if let Ok(config) = std::fs::read_to_string(&config_path) {
                 for line in config.lines() {
                     if line.trim_start().starts_with("alias ") {
@@ -7715,15 +7713,16 @@ fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
                     }
                     // It is a file and its metadata is unreadable -- rare, and still not an
                     // empty directory.
-                    Err(e) => CommandResult::Value(Value::Unknown(
-                        faelight_core::check::Skipped::new(format!("read {}", path.display()), e),
-                    )),
+                    Err(e) => CommandResult::Value(Value::Unknown(zero_core::check::Skipped::new(
+                        format!("read {}", path.display()),
+                        e,
+                    ))),
                 };
             }
             // ⭐ THE REASON SURVIVES. This is the branch `.ok()` erased: permission denied, a
             // path that does not exist, a broken symlink. Each of them used to render as an
             // empty directory, which is a different fact entirely.
-            CommandResult::Value(Value::Unknown(faelight_core::check::Skipped::new(
+            CommandResult::Value(Value::Unknown(zero_core::check::Skipped::new(
                 format!("list {}", path.display()),
                 e,
             )))
@@ -10566,7 +10565,7 @@ fn observe_session(db: &ForestDb) -> CommandResult {
     let commits = std::process::Command::new("git")
         .args([
             "-C",
-            &faelight_core::paths::core_dir().to_string_lossy(),
+            &zero_core::paths::core_dir().to_string_lossy(),
             "rev-list",
             "--count",
             "HEAD",
@@ -10664,7 +10663,7 @@ fn observe_diff(db: &ForestDb) -> CommandResult {
     let commits = std::process::Command::new("git")
         .args([
             "-C",
-            &faelight_core::paths::core_dir().to_string_lossy(),
+            &zero_core::paths::core_dir().to_string_lossy(),
             "rev-list",
             "--count",
             "HEAD",
@@ -12503,7 +12502,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
     let alias_count = aliases;
     // Load health from cache
-    // This function already calls faelight_core::paths::state_db() three lines
+    // This function already calls zero_core::paths::state_db() three lines
     // below; the health path was hand-built with format! right here. One owner.
     let health: String = match crate::core_integration::health() {
         Some(h) => format!("{}%", h),
@@ -12511,7 +12510,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     };
     // Load Friday live data from state.db
     let (friday_patterns, friday_facts) = {
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         let conn = rusqlite::Connection::open_with_flags(
             &db_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -12568,7 +12567,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         // ⚠ ️ THE FALLBACK WAS "v14.0.0": a version number that is not this system's, invented at
         // some point and stated as fact whenever the read failed -- which, since Omarchy, was
         // EVERY TIME. The forest has been reporting a version it has never had.
-        faelight_core::paths::read_version()
+        zero_core::paths::read_version()
             .unwrap_or_else(|| "?".to_string())
             .bright_green()
     ));
@@ -12729,7 +12728,7 @@ fn resolve_fsh_binary() -> String {
     // ship installs nsh into paths::bin_dir(), so that is asked for first. The four candidates
     // this replaced were NixOS-era paths under the pre-NovaShell binary name; none has existed
     // since 2026-08-26, so every call fell through to current_exe().
-    let deployed = faelight_core::paths::bin_dir().join("nsh");
+    let deployed = zero_core::paths::bin_dir().join("nsh");
     if deployed.exists() {
         return deployed.to_string_lossy().to_string();
     }
@@ -14254,7 +14253,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "cargo-udeps -- find unused deps"
             ));
             out.push_str(&format!(
-                "\n  tools with tests: novashell, faelight-core, zero-update, core-diff\n"
+                "\n  tools with tests: novashell, zero-core, zero-update, core-diff\n"
             ));
             CommandResult::Output(out)
         }
@@ -14795,9 +14794,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ));
 
     // 2. state.db writable
-    let db_path = faelight_core::paths::state_db()
-        .to_string_lossy()
-        .to_string();
+    let db_path = zero_core::paths::state_db().to_string_lossy().to_string();
     let db_ok = std::path::Path::new(&db_path).exists();
     checks.push((
         "state.db",
@@ -14811,7 +14808,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     // 3. focus.toml readable
     // INT-250: one owner for the path.
-    let focus_ok = faelight_core::paths::focus_file().exists();
+    let focus_ok = zero_core::paths::focus_file().exists();
     let focus_note = if focus_ok {
         db.get_focus_intent()
             .map(|i| format!("INT-{} active", i))
@@ -15851,7 +15848,7 @@ fn guard_cmd(args: &[&str]) -> CommandResult {
     //   guard deny  add|remove <cmd>
     //   guard allow add|remove <cmd>
     // deny wins over allow at check time; both match on the command's first word.
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => return CommandResult::Error(format!("guard: {}", e).into(), 1),
@@ -16133,7 +16130,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
             // INT-247 Layer 3a: one owner. NOT paths::scripts_dir(), which is the REPO's
             // scripts -- this is the user's own, beside their config.
-            let home_path = faelight_core::paths::shell_scripts_dir();
+            let home_path = zero_core::paths::shell_scripts_dir();
 
             println!();
             println!("  {} .fsh scripts", "🌿".normal());
@@ -16239,7 +16236,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             let candidates = vec![
                 resolved.clone(),
                 format!("{}/scripts/fsh/{}", core_root, resolved),
-                faelight_core::paths::shell_scripts_dir()
+                zero_core::paths::shell_scripts_dir()
                     .join(&resolved)
                     .to_string_lossy()
                     .to_string(),

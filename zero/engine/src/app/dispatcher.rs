@@ -48,7 +48,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             // INT-247: the version has ONE owner, meta/VERSION, read through paths::read_version().
             // This used to query a domain_state key that state.db has never held, so every run
             // printed an invented 13.0.0. An unreadable version prints ?, never a number.
-            let version = faelight_core::paths::read_version().unwrap_or_else(|| "?".to_string());
+            let version = zero_core::paths::read_version().unwrap_or_else(|| "?".to_string());
             println!("  {} {}", "Project 0:".dimmed(), version.bright_cyan());
             println!(
                 "  {} {} facts · {} patterns",
@@ -633,7 +633,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::domains::friday::doc_steward::resolve_proposal(ctx, id, false)
             }
             FridayCommand::Attention | FridayCommand::AttentionDebug => {
-                let db_path = faelight_core::paths::state_db();
+                let db_path = zero_core::paths::state_db();
                 if let Ok(db) = rusqlite::Connection::open(&db_path) {
                     crate::domains::friday::attention::show_debug(&db);
                 }

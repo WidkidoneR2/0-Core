@@ -14,12 +14,12 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
             Capability::FilesystemWriteHome,
         ],
     )?;
-    let tools_dir = faelight_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::rust_tools_dir();
 
     match package {
         None => {
             // Show system version
-            let version = fs::read_to_string(faelight_core::paths::version_file())
+            let version = fs::read_to_string(zero_core::paths::version_file())
                 .map(|s| s.trim().to_string())
                 .unwrap_or_else(|_| "unknown".to_string());
             println!("{}", version);

@@ -77,8 +77,8 @@ fn has(tool: &str) -> bool {
 ///   - running something other than target/debug   -> one line, because the wrapper wanted debug
 ///   - a debug build exists and DIFFERS from this  -> louder, because a newer gate was skipped
 ///
-/// ⚠️ NO faelight-core. This crate has zero dependencies on purpose -- a gate that needs the forest
-/// to check formatting is the house holding its own door. faelight_core::differs exists and is not
+/// ⚠️ NO zero-core. This crate has zero dependencies on purpose -- a gate that needs the forest
+/// to check formatting is the house holding its own door. zero_core::differs exists and is not
 /// imported; length-then-bytes on two files is std, and staying std is the point.
 fn provenance(root: &Path) {
     let Ok(running) = std::env::current_exe() else {
@@ -250,10 +250,10 @@ fn gate_rustfmt(root: &Path, staged: &[String]) -> Verdict {
 
 fn main() -> ExitCode {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    // INLINE, NOT the faelight_core helper: this crate DELIBERATELY has no faelight-core
+    // INLINE, NOT the zero_core helper: this crate DELIBERATELY has no zero-core
     // dependency -- see the comment in its Cargo.toml: "a gate that needs an intent ledger to
     // run `cargo fmt` is carrying a house to hold a door open." The body is one line; the
-    // reasoning lives in faelight_core::restore_sigpipe's doc comment.
+    // reasoning lives in zero_core::restore_sigpipe's doc comment.
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }

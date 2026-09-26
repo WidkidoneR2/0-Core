@@ -342,8 +342,8 @@ pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
     separator();
     println!();
 
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
 
     let complete_count = std::fs::read_dir(&complete_dir)
         .map(|e| {

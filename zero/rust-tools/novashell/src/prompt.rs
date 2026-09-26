@@ -433,7 +433,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         };
         parts.push(friday_hint);
 
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         let has_friday_msg = rusqlite::Connection::open_with_flags(
             &db_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -470,7 +470,7 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     let theme = db.get_theme();
     // INT-247 Layer 3a: one owner for the path.
     let last_status =
-        std::fs::read_to_string(faelight_core::paths::last_exit_status_file()).unwrap_or_default();
+        std::fs::read_to_string(zero_core::paths::last_exit_status_file()).unwrap_or_default();
     let last_status = last_status.trim();
     let caret = if last_status == "failure" {
         fc_bold_rl(C_PROMPT_FAIL.0, C_PROMPT_FAIL.1, C_PROMPT_FAIL.2, "❯")

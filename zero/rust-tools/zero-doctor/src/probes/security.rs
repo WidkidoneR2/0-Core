@@ -15,7 +15,7 @@ pub fn sandbox() -> Measurement {
     if which::which("zero-sandbox").is_err() {
         return Measurement::fail("zero-sandbox not deployed");
     }
-    let policies = faelight_core::paths::registry_dir().join("sandbox-policies.toml");
+    let policies = zero_core::paths::registry_dir().join("sandbox-policies.toml");
     if !policies.exists() {
         return Measurement::warn(format!("{} not found", policies.display()));
     }
@@ -43,7 +43,7 @@ pub fn sandbox() -> Measurement {
 /// run found nothing. The answer is PARTIAL, not absent, and the message says which part is
 /// missing instead of leaving the reader to guess.
 pub fn security_audit() -> Measurement {
-    let path = faelight_core::paths::security_last_scan();
+    let path = zero_core::paths::security_last_scan();
     if !path.exists() {
         return Measurement::warn("no scan found -- run: core security scan");
     }

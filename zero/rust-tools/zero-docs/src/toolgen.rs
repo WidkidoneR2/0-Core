@@ -193,7 +193,7 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
 
 /// Gather metadata for ALL tools on disk (rust-tools/*/Cargo.toml).
 pub fn gather_all() -> Vec<ToolMeta> {
-    let rt = faelight_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::rust_tools_dir();
     let registry = parse_registry();
     let mut metas = vec![];
     if let Ok(entries) = std::fs::read_dir(&rt) {
@@ -499,7 +499,7 @@ fn cap_first(s: &str) -> String {
 /// in it. That is why the two are separable and why only this one is safe to run.
 pub fn cmd_index(dry_run: bool) {
     let metas = gather_all();
-    let rt = faelight_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::rust_tools_dir();
     let index = render_index(&metas);
     let path = rt.join("README.md");
     if dry_run {
@@ -524,7 +524,7 @@ pub fn cmd_index(dry_run: bool) {
 
 pub fn cmd_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = faelight_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::rust_tools_dir();
     let mut written = 0usize;
     let mut skipped = 0usize;
 
@@ -707,7 +707,7 @@ pub fn cmd_changelog_preview(name: &str) {
 /// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
 pub fn cmd_changelog_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = faelight_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::rust_tools_dir();
     let mut written = 0usize;
     for m in &metas {
         let path = rt.join(&m.name).join("CHANGELOG.md");

@@ -308,7 +308,7 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
             let core_engine = format!("{}/engine", core_root);
-            let core_intents = faelight_core::paths::intents_dir()
+            let core_intents = zero_core::paths::intents_dir()
                 .to_string_lossy()
                 .to_string();
             for protected in [
@@ -347,10 +347,10 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
     if cmd == "cp" || cmd == "mv" || cmd == "install" {
         // All three take the destination last, including: install -m 755 src dest
         let dest = expanded.split_whitespace().last().unwrap_or("");
-        let bin_dir = faelight_core::paths::bin_dir();
+        let bin_dir = zero_core::paths::bin_dir();
         let bin_str = bin_dir.to_string_lossy().to_string();
         let dest_expanded = if let Some(rest) = dest.strip_prefix("~/") {
-            format!("{}/{}", faelight_core::paths::home().display(), rest)
+            format!("{}/{}", zero_core::paths::home().display(), rest)
         } else {
             dest.to_string()
         };
@@ -1543,7 +1543,7 @@ mod preexec_boundary_tests {
     /// future edit could repoint it at `ctx.raw` and nothing would object.
     #[test]
     fn blocks_aliased_rm_on_forest_source() {
-        let intents = faelight_core::paths::intents_dir()
+        let intents = zero_core::paths::intents_dir()
             .to_string_lossy()
             .to_string();
         let ctx = aliased("cleanup", &["rm", "-rf", intents.as_str()]);

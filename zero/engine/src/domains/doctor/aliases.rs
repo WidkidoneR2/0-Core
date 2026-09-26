@@ -1,10 +1,10 @@
 //! Alias audit — absorbed from rust-tools/alias-audit
 use crate::errors::CoreResult;
 use colored::*;
-use faelight_core::paths;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use zero_core::paths;
 
 /// Tools that should have an alias, READ FROM THE REGISTRY rather than named here.
 ///
@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// (faelight-logout). It reported All 8 tools have aliases while asking only whether
 /// an alias EXISTED, never whether the tool did.
 ///
-/// Two consumers also skipped zero-daemon and faelight-core by name -- exclusions
+/// Two consumers also skipped zero-daemon and zero-core by name -- exclusions
 /// guarding entries the list did not contain.
 ///
 /// Same failure as check_scripts and the faelight-launcher registry entry: a hardcoded
@@ -27,12 +27,12 @@ use std::path::PathBuf;
 // parse_aliases below, whose unwrap_or_default makes every tool read as missing.)
 // The doc comment above was written to kill a census that went stale silently; the
 // same disease was left sitting in its own error arm.
-pub fn expected_tools() -> faelight_core::check::Checked<Vec<String>> {
-    let path = faelight_core::paths::tools_registry();
+pub fn expected_tools() -> zero_core::check::Checked<Vec<String>> {
+    let path = zero_core::paths::tools_registry();
     let content = match fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => {
-            return Err(faelight_core::check::Skipped::new(
+            return Err(zero_core::check::Skipped::new(
                 format!("tools registry at {}", path.display()),
                 e,
             ))
@@ -146,7 +146,7 @@ fn check_missing(aliases: &HashMap<String, String>) -> CoreResult<()> {
         }
     };
     for tool in &expected {
-        if *tool == "zero-daemon" || *tool == "faelight-core" {
+        if *tool == "zero-daemon" || *tool == "zero-core" {
             continue;
         }
         if !aliases.values().any(|v| v.contains(tool)) {
@@ -269,7 +269,7 @@ pub fn output_doctor_format(aliases: &HashMap<String, String>) -> CoreResult<()>
         }
     };
     for tool in &expected {
-        if *tool == "zero-daemon" || *tool == "faelight-core" {
+        if *tool == "zero-daemon" || *tool == "zero-core" {
             continue;
         }
         if !aliases.values().any(|v| v.contains(tool)) {

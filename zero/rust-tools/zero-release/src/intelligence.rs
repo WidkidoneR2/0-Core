@@ -17,7 +17,7 @@ pub struct RichStats {
 }
 impl RichStats {
     pub fn load(core_root: &PathBuf) -> Self {
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         let mut stats = RichStats {
             sessions: 0,
             total_commits: 0,
@@ -74,7 +74,7 @@ impl RichStats {
             .unwrap_or(0) as u32;
         // Current health
         // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-        stats.health_at_release = faelight_core::paths::read_health()
+        stats.health_at_release = zero_core::paths::read_health()
             .map(|h| h as u32)
             .unwrap_or(100);
         // Lines from git
@@ -104,7 +104,7 @@ impl RichStats {
         }
         // Intents completed from intents/complete/
         stats.intents_completed =
-            std::fs::read_dir(faelight_core::paths::intents_dir().join("complete"))
+            std::fs::read_dir(zero_core::paths::intents_dir().join("complete"))
                 .map(|d| d.count())
                 .unwrap_or(0) as u32;
         stats

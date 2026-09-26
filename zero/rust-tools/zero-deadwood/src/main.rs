@@ -5,10 +5,10 @@
 
 use clap::Parser;
 use colored::*;
-use faelight_core::check::{Checked, Skipped};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+use zero_core::check::{Checked, Skipped};
 
 #[derive(Parser)]
 #[command(
@@ -80,7 +80,7 @@ fn core_root() -> PathBuf {
 }
 
 fn main() {
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let cli = Cli::parse();
     let root = core_root();
     if cli.purge {
@@ -241,7 +241,7 @@ fn report(title: &str, findings: Checked<Vec<Finding>>) -> usize {
 // Reads the LIVE config. It read the repo copy, which is why deadwood kept
 // reporting aliases that had already been deleted from the file in use.
 fn config_fsh(_root: &Path) -> PathBuf {
-    faelight_core::paths::shell_config()
+    zero_core::paths::shell_config()
 }
 
 const BUILTINS: &[&str] = &[
@@ -660,7 +660,7 @@ const BAK_PROTECT: &[&str] = &["regreet"];
 /// INT-256: every binary that prints must survive `tool | head -3`, or say why it is exempt.
 ///
 /// THE DEFECT THIS EXISTS FOR IS NOT THE MISSING FIX, IT IS THE MISSING ADOPTION. On 2026-08-27
-/// someone found a fleet-wide bug, wrote the one-line cure in faelight_core::restore_sigpipe,
+/// someone found a fleet-wide bug, wrote the one-line cure in zero_core::restore_sigpipe,
 /// documented it well, and fixed the three tools in front of them. Nothing asked the other twenty.
 /// By 2026-09-23 four were measured still panicking -- teach, zero-docs, zero-git,
 /// zero-context -- and SIX tools had solved it independently in FOUR different shapes: the
@@ -716,7 +716,7 @@ fn check_sigpipe_adoption(root: &Path) -> Checked<Vec<Finding>> {
         out.push(Finding {
             confidence: Confidence::High,
             detail: format!(
-                "{} does not call faelight_core::restore_sigpipe() in the first statements of main, \
+                "{} does not call zero_core::restore_sigpipe() in the first statements of main, \
                  and carries no `// INT-256-EXEMPT: <reason>` -- `{} ... | head -3` will print a panic",
                 name, name
             ),

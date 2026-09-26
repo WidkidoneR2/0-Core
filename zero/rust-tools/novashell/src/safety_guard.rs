@@ -182,7 +182,7 @@ fn guard_list_contains(kind: &str, word: &str) -> Option<bool> {
     if word.is_empty() {
         return Some(false);
     }
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
         Err(_) => return None,

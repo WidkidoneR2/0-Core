@@ -195,7 +195,7 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     // Format: alias NAME = "COMMAND"   (optional trailing # comment).
     let mut aliases = 0usize;
     {
-        let cfg_path = Some(faelight_core::paths::shell_config());
+        let cfg_path = Some(zero_core::paths::shell_config());
         if let Some(path) = cfg_path {
             if let Ok(text) = std::fs::read_to_string(&path) {
                 let mut ins = tx.prepare(
@@ -261,7 +261,7 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     let mut builtins = 0usize;
     {
         tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
-        let mod_path = faelight_core::paths::rust_tools_dir().join("novashell/src/commands/mod.rs");
+        let mod_path = zero_core::paths::rust_tools_dir().join("novashell/src/commands/mod.rs");
         const SKIP: &[&str] = &[
             "bash",
             "zsh",
@@ -352,7 +352,7 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
 }
 
 pub fn run_cheatsheet_tui(_core_root: &str) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(_) => return,
@@ -739,7 +739,7 @@ fn load_entries(conn: &Connection) -> Vec<Entry> {
 fn live_alias_names() -> std::collections::HashSet<String> {
     let mut set = std::collections::HashSet::new();
     {
-        let path = faelight_core::paths::shell_config();
+        let path = zero_core::paths::shell_config();
         if let Ok(text) = std::fs::read_to_string(&path) {
             for line in text.lines() {
                 if let Some(rest) = line.trim().strip_prefix("alias ") {

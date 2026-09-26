@@ -7,7 +7,7 @@ use std::path::PathBuf;
 /// Write a single event to the JSONL log file
 /// Call this alongside any direct db.execute for events
 pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
-    let events_dir = faelight_core::paths::events_dir();
+    let events_dir = zero_core::paths::events_dir();
     if !events_dir.exists() && std::fs::create_dir_all(&events_dir).is_err() {
         return;
     }
@@ -47,7 +47,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn init() -> CoreResult<Self> {
-        let root = faelight_core::paths::runtime_dir();
+        let root = zero_core::paths::runtime_dir();
         let logs = root.join("logs");
         let cache = root.join("cache");
         let snapshots = root.join("snapshots");
@@ -66,7 +66,7 @@ impl Runtime {
         // ⭐ IDENTICAL BEHAVIOUR WITH NO OVERRIDE SET -- state_db() returns runtime_dir().join(
         // "state.db"), which is what this line already computed. The change is that the override
         // now reaches the reader that matters.
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         let backups = root.join("backups");
         fs::create_dir_all(&backups)?;
         let db = Connection::open(&db_path)?;
@@ -229,7 +229,7 @@ impl<'a> EventWriter<'a> {
     }
 
     fn append_jsonl(&self, domain: &str, action: &str, payload: &str, ts: i64) {
-        let events_dir = faelight_core::paths::events_dir();
+        let events_dir = zero_core::paths::events_dir();
         if !events_dir.exists() && std::fs::create_dir_all(&events_dir).is_err() {
             return;
         }

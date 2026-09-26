@@ -5,9 +5,9 @@ edition = "2021"
 
 # ⚠️ NO DEPENDENCIES, AND THAT IS THE POINT. This runs from a git hook on every commit, so it must
 # start instantly and must not need the project it is guarding. It deliberately does NOT depend on
-# faelight-core: that crate carries 0-Core's directory layout, and a gate that needs an intent
+# zero-core: that crate carries 0-Core's directory layout, and a gate that needs an intent
 # ledger to run `cargo fmt` is carrying a house to hold a door open.
 [dependencies]
-# INT-256: libc ONLY, not faelight-core. The broken-pipe fix is one signal call, and the
+# INT-256: libc ONLY, not zero-core. The broken-pipe fix is one signal call, and the
 # comment above records why this gate does not carry the ledger crate to get it.
 libc = "0.2"

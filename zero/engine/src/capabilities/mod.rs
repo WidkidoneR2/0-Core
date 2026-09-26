@@ -42,7 +42,7 @@ pub struct CapabilityContext {
 
 impl CapabilityContext {
     pub fn unprivileged() -> Self {
-        let log_path = faelight_core::paths::capabilities_log();
+        let log_path = zero_core::paths::capabilities_log();
         let mut granted = HashSet::new();
         granted.insert(Capability::FilesystemReadConfig);
         granted.insert(Capability::FilesystemReadHome);

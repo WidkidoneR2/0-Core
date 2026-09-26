@@ -1,6 +1,6 @@
 //! Neovim plugin checker — supports LazyVim, AstroNvim, NvChad
-use faelight_core::check::{Checked, Skipped};
 use std::process::Command;
+use zero_core::check::{Checked, Skipped};
 
 /// Detect which neovim distribution is installed
 pub enum NvimDistro {

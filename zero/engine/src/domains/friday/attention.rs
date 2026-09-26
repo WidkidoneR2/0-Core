@@ -101,7 +101,7 @@ pub fn compute_strategic_relevance(db: &Connection, event_detail: &str) -> f64 {
     // no-active-intent baseline even during focused work.
     let active_intent: Option<String> = {
         // INT-250: one owner for the path.
-        let from_toml = std::fs::read_to_string(faelight_core::paths::focus_file())
+        let from_toml = std::fs::read_to_string(zero_core::paths::focus_file())
             .ok()
             .and_then(|c| {
                 c.lines().find_map(|line| {

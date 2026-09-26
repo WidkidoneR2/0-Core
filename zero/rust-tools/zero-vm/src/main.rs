@@ -646,10 +646,10 @@ fn usage() -> ! {
 }
 
 fn main() {
-    // INT-256: FIRST statement, before any output. INLINE rather than the faelight_core
-    // helper, because this crate does not depend on faelight-core and one signal call is not
+    // INT-256: FIRST statement, before any output. INLINE rather than the zero_core
+    // helper, because this crate does not depend on zero-core and one signal call is not
     // worth a ledger crate. The reasoning -- why SIG_DFL, why 141, why no panic hook -- lives in
-    // faelight_core::restore_sigpipe's doc comment.
+    // zero_core::restore_sigpipe's doc comment.
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }

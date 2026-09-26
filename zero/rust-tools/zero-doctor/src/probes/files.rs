@@ -70,8 +70,8 @@ pub fn broken_symlinks() -> Measurement {
 /// compared a name with itself, a check that cannot fail. Both names are spelled out here.
 pub fn zero_alias() -> Measurement {
     let chains = [
-        ("state", faelight_core::paths::state_home()),
-        ("config", faelight_core::paths::config_dir()),
+        ("state", zero_core::paths::state_home()),
+        ("config", zero_core::paths::config_dir()),
     ];
     let mut issues: Vec<String> = Vec::new();
     let mut real: Vec<String> = Vec::new();
@@ -161,7 +161,7 @@ fn alias_pair(zero: &std::path::Path, old: &std::path::Path) -> Result<String, S
 /// how many and nothing about which -- so the warning could not be acted on without repeating
 /// the check by hand. Each issue names its file and what is wrong with it.
 pub fn zero_config() -> Measurement {
-    let dir = faelight_core::paths::zero_config_dir();
+    let dir = zero_core::paths::zero_config_dir();
     let mut issues: Vec<String> = Vec::new();
     for file in ["config.toml", "profiles.toml", "themes.toml"] {
         let path = dir.join(file);

@@ -108,7 +108,7 @@ pub struct ShippedIntent {
 
 pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<ShippedIntent> {
     // Read complete/ directory and find intents modified since the last tag
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
     if !complete_dir.exists() {
         return vec![];
     }
@@ -517,7 +517,7 @@ impl ReleaseStats {
 
         Self {
             // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-            health: faelight_core::paths::read_health()
+            health: zero_core::paths::read_health()
                 .map(|h| h as u32)
                 .unwrap_or(100),
             total_commits: commits,
@@ -541,7 +541,7 @@ fn count_tools(_core_root: &PathBuf) -> u32 {
     // zero tools -- it is a fact this cannot establish. faelight-docs hit exactly this
     // on 2026-09-02, wrote "0 custom Rust tools" onto the front page, and printed a
     // green check. It refuses now; so does this.
-    let tools_toml = faelight_core::paths::tools_registry();
+    let tools_toml = zero_core::paths::tools_registry();
     let content = match std::fs::read_to_string(&tools_toml) {
         Ok(c) => c,
         Err(e) => {
@@ -566,7 +566,7 @@ fn count_tools(_core_root: &PathBuf) -> u32 {
 fn count_complete_intents(_core_root: &PathBuf) -> u32 {
     // Count by scanning all intent subdirs for status: complete in frontmatter
     // This matches how core intent stats works
-    let intents_dir = faelight_core::paths::intents_dir();
+    let intents_dir = zero_core::paths::intents_dir();
     let mut count = 0u32;
     if let Ok(entries) = std::fs::read_dir(&intents_dir) {
         for entry in entries.flatten() {
@@ -593,7 +593,7 @@ fn count_complete_intents(_core_root: &PathBuf) -> u32 {
         count
     } else {
         // Hard fallback: just count complete/ dir
-        std::fs::read_dir(faelight_core::paths::intents_dir().join("complete"))
+        std::fs::read_dir(zero_core::paths::intents_dir().join("complete"))
             .map(|d| {
                 d.filter_map(|e| e.ok())
                     .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))

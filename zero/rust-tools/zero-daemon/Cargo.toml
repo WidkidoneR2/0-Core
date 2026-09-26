@@ -7,7 +7,7 @@ description = "Background daemon for Project 0 operations"
 
 [dependencies]
 # Core infrastructure
-faelight-core = { path = "../faelight-core" }
+zero-core = { path = "../zero-core" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

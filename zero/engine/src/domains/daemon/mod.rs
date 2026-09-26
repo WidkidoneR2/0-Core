@@ -5,7 +5,7 @@ use colored::*;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 fn socket_path() -> String {
-    faelight_core::paths::daemon_socket().display().to_string()
+    zero_core::paths::daemon_socket().display().to_string()
 }
 fn send_command(cmd: serde_json::Value) -> Result<serde_json::Value, String> {
     let path = socket_path();

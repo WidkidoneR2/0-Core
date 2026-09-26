@@ -121,7 +121,7 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
 /// Pure observation. Reads rust-tools, buckets by age, shows lifecycle stage.
 /// No suggestions. No interpretations. Data only.
 pub fn tools(_ctx: &AppContext) -> CoreResult<()> {
-    let tools_path = faelight_core::paths::rust_tools_dir();
+    let tools_path = zero_core::paths::rust_tools_dir();
 
     println!();
     println!("{}", "🔧  Tools Usage Analysis".bright_cyan().bold());
@@ -396,7 +396,7 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── Signal 3: Dormant tools ───────────────────────────────────────────────
-    let tools_path = faelight_core::paths::rust_tools_dir();
+    let tools_path = zero_core::paths::rust_tools_dir();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -852,7 +852,7 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Check tools directory
-    let tools_path = faelight_core::paths::rust_tools_dir();
+    let tools_path = zero_core::paths::rust_tools_dir();
     let mut affected_tools: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&tools_path) {
         for entry in entries.flatten() {
@@ -1128,7 +1128,7 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Intents at risk
-    let intents_path = faelight_core::paths::intents_dir().join("future");
+    let intents_path = zero_core::paths::intents_dir().join("future");
     let mut at_risk_intents: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&intents_path) {
         for entry in entries.flatten() {

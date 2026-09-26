@@ -115,7 +115,7 @@ struct App {
 
 impl App {
     fn new(initial_table: Option<&str>) -> anyhow::Result<Self> {
-        let db = Connection::open(faelight_core::paths::state_db())?;
+        let db = Connection::open(zero_core::paths::state_db())?;
         let tables = get_tables(&db);
         let mut app = App {
             db,

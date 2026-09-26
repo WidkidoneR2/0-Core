@@ -35,7 +35,7 @@ struct Tool {
 /// Returns the error rather than an empty list: AN UNREADABLE REGISTRY IS NOT AN EMPTY ONE, and
 /// that distinction is the whole reason these checks were wrong before.
 fn read_registry() -> Result<Registry, String> {
-    let path = faelight_core::paths::tools_registry();
+    let path = zero_core::paths::tools_registry();
     if !path.exists() {
         return Err(format!("tool registry not found at {}", path.display()));
     }
@@ -149,8 +149,8 @@ pub fn path_resilience() -> Measurement {
 /// the count plus THE FIRST ISSUE ONLY. With three problems you were told about one. This
 /// intent's own rule is that a count is not a finding, applied here only halfway.
 pub fn schema_validation() -> Measurement {
-    let schema_dir = faelight_core::paths::schema_dir();
-    let registry_dir = faelight_core::paths::registry_dir();
+    let schema_dir = zero_core::paths::schema_dir();
+    let registry_dir = zero_core::paths::registry_dir();
     if !schema_dir.exists() {
         return Measurement::unknown(format!("{} not found", schema_dir.display()));
     }
@@ -228,7 +228,7 @@ pub fn alias_coverage() -> Measurement {
         Ok(r) => r,
         Err(e) => return Measurement::unknown(format!("cannot say what needs an alias -- {}", e)),
     };
-    let path = faelight_core::paths::shell_config();
+    let path = zero_core::paths::shell_config();
     let text = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => {
@@ -265,7 +265,7 @@ pub fn alias_coverage() -> Measurement {
         })
         .map(|t| t.name.as_str())
         // A library crate and a background service are not things anyone types.
-        .filter(|n| *n != "faelight-core" && *n != "zero-daemon")
+        .filter(|n| *n != "zero-core" && *n != "zero-daemon")
         .collect();
 
     let missing: Vec<&str> = expected

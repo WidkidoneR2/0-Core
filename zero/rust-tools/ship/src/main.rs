@@ -13,7 +13,7 @@
 //      tools in the bin directory (and both cargo symlinks) are safe BY
 //      CONSTRUCTION, not by an exclusion list that could go stale.
 //   2. It asks cargo for the target list rather than reading the directory.
-//      target/release also holds libfaelight_core, libfaelight_git and
+//      target/release also holds libzero_core, libzero_git and
 //      libfaelight_zone -- rlibs that must never be shipped, and no naming rule
 //      could tell them apart reliably. The compiler knows; ask it.
 //   3. It replaces a running binary by rename, never by overwrite. A copy onto
@@ -94,7 +94,7 @@ fn metadata_targets(root: &Path) -> Result<Vec<Target>, String> {
 // Cheap first, exact second. Length differs -> certainly changed. Same length ->
 // read both, because a rebuild that produces an identical binary is common and
 // reinstalling it would make every run look like it did work it did not do.
-use faelight_core::differs;
+use zero_core::differs;
 
 /// Keep the newest three backups of one tool, delete the rest.
 ///
@@ -269,7 +269,7 @@ fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
 /// retired that morning -- exited "not installed" before either ran. The tool whose aliases were
 /// dangling was exactly the one ship could no longer say anything about.
 fn leftovers(tool: &str) {
-    let registry = faelight_core::paths::core_dir().join("zero/registry/tools.toml");
+    let registry = zero_core::paths::core_dir().join("zero/registry/tools.toml");
     let needle = format!("name = \"{}\"", tool);
     // INT-260: an unreadable registry SAYS SO. This was `if let Ok(text)`, which printed nothing
     // when the file could not be read -- and silence there reads as "the registry is fine".
@@ -311,8 +311,8 @@ fn leftovers(tool: &str) {
 /// Matching is by the tool name in the line, deliberately loose: over-reporting costs a glance,
 /// under-reporting costs a red suite one run later.
 fn alias_report(tool: &str) {
-    let repo = faelight_core::paths::core_dir().join("zero/registry/aliases.toml");
-    let live = faelight_core::paths::shell_config();
+    let repo = zero_core::paths::core_dir().join("zero/registry/aliases.toml");
+    let live = zero_core::paths::shell_config();
     let mut found: Vec<String> = Vec::new();
     for path in [repo, live] {
         match std::fs::read_to_string(&path) {
@@ -370,10 +370,10 @@ fn alias_report(tool: &str) {
 }
 
 fn main() {
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let args = Args::parse();
-    let root = faelight_core::paths::core_dir();
-    let bin = faelight_core::paths::bin_dir();
+    let root = zero_core::paths::core_dir();
+    let bin = zero_core::paths::bin_dir();
     let release = root.join("target/release");
     let backup_dir = root.join("bin");
 

@@ -167,7 +167,7 @@ fn cmd_public(dry_run: bool) {
     }
 
     // Generate index.md
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
+    let version = std::fs::read_to_string(zero_core::paths::version_file())
         .unwrap_or_default()
         .trim()
         .to_string();
@@ -205,7 +205,7 @@ fn cmd_public(dry_run: bool) {
 
 fn main() {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
 
@@ -295,7 +295,7 @@ struct LiveState {
 fn gather_state() -> LiveState {
     let root = core_root();
 
-    let version = std::fs::read_to_string(faelight_core::paths::version_file())
+    let version = std::fs::read_to_string(zero_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
@@ -322,7 +322,7 @@ fn gather_state() -> LiveState {
     //
     // A missing registry is not zero tools. It is a fact the generator cannot establish, and
     // writing a number it did not measure is how the README came to state something false.
-    let tools_path = faelight_core::paths::core_dir().join("zero/registry/tools.toml");
+    let tools_path = zero_core::paths::core_dir().join("zero/registry/tools.toml");
     let tool_count = match std::fs::read_to_string(&tools_path) {
         // ⚠️ NOT retired ONES. Fixing the path exposed the predicate: counting every
         // name = line gave 51, and 13 of those entries are RETIRED -- core-diff,
@@ -370,7 +370,7 @@ fn gather_state() -> LiveState {
 
     // Count intents by scanning all categories — mirrors doctor check_intents logic
     let (intent_complete, intent_planned) = {
-        let intent_dir = faelight_core::paths::intents_dir();
+        let intent_dir = zero_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",
@@ -406,7 +406,7 @@ fn gather_state() -> LiveState {
     let commits = std::process::Command::new("git")
         .args([
             "-C",
-            &faelight_core::paths::core_dir().to_string_lossy(),
+            &zero_core::paths::core_dir().to_string_lossy(),
             "rev-list",
             "--count",
             "HEAD",
@@ -423,10 +423,8 @@ fn gather_state() -> LiveState {
         // INT-247 Layer 3a: the PATH only. The `.or_else` below is a SECOND source -- the
         // state.db cache -- which read_health() knows nothing about, so adopting it would
         // silently drop the fallback. Only the hand-built path changes here.
-        std::fs::read_to_string(faelight_core::paths::health_status_file())
-            .or_else(|_| {
-                std::fs::read_to_string(faelight_core::paths::cache_dir().join("health.txt"))
-            })
+        std::fs::read_to_string(zero_core::paths::health_status_file())
+            .or_else(|_| std::fs::read_to_string(zero_core::paths::cache_dir().join("health.txt")))
             // Neither source readable: "?", not "100". Unknown is not a perfect score -- the
             // INT-192 class, fixed on the way under INT-247.
             .unwrap_or_else(|_| "?".to_string())
@@ -444,7 +442,7 @@ fn gather_state() -> LiveState {
     // TWO sites computed a path into a directory INT-061 moved. The other six root.join
     // calls in this file are correct -- docs, README.md and link resolution really are
     // relative to the repo root. Counted after writing three from memory and being wrong.
-    let domains_path = faelight_core::paths::core_dir().join("zero/engine/src/domains");
+    let domains_path = zero_core::paths::core_dir().join("zero/engine/src/domains");
     let core_domains = match std::fs::read_dir(&domains_path) {
         Ok(d) => d.flatten().filter(|e| e.path().is_dir()).count(),
         Err(e) => {

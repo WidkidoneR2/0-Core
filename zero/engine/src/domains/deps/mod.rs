@@ -263,7 +263,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
 
 fn gather_deps(_core_root: &str) -> HashMap<String, Vec<String>> {
     let mut result = HashMap::new();
-    let tools_dir = faelight_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::rust_tools_dir();
 
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
@@ -362,7 +362,7 @@ fn emit_event(ctx: &AppContext, action: &str) {
 
 /// Parse registry/tools.toml and return a map of tool -> depends_on list.
 fn read_tool_registry(_core_root: &str) -> HashMap<String, Vec<String>> {
-    let path = faelight_core::paths::tools_registry();
+    let path = zero_core::paths::tools_registry();
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => return HashMap::new(),

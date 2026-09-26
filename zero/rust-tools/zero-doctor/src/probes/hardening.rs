@@ -175,7 +175,7 @@ pub fn update_readiness() -> Measurement {
         (Err(why), _) | (_, Err(why)) => unreadable.push(format!("kernel state ({})", why)),
     }
 
-    let root = faelight_core::paths::core_root_string();
+    let root = zero_core::paths::core_root_string();
     match Command::new("git")
         .args(["-C", &root, "diff", "--quiet", "HEAD"])
         .status()

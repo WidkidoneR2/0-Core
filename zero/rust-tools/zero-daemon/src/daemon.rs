@@ -40,9 +40,7 @@ impl Daemon {
         }
 
         // INT-235 Gate 3: ensure friday_daemon_messages table exists
-        let _init_db = faelight_core::paths::state_db()
-            .to_string_lossy()
-            .to_string();
+        let _init_db = zero_core::paths::state_db().to_string_lossy().to_string();
         if let Ok(conn) = rusqlite::Connection::open(&_init_db) {
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS friday_daemon_messages (
@@ -60,9 +58,7 @@ impl Daemon {
 
         // Spawn SQLite polling task
         let poll_tx = tx.clone();
-        let db_path = faelight_core::paths::state_db()
-            .to_string_lossy()
-            .to_string();
+        let db_path = zero_core::paths::state_db().to_string_lossy().to_string();
         let db_path_poll = db_path.clone();
         tokio::spawn(async move {
             poll_events(poll_tx, db_path_poll).await;
@@ -107,7 +103,7 @@ impl Daemon {
         let mut connection_count = 0;
 
         // INT-247 Layer 3a: one owner for the path.
-        let log_path = faelight_core::paths::friday_log();
+        let log_path = zero_core::paths::friday_log();
         // Ensure log dir exists
         if let Some(parent) = std::path::Path::new(&log_path).parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -525,13 +521,11 @@ async fn signal_aggregation(db_path: String) {
 }
 // ── INT-196 v2 Command Implementations ───────────────────────────────────────
 fn get_db_path() -> String {
-    faelight_core::paths::state_db()
-        .to_string_lossy()
-        .to_string()
+    zero_core::paths::state_db().to_string_lossy().to_string()
 }
 fn read_health_cache() -> u32 {
     // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-    faelight_core::paths::read_health()
+    zero_core::paths::read_health()
         .map(|h| h as u32)
         .unwrap_or(100)
 }
@@ -556,7 +550,7 @@ async fn get_forest_context() -> crate::protocol::Response {
         .unwrap_or_else(|_| "dormant".to_string());
     // Get active intent from filesystem
     let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
-    let active_intent = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+    let active_intent = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
         .ok()
         .and_then(|d| {
             d.filter_map(|e| e.ok())
@@ -657,7 +651,7 @@ async fn get_engine_signals(limit: u32) -> crate::protocol::Response {
 }
 async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
     // Find active intent
-    let active = std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+    let active = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
         .ok()
         .and_then(|d| {
             d.filter_map(|e| e.ok())
@@ -722,7 +716,7 @@ async fn friday_record_event(
     timestamp: i64,
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridaySpeak {
             message: None,
@@ -799,7 +793,7 @@ async fn friday_record_event(
     }
     // Log to friday.log for diagnostics
     if let Some(ref msg) = speak_msg {
-        let log = faelight_core::paths::friday_log();
+        let log = zero_core::paths::friday_log();
         let entry = format!("[friday] speak: {}\n", msg);
         let _ = std::fs::OpenOptions::new()
             .append(true)
@@ -822,7 +816,7 @@ async fn friday_answer_query(
     _context: Option<String>,
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridayAnswer {
             answer: "Friday cannot access state.db right now.".to_string(),
@@ -1038,7 +1032,7 @@ async fn friday_learning_loop() {
 // INT-220 Gate 11 -- Negative learning: dismissal penalizes confidence by -0.3
 async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Response {
     use crate::protocol::Response;
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return Response::FridaySpeak {
             message: None,

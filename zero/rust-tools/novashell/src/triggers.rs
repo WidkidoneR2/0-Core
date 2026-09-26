@@ -61,13 +61,13 @@ pub fn add(db: &ForestDb, trigger: &str, action: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn list(db: &ForestDb) -> faelight_core::check::Checked<Vec<Trigger>> {
+pub fn list(db: &ForestDb) -> zero_core::check::Checked<Vec<Trigger>> {
     let mut stmt = match db
         .conn
         .prepare("SELECT id, trigger, action, enabled, fired_count FROM shell_triggers ORDER BY id")
     {
         Ok(s) => s,
-        Err(e) => return Err(faelight_core::check::Skipped::new("shell_triggers", e)),
+        Err(e) => return Err(zero_core::check::Skipped::new("shell_triggers", e)),
     };
     stmt.query_map([], |r| {
         Ok(Trigger {
@@ -79,7 +79,7 @@ pub fn list(db: &ForestDb) -> faelight_core::check::Checked<Vec<Trigger>> {
         })
     })
     // INT-192: a failed read is UNKNOWN, not an empty trigger list.
-    .map_err(|e| faelight_core::check::Skipped::new("shell_triggers", e))
+    .map_err(|e| zero_core::check::Skipped::new("shell_triggers", e))
     .map(|rows| rows.filter_map(|r| r.ok()).collect())
 }
 

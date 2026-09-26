@@ -166,7 +166,7 @@ fn get_drift_score() -> (String, String) {
 
 /// Log update run to state.db
 fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: i64, drift: &str) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     if let Ok(conn) = rusqlite::Connection::open(&db_path) {
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS update_history (
@@ -285,7 +285,7 @@ fn print_system_identity() {
     // INT-247 Layer 3a: the PATH only. This one DISPLAYS rather than computes, and its
     // absent-value is the string "?" -- the honest one of the fourteen: it shows that it could
     // not read rather than inventing a number. Kept exactly as it was.
-    let health = std::fs::read_to_string(faelight_core::paths::health_status_file())
+    let health = std::fs::read_to_string(zero_core::paths::health_status_file())
         .unwrap_or_else(|_| "?".to_string())
         .trim()
         .to_string();
@@ -324,7 +324,7 @@ fn print_system_identity() {
     println!("  {:<12} {}", "Drift:".dimmed(), drift_colored);
     // INT-207 L1 — Show active intents
     let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let intents_dir = faelight_core::paths::intents_dir().join("future");
+    let intents_dir = zero_core::paths::intents_dir().join("future");
     let active_intents: Vec<String> = std::fs::read_dir(&intents_dir)
         .map(|d| {
             d.filter_map(|e| e.ok())
@@ -355,7 +355,7 @@ fn print_system_identity() {
         );
     }
     // INT-207 L1 — Show alignment score
-    let state_db = faelight_core::paths::state_db();
+    let state_db = zero_core::paths::state_db();
     if let Ok(conn) = rusqlite::Connection::open(&state_db) {
         let align: Option<f64> = conn.query_row(
             "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
@@ -387,7 +387,7 @@ fn print_system_identity() {
     println!();
 }
 fn main() {
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     if let Err(e) = run() {
         eprintln!("{} {}", "❌".red(), format!("Error: {:#}", e).red());
         std::process::exit(1);
@@ -1313,7 +1313,7 @@ fn update_workspace() -> Result<()> {
 
     let status = Command::new("cargo")
         .args(["build", "--release"])
-        .current_dir(faelight_core::paths::core_dir())
+        .current_dir(zero_core::paths::core_dir())
         .status()
         .context("Failed to build workspace")?;
 
@@ -1410,7 +1410,7 @@ fn run_doctor_final() -> Result<u32> {
 fn check_git_status() -> Result<()> {
     let output = Command::new("git")
         .args(["status", "--porcelain", "-b"])
-        .current_dir(faelight_core::paths::core_dir())
+        .current_dir(zero_core::paths::core_dir())
         .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);

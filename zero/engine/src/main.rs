@@ -34,7 +34,7 @@ fn main() {
     // ⚠️ THE HOOK ALSO HANDLED EVERY OTHER PANIC (eprintln then exit 101). That is what Rust does
     // by default, so nothing is lost -- but it was a second behaviour riding along inside a
     // broken-pipe fix, and removing it is a deliberate change rather than a side effect.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let cmd = cli::parse();
 
     let ctx = match app::context::AppContext::init() {

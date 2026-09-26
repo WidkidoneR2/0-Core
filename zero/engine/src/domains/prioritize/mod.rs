@@ -15,7 +15,7 @@ struct GoalScore {
 }
 
 fn read_health(_ctx: &AppContext) -> u32 {
-    std::fs::read_to_string(faelight_core::paths::health_cache())
+    std::fs::read_to_string(zero_core::paths::health_cache())
         .unwrap_or_else(|_| "95".to_string())
         .trim()
         .trim_end_matches('%')

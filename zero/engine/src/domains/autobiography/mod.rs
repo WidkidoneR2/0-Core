@@ -4,7 +4,7 @@ use crate::errors::CoreResult;
 use colored::*;
 
 fn read_version(_ctx: &AppContext) -> String {
-    std::fs::read_to_string(faelight_core::paths::version_file())
+    std::fs::read_to_string(zero_core::paths::version_file())
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string()
@@ -99,7 +99,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     let total_commits: String = std::process::Command::new("git")
         .args([
             "-C",
-            &faelight_core::paths::core_dir().to_string_lossy(),
+            &zero_core::paths::core_dir().to_string_lossy(),
             "rev-list",
             "--count",
             "HEAD",

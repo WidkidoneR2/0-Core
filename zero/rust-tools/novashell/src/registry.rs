@@ -183,7 +183,7 @@ impl Registry {
         }
 
         // ── Forest scripts ────────────────────────────────────────────────────
-        let bin_dir = faelight_core::paths::bin_dir();
+        let bin_dir = zero_core::paths::bin_dir();
         if let Ok(entries) = std::fs::read_dir(&bin_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();

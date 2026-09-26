@@ -219,7 +219,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
 
     // Count in-progress intents
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let in_progress = std::fs::read_dir(&future_dir)
         .map(|d| {
             d.flatten()
@@ -410,7 +410,7 @@ fn disagree(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
 
     let in_progress = {
         let _root = std::path::PathBuf::from(&ctx.core_root);
-        std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+        std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
             .map(|d| {
                 d.flatten()
                     .filter(|e| {
@@ -473,7 +473,7 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
     let response = if q.contains("start") || q.contains("begin") || q.contains("cistart") {
         let in_progress = {
             let _root = std::path::PathBuf::from(&ctx.core_root);
-            std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+            std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
                 .map(|d| {
                     d.flatten()
                         .filter(|e| {
@@ -638,7 +638,7 @@ fn growth(ctx: &AppContext) -> CoreResult<()> {
     print_gate_warning(ctx);
 
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let complete_count = std::fs::read_dir(faelight_core::paths::intents_dir().join("complete"))
+    let complete_count = std::fs::read_dir(zero_core::paths::intents_dir().join("complete"))
         .map(|d| d.flatten().count())
         .unwrap_or(0);
 

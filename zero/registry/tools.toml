@@ -433,7 +433,7 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-core"
+name = "zero-core"
 version = "1.0.0"
 category = "core"
 description = "Shared library crate -- Wayland, theme, glyph, canvas primitives (lib, not a binary)"

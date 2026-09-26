@@ -30,7 +30,7 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     // caller states what absence means for itself; `unwrap_or(100)` says "treat a machine that
     // has never run the doctor as healthy", which is what this line did before. It is now said
     // here, where it can be argued with, rather than inside a read_to_string chain.
-    let health: i64 = faelight_core::paths::read_health()
+    let health: i64 = zero_core::paths::read_health()
         .map(|h| h as i64)
         .unwrap_or(100);
     println!();
@@ -112,7 +112,7 @@ pub fn record(
     db.execute_batch(CREATE_TABLE)?;
     let now = chrono::Utc::now().timestamp();
     // Read health
-    let health: i64 = faelight_core::paths::read_health()
+    let health: i64 = zero_core::paths::read_health()
         .map(|h| h as i64)
         .unwrap_or(100);
     // Read active intents from db
@@ -269,7 +269,7 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
     // records what can be RESTORED, and only the second question matters to
     // rollback. So the directory is the source of truth and the key is the
     // mtime ship stamps into the filename.
-    let bin_dir = faelight_core::paths::bin_dir();
+    let bin_dir = zero_core::paths::bin_dir();
     let backup_dir = std::path::PathBuf::from(&ctx.core_root).join("bin");
 
     let entries = match std::fs::read_dir(&backup_dir) {

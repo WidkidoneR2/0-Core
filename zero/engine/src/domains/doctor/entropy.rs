@@ -1,13 +1,13 @@
 //! entropy-check — absorbed from rust-tools/entropy-check
 use crate::errors::CoreResult;
 use chrono::Utc;
-use faelight_core::paths;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use zero_core::paths;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct EntropyBaseline {

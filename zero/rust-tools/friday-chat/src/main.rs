@@ -49,7 +49,7 @@ struct App {
 
 impl App {
     fn new() -> anyhow::Result<Self> {
-        let db_path = faelight_core::paths::state_db();
+        let db_path = zero_core::paths::state_db();
         let db = Connection::open(&db_path)?;
 
         // Get context
@@ -103,7 +103,7 @@ fn get_active_intent(db: &Connection) -> String {
     // INT-071: focus.toml is source of truth (written by cistart). shell_state row
     // went stale at the NixOS migration. Read the toml first, fall back to the row.
     // INT-250: one owner for the path.
-    if let Ok(content) = std::fs::read_to_string(faelight_core::paths::focus_file()) {
+    if let Ok(content) = std::fs::read_to_string(zero_core::paths::focus_file()) {
         for line in content.lines() {
             if let Some(rest) = line.strip_prefix("id = ") {
                 let id = rest.trim().trim_matches('"').to_string();
@@ -723,7 +723,7 @@ fn main() -> anyhow::Result<()> {
     // Support: friday chat why [term] -- direct query mode
     if args.len() > 2 && args.get(1).map(|s| s == "chat").unwrap_or(false) {
         let query = args[2..].join(" ");
-        let db = Connection::open(faelight_core::paths::state_db())?;
+        let db = Connection::open(zero_core::paths::state_db())?;
         println!("{}", friday_respond(&db, &query));
         return Ok(());
     }

@@ -209,10 +209,10 @@ fn fixture_home() -> Result<String, String> {
         "fixture",
     )?;
 
-    // `ls ~/0-core/zero/rust-tools` contains novashell, AND
-    // `ls ~/0-core/zero/rust-tools | grep faelight | wc -l` must be > 0 -- novashell alone
-    // does not contain the string "faelight", so a second entry that does is REQUIRED.
-    mkdir(&format!("{}/zero/rust-tools/faelight-core", core))?;
+    // `ls ~/0-core/zero/rust-tools` contains novashell and zero-core, as the real tree does.
+    // tilde_nested_pipe greps for novashell alone, so the second entry is what shows the
+    // filter ran: without it, grep keeping everything and grep keeping one look the same.
+    mkdir(&format!("{}/zero/rust-tools/zero-core", core))?;
     mkdir(&format!("{}/zero/rust-tools/novashell/src", core))?;
 
     // `cat ~/0-core/zero/rust-tools/novashell/Cargo.toml` contains novashell, and piped
@@ -576,7 +576,7 @@ fn all_tests() -> Vec<TestResult> {
                 format!("{}/docs/PHILOSOPHY.md", core),
                 format!("{}/zero/packages/faelight/scripts/deploy.sh", core),
                 format!("{}/zero/intents/future/placeholder.md", core),
-                format!("{}/zero/rust-tools/faelight-core", core),
+                format!("{}/zero/rust-tools/zero-core", core),
                 format!("{}/zero/rust-tools/novashell/Cargo.toml", core),
                 format!("{}/zero/rust-tools/novashell/src/main.rs", core),
                 format!("{}/.local/state/zero/state.db", root),
@@ -880,19 +880,18 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         }
     }));
-    // The fixture puts faelight-core beside novashell under rust-tools for exactly this case:
-    // novashell alone does not contain the string "faelight", so grep would count zero.
+    // A tilde path through a nested pipe. The fixture puts more than one entry under rust-tools
+    // and grep keeps exactly one, so a count of 1 shows all three stages ran: 0 means the tilde
+    // or the listing failed, more than 1 means grep kept everything. It needs no brand name.
     results.push(test("tilde_nested_pipe", Category::Tilde, || {
         let home = fixture_home()?;
         let out = run_fsh_env(
-            "ls ~/0-core/zero/rust-tools | grep faelight | wc -l",
+            "ls ~/0-core/zero/rust-tools | grep novashell | wc -l",
             &[("HOME", home.as_str())],
         )?;
-        let n: i32 = out.trim().parse().unwrap_or(0);
-        if n > 0 {
-            Ok(())
-        } else {
-            Err(format!("expected >0 got {}", n))
+        match out.trim() {
+            "1" => Ok(()),
+            other => Err(format!("expected 1 got {:?}", other)),
         }
     }));
     results.push(test("where_delete_vocab", Category::Vocabulary, || {
@@ -3487,7 +3486,7 @@ print('CLASS-DONE')"##;
 }
 
 fn store_results(results: &[TestResult]) {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         eprintln!("  ⚠️  could not open state.db -- results not stored");
         return;
@@ -3791,9 +3790,9 @@ fn main() {
         //
         // Silent when the release artifact is absent -- a clean tree has nothing to compare,
         // and a warning that fires on every fresh clone is one nobody reads.
-        let built = faelight_core::paths::core_dir().join("target/release/nsh");
+        let built = zero_core::paths::core_dir().join("target/release/nsh");
         let tested = std::path::PathBuf::from(repl::fsh_bin());
-        if built.exists() && tested.exists() && faelight_core::differs(&built, &tested) {
+        if built.exists() && tested.exists() && zero_core::differs(&built, &tested) {
             println!(
                 "  ⚠️  the binary above is NOT what cargo last built -- SAME VERSION, DIFFERENT BYTES"
             );

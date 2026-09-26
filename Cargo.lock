@@ -511,7 +511,6 @@ dependencies = [
  "clap",
  "colored",
  "dirs",
- "faelight-core",
  "flate2",
  "libc",
  "rusqlite",
@@ -524,6 +523,7 @@ dependencies = [
  "tracing-subscriber",
  "walkdir",
  "which",
+ "zero-core",
  "zero-doctor",
  "zero-zone",
 ]
@@ -650,9 +650,9 @@ dependencies = [
  "anyhow",
  "crossterm 0.28.1",
  "dirs",
- "faelight-core",
  "ratatui 0.28.1",
  "rusqlite",
+ "zero-core",
 ]
 
 [[package]]
@@ -805,16 +805,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-core"
-version = "1.0.0"
-dependencies = [
- "fontdue",
- "libc",
- "thiserror",
- "wayland-client",
-]
-
-[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,9 +900,9 @@ dependencies = [
  "colored",
  "crossterm 0.28.1",
  "dirs",
- "faelight-core",
  "ratatui 0.28.1",
  "rusqlite",
+ "zero-core",
 ]
 
 [[package]]
@@ -1633,7 +1623,6 @@ dependencies = [
  "chrono",
  "colored",
  "crossterm 0.28.1",
- "faelight-core",
  "git2",
  "libc",
  "miette",
@@ -1646,6 +1635,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "toml",
+ "zero-core",
  "zero-git",
 ]
 
@@ -1655,9 +1645,9 @@ version = "2.0.0"
 dependencies = [
  "chrono",
  "colored",
- "faelight-core",
  "nix 0.31.1",
  "rusqlite",
+ "zero-core",
 ]
 
 [[package]]
@@ -2419,8 +2409,8 @@ name = "ship"
 version = "1.0.0"
 dependencies = [
  "clap",
- "faelight-core",
  "serde_json",
+ "zero-core",
 ]
 
 [[package]]
@@ -2588,9 +2578,9 @@ version = "4.0.0"
 dependencies = [
  "clap",
  "colored",
- "faelight-core",
  "serde",
  "serde_json",
+ "zero-core",
 ]
 
 [[package]]
@@ -3687,11 +3677,11 @@ dependencies = [
  "chrono",
  "crossterm 0.28.1",
  "dirs",
- "faelight-core",
  "portable-pty",
  "ratatui 0.28.1",
  "rusqlite",
  "tokio",
+ "zero-core",
 ]
 
 [[package]]
@@ -3700,10 +3690,20 @@ version = "1.0.0"
 dependencies = [
  "clap",
  "colored",
- "faelight-core",
  "serde",
  "serde_json",
  "walkdir",
+ "zero-core",
+]
+
+[[package]]
+name = "zero-core"
+version = "1.0.0"
+dependencies = [
+ "fontdue",
+ "libc",
+ "thiserror",
+ "wayland-client",
 ]
 
 [[package]]
@@ -3713,13 +3713,13 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
- "faelight-core",
  "futures-util",
  "rusqlite",
  "serde",
  "serde_json",
  "tokio",
  "zbus",
+ "zero-core",
 ]
 
 [[package]]
@@ -3728,12 +3728,12 @@ version = "1.0.0"
 dependencies = [
  "clap",
  "colored",
- "faelight-core",
  "once_cell",
  "proc-macro2",
  "regex",
  "syn",
  "walkdir",
+ "zero-core",
 ]
 
 [[package]]
@@ -3743,8 +3743,8 @@ dependencies = [
  "chrono",
  "colored",
  "dirs",
- "faelight-core",
  "rusqlite",
+ "zero-core",
 ]
 
 [[package]]
@@ -3752,13 +3752,13 @@ name = "zero-doctor"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "faelight-core",
  "rusqlite",
  "serde",
  "serde_json",
  "toml",
  "walkdir",
  "which",
+ "zero-core",
 ]
 
 [[package]]
@@ -3793,11 +3793,11 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
- "faelight-core",
  "git2",
  "rusqlite",
  "serde_json",
  "thiserror",
+ "zero-core",
 ]
 
 [[package]]
@@ -3806,10 +3806,10 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "colored",
- "faelight-core",
  "rusqlite",
  "serde",
  "serde_json",
+ "zero-core",
 ]
 
 [[package]]
@@ -3821,13 +3821,13 @@ dependencies = [
  "clap",
  "crossterm 0.28.1",
  "dirs",
- "faelight-core",
  "libc",
  "ratatui 0.29.0",
  "rusqlite",
  "serde",
  "serde_json",
  "toml",
+ "zero-core",
 ]
 
 [[package]]
@@ -3839,7 +3839,6 @@ dependencies = [
  "clap",
  "colored",
  "dialoguer",
- "faelight-core",
  "libc",
  "rusqlite",
  "seccompiler",
@@ -3847,6 +3846,7 @@ dependencies = [
  "serde_json",
  "toml",
  "walkdir",
+ "zero-core",
 ]
 
 [[package]]
@@ -3859,7 +3859,6 @@ dependencies = [
  "colored",
  "crossterm 0.28.1",
  "dialoguer",
- "faelight-core",
  "indicatif",
  "once_cell",
  "ratatui 0.29.0",
@@ -3870,6 +3869,7 @@ dependencies = [
  "tokio",
  "toml",
  "walkdir",
+ "zero-core",
 ]
 
 [[package]]
@@ -3884,7 +3884,7 @@ name = "zero-zone"
 version = "2.1.0"
 dependencies = [
  "clap",
- "faelight-core",
+ "zero-core",
 ]
 
 [[package]]

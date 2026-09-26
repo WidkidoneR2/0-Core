@@ -48,7 +48,7 @@ pub fn present() -> bool {
 ///
 /// `None` on a machine without a forest -- which is every packaged install.
 pub fn tools_root() -> Option<PathBuf> {
-    let dir = faelight_core::paths::rust_tools_dir();
+    let dir = zero_core::paths::rust_tools_dir();
     if dir.is_dir() {
         Some(dir)
     } else {
@@ -90,7 +90,7 @@ pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
 /// EMPTY STRING, which printed as though it were a version. Returning Option
 /// moves that choice to the display, where it belongs.
 pub fn forest_version() -> Option<String> {
-    let v = std::fs::read_to_string(faelight_core::paths::version_file()).ok()?;
+    let v = std::fs::read_to_string(zero_core::paths::version_file()).ok()?;
     let v = v.trim().to_string();
     if v.is_empty() {
         None
@@ -107,7 +107,7 @@ pub fn forest_version() -> Option<String> {
 /// that anything was missing. The display fallback stays with the caller, which
 /// is whose choice it is.
 pub fn release_name() -> Option<String> {
-    let changelog = std::fs::read_to_string(faelight_core::paths::changelog_file()).ok()?;
+    let changelog = std::fs::read_to_string(zero_core::paths::changelog_file()).ok()?;
     changelog
         .lines()
         .find(|l| l.starts_with("## ["))
@@ -131,7 +131,7 @@ const RELEASE_SEPARATOR: char = '—';
 /// missing file are gone. This wraps for the 0-Core presence check only, and
 /// deliberately does not change what any caller displays.
 pub fn health() -> Option<u8> {
-    faelight_core::paths::read_health()
+    zero_core::paths::read_health()
 }
 
 /// The intent `cistart` last focused, when 0-Core is present.
@@ -150,7 +150,7 @@ pub fn health() -> Option<u8> {
 /// asked `paths.rs` -- so the census, which only finds `paths::` calls, could
 /// not see this coupling at all. INT-240's subject, inside the mechanism.
 pub fn focus() -> Option<(String, String)> {
-    let path = faelight_core::paths::state_home().join("0-core/intent/focus.toml");
+    let path = zero_core::paths::state_home().join("0-core/intent/focus.toml");
     let content = std::fs::read_to_string(path).ok()?;
     let mut id = String::new();
     let mut title = String::new();
@@ -177,7 +177,7 @@ pub fn focus() -> Option<(String, String)> {
 /// at `commands/mod.rs:4294` two passes ago: it overwrote a good `core_root`
 /// default with an empty path and ran `fd` against it.
 pub fn intents_root() -> Option<PathBuf> {
-    let dir = faelight_core::paths::intents_dir();
+    let dir = zero_core::paths::intents_dir();
     if dir.is_dir() {
         Some(dir)
     } else {
@@ -187,7 +187,7 @@ pub fn intents_root() -> Option<PathBuf> {
 
 /// The 0-Core registry directory, when 0-Core is present.
 pub fn registry_root() -> Option<PathBuf> {
-    let dir = faelight_core::paths::registry_dir();
+    let dir = zero_core::paths::registry_dir();
     if dir.is_dir() {
         Some(dir)
     } else {

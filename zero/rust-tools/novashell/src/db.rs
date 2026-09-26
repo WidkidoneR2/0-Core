@@ -65,8 +65,8 @@ impl ForestDb {
         // INT-061: derive both core_root and the db path from the single path
         // authority (paths.rs), not local format!/join. core_root is retained --
         // it is stored on ForestDb and exposed via core_root() for git ops etc.
-        let core_root = faelight_core::paths::core_root_string();
-        let db_path = faelight_core::paths::state_db();
+        let core_root = zero_core::paths::core_root_string();
+        let db_path = zero_core::paths::state_db();
 
         // Self-heal: ensure the runtime dir exists so a fresh environment (VM,
         // recovery shell, new machine) can create state.db instead of fsh dying
@@ -300,16 +300,16 @@ impl ForestDb {
     // INT-192: a failed read is UNKNOWN, not zero aliases. The prune loop in
     // config.rs reconciles against this list, so an empty vec on error reads as
     // "nothing worth keeping" -- the collapse that pruned 268 live aliases.
-    pub fn list_aliases(&self) -> faelight_core::check::Checked<Vec<(String, String)>> {
+    pub fn list_aliases(&self) -> zero_core::check::Checked<Vec<(String, String)>> {
         let mut stmt = match self
             .conn
             .prepare("SELECT name, command FROM shell_aliases ORDER BY name")
         {
             Ok(s) => s,
-            Err(e) => return Err(faelight_core::check::Skipped::new("shell_aliases", e)),
+            Err(e) => return Err(zero_core::check::Skipped::new("shell_aliases", e)),
         };
         stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-            .map_err(|e| faelight_core::check::Skipped::new("shell_aliases", e))
+            .map_err(|e| zero_core::check::Skipped::new("shell_aliases", e))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
     }
 
@@ -498,7 +498,7 @@ impl ForestDb {
     pub fn get_focus_intent(&self) -> Option<String> {
         // Read from focus.toml (written by cistart via core engine)
         // INT-250: one owner for the path.
-        if let Ok(content) = std::fs::read_to_string(faelight_core::paths::focus_file()) {
+        if let Ok(content) = std::fs::read_to_string(zero_core::paths::focus_file()) {
             for line in content.lines() {
                 if let Some(rest) = line.strip_prefix("id = ") {
                     return Some(rest.trim().trim_matches('"').to_string());

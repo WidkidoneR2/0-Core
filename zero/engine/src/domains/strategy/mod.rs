@@ -49,14 +49,14 @@ fn now_ts() -> i64 {
 fn get_health(_ctx: &AppContext) -> u32 {
     // INT-247 Layer 3a. The `%`-stripping this used to do by hand lives in read_health() already
     // -- it trims the suffix before parsing -- so nothing is lost by adopting it.
-    faelight_core::paths::read_health()
+    zero_core::paths::read_health()
         .map(|h| h as u32)
         .unwrap_or(100)
 }
 
 fn get_in_progress_intents(ctx: &AppContext) -> Vec<String> {
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+    std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
         .map(|entries| {
             entries
                 .flatten()
@@ -99,7 +99,7 @@ fn get_recent_commits(ctx: &AppContext) -> u64 {
 
 fn get_planned_intents(ctx: &AppContext) -> Vec<String> {
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+    std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
         .map(|entries| {
             entries
                 .flatten()
@@ -351,7 +351,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
 
     // Count complete intents — scan all categories by status: complete (mirrors doctor)
     let complete_count = {
-        let intent_dir = faelight_core::paths::intents_dir();
+        let intent_dir = zero_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",
@@ -608,7 +608,7 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
             // Check for related intents
             let _root = std::path::PathBuf::from(&ctx.core_root);
             let related: Vec<String> =
-                std::fs::read_dir(faelight_core::paths::intents_dir().join("future"))
+                std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
                     .map(|entries| {
                         entries
                             .flatten()
@@ -919,7 +919,7 @@ fn load_intent_meta(core_root: &str) -> Vec<IntentMeta> {
     let _root = std::path::PathBuf::from(core_root);
     let mut intents = Vec::new();
     for dir in &["future", "complete"] {
-        if let Ok(entries) = std::fs::read_dir(faelight_core::paths::intents_dir().join(dir)) {
+        if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join(dir)) {
             for entry in entries.flatten() {
                 if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                     continue;
@@ -1475,7 +1475,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     // Factor 3: Intent velocity (max 10)
     let _root = std::path::PathBuf::from(&ctx.core_root);
     let complete_count = {
-        let intent_dir = faelight_core::paths::intents_dir();
+        let intent_dir = zero_core::paths::intents_dir();
         let categories = [
             "complete",
             "decisions",
@@ -2403,8 +2403,8 @@ struct ScoredIntent {
 
 fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = faelight_core::paths::intents_dir().join("future");
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let future_dir = zero_core::paths::intents_dir().join("future");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
 
     // Collect complete intent IDs for dependency checking
     let complete_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)

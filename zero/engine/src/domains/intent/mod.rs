@@ -428,7 +428,7 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// The ONE validator. Context-free: reads `faelight_core::paths::intents_dir()`, the same
+/// The ONE validator. Context-free: reads `zero_core::paths::intents_dir()`, the same
 /// source doctor uses. Returns (intents_seen, issues). Callers decide how to present it.
 ///
 /// decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between them).
@@ -456,7 +456,7 @@ pub fn validate_issues() -> (usize, Vec<String>) {
         "philosophy",
     ];
 
-    let base = faelight_core::paths::intents_dir();
+    let base = zero_core::paths::intents_dir();
     let mut issues: Vec<String> = Vec::new();
     // ⚠️ AN ABSENT LEDGER IS NOT AN EMPTY ONE, and until 2026-08-23 this could not tell them apart.
     // Every folder below is read with `let Ok(entries) = read_dir(..) else { continue }`, so on a
@@ -672,11 +672,11 @@ pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
 // then built it again, each with its own line-parser, each carrying a copy of the INT-071 note
 // explaining that focus.toml is the source of truth. The knowledge propagated; the path did not.
 fn intent_state_dir() -> PathBuf {
-    faelight_core::paths::zero_state_dir().join("intent")
+    zero_core::paths::zero_state_dir().join("intent")
 }
 
 fn focus_file() -> PathBuf {
-    faelight_core::paths::focus_file()
+    zero_core::paths::focus_file()
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1551,7 +1551,7 @@ pub const TEMPLATES: &[(&str, &str, &str, &str)] = &[
 /// owns its own sequence. Three copies of this logic existed before.
 fn next_id(category: &str) -> u32 {
     const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
-    let base = faelight_core::paths::intents_dir();
+    let base = zero_core::paths::intents_dir();
     let scan: Vec<&str> = if LIFECYCLE.contains(&category) {
         LIFECYCLE.to_vec()
     } else {
@@ -1738,7 +1738,7 @@ pub fn create(
         .collect();
 
     let filename = format!("{:03}-{}.md", id, slug);
-    let path = faelight_core::paths::intents_dir()
+    let path = zero_core::paths::intents_dir()
         .join(category)
         .join(&filename);
     if path.exists() {
@@ -2179,7 +2179,7 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     use colored::*;
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = faelight_core::paths::intents_dir().join("future");
+    let future_dir = zero_core::paths::intents_dir().join("future");
     let now = chrono::Utc::now().timestamp();
     let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&future_dir) {
@@ -2331,7 +2331,7 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let done_gates = content.matches("✅").count();
     let remaining = total_gates.saturating_sub(done_gates);
     // Get average gates completed per session from recent intents
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
     let mut gates_per_session: Vec<f64> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&complete_dir) {
         for entry in entries.flatten().take(10) {
@@ -3348,7 +3348,7 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
     let content = std::fs::read_to_string(&path)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     // Log override to state.db
-    if let Ok(conn) = rusqlite::Connection::open(faelight_core::paths::state_db()) {
+    if let Ok(conn) = rusqlite::Connection::open(zero_core::paths::state_db()) {
         let _ = conn.execute(
             "INSERT INTO integrity_log (category, check_name, severity, description, weight, fixed, detected_at)
              VALUES ('intent', 'gate_override', 'propose', ?1, 1, 1, strftime('%s','now'))",

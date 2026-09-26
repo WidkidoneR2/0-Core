@@ -79,9 +79,9 @@ fn core_root() -> PathBuf {
 
 fn main() -> Result<()> {
     // INT-256: was its own inline copy of the same signal call. The reasoning -- why SIG_DFL,
-    // why exit 141, why not a panic hook -- lives in faelight_core::restore_sigpipe's doc comment
+    // why exit 141, why not a panic hook -- lives in zero_core::restore_sigpipe's doc comment
     // rather than being restated in each of the tools that need it.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
 
     let cli = Cli::parse();
     let root = core_root();
@@ -156,7 +156,7 @@ fn main() -> Result<()> {
                         })
                         .unwrap_or_else(|| "unknown".to_string());
                     // Intent range: count completed intents for a simple range string.
-                    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+                    let complete_dir = zero_core::paths::intents_dir().join("complete");
                     let intent_count = std::fs::read_dir(&complete_dir)
                         .map(|rd| {
                             rd.filter_map(|e| e.ok())
@@ -166,7 +166,7 @@ fn main() -> Result<()> {
                         .unwrap_or(0);
                     let intent_range = format!("{} complete", intent_count);
 
-                    let db_path = faelight_core::paths::state_db();
+                    let db_path = zero_core::paths::state_db();
                     match rusqlite::Connection::open(&db_path) {
                         Ok(conn) => {
                             let _ = conn.execute(
@@ -381,7 +381,7 @@ fn main() -> Result<()> {
         }
 
         Command::Status => {
-            let gen_path = faelight_core::paths::runtime_dir().join("generation");
+            let gen_path = zero_core::paths::runtime_dir().join("generation");
             let current =
                 std::fs::read_to_string(&gen_path).unwrap_or_else(|_| "unknown".to_string());
             let current = current.trim();
@@ -390,8 +390,8 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("  Current generation: {}", current);
 
-            let manifest_path = faelight_core::paths::meta_dir()
-                .join(format!("releases/{}/manifest.toml", current));
+            let manifest_path =
+                zero_core::paths::meta_dir().join(format!("releases/{}/manifest.toml", current));
             if manifest_path.exists() {
                 let manifest = std::fs::read_to_string(&manifest_path)?;
                 for line in manifest.lines().take(4) {
@@ -401,8 +401,8 @@ fn main() -> Result<()> {
         }
 
         Command::History => {
-            let releases_dir = faelight_core::paths::meta_dir().join("releases");
-            let gen_path = faelight_core::paths::runtime_dir().join("generation");
+            let releases_dir = zero_core::paths::meta_dir().join("releases");
+            let gen_path = zero_core::paths::runtime_dir().join("generation");
             let current = std::fs::read_to_string(&gen_path).unwrap_or_default();
             let current = current.trim();
 
@@ -447,7 +447,7 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             // Triad history from state.db (INT-031/034): version, generation, commits, intents.
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             if let Ok(conn) = rusqlite::Connection::open(&db_path) {
                 if let Ok(mut q) = conn.prepare(
                     "SELECT version, generation, commit_count, intent_range, theme
@@ -480,7 +480,7 @@ fn main() -> Result<()> {
         }
 
         Command::Query { version } => {
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             match rusqlite::Connection::open(&db_path) {
                 Ok(conn) => {
                     let row = conn.query_row(
@@ -515,7 +515,7 @@ fn main() -> Result<()> {
         Command::GcCheck => {
             // Warn if any release generation no longer has a live system-NNN-link (i.e. was GC'd
             // or is at risk). We list recorded release generations and check the profile links.
-            let db_path = faelight_core::paths::state_db();
+            let db_path = zero_core::paths::state_db();
             let conn = match rusqlite::Connection::open(&db_path) {
                 Ok(c) => c,
                 Err(e) => {

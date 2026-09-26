@@ -59,7 +59,7 @@ pub fn intent_ledger() -> Measurement {
 /// ⭐ ONE ARM CORRECTED IN THE PORT: "Could not open state.db" was a `Warn`. A database it cannot
 /// open is not a stalled Friday, it is a check that did not run.
 pub fn friday() -> Measurement {
-    let db_path = faelight_core::paths::state_db();
+    let db_path = zero_core::paths::state_db();
     let db = match rusqlite::Connection::open(&db_path) {
         Ok(d) => d,
         Err(e) => {
@@ -116,7 +116,7 @@ pub fn friday() -> Measurement {
 /// ⭐ PARSE RUSTDOC'S OWN SUMMARY LINE, DO NOT COUNT "warning:" LINES. The summary is itself a
 /// line containing the word, so counting would double-count -- confirmed by INT-151 calibration.
 pub fn rust_docs() -> Measurement {
-    let manifest = faelight_core::paths::core_root_string() + "/zero/engine/Cargo.toml";
+    let manifest = zero_core::paths::core_root_string() + "/zero/engine/Cargo.toml";
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let out = Command::new("cargo")

@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::{exit, Command};
 
 // Import our library modules
-use faelight_core::paths;
+use zero_core::paths;
 use zero_git::commands;
 
 #[derive(Parser)]
@@ -97,7 +97,7 @@ enum Commands {
 
 fn main() {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
-    faelight_core::restore_sigpipe();
+    zero_core::restore_sigpipe();
     let cli = Cli::parse();
 
     let exit_code = match cli.command {

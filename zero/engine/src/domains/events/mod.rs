@@ -718,7 +718,7 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
     use std::io::{BufRead, BufReader, Write};
     use std::os::unix::net::UnixStream;
 
-    let socket_path = faelight_core::paths::daemon_socket().display().to_string();
+    let socket_path = zero_core::paths::daemon_socket().display().to_string();
 
     let stream = match UnixStream::connect(&socket_path) {
         Ok(s) => s,
@@ -1060,7 +1060,7 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     )?;
 
     // Database size
-    let db_size = std::fs::metadata(faelight_core::paths::state_db())
+    let db_size = std::fs::metadata(zero_core::paths::state_db())
         .map(|m| m.len())
         .unwrap_or(0);
 
@@ -1759,7 +1759,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
 
     // ── 3. Checkpoint age ────────────────────────────────────────────────────
     let _core_root = std::path::PathBuf::from(&ctx.core_root);
-    let cp_dir = faelight_core::paths::checkpoints_dir();
+    let cp_dir = zero_core::paths::checkpoints_dir();
     let latest_cp = std::fs::read_dir(&cp_dir).ok().and_then(|d| {
         d.filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
@@ -1817,7 +1817,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── 5. In-progress intents ───────────────────────────────────────────────
-    let intents_dir = faelight_core::paths::intents_dir().join("future");
+    let intents_dir = zero_core::paths::intents_dir().join("future");
     let in_progress: Vec<String> = std::fs::read_dir(&intents_dir)
         .ok()
         .map(|d| {
@@ -2139,7 +2139,7 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
 pub fn status(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("events", &[Capability::FilesystemReadHome])?;
-    let events_dir = faelight_core::paths::events_dir();
+    let events_dir = zero_core::paths::events_dir();
 
     println!();
     println!(
@@ -2216,7 +2216,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
 pub fn archive(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities
         .require("events", &[Capability::FilesystemReadHome])?;
-    let events_dir = faelight_core::paths::events_dir();
+    let events_dir = zero_core::paths::events_dir();
     let archive_dir = events_dir.join("archive");
     if !events_dir.exists() {
         println!("  {} No event log directory yet", "○".dimmed());

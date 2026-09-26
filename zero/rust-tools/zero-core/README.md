@@ -1,4 +1,4 @@
-# faelight-core
+# zero-core
 
 **Version:** 1.0.0 &nbsp;|&nbsp; **License:** MIT &nbsp;|&nbsp; **Status:** active &nbsp;|&nbsp; **Category:** core
 
@@ -30,13 +30,13 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p faelight-core
+cargo build -p zero-core
 ```
 
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship     # builds and deploys the tools; zero-core is the library they link
 ```
 
 ---

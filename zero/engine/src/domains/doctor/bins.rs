@@ -2,12 +2,12 @@
 use crate::errors::CoreResult;
 use chrono::{DateTime, Utc};
 use colored::*;
-use faelight_core::paths;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use zero_core::paths;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct BinaryEntry {
@@ -51,7 +51,7 @@ fn save_manifest(manifest: &Manifest) -> CoreResult<()> {
 }
 
 fn find_tool_source(tool: &str) -> PathBuf {
-    let rust_tools = faelight_core::paths::rust_tools_dir();
+    let rust_tools = zero_core::paths::rust_tools_dir();
     let exact = rust_tools.join(tool);
     if exact.join("Cargo.toml").exists() {
         return exact;

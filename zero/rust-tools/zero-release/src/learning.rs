@@ -44,7 +44,7 @@ fn extract_u32(content: &str, key: &str) -> Option<u32> {
 }
 
 fn load_patterns(_core_root: &PathBuf) -> Vec<ReleasePattern> {
-    let releases_dir = faelight_core::paths::meta_dir().join("releases");
+    let releases_dir = zero_core::paths::meta_dir().join("releases");
     let mut patterns = vec![];
 
     let mut versions: Vec<String> = match fs::read_dir(&releases_dir) {

@@ -111,8 +111,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "registry/tools.toml".bright_cyan()
     );
 
-    let registry =
-        std::fs::read_to_string(faelight_core::paths::tools_registry()).unwrap_or_default();
+    let registry = std::fs::read_to_string(zero_core::paths::tools_registry()).unwrap_or_default();
     let tools: Vec<&str> = registry
         .lines()
         .filter(|l| l.starts_with("name = "))
@@ -132,7 +131,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     // places, four of them ending unwrap_or_default() so an unreadable registry prints as
     // zero tools. This one is a line scan with no deployable or retired filter, which is why
     // it says 51 while the doctor says 24/24 and bootstrap verify says 25 missing. The fix is
-    // one owner in faelight-core, and it belongs to 149 rather than to a string correction.
+    // one owner in zero-core, and it belongs to 149 rather than to a string correction.
     println!("  │    → ship   -- deploys every tool the registry marks deployable");
 
     // ── Source 2: Intents ─────────────────────────────────────────────────
@@ -143,7 +142,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "intents/complete/".bright_cyan()
     );
 
-    let complete_dir = faelight_core::paths::intents_dir().join("complete");
+    let complete_dir = zero_core::paths::intents_dir().join("complete");
     let intent_count = std::fs::read_dir(&complete_dir)
         .map(|d| d.count())
         .unwrap_or(0);
@@ -176,7 +175,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "schema/".bright_cyan()
     );
 
-    let schema_dir = faelight_core::paths::schema_dir();
+    let schema_dir = zero_core::paths::schema_dir();
     let schema_count = std::fs::read_dir(&schema_dir)
         .map(|d| {
             d.flatten()
@@ -198,7 +197,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "runtime/events/".bright_cyan()
     );
 
-    let events_dir = faelight_core::paths::events_dir();
+    let events_dir = zero_core::paths::events_dir();
     let event_files = std::fs::read_dir(&events_dir)
         .map(|d| {
             d.flatten()
@@ -505,7 +504,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
                 // Add active intent context to forecast
                 let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-                let future_dir = faelight_core::paths::intents_dir().join("future");
+                let future_dir = zero_core::paths::intents_dir().join("future");
                 let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
                     .map(|entries| {
                         entries
@@ -833,7 +832,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // the same accessor its fourteen readers use. Before this, the writer built the directory by
     // hand and every reader built the file by hand -- so nothing tied them together except the
     // string ".cache/faelight", repeated fifteen times.
-    let health_file = faelight_core::paths::health_status_file();
+    let health_file = zero_core::paths::health_status_file();
     if let Some(dir) = health_file.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
@@ -886,7 +885,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
     //
     // Recorded rather than changed. Layer 3a moves the PATH to one owner; what absence means is
     // each caller's own statement, which is exactly why read_health() returns Option.
-    let cached: u32 = faelight_core::paths::read_health()
+    let cached: u32 = zero_core::paths::read_health()
         .map(|h| h as u32)
         .unwrap_or(0);
 
@@ -1372,7 +1371,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
 fn from_engine() -> Vec<CheckResult> {
     use zero_doctor::{Status as ES, Tier as ET};
-    let path = faelight_core::paths::registry_dir().join("doctor/checks.toml");
+    let path = zero_core::paths::registry_dir().join("doctor/checks.toml");
     let reg = match zero_doctor::Registry::load(&path) {
         Ok(r) => r,
         Err(e) => {
