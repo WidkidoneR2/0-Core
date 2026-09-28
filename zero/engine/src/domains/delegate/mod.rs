@@ -528,7 +528,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     }
     if count == 0 {
         println!(
-            "  {} No simulations run yet — try: core delegate simulate restart-faelight-notify",
+            "  {} No simulations run yet — try: core delegate simulate restart-zero-daemon",
             "○".dimmed()
         );
     }

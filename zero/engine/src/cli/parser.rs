@@ -1110,7 +1110,7 @@ pub enum SimulateCommands {
 pub enum DelegateCommands {
     /// Simulate a delegation action without executing
     Simulate {
-        /// Action to simulate (e.g. "restart faelight-notify")
+        /// Action to simulate (e.g. "restart zero-daemon")
         action: String,
     },
     /// List all trust contracts and their status
@@ -1476,7 +1476,7 @@ pub enum PlanCommands {
 pub enum TradeoffCommands {
     /// Analyze competing values for a decision
     Analyze {
-        /// Decision or change to analyze (e.g. "add faelight-vault")
+        /// Decision or change to analyze (e.g. "add a password manager")
         decision: String,
     },
     /// Show past tradeoff analyses

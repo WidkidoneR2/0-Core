@@ -1,4 +1,4 @@
-// faelight-forest — Test Utilities
+// Project 0 -- engine test utilities
 // INT-168 — Test Suite Foundation
 //
 // Provides isolated test context — no production state reads.
@@ -39,7 +39,7 @@ pub mod test_support {
         )
         .expect("Failed to init test db schema");
 
-        let tmp = PathBuf::from("/tmp/faelight-test");
+        let tmp = PathBuf::from("/tmp/zero-test");
         std::fs::create_dir_all(&tmp).ok();
 
         Runtime {
@@ -58,8 +58,8 @@ pub mod test_support {
             runtime: test_runtime(),
             capabilities: CapabilityContext::unprivileged(),
             home: "/tmp".to_string(),
-            core_root: "/tmp/faelight-test".to_string(),
-            faelight_root: "/tmp/faelight-test/faelight".to_string(),
+            core_root: "/tmp/zero-test".to_string(),
+            faelight_root: "/tmp/zero-test/zero".to_string(),
         }
     }
 }

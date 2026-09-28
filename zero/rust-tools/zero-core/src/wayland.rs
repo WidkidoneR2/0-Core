@@ -103,7 +103,7 @@ pub struct LayerSurfaceConfig {
 }
 
 impl LayerSurfaceConfig {
-    /// Config for a top bar (like faelight-bar)
+    /// Config for a top bar
     pub fn top_bar(height: u32) -> Self {
         Self {
             width: 0, // Full width
@@ -116,7 +116,7 @@ impl LayerSurfaceConfig {
         }
     }
 
-    /// Config for a centered popup (like faelight-menu)
+    /// Config for a centered popup
     pub fn centered_popup(width: u32, height: u32) -> Self {
         Self {
             width,

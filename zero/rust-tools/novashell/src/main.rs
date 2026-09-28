@@ -1092,7 +1092,7 @@ fn main() -> Result<()> {
     // existed since the NovaShell rename. UNREACHABLE BY ANY PATH.
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
-        .name("faelight-repl".into())
+        .name("nsh-repl".into())
         .spawn(|| repl_main())?
         .join()
         .map_err(|_| anyhow::anyhow!("REPL thread panicked"))?;

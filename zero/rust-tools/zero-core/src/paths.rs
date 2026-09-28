@@ -454,7 +454,7 @@ pub fn hack_nerd_font() -> PathBuf {
     ttf_fonts_dir().join("HackNerdFont-Regular.ttf")
 }
 
-/// JetBrains Mono Nerd Font (used in faelight-bar)
+/// JetBrains Mono Nerd Font
 pub fn jetbrains_mono_nerd_font() -> PathBuf {
     ttf_fonts_dir().join("JetBrainsMonoNerdFont-Regular.ttf")
 }

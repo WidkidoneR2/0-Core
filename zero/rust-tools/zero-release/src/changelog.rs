@@ -528,7 +528,7 @@ impl ReleaseStats {
 }
 
 fn count_tools(_core_root: &PathBuf) -> u32 {
-    // THE SAME PREDICATE faelight-docs USES, and for the same reason.
+    // THE SAME PREDICATE zero-docs USES, and for the same reason.
     //
     // This counted EVERY non-retired entry, which includes nine external cargo
     // subcommands -- cargo-nextest, -watch, -udeps and six more. They are marked
