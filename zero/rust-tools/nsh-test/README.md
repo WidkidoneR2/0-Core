@@ -53,13 +53,13 @@ kept working. Making it prove that reliably took 2.0.
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p fsh-test
+cargo build -p nsh-test
 ```
 
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship   # builds the release and deploys to ~/.local/bin
 ```
 
 ---

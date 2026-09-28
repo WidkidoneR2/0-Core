@@ -32,13 +32,13 @@ Live system narrator — adapts to newcomer or expert
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p teach
+cargo build -p teach
 ```
 
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship   # builds the release and deploys to ~/.local/bin
 ```
 
 ---

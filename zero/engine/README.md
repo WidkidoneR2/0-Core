@@ -28,13 +28,13 @@ The single Rust engine at the forest's heart -- health, intent ledger, integrity
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p core
+cargo build -p core
 ```
 
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship   # builds the release and deploys to ~/.local/bin
 ```
 
 ---

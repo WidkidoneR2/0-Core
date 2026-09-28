@@ -29,7 +29,7 @@ cargo build -p zero-sandbox
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship   # builds the release and deploys to ~/.local/bin
 ```
 
 ---

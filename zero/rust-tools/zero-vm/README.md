@@ -23,13 +23,13 @@
 ## Build
 
 ```sh
-nix develop ~/0-core#faelight-forest -c cargo build -p zero-vm
+cargo build -p zero-vm
 ```
 
 ## Deploy
 
 ```sh
-deploy   # sudo nixos-rebuild switch --flake .#framework16
+ship   # builds the release and deploys to ~/.local/bin
 ```
 
 ---
