@@ -29,7 +29,7 @@ pub fn send(_ctx: &AppContext, summary: &str, body: Option<&str>, urgency: &str)
 
 pub fn status(_ctx: &AppContext) -> CoreResult<()> {
     // ⚠️ THIS ASKED ABOUT THE WRONG THING AND ANSWERED CONFIDENTLY. It ran
-    // systemctl --user is-active faelight-notify and printed the result as Daemon.
+    // systemctl --user is-active for the old notifier's unit and printed the result as Daemon.
     // There has never been such a unit on Omarchy -- the session target died with nix/
     // -- and is-active answers inactive for a unit it has never heard of, not unknown.
     // So the _ => bright_yellow arm never fired and the command reported a daemon as
@@ -37,7 +37,7 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
     //
     // THE QUESTION IS WHO OWNS THE BUS NAME. That is where a notification actually
     // goes, and desktop() below already talks to it. Measured 2026-09-02: Quickshell
-    // owns org.freedesktop.Notifications, which is why faelight-notify was retired --
+    // owns org.freedesktop.Notifications, which is why the old notifier was retired --
     // it checks the same name at startup and correctly declines to compete.
     let owner = Command::new("busctl")
         .args([

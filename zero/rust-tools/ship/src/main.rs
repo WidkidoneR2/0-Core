@@ -265,7 +265,7 @@ fn retire(tool: &str, bin: &Path, backup_dir: &Path, dry_run: bool) -> i32 {
 /// EVERY way out of `retire`, not only after a real removal.
 ///
 /// Measured 2026-09-23: both checks sat after the removal, so `--dry-run` skipped them (the one
-/// run meant to show you what you are about to do), and a tool already gone -- faelight-clipboard,
+/// run meant to show you what you are about to do), and a tool already gone -- the clipboard tool,
 /// retired that morning -- exited "not installed" before either ran. The tool whose aliases were
 /// dangling was exactly the one ship could no longer say anything about.
 fn leftovers(tool: &str) {

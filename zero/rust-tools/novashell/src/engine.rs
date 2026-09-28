@@ -2128,7 +2128,7 @@ pub fn execute_and_record(
             );
         }
     }
-    // INT-201 — Track last command exit status for faelight-term indicator
+    // INT-201 — Track last command exit status for the exit-status cache
     {
         // FIXED: this block used to RE-DERIVE success by scanning the output
         // text for the cross-mark prefix / "error" / "not found", and then
@@ -2143,7 +2143,7 @@ pub fn execute_and_record(
         //
         // The verdict is ALREADY correct: the CommandResult match above sets
         // last_exit_code (Output/Empty/NotBuiltin -> 0, Error -> 1). This block
-        // now only CONSUMES it. The faelight-term cache write is kept; only the
+        // now only CONSUMES it. The exit-status cache write is kept; only the
         // re-derivation is gone.
         //
         // KNOWN GAP, recorded not hidden: four arms of that match never set

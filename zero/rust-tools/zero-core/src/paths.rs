@@ -475,9 +475,9 @@ pub fn font_exists(font_path: &Path) -> bool {
 /// bin_dir() and shell_config() all consult their variable; this one went straight to HOME.
 ///
 /// On a machine that sets XDG_DATA_HOME, this accessor and `dirs::data_local_dir()` -- which
-/// faelight-clipboard used -- returned DIFFERENT DIRECTORIES. Not a problem on the author's
+/// the retired clipboard tool used -- returned DIFFERENT DIRECTORIES. Not a problem on the author's
 /// machine, where the variable is unset, and "not a problem on this machine" is precisely the
-/// reasoning that left five readers pointed at /etc/faelight for three weeks (INT-250).
+/// reasoning that left five readers pointed at the NixOS-era /etc directory for three weeks (INT-250).
 ///
 /// Corrected during INT-247 Layer 3a rather than inherited by the accessors added beside it.
 pub fn local_data_dir() -> PathBuf {

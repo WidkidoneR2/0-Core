@@ -993,7 +993,7 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
     // self-joining shell_history on id + 1, and that adjacency does not mean "the next
     // command" -- it means "the other half of the same command". Measured 2026-08-22:
     // cd ~/0-core -> cd /home/christian/0-core 2,768 · d -> core doctor run 612 ·
-    // fg commit -> ~/0-core/scripts/faelight-git commit 370 · intent list -> /run/... 321.
+    // fg commit -> the old git script's commit 370 · intent list -> /run/... 321.
     // All typed -> executed pairs. It excluded c/clear/cd/ls/pwd/q/exit from the follower
     // side, which filtered the worst offender and hid the rest -- a hardcoded list of seven
     // names standing in for a model.

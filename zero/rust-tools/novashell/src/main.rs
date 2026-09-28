@@ -2144,7 +2144,7 @@ fn run_input(
         // It asked "what usually follows this?" by self-joining shell_history on id + 1.
         // Measured 2026-08-22 across real history, its qualifying pairs at freq >= 3 were:
         //   c -> clear 21,339 · cd ~/0-core -> cd /home/christian/0-core 2,768
-        //   d -> core doctor run 612 · fg commit -> ~/0-core/scripts/faelight-git commit 370
+        //   d -> core doctor run 612 · fg commit -> the old git script's commit 370
         //
         // Those are TYPED -> EXECUTED pairs: the two halves of one command, not a workflow.
         // INT-191 already documents this failure mode for zero-daemon -- "it is learning

@@ -326,7 +326,7 @@ fn gather_state() -> LiveState {
     let tool_count = match std::fs::read_to_string(&tools_path) {
         // ⚠️ NOT retired ONES. Fixing the path exposed the predicate: counting every
         // name = line gave 51, and 13 of those entries are RETIRED -- core-diff,
-        // faelight-notify and faelight-term among them, two of those retired the same
+        // the old notifier and the old terminal among them, two of those retired the same
         // day. The sentence in the README is about tools Project 0 HAS, so a tool it
         // deliberately removed does not count toward it.
         //

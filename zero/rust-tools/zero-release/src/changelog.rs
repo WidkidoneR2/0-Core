@@ -538,7 +538,7 @@ fn count_tools(_core_root: &PathBuf) -> u32 {
     // rules, neither wrong about its own arithmetic and both wrong about the SET.
     //
     // ⚠️ AND `Err(_) => 0` WAS THE OTHER HALF. A registry this cannot read is not
-    // zero tools -- it is a fact this cannot establish. faelight-docs hit exactly this
+    // zero tools -- it is a fact this cannot establish. zero-docs hit exactly this
     // on 2026-09-02, wrote "0 custom Rust tools" onto the front page, and printed a
     // green check. It refuses now; so does this.
     let tools_toml = zero_core::paths::tools_registry();
