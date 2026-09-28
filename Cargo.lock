@@ -3873,13 +3873,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zero-vm"
-version = "0.1.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "zero-zone"
 version = "2.1.0"
 dependencies = [
