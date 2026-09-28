@@ -2067,7 +2067,7 @@ in the session.
                      INT-266 starts. Asked 2026-09-26
 ```
 
-## 2026-09-28 -- COMMIT 2 AND THE DEPLOY LINES -- START HERE
+## 2026-09-28 -- COMMIT 2 AND THE DEPLOY LINES -- superseded by the 2026-09-28 EVENING section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS IS DONE, 15 OF 15" above. Before
 starting a step it names, check the step against disk and git. The script that wrote this checked
@@ -2140,6 +2140,134 @@ the disk; the test counts are from the runs made in the session.
        AGENTS.md:281, the tools index
     6  the guard for faelight and forest, reading every file type; then the finish line
     7  cicomplete 247 and 252 only when every gate is honestly ticked; then INT-265, then INT-266
+```
+
+## 2026-09-28, EVENING -- FOUR COMMITS; EVERY REMAINING NAME WAITS ON A RULING -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "COMMIT 2 AND THE DEPLOY LINES" above. Before
+starting a step it names, check the step against disk and git. The script that wrote this refused
+to write unless every commit below, its two trailers, and every finding marked CHECKED held on
+disk and in git.
+
+### Done this session
+
+```text
+    8b8e0865   the Layer 0 breach: the intent wizard's fallback repeated the future template
+               as its own literal, tagged faelight. It now IS the future row, looked up in
+               TEMPLATES; future_row_exists pins that the row exists. Plan f90d2344aa8e
+    9e970d15   fm is gone from the code, as ruled ("anything that has FM needs to be
+               removed"): core workspace fm, the plugin arm and plugins.toml block,
+               SKIP_VERSION, fm in type's two builtin lists (type fm had claimed a builtin
+               nothing handled), completion, deadwood, deps. yazi keeps its cwd handoff as
+               yazi_cwd_file and is_yazi_cmd. Plan deac2753f14c
+    c3ad4a8d   dead calls: nsh no longer spawns faelight-export at every shell start; the
+               faelight-fetch plugin, aliases and deps suffix; the Friday notify seed; the
+               events hint to a unit that never existed; the FAELIGHT-SPECIFIC alias section
+               (swaymsg reload); the stray Cargo.lock files in zero-core and zero-git.
+               Plan 4db6c8b5a649
+    07d46c1a   stale names, text only: the REPL thread is nsh-repl; engine tests use
+               /tmp/zero-test; current help examples; zero-core doc lines; zero-docs in
+               changelog.rs. Plan 4afbeaf4f3d4
+```
+
+Every commit carries Intent and Fingerprint trailers. Doors on each: cargo test --workspace all
+ok, ship 0 failed, nsh-test 202/202, d 0 failed. When a door's output was not seen (9e970d15),
+the plan was replayed on a clean clone and its diff compared with the live tree: equal.
+
+### The census at 07d46c1a -- same definition as the morning census at ad33fd97
+
+```text
+                    now       morning
+    faelight live     1,119   1,162    in 159 files; 355 of those lines are INT-247 and INT-252 themselves
+    forest live       1,318   1,320    in 198 files
+    faelight hist     2,005   2,005
+    forest hist         846     846
+```
+
+### Findings
+
+```text
+    fm gate       CHECKED. The gate "faelight-fm is gone -- workspace, PATH, docs, teach,
+                  Friday facts, command registry" was ticked 2026-09-15 while the engine still
+                  had core workspace fm, a plugin entry, SKIP_VERSION, completion and deadwood
+                  entries and a Friday answer naming it. 9e970d15 finished what the gate
+                  claimed. The tick stands; this is the correction. registry/tools.toml keeps
+                  its retirement record pending ruling 1
+    vm route      CHECKED. vm is an ALIAS in ~/.config/nsh/config.nsh (vm -> zero-vm) that
+                  shadows the builtin. vm_dispatch is unreachable and would run
+                  zero/packages/faelight/scripts/vm, deleted in 362d18d8 (INT-255). vm works,
+                  through the alias; the 2026-09-23 "PROVEN wired" line credits the wrong
+                  mechanism
+    exit-2 label  nsh labels an external command's exit 2 "misuse of shell builtin" -- bash's
+                  meaning -- as it did for core's argument-parser error. For INT-265; not fixed
+    history       faelight history read 8 lines fewer in the morning census than on
+                  2026-09-24. git diff --shortstat de954f49..HEAD over every history path: 0
+                  insertions, 0 deletions. Nothing was edited; the two census scripts differ
+    tools         22 crates on disk, none named faelight-*. Every faelight-<name> left in live
+                  code is a stale name, a dead tool, or not a tool
+    rm -rf        nsh's delete guard stops rm -rf mid-paste and asks for DELETE. Payloads
+                  should not put rm -rf mid-block
+    scripts       plan and record scripts exit 1 on REFUSE or MISMATCH, so && chains stop
+```
+
+### Rulings still open -- with the recommendation given
+
+```text
+    1  RETIREMENT RECORDS  14 registry/tools.toml entries for retired tools. Recommended
+                           KEEP: history the registry and catalog use
+    2  notify              the long-command notification (novashell engine.rs) calls
+                           faelight-notify, which Quickshell replaced; it has never fired on
+                           Omarchy. Recommended PORT to notify-send
+    3  commit 7            nsh compare (faelight-diff), nsh cache (scripts deleted in
+                           362d18d8), vm_dispatch (unreachable). Recommended DELETE all three
+    4  D                   the faelight CLI gate. Recommended YES: the 2026-09-15 retirement
+                           answers it; a 0 command becomes its own intent
+    5  HISTORY IN COMMENTS dated measurements naming a tool as measured: friday planning.rs
+                           :996, novashell main.rs:2147, ship main.rs:268, zero-core paths.rs
+                           :478, zero-docs main.rs:329, zero-release changelog.rs:541, engine
+                           notify/mod.rs:32 and :40, novashell engine.rs:2133 and :2148.
+                           Recommended REWORD
+    A  release manifests   meta/releases/*/manifest.toml are history
+    B  live intents        the finish guard excludes zero/intents/; NixOS-era 048, 145 and
+                           157 are cancelled with the ledger's method
+    C  teach backup        delete the tracked teach/src/main.rs.v2.0.0
+    E  dictionary forest   zero-gen's wordlist uses forest as a word, not the brand
+    F  subtitle            zero-release writes "formerly Faelight Forest" under the README
+                           title: Layer 1 allowed it, the finish line forbids it
+    also                   zero-update --snapshot (faelight-snapshot); strategy Factors 7 and
+                           8; zero-vm's runner names and .gitignore; risk.rs's "faelight
+                           snapshot" advice; the faelight_root field and ForestDb (identifiers)
+    gates                  PROPOSED, not ticked: "Layer 3 is NOT started until..." and the pace
+                           gate, on evidence already in this file. Christian's word first
+    to file               a tree-organization intent (inta), designed after 247 and 252 close
+                           so every path moves once
+```
+
+### Next, in order
+
+```text
+    1  get the rulings above; each unlocks its own plan
+    2  those plans, one concern per commit: recon, plan, fingerprint, apply, doors, commit
+    3  the remaining word passes: the sayings (Christian's voice), then the identifiers
+    4  INT-263 schema; INT-264 contracts (FAELIGHT_STATE_DIR, the D-Bus names, the forest
+       commands and flags)
+    5  the compatibility links; the docs rewrite; the guard for faelight and forest in every
+       file type
+    6  cicomplete 247, then 252 (its last gate is this intent's finish line); then INT-265
+```
+
+### The method, as used today
+
+```text
+    transport  zlib inside base64, one argv word; the writer refuses unless the stream
+               decompresses and its sha256 matches the file name it writes
+    scripts    ~/.cache/zero/<name>-<sha prefix>.py; plan prints every edit and a FINGERPRINT;
+               apply refuses on any mismatch; deleted when the commit lands
+    edits      fpatch patch() for ASCII spans read from the file in the same run;
+               patch_between for spans with non-ASCII, markers found by the script; every file
+               compared with the plan after writing
+    doors      apply, cargo test --workspace and ship chained with &&; then nsh-test, d, and
+               the door specific to the change; the commit is its own block
 ```
 
 ## Success Criteria
