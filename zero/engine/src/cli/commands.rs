@@ -411,9 +411,6 @@ pub enum WorkspaceCommand {
         limit: u32,
         full_paths: bool,
     },
-    Fm {
-        args: Vec<String>,
-    },
 }
 
 #[derive(Debug)]

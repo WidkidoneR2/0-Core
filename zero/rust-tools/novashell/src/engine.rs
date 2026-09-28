@@ -1825,8 +1825,8 @@ pub fn execute_and_record(
     original_line: &str,
     pipeline_ops: &[crate::value::PipeOp],
     has_external_op: bool,
-    is_fm_cmd: bool,
-    fm_cwd_file: &std::path::Path,
+    is_yazi_cmd: bool,
+    yazi_cwd_file: &std::path::Path,
 ) -> SegmentOutcome {
     // ⚠️⚠️ TEMPORARY MEASUREMENT -- INT-196/201, 2026-08-07. DELETE WHEN THE QUESTION IS ANSWERED.
     //
@@ -2191,15 +2191,15 @@ pub fn execute_and_record(
     if let Some(output) = cmd_output {
         println!("{}", output);
     }
-    // Phase 20b — apply cwd after yazi/fm exits
-    if is_fm_cmd {
-        if let Ok(cwd) = std::fs::read_to_string(&fm_cwd_file) {
+    // Phase 20b — apply cwd after yazi exits
+    if is_yazi_cmd {
+        if let Ok(cwd) = std::fs::read_to_string(&yazi_cwd_file) {
             let cwd = cwd.trim();
             if !cwd.is_empty() {
                 let _ = crate::cwd::chdir(cwd);
             }
         }
-        let _ = std::fs::remove_file(&fm_cwd_file);
+        let _ = std::fs::remove_file(&yazi_cwd_file);
     }
     SegmentOutcome::Next
 }

@@ -30,12 +30,6 @@ pub fn view(_ctx: &AppContext, active: bool, summary: bool, json: bool) -> CoreR
     Ok(())
 }
 
-// ── fm: delegates to faelight-fm (full TUI) ──────────────────────────────────
-pub fn fm(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
-    Command::new("faelight-fm").args(args).status()?;
-    Ok(())
-}
-
 // ── recent: native walkdir implementation ────────────────────────────────────
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum FileType {

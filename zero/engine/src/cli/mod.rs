@@ -331,7 +331,6 @@ pub fn parse() -> Command {
                 limit,
                 full_paths,
             },
-            WorkspaceCommands::Fm { args } => WorkspaceCommand::Fm { args },
         }),
         Commands::Release { command } => Command::Release(match command {
             ReleaseCommands::Get { package } => ReleaseCommand::Get { package },

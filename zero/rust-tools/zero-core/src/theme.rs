@@ -3,7 +3,7 @@
 
 // ── Truecolor helpers (RGB) ─────────────────────────────────────────────────
 // These produce ANSI truecolor escape sequences for terminals that support it.
-// Used by fsh prompt, faelight-bar, faelight-fm, and all ratatui tools.
+// Used by the nsh prompt and all ratatui tools.
 
 pub fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)

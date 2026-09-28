@@ -315,7 +315,7 @@ fn categorize_tool(name: &str) -> String {
             "git" | "snapshot" | "release" => "Version Control".to_string(),
             "sandbox" | "gen" | "vault" => "Security".to_string(),
             "compositor" | "idle" | "notify" | "lock" => "Compositor".to_string(),
-            "fm" | "fetch" | "link" | "zone" => "System Tools".to_string(),
+            "fetch" | "link" | "zone" => "System Tools".to_string(),
             _ => "Project 0".to_string(),
         }
     } else if name == "core" || name == "engine" {

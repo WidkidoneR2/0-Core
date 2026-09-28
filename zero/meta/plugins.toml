@@ -13,13 +13,6 @@ event_domains = ["update"]
 enabled = true
 
 [[plugins]]
-name = "faelight-fm"
-description = "Terminal file manager with daemon integration"
-binary = "faelight-fm"
-event_domains = []
-enabled = true
-
-[[plugins]]
 name = "faelight-fetch"
 description = "System information display"
 binary = "faelight-fetch"

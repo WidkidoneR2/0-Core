@@ -841,10 +841,6 @@ pub enum WorkspaceCommands {
         #[arg(long)]
         full_paths: bool,
     },
-    Fm {
-        #[arg(trailing_var_arg = true)]
-        args: Vec<String>,
-    },
 }
 
 #[derive(Subcommand)]

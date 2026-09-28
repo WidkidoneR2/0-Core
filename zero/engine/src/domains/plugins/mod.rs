@@ -56,12 +56,6 @@ fn binary_version(binary: &str) -> Option<String> {
     use std::process::Stdio;
     use std::time::Duration;
 
-    // Known GUI/TUI tools that must not be invoked for version detection
-    const SKIP_VERSION: &[&str] = &["faelight-fm"];
-    if SKIP_VERSION.contains(&binary) {
-        return None;
-    }
-
     let mut child = std::process::Command::new(binary)
         .arg("--version")
         .stdin(Stdio::null())
@@ -291,14 +285,6 @@ fn known_plugin(name: &str) -> Option<Plugin> {
             binary: "zero-update".to_string(),
             version: None,
             event_domains: vec!["update".to_string()],
-            enabled: true,
-        }),
-        "faelight-fm" => Some(Plugin {
-            name: "faelight-fm".to_string(),
-            description: "Terminal file manager with daemon integration".to_string(),
-            binary: "faelight-fm".to_string(),
-            version: None,
-            event_domains: vec![],
             enabled: true,
         }),
         "faelight-fetch" => Some(Plugin {

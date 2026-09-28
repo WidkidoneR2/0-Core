@@ -17,7 +17,7 @@ use ratatui::{
 };
 use std::io;
 
-// EXACT colors from faelight-fm
+// EXACT colors, kept from the retired file manager
 const BG_DARK: Color = Color::Rgb(17, 20, 15);
 const BG_SELECTED: Color = Color::Rgb(45, 52, 38);
 const ACCENT_GREEN: Color = Color::Rgb(163, 227, 107);

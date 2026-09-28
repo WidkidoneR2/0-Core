@@ -271,7 +271,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                     limit,
                     full_paths,
                 } => crate::domains::workspace::recent(ctx, &range, limit, full_paths),
-                WorkspaceCommand::Fm { args } => crate::domains::workspace::fm(ctx, &args),
             }
         }
 

@@ -2086,16 +2086,16 @@ fn run_input(
             })
             .collect();
 
-        // Phase 20b: inject --cwd-file for yazi/fm before execute
-        let fm_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
-        let is_fm_cmd = {
+        // Phase 20b: inject --cwd-file for yazi before execute
+        let yazi_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
+        let is_yazi_cmd = {
             // INT-195: canonical command derivation. Lowercasing is intentionally
             // preserved until flip blocker 8 revisits normalization policy.
             let fc = commands::command_word(&base_cmd).to_lowercase();
-            fc == "yazi" || fc == "faelight-fm"
+            fc == "yazi"
         };
-        let base_cmd = if is_fm_cmd {
-            format!("{} --cwd-file {}", base_cmd, fm_cwd_file.display())
+        let base_cmd = if is_yazi_cmd {
+            format!("{} --cwd-file {}", base_cmd, yazi_cwd_file.display())
         } else {
             base_cmd
         };
@@ -2132,8 +2132,8 @@ fn run_input(
             original_line,
             &pipeline_ops,
             has_external_op,
-            is_fm_cmd,
-            &fm_cwd_file,
+            is_yazi_cmd,
+            &yazi_cwd_file,
         );
         if outcome == engine::SegmentOutcome::ExitShell {
             return crate::engine::SegmentOutcome::ExitShell;
