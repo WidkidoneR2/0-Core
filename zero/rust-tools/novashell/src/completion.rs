@@ -225,13 +225,6 @@ impl<'a> ForestHelper<'a> {
                 "intent search",
                 "intent new",
                 "intent edit",
-                "vm list",
-                "vm start",
-                "vm stop",
-                "vm status",
-                "vm snapshot",
-                "vm restore",
-                "vm snapshots",
                 "project list",
                 "project status",
                 "project health",
@@ -437,41 +430,6 @@ impl<'a> ForestHelper<'a> {
                 .collect();
             if !cands.is_empty() {
                 return (0, cands);
-            }
-        }
-        // ── Case 2d0: INT-040 domain object dynamic completion ──────────────────
-        // vm start/stop/snapshot/restore <TAB> -- complete with qcow2 names
-        if line.starts_with("vm start ")
-            || line.starts_with("vm stop ")
-            || line.starts_with("vm snapshot ")
-            || line.starts_with("vm restore ")
-        {
-            // partial is everything after the second word (e.g. "vm start nixos" -> "nixos")
-            // if line ends with space, partial is empty (show all)
-            let partial = if line.ends_with(' ') {
-                ""
-            } else {
-                line.split_whitespace().last().unwrap_or("")
-            };
-            let home = std::env::var("HOME").unwrap_or_default();
-            let vms_dir = format!("{}/vms", home);
-            if let Ok(entries) = std::fs::read_dir(&vms_dir) {
-                let mut names: Vec<String> = entries
-                    .flatten()
-                    .filter(|e| e.path().extension().map(|x| x == "qcow2").unwrap_or(false))
-                    .map(|e| {
-                        e.file_name()
-                            .to_string_lossy()
-                            .trim_end_matches(".qcow2")
-                            .to_string()
-                    })
-                    .filter(|n| partial.is_empty() || n.starts_with(partial))
-                    .collect();
-                names.sort();
-                if !names.is_empty() {
-                    let start = line.len() - partial.len();
-                    return (start, names);
-                }
             }
         }
         // ⚠️ TWO COMPLETION BLOCKS WERE REMOVED HERE, 2026-09-20 (INT-255).
@@ -889,7 +847,6 @@ fn is_forest_command(cmd: &str) -> bool {
         "intents",
         "project",
         "experiment",
-        "vm",
         "d",
         "gc",
         "gp",
@@ -958,7 +915,6 @@ fn is_known_command(cmd: &str) -> bool {
         "intents",
         "project",
         "experiment",
-        "vm",
         "gc",
         "gp",
         "fg",

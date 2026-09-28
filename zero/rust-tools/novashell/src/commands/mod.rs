@@ -1248,7 +1248,6 @@ fn execute_dispatch(
         "intents" => intents(core_root),
         "project" | "projects" => project_list(core_root),
         "experiment" | "experiments" => experiment_list(core_root),
-        "vm" | "vms" => vm_dispatch(args),
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
         "schema" => schema(args),
@@ -1393,7 +1392,6 @@ fn execute_dispatch(
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
         "pick" => pick_cmd(db, core_root, args),
-        "compare" => compare_cmd(core_root, args),
         "where_old_disabled" => CommandResult::Error(
             "use with pipe: tools | where score < 70".to_string().into(),
             1,
@@ -5214,7 +5212,6 @@ fn execute_dispatch(
             }
         }
         "cd" => cd(args),
-        "cache" => cache(args),
         // ⚠️ THE "devshell" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255). It ran
         // `nix flake show --json` to list devShells and `nix develop` to enter one.
         //
@@ -8186,27 +8183,6 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn compare_cmd(_core_root: &str, args: &[&str]) -> CommandResult {
-    use std::process::Command;
-    let bin = String::from("faelight-diff");
-    let mut cmd_args: Vec<String> = Vec::new();
-    for a in args {
-        cmd_args.push(a.to_string());
-    }
-    // Default: git diff if in repo with no args
-    if args.is_empty() {
-        cmd_args.push("--git".to_string());
-    }
-    match Command::new(&bin).args(&cmd_args).status() {
-        Ok(_) => CommandResult::Output(String::new()),
-        Err(_) => CommandResult::Error(
-            "faelight-diff not found -- run: deploy faelight-diff"
-                .to_string()
-                .into(),
-            1,
-        ),
-    }
-}
 fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     use std::process::Command;
     let subcommand = args.first().copied().unwrap_or("");
@@ -8439,38 +8415,6 @@ fn pkg_search(args: &[&str]) -> CommandResult {
         lines.push(format!("\n  ... {} more (narrow the term)", total - shown));
     }
     CommandResult::Output(lines.join("\n"))
-}
-
-fn cache(args: &[&str]) -> CommandResult {
-    // INT-068: cache status | cache push -- shells out to pkgs/faelight/scripts/cache-*
-    let sub = args.first().copied().unwrap_or("");
-    let home = std::env::var("HOME").unwrap_or_default();
-    let script = format!("{}/0-core/pkgs/faelight/scripts/cache-{}", home, sub);
-    match sub {
-        "status" => {
-            let output = std::process::Command::new(&script).output();
-            match output {
-                Ok(o) => {
-                    let out = String::from_utf8_lossy(&o.stdout).to_string();
-                    let err = String::from_utf8_lossy(&o.stderr).to_string();
-                    CommandResult::Output(format!("{}{}", out, err).trim_end().to_string())
-                }
-                Err(e) => CommandResult::Error(format!("cache status: {}", e).into(), 1),
-            }
-        }
-        "push" => {
-            let status = std::process::Command::new(&script)
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match status {
-                Ok(_) => CommandResult::Empty { suspension: None },
-                Err(e) => CommandResult::Error(format!("cache push: {}", e).into(), 1),
-            }
-        }
-        _ => CommandResult::Error("usage: cache <status|push>".to_string().into(), 1),
-    }
 }
 
 fn cd(args: &[&str]) -> CommandResult {
@@ -11522,7 +11466,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     // INT-300: forest vocabulary words -- human-first commands (INT-261)
     let vocab_words = [
         "write", "read", "list", "copy", "move", "delete", "find", "db", "gt", "it", "search",
-        "show", "where", "compare", "fsearch", "query",
+        "show", "where", "fsearch", "query",
     ];
     if vocab_words.contains(&cmd) {
         out.push_str(&format!(
@@ -12203,34 +12147,6 @@ fn experiment_list(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn vm_dispatch(args: &[&str]) -> CommandResult {
-    // INT-077: `vm` drives zero-vm (build-vm + SSH loop) via
-    // pkgs/faelight/scripts/vm. Inherited stdio throughout so `vm ssh` is
-    // interactive (password + guest shell) and build/up/down stream live.
-    // INT-027's libvirt nixos-lab tooling (vm_start/stop/snapshot/restore/...)
-    // remains defined below but is intentionally unwired from this verb; the
-    // nixos-lab domain is dormant. Snapshot support for zero-vm (qcow2) is
-    // a later decision, not wired here.
-    // INT-079 G3 (Option B): the script is the single source of truth for which
-    // `vm` subcommands exist. fsh forwards ALL args to it (including an empty arg,
-    // which the script's usage() handles) and no longer keeps its own verb whitelist
-    // or duplicate help string -- that drifted (it never listed `debug`). The script
-    // rejects true unknowns itself (unknown subcommand -> usage + exit 2).
-    let _ = args.first().copied().unwrap_or("");
-    let home = std::env::var("HOME").unwrap_or_default();
-    let script = format!("{}/0-core/zero/packages/faelight/scripts/vm", home);
-    let st = std::process::Command::new(&script)
-        .args(args)
-        .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status();
-    match st {
-        Ok(_) => CommandResult::Empty { suspension: None },
-        Err(e) => CommandResult::Error(format!("vm: {}", e).into(), 1),
-    }
-}
-
 // ⚠️ SEVEN libvirt nixos-lab FUNCTIONS WERE REMOVED HERE, 2026-09-20 (INT-255):
 // vm_snapshot, vm_restore, vm_snapshots, vm_status, vm_stop, vm_start, vm_list -- 334 lines,
 // every one #[allow(dead_code)] and each carrying the same INT-027 note: preserved, unwired
@@ -12240,10 +12156,6 @@ fn vm_dispatch(args: &[&str]) -> CommandResult {
 // INSTALLED. There is no libvirt here and no domain for the code to be parked for. Keeping
 // code against a future need is a reasonable choice; keeping it against a runtime that is
 // not on the machine is a different thing, and git holds it either way.
-//
-// ⚠️ vm_dispatch ABOVE IS LIVE AND STAYS. It drives zero-vm (INT-077) and has nothing to
-// do with this block -- it simply sits next to it, which is how a boundary taken from the
-// first function that looks related deletes a working command.
 fn version(_core_root: &str) -> CommandResult {
     let version =
         crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());

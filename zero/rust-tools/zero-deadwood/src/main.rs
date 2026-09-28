@@ -265,7 +265,6 @@ const BUILTINS: &[&str] = &[
     "intents",
     "project",
     "experiment",
-    "vm",
     "gc",
     "gp",
     "fg",
