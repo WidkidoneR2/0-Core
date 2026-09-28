@@ -20,7 +20,7 @@ pub mod wayland;
 
 #[cfg(feature = "ui")]
 pub use canvas::Canvas;
-pub use error::{FaelightError, Result};
+pub use error::{Result, ZeroError};
 #[cfg(feature = "ui")]
 pub use glyph::GlyphCache;
 pub use theme::Theme;

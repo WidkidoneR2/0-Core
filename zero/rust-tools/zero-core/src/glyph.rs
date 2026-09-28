@@ -3,7 +3,7 @@
 //! Eliminates repeated font rasterization by caching glyphs.
 //! Expected performance: 70-90% CPU reduction in text rendering.
 
-use crate::error::{FaelightError, Result};
+use crate::error::{Result, ZeroError};
 use fontdue::{Font, Metrics};
 use std::collections::HashMap;
 
@@ -28,7 +28,7 @@ impl GlyphCache {
     /// Create a new glyph cache from font data
     pub fn new(font_data: &[u8]) -> Result<Self> {
         let font = Font::from_bytes(font_data, Default::default())
-            .map_err(|e| FaelightError::FontLoad(e.to_string()))?;
+            .map_err(|e| ZeroError::FontLoad(e.to_string()))?;
 
         Ok(Self {
             font,

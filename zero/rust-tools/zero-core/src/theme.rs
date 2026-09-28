@@ -21,7 +21,6 @@ pub fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
 
 // Greens
 pub const NEON_GREEN: (u8, u8, u8) = (57, 255, 20); // primary forest green
-pub const FOREST_GREEN: (u8, u8, u8) = (107, 227, 163); // softer green
 pub const MUTED_GREEN: (u8, u8, u8) = (100, 180, 100); // dimmed green
 
 // Cyans / Blues
@@ -109,8 +108,8 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// Faelight Forest default theme (tropical sunset colors)
-    pub fn faelight_default() -> Self {
+    /// Project 0 default theme (tropical sunset colors)
+    pub fn zero_default() -> Self {
         Self {
             // Backgrounds - Deep ocean blues
             bg_primary: 0x0f1411,   // Forest Night
@@ -142,8 +141,8 @@ impl Theme {
     }
 
     /// Dark variant (even darker backgrounds)
-    pub fn faelight_dark() -> Self {
-        let mut theme = Self::faelight_default();
+    pub fn zero_dark() -> Self {
+        let mut theme = Self::zero_default();
         theme.bg_primary = 0x0a0d0b;
         theme.bg_secondary = 0x0f1411;
         theme.bg_tertiary = 0x1a1f1c;
@@ -151,7 +150,7 @@ impl Theme {
     }
 
     /// Light variant (for daytime use)
-    pub fn faelight_light() -> Self {
+    pub fn zero_light() -> Self {
         Self {
             bg_primary: 0xf5f7f6,
             bg_secondary: 0xe8ede9,
@@ -180,7 +179,7 @@ impl Theme {
 
 impl Default for Theme {
     fn default() -> Self {
-        Self::faelight_default()
+        Self::zero_default()
     }
 }
 
@@ -190,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_theme_creation() {
-        let theme = Theme::faelight_default();
+        let theme = Theme::zero_default();
         assert_eq!(theme.bg_primary, 0x0f1411);
         assert_eq!(theme.accent, 0x6be3a3);
         assert_eq!(theme.padding, 8);
@@ -198,9 +197,9 @@ mod tests {
 
     #[test]
     fn test_theme_variants() {
-        let default_theme = Theme::faelight_default();
-        let dark = Theme::faelight_dark();
-        let light = Theme::faelight_light();
+        let default_theme = Theme::zero_default();
+        let dark = Theme::zero_dark();
+        let light = Theme::zero_light();
 
         // Dark should be darker than default
         assert!(dark.bg_primary < default_theme.bg_primary);

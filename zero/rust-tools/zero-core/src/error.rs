@@ -3,7 +3,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum FaelightError {
+pub enum ZeroError {
     #[error("Font loading failed: {0}")]
     FontLoad(String),
 
@@ -17,4 +17,4 @@ pub enum FaelightError {
     Wayland(String),
 }
 
-pub type Result<T> = std::result::Result<T, FaelightError>;
+pub type Result<T> = std::result::Result<T, ZeroError>;
