@@ -2102,15 +2102,13 @@ pub fn execute_and_record(
                     );
                 }
             }
-            // Long command notification -- >30s fires faelight-notify
+            // Long command notification -- >30s fires notify-send
             if elapsed_ms > 30_000 {
                 let secs = elapsed_ms / 1000;
                 let msg = format!("{} finished in {}s", cmd_key, secs);
                 // INT-299: reap child in thread to prevent zombie process
-                if let Ok(mut child) = std::process::Command::new("faelight-notify")
-                    .arg("--title")
+                if let Ok(mut child) = std::process::Command::new("notify-send")
                     .arg("Long command finished")
-                    .arg("--body")
                     .arg(&msg)
                     .spawn()
                 {
