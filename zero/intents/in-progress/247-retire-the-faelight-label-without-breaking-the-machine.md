@@ -2142,7 +2142,7 @@ the disk; the test counts are from the runs made in the session.
     7  cicomplete 247 and 252 only when every gate is honestly ticked; then INT-265, then INT-266
 ```
 
-## 2026-09-28, EVENING -- FOUR COMMITS; EVERY REMAINING NAME WAITS ON A RULING -- START HERE
+## 2026-09-28, EVENING -- FOUR COMMITS; EVERY REMAINING NAME WAITS ON A RULING -- superseded by the 2026-09-28 NIGHT section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "COMMIT 2 AND THE DEPLOY LINES" above. Before
 starting a step it names, check the step against disk and git. The script that wrote this refused
@@ -2270,6 +2270,177 @@ the plan was replayed on a clean clone and its diff compared with the live tree:
                the door specific to the change; the commit is its own block
 ```
 
+## 2026-09-28, NIGHT -- THE CENSUS, AND THE PASSES THAT FINISH IT -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "FOUR COMMITS; EVERY REMAINING NAME WAITS ON A RULING"
+above. Before starting a step it names, check the step against disk and git. The script that wrote
+this refused to write unless every commit below exists with its trailers, zero-vm is gone from the
+tree, PATH and config.nsh, the teach backup is gone, no live .rs names faelight-notify, and the tree
+was clean and pushed.
+
+### Rulings, Christian 2026-09-28
+
+```text
+    priority      the faelight, forest and NixOS removal comes BEFORE every other intent, the
+                  shell included. Relationship is rewritten to say so
+    the evening   adopted as recommended: 1 retirement records KEEP; 2 notify PORT; 3 compare,
+    rulings       cache and vm_dispatch DELETE; 4 (D) the faelight CLI gate YES; 5 dated comments
+                  REWORD; A release manifests are history; B the finish guard excludes
+                  zero/intents/, and 048, 145 and 157 are cancelled by the ledger's method;
+                  C the teach backup DELETE; E zero-gen's dictionary word forest is EXEMPT;
+                  F the "formerly Faelight Forest" subtitle is REMOVED
+    NixOS         everything NixOS-era goes: code, comments, the "WAS REMOVED HERE" tombstone
+                  notes, docs. Project 0 is the new
+    zero-vm       RETIRED (0d35dc3d). A VM, if wanted, comes from the Omarchy plugin site or a
+                  new build under its own intent
+    teach         KEPT -- Christian's own learning tool, built early (compare
+                  DanWahlin/learn-omarchy). Its lesson content gets one recon for NixOS and
+                  faelight text
+    ForestDb      becomes StateDb, the handle to state.db
+    the guard     registry entries with retired = true are EXEMPT: the registry's own history,
+                  like a completed intent
+    /etc/faelight becomes /etc/zero -- INT-268, filed and written today. INT-247 removes
+                  /etc/faelight from every live file (the nine comments, pass 1). INT-268 designs
+                  what /etc/zero holds and the system-run writer that writes it -- or closes
+                  without creating it, if nothing needs to be system-wide
+    zombie code   none: no call to a retired tool, no read of a path nothing writes, no code on
+                  a path nothing reaches, no child left unreaped. It is a gate now
+    INT-267       the tree intent: filed, designed any time, MOVED before the docs rewrite
+    intents       Christian: "we are creating more intents than completing." This session filed
+                  267 and 268 and completed none. The next session starts on pass 1
+    still open    H: the two PROPOSED gate ticks (the Layer 3 gate and the pace gate)
+```
+
+### Done this session
+
+```text
+    2de8974d   INT-267 filed -- the shell branch and the tree, designed before anything moves
+    9f8dbcb4   INT-268 filed -- /etc/faelight to /etc/zero, seven gates, the writer as the hard part
+    99933962   compare, cache and vm_dispatch removed with everything that advertised them: the
+               three dispatch arms, compare in where's vocabulary, the libvirt vm verbs, the
+               ~/vms qcow2 completion, vm in completion's and deadwood's builtin lists, the false
+               LIVE AND STAYS comment. compare had SHADOWED /usr/bin/compare. Plan 9becec1e1cc1
+    87012d13   teach/src/main.rs.v2.0.0 deleted -- 1,112 lines cargo never compiled
+    ce1df990   the long-command notification calls notify-send, not the retired faelight-notify.
+               Plan dd869f21aefd. ITS POPUP DOOR IS RED for a reason that predates it -- findings
+    d1d73903   eleven comments stop naming retired tools. Plan c39483c749f9
+    0d35dc3d   zero-vm retired: crate, census case, .gitignore line, Cargo.lock entry, binary
+               (kept in ~/0-core/bin), alias vm; the registry says retired and why.
+               Plan 6f8ab1eb9f8d
+```
+
+Doors on every commit: cargo test --workspace all ok, ship 0 failed, nsh-test 202/202, d 0 failed,
+and the door specific to the change. Every commit carries Intent, and Fingerprint where a plan ran.
+
+### THE CENSUS -- the new starting line, measured at d1d73903
+
+A line counts if it contains faelight or forest in any case. HISTORY is excluded: completed,
+decision, philosophy, cancelled and incident intents, and every CHANGELOG.
+
+```text
+    2,269 live lines in 258 files
+      668  markdown in live intents   excluded by ruling B; 454 are INT-247 and INT-252 themselves
+      547  markdown, docs             62 files
+      341  Rust strings               70 files
+      319  Rust code and identifiers  42 files
+      305  Rust comments              87 files
+       68  TOML                       28 files
+       21  scripts and other
+    about 1,600 lines are the work, and five names carry most of the Rust: ForestDb 176, the
+    forest_* tables about 150, FAELIGHT_STATE_DB and FAELIGHT_STATE_DIR 36, org.faelight.Forest 9,
+    and the retired tool names. 279 distinct names in all
+```
+
+THE LESSON OF THE FORTNIGHT: taking a few names per commit is safe and does not converge. INT-252
+converged because it started from one census of every occurrence. From here every pass takes ONE
+KIND across the whole tree, in one plan.
+
+### Findings, not fixed -- each with where it goes
+
+```text
+    zombie process   novashell main.rs:3658 -- Friday's "failed 3 times" notification spawns
+                     notify-send and drops the child unreaped: a zombie per notification until
+                     nsh exits. The class INT-299 fixed in engine.rs. It fired live this
+                     session ("python3 failed 3 times today"). Pass 4
+    dead path        execute_and_record (engine.rs:1821) is not reached by ordinary commands --
+                     the spine runs them -- so INT-194's slow-command warning and the
+                     long-command notification are silent. PROVEN: a logging notify-send first on
+                     PATH saw no call after sleep 31 ran 31s; the newest TIMING row in
+                     shell_history is 2026-09-10 23:28, after 110 TIMING:sleep rows. The routing
+                     commit is in git log --since=2026-09-10 --until=2026-09-12 for novashell
+                     main.rs. Pass 4, with INT-201 and INT-196
+    skipped headers  when an && chain stops, nsh still prints the [n/m] header of every skipped
+                     command; only the missing output shows it did not run. INT-265
+    exit-2 label     an external's exit 2 is labelled "misuse of shell builtin" (seen again on ls
+                     of a missing file). INT-265
+    doctor trend     "Declining health with no active work" and a 7-day forecast of 88% follow
+                     door runs; 88% is d's score on an uncommitted tree, so the trend is likely fed
+                     by mid-change readings. UNCONFIRMED. INT-265
+    /etc/faelight    nine live comment lines, INT-250's history notes. Pass 1
+    INT-265 gate     "zero-update and zero-vm take th..." names a retired tool. Reword with 265
+    teach            its lessons are unread for NixOS and faelight text. One recon, pass 9
+    the sayings      the banner still says forest ("The roots hold. The branches grow." is fine;
+                     "The forest remembers. The human decides." is not). Pass 9, his voice
+```
+
+### THE PASSES -- each one plan, one fingerprint, EVERY occurrence of its kind
+
+```text
+    1  comments      every live Rust comment naming faelight, forest or NixOS, the tombstone
+                     notes included -- a note that only records NixOS history goes whole. The
+                     2026-09-24 vocabulary: forest as the project -> Project 0; as state or
+                     health -> the word dropped; as the repo -> repo; a retired tool -> a plain
+                     description. Split by crate if the plan runs long
+    2  identifiers   ForestDb -> StateDb, then ForestHelper, ForestDeployIface, faelight_root and
+                     the rest, through the compiler, which finds every use
+    3  strings       printed text, under the display guard extended to faelight and forest
+    4  zombie code   every Command::new of a retired or absent binary, every read of a path
+                     nothing writes, every function nothing reaches, every unreaped child --
+                     deleted or rewired, and a guard that goes red on the first
+    5  contracts     INT-264: FAELIGHT_STATE_DB and FAELIGHT_STATE_DIR -> ZERO_*, the
+                     org.faelight.* D-Bus names, the forest commands and flags. Alias first
+    6  schema        INT-263: the forest_* tables by ALTER TABLE, every SQL string in the same
+                     commit, rollback rehearsed first -- Layer 3's rules
+    7  the links     ~/.local/state/faelight, ~/.config/faelight, ~/.cache/faelight,
+                     ~/.local/share/faelight and ~/.config/faelight-shell removed once every
+                     non-Rust caller is swept
+    8  the tree      INT-267 designed and moved
+    9  the docs      the seven documents, meta/README.md, docs/public regenerated, teach's
+                     lessons, the sayings
+   10  the guard     one test reading every file type: no live faelight, forest or NixOS outside
+                     the exemptions below. Seen red first. Then cicomplete 247 and 252
+```
+
+### Next session, in order
+
+```text
+    1  re-run the census at HEAD with the same definitions -- the line to beat
+       PROPOSED, for Christian's ruling: no new intent until 247 closes, unless it holds a
+       ruling 247 itself needs
+    2  pass 1, the comments, the crate with the most first
+    3  pass 2, ForestDb -> StateDb
+    then the passes in order, one kind per commit
+```
+
+### The method, and what this session added
+
+```text
+    recon      read-only, rehearsed like any payload -- a one-line read with an escaped quote in
+               an f-string failed on the machine because it was sent unrehearsed
+    plans      every edit printed with a FINGERPRINT; apply refuses unless it matches
+    apply      the whole edit set runs through fpatch on mktemp copies and must be byte-identical
+               to the plan before a real file is touched; each real file is compared after.
+               patch() for ASCII spans; patch_between where a span holds non-ASCII -- the edit
+               routine decides by reading the span, not by guessing
+    windows    a guard window is bounded by STRUCTURE, not a line count: a registry edit is
+               confined to its own [[tool]] block after a +-5 window caught a neighbour
+    doors      cargo test through a python filter (under nsh, cargo piped to grep once went
+               unfiltered), ship, exec nsh, nsh-test, d, and the door for the change
+    outside    files outside the repo are copied to ~/.cache/zero before the write, and the copy
+               is deleted when the doors are green
+    scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
+```
+
 ## Success Criteria
 
 - [x] LAYER 0 landed: the freeze is written into AGENTS.md or CONVENTIONS.md as a rule, not a
@@ -2298,8 +2469,9 @@ the plan was replayed on a clean clone and its diff compared with the live tree:
       <!-- evidence: 2026-09-24. Alias created 2026-09-17, seven days of ordinary use. Measured today BEFORE any code default changed: d 92%, 25/28, 0 failed, Zero Alias probe green (state and config aliases resolve to the faelight directories); nsh -c history -> 104 lines; state.db is ONE inode under both names (59:41436, 319037440 bytes); sole holder nsh pid 123517. Baseline HEAD e9eb743a, pushed, tree clean, nsh-test 200/200. -->
 - [ ] Whatever reads the state paths reports UNREADABLE as unreadable. A silent empty ledger is
       the failure this intent most needs to avoid, and it is INT-192's collapse in a new place
-- [ ] The `faelight` unified CLI is decided: renamed to `0` with the same subcommands, or deleted
+- [x] The `faelight` unified CLI is decided: renamed to `0` with the same subcommands, or deleted
       with `nsh` and `core` called directly. Written down either way
+      <!-- evidence: ruled 2026-09-28 (ruling D, adopted as recommended): DELETED -- see LAYERS 1 AND 2, 2026-09-15, where every gate of the decision test is answered and the CLI retired. A command named 0 is its own future intent. -->
 - [ ] No layer was done in the same week as another. If one was, say so here and say why -- the
       pace rule is a gate and breaking it is a thing to record, not hide
 
@@ -2308,10 +2480,26 @@ the plan was replayed on a clean clone and its diff compared with the live tree:
       CHANGELOGs and git history are never rewritten. Each name is held out by a guard once its pass
       is finished, and the guard reads every file type the name lives in, not only .rs
 
+- [ ] STATEDB, ruled 2026-09-28: ForestDb is StateDb everywhere, and no live Rust identifier
+      contains Forest or Faelight in any case
+- [ ] NO NIXOS, ruled 2026-09-28: no live file names NixOS, nixos-rebuild, flake.nix, build-vm or
+      /nix/ -- code, comments and the WAS REMOVED HERE tombstone notes included; history exempt
+- [ ] NO ZOMBIE CODE, ruled 2026-09-28: no live code spawns a retired or absent binary, reads a
+      path nothing writes, sits on a path nothing reaches, or leaves a child unreaped. A guard
+      reads tools.toml's retired names and fails on any Command::new naming one -- seen red first.
+      The dead-path finding (execute_and_record's timing and notification) is resolved: rewired
+      onto the path commands take, or deleted
+- [ ] /ETC/FAELIGHT: no live file names /etc/faelight. What /etc/zero holds, and the system-run
+      writer that writes it, is INT-268's
+- [ ] THE GUARD'S EXEMPTIONS, ruled 2026-09-28, and nothing else: history (completed, decision,
+      philosophy, cancelled and incident intents; CHANGELOGs; git), live intents (ruling B),
+      registry entries with retired = true, and zero-gen's dictionary word forest (ruling E)
+
 ## Relationship
 
-- ⏭ PRIORITY: BELOW the shell, always. This is spelling. If a session has to choose, this loses.
-  Recorded so the ordering survives the enthusiasm of whoever picks it up
+- PRIORITY, ruled by Christian 2026-09-28: the faelight, forest and NixOS removal comes BEFORE
+  every other intent, the shell included. It replaces "below the shell, always", written while
+  the rename was spelling; the rename is now the finish line of the project's name.
 - INT-245, INT-246 and INT-192 share this intent's central failure mode: something unreadable or
   unenforceable answering as though it were empty or applied. Layer 3's silent-empty-ledger risk
   is the same defect, which is why it is last
