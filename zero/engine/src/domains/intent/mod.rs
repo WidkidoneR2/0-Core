@@ -1646,8 +1646,11 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
     let (_, type_tag, def_tags, def_status) = TEMPLATES
         .iter()
         .find(|(t, ..)| *t == want)
+        // INT-247 Layer 0: the fallback IS the future row, never a copy of it. The copy that
+        // lived here defaulted to the retired name, out of template_tests' reach.
+        .or_else(|| TEMPLATES.iter().find(|(t, ..)| *t == "future"))
         .copied()
-        .unwrap_or(("future", "future", "faelight", "planned"));
+        .expect("TEMPLATES has a future row -- template_tests::future_row_exists pins it");
 
     let title = prompt("Title: ").unwrap_or_default();
     if title.is_empty() {
@@ -3446,5 +3449,12 @@ mod template_tests {
             "templates still default to the retired name faelight: {:?}",
             offenders
         );
+    }
+
+    /// The wizard's fallback is TEMPLATES' future row (INT-247 Layer 0), so the row must
+    /// exist. Without it inta would panic instead of offering a default.
+    #[test]
+    fn future_row_exists() {
+        assert!(super::TEMPLATES.iter().any(|(t, ..)| *t == "future"));
     }
 }
