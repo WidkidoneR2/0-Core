@@ -70,8 +70,8 @@ Candidate mechanisms -- recorded, NOT decided:
     migration   whether the open findings in LIVE intents move into the new records, and how the
                 old line is marked as moved. Completed intents are history and are never
                 rewritten (INT-247 rule 1)
-    trailers    whether commits carry trailers before this intent starts. Asked 2026-09-26, not
-                yet answered
+    trailers    RULED 2026-09-28 by Christian: yes. From 8c4c4c15 every commit carries Intent and
+                Fingerprint trailers; Finding waits for this intent to give findings IDs
     scripts     plan scripts are deleted when their work ends. Keeping them is what would let a
                 recorded fingerprint be re-derived later; deleting them keeps ~/.cache clean
     owner       the command surface: which verbs, under which existing tool

@@ -1989,7 +1989,7 @@ INT-265 filed: every defect the pass walked past, with file and line, gates and 
     5  INT-265, only after INT-247 and INT-252 are closed
 ```
 
-## 2026-09-26, MORNING -- THE CRATE PASS IS DONE, 15 OF 15 -- START HERE
+## 2026-09-26, MORNING -- THE CRATE PASS IS DONE, 15 OF 15 -- superseded by the 2026-09-28 section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS AT 14 OF 15" above. Before starting
 a step it names, check the step against disk and git. The script that wrote this checked the
@@ -2065,6 +2065,81 @@ in the session.
                      Rewrite it by ruling to name that census, or defer it. Asked 2026-09-26
     trailers         whether commits carry Intent, Finding and Fingerprint trailers before
                      INT-266 starts. Asked 2026-09-26
+```
+
+## 2026-09-28 -- COMMIT 2 AND THE DEPLOY LINES -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "THE CRATE PASS IS DONE, 15 OF 15" above. Before
+starting a step it names, check the step against disk and git. The script that wrote this checked
+the commits, their trailers, the five old code names and the README deploy lines against git and
+the disk; the test counts are from the runs made in the session.
+
+### Done this session
+
+```text
+    8c4c4c15   commit 2 -- zero-core's code names say zero. FaelightError is ZeroError; the
+               theme's faelight_default, faelight_dark and faelight_light are zero_default,
+               zero_dark and zero_light; the default theme's doc line says Project 0.
+               FOREST_GREEN is DELETED, not renamed: the recon found no caller, and a name
+               nothing uses does not get the new name. Plan c74e22229304. The first commit to
+               carry trailers
+    f6a15c25   18 READMEs (17 crates and the engine) say ship and cargo build -p <package>, not
+               sudo nixos-rebuild or nix develop. Hand-edited to the exact text the zero-docs
+               template already writes, so a later sync agrees; sync itself was not run, because
+               it also regenerates docs/public. nsh-test's build line said -p fsh-test and now
+               names its real package. Plan b739b4b3c8f1
+```
+
+### Proven
+
+```text
+    8c4c4c15   cargo check -p zero-core --features ui finished before AND after (glyph.rs is
+               compiled only with ui); cargo test all ok; ship 15 shipped 0 failed; nsh-test
+               202/202; d 0 failed; the five old names in live files: none
+    f6a15c25   24 lines in 18 files, each equal to the plan; nsh-test 202/202; d 96%, 0 failed;
+               no README outside the intents says nixos-rebuild
+    trailers   git log reads Intent and Fingerprint back from both commits
+```
+
+### Rulings, Christian 2026-09-28
+
+```text
+    names        ZeroError, zero_default, zero_dark, zero_light -- approved
+    FOREST_GREEN recon decides, he said; the recon found no caller, so it was deleted
+    colours      none decided. Project 0's colours come from the Omarchy theme; the forest
+                 names went with the forest
+    trailers     YES. Every commit from 8c4c4c15 carries Intent and Fingerprint trailers;
+                 Finding waits for INT-266 to give findings IDs
+    INT-252      gate 1 REWRITTEN to name the census that ran (12cb33529e87, in 7b79c725) and
+                 ticked -- done by this record, with its evidence in INT-252
+```
+
+### Found, not fixed
+
+```text
+    palette      zero-core still carries a fixed palette (NEON_GREEN and the rest) while Project 0's
+                 colours come from the Omarchy theme. The colour work, not the rename
+    template     zero-docs writes the binary deploy wording for every crate, libraries included.
+                 zero-core's README has a library line by hand (c4634250); the next sync would
+                 replace it. Teaching the template the difference is INT-265's
+    a pipe       under nsh, cargo ... 2>&1 | grep left cargo's progress lines on the terminal
+                 unfiltered and grep matched none of them (exit 1) -- seen 2026-09-26 and
+                 2026-09-28. Observed, not investigated; the cause is not known
+```
+
+### Next, in order
+
+```text
+    1  the word passes: the sayings (Christian's voice -- the tree emoji goes with them), then the
+       tree emoji outside the renamed crates
+    2  INT-263 schema: the forest_* tables, by ALTER TABLE, rollback rehearsed first
+    3  INT-264 contracts: FAELIGHT_STATE_DIR and FAELIGHT_STATE_DB, the D-Bus names, the forest
+       commands and flags -- alias first
+    4  the compatibility links, after every non-Rust caller is swept
+    5  the docs rewrite: the seven documents, meta/README.md whole, docs/public regenerated,
+       AGENTS.md:281, the tools index
+    6  the guard for faelight and forest, reading every file type; then the finish line
+    7  cicomplete 247 and 252 only when every gate is honestly ticked; then INT-265, then INT-266
 ```
 
 ## Success Criteria

@@ -195,11 +195,23 @@ rules: rewrite it to name that census, or defer it. Asked 2026-09-26.
 This intent still closes only when the entire flip is done -- no live faelight or forest in the
 code (Christian, 2026-09-25). INT-247's START HERE holds the order.
 
+## 2026-09-28 -- GATE 1 REWRITTEN BY RULING; THE FLIP IS NOW A GATE
+
+Ruled by Christian 2026-09-28: the first gate is rewritten to name what actually ran. The move in
+7b79c725 was made against the fingerprinted census 12cb33529e87, not a regenerated audit, so the
+gate now says so and is ticked with that evidence. Its original wording is quoted in the evidence.
+
+With that tick every gate below read as done, while Christian ruled on 2026-09-25 that this intent
+is not complete until the entire flip is -- no live faelight or forest in the code. A ruling that
+lives only in prose cannot stop cicomplete, so it is now the last gate, and it stays open until
+INT-247's finish line is met.
+
 ## Success Criteria
 
-- [ ] THE AUDIT IS REGENERATED AND CLASSIFIED before anything moves: every occurrence of
-      `faelight/` in live code, manifests, scripts and docs, each marked live / historical /
-      comment. The numbers above are from 2026-09-19 and will have drifted.
+- [x] THE AUDIT -- RULED 2026-09-28: rewritten to name what ran. Before anything moved, every live
+      `faelight/` path string was censused, reviewed and fingerprinted, and the move rewrote exactly
+      that set -- the same change of order as the gate below.
+      <!-- evidence: 7b79c725. Census 12cb33529e87: 133 sites in 28 files, reviewed before the move; after it, 'repo-path sites left in live files: 0'. Rewritten by Christian's ruling 2026-09-28. The original wording asked for the audit regenerated and each occurrence marked live / historical / comment before anything moved; the fingerprinted census is what ran instead. -->
 - [x] THE CALLERS -- RULED 2026-09-25: the order changed. Instead of converting the callers one
       crate at a time, the move ran as ONE scripted commit: a census of every live `faelight/`
       path string, reviewed and fingerprinted, rewritten through fpatch in the same commit as
@@ -224,6 +236,9 @@ code (Christian, 2026-09-25). INT-247's START HERE holds the order.
       <!-- evidence: d after the move, before and after the commit: Zero Alias 'both names resolve to one directory -- real: state=zero, config=zero', unchanged since Layer 3b. The move touched tracked files under ~/0-core only. -->
 - [x] Historical intents still say `faelight/` and that is recorded as correct, not as debt.
       <!-- evidence: 7b79c725 renames every intent at 100% similarity; the move excluded zero/intents/ by rule. Correct, not debt: INT-247 rule 1, history is never rewritten. -->
+- [ ] THE ENTIRE FLIP, ruled by Christian 2026-09-25: this intent completes only when INT-247's
+      finish line is met -- no live faelight or forest in the code. Recorded as a gate 2026-09-28
+      so cicomplete cannot pass on the other gates alone
 
 ## Not in scope
 
