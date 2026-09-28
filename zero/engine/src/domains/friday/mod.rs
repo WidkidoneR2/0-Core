@@ -1059,7 +1059,6 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         // DBus
         ("dbus", "DBus allows IPC between processes. Session bus for user services, system bus for system.", 0.85),
         ("dbus", "zbus is the idiomatic Rust DBus library. It uses async/await with tokio.", 0.85),
-        ("dbus", "faelight-notify uses DBus org.freedesktop.Notifications interface.", 0.85),
     ];
     let mut added = 0;
     for (domain, fact, confidence) in &knowledge {

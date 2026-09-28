@@ -16,21 +16,6 @@ aliases = ["doctor", "health"]
 category = "monitoring"
 
 [[alias]]
-command = "faelight-bootstrap"
-aliases = ["bootstrap"]
-category = "automation"
-
-[[alias]]
-command = "faelight-dashboard"
-aliases = ["dash"]
-category = "desktop"
-
-[[alias]]
-command = "faelight-fetch"
-aliases = ["fetch"]
-category = "automation"
-
-[[alias]]
 command = "zero-git"
 aliases = ["fg"]
 category = "development"
@@ -133,15 +118,6 @@ category = "git"
 command = "git log --oneline --graph"
 aliases = ["glog"]
 category = "git"
-
-# ═══════════════════════════════════════════════════════════
-# 🌲 FAELIGHT-SPECIFIC
-# ═══════════════════════════════════════════════════════════
-
-[[alias]]
-command = "swaymsg reload"
-aliases = ["reload"]
-category = "desktop"
 
 # Total: 50+ primary aliases documented
 # Full 301 aliases are active in shell but documented incrementally

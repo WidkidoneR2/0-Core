@@ -11,10 +11,3 @@ description = "System update manager with rollback"
 binary = "zero-update"
 event_domains = ["update"]
 enabled = true
-
-[[plugins]]
-name = "faelight-fetch"
-description = "System information display"
-binary = "faelight-fetch"
-event_domains = []
-enabled = true

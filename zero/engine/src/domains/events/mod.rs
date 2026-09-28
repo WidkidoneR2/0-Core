@@ -729,7 +729,6 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
                 e
             );
             eprintln!("  {} Is zero-daemon running?", "💡".yellow());
-            eprintln!("  {} systemctl --user status faelight-daemon", "→".dimmed());
             return Ok(());
         }
     };

@@ -287,14 +287,6 @@ fn known_plugin(name: &str) -> Option<Plugin> {
             event_domains: vec!["update".to_string()],
             enabled: true,
         }),
-        "faelight-fetch" => Some(Plugin {
-            name: "faelight-fetch".to_string(),
-            description: "System information display".to_string(),
-            binary: "faelight-fetch".to_string(),
-            version: None,
-            event_domains: vec![],
-            enabled: true,
-        }),
         _ => None,
     }
 }
