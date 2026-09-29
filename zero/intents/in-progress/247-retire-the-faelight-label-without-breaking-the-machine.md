@@ -2441,7 +2441,152 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-29 EVENING, PASSES 5B-5D AND THE RELOAD FIX -- 5E NEXT -- START HERE
+## 2026-09-29 NIGHT, STATEDB, PACE, NIXOS-ERA CRATES AND NO NIXOS A-C1 -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes the EVENING record below, whose rulings, held lines and
+method still stand except where this section says otherwise. The script that wrote this refused unless
+HEAD was 948040e5 and pushed, the tree was clean and the seven commits below exist as INT-247 commits.
+
+### Done this session -- all pushed, every commit through its doors
+
+```text
+    82e23d2b   STATEDB        deps test renamed zero_prefix_is_categorized; census 0 lines of Rust code and
+                              identifiers; gate TICKED
+    f92c664d   NO NIXOS A     the engine nix domain (INT-088, a nixos-option wrapper) and core nix deleted; its
+                              only caller, alias inspect, left config.nsh; ship deployed core
+    1dd4b6f1   NO NIXOS B1    38 edits in 23 files: tombstones and comments, fsearch --nix, the prompt /nix
+                              colour, nsh's NixOS PATH entries (~/.cargo/bin still leads PATH once per tree)
+    eb1e002f   NO NIXOS B2    zero-release stops reading /nix and loses gc-check; zero-update drift reads
+                              pacman.log; meta/packages.txt, the platform census script and its doc deleted
+    794a9f29   pace           TICKED with its record: broken on purpose, and it says so
+    de5aba4e   NixOS crates   TICKED: the nix domain was the last; zero/meta/README.md lost its Nix Inspector line
+    948040e5   NO NIXOS C1    MIGRATION-RUNBOOK, NEW-CHAT-DIRECTIVES, ideas-parking and recovery-runbook deleted;
+                              NixOS sections and lines out of docs/ and docs/public/; AGENTS.md keeps the
+                              recovery gap as its own line; CHANGELOGs untouched
+```
+
+### THE GATES -- 9 of 18 ticked
+
+```text
+    TICKED   LAYER 0, NAME, faelight-fm gone, faelight-docs, state alias week, unified CLI, STATEDB,
+             NixOS-era crates, pace
+    open     inventory      docs/inventory.md not written
+    open     COUNT          README, the catalog, tools.toml and the tree not reconciled
+    open     path audit     the audit is a section in this intent; the gate asks for a deliverable in its own right
+    open     UNREADABLE     gaterecon (a heuristic) found 23 silent, 35 unclear and 31 reporting state-path
+                            sites. Design: one open_state_db() in zero-core that reports unreadable, and the
+                            readers move onto it crate by crate
+    open     NO NIXOS       live code and docs are clean except four held pieces: PHILOSOPHY (Christian
+                            rewrites it), the generated tool READMEs (13 lines -- read zero-docs toolgen first),
+                            the release docs (RELEASE.md, zero/meta/README.md, zero-release's README -- they go
+                            with zero-release), Friday's NixOS rows (14 lines -- the schema pass)
+    open     NO ZOMBIE      pass 4
+    open     /etc/faelight  INT-268
+    open     exemptions     pass 10, the guard
+    open     FINISH LINE    the census below, then the schema, the tree, the docs and the guard
+```
+
+### Rulings, Christian 2026-09-29 (night)
+
+```text
+    tool axis     Project 0 upgrades tool by tool, never as a whole system. cicomplete and core release
+                  bump-tool are the version path. zero-release and core release bump-system RETIRE. Callers
+                  swept: config.nsh (bump, release, fr-history, fr-preview, fr-status), zero-docs (owns README
+                  lines 1-37, registry entries), engine intent/mod.rs tool list and release/mod.rs, nsh
+                  commands/mod.rs Cargo.toml map, devbox/census/zero-release.toml, tools.toml
+    docs          the four NixOS-era documents are deleted; the recovery gap is stated in AGENTS.md and an
+                  Omarchy runbook belongs to INT-225; PHILOSOPHY is Christian's rewrite; the generated tool
+                  READMEs are re-examined before any edit
+    zero-update   drift is days since pacman.log's last full system upgrade, unknown without one
+    CHANGELOGs    never edited, by any pass, including link cleanup
+```
+
+### Next, in order
+
+```text
+    0   ints 247 and this START HERE
+    1   generated tool READMEs: read how zero-docs toolgen writes its history lines, then fix the generator
+        or the files -- whichever owns the text
+    2   retire zero-release and core release bump-system (callers above); RELEASE.md, zero/meta/README.md
+        and zero-release's README go with it
+    3   5E fsh -> nsh, as ruled in the EVENING record
+    4   pass 4 zombies, then the NO ZOMBIE gate (list in the EVENING record)
+    5   pass 6 schema, with a rehearsed rollback: forest_* tables, Friday's forest/nixos domain and system
+        values and NixOS seed facts, release_triad's generation column, the goal title, fsh::delete.
+        NO NIXOS closes when this lands and PHILOSOPHY is rewritten
+    6   UNREADABLE: open_state_db() and its readers
+    7   passes 7 (links, zero-doctor's probe), 8 (INT-252 tree), 9 (docs), 10 (guard, kept aliases,
+        nsh-test case names)
+    8   inventory, COUNT, the path audit deliverable; then cicomplete 247 and 252
+```
+
+### Open questions for Christian (carried)
+
+```text
+    releases   11 zero/meta/releases/*/manifest.toml themes: exempt as history, or rewrite?
+    theme      the stored prompt_theme is none of the four names
+```
+
+### What this session added to the method
+
+```text
+    recon first   a gate-tick script is preceded by its read-only sweep, so a leftover line is recon
+    one run       a plan collects every refusal cause and lists them all at once
+    transport     the byte-check is of the exact text in the reply, run through bash -- not the sandbox file
+```
+
+### Tools in ~/.cache/zero -- reuse, do not rewrite
+
+```text
+    census-6c5139205bd1.py        read-only census
+    gaterecon-bd77dca4c79d.py     read-only: UNREADABLE site classes and the live NixOS lines
+    nixrecon2-b98255a4f866.py     read-only: NixOS lines in their comment blocks, nix/store fns and callers
+    pass5c-1048ccce0bff.py        line-entry engine; reuse for 5E
+    passreload-5cdf8e6411e0.py    block engine
+    one-offs from this session (statedb*, nixplan*, nixcommit*, pace*, crates*, docplan*, doccommit*,
+    record*) are finished and can be deleted
+```
+
+### THE CENSUS at this record -- the line to beat
+
+```text
+    INT-247 CENSUS at 948040e5 INT-247 NO NIXOS C1: the NixOS-era docs go -- four 
+    intent directories: cancelled(history), complete(history), decisions(history), experiments, future, in-progress, incidents(history), philosophy(history), planned
+    
+      1605 live lines in 184 files
+        771  markdown in live intents     41 files
+        489  markdown, docs               57 files
+        227  Rust strings                 39 files
+          0  Rust code and identifiers     0 files
+         65  TOML                         27 files
+         37  Rust comments                21 files
+         16  scripts and other            11 files
+       834 lines are the work.  160 distinct names
+      of the Rust strings, 26 lines sit inside a string that began on an earlier line
+    
+    by extension: .md 1260, .rs 264, .toml 65, .py 6, .json 4, .sh 2, .txt 1, pre-commit 1, .conf 1, devshell-lib 1
+    
+    LIVE PATHS naming faelight or forest (12)
+      docs/forest-resilience.md
+      docs/public/forest-resilience.md
+      zero/intents/future/026-forest-observatory-event-timeline.md
+      zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md
+      zero/intents/future/145-fix-faelight-ade-to-work-in-nix-and-fsh.md
+      zero/intents/future/165-apparmor-confinement-layer-and-how-it-relates-to-faelight-sandbox.md
+      zero/intents/future/187-evaluate-gix-vs-git2-for-faelight-git-pure-rust-git-not-a-felt-need-yet.md
+      zero/intents/future/218-faelight-deadwood-scopes-the-command-word-check-by-file-while-the-rule-it-enforces-is-defined-by-role-so-a-live-defect-escaped-in-a-file-outside-the-six-name-list.md
+      zero/intents/future/263-the-forest-tables-and-old-event-rows-still-carry-the-retired-names----rename-them-under-a-rehearsed-rollback.md
+      zero/intents/future/268-going-from-etcfaelight-to-etczero.md
+      zero/intents/in-progress/247-retire-the-faelight-label-without-breaking-the-machine.md
+      zero/intents/in-progress/252-the-source-tree-still-spells-faelight-in-162-live-places----consolidate-the-callers-onto-pathsrs-then-rename-the-directory-to-zero.md
+    
+    PASS 2 SCOPE -- Rust identifiers naming faelight or forest in CODE (0)
+      identifier                          code string  comment files
+    
+    CENSUS DIFFERS from the pass-1 record: lines 1605 (record 2061), files 184 (record 232), work 834 (record 1346)
+```
+
+## 2026-09-29 EVENING, PASSES 5B-5D AND THE RELOAD FIX -- 5E NEXT -- SUPERSEDED 2026-09-29 NIGHT
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "PASSES 2, 3 AND 5A" below, whose rulings, held lines and
 method still stand except where this section says otherwise. The script that wrote this refused unless
