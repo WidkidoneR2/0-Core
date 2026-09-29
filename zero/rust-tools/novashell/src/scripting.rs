@@ -3,7 +3,7 @@
 // "Not for automating tasks. For expressing forest behavior."
 
 use crate::commands::{execute, CommandResult};
-use crate::db::ForestDb;
+use crate::db::StateDb;
 use crate::value::Value;
 use colored::*;
 use std::collections::HashMap;
@@ -155,7 +155,7 @@ fn collect_block(lines: &[&str], i: &mut usize) -> Vec<Statement> {
 }
 
 /// Execute a list of statements
-pub fn run_stmts(stmts: &[Statement], scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
+pub fn run_stmts(stmts: &[Statement], scope: &mut Scope, db: &StateDb, core_root: &str) -> bool {
     for stmt in stmts {
         if !run_stmt(stmt, scope, db, core_root) {
             return false;
@@ -188,7 +188,7 @@ fn is_literal(s: &str) -> bool {
     false
 }
 
-fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
+fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &StateDb, core_root: &str) -> bool {
     match stmt {
         Statement::Let { name, expr } => {
             let expanded = scope.interpolate(expr);
@@ -301,7 +301,7 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
     }
 }
 
-fn eval_condition(cond: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
+fn eval_condition(cond: &str, scope: &mut Scope, db: &StateDb, core_root: &str) -> bool {
     // Simple conditions: "health < 90", "score > 70"
     let parts: Vec<&str> = cond.split_whitespace().collect();
     if parts.len() == 3 {
@@ -331,7 +331,7 @@ fn eval_condition(cond: &str, scope: &mut Scope, db: &ForestDb, core_root: &str)
     }
 }
 
-fn resolve_value(name: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) -> String {
+fn resolve_value(name: &str, scope: &mut Scope, db: &StateDb, core_root: &str) -> String {
     // Check scope first
     if let Some(v) = scope.get(name) {
         return v.as_text();
@@ -355,7 +355,7 @@ fn resolve_value(name: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) 
     }
 }
 
-fn check_event(event: &str, db: &ForestDb) -> bool {
+fn check_event(event: &str, db: &StateDb) -> bool {
     let parts: Vec<&str> = event.splitn(2, '.').collect();
     if parts.len() == 2 {
         let since = std::time::SystemTime::now()
@@ -377,7 +377,7 @@ fn check_event(event: &str, db: &ForestDb) -> bool {
 }
 
 /// Execute a .fsh script file
-pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]) -> CommandResult {
+pub fn run_file(path: &str, db: &StateDb, core_root: &str, script_args: &[&str]) -> CommandResult {
     // Parse flags from script_args
     let trace = script_args.contains(&"--trace");
     let dry_run = script_args.contains(&"--dry-run");
@@ -509,7 +509,7 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
 
 /// Run .fsh source directly (for REPL inline blocks)
 #[allow(dead_code)]
-pub fn run_source(source: &str, db: &ForestDb, core_root: &str) -> CommandResult {
+pub fn run_source(source: &str, db: &StateDb, core_root: &str) -> CommandResult {
     let stmts = parse(source);
     let mut scope = Scope::new();
     let ok = run_stmts(&stmts, &mut scope, db, core_root);

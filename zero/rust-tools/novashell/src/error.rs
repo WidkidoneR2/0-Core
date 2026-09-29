@@ -158,7 +158,7 @@ pub fn make_error(
     suggestion: &str,
     command: &str,
     directory: &str,
-    db: &crate::db::ForestDb,
+    db: &crate::db::StateDb,
 ) -> String {
     let err = ShellError::new(code, message, suggestion, command, directory);
     // Store in shell_state as last_error

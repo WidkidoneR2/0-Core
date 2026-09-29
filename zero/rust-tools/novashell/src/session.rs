@@ -19,7 +19,7 @@ pub struct SessionMemory {
 }
 
 impl SessionMemory {
-    pub fn load(core_root: &str, db: &crate::db::ForestDb) -> Option<Self> {
+    pub fn load(core_root: &str, db: &crate::db::StateDb) -> Option<Self> {
         let conn = &db.conn;
 
         // Ensure session_state table exists
@@ -78,7 +78,7 @@ impl SessionMemory {
         })
     }
 
-    pub fn save(core_root: &str, current_intent: Option<&str>, db: &crate::db::ForestDb) {
+    pub fn save(core_root: &str, current_intent: Option<&str>, db: &crate::db::StateDb) {
         {
             let conn = &db.conn;
             let _ = conn.execute_batch(
@@ -177,7 +177,7 @@ pub fn detect_mode(
     mem: &SessionMemory,
     core_root: &str,
     active_count: usize,
-    db: &crate::db::ForestDb,
+    db: &crate::db::StateDb,
 ) -> ShellMode {
     let _ = core_root;
     let health: u32 = db
@@ -229,7 +229,7 @@ fn sc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[2m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
 }
 
-pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) -> String {
+pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::StateDb) -> String {
     let mut lines: Vec<String> = vec![];
     let intents = active_intents(core_root);
     let mode = detect_mode(mem, core_root, intents.len(), db);

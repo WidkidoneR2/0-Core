@@ -10,7 +10,7 @@
 
 use crate::commands::{self, CommandResult};
 use crate::config::{BeforeRunRule, RuleAction};
-use crate::db::ForestDb;
+use crate::db::StateDb;
 use colored::Colorize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -182,11 +182,7 @@ impl ExecContext {
     /// `raw` stays the SOURCE line on both paths: it is provenance -- history entries, the
     /// `LIKE '{raw}%'` frequency lookups, event payloads, and before-run rule matching. It is a
     /// human-readable label, never re-parsed.
-    pub fn from_plan(
-        plan: &crate::spine::plan::ExecutionPlan,
-        source: &str,
-        db: &ForestDb,
-    ) -> Self {
+    pub fn from_plan(plan: &crate::spine::plan::ExecutionPlan, source: &str, db: &StateDb) -> Self {
         let raw = source.trim().to_string();
         let cwd = plan
             .cwd
@@ -216,7 +212,7 @@ impl ExecContext {
         }
     }
 
-    pub fn from_line(raw_line: &str, expanded_line: &str, db: &ForestDb) -> Self {
+    pub fn from_line(raw_line: &str, expanded_line: &str, db: &StateDb) -> Self {
         // INT-191: TWO ENDPOINTS, not one string doing double duty. `raw` is what crossed the
         // USER boundary; `expanded` is what crossed the EXECUTION boundary. The caller owns that
         // distinction because only the caller knows which stage it is standing at -- this
@@ -471,7 +467,7 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
 }
 
 /// Postexec hook — runs after every command
-fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
+fn postexec(ctx: &ExecContext, result: &CommandResult, db: &StateDb) {
     // Phase 0: record to shell_history with context
     // Future: INT-177 observability, INT-176 failure memory
     let status = execution_state(result);
@@ -740,7 +736,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 /// What the spine needs from the live shell session, supplied by the REPL that owns it.
 ///
 /// Session variables and the last exit code are PROCESS state, not persistent knowledge,
-/// so they are passed in rather than pushed into ForestDb. `commands/mod.rs` never sees them:
+/// so they are passed in rather than pushed into StateDb. `commands/mod.rs` never sees them:
 /// builtins are not the owner of shell session state.
 pub struct ShellContext<'a> {
     pub shell_vars: &'a std::collections::HashMap<String, String>,
@@ -781,7 +777,7 @@ impl crate::spine::plan::VarResolver for ShellContext<'_> {
 pub fn execute_spine(
     plan: &crate::spine::plan::ExecutionPlan,
     source: &str,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> CommandResult {
@@ -1014,7 +1010,7 @@ mod glob_matcher_tests {
 }
 
 struct SpineCommandRunner<'a> {
-    db: &'a ForestDb,
+    db: &'a StateDb,
     core_root: &'a str,
     /// INT-169 blocker 2: needed because a nested command must face the SAME policy gate as a
     /// typed one. Held rather than rediscovered, so "which rules are active" cannot drift between
@@ -1112,7 +1108,7 @@ pub enum SpineAttemptError {
 fn lower_spine_source(
     source: &str,
     shell: &ShellContext,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Result<Vec<crate::spine::plan::ExecutionPlan>, SpineAttemptError> {
@@ -1179,7 +1175,7 @@ pub enum BackgroundAttempt {
 pub fn try_spine_background_command(
     source: &str,
     shell: &ShellContext,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> Option<Result<BackgroundAttempt, SpineAttemptError>> {
@@ -1258,7 +1254,7 @@ pub fn try_spine_background_command(
 pub fn execute_spine_source(
     source: &str,
     shell: &ShellContext,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> CommandResult {
@@ -1337,7 +1333,7 @@ pub enum SpineOutcome {
 pub fn try_execute_spine_source(
     source: &str,
     shell: &ShellContext,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> SpineOutcome {
@@ -1747,7 +1743,7 @@ pub fn execution_state(result: &CommandResult) -> &'static str {
 pub fn execute_with_context(
     raw: &str,
     expanded: &str,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     rules: &[BeforeRunRule],
 ) -> ExecutionOutcome {

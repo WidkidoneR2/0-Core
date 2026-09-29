@@ -7,7 +7,7 @@
 //!   set history_limit = 10000  — shell setting
 //!   # comment                  — ignored
 
-use crate::db::ForestDb;
+use crate::db::StateDb;
 
 /// A single before_run rule — condition + action
 #[derive(Debug, Clone)]
@@ -272,7 +272,7 @@ pub struct ApplyReport {
 
 /// `reconcile` false means: seed from the config, never prune the live set
 /// against it. A first-run template is not the operator's config.
-pub fn apply(cfg: &ShellConfig, db: &ForestDb, reconcile: bool) -> ApplyReport {
+pub fn apply(cfg: &ShellConfig, db: &StateDb, reconcile: bool) -> ApplyReport {
     if cfg.aliases.is_empty() && cfg.settings.is_empty() {
         return ApplyReport::default();
     }

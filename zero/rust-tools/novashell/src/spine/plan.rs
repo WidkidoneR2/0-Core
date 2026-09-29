@@ -151,10 +151,10 @@ pub enum LowerError {
 /// What the expansion phase needs from the world, and NOTHING else.
 ///
 /// ★ plan.rs stays PURE: it knows the CAPABILITY it needs, not where the values live. It never
-/// sees a HashMap, a ForestDb, or the REPL loop. The caller implements this over whatever it
+/// sees a HashMap, a StateDb, or the REPL loop. The caller implements this over whatever it
 /// has -- fsh's session `shell_vars` plus `std::env` plus the loop's exit code. Shell variables
 /// are process/session state, NOT persistent knowledge, which is exactly why they must
-/// not be pushed into ForestDb to solve reachability.
+/// not be pushed into StateDb to solve reachability.
 ///
 /// Semantics must MATCH legacy expand_vars exactly (main.rs): session vars first, then process
 /// env, and an UNSET variable expands to the EMPTY STRING (`unwrap_or_default`), which is not

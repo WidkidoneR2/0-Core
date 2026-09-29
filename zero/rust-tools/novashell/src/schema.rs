@@ -78,7 +78,7 @@ impl Column {
 #[derive(Debug, Clone)]
 pub enum SchemaSource {
     System,     // live OS data (ps, ports, net)
-    ForestDb,   // state.db (events, history)
+    StateDb,    // state.db (events, history)
     GitLog,     // git history
     Registry,   // tools registry / toml
     Filesystem, // directory listing
@@ -88,7 +88,7 @@ impl SchemaSource {
     pub fn label(&self) -> &'static str {
         match self {
             SchemaSource::System => "system",
-            SchemaSource::ForestDb => "state.db",
+            SchemaSource::StateDb => "state.db",
             SchemaSource::GitLog => "git log",
             SchemaSource::Registry => "registry",
             SchemaSource::Filesystem => "filesystem",
@@ -265,7 +265,7 @@ fn schema_et() -> TableSchema {
     TableSchema {
         name: "et".to_string(),
         aliases: vec!["events".to_string()],
-        source: SchemaSource::ForestDb,
+        source: SchemaSource::StateDb,
         description: "Event log from state.db".to_string(),
         columns: vec![
             Column::new(
@@ -303,7 +303,7 @@ fn schema_history() -> TableSchema {
     TableSchema {
         name: "history".to_string(),
         aliases: vec!["hist".to_string()],
-        source: SchemaSource::ForestDb,
+        source: SchemaSource::StateDb,
         description: "Shell command history".to_string(),
         columns: vec![
             Column::new("id", ColumnType::Int, "history entry ID"),

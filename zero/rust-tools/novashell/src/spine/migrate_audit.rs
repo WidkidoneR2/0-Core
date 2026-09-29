@@ -5,9 +5,9 @@
 //!
 //! ★ THE ENGINE DOES NOT KNOW HOW PLANS ARE PRODUCED (Christian). It only OBSERVES plans and
 //! classifies them via compare_execution_semantics + migration_status. Production of the legacy
-//! plan (from_line + plan_from_legacy, which needs ForestDb) and the spine plan (parse + lower)
-//! happens in the builtin, near the shell where ForestDb naturally lives. Coupling the analysis
-//! layer to the legacy execution implementation (a ForestDb handle) would be backwards. So the
+//! plan (from_line + plan_from_legacy, which needs StateDb) and the spine plan (parse + lower)
+//! happens in the builtin, near the shell where StateDb naturally lives. Coupling the analysis
+//! layer to the legacy execution implementation (a StateDb handle) would be backwards. So the
 //! caller hands over an AuditObservation; the engine judges. Same engine can later observe
 //! fixtures, fuzz-generated plans, or another parser -- unchanged.
 //!

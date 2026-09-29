@@ -13,7 +13,7 @@
 //! An Engine owns; a ShellContext is a snapshot it lends out.
 
 use crate::config::BeforeRunRule;
-use crate::db::ForestDb;
+use crate::db::StateDb;
 use crate::exec::ShellContext;
 use colored::Colorize;
 use std::collections::HashMap;
@@ -114,12 +114,12 @@ pub struct Engine {
 
     /// The database. A RESOURCE, not state: builtins read it, history and telemetry write
     /// through it, and the alias table lives in it.
-    /// ⚠️ Rc, not a plain owner: the completion helper holds `&ForestDb` for the WHOLE
+    /// ⚠️ Rc, not a plain owner: the completion helper holds `&StateDb` for the WHOLE
     /// session (rustyline stores it), which pinned the engine as immutably borrowed and made
     /// every `&mut self` method uncallable inside the loop. Rc states what was already true --
     /// the database is a SHARED resource, not exclusively-owned execution state. Rc rather
     /// than Arc because no thread in this crate ever takes the db.
-    db: Rc<ForestDb>,
+    db: Rc<StateDb>,
 
     /// The repo root. A String rather than a PathBuf because every consumer here takes `&str`.
     core_root: String,
@@ -130,7 +130,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(db: ForestDb, core_root: String, before_rules: Vec<BeforeRunRule>) -> Self {
+    pub fn new(db: StateDb, core_root: String, before_rules: Vec<BeforeRunRule>) -> Self {
         Self {
             shell_vars: HashMap::new(),
             last_exit_code: None,
@@ -141,14 +141,14 @@ impl Engine {
     }
 
     /// A second handle to the database, for session-lived holders like the completion helper.
-    pub fn db_handle(&self) -> Rc<ForestDb> {
+    pub fn db_handle(&self) -> Rc<StateDb> {
         Rc::clone(&self.db)
     }
 
     /// The database. A SHARED borrow is enough for every caller: not one db method
     /// main.rs calls takes `&mut self` (all nine are `&self`, even the four that write), and
     /// `conn` is public, so `engine.db().conn.execute(..)` needs no extra surface here.
-    pub fn db(&self) -> &ForestDb {
+    pub fn db(&self) -> &StateDb {
         &self.db
     }
 

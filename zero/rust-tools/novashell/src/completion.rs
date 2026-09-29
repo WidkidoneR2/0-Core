@@ -124,11 +124,11 @@ const PIPE_OPS: &[&str] = &[
 
 pub struct ForestHelper<'a> {
     registry: SchemaRegistry,
-    db: &'a crate::db::ForestDb,
+    db: &'a crate::db::StateDb,
 }
 
 impl<'a> ForestHelper<'a> {
-    pub fn new(db: &'a crate::db::ForestDb) -> Self {
+    pub fn new(db: &'a crate::db::StateDb) -> Self {
         ForestHelper {
             registry: SchemaRegistry::build(),
             db,

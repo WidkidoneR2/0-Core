@@ -4,7 +4,7 @@
 // render_context -- two-line context printed BEFORE the input line
 // INT-033        -- neon candy truecolor semantic colors
 
-use crate::db::ForestDb;
+use crate::db::StateDb;
 
 // OSC 133 shell integration sequences (INT-296)
 pub const OSC133_PROMPT_START: &str = "\x1b]133;A\x1b\\"; // prompt start
@@ -224,7 +224,7 @@ fn git_info() -> Option<(String, bool)> {
     Some((branch, dirty))
 }
 
-fn active_intent(db: &ForestDb) -> Option<String> {
+fn active_intent(db: &StateDb) -> Option<String> {
     db.conn
         .query_row(
             "SELECT value FROM shell_state WHERE key='focus_intent'",
@@ -234,7 +234,7 @@ fn active_intent(db: &ForestDb) -> Option<String> {
         .ok()
 }
 
-fn commits_today(db: &ForestDb) -> i64 {
+fn commits_today(db: &StateDb) -> i64 {
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     db.conn
         .query_row(
@@ -254,7 +254,7 @@ pub struct PromptContext {
     pub job_count: usize,
 }
 
-pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
+pub fn render_context(db: &StateDb, ctx: &PromptContext) {
     let theme = db.get_theme();
     if theme == "minimal" {
         let cwd = cwd_str(40);
@@ -464,7 +464,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 
 // ── readline prompt -- no emoji, ANSI wrapped, Tab completion safe ───────────
 
-pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
+pub fn render_line(db: &StateDb, _last_exit: Option<i32>) -> String {
     let theme = db.get_theme();
     // INT-247 Layer 3a: one owner for the path.
     let last_status =

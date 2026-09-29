@@ -62,7 +62,7 @@ use std::collections::VecDeque;
 /// (silently) when the latest doctor event predates the current boot, so the
 /// splash never shows a pre-reboot health number. Output is captured/discarded --
 /// we want the event written, not the dashboard printed on login.
-fn refresh_health_if_stale(core_root: &str, db: &crate::db::ForestDb) {
+fn refresh_health_if_stale(core_root: &str, db: &crate::db::StateDb) {
     let _ = core_root;
     // Latest doctor event timestamp (0 if none).
     let last_event_ts: i64 = db
@@ -1105,7 +1105,7 @@ fn main() -> Result<()> {
 /// ⚠️ NOT HERE, ON PURPOSE: the cwd change, direnv, the welcome banner, the health refresh, session
 /// bookkeeping, the two startup subprocesses, the line editor, history and keybinds.
 struct RuntimeInit {
-    db: db::ForestDb,
+    db: db::StateDb,
     cfg: config::ShellConfig,
     applied: config::ApplyReport,
     diagnostics: zero_core::check::Checked<Vec<String>>,
@@ -1116,7 +1116,7 @@ fn runtime_init() -> Result<RuntimeInit> {
     // kept in the message so the stage is still named, but the NUMBER now shares one origin with
     // every other boot mark, which is what makes them comparable.
     let mark = |what: &str| crate::mark(&format!("runtime_init: {}", what));
-    let db = db::ForestDb::open()?;
+    let db = db::StateDb::open()?;
     mark("db open");
     let created = config::ensure_default();
     mark("ensure_default");
@@ -3215,7 +3215,7 @@ fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[2m\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
 }
 
-fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
+fn print_welcome(core_root: &str, db: &crate::db::StateDb) {
     use colored::Colorize;
 
     // None means the doctor has never run here. The banner says so rather than

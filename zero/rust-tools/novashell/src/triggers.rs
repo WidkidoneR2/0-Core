@@ -3,13 +3,13 @@
 // Stored in state.db shell_triggers table.
 // Evaluated after every command execution.
 
-use crate::db::ForestDb;
+use crate::db::StateDb;
 use colored::*;
 use rusqlite::params;
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
-pub fn ensure_schema(db: &ForestDb) {
+pub fn ensure_schema(db: &StateDb) {
     db.conn
         .execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_triggers (
@@ -46,7 +46,7 @@ pub struct Trigger {
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-pub fn add(db: &ForestDb, trigger: &str, action: &str) -> Result<(), String> {
+pub fn add(db: &StateDb, trigger: &str, action: &str) -> Result<(), String> {
     use std::time::{SystemTime, UNIX_EPOCH};
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -61,7 +61,7 @@ pub fn add(db: &ForestDb, trigger: &str, action: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn list(db: &ForestDb) -> zero_core::check::Checked<Vec<Trigger>> {
+pub fn list(db: &StateDb) -> zero_core::check::Checked<Vec<Trigger>> {
     let mut stmt = match db
         .conn
         .prepare("SELECT id, trigger, action, enabled, fired_count FROM shell_triggers ORDER BY id")
@@ -83,14 +83,14 @@ pub fn list(db: &ForestDb) -> zero_core::check::Checked<Vec<Trigger>> {
     .map(|rows| rows.filter_map(|r| r.ok()).collect())
 }
 
-pub fn remove(db: &ForestDb, id: i64) -> bool {
+pub fn remove(db: &StateDb, id: i64) -> bool {
     db.conn
         .execute("DELETE FROM shell_triggers WHERE id = ?1", params![id])
         .map(|n| n > 0)
         .unwrap_or(false)
 }
 
-pub fn enable(db: &ForestDb, id: i64, enabled: bool) -> bool {
+pub fn enable(db: &StateDb, id: i64, enabled: bool) -> bool {
     db.conn
         .execute(
             "UPDATE shell_triggers SET enabled = ?1 WHERE id = ?2",
@@ -109,7 +109,7 @@ pub struct TriggerContext {
     pub last_domain: Option<String>,
 }
 
-pub fn evaluate(db: &ForestDb, ctx: &TriggerContext, core_root: &str) {
+pub fn evaluate(db: &StateDb, ctx: &TriggerContext, core_root: &str) {
     // INT-192: a failed read is NOT zero triggers. Say so instead of silently
     // firing nothing -- an automatic behaviour disarmed with no message.
     let triggers = match list(db) {
@@ -127,7 +127,7 @@ pub fn evaluate(db: &ForestDb, ctx: &TriggerContext, core_root: &str) {
     }
 }
 
-fn match_trigger(trigger: &str, ctx: &TriggerContext, db: &ForestDb) -> bool {
+fn match_trigger(trigger: &str, ctx: &TriggerContext, db: &StateDb) -> bool {
     let parts: Vec<&str> = trigger.splitn(2, ' ').collect();
     match parts.as_slice() {
         ["health_drop", threshold] => {
@@ -167,7 +167,7 @@ fn match_trigger(trigger: &str, ctx: &TriggerContext, db: &ForestDb) -> bool {
     }
 }
 
-fn fire(db: &ForestDb, trigger: &Trigger, _ctx: &TriggerContext, core_root: &str) {
+fn fire(db: &StateDb, trigger: &Trigger, _ctx: &TriggerContext, core_root: &str) {
     // Increment fired count
     db.conn
         .execute(
@@ -222,7 +222,7 @@ fn fire(db: &ForestDb, trigger: &Trigger, _ctx: &TriggerContext, core_root: &str
 
 // ── Display ───────────────────────────────────────────────────────────────────
 
-pub fn render_list(db: &ForestDb) {
+pub fn render_list(db: &StateDb) {
     let triggers = match list(db) {
         Ok(t) => t,
         Err(skip) => {

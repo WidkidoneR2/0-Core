@@ -2,7 +2,7 @@
 // NovaShell — command registry
 // Phase 1: 10 native commands
 
-use crate::db::ForestDb;
+use crate::db::StateDb;
 extern crate libc;
 use colored::*;
 use std::os::unix::process::CommandExt;
@@ -257,7 +257,7 @@ pub(crate) fn correlation() -> String {
     }
 }
 
-fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
+fn emit_command(db: &StateDb, cmd: &str, result: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -423,7 +423,7 @@ pub fn colorize_line(line: &str) -> String {
 }
 /// Run a command line: builtin if we have one, otherwise hand it to the system.
 /// NEVER returns NotBuiltin -- behaviour is byte-for-byte what it has always been.
-pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
+pub fn execute(line: &str, db: &StateDb, core_root: &str) -> CommandResult {
     execute_impl(
         &tokenize(line.trim()),
         line,
@@ -466,7 +466,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
 ///
 /// The INT-057 cycle guard lives here now. A self-referential alias expands once and
 /// then stops, so it cannot recurse forever.
-pub fn expand_aliases(line: &str, db: &ForestDb) -> String {
+pub fn expand_aliases(line: &str, db: &StateDb) -> String {
     let mut current = line.to_string();
     let mut seen: Vec<String> = Vec::new();
     loop {
@@ -668,7 +668,7 @@ impl ExecutionMode {
 fn execute_impl(
     argv: &[String],
     line: &str,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     // INT-057's cycle guard was the plugin expander's, and it left with it. The recursion it
     // protected against cannot happen now: expand_aliases substitutes ONCE at the input phase
@@ -1186,7 +1186,7 @@ fn execute_dispatch(
     cmd: &str,
     args: &[&str],
     line: &str,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
     mode: ExecutionMode,
 ) -> CommandResult {
@@ -5334,7 +5334,7 @@ fn execute_dispatch(
 ///
 /// NOT A NEW BINARY, DELIBERATELY. INT-167's own guardrail: extend the consumer that exists
 /// before minting one. zero-sandbox does the work; this is the door.
-fn sandbox(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn sandbox(db: &StateDb, args: &[&str]) -> CommandResult {
     match args.first() {
         Some(&"test") => return devbox_test(),
         Some(&"shell") => return devbox_shell(),
@@ -5531,7 +5531,7 @@ fn devbox_run(rest: &[&str]) -> CommandResult {
     }
 }
 
-fn checkpoint(db: &ForestDb) -> CommandResult {
+fn checkpoint(db: &StateDb) -> CommandResult {
     let rows: Vec<(String, String, i64)> = {
         let mut stmt = match db.conn.prepare(
             "SELECT name, payload, timestamp FROM checkpoints ORDER BY timestamp DESC LIMIT 8",
@@ -5850,7 +5850,7 @@ fn to_cmd(args: &[&str]) -> CommandResult {
         ),
     }
 }
-fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
+fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -5919,7 +5919,7 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn events_table(db: &StateDb, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -5945,7 +5945,7 @@ fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
+fn audit_table(db: &StateDb, _core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -5992,7 +5992,7 @@ fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn history_search_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let pattern = if args.is_empty() {
         return CommandResult::Error(
             "usage: hs <pattern>  — search command history"
@@ -6120,7 +6120,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
 /// NAMED trace, NOT story: `story` already delegates to `core story`, a different feature
 /// that owns the name. It also sits beside NSH_TRACE, which reports which executor claimed
 /// a line -- same vocabulary, same question asked at two levels.
-fn trace_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn trace_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let session = crate::exec::session_id();
     let target: Option<i64> = match args.first().and_then(|a| a.parse::<i64>().ok()) {
         Some(n) => Some(n),
@@ -6166,7 +6166,7 @@ fn trace_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 /// The events half of `trace`, returning a Value so it pipes like history does.
-fn trace_events(db: &ForestDb, key: &str) -> CommandResult {
+fn trace_events(db: &StateDb, key: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
     let mut stmt = match db.conn.prepare(
@@ -6207,7 +6207,7 @@ fn trace_events(db: &ForestDb, key: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn history_table(db: &ForestDb) -> CommandResult {
+fn history_table(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -6246,7 +6246,7 @@ fn history_table(db: &ForestDb) -> CommandResult {
 }
 
 /// INT-322 Phase 3: history for INT-NNN -- all commands run during a specific intent
-fn history_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
+fn history_for_intent(db: &StateDb, intent_arg: &str) -> CommandResult {
     use colored::Colorize;
     let id = intent_arg.trim_start_matches("INT-");
     if id.is_empty() {
@@ -6289,7 +6289,7 @@ fn history_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
 }
 
 /// INT-322 Phase 3: history stats INT-NNN -- success rates, most common commands
-fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
+fn history_stats_for_intent(db: &StateDb, intent_arg: &str) -> CommandResult {
     use colored::Colorize;
     let id = intent_arg.trim_start_matches("INT-");
     if id.is_empty() {
@@ -6343,7 +6343,7 @@ fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn ht_intent(db: &ForestDb) -> CommandResult {
+fn ht_intent(db: &StateDb) -> CommandResult {
     // Group history by active intent at time of command
     use colored::Colorize;
     let mut stmt = match db.conn.prepare(
@@ -6393,7 +6393,7 @@ fn ht_intent(db: &ForestDb) -> CommandResult {
     }
     CommandResult::Output(out.trim_end().to_string())
 }
-fn ht_today(db: &ForestDb) -> CommandResult {
+fn ht_today(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let today_start = {
         use chrono::Local;
@@ -6427,7 +6427,7 @@ fn ht_today(db: &ForestDb) -> CommandResult {
     }
     CommandResult::Output(out.trim_end().to_string())
 }
-fn ht_session(db: &ForestDb) -> CommandResult {
+fn ht_session(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let session_start = {
         let now = std::time::SystemTime::now()
@@ -6462,7 +6462,7 @@ fn ht_session(db: &ForestDb) -> CommandResult {
     }
     CommandResult::Output(out.trim_end().to_string())
 }
-fn ht_slow(db: &ForestDb) -> CommandResult {
+fn ht_slow(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let mut stmt = match db
         .conn
@@ -6509,7 +6509,7 @@ fn ht_slow(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out.trim_end().to_string())
 }
 
-fn fsh_diag(db: &ForestDb) -> CommandResult {
+fn fsh_diag(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     // Session count
     let sessions: i64 = db
@@ -6579,7 +6579,7 @@ fn fsh_diag(db: &ForestDb) -> CommandResult {
     out.push_str("\n");
     CommandResult::Output(out)
 }
-fn fsh_gaps(db: &ForestDb) -> CommandResult {
+fn fsh_gaps(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     // Find commands that could have used fsh builtins
     let grep_count: i64 = db
@@ -6683,7 +6683,7 @@ fn fsh_gaps(db: &ForestDb) -> CommandResult {
     out.push_str("\n");
     CommandResult::Output(out)
 }
-fn checkpoints_table(db: &ForestDb) -> CommandResult {
+fn checkpoints_table(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -6735,7 +6735,7 @@ fn checkpoints_table(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn domains(db: &ForestDb) -> CommandResult {
+fn domains(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -6896,7 +6896,7 @@ fn git_files(core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn watch_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     use colored::*;
 
     let target = args.first().copied().unwrap_or("health");
@@ -7059,7 +7059,7 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Empty { suspension: None }
 }
 
-fn decisions_table(db: &ForestDb) -> CommandResult {
+fn decisions_table(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -7101,7 +7101,7 @@ fn decisions_table(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn alias_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     // alias            — list all
     // alias h=health   — create
     // alias h "health" — create (space form)
@@ -7232,7 +7232,7 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn unalias_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let name = match args.first() {
         Some(n) => *n,
         None => return CommandResult::Error("Usage: unalias <name>".to_string().into(), 1),
@@ -7255,7 +7255,7 @@ fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 /// deleted 2026-09-02 -- see the note in execute_impl where its expansion used to run. The
 /// command survives because someone typing `plugins` deserves the RULING, not a
 /// command-not-found that reads like a missing feature.
-fn list_plugins(_db: &ForestDb) -> CommandResult {
+fn list_plugins(_db: &StateDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("\n  {} Plugins\n\n", "🔌"));
     out.push_str("  There are none, by design.\n\n");
@@ -7709,7 +7709,7 @@ fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
 }
 
 /// INT-307: power -- power profile management with Friday awareness
-fn power_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn power_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let sub = args.first().copied().unwrap_or("status");
     match sub {
@@ -8008,7 +8008,7 @@ fn sys_logs(args: &[&str]) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn search(db: &StateDb, args: &[&str]) -> CommandResult {
     // INT-300: shortcut flags -- delegate to file search (fsearch behavior)
     let forest_flags = [
         "--rust",
@@ -8166,7 +8166,7 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn pick_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     use std::process::Command;
     let subcommand = args.first().copied().unwrap_or("");
     let extra = if args.len() > 1 { args[1] } else { "" };
@@ -8458,7 +8458,7 @@ fn parse_since_time(arg: &str) -> i64 {
     }
 }
 
-fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn since_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     let _ = core_root;
     let arg = args.join(" ");
     let arg = if arg.is_empty() {
@@ -8604,7 +8604,7 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn debug_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let sub = args.first().copied().unwrap_or("last");
     match sub {
         "last" => {
@@ -8785,7 +8785,7 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn usage_report(db: &ForestDb) -> CommandResult {
+fn usage_report(db: &StateDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "{}\n",
@@ -8925,7 +8925,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
     }
 }
 
-fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn theme_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let themes = ["forest", "minimal", "friday", "classic"];
     match args.first().copied() {
         None => {
@@ -9054,7 +9054,7 @@ use std::os::unix::process::ExitStatusExt as _JcExitStatusExt;
 
 fn spawn_with_tee(
     cmd: std::process::Command,
-    db: &ForestDb,
+    db: &StateDb,
     sink: Option<std::fs::File>,
 ) -> std::io::Result<std::process::ExitStatus> {
     spawn_with_tee_jc(cmd, db, sink, &mut None)
@@ -9067,7 +9067,7 @@ fn spawn_with_tee(
 /// the fact travels to someone who can register it, without this function growing a table.
 fn spawn_with_tee_jc(
     mut cmd: std::process::Command,
-    db: &ForestDb,
+    db: &StateDb,
     sink: Option<std::fs::File>,
     out_suspended: &mut Option<Suspension>,
 ) -> std::io::Result<std::process::ExitStatus> {
@@ -9266,7 +9266,7 @@ fn spawn_with_tee_jc(
 /// future `split_whitespace().next()` on a user command is a bug; this one survived the sweep
 /// because it LABELS rather than dispatches. Callers now pass `command_word(line)` (sh path) or
 /// `argv[0]` (spine path) -- no reconstruction, and no re-parsing inside telemetry.
-fn record_failure(db: &ForestDb, cmd_word: &str, exit_code: i32) {
+fn record_failure(db: &StateDb, cmd_word: &str, exit_code: i32) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -9335,7 +9335,7 @@ fn program_on_path(program: &str) -> bool {
 pub fn execute_plan_dispatch(
     plan: &crate::spine::plan::ExecutionPlan,
     source: &str,
-    db: &ForestDb,
+    db: &StateDb,
     core_root: &str,
 ) -> CommandResult {
     let argv = match plan.argv_as_utf8() {
@@ -9447,7 +9447,7 @@ pub fn execute_plan_dispatch(
 /// `execute_plan_dispatch` already exposes single-plan execution.
 pub fn execute_pipeline_plans(
     plans: &[crate::spine::plan::ExecutionPlan],
-    db: &ForestDb,
+    db: &StateDb,
 ) -> CommandResult {
     execute_pipeline(plans, db)
 }
@@ -9758,7 +9758,7 @@ enum Peeled<'a> {
 
 fn peel_builtin_first_stage<'a>(
     plans: &'a [crate::spine::plan::ExecutionPlan],
-    db: &ForestDb,
+    db: &StateDb,
 ) -> Peeled<'a> {
     if plans.len() < 2 {
         return Peeled::Spawn(plans);
@@ -9841,7 +9841,7 @@ fn peel_builtin_first_stage<'a>(
     }
 }
 
-fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &ForestDb) -> CommandResult {
+fn execute_pipeline(plans: &[crate::spine::plan::ExecutionPlan], db: &StateDb) -> CommandResult {
     let (plans, initial) = match peel_builtin_first_stage(plans, db) {
         Peeled::Piped(rest, text) => (rest, Some(text)),
         Peeled::Spawn(all) => (all, None),
@@ -10050,7 +10050,7 @@ fn open_stderr_sink(
     })
 }
 
-fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> CommandResult {
+fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &StateDb) -> CommandResult {
     use crate::spine::plan::{Environment, IoPlan};
 
     let Some(program) = plan.argv.first() else {
@@ -10212,7 +10212,7 @@ fn execute_plan(plan: &crate::spine::plan::ExecutionPlan, db: &ForestDb) -> Comm
     }
 }
 
-fn run_external(line: &str, db: &ForestDb) -> CommandResult {
+fn run_external(line: &str, db: &StateDb) -> CommandResult {
     // INT-171 gate 2: quote-aware command word so the not-found suggestion sees the
     // real command (`"deploy"` -> deploy), not the quoted literal.
     let cmd_name = command_word(line);
@@ -10449,7 +10449,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
 
 // ── INT-177: Shell Observability ────────────────────────────────────────────────
 
-fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn observe_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let sub = args.first().copied().unwrap_or("session");
     match sub {
         "session" => observe_session(db),
@@ -10465,7 +10465,7 @@ fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn observe_session(db: &ForestDb) -> CommandResult {
+fn observe_session(db: &StateDb) -> CommandResult {
     // Count commands this session from shell_history
     let total_cmds: i64 = db.conn.query_row(
         "SELECT COUNT(*) FROM shell_history WHERE timestamp >= (SELECT COALESCE(MIN(timestamp),0) FROM shell_history ORDER BY timestamp DESC LIMIT 500)",
@@ -10556,7 +10556,7 @@ fn observe_session(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn observe_commands(db: &ForestDb) -> CommandResult {
+fn observe_commands(db: &StateDb) -> CommandResult {
     // Most used commands from shell_history
     let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
 
@@ -10583,7 +10583,7 @@ fn observe_commands(db: &ForestDb) -> CommandResult {
     }
 }
 
-fn observe_diff(db: &ForestDb) -> CommandResult {
+fn observe_diff(db: &StateDb) -> CommandResult {
     // INT-250: git, not the old commit-count file. Same confident-zero fallback as above.
     let commits = std::process::Command::new("git")
         .args([
@@ -10666,7 +10666,7 @@ fn observe_diff(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn observe_anomalies(db: &ForestDb) -> CommandResult {
+fn observe_anomalies(db: &StateDb) -> CommandResult {
     let failures: i64 = db
         .conn
         .query_row(
@@ -10731,7 +10731,7 @@ fn observe_anomalies(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn observe_patterns(db: &ForestDb) -> CommandResult {
+fn observe_patterns(db: &StateDb) -> CommandResult {
     // Show top command patterns from all history
     let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
 
@@ -10758,7 +10758,7 @@ fn observe_patterns(db: &ForestDb) -> CommandResult {
     }
 }
 
-fn observe_causality(db: &ForestDb) -> CommandResult {
+fn observe_causality(db: &StateDb) -> CommandResult {
     let mut output = String::new();
     output.push_str("\n  Causality Analysis\n");
     output.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
@@ -10875,7 +10875,7 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
-fn observe_phase(db: &ForestDb) -> CommandResult {
+fn observe_phase(db: &StateDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -10990,7 +10990,7 @@ fn observe_phase(db: &ForestDb) -> CommandResult {
 
 // ── INT-176: Failure Recovery Commands ──────────────────────────────────────────
 
-fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn last_command_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let sub = args.first().copied().unwrap_or("show");
 
     let last_failed = db
@@ -11150,7 +11150,7 @@ fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn failure_history_cmd(db: &ForestDb, _args: &[&str]) -> CommandResult {
+fn failure_history_cmd(db: &StateDb, _args: &[&str]) -> CommandResult {
     let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
 
     if let Ok(mut stmt) = db.conn.prepare(
@@ -11180,7 +11180,7 @@ fn failure_history_cmd(db: &ForestDb, _args: &[&str]) -> CommandResult {
 
 // ── INT-173: Command Registry Commands ───────────────────────────────────────
 
-fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     let cmd = args.first().copied().unwrap_or("");
     if cmd.is_empty() {
         return CommandResult::Error("explain: missing command name".to_string().into(), 1);
@@ -11389,7 +11389,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
-fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
+fn where_cmd(db: &StateDb, _core_root: &str, args: &[&str]) -> CommandResult {
     let cmd = args.first().copied().unwrap_or("");
     if cmd.is_empty() {
         return CommandResult::Error("where: missing command name".to_string().into(), 1);
@@ -11469,7 +11469,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     }
     CommandResult::Output(out.trim_end().to_string())
 }
-fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
+fn describe_cmd(db: &StateDb, args: &[&str], core_root: &str) -> CommandResult {
     let name = args.first().copied().unwrap_or("");
     if name.is_empty() {
         return CommandResult::Error("describe: missing command name".to_string().into(), 1);
@@ -11514,7 +11514,7 @@ fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult 
     }
 }
 
-fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
+fn command_cmd(db: &StateDb, args: &[&str], core_root: &str) -> CommandResult {
     let sub = args.first().copied().unwrap_or("list");
     let mut reg = crate::registry::Registry::new();
     reg.populate(db, core_root);
@@ -11574,7 +11574,7 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
 
 // ── INT-174: Structured Error Commands ───────────────────────────────────────
 
-fn last_error_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn last_error_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let subcommand = args.first().copied().unwrap_or("");
     let stored = db
         .conn
@@ -11607,7 +11607,7 @@ fn last_error_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn error_history_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let limit: usize = args.first().and_then(|s| s.parse().ok()).unwrap_or(10);
 
     let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
@@ -11701,7 +11701,7 @@ fn help() -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn health(db: &ForestDb) -> CommandResult {
+fn health(db: &StateDb) -> CommandResult {
     // INT-230 G4: same collapse as the `health` target arm above.
     let health = db.health_score();
     let health_display = match health {
@@ -11737,7 +11737,7 @@ fn health(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn events(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn events(db: &StateDb, args: &[&str]) -> CommandResult {
     let today_only = args.contains(&"today");
     let domain = args
         .first()
@@ -11790,7 +11790,7 @@ fn events(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn decisions(db: &ForestDb) -> CommandResult {
+fn decisions(db: &StateDb) -> CommandResult {
     let rows: Vec<(String, String, String)> = db
         .conn
         .prepare(
@@ -11850,7 +11850,7 @@ fn decisions(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn deploys(db: &ForestDb) -> CommandResult {
+fn deploys(db: &StateDb) -> CommandResult {
     use std::collections::HashMap;
     let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
     if let Ok(mut stmt) = db.conn.prepare(
@@ -11880,7 +11880,7 @@ fn deploys(db: &ForestDb) -> CommandResult {
     CommandResult::Value(crate::value::Value::Table(rows))
 }
 
-fn friday_patterns(db: &ForestDb) -> CommandResult {
+fn friday_patterns(db: &StateDb) -> CommandResult {
     use std::collections::HashMap;
     let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
     if let Ok(mut stmt) = db.conn.prepare(
@@ -12181,7 +12181,7 @@ fn commits(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn story(db: &ForestDb) -> CommandResult {
+fn story(db: &StateDb) -> CommandResult {
     // Delegate to core story via process
     let _core_root = db.core_root();
     let output = std::process::Command::new("core".to_string())
@@ -12194,7 +12194,7 @@ fn story(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
-fn advise(db: &ForestDb) -> CommandResult {
+fn advise(db: &StateDb) -> CommandResult {
     let _core_root = db.core_root();
     let output = std::process::Command::new("core".to_string())
         .args(["advise"])
@@ -12206,7 +12206,7 @@ fn advise(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
-fn audit(_db: &ForestDb, _core_root: &str) -> CommandResult {
+fn audit(_db: &StateDb, _core_root: &str) -> CommandResult {
     let output = std::process::Command::new("core".to_string())
         .args(["audit", "scan"])
         .output()
@@ -12362,7 +12362,7 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
 }
 
-fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
+fn fsh_identity_cmd(db: &StateDb) -> CommandResult {
     use colored::*;
     // Load stats from DB
     let aliases: i64 = db
@@ -12547,7 +12547,7 @@ fn realpath_cmd(args: &[&str]) -> CommandResult {
 /// What is lost: spawn_sh_with_leak_check's unclosed-heredoc warning, which only ever applied to
 /// the sh path. run_external uses `sh -c` with inherited stdio, so a heredoc still WORKS -- it just
 /// does not get the warning. A warning on a path nobody times is not worth a second dispatcher.
-fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> CommandResult {
+fn time_cmd(line: &str, args: &[&str], db: &StateDb, core_root: &str) -> CommandResult {
     if args.is_empty() {
         return CommandResult::Error("time: missing command".to_string().into(), 1);
     }
@@ -12946,7 +12946,7 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
         ))
     }
 }
-fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn find_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -13226,7 +13226,7 @@ fn git_branches(core_root: &str) -> CommandResult {
 // ── Phase 16 — History Analytics ─────────────────────────────────────────────
 
 /// hstats — most used commands ranked by frequency
-fn history_stats(db: &ForestDb) -> CommandResult {
+fn history_stats(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -13296,7 +13296,7 @@ fn history_stats(db: &ForestDb) -> CommandResult {
 }
 
 /// hpattern — command frequency by hour of day
-fn history_pattern(db: &ForestDb) -> CommandResult {
+fn history_pattern(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -13363,7 +13363,7 @@ fn history_pattern(db: &ForestDb) -> CommandResult {
 
 // ── Phase 17 — Event System ───────────────────────────────────────────────────
 
-fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn on_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     crate::triggers::ensure_schema(db);
     // Rejoin and re-split — execute() uses splitn(3) which embeds args
     let rejoined = args.join(" ");
@@ -13442,7 +13442,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 // timeline  — show snapshots over time
 // snap-diff — compare two snapshots
 
-fn ensure_snapshots_schema(db: &ForestDb) {
+fn ensure_snapshots_schema(db: &StateDb) {
     db.conn
         .execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_snapshots (
@@ -13462,7 +13462,7 @@ fn ensure_snapshots_schema(db: &ForestDb) {
 
 /// INT-322 Phase 4: rewind -- show snapshot timeline for time-travel debugging
 /// INT-311 Phase 2: dev -- wired cargo dev tools
-fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let sub = args.first().copied().unwrap_or("");
     let tool = args.get(1).copied().unwrap_or("");
@@ -14135,7 +14135,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 }
 
 /// INT-326 Phase 3: ambiguity resolution -- present choices, learn preference
-fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
+fn semantic_ambiguous_cmd(db: &StateDb, input: &str) -> CommandResult {
     use colored::Colorize;
     use std::io::{self, BufRead, Write};
     // Check for learned preference in state.db
@@ -14488,7 +14488,7 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
 }
 
 /// INT-322 Phase 7: fsh enter -- create project-scoped shell environment
-fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
+fn fsh_enter_cmd(db: &StateDb, project: &str) -> CommandResult {
     use colored::Colorize;
     if project.is_empty() {
         return CommandResult::Output("  Usage: fsh enter <project-name-or-path>".to_string());
@@ -14561,7 +14561,7 @@ fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
 }
 
 /// INT-322 Phase 7: fsh leave -- restore pre-scope state
-fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
+fn fsh_leave_cmd(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let return_path: Option<String> = db
         .conn
@@ -14605,7 +14605,7 @@ fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
 }
 
 /// INT-322 Phase 7: fsh scope -- show active scope status
-fn fsh_scope_status(db: &ForestDb) -> CommandResult {
+fn fsh_scope_status(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let scope: Option<String> = db
         .conn
@@ -14641,7 +14641,7 @@ fn fsh_scope_status(db: &ForestDb) -> CommandResult {
 }
 
 /// INT-322 Phase 6: fsh doctor -- shell-specific health checks
-fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn fsh_doctor_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     use colored::Colorize;
     use std::time::Instant;
     let fix_mode = args.contains(&"--fix");
@@ -14793,7 +14793,7 @@ fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn rewind_cmd(db: &ForestDb) -> CommandResult {
+fn rewind_cmd(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let mut stmt = match db.conn.prepare(
         "SELECT id, name, timestamp, health, command, git_hash, cwd, intent_id
@@ -14879,7 +14879,7 @@ fn rewind_cmd(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn snapshot_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     ensure_snapshots_schema(db);
@@ -14969,7 +14969,7 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ))
 }
 
-fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn timeline_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -15038,7 +15038,7 @@ fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn snap_diff_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     ensure_snapshots_schema(db);
 
     let (id1, id2) = match args {
@@ -15184,7 +15184,7 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 // select <cols> from <table> [where <field> <op> <val>] [order by <col>] [limit <n>]
 // Adoption bridge — familiar syntax for structured queries.
 
-fn sql_query_cmd(db: &ForestDb, core_root: &str, line: &str) -> CommandResult {
+fn sql_query_cmd(db: &StateDb, core_root: &str, line: &str) -> CommandResult {
     match parse_sql_query(line) {
         Ok(q) => {
             // Build equivalent pipeline and execute
@@ -15320,7 +15320,7 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
 // dashboard         — full system overview
 // dashboard system  — CPU, memory, network, top processes
 
-fn dashboard_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     let mode = args.first().copied().unwrap_or("full");
     match mode {
         "system" => dashboard_system(),
@@ -15434,7 +15434,7 @@ fn dashboard_system() -> CommandResult {
     CommandResult::Empty { suspension: None }
 }
 
-fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
+fn dashboard_forest(db: &StateDb, core_root: &str) -> CommandResult {
     use colored::*;
 
     println!("{}", "┌─ 🌲  Forest".bright_cyan().bold());
@@ -15532,7 +15532,7 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
 
 // ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────
 
-fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn scripting_let_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     // let name = expr  (from REPL)
     // args may be ["x", "= 42"] or ["x", "=", "42"] depending on splitn
     let full = args.join(" ");
@@ -15932,7 +15932,7 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
         Err(e) => CommandResult::Error(format!("js: {}", e).into(), 1),
     }
 }
-fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn undo_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     // Track last filesystem operation in shell_state
     // undo list — show recent operations
     // undo — revert last tracked operation
@@ -15996,7 +15996,7 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         ),
     }
 }
-fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn scripting_run_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     match args.first() {
         None => CommandResult::Error("Usage: run <file.nsh> or run --list".to_string().into(), 1),
         Some(&"--list") => {
@@ -16130,7 +16130,7 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
 }
 
 // ── Phase 16 — histogram command ─────────────────────────────────────────────
-fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn histogram_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let field = args.first().copied().unwrap_or("command");
     // Read history and count by field
     let mut stmt = match db
@@ -16188,7 +16188,7 @@ fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 // ── Phase 10 — chart command ──────────────────────────────────────────────────
 // processes | chart cpu   — bar chart of a numeric column
 // Usage as standalone: chart <table> <field>
-fn chart_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn chart_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     // chart can be called standalone: chart ps cpu
     // or receives piped Value::Table via pipeline (handled in value.rs PipeOp)
     let (table, field) = match args {
@@ -16281,7 +16281,7 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
 }
 
 // INT-238 -- forest-stats: The Forest Visualizes Its Own Growth
-fn forest_stats_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+fn forest_stats_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     let subcmd = args.first().copied().unwrap_or("all");
     match subcmd {
         "commits" => forest_stats_commits(db),
@@ -16391,7 +16391,7 @@ fn format_table(headers: &[String], rows: &[Vec<String>]) -> String {
     }
     out.trim_end().to_string()
 }
-fn forest_stats_commits(db: &ForestDb) -> CommandResult {
+fn forest_stats_commits(db: &StateDb) -> CommandResult {
     // Build 52-week commit velocity bar chart
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -16485,7 +16485,7 @@ fn forest_stats_intents(_core_root: &str) -> CommandResult {
     }
     CommandResult::Output(out)
 }
-fn forest_stats_friday(db: &ForestDb) -> CommandResult {
+fn forest_stats_friday(db: &StateDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("  {} Friday's Growth\n", "🌲".normal()));
     let facts: i64 = db
@@ -16549,7 +16549,7 @@ fn forest_stats_friday(db: &ForestDb) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
-fn forest_stats_day(db: &ForestDb) -> CommandResult {
+fn forest_stats_day(db: &StateDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -16586,7 +16586,7 @@ fn forest_stats_day(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn memory_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+fn memory_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     match args.first().copied().unwrap_or("show") {
         "decay" => memory_decay(db),
         "distill" => memory_distill(db),
@@ -16597,7 +16597,7 @@ fn memory_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-fn memory_stats(db: &ForestDb) -> CommandResult {
+fn memory_stats(db: &StateDb) -> CommandResult {
     let total: i64 = db
         .conn
         .query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get(0))
@@ -16646,7 +16646,7 @@ fn memory_stats(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn memory_decay(db: &ForestDb) -> CommandResult {
+fn memory_decay(db: &StateDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -16685,7 +16685,7 @@ fn memory_decay(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn memory_distill(db: &ForestDb) -> CommandResult {
+fn memory_distill(db: &StateDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)

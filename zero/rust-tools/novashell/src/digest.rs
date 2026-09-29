@@ -2,7 +2,7 @@
 // Morning/long-gap summary of what changed while you were away.
 // Triggered when session gap > 4 hours.
 
-use crate::db::ForestDb;
+use crate::db::StateDb;
 use crate::session::SessionMemory;
 use chrono::Timelike;
 use colored::*;
@@ -35,7 +35,7 @@ pub fn blocked_ready() -> (usize, usize) {
         .unwrap_or((0, 0))
 }
 
-pub fn render(_mem: &SessionMemory, db: &ForestDb, _core_root: &str) -> String {
+pub fn render(_mem: &SessionMemory, db: &StateDb, _core_root: &str) -> String {
     use chrono::Timelike;
     let mut lines: Vec<String> = vec![];
 

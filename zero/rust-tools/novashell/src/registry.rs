@@ -163,7 +163,7 @@ impl Registry {
     }
 
     /// Populate registry from all known sources
-    pub fn populate(&mut self, db: &crate::db::ForestDb, _core_root: &str) {
+    pub fn populate(&mut self, db: &crate::db::StateDb, _core_root: &str) {
         // ── Builtins ─────────────────────────────────────────────────────────
         let builtins = BUILTINS;
         for (name, desc, usage) in builtins {

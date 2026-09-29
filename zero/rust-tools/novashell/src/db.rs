@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use rustyline::{history::FileHistory, Editor, Helper};
 
-pub struct ForestDb {
+pub struct StateDb {
     pub conn: Connection,
     pub core_root: String,
 }
@@ -60,11 +60,11 @@ pub struct ExecutionCompletion<'a> {
     pub finished_at: i64,
 }
 
-impl ForestDb {
+impl StateDb {
     pub fn open() -> Result<Self> {
         // INT-061: derive both core_root and the db path from the single path
         // authority (paths.rs), not local format!/join. core_root is retained --
-        // it is stored on ForestDb and exposed via core_root() for git ops etc.
+        // it is stored on StateDb and exposed via core_root() for git ops etc.
         let core_root = zero_core::paths::core_root_string();
         let db_path = zero_core::paths::state_db();
 
