@@ -530,7 +530,7 @@ impl StateDb {
                 [],
                 |r| r.get(0),
             )
-            .unwrap_or_else(|_| "forest".to_string())
+            .unwrap_or_else(|_| "zero".to_string())
     }
 
     pub fn clear_focus_intent(&self) -> rusqlite::Result<()> {

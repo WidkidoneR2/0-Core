@@ -1212,7 +1212,7 @@ fn execute_dispatch(
         // INT-177 — Shell Observability
         "observe" => observe_cmd(db, args),
         "memory" => memory_cmd(db, args),
-        "forest-stats" | "fstats" => forest_stats_cmd(db, core_root, args),
+        "zero-stats" | "zstats" | "forest-stats" | "fstats" => zero_stats_cmd(db, core_root, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "explain" => explain_cmd(db, core_root, args),
@@ -3518,7 +3518,7 @@ fn execute_dispatch(
                 Err(e) => CommandResult::Error(e.into(), 1),
             }
         }
-        "copy" | "cp-forest" => {
+        "copy" => {
             // copy <source> to <destination> [overwrite] (INT-266)
             if args.is_empty() {
                 return CommandResult::Error(
@@ -3599,7 +3599,7 @@ fn execute_dispatch(
                 Err(e) => CommandResult::Error(format!("copy: {}", e).into(), 1),
             }
         }
-        "move" | "mv-forest" => {
+        "move" => {
             // move <source> to <destination> [overwrite] (INT-266)
             if args.is_empty() {
                 return CommandResult::Error(
@@ -4444,7 +4444,7 @@ fn execute_dispatch(
                     // 0-core/scripts, which does not exist; the scripts are in zero/scripts.
                     // It returned an empty table, which this builtin defines as "the files were
                     // read, the pattern did not appear" -- a real answer to a search never run.
-                    "--forest" | "--all" => {
+                    "--all" => {
                         match crate::core_integration::tools_root() {
                             Some(d) => {
                                 search_root =
@@ -8010,17 +8010,17 @@ fn sys_logs(args: &[&str]) -> CommandResult {
 
 fn search(db: &StateDb, args: &[&str]) -> CommandResult {
     // INT-300: shortcut flags -- delegate to file search (fsearch behavior)
-    let forest_flags = [
+    let scope_flags = [
         "--rust",
         "--intent",
-        "--forest",
+        "--all",
         "--py",
         "--md",
         "--sh",
         "--toml",
         "--scripts",
     ];
-    if let Some(&flag) = args.iter().find(|a| forest_flags.contains(*a)) {
+    if let Some(&flag) = args.iter().find(|a| scope_flags.contains(*a)) {
         let pattern = args
             .iter()
             .find(|a| !a.starts_with("--"))
@@ -8926,12 +8926,20 @@ fn z_jump(args: &[&str]) -> CommandResult {
 }
 
 fn theme_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
-    let themes = ["forest", "minimal", "friday", "classic"];
-    match args.first().copied() {
+    let themes = ["zero", "minimal", "friday", "classic"];
+    // the old theme name stays an alias until the pass-10 guard (INT-247)
+    let arg = match args.first().copied() {
+        Some("forest") => Some("zero"),
+        other => other,
+    };
+    match arg {
         None => {
-            let current = db.get_theme();
+            let current = match db.get_theme().as_str() {
+                "forest" => "zero".to_string(),
+                t => t.to_string(),
+            };
             let mut out = String::new();
-            out.push_str(&format!("{}\n\n", "🌲 Prompt Themes".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "Prompt Themes".cyan().bold()));
             for t in &themes {
                 let marker = if *t == current.as_str() { "▶" } else { " " };
                 out.push_str(&format!(
@@ -8958,7 +8966,7 @@ fn theme_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
         }
         Some(name) => CommandResult::Error(
             format!(
-                "  theme: unknown theme '{}'\n  available: forest, minimal, friday, classic",
+                "  theme: unknown theme '{}'\n  available: zero, minimal, friday, classic",
                 name
             )
             .into(),
@@ -11298,6 +11306,8 @@ fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
         "help",
         "exit",
         "quit",
+        "zero-stats",
+        "zstats",
         "forest-stats",
         "fstats",
         "memory",
@@ -15324,11 +15334,11 @@ fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult 
     let mode = args.first().copied().unwrap_or("full");
     match mode {
         "system" => dashboard_system(),
-        "forest" => dashboard_forest(db, core_root),
+        "overview" | "forest" => dashboard_overview(db, core_root),
         _ => {
             dashboard_system();
             println!();
-            dashboard_forest(db, core_root);
+            dashboard_overview(db, core_root);
             CommandResult::Empty { suspension: None }
         }
     }
@@ -15434,10 +15444,10 @@ fn dashboard_system() -> CommandResult {
     CommandResult::Empty { suspension: None }
 }
 
-fn dashboard_forest(db: &StateDb, core_root: &str) -> CommandResult {
+fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
     use colored::*;
 
-    println!("{}", "┌─ 🌲  Forest".bright_cyan().bold());
+    println!("{}", "┌─ Project 0".bright_cyan().bold());
 
     // Health
     // INT-230 G4: was unwrap_or(0) -- 0% rendered red as though measured.
@@ -16280,28 +16290,25 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
     CommandResult::Empty { suspension: None }
 }
 
-// INT-238 -- forest-stats: The Forest Visualizes Its Own Growth
-fn forest_stats_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
+// INT-238 -- zero-stats: Project 0 Visualizes Its Own Growth
+fn zero_stats_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
     let subcmd = args.first().copied().unwrap_or("all");
     match subcmd {
-        "commits" => forest_stats_commits(db),
-        "intents" => forest_stats_intents(core_root),
-        "friday" => forest_stats_friday(db),
-        "day" => forest_stats_day(db),
+        "commits" => zero_stats_commits(db),
+        "intents" => zero_stats_intents(core_root),
+        "friday" => zero_stats_friday(db),
+        "day" => zero_stats_day(db),
         "all" | _ => {
             let mut out = String::new();
-            out.push_str(&format!(
-                "\n  {} Project 0 Visualizes Its Own Growth\n",
-                "🌲".normal()
-            ));
+            out.push_str("\n  Project 0 Visualizes Its Own Growth\n");
             out.push_str(&format!("  {}\n\n", "━".repeat(55).dimmed()));
-            out.push_str(&extract_output(forest_stats_commits(db)));
+            out.push_str(&extract_output(zero_stats_commits(db)));
             out.push_str("\n");
-            out.push_str(&extract_output(forest_stats_intents(core_root)));
+            out.push_str(&extract_output(zero_stats_intents(core_root)));
             out.push_str("\n");
-            out.push_str(&extract_output(forest_stats_friday(db)));
+            out.push_str(&extract_output(zero_stats_friday(db)));
             out.push_str("\n");
-            out.push_str(&extract_output(forest_stats_day(db)));
+            out.push_str(&extract_output(zero_stats_day(db)));
             CommandResult::Output(out)
         }
     }
@@ -16310,7 +16317,7 @@ fn extract_output(r: CommandResult) -> String {
     match r {
         CommandResult::Output(s) => s,
         // INT-230 G4: a section that REFUSED is shown, not blanked. Every
-        // non-Output result used to become an empty string here, so fstats all
+        // non-Output result used to become an empty string here, so zstats all
         // printed a gap where a refusal belonged. The aggregate keeps its own
         // exit status; the refusal is visible, which is the invariant.
         CommandResult::Error(diag, _) => format!("{}\n", diag),
@@ -16391,7 +16398,7 @@ fn format_table(headers: &[String], rows: &[Vec<String>]) -> String {
     }
     out.trim_end().to_string()
 }
-fn forest_stats_commits(db: &StateDb) -> CommandResult {
+fn zero_stats_commits(db: &StateDb) -> CommandResult {
     // Build 52-week commit velocity bar chart
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -16436,14 +16443,14 @@ fn forest_stats_commits(db: &StateDb) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
-fn forest_stats_intents(_core_root: &str) -> CommandResult {
+fn zero_stats_intents(_core_root: &str) -> CommandResult {
     // INT-230 G4: an absent 0-Core is REFUSED, not an empty timeline with
     // exit 0. Same shape as the find @intents arm.
     let complete_dir = match crate::core_integration::intents_root() {
         Some(r) => r.join("complete").to_string_lossy().to_string(),
         None => {
             return CommandResult::Error(
-                "  fstats intents: needs 0-Core, which is not present"
+                "  zstats intents: needs 0-Core, which is not present"
                     .to_string()
                     .into(),
                 1,
@@ -16485,7 +16492,7 @@ fn forest_stats_intents(_core_root: &str) -> CommandResult {
     }
     CommandResult::Output(out)
 }
-fn forest_stats_friday(db: &StateDb) -> CommandResult {
+fn zero_stats_friday(db: &StateDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("  {} Friday's Growth\n", "🌲".normal()));
     let facts: i64 = db
@@ -16549,7 +16556,7 @@ fn forest_stats_friday(db: &StateDb) -> CommandResult {
     ));
     CommandResult::Output(out)
 }
-fn forest_stats_day(db: &StateDb) -> CommandResult {
+fn zero_stats_day(db: &StateDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -16880,7 +16887,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
 /// INT-346: ade -- launch the ADE (Zellij + Alacritty + friday-chat)
 fn ade_cmd(args: &[&str]) -> CommandResult {
     use colored::Colorize;
-    let layout = args.first().copied().unwrap_or("forest-ade");
+    let layout = args.first().copied().unwrap_or("zero-ade");
     let layout_path = format!(
         "{}/.config/zellij/layouts/{}.kdl",
         std::env::var("HOME").unwrap_or_default(),
@@ -16898,7 +16905,7 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
         );
     }
 
-    println!("  {} Launching Zero ADE...", "🌲".normal());
+    println!("  Launching Zero ADE...");
     println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
     println!("  {} Left: fsh (Alacritty)", "→".dimmed());
     println!("  {} Right: friday-chat", "→".dimmed());
@@ -16914,17 +16921,20 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let _is_alive = sessions
-        .lines()
-        .any(|l| l.contains("forest-ade") && !l.contains("EXITED") && !l.contains("dead"));
-    let is_dead = sessions
-        .lines()
-        .any(|l| l.contains("forest-ade") && (l.contains("EXITED") || l.contains("dead")));
+    let _is_alive = sessions.lines().any(|l| {
+        (l.contains("zero-ade") || l.contains("forest-ade"))
+            && !l.contains("EXITED")
+            && !l.contains("dead")
+    });
+    let is_dead = sessions.lines().any(|l| {
+        (l.contains("zero-ade") || l.contains("forest-ade"))
+            && (l.contains("EXITED") || l.contains("dead"))
+    });
 
     if is_dead {
         // Kill the dead session first
         let _ = std::process::Command::new("zellij")
-            .args(["delete-session", "forest-ade", "--force"])
+            .args(["delete-session", "zero-ade", "--force"])
             .output();
     }
 

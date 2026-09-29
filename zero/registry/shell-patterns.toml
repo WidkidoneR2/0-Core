@@ -18,7 +18,7 @@ pipeline = "on list"
 context = "forest"
 
 [[pattern]]
-phrases = ["forest dashboard", "show dashboard", "system overview"]
+phrases = ["show dashboard", "system overview"]
 pipeline = "dashboard"
 context = "forest"
 

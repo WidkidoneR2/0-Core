@@ -123,7 +123,7 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "failures" => "Show command failure history",
         "fd" => "Find files by pattern",
         "files" => "List files",
-        "forest-stats" => "Project 0 statistics",
+        "zero-stats" => "Project 0 statistics",
         "friday-patterns" => "Show Friday's learned patterns",
         "from" => "Range start bound",
         "fstat" => "File statistics",

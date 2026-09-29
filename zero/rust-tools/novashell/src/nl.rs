@@ -160,7 +160,7 @@ pub const PATTERNS: &[Pattern] = &[
         context: "forest",
     },
     Pattern {
-        phrases: &["all tools", "list tools", "show tools", "forest tools"],
+        phrases: &["all tools", "list tools", "show tools"],
         pipeline: "tt",
         context: "forest",
     },
@@ -195,12 +195,7 @@ pub const PATTERNS: &[Pattern] = &[
     },
     // ── Events ────────────────────────────────────────────────────────────────
     Pattern {
-        phrases: &[
-            "what happened today",
-            "today events",
-            "recent events",
-            "forest events",
-        ],
+        phrases: &["what happened today", "today events", "recent events"],
         pipeline: "et today",
         context: "forest",
     },
@@ -217,7 +212,6 @@ pub const PATTERNS: &[Pattern] = &[
     // ── State ─────────────────────────────────────────────────────────────────
     Pattern {
         phrases: &[
-            "check forest",
             // "show health" is the phrase the README ADVERTISES, and it was the one
             // phrasing missing here. Measured 2026-09-15: `? show health` scored
             // `files` higher than this pattern and proposed a filesystem listing at
@@ -225,7 +219,6 @@ pub const PATTERNS: &[Pattern] = &[
             // docs promised a phrase the vocabulary did not know.
             "show health",
             "check health",
-            "forest health",
             "how healthy",
             "system health",
         ],
@@ -427,7 +420,7 @@ pub fn render_pattern_list() -> String {
         (
             "Forest",
             &[
-                "check forest",
+                "check health",
                 "unhealthy tools",
                 "all tools",
                 "what planned",

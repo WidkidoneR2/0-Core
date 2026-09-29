@@ -1740,7 +1740,7 @@ print('CLASS-DONE')"##;
             let _ = std::fs::remove_dir_all(&root);
             std::fs::create_dir_all(&root).map_err(|e| format!("mkdir {}: {}", root, e))?;
             // One door per session. On the first run of this case the harness
-            // handed back only the LAST line's capture (the fstats refusal), so a
+            // handed back only the LAST line's capture (the zstats refusal), so a
             // single four-line session cannot assert the first three.
             let env = [("HOME", root.as_str()), ("XDG_STATE_HOME", root.as_str())];
             let (alive, _) = repl::run_repl_lines_status(&["echo alive"], &env)?;
@@ -1755,10 +1755,10 @@ print('CLASS-DONE')"##;
                 &pick.join("\n"),
                 "pick intent: needs 0-Core, which is not present",
             )?;
-            let (fstats, _) = repl::run_repl_lines_status(&["fstats intents"], &env)?;
+            let (zstats, _) = repl::run_repl_lines_status(&["zstats intents"], &env)?;
             expect_contains(
-                &fstats.join("\n"),
-                "fstats intents: needs 0-Core, which is not present",
+                &zstats.join("\n"),
+                "zstats intents: needs 0-Core, which is not present",
             )
         },
     ));

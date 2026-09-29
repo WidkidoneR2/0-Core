@@ -373,7 +373,7 @@ alias gc5 = "gc | first 5"
 
 # Settings
 set history_limit = 10000
-set prompt_style = forest
+set prompt_style = zero
 "#;
 
     std::fs::write(&path, default).is_ok()
