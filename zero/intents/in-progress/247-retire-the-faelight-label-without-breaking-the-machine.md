@@ -2441,7 +2441,140 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-29, PASSES 2, 3 AND 5A -- THE CODE SPEAKS PROJECT 0; 976 LINES OF WORK LEFT -- START HERE
+## 2026-09-29 EVENING, PASSES 5B-5D AND THE RELOAD FIX -- 5E NEXT -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "PASSES 2, 3 AND 5A" below, whose rulings, held lines and
+method still stand except where this section says otherwise. The script that wrote this refused unless
+HEAD was e8427098 and pushed, the tree was clean and the five commits below exist as INT-247 commits.
+
+### Done this session -- all pushed, every commit through the doors inside its own commit script
+
+```text
+    c68f1c28   5B   D-Bus org.faelight.Forest -> org.zero.Core, /org/zero/Core/*, GetContext / Context,
+                    get_context, log tag bus. Plan d8d3ec93c192
+    7c2753b3   5C   zero-stats / zstats (forest-stats, fstats kept as aliases); cp-forest, mv-forest and
+                    --forest dropped; theme zero (forest an alias); dashboard overview (forest an alias);
+                    ADE session and layout zero-ade (a forest-ade session still found); nl phrases; config
+                    template and ~/.config/nsh/config.nsh say prompt_style = zero. Plan 7f882d61129f
+    5253cc71   5D   207 tree icons removed by rule in 40 files. Plan 7c1b27fe599a
+    de919976   5D2  the prompt, db-browse, zero-update and zones take the Project 0 mark; the two readers
+                    that looked for the tree (health_tui, nsh-test) go. Plan 0eb17ebb9516
+    e8427098   reload  reload compares /proc/self/exe with ~/.local/bin/nsh by (device, inode). Gone: the
+                    /tmp/fsh-running-build writer (every nsh process rewrote it), the /tmp/fsh-reload-signal
+                    poll (nothing writes it), running_build_identity and its test. resolve_nsh_binary,
+                    reload_nsh, the last two tree icons. Plan d8c59b428a68
+```
+
+Doors on every commit: cargo test 28 of 28 binaries, rustfmt clean in the touched crates, nsh-test 202/202,
+zero-gate as the pre-commit hook, the deployed binary checked for the new build; d 0 failed.
+
+### Rulings, Christian 2026-09-29 (this session)
+
+```text
+    tree icons    remove all; the prompt, db-browse, zero-update and zones use the Project 0 mark U+25C9
+    5E            folded into INT-247. fsh -> nsh everywhere a user reads it ("native fsh command" ->
+                  "native nsh command"); fsh stays an ALIAS as a typed name (nsh|fsh meta-command, exec fsh,
+                  completion, the fsh info / fsh doctor phrases); fsh-gaps -> nsh-gaps with an alias;
+                  diagnostic codes fsh::spine::* and fsh::platform::* -> nsh::... with their two tests;
+                  fsh::delete is written to state.db -> pass 6; /tmp/fsh-* -> /tmp/nsh-*, writer and
+                  reader together; the .fsh script runner reads scripts/fsh, which does not exist and holds
+                  no files -> pass 4 zombie, not a rename
+    reload        a builtin, not an alias: after ship, type reload
+    zero-gate     it runs as the pre-commit hook; commit scripts confirm that and refuse if it changes
+                  the tree
+```
+
+### THE CENSUS at e8427098 -- the line to beat
+
+```text
+    INT-247 CENSUS at e8427098 INT-247: reload compares the running nsh with the d
+    intent directories: cancelled(history), complete(history), decisions(history), experiments, future, in-progress, incidents(history), philosophy(history), planned
+    1657 live lines in 193 files
+    756  markdown in live intents     41 files
+    547  markdown, docs               62 files
+    227  Rust strings                 39 files
+    1  Rust code and identifiers     1 files
+    66  TOML                         28 files
+    40  Rust comments                22 files
+    20  scripts and other            13 files
+    901 lines are the work.  165 distinct names
+    of the Rust strings, 26 lines sit inside a string that began on an earlier line
+```
+
+### THE GATES -- none is fully proven yet, so none is ticked; where each stands
+
+```text
+    inventory     docs/inventory.md not written                                    not started
+    count         README, catalog, tools.toml and the tree not reconciled           not started
+    NixOS crates  the engine nix domain is still live (INT-093 comment, pass 4)      open
+    path audit    the hardcoded-path audit before layer 3 is not a deliverable yet   open
+    unreadable    whether state readers report UNREADABLE was not checked            open
+    pace          passes 2 through 5D and the reload fix all landed 2026-09-29; the  record it
+                  pace rule is broken on purpose to finish the rename -- say so at close
+    finish line   901 lines of work left; the kept aliases (forest-stats, fstats, theme
+                  forest, dashboard forest, forest-ade) go at pass 10                open
+    statedb       ForestDb -> StateDb done (029c710e); the census still counts 1 line of
+                  Rust code / identifiers -- find it first next session              nearly
+    no NixOS      the nix domain and NixOS comments remain; the reload fix removed the
+                  store-path and makeWrapper comments                                open
+    no zombies    the reload-signal poll (read a path nothing writes) is gone; the rest
+                  is pass 4                                                           in progress
+    /etc/faelight INT-268                                                             open
+    exemptions    pass 10 (the guard)                                                 open
+```
+
+### Next, in order
+
+```text
+    0   exec /home/christian/.local/bin/nsh once (the shell open at the end of this session is the old
+        build, whose reload cannot see a new one), then reload must say "Already on the current nsh build"
+    1   find the 1 remaining line of Rust code / identifiers; if it is the last one, tick STATEDB with
+        the census as proof
+    5E  fsh -> nsh, as ruled above: 81 non-comment lines in nsh, 161 comment lines
+    4   zombie code: the FOREST_ env prefix, faelight-snapshot, faelight-memory / insightd / context
+        checks, zero/packages/faelight in nsh-test, zero-git risk text, the ADE launcher
+        (~/.config/zellij does not exist, so ade always stops at "layout not found"), the .fsh runner,
+        the nix domain; the config.nsh aliases bar, bar-restart, daemon-log and daemon-status call the
+        faelight-bar and faelight-daemon units
+    6   schema: forest_* tables, friday_knowledge domain forest and the forest_stats key, the goal
+        title "Restore forest health to 95%+", the fsh::delete event source; rehearsed rollback
+    7   the compatibility links and zero-doctor's link probe
+    8   the tree, INT-267 (INT-252: the source tree spells faelight in 162 live places)
+    9   docs: the markdown lines, teach's lessons, AGENTS.md
+    10  the guard, the kept aliases removed, the nsh-test case names; then the gates above, then
+        cicomplete 247 and 252
+```
+
+### Open questions for Christian
+
+```text
+    releases   11 zero/meta/releases/*/manifest.toml themes ("The Forest Speaks"): exempt shipped
+               release manifests as history, or rewrite them?
+    theme      the stored prompt_theme is none of the four names, so theme marks none; predates 5C
+```
+
+### Tools in ~/.cache/zero -- reuse, do not rewrite
+
+```text
+    census-6c5139205bd1.py        read-only census
+    pass5c-1048ccce0bff.py        line-entry engine (fragment once per line, or DEL); reuse for 5E
+    passreload-5cdf8e6411e0.py    block engine: unique anchor, brace-matched block, comments above
+    pass5d-288a37b4b56d.py        rule engine for the tree icons
+    commit scripts                sent inline: changed files exactly the plan, the deployed binary
+                                  checked, cargo test, rustfmt, nsh-test, zero-gate; any red refuses
+```
+
+### What this session added to the method
+
+```text
+    guards        a plan's final guard reads comments too, so a rename covers doc comments
+    stand-ins     carry the file's doc comments and the goal and Friday lines, not just the target lines
+    reload        after a reload fix the OLD process answers first; leave it once by the full path
+    speed         one block per reply, the next step only
+```
+
+
+## 2026-09-29, PASSES 2, 3 AND 5A -- THE CODE SPEAKS PROJECT 0; 976 LINES OF WORK LEFT -- SUPERSEDED 2026-09-29 evening
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "PASS 1 -- THE COMMENTS ARE DONE" below, whose rulings,
 held lines and method still stand except where this section says otherwise. The script that wrote
