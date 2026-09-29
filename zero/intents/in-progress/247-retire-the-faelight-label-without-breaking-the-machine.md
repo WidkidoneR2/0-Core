@@ -2270,7 +2270,7 @@ the plan was replayed on a clean clone and its diff compared with the live tree:
                the door specific to the change; the commit is its own block
 ```
 
-## 2026-09-28, NIGHT -- THE CENSUS, AND THE PASSES THAT FINISH IT -- START HERE
+## 2026-09-28, NIGHT -- THE CENSUS, AND THE PASSES THAT FINISH IT -- superseded by the 2026-09-28 PASS 1 section below
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "FOUR COMMITS; EVERY REMAINING NAME WAITS ON A RULING"
 above. Before starting a step it names, check the step against disk and git. The script that wrote
@@ -2439,6 +2439,107 @@ KIND across the whole tree, in one plan.
     outside    files outside the repo are copied to ~/.cache/zero before the write, and the copy
                is deleted when the doors are green
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
+```
+
+## 2026-09-28, PASS 1 -- THE COMMENTS ARE DONE; 79 HELD LINES WAIT FOR THEIR PASSES -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "THE CENSUS, AND THE PASSES THAT FINISH IT" above,
+whose rulings, passes, findings and method still stand. The script that wrote this refused to
+write unless the four pass-1 commits exist with their trailers, the pass-1 scope counts exactly
+79, the census counts exactly 2,061 lines in 232 files, and the tree was clean and pushed.
+
+### Rulings, Christian 2026-09-28 (this session)
+
+```text
+    new intents   RULED -- the PROPOSED line of the night record: no new intent until 247
+                  closes, unless it holds a ruling 247 itself needs. None was filed this session
+    the standing  do not break the system, the shell or the tools. Every pass-1 apply proved
+    ask           mechanically that no code changed before it wrote a byte
+```
+
+### Done this session -- PASS 1, the comments
+
+```text
+    9ab65305   1A novashell: 141 hit lines, 120 handled, 21 held. Plan eda09f903349
+    e6a3bfb8   1B engine: 130 hit lines, 98 handled, 32 held; core --help reworded with them.
+               Plan 8364ac06ec68
+    af845b54   1C the other 18 rust-tools crates: 120 hit lines, 91 handled, 29 held.
+               Plan fc71a77080fd
+    e302bbab   1D zero-gate's Why section: its 3 NixOS lines rewritten. Plan a7492be51129
+```
+
+Pass 1 took 391 comment lines, whole-line and trailing, naming faelight, forest or NixOS in 20
+crates. 312 are handled. The 79 left are EXACTLY the held lines below, each owned by a later pass.
+Doors on every commit: cargo test --workspace all ok, ship 0 failed, nsh-test 202/202, d 0 failed,
+and the apply's own proof that the comment-stripped files are identical before and after.
+
+### THE CENSUS at the end of pass 1 -- the line to beat
+
+```text
+    2,061 live lines in 232 files (2,311 at the start of the session, 2,269 in the night record)
+      715  markdown in live intents   excluded by ruling B; 488 are INT-247 and INT-252 themselves
+      547  markdown, docs
+      329  Rust strings
+      319  Rust code and identifiers  ForestDb alone is 181
+       68  TOML
+       63  Rust comments              was 305
+       20  scripts and other
+    1,346 lines are the work (was 1,596). 264 distinct names (was 279)
+```
+
+### The 79 held lines, by the pass that owns them
+
+```text
+    pass 2   12   ForestDb in comments, is_forest_pipeline, forest_present
+    pass 3    8   golden.rs's test input; the ruled-kind label "forest value pipeline", a string in
+                  plan.rs and migrate_audit.rs; deps' faelight- prefix test; nsh-test's fixture;
+                  readme.rs's subtitle note (ruling F)
+    pass 4   20   comments on live zombie code -- the list below
+    pass 5   12   FAELIGHT_STATE_DB, FAELIGHT_STATE_DIR, the FAELIGHT_ prefix, forest-stats, the
+                  org.faelight.Forest D-Bus names
+    pass 6   14   the forest_ tables and friday's stored nixos and forest values
+    pass 7    6   zero-doctor's compatibility-link probe
+    pass 9    3   the sayings: novashell main.rs, scripting.rs, engine stress
+    pass 10   4   the retired-name guard tests
+```
+
+### Found for pass 4 (NO ZOMBIE CODE) -- live code on paths nothing writes
+
+```text
+    novashell   main.rs adds /run/current-system/sw/bin and the per-user profile bin to PATH;
+                prompt.rs colours a cwd containing /nix; the type and which arms read
+                0-core/scripts, deleted in e733287d
+    engine      the nix domain and its help line wrap nixos-option; strategy factor 7 checks
+                scripts/faelight-context and a memory path under scripts; friday seeds NixOS
+                facts; entropy tracks two absent packages
+    tools       deadwood scans pkgs/faelight/scripts; zero-release reads the /nix system profile;
+                zero-update's snapshot flag, flake.lock drift and nix store cleanup; nsh-test's
+                fixture names zero/packages/faelight, which is not tracked
+```
+
+### Next session, in order
+
+```text
+    1  re-run the census at HEAD with the same definitions -- the line to beat is 2,061
+    2  pass 2, the identifiers: ForestDb -> StateDb first, then ForestHelper, ForestDeployIface,
+       faelight_root, C_DIR_FOREST, forest_present, is_forest_pipeline and the nsh-test case
+       names (repl_206_forest_home..., repl_230_absent_forest...), through the compiler, which
+       finds every use. The 12 pass-2 comment lines change with their names
+    then the passes in order, one kind per plan
+```
+
+### What pass 1 added to the method
+
+```text
+    comments-only  the apply strips every comment from each file, before and after; the code
+                   must be identical token for token or nothing is written
+    review         read where every deleted comment run ENDS: one ran into the next item's live
+                   note (completion.rs, pkg-search) and was bounded by hand before the apply
+    counts         merged blank lines are counted in the summary, so the diffstat is predicted
+                   exactly
+    head           when the commit before a plan is not made yet, the plan checks HEAD's subject
+                   instead of a hash
+    splitting      one plan per crate group (novashell, engine, the rest) kept each review short
 ```
 
 ## Success Criteria
