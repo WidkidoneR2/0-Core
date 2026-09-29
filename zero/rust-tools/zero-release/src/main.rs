@@ -57,8 +57,6 @@ enum Command {
         /// Version to look up (e.g. 14.1.0)
         version: String,
     },
-    /// Warn if any release generation is at risk of garbage collection (INT-034)
-    GcCheck,
     /// Rollback to a previous generation
     Rollback {
         /// Specific version to rollback to (optional — defaults to previous)
@@ -143,16 +141,9 @@ fn main() -> Result<()> {
                         .ok()
                         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                         .unwrap_or_default();
-                    // Current generation: resolve /nix/var/nix/profiles/system -> system-NNN-link.
-                    let generation = std::fs::read_link("/nix/var/nix/profiles/system")
-                        .ok()
-                        .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
-                        .and_then(|s| {
-                            s.strip_prefix("system-")
-                                .and_then(|r| r.strip_suffix("-link"))
-                                .map(|r| r.to_string())
-                        })
-                        .unwrap_or_else(|| "unknown".to_string());
+                    // Omarchy has no system generation: the git tag is the rollback point, so the triad
+                    // records none here. Whether the column stays is a schema-pass question.
+                    let generation = "none".to_string();
                     // Intent range: count completed intents for a simple range string.
                     let complete_dir = zero_core::paths::intents_dir().join("complete");
                     let intent_count = std::fs::read_dir(&complete_dir)
@@ -508,39 +499,6 @@ fn main() -> Result<()> {
                     }
                 }
                 Err(e) => eprintln!("Could not open state.db: {}", e),
-            }
-        }
-        Command::GcCheck => {
-            // Warn if any release generation no longer has a live system-NNN-link (i.e. was GC'd
-            // or is at risk). We list recorded release generations and check the profile links.
-            let db_path = zero_core::paths::state_db();
-            let conn = match rusqlite::Connection::open(&db_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    eprintln!("Could not open state.db: {}", e);
-                    return Ok(());
-                }
-            };
-            let mut stmt = conn
-                .prepare("SELECT version, generation FROM release_triad ORDER BY timestamp DESC")?;
-            let rows: Vec<(String, String)> = stmt
-                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-                .map(|m| m.filter_map(|x| x.ok()).collect())
-                .unwrap_or_default();
-            if rows.is_empty() {
-                println!("No release triad records to check.");
-            } else {
-                let mut warned = false;
-                for (ver, gen) in rows {
-                    let link = format!("/nix/var/nix/profiles/system-{}-link", gen);
-                    if !std::path::Path::new(&link).exists() {
-                        println!("\u{26a0}\u{fe0f}  Release v{} (generation {}) is GONE -- generation collected.", ver, gen);
-                        warned = true;
-                    }
-                }
-                if !warned {
-                    println!("\u{2705} All release generations still present (none collected).");
-                }
             }
         }
         Command::Rollback { version } => {

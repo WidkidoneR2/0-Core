@@ -55,7 +55,7 @@ struct Cli {
     /// Output results in JSON format
     #[arg(long)]
     json: bool,
-    /// Only check specific categories (comma-separated: flake,cargo,neovim,workspace)
+    /// Only check specific categories (comma-separated: cargo,neovim,workspace)
 
     /// Run maintenance tasks (clean cache, orphans, journal)
     #[arg(long)]
@@ -135,16 +135,18 @@ fn run_preflight_checks() {
 }
 /// Get system drift score based on last upgrade time
 fn get_drift_score() -> (String, String) {
-    // NixOS drift (INT-074 de-Arch): days since the flake.lock was last updated -- the
-    // NixOS analog of "days since last system upgrade". Older lock = more drift.
-    let lock_path = std::env::var("HOME")
-        .map(|h| format!("{h}/0-core/flake.lock"))
-        .unwrap_or_else(|_| "flake.lock".to_string());
-    let days_ago = std::fs::metadata(&lock_path)
-        .and_then(|m| m.modified())
+    // Drift: days since the last full system upgrade, read from pacman's own log -- the last
+    // "starting full system upgrade" line. No log, or no such line, is unknown (-1).
+    let days_ago = std::fs::read_to_string("/var/log/pacman.log")
         .ok()
-        .and_then(|t| t.elapsed().ok())
-        .map(|d| (d.as_secs() / 86_400) as i64)
+        .and_then(|log| {
+            log.lines()
+                .rev()
+                .find(|l| l.contains("starting full system upgrade"))
+                .and_then(|l| l.get(1..l.find(']')?))
+                .and_then(|ts| chrono::DateTime::parse_from_str(ts, "%Y-%m-%dT%H:%M:%S%z").ok())
+        })
+        .map(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).num_days())
         .unwrap_or(-1);
     let label = if days_ago < 0 {
         ("unknown".to_string(), "?".to_string())
@@ -231,14 +233,6 @@ fn run_maintenance() -> Result<()> {
         Ok(s) if s.success() => println!("  {} Journal vacuumed", "✅".green()),
         _ => println!("  {} Journal vacuum failed (sudo required)", "⚠️".yellow()),
     }
-
-    // 3. Nix store cleanup -- delegate to the forest's dedicated tool rather than duplicate it.
-    //    (INT-074 de-Arch: replaces the old `sudo pacman -Sc` + orphan-removal steps.)
-    println!("  {} Nix store cleanup", "→".bright_cyan());
-    println!(
-        "    {} Run `nhclean` (nh clean all --keep-since 7d --ask) to reclaim store space",
-        "💡".bright_cyan()
-    );
 
     println!();
     println!("{}", "─".repeat(48).dimmed());
@@ -634,7 +628,6 @@ fn category_matches(filter: &str, category: &str) -> bool {
     // Exact match or contains
     category_lower.contains(&filter_lower) ||
     // Common aliases
-    (filter_lower == "flake" && category_lower.contains("flake")) ||
     (filter_lower == "cargo" && category_lower.contains("cargo")) ||
     (filter_lower == "neovim" && category_lower.contains("neovim")) ||
     (filter_lower == "workspace" && category_lower.contains("workspace"))
