@@ -373,7 +373,7 @@ async fn process_command(cmd: Command) -> Response {
             println!("{} Shutdown requested", "🛑".red().bold());
             std::process::exit(0);
         }
-        Command::GetForestContext => get_forest_context().await,
+        Command::GetContext => get_context().await,
         Command::GetPrediction => get_prediction().await,
         Command::WatchdogStatus => get_watchdog_status().await,
         Command::GetEngineSignals { limit } => get_engine_signals(limit).await,
@@ -529,7 +529,7 @@ fn read_health_cache() -> u32 {
         .map(|h| h as u32)
         .unwrap_or(100)
 }
-async fn get_forest_context() -> crate::protocol::Response {
+async fn get_context() -> crate::protocol::Response {
     let db_path = get_db_path();
     let Ok(conn) = rusqlite::Connection::open(&db_path) else {
         return crate::protocol::Response::Error {
@@ -575,7 +575,7 @@ async fn get_forest_context() -> crate::protocol::Response {
     // Top prediction
     // INT-191: nothing writes daemon_prediction any more. None is the honest answer.
     let top_prediction: Option<String> = None;
-    crate::protocol::Response::ForestContext {
+    crate::protocol::Response::Context {
         health,
         alignment,
         active_intent,

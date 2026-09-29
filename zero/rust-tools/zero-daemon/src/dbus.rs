@@ -1,5 +1,5 @@
 //! INT-294 -- Event Bus v2
-//! org.faelight.Forest D-Bus service
+//! org.zero.Core D-Bus service
 //! Exposes state (health, intent) as D-Bus properties and signals.
 //! Any tool on the system can subscribe -- bar, FM, compositor, external scripts.
 
@@ -37,13 +37,13 @@ impl BusState {
     }
 }
 
-// ── Health interface -- org.faelight.Forest.Health ────────────────────────────
+// ── Health interface -- org.zero.Core.Health ──────────────────────────────────
 
 pub struct HealthIface {
     pub health: Arc<Mutex<u32>>,
 }
 
-#[interface(name = "org.faelight.Forest.Health")]
+#[interface(name = "org.zero.Core.Health")]
 impl HealthIface {
     /// Current health percentage (0-100)
     #[zbus(property)]
@@ -56,14 +56,14 @@ impl HealthIface {
     async fn health_changed(ctx: &SignalContext<'_>, old: u32, new_val: u32) -> zbus::Result<()>;
 }
 
-// ── Intent interface -- org.faelight.Forest.Intent ───────────────────────────
+// ── Intent interface -- org.zero.Core.Intent ─────────────────────────────────
 
 pub struct IntentIface {
     pub title: Arc<Mutex<String>>,
     pub id: Arc<Mutex<u32>>,
 }
 
-#[interface(name = "org.faelight.Forest.Intent")]
+#[interface(name = "org.zero.Core.Intent")]
 impl IntentIface {
     /// Title of the currently active intent
     #[zbus(property)]
@@ -86,11 +86,11 @@ impl IntentIface {
     ) -> zbus::Result<()>;
 }
 
-// ── Friday interface -- org.faelight.Forest.Friday ───────────────────────────
+// ── Friday interface -- org.zero.Core.Friday ─────────────────────────────────
 
 pub struct FridayIface;
 
-#[interface(name = "org.faelight.Forest.Friday")]
+#[interface(name = "org.zero.Core.Friday")]
 impl FridayIface {
     /// Emitted when Friday has a suggestion ready
     #[zbus(signal)]
@@ -101,11 +101,11 @@ impl FridayIface {
     ) -> zbus::Result<()>;
 }
 
-// ── Deploy interface -- org.faelight.Forest.Deploy ──────────────────────────
+// ── Deploy interface -- org.zero.Core.Deploy ────────────────────────────────
 
 pub struct DeployIface;
 
-#[interface(name = "org.faelight.Forest.Deploy")]
+#[interface(name = "org.zero.Core.Deploy")]
 impl DeployIface {
     /// Emitted when a deploy completes successfully
     #[zbus(signal)]
@@ -225,7 +225,7 @@ pub fn read_intent_id() -> u32 {
 // ── Main D-Bus service loop ───────────────────────────────────────────────────
 
 pub async fn run_bus() {
-    eprintln!("🌲 forest-bus: starting org.faelight.Forest on session D-Bus");
+    eprintln!("bus: starting org.zero.Core on session D-Bus");
 
     let state = BusState::new();
 
@@ -238,26 +238,26 @@ pub async fn run_bus() {
     };
 
     let conn = match connection::Builder::session()
-        .and_then(|b| b.name("org.faelight.Forest"))
-        .and_then(|b| b.serve_at("/org/faelight/Forest/Health", health_iface))
-        .and_then(|b| b.serve_at("/org/faelight/Forest/Intent", intent_iface))
-        .and_then(|b| b.serve_at("/org/faelight/Forest/Friday", FridayIface))
-        .and_then(|b| b.serve_at("/org/faelight/Forest/Deploy", DeployIface))
+        .and_then(|b| b.name("org.zero.Core"))
+        .and_then(|b| b.serve_at("/org/zero/Core/Health", health_iface))
+        .and_then(|b| b.serve_at("/org/zero/Core/Intent", intent_iface))
+        .and_then(|b| b.serve_at("/org/zero/Core/Friday", FridayIface))
+        .and_then(|b| b.serve_at("/org/zero/Core/Deploy", DeployIface))
     {
         Ok(b) => match b.build().await {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("❌ forest-bus: D-Bus connection failed: {e}");
+                eprintln!("❌ bus: D-Bus connection failed: {e}");
                 return;
             }
         },
         Err(e) => {
-            eprintln!("❌ forest-bus: D-Bus builder failed: {e}");
+            eprintln!("❌ bus: D-Bus builder failed: {e}");
             return;
         }
     };
 
-    eprintln!("✅ forest-bus: org.faelight.Forest registered on session bus");
+    eprintln!("✅ bus: org.zero.Core registered on session bus");
 
     let mut last_health = read_health();
     let mut last_intent = read_intent();
@@ -301,7 +301,7 @@ pub async fn run_bus() {
             let body: Result<bool, _> = sig.body().deserialize();
             if let Ok(sleeping) = body {
                 if sleeping {
-                    eprintln!("🌲 forest-bus: system suspending");
+                    eprintln!("bus: system suspending");
                     // Write suspend event to state.db
                     let db = zero_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
@@ -315,7 +315,7 @@ pub async fn run_bus() {
                         );
                     }
                 } else {
-                    eprintln!("🌲 forest-bus: system waking");
+                    eprintln!("bus: system waking");
                     let db = zero_core::paths::state_db();
                     if let Ok(c) = rusqlite::Connection::open(&db) {
                         let now = std::time::SystemTime::now()
@@ -338,17 +338,17 @@ pub async fn run_bus() {
         Some(sig) = deploy_rx.recv() => {
             match sig {
                 DeploySignal::Completed { tool, version, duration_ms } => {
-                    eprintln!("🌲 forest-bus: deploy {} v{} ({}ms)", tool, version, duration_ms);
+                    eprintln!("bus: deploy {} v{} ({}ms)", tool, version, duration_ms);
                     if let Ok(iface_ref) = conn.object_server()
-                        .interface::<_, DeployIface>("/org/faelight/Forest/Deploy").await {
+                        .interface::<_, DeployIface>("/org/zero/Core/Deploy").await {
                         let ctx = iface_ref.signal_context();
                         let _ = DeployIface::deploy_completed(ctx, tool, version, duration_ms).await;
                     }
                 }
                 DeploySignal::Failed { tool, error } => {
-                    eprintln!("🌲 forest-bus: deploy failed {} -- {}", tool, error);
+                    eprintln!("bus: deploy failed {} -- {}", tool, error);
                     if let Ok(iface_ref) = conn.object_server()
-                        .interface::<_, DeployIface>("/org/faelight/Forest/Deploy").await {
+                        .interface::<_, DeployIface>("/org/zero/Core/Deploy").await {
                         let ctx = iface_ref.signal_context();
                         let _ = DeployIface::deploy_failed(ctx, tool, error).await;
                     }
@@ -357,10 +357,10 @@ pub async fn run_bus() {
             continue;
         }
         Some((msg, conf)) = friday_rx.recv() => {
-            eprintln!("🌲 forest-bus: friday signal -- {} ({:.0}%)", msg, conf * 100.0);
+            eprintln!("bus: friday signal -- {} ({:.0}%)", msg, conf * 100.0);
             if let Ok(iface_ref) = conn
                 .object_server()
-                .interface::<_, FridayIface>("/org/faelight/Forest/Friday")
+                .interface::<_, FridayIface>("/org/zero/Core/Friday")
                 .await
             {
                 let ctx = iface_ref.signal_context();
@@ -376,10 +376,10 @@ pub async fn run_bus() {
             let old = last_health;
             *state.health.lock().await = h;
             last_health = h;
-            eprintln!("🌲 forest-bus: health {} -> {}", old, h);
+            eprintln!("bus: health {} -> {}", old, h);
             if let Ok(iface_ref) = conn
                 .object_server()
-                .interface::<_, HealthIface>("/org/faelight/Forest/Health")
+                .interface::<_, HealthIface>("/org/zero/Core/Health")
                 .await
             {
                 let ctx = iface_ref.signal_context();
@@ -395,10 +395,10 @@ pub async fn run_bus() {
             *state.intent_title.lock().await = i.clone();
             *state.intent_id.lock().await = id;
             last_intent = i.clone();
-            eprintln!("🌲 forest-bus: intent changed -> {}", i);
+            eprintln!("bus: intent changed -> {}", i);
             if let Ok(iface_ref) = conn
                 .object_server()
-                .interface::<_, IntentIface>("/org/faelight/Forest/Intent")
+                .interface::<_, IntentIface>("/org/zero/Core/Intent")
                 .await
             {
                 let ctx = iface_ref.signal_context();
@@ -432,10 +432,10 @@ pub async fn run_bus() {
                     .unwrap_or_default();
                 for (id, tool, version, dur) in rows {
                     last_deploy_id = last_deploy_id.max(id);
-                    eprintln!("🌲 forest-bus: deploy {} v{} ({}ms)", tool, version, dur);
+                    eprintln!("bus: deploy {} v{} ({}ms)", tool, version, dur);
                     if let Ok(iface_ref) = conn
                         .object_server()
-                        .interface::<_, DeployIface>("/org/faelight/Forest/Deploy")
+                        .interface::<_, DeployIface>("/org/zero/Core/Deploy")
                         .await
                     {
                         let ctx = iface_ref.signal_context();

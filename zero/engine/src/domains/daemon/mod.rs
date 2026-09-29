@@ -52,10 +52,10 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
         }
     }
     // Get context
-    match send_command(serde_json::json!("GetForestContext")) {
+    match send_command(serde_json::json!("GetContext")) {
         Ok(resp) => {
             if let Some(payload) = resp.get("payload") {
-                if let Some(fc) = payload.get("ForestContext") {
+                if let Some(fc) = payload.get("Context") {
                     let health = fc["health"].as_u64().unwrap_or(0);
                     let alignment = fc["alignment"].as_f64().unwrap_or(0.0);
                     let commits = fc["commits_today"].as_i64().unwrap_or(0);
@@ -121,10 +121,10 @@ pub fn context(_ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "🌿 Context (via daemon)".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
-    match send_command(serde_json::json!("GetForestContext")) {
+    match send_command(serde_json::json!("GetContext")) {
         Ok(resp) => {
             if let Some(payload) = resp.get("payload") {
-                if let Some(fc) = payload.get("ForestContext") {
+                if let Some(fc) = payload.get("Context") {
                     println!(
                         "{}",
                         serde_json::to_string_pretty(fc)
