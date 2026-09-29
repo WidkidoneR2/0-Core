@@ -26,7 +26,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!();
     println!(
         "{}",
-        "  ╭─ 🌲 Forest Narrative ───────────────────────────────".bright_cyan()
+        "  ╭─ Narrative ─────────────────────────────────────────".bright_cyan()
     );
 
     // Chapter 1 — Identity

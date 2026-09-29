@@ -329,7 +329,7 @@ fn cmd_patterns(path: &str) {
         ensure_tables.to_string().bright_white()
     );
     println!(
-        "    {} {} colored output calls — Faelight Visual Language",
+        "    {} {} colored output calls — visual language",
         "·".dimmed(),
         colored_usage.to_string().bright_white()
     );
@@ -347,10 +347,7 @@ fn cmd_patterns(path: &str) {
         "    {} CoreResult<()> for all public functions",
         "·".dimmed()
     );
-    println!(
-        "    {} Faelight Visual Language — forest green + colored output",
-        "·".dimmed()
-    );
+    println!("    {} Visual language — colored output", "·".dimmed());
     println!(
         "    {} {} total Rust lines across {} files",
         "·".dimmed(),
@@ -400,7 +397,7 @@ fn cmd_summary(path: &str) {
     );
     println!();
     println!("  Architecture: domain-per-directory, SQLite state persistence,");
-    println!("  Faelight Visual Language (forest green palette), and a fully");
+    println!("  the visual language (colored output), and a fully");
     println!("  self-documenting intent ledger tracking every architectural decision.");
     println!();
 }

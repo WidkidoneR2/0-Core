@@ -195,7 +195,7 @@ fn check_conflicts(aliases: &HashMap<String, String>) -> CoreResult<()> {
 }
 
 fn show_tools(aliases: &HashMap<String, String>) -> CoreResult<()> {
-    println!("{}", "🌲 FAELIGHT TOOLS ALIAS COVERAGE".cyan().bold());
+    println!("{}", "TOOLS ALIAS COVERAGE".cyan().bold());
     println!("{}", "═".repeat(60));
     // INT-192: could-not-read must not render as an empty tool list.
     let expected = match expected_tools() {

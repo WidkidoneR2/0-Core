@@ -554,7 +554,7 @@ impl MigrationReport {
         // the keys of declined_by_reason, so a rename already changes the report. A marker on
         // LowerError would survive renaming and is the better fix when someone touches that enum.
         const RULED_DELIBERATE: [&str; 2] = [
-            "unlowerable: forest value pipeline (legacy owns these)",
+            "unlowerable: value pipeline (legacy owns these)",
             "unlowerable: bare assignment with no command (a shell statement, not a process)",
         ];
         let ruled: usize = RULED_DELIBERATE

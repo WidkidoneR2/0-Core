@@ -1273,7 +1273,7 @@ fn read_line_prompt(prompt: &str) -> String {
 fn purge(root: &Path, bak_age: u64, bulk: bool) {
     println!(
         "{}",
-        "Faelight Deadwood -- purge (safe dead weight only)"
+        "zero-deadwood -- purge (safe dead weight only)"
             .green()
             .bold()
     );

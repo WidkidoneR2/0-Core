@@ -11721,7 +11721,7 @@ fn health(db: &StateDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "\n{}\n",
-        "  ╭─ 🏥 Forest Health ─────────────────────────────────".bright_cyan()
+        "  ╭─ 🏥 Health ────────────────────────────────────────".bright_cyan()
     ));
     out.push_str(&format!(
         "  │  Health:  {}  {}\n",
@@ -16898,7 +16898,7 @@ fn ade_cmd(args: &[&str]) -> CommandResult {
         );
     }
 
-    println!("  {} Launching Forest ADE...", "🌲".normal());
+    println!("  {} Launching Zero ADE...", "🌲".normal());
     println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
     println!("  {} Left: fsh (Alacritty)", "→".dimmed());
     println!("  {} Right: friday-chat", "→".dimmed());

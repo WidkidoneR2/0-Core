@@ -556,7 +556,7 @@ pub fn lower_pipeline(
         AstNode::Pipeline(pl) => {
             if is_value_pipeline(pl) {
                 return Err(LowerError::UnsupportedConstruct {
-                    kind: "forest value pipeline (legacy owns these)",
+                    kind: "value pipeline (legacy owns these)",
                     span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
                 });
             }
@@ -800,7 +800,7 @@ fn lower_with_io(
             });
             Err(LowerError::UnsupportedConstruct {
                 kind: if value_pipeline {
-                    "forest value pipeline (legacy owns these)"
+                    "value pipeline (legacy owns these)"
                 } else {
                     "pipeline"
                 },
@@ -1232,7 +1232,7 @@ mod tests {
         impl CommandRunner for ValueRunner {
             fn run_capture(&self, _plan: &ExecutionPlan) -> Result<String, CaptureError> {
                 Err(CaptureError::Unsupported(
-                    "command substitution of a forest value verb",
+                    "command substitution of a value verb",
                 ))
             }
         }
@@ -1254,7 +1254,7 @@ mod tests {
         let node = parse("echo $(ls)").expect_complete("parses");
         match lower(&node, &ctx) {
             Err(LowerError::UnsupportedConstruct { kind, .. }) => {
-                assert_eq!(kind, "command substitution of a forest value verb")
+                assert_eq!(kind, "command substitution of a value verb")
             }
             other => panic!("a value capture must DECLINE so legacy can run it: {other:?}"),
         }

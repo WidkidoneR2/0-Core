@@ -108,7 +108,7 @@ fn build_dynamic_section(
     // history instead, which is what INT-247 Layer 1 permits: "a subtitle may honestly say
     // *formerly Faelight Forest*".
     s.push_str("# Project 0\n");
-    s.push_str("\n*_formerly Faelight Forest_*\n\n");
+    s.push_str("\n");
     s.push_str(&format!(
         "![Version](https://img.shields.io/badge/version-{}-green?style=flat-square)\n",
         version.replace('-', "--")

@@ -554,7 +554,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("echo 42")?, "42")
     }));
     results.push(test("echo_quoted", Category::Regression, || {
-        expect_eq(&run_fsh("echo 'forest grows'")?, "forest grows")
+        expect_eq(&run_fsh("echo 'zero grows'")?, "zero grows")
     }));
     results.push(test("pwd_returns_path", Category::Regression, || {
         expect_contains(&run_fsh("pwd")?, &home())
@@ -727,7 +727,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("echo hello | tr a-z A-Z")?, "HELLO")
     }));
     results.push(test("pipe_grep_match", Category::Pipes, || {
-        expect_eq(&run_fsh("echo forest | grep forest")?, "forest")
+        expect_eq(&run_fsh("echo zero | grep zero")?, "zero")
     }));
     results.push(test("pipe_twice", Category::Pipes, || {
         expect_eq(&run_fsh("echo hello | tr a-z A-Z | tr A-Z a-z")?, "hello")
@@ -858,7 +858,7 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&run_fsh("echo hello")?, "hello")
     }));
     results.push(test("fsh_c_pipeline", Category::Regression, || {
-        expect_eq(&run_fsh("echo forest | tr a-z A-Z")?, "FOREST")
+        expect_eq(&run_fsh("echo zero | tr a-z A-Z")?, "ZERO")
     }));
     results.push(test("semicolons_pipeline", Category::Regression, || {
         expect_contains(&run_fsh("echo a; echo b | tr a-z A-Z")?, "B")
@@ -868,7 +868,7 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("ls_pipe_grep_tmp", Category::Pipes, || {
         // create fsh_t file first
-        std::fs::write("/tmp/fsh_t1.txt", "forest writes").ok();
+        std::fs::write("/tmp/fsh_t1.txt", "zero writes").ok();
         expect_contains(&run_fsh("ls /tmp | grep fsh")?, "fsh")
     }));
     results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
@@ -974,8 +974,8 @@ fn all_tests() -> Vec<TestResult> {
         )
     }));
     results.push(test("cat_reads_file", Category::Regression, || {
-        std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
-        expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "forest writes")
+        std::fs::write("/tmp/fsh_t1.txt", "zero writes").map_err(|e| e.to_string())?;
+        expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "zero writes")
     }));
     results.push(test("tilde_in_subshell", Category::Tilde, || {
         let home = fixture_home()?;
@@ -1626,7 +1626,7 @@ print('CLASS-DONE')"##;
     results.push(repo_test(
         "repl_206_forest_home_is_still_the_default",
         Category::Repl,
-        "needs a real 0-Core: the forest-home default only exists when a forest does",
+        "needs a real 0-Core: the repo-home default only exists when the repo does",
         || {
             // INT-206 GUARDIAN. The harness sets NSH_KEEP_CWD for every other case so that a case which
             // writes a file cannot write it into the repository. That is the right default, and it has a
@@ -1646,7 +1646,7 @@ print('CLASS-DONE')"##;
     results.push(repo_test(
         "repl_start_directory_ignores_remembered_last_dir",
         Category::Repl,
-        "needs a real 0-Core: the start directory it asserts only exists when a forest does",
+        "needs a real 0-Core: the start directory it asserts only exists when the repo does",
         || {
             // THE STARTUP DIRECTORY MUST NOT DEPEND ON REMEMBERED STATE.
             //

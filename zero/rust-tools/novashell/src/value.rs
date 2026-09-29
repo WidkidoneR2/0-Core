@@ -1102,7 +1102,7 @@ mod pipeline_vocabulary_tests {
             let first = sample.split_whitespace().next().unwrap();
             assert!(
                 !is_value_verb(first),
-                "{first:?} must not be treated as a forest verb"
+                "{first:?} must not be treated as a value verb"
             );
         }
     }

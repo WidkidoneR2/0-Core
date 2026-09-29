@@ -1062,7 +1062,7 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
             // `echo $(ls)` FAILED on gen 485 while legacy handled it correctly -- and the same for
             // ps, files, tools and intents. A capability boundary declines; it does not error.
             CommandResult::Value(_) => Err(crate::spine::plan::CaptureError::Unsupported(
-                "command substitution of a forest value verb",
+                "command substitution of a value verb",
             )),
             // A substitution that tries to terminate the shell is a FAILED capture, not an empty
             // one -- swallowing it as `Ok("")` would make `$(exit)` silently expand to nothing.

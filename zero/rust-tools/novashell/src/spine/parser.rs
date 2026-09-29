@@ -1029,7 +1029,7 @@ mod tests {
     /// becomes a moving target: this one has already been re-pointed twice.
     #[test]
     fn a_rejection_identifies_the_construct_that_caused_it() {
-        let node = parse("ps | sort cpu desc").expect_complete("a forest pipeline PARSES");
+        let node = parse("ps | sort cpu desc").expect_complete("a value pipeline PARSES");
         let ctx = crate::spine::plan::LowerContext::default();
         match crate::spine::plan::lower_pipeline(&node, &ctx) {
             Err(crate::spine::plan::LowerError::UnsupportedConstruct { kind, span }) => {

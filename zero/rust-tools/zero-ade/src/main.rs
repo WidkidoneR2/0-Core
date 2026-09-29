@@ -110,7 +110,7 @@ impl App {
         let health_hint = get_health(&db);
 
         let welcome = format!(
-            "Forest ADE active\nINT-{} | Health: {}\n/help for commands",
+            "Zero ADE active\nINT-{} | Health: {}\n/help for commands",
             intent_hint, health_hint
         );
 
@@ -476,7 +476,7 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
 
     let header = Paragraph::new(Line::from(vec![
         Span::styled(
-            " 🌲 Forest ADE ",
+            " Zero ADE ",
             Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
         ),
         Span::styled("│ ", Style::default().fg(DIM)),
