@@ -77,7 +77,7 @@ fn has(tool: &str) -> bool {
 ///   - running something other than target/debug   -> one line, because the wrapper wanted debug
 ///   - a debug build exists and DIFFERS from this  -> louder, because a newer gate was skipped
 ///
-/// ⚠️ NO zero-core. This crate has zero dependencies on purpose -- a gate that needs the forest
+/// ⚠️ NO zero-core. This crate has zero dependencies on purpose -- a gate that needs Project 0
 /// to check formatting is the house holding its own door. zero_core::differs exists and is not
 /// imported; length-then-bytes on two files is std, and staying std is the point.
 fn provenance(root: &Path) {

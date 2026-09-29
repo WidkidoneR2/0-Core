@@ -3,7 +3,7 @@ use std::process::Command;
 
 /// Whether this interpreter refuses pip installs, per PEP 668.
 ///
-/// A marker file beside the standard library, which both Arch and NixOS ship and which pip
+/// A marker file beside the standard library, which Arch and other distributions ship and which pip
 /// itself honours. Reading it asks the interpreter rather than guessing from the distribution.
 fn externally_managed() -> bool {
     let out = match Command::new("python3")
@@ -21,8 +21,7 @@ fn externally_managed() -> bool {
 }
 
 pub fn check_pip_updates() -> Vec<String> {
-    // ⚠️ THE GUARD WAS RIGHT AND ITS TEST WAS WRONG. It read /etc/NIXOS, so it stopped
-    // firing when NixOS went -- but PEP 668 is not a NixOS idea. ARCH SHIPS
+    // ASK THE INTERPRETER, NOT THE DISTRIBUTION. PEP 668 is not one OS's idea, and ARCH SHIPS
     // EXTERNALLY-MANAGED TOO (measured 2026-09-20: /usr/lib/python3.14/EXTERNALLY-MANAGED
     // is present), and pip refuses to touch a managed environment on either system.
     // Ask the question the interpreter answers, not the one a dead distribution did.

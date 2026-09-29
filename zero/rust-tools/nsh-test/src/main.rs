@@ -179,8 +179,8 @@ fn fixture_dir() -> String {
 ///
 /// ⚠️ THIS IS NOT A CHECKOUT AND MUST NEVER LOOK LIKE ONE. It lives under a REDIRECTED HOME that
 /// only the converted cases pass, so forest_present() -- which reads the real $HOME -- is
-/// unaffected. Two cases genuinely need a forest rather than a directory shaped like one
-/// (repl_206 asserts nsh starts in the forest home; pick_without_fzf cannot reach its dependency
+/// unaffected. Two cases genuinely need 0-Core rather than a directory shaped like one
+/// (repl_206 asserts nsh starts in the repo home; pick_without_fzf cannot reach its dependency
 /// check because INT-230 refuses first), and they must keep skipping. A fixture that satisfied
 /// forest_present would make both of them pass against three stub files and mean nothing.
 ///
@@ -339,7 +339,7 @@ fn expect_eq(got: &str, expected: &str) -> Result<(), String> {
 /// them settled it: `pwd_returns_path -- expected "/build/0-core" to contain "/home/christian"`
 /// and `whoami -- expected "christian" got "anon"`. The tests asserted the AUTHOR'S username and
 /// home directory, so they fail for any other user on any machine -- including a second account on
-/// the author's own laptop. INT-227 Category A: wrong everywhere, not merely off NixOS.
+/// the author's own laptop. INT-227 Category A: wrong everywhere, not merely on another OS.
 ///
 /// ⭐ THE PATTERN ALREADY EXISTED AND WAS SIMPLY NOT USED EVERYWHERE. `tilde_basic` and
 /// `tilde_in_path` ask $HOME and compare -- and those two PASSED on Void while their hardcoded
@@ -640,7 +640,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("and_chain_fsh_builtin", Category::Regression, || {
         // The chain must run BOTH sides, in order. This expected "3.0.0" -- core's version when it
         // was written -- and kept passing after core moved on only because core version printed an
-        // invented "Forest: 13.0.0" that happened to contain it. INT-247 removed the invention and
+        // invented "13.0.0" that happened to contain it. INT-247 removed the invention and
         // this went red. Assert the SHAPE of the output, never a version number.
         let out = run_fsh("echo ok && core version")?;
         let mut lines = out.lines();
@@ -995,7 +995,7 @@ fn all_tests() -> Vec<TestResult> {
         }
     }));
 
-    // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
+    // --- PROJECT-SPECIFIC TESTS beyond fsh_audit.sh ---
     // RED ON PURPOSE, 2026-09-10, AND IT IS THE SHELL THAT IS WRONG.
     //
     // Converting this case to the fixture surfaced a divergence nobody had written down. Listing
@@ -1045,17 +1045,16 @@ fn all_tests() -> Vec<TestResult> {
     // fzf AND the message names the missing dependency.
     //
     // The PATH is built at RUNTIME, dropping only directories that contain an fzf executable.
-    // Hardcoding would rot: fzf lives in /etc/profiles/... while rg, sh and git are each in a
-    // /nix/store/<hash>-... directory, and those hashes change on every rebuild. Everything else
+    // Hardcoding would rot: where fzf, rg, sh and git live differs between machines. Everything else
     // stays, so fsh starts normally and ONLY the selector goes missing -- otherwise the case would
     // be testing "fsh cannot start" rather than "fsh cannot find its selector".
     //
     // `pick intent` is used rather than `pick file`, which shells out to rg first: nothing else
     // can fail before the selector is reached.
     // A FIXTURE CANNOT FIX THIS ONE. The case strips fzf from PATH and asserts the failure names
-    // the missing dependency. Without a forest, INT-230 refuses FIRST -- "pick intent: needs
+    // the missing dependency. Without 0-Core, INT-230 refuses FIRST -- "pick intent: needs
     // 0-Core, which is not present" -- so the dependency check is never reached and the case
-    // measures nothing. It needs a forest that MEANS something, not a directory shaped like one.
+    // measures nothing. It needs a real 0-Core that MEANS something, not a directory shaped like one.
     results.push(forest_test(
         "pick_without_fzf_names_the_dependency",
         Category::Regression,
@@ -1622,7 +1621,7 @@ print('CLASS-DONE')"##;
         },
     ));
     // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
-    // FOREST HOME -- a default that only exists when a forest does. Pointed at a fixture it would
+    // REPO HOME -- a default that only exists when the repo does. Pointed at a fixture it would
     // pass against three stub files and prove nothing about the behaviour it guards.
     results.push(forest_test(
         "repl_206_forest_home_is_still_the_default",
@@ -1634,7 +1633,7 @@ print('CLASS-DONE')"##;
             // cost: every other case then runs a shell configuration nobody uses interactively.
             //
             // This case buys that back. It passes "0" to get the ORDINARY shell -- the one that starts in
-            // the forest home on purpose -- and asserts that
+            // the repo home on purpose -- and asserts that
             // behaviour is intact. So what daily use actually gets is covered by a case that says what it
             // is testing, rather than left uncovered because every other case quietly opted out of it.
             //
@@ -1726,7 +1725,7 @@ print('CLASS-DONE')"##;
         Category::Repl,
         || {
             // INT-230 G5: RUNTIME proof, not a source-text check. The real REPL is
-            // driven with the forest absent, and the doors that read it must REFUSE
+            // driven with 0-Core absent, and the doors that read it must REFUSE
             // rather than print a successful-looking empty result (INT-227).
             //
             // Absence is TWO variables, not one. intents_dir is HOME/0-core/zero/
@@ -2642,11 +2641,6 @@ print('CLASS-DONE')"##;
             // case above passed for months while legacy was mangling quoted arguments -- it claims
             // `sh -c "..." &` and handles the quoting correctly, so the test never reached the code
             // its name describes. The bug was found by hand instead, and fixed at d0c04825.
-            //
-            // THIS ONE HAD A RED YOU COULD RUN: gen 464's binary predates d0c04825. It lived in the
-            // NixOS store, which has not existed since 2026-08-26, so that red is history now.
-            // Against it this case fails and the one above passes -- which is the whole argument for
-            // per-case routing in one screen.
             let out = repl::run_repl_lines_env(
                 &[
                     "rm -f /tmp/zzbg2L.txt",

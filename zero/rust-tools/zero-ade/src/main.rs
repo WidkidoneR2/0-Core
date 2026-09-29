@@ -1,4 +1,4 @@
-// INT-346: zero-ade v1 -- Forest ADE
+// INT-346: zero-ade v1 -- ADE
 // ratatui layout + portable-pty (fsh) + friday-chat (state.db)
 // Left pane: real fsh PTY | Right pane: Friday Chat TUI
 
@@ -22,7 +22,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-// Forest palette
+// Palette
 const BG: Color = Color::Rgb(10, 15, 10);
 const FG: Color = Color::Rgb(168, 197, 176);
 const GREEN: Color = Color::Rgb(42, 255, 213);

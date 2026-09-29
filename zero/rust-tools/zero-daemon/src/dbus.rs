@@ -1,6 +1,6 @@
-//! INT-294 -- Forest Event Bus v2
+//! INT-294 -- Event Bus v2
 //! org.faelight.Forest D-Bus service
-//! Exposes forest state (health, intent) as D-Bus properties and signals.
+//! Exposes state (health, intent) as D-Bus properties and signals.
 //! Any tool on the system can subscribe -- bar, FM, compositor, external scripts.
 
 use futures_util::StreamExt as _;
@@ -178,7 +178,7 @@ pub fn emit_friday_signal(message: String, confidence: f64) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn read_health() -> u32 {
-    // INT-250: the /etc/faelight/HEALTH read that stood here is DELETED, not repointed.
+    // INT-250: the old /etc HEALTH read that stood here is DELETED, not repointed.
     //
     // It was tried FIRST and always failed, so every call fell through to the cache -- which
     // is the real source and was already correct. Removing it changes nothing about what this
@@ -195,7 +195,7 @@ pub fn read_health() -> u32 {
 pub fn read_intent() -> String {
     // INT-250: focus.toml, the source that is actually correct.
     //
-    // This read /etc/faelight/INTENT, gone since Omarchy, and returned "" -- so the D-Bus
+    // This read an old /etc INTENT file, gone since Omarchy, and returned "" -- so the D-Bus
     // service told every caller there was NO ACTIVE INTENT while the ledger held several.
     std::fs::read_to_string(zero_core::paths::focus_file())
         .ok()

@@ -1,6 +1,6 @@
 //! zero-core v1.0.0 - Shared Foundation Library
 //!
-//! Provides common functionality for all Faelight tools:
+//! Provides common functionality for all Project 0 tools:
 //! - Glyph caching (70%+ CPU reduction)
 //! - Canvas drawing primitives
 //! - Theme system (consistent styling)

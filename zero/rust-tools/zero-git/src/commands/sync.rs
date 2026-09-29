@@ -187,7 +187,7 @@ pub fn run() -> Result<()> {
     }
     println!("{}", "  ✅ Commit created".green());
 
-    // INT-071: record this commit into intent_commits (sync is the NixOS daily path).
+    // INT-071: record this commit into intent_commits (sync is the daily path).
     // sync commits via `git commit -m` and does not hold the hash, so fetch it here.
     if let Ok(out) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
         if let Ok(h) = String::from_utf8(out.stdout) {

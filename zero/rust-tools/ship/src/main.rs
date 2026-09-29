@@ -1,12 +1,7 @@
 // ship -- build the workspace and place binaries where PATH can see them.
 //
-// THE ACT THAT NIXOS USED TO PERFORM. `dep` was nixos-rebuild: one command
-// reconciled the whole system from source, binaries landed in the store, and the
-// PATH directory was regenerated. Nothing ever copied a file, which is why
-// `scripts/` could be deleted in e733287d with thirty-six references still
-// pointing at it and nobody noticed.
-//
-// On Arch there is no reconciler. This is that missing half.
+// Nothing on Arch reconciles the system from source: no command builds the tools and puts
+// their binaries on PATH. This is that missing step.
 //
 // THREE RULES IT WILL NOT BREAK:
 //   1. It only touches binaries cargo says it built. The sixteen third-party
@@ -14,7 +9,7 @@
 //      CONSTRUCTION, not by an exclusion list that could go stale.
 //   2. It asks cargo for the target list rather than reading the directory.
 //      target/release also holds libzero_core, libzero_git and
-//      libfaelight_zone -- rlibs that must never be shipped, and no naming rule
+//      libzero_zone -- rlibs that must never be shipped, and no naming rule
 //      could tell them apart reliably. The compiler knows; ask it.
 //   3. It replaces a running binary by rename, never by overwrite. A copy onto
 //      a live executable gives Text file busy; a rename leaves the running

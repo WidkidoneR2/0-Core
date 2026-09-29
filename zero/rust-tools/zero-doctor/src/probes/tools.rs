@@ -97,7 +97,7 @@ pub fn tool_installation() -> Measurement {
 /// zero cannot be divided; it was wrong that the answer is zero.
 ///
 /// ⭐ AND THE QUESTION IS "CAN I RUN THIS", WHICH `which` ANSWERS ON EVERY SYSTEM. This once
-/// branched on /etc/NIXOS and, off NixOS, looked inside a source directory -- one deployment
+/// branched on an OS marker file and, without it, looked inside a source directory -- one deployment
 /// shape hardcoded as if it were the only one. On Omarchy with 29 tools on PATH it reported
 /// 0/29 while the installation check, which used `which`, reported 24/25. Two checks over the
 /// same tools disagreeing completely, and the one that assumed a location was wrong.

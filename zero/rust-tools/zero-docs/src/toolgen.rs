@@ -1,6 +1,6 @@
 //! INT-037: per-tool README generator + index.
 //! Reads each rust-tools/<tool>/Cargo.toml (ground truth) and enriches with
-//! registry/tools.toml status, then emits rich NixOS-era READMEs + a top-level index.
+//! registry/tools.toml status, then emits rich READMEs + a top-level index.
 //! Self-maintaining: re-run any time tools change; docs never drift stale.
 
 use std::path::PathBuf;
@@ -94,7 +94,7 @@ fn enrich_from_registry(
 
 /// Line-parse registry/tools.toml into (name, category, expected_usage, description, retired).
 fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> {
-    // The registry moved to faelight/ in the Phase 1 tree reorganisation and this path did not
+    // The registry moved into the platform directory in the Phase 1 tree reorganisation and this path did not
     // follow it. For a month every generated README said "unregistered" and "uncategorized" -- not
     // because the tools were unregistered, but because this read returned nothing.
     let path = core_root().join("zero/registry/tools.toml");
@@ -323,7 +323,7 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     out
 }
 
-/// PIECE 2b: render a rich NixOS-era README for one tool.
+/// PIECE 2b: render a rich README for one tool.
 pub fn render_readme(m: &ToolMeta) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let status_badge = match m.status.as_str() {
@@ -362,7 +362,7 @@ pub fn render_readme(m: &ToolMeta) -> String {
 
     out.push_str("---\n\n");
 
-    // Build & install (NixOS-native -- NOT Arch/stow)
+    // Build & install
     out.push_str("## Build\n\n");
     out.push_str("```sh\n");
     out.push_str(&format!("cargo build -p {}\n", m.name));
@@ -645,7 +645,7 @@ fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
     entries
 }
 
-/// PIECE 3: render a CHANGELOG for one tool -- header + NixOS migration entry + history.
+/// PIECE 3: render a CHANGELOG for one tool -- header + platform entry + history.
 pub fn render_changelog(m: &ToolMeta) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let mut out = String::new();
@@ -655,10 +655,7 @@ pub fn render_changelog(m: &ToolMeta) -> String {
     out.push_str("This project follows the Project 0 versioning model; format loosely tracks Keep a Changelog.\n\n");
     out.push_str("---\n\n");
 
-    // Platform entry. THIS NAMED NIXOS AND THE BUILD AND DEPLOY COMMANDS WERE WRONG:
-    // nix develop, nixos-rebuild switch, home-manager. None of them exist here. The
-    // section is worth keeping because per-tool build and deploy instructions are
-    // genuinely useful; it just has to name the commands that work.
+    // Platform entry: per-tool build and deploy instructions, naming the commands that work here.
     out.push_str(&format!(
         "## [{}] -- Omarchy / Arch era",
         if m.version.is_empty() {

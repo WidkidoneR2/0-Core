@@ -43,7 +43,7 @@ pub enum Command {
 
     /// Stream all events live to terminal
     EventStream,
-    /// Get full forest context (active intent, health, alignment, top prediction)
+    /// Get full context (active intent, health, alignment, top prediction)
     GetForestContext,
     /// Get pre-computed next prediction for current context
     GetPrediction,
@@ -97,7 +97,7 @@ pub enum Response {
 
     /// Subscription confirmed
     Subscribed { domains: Vec<String> },
-    /// Forest context snapshot
+    /// Context snapshot
     ForestContext {
         health: u32,
         alignment: f64,

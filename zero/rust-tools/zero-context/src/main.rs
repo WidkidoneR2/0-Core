@@ -1,5 +1,5 @@
 //! zero-context v1.0.0 — Deep Codebase Understanding Engine
-//! INT-159 — The forest understands what it is made of.
+//! INT-159 — Project 0 understands what it is made of.
 
 use clap::{Parser, Subcommand};
 use colored::*;

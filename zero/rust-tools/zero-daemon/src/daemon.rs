@@ -93,7 +93,7 @@ impl Daemon {
             contradiction_detection_loop(contradiction_db).await;
         });
 
-        // INT-294 -- Forest Event Bus v2: D-Bus service
+        // INT-294 -- Event Bus v2: D-Bus service
         tokio::spawn(async move {
             crate::dbus::run_forest_bus().await;
         });

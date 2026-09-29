@@ -1,4 +1,4 @@
-// INT-278: Friday Chat -- The Forest Speaks Back
+// INT-278: Friday Chat -- Project 0 Speaks Back
 // ratatui TUI, FridayBackend reads state.db, never invents
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -16,7 +16,7 @@ use ratatui::{
 use rusqlite::Connection;
 use std::io;
 
-// Forest palette (design-system.md)
+// Palette (design-system.md)
 const BG: Color = Color::Rgb(10, 15, 10);
 const FG: Color = Color::Rgb(168, 197, 176);
 const GREEN: Color = Color::Rgb(42, 255, 213);
@@ -101,7 +101,7 @@ impl App {
 
 fn get_active_intent(db: &Connection) -> String {
     // INT-071: focus.toml is source of truth (written by cistart). shell_state row
-    // went stale at the NixOS migration. Read the toml first, fall back to the row.
+    // went stale at an earlier OS migration. Read the toml first, fall back to the row.
     // INT-250: one owner for the path.
     if let Ok(content) = std::fs::read_to_string(zero_core::paths::focus_file()) {
         for line in content.lines() {

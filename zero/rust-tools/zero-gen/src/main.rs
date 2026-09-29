@@ -1,4 +1,4 @@
-//! zero-gen — Forest-Native Password & Secret Generator Suite
+//! zero-gen — Password & Secret Generator Suite
 //! INT-130: 12 generator types, colored output, TUI menu
 //! "Security through randomness. Beauty through color."
 

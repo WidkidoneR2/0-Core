@@ -48,11 +48,6 @@ pub fn fsh_bin() -> String {
             eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
             std::process::exit(2);
         }
-        // The fallback was under /run/current-system/sw/bin/ -- a NixOS store
-        // path that has not existed since the migration. With NSH_BIN unset the suite
-        // spawned a binary that is not there and 158 of 162 cases failed for that one
-        // reason, reporting a 2% shell rather than a missing subject.
-        //
         // paths::bin_dir owns where a deployed binary lives, so the fallback follows it
         // instead of naming a location. Same accessor ship writes to.
         Err(_) => {
@@ -381,12 +376,12 @@ fn run_session(
 
     let mut child = Command::new(fsh_bin())
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
-        // forest home deliberately (it once also restored its last directory), so the current_dir below
+        // repo home deliberately (it once also restored its last directory), so the current_dir below
         // was silently ignored for months and conformance cases wrote their files into the
         // repository. NSH_KEEP_CWD suppresses that override.
         //
         // Set for every case rather than per-case, so a case added later cannot pollute the repo by
-        // forgetting to opt in. One guardian case passes "0" and asserts the forest-home default,
+        // forgetting to opt in. One guardian case passes "0" and asserts the repo-home default,
         // so the behaviour daily use actually gets is still covered by a case that says so.
         .env("NSH_KEEP_CWD", "1")
         // INT-204: a FRESH DATABASE PER CASE, because the pollution this intent is about happens

@@ -410,15 +410,6 @@ fn slide_overview(snap: &SystemSnapshot) {
         os_name(),
     );
     println!();
-    // ⚠️ A LINE WAS REMOVED HERE, 2026-09-20. It said "No Waybar. No lazygit. No topgrade.
-    // No Hyprland." It said "No Waybar. No lazygit. No topgrade. No Hyprland."
-    // -- true on NixOS, where a replacement had been built for each. Today Omarchy ships
-    // Waybar and lazygit, Hyprland IS the compositor, and topgrade was removed in May 2026,
-    // nine months before this was last shown. FOUR CLAIMS, FOUR OF THEM WRONG.
-    //
-    // ⭐ A BOAST ABOUT WHAT YOU DO NOT RUN IS A CLAIM ABOUT THE MACHINE, and it goes stale
-    // the same way a version string does -- faster, because nothing compiles against it.
-    // What is true without measuring anything is the sentence below it.
     println!(
         "  {}",
         "Everything you see was written by one person.".white()
@@ -457,9 +448,7 @@ fn slide_philosophy(_snap: &SystemSnapshot) {
 ///
 /// teach exists to state true facts about the system, and Friday learns from it, so a wrong
 /// fact here does not merely mislead -- it propagates into what the system believes about
-/// itself. These lines said NixOS 26.05 and Sway. The OS was replaced on 2026-08-26, and Sway
-/// was wrong even before that: it was mango, and it is Hyprland now. WRONG THROUGH TWO
-/// COMPOSITORS, because nothing ever compared the claim to the machine.
+/// itself.
 fn os_name() -> String {
     std::fs::read_to_string("/etc/os-release")
         .ok()

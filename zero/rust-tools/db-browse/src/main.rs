@@ -1,6 +1,6 @@
-// INT-342: core db browse -- Forest-Native state.db TUI Browser
+// INT-342: core db browse -- state.db TUI Browser
 // Phase 1: table list, row counts, basic navigation
-// Phase 2: forest icons, jump keys, color palette
+// Phase 2: table icons, jump keys, color palette
 // Phase 3: / filter, : SQL query mode
 // Phase 4: y/Y yank, x export, schema view, preview panel
 // Phase 5: core db browse <table> direct jump, db alias
@@ -24,7 +24,7 @@ use ratatui::{
 use rusqlite::Connection;
 use std::io;
 
-// Forest palette (design-system.md)
+// Palette (design-system.md)
 const BG: Color = Color::Rgb(10, 15, 10);
 const FG: Color = Color::Rgb(168, 197, 176);
 const GREEN: Color = Color::Rgb(42, 255, 213);

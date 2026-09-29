@@ -314,7 +314,7 @@ fn gather_state() -> LiveState {
     // check reads, which is the point of the comment that used to be here. They disagreed.
     //
     // ⚠️ THE PATH WAS WRONG AND THE FAILURE WAS SILENT. registry/tools.toml has not existed
-    // since INT-061 moved directories under faelight/; the file is at
+    // since INT-061 moved directories into the platform directory; the file is at
     // zero/registry/tools.toml. read_to_string failed, unwrap_or(0) turned that into a
     // confident zero, and zero-docs sync WROTE 0 custom Rust tools into the front page of
     // the repository -- then printed a green check. Caught 2026-09-02 by reading tools: 0 in
@@ -402,7 +402,7 @@ fn gather_state() -> LiveState {
         (complete, planned)
     };
 
-    // INT-250: git, not /etc/faelight/COMMITS. See the note in autobiography/mod.rs.
+    // INT-250: git, not the old commit-count file. See the note in autobiography/mod.rs.
     let commits = std::process::Command::new("git")
         .args([
             "-C",

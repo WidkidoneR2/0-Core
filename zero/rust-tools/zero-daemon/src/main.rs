@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if cli.health {
         // A HEALTH CHECK THAT CANNOT FAIL IS NOT A HEALTH CHECK. This printed Daemon ready
         // and returned, unconditionally, without looking at a socket or a process. Measured
-        // 2026-09-02: it said ready on a machine where no faelight process was running at
+        // 2026-09-02: it said ready on a machine where no Project 0 process was running at
         // all and pgrep returned nothing.
         //
         // Same class as the doctor checks INT-222 catalogues -- the answer was decided at

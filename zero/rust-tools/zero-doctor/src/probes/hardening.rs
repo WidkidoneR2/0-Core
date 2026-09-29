@@ -5,7 +5,7 @@ use std::process::Command;
 
 /// Units that enforce a firewall.
 ///
-/// ⚠️ "firewall" IS ONE DISTRIBUTION'S UNIT NAME, NOT THE QUESTION. NixOS called it
+/// ⚠️ "firewall" IS ONE DISTRIBUTION'S UNIT NAME, NOT THE QUESTION. One OS called it
 /// firewall.service; Arch machines run ufw, firewalld or plain nftables. Looking for one name
 /// REPORTED NO FIREWALL on a machine whose ufw was active and denying traffic -- a false alarm
 /// in a check whose own comment says fail safe, not fail loud. A false alarm is its own failure:
@@ -136,7 +136,7 @@ pub fn security_hardening() -> Measurement {
 
 /// ⭐ THE RECOVERY NAMES A FIREWALL THAT EXISTS ON THIS MACHINE.
 ///
-/// ⚠️ The old text said `networking.firewall.enable = true in configuration.nix` -- NixOS syntax
+/// ⚠️ The old text said `networking.firewall.enable = true in configuration.nix` -- another OS's syntax
 /// on an Arch box. A red line whose recovery step cannot be taken is worse than no line: the
 /// finding is real and the fix is fiction. This asks which firewall is actually installed.
 pub fn firewall_recovery() -> String {
@@ -151,7 +151,7 @@ pub fn firewall_recovery() -> String {
 /// Whether it is safe to update: kernel current, working tree clean.
 ///
 /// ⚠️ EVERY SIGNAL PRODUCES A BLOCKER, AN UNREADABLE ENTRY, OR A PASS -- none may go quiet. The
-/// old body read two NixOS paths that both Err off NixOS, `.ok()` turned them into None, the
+/// old body read two paths from the previous OS that both Err here, `.ok()` turned them into None, the
 /// if-let never matched, and NO BLOCKER WAS PUSHED: it reported "safe to update" having measured
 /// only the git half. A MISSING MEASUREMENT RENDERED AS A PASS, which is quieter and therefore
 /// worse than a false amber.
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn the_firewall_recovery_names_something_that_exists_here() {
-        // ⚠️ THE NIXOS STRING THIS REPLACES. If a firewall is installed the advice must name it,
+        // ⚠️ THE OLD STRING THIS REPLACES. If a firewall is installed the advice must name it,
         // not a configuration syntax from a system that was wiped.
         let r = firewall_recovery();
         assert!(!r.contains("configuration.nix"));

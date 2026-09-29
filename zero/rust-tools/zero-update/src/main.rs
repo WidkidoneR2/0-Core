@@ -730,18 +730,7 @@ pub struct UpdateItem {
 fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     let mut categories = Vec::new();
 
-    // ❄ FLAKE INPUTS REMOVED 2026-09-04. This category, the --flake-update flag and both
-    // flake modules (324 lines) asked nix what the system depends on. There is no flake
-    // and no nix: NixOS was wiped for Omarchy on 2026-08-28. INT-129 measured them as
-    // genuinely dead rather than repointable -- and generation.rs turned out the same way
-    // once measured. Omarchy has snapper, but limine-snapper-sync already puts snapshots in
-    // the BOOT MENU, which works when the system will not boot and a TUI cannot. The
-    // timeline is sudo snapper list, already a formatted table. Closure diff has no snapper
-    // equivalent at all. 476 lines to wrap a command you can run directly.
-
-    // (Arch pacman/AUR checkers were removed by INT-074 for NixOS. The machine is back
-    // on Arch, and the System category below restores the capability by a safer route:
-    // report what is pending, never apply it.)
+    // The System category below reports pending updates and never applies them.
 
     // Cargo tools
     // INT-192: a checker that could not run is UNKNOWN, not zero updates. Same

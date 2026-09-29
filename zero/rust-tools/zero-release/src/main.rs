@@ -129,9 +129,7 @@ fn main() -> Result<()> {
                     }
                 }
                 // Record the release triad in state.db (INT-031/034): version + generation +
-                // commit_count + intent_range. Replaces the old immutable /etc/faelight/{VERSION,
-                // COMMITS} writes (which failed on NixOS). /etc/faelight/VERSION is now populated
-                // declaratively by the nix config from meta/VERSION; the rich triad lives here.
+                // commit_count + intent_range.
                 {
                     let commit_count = std::process::Command::new("git")
                         .args([

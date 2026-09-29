@@ -16,11 +16,11 @@ pub fn fc_dim(r: u8, g: u8, b: u8, text: &str) -> String {
 }
 
 // ── Neon Candy Palette ──────────────────────────────────────────────────────
-// The canonical color values for the Faelight Forest aesthetic.
+// The canonical color values for the Project 0 aesthetic.
 // All tools reference these constants -- never hardcode RGB values elsewhere.
 
 // Greens
-pub const NEON_GREEN: (u8, u8, u8) = (57, 255, 20); // primary forest green
+pub const NEON_GREEN: (u8, u8, u8) = (57, 255, 20); // primary green
 pub const MUTED_GREEN: (u8, u8, u8) = (100, 180, 100); // dimmed green
 
 // Cyans / Blues
@@ -76,7 +76,7 @@ pub const COLOR_PROMPT_FAIL: (u8, u8, u8) = NEON_RED;
 pub const COLOR_PROMPT_INTENT: (u8, u8, u8) = NEON_PURPLE;
 pub const COLOR_PROMPT_BRANCH: (u8, u8, u8) = NEON_AMBER;
 
-/// Theme configuration for Faelight tools
+/// Theme configuration for Project 0 tools
 #[derive(Debug, Clone)]
 pub struct Theme {
     // Background colors
@@ -112,9 +112,9 @@ impl Theme {
     pub fn zero_default() -> Self {
         Self {
             // Backgrounds - Deep ocean blues
-            bg_primary: 0x0f1411,   // Forest Night
-            bg_secondary: 0x1a1f1c, // Darker forest
-            bg_tertiary: 0x252b28,  // Lighter forest
+            bg_primary: 0x0f1411,   // Night
+            bg_secondary: 0x1a1f1c, // Darker shade
+            bg_tertiary: 0x252b28,  // Lighter shade
 
             // Text - Fog whites and greens
             text_primary: 0xd7e0da,   // Fog White
@@ -122,11 +122,11 @@ impl Theme {
             text_muted: 0x6b7973,     // Very muted
 
             // Accents - Neon cyan and sunset orange
-            accent: 0x6be3a3,       // Faelight Green
-            accent_hover: 0x5cc8ff, // Faelight Blue
+            accent: 0x6be3a3,       // Accent Green
+            accent_hover: 0x5cc8ff, // Accent Blue
             danger: 0xff6b6b,       // Soft red
             warning: 0xf5c177,      // Amber Leaf
-            success: 0x6be3a3,      // Faelight Green
+            success: 0x6be3a3,      // Accent Green
 
             // Spacing
             padding: 8,

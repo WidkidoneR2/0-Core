@@ -96,7 +96,7 @@ fn detect_signals(conn: &Connection) {
     let window_2h = now - 7200;
     let window_10m = now - 600;
     let window_1h = now - 3600;
-    // Signal 1: failure loop — forest notices when you are stuck
+    // Signal 1: failure loop — Project 0 notices when you are stuck
     let recent_failures: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandFailed' AND timestamp > ?1",

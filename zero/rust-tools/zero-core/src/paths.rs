@@ -25,7 +25,7 @@ pub fn core_dir() -> PathBuf {
     home().join("0-core")
 }
 
-/// INT-061 v2: the Faelight platform domain under the repo root. Dirs owned by
+/// INT-061 v2: the platform domain, zero/, under the repo root. Dirs owned by
 /// the platform (policy, registry, intents, engine state, etc.) live here so the
 /// tree encodes the OS/platform seam. Relocating the platform half = editing this
 /// one helper + the per-dir accessors that build on it.
@@ -149,7 +149,7 @@ pub fn security_dir() -> PathBuf {
 /// portable enough for `$XDG_DATA_HOME` -- logs, history, current application
 /// state. That is exactly what runtime_dir() holds.
 ///
-/// Kept SEPARATE from runtime_dir so XDG policy and the Faelight namespace stay
+/// Kept SEPARATE from runtime_dir so XDG policy and the zero namespace stay
 /// independent of each other.
 pub fn state_home() -> PathBuf {
     match env::var("XDG_STATE_HOME") {
@@ -163,10 +163,10 @@ pub fn state_home() -> PathBuf {
 /// ⚠️ THE ONLY OWNER OF WHERE A BINARY LIVES. Before this existed there were
 /// THIRTY-SIX sites building the path themselves, across FIVE different layouts:
 /// `scripts/` (deleted in e733287d), `bin/`, `/run/current-system/sw/bin`,
-/// `pkgs/faelight/scripts/`, and `~/.local/bin`. Six of them still EXECUTE a
+/// an old package scripts directory, and `~/.local/bin`. Six of them still EXECUTE a
 /// binary at a path that has not existed for months, and they fail silently.
 ///
-/// Nobody noticed because on NixOS none of them were load-bearing: the rebuild
+/// Nobody noticed because under the previous OS none of them were load-bearing: the rebuild
 /// put binaries in the store and regenerated the PATH directory itself, so no
 /// tool ever had to copy one. On Arch there is no reconciler, so this path is
 /// real and it needs exactly one owner -- the same lesson runtime_dir() learned
@@ -188,7 +188,7 @@ pub fn bin_dir() -> PathBuf {
 /// ⚠️ THIS USED TO LIVE AT source_dir()/runtime, INSIDE THE REPO, under a
 /// header reading "Execution & Build Artifacts". Nothing in it is a build
 /// artifact -- those are in core_dir()/target -- so it was misfiled against its
-/// own section. Measured 2026-08-21: starting fsh with a HOME that had no forest
+/// own section. Measured 2026-08-21: starting fsh with a HOME that had no repo
 /// CREATED one, because this path is derived from the repo root. No other shell
 /// stores state in a source tree, and every one of them (bash HISTFILE, OSH
 /// HISTFILE, YSH YSH_HISTFILE) makes the location overridable.
@@ -202,7 +202,7 @@ pub fn bin_dir() -> PathBuf {
 ///
 /// There is deliberately no window where the code points somewhere the data is
 /// not: today (3) holds and nothing changes; after the move (2) takes over on
-/// its own; on a machine with no forest (4) applies and none is created.
+/// its own; on a machine with no repo (4) applies and none is created.
 pub fn runtime_dir() -> PathBuf {
     if let Ok(v) = env::var("FAELIGHT_STATE_DIR") {
         if !v.is_empty() {
@@ -332,7 +332,7 @@ pub fn read_health() -> Option<u8> {
 
 /// Friday's diagnostic log. Append-only, and three sites write to it.
 ///
-/// Not `logs_dir()`: that lives under runtime_dir() and holds the forest's structured logs.
+/// Not `logs_dir()`: that lives under runtime_dir() and holds the structured logs.
 /// This is a plain text trail the daemon appends to, and it has always sat in the cache
 /// beside the health status. INT-247 Layer 3a names it rather than moving it.
 pub fn friday_log() -> PathBuf {
@@ -477,7 +477,7 @@ pub fn font_exists(font_path: &Path) -> bool {
 /// On a machine that sets XDG_DATA_HOME, this accessor and `dirs::data_local_dir()` -- which
 /// the retired clipboard tool used -- returned DIFFERENT DIRECTORIES. Not a problem on the author's
 /// machine, where the variable is unset, and "not a problem on this machine" is precisely the
-/// reasoning that left five readers pointed at the NixOS-era /etc directory for three weeks (INT-250).
+/// reasoning that left five readers pointed at the old /etc directory for three weeks (INT-250).
 ///
 /// Corrected during INT-247 Layer 3a rather than inherited by the accessors added beside it.
 pub fn local_data_dir() -> PathBuf {
@@ -535,7 +535,7 @@ mod data_dir_tests {
 /// ⚠️ THIS IS NOT runtime_dir(), AND IT MUST NOT BE DERIVED FROM IT. Measured 2026-09-17:
 ///
 /// ```text
-///     ~/.local/state/faelight   314M   db, events, journal, logs, cache, snapshots, socket
+///     ~/.local/state/zero       314M   db, events, journal, logs, cache, snapshots, socket
 ///     ~/.local/state/0-core     6.4M   intent focus, sandbox snapshots, security scans
 /// ```
 ///
@@ -547,7 +547,7 @@ mod data_dir_tests {
 /// during an earlier rename one function was repointed at the new name and the others were left.
 /// The result was daemon.sock in one tree and state.db in the other. That was fixed for the
 /// socket; SIXTEEN sites kept building this path by hand, in eight files, and the INT-247
-/// Layer 3a audit missed every one -- it grepped for `faelight`, and these say `0-core`.
+/// Layer 3a audit missed every one -- it grepped for the old name, and these say `0-core`.
 ///
 /// Naming it does not decide its future. Whether the two trees merge is an INT-247 Layer 3b
 /// question, and it can only be asked once something owns this one.
@@ -564,12 +564,12 @@ pub fn zero_state_dir() -> PathBuf {
 /// ```text
 ///     focus.toml                        id = "250"        CORRECT
 ///     shell_state key 'focus_intent'    ABSENT from the db entirely -- 4 readers get None
-///     /etc/faelight/INTENT              directory gone since Omarchy -- 2 readers get ""
+///     old /etc INTENT file              directory gone since Omarchy -- 2 readers get ""
 ///     scan of intents/future/           cistart MOVES started intents to in-progress/
 /// ```
 ///
 /// Four ways to ask one question, one of which works. attention.rs already knew -- its comment
-/// says the shell_state row "went stale at the NixOS migration" -- and read this file instead.
+/// says the shell_state row "went stale at an earlier OS migration" -- and read this file instead.
 pub fn focus_file() -> PathBuf {
     zero_state_dir().join("intent").join("focus.toml")
 }
@@ -608,13 +608,13 @@ pub fn profile_log() -> PathBuf {
 /// onto it immediately and none used it for anything else, so the directory was an
 /// abstraction that existed only to be discarded.
 ///
-/// ⚠️ REPLACES faelight_state_dir, WHICH HARDCODED .local/state/0-core -- in the one file
+/// ⚠️ REPLACES AN OLDER ACCESSOR, WHICH HARDCODED .local/state/0-core -- in the one file
 /// whose entire purpose is that nothing hardcodes a path. It also had the name backwards:
-/// it said faelight and returned 0-core, while runtime_dir carries no brand and correctly
-/// resolves to the faelight directory where state.db actually lives.
+/// it named the old brand and returned 0-core, while runtime_dir carries no brand and correctly
+/// resolves to the directory where state.db actually lives.
 ///
 /// ⭐ AND THE SPLIT WAS NOT DESIGN. Measured 2026-09-02: state.db sits under
-/// .local/state/faelight via runtime_dir which checks existence and migrates on its own,
+/// .local/state/zero via runtime_dir which checks existence and migrates on its own,
 /// while daemon.sock sat under .local/state/0-core because one function was pointed at the
 /// new name during the rename and the other was left with its careful resolution intact.
 /// Deriving from runtime_dir puts the socket beside the state it belongs to, and makes
@@ -728,7 +728,7 @@ pub fn intents_incidents() -> PathBuf {
 
 /// The fsh config file -- aliases and settings -- at its LIVE location.
 ///
-/// WARNING: this used to return core_dir()/nix/home/dotfiles/... and had ZERO
+/// WARNING: this used to return a path in the repo's old nix tree and had ZERO
 /// callers. Under home-manager that repo path and the XDG path were one file
 /// via symlink, so the distinction did not exist. After the Omarchy migration
 /// they are two real files that agree only until the next edit, and seven sites
@@ -901,7 +901,7 @@ mod tests {
 
     #[test]
     fn test_numbered_gravity() {
-        // Verify flat NixOS-era structure (numbered gravity retired -- INT-105)
+        // Verify the flat structure (numbered gravity retired -- INT-105)
         assert!(meta_dir().to_string_lossy().contains("meta"));
         assert!(registry_dir().to_string_lossy().contains("registry"));
         assert!(policy_dir().to_string_lossy().contains("policy"));
