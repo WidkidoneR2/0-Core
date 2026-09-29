@@ -112,7 +112,7 @@ pub struct Engine {
     /// it, so a stale value silently changes control flow rather than merely misreporting.
     last_exit_code: Option<i32>,
 
-    /// The forest database. A RESOURCE, not state: builtins read it, history and telemetry write
+    /// The database. A RESOURCE, not state: builtins read it, history and telemetry write
     /// through it, and the alias table lives in it.
     /// ⚠️ Rc, not a plain owner: the completion helper holds `&ForestDb` for the WHOLE
     /// session (rustyline stores it), which pinned the engine as immutably borrowed and made
@@ -121,7 +121,7 @@ pub struct Engine {
     /// than Arc because no thread in this crate ever takes the db.
     db: Rc<ForestDb>,
 
-    /// The forest root. A String rather than a PathBuf because every consumer here takes `&str`.
+    /// The repo root. A String rather than a PathBuf because every consumer here takes `&str`.
     core_root: String,
 
     /// The before-run rules from config.fsh. All five `cfg` uses in the loop were `before_rules`,
@@ -145,14 +145,14 @@ impl Engine {
         Rc::clone(&self.db)
     }
 
-    /// The forest database. A SHARED borrow is enough for every caller: not one db method
+    /// The database. A SHARED borrow is enough for every caller: not one db method
     /// main.rs calls takes `&mut self` (all nine are `&self`, even the four that write), and
     /// `conn` is public, so `engine.db().conn.execute(..)` needs no extra surface here.
     pub fn db(&self) -> &ForestDb {
         &self.db
     }
 
-    /// The forest root, as `&str` because every consumer in the loop takes one.
+    /// The repo root, as `&str` because every consumer in the loop takes one.
     pub fn core_root(&self) -> &str {
         &self.core_root
     }
@@ -789,7 +789,7 @@ impl Engine {
 
     /// Does the QUERY LANGUAGE own this line?
     ///
-    /// ★ NAMED FOR THE QUESTION, NOT FOR TODAY'S ANSWER. The body happens to recognise forest
+    /// ★ NAMED FOR THE QUESTION, NOT FOR TODAY'S ANSWER. The body happens to recognise value
     /// pipelines by their source word; what it is really deciding is which of fsh's two languages
     /// owns the input. The name should survive if the routing rule changes.
     ///
@@ -803,12 +803,12 @@ impl Engine {
     ///   1. `"deploys"` appears TWICE in the source list -- harmless to `contains`, a copy-paste
     ///      smell in the list that decides language routing.
     ///   2. ⚠️ `has_pipe` here is `line.contains(" | ")` and is NOT quote-aware, unlike the
-    ///      `!in_quotes && ...` form used later in the loop. A forest-source command with a quoted
+    ///      `!in_quotes && ...` form used later in the loop. A value-source command with a quoted
     ///      pipe in an argument routes here wrongly. That is a BOUNDARY CORRECTNESS issue rather
     ///      than parser polish, because under the two-languages design this predicate IS the
     ///      language router. Its own fix, its own evidence.
     pub fn try_query_executor(&mut self, line: &str) -> Option<SegmentOutcome> {
-        // INT-171 gate 2: quote-aware command word for forest-pipeline detection.
+        // INT-171 gate 2: quote-aware command word for value-pipeline detection.
         let first = crate::commands::command_word(line);
         let first = first.as_str();
         // INT-201: the source list moved to value.rs beside VALUE_VERBS and is ASKED FOR here,

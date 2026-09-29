@@ -1023,7 +1023,7 @@ mod tests {
     ///
     /// ⚠️ THE PHASE MOVED, NOT THE CONTRACT. This used to check a PARSE refusal, but the parser
     /// now accepts every operator the lexer emits, so the rejection it should point at is a
-    /// LOWERING one. The probe is a forest value pipeline because that is refused BY DESIGN --
+    /// LOWERING one. The probe is a value pipeline because that is refused BY DESIGN --
     /// `sort` and `first` are query verbs with no programs behind them -- rather than as a
     /// staging point toward some later increment. A probe chosen from what is merely unfinished
     /// becomes a moving target: this one has already been re-pointed twice.

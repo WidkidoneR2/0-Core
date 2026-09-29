@@ -58,7 +58,7 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     if guard_list_contains("allow", first_word) == Some(true) {
         return None;
     }
-    // Safe commands -- nsh builtins and forest tools never trigger guard.
+    // Safe commands -- nsh builtins and Project 0 tools never trigger guard.
     //
     // ⚠️ THIS CATEGORY OUTRANKS EVERY HEURISTIC BELOW. A word here returns None before any
     // pattern runs, so a rule written for a command in this list is unreachable by

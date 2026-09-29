@@ -323,7 +323,7 @@ impl ForestDb {
             .and_then(|p| p.to_str().map(String::from));
         // INT-249b: retry on transient SQLite errors (BUSY, LOCKED) with backoff.
         // Avoids noisy warnings during WAL contention (e.g. just after boot, while
-        // multiple forest processes are checkpointing).
+        // multiple processes are checkpointing).
         let max_attempts = 3;
         let mut last_err: Option<rusqlite::Error> = None;
         for attempt in 0..max_attempts {

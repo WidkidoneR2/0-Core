@@ -182,7 +182,7 @@ impl Registry {
                 });
         }
 
-        // ── Forest scripts ────────────────────────────────────────────────────
+        // ── Scripts ───────────────────────────────────────────────────────────
         let bin_dir = zero_core::paths::bin_dir();
         if let Ok(entries) = std::fs::read_dir(&bin_dir) {
             for entry in entries.flatten() {

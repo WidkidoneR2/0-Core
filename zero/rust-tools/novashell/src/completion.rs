@@ -94,7 +94,7 @@ const COMMANDS: &[&str] = &[
     "?",
     "exit",
     "quit",
-    // Forest core
+    // Core
     // `deploy` was the Nix rebuild verb and is gone; ship builds the release and deploys.
     "ship",
     "cistart",
@@ -102,7 +102,7 @@ const COMMANDS: &[&str] = &[
     "intent",
     "friday",
     "friday dismiss",
-    // Forest vocabulary (INT-261)
+    // Human vocabulary (INT-261)
     "delete",
     "del",
     "find",
@@ -214,7 +214,7 @@ impl<'a> ForestHelper<'a> {
             return (0, cands);
         }
 
-        // ── Case 2b: forest-aware subcommand completion ─────────────────────
+        // ── Case 2b: core subcommand completion ─────────────────────────────
         // Same logic as Case 3 — prefix match against full "core goals" style strings
         {
             // All multi-word completions — prefix match from start=0
@@ -432,17 +432,6 @@ impl<'a> ForestHelper<'a> {
                 return (0, cands);
             }
         }
-        // ⚠️ TWO COMPLETION BLOCKS WERE REMOVED HERE, 2026-09-20 (INT-255).
-        //
-        //   rebuild <TAB>       completed host names by PARSING ~/0-core/flake.nix for
-        //                       nixosConfigurations and nixpkgs.lib.nixosSystem
-        //   nix develop <TAB>   completed devShell names from the same file
-        //
-        // ⭐ THREE LAYERS OF ABSENT. Neither command exists -- rebuild belongs to the
-        // nixos-rebuild cluster that went with the OS, and nix is not installed -- and the
-        // file they parsed has not existed since 2026-08-28. Tab completion that offers a
-        // command you cannot run, filled from a file that is not there, teaches the reader
-        // to distrust the completion rather than the shell.
         // pkg-search <TAB> -- complete package names from the last `pkg-search` result
         // (INT-134, Lane 2). Reads /tmp/fsh-pkg-search.json ONLY -- never the network, so no
         // TAB stall. Empty until you have run `pkg-search <term>` at least once; then falls
@@ -808,15 +797,15 @@ impl<'a> Completer for ForestHelper<'a> {
 }
 
 // INT-334: command classification for syntax highlighting
-// Neon candy color scheme -- the forest lights up
+// Neon candy color scheme
 
-// Electric green -- valid forest/system commands
+// Electric green -- valid Project 0 and system commands
 const NEON_GREEN: &str = "[38;2;57;255;20m";
 // Neon red -- unknown commands
 const NEON_RED: &str = "[38;2;255;50;50m";
 // Hot magenta -- dangerous commands
 const NEON_MAGENTA: &str = "[38;2;255;0;128m";
-// Electric cyan -- forest-native commands
+// Electric cyan -- nsh-native commands
 const NEON_CYAN: &str = "[38;2;0;255;220m";
 // Electric purple -- natural language / semantic commands
 const NEON_PURPLE: &str = "[38;2;180;0;255m";
@@ -838,10 +827,6 @@ fn is_forest_command(cmd: &str) -> bool {
         "cicomplete",
         "ds",
         "dc",
-        // ⚠️ SEVEN DEAD COMMAND NAMES REMOVED HERE, 2026-09-20 (INT-255): deploy, rebuild,
-        // rebuild-safe, rebuild-dry, rebuild-check, rollback, update-flake. Every one wrapped
-        // nixos-rebuild or operated on generations; none exists as a binary. INT-222
-        // annotated the same cluster. `ship` is the deploy verb here.
         "friday",
         "intent",
         "intents",
@@ -900,15 +885,11 @@ fn is_known_command(cmd: &str) -> bool {
         "pwd",
         "which",
         "find",
-        // Forest tools
+        // Project 0 tools
         "cistart",
         "cicomplete",
         "dc",
         "ds",
-        // ⚠️ SEVEN DEAD COMMAND NAMES REMOVED HERE, 2026-09-20 (INT-255): deploy, rebuild,
-        // rebuild-safe, rebuild-dry, rebuild-check, rollback, update-flake. Every one wrapped
-        // nixos-rebuild or operated on generations; none exists as a binary. INT-222
-        // annotated the same cluster. `ship` is the deploy verb here.
         "d",
         "friday",
         "intent",
@@ -1136,7 +1117,7 @@ impl<'a> Highlighter for ForestHelper<'a> {
         let cmd_color = if is_dangerous_command(first_word) {
             NEON_MAGENTA // hot magenta -- dangerous
         } else if is_forest_command(first_word) {
-            NEON_CYAN // electric cyan -- forest-native
+            NEON_CYAN // electric cyan -- nsh-native
         } else if is_known_command(first_word) {
             NEON_GREEN // electric green -- valid
         } else {

@@ -122,7 +122,7 @@ pub struct MigrationReport {
     /// `Err(_)` one line before incrementing the counter.
     ///
     /// Rendered, this sorts six months of real history into a BUILD ORDER: pipes, redirects,
-    /// forest pipelines, boolean chains. Biggest bucket first, measured rather than guessed.
+    /// value pipelines, boolean chains. Biggest bucket first, measured rather than guessed.
     pub declined_by_reason: std::collections::BTreeMap<String, usize>,
 
     /// ⭐ WHAT THE 1025 ACTUALLY ARE, grouped by mechanical shape rather than counted.
@@ -234,9 +234,9 @@ impl MigrationAudit {
                 // Spine parsed but cannot lower this construct yet -- a migration feature gap.
                 self.report.feature_gap += 1;
                 push_example(&mut self.report.feature_gap_examples, obs.source);
-                // INT-200: SAY WHICH CONSTRUCT. `kind` was bound and dropped, so a forest
+                // INT-200: SAY WHICH CONSTRUCT. `kind` was bound and dropped, so a
                 // value pipeline and a shell pipeline the spine cannot execute yet counted
-                // identically -- and those need opposite responses. A forest pipeline is
+                // identically -- and those need opposite responses. A value pipeline is
                 // declined FOREVER (legacy's `apply_pipeline` is the only implementation of
                 // those verbs); a shell pipeline is declined only until execution lands.
                 // Third time this session an observation layer knew the reason and would
@@ -523,7 +523,7 @@ impl MigrationReport {
         // already happened.
         //
         // Worse, it could never say otherwise: flip_ready wanted feature_gap == 0, and 62 of
-        // the 158 gaps are forest value pipelines that LEGACY IS MEANT TO OWN. A condition
+        // the 158 gaps are value pipelines that LEGACY IS MEANT TO OWN. A condition
         // that cannot be satisfied is not a gate, it is a constant.
         //
         // ⭐ THE LIVE QUESTION IS WHETHER LEGACY CAN BE DELETED, and it has a different shape:
@@ -538,7 +538,7 @@ impl MigrationReport {
         // cannot be satisfied is not a gate, it is a constant.
         //
         // The knowledge was already here. The dispatch at the top of this file says it outright:
-        // "A forest pipeline is declined FOREVER (legacy's apply_pipeline is the only
+        // "A value pipeline is declined FOREVER (legacy's apply_pipeline is the only
         // implementation of those verbs); a shell pipeline is declined only until execution
         // lands." The total did not use its own distinction.
         //

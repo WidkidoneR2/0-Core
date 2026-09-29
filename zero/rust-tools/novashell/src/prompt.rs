@@ -1,7 +1,7 @@
 #![allow(clippy::all)]
 // NovaShell -- prompt and status line
 // render_line    -- single-line readline prompt (no emoji, Tab completion safe)
-// render_context -- two-line forest context printed BEFORE the input line
+// render_context -- two-line context printed BEFORE the input line
 // INT-033        -- neon candy truecolor semantic colors
 
 use crate::db::ForestDb;
@@ -56,7 +56,7 @@ const C_BRANCH_CLEAN: (u8, u8, u8) = (158, 224, 78); // soft lime (neon70)
 const C_BRANCH_DIRTY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
 const C_DIMMED: (u8, u8, u8) = (90, 110, 95); // near-green quiet
                                               // Directory-context accents (INT-103): path color tells you WHAT KIND of place
-const C_DIR_FOREST: (u8, u8, u8) = (176, 246, 42); // forest core: lime (neon70)
+const C_DIR_FOREST: (u8, u8, u8) = (176, 246, 42); // repo core: lime (neon70)
 const C_DIR_RUST: (u8, u8, u8) = (255, 138, 44); // Rust territory: orange (neon70)
 const C_DIR_NIX: (u8, u8, u8) = (74, 196, 255); // Nix domain: ice-blue (neon70)
 const C_DIR_INTENTS: (u8, u8, u8) = (186, 156, 255); // intents/: lavender (neon70)
@@ -142,11 +142,11 @@ fn cwd_color() -> (u8, u8, u8) {
     let forest = format!("{}/0-core", home);
     let in_forest = cwd == forest || cwd.starts_with(&format!("{}/", forest));
 
-    // Zone precedence: forest sub-zones win first (so the workspace root reads
-    // as forest, not "rust" just because a workspace Cargo.toml sits there).
+    // Zone precedence: repo sub-zones win first (so the workspace root reads
+    // as the repo, not "rust" just because a workspace Cargo.toml sits there).
     if in_forest {
         if cwd.contains("/rust-tools") {
-            return C_DIR_RUST; // Rust territory inside the forest
+            return C_DIR_RUST; // Rust territory inside the repo
         }
         if cwd.contains("/intents") {
             return C_DIR_INTENTS; // the ledger / thought-space
@@ -157,9 +157,9 @@ fn cwd_color() -> (u8, u8, u8) {
         if cwd.contains("/nix") {
             return C_DIR_NIX; // the OS domain
         }
-        return C_DIR_FOREST; // forest core (root, faelight, etc.)
+        return C_DIR_FOREST; // repo core
     }
-    // Outside the forest: marker-file detection.
+    // Outside the repo: marker-file detection.
     if Path::new("Cargo.toml").exists() {
         return C_DIR_RUST; // a Rust project anywhere
     }
@@ -221,8 +221,6 @@ fn git_info() -> Option<(String, bool)> {
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
         .unwrap_or_default();
     let dirty = !porcelain.is_empty();
-    // The third element was flake_dirty: whether flake.nix or flake.lock were among the
-    // uncommitted paths. A git feature keyed on filenames that cannot exist here.
     Some((branch, dirty))
 }
 

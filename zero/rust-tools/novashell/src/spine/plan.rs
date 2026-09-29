@@ -153,7 +153,7 @@ pub enum LowerError {
 /// ★ plan.rs stays PURE: it knows the CAPABILITY it needs, not where the values live. It never
 /// sees a HashMap, a ForestDb, or the REPL loop. The caller implements this over whatever it
 /// has -- fsh's session `shell_vars` plus `std::env` plus the loop's exit code. Shell variables
-/// are process/session state, NOT persistent forest knowledge, which is exactly why they must
+/// are process/session state, NOT persistent knowledge, which is exactly why they must
 /// not be pushed into ForestDb to solve reachability.
 ///
 /// Semantics must MATCH legacy expand_vars exactly (main.rs): session vars first, then process
@@ -193,7 +193,7 @@ pub trait CommandRunner {
 /// owns that outcome and it must SURFACE: falling back would let a substitution the guard refused
 /// reach legacy and run there, which is the one thing that guard exists to prevent.
 ///
-/// `Unsupported` means the spine cannot REPRESENT what the nested command produced. A forest value
+/// `Unsupported` means the spine cannot REPRESENT what the nested command produced. A value
 /// verb returns a structured Value, and rendering it as text would invent display semantics for a
 /// layer the adapter does not own. That is a capability boundary, so it DECLINES and legacy runs
 /// the line -- exactly as a pipeline inside a substitution already does.
@@ -442,10 +442,10 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
 /// ★ A separate entry point rather than a flag on LowerContext, because the context describes what
 /// capabilities are AVAILABLE while this describes what the SYNTAX requires. A context flag would
 /// also apply to the outer command, claiming the whole line captures.
-/// Does any stage after the first name a forest VALUE verb? ★ Shared by `lower_pipeline` and the
+/// Does any stage after the first name a VALUE verb? ★ Shared by `lower_pipeline` and the
 /// refusal arm so the ownership question has one answer, not two.
 ///
-/// Stage 0 is skipped because it PRODUCES the value -- it is a command even in a forest pipeline,
+/// Stage 0 is skipped because it PRODUCES the value -- it is a command even in a value pipeline,
 /// which is exactly why `value::parse_pipeline` skips it too.
 #[cfg(test)]
 mod forest_pipeline_tests {
@@ -461,7 +461,7 @@ mod forest_pipeline_tests {
 
     #[test]
     fn a_query_verb_after_a_shell_command_is_shell() {
-        // INT-201 regression: `sort` is in VALUE_VERBS, so this was called a forest pipeline,
+        // INT-201 regression: `sort` is in VALUE_VERBS, so this was called a value pipeline,
         // refused forever by the spine, and -- once the legacy pipeline executor was deleted --
         // refused outright. Every pipeline ending in sort stopped working.
         assert!(!is_forest("echo a | sort -k1 -rn"));
@@ -495,7 +495,7 @@ mod forest_pipeline_tests {
 
 fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
     // A LANGUAGE IS IDENTIFIED BY WHERE IT STARTS, not by a word appearing in the middle. Asking
-    // only "does a later stage name a value verb" made `echo a | sort -k1 -rn` a forest pipeline,
+    // only "does a later stage name a value verb" made `echo a | sort -k1 -rn` a value pipeline,
     // because `sort` is in the vocabulary -- so the spine refused it forever, as it should refuse a
     // real query, and the line reached legacy. While legacy still had an inline pipeline executor
     // that was invisible; once INT-201 deleted it the line was refused outright, and every pipeline
@@ -515,7 +515,7 @@ fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
     }
     pl.stages.iter().skip(1).any(|st| {
         // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot be known
-        // here, and a computed verb is not something the forest DSL accepts either.
+        // here, and a computed verb is not something the query language accepts either.
         matches!(
             st.node.words.first().map(|w| w.node.parts.as_slice()),
             Some([WordPart::Literal { text, .. }]) if crate::value::is_value_verb(text)
@@ -529,7 +529,7 @@ fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
 /// stretch it into a graph, the sequence carries the composition -- stage N's stdout feeds stage
 /// N+1's stdin. A single command yields a one-element vector, so the caller has one shape to handle.
 ///
-/// ⚠️ A FOREST PIPELINE IS REFUSED FOREVER, not until some later increment. `where`, `sort` and
+/// ⚠️ A VALUE PIPELINE IS REFUSED FOREVER, not until some later increment. `where`, `sort` and
 /// `first` are query verbs with no programs behind them; claiming one would spawn `where` and fail.
 ///
 /// ⚠️ Each stage lowers with `IoPlan::Simple`, so its OWN redirects still apply -- the executor
@@ -777,7 +777,7 @@ fn lower_with_io(
         // `$()`. Until it exists, refusing keeps the router honest: it declines, legacy runs
         // the pipe, and no half-executed pipeline can reach a process.
         //
-        // ⚠️⚠️ TWO REFUSALS THAT LOOK ALIKE AND ARE NOT. A FOREST pipeline (`ps | where cpu > 0`)
+        // ⚠️⚠️ TWO REFUSALS THAT LOOK ALIKE AND ARE NOT. A VALUE pipeline (`ps | where cpu > 0`)
         // must be declined FOREVER -- `where`, `sort` and `first` are Christian's query verbs, not
         // programs, and `value::apply_pipeline` in legacy is their only implementation. A SHELL
         // pipeline is declined only until execution exists. Reporting both as "pipeline" would hide
@@ -786,11 +786,11 @@ fn lower_with_io(
         // ★ The vocabulary is asked for, never copied -- `value::is_value_verb` is the single owner
         // and a drift test proves it agrees with the parser that builds the ops.
         AstNode::Pipeline(pl) => {
-            // Skipped: stage 0 PRODUCES the value, so it is a command even in a forest pipeline.
+            // Skipped: stage 0 PRODUCES the value, so it is a command even in a value pipeline.
             // `parse_pipeline` skips it for exactly this reason.
             let forest = pl.stages.iter().skip(1).any(|st| {
                 // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot
-                // be known here, and a computed verb is not something the forest DSL accepts
+                // be known here, and a computed verb is not something the query language accepts
                 // either. Erring toward "shell" is safe -- the spine still refuses below.
                 matches!(
                     st.node.words.first().map(|w| w.node.parts.as_slice()),
@@ -1224,7 +1224,7 @@ mod tests {
     }
 
     /// THE TWO CAPTURE FAILURES ROUTE OPPOSITE WAYS, and that is the entire reason CaptureError
-    /// exists. As a bare String both became InvalidPlan, which never falls back, so a forest value
+    /// exists. As a bare String both became InvalidPlan, which never falls back, so a value
     /// verb inside a substitution FAILED where legacy handles it.
     #[test]
     fn a_value_capture_declines_while_a_failed_capture_surfaces() {

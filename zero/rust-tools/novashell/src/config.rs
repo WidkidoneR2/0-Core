@@ -63,9 +63,8 @@ impl ShellConfig {
 }
 
 pub fn config_path() -> std::path::PathBuf {
-    // INT-134: NSH_CONFIG overrides the path so a setting can be tried without a rebuild. The
-    // deployed config.fsh is a home-manager symlink into /nix/store and therefore READ-ONLY --
-    // proving one line otherwise costs a full deploy, and this loop is needed once per setting.
+    // INT-134: NSH_CONFIG overrides the path so a setting can be tried without editing the
+    // deployed config file -- this loop is needed once per setting.
     //
     // An env var rather than a flag: load() takes no arguments and runs before argument parsing,
     // so a flag would have to thread through every caller to serve one use.

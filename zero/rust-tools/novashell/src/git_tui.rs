@@ -1,5 +1,5 @@
 // INT-253 v2: gt -- Linear git workflow, like fg sync but smarter
-// No TUI. Just clean guided terminal output with forest colors.
+// No TUI. Just clean guided terminal output with the shell's colors.
 use colored::Colorize;
 use std::io::{self, Write};
 use std::process::Command;

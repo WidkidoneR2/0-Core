@@ -60,7 +60,7 @@ impl Section {
 }
 fn severity_color(s: &Severity) -> Color {
     match s {
-        Severity::Healthy => Color::Rgb(107, 227, 163), // forest green
+        Severity::Healthy => Color::Rgb(107, 227, 163), // green
         Severity::Info => Color::Rgb(92, 200, 255),     // blue
         Severity::Warning => Color::Rgb(245, 193, 119), // amber
         Severity::Critical => Color::Rgb(230, 126, 128), // red

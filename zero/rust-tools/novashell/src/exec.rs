@@ -290,7 +290,7 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
     if let Some(reason) = blocks_catastrophic_rm(ctx) {
         return Some(reason);
     }
-    // ── Safety Rule 1b: forest source protection ──────────────────────────────
+    // ── Safety Rule 1b: repo source protection ────────────────────────────────
     // The precondition is REPEATED rather than shared, deliberately. This is a separate policy
     // that happens to apply under the same condition, and it depends on core_root and the paths::
     // helpers -- folding it into the predicate above would make that predicate impure and
@@ -705,10 +705,6 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             "ship" => Some("💡 Suggestion: run d to verify health after shipping"),
             "cicomplete" => Some("💡 Next: fg commit — record the completion"),
             "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
-            // AN ARM HERE INTERCEPTED paru AND pacman to say "That isn't a NixOS command,
-            // apply changes with deploy". ON ARCH. Where pacman IS the package manager and
-            // deploy does not exist -- the shell was talking you out of the right command and
-            // into a dead one. Removed 2026-09-20 (INT-255).
             _ => None,
         };
         crate::mark("    postexec @655");
@@ -743,7 +739,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 /// parse → preexec → dispatch → postexec → result
 /// What the spine needs from the live shell session, supplied by the REPL that owns it.
 ///
-/// Session variables and the last exit code are PROCESS state, not persistent forest knowledge,
+/// Session variables and the last exit code are PROCESS state, not persistent knowledge,
 /// so they are passed in rather than pushed into ForestDb. `commands/mod.rs` never sees them:
 /// builtins are not the owner of shell session state.
 pub struct ShellContext<'a> {
@@ -1539,7 +1535,7 @@ mod preexec_boundary_tests {
         assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
     }
 
-    /// Forest-source protection. Still inline in preexec and therefore untested until now: a
+    /// Repo-source protection. Still inline in preexec and therefore untested until now: a
     /// future edit could repoint it at `ctx.raw` and nothing would object.
     #[test]
     fn blocks_aliased_rm_on_forest_source() {

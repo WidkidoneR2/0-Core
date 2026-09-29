@@ -1,4 +1,4 @@
-// INT-143 Phase 1 — Forest Digest
+// INT-143 Phase 1 — Digest
 // Morning/long-gap summary of what changed while you were away.
 // Triggered when session gap > 4 hours.
 

@@ -336,7 +336,7 @@ fn resolve_value(name: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) 
     if let Some(v) = scope.get(name) {
         return v.as_text();
     }
-    // Built-in forest values
+    // Built-in values
     match name {
         // INT-230 G4: a script asking for health on a doctorless machine
         // got the string "0", indistinguishable from a real zero.

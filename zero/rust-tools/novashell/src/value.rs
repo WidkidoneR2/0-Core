@@ -863,7 +863,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
     }
 }
 
-/// The forest's pipeline vocabulary -- the verbs that make a `|` mean DATA FLOW rather than a
+/// The query language's pipeline vocabulary -- the verbs that make a `|` mean DATA FLOW rather than a
 /// process pipe. INT-200: extracted so the spine can ask whether a pipeline is its own to execute.
 ///
 /// ★ WHY A CONST AND NOT A SECOND MATCH: `parse_pipe_op` below dispatches on structural patterns
@@ -876,7 +876,7 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
 /// The SOURCES a value pipeline can begin with. INT-201 (2026-08-06).
 ///
 /// ★ THE VERBS ALONE COULD NOT ANSWER THE OWNERSHIP QUESTION, and that gap was a live bug. A
-/// pipeline was called "forest" whenever any later stage named a value verb -- a statement about a
+/// pipeline was called a value pipeline whenever any later stage named a value verb -- a statement about a
 /// WORD. But a language is identified by where it STARTS, not by a word appearing in the middle, so
 /// `echo a | sort -k1 -rn` was claimed by the query language, refused by the spine, and then refused
 /// again by legacy once the inline pipeline executor was deleted.

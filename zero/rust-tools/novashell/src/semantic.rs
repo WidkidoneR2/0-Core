@@ -90,7 +90,7 @@ pub struct SemanticIntent {
     pub category: VerbCategory,
     pub confidence: f64,
     pub reversible: bool,
-    pub layer2_description: String,   // what the forest understands
+    pub layer2_description: String,   // what Project 0 understands
     pub layer3_commands: Vec<String>, // actual execution commands
 }
 

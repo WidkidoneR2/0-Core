@@ -1,6 +1,6 @@
 #![allow(clippy::all)]
 // NovaShell
-// Forest-native structured shell environment
+// Structured shell environment for Project 0
 // INT-120 Phase 1 — REPL skeleton
 //
 // "A forest deserves a shell that knows it is a forest."
@@ -466,7 +466,7 @@ fn run_parallel(commands: &[String]) -> bool {
 /// INT-267: Parse parallel { } block -- handles both multiline and single-line
 
 /// INT-268: Natural language translation for ? prefix
-/// Pattern-based translation without LLM -- forest-specific rules
+/// Pattern-based translation without LLM -- Project 0-specific rules
 fn translate_natural_language(input: &str) -> Option<(String, f64)> {
     let q = input.trim().to_lowercase();
     // Rule table: (pattern_words, command, confidence)
@@ -914,8 +914,6 @@ fn main() -> Result<()> {
         // the SAME run_input the REPL calls, and the guard block above it. The text survived its own
         // fix and was copied outward: into the `spine conform` deprecation message (USER-FACING) and
         // into AGENTS.md, which carried a line whose only job was to say this comment is wrong.
-        // (The /bin/sh note went with it: it was kept "because on NixOS it is one of only two stable
-        // absolute paths", and there is no NixOS here since 2026-08-26.)
         //
         // ⚠️ MEASURED 2026-09-06, and the first reading of it was WRONG:
         //   cd /tmp && nsh -c "echo test > 0.5"                 -> writes a file named 0.5
@@ -939,7 +937,7 @@ fn main() -> Result<()> {
         // contact. bash, zsh, fish and core all answer both.
         //
         // Placed ABOVE the -c handler: these exit before any runtime is built, so they cost
-        // nothing and work even when the forest is absent.
+        // nothing and work even when 0-Core is absent.
         if args.iter().any(|a| a == "--version" || a == "-V") {
             println!("NovaShell {}", env!("CARGO_PKG_VERSION"));
             return Ok(());
@@ -989,7 +987,7 @@ fn main() -> Result<()> {
             // one here would be another escape path rather than instrumentation of the first.
             //
             // ★ THE CWD REQUIREMENT IS MET BY CONSTRUCTION: this never reaches repl_main, so the
-            // forest-home default never runs and the caller's directory is simply inherited.
+            // repo-home default never runs and the caller's directory is simply inherited.
             boot_mark("entering -c branch");
             IS_DASH_C.store(true, std::sync::atomic::Ordering::SeqCst);
             let cmd_str = cmd_str.clone();
@@ -1082,14 +1080,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // ⚠️ THE --triage-deploy HANDLER WAS REMOVED HERE, 2026-09-20 (INT-255), with
-    // triage.rs (13KB). It classified nixos-rebuild output into recognised failure shapes:
-    // an untracked file the flake could not see, home-manager refusing to overwrite a
-    // hand-written file, a /nix/store path that did not exist.
-    //
-    // Its ONLY invoker was zero/packages/faelight/scripts/deploy, deleted earlier today,
-    // which called it with --triage-deploy under the pre-NovaShell binary name -- one that has not
-    // existed since the NovaShell rename. UNREACHABLE BY ANY PATH.
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .name("nsh-repl".into())
@@ -1104,7 +1094,7 @@ fn main() -> Result<()> {
 ///
 /// ★ THE BOUNDARY THIS ENCODES: a shell start used to mean "begin an interactive session", with no
 /// other option available -- the clearest evidence being that startup changes the working directory
-/// to the forest root. Correct when you are opening a terminal; fatal for `fsh -c 'pwd'`, which
+/// to the repo root. Correct when you are opening a terminal; fatal for `fsh -c 'pwd'`, which
 /// must inherit the caller's directory. Splitting the two is what lets one binary mean one
 /// language without every non-interactive invocation paying for a prompt it will never draw.
 ///
@@ -1148,7 +1138,7 @@ fn runtime_init() -> Result<RuntimeInit> {
 
 /// INT-206: may the shell stay in the directory it was SPAWNED in?
 ///
-/// fsh starts in the forest home on purpose, and restores its last directory on purpose. Both are
+/// fsh starts in the repo home on purpose, and restores its last directory on purpose. Both are
 /// deliberate and neither is being removed. What was missing is a way OUT: a harness that spawns fsh
 /// with a chosen working directory had no way to make that stick, so fsh-test asked for /tmp and
 /// silently got the repository -- which is how two conformance files came to be written into it on
@@ -1408,7 +1398,7 @@ fn run_input(
                 }
             }
         }
-        // INT-220 -- friday <question>: ask Friday about the forest
+        // INT-220 -- friday <question>: ask Friday about Project 0
         // INT-342: db-browse -- launch state.db TUI browser
         if let Some(outcome) = engine.try_db_browse(line) {
             match outcome {
@@ -1807,7 +1797,7 @@ fn run_input(
         };
         let line = line.as_str();
 
-        // INT-265: forest/query pipelines. Moved into the engine 2026-08-05 (INT-201) --
+        // INT-265: value/query pipelines. Moved into the engine 2026-08-05 (INT-201) --
         // dispatch deliberately unchanged; the REPL still asks, the engine now answers.
         if let Some(outcome) = engine.try_query_executor(line) {
             match outcome {
@@ -2099,7 +2089,7 @@ fn run_input(
         } else {
             base_cmd
         };
-        // Raw shell pipe (not forest pipe ops) — run entire line via sh
+        // Raw shell pipe (not value pipe ops) — run entire line via sh
         // This prevents E_EXIT_NONZERO noise when left side of pipe fails
         if has_pipe2 && pipeline_ops.is_empty() {
             // INT-189: this is THE path for an ordinary shell pipeline -- `ls | wc`,
@@ -2178,7 +2168,7 @@ fn run_input(
             &mut shown_friday_suggestions,
             &mut last_friday_intent,
         );
-        // 🌲 Forest speaks — surface insightd insights after every command
+        // Surface insightd insights after every command
         {
             let insight: Option<(i64, String, String, f64)> = engine
                 .db()
@@ -3213,7 +3203,7 @@ fn repl_main() -> Result<()> {
     Ok(())
 }
 
-// Faelight truecolor helpers -- neon candy palette
+// Truecolor helpers -- neon candy palette
 #[allow(dead_code)]
 fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
@@ -3582,7 +3572,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         if !msg.is_empty() {
             println!("{}", msg);
         }
-        // INT-143 Phase 1 — forest digest on long gaps
+        // INT-143 Phase 1 — digest on long gaps
         if digest::should_show(&mem) {
             {
                 let d = digest::render(&mem, db, core_root);
@@ -3725,7 +3715,7 @@ fn friday_proactive_message(engine: &engine::Engine, session_commands: usize) {
 ///
 /// Returns `true` only when the caller must skip the rest of the segment. A THROTTLED MESSAGE
 /// DOES NOT: it stops printing and nothing else. Until INT-201 this returned early from four
-/// levels inside the reply handler, which abandoned the forest-insights display and the periodic
+/// levels inside the reply handler, which abandoned the insights display and the periodic
 /// session message for that segment -- a quiet Friday silently cost you the rest of postexec.
 fn friday_daemon_event(
     engine: &mut engine::Engine,

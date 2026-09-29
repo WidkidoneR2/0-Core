@@ -142,7 +142,7 @@ pub const PATTERNS: &[Pattern] = &[
         pipeline: "net",
         context: "network",
     },
-    // ── Forest tools ──────────────────────────────────────────────────────────
+    // ── Project 0 tools ───────────────────────────────────────────────────────
     Pattern {
         phrases: &[
             "unhealthy tools",
@@ -214,7 +214,7 @@ pub const PATTERNS: &[Pattern] = &[
         pipeline: "et today | where domain == shell",
         context: "forest",
     },
-    // ── Forest state ──────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
     Pattern {
         phrases: &[
             "check forest",

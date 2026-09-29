@@ -1,6 +1,6 @@
 #![allow(clippy::all)]
 // NovaShell — command registry
-// Phase 1: 10 forest-native commands
+// Phase 1: 10 native commands
 
 use crate::db::ForestDb;
 extern crate libc;
@@ -582,7 +582,7 @@ pub fn tokenize(s: &str) -> Vec<String> {
 // A user COMMAND WORD (the thing that gets dispatched, looked up, or aliased) is
 // extracted in exactly ONE place: command_word() below. The five sites that needed
 // the user's command word to ACT on it route through here (main.rs alias-expansion,
-// forest-route, forest-detect; run_external not-found; the builtin not-found check).
+// value-pipeline routing and detection; run_external not-found; the builtin not-found check).
 //
 // Other split_whitespace() calls in this tree are NOT command-word extraction and
 // are left as-is by design:
@@ -1470,11 +1470,6 @@ fn execute_dispatch(
         "packages" | "pkgs" => {
             // packages [filter]  -- installed packages, from the system package manager.
             //
-            // REPOINTED 2026-09-20 (INT-255). It read /run/current-system/sw references and
-            // stripped a /nix/store/<hash>- prefix. On this machine it failed with a correct
-            // diagnostic rather than lying, which is why it survived the migration -- but the
-            // QUESTION it asks is one pacman answers directly.
-            //
             // INT-227 preserved: a query that COULD NOT RUN is a different fact from a system
             // with no packages, and the message still says which.
             let filter = args.first().copied().unwrap_or("");
@@ -1524,18 +1519,6 @@ fn execute_dispatch(
             CommandResult::Output(out)
         }
         "pkg-search" | "pkgsearch" => pkg_search(args),
-        // ⚠️ THE "generations" / "gens" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255).
-        //
-        // 107 lines browsing NixOS generations via nixos-rebuild list-generations --json.
-        // Run on this machine it did not degrade, it CRASHED: "generations: No such file or
-        // directory" -- the spawn was unguarded.
-        //
-        // ⭐ AND THE REPLACEMENT WAS MEASURED AND REJECTED BY INT-129, so this is not a gap.
-        // Omarchy has generations: snapper snapshots on package transactions, and
-        // limine-snapper-sync puts them in the BOOT MENU -- which works when the system will
-        // not boot and a TUI cannot. The timeline half is `snapper list`, already a formatted
-        // table, and it needs root: a builtin here would prompt for a password to show what
-        // one command already shows.
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "git-churn" | "gchurn" | "git.files" => git_churn(core_root, args),
@@ -1942,7 +1925,7 @@ fn execute_dispatch(
                     };
                     let cmds_json = serde_json::to_string(&cmds).unwrap_or_else(|_| "[]".to_string());
                     // INT-134: capture reproducible environment. We snapshot only the
-                    // shell/forest-relevant vars -- capturing ALL of std::env would drag in
+                    // shell- and project-relevant vars -- capturing ALL of std::env would drag in
                     // session-specific system noise (DBUS addr, XDG runtime paths, PID vars)
                     // that would be wrong to restore into a different session. PATH plus any
                     // FAELIGHT_*/NSH_* project vars are what "reproducible" actually needs.
@@ -2553,7 +2536,7 @@ fn execute_dispatch(
         "launch" => {
             // open <file|url> (INT-270)
             // Human word for xdg-open -- opens file in default application
-            // Forest-aware: .rs/.py files open in $EDITOR, URLs open browser
+            // Type-aware: .rs/.py files open in $EDITOR, URLs open browser
             if args.is_empty() {
                 return CommandResult::Error("usage: launch <file|url>".to_string().into(), 1);
             }
@@ -2595,7 +2578,7 @@ fn execute_dispatch(
         }
         "rename" => {
             // rename <file> <new-name> [overwrite] (INT-270)
-            // Forest-aware file rename -- detects same-dir vs cross-dir,
+            // Repo-aware file rename -- detects same-dir vs cross-dir,
             // warns on overwrite, notes if file in recent commits
             if args.len() < 2 {
                 return CommandResult::Error(
@@ -3414,7 +3397,7 @@ fn execute_dispatch(
                     }
                 }
             }
-            // Forest vocabulary mode
+            // Human vocabulary mode
             let table = args[0];
             let result = match table {
                 "events" => {
@@ -4151,7 +4134,7 @@ fn execute_dispatch(
             }
         }
         "gt" => {
-            // INT-300: gt is the forest vocabulary word for git operations
+            // INT-300: gt is the human vocabulary word for git operations
             // gt status, gt commit, gt push -- maps directly to git
             if args.is_empty() {
                 return CommandResult::Error(
@@ -4173,9 +4156,9 @@ fn execute_dispatch(
             }
         }
         "find" => {
-            // find: detect Unix vs forest usage
+            // find: detect Unix vs pattern-first usage
             // Unix find: first arg is a path (/, ~/, ./, ..) OR any arg has single-hyphen flag (-name, -type, -exec)
-            // Forest find: first arg is a pattern or @shortcut
+            // Pattern find: first arg is a pattern or @shortcut
             let is_unix_find = args
                 .first()
                 .map(|a| {
@@ -4197,7 +4180,7 @@ fn execute_dispatch(
                 }
                 return run_external(line, db);
             }
-            // Forest find: fd wrapper with @shortcuts and pattern-first syntax
+            // Pattern find: fd wrapper with @shortcuts and pattern-first syntax
             // find <pattern> [path|@shortcut] [--type f|d] [--ext rs]
             if args.is_empty() {
                 return CommandResult::Error(
@@ -4411,7 +4394,7 @@ fn execute_dispatch(
                         filter_file = Some(args[i + 1]);
                         i += 2;
                     }
-                    // INT-300: forest shortcut flags
+                    // INT-300: shortcut flags
                     "--rust" => {
                         filter_type = Some("rs");
                         i += 1;
@@ -4888,7 +4871,7 @@ fn execute_dispatch(
                 }
             }
 
-            // 4. Forest scripts -- REMOVED. It looked in 0-core/scripts/, deleted in
+            // 4. Scripts -- REMOVED. It looked in 0-core/scripts/, deleted in
             // e733287d, so exists() was false on every run since and the block could not
             // fire. Step 5 asks which, which is the question that has an answer.
             // 5. PATH lookup
@@ -5220,7 +5203,7 @@ fn execute_dispatch(
         // counterpart and inventing one would be pretending. It failed honestly here --
         // "no flake found" -- which is why it survived the migration.
         "d" => {
-            // forest built-in: d → core doctor run
+            // built-in: d → core doctor run
             let output = std::process::Command::new("core")
                 .args(["doctor", "run"])
                 .output();
@@ -5500,7 +5483,7 @@ fn devbox_test() -> CommandResult {
     }
 }
 
-/// An interactive nsh with no forest in sight.
+/// An interactive nsh with no 0-Core in sight.
 ///
 /// STDIO IS INHERITED, and that is the whole point. This file already records what happens when
 /// an interactive program runs as a captured builtin: python3 was broken exactly that way until
@@ -5871,7 +5854,7 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
-    // INT-230 G4: an absent forest is REFUSED, not rendered as an empty
+    // INT-230 G4: an absent 0-Core is REFUSED, not rendered as an empty
     // table. Empty output with exit 0 is the successful-looking empty result
     // INT-227 forbids. Same shape as the find @rust arm.
     let tools_dir = match crate::core_integration::tools_root() {
@@ -8026,7 +8009,7 @@ fn sys_logs(args: &[&str]) -> CommandResult {
 }
 
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
-    // INT-300: forest flags -- delegate to file search (fsearch behavior)
+    // INT-300: shortcut flags -- delegate to file search (fsearch behavior)
     let forest_flags = [
         "--rust",
         "--intent",
@@ -8191,7 +8174,7 @@ fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "intent" | "intents" => {
             // Collect all intent files
             let mut items = String::new();
-            // INT-230 G4: an absent forest is REFUSED, not an empty list with
+            // INT-230 G4: an absent 0-Core is REFUSED, not an empty list with
             // exit 0. Same shape as the find @intents arm.
             let intents_root = match crate::core_integration::intents_root() {
                 Some(r) => r,
@@ -10499,7 +10482,7 @@ fn observe_session(db: &ForestDb) -> CommandResult {
         )
         .unwrap_or(0);
 
-    // INT-250: git, not /etc/faelight/COMMITS -- which has not existed since Omarchy.
+    // INT-250: git, not a commit-count file that has not existed since Omarchy.
     //
     // ⚠ ️ AND ITS FALLBACK WAS "0", NOT "". This did not hide a missing stat the way the
     // autobiography did; it printed a confident ZERO COMMITS. An invented number is worse than
@@ -10601,7 +10584,7 @@ fn observe_commands(db: &ForestDb) -> CommandResult {
 }
 
 fn observe_diff(db: &ForestDb) -> CommandResult {
-    // INT-250: git, not /etc/faelight/COMMITS. Same confident-zero fallback as above.
+    // INT-250: git, not the old commit-count file. Same confident-zero fallback as above.
     let commits = std::process::Command::new("git")
         .args([
             "-C",
@@ -11271,7 +11254,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             ));
         }
     }
-    // 3. Forest builtins list
+    // 3. Builtins list
     let builtins = [
         "cd",
         "pwd",
@@ -11328,7 +11311,7 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             "native fsh command — no PATH lookup".bright_green()
         ));
     }
-    // 4. Forest script
+    // 4. Script
     let script_path = format!("{}/0-core/scripts/{}", home, cmd);
     if std::path::Path::new(&script_path).exists() {
         out.push_str(&format!(
@@ -11425,7 +11408,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
         ));
         found = true;
     }
-    // Forest script
+    // Script
     let script_path = format!("{}/0-core/scripts/{}", home, cmd);
     if std::path::Path::new(&script_path).exists() {
         out.push_str(&format!(
@@ -11463,7 +11446,7 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
         ));
         found = true;
     }
-    // INT-300: forest vocabulary words -- human-first commands (INT-261)
+    // INT-300: human vocabulary words -- human-first commands (INT-261)
     let vocab_words = [
         "write", "read", "list", "copy", "move", "delete", "find", "db", "gt", "it", "search",
         "show", "where", "fsearch", "query",
@@ -11654,13 +11637,6 @@ fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
-// ⚠️ suggest_after_external WAS REMOVED HERE, 2026-09-20 (INT-255). Dead code, and a
-// DUPLICATE of the live suggestion table in exec.rs -- the same arms, including the one for
-// paru and pacman reading "That isn't a NixOS command, apply changes with deploy".
-//
-// ⭐ THAT STRING HAD TO BE FOUND TWICE. It was corrected in exec.rs earlier today and the
-// second copy sat here, in the same 759KB file, unnoticed until a census listed it. Two
-// copies of one suggestion table is the shape this ledger keeps removing.
 fn help() -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
@@ -12147,15 +12123,6 @@ fn experiment_list(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-// ⚠️ SEVEN libvirt nixos-lab FUNCTIONS WERE REMOVED HERE, 2026-09-20 (INT-255):
-// vm_snapshot, vm_restore, vm_snapshots, vm_status, vm_stop, vm_start, vm_list -- 334 lines,
-// every one #[allow(dead_code)] and each carrying the same INT-027 note: preserved, unwired
-// from `vm` when zero-vm took over.
-//
-// ⭐ PARKED DELIBERATELY, AND THE NOTE SAID SO -- but measured 2026-09-20, VIRSH IS NOT
-// INSTALLED. There is no libvirt here and no domain for the code to be parked for. Keeping
-// code against a future need is a reasonable choice; keeping it against a runtime that is
-// not on the machine is a different thing, and git holds it either way.
 fn version(_core_root: &str) -> CommandResult {
     let version =
         crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
@@ -12476,7 +12443,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         //
         // ⚠ ️ THE FALLBACK WAS "v14.0.0": a version number that is not this system's, invented at
         // some point and stated as fact whenever the read failed -- which, since Omarchy, was
-        // EVERY TIME. The forest has been reporting a version it has never had.
+        // EVERY TIME. Project 0 has been reporting a version it has never had.
         zero_core::paths::read_version()
             .unwrap_or_else(|| "?".to_string())
             .bright_green()
@@ -12635,9 +12602,7 @@ fn time_cmd(line: &str, args: &[&str], db: &ForestDb, core_root: &str) -> Comman
 }
 
 fn resolve_fsh_binary() -> String {
-    // ship installs nsh into paths::bin_dir(), so that is asked for first. The four candidates
-    // this replaced were NixOS-era paths under the pre-NovaShell binary name; none has existed
-    // since 2026-08-26, so every call fell through to current_exe().
+    // ship installs nsh into paths::bin_dir(), so that is asked for first.
     let deployed = zero_core::paths::bin_dir().join("nsh");
     if deployed.exists() {
         return deployed.to_string_lossy().to_string();
@@ -14013,8 +13978,7 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             // local cargo doc --open; anything else -> docs.rs (instant, no local build).
             let target = args.get(1).copied().unwrap_or("");
             if target.is_empty() {
-                // NixOS: rustc doesn't ship browsable std HTML and rustup isn't the toolchain
-                // manager here, so open the canonical web std docs (always current).
+                // Open the canonical web std docs (always current) rather than a local copy.
                 let url = "https://doc.rust-lang.org/std/";
                 println!("  {} opening std library docs", "📖".normal());
                 let ok = std::process::Command::new("xdg-open")
@@ -16473,7 +16437,7 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 fn forest_stats_intents(_core_root: &str) -> CommandResult {
-    // INT-230 G4: an absent forest is REFUSED, not an empty timeline with
+    // INT-230 G4: an absent 0-Core is REFUSED, not an empty timeline with
     // exit 0. Same shape as the find @intents arm.
     let complete_dir = match crate::core_integration::intents_root() {
         Some(r) => r.join("complete").to_string_lossy().to_string(),
@@ -16913,7 +16877,7 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-/// INT-346: ade -- launch Forest ADE (Zellij + Alacritty + friday-chat)
+/// INT-346: ade -- launch the ADE (Zellij + Alacritty + friday-chat)
 fn ade_cmd(args: &[&str]) -> CommandResult {
     use colored::Colorize;
     let layout = args.first().copied().unwrap_or("forest-ade");

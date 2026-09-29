@@ -217,7 +217,7 @@ pub fn detect_mode(
     ShellMode::Focused
 }
 
-// Faelight session truecolor helpers
+// Session truecolor helpers
 #[allow(dead_code)]
 fn sc(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)

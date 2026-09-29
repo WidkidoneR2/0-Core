@@ -7,7 +7,7 @@
 //! 0-Core -- XDG plus the `FAELIGHT_STATE_DB` override. The other 51 read
 //! 0-Core's directory layout, and `paths.rs` never checks whether any of them
 //! exists. So today `intents_dir()` returns a confident path on a machine with
-//! no forest and every caller proceeds as though it were there.
+//! no 0-Core and every caller proceeds as though it were there.
 //!
 //! WHAT THAT COST, measured 2026-09-04 under `HOME=/tmp/g3home`:
 //! `intl` printed a formatted ledger reading `Total: 0` and exited 0. An
@@ -46,7 +46,7 @@ pub fn present() -> bool {
 
 /// The 0-Core rust-tools source tree, when 0-Core is present.
 ///
-/// `None` on a machine without a forest -- which is every packaged install.
+/// `None` on a machine without 0-Core -- which is every packaged install.
 pub fn tools_root() -> Option<PathBuf> {
     let dir = zero_core::paths::rust_tools_dir();
     if dir.is_dir() {
@@ -79,9 +79,9 @@ pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
     }
 }
 
-/// The forest version string, when 0-Core is present.
+/// The Project 0 version string, when 0-Core is present.
 ///
-/// ⚠️ THIS IS THE FOREST'S VERSION, NOT THE SHELL'S. `nsh --version` answers
+/// ⚠️ THIS IS PROJECT 0'S VERSION, NOT THE SHELL'S. `nsh --version` answers
 /// from CARGO_PKG_VERSION with no file involved, and must keep doing so -- a
 /// shell that read its own version off disk would report nothing when packaged.
 ///
@@ -245,7 +245,7 @@ pub struct Ledger {
 ///
 /// `None` means 0-Core is not on this machine. It does NOT mean an empty
 /// ledger, and the type makes that impossible to confuse -- which is the
-/// difference between `intl` saying the forest is absent and `intl` printing
+/// difference between `intl` saying 0-Core is absent and `intl` printing
 /// `Total: 0`.
 pub fn ledger() -> Option<Ledger> {
     // INT-230: was present() then intents_root() -- two existence checks for one
@@ -277,7 +277,7 @@ pub fn ledger() -> Option<Ledger> {
 fn collect(dir: &PathBuf, out: &mut Vec<Intent>) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
-        // A missing lifecycle folder is not a missing forest. `present()` has
+        // A missing lifecycle folder is not a missing 0-Core. `present()` has
         // already answered that question; this is one folder that may simply
         // hold nothing yet.
         Err(_) => return,
