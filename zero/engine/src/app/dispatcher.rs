@@ -6,11 +6,10 @@ use crate::cli::commands::{
     DelegateCommand, DeployCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand,
     EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
     GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
-    LedgerCommand, NixCommand, NotifyCommand, PlanCommand, PluginCommand, PredictCommand,
-    PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand, ReleaseCommand,
-    SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand, StressCommand,
-    SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand, WeightCommand,
-    WhyCommand, WorkspaceCommand,
+    LedgerCommand, NotifyCommand, PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand,
+    ProfileCommand, ReactCommand, RegistryCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
+    SelfCommand, SimulateCommand, StrategyCommand, StressCommand, SynthesizeCommand, TraceCommand,
+    TradeoffCommand, UpdateCommand, ValuesCommand, WeightCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -237,9 +236,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             )?;
             crate::domains::fetch::run(ctx, health_check)
         }
-        Command::Nix(c) => match c {
-            NixCommand::Inspect { option, why } => crate::domains::nix::inspect(ctx, option, why),
-        },
 
         Command::Git(c) => {
             ctx.capabilities.require(

@@ -24,7 +24,6 @@ pub mod journal;
 pub mod knowledge;
 pub mod lock;
 pub mod narrative;
-pub mod nix;
 pub mod notify;
 pub mod plugins;
 pub mod profile;

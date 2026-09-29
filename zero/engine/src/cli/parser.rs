@@ -79,11 +79,6 @@ pub enum Commands {
         #[arg(long)]
         health_check: bool,
     },
-    /// Inspect NixOS option resolution (Nix Inspector, INT-088)
-    Nix {
-        #[command(subcommand)]
-        command: NixCommands,
-    },
     Git {
         #[command(subcommand)]
         command: GitCommands,
@@ -780,18 +775,6 @@ pub enum SandboxCommands {
         name: String,
     },
     Snapshots,
-}
-
-#[derive(Subcommand)]
-pub enum NixCommands {
-    /// Inspect an option: value, type, where defined, what won
-    Inspect {
-        /// The option path, e.g. services.openssh.enable
-        option: String,
-        /// Show definition priorities and merge/override resolution (slower)
-        #[arg(long)]
-        why: bool,
-    },
 }
 
 #[derive(Subcommand)]

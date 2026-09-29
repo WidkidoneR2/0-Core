@@ -150,7 +150,6 @@ pub enum Command {
     Fetch {
         health_check: bool,
     },
-    Nix(NixCommand),
     Git(GitCommand),
     Workspace(WorkspaceCommand),
     Release(ReleaseCommand),
@@ -509,10 +508,6 @@ pub enum JournalCommand {
 pub enum DocsCommand {
     Commands,
     List,
-}
-#[derive(Debug)]
-pub enum NixCommand {
-    Inspect { option: String, why: bool },
 }
 #[derive(Debug)]
 pub enum AlignCommand {
