@@ -126,11 +126,11 @@ fn suggest_theme(data: &ChangelogData) -> String {
     if has_core && has_intelligence {
         "The Awakening — Core Learns to See".to_string()
     } else if has_core && has_new_tools {
-        "The Architect — New Siblings Join the Forest".to_string()
+        "The Architect — New Siblings Join Project 0".to_string()
     } else if has_compositor {
         "The Foundation — Roots Reach Deeper".to_string()
     } else if has_intelligence {
-        "The Oracle — The Forest Sees Ahead".to_string()
+        "The Oracle — Project 0 Sees Ahead".to_string()
     } else if data.intents.len() >= 4 {
         "The Bloom — Many Intents Find Completion".to_string()
     } else if let Some(intent) = data.intents.first() {
@@ -141,7 +141,7 @@ fn suggest_theme(data: &ChangelogData) -> String {
             .unwrap_or(&intent.title)
             .trim();
         format!(
-            "{} — The Forest Grows",
+            "{} — Project 0 Grows",
             short
                 .split_whitespace()
                 .take(3)
@@ -149,7 +149,7 @@ fn suggest_theme(data: &ChangelogData) -> String {
                 .join(" ")
         )
     } else {
-        "The Living Forest — Continuous Growth".to_string()
+        "Built From Zero — Continuous Growth".to_string()
     }
 }
 

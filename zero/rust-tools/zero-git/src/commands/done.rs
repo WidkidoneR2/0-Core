@@ -51,6 +51,6 @@ pub fn run(extra: Option<&str>) -> Result<()> {
         println!("{}", "  ❌ Push failed -- run 'git push' manually".red());
     }
     println!("{}", "━".repeat(52).dimmed());
-    println!("{}", "  🌲 The forest remembers.".dimmed());
+    println!("{}", "  Project 0 remembers.".dimmed());
     Ok(())
 }

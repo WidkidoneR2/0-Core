@@ -22,7 +22,7 @@ fn read_theme(ctx: &AppContext) -> String {
         .and_then(|l| l.split(" — ").nth(1))
         .and_then(|s| s.split('(').next())
         .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "The Living Forest".to_string())
+        .unwrap_or_else(|| "Built From Zero".to_string())
 }
 
 fn format_ts(ts: i64) -> String {
@@ -250,11 +250,11 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
 
     // Closing narrative
     let closing = if accepted == total {
-        "Every intention was authorized. The forest moved with purpose."
+        "Every intention was authorized. Project 0 moved with purpose."
     } else if accepted == 0 {
-        "No intentions authorized yet. The forest waits for direction."
+        "No intentions authorized yet. Project 0 waits for direction."
     } else {
-        "Some intentions authorized. The forest grows selectively."
+        "Some intentions authorized. Project 0 grows selectively."
     };
     println!("  {}", closing.bright_white().italic());
     println!();

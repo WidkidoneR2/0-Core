@@ -341,7 +341,7 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
         confidence_colored(confidence)
     );
     println!();
-    println!("  {}", "The forest weighs. You decide.".dimmed().italic());
+    println!("  {}", "Project 0 weighs. You decide.".dimmed().italic());
     println!("{}", "━".repeat(56).dimmed());
     println!();
 

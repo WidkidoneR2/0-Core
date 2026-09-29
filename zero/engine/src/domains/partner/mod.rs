@@ -336,7 +336,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!(
-        "  {} The forest proposes. You decide.",
+        "  {} Project 0 proposes. You decide.",
         "→".dimmed().italic()
     );
     println!();
@@ -426,14 +426,14 @@ fn disagree(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     let reason = if in_progress >= 5 {
         format!(
             "Starting INT-{} now risks focus fragmentation. {} intents already in-progress. \
-             Forest recommends completing one intent before starting new work. \
+             Project 0 recommends completing one intent before starting new work. \
              Last time focus spread this wide, velocity dropped. Proceed anyway?",
             intent_id, in_progress
         )
     } else {
         format!(
             "No strong objection to INT-{}. {} intents in-progress — within acceptable range. \
-             Forest sees no pattern conflicts with current trajectory.",
+             Project 0 sees no pattern conflicts with current trajectory.",
             intent_id, in_progress
         )
     };
@@ -505,15 +505,12 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
             V14_JARVIS_GATE - score
         )
     } else {
-        format!("Forest has observed {} events. Based on patterns: proceed with intent, run health check after, document decisions. The forest learns from outcomes.", events)
+        format!("Project 0 has observed {} events. Based on patterns: proceed with intent, run health check after, document decisions. Project 0 learns from outcomes.", events)
     };
 
     println!("  {} {}", "→".bright_cyan(), response.bright_white());
     println!();
-    println!(
-        "  {} The forest advises. You decide.",
-        "·".dimmed().italic()
-    );
+    println!("  {} Project 0 advises. You decide.", "·".dimmed().italic());
     println!();
     Ok(())
 }

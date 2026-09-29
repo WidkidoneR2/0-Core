@@ -120,7 +120,7 @@ pub fn run_git_tui(core_root: &str, active_intent: Option<&str>) {
         do_push(core_root);
     }
     println!();
-    println!("  {} {}", "🌲".green(), "The forest remembers.".dimmed());
+    println!("  {} {}", "🌲".green(), "Project 0 remembers.".dimmed());
     println!();
 }
 fn get_status(core_root: &str) -> Vec<(String, String)> {

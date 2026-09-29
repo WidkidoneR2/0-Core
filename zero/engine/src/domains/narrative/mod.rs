@@ -198,7 +198,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     );
     println!("  │  The forecast is stable. The roots are strong.");
     println!("  │  The branches are growing toward v11.0.0 —");
-    println!("  │  {}", "The Living Forest.".bright_green().italic());
+    println!("  │  {}", "Built from zero.".bright_green().italic());
 
     println!("  │");
     println!(

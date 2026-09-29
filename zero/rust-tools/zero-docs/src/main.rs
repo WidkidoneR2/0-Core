@@ -308,7 +308,7 @@ fn gather_state() -> LiveState {
         .and_then(|l| l.split(" — ").nth(1))
         .and_then(|s| s.split('(').next())
         .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "The Living Forest".to_string());
+        .unwrap_or_else(|| "Built From Zero".to_string());
 
     // Count registered tools from tools.toml -- the same file the doctor path-resilience
     // check reads, which is the point of the comment that used to be here. They disagreed.

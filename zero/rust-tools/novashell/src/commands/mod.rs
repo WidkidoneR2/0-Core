@@ -6084,7 +6084,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
     // deadwood: exempt -- shell NAME for handoff, defaulting to zsh -- not a command word
     let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
     println!();
-    println!("  {} Stepping out of the forest...", "🌲".to_string());
+    println!("  {} Back to zero...", "🌲".to_string());
     println!(
         "  {} You are entering {}",
         "→".bright_cyan(),
@@ -12129,7 +12129,7 @@ fn version(_core_root: &str) -> CommandResult {
 
     // INT-230: the changelog read and its em-dash split live in the adapter.
     let release_name = crate::core_integration::release_name()
-        .unwrap_or_else(|| "The Forest Remembers".to_string());
+        .unwrap_or_else(|| "Project 0 Remembers".to_string());
 
     let mut out = String::new();
     out.push_str(&format!(
@@ -12478,7 +12478,7 @@ fn fsh_identity_cmd(db: &StateDb) -> CommandResult {
     out.push_str(&format!(
         "  {}
 ",
-        "The forest thinks in Rust.".dimmed().italic()
+        "Project 0 thinks in Rust.".dimmed().italic()
     ));
     out.push_str(&format!(
         "  {}
@@ -15170,7 +15170,7 @@ fn snap_diff_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Diff complete. The forest remembers every state."
+        "Diff complete. Project 0 remembers every state."
             .dimmed()
             .italic()
     );
@@ -16291,7 +16291,7 @@ fn forest_stats_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResu
         "all" | _ => {
             let mut out = String::new();
             out.push_str(&format!(
-                "\n  {} The Forest Visualizes Its Own Growth\n",
+                "\n  {} Project 0 Visualizes Its Own Growth\n",
                 "🌲".normal()
             ));
             out.push_str(&format!("  {}\n\n", "━".repeat(55).dimmed()));

@@ -244,7 +244,7 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::StateDb) -> 
         ShellMode::Streak => format!(
             "  {} {}",
             sc_bold(57, 255, 20, "↺"),
-            sc_bold(57, 255, 20, "Strong streak. The forest is growing fast.")
+            sc_bold(57, 255, 20, "Strong streak. Project 0 is growing fast.")
         ),
         ShellMode::Idle => {
             if let Some(days) = mem.days_since() {
@@ -252,7 +252,7 @@ pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::StateDb) -> 
                     "  {} {} {}",
                     sc_bold(50, 220, 255, "↺"),
                     sc_bold(200, 240, 255, &format!("{} days away.", days)),
-                    sc_dim(140, 200, 255, "The forest waited patiently.")
+                    sc_dim(140, 200, 255, "Project 0 waited patiently.")
                 )
             } else {
                 format!(
@@ -440,7 +440,7 @@ pub fn render_momentum(m: &Momentum) -> Option<String> {
             "  {} {} commits this week — {}",
             "↗".bright_green(),
             m.total_commits_week.to_string().bright_green().bold(),
-            "the forest is growing fast.".dimmed()
+            "Project 0 is growing fast.".dimmed()
         ));
     } else if m.total_commits_week >= 10 {
         parts.push(format!(

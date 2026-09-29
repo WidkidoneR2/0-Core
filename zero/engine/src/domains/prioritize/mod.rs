@@ -424,7 +424,7 @@ pub fn explain(ctx: &AppContext) -> CoreResult<()> {
 
     println!();
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "The forest ranks. You decide.".dimmed().italic());
+    println!("  {}", "Project 0 ranks. You decide.".dimmed().italic());
     println!();
     Ok(())
 }

@@ -212,10 +212,7 @@ pub fn scenario(ctx: &AppContext, description: &str) -> CoreResult<()> {
     }
 
     println!();
-    println!(
-        "  {}",
-        "The forest simulates. You decide.".dimmed().italic()
-    );
+    println!("  {}", "Project 0 simulates. You decide.".dimmed().italic());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 

@@ -207,7 +207,7 @@ fn main() {
         );
     }
     println!("{}", "-".repeat(56).dimmed());
-    println!("{}", "  A healthy forest sheds dead wood.".dimmed());
+    println!("{}", "  A healthy repo sheds dead code.".dimmed());
     if cli.strict && reported > 0 {
         std::process::exit(1);
     }
@@ -1300,10 +1300,7 @@ fn purge(root: &Path, bak_age: u64, bulk: bool) {
     }
     let items = purgeable(root, bak_age);
     if items.is_empty() {
-        println!(
-            "  {}",
-            "Nothing safe to purge. The forest is tidy.".dimmed()
-        );
+        println!("  {}", "Nothing safe to purge. The repo is tidy.".dimmed());
         return;
     }
     let mut done = 0usize;

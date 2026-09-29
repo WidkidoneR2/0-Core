@@ -1019,7 +1019,7 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!();
-    println!("  {}", "The forest advises. You decide.".dimmed().italic());
+    println!("  {}", "Project 0 advises. You decide.".dimmed().italic());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 

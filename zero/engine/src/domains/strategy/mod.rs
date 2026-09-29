@@ -2240,7 +2240,7 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
             strategy_id.bright_white(),
             outcome_display
         );
-        println!("  {} The forest remembers.", "·".dimmed());
+        println!("  {} Project 0 remembers.", "·".dimmed());
     } else {
         // Insert as a new learned outcome
         ctx.runtime.db.execute(

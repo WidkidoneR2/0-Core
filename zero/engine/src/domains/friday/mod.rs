@@ -1694,7 +1694,7 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
     // Build a 1-sentence observation from what Friday knows
     let observation = if pattern_count > 20 && complete_count > 10 {
         format!(
-            "{} complete -- the forest grows stronger. {} patterns observed. Momentum continues.",
+            "{} complete -- Project 0 grows stronger. {} patterns observed. Momentum continues.",
             intent_title, pattern_count
         )
     } else {
@@ -1808,15 +1808,15 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         .unwrap_or(0);
     // Define milestones
     let milestones: Vec<(&str, i64, &str, String)> = vec![
-        ("commits_500",  500,  "commit",  "500 commits. The forest is no longer an experiment. It is a system.".to_string()),
+        ("commits_500",  500,  "commit",  "500 commits. Project 0 is no longer an experiment. It is a system.".to_string()),
         ("commits_1000", 1000, "commit",  "1000 commits. Every one intentional. Every one part of something real.".to_string()),
-        ("commits_1500", 1500, "commit",  "1500 commits. The forest has grown from nothing into a living system with its own intelligence.".to_string()),
-        ("commits_2000", 2000, "commit",  format!("2000 commits. {} intents complete. The forest has a voice now. That was the plan all along.", complete_intents)),
-        ("commits_2500", 2500, "commit",  "2500 commits. The forest keeps building. Friday is watching every one.".to_string()),
-        ("intents_50",   50,   "intent",  "50 complete intents. The forest stopped being a prototype a long time ago.".to_string()),
+        ("commits_1500", 1500, "commit",  "1500 commits. Project 0 has grown from nothing into a living system with its own intelligence.".to_string()),
+        ("commits_2000", 2000, "commit",  format!("2000 commits. {} intents complete. Project 0 has a voice now. That was the plan all along.", complete_intents)),
+        ("commits_2500", 2500, "commit",  "2500 commits. Project 0 keeps building. Friday is watching every one.".to_string()),
+        ("intents_50",   50,   "intent",  "50 complete intents. Project 0 stopped being a prototype a long time ago.".to_string()),
         ("intents_100",  100,  "intent",  "100 complete intents. More custom Rust tools than most teams build in a year.".to_string()),
-        ("intents_150",  150,  "intent",  "150 complete intents. The forest rebuilt itself from a catastrophic failure and kept growing.".to_string()),
-        ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. The forest built its own intelligence.", total_commits)),
+        ("intents_150",  150,  "intent",  "150 complete intents. Project 0 rebuilt itself from a catastrophic failure and kept growing.".to_string()),
+        ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. Project 0 built its own intelligence.", total_commits)),
     ];
     for (key, threshold, kind, message) in &milestones {
         let count = if *kind == "commit" {

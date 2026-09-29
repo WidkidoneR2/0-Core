@@ -423,7 +423,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     println!();
     println!("{}", "━".repeat(52).dimmed());
-    println!("{}", "  🌲 The forest remembers.".cyan().dimmed());
+    println!("{}", "  Project 0 remembers.".cyan().dimmed());
 
     Ok(())
 }

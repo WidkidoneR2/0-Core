@@ -3195,10 +3195,7 @@ fn repl_main() -> Result<()> {
         }
         println!();
     }
-    println!(
-        "{}",
-        colored::Colorize::dimmed("  🌲 The forest remembers.")
-    );
+    println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
     mark("EXIT: main returning");
     Ok(())
 }
@@ -3292,15 +3289,15 @@ fn print_welcome(core_root: &str, db: &crate::db::StateDb) {
     mark("welcome: intent scan done");
     let quotes = [
         "Nothing runs without explicit human authorization.",
-        "The forest remembers. The human decides.",
+        "Project 0 remembers. The human decides.",
         "Every tool is understood. Nothing is installed blindly.",
         "Freedom without structure is not empowerment — it is entropy.",
-        "A forest that knows itself can survive anything.",
+        "A system that knows itself can survive anything.",
         "The roots hold. The branches grow.",
         "Every commit is intentional. Every tool has a purpose.",
         "Understanding over convenience. Always.",
-        "The forest does not fear the storm. It knows how to grow back.",
-        "A wise forest studies its own rings.",
+        "Project 0 does not fear the crash. It knows how to start from zero.",
+        "Every commit is a ring. Project 0 reads them all.",
         "The last sibling came home.",
         "Not text streams. Not configuration. Structured wisdom.",
     ];

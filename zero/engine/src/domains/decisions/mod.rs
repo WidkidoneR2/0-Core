@@ -1091,7 +1091,7 @@ pub fn advise(ctx: &AppContext, planned_decision: Option<&str>) -> CoreResult<()
     }
 
     println!();
-    println!("  {}", "The forest advises. You decide.".dimmed().italic());
+    println!("  {}", "Project 0 advises. You decide.".dimmed().italic());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1272,10 +1272,7 @@ pub fn lessons(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!();
-    println!(
-        "  {}",
-        "The forest remembers. You decide.".dimmed().italic()
-    );
+    println!("  {}", "Project 0 remembers. You decide.".dimmed().italic());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     Ok(())
@@ -1443,7 +1440,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!(
         "  {}",
-        "The forest remembers the path that led here."
+        "Project 0 remembers the path that led here."
             .dimmed()
             .italic()
     );
@@ -1665,7 +1662,7 @@ pub fn patterns(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Data collected. No suggestions. The forest observes."
+        "Data collected. No suggestions. Project 0 observes."
             .dimmed()
             .italic()
     );
@@ -1764,7 +1761,7 @@ pub fn friction(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Data collected. No suggestions. The forest observes."
+        "Data collected. No suggestions. Project 0 observes."
             .dimmed()
             .italic()
     );
@@ -1874,7 +1871,7 @@ pub fn reversal(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Data collected. No suggestions. The forest observes."
+        "Data collected. No suggestions. Project 0 observes."
             .dimmed()
             .italic()
     );

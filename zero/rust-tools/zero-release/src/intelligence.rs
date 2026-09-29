@@ -183,7 +183,7 @@ pub fn synthesize_narrative(
         sentences.push(format!("{} TUIs shipped: health at a keypress, git workflow simplified, intent ledger always visible.", tui_work));
     } else if tui_work == 1 {
         sentences.push(
-            "A new TUI shipped, bringing the forest's intelligence into an interactive interface."
+            "A new TUI shipped, bringing Project 0's intelligence into an interactive interface."
                 .to_string(),
         );
     }
@@ -203,7 +203,7 @@ pub fn synthesize_narrative(
     sentences.push(health_note.to_string());
     if sentences.is_empty() {
         format!(
-            "The forest grows. {} commits. {} intents. Another chapter.",
+            "Project 0 grows. {} commits. {} intents. Another chapter.",
             base_stats.total_commits,
             data.intents.len()
         )
@@ -248,7 +248,7 @@ pub fn suggest_themes_v2(data: &ChangelogData, history: &[String]) -> [String; 3
     let intent_count = data.intents.len();
     // Derive the primary theme from the dominant signal
     let primary = if has_vocab && has_terminal {
-        "The Forest Speaks Human".to_string()
+        "Project 0 Speaks Human".to_string()
     } else if has_vocab {
         "Human First, UNIX as Fallback".to_string()
     } else if has_terminal && has_friday {
@@ -258,15 +258,15 @@ pub fn suggest_themes_v2(data: &ChangelogData, history: &[String]) -> [String; 3
     } else if has_friday {
         "Friday Awakens".to_string()
     } else if has_cleanup && intent_count >= 5 {
-        "The Forest Runs Lean".to_string()
+        "Project 0 Runs Lean".to_string()
     } else {
-        "The Forest Grows".to_string()
+        "Project 0 Grows".to_string()
     };
     // Second theme: what changed for the human using it daily
     let secondary = if has_tui {
-        "Three Keypresses, Three Windows Into the Forest".to_string()
+        "Three Keypresses, Three Windows Into Project 0".to_string()
     } else if has_vocab {
-        "Seven Words the Forest Now Speaks".to_string()
+        "Seven Words Project 0 Now Speaks".to_string()
     } else if has_shell {
         "The Shell That Grew Up".to_string()
     } else if has_friday {
@@ -282,7 +282,7 @@ pub fn suggest_themes_v2(data: &ChangelogData, history: &[String]) -> [String; 3
     } else if has_tui && has_friday {
         "Intelligence You Can See".to_string()
     } else {
-        "The Forest Knows Itself".to_string()
+        "Project 0 Knows Itself".to_string()
     };
     // Filter used themes but keep the derived ones (they are already specific)
     let _ = history; // history used to filter generic templates -- not needed here

@@ -107,7 +107,7 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Data collected. No suggestions. The forest observes."
+        "Data collected. No suggestions. Project 0 observes."
             .dimmed()
             .italic()
     );
@@ -241,7 +241,7 @@ pub fn tools(_ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Data collected. No suggestions. The forest observes."
+        "Data collected. No suggestions. Project 0 observes."
             .dimmed()
             .italic()
     );
@@ -471,7 +471,7 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "The forest suggests. The human decides.".dimmed().italic()
+        "Project 0 suggests. The human decides.".dimmed().italic()
     );
     println!();
     Ok(())
@@ -725,7 +725,7 @@ pub fn evolve_list(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "The forest proposes. The human decides.".dimmed().italic()
+        "Project 0 proposes. The human decides.".dimmed().italic()
     );
     println!();
     Ok(())
@@ -801,7 +801,7 @@ pub fn evolve_reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
     );
     println!(
         "  {}",
-        "The forest remembers the decision.".dimmed().italic()
+        "Project 0 remembers the decision.".dimmed().italic()
     );
     println!();
     Ok(())
@@ -925,7 +925,7 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Simulation complete. The forest proposes. The human decides."
+        "Simulation complete. Project 0 proposes. The human decides."
             .dimmed()
             .italic()
     );
@@ -1035,7 +1035,7 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "The forest assesses. The human decides.".dimmed().italic()
+        "Project 0 assesses. The human decides.".dimmed().italic()
     );
     println!();
     Ok(())
@@ -1157,7 +1157,7 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!(
         "  {}",
-        "Impact mapped. The forest proposes. The human decides."
+        "Impact mapped. Project 0 proposes. The human decides."
             .dimmed()
             .italic()
     );

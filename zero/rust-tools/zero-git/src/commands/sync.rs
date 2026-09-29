@@ -225,7 +225,7 @@ pub fn run() -> Result<()> {
     println!();
     println!("{}", "━".repeat(50));
     println!("{}", "🎉 Sync Complete!".green().bold());
-    println!("{}", "🌲 The forest stays in harmony.".cyan());
+    println!("{}", "Project 0 stays in harmony.".cyan());
     println!("{}", "━".repeat(50));
 
     Ok(())
