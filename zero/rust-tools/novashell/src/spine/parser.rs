@@ -1033,7 +1033,10 @@ mod tests {
         let ctx = crate::spine::plan::LowerContext::default();
         match crate::spine::plan::lower_pipeline(&node, &ctx) {
             Err(crate::spine::plan::LowerError::UnsupportedConstruct { kind, span }) => {
-                assert!(kind.contains("forest"), "named the construct: {kind}");
+                assert!(
+                    kind.contains("value pipeline"),
+                    "named the construct: {kind}"
+                );
                 assert!(span.start < span.end, "span points somewhere real");
             }
             other => panic!("expected a lowering refusal, got {other:?}"),
