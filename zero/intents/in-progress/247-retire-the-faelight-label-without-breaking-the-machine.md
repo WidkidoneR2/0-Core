@@ -2811,8 +2811,9 @@ and the apply's own proof that the comment-stripped files are identical before a
 - [x] faelight-fm is gone -- workspace, PATH, docs, teach, Friday facts, command registry, and the
       Hyprland bind. Moved to `retired/` or deleted, NOT commented out
       <!-- evidence: 2026-09-15. Crate deleted, binary retired with `ship --retire`, registry marked retired = true, aliases fm/fmd removed, census case deleted. deadwood reports registry orphans clean. faelight-glog went with it on the same evidence. 9,893 lines removed; 193/193 green after. -->
-- [ ] The NixOS-era crates are gone by the same standard. The machine has not been NixOS since
+- [x] The NixOS-era crates are gone by the same standard. The machine has not been NixOS since
       2026-08-26
+      <!-- evidence: 2026-09-29. The last one was the engine nix domain (INT-088's Nix Inspector over nixos-option): deleted in f92c664d with pub mod nix, Command::Nix and NixCommand, Commands::Nix and NixCommands and the dispatcher arm; ship deployed core and its --help no longer names NixOS; its only caller, alias inspect, left config.nsh. zero-vm was retired in 0d35dc3d. Swept 2026-09-29: no live file outside the intents and CHANGELOGs names core nix, nix inspect, Nix Inspector, domains::nix or NixCommand. -->
 - [x] `faelight-docs` cannot resurrect a retired tool. Proven by running it after a retirement and
       confirming the catalog does not list it
       <!-- evidence: 2026-09-15. gather_all() reads rust-tools/*/Cargo.toml from DISK, so a deleted crate cannot appear. Proven by running readme-index after three retirements: faelight-fm, faelight-glog and faelight are all absent from the catalog. -->

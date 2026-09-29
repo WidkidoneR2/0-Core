@@ -77,7 +77,6 @@
 - Registry alias-hygiene: fix collapsed [[alias]] blocks in aliases.toml
 - Faelight-launcher: GTK app launcher with faelight-logout-grade polish
 - Remove Niri + faelight-niri-bridge (retired compositor cleanup)
-- Nix Inspector: why did this value win? (option-resolution debugger)
 - Fsh: clearer errors when && chains hit a builtin
 - Adopt nixvim as a Nix-learning vehicle (Helix stays primary daily driver)
 - Evaluate Stylix: declarative system-wide theming (vs the hand-crafted forest visual language)
