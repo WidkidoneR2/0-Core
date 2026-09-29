@@ -120,7 +120,7 @@ fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String
     cmd.env("NSH_KEEP_CWD", "1")
         // INT-204: and its own database, for the same reason -- two doors that disagree about which
         // state they read is the shape of problem this suite keeps finding in the shell it tests.
-        .env("FAELIGHT_STATE_DB", repl::case_db_path());
+        .env("ZERO_STATE_DB", repl::case_db_path());
     for (k, v) in extra_env {
         cmd.env(k, v);
     }
@@ -299,7 +299,7 @@ fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> 
     let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
     let out = Command::new(&fsh)
         .env("NSH_KEEP_CWD", "1")
-        .env("FAELIGHT_STATE_DB", repl::case_db_path())
+        .env("ZERO_STATE_DB", repl::case_db_path())
         .arg("-c")
         .arg(input)
         .stdout(Stdio::piped())
@@ -1607,7 +1607,7 @@ print('CLASS-DONE')"##;
             let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
             let out = Command::new(&fsh)
                 .env("NSH_KEEP_CWD", "1")
-                .env("FAELIGHT_STATE_DB", repl::case_db_path())
+                .env("ZERO_STATE_DB", repl::case_db_path())
                 .arg("-c")
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -1664,7 +1664,7 @@ print('CLASS-DONE')"##;
             let planted = format!("{}/planted-last-dir", repl::case_db_dir());
             std::fs::create_dir_all(&planted).map_err(|e| format!("create {}: {}", planted, e))?;
 
-            repl::run_repl_lines_status(&["true"], &[("FAELIGHT_STATE_DB", db.as_str())])?;
+            repl::run_repl_lines_status(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
             let conn =
                 rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
             conn.execute(
@@ -1676,7 +1676,7 @@ print('CLASS-DONE')"##;
 
             let (out, _) = repl::run_repl_lines_status(
                 &["pwd"],
-                &[("NSH_KEEP_CWD", "0"), ("FAELIGHT_STATE_DB", db.as_str())],
+                &[("NSH_KEEP_CWD", "0"), ("ZERO_STATE_DB", db.as_str())],
             )?;
             let got = out.join("\n");
             if got.contains("planted-last-dir") {
@@ -1732,7 +1732,7 @@ print('CLASS-DONE')"##;
             // intents, so HOME alone hides the ledger -- but state_home reads
             // XDG_STATE_HOME independently, so health, focus.toml and the rest stayed
             // present under a bare HOME redirect (measured 2026-09-05). Both move.
-            // FAELIGHT_STATE_DB is already per-case, set by the harness.
+            // ZERO_STATE_DB is already per-case, set by the harness.
             //
             // Clean BEFORE, not after: after does not run when the case fails, which
             // is exactly when junk is left.

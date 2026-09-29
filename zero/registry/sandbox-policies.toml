@@ -71,7 +71,7 @@ set_cwd = "/tmp/devbox-{session}"
 HOME = "/tmp/devbox-{session}"
 XDG_STATE_HOME = "/tmp/devbox-{session}"
 XDG_CONFIG_HOME = "/tmp/devbox-{session}/.config"
-FAELIGHT_STATE_DB = "/tmp/devbox-{session}/state.db"
+ZERO_STATE_DB = "/tmp/devbox-{session}/state.db"
 NSH_CONFIG = "/tmp/devbox-{session}/config.nsh"
 
 [[policy]]

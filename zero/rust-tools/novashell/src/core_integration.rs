@@ -4,7 +4,7 @@
 //!
 //! WHY THIS EXISTS. The G1 census (CORE-COUPLING.md) measured 82 `paths::` calls
 //! across 14 functions. 31 are core shell state and already resolve without
-//! 0-Core -- XDG plus the `FAELIGHT_STATE_DB` override. The other 51 read
+//! 0-Core -- XDG plus the `ZERO_STATE_DB` override. The other 51 read
 //! 0-Core's directory layout, and `paths.rs` never checks whether any of them
 //! exists. So today `intents_dir()` returns a confident path on a machine with
 //! no 0-Core and every caller proceeds as though it were there.

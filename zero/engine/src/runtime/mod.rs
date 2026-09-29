@@ -57,7 +57,7 @@ impl Runtime {
         fs::create_dir_all(&snapshots)?;
         fs::create_dir_all(&locks)?;
         // ⚠️ THE SEAM, NOT A JOIN. paths::state_db() is the single decider -- it reads the
-        // FAELIGHT_STATE_DB override, and this is the connection the WHOLE ENGINE uses through
+        // ZERO_STATE_DB override, and this is the connection the WHOLE ENGINE uses through
         // ctx.runtime.db. Building the path here instead meant the override reached the few sites
         // that open their own connection and MISSED the main one: a restore rehearsal on
         // 2026-08-26 saw the doctor report the snapshot's 914 facts while `core version` reported

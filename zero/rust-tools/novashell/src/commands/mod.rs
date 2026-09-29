@@ -1928,11 +1928,11 @@ fn execute_dispatch(
                     // shell- and project-relevant vars -- capturing ALL of std::env would drag in
                     // session-specific system noise (DBUS addr, XDG runtime paths, PID vars)
                     // that would be wrong to restore into a different session. PATH plus any
-                    // FAELIGHT_*/NSH_* project vars are what "reproducible" actually needs.
+                    // ZERO_*/NSH_* project vars are what "reproducible" actually needs.
                     let env_map: std::collections::BTreeMap<String, String> = std::env::vars()
                         .filter(|(k, _)| {
                             k == "PATH"
-                                || k.starts_with("FAELIGHT_")
+                                || k.starts_with("ZERO_")
                                 || k.starts_with("NSH_")
                                 || k.starts_with("FOREST_")
                         })

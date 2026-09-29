@@ -2283,7 +2283,7 @@ fn repl_main() -> Result<()> {
     if let Some(id) = platform::running_build_identity() {
         let _ = std::fs::write("/tmp/fsh-running-build", id.as_bytes());
     }
-    // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. FAELIGHT_STATE_DB exists so the
+    // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. ZERO_STATE_DB exists so the
     // test harness can give each run its own database instead of borrowing the user's, but a variable
     // that redirects the database is the more dangerous cousin of the one that started this intent --
     // NSH_CONFIG leaked out of an inline assignment into a child process and silently changed
@@ -2304,7 +2304,7 @@ fn repl_main() -> Result<()> {
             eprintln!(
                 "    history, aliases and session memory come from there, not your usual one."
             );
-            eprintln!("    unset FAELIGHT_STATE_DB to go back.");
+            eprintln!("    unset ZERO_STATE_DB to go back.");
         }
     }
     let core_root = db.core_root();

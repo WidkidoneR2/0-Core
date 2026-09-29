@@ -389,7 +389,7 @@ fn run_session(
         // scratch database would only move that somewhere else. Measured at 20ms per case, 2.8s
         // across the suite, which is 3.4% of it; a template-copy scheme would save that and cost
         // more moving parts than it is worth.
-        .env("FAELIGHT_STATE_DB", case_db_path())
+        .env("ZERO_STATE_DB", case_db_path())
         .envs(env.iter().copied())
         .current_dir("/tmp")
         .stdin(Stdio::from(s_in))

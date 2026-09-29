@@ -194,7 +194,7 @@ pub fn bin_dir() -> PathBuf {
 /// HISTFILE, YSH YSH_HISTFILE) makes the location overridable.
 ///
 /// RESOLUTION ORDER, chosen so the code can ship before the data moves:
-///   1. $FAELIGHT_STATE_DIR       -- explicit override; also lets fsh-test
+///   1. $ZERO_STATE_DIR           -- explicit override; also lets fsh-test
 ///                                   isolate per-case state off the live db
 ///   2. state_home()/zero         -- if it already exists, it wins
 ///   3. source_dir()/runtime    -- legacy, only while it still exists
@@ -204,7 +204,7 @@ pub fn bin_dir() -> PathBuf {
 /// not: today (3) holds and nothing changes; after the move (2) takes over on
 /// its own; on a machine with no repo (4) applies and none is created.
 pub fn runtime_dir() -> PathBuf {
-    if let Ok(v) = env::var("FAELIGHT_STATE_DIR") {
+    if let Ok(v) = env::var("ZERO_STATE_DIR") {
         if !v.is_empty() {
             return PathBuf::from(v);
         }
@@ -238,7 +238,7 @@ pub fn state_db() -> PathBuf {
     // ⚠️ A LEAKED VALUE HERE IS SERIOUS -- a shell pointed at a scratch file has no history, no
     // aliases and no session memory. That is why callers announce a non-canonical database rather
     // than resolving it silently; see the startup notice in novashell.
-    if let Ok(p) = env::var("FAELIGHT_STATE_DB") {
+    if let Ok(p) = env::var("ZERO_STATE_DB") {
         if !p.trim().is_empty() {
             return PathBuf::from(p);
         }
@@ -908,9 +908,9 @@ mod tests {
         // runtime_dir no longer contains the word "runtime" once the data has
         // moved to XDG state, so assert the CONTRACT instead of the spelling:
         // an explicit override always wins.
-        unsafe { std::env::set_var("FAELIGHT_STATE_DIR", "/tmp/fsh-paths-test") }
+        unsafe { std::env::set_var("ZERO_STATE_DIR", "/tmp/fsh-paths-test") }
         assert_eq!(runtime_dir(), PathBuf::from("/tmp/fsh-paths-test"));
-        unsafe { std::env::remove_var("FAELIGHT_STATE_DIR") }
+        unsafe { std::env::remove_var("ZERO_STATE_DIR") }
 
         // With no override, it must land somewhere real -- either the legacy repo
         // path while that still exists, or XDG state.

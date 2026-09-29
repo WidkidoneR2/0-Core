@@ -63,7 +63,7 @@ struct App {
 impl App {
     fn new() -> anyhow::Result<Self> {
         // Set ADE environment
-        std::env::set_var("FAELIGHT_ADE", "1");
+        std::env::set_var("ZERO_ADE", "1");
 
         // Setup PTY
         let pty_system = native_pty_system();
@@ -77,7 +77,7 @@ impl App {
         // Launch nsh in PTY. It spawned fsh until 2026-09-02 -- a binary that stopped
         // existing at the rename, so ade had been broken since and nothing said so.
         let mut cmd = CommandBuilder::new("nsh");
-        cmd.env("FAELIGHT_ADE", "1");
+        cmd.env("ZERO_ADE", "1");
         cmd.env("TERM", "vt100"); // vt100 prevents mouse tracking
         cmd.env("COLORTERM", "truecolor");
         let _child = pair.slave.spawn_command(cmd)?;
