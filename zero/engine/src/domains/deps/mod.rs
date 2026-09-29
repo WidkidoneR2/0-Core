@@ -540,7 +540,7 @@ mod categorize_tool_tests {
     /// The crate pass renames faelight-X to zero-X one crate at a time. A tool must land in the
     /// same group under either name, or every renamed tool silently falls into "Utilities".
     #[test]
-    fn zero_prefix_is_categorized_like_faelight() {
+    fn zero_prefix_is_categorized() {
         for suffix in ["gen", "git", "release", "sandbox", "zone"] {
             let old = categorize_tool(&format!("faelight-{suffix}"));
             let new = categorize_tool(&format!("zero-{suffix}"));

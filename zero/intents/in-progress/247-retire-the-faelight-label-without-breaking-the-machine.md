@@ -2835,7 +2835,7 @@ and the apply's own proof that the comment-stripped files are identical before a
       CHANGELOGs and git history are never rewritten. Each name is held out by a guard once its pass
       is finished, and the guard reads every file type the name lives in, not only .rs
 
-- [ ] STATEDB, ruled 2026-09-28: ForestDb is StateDb everywhere, and no live Rust identifier
+- [x] STATEDB, ruled 2026-09-28: ForestDb is StateDb everywhere, and no live Rust identifier
       contains Forest or Faelight in any case
 - [ ] NO NIXOS, ruled 2026-09-28: no live file names NixOS, nixos-rebuild, flake.nix, build-vm or
       /nix/ -- code, comments and the WAS REMOVED HERE tombstone notes included; history exempt
