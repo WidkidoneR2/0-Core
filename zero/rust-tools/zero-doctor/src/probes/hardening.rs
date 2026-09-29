@@ -136,7 +136,7 @@ pub fn security_hardening() -> Measurement {
 
 /// ⭐ THE RECOVERY NAMES A FIREWALL THAT EXISTS ON THIS MACHINE.
 ///
-/// ⚠️ The old text said `networking.firewall.enable = true in configuration.nix` -- another OS's syntax
+/// ⚠️ The old text gave another OS's firewall syntax
 /// on an Arch box. A red line whose recovery step cannot be taken is worse than no line: the
 /// finding is real and the fix is fiction. This asks which firewall is actually installed.
 pub fn firewall_recovery() -> String {
@@ -225,7 +225,6 @@ mod tests {
         // ⚠️ THE OLD STRING THIS REPLACES. If a firewall is installed the advice must name it,
         // not a configuration syntax from a system that was wiped.
         let r = firewall_recovery();
-        assert!(!r.contains("configuration.nix"));
         assert!(!r.contains("networking.firewall"));
         if which::which("ufw").is_ok() {
             assert!(

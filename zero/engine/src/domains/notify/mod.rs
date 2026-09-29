@@ -30,8 +30,8 @@ pub fn send(_ctx: &AppContext, summary: &str, body: Option<&str>, urgency: &str)
 pub fn status(_ctx: &AppContext) -> CoreResult<()> {
     // ⚠️ THIS ASKED ABOUT THE WRONG THING AND ANSWERED CONFIDENTLY. It ran
     // systemctl --user is-active for the old notifier's unit and printed the result as Daemon.
-    // There has never been such a unit on Omarchy -- the session target died with nix/
-    // -- and is-active answers inactive for a unit it has never heard of, not unknown.
+    // There has never been such a unit on Omarchy, and is-active answers inactive for a
+    // unit it has never heard of, not unknown.
     // So the _ => bright_yellow arm never fired and the command reported a daemon as
     // inactive while notifications were working perfectly through someone else.
     //

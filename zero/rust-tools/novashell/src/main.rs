@@ -858,7 +858,7 @@ fn main() -> Result<()> {
     // `yes | head -3` spins forever.
     // SHLVL: a shell counts itself. Measured 2026-08-21 -- this session had
     // SHLVL=0 exported at the TOP level, inherited from the login chain, and fsh
-    // never touched it. Nothing in fsh or nix/ mentions SHLVL, so the zero came
+    // never touched it. Nothing in fsh mentions SHLVL, so the zero came
     // from greetd/PAM, but a shell that does not increment leaves every child
     // computing from a wrong base: a bash launched from here would read 0, add
     // one, and believe it was the outermost shell.
@@ -2232,20 +2232,12 @@ fn repl_main() -> Result<()> {
                     .status();
             }
         }
-        // Ensure NixOS paths are in PATH
+        // ~/.cargo/bin leads PATH, added once per process tree: a nested nsh finds it first already.
         if let Ok(home) = std::env::var("HOME") {
             let cargo_bin = format!("{}/.cargo/bin", home);
-            let nix_system = "/run/current-system/sw/bin".to_string();
-            let nix_user = format!(
-                "/etc/profiles/per-user/{}/bin",
-                std::env::var("USER").unwrap_or_default()
-            );
             let current_path = std::env::var("PATH").unwrap_or_default();
-            if !current_path.contains(&nix_system) {
-                std::env::set_var(
-                    "PATH",
-                    format!("{}:{}:{}:{}", nix_system, nix_user, cargo_bin, current_path),
-                );
+            if current_path.split(':').next() != Some(cargo_bin.as_str()) {
+                std::env::set_var("PATH", format!("{}:{}", cargo_bin, current_path));
             }
         }
     }

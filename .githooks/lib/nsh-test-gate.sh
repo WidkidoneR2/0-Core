@@ -6,22 +6,16 @@
 # minutes spent waiting for an answer that rarely changes within a series. A push is the thing
 # that leaves the machine, and a red push is what actually matters.
 #
-# ⚠️ THERE IS NO SKIP. This described a `files` regex declared by the Nix pre-commit
-# framework, which died with nix/. zero-gate runs this script on EVERY pre-push regardless of
-# what the push touches, so every push pays the suite. The comment survived its framework by a
-# week and was still promising a filter that no code implements.
-#
-# Implement a path filter in zero-gate as another Gate, or accept the cost. Do not describe one
-# that is not there.
+# ⚠️ THERE IS NO SKIP. zero-gate runs this script on EVERY pre-push regardless of what the push
+# touches, so every push pays the suite. Implement a path filter in zero-gate as another Gate, or
+# accept the cost. Do not describe one that is not there.
 #
 # WHY IT BUILDS FIRST. NSH_BIN defaults to the DEPLOYED shell, so a hook that used the default
 # would test the shell you are RUNNING rather than the code you are SENDING -- passing a broken
 # change, and failing a good one pushed after a bad deploy. It builds and points NSH_BIN at the
 # fresh debug binary instead.
 #
-# WHY IT DOES NOT PIN A TOOLCHAIN. This was written about writeShellApplication prepending
-# runtimeInputs to PATH and shadowing the devshell's compiler. The devshell is gone with nix/,
-# but the reasoning outlived it: a gate that supplies its own cargo can silently test a
+# WHY IT DOES NOT PIN A TOOLCHAIN. A gate that supplies its own cargo can silently test a
 # different compiler than the one you build with. It checks for cargo and says so plainly if
 # it is missing, rather than providing one.
 

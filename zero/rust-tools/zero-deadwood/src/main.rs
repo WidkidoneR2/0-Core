@@ -60,8 +60,8 @@ impl Confidence {
 /// A safe, structured removal action. ONLY the three provably-safe checks
 /// (dead aliases, stale .bak files, dead keybinds) ever attach one. Every other
 /// finding has action: None and is therefore unpurgeable BY DESIGN -- purge skips
-/// any finding without an action. Scripts, ghost intents, registry orphans, and
-/// Nix modules stay manual, always.
+/// any finding without an action. Scripts, ghost intents and registry orphans
+/// stay manual, always.
 #[derive(Clone)]
 enum PurgeAction {
     RemoveLine { file: PathBuf, exact: String }, // dead alias / dead keybind: remove one exact line
@@ -282,7 +282,6 @@ const BUILTINS: &[&str] = &[
     "cargo",
     "rustc",
     "make",
-    "nix",
     "echo",
     "cat",
     "grep",

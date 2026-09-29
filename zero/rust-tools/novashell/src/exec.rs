@@ -103,7 +103,7 @@ pub fn build_identity() -> String {
 /// INT-191: WHO IS THIS SHELL INSTANCE?
 ///
 /// Nothing owned that question before. `NSH_SESSION_ID` is read in three places and set in NONE --
-/// no .rs, .nix, .sh or .fsh file in the tree writes it -- which is why `term_commands` holds 42,376
+/// no .rs, .sh or .fsh file in the tree writes it -- which is why `term_commands` holds 42,376
 /// rows under the fallback string "unknown". That fallback turns "the variable is missing" into
 /// "there is a shared session called unknown"; absence should TRIGGER CREATION, not become a value.
 ///

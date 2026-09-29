@@ -939,9 +939,7 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let registry_path = ctx.ctx.fpath("registry/tools.toml");
-            // Both branches of the old conditional are gone: the Nix store is
-            // not here, and scripts/ was deleted in e733287d. paths::bin_dir()
-            // is the single owner of where a deployed binary lives.
+            // paths::bin_dir() is the single owner of where a deployed binary lives.
             let bin_dir = zero_core::paths::bin_dir();
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,

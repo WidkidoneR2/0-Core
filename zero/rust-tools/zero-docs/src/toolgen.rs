@@ -666,7 +666,7 @@ pub fn render_changelog(m: &ToolMeta) -> String {
     ));
     out.push_str("\n\n");
     out.push_str("### Changed\n");
-    out.push_str("- Migrated from NixOS to Omarchy (Arch) 2026-08-26.\n");
+    out.push_str("- Migrated to Omarchy (Arch) 2026-08-26.\n");
     out.push_str("- Build: `cargo build --release`.\n");
     out.push_str("- Deploy: `ship` for the workspace, `ship <tool>` for one.\n\n");
 

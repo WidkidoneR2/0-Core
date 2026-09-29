@@ -95,7 +95,6 @@ const COMMANDS: &[&str] = &[
     "exit",
     "quit",
     // Core
-    // `deploy` was the Nix rebuild verb and is gone; ship builds the release and deploys.
     "ship",
     "cistart",
     "cicomplete",
@@ -919,7 +918,6 @@ fn is_known_command(cmd: &str) -> bool {
         "cargo",
         "rustc",
         "make",
-        "nix",
         // Shell
         "echo",
         "cat",

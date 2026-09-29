@@ -1155,10 +1155,8 @@ fn all_tests() -> Vec<TestResult> {
         "packages_without_pacman_reports_unavailable",
         Category::Regression,
         || {
-            // REPOINTED 2026-09-20 (INT-255). packages read the Nix store until then; it
-            // reads pacman now. THE PRINCIPLE IS UNCHANGED and is the whole point of the
-            // case: a query that COULD NOT RUN must be named, never reported as an empty
-            // list. INT-227 built that distinction; only the command underneath it moved.
+            // packages reads pacman. The whole point of the case: a query that COULD NOT RUN
+            // must be named, never reported as an empty list. INT-227 built that distinction.
             let path = path_without("pacman");
             let got = match run_fsh_env("packages", &[("PATH", path.as_str())]) {
                 Ok(o) => o,

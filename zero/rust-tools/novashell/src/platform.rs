@@ -10,13 +10,13 @@
 //! ★ AND MOST OF WHAT LOOKED LIKE ASSUMPTIONS WERE NOT. Reading the four self-location sites found
 //! three already correct: `resolve_nsh_binary` and the `exec fsh` path both probe a CANDIDATE LIST
 //! -- system profile, per-user profile, ~/.cargo/bin, ~/0-core/scripts -- and take the first that
-//! exists, so on Void the Nix entries simply miss and the cargo path wins. PATH augmentation
+//! exists, so absent entries simply miss and the cargo path wins. PATH augmentation
 //! appends directories that are harmless when absent. Only build identity was a real assumption.
 
 /// Is there an executable named `name` on PATH?
 ///
 /// ⭐ A GENERIC PRIMITIVE WITH SPECIFIC CALLERS. Not `has_systemctl()` -- that shape accumulates
-/// `has_journalctl`, `has_nix_store`, `has_pacman` as separate one-off functions until the module
+/// `has_journalctl`, `has_pacman` as separate one-off functions until the module
 /// is the junk drawer this one was written to avoid.
 ///
 /// ⚠️ EXISTENCE, NOT USABILITY. This says a binary is on PATH, nothing more: not that it will

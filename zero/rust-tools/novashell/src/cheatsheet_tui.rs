@@ -95,7 +95,6 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "theme" => "Theme controls",
         "query" => "Query state",
         "schema" => "Inspect a data schema",
-        "store" => "Nix store operations",
         "logs" => "Show logs",
         "services" => "Show running services",
         "ports" => "Show open ports",

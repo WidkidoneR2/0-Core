@@ -78,7 +78,6 @@ pub fn update_pip() -> std::io::Result<()> {
         }
         Err(e) => {
             println!("   ⚠️  pip update failed: {}", e);
-            println!("   💡 On NixOS, use nixpkgs for Python packages");
             return Ok(());
         }
     }

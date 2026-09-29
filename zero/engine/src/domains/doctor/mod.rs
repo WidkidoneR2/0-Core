@@ -160,7 +160,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     // measurement, the exact collapse INT-222 was written to remove. It survived the port
     // because this block LISTS SOURCES rather than running checks, so no probe replaced it.
     //
-    // And it attributed the number to home-manager, which is not installed and deploys
+    // And it attributed the number to a dotfile manager that is not installed and deploys
     // nothing here. Measured: no symlink in ~/.config points into 0-core.
     //
     // ⭐ A SOURCE THAT DOES NOT EXIST IS NOT A SOURCE. When something does describe the

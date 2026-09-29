@@ -58,7 +58,6 @@ const C_DIMMED: (u8, u8, u8) = (90, 110, 95); // near-green quiet
                                               // Directory-context accents (INT-103): path color tells you WHAT KIND of place
 const C_DIR_REPO: (u8, u8, u8) = (176, 246, 42); // repo core: lime (neon70)
 const C_DIR_RUST: (u8, u8, u8) = (255, 138, 44); // Rust territory: orange (neon70)
-const C_DIR_NIX: (u8, u8, u8) = (74, 196, 255); // Nix domain: ice-blue (neon70)
 const C_DIR_INTENTS: (u8, u8, u8) = (186, 156, 255); // intents/: lavender (neon70)
 const C_DIR_DOTFILES: (u8, u8, u8) = (255, 130, 168); // dotfiles/: rose (neon70)
 const C_DIR_HOME: (u8, u8, u8) = (40, 242, 216); // elsewhere in ~: aqua (neon70)
@@ -154,9 +153,6 @@ fn cwd_color() -> (u8, u8, u8) {
         if cwd.contains("/home/dotfiles") {
             return C_DIR_DOTFILES; // personal config
         }
-        if cwd.contains("/nix") {
-            return C_DIR_NIX; // the OS domain
-        }
         return C_DIR_REPO; // repo core
     }
     // Outside the repo: marker-file detection.
@@ -164,11 +160,7 @@ fn cwd_color() -> (u8, u8, u8) {
         return C_DIR_RUST; // a Rust project anywhere
     }
     // System dirs -- careful
-    if cwd.starts_with("/etc")
-        || cwd.starts_with("/nix")
-        || cwd.starts_with("/usr")
-        || cwd.starts_with("/var")
-    {
+    if cwd.starts_with("/etc") || cwd.starts_with("/usr") || cwd.starts_with("/var") {
         return C_DIR_SYSTEM;
     }
     // Elsewhere in home vs outside
@@ -475,20 +467,10 @@ pub fn render_line(db: &StateDb, _last_exit: Option<i32>) -> String {
     } else {
         fc_bold_rl(C_PROMPT_OK.0, C_PROMPT_OK.1, C_PROMPT_OK.2, "❯")
     };
-    // ⚠️ THE NIX SEGMENT WAS REMOVED HERE, 2026-09-20 (INT-255): flake_info(), devshell_name,
-    // the label joining them, and the snowflake indicator. Measured: name empty,
-    // IN_NIX_SHELL empty. Nothing on this machine can set either.
-    //
-    // ⭐ THE REASONING IS KEPT, because it was right and it is the kind of thing that gets
-    // re-broken. TWO DIFFERENT FACTS WERE PRINTING THE SAME GLYPH:
-    //   IN_NIX_SHELL  a Nix environment IS LOADED -- the snowflake was earned
-    //   DIRENV_DIR    direnv KNOWS ABOUT a directory with an .envrc. It is set on discovery,
-    //                 before and regardless of whether the file was allowed or loaded.
-    // On a machine with no Nix and an .envrc reading use flake, DIRENV_DIR was set while
-    // nothing had loaded, and the prompt claimed an environment that did not exist.
-    // KNOWING ABOUT A FILE IS NOT LOADING IT -- true of any environment manager.
-    //
-    // DIRENV_DIR is still set here today. The trap is live; only the glyph is gone.
+    // ⭐ KNOWING ABOUT A FILE IS NOT LOADING IT -- true of any environment manager. DIRENV_DIR
+    // is set when direnv discovers a directory with an .envrc, before and regardless of whether
+    // the file was allowed or loaded. A prompt glyph keyed on it claims an environment that may
+    // not exist. DIRENV_DIR is still set here today; nothing in the prompt keys on it.
     let raw = match theme.as_str() {
         "minimal" => format!("  {} ", caret),
         "classic" => {

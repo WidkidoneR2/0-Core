@@ -3,7 +3,7 @@ name = "ship"
 license = "MIT"
 version = "1.0.0"
 edition = "2021"
-description = "Build the workspace and place binaries where PATH can see them -- the Arch-era replacement for the Nix rebuild"
+description = "Build the workspace and place binaries where PATH can see them"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

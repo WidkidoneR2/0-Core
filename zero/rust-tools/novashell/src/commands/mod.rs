@@ -1455,18 +1455,6 @@ fn execute_dispatch(
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
-        // ⚠️ THE "store" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255), with its 361
-        // lines of implementation: store_cmd, store_reclaim, store_summarize_matches,
-        // store_resolve, size_tail, nix_query and nix_query_lines.
-        //
-        // ⭐ IT WAS THE WORST OF THE THREE NIX COMMANDS BECAUSE IT LOOKED LIKE IT WORKED.
-        // Bare `store` printed a full help menu -- why, reclaim, big -- and only failed once
-        // a subcommand ran. A tool that advertises capability it cannot deliver is worse than
-        // one that errors, because the reader believes it.
-        //
-        // No Arch equivalent, and that is a real answer rather than an omission: closure
-        // queries, reference roots and self-size are content-addressed-store ideas. pacman
-        // has no counterpart and inventing one would be pretending.
         "packages" | "pkgs" => {
             // packages [filter]  -- installed packages, from the system package manager.
             //
@@ -4406,10 +4394,6 @@ fn execute_dispatch(
                         filter_type = Some("toml");
                         i += 1;
                     }
-                    "--nix" => {
-                        filter_type = Some("nix");
-                        i += 1;
-                    }
                     "--sh" | "--shell" => {
                         filter_type = Some("sh");
                         i += 1;
@@ -4583,9 +4567,8 @@ fn execute_dispatch(
                         // Only search text files (check extension)
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                         let text_exts = [
-                            "rs", "nix", "py", "md", "toml", "sh", "nsh", "txt", "json", "yaml",
-                            "yml", "html", "css", "js", "ts", "lua", "conf", "desktop", "service",
-                            "lock",
+                            "rs", "py", "md", "toml", "sh", "nsh", "txt", "json", "yaml", "yml",
+                            "html", "css", "js", "ts", "lua", "conf", "desktop", "service", "lock",
                         ];
                         // INT-259: AN EXTENSIONLESS FILE IS READ, NOT SKIPPED. Every file in
                         // zero/scripts has no extension -- devshell, devshell-lib, dev -- so
@@ -5187,13 +5170,6 @@ fn execute_dispatch(
             }
         }
         "cd" => cd(args),
-        // ⚠️ THE "devshell" BUILTIN WAS REMOVED HERE, 2026-09-20 (INT-255). It ran
-        // `nix flake show --json` to list devShells and `nix develop` to enter one.
-        //
-        // NO ARCH EQUIVALENT, AND THAT IS A REAL ANSWER RATHER THAN AN OMISSION. A
-        // per-project declarative shell built from a lockfile is a Nix idea; pacman has no
-        // counterpart and inventing one would be pretending. It failed honestly here --
-        // "no flake found" -- which is why it survived the migration.
         "d" => {
             // built-in: d → core doctor run
             let output = std::process::Command::new("core")
@@ -7859,9 +7835,6 @@ fn sys_network() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-// INT-075: nix store explorer. `store why <path|name>` answers "what keeps this
-// alive + how big is it" using fast per-path nix queries (NO --print-dead; that walks
-// the whole store and is slow). Read-only: inspects, never collects or deletes.
 fn sys_logs(args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
@@ -8324,10 +8297,7 @@ fn pick_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
 fn pkg_search(args: &[&str]) -> CommandResult {
     // pkg-search <term> -- search the package repositories, print name/version/description.
     //
-    // REPOINTED 2026-09-20 (INT-255). It ran `nix search nixpkgs <regex> --json`, and on this
-    // machine that CRASHED rather than degrading: the spawn was unguarded, so a missing nix
-    // gave "No such file or directory" instead of a diagnostic. `pacman -Ss` answers the same
-    // question and marks what is installed.
+    // It runs `pacman -Ss`, which answers the question and marks what is installed.
     //
     // Deliberate and read-only. Latency is expected because you asked -- this is NOT a TAB
     // handler.
@@ -13644,7 +13614,7 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
         }
         "search" => {
             // dev search <query> -- search crates.io via `cargo search`, print name/version/desc
-            // (INT-134, Lane 3; crates.io analogue of pkg-search's nixpkgs search). cargo search
+            // (INT-134, Lane 3; crates.io analogue of pkg-search). cargo search
             // outputs TEXT (name = "ver"  # desc), not JSON -- parsed line-wise. Read-only;
             // latency expected (network). Caches to /tmp/fsh-crate-search.json for future completion.
             let query = args[1..].join(" ");

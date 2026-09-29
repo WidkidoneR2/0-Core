@@ -148,20 +148,13 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
         }
     }
     println!("   📦 Recording package versions...");
-    // INT-116: NixOS-native -- a package's identity is its /nix/store path (hash =
-    // version+build). Resolving the binary's realpath captures that; any change to
-    // the package changes the store path, which is a stronger drift signal than a
-    // version string. (Replaces the Arch-era `pacman -Q` baseline.)
+    // The baseline is each tracked binary's realpath. It detects REPLACEMENT -- /usr/bin/nvim
+    // changing is worth noticing -- not REBUILD: a plain path is not a content hash.
     //
-    // ⚠️ DATED 2026-09-18. THE REASONING ABOVE DESCRIBES A MACHINE THAT NO LONGER EXISTS.
-    // Measured: `/nix/store` is No such file or directory. The realpath still carries a
-    // useful drift signal on Omarchy -- /usr/bin/nvim changing is worth noticing -- but it
-    // is No LONGER a content hash, so it detects REPLACEMENT, not REBUILD.
-    //
-    // ⭐ AND TWO OF THE THREE TRACKED PACKAGES ARE ABSENT, measured the same day:
+    // ⭐ TWO OF THE THREE TRACKED PACKAGES ARE ABSENT, measured 2026-09-18:
     //     nvim        /usr/bin/nvim    present
     //     alacritty   absent           Omarchy ships a different terminal
-    //     greetd      absent           NixOS-era display manager
+    //     greetd      absent           not the display manager here
     // So the baseline has tracked ONE real package and two ghosts since 2026-08-26. They
     // simply never insert, so nothing is WRONG -- the drift check is just two-thirds blind.
     // WHAT THE LIST SHOULD CONTAIN IS NOT DECIDED HERE: it is a content question for the

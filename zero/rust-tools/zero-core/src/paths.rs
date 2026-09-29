@@ -728,9 +728,9 @@ pub fn intents_incidents() -> PathBuf {
 
 /// The fsh config file -- aliases and settings -- at its LIVE location.
 ///
-/// WARNING: this used to return a path in the repo's old nix tree and had ZERO
-/// callers. Under home-manager that repo path and the XDG path were one file
-/// via symlink, so the distinction did not exist. After the Omarchy migration
+/// WARNING: this used to return a path in the repo's old config tree and had ZERO
+/// callers. That repo path and the XDG path were once one file via a symlink, so the
+/// distinction did not exist. After the Omarchy migration
 /// they are two real files that agree only until the next edit, and seven sites
 /// read the config across THREE different locations -- the repo copy, the XDG
 /// copy, and 0-core/config/... which has never existed on this machine.
