@@ -74,7 +74,7 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "rewind" => "Time-travel through prior states",
         "tools" => "List Project 0 tools from the registry",
         "version" => "Show Project 0 version",
-        "reload" => "Reload fsh configuration",
+        "reload" => "Reload nsh after ship",
         "alias" => "Define a shell alias",
         "unalias" => "Remove a shell alias",
         "open" => "Open a file or URL",

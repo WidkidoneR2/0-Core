@@ -1451,7 +1451,7 @@ fn execute_dispatch(
         // otherwise `time cmd > file` runs twice. That lesson cost a git regression earlier.
         "time" if !args.is_empty() && !allow_external => CommandResult::NotBuiltin,
         "time" => time_cmd(line, args, db, core_root),
-        "reload" => reload_fsh(),
+        "reload" => reload_nsh(),
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "power" | "pwr" => power_cmd(db, args),
@@ -8308,12 +8308,11 @@ fn pick_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
             CommandResult::Output(String::new())
         }
         _ => CommandResult::Output(format!(
-            "  {}  pick -- fuzzy selection
+            "  pick -- fuzzy selection
   {}
   {}
   {}
   {}",
-            "🌲".to_string(),
             "  pick intent          fuzzy search all intents".dimmed(),
             "  pick intent --active in-progress intents only".dimmed(),
             "  pick history         fuzzy command history".dimmed(),
@@ -10515,9 +10514,8 @@ fn observe_session(db: &StateDb) -> CommandResult {
 ",
     );
     out.push_str(&format!(
-        "  {} Session Summary
+        "  Session Summary
 ",
-        "🌲".normal()
     ));
     out.push_str(&format!(
         "{}
@@ -12596,7 +12594,7 @@ fn time_cmd(line: &str, args: &[&str], db: &StateDb, core_root: &str) -> Command
     CommandResult::Empty { suspension: None }
 }
 
-fn resolve_fsh_binary() -> String {
+fn resolve_nsh_binary() -> String {
     // ship installs nsh into paths::bin_dir(), so that is asked for first.
     let deployed = zero_core::paths::bin_dir().join("nsh");
     if deployed.exists() {
@@ -12607,40 +12605,28 @@ fn resolve_fsh_binary() -> String {
         .unwrap_or_else(|_| "nsh".to_string())
 }
 
-// INT-081 G2: re-exec into the resolved (current-system-first) fsh. If that binary
-// canonicalizes to the SAME path already running, nothing new was deployed -- say so
-// instead of a pointless same-binary re-exec.
-fn reload_fsh() -> CommandResult {
+// reload: re-exec the deployed nsh when it is not the binary this shell is running.
+//
+// /proc/self/exe names the very file this process started from, even after ship has replaced
+// ~/.local/bin/nsh on disk, so comparing its (device, inode) with the deployed path's answers
+// "is there a newer nsh?" directly. No marker file: the old one lived in /tmp, every nsh process
+// (nsh-test starts hundreds) rewrote it, and on Omarchy the deployed path never changes, so
+// comparing paths could not see a new build (INT-247, 2026-09-29).
+fn reload_nsh() -> CommandResult {
+    use std::os::unix::fs::MetadataExt;
     use std::os::unix::process::CommandExt;
-    let target = resolve_fsh_binary();
-    // INT-096: compare the CURRENT deploy-target store path against the build this session
-    // launched from (recorded at startup in /tmp/fsh-running-build). The store hash changes
-    // every rebuild, so a differing hash = a genuinely new fsh was deployed. We never use
-    // current_exe() here -- it is unreliable through the makeWrapper wrapper.
-    let deployed = std::fs::canonicalize(&target)
-        .ok()
-        .map(|p| p.to_string_lossy().to_string());
-    let running = std::fs::read_to_string("/tmp/fsh-running-build").ok();
-    match (deployed.as_deref(), running.as_deref()) {
-        (Some(d), Some(r)) if d.trim() == r.trim() => {
-            CommandResult::Output(format!(
-                "  Already on the current fsh build:\n    {}\n  Nothing new to reload. (Rebuild + deploy first.)",
-                d.trim()
-            ))
-        }
-        (Some(d), Some(r)) => {
-            println!("  🔄 New fsh build detected -- reloading:");
-            println!("    was: {}", r.trim());
-            println!("    new: {}", d.trim());
-            let err = std::process::Command::new(&target).exec();
-            CommandResult::Error(format!("reload: {}: {}", target, err).into(), 1)
-        }
-        _ => {
-            println!("  🔄 Reloading fsh -> {} (no build marker to compare)", target);
-            let err = std::process::Command::new(&target).exec();
-            CommandResult::Error(format!("reload: {}: {}", target, err).into(), 1)
-        }
+    let target = resolve_nsh_binary();
+    let identity = |p: &str| std::fs::metadata(p).ok().map(|m| (m.dev(), m.ino()));
+    let running = identity("/proc/self/exe");
+    if running.is_some() && running == identity(&target) {
+        return CommandResult::Output(format!(
+            "  Already on the current nsh build:\n    {}\n  Nothing new to reload. (ship first.)",
+            target
+        ));
     }
+    println!("  New nsh build -- reloading: {}", target);
+    let err = std::process::Command::new(&target).exec();
+    CommandResult::Error(format!("reload: {}: {}", target, err).into(), 1)
 }
 
 fn exec_cmd(args: &[&str]) -> CommandResult {
@@ -12652,7 +12638,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     };
     let is_self = matches!(*cmd, "nsh" | "fsh" | "shell");
     let resolved = if is_self {
-        resolve_fsh_binary() // INT-081: current-system-first, not current_exe()
+        resolve_nsh_binary() // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
         cmd.replacen("~/", &format!("{}/", home), 1)
     } else {

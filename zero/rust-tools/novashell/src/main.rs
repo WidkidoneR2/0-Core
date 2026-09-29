@@ -2262,27 +2262,6 @@ fn repl_main() -> Result<()> {
         applied,
         diagnostics,
     } = runtime_init()?;
-    // INT-096: record which fsh build this session launched from, so `reload` can tell
-    // whether a newer build was deployed. The deploy symlink canonicalizes to a store path
-    // whose hash changes on every rebuild -- that hash IS the build identity (current_exe()
-    // is unreliable here because the deployed binary is makeWrapper-wrapped).
-    // INT-227: the platform answers this now. On Nix the store path stays the identity, for the
-    // reason INT-096 recorded above; elsewhere the running executable is the artifact.
-    //
-    // ⚠️ INTENTIONALLY INTERACTIVE-ONLY, and the scope is the point. This sits after runtime_init
-    // in the interactive path, so `fsh -c` never writes it -- verified 2026-08-23 rather than
-    // assumed. That is CORRECT: this file is state for the RELOAD mechanism, which only exists in
-    // an interactive session, and a `-c` invocation cannot reload itself.
-    //
-    // ⭐ AND MAKING IT UNIVERSAL WOULD GIVE THE FILE TWO MEANINGS. "Which interactive build should
-    // reload compare against?" and "which build produced this observation?" are different
-    // questions, and INT-207 already answers the second for every invocation including `-c`, via
-    // the build field the emission path attaches. Two mechanisms for one question is the shape this
-    // ledger keeps removing -- do not turn reload bookkeeping into invocation bookkeeping because
-    // the implementation happens to live inside runtime_init.
-    if let Some(id) = platform::running_build_identity() {
-        let _ = std::fs::write("/tmp/fsh-running-build", id.as_bytes());
-    }
     // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. ZERO_STATE_DB exists so the
     // test harness can give each run its own database instead of borrowing the user's, but a variable
     // that redirects the database is the more dangerous cousin of the one that started this intent --
@@ -2702,31 +2681,6 @@ fn repl_main() -> Result<()> {
                 // Check reload signal at TOP of loop — before any processing
                 // INT-296: OSC 133 B -- command input received
                 print!("{}", prompt::OSC133_PROMPT_END);
-                if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
-                    let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
-                    println!(
-                        "  {} New fsh version detected — reloading...",
-                        "🔄".to_string()
-                    );
-                    use std::os::unix::process::CommandExt;
-                    // The deployed shell: ship installs nsh into paths::bin_dir().
-                    let candidates = vec![zero_core::paths::bin_dir()
-                        .join("nsh")
-                        .to_string_lossy()
-                        .to_string()];
-                    let mut exec_err = None;
-                    for path in &candidates {
-                        if std::path::Path::new(path).exists() {
-                            exec_err = Some(std::process::Command::new(path).exec());
-                            break;
-                        }
-                    }
-                    // fallback to current_exe
-                    if let Ok(exe) = std::env::current_exe() {
-                        let _ = std::process::Command::new(exe).exec();
-                    }
-                    eprintln!("  ✗ reload failed: {:?}", exec_err);
-                }
                 // INT-209: THE COMMENT PRE-PASS IS GONE. The canonical scanner recognises a comment
                 // as a lexical state, so stripping here made two owners implement one rule -- and
                 // this one ran FIRST, which is why both doors agreed for the wrong reason: not
