@@ -2441,7 +2441,128 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-28, PASS 1 -- THE COMMENTS ARE DONE; 79 HELD LINES WAIT FOR THEIR PASSES -- START HERE
+## 2026-09-29, PASSES 2, 3 AND 5A -- THE CODE SPEAKS PROJECT 0; 976 LINES OF WORK LEFT -- START HERE
+
+READ THIS FIRST WHEN PICKING UP. It supersedes "PASS 1 -- THE COMMENTS ARE DONE" below, whose rulings,
+held lines and method still stand except where this section says otherwise. The script that wrote
+this refused unless the six commits below exist with their trailers, HEAD was 719cb38d and pushed,
+the tree was clean, and the census counted exactly 1,705 lines in 199 files, 976 of them the work.
+
+### Rulings, Christian 2026-09-29 (this session)
+
+```text
+    sayings       swap "The forest X" to "Project 0 X" where it reads true; the tree icon beside a
+                  saying goes. The metaphors, rewritten (zero is where things restart): Built From
+                  Zero (the Living Forest titles); A system that knows itself can survive anything;
+                  Project 0 does not fear the crash. It knows how to start from zero.; Every commit
+                  is a ring. Project 0 reads them all.; A healthy repo sheds dead code.; Back to zero
+    vocabulary    forest value pipeline -> value pipeline; forest commands -> native commands;
+                  forest meaning the repo -> repo; ForestHelper -> ShellHelper; forest_version ->
+                  project_version; faelight_root -> source_root; emit_forest_event ->
+                  emit_runtime_event (emit_event was taken); seed_forest_lessons -> seed_lessons;
+                  the zero-daemon Iface structs, BusState and run_bus lose the word
+    env vars      FAELIGHT_STATE_DB / FAELIGHT_STATE_DIR / FAELIGHT_ADE -> ZERO_STATE_DB /
+                  ZERO_STATE_DIR / ZERO_ADE, no alias: the sweep of rc files, nsh config,
+                  Hyprland, systemd user units, ~/.local/bin and desktop entries found no caller
+                  outside the repo
+    APPROVED,     D-Bus org.faelight.Forest -> org.zero.Core, paths /org/zero/Core/*, interfaces
+    not applied   org.zero.Core.Health/Intent/Friday/Deploy; protocol GetForestContext /
+                  ForestContext -> GetContext / Context; get_forest_context -> get_context; the
+                  log tag forest-bus -> bus
+    commit gate   every commit script runs cargo test --workspace --no-fail-fast, rustfmt on the
+                  touched crates and nsh-test ITSELF and refuses on any red
+```
+
+### Done this session -- all pushed, every commit through the doors
+
+```text
+    029c710e   2A  ForestDb -> StateDb: 172 lines in 17 novashell files. Plan f19094273146
+    e0ad1b8f   2B  23 Rust-only names (ShellHelper, value pipeline, repo_dir, native commands,
+                   the daemon Iface structs ...). Plan 2499429d1119
+    1c3eb646   3A  labels and test text: headers, Zero ADE, value pipeline, zero-context, the
+                   README subtitle removed (ruling F), nsh-test echoes zero. Plan fe0659339df7
+    9ec60a01   3A fix  parser.rs asserted kind.contains("forest"); pushed red in 1c3eb646
+                   because that commit was not gated. One word; the gate was born here
+    cb2a9cd8   3B  the sayings speak as Project 0, the metaphors rewritten: 71 edits in 23 files.
+                   Plan f4ba1ff8900b
+    719cb38d   5A  the env vars are ZERO_*. Plan f8dea0ee90a9
+```
+
+Doors on every commit from 9ec60a01 on ran inside the commit script: cargo test 28 of 28, rustfmt
+clean in every touched crate, nsh-test 202/202; d 0 failed.
+
+### THE CENSUS at 719cb38d -- the line to beat
+
+```text
+    1,705 live lines in 199 files (2,075 at the start of the session)
+      729  markdown in live intents   excluded by ruling B
+      547  markdown, docs             pass 9
+      271  Rust strings
+       25  Rust code and identifiers  all held names (below)
+       67  TOML
+       46  Rust comments
+       20  scripts and other
+    976 lines are the work (1,346 at the start of the session)
+    History directories are complete, decisions, philosophy, cancelled, incidents. A line counts by
+    code first, then strings, then comments; the census script follows strings across lines
+```
+
+### Next, in order
+
+```text
+    5B  the plan REFUSED on a false collision: zero/engine/src/domains/weight_engine/mod.rs:334 has
+        an unrelated "Context" string. Narrow the engine collision check to
+        zero/engine/src/domains/daemon/mod.rs, re-plan, apply, ship, gated commit. After ship:
+        pgrep -af zero-daemon -- if it runs, restart it so both ends speak GetContext
+    5C  typed commands and flags, alias first: forest-stats / fstats, cp-forest, mv-forest,
+        --forest, dashboard forest, forest-ade, the forest theme and prompt_style, nl.rs phrases
+        (check forest, forest health, forest tools, forest events); with them forest_stats_*,
+        dashboard_forest, forest_flags. The sweep found none of these outside the repo
+    4   zombie code: the FOREST_ env prefix (commands/mod.rs), faelight-snapshot (zero-update
+        --snapshot), faelight-memory / faelight-insightd / scripts/faelight-context checks (engine
+        strategy), zero/packages/faelight in nsh-test, zero-git risk "faelight snapshot", the tree
+        icon arg on the ADE launcher; plus the pass-1 list. zero-daemon is not on the bus -- is it
+        run at all? Friday's "failed 3 times" counts a grep with no match as a failure
+    6   schema: the forest_* tables (about 137 SQL lines), friday_knowledge domain='forest' keys,
+        Friday's seeded facts and proposal texts, the goal title "Restore forest health to 95%+"
+        (deduplicated by title), the table-name labels. ALTER TABLE with a rehearsed rollback
+    7   the compatibility links and zero-doctor's link probe
+    8   the tree, INT-267
+    9   docs: 547 markdown lines, teach's lessons, forest-resilience.md, zero-docs, AGENTS.md's
+        ForestDb
+    10  the guard; the retired-name tests; zero_prefix_is_categorized_like_faelight; the nsh-test
+        case names repl_206_forest_home..., repl_230_absent_forest... (stored in state.db results:
+        renaming breaks their history -- decide). Exempt: zero-gen's dictionary word forest.
+        Then cicomplete 247 and 252
+```
+
+### Tools in ~/.cache/zero -- reuse, do not rewrite
+
+```text
+    census-6c5139205bd1.py   read-only census; must reproduce the line to beat before any pass
+    pass5b-a539de398fd5.py   5B plan/apply, a fragment editor; its engine collision regex needs
+                             narrowing (a new version, rehearsed)
+    the apply engine         start and end markers searched independently over the whole file;
+                             identical repeated blocks go as one counted fpatch call; an ASCII
+                             patch() block at the end of a file. Rehearsed on copies first
+    the commit gate          commit script = changed files exactly the plan, then cargo test
+                             --no-fail-fast, rustfmt, nsh-test; any red refuses
+```
+
+### What this session added to the method
+
+```text
+    one reply     plan (read-only), then apply + ship + reload + gated commit in one reply
+    the gate      a commit cannot land red, even when every block is pasted at once
+    recon         every command guards for a missing binary (Omarchy has no crontab)
+    pairing       a plan guard pairs identical literals only; a test checking the same concept
+                  with a different literal is caught only by cargo test -- so the gate is a door
+    stand-ins     must carry the real file's shapes: repeated identical blocks, box-drawn runs,
+                  unrelated uses of a new name
+    collisions    scope a collision check to the files that define the contract, not the crate
+```
+
+## 2026-09-28, PASS 1 -- THE COMMENTS ARE DONE; 79 HELD LINES WAIT FOR THEIR PASSES -- superseded by the 2026-09-29 PASSES 2, 3 AND 5A section above
 
 READ THIS FIRST WHEN PICKING UP. It supersedes "THE CENSUS, AND THE PASSES THAT FINISH IT" above,
 whose rulings, passes, findings and method still stand. The script that wrote this refused to
