@@ -1801,7 +1801,7 @@ pub fn new_intent(ctx: &AppContext, category: &str, template: &str, title: &str)
         ],
     )?;
 
-    // `banana` used to work: the old match fell through `_ => ("future", "faelight")`,
+    // `banana` used to work: the old match fell through to a catch-all arm,
     // silently filing an unknown template as a future intent. Now it is an error.
     let (_, type_tag, tags, status) = TEMPLATES
         .iter()
@@ -3078,7 +3078,7 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!();
-    // Forest state
+    // State
     println!("  {} State:", "→".dimmed());
     println!(
         "    {} {} complete  {} planned",

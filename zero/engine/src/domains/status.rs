@@ -1,5 +1,5 @@
 //! INT-251 v23 Pillar 5 -- The One-Mind Answer
-//! core status returns a coherent narrative of the forest state
+//! core status returns a coherent narrative of the current state
 
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
@@ -13,7 +13,7 @@ fn now_ts() -> i64 {
         .unwrap_or(0)
 }
 
-/// The one-mind answer: synthesize forest state into a single readable narrative
+/// The one-mind answer: synthesize the current state into a single readable narrative
 pub fn run(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();

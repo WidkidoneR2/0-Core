@@ -1,4 +1,4 @@
-//! autobiography domain — the forest narrates its own goal history (Core v9 Phase 5)
+//! autobiography domain — Project 0 narrates its own goal history (Core v9 Phase 5)
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -86,13 +86,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     let accepted = goals.iter().filter(|g| g.5 == "accepted").count();
     let rejected = goals.iter().filter(|g| g.5 == "rejected").count();
     let pending = total - accepted - rejected;
-    // INT-250: git, not /etc/faelight/COMMITS.
-    //
-    // NixOS generated that file declaratively; the machine has not been NixOS since 2026-08-26,
-    // so the read returned "" and line 120's `if !total_commits.is_empty()` skipped the stat
-    // entirely. Three weeks of an autobiography quietly missing its commit count -- no error,
-    // no empty value on screen, just an absent line nobody could notice.
-    //
+    // INT-250: git, not the old commit-count file.
     // "?" rather than "" or 0 when git cannot answer: the same convention zero-update uses
     // for health. It says COULD NOT DETERMINE, which is different from zero and different from
     // a line that was never printed.

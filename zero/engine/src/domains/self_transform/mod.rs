@@ -1,4 +1,4 @@
-//! self_transform domain — Core v16: The Forest Redesigns Itself
+//! self_transform domain — Core v16: Project 0 Redesigns Itself
 //!
 //! The Prime Directive (encoded literally):
 //! 1. Explain reasoning — every proposal must cite evidence

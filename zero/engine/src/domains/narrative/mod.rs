@@ -1,7 +1,7 @@
-// core narrative — Forest Narrative
+// core narrative — Narrative
 // Core v7 Phase 5 — INT-122
 //
-// "The forest becomes a historian of its own evolution."
+// "Project 0 becomes a historian of its own evolution."
 
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;

@@ -1,7 +1,7 @@
 // core bootstrap — Bootstrap Intelligence
 // Core v7 Phase 2 — INT-122
 //
-// "The forest reads its own intent ledger and registry
+// "Project 0 reads its own intent ledger and registry
 //  to generate a reconstruction plan. Not automation — guidance."
 
 use crate::app::context::AppContext;
@@ -58,16 +58,6 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         "  │    ship   -- builds the release and deploys {} tools",
         tools.len().to_string().bright_white()
     );
-
-    // ⚠️ THE "④ Interfaces" SECTION IS GONE, 2026-09-20. It said "dotfiles managed by
-    // home-manager (NixOS)" -- on a machine where home-manager is not installed and NOTHING
-    // deploys dotfiles. Measured: ~/.config holds no symlink into 0-core, and 0-core/config
-    // does not exist.
-    //
-    // ⭐ THIS IS A BOOTSTRAP GUIDE, so a wrong step is worse here than anywhere else: someone
-    // rebuilding from scratch would wait for a mechanism that was never going to run. A guide
-    // that omits a step it does not have is honest; one that describes a fiction is not.
-    // When something does deploy dotfiles, it earns a section by existing.
 
     // 5. Active intents
     println!("  │");
@@ -336,10 +326,6 @@ fn get_commit_count(core_root: &str) -> usize {
 }
 
 /// The operating system, READ rather than typed.
-///
-/// This line said NixOS 26.05 (Yarara) until 2026-09-20, twenty-five days after the machine
-/// stopped being NixOS -- in the SYSTEM REQUIREMENTS of a rebuild guide, where a wrong answer
-/// sends someone to install the wrong operating system.
 ///
 /// A TYPED FACT ABOUT THE MACHINE GOES STALE THE DAY THE MACHINE CHANGES, and nothing notices,
 /// because nothing compares it to anything. /etc/os-release is standard and every distribution

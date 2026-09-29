@@ -118,17 +118,17 @@ pub enum Commands {
         #[command(subcommand)]
         command: DaemonCommands,
     },
-    /// Core v16 — Self-Transformation: The Forest Redesigns Itself
+    /// Core v16 — Self-Transformation: Project 0 Redesigns Itself
     Self_ {
         #[command(subcommand)]
         command: SelfCommands,
     },
-    /// Forest journal — the system writes its own story
+    /// Journal — the system writes its own story
     Journal {
         #[command(subcommand)]
         command: JournalCommands,
     },
-    /// Forest documentation — access guides and references
+    /// Documentation — access guides and references
     Docs {
         #[command(subcommand)]
         command: DocsCommands,
@@ -143,7 +143,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: AlignCommands,
     },
-    /// Engine coordination layer — synchronize and monitor all forest engines
+    /// Engine coordination layer — synchronize and monitor all engines
     Engines {
         #[command(subcommand)]
         command: EnginesCommands,
@@ -178,7 +178,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: StressCommands,
     },
-    /// Prediction engine — the forest anticipates (Core v11)
+    /// Prediction engine — Project 0 anticipates (Core v11)
     Predict {
         #[command(subcommand)]
         command: PredictCommands,
@@ -198,7 +198,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: DbCommands,
     },
-    /// Genealogy — the forest remembers how it grew (INT-153)
+    /// Genealogy — Project 0 remembers how it grew (INT-153)
     Genealogy {
         #[command(subcommand)]
         command: GenealogyCommands,
@@ -238,7 +238,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: PrioritizeCommands,
     },
-    /// Intent autobiography — the forest narrates its own goal history (Core v9)
+    /// Intent autobiography — Project 0 narrates its own goal history (Core v9)
     Autobiography {
         #[command(subcommand)]
         command: AutobiographyCommands,
@@ -278,7 +278,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: DepsCommands,
     },
-    /// Forest narrative — the story of how the forest became what it is
+    /// Narrative — the story of how Project 0 became what it is
     Narrative {
         /// Show narrative since a version (e.g. v10.0.0)
         #[arg(long)]
@@ -287,7 +287,7 @@ pub enum Commands {
         #[arg(long)]
         intent: Option<String>,
     },
-    /// Snapshot narrative — the forest writes its own autobiography
+    /// Snapshot narrative — Project 0 writes its own autobiography
     Snapshot {
         /// Output as machine-readable JSON reconstruction seed
         #[arg(long)]
@@ -311,9 +311,9 @@ pub enum Commands {
         #[command(subcommand)]
         command: AuditCommands,
     },
-    /// What the forest has learned — heuristics summary
+    /// What Project 0 has learned — heuristics summary
     Lessons,
-    /// The forest narrative — 30 day story
+    /// The narrative — 30 day story
     Story,
     /// Judgment advisory for current system state
     Advise {
@@ -383,7 +383,7 @@ pub enum KnowledgeCommands {
         /// Resolution or context (default: empty)
         resolution: Option<String>,
     },
-    /// Seed forest lessons
+    /// Seed lessons
     Seed,
     /// Show full entry detail
     Show { id: String },
@@ -411,7 +411,7 @@ pub enum FridayArchCommands {
     SimulateAccuracy,
     /// Show simulation accuracy stats
     SimulateStats,
-    /// Generate a new Friday proposal from current forest context
+    /// Generate a new Friday proposal from current context
     Propose,
     /// Approve a pending Friday proposal
     Approve { id: String },
@@ -433,7 +433,7 @@ pub enum SynthesizeCommands {
 pub enum FridayCommands {
     /// Show what Friday has observed and learned
     Status,
-    /// Ask Friday a question about the forest
+    /// Ask Friday a question about Project 0
     Ask { question: String },
     /// Trigger observation cycle manually
     Observe,
@@ -443,7 +443,7 @@ pub enum FridayCommands {
     Suggest,
     /// Update personality from interaction data
     UpdatePersonality,
-    /// Seed Linux/Rust/Forest knowledge base
+    /// Seed Linux/Rust/Project 0 knowledge base
     SeedKnowledge,
     /// Run the learning loop
     LearningLoop,
@@ -892,9 +892,9 @@ pub enum WeightCommands {
 }
 #[derive(Debug, Clone, Subcommand)]
 pub enum DaemonCommands {
-    /// Current daemon health and forest context
+    /// Current daemon health and context
     Status,
-    /// Full forest context snapshot from daemon
+    /// Full context snapshot from daemon
     Context,
     /// Recent engine signals
     Signals {
@@ -1310,9 +1310,9 @@ pub enum DepsCommands {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum GoalsCommands {
-    /// List all active forest goals
+    /// List all active goals
     List,
-    /// Generate new goals from current forest evidence
+    /// Generate new goals from current evidence
     Generate,
     /// Ranked goal list with reasoning
     Priority,
@@ -1487,7 +1487,7 @@ pub enum TradeoffCommands {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum PrioritizeCommands {
-    /// Rerank all goals given current forest state
+    /// Rerank all goals given current state
     Run,
     /// Explain why goals are ranked as they are
     Explain,
@@ -1495,7 +1495,7 @@ pub enum PrioritizeCommands {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum AutobiographyCommands {
-    /// Narrate the forest's goal history
+    /// Narrate Project 0's goal history
     Narrate {
         /// Filter by version (e.g. 11.1.0)
         version: Option<String>,
@@ -1572,7 +1572,7 @@ pub enum StrategyCommands {
         /// Second goal ID
         goal2: String,
     },
-    /// How close is the forest to Friday-level capability?
+    /// How close is Project 0 to Friday-level capability?
     FridayReadiness,
     /// What evidence would justify more autonomy?
     Trust,
@@ -1680,24 +1680,24 @@ pub enum AutonomyCommands {
 
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum PartnerCommands {
-    /// Forest proposes a new intent based on observed patterns
+    /// Project 0 proposes a new intent based on observed patterns
     Propose,
-    /// Forest shares opinion on an existing intent
+    /// Project 0 shares its opinion on an existing intent
     Discuss {
         /// Intent ID to discuss
         intent_id: String,
     },
-    /// Forest respectfully pushes back on an intent
+    /// Project 0 respectfully pushes back on an intent
     Disagree {
         /// Intent ID to push back on
         intent_id: String,
     },
-    /// Consult the forest before making a decision
+    /// Consult Project 0 before making a decision
     Consult {
-        /// Question to ask the forest
+        /// Question to ask Project 0
         question: String,
     },
-    /// What has the forest learned about your work style?
+    /// What has Project 0 learned about your work style?
     Reflect,
     /// What patterns define how you work?
     Pattern,
@@ -1705,11 +1705,11 @@ pub enum PartnerCommands {
     Growth,
     /// Show recent pushback moments
     Pushback,
-    /// Forest view of the optimal path forward
+    /// Project 0's view of the optimal path forward
     Roadmap,
-    /// Why does the forest recommend this roadmap?
+    /// Why does Project 0 recommend this roadmap?
     RoadmapWhy,
-    /// How does forest roadmap differ from current plan?
+    /// How does Project 0's roadmap differ from current plan?
     RoadmapDiff,
     /// Partner system status and readiness
     Status,
@@ -1751,7 +1751,7 @@ pub enum DbCommands {
     Status,
     /// VACUUM to reclaim space
     Compact,
-    /// Open state.db in Forest TUI browser (INT-342)
+    /// Open state.db in the TUI browser (INT-342)
     Browse {
         /// Jump directly to this table
         table: Option<String>,

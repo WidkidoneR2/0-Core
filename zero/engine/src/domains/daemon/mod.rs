@@ -51,7 +51,7 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
             return Ok(());
         }
     }
-    // Get forest context
+    // Get context
     match send_command(serde_json::json!("GetForestContext")) {
         Ok(resp) => {
             if let Some(payload) = resp.get("payload") {

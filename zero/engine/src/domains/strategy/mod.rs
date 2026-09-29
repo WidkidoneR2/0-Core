@@ -1,7 +1,7 @@
 // INT-151 Core v12 — Strategy Domain
 // Phase 1: Horizon Engine (now/week/quarter planning synthesis)
 //
-// The forest plans across multiple horizons.
+// Project 0 plans across multiple horizons.
 // v11 tells you what WILL happen.
 // v12 tells you what TO DO about it.
 use crate::app::context::AppContext;
@@ -467,7 +467,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     );
     println!();
 
-    // Forest stats
+    // Stats
     println!(
         "  {} {}",
         "▶".bright_cyan(),
@@ -1735,7 +1735,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     (total, factors)
 }
 
-/// core strategy friday — how close is the forest to Friday-level capability?
+/// core strategy friday — how close is Project 0 to Friday-level capability?
 pub fn friday_readiness(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let (score, factors) = compute_friday_score(ctx);
@@ -2390,7 +2390,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-// ── INT-181: Forest Next Intent Engine ───────────────────────────────────────
+// ── INT-181: Next Intent Engine ──────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 struct ScoredIntent {

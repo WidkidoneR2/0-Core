@@ -679,7 +679,7 @@ pub mod checks {
                 if let Ok(entries) = std::fs::read_dir(dir_path) {
                     for entry in entries.flatten() {
                         let path = entry.path();
-                        // Skip arch-era/ -- archived Arch intents are not active NixOS intents
+                        // Skip arch-era/ -- archived Arch intents are not active intents
                         if path.to_string_lossy().contains("arch-era") {
                             continue;
                         }

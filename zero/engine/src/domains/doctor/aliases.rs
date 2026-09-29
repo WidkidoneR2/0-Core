@@ -9,15 +9,15 @@ use zero_core::paths;
 /// Tools that should have an alias, READ FROM THE REGISTRY rather than named here.
 ///
 /// WARNING: this was a hardcoded list of eight. By 2026-08-27 it named a tool deleted
-/// the same day (faelight-lock), a subcommand that is not a binary (intent, which is
+/// the same day (the old lock tool), a subcommand that is not a binary (intent, which is
 /// core intent), and a package that is not a cargo target so is never installed
-/// (faelight-logout). It reported All 8 tools have aliases while asking only whether
+/// (the old logout tool). It reported All 8 tools have aliases while asking only whether
 /// an alias EXISTED, never whether the tool did.
 ///
 /// Two consumers also skipped zero-daemon and zero-core by name -- exclusions
 /// guarding entries the list did not contain.
 ///
-/// Same failure as check_scripts and the faelight-launcher registry entry: a hardcoded
+/// Same failure as check_scripts and the old launcher's registry entry: a hardcoded
 /// census goes stale silently and the check keeps passing. tools.toml knows what
 /// exists and carries deployable and retired flags, so removing a tool now updates
 /// this check for free.

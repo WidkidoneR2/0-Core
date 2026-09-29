@@ -1,7 +1,7 @@
 use chrono;
 use rusqlite;
 // INT-153 — Intent Genealogy Domain
-// The forest remembers how it grew.
+// Project 0 remembers how it grew.
 // Every intent has parents and children.
 // Genealogy makes the lineage visible.
 

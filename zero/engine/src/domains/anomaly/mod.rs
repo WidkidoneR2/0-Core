@@ -2,7 +2,7 @@
 // Core v7 Phase 1 — INT-122
 //
 // "If a file changes without a corresponding decision or intent,
-//  the forest notices. Not blocking — observing."
+//  Project 0 notices. Not blocking — observing."
 
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;

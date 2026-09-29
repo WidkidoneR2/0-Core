@@ -1,4 +1,4 @@
-//! evolution domain — Core v8: The forest refines itself
+//! evolution domain — Core v8: Project 0 refines itself
 //! Phase 1: Architecture map  (pure data, no suggestions)
 //! Phase 2: Tools usage       (pure data, no suggestions)
 //!

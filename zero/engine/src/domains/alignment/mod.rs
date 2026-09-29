@@ -1,4 +1,4 @@
-//! alignment domain — Core v15, the forest stays true to what matters
+//! alignment domain — Core v15, Project 0 stays true to what matters
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;

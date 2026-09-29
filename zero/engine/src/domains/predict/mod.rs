@@ -2,7 +2,7 @@
 // Phase 1: Session Pattern Engine
 // Phase 2: Health Trajectory Forecasting
 //
-// The forest anticipates before it happens.
+// Project 0 anticipates before it happens.
 // Pattern recognition applied with honesty about confidence.
 
 use crate::app::context::AppContext;

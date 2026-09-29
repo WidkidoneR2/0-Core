@@ -4,7 +4,7 @@
 //! again the moment it reads the database. Breaking the convention for one
 //! domain costs more than an underscore.
 //!
-//! journal domain — the forest writes its own story
+//! journal domain — Project 0 writes its own story
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;

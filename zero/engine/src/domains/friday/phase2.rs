@@ -280,7 +280,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .ok();
-    // Plan confidence from forest state
+    // Plan confidence from current state
     let open_count = open_intents.len();
     let plan_conf: f64 = if health == 100 && open_count <= 3 {
         0.84

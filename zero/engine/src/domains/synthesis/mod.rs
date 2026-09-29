@@ -1,5 +1,5 @@
 //! INT-212 -- Core v18: Synthesis Engine
-//! The forest speaks with one voice.
+//! Project 0 speaks with one voice.
 //! Combines v17 pattern weights, health, alignment, Friday patterns into one coherent brief.
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;

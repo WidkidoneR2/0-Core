@@ -12,7 +12,7 @@ use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 
-/// Emit a structured event to the forest event bus.
+/// Emit a structured event to the event bus.
 /// This is the v23 canonical emit -- all tools should use this.
 /// domain: the tool/subsystem emitting (e.g. "deploy", "shell", "git")
 /// kind:   what happened (e.g. "deploy_completed", "command_run")

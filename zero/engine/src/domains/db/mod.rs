@@ -1,5 +1,5 @@
 // INT-166 — state.db Backup and Recovery Domain
-// The forest protects its own memory.
+// Project 0 protects its own memory.
 
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;

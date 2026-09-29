@@ -1,6 +1,6 @@
 // INT-156 — Core v13 Autonomy Foundation
 // DORMANT — activates when Jarvis score >= 95/100
-// The forest acts within mandates the human has defined.
+// Project 0 acts within mandates the human has defined.
 // No autonomous action executes without explicit authorization.
 
 use crate::app::context::AppContext;

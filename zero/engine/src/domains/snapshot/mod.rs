@@ -1,7 +1,7 @@
 // core snapshot — Snapshot Narrative
 // Core v7 Phase 6 — INT-122
 //
-// "The forest writes its own autobiography at a point in time.
+// "Project 0 writes its own autobiography at a point in time.
 //  Two voices, same data — human and machine."
 
 use crate::app::context::AppContext;

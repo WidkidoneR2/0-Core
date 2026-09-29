@@ -1,6 +1,6 @@
 //! INT-234 -- Core v21: Friday Planning Layer
 //! Session-aware context, forward-chaining inference, anticipation.
-//! v20 predicts across the forest. v21 predicts within the session.
+//! v20 predicts across Project 0. v21 predicts within the session.
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 fn now_ts() -> i64 {

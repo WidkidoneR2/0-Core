@@ -1,7 +1,7 @@
 //! INT-215 -- Canonical Signal struct and forest_events_v2
 //! Append-only. Monotonic sequence. Schema validation. Causality chains.
 
-/// The fundamental unit of forest knowledge
+/// The fundamental unit of knowledge
 #[allow(dead_code)]
 pub enum SignalKind {
     Observation,    // raw facts -- health=100, commit_made

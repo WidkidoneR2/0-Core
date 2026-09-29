@@ -183,7 +183,7 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
     }
     Ok(())
 }
-/// Seed initial Friday knowledge from forest state
+/// Seed initial Friday knowledge from current state
 fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
@@ -299,7 +299,7 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     }
     Ok(())
 }
-/// Observe recent forest activity and store in friday_observations
+/// Observe recent activity and store in friday_observations
 pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
@@ -465,7 +465,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// `core friday ask <question>` -- Q&A from stored forest knowledge
+/// `core friday ask <question>` -- Q&A from stored knowledge
 pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     seed_knowledge(ctx)?;
@@ -1016,7 +1016,7 @@ pub fn update_personality(ctx: &AppContext) -> CoreResult<()> {
     );
     Ok(())
 }
-/// Phase 4: Seed Linux/Rust/Forest knowledge base
+/// Phase 4: Seed Linux/Rust/Project 0 knowledge base
 pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
@@ -1042,7 +1042,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         ("rust", "String is heap-allocated, owned. &str is a borrowed string slice. &String coerces to &str.", 0.90),
         ("rust", "Result<T, E> for recoverable errors. ? operator propagates. unwrap() panics on Err.", 0.95),
         ("rust", "Vec<T> is a growable array. Use iter() for borrowing, into_iter() for consuming.", 0.90),
-        // Forest tools
+        // Project 0 tools
         ("forest", "The forest has 50+ custom Rust tools. Every tool is understood completely.", 0.95),
         ("forest", "core is the orchestrator binary. It has 50+ domains including friday, synthesis, predict, doctor.", 0.95),
         ("forest", "fsh is the daily driver shell. query, fsearch, patch, edit, run are native builtins.", 0.95),
@@ -1202,7 +1202,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    // Gather forest signals to ground the proposal
+    // Gather signals to ground the proposal
     let pattern_count: i64 = db
         .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
         .unwrap_or(0);
@@ -1716,7 +1716,7 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
     );
     Ok(())
 }
-/// Friday writes a daily journal entry -- her own perspective on the forest.
+/// Friday writes a daily journal entry -- her own perspective on Project 0.
 pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
@@ -1760,7 +1760,7 @@ pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
             date_str, obs_count, pattern_count
         )
     };
-    // Write to journal via forest journal system
+    // Write to journal via the journal system
     let _ = db.execute(
         "INSERT INTO friday_observations (timestamp, source, kind, content)
          VALUES (?1, 'friday', 'journal', ?2)",
@@ -1797,7 +1797,7 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
             |r| r.get(0),
         )
         .unwrap_or(0);
-    // Fallback: read from friday_knowledge forest fact
+    // Fallback: read from a friday_knowledge fact
     let complete_intents = if complete_intents == 0 {
         186
     } else {

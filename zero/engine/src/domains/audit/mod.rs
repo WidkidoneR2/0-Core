@@ -1,7 +1,7 @@
 // core audit — Tool Intelligence Layer
 // INT-123 Phase 1: scan, show, stale, coverage
 //
-// "The forest notices. You decide."
+// "Project 0 notices. You decide."
 
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;

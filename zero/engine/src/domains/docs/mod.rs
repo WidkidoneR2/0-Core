@@ -1,4 +1,4 @@
-//! docs domain — access forest documentation
+//! docs domain — access Project 0 documentation
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;

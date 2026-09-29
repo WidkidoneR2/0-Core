@@ -1,7 +1,7 @@
 // core deps — Dependency Intelligence
 // Core v7 Phase 4 — INT-122
 //
-// "The forest understands its own dependency tree
+// "Project 0 understands its own dependency tree
 //  and can reason about the risk of changes."
 
 use crate::app::context::AppContext;

@@ -48,7 +48,7 @@ impl ConfidenceTier {
     }
 }
 
-/// What Friday receives -- a snapshot of forest state after each command
+/// What Friday receives -- a snapshot of state after each command
 #[derive(Debug, Clone)]
 pub struct FridayInput {
     /// The shell command that just ran (if any)
@@ -59,7 +59,7 @@ pub struct FridayInput {
     pub duration_ms: Option<u64>,
     /// Currently active intent ID
     pub intent_id: Option<String>,
-    /// Current forest health percentage
+    /// Current health percentage
     pub health: Option<u32>,
     /// Unix timestamp
     pub timestamp: i64,

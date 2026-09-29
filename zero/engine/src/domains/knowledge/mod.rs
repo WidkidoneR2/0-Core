@@ -1,6 +1,6 @@
 //! INT-218 -- Friday Knowledge Engine
 //! Situated Learning and Conflict Resolution
-//! The forest has made every mistake once.
+//! Project 0 has made every mistake once.
 //! Friday makes sure it only needs to make each mistake once.
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
@@ -217,7 +217,7 @@ pub fn normalize_signature(error: &str) -> String {
     }
     re_like(&s).chars().take(200).collect()
 }
-/// Seed the knowledge engine with hard-won forest lessons
+/// Seed the knowledge engine with hard-won lessons
 pub fn seed_forest_lessons(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;

@@ -225,7 +225,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     // following it got you the wrong operating system, binaries copied where nothing looks,
     // and a cd into a directory that does not exist.
     //
-    //   was  Install NixOS 26.05 (Yarara)     the OS was replaced on 2026-08-26
+    //   was  Install the previous OS          the OS was replaced on 2026-08-26
     //   was  cp target/release/* scripts/     nothing has read scripts/ since; ship deploys
     //   was  Deploy interfaces / cd config/   0-core/config does not exist and cd deploys
     //                                         nothing -- the step described no action at all
@@ -255,9 +255,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    // The comparator was "NixOS reproduces state." -- a live contrast when the machine
-    // ran it. THE POINT SURVIVES WITHOUT IT: reproducing state is the ordinary claim any
-    // configuration system makes, and reproducing the REASONING is the one this does not.
     println!("  │  💡 A configuration reproduces state.");
     println!(
         "  │    Project 0 reproduces state {} reasoning.",
@@ -394,7 +391,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         );
     }
 
-    // INT-019: forest-aware notifications -- health / integrity drops
+    // INT-019: notifications -- health / integrity drops
     // ⚠️ THE NOTIFICATION FIRED ON A NUMBER THAT IS NOT A VERDICT. The percentage counts every
     // non-passing check equally and its denominator shifts as checks are added or excluded, so it
     // fell twice this month while the system became strictly MORE honest -- once when a lying check
@@ -831,7 +828,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-247 Layer 3a: THE ONLY WRITER of the health cache, and it now names the file through
     // the same accessor its fourteen readers use. Before this, the writer built the directory by
     // hand and every reader built the file by hand -- so nothing tied them together except the
-    // string ".cache/faelight", repeated fifteen times.
+    // same cache-directory string, repeated fifteen times.
     let health_file = zero_core::paths::health_status_file();
     if let Some(dir) = health_file.parent() {
         let _ = std::fs::create_dir_all(dir);
@@ -1338,7 +1335,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// INT-094: forest hygiene -- orphan accumulation surfaced from zero-deadwood --summary.
+/// INT-094: hygiene -- orphan accumulation surfaced from zero-deadwood --summary.
 /// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
 
 /// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --

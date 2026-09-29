@@ -1,4 +1,4 @@
-//! engines domain — coordination layer for all forest engines
+//! engines domain — coordination layer for all engines
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;

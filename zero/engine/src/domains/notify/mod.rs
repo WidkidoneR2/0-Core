@@ -123,7 +123,7 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
 }
 
 /// Fire-and-forget desktop notification via D-Bus (org.freedesktop.Notifications).
-/// Proven path: busctl. Used by forest reactions (intent complete, health/integrity drops).
+/// Proven path: busctl. Used by reactions (intent complete, health/integrity drops).
 ///
 /// ⚠️ HONOURS ZERO_NO_NOTIFY, AND HERE IS WHAT THAT IS FOR. nsh spawns `core doctor run` at
 /// startup to refresh a stale health event (INT-124), detached and with stdout and stderr to

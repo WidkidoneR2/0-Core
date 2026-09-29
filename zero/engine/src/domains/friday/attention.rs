@@ -96,7 +96,7 @@ pub fn compute_risk(event_type: &str, event_detail: &str) -> f64 {
 pub fn compute_strategic_relevance(db: &Connection, event_detail: &str) -> f64 {
     // Get active intent
     // INT-071: read focus.toml (written by cistart, source of truth) first; the
-    // shell_state focus_intent row went stale at the NixOS migration. Matches
+    // shell_state focus_intent row went stale at an earlier OS migration. Matches
     // friday-chat and NovaShell. Without this, every event scored at the
     // no-active-intent baseline even during focused work.
     let active_intent: Option<String> = {
