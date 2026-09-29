@@ -2827,8 +2827,9 @@ and the apply's own proof that the comment-stripped files are identical before a
 - [x] The `faelight` unified CLI is decided: renamed to `0` with the same subcommands, or deleted
       with `nsh` and `core` called directly. Written down either way
       <!-- evidence: ruled 2026-09-28 (ruling D, adopted as recommended): DELETED -- see LAYERS 1 AND 2, 2026-09-15, where every gate of the decision test is answered and the CLI retired. A command named 0 is its own future intent. -->
-- [ ] No layer was done in the same week as another. If one was, say so here and say why -- the
+- [x] No layer was done in the same week as another. If one was, say so here and say why -- the
       pace rule is a gate and breaking it is a thing to record, not hide
+      <!-- evidence: 2026-09-29. BROKEN, AND RECORDED. Layers 0, 1 and 2 all landed 2026-09-15; layer 3 began 2026-09-17 with the state alias, inside the same week; passes 2 through 5D, the reload fix, STATEDB and NO NIXOS A, B1 and B2 all landed 2026-09-29. Why: broken on purpose to finish the rename, as the 2026-09-29 START HERE records. What held: every pass went through its own plan, fingerprint, doors and pushed commit. -->
 
 - [ ] THE FINISH LINE, ruled by Christian 2026-09-24: no LIVE file, path, identifier, table or
       command says faelight or forest. History is exempt by the standing rule -- completed intents,
