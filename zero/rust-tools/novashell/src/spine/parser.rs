@@ -258,7 +258,7 @@ impl Parser {
                         //
                         // ⚠️ A PIPELINE ALONE IS NOT ENOUGH TO DECIDE THIS. `select * from ps where
                         // cpu > 1` has no pipe and begins with a verb rather than a source, so the
-                        // is_forest_pipeline check cannot rescue it -- without this guard the spine
+                        // is_value_pipeline check cannot rescue it -- without this guard the spine
                         // would claim it and write a file called `1` instead of running the query.
                         let query_shaped = words.iter().any(|w| {
                             matches!(

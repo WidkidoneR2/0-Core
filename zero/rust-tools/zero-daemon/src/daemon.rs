@@ -95,7 +95,7 @@ impl Daemon {
 
         // INT-294 -- Event Bus v2: D-Bus service
         tokio::spawn(async move {
-            crate::dbus::run_forest_bus().await;
+            crate::dbus::run_bus().await;
         });
 
         // Bind to Unix socket

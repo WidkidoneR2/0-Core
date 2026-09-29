@@ -218,7 +218,7 @@ pub fn normalize_signature(error: &str) -> String {
     re_like(&s).chars().take(200).collect()
 }
 /// Seed the knowledge engine with hard-won lessons
-pub fn seed_forest_lessons(ctx: &AppContext) -> CoreResult<()> {
+pub fn seed_lessons(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();

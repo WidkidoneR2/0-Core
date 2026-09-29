@@ -59,7 +59,7 @@ pub mod test_support {
             capabilities: CapabilityContext::unprivileged(),
             home: "/tmp".to_string(),
             core_root: "/tmp/zero-test".to_string(),
-            faelight_root: "/tmp/zero-test/zero".to_string(),
+            source_root: "/tmp/zero-test/zero".to_string(),
         }
     }
 }

@@ -514,7 +514,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 &description,
                 &resolution.unwrap_or_default(),
             ),
-            KnowledgeCommand::Seed => crate::domains::knowledge::seed_forest_lessons(ctx),
+            KnowledgeCommand::Seed => crate::domains::knowledge::seed_lessons(ctx),
             KnowledgeCommand::Show { id } => crate::domains::knowledge::show(ctx, &id),
             KnowledgeCommand::Outcome { id, correct } => {
                 let is_correct = matches!(

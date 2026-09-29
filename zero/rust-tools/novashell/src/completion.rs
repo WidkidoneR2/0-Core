@@ -122,14 +122,14 @@ const PIPE_OPS: &[&str] = &[
     "where", "sort", "select", "first", "last", "count", "get", "watch", "join", "group",
 ];
 
-pub struct ForestHelper<'a> {
+pub struct ShellHelper<'a> {
     registry: SchemaRegistry,
     db: &'a crate::db::StateDb,
 }
 
-impl<'a> ForestHelper<'a> {
+impl<'a> ShellHelper<'a> {
     pub fn new(db: &'a crate::db::StateDb) -> Self {
-        ForestHelper {
+        ShellHelper {
             registry: SchemaRegistry::build(),
             db,
         }
@@ -766,7 +766,7 @@ fn cmd_description(cmd: &str) -> &'static str {
     }
 }
 
-impl<'a> Completer for ForestHelper<'a> {
+impl<'a> Completer for ShellHelper<'a> {
     type Candidate = Pair;
     fn complete(
         &self,
@@ -821,8 +821,8 @@ fn is_dangerous_command(cmd: &str) -> bool {
     DANGEROUS.contains(&cmd)
 }
 
-fn is_forest_command(cmd: &str) -> bool {
-    const FOREST: &[&str] = &[
+fn is_native_command(cmd: &str) -> bool {
+    const NATIVE_COMMANDS: &[&str] = &[
         "cistart",
         "cicomplete",
         "ds",
@@ -846,7 +846,7 @@ fn is_forest_command(cmd: &str) -> bool {
         "run",
         "query",
     ];
-    FOREST.contains(&cmd)
+    NATIVE_COMMANDS.contains(&cmd)
 }
 
 fn is_natural_language(line: &str) -> bool {
@@ -1034,7 +1034,7 @@ fn is_known_alias(cmd: &str) -> bool {
     set.contains(cmd)
 }
 
-impl<'a> Hinter for ForestHelper<'a> {
+impl<'a> Hinter for ShellHelper<'a> {
     type Hint = String;
 
     fn hint(&self, line: &str, pos: usize, _ctx: &rustyline::Context<'_>) -> Option<String> {
@@ -1060,7 +1060,7 @@ impl<'a> Hinter for ForestHelper<'a> {
     }
 }
 
-impl<'a> Highlighter for ForestHelper<'a> {
+impl<'a> Highlighter for ShellHelper<'a> {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let trimmed = line.trim_start();
         if trimmed.is_empty() {
@@ -1116,7 +1116,7 @@ impl<'a> Highlighter for ForestHelper<'a> {
 
         let cmd_color = if is_dangerous_command(first_word) {
             NEON_MAGENTA // hot magenta -- dangerous
-        } else if is_forest_command(first_word) {
+        } else if is_native_command(first_word) {
             NEON_CYAN // electric cyan -- nsh-native
         } else if is_known_command(first_word) {
             NEON_GREEN // electric green -- valid
@@ -1154,7 +1154,7 @@ impl<'a> Highlighter for ForestHelper<'a> {
         !line.is_empty()
     }
 }
-impl<'a> Validator for ForestHelper<'a> {
+impl<'a> Validator for ShellHelper<'a> {
     fn validate(
         &self,
         ctx: &mut rustyline::validate::ValidationContext,
@@ -1194,4 +1194,4 @@ impl<'a> Validator for ForestHelper<'a> {
     }
 }
 
-impl<'a> Helper for ForestHelper<'a> {}
+impl<'a> Helper for ShellHelper<'a> {}

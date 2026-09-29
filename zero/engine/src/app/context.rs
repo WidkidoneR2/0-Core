@@ -8,7 +8,7 @@ pub struct AppContext {
     pub capabilities: CapabilityContext,
     pub home: String,
     pub core_root: String,
-    pub faelight_root: String,
+    pub source_root: String,
 }
 
 impl AppContext {
@@ -21,7 +21,7 @@ impl AppContext {
         // INT-061 v2: the zero/ platform domain root. Dirs moved under
         // zero/ (registry, meta, schema, runtime, intents, policy) resolve
         // from here via ctx.fpath(); root-staying dirs keep using core_root.
-        let faelight_root = zero_core::paths::source_dir().to_string_lossy().to_string();
+        let source_root = zero_core::paths::source_dir().to_string_lossy().to_string();
         let runtime = Runtime::init()?;
         let capabilities = CapabilityContext::unprivileged();
         Ok(Self {
@@ -29,7 +29,7 @@ impl AppContext {
             capabilities,
             home,
             core_root,
-            faelight_root,
+            source_root,
         })
     }
 
@@ -37,6 +37,6 @@ impl AppContext {
     /// runtime, intents, policy). Root-staying dirs (scripts, rust-tools, engine,
     /// target, flake) use core_root directly, NOT this.
     pub fn fpath(&self, rel: &str) -> std::path::PathBuf {
-        std::path::PathBuf::from(&self.faelight_root).join(rel)
+        std::path::PathBuf::from(&self.source_root).join(rel)
     }
 }

@@ -6967,7 +6967,7 @@ fn watch_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
                 // INT-230: was unwrap_or_default(), so an absent VERSION file
                 // printed as an empty version. The other three readers of this
                 // same file said "unknown"; now they all do.
-                let version = crate::core_integration::forest_version()
+                let version = crate::core_integration::project_version()
                     .unwrap_or_else(|| "unknown".to_string());
 
                 let status = match health {
@@ -11716,7 +11716,7 @@ fn health(db: &StateDb) -> CommandResult {
     };
 
     let version =
-        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
+        crate::core_integration::project_version().unwrap_or_else(|| "unknown".to_string());
 
     let mut out = String::new();
     out.push_str(&format!(
@@ -12003,7 +12003,7 @@ fn project_list(core_root: &str) -> CommandResult {
 
     // Read version
     let version =
-        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
+        crate::core_integration::project_version().unwrap_or_else(|| "unknown".to_string());
 
     // Count intents
     // INT-230: the ONE place a zero is allowed on absence -- this renders in a
@@ -12125,7 +12125,7 @@ fn experiment_list(core_root: &str) -> CommandResult {
 
 fn version(_core_root: &str) -> CommandResult {
     let version =
-        crate::core_integration::forest_version().unwrap_or_else(|| "unknown".to_string());
+        crate::core_integration::project_version().unwrap_or_else(|| "unknown".to_string());
 
     // INT-230: the changelog read and its em-dash split live in the adapter.
     let release_name = crate::core_integration::release_name()

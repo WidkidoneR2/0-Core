@@ -814,7 +814,7 @@ impl Engine {
         // INT-201: the source list moved to value.rs beside VALUE_VERBS and is ASKED FOR here,
         // never copied. The private array this replaces held "deploys" twice and, more importantly,
         // was a second owner of the answer to "is this the query language?" -- the spine's
-        // is_forest_pipeline now asks the same list, so the two cannot drift into disagreeing about
+        // is_value_pipeline now asks the same list, so the two cannot drift into disagreeing about
         // which language a line is written in.
         // INT-196 SITE 2: A KNOWN EXCEPTION, MEASURED RATHER THAN ARGUED.
         //

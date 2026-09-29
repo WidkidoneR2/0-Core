@@ -2388,9 +2388,9 @@ fn repl_main() -> Result<()> {
     // INT-201: the helper takes its OWN handle. Borrowing it from the engine here would
     // hold an immutable borrow for the entire session, since rustyline keeps the helper.
     let db_handle = engine.db_handle();
-    let helper = completion::ForestHelper::new(&db_handle);
+    let helper = completion::ShellHelper::new(&db_handle);
     mark("line editor: constructed");
-    let mut rl: Editor<completion::ForestHelper<'_>, _> = Editor::with_config(rl_config)?;
+    let mut rl: Editor<completion::ShellHelper<'_>, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
     // Ctrl+L handled in REPL loop via clear command
 

@@ -89,7 +89,7 @@ pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
 /// drifted on what absence means: three fell back to "unknown", one to the
 /// EMPTY STRING, which printed as though it were a version. Returning Option
 /// moves that choice to the display, where it belongs.
-pub fn forest_version() -> Option<String> {
+pub fn project_version() -> Option<String> {
     let v = std::fs::read_to_string(zero_core::paths::version_file()).ok()?;
     let v = v.trim().to_string();
     if v.is_empty() {

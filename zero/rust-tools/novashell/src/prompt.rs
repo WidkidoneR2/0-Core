@@ -56,7 +56,7 @@ const C_BRANCH_CLEAN: (u8, u8, u8) = (158, 224, 78); // soft lime (neon70)
 const C_BRANCH_DIRTY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
 const C_DIMMED: (u8, u8, u8) = (90, 110, 95); // near-green quiet
                                               // Directory-context accents (INT-103): path color tells you WHAT KIND of place
-const C_DIR_FOREST: (u8, u8, u8) = (176, 246, 42); // repo core: lime (neon70)
+const C_DIR_REPO: (u8, u8, u8) = (176, 246, 42); // repo core: lime (neon70)
 const C_DIR_RUST: (u8, u8, u8) = (255, 138, 44); // Rust territory: orange (neon70)
 const C_DIR_NIX: (u8, u8, u8) = (74, 196, 255); // Nix domain: ice-blue (neon70)
 const C_DIR_INTENTS: (u8, u8, u8) = (186, 156, 255); // intents/: lavender (neon70)
@@ -139,12 +139,12 @@ fn cwd_color() -> (u8, u8, u8) {
     let cwdp = std::env::current_dir().unwrap_or_default();
     let cwd = cwdp.to_string_lossy().to_string();
     let home = std::env::var("HOME").unwrap_or_default();
-    let forest = format!("{}/0-core", home);
-    let in_forest = cwd == forest || cwd.starts_with(&format!("{}/", forest));
+    let repo_dir = format!("{}/0-core", home);
+    let in_repo = cwd == repo_dir || cwd.starts_with(&format!("{}/", repo_dir));
 
     // Zone precedence: repo sub-zones win first (so the workspace root reads
     // as the repo, not "rust" just because a workspace Cargo.toml sits there).
-    if in_forest {
+    if in_repo {
         if cwd.contains("/rust-tools") {
             return C_DIR_RUST; // Rust territory inside the repo
         }
@@ -157,7 +157,7 @@ fn cwd_color() -> (u8, u8, u8) {
         if cwd.contains("/nix") {
             return C_DIR_NIX; // the OS domain
         }
-        return C_DIR_FOREST; // repo core
+        return C_DIR_REPO; // repo core
     }
     // Outside the repo: marker-file detection.
     if Path::new("Cargo.toml").exists() {

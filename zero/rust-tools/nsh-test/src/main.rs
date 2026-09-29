@@ -178,11 +178,11 @@ fn fixture_dir() -> String {
 /// everywhere without weakening what they assert.
 ///
 /// ⚠️ THIS IS NOT A CHECKOUT AND MUST NEVER LOOK LIKE ONE. It lives under a REDIRECTED HOME that
-/// only the converted cases pass, so forest_present() -- which reads the real $HOME -- is
+/// only the converted cases pass, so repo_present() -- which reads the real $HOME -- is
 /// unaffected. Two cases genuinely need 0-Core rather than a directory shaped like one
 /// (repl_206 asserts nsh starts in the repo home; pick_without_fzf cannot reach its dependency
 /// check because INT-230 refuses first), and they must keep skipping. A fixture that satisfied
-/// forest_present would make both of them pass against three stub files and mean nothing.
+/// repo_present would make both of them pass against three stub files and mean nothing.
 ///
 /// ⚠️ EVERY FILE HERE EXISTS TO SATISFY A NAMED ASSERTION. The contents are the exact strings the
 /// cases look for and nothing else, so a reader can see at a glance that this is scaffolding.
@@ -243,7 +243,7 @@ fn write(p: &str, body: &str) -> Result<(), String> {
     std::fs::write(p, body).map_err(|e| format!("fixture write {}: {}", p, e))
 }
 
-fn forest_present() -> bool {
+fn repo_present() -> bool {
     std::path::Path::new(&home()).join("0-core/zero").is_dir()
 }
 
@@ -263,13 +263,13 @@ fn forest_present() -> bool {
 /// reasons, and a single message could only ever describe one of them -- which is the same
 /// collapse in miniature that Outcome::Skipped(&str) exists to prevent. If the reason is worth
 /// carrying, it is worth carrying accurately.
-fn forest_test(
+fn repo_test(
     name: &str,
     category: Category,
     why: &'static str,
     f: impl Fn() -> Result<(), String>,
 ) -> TestResult {
-    if !forest_present() {
+    if !repo_present() {
         return TestResult {
             name: name.to_string(),
             category,
@@ -1055,7 +1055,7 @@ fn all_tests() -> Vec<TestResult> {
     // the missing dependency. Without 0-Core, INT-230 refuses FIRST -- "pick intent: needs
     // 0-Core, which is not present" -- so the dependency check is never reached and the case
     // measures nothing. It needs a real 0-Core that MEANS something, not a directory shaped like one.
-    results.push(forest_test(
+    results.push(repo_test(
         "pick_without_fzf_names_the_dependency",
         Category::Regression,
         "needs a real 0-Core: INT-230 refuses before the fzf check is reached",
@@ -1184,7 +1184,7 @@ fn all_tests() -> Vec<TestResult> {
     // inside (the hostname), writes a probe into HOME, and the case then looks for that probe
     // on the real filesystem. If the law ever breaks, the probe is found, removed, and the case
     // fails loudly. The session directory it creates is removed whatever happens.
-    results.push(forest_test(
+    results.push(repo_test(
         "devshell_write_inside_never_reaches_host",
         Category::Regression,
         "devshell lives in the shell scripts directory and needs the checkout",
@@ -1252,7 +1252,7 @@ fn all_tests() -> Vec<TestResult> {
     //            24 GB of build output checking directories would be slow and still miss files.
     //   sockets  every socket file in the tree, /proc and /sys aside, REFUSES a connection.
     // The launch probe checks the worst holes on every launch; this checks the whole class.
-    results.push(forest_test(
+    results.push(repo_test(
         "devshell_class_nothing_writable_or_connectable",
         Category::Regression,
         "devshell lives in the shell scripts directory and needs the checkout",
@@ -1365,7 +1365,7 @@ print('CLASS-DONE')"##;
     // ⚠️ AN EXPLICIT ROOT, not the harness's working directory. The harness sets NSH_KEEP_CWD, so
     // the shell stays wherever it was launched -- a case that relied on the cwd would be asserting
     // about whatever directory the runner happened to be in.
-    results.push(forest_test(
+    results.push(repo_test(
         "repl_259_live_excludes_the_archive",
         Category::Repl,
         "the live filter is about this repository's own archive, so it needs the checkout",
@@ -1409,7 +1409,7 @@ print('CLASS-DONE')"##;
     results.push(test("core_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which core")?, "core")
     }));
-    results.push(forest_test(
+    results.push(repo_test(
         "no_retired_display_name_in_printed_strings",
         Category::Regression,
         "needs a real 0-Core: it reads the source tree, which only a checkout has",
@@ -1623,7 +1623,7 @@ print('CLASS-DONE')"##;
     // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
     // REPO HOME -- a default that only exists when the repo does. Pointed at a fixture it would
     // pass against three stub files and prove nothing about the behaviour it guards.
-    results.push(forest_test(
+    results.push(repo_test(
         "repl_206_forest_home_is_still_the_default",
         Category::Repl,
         "needs a real 0-Core: the forest-home default only exists when a forest does",
@@ -1643,7 +1643,7 @@ print('CLASS-DONE')"##;
             expect_contains(&out.join("\n"), "0-core")
         },
     ));
-    results.push(forest_test(
+    results.push(repo_test(
         "repl_start_directory_ignores_remembered_last_dir",
         Category::Repl,
         "needs a real 0-Core: the start directory it asserts only exists when a forest does",

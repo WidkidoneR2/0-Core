@@ -448,13 +448,13 @@ pub fn lower(ast: &Spanned<AstNode>, ctx: &LowerContext) -> Result<ExecutionPlan
 /// Stage 0 is skipped because it PRODUCES the value -- it is a command even in a value pipeline,
 /// which is exactly why `value::parse_pipeline` skips it too.
 #[cfg(test)]
-mod forest_pipeline_tests {
+mod value_pipeline_tests {
     use super::super::parser::parse;
     use super::*;
 
-    fn is_forest(src: &str) -> bool {
+    fn parses_as_value_pipeline(src: &str) -> bool {
         match parse(src).expect_complete("parses").node {
-            AstNode::Pipeline(pl) => is_forest_pipeline(&pl),
+            AstNode::Pipeline(pl) => is_value_pipeline(&pl),
             other => panic!("not a pipeline: {:?}", other),
         }
     }
@@ -464,16 +464,16 @@ mod forest_pipeline_tests {
         // INT-201 regression: `sort` is in VALUE_VERBS, so this was called a value pipeline,
         // refused forever by the spine, and -- once the legacy pipeline executor was deleted --
         // refused outright. Every pipeline ending in sort stopped working.
-        assert!(!is_forest("echo a | sort -k1 -rn"));
-        assert!(!is_forest("echo b | sort"));
-        assert!(!is_forest("git log | head -3"));
+        assert!(!parses_as_value_pipeline("echo a | sort -k1 -rn"));
+        assert!(!parses_as_value_pipeline("echo b | sort"));
+        assert!(!parses_as_value_pipeline("git log | head -3"));
     }
 
     #[test]
     fn a_query_verb_after_a_source_is_a_query() {
-        assert!(is_forest("ps | sort cpu desc"));
-        assert!(is_forest("tools | first 3"));
-        assert!(is_forest("intents | where status = open"));
+        assert!(parses_as_value_pipeline("ps | sort cpu desc"));
+        assert!(parses_as_value_pipeline("tools | first 3"));
+        assert!(parses_as_value_pipeline("intents | where status = open"));
     }
 
     #[test]
@@ -489,11 +489,11 @@ mod forest_pipeline_tests {
     #[test]
     fn a_source_without_a_query_verb_is_shell() {
         // Starting at a source is necessary, not sufficient -- `ps | grep brave` is a shell pipe.
-        assert!(!is_forest("ps | grep brave"));
+        assert!(!parses_as_value_pipeline("ps | grep brave"));
     }
 }
 
-fn is_forest_pipeline(pl: &super::ast::Pipeline) -> bool {
+fn is_value_pipeline(pl: &super::ast::Pipeline) -> bool {
     // A LANGUAGE IS IDENTIFIED BY WHERE IT STARTS, not by a word appearing in the middle. Asking
     // only "does a later stage name a value verb" made `echo a | sort -k1 -rn` a value pipeline,
     // because `sort` is in the vocabulary -- so the spine refused it forever, as it should refuse a
@@ -554,7 +554,7 @@ pub fn lower_pipeline(
             span: seq.first.span,
         }),
         AstNode::Pipeline(pl) => {
-            if is_forest_pipeline(pl) {
+            if is_value_pipeline(pl) {
                 return Err(LowerError::UnsupportedConstruct {
                     kind: "forest value pipeline (legacy owns these)",
                     span: pl.stages.first().map(|s| s.span).unwrap_or(ast.span),
@@ -788,7 +788,7 @@ fn lower_with_io(
         AstNode::Pipeline(pl) => {
             // Skipped: stage 0 PRODUCES the value, so it is a command even in a value pipeline.
             // `parse_pipeline` skips it for exactly this reason.
-            let forest = pl.stages.iter().skip(1).any(|st| {
+            let value_pipeline = pl.stages.iter().skip(1).any(|st| {
                 // A non-literal first word (`$CMD | where x`) is NOT treated as a verb: it cannot
                 // be known here, and a computed verb is not something the query language accepts
                 // either. Erring toward "shell" is safe -- the spine still refuses below.
@@ -799,7 +799,7 @@ fn lower_with_io(
                 )
             });
             Err(LowerError::UnsupportedConstruct {
-                kind: if forest {
+                kind: if value_pipeline {
                     "forest value pipeline (legacy owns these)"
                 } else {
                     "pipeline"

@@ -58,10 +58,10 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_string());
     match app::dispatcher::dispatch(cmd, &ctx) {
         Ok(()) => {
-            runtime::emit_forest_event(&ctx.runtime.db, "CommandSucceeded", &domain, &cmd_name);
+            runtime::emit_runtime_event(&ctx.runtime.db, "CommandSucceeded", &domain, &cmd_name);
         }
         Err(e) => {
-            runtime::emit_forest_event(
+            runtime::emit_runtime_event(
                 &ctx.runtime.db,
                 "CommandFailed",
                 &domain,

@@ -1534,7 +1534,7 @@ mod preexec_boundary_tests {
     /// Repo-source protection. Still inline in preexec and therefore untested until now: a
     /// future edit could repoint it at `ctx.raw` and nothing would object.
     #[test]
-    fn blocks_aliased_rm_on_forest_source() {
+    fn blocks_aliased_rm_on_repo_source() {
         let intents = zero_core::paths::intents_dir()
             .to_string_lossy()
             .to_string();
