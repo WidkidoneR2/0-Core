@@ -223,7 +223,7 @@ pub fn context(ctx: &AppContext) -> CoreResult<()> {
         .ok();
     let Some(sid) = session_id else {
         println!();
-        println!("  {} Friday -- Session Context", "🌲".normal());
+        println!("  Friday -- Session Context");
         println!("  {}", "━".repeat(50).dimmed());
         println!();
         println!("  {} No active session.", "💡".dimmed());
@@ -258,7 +258,7 @@ pub fn context(ctx: &AppContext) -> CoreResult<()> {
         v
     };
     println!();
-    println!("  {} Friday -- Session Context", "🌲".normal());
+    println!("  Friday -- Session Context");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     println!("  {:<28} {}", "Session:".dimmed(), sid.bright_white());
@@ -539,7 +539,7 @@ pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
     ensure_tables(ctx)?;
     use colored::*;
     println!();
-    println!("  {} Friday -- Forward-Chaining Inference", "🌲".normal());
+    println!("  Friday -- Forward-Chaining Inference");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     let templates: Vec<(
@@ -610,11 +610,7 @@ pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
             "→".dimmed()
         );
     } else if fired > 0 {
-        println!(
-            "  {} {} conclusion(s) written to session context.",
-            "🌲".normal(),
-            fired
-        );
+        println!("  {} conclusion(s) written to session context.", fired);
     }
     println!();
     Ok(())
@@ -714,7 +710,7 @@ pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     use colored::*;
     println!();
-    println!("  {} Friday -- Reasoning", "🌲".normal());
+    println!("  Friday -- Reasoning");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     println!("  {} {}", "?".bright_yellow(), question.bright_white());
@@ -798,12 +794,7 @@ pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {
             ask_id
         );
     } else {
-        println!(
-            "  {} {} conclusion(s) written, cited ask #{}",
-            "🌲".normal(),
-            fired,
-            ask_id
-        );
+        println!("  {} conclusion(s) written, cited ask #{}", fired, ask_id);
     }
     println!();
     Ok(())
@@ -930,7 +921,7 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     use colored::*;
     println!();
-    println!("  {} Friday -- Anticipation", "🌲".normal());
+    println!("  Friday -- Anticipation");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     let last_cmd = match last_meaningful_command(ctx) {
@@ -1116,7 +1107,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
         )
         .ok();
     println!();
-    println!("  {} Friday -- Review", "🌲".normal());
+    println!("  Friday -- Review");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     // ── Context ──

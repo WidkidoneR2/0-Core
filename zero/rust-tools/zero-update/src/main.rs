@@ -21,7 +21,7 @@ use std::process::Command;
 #[derive(Parser)]
 #[command(
     name = "zero-update",
-    about = "🌲 Intelligent update manager for Project 0",
+    about = "Intelligent update manager for Project 0",
     version  // Automatically uses CARGO_PKG_VERSION from Cargo.toml
 )]
 struct Cli {
@@ -401,7 +401,7 @@ fn run() -> Result<()> {
     if !cli.json && !cli.count_only {
         println!(
             "{} v{}",
-            "🌲 Project 0 Update Manager".green().bold(),
+            "Project 0 Update Manager".green().bold(),
             env!("CARGO_PKG_VERSION").cyan()
         );
         println!();

@@ -762,7 +762,7 @@ fn main() -> anyhow::Result<()> {
             // Header
             let header = Paragraph::new(Line::from(vec![
                 Span::styled(
-                    " 🌲 Friday Chat ",
+                    " Friday Chat ",
                     Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled("│ ", Style::default().fg(DIM)),
@@ -781,7 +781,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|m| match m.author {
                     Author::Friday => {
                         let mut lines = vec![Line::from(vec![Span::styled(
-                            "🌲 Friday  ",
+                            "Friday  ",
                             Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
                         )])];
                         for line in m.text.lines() {

@@ -80,7 +80,7 @@ pub fn values_list(ctx: &AppContext) -> CoreResult<()> {
     seed_values(ctx)?;
 
     println!();
-    println!("{}", "🌲 Declared Values".cyan().bold());
+    println!("{}", "Declared Values".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
 

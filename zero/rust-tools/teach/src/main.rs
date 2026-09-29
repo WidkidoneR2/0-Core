@@ -629,7 +629,7 @@ fn run_expert(args: &[String], snap: &SystemSnapshot) {
 }
 
 fn expert_dashboard(snap: &SystemSnapshot) {
-    println!("{}", "🌲 0-Core Expert Reference".cyan().bold());
+    println!("{}", "0-Core Expert Reference".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!(
         "  {} v{}  {}  {}%  {} commits",
@@ -676,7 +676,7 @@ fn show_tool_detail(name: &str, snap: &SystemSnapshot) {
     let tool = snap.tools.iter().find(|t| t.name.contains(name));
     match tool {
         Some(t) => {
-            println!("{}", format!("🌲 {}", t.name).cyan().bold());
+            println!("{}", format!("{}", t.name).cyan().bold());
             println!("{}", "━".repeat(52).dimmed());
             println!("  {} v{}", "version".dimmed(), t.version.cyan());
             if let Some(ref r) = t.replaces {
@@ -702,7 +702,7 @@ fn show_tool_detail(name: &str, snap: &SystemSnapshot) {
 }
 
 fn list_tools(snap: &SystemSnapshot) {
-    println!("{}", "🌲 0-Core Tool Registry".cyan().bold());
+    println!("{}", "0-Core Tool Registry".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     for tool in &snap.tools {
@@ -729,7 +729,7 @@ fn list_tools(snap: &SystemSnapshot) {
 }
 
 fn show_why(topic: &str, snap: &SystemSnapshot) {
-    println!("{}", format!("🌲 Why: {}", topic).cyan().bold());
+    println!("{}", format!("Why: {}", topic).cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -792,7 +792,7 @@ fn show_why(topic: &str, snap: &SystemSnapshot) {
 
 fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 Welcome to 0-Core".green().bold());
+    println!("{}", "Welcome to 0-Core".green().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  This is a personal computing environment built from scratch.");
@@ -818,7 +818,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
 
     loop {
         clear();
-        println!("{}", "🌲 0-Core — Learning Path".cyan().bold());
+        println!("{}", "0-Core — Learning Path".cyan().bold());
         println!("{}", "━".repeat(52).dimmed());
         println!();
 
@@ -887,7 +887,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
 
 fn lesson_philosophy(snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 The Forest Philosophy".cyan().bold());
+    println!("{}", "The Forest Philosophy".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!(
@@ -931,7 +931,7 @@ fn lesson_philosophy(snap: &SystemSnapshot) {
 
 fn lesson_structure(_snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 Directory Structure".cyan().bold());
+    println!("{}", "Directory Structure".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  The filesystem is numbered by purpose:");
@@ -978,7 +978,7 @@ fn lesson_structure(_snap: &SystemSnapshot) {
 
 fn lesson_tools(snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 Core Tools".cyan().bold());
+    println!("{}", "Core Tools".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!(
@@ -1021,7 +1021,7 @@ fn lesson_tools(snap: &SystemSnapshot) {
 
 fn lesson_workflow(snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 Daily Workflow".cyan().bold());
+    println!("{}", "Daily Workflow".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!(
@@ -1059,7 +1059,7 @@ fn lesson_workflow(snap: &SystemSnapshot) {
 
 fn lesson_intent(snap: &SystemSnapshot) {
     clear();
-    println!("{}", "🌲 The Intent Ledger".cyan().bold());
+    println!("{}", "The Intent Ledger".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!(
@@ -1110,7 +1110,7 @@ fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {
     clear();
     match tool {
         Some(t) => {
-            println!("{}", format!("🌲 {}", t.name).cyan().bold());
+            println!("{}", format!("{}", t.name).cyan().bold());
             println!("{}", "━".repeat(52).dimmed());
             println!();
             println!("  {}", t.description.white());
@@ -1368,7 +1368,7 @@ fn run_lesson(lesson: &Lesson) {
         println!();
 
         loop {
-            print!("  🌲 nsh❯ ");
+            print!("  nsh❯ ");
             io::stdout().flush().ok();
             let stdin = io::stdin();
             let input = stdin
@@ -1513,7 +1513,7 @@ fn main() {
 
 fn first_run_greeting(snap: &SystemSnapshot, progress: &mut Progress) {
     clear();
-    println!("{}", "🌲 0-Core — teach v4.0.0".green().bold());
+    println!("{}", "0-Core — teach v4.0.0".green().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  You're looking at a live system.");
@@ -1545,7 +1545,7 @@ fn first_run_greeting(snap: &SystemSnapshot, progress: &mut Progress) {
 }
 
 fn show_help() {
-    println!("{}", "🌲 teach v4.0.0 — 0-Core Live Narrator".cyan().bold());
+    println!("{}", "teach v4.0.0 — 0-Core Live Narrator".cyan().bold());
     println!();
     println!("{}", "MODES".white().bold());
     println!("  teach                  # auto-detect persona");

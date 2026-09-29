@@ -572,7 +572,7 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
     let toml_overrides = load_toml_overrides(&ctx.core_root);
     let all_rules = rules();
 
-    println!("{}", "🌲 Reaction Rules — Full Registry".cyan().bold());
+    println!("{}", "Reaction Rules — Full Registry".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -645,7 +645,7 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
 pub fn bounds(ctx: &AppContext) -> CoreResult<()> {
     let health = current_health(ctx);
 
-    println!("{}", "🌲 Reaction Boundaries".cyan().bold());
+    println!("{}", "Reaction Boundaries".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -726,7 +726,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
     let goals = active_goals(ctx);
     let now = chrono::Local::now().timestamp();
 
-    println!("{}", "🌲 Reaction Audit".cyan().bold());
+    println!("{}", "Reaction Audit".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  Health: {}%  Goals: {}", health, goals.len());
@@ -813,7 +813,7 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Reaction Story — Today".cyan().bold());
+    println!("{}", "Reaction Story — Today".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -965,7 +965,7 @@ pub fn coalesce(ctx: &AppContext) -> CoreResult<()> {
     let toml_overrides = load_toml_overrides(&ctx.core_root);
     let now = chrono::Local::now().timestamp();
 
-    println!("{}", "🌲 Reaction Coalesce — Grouped Signals".cyan().bold());
+    println!("{}", "Reaction Coalesce — Grouped Signals".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1036,7 +1036,7 @@ pub fn discipline_show(ctx: &AppContext) -> CoreResult<()> {
     let all_rules = rules();
     let now = chrono::Local::now().timestamp();
 
-    println!("{}", "🌲 Reaction Discipline — Config".cyan().bold());
+    println!("{}", "Reaction Discipline — Config".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1102,7 +1102,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     let all_rules = rules();
     let now = chrono::Local::now().timestamp();
 
-    println!("{}", "🌲 Reaction Rules".cyan().bold());
+    println!("{}", "Reaction Rules".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1158,7 +1158,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
 
 pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    println!("{}", "🌲 Reaction Engine — Evaluating".cyan().bold());
+    println!("{}", "Reaction Engine — Evaluating".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1224,7 +1224,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Reaction History".cyan().bold());
+    println!("{}", "Reaction History".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1270,7 +1270,7 @@ pub fn explain(ctx: &AppContext, id: &str) -> CoreResult<()> {
         )
         .ok();
 
-    println!("{}", format!("🌲 Reaction {} — Explain", id).cyan().bold());
+    println!("{}", format!("Reaction {} — Explain", id).cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1327,10 +1327,7 @@ pub fn discipline(ctx: &AppContext) -> CoreResult<()> {
     let now = chrono::Local::now().timestamp();
     let all_rules = rules();
 
-    println!(
-        "{}",
-        "🌲 Reaction Discipline — Cooldown Status".cyan().bold()
-    );
+    println!("{}", "Reaction Discipline — Cooldown Status".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 

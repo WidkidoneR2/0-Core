@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 #[derive(Parser)]
 #[command(
     name = "zero-context",
-    about = "🌲 Deep codebase understanding engine",
+    about = "Deep codebase understanding engine",
     version = "1.0.0"
 )]
 struct Cli {
@@ -474,7 +474,7 @@ fn main() {
         Some(Command::Decisions { path }) => cmd_decisions(&path),
         None => {
             println!();
-            println!("  {} zero-context v1.0.0", "🌲".normal());
+            println!("  zero-context v1.0.0");
             println!("  {} Deep codebase understanding engine", "·".dimmed());
             println!();
             println!("  Commands:");

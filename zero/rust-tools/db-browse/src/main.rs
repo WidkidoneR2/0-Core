@@ -586,7 +586,7 @@ fn draw_status(f: &mut ratatui::Frame, app: &App, area: Rect) {
         Mode::Normal => app.status_msg.clone(),
     };
     let p = Paragraph::new(Line::from(vec![
-        Span::styled(" 🌲 ", Style::default().fg(GREEN)),
+        Span::styled(" ", Style::default().fg(GREEN)),
         Span::styled(msg, Style::default().fg(FG)),
     ]))
     .block(

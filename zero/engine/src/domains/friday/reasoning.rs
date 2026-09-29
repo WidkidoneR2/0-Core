@@ -310,7 +310,7 @@ pub fn reason(ctx: &AppContext) -> CoreResult<Vec<(String, f64, String)>> {
 /// core friday reason -- run the reasoning engine
 pub fn show(ctx: &AppContext) -> CoreResult<()> {
     println!();
-    println!("  {} Friday -- Reasoning Engine", "🌲".normal());
+    println!("  Friday -- Reasoning Engine");
     println!("  {}", "─".repeat(50).dimmed());
     println!();
 

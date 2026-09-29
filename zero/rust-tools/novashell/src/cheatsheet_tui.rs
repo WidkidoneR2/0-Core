@@ -483,7 +483,7 @@ fn draw_ui(
     };
     let header = Paragraph::new(Line::from(vec![
         Span::styled(
-            "  🌲 Project 0 Cheatsheet  ",
+            "  Project 0 Cheatsheet  ",
             Style::default()
                 .fg(Color::Rgb(107, 227, 163))
                 .add_modifier(Modifier::BOLD),

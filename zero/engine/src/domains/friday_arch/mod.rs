@@ -315,10 +315,7 @@ pub fn show_models(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!(
-        "  {} Friday Models -- Meta-Interpretation Engine",
-        "🌲".normal()
-    );
+    println!("  Friday Models -- Meta-Interpretation Engine",);
     println!("  {}", "─".repeat(60).dimmed());
     for (id, desc, domain, accuracy, predictions, correct) in &rows {
         let short_desc = desc.chars().take(55).collect::<String>();
@@ -355,7 +352,7 @@ pub fn speak_on_error(ctx: &AppContext, error_output: &str) -> CoreResult<()> {
     {
         if confidence >= 0.85 {
             println!();
-            println!("  {} Friday knows this pattern:", "🌲".normal());
+            println!("  Friday knows this pattern:");
             println!(
                 "  {} {} ({:.0}% confidence)",
                 "→".bright_green(),
@@ -373,7 +370,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     seed_models(ctx)?;
     println!();
-    println!("  {} Friday -- Meta-Interpretation Engine", "🌲".normal());
+    println!("  Friday -- Meta-Interpretation Engine");
     println!("  {}", "━".repeat(55).dimmed());
     // Phase 1: Pattern detection
     let patterns = detect_patterns(ctx)?;
@@ -500,10 +497,7 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!(
-        "  {} Friday Proposals -- Pending Human Review",
-        "🌲".normal()
-    );
+    println!("  Friday Proposals -- Pending Human Review",);
     println!("  {}", "─".repeat(55).dimmed());
     if rows.is_empty() {
         println!("  {} No pending proposals.", "→".dimmed());
@@ -938,7 +932,7 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
         |r| r.get(0),
     )?;
     println!();
-    println!("  {} Friday Proposal [{}]", "🌲".normal(), proposal_id);
+    println!("  Friday Proposal [{}]", proposal_id);
     println!("  {}", "─".repeat(55).dimmed());
     println!(
         "  {} {}",
@@ -971,7 +965,7 @@ pub fn simulate(ctx: &AppContext, command: &str) -> CoreResult<()> {
     let cmd = command.trim();
 
     println!();
-    println!("  {} Friday Simulation", "🌲".normal());
+    println!("  Friday Simulation");
     println!("  {}", "─".repeat(55).dimmed());
     println!("  {} {}", "Command:".dimmed(), cmd.bright_white());
     println!();
@@ -1084,8 +1078,7 @@ fn simulate_deploy(db: &rusqlite::Connection, tool: &str) -> CoreResult<()> {
                 pred.bright_yellow().to_string()
             };
             println!(
-                "  {} Predicted outcome: {} ({:.0}% confidence)",
-                "🌲".normal(),
+                "  Predicted outcome: {} ({:.0}% confidence)",
                 pred_colored,
                 confidence * 100.0
             );
@@ -1313,7 +1306,7 @@ pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
 
     println!();
-    println!("  {} Friday Simulation Accuracy", "🌲".normal());
+    println!("  Friday Simulation Accuracy");
     println!("  {}", "─".repeat(55).dimmed());
 
     if total == 0 {

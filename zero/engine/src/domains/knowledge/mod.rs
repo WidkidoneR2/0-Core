@@ -61,12 +61,7 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
         None => println!("  No entry found: {}", id),
         Some((id, domain, sig, desc, resolution, conf, count, success, failure)) => {
             println!();
-            println!(
-                "  {} [{}] {}",
-                "🌲".normal(),
-                domain.bright_cyan(),
-                id.dimmed()
-            );
+            println!("  [{}] {}", domain.bright_cyan(), id.dimmed());
             println!("  {}", "─".repeat(55).dimmed());
             println!("  {} {}", "Problem:".dimmed(), desc.bright_white());
             if let Some(s) = sig {
@@ -370,11 +365,7 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
         x
     };
     println!();
-    println!(
-        "  {} Knowledge Search: {}",
-        "🌲".normal(),
-        term.bright_cyan()
-    );
+    println!("  Knowledge Search: {}", term.bright_cyan());
     println!("  {}", "─".repeat(55).dimmed());
     if rows.is_empty() {
         println!("  {} No known lessons for '{}'", "→".dimmed(), term);
@@ -436,8 +427,7 @@ pub fn patterns(ctx: &AppContext, domain: Option<&str>) -> CoreResult<()> {
     };
     println!();
     println!(
-        "  {} Knowledge Patterns{}",
-        "🌲".normal(),
+        "  Knowledge Patterns{}",
         domain
             .map(|d| format!(" -- {}", d))
             .unwrap_or_default()
@@ -484,7 +474,7 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!("  {} Knowledge Accuracy by Domain", "🌲".normal());
+    println!("  Knowledge Accuracy by Domain");
     println!("  {}", "─".repeat(40).dimmed());
     for (domain, count, conf) in &rows {
         let bar_len = (*conf * 20.0) as usize;

@@ -60,7 +60,7 @@ fn store_prediction(ctx: &AppContext, kind: &str, prediction: &str, confidence: 
 pub fn sessions(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Session Patterns".cyan().bold());
+    println!("{}", "Predict — Session Patterns".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -214,7 +214,7 @@ pub fn sessions(ctx: &AppContext) -> CoreResult<()> {
 pub fn cadence(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Commit Cadence".cyan().bold());
+    println!("{}", "Predict — Commit Cadence".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -320,7 +320,7 @@ pub fn cadence(ctx: &AppContext) -> CoreResult<()> {
 pub fn health(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Health Trajectory".cyan().bold());
+    println!("{}", "Predict — Health Trajectory".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -450,7 +450,7 @@ pub fn health(ctx: &AppContext) -> CoreResult<()> {
 pub fn decline(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Early Warning".cyan().bold());
+    println!("{}", "Predict — Early Warning".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -738,7 +738,7 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     let complete_dir = zero_core::paths::intents_dir().join("complete");
     let future_dir = zero_core::paths::intents_dir().join("future");
 
-    println!("{}", "🌲 Predict — Intent Velocity".cyan().bold());
+    println!("{}", "Predict — Intent Velocity".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -863,7 +863,7 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
     let _core_root = &ctx.core_root;
     let future_dir = zero_core::paths::intents_dir().join("future");
 
-    println!("{}", "🌲 Predict — Next Intent".cyan().bold());
+    println!("{}", "Predict — Next Intent".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1028,7 +1028,7 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
 pub fn coupling(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Coupling Forecast".cyan().bold());
+    println!("{}", "Predict — Coupling Forecast".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1129,7 +1129,7 @@ pub fn coupling(ctx: &AppContext) -> CoreResult<()> {
 pub fn churn(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — File Churn".cyan().bold());
+    println!("{}", "Predict — File Churn".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -1214,7 +1214,7 @@ pub fn churn(ctx: &AppContext) -> CoreResult<()> {
 pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
-    println!("{}", "🌲 Predict — Prediction Accuracy".cyan().bold());
+    println!("{}", "Predict — Prediction Accuracy".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 

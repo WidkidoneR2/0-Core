@@ -231,7 +231,7 @@ pub fn show_debug(db: &Connection) {
     println!();
     println!(
         "  {} {}",
-        "🌲 Friday Attention Debug".bright_green().bold(),
+        "Friday Attention Debug".bright_green().bold(),
         "Core v24".dimmed()
     );
     println!(

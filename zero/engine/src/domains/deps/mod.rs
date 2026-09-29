@@ -431,7 +431,7 @@ pub fn plan(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     let registry = read_tool_registry(&ctx.core_root);
     let order = collect_ordered_deps(tool, &registry);
     println!();
-    println!("  {} Coordinator -- Deployment Plan", "🌲".normal());
+    println!("  Coordinator -- Deployment Plan");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     if order.len() == 1 {
@@ -477,7 +477,7 @@ pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
     let home = std::env::var("HOME").unwrap_or_default();
     let cargo_bin = PathBuf::from(&home).join(".cargo/bin");
     println!();
-    println!("  {} Coordinator -- Blocked Tools", "🌲".normal());
+    println!("  Coordinator -- Blocked Tools");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     let mut any_blocked = false;

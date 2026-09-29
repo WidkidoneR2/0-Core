@@ -178,7 +178,7 @@ pub fn show_recent(
     }
 
     println!();
-    println!("  {} Event Bus -- Last 24h", "🌲".normal());
+    println!("  Event Bus -- Last 24h");
     println!("  {}", "─".repeat(50).dimmed());
     println!();
 

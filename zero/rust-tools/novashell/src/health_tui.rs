@@ -482,7 +482,7 @@ fn draw_info_panel(
     // Friday
     if !friday_line.is_empty() {
         lines.push(Line::from(vec![
-            Span::styled("  🌲 ", Style::default().fg(Color::Rgb(107, 227, 163))),
+            Span::styled("  ", Style::default().fg(Color::Rgb(107, 227, 163))),
             Span::styled(
                 friday_line.trim().to_string(),
                 Style::default().fg(Color::Rgb(215, 224, 218)),

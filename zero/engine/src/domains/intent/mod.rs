@@ -2997,7 +2997,7 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
         scored.push((intent, score, reasons));
     }
     scored.sort_by(|a, b| b.1.cmp(&a.1));
-    println!("{}", "🌲 Next Intent Recommendation".bold());
+    println!("{}", "Next Intent Recommendation".bold());
     println!("{}", "━".repeat(60).dimmed());
     if scored.is_empty() {
         println!("  {} No unblocked planned intents found", "○".dimmed());
@@ -3061,7 +3061,7 @@ pub fn brief(ctx: &AppContext) -> CoreResult<()> {
     let planned_count = intents.iter().filter(|i| i.status == "planned").count();
     // A count of finished intents, not a dependency question -- not dep_state's job.
     let complete_count = intents.iter().filter(|i| i.status == "complete").count();
-    println!("{}", "🌲 Session Brief".bold());
+    println!("{}", "Session Brief".bold());
     println!("{}", "━".repeat(60).dimmed());
     // Active intents
     if active.is_empty() {
@@ -3126,7 +3126,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
         .iter()
         .filter(|i| i.status == "planned" || i.status == "in-progress")
         .collect();
-    println!("{}", "🌲 Intent Dependency Graph".bold());
+    println!("{}", "Intent Dependency Graph".bold());
     println!("{}", "━".repeat(60).dimmed());
     println!(
         "  {} complete  {} in-progress  {} planned  {} blocked",

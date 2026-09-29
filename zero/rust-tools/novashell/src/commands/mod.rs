@@ -1597,11 +1597,7 @@ fn execute_dispatch(
             ];
 
             if builtins.contains(&cmd) {
-                out.push_str(&format!(
-                    "  {} {} — shell builtin\n",
-                    "🌲".normal(),
-                    cmd.bright_green()
-                ));
+                out.push_str(&format!("  {} — shell builtin\n", cmd.bright_green()));
             }
 
             // Check aliases
@@ -1619,8 +1615,7 @@ fn execute_dispatch(
             let script_path = format!("{}/0-core/scripts/{}", home, cmd);
             if std::path::Path::new(&script_path).exists() {
                 out.push_str(&format!(
-                    "  {} {} — shell script\n",
-                    "🌲".normal(),
+                    "  {} — shell script\n",
                     script_path.bright_white()
                 ));
             }
@@ -3958,7 +3953,7 @@ fn execute_dispatch(
             }
             let pids: Vec<&str> = pid_result.trim().lines().collect();
             println!(
-                "  🌲 Terminating {} process(es) matching '{}'",
+                "  Terminating {} process(es) matching '{}'",
                 pids.len(),
                 target
             );
@@ -4755,10 +4750,7 @@ fn execute_dispatch(
                 return CommandResult::Error("type: missing argument".to_string().into(), 1);
             }
             let mut out = String::new();
-            out.push_str(&format!(
-                "{}\n\n",
-                format!("🌲 type: {}", cmd).cyan().bold()
-            ));
+            out.push_str(&format!("{}\n\n", format!("type: {}", cmd).cyan().bold()));
 
             // 1. Check shell builtins
             let builtins = [
@@ -5139,12 +5131,12 @@ fn execute_dispatch(
 
             if rows.is_empty() {
                 CommandResult::Output(format!(
-                    "  🌲 No history matching '{}' -- try: how deploy / how fix / how build",
+                    "  No history matching '{}' -- try: how deploy / how fix / how build",
                     query
                 ))
             } else {
                 CommandResult::Output(format!(
-                    "  🌲 Shell memory for '{}':
+                    "  Shell memory for '{}':
 {}",
                     query,
                     rows.join(
@@ -6084,7 +6076,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
     // deadwood: exempt -- shell NAME for handoff, defaulting to zsh -- not a command word
     let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
     println!();
-    println!("  {} Back to zero...", "🌲".to_string());
+    println!("  Back to zero...");
     println!(
         "  {} You are entering {}",
         "→".bright_cyan(),
@@ -6105,7 +6097,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
         .stderr(std::process::Stdio::inherit())
         .status();
     println!();
-    println!("  {} Welcome back to NovaShell 🌲", "✅".green());
+    println!("  {} Welcome back to NovaShell", "✅".green());
     println!();
     CommandResult::Empty { suspension: None }
 }
@@ -6950,7 +6942,7 @@ fn watch_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
         println!(
             "{}",
             format!(
-                "  🌲 watch {} — {} ({}s interval)",
+                "  watch {} — {} ({}s interval)",
                 target.bright_cyan(),
                 now.dimmed(),
                 interval
@@ -8621,7 +8613,7 @@ fn debug_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
                 [], |r| Ok((r.get(0)?, r.get(1)?))
             ).ok();
             let mut out = String::new();
-            out.push_str(&format!("{}\n", "🌲 Debug — Last Command".cyan().bold()));
+            out.push_str(&format!("{}\n", "Debug — Last Command".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             if let Some((cmd, ts)) = &last {
                 let dt = chrono::DateTime::from_timestamp(*ts, 0)
@@ -8697,7 +8689,7 @@ fn debug_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
         }
         "reactions" => {
             let mut out = String::new();
-            out.push_str(&format!("{}\n", "🌲 Debug — Reaction State".cyan().bold()));
+            out.push_str(&format!("{}\n", "Debug — Reaction State".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             let now = chrono::Local::now().timestamp();
             let rules = [
@@ -8748,7 +8740,7 @@ fn debug_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
         }
         "preexec" => {
             let mut out = String::new();
-            out.push_str(&format!("{}\n", "🌲 Debug — Pre-exec Hooks".cyan().bold()));
+            out.push_str(&format!("{}\n", "Debug — Pre-exec Hooks".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             out.push_str(&format!("  {} Active guards\n", "▶".bright_cyan()));
             out.push_str(&format!(
@@ -8787,10 +8779,7 @@ fn debug_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
 
 fn usage_report(db: &StateDb) -> CommandResult {
     let mut out = String::new();
-    out.push_str(&format!(
-        "{}\n",
-        "🌲 Usage Report — NovaShell".cyan().bold()
-    ));
+    out.push_str(&format!("{}\n", "Usage Report — NovaShell".cyan().bold()));
     out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
     let total_shell: i64 = db
         .conn
@@ -11199,7 +11188,7 @@ fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
         "
   {} {}
 ",
-        "🌲 explain:".bright_green().bold(),
+        "explain:".bright_green().bold(),
         cmd.bright_white().bold()
     ));
     out.push_str(&format!(
@@ -11490,11 +11479,7 @@ fn describe_cmd(db: &StateDb, args: &[&str], core_root: &str) -> CommandResult {
         None => CommandResult::Output(format!("  ○ {} — not in registry", name)),
         Some(entry) => {
             let mut out = String::new();
-            out.push_str(&format!(
-                "\n  {} {}\n",
-                "🌲".normal(),
-                entry.name.bright_white().bold()
-            ));
+            out.push_str(&format!("\n  {}\n", entry.name.bright_white().bold()));
             out.push_str(&format!(
                 "  {:<12} {}\n",
                 "kind:".dimmed(),
@@ -11651,7 +11636,7 @@ fn help() -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "\n{}\n",
-        "  ╭─ 🌲 NovaShell commands ───────────────────────────────".bright_cyan()
+        "  ╭─ NovaShell commands ──────────────────────────────────".bright_cyan()
     ));
     let cmds = [
         ("health", "system health and status"),
@@ -12003,7 +11988,7 @@ fn project_list(core_root: &str) -> CommandResult {
         "
 {}
 ",
-        "  🌲 Projects".bright_green().bold()
+        "  Projects".bright_green().bold()
     ));
     out.push_str(&format!(
         "{}
@@ -12144,7 +12129,7 @@ fn version(_core_root: &str) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!(
         "\n{}\n",
-        "  ╭─ 🌲 Version ───────────────────────────────────────".bright_cyan()
+        "  ╭─ Version ──────────────────────────────────────────".bright_cyan()
     ));
     out.push_str(&format!(
         "  │  {}  {}\n",
@@ -12430,7 +12415,7 @@ fn fsh_identity_cmd(db: &StateDb) -> CommandResult {
     out.push_str(&format!(
         "  {} {}
 ",
-        "🌲 NovaShell".bright_green().bold(),
+        "NovaShell".bright_green().bold(),
         format!("v{}", version).dimmed()
     ));
     out.push_str(&format!(
@@ -14162,8 +14147,7 @@ fn semantic_ambiguous_cmd(db: &StateDb, input: &str) -> CommandResult {
         let si = crate::semantic::interpret(&preferred);
         let mut out = String::new();
         out.push_str(&format!(
-            "  {} using learned preference: {}\n",
-            "🌲".normal(),
+            "  using learned preference: {}\n",
             preferred.bright_green()
         ));
         for cmd in &si.layer3_commands {
@@ -14220,7 +14204,7 @@ fn semantic_ambiguous_cmd(db: &StateDb, input: &str) -> CommandResult {
                                 );
                                 println!(
                                     "  {} preference learned for '{}'",
-                                    "🌲 Friday:".bright_green(),
+                                    "Friday:".bright_green(),
                                     input.split_whitespace().next().unwrap_or("")
                                 );
                             }
@@ -14792,7 +14776,7 @@ fn fsh_doctor_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
         passed, total, elapsed
     ));
     if all_ok {
-        out.push_str(&format!("  {} shell is healthy\n", "🌲".normal()));
+        out.push_str(&format!("  shell is healthy\n"));
     } else {
         out.push_str(&format!(
             "  {} {} check(s) failed -- run: nsh doctor --fix\n",
@@ -14843,8 +14827,7 @@ fn rewind_cmd(db: &StateDb) -> CommandResult {
     }
     let mut out = String::new();
     out.push_str(&format!(
-        "\n  {} Time-Travel Snapshot Timeline ({} snapshots)\n",
-        "🌲".normal(),
+        "\n  Time-Travel Snapshot Timeline ({} snapshots)\n",
         rows.len()
     ));
     out.push_str(&format!("  {}\n\n", "━".repeat(60).dimmed()));
@@ -16480,7 +16463,7 @@ fn zero_stats_intents(_core_root: &str) -> CommandResult {
     files.sort_by_key(|e| e.file_name());
     let recent: Vec<_> = files.iter().rev().take(10).collect();
     out.push_str(&format!(
-        "  🌲 {} intents complete\n",
+        "  {} intents complete\n",
         count.to_string().bright_white()
     ));
     for (i, entry) in recent.iter().enumerate() {
@@ -16494,7 +16477,7 @@ fn zero_stats_intents(_core_root: &str) -> CommandResult {
 }
 fn zero_stats_friday(db: &StateDb) -> CommandResult {
     let mut out = String::new();
-    out.push_str(&format!("  {} Friday's Growth\n", "🌲".normal()));
+    out.push_str(&format!("  Friday's Growth\n"));
     let facts: i64 = db
         .conn
         .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))

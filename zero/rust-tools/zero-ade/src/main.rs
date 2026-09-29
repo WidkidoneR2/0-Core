@@ -118,7 +118,7 @@ impl App {
             pty_output,
             pty_writer,
             terminal_lines: vec![vec![(
-                "🌲 fsh starting...".to_string(),
+                "fsh starting...".to_string(),
                 Style::default().fg(GREEN),
             )]],
 
@@ -552,7 +552,7 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
         .iter()
         .flat_map(|m| {
             let prefix = if m.from_friday {
-                Span::styled("🌲 ", Style::default().fg(GREEN))
+                Span::styled("", Style::default().fg(GREEN))
             } else {
                 Span::styled("  ", Style::default())
             };

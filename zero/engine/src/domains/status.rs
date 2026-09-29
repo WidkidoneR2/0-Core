@@ -20,7 +20,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     let day_ago = now - 86400;
 
     println!();
-    println!("  {} Status -- One-Mind Answer", "🌲".normal());
+    println!("  Status -- One-Mind Answer");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
 

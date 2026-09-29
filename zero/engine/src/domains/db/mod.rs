@@ -50,7 +50,7 @@ pub fn backup(ctx: &AppContext) -> CoreResult<()> {
     let size = std::fs::metadata(&dest)?.len();
 
     println!();
-    println!("  {}", "🌲 DB — Backup".bright_green().bold());
+    println!("  {}", "DB — Backup".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -96,7 +96,7 @@ pub fn restore(ctx: &AppContext, file: &str) -> CoreResult<()> {
     std::fs::copy(&src, &db)?;
 
     println!();
-    println!("  {}", "🌲 DB — Restore".bright_green().bold());
+    println!("  {}", "DB — Restore".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -126,7 +126,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         .query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
 
     println!();
-    println!("  {}", "🌲 DB — Verify".bright_green().bold());
+    println!("  {}", "DB — Verify".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -182,7 +182,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     ];
 
     println!();
-    println!("  {}", "🌲 DB — Status".bright_green().bold());
+    println!("  {}", "DB — Status".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -271,7 +271,7 @@ pub fn compact(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
 
     println!();
-    println!("  {}", "🌲 DB — Compact".bright_green().bold());
+    println!("  {}", "DB — Compact".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()

@@ -3699,7 +3699,7 @@ fn main() {
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
-    println!("{}", "  🌲 nsh-test v2.0.0".bold());
+    println!("{}", "  nsh-test v2.0.0".bold());
     // ASK THE SHELL WHO IT IS, rather than trusting the path we passed it. Refusing a
     // MISSING binary catches a typo; this catches the case that actually cost a session --
     // a path that exists and is the WRONG BUILD. /run/current-system/... exists perfectly

@@ -137,7 +137,7 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     };
 
     println!();
-    println!("  {}", "🌲 Genealogy".bright_green().bold());
+    println!("  {}", "Genealogy".bright_green().bold());
     println!("  {}", format!("Lineage of INT-{}", id).dimmed());
     println!(
         "{}",
@@ -256,7 +256,7 @@ pub fn tree(ctx: &AppContext) -> CoreResult<()> {
     roots.sort_by(|a, b| a.id.cmp(&b.id));
 
     println!();
-    println!("  {}", "🌲 Intent Family Tree".bright_green().bold());
+    println!("  {}", "Intent Family Tree".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -317,7 +317,7 @@ pub fn roots(ctx: &AppContext) -> CoreResult<()> {
     let roots: Vec<&IntentNode> = nodes.iter().filter(|n| n.spawned_by.is_none()).collect();
 
     println!();
-    println!("  {}", "🌲 Genealogy — Roots".bright_green().bold());
+    println!("  {}", "Genealogy — Roots".bright_green().bold());
     println!("  {}", "Founding intents with no ancestors.".dimmed());
     println!(
         "{}",
@@ -389,7 +389,7 @@ pub fn commit_show(_ctx: &AppContext, hash: &str) -> CoreResult<()> {
         Ok((chash, intent_id, status, phase, gate, health, facts, patterns, session, ts, msg)) => {
             println!(
                 "  {} {}",
-                "🌲 Commit Genealogy".bright_green().bold(),
+                "Commit Genealogy".bright_green().bold(),
                 chash.bright_yellow()
             );
             println!(
@@ -460,7 +460,7 @@ pub fn commits_for_intent(_ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!();
     println!(
         "  {} {}",
-        "🌲 Commits for INT-".bright_green().bold(),
+        "Commits for INT-".bright_green().bold(),
         id.bright_yellow()
     );
     println!(
@@ -521,7 +521,7 @@ pub fn commit_search(_ctx: &AppContext, term: &str) -> CoreResult<()> {
     println!();
     println!(
         "  {} {}",
-        "🌲 Genealogy Search:".bright_green().bold(),
+        "Genealogy Search:".bright_green().bold(),
         term.bright_yellow()
     );
     println!(

@@ -188,7 +188,7 @@ fn render_markdown(d: &SnapshotData) -> String {
     out.push_str(&format!(
         "{}
 ",
-        "  ╭─ 🌲 Snapshot Narrative ────────────────────────────".bright_cyan()
+        "  ╭─ Snapshot Narrative ───────────────────────────────".bright_cyan()
     ));
     out.push_str(&format!(
         "  │  {} — {}

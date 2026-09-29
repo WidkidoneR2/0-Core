@@ -12,7 +12,7 @@ fn separator() {
 
 // ── Test 1: Event Storm ───────────────────────────────────────────────────────
 pub fn events(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Stress Test 1 — Event Storm".cyan().bold());
+    println!("{}", "Stress Test 1 — Event Storm".cyan().bold());
     separator();
     println!();
 
@@ -80,10 +80,7 @@ pub fn events(ctx: &AppContext) -> CoreResult<()> {
 
 // ── Test 2: Prediction Under Load ─────────────────────────────────────────────
 pub fn predict(_ctx: &AppContext) -> CoreResult<()> {
-    println!(
-        "{}",
-        "🌲 Stress Test 2 — Prediction Under Load".cyan().bold()
-    );
+    println!("{}", "Stress Test 2 — Prediction Under Load".cyan().bold());
     separator();
     println!();
 
@@ -152,10 +149,7 @@ pub fn predict(_ctx: &AppContext) -> CoreResult<()> {
 
 // ── Test 3: Reaction Concurrency ──────────────────────────────────────────────
 pub fn react(ctx: &AppContext) -> CoreResult<()> {
-    println!(
-        "{}",
-        "🌲 Stress Test 3 — Reaction Concurrency".cyan().bold()
-    );
+    println!("{}", "Stress Test 3 — Reaction Concurrency".cyan().bold());
     separator();
     println!();
 
@@ -246,9 +240,7 @@ pub fn react(ctx: &AppContext) -> CoreResult<()> {
 pub fn health(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "{}",
-        "🌲 Stress Test 4 — Health Trajectory Integrity"
-            .cyan()
-            .bold()
+        "Stress Test 4 — Health Trajectory Integrity".cyan().bold()
     );
     separator();
     println!();
@@ -337,7 +329,7 @@ pub fn health(ctx: &AppContext) -> CoreResult<()> {
 pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
     println!(
         "{}",
-        "🌲 Stress Test 5 — Intent Velocity Accuracy".cyan().bold()
+        "Stress Test 5 — Intent Velocity Accuracy".cyan().bold()
     );
     separator();
     println!();
@@ -429,7 +421,7 @@ pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
 
 // ── Full Report ───────────────────────────────────────────────────────────────
 pub fn report(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Core v11 Stress Test — Full Report".cyan().bold());
+    println!("{}", "Core v11 Stress Test — Full Report".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  Running all stress tests...");
@@ -478,7 +470,7 @@ pub fn report(ctx: &AppContext) -> CoreResult<()> {
 // ── INT-154 Health Chaos Scenarios ────────────────────────────────────────────
 
 pub fn scenario1(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Scenario 1 — Sudden Health Drop".cyan().bold());
+    println!("{}", "Scenario 1 — Sudden Health Drop".cyan().bold());
     separator();
     println!();
     println!(
@@ -547,7 +539,7 @@ pub fn scenario1(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn scenario2(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Scenario 2 — Slow Decline Detection".cyan().bold());
+    println!("{}", "Scenario 2 — Slow Decline Detection".cyan().bold());
     separator();
     println!();
     println!(
@@ -606,7 +598,7 @@ pub fn scenario2(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn scenario3(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Scenario 3 — Recovery Verification".cyan().bold());
+    println!("{}", "Scenario 3 — Recovery Verification".cyan().bold());
     separator();
     println!();
 
@@ -678,7 +670,7 @@ pub fn scenario3(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn scenario4(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Scenario 4 — False Alarm Resistance".cyan().bold());
+    println!("{}", "Scenario 4 — False Alarm Resistance".cyan().bold());
     separator();
     println!();
     println!(
@@ -743,7 +735,7 @@ pub fn scenario4(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn health_report(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 INT-154 — Core Health Stress Report".cyan().bold());
+    println!("{}", "INT-154 — Core Health Stress Report".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  Running all 5 chaos scenarios...");

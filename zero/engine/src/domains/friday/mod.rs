@@ -414,7 +414,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         0
     };
     println!();
-    println!("  {} Friday -- Active Intelligence", "🌲".normal(),);
+    println!("  Friday -- Active Intelligence",);
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     println!(
@@ -639,7 +639,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         })
     }).unwrap_or_default();
     println!();
-    println!("  {} Friday -- Active Intelligence", "🌲".normal());
+    println!("  Friday -- Active Intelligence");
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     if !recent_events.is_empty() {
@@ -872,7 +872,7 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     let _ = extract_patterns(ctx);
     let db = &ctx.runtime.db;
     println!();
-    println!("  {} Friday suggests:", "🌲".normal());
+    println!("  Friday suggests:");
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     // Check predict next from core
@@ -1128,7 +1128,7 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
         rusqlite::params![fact, now],
     );
     println!();
-    println!("  {} Friday's vocabulary grows:", "🌲".normal());
+    println!("  Friday's vocabulary grows:");
     println!(
         "  {} '{}' named and recorded",
         "✅".green(),
@@ -1174,7 +1174,7 @@ pub fn list_vocabulary(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!("  {} Friday's Vocabulary", "🌲".normal());
+    println!("  Friday's Vocabulary");
     println!("  {}", "─".repeat(50).dimmed());
     if rows.is_empty() {
         println!("  {} No abstractions named yet.", "→".dimmed());
@@ -1328,7 +1328,7 @@ Friday's confidence: 80%
         vocab_count = vocab_count,
     );
     println!();
-    println!("  {} Friday proposes:", "🌲".normal());
+    println!("  Friday proposes:");
     println!("  {}", "─".repeat(55).dimmed());
     println!("  {} {}", "Title:".dimmed(), title.bright_cyan().bold());
     println!("  {} {}", "Tags: ".dimmed(), tags.dimmed());
@@ -1364,7 +1364,7 @@ Friday's confidence: 80%
             rusqlite::params![now, format!("proposed intent: {}", title)],
         );
         println!("  {} Intent saved: {}", "✅".green(), path.bright_white());
-        println!("  {} Friday co-authored its first intent.", "🌲".normal());
+        println!("  Friday co-authored its first intent.");
     } else {
         println!("  {} Proposal discarded.", "→".dimmed());
     }
@@ -1545,7 +1545,7 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
         );
         abstractions += 1;
     }
-    println!("  {} Learning loop complete:", "🌲".normal());
+    println!("  Learning loop complete:");
     println!(
         "    {} hypotheses created",
         hypotheses_created.to_string().bright_white()
@@ -1703,7 +1703,7 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
             intent_title
         )
     };
-    println!("  🌲 Friday: {}", observation.bright_white());
+    println!("  Friday: {}", observation.bright_white());
     // Store this as an observation
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

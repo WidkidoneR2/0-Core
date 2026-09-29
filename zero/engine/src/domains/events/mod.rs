@@ -55,7 +55,7 @@ fn query_events(
         ))
     })?;
 
-    println!("{}", "🌲 Event Ledger".cyan().bold());
+    println!("{}", "Event Ledger".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -351,7 +351,7 @@ pub fn why_summary(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — System Activity Summary".cyan().bold());
+    println!("{}", "Why — System Activity Summary".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -455,7 +455,7 @@ pub fn why_health(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — Health Trajectory".cyan().bold());
+    println!("{}", "Why — Health Trajectory".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -554,7 +554,7 @@ pub fn why_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 
     println!(
         "{}",
-        format!("🌲 Why — {} activity today", domain).cyan().bold()
+        format!("Why — {} activity today", domain).cyan().bold()
     );
     println!("{}", "━".repeat(52).dimmed());
     println!();
@@ -614,7 +614,7 @@ pub fn trace_last(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Trace — Last 10 Events".cyan().bold());
+    println!("{}", "Trace — Last 10 Events".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -647,10 +647,7 @@ pub fn trace_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!(
-        "{}",
-        format!("🌲 Trace — {} (last 20)", domain).cyan().bold()
-    );
+    println!("{}", format!("Trace — {} (last 20)", domain).cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -733,7 +730,7 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
         }
     };
 
-    println!("{}", "🌲 Event Watch — Live Stream".cyan().bold());
+    println!("{}", "Event Watch — Live Stream".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!("  {} Connected to zero-daemon", "✓".green());
     println!("  {} Waiting for events... (Ctrl+C to stop)", "→".dimmed());
@@ -815,7 +812,7 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — Visual Topology Today".cyan().bold());
+    println!("{}", "Why — Visual Topology Today".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -921,7 +918,7 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — Attention Analysis".cyan().bold());
+    println!("{}", "Why — Attention Analysis".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -1003,7 +1000,7 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
 // ─── LEDGER COMMANDS (Core v5 Phase 1) ───────────────────────────────────────
 
 pub fn ledger_indexes(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Ledger — Creating indexes...".cyan().bold());
+    println!("{}", "Ledger — Creating indexes...".cyan().bold());
     ctx.runtime.db.execute_batch(
         "
         CREATE INDEX IF NOT EXISTS idx_events_domain ON events(domain);
@@ -1063,7 +1060,7 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
         .map(|m| m.len())
         .unwrap_or(0);
 
-    println!("{}", "🌲 Ledger Stats".cyan().bold());
+    println!("{}", "Ledger Stats".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!("  {} total events", total.to_string().bright_white().bold());
@@ -1131,10 +1128,7 @@ pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!(
-        "{}",
-        format!("🌲 Ledger — domain: {}", domain).cyan().bold()
-    );
+    println!("{}", format!("Ledger — domain: {}", domain).cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -1237,10 +1231,7 @@ pub fn why_health_since(ctx: &AppContext, since: &str) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!(
-        "{}",
-        format!("🌲 Why — Health since {}", since).cyan().bold()
-    );
+    println!("{}", format!("Why — Health since {}", since).cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -1354,9 +1345,7 @@ pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 
     println!(
         "{}",
-        format!("🌲 Why — Causal analysis: {}", domain)
-            .cyan()
-            .bold()
+        format!("Why — Causal analysis: {}", domain).cyan().bold()
     );
     println!("{}", "━".repeat(52).dimmed());
 
@@ -1451,7 +1440,7 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
         .find(|w| w[0].0 < w[1].0)
         .map(|w| (w[1].1, w[1].0, w[0].0));
 
-    println!("{}", "🌲 Why — Causal Chain".cyan().bold());
+    println!("{}", "Why — Causal Chain".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     let (drop_ts, prev_h, new_h) = match drop {
@@ -1559,7 +1548,7 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
 pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreResult<()> {
     println!(
         "{}",
-        format!("🌲 Why — Correlate: {} ↔ {}", domain_a, domain_b)
+        format!("Why — Correlate: {} ↔ {}", domain_a, domain_b)
             .cyan()
             .bold()
     );
@@ -1692,7 +1681,7 @@ pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreRe
 }
 
 pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
-    println!("{}", "🌲 Why — Suggestions".cyan().bold());
+    println!("{}", "Why — Suggestions".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     let now = chrono::Local::now().timestamp();
@@ -1914,7 +1903,7 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — Workspace Activity (7 days)".cyan().bold());
+    println!("{}", "Why — Workspace Activity (7 days)".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if events.is_empty() {
@@ -2053,7 +2042,7 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", "🌲 Why — Focus Analysis (7 days)".cyan().bold());
+    println!("{}", "Why — Focus Analysis (7 days)".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
 
     if events.is_empty() {

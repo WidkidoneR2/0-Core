@@ -208,7 +208,7 @@ fn draw_ui(
     };
     let header = Paragraph::new(Line::from(vec![
         Span::styled(
-            "  🌲 Intent Ledger  ",
+            "  Intent Ledger  ",
             Style::default()
                 .fg(Color::Rgb(107, 227, 163))
                 .add_modifier(Modifier::BOLD),

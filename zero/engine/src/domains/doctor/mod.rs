@@ -653,7 +653,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             println!();
             println!(
                 "  {} {}",
-                "🌲 Friday milestone:".bright_yellow().bold(),
+                "Friday milestone:".bright_yellow().bold(),
                 celebration.bright_white()
             );
             println!();
@@ -661,17 +661,17 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         match crate::domains::friday::get_voice(ctx) {
             Some((brief, confidence)) => {
                 println!(
-                    "  🌲  Friday: {} · {} patterns · {} facts",
+                    "  Friday: {} · {} patterns · {} facts",
                     "active".bright_green(),
                     pats.to_string().bright_cyan(),
                     facts.to_string().bright_white()
                 );
                 println!();
                 if confidence >= 0.85 {
-                    println!("  🌲 Friday: {}", brief.bright_white().bold());
+                    println!("  Friday: {}", brief.bright_white().bold());
                 } else {
                     println!(
-                        "  🌲 Friday: {} (not enough signal yet -- {:.0}% confidence)",
+                        "  Friday: {} (not enough signal yet -- {:.0}% confidence)",
                         brief.dimmed(),
                         confidence * 100.0
                     );
@@ -689,13 +689,13 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     .unwrap_or_else(|_| "dormant".to_string());
                 if pats > 0 || facts > 0 {
                     println!(
-                        "  🌲  Friday: {} · {} patterns · {} facts",
+                        "  Friday: {} · {} patterns · {} facts",
                         status.dimmed(),
                         pats.to_string().bright_cyan(),
                         facts.to_string().bright_white()
                     );
                 } else {
-                    println!("  🌲  Friday: {}", "dormant".dimmed());
+                    println!("  Friday: {}", "dormant".dimmed());
                 }
             }
         }
@@ -739,7 +739,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             } else {
                 "trust needs improvement"
             };
-            println!("  🌲  Friday: {} · {}", rate_str, calibration.dimmed());
+            println!("  Friday: {} · {}", rate_str, calibration.dimmed());
         }
     }
     // INT-216 -- Friday meta-interpretation brief

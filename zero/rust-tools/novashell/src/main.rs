@@ -3182,7 +3182,7 @@ fn repl_main() -> Result<()> {
             }
         }
         mark("EXIT: active_intent scanned");
-        println!("  🌲 Session complete");
+        println!("  Session complete");
         println!(
             "  {} commands  ·  {} deploys  ·  {} commits  ·  {}",
             _session_commands,
@@ -3635,7 +3635,7 @@ fn friday_failure_hint(
         if !shown.contains(&fail_key) {
             shown.insert(fail_key);
             println!(
-                "  🌲 Friday: {} failed {} times in a row -- check the command",
+                "  Friday: {} failed {} times in a row -- check the command",
                 fail_cmd, consecutive
             );
             let notify_body = format!(
@@ -3643,7 +3643,7 @@ fn friday_failure_hint(
                 fail_cmd, consecutive
             );
             let _ = std::process::Command::new("notify-send")
-                .args(["🌲 Friday", &notify_body])
+                .args(["Friday", &notify_body])
                 .spawn();
         }
     }
@@ -3698,7 +3698,7 @@ fn friday_proactive_message(engine: &engine::Engine, session_commands: usize) {
                 use colored::Colorize;
                 println!();
                 println!(
-                    "  🌲 Friday: When {} → {} ({:.0}%)",
+                    "  Friday: When {} → {} ({:.0}%)",
                     trigger.bright_cyan(),
                     action.bright_white(),
                     conf * 100.0
@@ -3795,7 +3795,7 @@ fn friday_daemon_event(
                                 } else {
                                     ("SUGGEST", "54%")
                                 };
-                                println!("  🌲 Friday: {}  ·  {} · {}", msg, tier.0, tier.1);
+                                println!("  Friday: {}  ·  {} · {}", msg, tier.0, tier.1);
                             }
                         }
                     }

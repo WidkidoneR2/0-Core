@@ -181,7 +181,7 @@ fn draw_ui(
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Green))
             .title(Span::styled(
-                " 🌲 history ",
+                " history ",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),

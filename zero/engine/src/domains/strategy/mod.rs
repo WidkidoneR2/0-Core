@@ -140,7 +140,7 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     let commits = get_recent_commits(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Now".bright_green().bold());
+    println!("  {}", "Strategy — Now".bright_green().bold());
     println!("  {}", "What needs attention this session?".dimmed());
     println!(
         "{}",
@@ -254,7 +254,7 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     let commits = get_recent_commits(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Week".bright_green().bold());
+    println!("  {}", "Strategy — Week".bright_green().bold());
     println!("  {}", "What should the next 7 days focus on?".dimmed());
     println!(
         "{}",
@@ -384,7 +384,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     let commits = get_recent_commits(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Quarter".bright_green().bold());
+    println!("  {}", "Strategy — Quarter".bright_green().bold());
     println!("  {}", "The 90-day arc toward Jarvis.".dimmed());
     println!(
         "{}",
@@ -518,7 +518,7 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
         .ok();
 
     println!();
-    println!("  {}", "🌲 Strategy — Sequence".bright_green().bold());
+    println!("  {}", "Strategy — Sequence".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -663,7 +663,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     let commits = get_recent_commits(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Unblock".bright_green().bold());
+    println!("  {}", "Strategy — Unblock".bright_green().bold());
     println!("  {}", "What is blocking the most progress?".dimmed());
     println!(
         "{}",
@@ -798,7 +798,7 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
     let health = get_health(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Tradeoff".bright_green().bold());
+    println!("  {}", "Strategy — Tradeoff".bright_green().bold());
     println!(
         "  {}",
         format!("What do we give up to do \"{}\" now?", action).dimmed()
@@ -1011,7 +1011,7 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
         .collect();
 
     println!();
-    println!("  {}", "🌲 Strategy — Conflicts".bright_green().bold());
+    println!("  {}", "Strategy — Conflicts".bright_green().bold());
     println!(
         "  {}",
         "Which intents are pulling in opposite directions?".dimmed()
@@ -1141,7 +1141,7 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     let planned: Vec<&IntentMeta> = intents.iter().filter(|i| i.status == "planned").collect();
 
     println!();
-    println!("  {}", "🌲 Strategy — Coherence".bright_green().bold());
+    println!("  {}", "Strategy — Coherence".bright_green().bold());
     println!(
         "  {}",
         "Is the current work plan internally consistent?".dimmed()
@@ -1268,7 +1268,7 @@ pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
     };
 
     println!();
-    println!("  {}", "🌲 Strategy — Merge".bright_green().bold());
+    println!("  {}", "Strategy — Merge".bright_green().bold());
     println!(
         "  {}",
         format!("Can {} and {} be pursued together?", goal1, goal2).dimmed()
@@ -1741,10 +1741,7 @@ pub fn friday_readiness(ctx: &AppContext) -> CoreResult<()> {
     let (score, factors) = compute_friday_score(ctx);
 
     println!();
-    println!(
-        "  {}",
-        "🌲 Strategy — Jarvis Readiness".bright_green().bold()
-    );
+    println!("  {}", "Strategy — Jarvis Readiness".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -1872,7 +1869,7 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
     let (score, _) = compute_friday_score(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Trust".bright_green().bold());
+    println!("  {}", "Strategy — Trust".bright_green().bold());
     println!(
         "  {}",
         "What evidence would justify more autonomy?".dimmed()
@@ -1953,7 +1950,7 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
     let (score, _) = compute_friday_score(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Gap Analysis".bright_green().bold());
+    println!("  {}", "Strategy — Gap Analysis".bright_green().bold());
     println!(
         "  {}",
         "What capabilities are missing for full Jarvis?".dimmed()
@@ -2073,7 +2070,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     println!();
-    println!("  {}", "🌲 Strategy — History".bright_green().bold());
+    println!("  {}", "Strategy — History".bright_green().bold());
     println!("  {}", "Past strategies and did they help?".dimmed());
     println!(
         "{}",
@@ -2221,7 +2218,7 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
     )?;
 
     println!();
-    println!("  {}", "🌲 Strategy — Learn".bright_green().bold());
+    println!("  {}", "Strategy — Learn".bright_green().bold());
     println!(
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
@@ -2263,7 +2260,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     println!();
-    println!("  {}", "🌲 Strategy — Review".bright_green().bold());
+    println!("  {}", "Strategy — Review".bright_green().bold());
     println!("  {}", "What worked? What didn't?".dimmed());
     println!(
         "{}",

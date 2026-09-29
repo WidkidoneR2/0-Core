@@ -152,7 +152,7 @@ pub fn show_temporal_models(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!("  {} Friday Phase 2 -- Temporal Models", "🌲".normal());
+    println!("  Friday Phase 2 -- Temporal Models");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     for m in &models {
@@ -204,7 +204,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     let _root = std::path::PathBuf::from(&ctx.core_root);
     println!();
-    println!("  {} Friday Phase 2 -- Strategic Plan", "🌲".normal());
+    println!("  Friday Phase 2 -- Strategic Plan");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Read planned + in-progress intents from filesystem
@@ -320,11 +320,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
     // Multi-step plan
-    println!(
-        "  {} Proposed path ({:.0}% confidence):",
-        "🌲".normal(),
-        plan_conf * 100.0
-    );
+    println!("  Proposed path ({:.0}% confidence):", plan_conf * 100.0);
     println!("  {}", "─".repeat(52).dimmed());
     println!();
     let priority = ["203", "219", "234", "235", "239", "232", "147", "213"];
@@ -397,7 +393,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         "INSERT OR REPLACE INTO friday_state (key, value, updated_at) VALUES ('last_plan_confidence', ?1, ?2)",
         params![plan_conf.to_string(), now],
     );
-    println!("  {} Plan recorded to friday_plan_history.", "🌲".normal());
+    println!("  Plan recorded to friday_plan_history.");
     println!();
     Ok(())
 }
@@ -406,7 +402,7 @@ pub fn init(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     println!();
-    println!("  {} Friday Phase 2 -- Initializing", "🌲".normal());
+    println!("  Friday Phase 2 -- Initializing");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     seed_temporal_models(ctx)?;
@@ -455,10 +451,7 @@ pub fn init(ctx: &AppContext) -> CoreResult<()> {
         observations
     );
     println!();
-    println!(
-        "  {} Phase 2 active. Friday now thinks ahead.",
-        "🌲".normal()
-    );
+    println!("  Phase 2 active. Friday now thinks ahead.",);
     println!("  {} Next: core friday plan", "→".dimmed());
     println!();
     Ok(())
@@ -502,7 +495,7 @@ pub fn phase2_status(ctx: &AppContext) -> CoreResult<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(0.0);
     println!();
-    println!("  {} Friday -- Phase 2", "🌲".normal());
+    println!("  Friday -- Phase 2");
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     println!(
@@ -549,10 +542,7 @@ pub fn detect_temporal_patterns(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     let mut detections = 0usize;
     println!();
-    println!(
-        "  {} Friday Phase 2 -- Temporal Pattern Detection",
-        "🌲".normal()
-    );
+    println!("  Friday Phase 2 -- Temporal Pattern Detection",);
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // --- Model 1: open-intents-health-degradation ---
@@ -732,10 +722,7 @@ pub fn detect_temporal_patterns(ctx: &AppContext) -> CoreResult<()> {
         "✅".green(),
         detections.to_string().bright_white()
     );
-    println!(
-        "  {} Models updated with real historical data",
-        "🌲".normal()
-    );
+    println!("  Models updated with real historical data",);
     println!();
     Ok(())
 }
@@ -746,10 +733,7 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     println!();
-    println!(
-        "  {} Friday Phase 2 -- Contradiction Resolution",
-        "🌲".normal()
-    );
+    println!("  Friday Phase 2 -- Contradiction Resolution",);
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Get active unresolved contradictions
@@ -843,10 +827,7 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
         );
         println!();
     }
-    println!(
-        "  {} All proposals require human approval. Nothing has been changed.",
-        "🌲".normal()
-    );
+    println!("  All proposals require human approval. Nothing has been changed.",);
     println!();
     Ok(())
 }
@@ -856,7 +837,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     println!();
-    println!("  {} Friday Phase 2 -- Health Forecast", "🌲".normal());
+    println!("  Friday Phase 2 -- Health Forecast");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Current health
@@ -998,7 +979,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         params![forecast_72h.to_string(), now],
     );
     println!();
-    println!("  {} Forecast recorded to friday_state.", "🌲".normal());
+    println!("  Forecast recorded to friday_state.");
     println!();
     Ok(())
 }
@@ -1009,10 +990,7 @@ pub fn interrupt_level(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     println!();
-    println!(
-        "  {} Friday Phase 2 -- Trust-Modulated Interrupt Levels",
-        "🌲".normal()
-    );
+    println!("  Friday Phase 2 -- Trust-Modulated Interrupt Levels",);
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     let models: Vec<(String, f64, f64, i64)> = {
@@ -1102,10 +1080,7 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     let now = now_ts();
     let _root = std::path::PathBuf::from(&ctx.core_root);
     println!();
-    println!(
-        "  {} Friday Phase 2 -- Cross-Intent Pattern Detection",
-        "🌲".normal()
-    );
+    println!("  Friday Phase 2 -- Cross-Intent Pattern Detection",);
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Scan complete intents and extract domain patterns
@@ -1287,7 +1262,7 @@ pub fn phase2_status_full(ctx: &AppContext) -> CoreResult<()> {
         .map(|_| true)
         .unwrap_or(false);
     println!();
-    println!("  {} Friday -- Phase 2 (v20)", "🌲".normal());
+    println!("  Friday -- Phase 2 (v20)");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     println!(

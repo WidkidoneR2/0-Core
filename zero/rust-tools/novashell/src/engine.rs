@@ -1592,7 +1592,7 @@ impl Engine {
                 let now = chrono::Local::now().format("%H:%M:%S").to_string();
                 println!(
                     "  {} {} {}",
-                    "🌲 live".bright_cyan(),
+                    "live".bright_cyan(),
                     base_cmd.dimmed(),
                     now.dimmed()
                 );

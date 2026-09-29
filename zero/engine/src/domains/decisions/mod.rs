@@ -267,11 +267,7 @@ pub fn decide(ctx: &AppContext, description: &str, intent_id: Option<&str>) -> C
         )),
     );
 
-    println!(
-        "  {} Decision recorded: {}",
-        "🌲".green(),
-        dec_id.bright_cyan()
-    );
+    println!("  Decision recorded: {}", dec_id.bright_cyan());
     println!("{}", "━".repeat(48).dimmed());
     println!();
 
@@ -334,7 +330,7 @@ pub fn outcome(
     if let Some(n) = notes {
         println!("  {}  {}", "Note:".dimmed(), n);
     }
-    println!("  {} Outcome recorded", "🌲".green());
+    println!("  Outcome recorded");
     println!();
 
     let ew = EventWriter::new(&ctx.runtime.db);

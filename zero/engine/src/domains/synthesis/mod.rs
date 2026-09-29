@@ -246,7 +246,7 @@ fn generate_brief(
 pub fn cmd_now(ctx: &AppContext) -> CoreResult<()> {
     let result = synthesize_now(ctx)?;
     println!();
-    println!("  {} Core v18 -- Synthesis Snapshot", "🌲".normal());
+    println!("  Core v18 -- Synthesis Snapshot");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     if !result.contradictions.is_empty() {
@@ -315,8 +315,7 @@ pub fn cmd_brief(ctx: &AppContext) -> CoreResult<()> {
             let age = (now_ts() - ts) / 60;
             println!();
             println!(
-                "  {} Friday brief ({} min ago, {:.0}% confidence)",
-                "🌲".normal(),
+                "  Friday brief ({} min ago, {:.0}% confidence)",
                 age,
                 conf * 100.0
             );
@@ -353,7 +352,7 @@ pub fn cmd_history(ctx: &AppContext) -> CoreResult<()> {
         x
     };
     println!();
-    println!("  {} Synthesis History", "🌲".normal());
+    println!("  Synthesis History");
     println!("  {}", "─".repeat(55).dimmed());
     for (ts, health, intent, commits, brief) in &rows {
         let time = chrono::DateTime::from_timestamp(*ts, 0)

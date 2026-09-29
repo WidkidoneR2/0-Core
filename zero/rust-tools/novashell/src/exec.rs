@@ -677,8 +677,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &StateDb) {
         if let Some((id, resolution, confidence)) = lesson {
             println!();
             println!(
-                "  {} Friday knows this ({:.0}% confidence):",
-                "🌲".normal(),
+                "  Friday knows this ({:.0}% confidence):",
                 confidence * 100.0
             );
             println!(

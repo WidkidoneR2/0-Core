@@ -67,7 +67,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     seed_registry(ctx)?;
 
     println!();
-    println!("{}", "🌲 Engine Coordination Status".cyan().bold());
+    println!("{}", "Engine Coordination Status".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
 
