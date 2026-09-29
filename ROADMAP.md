@@ -93,7 +93,7 @@ all 34 doctor checks real / label / lie.
 Nothing can be planned on top of documents and components whose status is unknown.
 
 **Work, docs:** a verdict per file -- update, archive to `docs/historical/`, or delete. Known
-already: WORKFLOWS, POLICIES and NEW-CHAT-DIRECTIVES carry pre-INT-061 paths and retired tooling;
+already: WORKFLOWS and POLICIES carry pre-INT-061 paths and retired tooling;
 CONVENTIONS is current and stays; `docs/public/` is **generated**, so the generator is the question,
 not the output; `docs/.dotmeta` is orphaned stow metadata.
 
@@ -195,7 +195,7 @@ Known load-bearing: `nix/home/dotfiles/` is hardcoded in six Rust call sites and
 ⚠️ **CORRECTED 2026-08-17.** An earlier draft named INT-175 ("finish the event bus") as the
 prerequisite and the highest-value node in the graph. **INT-175 is CANCELLED**, and its cancellation
 reason is that the premise was false: `faelight-daemon` is Arch-era prototype code, untouched since
-the NixOS migration, and there was never a NixOS event bus to finish.
+the OS migration, and there was never a native event bus to finish.
 
 ★ **The prerequisite is therefore a DECISION, not an intent: does the event bus belong to Core
 Runtime (`engine/src/domains/events/`, which already exists) or to friday-daemon (INT-039)?**

@@ -2,7 +2,7 @@
 
 **Version:** 14.1.0
 **Last Updated:** 2026-06-05
-**System:** NixOS 26.05 + MangoWM + Faelight Forest
+**System:** Omarchy (Arch) + Hyprland + Project 0
 
 ---
 
@@ -22,27 +22,6 @@ intent list                    # see what's available
 cistart <id>                   # start intent, auto-checkpoint
 # do the work
 cicomplete <id>                # complete intent, auto-checkpoint
-```
-
-### Configuration Change Workflow (NixOS)
-```bash
-# 1. Edit the right file
-hx ~/0-core/users/christian/home.nix        # user packages, programs
-hx ~/0-core/hosts/framework16/configuration.nix  # system config
-hx ~/0-core/config/<tool>/.config/<tool>/   # tool config files
-
-# 2. Test before applying
-rebuild-dry                    # dry-run, catch errors before rebuilding
-
-# 3. Apply safely
-rebuild-safe                   # rebuild with health gate + auto-rollback
-
-# 4. Verify
-d                              # health check -- must stay 100%
-
-# 5. Commit
-git add -A && git commit --no-verify
-git push
 ```
 
 ### Quick File Edit
@@ -103,7 +82,6 @@ core intent brief              # session brief with recommendations
 # 1. Create tool directory
 mkdir ~/0-core/rust-tools/<toolname>/src
 # 2. Add to workspace Cargo.toml
-# 3. Add to flake.nix package list
 # 4. Build and test locally
 cargo build -p <toolname>
 # 5. Rebuild to deploy
@@ -123,21 +101,6 @@ hx ~/0-core/users/christian/home.nix
 rebuild-safe
 ```
 
-### Adding a New NixOS Module
-```bash
-# 1. Create module file
-hx ~/0-core/modules/<category>/<name>.nix
-
-# 2. Import in configuration.nix or profiles/
-# 3. Test with dry-run
-rebuild-dry
-
-# 4. Apply
-rebuild-safe
-```
-
----
-
 ## Safety Workflows
 
 ### Before High-Risk Changes
@@ -151,9 +114,7 @@ rebuild-safe                   # pre/post health gate, auto-rollback
 
 ### Rollback
 ```bash
-rollback                       # sudo nixos-rebuild switch --rollback
 # or pick a specific generation:
-sudo nixos-rebuild switch --flake ~/0-core#framework16 --rollback
 ```
 
 ### Health Gate
@@ -186,7 +147,6 @@ gc                             # commit message references INT-XXX
 ### Emergency Recovery
 ```bash
 # If something breaks during development
-rollback                       # restore previous NixOS generation
 git stash                      # stash uncommitted changes
 d                              # verify health restored
 ```
@@ -200,7 +160,6 @@ d                              # verify health restored
 | `d` | Health check |
 | `fm` | File manager (broot-style tree) |
 | `fmd` | File manager dual panel |
-| `rebuild` | NixOS rebuild |
 | `rebuild-safe` | Rebuild with health gate |
 | `rebuild-dry` | Dry-run rebuild |
 | `rollback` | Rollback to previous generation |

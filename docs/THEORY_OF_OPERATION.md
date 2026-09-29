@@ -142,7 +142,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 ### The Stack
 
 **Foundation:**
-- NixOS 26.05 (vanilla, not Omarchy)
+- Omarchy (Arch, Hyprland)
 - MangoWM (Wayland compositor)
 - Btrfs filesystem (snapshots)
 

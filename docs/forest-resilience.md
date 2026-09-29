@@ -7,7 +7,7 @@
 ## Keyboard-Only Mode (when mouse dies)
 
 ### Compositor window navigation
-> ⚠️ NEEDS MANGO STEPS -- niri-era commands below are retired (INT-085). See INT-056 / docs/recovery-runbook.md for current mango recovery.
+> ⚠️ NEEDS MANGO STEPS -- niri-era commands below are retired (INT-085). See INT-056 for current mango recovery.
 | Action | Keybind |
 |--------|---------|
 | Focus left/right | `Super+h/l` |
@@ -78,7 +78,7 @@ solaar show
 
 The forest runs three compositors (mango daily + Pinnacle + Miracle), all selectable
 at the greeter, all under the SafeShell net. Recovery is layered (INT-056, proven VM +
-metal 2026-07-11). Full detail: `docs/recovery-runbook.md`.
+metal 2026-07-11).
 
 ### SafeShell -- the 100% recovery (do this first)
 If a compositor fails to launch or black-screens, you do NOT need a TTY. At the greeter,

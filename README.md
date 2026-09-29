@@ -11,7 +11,6 @@
 
 ## 🍂 Migrating to Omarchy (Arch), August 2026
 
-The 1.0.0 release ran on NixOS. It does not any more.
 
 On 2026-08-26 the machine was wiped and reinstalled on Omarchy, and the forest moved
 with it. What that migration is finding, in the open: checks that could not fail,
@@ -194,7 +193,7 @@ This README is the front door. The depth lives here:
 - [Release Process](docs/RELEASE.md) -- how the forest publishes itself
 - [Tool Catalog](faelight/rust-tools/) -- every active tool, generated from source
 - [Inventory](docs/inventory.md) -- what is used, what is kept, and what the numbers say
-- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era through NixOS to Omarchy
+- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era to Omarchy
 
 ## Security
 

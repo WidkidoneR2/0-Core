@@ -2,7 +2,7 @@
 
 **Version:** 14.1.0
 **Last Updated:** 2026-06-05
-**System:** NixOS 26.05 + MangoWM + Faelight Forest
+**System:** Omarchy (Arch) + Hyprland + Project 0
 
 > The forest understands your intent. These are the commands you reach for daily.
 
@@ -48,28 +48,6 @@ fmd                        # faelight-fm dual panel
 core git status            # git status with forest context
 core security scan         # security audit
 core security report       # security report
-```
-
----
-
-## NixOS Commands
-
-### Rebuild & Deploy
-```bash
-rebuild                    # sudo nixos-rebuild switch --flake ~/0-core#framework16
-rebuild-safe               # rebuild with pre/post health gate + auto-rollback
-rebuild-dry                # dry-run -- catch errors before rebuilding
-rebuild-check              # dry-run + quick doctor
-rollback                   # rollback to previous generation
-```
-
-### Nix Inspection
-```bash
-nix-tree                   # browse dependency tree interactively
-nvd diff /run/booted-system /run/current-system  # what changed
-nix flake update           # update flake inputs
-nix-collect-garbage -d     # garbage collect old generations
-nix-store --gc --print-roots  # show what's keeping store paths alive
 ```
 
 ---

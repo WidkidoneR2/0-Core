@@ -4,7 +4,7 @@ Self-enforcing rules learned from pain. These policies prevent future-you from r
 
 **Last Updated:** 2026-06-05  
 **Version:** 14.1.0.1.0  
-**System:** NixOS 26.05 + MangoWM + Faelight Forest
+**System:** Omarchy (Arch) + Hyprland + Project 0
 
 ---
 

@@ -70,7 +70,7 @@ not optional, and no step is skipped because a change looks small.
 4. **Apply the code.** Only the change that was agreed. No unrequested edits riding along.
 5. **Test in the debug shell.** Exercise the behaviour before it reaches the running system.
 6. **`ship`.** Build the release and deploy. This is the only step that produces
-   what actually runs. `dep` was the NixOS verb and no longer exists -- see
+   what actually runs. `dep` no longer exists -- see
    Build System below.
 7. **Reload and test in the new build.** Re-verify against the deployed artifact.
 8. **DevBox** (INT-167), as it comes online — instrumented verification in place of manual
@@ -139,7 +139,7 @@ edit  ->  cargo build -p <crate>  ->  test the DEBUG binary  ->  ship  ->  exec 
   the binary mtime (`/usr/bin/ls -la --time-style=full-iso ~/.local/bin/nsh`) against
   `git log --format="%h %ci %s"` before reading further.
 - After any rename, `cargo check --workspace`. A per-crate check misses the breakage.
-- **Gone with NixOS, do not look for them:** `dep`, `rebuild`, `rebuild-safe`, `rebuild-dry`,
+- **Retired, do not look for them:** `dep`, `rebuild`, `rebuild-safe`, `rebuild-dry`,
   `nix develop`, generations, rollback-by-generation, and the rule that git must know a file
   before it builds. `ship` has no health gate and no rollback.
 <!-- MEASURED 2026-09-05: snapper and limine ARE installed (/usr/bin/snapper,
@@ -217,11 +217,7 @@ Know the way back before you need it.
 - **snapper and limine are installed** -- but whether a snapshot rollback is configured
   and bootable is UNVERIFIED. Do not plan around it until someone has restored from one
   and written down what they did.
-- ⚠️ **`docs/recovery-runbook.md` IS STALE AND DESCRIBES A MACHINE THAT NO LONGER
-  EXISTS.** It assumes NixOS, a flake target, btrfs subvolumes including `@nix`, MangoWM,
-  greetd, and the F3 SafeShell session. The only thing in it still true here is the VT
-  key sequence. Treat it as history until it is rewritten. **The system currently has
-  no trusted written recovery procedure.** That is a gap, stated rather than assumed.
+- ⚠️ **There is no written recovery procedure for this machine.** The NixOS-era runbook was deleted 2026-09-29 because its steps are wrong on Omarchy; an Omarchy runbook belongs to INT-225. That is a gap, stated rather than assumed.
 
 ---
 
@@ -280,7 +276,6 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 
 - Rust: `faelight-core/src/paths.rs`, `faelight-deadwood/src/main.rs`, `integrity/mod.rs`,
   `doctor/checks.rs`, `cheatsheet_tui.rs`
-// (Nix paths removed 2026-09-15: the machine has not been NixOS since 2026-08-26)
 - Persistent data, as of 2026-09-24 (INT-247): `~/.local/state/zero` (state.db), `~/.config/zero`
   and `~/.cache/zero` are the REAL directories; the `faelight` names beside them are compatibility
   links. `~/.local/share/zero` is real too (teach progress, the delete trash) and
@@ -302,7 +297,7 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 8. Every migration step leaves the system buildable and testable.
 9. Never mix unrelated architectural changes into a naming migration.
 10. Prefer small, independently testable migration commits.
-11. **A `/etc/` path is an assumption from a system that no longer exists.** NixOS
+11. **A `/etc/` path is an assumption from a system that no longer exists.** The previous OS
     generated `/etc/faelight/*` declaratively via `environment.etc`. Omarchy has no reconciler,
     so those files vanished on 2026-08-26 and EIGHT readers spent three weeks answering `""`,
     `0`, and an invented `v14.0.0` -- silently, because every read was wrapped in a fallback.
@@ -655,7 +650,7 @@ Full reasoning in `docs/CONVENTIONS.md` (INT-199); `fpatch`'s `_refuse` is the r
 ## Security
 
 - ⚠️ **Secure Boot is NOT enforcing.** MEASURED 2026-09-05: `sbctl` is not installed and
-  `/var/lib/sbctl` does not exist. The custom-key setup went with NixOS and has not been
+  `/var/lib/sbctl` does not exist. The custom-key setup went with the previous OS and has not been
   rebuilt. Do not describe the boot chain as signed until it is, and until that has been
   demonstrated rather than configured.
 - Secrets are never committed. `gitleaks` scans before commits. Configs reference secrets, they
@@ -686,7 +681,6 @@ Stop and ask before:
 - anything involving sudo, sudoers, or privilege escalation
 - broad process kills
 - repository-wide renames
-- deleting or moving anything referenced by `docs/recovery-runbook.md`
 - changing persistent data locations or formats
 - starting substantive work without an open intent
 

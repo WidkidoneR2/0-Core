@@ -76,7 +76,7 @@ solaar show
 ## Compositor Recovery
 
 The forest runs three compositors (mango daily + Pinnacle + Miracle), all selectable
-metal 2026-07-11). Full detail: `docs/recovery-runbook.md`.
+metal 2026-07-11).
 
 ### SafeShell -- the 100% recovery (do this first)
 If a compositor fails to launch or black-screens, you do NOT need a TTY. At the greeter,

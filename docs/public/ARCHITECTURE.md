@@ -155,34 +155,6 @@ Run `d` (alias for `doctor`) to update health across all tools.
 
 ---
 
-## NixOS Deployment
-
-All tools are deployed via the Nix build system -- no stow, no symlinks, no manual deployment.
-
-```nix
-# flake.nix -- packages section
-packages = {
-  faelight-forest = pkgs.rustPlatform.buildRustPackage { ... };
-};
-```
-
-Binaries land in `/run/current-system/sw/bin/` after `rebuild`.
-
-Config files are managed by home-manager via `xdg.configFile`:
-```nix
-xdg.configFile."alacritty".source = ../../config/alacritty/.config/alacritty;
-```
-
-Deployment workflow:
-```bash
-# Edit config or source
-hx ~/0-core/users/christian/home.nix
-
-# Apply
-rebuild-safe   # with health gate + auto-rollback
-```
-
-
 ## Build System
 ```bash
 # Build entire workspace

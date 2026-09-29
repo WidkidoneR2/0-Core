@@ -53,7 +53,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Sandboxed execution -- faelight-sandbox (5 policies) (INT-024)
 - [x] File browser -- yazi (INT-063; faelight-fm -> WIP)
 - [x] Split panes -- faelight-ade (fsh PTY + friday-chat) -- EVIDENCED: faelight-ade tool exists (no dedicated intent; built as ecosystem tooling)
-- [x] fsh as a first-class command (`fsh` -> faelight-shell; flake.nix postFixup, 2026-06-18)
+- [x] fsh as a first-class command (`fsh` -> faelight-shell, 2026-06-18)
 - [x] Git status in prompt + bar -- VERIFIED live (visible every prompt)
 - [x] Nix context in prompt -- flake + devshell, dirty git / dirty flake / rebuild-drift markers (INT-062)
 - [x] Health % in prompt + live in bar (INT-033)
@@ -81,10 +81,8 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
 - [x] Detect dirty git + flake state (INT-062)
 - [x] Built-in nix command wrappers -- partial (rebuild / dep / update-flake aliases)
 - [~] Dev-shell activation per flake project -- PARTIAL (INT-134, 2026-07-12): manual `devshell enter [name]` SHIPPED (reproducible via `nix develop --command <fsh>`, nested fsh). commit 0af760ae. The AUTO-detect half was CUT: the session is always already in a devShell (IN_NIX_SHELL=impure, name=friday-dev-env always set) -- an edge-triggered auto hint has no reliable off-state. Filter-appropriate cut; documented.
-- [x] Generation rollback browser -- SHIPPED (INT-134, 2026-07-12): `generations`/`gens` -- read-only NixOS generation browser (rollback shown, not run). commit 976d5334.
 - [x] Query installed packages from prompt -- FIXED (INT-134, 2026-07-12): new `packages` (alias `pkgs`) builtin lists the current system environment, sourced from `nix-store -q --references /run/current-system/sw`, parsed to name-version (hash stripped via split_once so multi-dash names stay intact), sorted + deduped. `packages <filter>` narrows by substring (partly serves package-search too). Verified live: 211 packages listed; 'packages ripgrep' -> ripgrep-15.1.0; 'packages neovim' -> neovim-0.12.3. Reuses INT-075's nix_query_lines. commands/mod.rs packages arm.
 - [x] Package search integrated into completion -- SHIPPED (INT-134, 2026-07-12): `pkg-search`/`pkgsearch <term>` (nix 2.34 `nix search nixpkgs <regex> --json`), caches to /tmp/fsh-pkg-search.json; completion.rs reads the cache for TAB (no network). commit 0af760ae.
-- [x] Nix store explorer -- VERIFIED (INT-075, tested 2026-07-12): `store` command. `store why <path|name>` resolves a name to its /nix/store path and reports self size, closure size, GC roots that pin it, and direct referrers; `store reclaim` is the GC preview. Verified live: 'store why ripgrep' -> 6.2 MiB self / 54.2 MiB closure / 94 GC roots / 104 referrers. Already complete; no build needed. commands/mod.rs store_cmd.
 - [x] GC statistics widget -- VERIFIED (INT-075, tested 2026-07-11): `store reclaim` is an honest read-only GC statistics preview -- computes the dead set (nix-store --gc --print-dead, deletes nothing), counts dead paths, sums true freeable size (self-sizes, not closure, to avoid double-counting shared deps). Verified live: 'dead paths: 1108, freeable: 6.24 GiB' in ~24s against the real store. Already complete; no build needed (avoided duplicating as a separate gc-stats). commands/mod.rs store_reclaim.
 
 ## Lane 3 -- Rust-native
@@ -172,7 +170,7 @@ builtin shadowing (caused a disk-corruption risk, 2026-06-23).
       reach the same commands, and the terminal is not a compositor: overlay windows belong to the
       window manager rather than to the shell.
 - [ ] KEEP (UX, small) -- Command previews before execution. Measured: `pv` (smart_preview_cmd,
-      commands/mod.rs:15022) previews a FILE -- `pv flake.nix` reports size and detected type. That
+      commands/mod.rs:15022) previews a FILE -- `pv Cargo.toml` reports size and detected type. That
       is a file preview, not a command preview, so the item is genuinely open. ★ The pieces for it
       exist though: `explain <cmd>` gives static information and `why <verb>` gives the semantic
       reading, both already recorded above. What is missing is showing either one automatically

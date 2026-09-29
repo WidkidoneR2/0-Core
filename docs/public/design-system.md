@@ -82,18 +82,6 @@ Full:   9999px -- pills, badges
 4. Rounded corners (4px radius)
 5. Forest green base with accent highlights
 
-### Tool Icons (planned, NixOS era)
-faelight-term:   🖥  Terminal -- green glow, command prompt visual
-faelight-bar:    📊  Bar -- horizontal strip with Friday eye
-faelight-menu:   🌿  Menu -- leaf/launcher, expanding branches
-faelight-lock:   🔒  Lock -- forest padlock, glowing keyhole
-faelight-login:  🌲  Login -- full tree, dawn light
-faelight-notify: 🔔  Notify -- bell with forest green pulse
-faelight-fm:     📁  Files -- folder with forest floor texture
-faelight-git:    🌿  Git -- branch with leaf nodes
-
----
-
 ## Component Library
 
 ### Status Indicators
@@ -165,7 +153,7 @@ Mode:   Full-width when in resize/launcher mode (amber background)
 | faelight-fm v2 | ✅ | ✅ | partial | ✅ |
 | faelight-compositor | partial | ❌ | ❌ | ❌ |
 
-Full visual unification: NixOS era with libcosmic throughout.
+Full visual unification: libcosmic throughout.
 
 ---
 
