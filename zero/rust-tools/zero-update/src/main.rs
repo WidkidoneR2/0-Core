@@ -797,7 +797,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     }
     categories.push(UpdateCategory {
         name: "0-Core Workspace".to_string(),
-        emoji: "🌲".to_string(),
+        emoji: "◉".to_string(),
         count: workspace_items.len(),
         items: workspace_items,
         skipped: workspace_note,

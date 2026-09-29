@@ -448,7 +448,7 @@ pub fn render_context(db: &StateDb, ctx: &PromptContext) {
         .unwrap_or(0)
             > 0;
         if has_friday_msg {
-            parts.push("🌲".to_string());
+            parts.push("◉".to_string());
         }
     }
 

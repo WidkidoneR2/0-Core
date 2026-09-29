@@ -38,7 +38,7 @@ const SELECT: Color = Color::Rgb(0, 60, 40);
 fn table_icon(name: &str) -> &'static str {
     let n = name.to_lowercase();
     if n.contains("intent") {
-        return "🌲";
+        return "◉";
     }
     if n.contains("friday") || n.contains("synthesis") {
         return "🔮";

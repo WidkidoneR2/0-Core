@@ -2419,7 +2419,6 @@ print('CLASS-DONE')"##;
                         || t.starts_with('[')
                         || t.starts_with("x ")
                         || t.starts_with('✗')
-                        || t.starts_with("🌲")
                         || t.starts_with("🌳")
                 }
                 let fsh_body: String = fsh_out

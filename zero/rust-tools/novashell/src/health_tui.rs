@@ -83,12 +83,7 @@ fn parse_doctor_output(raw: &str) -> (Vec<Section>, String, String, u8) {
         }
         // Friday line
         if s.contains("Friday:") {
-            friday_line = s
-                .trim_start_matches("🌲")
-                .trim()
-                .trim_start_matches("Friday:")
-                .trim()
-                .to_string();
+            friday_line = s.trim().trim_start_matches("Friday:").trim().to_string();
             continue;
         }
         // Forecast line

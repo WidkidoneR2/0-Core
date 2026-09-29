@@ -12,7 +12,7 @@ id = "1-src"
 name = "SRC"
 path = "~/1-src"
 protected = false
-emoji = "🌲"
+emoji = "◉"
 
 [[zone]]
 id = "2-projects"
