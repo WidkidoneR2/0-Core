@@ -558,6 +558,24 @@ fn main() {
             "  note: ship replaced itself -- this process is still the old code until it exits"
         );
     }
+    // The cheatsheet registry is rebuilt from the live config and the builtin table
+    // every time nsh ships, so it cannot go stale between ships (INT-247 6B3).
+    if shipped.iter().any(|n| n == "nsh") && !args.dry_run {
+        match Command::new(bin.join("nsh"))
+            .arg("--refresh-cheatsheet")
+            .status()
+        {
+            Ok(s) if s.success() => {}
+            Ok(s) => {
+                println!("  cheatsheet refresh FAILED -- nsh exited with {}", s);
+                failed.push("nsh --refresh-cheatsheet".to_string());
+            }
+            Err(e) => {
+                println!("  cheatsheet refresh FAILED -- {}", e);
+                failed.push("nsh --refresh-cheatsheet".to_string());
+            }
+        }
+    }
     println!();
     if !failed.is_empty() {
         std::process::exit(1);

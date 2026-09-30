@@ -1059,7 +1059,7 @@ fn main() -> Result<()> {
         }
     }
     // INT-092 Phase 3: --refresh-cheatsheet rebuilds command_registry and exits.
-    // Called by the deploy script so the cheatsheet never refossilizes.
+    // Called by ship after it ships nsh, so the cheatsheet never refossilizes.
     {
         let args: Vec<String> = std::env::args().collect();
         if args.iter().any(|a| a == "--refresh-cheatsheet") {
