@@ -1561,7 +1561,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     total += shell_score;
     // Factor 8: Nervous System (+5) — zero-insightd operational
     let insightd_running = std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "faelight-insightd"])
+        .args(["--user", "is-active", "zero-insightd"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
@@ -1620,23 +1620,19 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push(("Delegation Engine".to_string(), deleg_score, deleg_note));
     total += deleg_score;
 
-    // Factor 7: Context awareness (max 7) — zero-context + faelight-memory
-    let context_exists = std::path::PathBuf::from(&ctx.core_root)
-        .join("scripts/faelight-context")
-        .exists();
-    let memory_exists = std::path::PathBuf::from(&ctx.core_root)
-        .join("scripts/faelight-memory")
-        .exists();
-    let (ctx_score, ctx_note) = match (context_exists, memory_exists) {
-        (true, true) => (
-            7,
-            "zero-context + faelight-memory both operational".to_string(),
-        ),
-        (true, false) => (
+    // Factor 7: Context awareness (max 7) -- zero-context on PATH. The project-memory half
+    // (INT-160) is not built. The check that stood here looked for two scripts in a scripts/
+    // directory that no longer exists, so it scored 0 on every run (INT-247 pass 4).
+    let context_exists = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).any(|d| d.join("zero-context").is_file()))
+        .unwrap_or(false);
+    let (ctx_score, ctx_note) = if context_exists {
+        (
             4,
-            "zero-context operational, faelight-memory pending INT-160".to_string(),
-        ),
-        _ => (0, "Neither context nor memory built yet".to_string()),
+            "zero-context operational -- project memory not built (INT-160)".to_string(),
+        )
+    } else {
+        (0, "zero-context not on PATH".to_string())
     };
     factors.push(("Context & Memory".to_string(), ctx_score, ctx_note));
     total += ctx_score;
@@ -2000,7 +1996,7 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
         (
             false,
             "MEDIUM",
-            "faelight-memory",
+            "project-memory",
             "INT-160",
             "No persistent project knowledge",
         ),

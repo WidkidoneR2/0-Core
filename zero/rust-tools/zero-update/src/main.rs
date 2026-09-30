@@ -37,10 +37,6 @@ struct Cli {
     #[arg(short, long)]
     interactive: bool,
 
-    /// Create pre-update snapshot (requires faelight-snapshot)
-    #[arg(long)]
-    snapshot: bool,
-
     /// Skip interactive TUI and update immediately
     #[arg(short = 'y', long)]
     yes: bool,
@@ -464,11 +460,6 @@ fn run() -> Result<()> {
         run_health_check()?;
     }
 
-    // Create pre-update snapshot if requested
-    if cli.snapshot && !cli.dry_run && !cli.json {
-        create_snapshot()?;
-    }
-
     // Pre-flight warnings
     if !cli.json && !cli.count_only && !cli.skip_health {
         run_preflight_checks();
@@ -631,28 +622,6 @@ fn category_matches(filter: &str, category: &str) -> bool {
     (filter_lower == "cargo" && category_lower.contains("cargo")) ||
     (filter_lower == "neovim" && category_lower.contains("neovim")) ||
     (filter_lower == "workspace" && category_lower.contains("workspace"))
-}
-
-/// Create pre-update snapshot
-fn create_snapshot() -> Result<()> {
-    println!("{}  Creating pre-update snapshot...", "📸".yellow());
-
-    let output = Command::new("faelight-snapshot")
-        .args(["create", "--tag", "pre-update"])
-        .output()
-        .context("Failed to create snapshot - is faelight-snapshot installed?")?;
-
-    if output.status.success() {
-        println!("   {}  Snapshot created", "✅".green());
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "Snapshot failed: {}\n💡 Install faelight-snapshot or run without --snapshot flag",
-            stderr
-        );
-    }
-
-    Ok(())
 }
 
 /// Run health check

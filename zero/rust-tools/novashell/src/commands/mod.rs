@@ -15967,18 +15967,16 @@ fn scripting_run_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandRes
     match args.first() {
         None => CommandResult::Error("Usage: run <file.nsh> or run --list".to_string().into(), 1),
         Some(&"--list") => {
-            // List .fsh scripts in core_root
-            let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
             // INT-247 Layer 3a: one owner. NOT paths::scripts_dir(), which is the REPO's
             // scripts -- this is the user's own, beside their config.
             let home_path = zero_core::paths::shell_scripts_dir();
 
             println!();
-            println!("  {} .fsh scripts", "🌿".normal());
+            println!("  {} .nsh scripts", "🌿".normal());
             println!("{}", "  ─────────────────────────────".dimmed());
 
             let mut found = false;
-            for path in &[scripts_path, home_path] {
+            for path in [&home_path] {
                 if let Ok(entries) = std::fs::read_dir(path) {
                     for entry in entries.flatten() {
                         if entry
@@ -15994,11 +15992,11 @@ fn scripting_run_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandRes
                 }
             }
             if !found {
-                println!("  {} No .fsh scripts found", "○".dimmed());
+                println!("  {} No .nsh scripts found", "○".dimmed());
                 println!(
                     "  {} Create: {}",
                     "→".dimmed(),
-                    "~/0-core/scripts/fsh/example.fsh".dimmed()
+                    home_path.join("example.nsh").display().to_string().dimmed()
                 );
             }
             println!();
@@ -16076,7 +16074,6 @@ fn scripting_run_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandRes
             };
             let candidates = vec![
                 resolved.clone(),
-                format!("{}/scripts/fsh/{}", core_root, resolved),
                 zero_core::paths::shell_scripts_dir()
                     .join(&resolved)
                     .to_string_lossy()
@@ -16839,63 +16836,14 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
-/// INT-346: ade -- launch the ADE (Zellij + Alacritty + friday-chat)
-fn ade_cmd(args: &[&str]) -> CommandResult {
-    use colored::Colorize;
-    let layout = args.first().copied().unwrap_or("zero-ade");
-    let layout_path = format!(
-        "{}/.config/zellij/layouts/{}.kdl",
-        std::env::var("HOME").unwrap_or_default(),
-        layout
-    );
-
-    if !std::path::Path::new(&layout_path).exists() {
-        return CommandResult::Error(
-            format!(
-                "ADE layout not found: {}\nRun: core intent show 346",
-                layout_path
-            )
-            .into(),
-            1,
-        );
+/// INT-346: ade -- launch the ADE. zero-ade owns its own layout and session; the Zellij
+/// layout check that stood here read a layouts directory that does not exist, so every launch
+/// stopped at "layout not found" before reaching zero-ade (INT-247 pass 4).
+fn ade_cmd(_args: &[&str]) -> CommandResult {
+    match std::process::Command::new("zero-ade").spawn() {
+        Ok(_) => CommandResult::Output("  Launching Zero ADE...".to_string()),
+        Err(e) => CommandResult::Error(format!("ade: cannot start zero-ade: {}", e).into(), 1),
     }
-
-    println!("  Launching Zero ADE...");
-    println!("  {} Layout: {}", "→".dimmed(), layout.bright_cyan());
-    println!("  {} Left: fsh (Alacritty)", "→".dimmed());
-    println!("  {} Right: friday-chat", "→".dimmed());
-    println!(
-        "  {} Alt+h/l to switch panes · Alt+f fullscreen · Alt+w close pane",
-        "→".dimmed()
-    );
-
-    // Check if session already exists -- attach if so
-    let sessions = std::process::Command::new("zellij")
-        .args(["list-sessions"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
-
-    let _is_alive = sessions.lines().any(|l| {
-        (l.contains("zero-ade") || l.contains("forest-ade"))
-            && !l.contains("EXITED")
-            && !l.contains("dead")
-    });
-    let is_dead = sessions.lines().any(|l| {
-        (l.contains("zero-ade") || l.contains("forest-ade"))
-            && (l.contains("EXITED") || l.contains("dead"))
-    });
-
-    if is_dead {
-        // Kill the dead session first
-        let _ = std::process::Command::new("zellij")
-            .args(["delete-session", "zero-ade", "--force"])
-            .output();
-    }
-
-    // INT-346: launch zero-ade directly
-    let _ = std::process::Command::new("zero-ade").spawn();
-    CommandResult::Output(String::new())
 }
 
 /// One fsearch hit as a ROW.
