@@ -403,7 +403,7 @@ fn check_session_velocity(ctx: &AppContext) -> CoreResult<Option<String>> {
         .unwrap_or(0);
     let total_commits_text: Option<String> = db
         .query_row(
-            "SELECT fact FROM friday_knowledge WHERE domain = 'forest' AND key = 'forest_stats'",
+            "SELECT fact FROM friday_knowledge WHERE domain = 'zero' AND key = 'project_stats'",
             [],
             |r| r.get(0),
         )

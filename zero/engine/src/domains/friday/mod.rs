@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS friday_knowledge (
 CREATE TABLE IF NOT EXISTS friday_knowledge_meta (
     domain        TEXT NOT NULL,
     key           TEXT NOT NULL,
-    system        TEXT NOT NULL DEFAULT 'unknown',  -- 'nixos' (native) | 'arch' | ... (foreign)
+    system        TEXT NOT NULL DEFAULT 'unknown',  -- 'zero' (project) | 'arch' | ... (foreign)
     kind          TEXT NOT NULL DEFAULT 'fact',      -- 'fact' | 'command' | 'translation'
     translates_to TEXT,                              -- native equivalent, for foreign rows
     PRIMARY KEY (domain, key)
@@ -146,17 +146,6 @@ fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
 /// NOTE: INSERT OR IGNORE means this fills GAPS only -- it never re-derives an existing
 /// meta row. If the derivation rule ever changes, existing rows must be migrated separately.
 fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
-    // Explicit translation curation: (fact_key, translates_to). Cannot be derived from
-    // domain alone (the other nixos rows are plain facts), so these are recognized by key.
-    const TRANSLATIONS: &[(&str, &str)] = &[
-        ("pacman -Syu updates all packages. pacman -S installs. pacman -Rs removes with deps.",
-         "nix flake update && nixos-rebuild switch"),
-        ("pacman -Qi <pkg> shows installed package info. pacman -Ql <pkg> lists files. pacman -Qo <file> finds owner.",
-         "nix-env -q / nix-store -q"),
-        ("/etc/pacman.conf controls mirrors and options. reflector updates mirror list.",
-         "configuration.nix / flake.nix"),
-    ];
-
     // Read fact rows that lack a meta row (excluding the session log).
     let mut stmt = db.prepare(
         "SELECT k.domain, k.key FROM friday_knowledge k
@@ -169,12 +158,7 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
         .collect();
 
     for (domain, key) in rows {
-        let translation = TRANSLATIONS.iter().find(|(k, _)| *k == key);
-        let (system, kind, translates_to): (&str, &str, Option<&str>) = match translation {
-            Some((_, tt)) => ("nixos", "translation", Some(*tt)),
-            None if domain == "nixos" => ("nixos", "fact", None),
-            None => ("forest", "fact", None),
-        };
+        let (system, kind, translates_to): (&str, &str, Option<&str>) = ("zero", "fact", None);
         db.execute(
             "INSERT OR IGNORE INTO friday_knowledge_meta (domain, key, system, kind, translates_to)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -231,8 +215,8 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     // Time-varying seeds: one row per (domain, stable_key), text updates as counts change.
     let time_varying: &[(&str, &str, String)] = &[
         (
-            "forest",
-            "forest_stats",
+            "zero",
+            "project_stats",
             format!(
                 "Project 0 has {} complete intents representing {} commits of deliberate work.",
                 complete_count, commit_count
@@ -538,7 +522,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         .or(["deploy", "intent", "fsh", "state.db"]
             .iter()
             .any(|w| q_lower.contains(w))
-            .then_some("forest"))
+            .then_some("zero"))
         .or(["build", "compile", "error", "failed"]
             .iter()
             .any(|w| q_lower.contains(w))
@@ -546,8 +530,8 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     all_facts.sort_by(|a, b| {
         let a_exact = primary_domain.map(|d| a.0 == d).unwrap_or(false);
         let b_exact = primary_domain.map(|d| b.0 == d).unwrap_or(false);
-        let a_generic = a.0 == "tools" || a.0 == "forest" || a.0 == "sessions";
-        let b_generic = b.0 == "tools" || b.0 == "forest" || b.0 == "sessions";
+        let a_generic = a.0 == "tools" || a.0 == "zero" || a.0 == "sessions";
+        let b_generic = b.0 == "tools" || b.0 == "zero" || b.0 == "sessions";
         if a_exact && !b_exact {
             return std::cmp::Ordering::Less;
         }
@@ -584,10 +568,10 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
                 ("aur", "arch"),
                 ("dbus", "dbus"),
                 ("zbus", "dbus"),
-                ("forest", "forest"),
-                ("fsh", "forest"),
-                ("deploy", "forest"),
-                ("intent", "forest"),
+                ("zero", "zero"),
+                ("nsh", "zero"),
+                ("deploy", "zero"),
+                ("intent", "zero"),
                 ("build", "build"),
                 ("error", "build"),
                 ("compile", "build"),
@@ -994,7 +978,7 @@ pub fn update_personality(ctx: &AppContext) -> CoreResult<()> {
             }
             .to_string(),
         ),
-        ("dominant_domain", "forest_operations".to_string()),
+        ("dominant_domain", "operations".to_string()),
         (
             "communication_style",
             "direct, evidence-based, concise".to_string(),
@@ -1025,11 +1009,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         // NixOS (INT-117: de-Arched -- native facts only. Arch recognition + translation
         // is INT-128's job as data, not taught here. `fu` omitted until zero-update
         // is verified on NixOS. All commands verified against scripts/deploy.)
-        ("nixos", "deploy rebuilds and switches the whole system from the flake, then runs a health check. Packages are declared in the flake, not installed imperatively.", 0.95),
-        ("nixos", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
-        ("nixos", "NixOS has no separate AUR -- packages come from nixpkgs or flake inputs. Adding a flake input brings in software not in nixpkgs.", 0.90),
-        ("nixos", "NixOS builds are atomic: each deploy creates a generation you can roll back to. A bad rebuild is reverted by booting the previous generation.", 0.90),
-        ("nixos", "Binary caches (substituters) provide prebuilt packages, set in nix.settings. update-flake refreshes flake inputs.", 0.85),
+        ("linux", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
         // Wayland
         ("wayland", "Wayland uses wl_display, wl_surface, wl_compositor objects. No global X display connection.", 0.90),
         ("wayland", "layer-shell protocol enables desktop widgets and panels. smithay implements it in Rust.", 0.85),
@@ -1043,13 +1023,13 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         ("rust", "Result<T, E> for recoverable errors. ? operator propagates. unwrap() panics on Err.", 0.95),
         ("rust", "Vec<T> is a growable array. Use iter() for borrowing, into_iter() for consuming.", 0.90),
         // Project 0 tools
-        ("forest", "The forest has 50+ custom Rust tools. Every tool is understood completely.", 0.95),
-        ("forest", "core is the orchestrator binary. It has 50+ domains including friday, synthesis, predict, doctor.", 0.95),
-        ("forest", "fsh is the daily driver shell. query, fsearch, patch, edit, run are native builtins.", 0.95),
-        ("forest", "Deploy workflow: deploy <tool> builds, versions, symlinks, and verifies in one command.", 0.95),
-        ("forest", "state.db is the forest brain. WAL mode. Never DELETE or UPDATE forest_events_v2.", 0.95),
-        ("forest", "cistart before intent work. cicomplete after. fg commit after changes. d before everything.", 0.95),
-        ("forest", "Health 100% = 22/22 checks pass. Below 95% = investigate before shipping.", 0.95),
+        ("zero", "Project 0 is built from its own Rust tools, each one understood completely.", 0.95),
+        ("zero", "core is the orchestrator binary. Its domains include friday, synthesis, predict and doctor.", 0.95),
+        ("zero", "nsh (NovaShell) is the interactive shell; bash stays the login shell.", 0.95),
+        ("zero", "ship builds the release and installs it into ~/.local/bin; d verifies health after.", 0.95),
+        ("zero", "state.db is Project 0's memory. WAL mode. Never DELETE or UPDATE events_v2.", 0.95),
+        ("zero", "cistart starts an intent; cicomplete closes it once every gate is proven. Commit after changes. d before everything.", 0.95),
+        ("zero", "d measures health. Below 95%, investigate before shipping.", 0.95),
         // Build patterns
         ("build", "When a Rust build fails with E0432, check the use statements and module paths.", 0.90),
         ("build", "E0308 type mismatch -- check if you need .to_string(), &str vs String, or type annotation.", 0.90),

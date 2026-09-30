@@ -847,7 +847,7 @@ async fn friday_answer_query(
         || q_lower.contains("done")
     {
         let intent_fact: Option<String> = conn.query_row(
-            "SELECT fact FROM friday_knowledge WHERE domain='forest' ORDER BY updated_at DESC LIMIT 1",
+            "SELECT fact FROM friday_knowledge WHERE domain='zero' ORDER BY updated_at DESC LIMIT 1",
             [], |r| r.get(0)
         ).ok();
         let obs: i64 = conn
@@ -911,7 +911,7 @@ async fn friday_answer_query(
     } else {
         let mut best_fact: Option<(String, f64, usize)> = None;
         if let Ok(mut stmt) = conn.prepare(
-            "SELECT fact, confidence FROM friday_knowledge WHERE domain != 'forest' ORDER BY confidence DESC LIMIT 30"
+            "SELECT fact, confidence FROM friday_knowledge WHERE domain != 'zero' ORDER BY confidence DESC LIMIT 30"
         ) {
             let rows = stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?)));
             if let Ok(rows) = rows {
