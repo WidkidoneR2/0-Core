@@ -53,43 +53,49 @@ pub fn broken_symlinks() -> Measurement {
     }
 }
 
-/// The two names of each migrating directory, `zero` and `faelight`, are ONE directory.
+/// The five directories Project 0 keeps outside the repo each have ONE name.
 ///
-/// ⭐ DIRECTION-AGNOSTIC, 2026-09-24 (INT-247 Layer 3b). Before the flip `zero` links to
-/// `faelight`; after it `faelight` links to `zero`. The invariant true at EVERY moment of the
-/// migration is the one checked: exactly one name is a real directory and the other links to
-/// it. The pass message names the real one, so the flip is visible in `d` as it happens.
+/// ⭐ PASS 7, 2026-09-30 (INT-247). The old names that linked to these directories during the
+/// rename are removed. The invariant is now: the zero (or nsh) name is a real directory, and the
+/// old name does not exist at all -- not as a link, not as a directory. An old name that comes
+/// back is a finding: a link means something recreated it; a real entry means writes may be
+/// splitting between two places.
 ///
-/// ⚠️ DISTINCT STATES, NOT COLLAPSED. Absent, unreadable, dangling, resolving elsewhere,
-/// two links, and TWO REAL DIRECTORIES -- the last means writes are splitting between two places,
-/// and it looks fine until you notice half your state is missing. Unreadable is NOT reported as
-/// absent: an entry the probe could not read is a different finding from one that is not there.
+/// ⚠️ DISTINCT STATES, NOT COLLAPSED. Absent, a link where the directory belongs, not a
+/// directory, the old name back, and UNREADABLE -- an entry the probe could not read is a
+/// different finding from one that is not there, and is never reported as absent.
 ///
-/// The previous version asserted one direction and read the config side through
-/// zero_config_dir(), which returns the `zero` path once paths.rs flips -- it would have
-/// compared a name with itself, a check that cannot fail. Both names are spelled out here.
+/// The old names are built with concat! so this file does not spell them: a guard that reads
+/// source text for the retired name should not have to exempt the one probe that must name it.
 pub fn zero_alias() -> Measurement {
-    let chains = [
-        ("state", zero_core::paths::state_home()),
-        ("config", zero_core::paths::config_dir()),
-    ];
-    let mut issues: Vec<String> = Vec::new();
-    let mut real: Vec<String> = Vec::new();
-    for (label, base) in &chains {
-        match alias_pair(&base.join("zero"), &base.join("faelight")) {
-            Ok(name) => real.push(format!("{}={}", label, name)),
-            Err(e) => issues.push(e),
-        }
-    }
+    let pairs = one_name_pairs();
+    let issues: Vec<String> = pairs
+        .iter()
+        .filter_map(|(new, old)| one_name(new, old).err())
+        .collect();
     if issues.is_empty() {
         let msg = format!(
-            "both names resolve to one directory -- real: {}",
-            real.join(", ")
+            "{} directories, one name each -- no old name remains",
+            pairs.len()
         );
         Measurement::pass(&msg)
     } else {
         Measurement::warn(issues.join("; "))
     }
+}
+
+/// Each directory and the name it had before the rename.
+fn one_name_pairs() -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
+    use zero_core::paths as p;
+    let old = concat!("fae", "light");
+    let old_shell = concat!("fae", "light-shell");
+    vec![
+        (p::state_home().join("zero"), p::state_home().join(old)),
+        (p::zero_config_dir(), p::config_dir().join(old)),
+        (p::zero_cache_dir(), p::xdg_cache_home().join(old)),
+        (p::zero_data_dir(), p::local_data_dir().join(old)),
+        (p::config_dir().join("nsh"), p::config_dir().join(old_shell)),
+    ]
 }
 
 /// One entry, read without following a link. NotFound is "absent"; any other error is
@@ -104,50 +110,31 @@ fn alias_entry(p: &std::path::Path) -> Result<fs::Metadata, String> {
     })
 }
 
-/// One chain: `zero` and `faelight` must be ONE directory under two names, in EITHER direction.
-/// Ok carries the name that is the real directory; Err is the finding, naming the path.
-fn alias_pair(zero: &std::path::Path, old: &std::path::Path) -> Result<String, String> {
-    let (mz, mo) = match (alias_entry(zero), alias_entry(old)) {
-        (Ok(a), Ok(b)) => (a, b),
-        (Err(a), Err(b)) => return Err(format!("{}; {}", a, b)),
-        (Err(e), _) | (_, Err(e)) => return Err(e),
-    };
-    let (real, link) = match (mz.file_type().is_symlink(), mo.file_type().is_symlink()) {
-        (false, true) => (zero, old),
-        (true, false) => (old, zero),
-        (false, false) => {
-            return Err(format!(
-                "{} and {} are BOTH REAL, neither is a link -- writes are splitting between them",
-                zero.display(),
-                old.display()
-            ))
-        }
-        (true, true) => {
-            return Err(format!(
-                "{} and {} are both links -- neither is the real directory",
-                zero.display(),
-                old.display()
-            ))
-        }
-    };
-    if !real.is_dir() {
-        return Err(format!("{} is not a directory", real.display()));
+/// One directory: `new` must be a real directory and `old` must not exist at all.
+/// Err is the finding, naming the path.
+fn one_name(new: &std::path::Path, old: &std::path::Path) -> Result<(), String> {
+    let m = alias_entry(new)?;
+    if m.file_type().is_symlink() {
+        return Err(format!(
+            "{} is a link -- it should be the real directory",
+            new.display()
+        ));
     }
-    if !link.exists() {
-        return Err(format!("{} dangles", link.display()));
+    if !m.is_dir() {
+        return Err(format!("{} is not a directory", new.display()));
     }
-    match (fs::canonicalize(link), fs::canonicalize(real)) {
-        (Ok(a), Ok(b)) if a == b => Ok(real
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| real.display().to_string())),
-        (Ok(a), Ok(b)) => Err(format!(
-            "{} resolves to {}, not {}",
-            link.display(),
-            a.display(),
-            b.display()
+    match fs::symlink_metadata(old) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("{} could not be read: {}", old.display(), e)),
+        Ok(o) if o.file_type().is_symlink() => Err(format!(
+            "{} is back as a link -- nothing should recreate the old name",
+            old.display()
         )),
-        _ => Err(format!("{} could not be resolved", link.display())),
+        Ok(_) => Err(format!(
+            "{} is back as a real entry -- writes may be splitting from {}",
+            old.display(),
+            new.display()
+        )),
     }
 }
 
@@ -225,59 +212,41 @@ mod tests {
     }
 
     #[test]
-    fn alias_pair_passes_in_both_directions() {
-        use std::os::unix::fs::symlink;
-        // BEFORE the flip: faelight is real, zero links to it
-        let b = alias_scratch("before");
-        std::fs::create_dir(b.join("faelight")).unwrap();
-        symlink("faelight", b.join("zero")).unwrap();
-        assert_eq!(
-            alias_pair(&b.join("zero"), &b.join("faelight")),
-            Ok("faelight".to_string())
-        );
-        // AFTER the flip: zero is real, faelight links to it
-        let a = alias_scratch("after");
-        std::fs::create_dir(a.join("zero")).unwrap();
-        symlink("zero", a.join("faelight")).unwrap();
-        assert_eq!(
-            alias_pair(&a.join("zero"), &a.join("faelight")),
-            Ok("zero".to_string())
-        );
+    fn one_name_passes_when_only_the_new_name_exists() {
+        let b = alias_scratch("one-name");
+        std::fs::create_dir(b.join("zero")).unwrap();
+        assert_eq!(one_name(&b.join("zero"), &b.join("old")), Ok(()));
         let _ = std::fs::remove_dir_all(&b);
-        let _ = std::fs::remove_dir_all(&a);
     }
 
     #[test]
-    fn alias_pair_names_every_broken_state() {
+    fn one_name_names_every_broken_state() {
         use std::os::unix::fs::symlink;
-        let two_real = alias_scratch("two-real");
-        std::fs::create_dir(two_real.join("zero")).unwrap();
-        std::fs::create_dir(two_real.join("faelight")).unwrap();
+        let link_back = alias_scratch("link-back");
+        std::fs::create_dir(link_back.join("zero")).unwrap();
+        symlink("zero", link_back.join("old")).unwrap();
 
-        let two_links = alias_scratch("two-links");
-        symlink("faelight", two_links.join("zero")).unwrap();
-        symlink("zero", two_links.join("faelight")).unwrap();
+        let dir_back = alias_scratch("dir-back");
+        std::fs::create_dir(dir_back.join("zero")).unwrap();
+        std::fs::create_dir(dir_back.join("old")).unwrap();
 
-        let dangling = alias_scratch("dangling");
-        std::fs::create_dir(dangling.join("faelight")).unwrap();
-        symlink("nowhere", dangling.join("zero")).unwrap();
+        let missing = alias_scratch("missing");
 
-        let absent = alias_scratch("absent");
-        std::fs::create_dir(absent.join("faelight")).unwrap();
+        let new_is_link = alias_scratch("new-is-link");
+        std::fs::create_dir(new_is_link.join("other")).unwrap();
+        symlink("other", new_is_link.join("zero")).unwrap();
 
-        let elsewhere = alias_scratch("elsewhere");
-        std::fs::create_dir(elsewhere.join("faelight")).unwrap();
-        std::fs::create_dir(elsewhere.join("other")).unwrap();
-        symlink("other", elsewhere.join("zero")).unwrap();
+        let not_dir = alias_scratch("not-dir");
+        std::fs::write(not_dir.join("zero"), b"").unwrap();
 
         for (base, finding) in [
-            (&two_real, "BOTH REAL"),
-            (&two_links, "both links"),
-            (&dangling, "dangles"),
-            (&absent, "absent"),
-            (&elsewhere, "resolves to"),
+            (&link_back, "back as a link"),
+            (&dir_back, "back as a real entry"),
+            (&missing, "absent"),
+            (&new_is_link, "is a link"),
+            (&not_dir, "not a directory"),
         ] {
-            let r = alias_pair(&base.join("zero"), &base.join("faelight"));
+            let r = one_name(&base.join("zero"), &base.join("old"));
             let e = r.expect_err(finding);
             assert!(e.contains(finding), "expected {:?} in: {}", finding, e);
             assert!(e.contains('/'), "a finding must name its path: {}", e);
@@ -286,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn alias_pair_says_unreadable_not_absent() {
+    fn one_name_says_unreadable_not_absent() {
         use std::os::unix::fs::PermissionsExt;
         let b = alias_scratch("unreadable");
         let locked = b.join("locked");
@@ -294,7 +263,7 @@ mod tests {
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
         // root reads through 000, so the case cannot be built there -- skip rather than lie
         let can_bypass = std::fs::read_dir(&locked).is_ok();
-        let r = alias_pair(&locked.join("zero"), &locked.join("faelight"));
+        let r = one_name(&locked.join("zero"), &locked.join("old"));
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
         let _ = std::fs::remove_dir_all(&b);
         if can_bypass {

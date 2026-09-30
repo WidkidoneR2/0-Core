@@ -163,7 +163,7 @@ Freedom without structure decays into entropy.
 Project 0 uses:
 
 Honest names (nsh, not a colliding abbreviation; zero-* crates, not a digit the toolchain refuses)
-Real directories under ~/.config/zero, ~/.local/state/zero, ~/.local/share/zero — Faelight paths are compatibility links, not the source of truth
+Real directories under ~/.config/zero, ~/.local/state/zero, ~/.cache/zero, ~/.local/share/zero and ~/.config/nsh — one name each, with no second path to drift
 Structural protection (LUKS, git history, written sandbox laws) instead of a store that pretends mutation cannot happen
 
 Not to restrict freedom — but to preserve it over time.

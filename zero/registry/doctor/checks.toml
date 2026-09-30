@@ -127,12 +127,12 @@ recovery = "Check the files named above in ~/.config/zero"
 
 [[check]]
 id = "zero_alias"
-name = "Zero Alias"
+name = "Zero Paths"
 section = "\U0001F4CB Internals"
 tier = "system"
 probe = "zero_alias"
 severities = ["pass", "warn"]
-recovery = "Recreate the link: ln -s zero ~/.local/state/faelight (and the same under ~/.config)"
+recovery = "Remove the old name the finding names; if a zero directory is missing or a link, stop and investigate before creating anything"
 
 [[check]]
 id = "security_hardening"

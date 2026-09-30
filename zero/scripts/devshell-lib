@@ -24,7 +24,7 @@ DEVSHELL_DECLARED=$'core\t0-core\tlive
 bin\t.local/bin\tlive
 nshconf\t.config/nsh\tlive
 cargo\t.cargo\tlive
-state\t.local/state/faelight\tsnapshot'
+state\t.local/state/zero\tsnapshot'
 
 # A consistent copy of a directory the host keeps writing. Reflink for the bulk (auto: a clone on
 # btrfs, a real copy elsewhere). Sockets DROPPED: a copied socket is a door to nothing, and nothing

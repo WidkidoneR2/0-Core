@@ -130,9 +130,9 @@ A /etc/ path is an assumption from an OS that no longer exists. Omarchy has no e
 Generated files are regenerated, never hand-edited or hand-renamed. If one is wrong, fix the generator.
 
 Every migration step leaves the tree buildable. Never mix an unrelated architectural change into a naming commit.
-Paths that are real (measured 2026-09-24, INT-247)
+Paths that are real (measured 2026-09-30, INT-247)
 
-Real directories: ~/.local/state/zero, ~/.config/zero, ~/.cache/zero, ~/.local/share/zero. The faelight names beside them are compatibility links. NovaShell config is ~/.config/nsh (real); ~/.config/faelight-shell links to it. Nothing outside the repo is real under a faelight name.
+Real directories: ~/.local/state/zero, ~/.config/zero, ~/.cache/zero, ~/.local/share/zero, and ~/.config/nsh for NovaShell. The compatibility links that carried the old names were removed 2026-09-30 (INT-247 pass 7); d's Zero Paths check goes red if one comes back.
 
 The intent ledger lives at zero/intents/; INT-252 moved it there. Do not add files under a faelight/ name.
 
