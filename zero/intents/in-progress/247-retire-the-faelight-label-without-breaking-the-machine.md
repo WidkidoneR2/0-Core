@@ -2441,7 +2441,68 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30, PASS 7 DONE -- START HERE
+## 2026-09-30, 14 OF 18 -- START HERE
+
+READ THIS FIRST. It supersedes the PASS 7 DONE section below; its rulings, findings and method stand
+unless this says otherwise. Written only if HEAD was the COUNT commit, clean and pushed, a60298ba exists,
+the Success Criteria read 14 ticked and 4 open, zero-zone is not on PATH, and the five directories are
+real with no old name beside them.
+
+### Done since the PASS 7 record -- pushed
+
+```text
+    4d722109   the PASS 7 record
+    a60298ba   NO NIXOS ticked: the last two NixOS comments (friday/mod.rs) rewritten; the path-audit
+               gate ticked from the 2026-09-15 audit and the Layer 3 dates
+    (COUNT)    COUNT ticked at 18: registry, tree, PATH, catalog and README all measured 18
+```
+
+### Rulings, Christian 2026-09-30
+
+```text
+    exemptions   font files (third-party glyph names) and AGENTS.md (his file) join the guard's list
+    AGENTS.md    his file: propose, never edit
+    tool         a tool is a binary Project 0 builds and deploys. Libraries (zero-core, zero-doctor)
+                 are not tools
+    zero-daemon  KEPT, deployable -- it will be connected with Friday
+    zero-zone    binary retired for real: [[bin]], src/main.rs and its devbox census case removed,
+                 ship --retire took it off PATH; the library stays (engine and doctor import it)
+```
+
+### Gates -- 14 of 18. The four open, in order
+
+```text
+    1  inventory    docs/inventory.md EXISTS (113 lines, last written 2026-09-15, e780ab9a). Recon
+                    first: does it cover today's 18 tools and 2 libraries, with keep/replace/retire,
+                    the four decision-test answers, last invocation, and DevBox. Update, then tick
+    2  UNREADABLE   one open_state_db() in zero-core that reports unreadable; the state readers move
+                    onto it. The one real code change left. Recon every state reader first
+    3  exemptions   ticks with the guard (pass 10): one test reading every file type, the exemption
+                    list as ruled, seen red first
+    4  FINISH LINE  no live faelight or forest anywhere: pass 8 (INT-267 tree, INT-252), pass 9
+                    (docs, fsh names, nl.rs, ~/.config/zero themes), pass 10 (guard, kept aliases,
+                    nsh-test names). Then cicomplete 247 and 252
+```
+
+### Found, not fixed
+
+```text
+    zero-docs     readme-index prints "index, 21 tools" -- it counts crates; the file it writes says 18
+    aliases       alias f-daemon = zero-daemon -- the f prefix (z replaces f, INT-265 ruling)
+    docs          ARCHITECTURE.md "51 total tools", THEORY_OF_OPERATION.md "30 Rust tools" (pass 9);
+                  README.md: "Forest DNA" heading, a changelog link into faelight/meta, "~125k lines"
+    zero-zone     its Cargo.toml still lists clap, which only the removed binary may have used
+    carried       the PASS 7 DONE list: ~/.config/zero themes and 0444 files, checkpoint/mod.rs:580,
+                  generate-history-inventory.py, binary-size-baseline.txt
+```
+
+### A new chat starts with
+
+```text
+    ints 247, and this section pasted. Then: recon docs/inventory.md against the 18 tools
+```
+
+## 2026-09-30, PASS 7 DONE -- SUPERSEDED 2026-09-30 by the 14 OF 18 section above
 
 READ THIS FIRST. It supersedes the 6B3 DONE section below; that section's rulings, findings and method
 stand unless this says otherwise. Written only if HEAD was 7a328a4a, clean and pushed, the four commits
