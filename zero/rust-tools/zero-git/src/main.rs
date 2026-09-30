@@ -448,20 +448,6 @@ fn hook_commit_msg(file: &str) -> i32 {
 fn hook_pre_push() -> i32 {
     println!("{}", "🔍 Pre-push verification...".cyan());
 
-    let health = Command::new("dot-doctor")
-        .arg("--check")
-        .arg("git")
-        .output();
-
-    if let Ok(output) = health {
-        if !output.status.success() {
-            eprintln!();
-            eprintln!("{}", "⚠️  Health check has warnings".yellow());
-            eprintln!("   Run {} for details.", "dot-doctor".cyan());
-            eprintln!();
-        }
-    }
-
     0
 }
 

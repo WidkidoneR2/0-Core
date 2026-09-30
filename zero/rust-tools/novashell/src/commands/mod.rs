@@ -13810,7 +13810,12 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
             let tool = args.get(1).copied().unwrap_or("");
             if tool.is_empty() {
                 println!("  {} starting bacon in current directory", "🥓".normal());
-                let _ = std::process::Command::new("bacon").status();
+                if let Err(e) = std::process::Command::new("bacon").status() {
+                    return CommandResult::Error(
+                        format!("  dev check: cannot start bacon: {}", e).into(),
+                        1,
+                    );
+                }
             } else {
                 let manifest = match crate::core_integration::tool_manifest(tool) {
                     Some(m) => m.to_string_lossy().to_string(),
@@ -13822,9 +13827,15 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
                     }
                 };
                 println!("  {} starting bacon for {}", "🥓".normal(), tool);
-                let _ = std::process::Command::new("bacon")
+                if let Err(e) = std::process::Command::new("bacon")
                     .args(["--manifest-path", &manifest])
-                    .status();
+                    .status()
+                {
+                    return CommandResult::Error(
+                        format!("  dev check: cannot start bacon: {}", e).into(),
+                        1,
+                    );
+                }
             }
             CommandResult::Empty { suspension: None }
         }
@@ -16841,7 +16852,13 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
 /// stopped at "layout not found" before reaching zero-ade (INT-247 pass 4).
 fn ade_cmd(_args: &[&str]) -> CommandResult {
     match std::process::Command::new("zero-ade").spawn() {
-        Ok(_) => CommandResult::Output("  Launching Zero ADE...".to_string()),
+        Ok(mut child) => {
+            // reaped on its own thread: the prompt returns and no zombie is left behind
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            CommandResult::Output("  Launching Zero ADE...".to_string())
+        }
         Err(e) => CommandResult::Error(format!("ade: cannot start zero-ade: {}", e).into(), 1),
     }
 }
