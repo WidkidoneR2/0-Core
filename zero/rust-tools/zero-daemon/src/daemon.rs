@@ -441,7 +441,7 @@ async fn health_watchdog(db_path: String) {
                 );
             }
             // INT-235: surface health drop via desktop notification
-            let _ = std::process::Command::new("notify-send")
+            if let Ok(mut child) = std::process::Command::new("notify-send")
                 .args([
                     "--urgency=critical",
                     "--app-name=Friday",
@@ -451,18 +451,30 @@ async fn health_watchdog(db_path: String) {
                         health, last_health
                     ),
                 ])
-                .spawn();
+                .spawn()
+            {
+                // reaped on its own thread, so this long-running process leaves no zombie
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+            }
         } else if health >= 100 && last_health < 95 {
             println!("✅ WATCHDOG: Health restored to {}%", health);
             // INT-235: notify health restored
-            let _ = std::process::Command::new("notify-send")
+            if let Ok(mut child) = std::process::Command::new("notify-send")
                 .args([
                     "--urgency=normal",
                     "--app-name=Friday",
                     "[Friday] Health Restored",
                     &format!("Health back to {}%. All systems nominal.", health),
                 ])
-                .spawn();
+                .spawn()
+            {
+                // reaped on its own thread, so this long-running process leaves no zombie
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+            }
         }
         last_health = health;
     }
@@ -993,14 +1005,20 @@ async fn contradiction_detection_loop(db_path: String) {
             } else {
                 description.clone()
             };
-            let _ = std::process::Command::new("notify-send")
+            if let Ok(mut child) = std::process::Command::new("notify-send")
                 .args([
                     &format!("--urgency={}", urgency),
                     "--app-name=Friday",
                     "[Friday] Contradiction Detected",
                     &short,
                 ])
-                .spawn();
+                .spawn()
+            {
+                // reaped on its own thread, so this long-running process leaves no zombie
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+            }
         }
     }
 }

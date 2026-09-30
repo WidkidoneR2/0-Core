@@ -828,13 +828,7 @@ pub enum WorkspaceCommands {
 
 #[derive(Subcommand)]
 pub enum ReleaseCommands {
-    Get {
-        package: Option<String>,
-    },
-    BumpTool {
-        #[arg(trailing_var_arg = true)]
-        args: Vec<String>,
-    },
+    Get { package: Option<String> },
 }
 
 #[derive(Subcommand)]

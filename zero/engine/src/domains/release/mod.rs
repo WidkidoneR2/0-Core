@@ -4,7 +4,6 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
-use std::process::Command;
 
 pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     ctx.capabilities.require(
@@ -41,15 +40,6 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
             }
             println!("unknown");
         }
-    }
-    Ok(())
-}
-
-pub fn bump_tool(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
-    // Call v1 binary directly via full path to avoid wrapper loop
-    let status = Command::new("bump-tool-version").args(args).status()?;
-    if !status.success() {
-        println!("  {} bump-tool-version failed", "✗".bright_red());
     }
     Ok(())
 }

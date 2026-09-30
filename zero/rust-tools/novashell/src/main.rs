@@ -97,7 +97,7 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::StateDb) {
     // last-known health for that one launch, and the prompt renders immediately.
     // Reverses INT-124's fresh-at-splash blocking (recorded in both intents): a
     // one-launch-stale health number is invisible; a 700ms block is felt every reboot.
-    let _ = std::process::Command::new("core")
+    if let Ok(mut child) = std::process::Command::new("core")
         .args(["doctor", "run"])
         .env("NO_COLOR", "1")
         // ⭐ DECLARE THE SILENCE THAT THE REDIRECTS BELOW ONLY HALF ACHIEVE. stdout and stderr
@@ -108,7 +108,13 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::StateDb) {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn();
+        .spawn()
+    {
+        // reaped on its own thread, so this long-running process leaves no zombie
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
 }
 
 /// INT-200: pub(crate) so the migration audit can split an entry the SAME way the REPL does.
@@ -3588,9 +3594,15 @@ fn friday_failure_hint(
                 "{} failed {} times in a row -- Friday suggests checking the command",
                 fail_cmd, consecutive
             );
-            let _ = std::process::Command::new("notify-send")
+            if let Ok(mut child) = std::process::Command::new("notify-send")
                 .args(["Friday", &notify_body])
-                .spawn();
+                .spawn()
+            {
+                // reaped on its own thread, so this long-running process leaves no zombie
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+            }
         }
     }
 }

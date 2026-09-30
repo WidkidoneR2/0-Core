@@ -415,7 +415,6 @@ pub enum WorkspaceCommand {
 #[derive(Debug)]
 pub enum ReleaseCommand {
     Get { package: Option<String> },
-    BumpTool { args: Vec<String> },
 }
 
 #[derive(Debug)]

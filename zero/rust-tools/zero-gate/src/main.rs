@@ -242,6 +242,75 @@ fn gate_rustfmt(root: &Path, staged: &[String]) -> Verdict {
     }
 }
 
+/// INT-247 NO ZOMBIE: no live code spawns a tool that tools.toml marks retired. A retired tool's
+/// binary is gone from PATH, so such a call can only fail at run time, and usually silently.
+/// Reads the registry by hand -- this crate deliberately has no toml or zero-core dependency --
+/// and every tracked .rs file, and fails on any `Command::new` whose literal names a retired tool.
+fn gate_retired_spawns(root: &Path) -> Verdict {
+    let Ok(text) = std::fs::read_to_string(root.join("zero/registry/tools.toml")) else {
+        return Verdict::Unknown(
+            "zero/registry/tools.toml not readable -- retired spawns NOT checked".into(),
+        );
+    };
+    let retired: Vec<String> = text
+        .split("[[tool]]")
+        .filter(|b| {
+            b.lines()
+                .any(|l| l.split('#').next().unwrap_or("").replace(' ', "") == "retired=true")
+        })
+        .filter_map(|b| {
+            b.lines().find_map(|l| {
+                let rest = l
+                    .trim()
+                    .strip_prefix("name")?
+                    .trim_start()
+                    .strip_prefix('=')?;
+                Some(rest.trim().trim_matches('"').to_string())
+            })
+        })
+        .collect();
+    if retired.is_empty() {
+        return Verdict::Unknown(
+            "tools.toml lists no retired tools -- nothing to check against".into(),
+        );
+    }
+    let listed = match Command::new("git")
+        .args(["ls-files", "-z", "--", "*.rs"])
+        .current_dir(root)
+        .output()
+    {
+        Ok(o) if o.status.success() => o.stdout,
+        _ => return Verdict::Unknown("git ls-files failed -- retired spawns NOT checked".into()),
+    };
+    let mut hits = Vec::new();
+    for rel in listed.split(|b| *b == 0).filter(|s| !s.is_empty()) {
+        let rel = String::from_utf8_lossy(rel).to_string();
+        let Ok(src) = std::fs::read_to_string(root.join(&rel)) else {
+            continue;
+        };
+        let mut from = 0;
+        while let Some(i) = src[from..].find("Command::new(") {
+            let at = from + i;
+            let after = src[at + "Command::new(".len()..].trim_start();
+            if let Some(q) = after.strip_prefix('"') {
+                if let Some(end) = q.find('"') {
+                    let name = &q[..end];
+                    if retired.iter().any(|r| r == name) {
+                        let line = src[..at].matches('\n').count() + 1;
+                        hits.push(format!("{rel}:{line} spawns retired {name}"));
+                    }
+                }
+            }
+            from = at + 1;
+        }
+    }
+    if hits.is_empty() {
+        Verdict::Pass
+    } else {
+        Verdict::Fail(hits.join("; "))
+    }
+}
+
 fn main() -> ExitCode {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
     // INLINE, NOT the zero_core helper: this crate DELIBERATELY has no zero-core
@@ -273,7 +342,7 @@ fn main() -> ExitCode {
     if stage == "--help" || stage == "-h" {
         eprintln!("zero-gate -- repository-owned quality gates");
         eprintln!();
-        eprintln!("  zero-gate pre-commit    secrets, formatting   (default)");
+        eprintln!("  zero-gate pre-commit    secrets, formatting, retired spawns   (default)");
         eprintln!("  zero-gate pre-push      the shell test suite");
         eprintln!("  zero-gate all           everything");
         eprintln!();
@@ -298,6 +367,10 @@ fn main() -> ExitCode {
         gates.push(Gate {
             name: "formatting",
             verdict: gate_rustfmt(&root, &staged),
+        });
+        gates.push(Gate {
+            name: "retired spawns",
+            verdict: gate_retired_spawns(&root),
         });
     }
     if stage == "pre-push" || stage == "all" {

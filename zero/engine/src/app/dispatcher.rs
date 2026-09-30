@@ -283,7 +283,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 ReleaseCommand::Get { package } => {
                     crate::domains::release::get_version(ctx, package.as_deref())
                 }
-                ReleaseCommand::BumpTool { args } => crate::domains::release::bump_tool(ctx, &args),
             }
         }
 

@@ -298,7 +298,7 @@ A mechanical rename breaks three layers at once. Measured, not assumed:
 9. Never mix unrelated architectural changes into a naming migration.
 10. Prefer small, independently testable migration commits.
 11. **A `/etc/` path is an assumption from a system that no longer exists.** The previous OS
-    generated `/etc/faelight/*` declaratively via `environment.etc`. Omarchy has no reconciler,
+    generated its system files declaratively via `environment.etc`. Omarchy has no reconciler,
     so those files vanished on 2026-08-26 and EIGHT readers spent three weeks answering `""`,
     `0`, and an invented `v14.0.0` -- silently, because every read was wrapped in a fallback.
     Verify any `/etc/` path resolves before trusting it, and make absence SAY SO. (INT-250)

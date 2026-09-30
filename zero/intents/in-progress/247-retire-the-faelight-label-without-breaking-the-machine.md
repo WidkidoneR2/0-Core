@@ -2991,8 +2991,9 @@ and the apply's own proof that the comment-stripped files are identical before a
       reads tools.toml's retired names and fails on any Command::new naming one -- seen red first.
       The dead-path finding (execute_and_record's timing and notification) is resolved: rewired
       onto the path commands take, or deleted
-- [ ] /ETC/FAELIGHT: no live file names /etc/faelight. What /etc/zero holds, and the system-run
+- [x] /ETC/FAELIGHT: no live file names /etc/faelight. What /etc/zero holds, and the system-run
       writer that writes it, is INT-268's
+    <!-- evidence: 2026-09-29, over every tracked file with history (the five history intent dirs, CHANGELOGs) and live intents (ruling B) excluded: 0 lines name /etc/faelight; AGENTS.md's was the last -->
 - [ ] THE GUARD'S EXEMPTIONS, ruled 2026-09-28, and nothing else: history (completed, decision,
       philosophy, cancelled and incident intents; CHANGELOGs; git), live intents (ruling B),
       registry entries with retired = true, and zero-gen's dictionary word forest (ruling E)
