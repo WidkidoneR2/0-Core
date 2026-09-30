@@ -975,7 +975,7 @@ fn main() -> Result<()> {
             // nothing after it reported that a command nobody supplied had run fine. bash exits 2
             // with a message and so does this now.
             let Some(cmd_str) = args.get(c_pos + 1) else {
-                eprintln!("fsh: -c requires an argument");
+                eprintln!("nsh: -c requires an argument");
                 std::process::exit(2);
             };
             // ⭐ INT-201 GATE 4: `-c` EXECUTES fsh, NOT sh.
@@ -2708,7 +2708,7 @@ fn repl_main() -> Result<()> {
                             last
                         }
                         None => {
-                            eprintln!("  fsh: no previous command");
+                            eprintln!("  nsh: no previous command");
                             continue;
                         }
                     }
@@ -2723,7 +2723,7 @@ fn repl_main() -> Result<()> {
                             found
                         }
                         None => {
-                            eprintln!("  fsh: no history match for: {}", pattern);
+                            eprintln!("  nsh: no history match for: {}", pattern);
                             continue;
                         }
                     }

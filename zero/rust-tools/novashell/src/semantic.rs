@@ -252,7 +252,7 @@ pub fn interpret(input: &str) -> SemanticIntent {
             category: VerbCategory::Observation,
             confidence: 1.0,
             reversible: true,
-            layer2_description: "Doctor(fsh) -- shell health check, 7 checks".to_string(),
+            layer2_description: "Doctor(nsh) -- shell health check, 7 checks".to_string(),
             layer3_commands: vec!["nsh doctor".to_string()],
         },
         // ── Intelligence ────────────────────────────────────────────────────
@@ -430,7 +430,7 @@ pub fn interpret_ambiguous(input: &str) -> Option<AmbiguousCommand> {
 pub fn format_ambiguous(amb: &AmbiguousCommand) -> String {
     use std::fmt::Write;
     let mut out = String::new();
-    let _ = writeln!(out, "\n  fsh detected ambiguity for: '{}'", amb.raw_input);
+    let _ = writeln!(out, "\n  nsh detected ambiguity for: '{}'", amb.raw_input);
     let _ = writeln!(out, "  Multiple interpretations possible:\n");
     for (i, (si, conf)) in amb.options.iter().enumerate() {
         let _ = writeln!(

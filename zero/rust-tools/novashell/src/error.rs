@@ -44,7 +44,7 @@ impl FlowError {
                 // CommandNotFound call sites, so the kind cannot drift and the
                 // explanation cannot either.
                 format!(
-                    "subshells are not supported yet: {}\n  fsh parses parens only inside $( ), so this ran as a command name",
+                    "subshells are not supported yet: {}\n  nsh parses parens only inside $( ), so this ran as a command name",
                     cmd.bright_red()
                 )
             }

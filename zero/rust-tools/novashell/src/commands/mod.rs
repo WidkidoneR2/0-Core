@@ -825,7 +825,7 @@ fn execute_impl(
                 return CommandResult::Output(report.render());
             }
             // INT-200: `spine conform` MOVED (2026-08-03). It lives in nsh-test now, and the reason
-            // is the defect that ended it: this version invoked fsh with `-c`, and `fsh -c` hands the
+            // is the defect that ended it: this version invoked fsh with `-c`, and `nsh -c` hands the
             // whole string to `sh`. It was comparing sh against bash and reporting the result as fsh
             // conformance -- its two 'unexplained' findings were that door, not a defect in fsh.
             //
@@ -837,7 +837,7 @@ fn execute_impl(
                 return CommandResult::Output(
                     "  conformance moved to nsh-test (INT-200, 2026-08-03)\n\
                      \n  Run:  nsh-test --failed        # cases named conform_*\n\
-                     \n  It compared `fsh -c` against bash when that door still delegated to sh,\n\
+                     \n  It compared `nsh -c` against bash when that door still delegated to sh,\n\
                      \n  so it measured sh. `-c` executes nsh now (INT-201 gate 4).\n"
                         .to_string(),
                 );
@@ -2159,7 +2159,7 @@ fn execute_dispatch(
                             out.push_str(&format!("\n  {}={}", k, short));
                         }
                         out.push_str(&format!(
-                            "\n\n  ✅ {} var(s) restored into the fsh environment",
+                            "\n\n  ✅ {} var(s) restored into the nsh environment",
                             restored
                         ));
                     }
@@ -2205,7 +2205,7 @@ fn execute_dispatch(
                         }
                     }
                     CommandResult::Output(format!(
-                        "  \u{21a9} Rolled back to '{}' [{}]\n  \u{2705} {} var(s) restored into the fsh environment",
+                        "  \u{21a9} Rolled back to '{}' [{}]\n  \u{2705} {} var(s) restored into the nsh environment",
                         name, dt, restored
                     ))
                 }
@@ -5039,7 +5039,7 @@ fn execute_dispatch(
                 .unwrap_or_default();
             if last.is_empty() || last.contains("No last output stored yet") {
                 return CommandResult::Output(
-                    "  ○ Nothing to save — save works with native fsh commands\n  → Try: core strategy now | save <name>"
+                    "  ○ Nothing to save — save works with native nsh commands\n  → Try: core strategy now | save <name>"
                         .to_string(),
                 );
             }
@@ -6058,7 +6058,7 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
         shell.bright_yellow().bold()
     );
     println!(
-        "  {} Type {} to return to fsh",
+        "  {} Type {} to return to nsh",
         "→".dimmed(),
         "exit".bright_green()
     );
@@ -6599,7 +6599,7 @@ fn fsh_gaps(db: &StateDb) -> CommandResult {
             "  {} {} x python3 /tmp/  →  try: {}\n",
             "⚡".yellow(),
             python_tmp.to_string().bright_yellow(),
-            "run script.py  (fsh runs .py natively)".bright_cyan()
+            "run script.py  (nsh runs .py natively)".bright_cyan()
         ));
         any_gaps = true;
     }
@@ -7519,7 +7519,7 @@ fn sys_services() -> CommandResult {
         return CommandResult::Error(
             crate::diagnostic::Diagnostic::error("no systemctl on this system")
                 .with_help("services are listed through systemd; this machine does not have it")
-                .with_code("fsh::platform::no_service_manager"),
+                .with_code("nsh::platform::no_service_manager"),
             1,
         );
     }
@@ -7926,7 +7926,7 @@ fn sys_logs(args: &[&str]) -> CommandResult {
         return CommandResult::Error(
             crate::diagnostic::Diagnostic::error("no journalctl on this system")
                 .with_help("logs are read from the systemd journal; this machine has none")
-                .with_code("fsh::platform::no_log_source"),
+                .with_code("nsh::platform::no_log_source"),
             1,
         );
     }
@@ -9670,7 +9670,7 @@ fn spawn_pipeline(
                 // diagnosis.
                 let name = program.to_string_lossy().to_string();
                 let hint = if idx > 0 && !program_on_path(&name) {
-                    " -- if this is an fsh builtin, note that a builtin can only lead a pipeline"
+                    " -- if this is an nsh builtin, note that a builtin can only lead a pipeline"
                 } else {
                     ""
                 };
@@ -11274,7 +11274,7 @@ fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
             "  {:<14} {}
 ",
             "builtin:".dimmed(),
-            "native fsh command — no PATH lookup".bright_green()
+            "native nsh command — no PATH lookup".bright_green()
         ));
     }
     // 4. Script
@@ -11406,7 +11406,7 @@ fn where_cmd(db: &StateDb, _core_root: &str, args: &[&str]) -> CommandResult {
     ];
     if builtins.contains(&cmd) {
         out.push_str(&format!(
-            "  {} builtin     native fsh
+            "  {} builtin     native nsh
 ",
             "▶".bright_green()
         ));
@@ -14210,7 +14210,7 @@ fn semantic_ambiguous_cmd(db: &StateDb, input: &str) -> CommandResult {
     }
 }
 
-/// INT-334 Gate 8: fsh rename -- zmv-style mass rename by pattern
+/// INT-334 Gate 8: nsh rename -- zmv-style mass rename by pattern
 /// INT-326 Phase 2: explain -- show all three semantic layers for a command
 #[allow(dead_code)]
 fn semantic_explain_cmd(input: &str) -> CommandResult {
@@ -14314,7 +14314,7 @@ fn semantic_why_cmd(input: &str) -> CommandResult {
     };
     let mut out = String::new();
     out.push_str(&format!(
-        "\n  {} Why fsh interprets: {}\n",
+        "\n  {} Why nsh interprets: {}\n",
         "💭".normal(),
         input.bright_white()
     ));
@@ -14364,9 +14364,9 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     use colored::Colorize;
     if from_pat.is_empty() || to_pat.is_empty() {
         let mut out = String::new();
-        out.push_str("  Usage: fsh rename <from-pattern> <to-pattern>\n");
-        out.push_str("  Example: fsh rename '*.txt' '*.md'\n");
-        out.push_str("  Example: fsh rename 'test_*' 'spec_*'\n");
+        out.push_str("  Usage: nsh rename <from-pattern> <to-pattern>\n");
+        out.push_str("  Example: nsh rename '*.txt' '*.md'\n");
+        out.push_str("  Example: nsh rename 'test_*' 'spec_*'\n");
         out.push_str("  Add --dry-run to preview without renaming\n");
         return CommandResult::Output(out);
     }
@@ -14377,13 +14377,13 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
         (from_pat, to_pat)
     };
     if dry_run {
-        return CommandResult::Output("  Usage: fsh rename <from> <to> --dry-run".to_string());
+        return CommandResult::Output("  Usage: nsh rename <from> <to> --dry-run".to_string());
     }
     // Convert glob pattern to regex-like matching
     let cwd = std::env::current_dir().unwrap_or_default();
     let entries: Vec<_> = match std::fs::read_dir(&cwd) {
         Ok(e) => e.filter_map(|e| e.ok()).collect(),
-        Err(err) => return CommandResult::Error(format!("  fsh rename: {}", err).into(), 1),
+        Err(err) => return CommandResult::Error(format!("  nsh rename: {}", err).into(), 1),
     };
     // Simple glob matching: * matches anything
     let matches_pattern = |name: &str, pattern: &str| -> bool {
@@ -14426,7 +14426,7 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     let mut skipped = 0;
     let mut out = String::new();
     out.push_str(&format!(
-        "\n  {} fsh rename {} → {}\n",
+        "\n  {} nsh rename {} → {}\n",
         "→".bright_cyan(),
         pat.bright_white(),
         to.bright_white()
@@ -14466,11 +14466,11 @@ fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-/// INT-322 Phase 7: fsh enter -- create project-scoped shell environment
+/// INT-322 Phase 7: nsh enter -- create project-scoped shell environment
 fn fsh_enter_cmd(db: &StateDb, project: &str) -> CommandResult {
     use colored::Colorize;
     if project.is_empty() {
-        return CommandResult::Output("  Usage: fsh enter <project-name-or-path>".to_string());
+        return CommandResult::Output("  Usage: nsh enter <project-name-or-path>".to_string());
     }
     // Save current state
     let current_cwd = std::env::current_dir()
@@ -14516,7 +14516,7 @@ fn fsh_enter_cmd(db: &StateDb, project: &str) -> CommandResult {
         out.push_str(&format!(
             "  {} run {} to restore\n",
             "→".dimmed(),
-            "fsh leave".bright_cyan()
+            "nsh leave".bright_cyan()
         ));
         CommandResult::Output(out)
     } else {
@@ -14533,13 +14533,13 @@ fn fsh_enter_cmd(db: &StateDb, project: &str) -> CommandResult {
         out.push_str(&format!(
             "  {} run {} to restore\n",
             "→".dimmed(),
-            "fsh leave".bright_cyan()
+            "nsh leave".bright_cyan()
         ));
         CommandResult::Output(out)
     }
 }
 
-/// INT-322 Phase 7: fsh leave -- restore pre-scope state
+/// INT-322 Phase 7: nsh leave -- restore pre-scope state
 fn fsh_leave_cmd(db: &StateDb) -> CommandResult {
     use colored::Colorize;
     let return_path: Option<String> = db

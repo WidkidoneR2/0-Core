@@ -329,7 +329,7 @@ impl MigrationReport {
         let exe = std::env::current_exe()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| "(unknown path)".to_string());
-        out.push_str(&format!("  produced by: fsh {version}  {exe}\n"));
+        out.push_str(&format!("  produced by: nsh {version}  {exe}\n"));
         if !exe.contains("/target/") {
             out.push_str(
                 "  ⚠️  this is the DEPLOYED shell -- comparator changes you have not deployed are \

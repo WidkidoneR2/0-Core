@@ -55,7 +55,7 @@ pub fn init() {
             if let Err(e) = std::fs::create_dir_all(dir) {
                 let _ = writeln!(
                     std::io::stderr(),
-                    "fsh: observation sink unavailable: cannot create {} ({}). \
+                    "nsh: observation sink unavailable: cannot create {} ({}). \
                      Events will go to stderr only -- an empty log would otherwise be \
                      indistinguishable from nothing happening.",
                     dir.display(),

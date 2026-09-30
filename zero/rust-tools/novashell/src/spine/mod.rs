@@ -134,15 +134,15 @@ pub fn diagnose(e: &crate::exec::SpineAttemptError) -> crate::diagnostic::Diagno
             };
             crate::diagnostic::Diagnostic::error(what)
                 .with_help(how)
-                .with_code("fsh::spine::incomplete")
+                .with_code("nsh::spine::incomplete")
         }
         // A refusal is VALID SHELL the spine does not own -- not a failure. Legacy handles it,
         // and saying otherwise would be the conflation ParseError's own docs warn against.
         S::Refused(r) => crate::diagnostic::Diagnostic::error(format!("{:?}", r))
             .with_help("valid shell the spine does not implement -- legacy owns it")
-            .with_code("fsh::spine::refused"),
+            .with_code("nsh::spine::refused"),
         S::Lower(l) => {
-            crate::diagnostic::Diagnostic::error(format!("{:?}", l)).with_code("fsh::spine::lower")
+            crate::diagnostic::Diagnostic::error(format!("{:?}", l)).with_code("nsh::spine::lower")
         }
     }
 }
@@ -154,21 +154,21 @@ fn diagnose_parse(e: &parser::ParseError) -> crate::diagnostic::Diagnostic {
     match e {
         ParseError::Incomplete(_) => Diagnostic::error("unexpected end of input")
             .with_help("the line is unfinished, not wrong -- close the quote or the $( ")
-            .with_code("fsh::spine::incomplete"),
+            .with_code("nsh::spine::incomplete"),
         ParseError::NoCommand => Diagnostic::error("expected a command")
             .with_help("shell structure here requires a command, and there is none")
-            .with_code("fsh::spine::no_command"),
+            .with_code("nsh::spine::no_command"),
         ParseError::UnsupportedOperator { kind, span } => {
             Diagnostic::error(format!("the spine does not implement {:?}", kind))
                 .with_label(span.start, span.end, "this operator")
                 .with_help("valid shell -- the legacy executor owns this construct")
-                .with_code("fsh::spine::unsupported_operator")
+                .with_code("nsh::spine::unsupported_operator")
         }
         ParseError::FdRedirect { span } => {
             Diagnostic::error("redirect against an explicit file descriptor")
                 .with_label(span.start, span.end, "this redirect")
                 .with_help("deliberately left to the legacy executor")
-                .with_code("fsh::spine::fd_redirect")
+                .with_code("nsh::spine::fd_redirect")
         }
         ParseError::ComparisonNotRedirect { span } => Diagnostic::error(
             "read as a comparison, not a redirect",
@@ -177,7 +177,7 @@ fn diagnose_parse(e: &parser::ParseError) -> crate::diagnostic::Diagnostic {
         .with_help(
             "a target starting with a digit or `=` is a comparison, so `where cpu > 0.5` works",
         )
-        .with_code("fsh::spine::comparison_not_redirect"),
+        .with_code("nsh::spine::comparison_not_redirect"),
         ParseError::MissingRedirectTarget { kind, span } => {
             Diagnostic::error(format!("no target after {:?}", kind))
                 .with_label(
@@ -185,7 +185,7 @@ fn diagnose_parse(e: &parser::ParseError) -> crate::diagnostic::Diagnostic {
                     span.end,
                     "this redirect has nothing to write to",
                 )
-                .with_code("fsh::spine::missing_redirect_target")
+                .with_code("nsh::spine::missing_redirect_target")
         }
     }
 }

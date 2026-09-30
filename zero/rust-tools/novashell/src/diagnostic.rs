@@ -66,7 +66,7 @@ pub struct Diagnostic {
     /// fabricated position is worse than none: it points a reader at innocent text.
     pub labels: Vec<Label>,
     pub help: Option<String>,
-    /// A stable identifier (`fsh::spine::unsupported_operator`), not a number. Numbers get reused
+    /// A stable identifier (`nsh::spine::unsupported_operator`), not a number. Numbers get reused
     /// and reordered; a path stays meaningful when the code around it moves.
     pub code: Option<String>,
 }
@@ -162,11 +162,11 @@ mod tests {
         let d = Diagnostic::error("unsupported operator")
             .with_label(4, 6, "this operator")
             .with_help("the legacy executor handles this")
-            .with_code("fsh::spine::unsupported_operator");
+            .with_code("nsh::spine::unsupported_operator");
         assert_eq!(d.severity, Severity::Error);
         assert_eq!(d.labels.len(), 1);
         assert_eq!(d.labels[0].start, 4);
-        assert_eq!(d.code.as_deref(), Some("fsh::spine::unsupported_operator"));
+        assert_eq!(d.code.as_deref(), Some("nsh::spine::unsupported_operator"));
     }
 
     /// The string conversion must not FABRICATE a position. A label pointing at innocent text is
@@ -188,10 +188,10 @@ mod tests {
     fn the_json_contract_is_stable() {
         let d = Diagnostic::error("no target after RedirectOut")
             .with_label(7, 8, "this redirect has nothing to write to")
-            .with_code("fsh::spine::missing_redirect_target");
+            .with_code("nsh::spine::missing_redirect_target");
         let v: serde_json::Value = serde_json::from_str(&d.to_json()).expect("valid json");
         assert_eq!(v["severity"], "error");
-        assert_eq!(v["code"], "fsh::spine::missing_redirect_target");
+        assert_eq!(v["code"], "nsh::spine::missing_redirect_target");
         assert_eq!(v["labels"][0]["start"], 7);
         assert_eq!(v["labels"][0]["end"], 8);
         assert!(
