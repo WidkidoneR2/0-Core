@@ -3273,8 +3273,9 @@ and the apply's own proof that the comment-stripped files are identical before a
 - [x] The NAME is decided in every register it has to survive, with the constraints measured
       rather than assumed
       <!-- evidence: 2026-09-14. `export 0_FOO=bar` -> "not a valid identifier"; cargo -> "invalid character `0` in package name". A binary named `0`, the directory `0-core` and the glob `0-*/` all work. Project 0 / 0-core / 0 / zero-* / ZERO_*. -->
-- [ ] Week 1 census exists as `docs/inventory.md`: every crate with keep / replace / retire, the
+- [x] Week 1 census exists as `docs/inventory.md`: every crate with keep / replace / retire, the
       four decision-test answers, last invocation, and whether it runs under DevBox
+    <!-- evidence: 2026-09-30. docs/inventory.md rewritten whole from measurement at 4a203d4d: all 18 registry tools, each with a disposition, the four decision-test answers, invocations since 2026-08-26 through the name, the pre-rename name and every alias (shell_history), and the DevBox census run 2026-09-30 -- 14 passed, 0 failed, 3 undetermined (db-browse, friday-chat, zero-ade); core has no case. Libraries listed apart per the 2026-09-30 ruling. -->
 - [x] The COUNT is reconciled. README, the generated catalog, tools.toml and the actual tree agree
       on how many tools exist. Today they do not
     <!-- evidence: 2026-09-30. Ruled: a tool is a binary Project 0 builds and deploys. Measured after ship: tools.toml rust+deployable+not retired 18, binary crates in the tree 18, binaries on PATH 18, the catalog (zero-docs readme-index, counting binaries) 18, README 18. zero-daemon became deployable (kept for Friday); zero-zone's retired binary target and its devbox census case were removed and the binary retired from PATH, its library kept. -->
