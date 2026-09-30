@@ -1,888 +1,368 @@
-# Project 0 — Agent Instructions
+Project 0 — Agent Instructions
 
-This file is the operating contract for working in this repository.
+This file is the operating contract for this repository.
 
-`docs/CONVENTIONS.md` is the reasoning behind two of these rules and is current — read it, do not
-duplicate it here. Where a rule below has a "why", it points there.
+docs/CONVENTIONS.md holds the reasoning behind two of these rules. Read it; do not copy it here. docs/NSH-COMPATIBILITY.md owns version tiers. One owner.
 
----
+A sentence in this file is either enforceable now, marked UNVERIFIED / CLOSED / BOARD, or it does not belong here.
 
-## Project Identity
+0. Stop
 
-- **Codename:** Project 0
-- **Public name:** Project 0 -- not "eventual". Decided 2026-09-14 in four registers:
-  spoken `Project 0`, root and repo `0-core` (UNCHANGED), CLI `0`, crates `zero-*`,
-  env vars `ZERO_*`. The last two are FORCED: cargo refuses a package name starting
-  with a digit, and bash refuses an env var that does. See INT-247.
-- **One line:** Project 0 — a new computing system built around objects, state, and capabilities.
-- **Repository:** `0-Core`. Historical identity: Faelight Forest / Faelight Shell.
-
-Project 0 runs on Omarchy -- Arch-based, systemd, Hyprland. **The operating system is
-the substrate, not the product.** The architecture defines the abstraction; the current
-substrate is one implementation of it, and is expected to be replaceable.
-
----
-
-## Architectural Model
-
-Eleven conceptual layers, in dependency order:
-
-```
-Foundation → System → Runtime → Objects → Storage → Security → Network
-          → Shell → Extensions → Experience → Intelligence
-```
-
-**These are conceptual boundaries, not directories.** Do not restructure the repository to
-mirror them. Architecture is about boundaries; directories are about maintaining code.
-
----
-
-## Dependency Rules
-
-- Foundation MUST NOT depend on higher layers.
-- System MAY depend on Foundation.
-- Runtime MAY depend on Foundation and System.
-- Objects MAY depend on Foundation and Runtime primitives, but MUST NOT depend on
-  Experience or Intelligence.
-- Shell MAY depend on Core services.
-- Experience MAY depend on Shell.
-- Intelligence MAY depend on public Core interfaces.
-- **Core MUST NEVER depend on Intelligence.** Remove every AI component and the system
-  must still boot, run, and be usable.
-
-Never resolve a problem by importing from a higher layer into a lower one. That creates an
-architectural cycle. Raise it instead.
-
----
-
-## The Intent Lifecycle
-
-Every change of consequence runs through the intent ledger, at `faelight/intents/`. The order is
-not optional, and no step is skipped because a change looks small.
-
-1. **Recon — look before touch.** Read the actual code, config, and running state before
-   proposing anything. When a direct lookup can answer a question, run the lookup. Do not
-   narrate hypotheses in place of evidence.
-2. **Formulate the plan.** One direction, stated plainly. Scope it, name the gates, and say
-   what proof each gate will require. **Never defer a gate to be resolved later** — build it
-   into the intent, or discuss it before starting.
-3. **`cistart <id>`.** Open the intent *before* writing code, not after the work is done.
-4. **Apply the code.** Only the change that was agreed. No unrequested edits riding along.
-5. **Test in the debug shell.** Exercise the behaviour before it reaches the running system.
-6. **`ship`.** Build the release and deploy. This is the only step that produces
-   what actually runs. `dep` no longer exists -- see
-   Build System below.
-7. **Reload and test in the new build.** Re-verify against the deployed artifact.
-8. **DevBox** (INT-167), as it comes online — instrumented verification in place of manual
-   checking.
-9. **`cicomplete <id>`.** Only once the evidence exists and is recorded. Never to tidy up the
-   end of a session.
-
-Working shorthand: **recon, solve, test, then rebuild.**
-
-If a step cannot be completed, say so and stop. Do not proceed and log the gap as follow-up.
-
----
-
-## Evidence
-
-**A ticked box is a promise. Evidence is the receipt.** Full reasoning in
-`docs/CONVENTIONS.md` (INT-158).
-
-Format — an HTML comment on the line *after* the ticked gate:
-
-```markdown
-- [x] Secure Boot enforcing on metal with custom keys
-<!-- evidence: commit f0d0a08e, 2026-07-16. bootctl status -> Secure Boot: enabled (user).
-     db read from the efivar = exactly 2 certs, ZERO Microsoft. Reboot survived. -->
-```
-
-A commit hash, a `file:line`, a log or artifact path, or `demonstrated: <what and how>`.
-Prose counts. The point is that the claim is checkable, not that it has a schema.
-
-Three limits:
-
-- **Forward-only.** Never retrofit old intents. That is busywork with no payoff.
-- **Soft.** This is a discipline, not gate-police.
-- **Light.** Trivial self-evident gates need no artifact. "File created" does not. "The VM
-  boots" does.
-
-**The tell: a gate you have only watched pass might be doing nothing.** Where you can, prove a
-gate by watching it FAIL first — stage something broken, watch it be rejected, then fix it and
-watch it pass. The rustfmt hook "passed" for six days by never running.
-
-**A gate can be closed by declining the thing,** with numbered reasons. That is still proof.
-
----
-
-## Build System
-The rebuild cycle on Omarchy (measured 2026-09-05):
-```
-edit  ->  cargo build -p <crate>  ->  test the DEBUG binary  ->  ship  ->  exec /home/christian/.local/bin/nsh  ->  verify on the DEPLOYED binary
-```
-- **`ship` is the only thing that builds what actually runs.** It builds the release profile
-  into ~/0-core/target/release and copies CHANGED tools into ~/.local/bin (it reports
-  "N shipped  M unchanged"). A green `cargo build` is not proof of anything deployed.
-- **`cargo build -p <crate>` produces the DEBUG binary** at ~/0-core/target/debug/<bin>. That is
-  the binary to test before shipping. It is never what runs at the prompt.
-- **Test the debug shell with the suite, output to a file, never through a filter:**
-  `env NSH_BIN=/home/christian/0-core/target/debug/nsh nsh-test > /tmp/suite.txt 2>&1`
-  then read the file. `env`, not a bare `VAR=value` prefix -- nsh drops the prefix for some
-  children. Absolute path -- INT-241, `$PWD` is not updated.
-- **After `ship`, `exec /home/christian/.local/bin/nsh` -- ABSOLUTE PATH.** The `exec` builtin does
-  not search PATH (found 2026-09-05, recorded in INT-230's body): bare `exec nsh` fails with
-  "No such file". Without the exec you are testing the old binary and will read a working fix
-  as a failure.
-- **The deployed binary can trail HEAD by many commits with no warning.** The version string does
-  not change per commit. 2026-09-05: the shipped nsh was built at the `cistart 230` commit and
-  carried none of the intent's sixteen commits. When a red does not match the source, compare
-  the binary mtime (`/usr/bin/ls -la --time-style=full-iso ~/.local/bin/nsh`) against
-  `git log --format="%h %ci %s"` before reading further.
-- After any rename, `cargo check --workspace`. A per-crate check misses the breakage.
-- **Retired, do not look for them:** `dep`, `rebuild`, `rebuild-safe`, `rebuild-dry`,
-  `nix develop`, generations, rollback-by-generation, and the rule that git must know a file
-  before it builds. `ship` has no health gate and no rollback.
-<!-- MEASURED 2026-09-05: snapper and limine ARE installed (/usr/bin/snapper,
-     /usr/bin/limine); dep, rebuild, sbctl and grub are NOT. Whether a snapper
-     rollback is configured AND bootable remains UNVERIFIED -- installed is not the
-     same as working, and nobody has restored from one. Still open: whether Wayland
-     crates need any special environment on Arch now that nix develop is gone -->
-
----
-
-## Sudo
-
-**Never change, touch, or work around sudo.**
-
-- Do not edit `/etc/sudoers`, `/etc/sudoers.d`, or the Nix options that generate them.
-- Do not add `NOPASSWD` entries for any user, command, or tool.
-- Do not add `sudo` to a command that was not already privileged.
-- Do not cache, script around, or otherwise avoid a password prompt.
-- Never `sudo rm`. nsh blocks it deliberately.
-- **No automation runs privileged.** No systemd timers at boot, no scheduled updates, no cron
-  with sudo. Automation is opt-in and explicitly triggered.
-
-**Why (2025-12-14, twelve hours):** a systemd user timer ran at boot, attempted sudo with no
-credentials, tripped faillock after three attempts, locked the account, and broke sudo
-authentication system-wide. *Automation at boot plus sudo is a debugging nightmare.*
-
-When a step genuinely requires elevation, hand the exact command over to be run by hand and say
-why it needs privilege. Privilege escalation is never a convenience.
-
----
-
-## Testing
-
-- A green build is not the claim. The claim is the thing running.
-- After deploying a service or daemon, confirm with `ps` that the process exists.
-- Run the health check — `d` — at session start and before closing. Fix warnings rather than
-  noting them.
-- Shell behaviour must be exercised through the real REPL, not only `-c` -- but not
-  for the old reason. **`nsh -c` executes nsh, not `sh`** (INT-201 gate 4,
-  main.rs:905), and the safety guard is on that door (main.rs:946). The stale
-  comment that said otherwise was deleted 2026-09-06, along with its copy in the
-  `spine conform` output.
-  ⚠️ Test with NSH_SPINE on AND off -- the two executors do not always agree,
-  and the disagreements are not all defects. `nsh -c "echo test > 0.5"` writes a
-  file; the same line under `NSH_SPINE=0` is refused. That one is the SPINE being
-  right: it narrowed legacy's blanket digit guard so it fires only in the query
-  language (parser.rs:250-282), which is why `where cpu > 0.5` still works and
-  `echo test > 0.5` behaves like bash.
-  ⚠️ `spine migrate` CANNOT TELL THOSE APART. compare.rs is mechanical by design
-  (compare.rs:123) -- it diffs rendered IoPlans and never sees why legacy declined --
-  so a ruled improvement and a real defect land in the same bucket. Its 52 rows of
-  "spine redirects, legacy does not" are not a defect count. Read the parser before
-  treating any row in that report as a bug.
-- **VM first for anything touching the compositor, the greeter, or login.** Never on bare metal
-  blind.
-- **Test the CLASS, not the example.** When a bug involves quoting, `$`, `&&`, Unicode,
-  multiline input, pipes, redirection, command substitution, escaping or any other parser or
-  transport edge, the regression test covers the FAMILY of inputs -- not only the one line that
-  failed. The shell should get harder to break over time, which a single-case test does not do.
-- **Red first.** A new test is watched FAILING on the old code before the fix lands. A test
-  that has only ever passed has not been shown to test anything. (INT-247 item 4: the cache
-  tests read 7 passed, 2 failed before the flip, and 9 passed after it.)
-
----
-
-## Recovery
-
-Know the way back before you need it.
-
-- **TTY2:** `Fn+Ctrl+Alt+F2` -- a kernel VT switch, so it works even when the compositor
-  is hung. The one recovery path that depends on nothing this project ships.
-- **`ship` has no rollback.** It overwrites the previous binary. The way back from a bad
-  deploy is `git checkout <sha>` then `ship` -- which makes the pushed history the
-  recovery mechanism. Push before you deploy something you cannot rebuild.
-- **snapper and limine are installed** -- but whether a snapshot rollback is configured
-  and bootable is UNVERIFIED. Do not plan around it until someone has restored from one
-  and written down what they did.
-- ⚠️ **There is no written recovery procedure for this machine.** The NixOS-era runbook was deleted 2026-09-29 because its steps are wrong on Omarchy; an Omarchy runbook belongs to INT-225. That is a gap, stated rather than assumed.
-
----
-
-## Visual Changes
-
-- After any visual change, take a screenshot and analyse it. Do not report a visual change as
-  done on the strength of the config diff.
-- For interactive UI, drive it with simulated keyboard input, track the PID, and stop it after.
-- **Check `ps` before any broad process kill.** Never `pkill -f` on a loose pattern.
-
----
-
-## Naming and Identity
-
-The project is migrating from the historical "Faelight" identity to **Project 0**. New
-user-facing functionality uses Project 0 terminology. Historical Faelight names remain where
-changing them would create compatibility or migration risk.
-
-### ⭐ LAYER 0 -- THE FREEZE. THIS IS A RULE, NOT A PLAN.
-
-**No new crate, binary, path, doc heading or config key begins with `faelight`.** New work
-is named `nsh`, `core`, `friday`, `devbox`, or `zero-*`.
-
-Free, permanent, and it cannot break anything -- which is why it applies from today rather
-than waiting for the rest of the rename. It stops the problem GROWING while everything else
-is still being decided.
-
-⚠️ `zero-*`, NOT `0-*`. Cargo refuses a package name starting with a digit -- measured.
-A session that reaches for `0-git` gets a compile error and should read this line.
-
-**Do not perform broad mechanical renames of Faelight identifiers.**
-
-Classify before migrating:
-
-| Category | Strategy |
-| --- | --- |
-| User-facing name | Rename |
-| New APIs, new files | Use `zero-*` |
-| Documentation | Rename |
-| Internal identifiers | Migrate gradually |
-| Package/module names | Deliberate migration |
-| Environment variables | Compatibility period |
-| Config directories | Compatibility, then migration |
-| Persistent data | Preserve; requires an explicit migration plan |
-| URLs / domains | Deliberate migration |
-| Existing scripts | Test before changing |
-| Git history | Leave alone |
-
-`~/.faelight/` → `~/.zero/` is **not a rename. It is a data migration.**
-
-Tool naming: `faelight-` prefixed today. New tools should carry a purpose in the prefix.
-
-### Known hardcoded Faelight paths
-
-A mechanical rename breaks three layers at once. Measured, not assumed:
-
-- Rust: `faelight-core/src/paths.rs`, `faelight-deadwood/src/main.rs`, `integrity/mod.rs`,
-  `doctor/checks.rs`, `cheatsheet_tui.rs`
-- Persistent data, as of 2026-09-24 (INT-247): `~/.local/state/zero` (state.db), `~/.config/zero`
-  and `~/.cache/zero` are the REAL directories; the `faelight` names beside them are compatibility
-  links. `~/.local/share/zero` is real too (teach progress, the delete trash) and
-  `~/.local/share/faelight` links to it. NovaShell's config is `~/.config/nsh`, real, and
-  `~/.config/faelight-shell` links to it (2026-09-24). Nothing outside the repo is real under a
-  faelight name.
-
----
-
-## Migration Rules
-
-1. Do not perform repository-wide search-and-replace renames.
-2. Preserve compatibility where practical.
-3. New APIs and components use Project 0 terminology.
-4. Classify every legacy identifier before migrating it.
-5. Persistent data formats require an explicit migration strategy.
-6. Package and module renames must preserve dependency correctness.
-7. Generated files are regenerated, never hand-renamed.
-8. Every migration step leaves the system buildable and testable.
-9. Never mix unrelated architectural changes into a naming migration.
-10. Prefer small, independently testable migration commits.
-11. **A `/etc/` path is an assumption from a system that no longer exists.** The previous OS
-    generated its system files declaratively via `environment.etc`. Omarchy has no reconciler,
-    so those files vanished on 2026-08-26 and EIGHT readers spent three weeks answering `""`,
-    `0`, and an invented `v14.0.0` -- silently, because every read was wrapped in a fallback.
-    Verify any `/etc/` path resolves before trusting it, and make absence SAY SO. (INT-250)
-12. **Moving a directory that holds data: alias, flip, swap -- never rm, mv, ln.** First the new
-    name is a relative link to the old one, proven by inode. Then the code flips in one commit,
-    red first. Then one renameat2(RENAME_EXCHANGE) swaps the names, rehearsed on the same
-    filesystem, and the old name is repointed at the new one; inodes are compared before and
-    after. The name the code uses exists at every instant. rm, mv, ln leaves a window in which a
-    tool starting up creates an empty directory -- the silent empty ledger. (INT-247 Layer 3b and
-    item 4.)
-
----
-
-## Engineering Protocol
-
-This is a real systems project, not a collection of scripts. The shell is intended to be good
-enough to become a default environment for other people.
-
-### Diagnose the layer before changing anything
-
-When something fails, name which layer failed before touching code:
-
-    1. message transport / quoting      4. program logic
-    2. shell parsing                    5. dependency or environment
-    3. file creation / filesystem       6. architecture
-
-**Do not rewrite application logic when the fault is payload corruption or shell interpretation.**
-Measured 2026-09-12: four code sites were patched chasing an exit status that stayed 0, when the
-command was never reaching any of them. The correct first move was instrumenting the live path.
-
-### A tool nobody will wait for is a tool nobody will run
-
-**When something is too slow, measure where the time goes before making it faster.** The census
-took 158 seconds and the instinct was to parallelise it. The measurement said otherwise:
-
-    27 cases, sequential, 30s default timeout    158s
-    the same run at a 10s default                 58s
-    the actual work in both                        8s
-
-150 of the original 158 seconds were five tools sitting through a timeout they were never going
-to beat. One constant, changed after measuring, removed 100 seconds. Parallelism -- the harder
-change, with a determinism cost -- would have hidden that by making the waste concurrent instead
-of removing it.
-
-⭐ AND THE DEFAULT IS WHERE THE COST LIVES. A generous timeout looks harmless in one case and
-is paid by every case that does not need it. Put the exception in the case that needs it; keep
-the default at what the ordinary case actually requires.
-
-The order is the same as everywhere else in this file: measure, then change, then measure again
-to see whether the change did what you claimed.
-
-### Establish that nsh is responsible before changing nsh
-
-**Before fixing a behaviour, establish whether this shell caused it.** Three times on 2026-09-14 a
-confident bug report survived one command and no further:
-
-    "the -c shell orphans a stopped child"     It does not. An orphaned process group with
-                                               stopped members gets SIGHUP then SIGCONT from the
-                                               KERNEL. Measured: nothing left behind.
-
-    "a stale ctrlc handler steals Ctrl+C"      It cannot. A foreground job is in its own process
-                                               group with clean dispositions, so the kernel
-                                               delivers there regardless. The leak was real and
-                                               had NO symptom.
-
-    "the redirect path drops the exit status"  It does not. `diff` is aliased to `difft`, and
-                                               difftastic exits 0 whether files differ or not.
-                                               The shell ran exactly what was asked.
-
-Each was plausible, each named this shell as the culprit, and each was wrong. The layers that
-actually owned the behaviour were the kernel, a library's lifetime semantics, and the user's own
-alias table.
-
-⭐ THIS IS RULE 2 (DIAGNOSE THE LAYER) WITH ONE LAYER ADDED AT THE BOTTOM: before the six listed
-there, ask whether the behaviour belongs to nsh AT ALL. A shell that accumulates fixes for things
-it did not do becomes a pile of superstitions -- and every one of them is load-bearing to the next
-reader, who has no way to tell which were ever real.
-
-The cost of asking is one command. The cost of not asking is a permanent wrong belief in the
-codebase.
-
-### Inspect before changing
-
-Read the implementation, understand current behaviour, identify the smallest correct change, make
-it, test it, report what changed and what was actually verified. **Never guess what existing code
-does when it can be inspected** -- and never guess a line number when the file can be read.
-
-**Recon uses `fsearch`**, the project's own search tool, not grep or awk:
-`fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]`. Its table
-truncates long paths and lines, so when the exact text matters, read the region with a read-only
-python payload that prints numbered lines. Disk state -- what a directory holds, what a process has
-open -- is read the same way, before anything touches it.
-
-### Small and reversible
-
-One concern per change. Do not bundle cleanup, refactoring or architectural work with a requested
-feature without a compelling reason. Avoid abstractions, compatibility layers and helper systems
-that do not solve a problem that exists today.
-
-### Choosing between implementations
-
-Prefer, in order: correct, simple, composable, testable, predictable, safe, performant,
-understandable by both humans and AI, compatible with Unix convention, extensible without
-complexity. **Optimise for a strong foundation, never for the shortest code.**
-
-### Communication
-
-Concise and technical. State intent before a meaningful architectural change. Name uncertainty as
-uncertainty. After meaningful work, summarise what changed, why, which components were affected,
-what was tested, and what still concerns you. Do not bury a decision in explanation.
-
-### Lessons are invariants
-
-When a recurring failure mode or design rule is established, it becomes a project invariant and
-gets written down here. **Do not rediscover the same lesson twice.**
-
----
-
-## Shell Architecture
-
-Keep these concerns separate. Coupling them is how a shell becomes unmaintainable:
-
-    input -> lexer/parser -> command representation -> expansion -> execution
-          -> process management -> streams -> UI and events
-
-When introducing a subsystem, state its boundary and its API.
-
-### Primitives over features
-
-Before implementing, ask what the underlying primitive is: whether other features can reuse it,
-whether it is composable, scriptable, testable, comprehensible to a human and reliably usable by
-an AI, and **what happens when it fails**. Prefer a strong reusable primitive to one-off
-behaviour. Do not build hypothetically -- but recognise a primitive when one emerges.
-
-### AI-native, without ceasing to be a shell
-
-AI will be a significant way people use this shell, so AI usability is a first-class constraint:
-predictable semantics, structured output where it helps, machine-readable errors, discoverable
-commands, deterministic behaviour, clear exit and status semantics, excellent diagnostics, safe
-handling of arbitrary text.
-
-**Not at the expense of being a good shell for humans.** The goal is excellent for both.
-
-### Destructive actions are explicit
-
-Filesystem modification, process termination, privileged operations and configuration changes are
-predictable and visible in the shell itself. **Never silently perform a significant destructive
-action, and never hide dangerous behaviour behind a convenience feature.**
-
-(This governs what nsh does to its users. What an agent must stop and ask about in THIS repository
-is a separate list: see ## Dangerous Operations.)
-
-### Messages
-
-**A message says what happened, what the shell could not do, and what the reader can act on.**
-
-Three failures, in order of how often they occur here:
-
-- **A category where a fact belongs.** `exited 1 -- general error` names a bucket. It is what the
-  shell says for ANY exit 1, including `grep` finding no matches -- which is not an error at all.
-  The shell is guessing and sounding certain.
-- **Confidence the shell has not earned.** If it does not know why something failed, the message
-  says so. "Could not establish X" beats a wrong specific reason and beats a vague general one.
-- **Nothing to act on.** A pid, a path, a signal number, a command to run. A message that leaves
-  the reader with no next move has told them only that they are stuck.
-
-The shape that works, measured against the one this shell shipped on 2026-09-13:
-
-    ♸ suspended -- not yet resumable: job registration is INT-188 step 5 (pid 20622)
-      ^ what happened   ^ what the shell cannot do yet          ^ what you can act on
-
-⭐ THIS IS THE SAME RULE AS `Unknown`, `Skipped` AND THE DEGRADATION LIST, APPLIED TO PROSE. INT-192
-gave the doctor a word for "I could not check". INT-245 gave the value pipeline one for "I could
-not compute". INT-246 made the sandbox admit what it did not enforce. A message that says "general
-error" when it means "grep found nothing" is the same defect in the only layer a user actually
-reads.
-
-Corollary: an exit code is not a diagnosis. 1 means a thousand things, and several of them are
-success in context. Where the shell knows the command, it should say what that command's non-zero
-status actually means -- and where it does not know, say that instead of inventing a category.
-
-### Performance
-
-An interactive shell is judged on startup latency, execution overhead, memory, process creation,
-IPC, rendering cost, and needless filesystem access. Do not optimise prematurely; do not adopt
-obviously expensive architecture when a simpler equivalent exists.
-
-### Omarchy
-
-Do not assume compatibility because something works here. Where integration matters, consider
-shell conventions, environment variables, process lifecycle, IPC, terminal behaviour,
-configuration, existing Omarchy interfaces, and interoperability with ordinary Linux tooling.
-**Preserve standard Unix concepts rather than inventing replacements without a strong reason.**
-
----
-
-## Design Philosophy
-
-**Manual control over automation. Understanding over convenience.**
-
-Project 0 prioritizes:
-
-- minimalism — every component justifies its existence
-- reproducibility — the system is described by configuration, not accumulated changes
-- verified change — a change is trusted once it has been demonstrated, never once it has built
-- a known way back — and where there isn't one, the gap is written down rather than assumed
-  (`ship` has no rollback today)
-- security by default
-- explicit architectural boundaries
-- coherent, designed experience — designed, not decorated
-
-Do not add functionality merely because conventional Linux distributions include it.
-
-**Everything has an expiration date, including the choices this project has already
-made.** Rust is the right implementation language today. That is a measurement, not an
-identity. If something serves the architecture better -- another language, another toolkit,
-something not written yet -- the question is answered by building something small in it and
-comparing, not by how much has already been written in the current one.
-
-An idea earns its place by what it does, **never by how popular it is** -- neither by
-popularity outside the project nor by how settled it feels inside it. The architecture
-is the product; the implementation is this decade's best available answer to it. Design
-for where the project is going, not only for what it is now.
-
-**"No bloat" does not mean "we write everything ourselves."** If a proven Linux component does
-exactly what is needed, use it. The differentiator is integration, not authorship.
-Build to understand, replace when better exists, keep the intelligence in our own code.
-
----
-
-## Edit Discipline
-
-Edits go through **`fpatch`** (`zero/scripts/dev/fpatch.py`), not ad-hoc rewriting.
-
-⚠️ INT-258: THIS RULE EXISTED FOR MONTHS WITHOUT SAYING HOW TO OBEY IT. fpatch has no CLI, nothing
-imported it, and its own docstring gave a RELATIVE sys.path -- so the only two invocations since
-the migration were `fpatch --help`, which is not a command and never was. The form is now stated
-here, because a mandated tool nobody can call is a rule that gets worked around:
-
-    import sys
-    sys.path.insert(0, "/home/christian/0-core/zero/scripts/dev")
-    from fpatch import patch, patch_between
-    patch("path/to.rs", old, new)
-
-ABSOLUTE path, always -- the relative one resolves only from the repository root. The payload
-crosses the shell as ONE argv word per the transport rule below, so `old` and `new` stay Python
-string literals. That is also why there is NO CLI: shell arguments would put the anchors back into
-shell syntax, which is the failure that rule exists to prevent.
-
-`_refuse` exits 1 and promises nothing was written; `_internal` exits 2 and promises nothing.
-
-- Anchors must match the file byte for byte, including whitespace. An anchor that matches three
-  lines is refused; widen it until it is unique rather than guessing.
-- Any edit invalidates every line number below it. Re-read before the next edit — never patch
-  from a stale view.
-- Watch for em dash versus double dash in anchors. They look alike, are not interchangeable, and
-  are a recurring cause of failed patches.
-- One concern per patch. A patch that fixes two things cannot be reverted for one of them.
-- When an anchor cannot be made to match -- a line carrying an em dash, a box-drawing rule, or any
-  non-ASCII character -- use fpatch.patch_between(path, start_marker, end_marker, new_lines). It
-  locates a span by two SHORT ASCII markers and replaces it BY INDEX, so the body is never
-  retyped. fpatch.patch refuses a non-ASCII anchor outright and names the offending characters.
-- Never make unrequested changes. Surface improvements for discussion instead.
-- **A payload defines, then acts on its LAST line.** The top level holds only definitions and the
-  one call is the final line, so a paste cut short fails to parse or never calls main() -- it
-  cannot run half an edit. Proven 2026-09-24, when cut pastes wrote nothing.
-- **Modes, and a guard in each.** `dry` prints the plan and writes nothing. Every writing mode
-  refuses unless its preconditions hold -- anchors found exactly once, tree clean, the previous
-  step committed and pushed -- and says Nothing written when it refuses.
-- **Rehearse what has not been read.** When an edit depends on behaviour nobody has read --
-  patch_between's span rule, a filesystem call -- run it first on a copy made with mktemp and
-  refuse unless the result is byte-identical to the planned file.
-- **A record checks its own claims.** An intent section that says a commit is pushed or a path is
-  real verifies that against git and the disk before it is written.
-
-### Paste blocks
-
-Command blocks written for a human to paste must contain no apostrophes, no heredocs (`<<`),
-and no bare `--help` invocations.
-
-### Transport: generated content crosses the shell as DATA
-
-**Separate DATA, CODE and COMMANDS. Do not let generated text become shell syntax merely because
-the shell is carrying it.**
-
-Shell interpretation of generated content is this project's most repeated failure. Measured on
-2026-09-12 alone, three separate payloads were corrupted before the interpreter saw them:
-backticks command-substituted out of an intent file, `$?` expanded inside a `python3 -c` string,
-and `&&` breaking a command substitution. Each looked like a logic bug and was not one.
-
-The rule:
-
-- Non-trivial generated source or text goes **base64 -> temp file -> execute**, never inline:
-
-      python3 -c 'import base64,sys; exec(base64.b64decode(sys.argv[1]).decode("utf-8"))' PAYLOAD
-
-  ⚠️ SUPERSEDED 2026-09-13, corrected here 2026-09-23. This block still showed
-  `echo PAYLOAD | base64 -d > /tmp/p.py`, which the ruling replaced: a fixed /tmp path collides
-  between concurrent runs, and the redirect puts the payload through shell syntax on the way in.
-  ONE argv word, or mktemp -- never a fixed temporary file.
-
-- Anything small enough to stay inline uses **single quotes** -- `python3 -c '...'` -- which
-  disables every expansion. Double quotes do not.
-- Do not solve a transport problem by adding more escaping. **Remove the shell from the transport
-  path instead.** If there is a way to eliminate an interpretation boundary rather than escape
-  around it, eliminate it.
-
-Heredocs WORK. Measured 2026-09-13 against bash, all eight combinations identical:
-
-    << XEOF      unquoted, USER expands          both executors match bash
-    << quoted    single or double, USER literal  both executors match bash
-    <<- XEOF     tab strip                        both executors match bash
-
-Tested through -c and the REPL, with NSH_SPINE on and off.
-
-They remain banned in PASTE BLOCKS for ONE reason only: a quoted delimiter contains
-APOSTROPHES, and apostrophes do not survive the paste path. That is a transport
-constraint, not a shell limitation.
-
-THIS ENTRY HAS BEEN WRONG TWICE, both times by generalising from one observation:
-first claiming nsh dropped the redirect (it was apostrophes in the paste), then claiming
-heredocs worked on the strength of testing only the unquoted form. The matrix above is
-what an answer looks like: every shape, both doors, both executors, against a control.
-
-Base64 is the AI-to-shell transport mechanism. It is **not** a requirement of the shell's own
-user-facing architecture.
-
-### Known aliases that change command behaviour
-
-- `cat` is `bat`
-- `ls` is `eza` — **`ls -lt` fails**; eza spells it `--sort=modified`
-- `d` health check · `gc` git commit · `gp` git push
-
----
-
-## Tool Output
-
-**A safe abort and a crash must not look the same. Lead with what did NOT happen.**
-Full reasoning in `docs/CONVENTIONS.md` (INT-199); `fpatch`'s `_refuse` is the reference.
-
-- Result first. Say what was not written before any internal detail.
-- The message carries the diagnostic. No error codes to look up.
-- Recovery steps are part of the interface — numbered and runnable.
-- Tracebacks behind a debug flag; structured output by default.
-- Assertions are for bugs, not for refusals. Keep the non-zero exit either way.
-
----
-
-## Security
-
-- ⚠️ **Secure Boot is NOT enforcing.** MEASURED 2026-09-05: `sbctl` is not installed and
-  `/var/lib/sbctl` does not exist. The custom-key setup went with the previous OS and has not been
-  rebuilt. Do not describe the boot chain as signed until it is, and until that has been
-  demonstrated rather than configured.
-- Secrets are never committed. `gitleaks` scans before commits. Configs reference secrets, they
-  do not embed them.
-- Passwords are set at install time, not declared in the repo.
-- Before rebooting after a boot-chain change, verify the signature state first.
-
----
-
-## Risk Tiers
-
-Each directory carries a `RISK.toml` declaring its tier. Read it before editing in that
-directory.
-
-- **critical** — boot, login, disk. Failure means the machine does not come back.
-- **system** — shared across hosts. Failure breaks builds, loudly, but not boots.
-- **user** — user-scope configuration and tools. Failure is recoverable from a running session.
-
-Promote a directory to critical the moment it starts carrying boot, login, or disk settings.
-
----
-
-## Dangerous Operations
+Read this before editing. If a step can lock the machine, stop and ask.
 
 Stop and ask before:
 
-- anything touching the boot chain, disk layout, LUKS, or the greeter — lockout-class
-- anything involving sudo, sudoers, or privilege escalation
-- broad process kills
-- repository-wide renames
-- changing persistent data locations or formats
-- starting substantive work without an open intent
+boot chain, disk layout, LUKS, or the greeter
+sudo, sudoers, or any privilege escalation
+broad process kills
+repository-wide renames
+changing persistent data locations or formats
+starting substantive work without an open intent
 
-If something breaks: stop immediately, assess, roll back, document it in the ledger, then update
-the rule that failed to prevent it.
+If something breaks: stop, assess, roll back, record it in the ledger, then update the rule that failed to prevent it.
+Sudo
 
-### devshell: the place to break things
+Never change, touch, or work around sudo.
 
-`devshell` is a sandbox where a dangerous operation can be done for real. Your live 0-core is
-inside it. Your credentials are not. Packages install as root. Leaving undoes everything.
+Do not edit /etc/sudoers or /etc/sudoers.d.
+Do not add NOPASSWD entries.
+Do not add sudo to a command that was not already privileged.
+Do not cache, script around, or skip a password prompt.
+Never sudo rm. nsh blocks it deliberately.
+No automation runs privileged: no boot timers, no scheduled updates, no cron with sudo. Automation is opt-in and hand-triggered.
 
-⭐ TEN LAWS. Each one was proven by breaking it (INT-257 carries the evidence).
+Why (2025-12-14): a systemd user timer at boot attempted sudo with no credentials, tripped faillock, locked the account. Hand the exact elevated command to a human and say why it needs privilege.
+Recovery
 
-    0.  A sandbox that cannot keep one of these laws refuses to start.
-        It never starts anyway and hopes.
+TTY2: Fn+Ctrl+Alt+F2 — kernel VT. Works when the compositor is hung. Depends on nothing this project ships.
+ship has no rollback. It overwrites the previous binary. Way back: git checkout <sha> then ship. Push before deploying something you cannot rebuild.
+snapper and limine are installed. Whether a snapshot rollback is configured and bootable is UNVERIFIED. Do not plan around it until someone has restored from one and written the steps.
+There is no Omarchy recovery runbook. The NixOS runbook was deleted 2026-09-29 because its steps are wrong here. That runbook is INT-225. The gap is stated, not assumed.
+Risk
 
-    1.  Everything written inside is thrown away when you leave,
-        unless you promote it by name.
+Each directory may carry a RISK.toml. Read it before editing there.
 
-    2.  Nothing inside can see or signal a process outside.
+critical — boot, login, disk. Failure means the machine does not come back.
+system — shared across hosts. Failure breaks builds, loudly, not boots.
+user — recoverable from a running session.
 
-    3.  Nothing inside reaches the network.
+Promote a directory to critical the moment it carries boot, login, or disk settings.
+Security
 
-    4.  You are root inside, and root inside has no authority outside.
+Secure Boot is not enforcing. MEASURED 2026-09-05: sbctl is not installed; /var/lib/sbctl does not exist. Do not describe the boot chain as signed until that has been demonstrated.
+Secrets are never committed. gitleaks scans before commits. Configs reference secrets; they do not embed them.
+Before rebooting after a boot-chain change, verify signature state first.
+Devshell
 
-    5.  Nothing from your environment crosses unless it is declared.
+devshell is where a dangerous operation is done for real. Credentials are not inside. Packages may install as root. Leaving undoes what was not promoted.
 
-    6.  The sandbox tells the truth about what it is. It never claims
-        an isolation it did not get.
+Declared paths are visible. A write is not a keep. The repository may be seen from inside; a write reaches the host only through devshell-promote. nsh-test keeps two laws honest every run: a write inside never reaches the host, and every mount is read-only or disposable while every socket refuses a connection.
 
-    7.  Leaving puts the machine back exactly as it was.
+TEN LAWS. Each was proven by breaking it (INT-257). Law 0 is ten launch checks; any failure refuses the session. Do not add an eleventh law until it has its own probe that can fail the start.
+0  A sandbox that cannot keep one of these laws refuses to start.
+   It never starts anyway and hopes.
+1  Everything written inside is thrown away when you leave,
+   unless you promote it by name. Visible is not kept.
+2  Nothing inside can see or signal a process outside.
+3  Nothing inside reaches the network.
+4  You are root inside, and root inside has no authority outside.
+5  Nothing from your environment crosses unless it is declared.
+6  The sandbox tells the truth about what it is. It never claims
+   an isolation it did not get.
+7  Leaving puts the machine back exactly as it was.
+8  Everything that changed can be listed before you decide to keep any of it.
+9  sudo inside is not a way out.
 
-    8.  Everything that changed can be listed before you decide to keep any of it.
+devshell                          start a session (~0.3s)
+devshell --resume last            the same session again
+devshell-diff --last              list what changed
+devshell-promote --last <path>    keep one named file; type PROMOTE to confirm
 
-    9.  sudo inside is not a way out.
 
-Law 0 runs at every launch: ten checks, and any one of them failing means the session refuses to
-start rather than starting degraded. Each check was proven by breaking it on its own.
+Home inside starts empty. Five paths are declared: the repository, ~/.local/bin, the shell config directory, and the cargo cache are visible; the shell state directory is a snapshot. Anything else is absent — not hidden, absent. SSH keys, git credentials, and AI tool directories do not exist inside.
 
-    devshell                          start a session, about 0.3 seconds
-    devshell --resume last            the same session again
-    devshell-diff --last              list what changed
-    devshell-promote --last <path>    keep one named file; you type PROMOTE to confirm
+The declared list lives in devshell-lib. That file is the authority; this is a summary.
 
-⚠️ WHAT IS NOT DECLARED IS NOT THERE. Your home directory inside starts EMPTY, and five paths are
-declared into it: the repository, your local bin, the shell's config directory and cargo cache are
-live; the shell's state directory is a snapshot. Anything else is absent -- not hidden, absent.
-Your ssh keys, your git credentials and your AI tool directories cannot be read from inside
-because they do not exist there. A path you need that is missing fails loudly the first time, and
-is added with its reason.
+Scripts today: zero/scripts/devshell and zero/scripts/devshell-lib (check the tree; devshell-lib is the authority for the exact names). INT-252 moves these. When it does, update this paragraph and the two nsh-test paths that reach them. Do not invent a destination.
 
-The declared list lives in `devshell-lib`. That file is the authority; this is a summary.
+1. This host / this tree
 
-⚠️ THE SCRIPTS ARE AT `zero/scripts/devshell` AND `devshell-lib` TODAY. INT-252 renames that
-directory to `zero/`. When it does, these two references move with it, along with the two paths
-nsh-test builds to reach them. Written here so the rename has a checklist entry rather than a
-surprise.
+Project 0 is the public name. Not eventual. Decided 2026-09-14:
 
-nsh-test keeps two of these laws honest on every run: a write inside never reaches the host, and
-every mount is read-only or disposable while every socket refuses a connection.
+| Register | Form |
+|---|---|
+| Spoken | Project 0 |
+| Root and repo | 0-core / 0-Core — unchanged |
+| CLI | 0 |
+| Crates | zero-* |
+| Env vars | ZERO_* |
 
----
+Cargo refuses a package name starting with a digit. Bash refuses an env var that does. See INT-247.
 
-## Generated Files
+One line, current: a shell being made good, a sandbox that tests it, and the tools that survived “what breaks tomorrow if I delete this?” Omarchy (Arch, systemd, Hyprland) is the substrate, not the product.
 
-Generated files are regenerated, never hand-edited and never hand-renamed. If a generated file
-is wrong, fix the generator.
+Historical names: Faelight Forest, Faelight Shell, fsh. Prefix the future; do not rename the past.
+Layer 0 — the freeze
 
----
+No new crate, binary, path, doc heading, or config key begins with faelight. New work is nsh, core, friday, devbox, or zero-*.
 
-## Version Control
+This is a rule, not a plan. It cannot break anything and it stops the old name from growing.
 
-**Version numbers are decided by contract impact, never by size.** A one-line
-change can be major and a fifty-thousand-line rewrite can be a patch. The
-deciding question is what a caller is owed, not what the work cost.
+Do not perform repository-wide search-and-replace. Classify first:
 
-Three tiers govern it: CONTRACTUAL behaviour is owed and breaking it is major;
-INCIDENTAL behaviour was never offered; ERRONEOUS behaviour violates the shell
-own stated semantics, and correcting it is a PATCH even when observable --
-nobody reasonably depends on a guard failing to guard.
+| Category | Strategy |
+|---|---|
+| User-facing name, documentation | Rename |
+| New APIs, new files | zero-* |
+| Package / module names | Deliberate migration |
+| Internal identifiers | Gradual |
+| Environment variables, config dirs | Compatibility, then migration |
+| Persistent data | Preserve; needs an explicit plan |
+| Existing scripts | Test before changing |
+| Git history, old commit subjects, old intent titles | Leave alone |
 
-Read docs/NSH-COMPATIBILITY.md before choosing a level. It carries the
-promise, the three tiers, and the question sequence. Do not restate its rules
-here: one owner.
+~/.faelight/ → ~/.zero/ is a data migration, not a rename.
 
-The commit is the receipt. CHANGELOG.md is a lagging copy of it, and the intent
-ledger cites SHAs -- so a commit body is load-bearing evidence rather than a
-courtesy.
+Moving a directory that holds data: alias, flip, swap — never rm, mv, ln. New name is a relative link to the old one, proven by inode. Code flips in one commit, red first. Then renameat2(RENAME_EXCHANGE) swaps the names on the same filesystem; the old name is repointed at the new one. The name the code uses exists at every instant. rm/mv/ln leaves a window where a tool creates an empty directory — a silent empty ledger. (INT-247 Layer 3b.)
 
-**The subject names the subsystem and the fact.** `nsh: the suite can tell a
-stale binary from a current one`, not `fix tests`. The body says what was false,
-what is true now, and how that was watched.
+A /etc/ path is an assumption from an OS that no longer exists. Omarchy has no environment.etc reconciler. Those files vanished 2026-08-26. Absence must say so. (INT-250)
 
-**One boundary per commit.** The fsh -> nsh rename went bashrc, then the
-`[[bin]]`, then the resolvers, then the tables -- each pushed separately. Mixing
-a rename, a new guard door and a WAL change into one SHA makes it impossible to
-say afterwards which one moved the number.
+Generated files are regenerated, never hand-edited or hand-renamed. If one is wrong, fix the generator.
 
-**History is not a whiteboard.** No rebase to tidy a month, no amend of anything
-pushed. A wrong commit gets a FOLLOW-UP that cites it by hash. Rewriting deletes
-the measurements the ledger depends on -- the evidence
-lives in the bodies, not in a separate document.
+Every migration step leaves the tree buildable. Never mix an unrelated architectural change into a naming commit.
+Paths that are real (measured 2026-09-24, INT-247)
 
-**Prefix the future, never rename the past.** Commit messages from July say
-`fsh` because that is what it was called in July. Leave them. New commits say
-`nsh`. The same rule governs intent files and changelogs: they record what was
-true when written.
+Real directories: ~/.local/state/zero, ~/.config/zero, ~/.cache/zero, ~/.local/share/zero. The faelight names beside them are compatibility links. NovaShell config is ~/.config/nsh (real); ~/.config/faelight-shell links to it. Nothing outside the repo is real under a faelight name.
 
-**A skipped hook is stated, not hidden.** If `--no-verify` lands a WIP, the next
-commit's body says the hook was skipped and why -- the same class of sentence as
-"the eighth gate is deliberately left red".
+The intent ledger lives at zero/intents/; INT-252 moved it there. Do not add files under a faelight/ name.
 
-**`git add` scope is a bug class, not a preference.** Commit 39031dc exists
-because a previous commit scoped `git add` to `faelight/` and missed the root
-`Cargo.lock` -- the second time that day. If the change touches a workspace
-dependency, add the lock deliberately.
+Hardcoded readers still to classify, not blindly replace: zero-core/src/paths.rs, zero-deadwood/src/main.rs, integrity/mod.rs, doctor/checks.rs, cheatsheet_tui.rs. UNVERIFIED since the crate renames: whether each still needs classifying has not been measured.
+This machine
 
-Conventional Commits, squash merges and force-pushes are all rejected for the
-same reason: each one flattens or discards the part of the log that is actually
-used.
+Repo on disk: /home/christian/0-core
+Deployed binaries: /home/christian/.local/bin
+cat is bat. ls is eza — ls -lt fails; eza wants --sort=modified.
+d is the health check. gc is git commit. gp is git push.
+Retired: dep, rebuild, rebuild-safe, rebuild-dry, nix develop, generations, rollback-by-generation, sbctl, grub. Installed and present: snapper, limine. Installed is not working.
 
----
+2. How a change is allowed
+Intent lifecycle
 
-## Current Work -- September 2026
+Every change of consequence runs through the ledger. Order is not optional.
 
-⚠️ THIS SECTION IS DATED AND MEANT TO BE REPLACED. Everything above it is a
-standing convention; this is what is being worked on right now and in what
-order. If the date is stale, distrust the list before you distrust the rest of
-the file.
+Recon. Read the code, config, and running state. Run the lookup. Do not narrate a hypothesis in place of evidence.
+Plan. One direction. Scope it, name the gates, say what proof each gate needs. Never defer a gate to be resolved later — build it in, or discuss it before starting.
+cistart <id>. Open the intent before writing code.
+Apply only the change that was agreed.
+Test the debug binary.
+ship. The only step that produces what actually runs.
+Reload and verify the deployed artifact.
+cicomplete <id>. Only once the evidence exists. Never to tidy the end of a session.
 
-**Picking up the Faelight -> Project 0 rename (INT-247)?** Open its section "END OF SESSION --
-START HERE" -- search the name, not a line number. It holds the state, the next step and the
-method, and it supersedes every earlier "where this stopped" section in that intent.
+If a step cannot be completed, say so and stop. Do not proceed and log the gap as follow-up.
 
-### The ordering, and why it is an ordering
+DevBox (INT-167) is not a required step until it is the verifier. Until then it is deferred.
 
-Coherence does not move until the safety guard is on every execution door.
-Until then, more code means more comments to distrust. So:
+Working shorthand: recon, solve, test, then rebuild.
+Evidence
 
-1. **The digit guard is absent from `nsh -c`.** MEASURED 2026-09-05:
-   `cd /tmp && nsh -c "echo test > 0.5"` creates a file named `0.5`, while the
-   interactive shell refuses the same line and prints it as text. The two doors
-   disagree about the LANGUAGE, in the one construct the history corpus proved is
-   a deliberate divergence -- `where cpu > 0.5` depends on it.
-   ⚠️ THIS REPLACES THE OLD ITEM 1, WHICH WAS FALSE IN BOTH HALVES. `-c` does
-   not delegate to sh (main.rs:905) and does not skip the safety guard
-   (main.rs:946; nsh-test `dashc_reaches_the_safety_guard` and
-   `dashc_guard_refusal_stays_off_stdout` both pass). The real gap is narrower
-   and worse: same shell, same guard, different redirect semantics.
-   ⏭ First move is recon: find where the REPL path applies the guard and the
-   `-c` branch does not. Delete the stale delegates-to-sh comment at
-   main.rs:860 in the same change.
-2. **One git policy.** `git` is in the `safe` set AND there is a
-   `git reset --hard` arm in the heuristics. The arm is dead while git is
-   safe. Remove git from safe, or delete the arm. Name the discarded half in
-   the commit.
-3. **INT-197 remainder -- VERIFY BEFORE IMPLEMENTING.** The claim is that
-   `check(cmd, first_word)` gets the alias-EXPANDED first word but the TYPED
-   line as cmd, so `alias zap='rm -rf /tmp/x'` then `zap` never sees `-rf`.
-   INT-196 and INT-197 are both marked complete, so either this was fixed or a
-   gate was ticked without demonstration. One reproduction settles it. Do that
-   first.
-4. **The `-c` boot tax -- CLOSED BY MEASUREMENT 2026-09-02, no change made.**
-   Measured 13ms against bash's 1ms, ten runs timed externally; db open on the
-   276MB file with its TRUNCATE checkpoint is 2ms and config apply is 5ms. The
-   305ms figure predates the BEGIN/COMMIT already in tree. None of the three
-   proposed fixes is warranted, and 160 processes x 13ms is two seconds, so the
-   suite's 155s is pty sessions rather than boot.
-   ~~`nsh -c true` costs ~305ms release against bash's ~3ms.~~ The hypothesis: `ForestDb::open` runs `wal_checkpoint(TRUNCATE)` on
-   every process; `config::apply` re-seeds 270 aliases every time; prune and
-   settings sit outside the alias transaction.
-   ⚠️ THAT IS A HYPOTHESIS READ FROM THE CODE, NOT A MEASUREMENT. Profile
-   first: `NSH_BOOT_PROFILE=1 NSH_OBSERVE=boot nsh -c true`, and
-   `ls -l ~/.local/state/faelight/state.db*` before and after. The profile
-   either confirms the chain or names something else.
-5. **An honesty pass, deletions only.** `plugin-reload` help versus what it
-   does; `.fsh` versus `.nsh` in the plugin help; `cmdguard` versus `guard`;
-   `zero-gate --help` still offering risk tiers after risk-gate.sh died with
-   nix/. Fix or delete -- do not add documentation.
+A ticked box is a promise. Evidence is the receipt. Format — an HTML comment on the line after the gate:
+- [x] Secure Boot enforcing on metal with custom keys
+<!-- evidence: commit f0d0a08e, 2026-07-16. bootctl status -> Secure Boot: enabled (user). -->
 
-### Deferred, and the reason is ordering rather than objection
 
-Not this month, and not because they are wrong:
+A commit hash, a file:line, a log path, or demonstrated: <what and how>. The claim must be checkable.
 
-- A hook or plugin surface. It would be built on top of a guard that does not
-  cover every door.
-- INT-169 spine as the only executor.
-- Splitting `commands/mod.rs`. It is 17k lines and it IS the coherence
-  problem -- which is why it waits for a guard that makes the split provable
-  rather than hopeful.
-- New heuristics, more deny words, chmod rules.
-- Making nsh the login shell. INT-190 records what that cost.
+Hard: recon and cistart before code. Evidence on any gate that could pass by doing nothing. A gate you have only watched pass might be doing nothing — prove it by watching it fail first, then pass.
 
----
+Light: “file created” needs no artifact. “The VM boots” does.
 
-## Definition of Done
+Forward-only: never retrofit old intents.
 
-An item is done when **all** of the following are true:
+A gate can be closed by declining the thing, with numbered reasons. That is still proof.
+Edit
 
-1. It was demonstrated, not declared.
-2. The evidence is recorded in the format above — what was run, what came back, and when.
-3. The verification ran against the deployed artifact, not the build output.
-4. Nothing else was changed along the way.
+Edits go through fpatch (zero/scripts/dev/fpatch.py). INT-258: this rule existed for months without saying how. There is no CLI — shell arguments would put the anchors back into shell syntax.
+import sys
+sys.path.insert(0, "/home/christian/0-core/zero/scripts/dev")
+from fpatch import patch, patch_between
+patch("path/to.rs", old, new)
 
-Never mark something done to be resolved later. Build it into the work, or discuss it first.
+
+Absolute path always. old and new stay Python string literals. The payload is one argv word.
+
+refuse exits 1 and promises nothing was written. internal exits 2 and promises nothing.
+Anchors match the file byte for byte. An anchor that matches three times is refused; widen it.
+Any edit invalidates line numbers below it. Re-read before the next patch.
+Em dash and double dash are not interchangeable.
+One concern per patch.
+Non-ASCII anchors: patch_between(path, start_marker, end_marker, new_lines) — two short ASCII markers, replace by index.
+A payload defines, then acts on its last line. A cut paste must fail to parse or never call — it must not run half an edit.
+dry prints the plan and writes nothing. Writing modes refuse unless preconditions hold.
+Rehearse unread behaviour on a mktemp copy first.
+An intent section that claims a commit is pushed or a path is real checks that against git and disk before it is written.
+Never make unrequested changes. Surface them.
+
+Paste blocks for a human contain no apostrophes, no heredocs, and no bare --help.
+Transport
+
+Generated text crosses the shell as data. Do not let it become shell syntax because the shell is carrying it.
+
+Live form — one argv word, never a fixed /tmp file:
+python3 -c 'import base64,sys; exec(base64.b64decode(sys.argv[1]).decode("utf-8"))' PAYLOAD
+
+
+Small enough to stay inline: single quotes. Double quotes expand. Do not add escaping; remove the shell from the path.
+
+Heredocs work in nsh (measured 2026-09-13, both doors, both executors, against bash). They remain banned in paste blocks because a quoted delimiter contains apostrophes, and apostrophes do not survive the paste path.
+
+Base64 is the AI-to-shell transport. It is not part of the shell’s user-facing architecture.
+
+This rule was wrong twice by generalising from one observation. The live form above is the rule. Dead forms do not belong in this file.
+Build and test
+
+Measured 2026-09-05:
+edit → cargo build -p <crate> → test DEBUG → ship → exec /home/christian/.local/bin/nsh → verify DEPLOYED
+
+
+ship builds release into ~/0-core/target/release and copies changed tools into ~/.local/bin. A green cargo build is not deployed.
+Debug binary: ~/0-core/target/debug/<bin>. That is what you test before ship. It is never what runs at the prompt.
+Suite, to a file, never through a filter:
+
+env NSH_BIN=/home/christian/0-core/target/debug/nsh nsh-test > /tmp/suite.txt 2>&1
+
+Use env, not a bare VAR=value prefix — nsh drops the prefix for some children. Absolute path — INT-241, $PWD is not updated.
+After ship, exec /home/christian/.local/bin/nsh — absolute. exec does not search PATH. Bare exec nsh fails. Without the exec you are testing the old binary.
+Deployed binary can trail HEAD by many commits with no warning. Version string does not change per commit. Compare mtime (/usr/bin/ls -la --time-style=full-iso ~/.local/bin/nsh) to git log --format="%h %ci %s" before treating a red as a source bug.
+After any rename: cargo check --workspace.
+ship has no health gate and no rollback.
+
+Recon uses fsearch, not grep or awk:
+
+fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]
+
+Its table truncates. When the exact text matters, read numbered lines. Disk state is read the same way before anything touches it.
+Version control
+
+Version numbers follow contract impact, not diff size. Tiers live in docs/NSH-COMPATIBILITY.md: CONTRACTUAL (breaking it is major), INCIDENTAL (never offered), ERRONEOUS (fixing a broken promise is a patch).
+
+The commit is the receipt. CHANGELOG.md lags it. The ledger cites SHAs. The body says what was false, what is true now, and how that was watched.
+
+Subject names the subsystem and the fact: nsh: the suite can tell a stale binary from a current one, not fix tests.
+
+One boundary per commit. A wrong pushed commit gets a FOLLOW-UP that cites it. No rebase to tidy a month. No amend of anything pushed. No squash, no force-push, no Conventional Commits-as-policy — they flatten the log the ledger uses.
+
+Prefix the future. July commits say fsh because that is what it was called in July.
+
+A skipped hook is stated in the next commit body.
+
+git add scope is a bug class. If the change touches a workspace dependency, add Cargo.lock deliberately.
+Definition of done
+
+All of:
+
+Demonstrated, not declared.
+Evidence recorded — what was run, what came back, when.
+Verified against the deployed artifact, not only the build output.
+Nothing else changed along the way.
+
+Never mark something done to be resolved later.
+
+3. When something is wrong
+Which layer
+
+Name the layer before touching code. First ask whether the behaviour belongs to nsh at all.
+0. not nsh (kernel, alias table, another binary)
+1. message transport / quoting
+2. shell parsing
+3. file creation / filesystem
+4. program logic
+5. dependency or environment
+6. architecture
+
+
+Do not rewrite application logic when the fault is payload corruption or shell interpretation. Measured 2026-09-12: four sites patched for an exit status that stayed 0 because the command never reached them.
+
+Three 2026-09-14 reports that named nsh and were wrong: an orphaned stopped child (kernel SIGHUP/SIGCONT), a stale Ctrl+C handler (kernel delivers to the foreground pgid), a dropped redirect exit (alias diff → difft, which exits 0 either way). The cost of asking is one command. The cost of not asking is a permanent wrong belief.
+Measure first
+
+When something is slow, measure where the time goes. Census: 158s at a 30s default timeout, 58s at 10s, 8s of actual work. One constant, after measuring, removed 100 seconds. Parallelism would have hidden the waste.
+
+Put the exception on the case that needs it. Keep the default at what the ordinary case requires. Measure, change, measure again.
+Testing
+
+A green build is not the claim. The claim is the thing running.
+
+After deploying a service, ps for the process.
+Exercise shell behaviour through the real REPL, not only -c. nsh -c executes nsh, not sh (INT-201, main.rs:905). The safety guard is on that door (main.rs:946).
+Test with NSH_SPINE on and off. The executors do not always agree; disagreements are not all defects. nsh -c "echo test > 0.5" writes a file; the same line under NSH_SPINE=0 is refused — spine narrowed the digit guard to the query language so where cpu > 0.5 still works.
+spine migrate cannot tell a ruled improvement from a defect. It diffs rendered IoPlans. Read the parser before treating a row as a bug.
+VM first for compositor, greeter, or login. Never on bare metal blind.
+Test the class, not the example. Quoting, $, &&, Unicode, multiline, pipes, redirection, substitution — cover the family.
+Red first. A test that has only ever passed has not been shown to test anything.
+After a visual change, take a screenshot. Do not call a visual change done from the config diff.
+Check ps before any broad process kill. Never pkill -f on a loose pattern.
+Messages and tool output
+
+A message says what happened, what the shell could not do, and what the reader can act on.
+
+A category where a fact belongs (exited 1 -- general error for grep finding nothing) is a guess sounding certain.
+If the shell does not know why something failed, it says so.
+Leave a next move: a pid, a path, a signal, a command.
+
+Same rule as Unknown, Skipped, and the degradation list: a tool that cannot answer must say so. An exit code is not a diagnosis.
+
+A safe abort and a crash must not look the same. Lead with what did not happen. Result first. Recovery steps numbered and runnable. Tracebacks behind a debug flag. Assertions are for bugs, not refusals. Keep the non-zero exit either way. fpatch _refuse is the reference. Reasoning: docs/CONVENTIONS.md (INT-199).
+
+4. Board — not law
+
+Dated work list. If the date is stale, distrust this section before the rest of the file. Standing rules are §0–§3.
+
+September 2026. Picking up the Faelight → Project 0 rename? Open INT-247 and search for START HERE. The newest section with that heading is the live one; it supersedes earlier “where this stopped” notes in that intent.
+
+Open, in an order that is an order because the safety guard is not yet on every door:
+
+Digit guard disagrees across doors. MEASURED 2026-09-05: nsh -c "echo test > 0.5" creates 0.5; the interactive shell refuses the same line. First move is recon: where the REPL applies the guard and the -c branch does not. Delete the stale delegates-to-sh comment in the same change.
+One git policy. git is in the safe set and there is a git reset --hard arm. The arm is dead while git is safe. Remove git from safe, or delete the arm. Name the discarded half in the commit.
+INT-197 remainder — verify before implementing. Claim: check(cmd, first_word) gets the alias-expanded first word but the typed line as cmd, so alias zap='rm -rf /tmp/x' then zap never sees -rf. INT-196 and INT-197 are marked complete. One reproduction settles it. Do that first.
+Honesty pass, deletions only. Help text vs behaviour; .fsh vs .nsh in plugin help; cmdguard vs guard; zero-gate --help still offering risk tiers after risk-gate.sh died. Fix or delete. Do not add documentation.
+
+CLOSED by measurement, do not reopen: the -c boot tax (2026-09-02). 13ms vs bash 1ms. The 305ms figure predates work already in tree. Suite time is pty sessions, not boot.
+
+CLOSED, do not reopen: the crate renames faelight-* → zero-*. All fifteen crates are zero-*; the last, zero-core, landed in c4634250 (2026-09-26).
+
+Deferred, because of ordering rather than objection:
+
+Hook or plugin surface — would sit on a guard that does not cover every door.
+INT-169 spine as the only executor.
+Splitting commands/mod.rs (17k lines; wait for a guard that makes the split provable).
+New heuristics, more deny words, chmod rules.
+nsh as login shell. INT-190 records what that cost.
+DevBox as the required verifier (INT-167).
+Omarchy recovery runbook (INT-225).
+
+5. Do not use this section to place files
+
+Architecture is boundaries. Directories are for maintaining code. Do not restructure the repository to match a layer diagram. Do not use this section to decide PR scope or crate placement.
+
+Conceptual order, for orientation only:
+Foundation → System → Runtime → Objects → Storage → Security → Network
+          → Shell → Extensions → Experience → Intelligence
+
+
+One hard dependency that is operational: Core must never depend on Intelligence. Remove every AI component and the system still boots, runs, and is usable. Never fix a problem by importing a higher layer into a lower one.
+
+Shell pipeline, keep separate:
+input → lexer/parser → command representation → expansion → execution
+      → process management → streams → UI and events
+
+
+When adding a subsystem, state its boundary and its API. Prefer a reusable primitive to a one-off. Ask what happens when it fails.
+
+AI will use this shell. Predictable semantics, structured output where it helps, machine-readable errors, clear exits. Not at the expense of being a good shell for humans.
+
+Destructive actions are explicit in the shell itself. That is what nsh owes a user. What an agent must stop and ask about in this repository is §0.
+
+Manual control over automation. Understanding over convenience. A known way back — and where there isn’t one, the gap is written down. Everything has an expiration date, including Rust as the implementation language; that is a measurement, not an identity. “No bloat” does not mean write everything ourselves. If a proven Linux component does exactly what is needed, use it.
+
+Lessons that recur become invariants in §0–§3. Do not rediscover them in this section.
