@@ -3214,8 +3214,9 @@ and the apply's own proof that the comment-stripped files are identical before a
       <!-- evidence: 2026-09-14. `export 0_FOO=bar` -> "not a valid identifier"; cargo -> "invalid character `0` in package name". A binary named `0`, the directory `0-core` and the glob `0-*/` all work. Project 0 / 0-core / 0 / zero-* / ZERO_*. -->
 - [ ] Week 1 census exists as `docs/inventory.md`: every crate with keep / replace / retire, the
       four decision-test answers, last invocation, and whether it runs under DevBox
-- [ ] The COUNT is reconciled. README, the generated catalog, tools.toml and the actual tree agree
+- [x] The COUNT is reconciled. README, the generated catalog, tools.toml and the actual tree agree
       on how many tools exist. Today they do not
+    <!-- evidence: 2026-09-30. Ruled: a tool is a binary Project 0 builds and deploys. Measured after ship: tools.toml rust+deployable+not retired 18, binary crates in the tree 18, binaries on PATH 18, the catalog (zero-docs readme-index, counting binaries) 18, README 18. zero-daemon became deployable (kept for Friday); zero-zone's retired binary target and its devbox census case were removed and the binary retired from PATH, its library kept. -->
 - [x] faelight-fm is gone -- workspace, PATH, docs, teach, Friday facts, command registry, and the
       Hyprland bind. Moved to `retired/` or deleted, NOT commented out
       <!-- evidence: 2026-09-15. Crate deleted, binary retired with `ship --retire`, registry marked retired = true, aliases fm/fmd removed, census case deleted. deadwood reports registry orphans clean. faelight-glog went with it on the same evidence. 9,893 lines removed; 193/193 green after. -->

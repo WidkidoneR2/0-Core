@@ -32,7 +32,7 @@ _Release notes for 1.0.0 and everything since live in the [changelog](faelight/m
 
 | | |
 |---|---|
-| 🛠 **Tools** | 30 custom Rust tools |
+| 🛠 **Tools** | 18 Rust tools |
 | 📋 **Codebase** | ~125k lines of Rust |
 | ⚡ **Stack** | Rust · Wayland · ratatui · SQLite |
 | 🌍 **Philosophy** | Understanding over convenience · No mystery packages |

@@ -80,7 +80,7 @@ category = "core"
 description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"
 type = "rust"
-deployable = false
+deployable = true
 retired = false
 [[tool]]
 name = "faelight-fm"

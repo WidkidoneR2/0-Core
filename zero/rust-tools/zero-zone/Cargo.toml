@@ -13,7 +13,3 @@ zero-core = { path = "../zero-core" }
 [lib]
 name = "zero_zone"
 path = "src/lib.rs"
-
-[[bin]]
-name = "zero-zone"
-path = "src/main.rs"

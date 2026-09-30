@@ -24,6 +24,8 @@ pub struct ToolMeta {
     pub expected_usage: String,
     pub depends_on: Vec<String>,
     pub retired: bool,
+    /// Has a binary target: a [[bin]] section or src/main.rs. Only binaries are tools.
+    pub binary: bool,
 }
 
 /// Parse a Cargo.toml [package] block by key (fields may be in ANY order).
@@ -56,6 +58,11 @@ fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
     if m.name.is_empty() {
         return None;
     }
+    m.binary = text.contains("[[bin]]")
+        || path
+            .parent()
+            .map(|d| d.join("src/main.rs").exists())
+            .unwrap_or(false);
     // Extract INT-NNN from the description if present.
     if let Some(pos) = m.description.find("INT-") {
         let tail = &m.description[pos..];
@@ -367,10 +374,47 @@ pub fn cmd_preview_one(name: &str) {
     }
 }
 
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+
+    /// The catalog counts tools, and a tool is a binary. A library crate on disk is not one --
+    /// counting every crate made the catalog say 22 while 18 binaries were deployed.
+    #[test]
+    fn a_library_crate_is_not_a_tool() {
+        let d = std::env::temp_dir().join(format!("zero-docs-count-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("src")).unwrap();
+        let cargo = d.join("Cargo.toml");
+        std::fs::write(&cargo, "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(d.join("src/lib.rs"), "").unwrap();
+        assert!(
+            !parse_cargo(&cargo).unwrap().binary,
+            "lib.rs alone is not a tool"
+        );
+        std::fs::write(d.join("src/main.rs"), "fn main() {}").unwrap();
+        assert!(
+            parse_cargo(&cargo).unwrap().binary,
+            "src/main.rs is a binary"
+        );
+        std::fs::remove_file(d.join("src/main.rs")).unwrap();
+        std::fs::write(
+            &cargo,
+            "[package]\nname = \"x\"\n\n[[bin]]\nname = \"x\"\npath = \"src/x.rs\"\n",
+        )
+        .unwrap();
+        assert!(
+            parse_cargo(&cargo).unwrap().binary,
+            "a [[bin]] target is a binary"
+        );
+        let _ = std::fs::remove_dir_all(&d);
+    }
+}
+
 /// PIECE 2c: render the top-level rust-tools/README.md index (catalog by category).
 pub fn render_index(metas: &[ToolMeta]) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let active: Vec<&ToolMeta> = metas.iter().filter(|m| !m.retired).collect();
+    let active: Vec<&ToolMeta> = metas.iter().filter(|m| !m.retired && m.binary).collect();
     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
 
     let mut out = String::new();
