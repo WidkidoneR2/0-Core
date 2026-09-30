@@ -49,7 +49,7 @@ emit_events = true
 
 [[policy]]
 name = "devbox"
-description = "NovaShell test sandbox -- the forest is invisible, the session is disposable"
+description = "NovaShell test sandbox -- the machine's own state is invisible, the session is disposable"
 allow_net = true
 allow_fs_write = true
 # Passed through by NAME. PATH so binaries resolve, TERM so the shell can draw,
@@ -59,7 +59,7 @@ allow_env = ["PATH", "TERM", "LANG", "USER"]
 max_memory_mb = 1024
 emit_events = true
 
-# The four that hide the forest. nsh-test measured on 2026-09-05 that HOME alone is
+# The four that hide the machine's own state. nsh-test measured on 2026-09-05 that HOME alone is
 # NOT enough: state_home reads XDG_STATE_HOME independently, so health, focus.toml
 # and the intent ledger stayed visible under a bare HOME redirect. Both move, plus
 # the two nsh-specific overrides.

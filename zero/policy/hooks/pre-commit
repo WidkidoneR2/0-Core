@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 🛡️ Gitleaks Pre-commit Hook - Faelight Forest
+# 🛡️ Gitleaks Pre-commit Hook - Project 0
 
 echo "🔍 Scanning for secrets with Gitleaks..."
 

@@ -543,8 +543,8 @@ impl MigrationReport {
         // lands." The total did not use its own distinction.
         //
         // RULED KINDS, each tied to where the ruling is written:
-        //   forest value pipeline   -- migrate_audit.rs, dispatch comment above: legacy owns the
-        //                              forest verbs; apply_pipeline is their only implementation.
+        //   value pipeline   -- migrate_audit.rs, dispatch comment above: legacy owns the
+        //                              value verbs; apply_pipeline is their only implementation.
         //   bare assignment         -- plan.rs, lower_command: an ExecutionPlan describes ONE
         //                              PROCESS and a bare assignment is a session statement, so
         //                              it "cannot be represented rather than merely being

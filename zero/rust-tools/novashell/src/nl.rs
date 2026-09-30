@@ -152,22 +152,22 @@ pub const PATTERNS: &[Pattern] = &[
             "bad tools",
         ],
         pipeline: "tt | sort score | first 10",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["best tools", "high score tools", "healthy tools"],
         pipeline: "tt | sort score desc | first 10",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["all tools", "list tools", "show tools"],
         pipeline: "tt",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["deployed tools", "installed tools"],
         pipeline: "tt | where deployed == true",
-        context: "forest",
+        context: "zero",
     },
     // ── Git ───────────────────────────────────────────────────────────────────
     Pattern {
@@ -197,17 +197,17 @@ pub const PATTERNS: &[Pattern] = &[
     Pattern {
         phrases: &["what happened today", "today events", "recent events"],
         pipeline: "et today",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["git events", "git activity"],
         pipeline: "et today | where domain == git",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["shell events", "shell activity", "what i ran"],
         pipeline: "et today | where domain == shell",
-        context: "forest",
+        context: "zero",
     },
     // ── State ─────────────────────────────────────────────────────────────────
     Pattern {
@@ -223,7 +223,7 @@ pub const PATTERNS: &[Pattern] = &[
             "system health",
         ],
         pipeline: "health",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &[
@@ -234,7 +234,7 @@ pub const PATTERNS: &[Pattern] = &[
             "next tasks",
         ],
         pipeline: "intents | where status == planned",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &[
@@ -244,17 +244,17 @@ pub const PATTERNS: &[Pattern] = &[
             "current work",
         ],
         pipeline: "intents | where status == in-progress",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["recent decisions", "last decisions", "decisions made"],
         pipeline: "dt | last 5",
-        context: "forest",
+        context: "zero",
     },
     Pattern {
         phrases: &["audit scores", "tool scores", "check scores"],
         pipeline: "tt | sort score | first 10",
-        context: "forest",
+        context: "zero",
     },
     // ── History ───────────────────────────────────────────────────────────────
     Pattern {
@@ -418,7 +418,7 @@ pub fn render_pattern_list() -> String {
         ),
         ("Network", &["open ports", "network interfaces"]),
         (
-            "Forest",
+            "Project 0",
             &[
                 "check health",
                 "unhealthy tools",

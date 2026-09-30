@@ -100,7 +100,7 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
 /// records `current AST -> future AST`: a construct lands and the pinned render changes.
 /// Operators do not move that way. They go `accidental AST -> explicit refusal -> owned AST`,
 /// and the middle state is not noise -- it is the whole point of INT-169's operator tokens.
-/// Before them `|` was ordinary word content, so `ls faelight | grep vm` produced a five-word
+/// Before them `|` was ordinary word content, so `ls zero | grep vm` produced a five-word
 /// Command and LOWERED, which is a shell claiming a command it cannot run.
 ///
 /// These flip BACK when pipelines, redirects and boolean chains actually land.
@@ -109,7 +109,7 @@ const FUTURE_GOLDENS: &[(&str, &str)] = &[
 /// refusal is correct while whether redirects own numeric fd prefixes stays a later grammar
 /// decision.
 const FUTURE_REFUSALS: &[(&str, OperatorKind)] = &[
-    // `ls faelight | grep vm` left this table in INT-200 -- the parser now BUILDS a Pipeline
+    // `ls zero | grep vm` left this table in INT-200 -- the parser now BUILDS a Pipeline
     // for it, so it is no longer a refusal. Lowering declines it instead, one layer down.
     // `a && b` left this table in INT-200 -- the parser builds a Sequence for it now, and
     // lowering declines it one layer down instead.

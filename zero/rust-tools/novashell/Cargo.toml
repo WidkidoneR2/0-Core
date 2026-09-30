@@ -3,7 +3,7 @@ name = "novashell"
 license = "MIT"
 version = "3.9.0"
 edition = "2021"
-description = "The forest's own shell -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
+description = "The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution."
 
 # THE PACKAGE IS novashell; THE BINARY IS nsh.
 #
@@ -11,7 +11,7 @@ description = "The forest's own shell -- speaks human first, UNIX as fallback. S
 # README reads it as the other shell. nsh (NovaShell) does not.
 #
 # A [[bin]] rather than a package rename, deliberately: the package name is what every
-# dependency reference and the directory itself carry, and the wider faelight-* -> zero-*
+# dependency reference and the directory itself carry, and the wider rename to zero-*
 # rename is still ahead. Renaming the package now means renaming it twice. This changes the
 # one thing that needed changing -- what the shell is called when you run it.
 [[bin]]

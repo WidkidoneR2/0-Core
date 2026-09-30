@@ -1,4 +1,4 @@
-# Faelight Forest -- cargo-audit triage
+# Project 0 -- cargo-audit triage
 # Every ignored advisory below has a documented, reviewed reason.
 # Reviewed 2026-07-06 for the 1.0.0 "Morphwood" release.
 # This file makes audit findings TRACKED, not silent: each is triaged, not hidden.
@@ -15,7 +15,7 @@ ignore = [
 
     # --- users: unmaintained + `root` appended to group listings ---
     # No upstream fix available. Reviewed: the group-listing behavior is not exploitable
-    # in forest usage. Tracked for eventual replacement.
+    # in Project 0 usage. Tracked for eventual replacement.
     "RUSTSEC-2025-0040",
 
     # --- Unmaintained crates (warnings, not vulnerabilities) ---

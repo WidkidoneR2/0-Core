@@ -721,7 +721,7 @@ async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
             "Editing commands — remember to wire through parser.rs, cli/mod.rs, dispatcher.rs"
                 .to_string(),
         )
-    } else if file_path.contains("main.rs") && file_path.contains("faelight-") {
+    } else if file_path.contains("main.rs") && file_path.contains("zero-") {
         Some("Editing tool source — run deploy after building".to_string())
     } else if file_path.contains("mod.rs") && file_path.contains("domains/") {
         Some(

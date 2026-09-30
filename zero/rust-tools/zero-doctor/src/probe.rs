@@ -46,7 +46,7 @@ pub enum Probe {
     DeadwoodScan,
     /// The config files parse.
     ZeroConfig,
-    /// The state and config aliases resolve to the faelight directories.
+    /// Each state directory is real under its zero name, with no old name beside it.
     ZeroAlias,
     /// Firewall, sshd policy, and the rest of the hardening surface.
     SecurityHardening,

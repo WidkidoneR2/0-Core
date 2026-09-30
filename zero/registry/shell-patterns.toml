@@ -1,4 +1,4 @@
-# Faelight Forest — Custom NL Patterns
+# Project 0 — Custom NL Patterns
 # Format: [[pattern]] with phrases, pipeline, context
 # These extend the built-in pattern library
 
@@ -15,14 +15,14 @@ context = "filesystem"
 [[pattern]]
 phrases = ["active triggers", "my triggers", "show triggers"]
 pipeline = "on list"
-context = "forest"
+context = "zero"
 
 [[pattern]]
 phrases = ["show dashboard", "system overview"]
 pipeline = "dashboard"
-context = "forest"
+context = "zero"
 
 [[pattern]]
 phrases = ["recent snapshots", "my snapshots", "show snapshots"]
 pipeline = "timeline"
-context = "forest"
+context = "zero"

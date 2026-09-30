@@ -2201,7 +2201,7 @@ fn run_input(
                 println!(
                     "  {} {} {}",
                     icon,
-                    "forest:".bright_cyan().dimmed(),
+                    "insight:".bright_cyan().dimmed(),
                     detail.bright_white()
                 );
                 let _ = engine.db().conn.execute(

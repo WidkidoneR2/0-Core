@@ -2,7 +2,7 @@
 name = "friday-chat"
 version = "1.0.2"
 edition = "2021"
-authors = ["Christian <christian@faelight.forest>"]
+authors = ["Christian"]
 license = "MIT"
 
 [dependencies]

@@ -1412,8 +1412,8 @@ print('CLASS-DONE')"##;
         Category::Regression,
         "needs a real 0-Core: it reads the source tree, which only a checkout has",
         || {
-            // INT-247: A RETIRED NAME MUST NOT BE PRINTED. Project 0 was Zero Core, and Faelight
-            // Forest before that, and the old names lived on in banners, headers and messages
+            // INT-247: A RETIRED NAME MUST NOT BE PRINTED. Project 0 went by two earlier names,
+            // and those old names lived on in banners, headers and messages
             // long after the decision -- written by CODE, so no document edit could remove them.
             //
             // Reads every ordinary string literal under rust-tools/ and engine/ and fails naming
@@ -1452,8 +1452,8 @@ print('CLASS-DONE')"##;
             let retired: Vec<String> = vec![
                 ["Zero", " Core"].concat(),
                 ["Project 0", " {}"].concat(),
-                ["faelight", "-shell"].concat(),
-                ["Faelight", " Shell"].concat(),
+                ["fae", "light-shell"].concat(),
+                ["Fae", "light Shell"].concat(),
             ];
             let base = std::path::Path::new(&home()).join("0-core/zero");
             let mut stack = vec![base.join("rust-tools"), base.join("engine")];
@@ -1622,7 +1622,7 @@ print('CLASS-DONE')"##;
     // REPO HOME -- a default that only exists when the repo does. Pointed at a fixture it would
     // pass against three stub files and prove nothing about the behaviour it guards.
     results.push(repo_test(
-        "repl_206_forest_home_is_still_the_default",
+        "repl_206_zero_home_is_still_the_default",
         Category::Repl,
         "needs a real 0-Core: the repo-home default only exists when the repo does",
         || {
@@ -1719,7 +1719,7 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
-        "repl_230_absent_forest_refuses_not_empties",
+        "repl_230_absent_ledger_refuses_not_empties",
         Category::Repl,
         || {
             // INT-230 G5: RUNTIME proof, not a source-text check. The real REPL is

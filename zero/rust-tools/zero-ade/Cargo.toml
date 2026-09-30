@@ -3,7 +3,7 @@ name = "zero-ade"
 version = "1.0.0"
 edition = "2021"
 license = "MIT"
-authors = ["Christian <christian@faelight.forest>"]
+authors = ["Christian"]
 
 [dependencies]
 zero-core = { path = "../zero-core", features = ["db"] }

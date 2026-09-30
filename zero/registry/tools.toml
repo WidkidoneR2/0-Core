@@ -1,6 +1,6 @@
 # 0-Core Rust Tools Registry
 # Canonical source of truth for all production tools
-# Updated: 2026-02-27 — Faelight Forest v10.3.0
+# Updated: 2026-02-27 — Project 0
 # This registry defines the complete tool ecosystem
 
 [[tool]]
@@ -148,7 +148,7 @@ retired = false
 name = "nsh"
 version = "3.9.0"
 category = "shell"
-description = "NovaShell -- forest-native structured shell. Package: novashell."
+description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
 type = "rust"
 deployable = true
@@ -250,7 +250,7 @@ retired = true
 name = "zero-gen"
 version = "1.0.0"
 category = "security"
-description = "Forest-native password and secret generator suite — 12 types, colored output"
+description = "Password and secret generator suite — 12 types, colored output"
 expected_usage = "medium"
 type = "rust"
 deployable = true
@@ -268,7 +268,7 @@ retired = true
 name = "zero-docs"
 version = "2.0.0"
 category = "documentation"
-description = "Living documentation engine — syncs README and welcome message with forest state"
+description = "Living documentation engine — syncs README and welcome message with Project 0 state"
 expected_usage = "low"
 type = "rust"
 deployable = true
@@ -316,7 +316,7 @@ retired = false
 name = "zero-insightd"
 version = "0.1.0"
 category = "intelligence"
-description = "Insight daemon -- watches state.db, polls for signals, surfaces insights (the forest's nervous system)"
+description = "Insight daemon -- watches state.db, polls for signals, surfaces insights (the nervous system of Project 0)"
 expected_usage = "background"
 type = "rust"
 deployable = true
@@ -445,7 +445,7 @@ retired = false
 name = "zero-deadwood"
 version = "1.0.0"
 category = "development"
-description = "Forest dead-code and orphan detector (reports, never deletes)"
+description = "Dead-code and orphan detector (reports, never deletes)"
 expected_usage = "medium"
 type = "rust"
 deployable = true

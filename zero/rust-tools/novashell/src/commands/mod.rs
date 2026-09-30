@@ -8884,17 +8884,10 @@ fn z_jump(args: &[&str]) -> CommandResult {
 
 fn theme_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
     let themes = ["zero", "minimal", "friday", "classic"];
-    // the old theme name stays an alias until the pass-10 guard (INT-247)
-    let arg = match args.first().copied() {
-        Some("forest") => Some("zero"),
-        other => other,
-    };
+    let arg = args.first().copied();
     match arg {
         None => {
-            let current = match db.get_theme().as_str() {
-                "forest" => "zero".to_string(),
-                t => t.to_string(),
-            };
+            let current = db.get_theme();
             let mut out = String::new();
             out.push_str(&format!("{}\n\n", "Prompt Themes".cyan().bold()));
             for t in &themes {
@@ -15299,7 +15292,7 @@ fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult 
     let mode = args.first().copied().unwrap_or("full");
     match mode {
         "system" => dashboard_system(),
-        "overview" | "forest" => dashboard_overview(db, core_root),
+        "overview" => dashboard_overview(db, core_root),
         _ => {
             dashboard_system();
             println!();

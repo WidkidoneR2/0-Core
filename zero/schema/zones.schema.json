@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Faelight Forest Zone Registry",
+  "title": "Project 0 Zone Registry",
   "type": "object",
   "properties": {
     "zone": {

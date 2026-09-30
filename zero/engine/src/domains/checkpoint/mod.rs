@@ -516,7 +516,7 @@ pub fn btrfs_snapshot(ctx: &AppContext, label: &str) -> CoreResult<()> {
     )?;
 
     let timestamp = timestamp();
-    let snapshot_name = format!("faelight-{}-{}", label, timestamp.replace(':', "-"));
+    let snapshot_name = format!("zero-{}-{}", label, timestamp.replace(':', "-"));
     let snapshot_path = format!("/.snapshots/{}", snapshot_name);
 
     println!("{}", "📸 Btrfs Snapshot".bold());
@@ -577,7 +577,7 @@ pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
 
     if output.status.success() {
         let s = String::from_utf8_lossy(&output.stdout);
-        let lines: Vec<&str> = s.lines().filter(|l| l.contains("faelight")).collect();
+        let lines: Vec<&str> = s.lines().filter(|l| l.contains("zero-")).collect();
 
         if lines.is_empty() {
             println!("  {} No Project 0 snapshots found", "○".dimmed());

@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-SRC = ROOT / "faelight"
+SRC = ROOT / "zero"
 
 # Sites that MATCH shell_history but are not consumers of it. Each is here because it
 # was read and judged, not because a pattern excluded it.

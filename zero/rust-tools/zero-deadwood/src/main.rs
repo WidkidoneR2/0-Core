@@ -822,7 +822,7 @@ fn check_registry_orphans(root: &Path) -> Checked<Vec<Finding>> {
 }
 
 // ── Orphaned scripts ─────────────────────────────────────────────────────────
-// A script in pkgs/faelight/scripts/ whose basename is referenced nowhere else in the repo
+// A script whose basename is referenced nowhere else in the repo
 // (no alias, no config, no other source). MED -- could be called dynamically.
 
 /// INT-195: execution-governing code must derive the command word only through

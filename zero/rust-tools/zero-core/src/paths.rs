@@ -869,7 +869,7 @@ mod tests {
         // is written nowhere. Needles are split with concat! so this test does not match itself.
         let src = include_str!("paths.rs");
         assert!(
-            !src.contains(concat!("faelight", "-shell")),
+            !src.contains(concat!("fae", "light-shell")),
             "paths.rs still names the retired shell directory"
         );
         let joins = src.matches(concat!(".join(\"", "nsh\")")).count()

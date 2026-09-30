@@ -1,4 +1,4 @@
-# INT-305: cargo-deny configuration for Faelight Forest
+# INT-305: cargo-deny configuration for Project 0
 
 [advisories]
 version = 2

@@ -41,9 +41,9 @@ if ! cargo build -p novashell -p nsh-test --message-format=short; then
   exit 1
 fi
 
-# THE PACKAGE IS faelight-shell; THE BINARY IS nsh. cargo build -p above takes the
+# THE PACKAGE IS novashell; THE BINARY IS nsh. cargo build -p above takes the
 # PACKAGE name and is unchanged. NSH_BIN takes a PATH, and cargo stopped producing
-# target/debug/faelight-shell when the [[bin]] landed -- so this pointed at a stale
+# the pre-rename binary path when the [[bin]] landed -- so this pointed at a stale
 # artifact from before the rename, or at nothing in a clean tree.
 if ! NSH_BIN="$root/target/debug/nsh" ./target/debug/nsh-test; then
   echo ""

@@ -3425,8 +3425,8 @@ mod absent_ledger_tests {
 
 #[cfg(test)]
 mod template_tests {
-    /// INT-247 LAYER 0: NOTHING NEW IS NAMED faelight. The wizard broke that rule on every use:
-    /// `inta` offered `Tags [faelight]:`, so pressing Enter filed the retired name into the
+    /// INT-247 LAYER 0: NOTHING NEW TAKES THE RETIRED NAME. The wizard broke that rule on every use:
+    /// `inta` offered the retired name as its default tag, so pressing Enter filed it into the
     /// ledger that is being renamed. Found 2026-09-24.
     ///
     /// Checks EVERY template, not the one that was noticed -- `feature` carried it too. And it
@@ -3437,13 +3437,13 @@ mod template_tests {
             .iter()
             .filter(|(_, _, tags, _)| {
                 tags.split(',')
-                    .any(|t| t.trim().to_lowercase().contains("faelight"))
+                    .any(|t| t.trim().to_lowercase().contains(concat!("fae", "light")))
             })
             .map(|(name, _, _, _)| *name)
             .collect();
         assert!(
             offenders.is_empty(),
-            "templates still default to the retired name faelight: {:?}",
+            "templates still default to the retired name: {:?}",
             offenders
         );
     }
