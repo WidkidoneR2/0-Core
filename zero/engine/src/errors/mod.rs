@@ -15,6 +15,8 @@ pub enum CoreError {
     Io(#[from] std::io::Error),
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
+    #[error("{0}")]
+    StateDb(#[from] zero_core::state_db::StateDbError),
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

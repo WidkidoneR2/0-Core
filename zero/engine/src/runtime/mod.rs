@@ -69,7 +69,10 @@ impl Runtime {
         let db_path = zero_core::paths::state_db();
         let backups = root.join("backups");
         fs::create_dir_all(&backups)?;
-        let db = Connection::open(&db_path)?;
+        let db = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        )?;
         // INT-166: Enable WAL mode for corruption prevention
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
         db.execute_batch(

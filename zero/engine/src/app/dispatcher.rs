@@ -620,7 +620,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
             FridayCommand::Attention | FridayCommand::AttentionDebug => {
                 let db_path = zero_core::paths::state_db();
-                if let Ok(db) = rusqlite::Connection::open(&db_path) {
+                if let Ok(db) = zero_core::state_db::open_at(
+                    std::path::Path::new(&db_path),
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+                ) {
                     crate::domains::friday::attention::show_debug(&db);
                 }
                 Ok(())

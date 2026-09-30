@@ -20,7 +20,16 @@ fn db_path() -> String {
     zero_core::paths::state_db().to_string_lossy().to_string()
 }
 fn open_db() -> rusqlite::Result<Connection> {
-    let conn = Connection::open(db_path())?;
+    let conn = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    )
+    .map_err(|e| {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
+            Some(e.to_string()),
+        )
+    })?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
     Ok(conn)
 }
