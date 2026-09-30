@@ -3225,9 +3225,10 @@ and the apply's own proof that the comment-stripped files are identical before a
 - [x] `faelight-docs` cannot resurrect a retired tool. Proven by running it after a retirement and
       confirming the catalog does not list it
       <!-- evidence: 2026-09-15. gather_all() reads rust-tools/*/Cargo.toml from DISK, so a deleted crate cannot appear. Proven by running readme-index after three retirements: faelight-fm, faelight-glog and faelight are all absent from the catalog. -->
-- [ ] Layer 3 is NOT started until layers 0-2 are done and a path audit lists every hardcoded
+- [x] Layer 3 is NOT started until layers 0-2 are done and a path audit lists every hardcoded
       reference. The audit is a deliverable in its own right
       <!-- the audit is DONE 2026-09-15 -- see THE PATH AUDIT above: 6 functions in paths.rs, 26 live sites outside it, 14 of them the health cache. Layers 0-2 are also done. The gate is open for 3a. -->
+    <!-- evidence: 2026-09-30, from this record. THE PATH AUDIT section, written 2026-09-15, lists the six paths.rs functions and the 26 live sites outside it. Layers 0-2 were done the same day (LAYERS 1 AND 2 -- DONE 2026-09-15); Layer 3a consolidated after the audit (2026-09-15/16) and 3b's alias started 2026-09-17. -->
 - [x] The state alias runs for A FULL WEEK with `core doctor` and `nsh history` green before any
       code default changes. Evidence: the dates
       <!-- evidence: 2026-09-24. Alias created 2026-09-17, seven days of ordinary use. Measured today BEFORE any code default changed: d 92%, 25/28, 0 failed, Zero Alias probe green (state and config aliases resolve to the faelight directories); nsh -c history -> 104 lines; state.db is ONE inode under both names (59:41436, 319037440 bytes); sole holder nsh pid 123517. Baseline HEAD e9eb743a, pushed, tree clean, nsh-test 200/200. -->
@@ -3247,8 +3248,9 @@ and the apply's own proof that the comment-stripped files are identical before a
 
 - [x] STATEDB, ruled 2026-09-28: ForestDb is StateDb everywhere, and no live Rust identifier
       contains Forest or Faelight in any case
-- [ ] NO NIXOS, ruled 2026-09-28: no live file names NixOS, nixos-rebuild, flake.nix, build-vm or
+- [x] NO NIXOS, ruled 2026-09-28: no live file names NixOS, nixos-rebuild, flake.nix, build-vm or
       /nix/ -- code, comments and the WAS REMOVED HERE tombstone notes included; history exempt
+    <!-- evidence: 2026-09-30. The census (git ls-files; intents and CHANGELOGs excluded; nixos, flake.nix, build-vm, /nix/ in any case) finds no line outside the exemptions. The hits left are all exempt: the font's 2 glyph names, AGENTS.md:40, and tools.toml:29, :93, :103 inside retired = true entries. The last live lines were friday/mod.rs 142-144 and 1007-1009, comments, rewritten in this step. -->
 - [x] NO ZOMBIE CODE, ruled 2026-09-28: no live code spawns a retired or absent binary, reads a
       path nothing writes, sits on a path nothing reaches, or leaves a child unreaped. A guard
       reads tools.toml's retired names and fails on any Command::new naming one -- seen red first.
@@ -3260,7 +3262,8 @@ and the apply's own proof that the comment-stripped files are identical before a
     <!-- evidence: 2026-09-29, over every tracked file with history (the five history intent dirs, CHANGELOGs) and live intents (ruling B) excluded: 0 lines name /etc/faelight; AGENTS.md's was the last -->
 - [ ] THE GUARD'S EXEMPTIONS, ruled 2026-09-28, and nothing else: history (completed, decision,
       philosophy, cancelled and incident intents; CHANGELOGs; git), live intents (ruling B),
-      registry entries with retired = true, and zero-gen's dictionary word forest (ruling E)
+      registry entries with retired = true, zero-gen's dictionary word forest (ruling E), and --
+      ruled by Christian 2026-09-30 -- font files (third-party glyph names) and AGENTS.md (his file)
 
 ## Relationship
 

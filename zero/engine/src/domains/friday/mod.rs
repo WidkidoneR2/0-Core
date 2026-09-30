@@ -139,9 +139,8 @@ fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
 /// deriving system/kind from the domain. Seed-agnostic -- reads the db, so facts from
 /// ANY seed path (or runtime `core knowledge add`) get labeled automatically.
 ///
-/// Rule: domain=='nixos' -> system='nixos', else 'forest'. kind='fact' by default,
-/// overridden to 'translation' (with a short native command in translates_to) for the
-/// known legacy pacman->nix rows. session_summary is excluded (a session log, not knowledge).
+/// Rule: every fact row is labeled system='zero', kind='fact', with no translation.
+/// session_summary is excluded (a session log, not knowledge).
 ///
 /// NOTE: INSERT OR IGNORE means this fills GAPS only -- it never re-derives an existing
 /// meta row. If the derivation rule ever changes, existing rows must be migrated separately.
@@ -1004,9 +1003,7 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let knowledge = vec![
-        // NixOS (INT-117: de-Arched -- native facts only. Arch recognition + translation
-        // is INT-128's job as data, not taught here. `fu` omitted until zero-update
-        // is verified on NixOS. All commands verified against scripts/deploy.)
+        // Linux and systemd facts.
         ("linux", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
         // Wayland
         ("wayland", "Wayland uses wl_display, wl_surface, wl_compositor objects. No global X display connection.", 0.90),
