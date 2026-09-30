@@ -323,7 +323,7 @@ pub fn seed_lessons(ctx: &AppContext) -> CoreResult<()> {
             let _ = db.execute(
                 "INSERT INTO knowledge_entries
                  (id, source, domain, error_signature, description, resolution, confidence, occurrence_count, last_seen, created_at)
-                 VALUES (?1, 'forest_lesson', ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)",
+                 VALUES (?1, 'lesson', ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)",
                 params![id, domain, error_sig, description, resolution, confidence, now],
             );
             seeded += 1;

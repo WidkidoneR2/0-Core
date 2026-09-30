@@ -89,7 +89,7 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
     let mut proposed: Vec<(String, String, String, String)> = vec![];
     if health < 95 {
         proposed.push((
-            "Restore forest health to 95%+".to_string(),
+            "Restore health to 95%+".to_string(),
             format!("Health is {}% — below threshold", health),
             "Run: d — review warnings".to_string(),
             "HIGH".to_string(),

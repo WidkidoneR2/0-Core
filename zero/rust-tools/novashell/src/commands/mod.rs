@@ -4020,7 +4020,7 @@ fn execute_dispatch(
                             rusqlite::params![
                                 timestamp as i64,
                                 "file_deleted",
-                                "fsh::delete",
+                                "nsh::delete",
                                 format!("{{\"path\":\"{}\",\"force\":true}}", expanded),
                                 correlation()
                             ],
@@ -4045,7 +4045,7 @@ fn execute_dispatch(
                             rusqlite::params![
                                 timestamp as i64,
                                 "file_deleted",
-                                "fsh::delete",
+                                "nsh::delete",
                                 format!(
                                     "{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}",
                                     expanded, trash_name
@@ -4092,7 +4092,7 @@ fn execute_dispatch(
                                     "INSERT INTO events (timestamp, action, source_tool, payload, domain, correlation_id) \
                              VALUES (?1, ?2, ?3, ?4, 'shell', ?5)",
                                     rusqlite::params![
-                                        timestamp as i64, "file_deleted", "fsh::delete",
+                                        timestamp as i64, "file_deleted", "nsh::delete",
                                         format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name),
                                 correlation()
                                     ],
