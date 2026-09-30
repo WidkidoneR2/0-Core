@@ -348,7 +348,7 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     // Observe canonical signals
     let signals: Vec<(String, String, i64)> = {
         let mut s = db.prepare(
-            "SELECT type_name, payload, timestamp FROM forest_events_v2 WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 10"
+            "SELECT type_name, payload, timestamp FROM events_v2 WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 10"
         )?;
         let x = s
             .query_map(params![one_hour_ago], |r| {
@@ -361,7 +361,7 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     for (type_name, payload, ts) in &signals {
         let content = format!("signal: {} -- {}", type_name, payload);
         let _ = db.execute(
-            "INSERT INTO friday_observations (timestamp, source, kind, content) SELECT ?1, 'forest_events_v2', 'signal', ?2 WHERE NOT EXISTS (SELECT 1 FROM friday_observations WHERE kind='signal' AND content=?2)",
+            "INSERT INTO friday_observations (timestamp, source, kind, content) SELECT ?1, 'events_v2', 'signal', ?2 WHERE NOT EXISTS (SELECT 1 FROM friday_observations WHERE kind='signal' AND content=?2)",
             params![ts, content],
         );
     }
@@ -1655,9 +1655,9 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
             "INSERT OR IGNORE INTO friday_personality (key, value, updated_at) VALUES ('has_spoken', 'true', ?1)",
             rusqlite::params![now],
         );
-        // Log to forest_events_v2
+        // Log to events_v2
         let _ = db.execute(
-            "INSERT INTO forest_events_v2 (timestamp, source, kind, summary, data)
+            "INSERT INTO events_v2 (timestamp, source, kind, summary, data)
              VALUES (?1, 'friday', 'milestone', 'Friday spoke for the first time', ?2)",
             rusqlite::params![now, format!("confidence: {:.2}", confidence)],
         );

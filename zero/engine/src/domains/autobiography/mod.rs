@@ -46,7 +46,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     // Load all goals — filter by version if requested
     let mut stmt = match ctx.runtime.db.prepare(
         "SELECT id, title, reason, plan, priority, status, created_at, updated_at \
-         FROM forest_goals ORDER BY created_at ASC",
+         FROM goals ORDER BY created_at ASC",
     ) {
         Ok(s) => s,
         Err(_) => {
@@ -152,7 +152,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
             .runtime
             .db
             .query_row(
-                "SELECT steps FROM forest_plans WHERE goal_id=?1 LIMIT 1",
+                "SELECT steps FROM plans WHERE goal_id=?1 LIMIT 1",
                 rusqlite::params![id],
                 |r| r.get::<_, String>(0),
             )
@@ -164,7 +164,7 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
             .runtime
             .db
             .query_row(
-                "SELECT recommendation FROM forest_tradeoffs WHERE linked_goal=?1 LIMIT 1",
+                "SELECT recommendation FROM tradeoffs WHERE linked_goal=?1 LIMIT 1",
                 rusqlite::params![id],
                 |r| r.get(0),
             )

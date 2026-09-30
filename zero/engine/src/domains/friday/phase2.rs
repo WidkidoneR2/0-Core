@@ -883,7 +883,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     // Days since last system update check
     let last_update: i64 = db
         .query_row(
-            "SELECT MAX(timestamp) FROM forest_events_v2 WHERE kind = 'deploy'",
+            "SELECT MAX(timestamp) FROM events_v2 WHERE kind = 'deploy'",
             [],
             |r| r.get(0),
         )

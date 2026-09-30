@@ -142,7 +142,7 @@ pub fn replay(ctx: &AppContext, from_seq: i64, to_seq: i64) -> CoreResult<()> {
     println!("  {}", "─".repeat(60).dimmed());
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT seq, timestamp, source, kind, type_name, payload, caused_by, confidence
-         FROM forest_events_v2
+         FROM events_v2
          WHERE seq >= ?1 AND seq <= ?2
          ORDER BY seq ASC",
     )?;
@@ -218,17 +218,17 @@ pub fn chain(ctx: &AppContext, seq: i64) -> CoreResult<()> {
     println!();
     Ok(())
 }
-/// core events status -- show forest_events_v2 health and counts
+/// core events status -- show events_v2 health and counts
 pub fn status_v2(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(signal::CREATE_TABLE)?;
     let total: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_events_v2", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM events_v2", [], |r| r.get(0))
         .unwrap_or(0);
     let by_kind: Vec<(String, i64)> = {
         let mut s = ctx.runtime.db.prepare(
-            "SELECT type_name, COUNT(*) FROM forest_events_v2 GROUP BY type_name ORDER BY COUNT(*) DESC LIMIT 10"
+            "SELECT type_name, COUNT(*) FROM events_v2 GROUP BY type_name ORDER BY COUNT(*) DESC LIMIT 10"
         )?;
         let x: Vec<(String, i64)> = s
             .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
@@ -239,26 +239,21 @@ pub fn status_v2(ctx: &AppContext) -> CoreResult<()> {
     let max_seq: i64 = ctx
         .runtime
         .db
-        .query_row(
-            "SELECT COALESCE(MAX(seq), 0) FROM forest_events_v2",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COALESCE(MAX(seq), 0) FROM events_v2", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let with_causality: i64 = ctx
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events_v2 WHERE caused_by IS NOT NULL",
+            "SELECT COUNT(*) FROM events_v2 WHERE caused_by IS NOT NULL",
             [],
             |r| r.get(0),
         )
         .unwrap_or(0);
     println!();
-    println!(
-        "  {} forest_events_v2 -- Canonical Signal Log",
-        "📡".normal()
-    );
+    println!("  {} events_v2 -- Canonical Signal Log", "📡".normal());
     println!("  {}", "─".repeat(50).dimmed());
     println!(
         "  {:<25} {}",

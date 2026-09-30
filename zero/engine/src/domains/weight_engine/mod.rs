@@ -681,7 +681,7 @@ pub fn compute(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_predictions WHERE created_at > ?1",
+            "SELECT COUNT(*) FROM predictions WHERE created_at > ?1",
             params![now - window_secs],
             |r| r.get(0),
         )

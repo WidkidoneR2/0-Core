@@ -299,7 +299,7 @@ pub fn daily_summary(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE domain = 'deploy'
+            "SELECT COUNT(*) FROM zero_events WHERE domain = 'deploy'
          AND date(datetime(created_at, 'unixepoch')) = ?1",
             rusqlite::params![today],
             |r| r.get(0),

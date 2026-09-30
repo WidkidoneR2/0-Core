@@ -101,14 +101,14 @@ impl Runtime {
                 granted     INTEGER NOT NULL,
                 timestamp   INTEGER NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS forest_events (
+            CREATE TABLE IF NOT EXISTS zero_events (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 kind        TEXT NOT NULL,
                 domain      TEXT NOT NULL,
                 detail      TEXT,
                 timestamp   INTEGER NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS forest_insights (
+            CREATE TABLE IF NOT EXISTS insights (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 signal      TEXT NOT NULL,
                 detail      TEXT NOT NULL,
@@ -134,7 +134,7 @@ impl Runtime {
 pub fn emit_runtime_event(db: &Connection, kind: &str, domain: &str, detail: &str) {
     let ts = chrono::Utc::now().timestamp();
     let _ = db.execute(
-        "INSERT INTO forest_events (kind, domain, detail, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO zero_events (kind, domain, detail, timestamp) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![kind, domain, detail, ts],
     );
 }

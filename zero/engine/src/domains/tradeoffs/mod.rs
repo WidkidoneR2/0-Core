@@ -5,7 +5,7 @@ use colored::*;
 use rusqlite::params;
 
 const SCHEMA: &str = "
-CREATE TABLE IF NOT EXISTS forest_tradeoffs (
+CREATE TABLE IF NOT EXISTS tradeoffs (
     id          TEXT PRIMARY KEY,
     description TEXT NOT NULL,
     axes        TEXT NOT NULL,
@@ -24,7 +24,7 @@ fn next_id(ctx: &AppContext) -> String {
     let count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_tradeoffs", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM tradeoffs", [], |r| r.get(0))
         .unwrap_or(0);
     format!("TRADEOFF-{:03}", count + 1)
 }
@@ -97,7 +97,7 @@ fn analyze_axes(ctx: &AppContext, description: &str) -> Vec<AxisAnalysis> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_goals WHERE status='accepted'",
+            "SELECT COUNT(*) FROM goals WHERE status='accepted'",
             [],
             |r| r.get(0),
         )
@@ -273,7 +273,7 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT id FROM forest_goals WHERE status='accepted' \
+            "SELECT id FROM goals WHERE status='accepted' \
              ORDER BY created_at DESC LIMIT 1",
             [],
             |r| r.get(0),
@@ -352,7 +352,7 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
     let scores_json = serde_json::to_string(&scores_data).unwrap_or_default();
 
     let _ = ctx.runtime.db.execute(
-        "INSERT INTO forest_tradeoffs \
+        "INSERT INTO tradeoffs \
          (id,description,axes,scores,recommendation,confidence,linked_goal,created_at) \
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
         params![
@@ -381,7 +381,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
 
     let mut stmt = match ctx.runtime.db.prepare(
         "SELECT id, description, confidence, linked_goal, created_at \
-         FROM forest_tradeoffs ORDER BY created_at DESC LIMIT 20",
+         FROM tradeoffs ORDER BY created_at DESC LIMIT 20",
     ) {
         Ok(s) => s,
         Err(_) => {
@@ -448,7 +448,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_goals WHERE status='accepted'",
+            "SELECT COUNT(*) FROM goals WHERE status='accepted'",
             [],
             |r| r.get(0),
         )
@@ -465,7 +465,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     let total_tradeoffs: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_tradeoffs", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM tradeoffs", [], |r| r.get(0))
         .unwrap_or(0);
 
     let stability = health as f64 / 100.0;

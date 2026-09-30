@@ -238,11 +238,11 @@ pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
         .get("tool")
         .and_then(|t| t.as_array())
         .unwrap_or(&empty);
-    // Get actual usage from forest_events (last 7 days)
+    // Get actual usage from zero_events (last 7 days)
     let window = chrono::Utc::now().timestamp() - 604800;
     let mut usage_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     if let Ok(mut stmt) = ctx.runtime.db.prepare(
-        "SELECT domain, COUNT(*) as cnt FROM forest_events WHERE timestamp > ?1 GROUP BY domain",
+        "SELECT domain, COUNT(*) as cnt FROM zero_events WHERE timestamp > ?1 GROUP BY domain",
     ) {
         let rows: Vec<(String, i64)> = stmt
             .query_map(rusqlite::params![window], |r| Ok((r.get(0)?, r.get(1)?)))

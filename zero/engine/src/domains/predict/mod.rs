@@ -13,7 +13,7 @@ use colored::*;
 // ── DB init ──────────────────────────────────────────────────────────────────
 pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(
-        "CREATE TABLE IF NOT EXISTS forest_predictions (
+        "CREATE TABLE IF NOT EXISTS predictions (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             kind         TEXT    NOT NULL,
             prediction   TEXT    NOT NULL,
@@ -50,7 +50,7 @@ fn store_prediction(ctx: &AppContext, kind: &str, prediction: &str, confidence: 
         .unwrap_or(0);
     let expires_at = now + (7 * 24 * 3600); // verify in 7 days
     let _ = ctx.runtime.db.execute(
-        "INSERT INTO forest_predictions (kind, prediction, confidence, evidence, created_at, expires_at)
+        "INSERT INTO predictions (kind, prediction, confidence, evidence, created_at, expires_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         rusqlite::params![kind, prediction, confidence, "{}", now, expires_at],
     );
@@ -1222,7 +1222,7 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     let total_predictions: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM predictions", [], |r| r.get(0))
         .unwrap_or(0);
     let total_outcomes: i64 = ctx
         .runtime
@@ -1272,7 +1272,7 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
                 .runtime
                 .db
                 .query_row(
-                    "SELECT COUNT(*) FROM forest_predictions WHERE kind=?1",
+                    "SELECT COUNT(*) FROM predictions WHERE kind=?1",
                     rusqlite::params![kind],
                     |r| r.get(0),
                 )
@@ -1349,7 +1349,7 @@ pub fn verify(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT id, kind, prediction, confidence FROM forest_predictions WHERE id = ?1",
+            "SELECT id, kind, prediction, confidence FROM predictions WHERE id = ?1",
             rusqlite::params![pred_id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )
@@ -1432,9 +1432,9 @@ pub fn cross_session(ctx: &AppContext) -> CoreResult<()> {
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
         .filter_map(|r| r.ok())
         .collect();
-    // Find command sequences from forest_events
+    // Find command sequences from zero_events
     let mut seq_stmt = ctx.runtime.db.prepare(
-        "SELECT domain, COUNT(*) as cnt FROM forest_events
+        "SELECT domain, COUNT(*) as cnt FROM zero_events
          WHERE kind = 'CommandSucceeded'
          GROUP BY domain ORDER BY cnt DESC LIMIT 10",
     )?;
@@ -1478,7 +1478,7 @@ pub fn cross_session(ctx: &AppContext) -> CoreResult<()> {
     let total_events: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM zero_events", [], |r| r.get(0))
         .unwrap_or(0);
     println!("  {} Data foundation:", "▶".bright_cyan());
     println!(
@@ -1508,7 +1508,7 @@ pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE timestamp < ?1",
+            "SELECT COUNT(*) FROM zero_events WHERE timestamp < ?1",
             rusqlite::params![cutoff_30d],
             |r| r.get(0),
         )
@@ -1526,7 +1526,7 @@ pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_insights WHERE shown = 1 AND created_at < ?1",
+            "SELECT COUNT(*) FROM insights WHERE shown = 1 AND created_at < ?1",
             rusqlite::params![cutoff_30d],
             |r| r.get(0),
         )
@@ -1536,7 +1536,7 @@ pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
     println!("  {}", "─".repeat(48).dimmed());
     println!(
         "  {:<30} {} entries",
-        "forest_events (>30 days):".dimmed(),
+        "zero_events (>30 days):".dimmed(),
         old_events.to_string().bright_yellow()
     );
     println!(
@@ -1558,7 +1558,7 @@ pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
     println!();
     if apply {
         ctx.runtime.db.execute(
-            "DELETE FROM forest_events WHERE timestamp < ?1",
+            "DELETE FROM zero_events WHERE timestamp < ?1",
             rusqlite::params![cutoff_30d],
         )?;
         ctx.runtime.db.execute(
@@ -1566,7 +1566,7 @@ pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
             rusqlite::params![cutoff_90d],
         )?;
         ctx.runtime.db.execute(
-            "DELETE FROM forest_insights WHERE shown = 1 AND created_at < ?1",
+            "DELETE FROM insights WHERE shown = 1 AND created_at < ?1",
             rusqlite::params![cutoff_30d],
         )?;
         println!(

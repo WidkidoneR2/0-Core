@@ -11,7 +11,7 @@ const JARVIS_GATE: i64 = 95;
 
 pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(
-        "CREATE TABLE IF NOT EXISTS forest_mandates (
+        "CREATE TABLE IF NOT EXISTS mandates (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             rule        TEXT    NOT NULL,
             scope       TEXT    NOT NULL DEFAULT 'suggest',
@@ -94,7 +94,7 @@ pub fn mandate_list(ctx: &AppContext) -> CoreResult<()> {
     );
 
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT id, rule, scope, created_at FROM forest_mandates WHERE active=1 ORDER BY created_at DESC"
+        "SELECT id, rule, scope, created_at FROM mandates WHERE active=1 ORDER BY created_at DESC",
     )?;
     let mandates: Vec<(i64, String, String)> = stmt
         .query_map([], |r| {
@@ -145,7 +145,7 @@ pub fn mandate_list(ctx: &AppContext) -> CoreResult<()> {
 pub fn mandate_set(ctx: &AppContext, rule: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     ctx.runtime.db.execute(
-        "INSERT INTO forest_mandates (rule, scope, created_at) VALUES (?1, 'suggest', ?2)",
+        "INSERT INTO mandates (rule, scope, created_at) VALUES (?1, 'suggest', ?2)",
         rusqlite::params![rule, now_ts()],
     )?;
     println!();
@@ -171,7 +171,7 @@ pub fn mandate_revoke(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let id_num: i64 = id.parse().unwrap_or(0);
     ctx.runtime.db.execute(
-        "UPDATE forest_mandates SET active=0, revoked_at=?1 WHERE id=?2",
+        "UPDATE mandates SET active=0, revoked_at=?1 WHERE id=?2",
         rusqlite::params![now_ts(), id_num],
     )?;
     println!();
@@ -184,7 +184,7 @@ pub fn mandate_revoke(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn mandate_revoke_all(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     ctx.runtime.db.execute(
-        "UPDATE forest_mandates SET active=0, revoked_at=?1",
+        "UPDATE mandates SET active=0, revoked_at=?1",
         rusqlite::params![now_ts()],
     )?;
     println!();
@@ -304,11 +304,9 @@ pub fn trust_score(ctx: &AppContext) -> CoreResult<()> {
     let mandate_count: i64 = ctx
         .runtime
         .db
-        .query_row(
-            "SELECT COUNT(*) FROM forest_mandates WHERE active=1",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM mandates WHERE active=1", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let action_count: i64 = ctx
         .runtime

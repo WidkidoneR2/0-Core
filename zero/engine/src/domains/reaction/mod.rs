@@ -353,7 +353,7 @@ fn active_goals(ctx: &AppContext) -> Vec<GoalContext> {
     let mut stmt = match ctx
         .runtime
         .db
-        .prepare("SELECT id, title FROM forest_goals WHERE status = 'accepted' ORDER BY id ASC")
+        .prepare("SELECT id, title FROM goals WHERE status = 'accepted' ORDER BY id ASC")
     {
         Ok(s) => s,
         Err(_) => return vec![],

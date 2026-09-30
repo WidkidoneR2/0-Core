@@ -27,7 +27,7 @@ fn open_db() -> rusqlite::Result<Connection> {
 fn show_insights(conn: &Connection) {
     let mut stmt = conn
         .prepare(
-            "SELECT signal, detail, importance, confidence, created_at FROM forest_insights
+            "SELECT signal, detail, importance, confidence, created_at FROM insights
          WHERE shown = 0 ORDER BY importance DESC, created_at DESC LIMIT 10",
         )
         .unwrap();
@@ -75,7 +75,7 @@ fn insert_insight(
     }
     let cooldown: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM forest_insights WHERE signal = ?1 AND created_at > ?2",
+            "SELECT COUNT(*) FROM insights WHERE signal = ?1 AND created_at > ?2",
             params![signal, now - 3600],
             |r| r.get(0),
         )
@@ -85,7 +85,7 @@ fn insert_insight(
     }
     let expires = now + 3600;
     let _ = conn.execute(
-        "INSERT INTO forest_insights (signal, detail, importance, confidence, expires_at, shown, created_at)
+        "INSERT INTO insights (signal, detail, importance, confidence, expires_at, shown, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6)",
         params![signal, detail, importance, confidence, expires, now],
     );
@@ -99,7 +99,7 @@ fn detect_signals(conn: &Connection) {
     // Signal 1: failure loop — Project 0 notices when you are stuck
     let recent_failures: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandFailed' AND timestamp > ?1",
+            "SELECT COUNT(*) FROM zero_events WHERE kind = 'CommandFailed' AND timestamp > ?1",
             params![window_5m],
             |r| r.get(0),
         )
@@ -131,13 +131,13 @@ fn detect_signals(conn: &Connection) {
     }
     // Signal 2: deploy without health check
     let last_deploy: Option<i64> = conn.query_row(
-        "SELECT timestamp FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'deploy' ORDER BY timestamp DESC LIMIT 1",
+        "SELECT timestamp FROM zero_events WHERE kind = 'CommandSucceeded' AND domain = 'deploy' ORDER BY timestamp DESC LIMIT 1",
         [], |r| r.get(0)
     ).ok();
     if let Some(deploy_ts) = last_deploy {
         if deploy_ts > window_2h {
             let health_after: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'doctor' AND timestamp > ?1",
+                "SELECT COUNT(*) FROM zero_events WHERE kind = 'CommandSucceeded' AND domain = 'doctor' AND timestamp > ?1",
                 params![deploy_ts], |r| r.get(0)
             ).unwrap_or(0);
             if health_after == 0 {
@@ -149,7 +149,7 @@ fn detect_signals(conn: &Connection) {
     }
     // Signal 3: focus fragmentation
     let mut stmt = conn
-        .prepare("SELECT DISTINCT domain FROM forest_events WHERE timestamp > ?1")
+        .prepare("SELECT DISTINCT domain FROM zero_events WHERE timestamp > ?1")
         .unwrap();
     let domains: Vec<String> = stmt
         .query_map(params![window_10m], |r| r.get(0))
@@ -163,11 +163,11 @@ fn detect_signals(conn: &Connection) {
     }
     // Signal 4: long build session — suggest checkpoint
     let commit_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'git' AND timestamp > ?1",
+        "SELECT COUNT(*) FROM zero_events WHERE kind = 'CommandSucceeded' AND domain = 'git' AND timestamp > ?1",
         params![window_1h], |r| r.get(0)
     ).unwrap_or(0);
     let deploy_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'deploy' AND timestamp > ?1",
+        "SELECT COUNT(*) FROM zero_events WHERE kind = 'CommandSucceeded' AND domain = 'deploy' AND timestamp > ?1",
         params![window_1h], |r| r.get(0)
     ).unwrap_or(0);
     if commit_count >= 3 && deploy_count >= 3 {
@@ -177,11 +177,11 @@ fn detect_signals(conn: &Connection) {
     }
     // Signal 5: uncommitted work sitting too long
     let last_commit: Option<i64> = conn.query_row(
-        "SELECT timestamp FROM forest_events WHERE domain = 'git' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
+        "SELECT timestamp FROM zero_events WHERE domain = 'git' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
         [], |r| r.get(0)
     ).ok();
     let last_deploy2: Option<i64> = conn.query_row(
-        "SELECT timestamp FROM forest_events WHERE domain = 'deploy' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
+        "SELECT timestamp FROM zero_events WHERE domain = 'deploy' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
         [], |r| r.get(0)
     ).ok();
     if let (Some(last_d), Some(last_c)) = (last_deploy2, last_commit) {
@@ -207,7 +207,7 @@ fn auto_verify_predictions(conn: &Connection) {
     let preds: Vec<(i64, String, String)> = {
         let mut stmt = conn
             .prepare(
-                "SELECT id, kind, prediction FROM forest_predictions
+                "SELECT id, kind, prediction FROM predictions
              WHERE id NOT IN (SELECT prediction_id FROM prediction_outcomes)
              AND created_at > ?1",
             )
@@ -229,7 +229,7 @@ fn auto_verify_predictions(conn: &Connection) {
         };
         let activity: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM forest_events WHERE domain = ?1 AND timestamp > ?2",
+                "SELECT COUNT(*) FROM zero_events WHERE domain = ?1 AND timestamp > ?2",
                 params![domain, window_10m],
                 |r| r.get(0),
             )
@@ -249,7 +249,7 @@ fn run_once(conn: &Connection) {
     auto_verify_predictions(conn);
     let now = chrono::Utc::now().timestamp();
     let _ = conn.execute(
-        "UPDATE forest_insights SET shown = 1 WHERE expires_at < ?1",
+        "UPDATE insights SET shown = 1 WHERE expires_at < ?1",
         params![now],
     );
 }
@@ -259,14 +259,12 @@ fn main() {
         Cmd::Status => {
             let conn = open_db().expect("db error");
             let event_count: i64 = conn
-                .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+                .query_row("SELECT COUNT(*) FROM zero_events", [], |r| r.get(0))
                 .unwrap_or(0);
             let insight_count: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM forest_insights WHERE shown = 0",
-                    [],
-                    |r| r.get(0),
-                )
+                .query_row("SELECT COUNT(*) FROM insights WHERE shown = 0", [], |r| {
+                    r.get(0)
+                })
                 .unwrap_or(0);
             println!(
                 "
@@ -308,7 +306,7 @@ fn main() {
         Cmd::Log => {
             let conn = open_db().expect("db error");
             let mut stmt = conn.prepare(
-                "SELECT kind, domain, detail, timestamp FROM forest_events ORDER BY timestamp DESC LIMIT 20"
+                "SELECT kind, domain, detail, timestamp FROM zero_events ORDER BY timestamp DESC LIMIT 20"
             ).unwrap();
             let rows: Vec<(String, String, String, i64)> = stmt
                 .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))

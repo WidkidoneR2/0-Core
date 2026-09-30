@@ -5,7 +5,7 @@ use colored::*;
 use rusqlite::params;
 
 const SCHEMA: &str = "
-CREATE TABLE IF NOT EXISTS forest_plans (
+CREATE TABLE IF NOT EXISTS plans (
     id          TEXT PRIMARY KEY,
     goal_id     TEXT NOT NULL,
     steps       TEXT NOT NULL,
@@ -25,7 +25,7 @@ fn next_id(ctx: &AppContext) -> String {
     let count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_plans", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM plans", [], |r| r.get(0))
         .unwrap_or(0);
     format!("PLAN-{:03}", count + 1)
 }
@@ -91,7 +91,7 @@ pub fn generate(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
     ensure_schema(ctx);
 
     let goal = ctx.runtime.db.query_row(
-        "SELECT id, title, reason, plan, priority FROM forest_goals WHERE id=?1",
+        "SELECT id, title, reason, plan, priority FROM goals WHERE id=?1",
         params![goal_id],
         |r| {
             Ok((
@@ -118,7 +118,7 @@ pub fn generate(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_plans WHERE goal_id=?1",
+            "SELECT COUNT(*) FROM plans WHERE goal_id=?1",
             params![goal_id],
             |r| r.get(0),
         )
@@ -129,7 +129,7 @@ pub fn generate(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
             .runtime
             .db
             .query_row(
-                "SELECT id FROM forest_plans WHERE goal_id=?1 ORDER BY created_at DESC LIMIT 1",
+                "SELECT id FROM plans WHERE goal_id=?1 ORDER BY created_at DESC LIMIT 1",
                 params![goal_id],
                 |r| r.get(0),
             )
@@ -162,7 +162,7 @@ pub fn generate(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
     ctx.runtime
         .db
         .execute(
-            "INSERT INTO forest_plans \
+            "INSERT INTO plans \
          (id,goal_id,steps,sessions,risk,reversible,status,created_at,updated_at) \
          VALUES (?1,?2,?3,?4,?5,1,'draft',?6,?6)",
             params![plan_id, id, steps_json, sessions, risk, now],
@@ -218,8 +218,8 @@ pub fn review(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let row = ctx.runtime.db.query_row(
         "SELECT p.id, p.goal_id, g.title, p.steps, p.sessions, p.risk, \
                 p.reversible, p.status, p.created_at
-         FROM forest_plans p
-         LEFT JOIN forest_goals g ON p.goal_id = g.id
+         FROM plans p
+         LEFT JOIN goals g ON p.goal_id = g.id
          WHERE p.id=?1",
         params![id],
         |r| {
@@ -298,8 +298,8 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
 
     let mut stmt = match ctx.runtime.db.prepare(
         "SELECT p.id, p.goal_id, g.title, p.risk, p.status, p.sessions
-         FROM forest_plans p
-         LEFT JOIN forest_goals g ON p.goal_id = g.id
+         FROM plans p
+         LEFT JOIN goals g ON p.goal_id = g.id
          ORDER BY p.created_at DESC",
     ) {
         Ok(s) => s,
@@ -347,8 +347,8 @@ pub fn simulate_plan(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     let row = ctx.runtime.db.query_row(
         "SELECT p.goal_id, g.title
-         FROM forest_plans p
-         LEFT JOIN forest_goals g ON p.goal_id = g.id
+         FROM plans p
+         LEFT JOIN goals g ON p.goal_id = g.id
          WHERE p.id=?1",
         params![id],
         |r| {

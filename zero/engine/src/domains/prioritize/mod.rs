@@ -80,7 +80,7 @@ fn score_goals(ctx: &AppContext) -> Vec<GoalScore> {
 
     // Load all accepted goals
     let mut stmt = match ctx.runtime.db.prepare(
-        "SELECT id, title, priority FROM forest_goals WHERE status='accepted' ORDER BY created_at",
+        "SELECT id, title, priority FROM goals WHERE status='accepted' ORDER BY created_at",
     ) {
         Ok(s) => s,
         Err(_) => return vec![],
@@ -211,7 +211,7 @@ fn score_goals(ctx: &AppContext) -> Vec<GoalScore> {
                 .runtime
                 .db
                 .query_row(
-                    "SELECT COUNT(*) FROM forest_plans WHERE goal_id=?1",
+                    "SELECT COUNT(*) FROM plans WHERE goal_id=?1",
                     rusqlite::params![id],
                     |r| r.get::<_, i64>(0),
                 )
@@ -222,7 +222,7 @@ fn score_goals(ctx: &AppContext) -> Vec<GoalScore> {
                 .runtime
                 .db
                 .query_row(
-                    "SELECT risk FROM forest_plans WHERE goal_id=?1 LIMIT 1",
+                    "SELECT risk FROM plans WHERE goal_id=?1 LIMIT 1",
                     rusqlite::params![id],
                     |r| r.get(0),
                 )
@@ -232,7 +232,7 @@ fn score_goals(ctx: &AppContext) -> Vec<GoalScore> {
                 .runtime
                 .db
                 .query_row(
-                    "SELECT COUNT(*) FROM forest_tradeoffs WHERE linked_goal=?1",
+                    "SELECT COUNT(*) FROM tradeoffs WHERE linked_goal=?1",
                     rusqlite::params![id],
                     |r| r.get::<_, i64>(0),
                 )

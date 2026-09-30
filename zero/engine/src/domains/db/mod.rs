@@ -175,8 +175,8 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     let tables = [
         "events",
         "shell_history",
-        "forest_predictions",
-        "forest_goals",
+        "predictions",
+        "goals",
         "reaction_log",
         "session_patterns",
     ];

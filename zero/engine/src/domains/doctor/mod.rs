@@ -794,14 +794,14 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         let expires_at = now + (24 * 3600); // verify in 24h on next doctor run
         let prediction = format!("health will be {}% on next doctor run", health);
         let _ = ctx.runtime.db.execute(
-            "INSERT OR IGNORE INTO forest_predictions (kind, prediction, confidence, evidence, created_at, expires_at)
+            "INSERT OR IGNORE INTO predictions (kind, prediction, confidence, evidence, created_at, expires_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params!["health", prediction, 85i64, "{}", now, expires_at],
         );
         // Auto-verify previous health predictions
         let prev_preds: Vec<(i64, i64)> = ctx.runtime.db.prepare(
             "SELECT id, CAST(SUBSTR(prediction, INSTR(prediction, 'be ')+3, INSTR(prediction, '% on')-INSTR(prediction, 'be ')-3) AS INTEGER)
-             FROM forest_predictions
+             FROM predictions
              WHERE kind='health' AND expires_at <= ?1
              AND id NOT IN (SELECT prediction_id FROM prediction_outcomes)"
         ).map(|mut s| {

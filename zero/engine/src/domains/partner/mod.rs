@@ -211,7 +211,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE kind='CommandFailed' AND timestamp > ?1",
+            "SELECT COUNT(*) FROM zero_events WHERE kind='CommandFailed' AND timestamp > ?1",
             rusqlite::params![window_7d],
             |r| r.get(0),
         )
@@ -236,7 +236,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE kind='CommandSucceeded' AND timestamp > ?1",
+            "SELECT COUNT(*) FROM zero_events WHERE kind='CommandSucceeded' AND timestamp > ?1",
             rusqlite::params![window_7d],
             |r| r.get(0),
         )
@@ -268,7 +268,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
     let prediction_count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM predictions", [], |r| r.get(0))
         .unwrap_or(0);
     let verified_count: i64 = ctx
         .runtime
@@ -286,7 +286,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_insights WHERE kind = 'stalled-intent' AND shown = 0",
+            "SELECT COUNT(*) FROM insights WHERE kind = 'stalled-intent' AND shown = 0",
             [],
             |r| r.get(0),
         )
@@ -459,7 +459,7 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
     let events: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM zero_events", [], |r| r.get(0))
         .unwrap_or(0);
 
     println!();
@@ -522,13 +522,13 @@ fn reflect(ctx: &AppContext) -> CoreResult<()> {
     let events: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM zero_events", [], |r| r.get(0))
         .unwrap_or(0);
     let succeeded: i64 = ctx
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE kind='CommandSucceeded'",
+            "SELECT COUNT(*) FROM zero_events WHERE kind='CommandSucceeded'",
             [],
             |r| r.get(0),
         )
@@ -537,7 +537,7 @@ fn reflect(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_events WHERE kind='CommandFailed'",
+            "SELECT COUNT(*) FROM zero_events WHERE kind='CommandFailed'",
             [],
             |r| r.get(0),
         )
@@ -566,7 +566,7 @@ fn reflect(ctx: &AppContext) -> CoreResult<()> {
 
     // Most used domain
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT domain, COUNT(*) as cnt FROM forest_events WHERE kind='CommandSucceeded' GROUP BY domain ORDER BY cnt DESC LIMIT 3"
+        "SELECT domain, COUNT(*) as cnt FROM zero_events WHERE kind='CommandSucceeded' GROUP BY domain ORDER BY cnt DESC LIMIT 3"
     ).unwrap();
     let domains: Vec<(String, i64)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
@@ -595,7 +595,7 @@ fn pattern(ctx: &AppContext) -> CoreResult<()> {
     let mut stmt = ctx
         .runtime
         .db
-        .prepare("SELECT timestamp FROM forest_events ORDER BY timestamp DESC LIMIT 100")
+        .prepare("SELECT timestamp FROM zero_events ORDER BY timestamp DESC LIMIT 100")
         .unwrap();
     let timestamps: Vec<i64> = stmt
         .query_map([], |r| r.get(0))

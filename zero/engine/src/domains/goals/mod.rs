@@ -3,7 +3,7 @@ use crate::errors::CoreResult;
 use rusqlite::params;
 
 const SCHEMA: &str = "
-CREATE TABLE IF NOT EXISTS forest_goals (
+CREATE TABLE IF NOT EXISTS goals (
     id          TEXT PRIMARY KEY,
     title       TEXT NOT NULL,
     reason      TEXT NOT NULL,
@@ -22,7 +22,7 @@ fn next_id(ctx: &AppContext) -> String {
     let count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_goals", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM goals", [], |r| r.get(0))
         .unwrap_or(0);
     format!("GOAL-{:03}", count + 1)
 }
@@ -40,7 +40,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     ensure_schema(ctx);
     let db = &ctx.runtime.db;
     let mut stmt = match db.prepare(
-        "SELECT id, title, priority, status, reason FROM forest_goals ORDER BY \
+        "SELECT id, title, priority, status, reason FROM goals ORDER BY \
          CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, created_at",
     ) {
         Ok(s) => s,
@@ -110,7 +110,7 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
             .runtime
             .db
             .query_row(
-                "SELECT COUNT(*) FROM forest_goals WHERE title=?1",
+                "SELECT COUNT(*) FROM goals WHERE title=?1",
                 params![title],
                 |r| r.get(0),
             )
@@ -120,7 +120,7 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
             continue;
         }
         let _ = ctx.runtime.db.execute(
-            "INSERT INTO forest_goals \
+            "INSERT INTO goals \
              (id,title,reason,plan,priority,status,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,'pending',?6,?6)",
             params![id, title, reason, plan, priority, now],
@@ -151,7 +151,7 @@ pub fn accept(ctx: &AppContext, id: &str) -> CoreResult<()> {
         .runtime
         .db
         .execute(
-            "UPDATE forest_goals SET status='accepted', updated_at=?1 WHERE id=?2",
+            "UPDATE goals SET status='accepted', updated_at=?1 WHERE id=?2",
             params![now, id],
         )
         .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
@@ -163,7 +163,7 @@ pub fn accept(ctx: &AppContext, id: &str) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT title, plan FROM forest_goals WHERE id=?1",
+            "SELECT title, plan FROM goals WHERE id=?1",
             params![id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
@@ -185,7 +185,7 @@ pub fn reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
         .runtime
         .db
         .execute(
-            "UPDATE forest_goals SET status='rejected', updated_at=?1 WHERE id=?2",
+            "UPDATE goals SET status='rejected', updated_at=?1 WHERE id=?2",
             params![now, id],
         )
         .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
@@ -200,7 +200,7 @@ pub fn reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ensure_schema(ctx);
     let r = ctx.runtime.db.query_row(
-        "SELECT id,title,reason,plan,priority,status,created_at FROM forest_goals WHERE id=?1",
+        "SELECT id,title,reason,plan,priority,status,created_at FROM goals WHERE id=?1",
         params![id],
         |r| {
             Ok((

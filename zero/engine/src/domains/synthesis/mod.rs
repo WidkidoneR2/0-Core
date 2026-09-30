@@ -146,7 +146,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![now, health, alignment, active_intent, session_commits, top_pattern, brief, confidence, contradiction_str],
     );
-    // 10. Emit to forest_events_v2
+    // 10. Emit to events_v2
     let payload = format!(
         r#"{{"brief":"{}","confidence":{:.2}}}"#,
         brief.replace('"', "'"),

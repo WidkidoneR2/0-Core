@@ -381,10 +381,15 @@ pub fn align_drift(ctx: &AppContext) -> CoreResult<()> {
     ).unwrap_or(0);
 
     // Deploy without health check
-    let unchecked_deploys: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_insights WHERE signal = 'deploy-unchecked' AND created_at > ?1",
-        params![month_ago], |r| r.get(0)
-    ).unwrap_or(0);
+    let unchecked_deploys: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM insights WHERE signal = 'deploy-unchecked' AND created_at > ?1",
+            params![month_ago],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!();
     println!("  {} Last 30 days:", "→".bright_cyan());

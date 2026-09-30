@@ -2187,7 +2187,7 @@ fn run_input(
                 .db()
                 .conn
                 .query_row(
-                    "SELECT id, signal, detail, importance FROM forest_insights
+                    "SELECT id, signal, detail, importance FROM insights
                              WHERE shown = 0 AND importance >= 0.65
                              ORDER BY importance DESC, created_at DESC LIMIT 1",
                     [],
@@ -2205,7 +2205,7 @@ fn run_input(
                     detail.bright_white()
                 );
                 let _ = engine.db().conn.execute(
-                    "UPDATE forest_insights SET shown = 1 WHERE id = ?1",
+                    "UPDATE insights SET shown = 1 WHERE id = ?1",
                     rusqlite::params![id],
                 );
             }

@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 // ── DB init ───────────────────────────────────────────────────────────────────
 pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(
-        "CREATE TABLE IF NOT EXISTS forest_strategies (
+        "CREATE TABLE IF NOT EXISTS strategies (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             horizon      TEXT    NOT NULL,
             proposal     TEXT    NOT NULL,
@@ -504,7 +504,7 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT id, title, plan, status FROM forest_goals WHERE id = ?1",
+            "SELECT id, title, plan, status FROM goals WHERE id = ?1",
             rusqlite::params![goal_id],
             |r| {
                 Ok((
@@ -544,10 +544,10 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
             println!("  {} Status: {}", "·".dimmed(), status.bright_yellow());
             println!();
 
-            // Show the plan from forest_plans if it exists
+            // Show the plan from plans if it exists
             let plan_steps: Option<(String, String, i64)> = ctx.runtime.db
                 .query_row(
-                    "SELECT steps, risk, sessions FROM forest_plans WHERE goal_id = ?1 ORDER BY created_at DESC LIMIT 1",
+                    "SELECT steps, risk, sessions FROM plans WHERE goal_id = ?1 ORDER BY created_at DESC LIMIT 1",
                     rusqlite::params![&id],
                     |r| Ok((
                         r.get::<_, String>(0)?,
@@ -704,7 +704,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     // Goals without plans
     let goals_no_plan: Vec<String> = {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT id, title FROM forest_goals WHERE status = 'accepted' AND id NOT IN (SELECT goal_id FROM forest_plans)"
+            "SELECT id, title FROM goals WHERE status = 'accepted' AND id NOT IN (SELECT goal_id FROM plans)"
         )?;
         stmt.query_map([], |r| {
             Ok(format!(
@@ -736,7 +736,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM forest_goals WHERE status = 'accepted'",
+            "SELECT COUNT(*) FROM goals WHERE status = 'accepted'",
             [],
             |r| r.get(0),
         )
@@ -873,9 +873,11 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
     println!();
 
     // Check historical tradeoffs for similar actions
-    let similar: Option<(String, String)> = ctx.runtime.db
+    let similar: Option<(String, String)> = ctx
+        .runtime
+        .db
         .query_row(
-            "SELECT description, recommendation FROM forest_tradeoffs ORDER BY created_at DESC LIMIT 1",
+            "SELECT description, recommendation FROM tradeoffs ORDER BY created_at DESC LIMIT 1",
             [],
             |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
         )
@@ -1253,7 +1255,7 @@ pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
         ctx.runtime
             .db
             .query_row(
-                "SELECT id, title, reason, priority FROM forest_goals WHERE id = ?1",
+                "SELECT id, title, reason, priority FROM goals WHERE id = ?1",
                 rusqlite::params![id],
                 |r| {
                     Ok((
@@ -1568,7 +1570,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let events_count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM zero_events", [], |r| r.get(0))
         .unwrap_or(0);
     let (nervous_score, nervous_note) = if insightd_running && events_count > 0 {
         (
@@ -1579,7 +1581,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         (
             3,
             format!(
-                "forest_events active ({} events) -- insightd not running",
+                "zero_events active ({} events) -- insightd not running",
                 events_count
             ),
         )
@@ -1664,11 +1666,11 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push(("Integrity Score".to_string(), int_score, int_note));
     total += int_score;
 
-    // Factor 6: Prediction accuracy (max 10) — reads from forest_predictions (INT-167)
+    // Factor 6: Prediction accuracy (max 10) — reads from predictions (INT-167)
     let pred_count: i64 = ctx
         .runtime
         .db
-        .query_row("SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM predictions", [], |r| r.get(0))
         .unwrap_or(0);
     let outcome_count: i64 = ctx
         .runtime
@@ -2102,7 +2104,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     let mut strategies: Vec<(String, String, i32, i64)> = Vec::new();
     {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT horizon, proposal, acted_on, created_at FROM forest_strategies ORDER BY created_at DESC LIMIT 10"
+            "SELECT horizon, proposal, acted_on, created_at FROM strategies ORDER BY created_at DESC LIMIT 10"
         )?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
@@ -2209,7 +2211,7 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
 
     // Try to update an existing strategy
     let updated = ctx.runtime.db.execute(
-        "UPDATE forest_strategies SET acted_on = ?1 WHERE id = ?2",
+        "UPDATE strategies SET acted_on = ?1 WHERE id = ?2",
         rusqlite::params![acted, strategy_id.parse::<i64>().unwrap_or(0)],
     )?;
 
@@ -2237,7 +2239,7 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
     } else {
         // Insert as a new learned outcome
         ctx.runtime.db.execute(
-            "INSERT INTO forest_strategies (horizon, proposal, priority, created_at, acted_on) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO strategies (horizon, proposal, priority, created_at, acted_on) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params!["learned", strategy_id, 50, now_ts(), acted],
         )?;
         println!(
@@ -2267,7 +2269,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     let mut worked: Vec<(String, String, i64)> = Vec::new();
     {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT horizon, proposal, created_at FROM forest_strategies WHERE acted_on = 1 ORDER BY created_at DESC LIMIT 5"
+            "SELECT horizon, proposal, created_at FROM strategies WHERE acted_on = 1 ORDER BY created_at DESC LIMIT 5"
         )?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
@@ -2278,7 +2280,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     let mut did_not_work: Vec<(String, String, i64)> = Vec::new();
     {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT horizon, proposal, created_at FROM forest_strategies WHERE acted_on = 0 AND horizon != 'now' AND horizon != 'week' AND horizon != 'quarter' ORDER BY created_at DESC LIMIT 5"
+            "SELECT horizon, proposal, created_at FROM strategies WHERE acted_on = 0 AND horizon != 'now' AND horizon != 'week' AND horizon != 'quarter' ORDER BY created_at DESC LIMIT 5"
         )?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {

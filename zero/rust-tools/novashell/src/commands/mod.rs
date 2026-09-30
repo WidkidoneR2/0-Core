@@ -3433,7 +3433,7 @@ fn execute_dispatch(
                     query_to_table(&db.conn, &sql, &headers)
                 }
                 "predictions" | "predict" => {
-                    let sql = format!("SELECT id, substr(pattern,1,40) as pattern, substr(prediction,1,40) as prediction, confidence FROM forest_predictions ORDER BY confidence DESC LIMIT {}", limit);
+                    let sql = format!("SELECT id, substr(pattern,1,40) as pattern, substr(prediction,1,40) as prediction, confidence FROM predictions ORDER BY confidence DESC LIMIT {}", limit);
                     let headers = vec![
                         "id".to_string(),
                         "pattern".to_string(),
