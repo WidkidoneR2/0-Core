@@ -2090,7 +2090,7 @@ fn run_input(
             .collect();
 
         // Phase 20b: inject --cwd-file for yazi before execute
-        let yazi_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
+        let yazi_cwd_file = std::env::temp_dir().join("nsh-cwd.tmp");
         let is_yazi_cmd = {
             // INT-195: canonical command derivation. Lowercasing is intentionally
             // preserved until flip blocker 8 revisits normalization policy.

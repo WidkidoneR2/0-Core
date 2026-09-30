@@ -908,8 +908,8 @@ mod tests {
         // runtime_dir no longer contains the word "runtime" once the data has
         // moved to XDG state, so assert the CONTRACT instead of the spelling:
         // an explicit override always wins.
-        unsafe { std::env::set_var("ZERO_STATE_DIR", "/tmp/fsh-paths-test") }
-        assert_eq!(runtime_dir(), PathBuf::from("/tmp/fsh-paths-test"));
+        unsafe { std::env::set_var("ZERO_STATE_DIR", "/tmp/nsh-paths-test") }
+        assert_eq!(runtime_dir(), PathBuf::from("/tmp/nsh-paths-test"));
         unsafe { std::env::remove_var("ZERO_STATE_DIR") }
 
         // With no override, it must land somewhere real -- either the legacy repo

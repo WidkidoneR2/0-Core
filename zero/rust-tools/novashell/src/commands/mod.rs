@@ -5189,7 +5189,7 @@ fn execute_dispatch(
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
             if args.is_empty() {
                 let last_cmd = db.get_last_command().unwrap_or_default();
-                let tmp = "/tmp/fsh-edit.sh";
+                let tmp = "/tmp/nsh-edit.sh";
                 let _ = std::fs::write(tmp, format!("{}\n", last_cmd));
                 let status = std::process::Command::new(&editor)
                     .arg(tmp)
@@ -13634,7 +13634,7 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
             // dev search <query> -- search crates.io via `cargo search`, print name/version/desc
             // (INT-134, Lane 3; crates.io analogue of pkg-search). cargo search
             // outputs TEXT (name = "ver"  # desc), not JSON -- parsed line-wise. Read-only;
-            // latency expected (network). Caches to /tmp/fsh-crate-search.json for future completion.
+            // latency expected (network). Caches to /tmp/nsh-crate-search.json for future completion.
             let query = args[1..].join(" ");
             if query.trim().is_empty() {
                 return CommandResult::Error(
@@ -13682,7 +13682,7 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
             if rows.is_empty() {
                 return CommandResult::Output(format!("  no crates matching '{}'", query));
             }
-            let _ = std::fs::write("/tmp/fsh-crate-search.json", text.as_bytes());
+            let _ = std::fs::write("/tmp/nsh-crate-search.json", text.as_bytes());
             let mut lines = vec![format!(
                 "  \u{1f4e6} crates.io matches for '{}' ({})",
                 query,
