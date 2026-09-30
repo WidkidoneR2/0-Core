@@ -2441,7 +2441,79 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30, 6B3 DONE -- PASS 7 NEXT -- START HERE
+## 2026-09-30, PASS 7 DONE -- START HERE
+
+READ THIS FIRST. It supersedes the 6B3 DONE section below; that section's rulings, findings and method
+stand unless this says otherwise. Written only if HEAD was 7a328a4a, clean and pushed, the four commits
+below exist, each of the five directories is real with no old name beside it, the Success Criteria read
+11 ticked and 7 open, and the NixOS count below matched.
+
+### Done -- pushed
+
+```text
+    c4c09481   the 6B3 DONE record
+    0475640d   PHILOSOPHY rewritten by Christian for Omarchy and Project 0; the comparison table restored
+    aeffdd14   PHILOSOPHY names declarative Linux, not NixOS; its forest and Faelight lines gone;
+               docs/public regenerated -- index.md's title still said Faelight Forest Documentation
+    7a328a4a   PASS 7: the five compatibility links are gone
+```
+
+### Pass 7 -- what changed
+
+```text
+    probe        Zero Paths (id zero_alias): state, config, cache and share must be real zero
+                 directories and ~/.config/nsh real, with the old name absent -- a link or a directory
+                 under an old name is a finding; unreadable is reported as unreadable, never absent
+    hint         the recovery hint no longer says to recreate a link
+    devshell     devshell-lib snapshots .local/state/zero
+    docs         AGENTS.md and PHILOSOPHY describe one name each
+    disk         the five links removed after ship deployed the new probe; config.toml state_dir and
+                 term.toml's path comment say zero (both files made writable for the edit, back to 0444);
+                 the .bashrc comment names nsh only; six stale config backups deleted
+    doors        d 0 failed, Zero Paths "5 directories, one name each"; zero-doctor 60 passed;
+                 nsh-test 202/202 with both devshell cases
+```
+
+### Gates -- 11 of 18, unchanged. Pass 7 proves no gate by itself.
+
+NO NIXOS is the nearest: 9 lines in 4 files remain, intents and CHANGELOGs excluded.
+
+```text
+    AGENTS.md                   1   :40, the missing Omarchy recovery runbook
+    friday/mod.rs               3   :142, :1007, :1009 -- comments
+    registry/tools.toml         3   :29, :93, :103 -- read whether each sits in a retired entry
+    HackNerdFont-Regular.ttf    2   the font's own glyph names; zero-core paths.rs loads the font.
+                                    Recommended: exempt as third-party data. NOT YET RULED
+```
+
+### Found on the way, not fixed
+
+```text
+    ~/.config/zero       config.toml, term.toml, themes.toml are 0444 by mode -- who sets it is not
+                         known; config.toml theme = "faelight-forest" and the themes.toml sections;
+                         term.toml belongs to the retired faelight-term; profiles.toml's header.
+                         A config pass with reader recon first
+    checkpoint/mod.rs    :580 keeps only btrfs lines containing faelight, after a sudo call -- pass 4 class
+    novashell            generate-history-inventory.py:24 points at the faelight/ tree INT-252 moved
+    zero/meta            binary-size-baseline.txt says faelight-shell=11.0; nothing reads it
+    history              ~/.cache/zero/friday.log and the state checkpoints name old tools -- history
+    the method           a plan must check write access on every target: the pass 7 apply wrote five
+                         files and stopped at a 0444 file. The resume script checked modes first
+```
+
+### Next, in order
+
+```text
+    1  NO NIXOS: the 9 lines above and the font ruling -- then tick the gate with the count
+    2  UNREADABLE: open_state_db() in zero-core, recon of every state reader first
+    3  pass 8: INT-267 tree and INT-252
+    4  pass 9: docs; the fsh comments and the nsh builtin description; nl.rs's 12 context lines;
+       the ~/.config/zero config pass above
+    5  pass 10: the guard, the kept aliases, nsh-test case names
+    6  inventory, COUNT, path audit; cicomplete 247 and 252
+```
+
+## 2026-09-30, 6B3 DONE -- PASS 7 NEXT -- SUPERSEDED 2026-09-30 by the PASS 7 DONE section above
 
 READ THIS FIRST. It supersedes the PASS 6 section below; that section's rulings, findings and method
 stand unless this says otherwise. Written only if HEAD was 2bccddf0, clean and pushed, the three
