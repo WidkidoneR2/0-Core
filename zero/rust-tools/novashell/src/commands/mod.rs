@@ -11479,6 +11479,25 @@ fn describe_cmd(db: &StateDb, args: &[&str], core_root: &str) -> CommandResult {
 
 fn command_cmd(db: &StateDb, args: &[&str], core_root: &str) -> CommandResult {
     let sub = args.first().copied().unwrap_or("list");
+    // POSIX `command` takes flags (-v, -V, -p); this builtin is the registry inspector and
+    // takes subcommands, so `command -v NAME` was refused as an unknown subcommand. A flag
+    // means the user wants POSIX `command`: defer to sh, the same shape as cat (INT-217).
+    // Each argument is single-quoted, so nothing in it is parsed as shell syntax.
+    if sub.starts_with('-') {
+        let quoted: Vec<String> = args
+            .iter()
+            .map(|a| format!("'{}'", a.replace('\'', "'\\''")))
+            .collect();
+        let posix = format!("command {}", quoted.join(" "));
+        return match crate::db::spawn_sh_with_leak_check(&posix) {
+            Ok(s) if s.success() => CommandResult::Empty { suspension: None },
+            Ok(s) => {
+                let code = crate::exit_status_code(&s);
+                CommandResult::Error(format!("command: exited with code {}", code).into(), code)
+            }
+            Err(e) => CommandResult::Error(format!("command: {}", e).into(), 1),
+        };
+    }
     let mut reg = crate::registry::Registry::new();
     reg.populate(db, core_root);
 
