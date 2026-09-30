@@ -259,24 +259,9 @@ pub fn cmd_readme_tools_dryprint() {
     );
 }
 
-// INT-111/037: strip a leading "INT-NNN:" or "INT-NNN " prefix from a commit subject,
-// so auto-seeded changelogs never expose internal intent numbers on public READMEs.
-fn strip_int_prefix(subject: &str) -> String {
-    let t = subject.trim();
-    if let Some(rest) = t.strip_prefix("INT-") {
-        // skip the digits, then an optional ':' or ' ' separator
-        let after_num: String = rest
-            .chars()
-            .skip_while(|c| c.is_ascii_digit() || *c == '-')
-            .collect();
-        return after_num.trim_start_matches([':', ' ']).trim().to_string();
-    }
-    t.to_string()
-}
-
 // INT-111/037: the Changelog SECTION embedded in a tool's README.
 // Curated source: {tool}/CHANGELOG.md (hand-written, version-grouped, emoji'd) -- linked from the README, never copied into it.
-// Fallback: auto-seed from git history with INT-numbers stripped (presentable until curated).
+// No CHANGELOG.md: the README says so -- git history is never copied into it.
 fn render_changelog_section(m: &ToolMeta) -> String {
     let mut out = String::new();
     out.push_str("## \u{1f4dd} Changelog\n\n");
@@ -293,27 +278,8 @@ fn render_changelog_section(m: &ToolMeta) -> String {
         out.push_str("See [CHANGELOG.md](./CHANGELOG.md).\n\n");
         return out;
     }
-    // Fallback: auto-seed from git, INT-numbers stripped.
-    let hist = tool_history(&m.name, 12);
-    if hist.is_empty() {
-        out.push_str("_No changelog yet._\n\n");
-    } else {
-        out.push_str(&format!(
-            "### \u{1f331} {}\n\n",
-            if m.version.is_empty() {
-                "current"
-            } else {
-                &m.version
-            }
-        ));
-        for (_hash, subj) in &hist {
-            let clean = strip_int_prefix(subj);
-            if !clean.is_empty() {
-                out.push_str(&format!("- {}\n", clean));
-            }
-        }
-        out.push_str("\n> _Auto-seeded from history; curated entries coming._\n\n");
-    }
+    // INT-247: no CHANGELOG.md means no changelog -- git subjects are never copied into a README.
+    out.push_str("_No changelog yet._\n\n");
     out
 }
 

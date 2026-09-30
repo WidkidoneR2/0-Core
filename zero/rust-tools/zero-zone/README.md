@@ -10,22 +10,7 @@ Zone detection - identify numbered gravity zones
 
 ## 📝 Changelog
 
-### 🌱 2.1.0
-
-- docs: bring the engine (core) into the self-maintaining README pipeline.…
-- COMPLETE: versioning loop closed + demonstrated live. cicomplete 111…
-- docs: regenerate all 35 per-tool READMEs + index with the new format. Each: 🌲…
-- README: Morphwood teaser (temporary) + remove 35 stale auto-dump CHANGELOG.md…
-- Phase 1: move engine/ + rust-tools/ -> faelight/ (charter tree 96-98).…
-- generate 39 per-tool CHANGELOGs (NixOS migration entry + git history)
-- generate 39 per-tool READMEs + rust-tools index (first full pass)
-- GitHub tree cleanup: removed 14 backup files, foot stow package, Zellij layout,…
-- Friday Architecture v2 -- INT-297: cargo-deny fully configured --…
-- feat: Change Scratch icon to 🌿 and hide username in paths for privacy
-- zero-zone v2.1.0 - Production ready with Quick Wins
-- Workspace-wide quality improvements - Zero clippy warnings
-
-> _Auto-seeded from history; curated entries coming._
+_No changelog yet._
 
 ---
 

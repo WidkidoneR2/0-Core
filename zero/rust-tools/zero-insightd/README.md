@@ -10,11 +10,7 @@ Background awareness daemon — the nervous system of Faelight Forest
 
 ## 📝 Changelog
 
-### 🌱 0.1.0
-
-- COMPLETE: faelight-contextd -> faelight-insightd (rename + revive);…
-
-> _Auto-seeded from history; curated entries coming._
+_No changelog yet._
 
 ---
 
