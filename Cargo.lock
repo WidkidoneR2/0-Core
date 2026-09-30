@@ -3813,24 +3813,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zero-release"
-version = "1.0.4"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossterm 0.28.1",
- "dirs",
- "libc",
- "ratatui 0.29.0",
- "rusqlite",
- "serde",
- "serde_json",
- "toml",
- "zero-core",
-]
-
-[[package]]
 name = "zero-sandbox"
 version = "3.0.0"
 dependencies = [

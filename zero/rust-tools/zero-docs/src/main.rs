@@ -1,9 +1,9 @@
 // zero-docs v2.0.0 — Living Documentation Engine
 // INT-145 — Keeps README and welcome message in sync with live state
 //
-// BOUNDARY RULE: zero-release owns README lines 1-37 (dynamic section)
+// BOUNDARY RULE: README lines 1-37 (the DYNAMIC section) are hand-maintained --
 //                zero-docs owns README lines 38+ (static section)
-//                These two tools NEVER cross this boundary.
+//                zero-release wrote them until INT-247 retired it; zero-docs never does.
 //
 // Commands:
 //   sync     — update all docs from live state
@@ -984,12 +984,8 @@ fn cmd_help() {
     }
     println!();
     println!(
-        "  {} zero-release calls zero-docs sync automatically",
+        "  {} README lines 1-37 are hand-maintained",
         "Note:".dimmed()
-    );
-    println!(
-        "  {} README lines 1-37 are owned by zero-release",
-        "     ".dimmed()
     );
     println!();
 }
