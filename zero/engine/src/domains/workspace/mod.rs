@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
-use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use chrono::{DateTime, Duration, Local};
 use colored::*;

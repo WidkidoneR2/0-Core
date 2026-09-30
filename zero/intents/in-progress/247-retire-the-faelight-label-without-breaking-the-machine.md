@@ -2986,11 +2986,12 @@ and the apply's own proof that the comment-stripped files are identical before a
       contains Forest or Faelight in any case
 - [ ] NO NIXOS, ruled 2026-09-28: no live file names NixOS, nixos-rebuild, flake.nix, build-vm or
       /nix/ -- code, comments and the WAS REMOVED HERE tombstone notes included; history exempt
-- [ ] NO ZOMBIE CODE, ruled 2026-09-28: no live code spawns a retired or absent binary, reads a
+- [x] NO ZOMBIE CODE, ruled 2026-09-28: no live code spawns a retired or absent binary, reads a
       path nothing writes, sits on a path nothing reaches, or leaves a child unreaped. A guard
       reads tools.toml's retired names and fails on any Command::new naming one -- seen red first.
       The dead-path finding (execute_and_record's timing and notification) is resolved: rewired
       onto the path commands take, or deleted
+    <!-- evidence: 2026-09-29: zero-gate retired-spawns gate green on the tree (seen red first on a zero-release probe, bc20fdb8); every spawned name absent from PATH is a third-party optional tool whose absence is reported or skipped: bacon, cargo-cache, flatpak, pip, pipx, rustup; discarded spawns in nsh and zero-daemon reaped on threads; execute_and_record timing and notification rewired onto the spine via record_timing (2e7c6ebf); the pass-4 zombie list resolved in b627f4d4, eceb401d, f4d74c48, bc20fdb8 and 2e7c6ebf -->
 - [x] /ETC/FAELIGHT: no live file names /etc/faelight. What /etc/zero holds, and the system-run
       writer that writes it, is INT-268's
     <!-- evidence: 2026-09-29, over every tracked file with history (the five history intent dirs, CHANGELOGs) and live intents (ruling B) excluded: 0 lines name /etc/faelight; AGENTS.md's was the last -->
