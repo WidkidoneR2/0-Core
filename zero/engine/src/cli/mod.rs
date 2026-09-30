@@ -310,15 +310,6 @@ pub fn parse() -> Command {
             },
         }),
         Commands::Workspace { command } => Command::Workspace(match command {
-            WorkspaceCommands::View {
-                active,
-                summary,
-                json,
-            } => WorkspaceCommand::View {
-                active,
-                summary,
-                json,
-            },
             WorkspaceCommands::Recent {
                 range,
                 limit,

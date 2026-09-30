@@ -1809,6 +1809,60 @@ impl Engine {
     }
 }
 
+/// Command timing intelligence (INT-194): the TIMING history row, the slower-than-usual
+/// warning and the long-command notification. ONE OWNER, called by execute_and_record and
+/// by the spine path in main.rs. It lived only in execute_and_record, which spine-claimed
+/// lines skip, so for most commands it never ran (INT-247 NO ZOMBIE, the dead-path finding).
+pub fn record_timing(engine: &Engine, base_cmd: &str, elapsed_ms: i64) {
+    let cmd_key_owned = crate::commands::command_word(&base_cmd);
+    let cmd_key = cmd_key_owned.as_str();
+    if elapsed_ms > 500 {
+        let _ = engine.db().conn.execute(
+            "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+            rusqlite::params![
+                format!("TIMING:{}:{}", cmd_key, elapsed_ms),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+            ],
+        );
+        let avg_ms: Option<f64> = engine.db().conn.query_row(
+            "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
+             FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
+            rusqlite::params![format!("TIMING:{}:%", cmd_key)],
+            |r| r.get(0)
+        ).ok().flatten();
+        if let Some(avg) = avg_ms {
+            if avg > 100.0 && elapsed_ms as f64 > avg * 2.0 {
+                println!(
+                    "  {} {} took {}ms — {:.0}x slower than usual ({:.0}ms avg)",
+                    "⚠️ ".normal(),
+                    cmd_key.bright_yellow(),
+                    elapsed_ms,
+                    elapsed_ms as f64 / avg,
+                    avg
+                );
+            }
+        }
+        // Long command notification -- >30s fires notify-send
+        if elapsed_ms > 30_000 {
+            let secs = elapsed_ms / 1000;
+            let msg = format!("{} finished in {}s", cmd_key, secs);
+            // INT-299: reap child in thread to prevent zombie process
+            if let Ok(mut child) = std::process::Command::new("notify-send")
+                .arg("Long command finished")
+                .arg(&msg)
+                .spawn()
+            {
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+            }
+        }
+    }
+}
+
 /// INT-201: execute one already-prepared segment and record its lifecycle.
 ///
 /// ⚠️ EXTRACTION ONLY -- the advisory calls deliberately stay in the loop, in their existing
@@ -2068,57 +2122,13 @@ pub fn execute_and_record(
     {
         eprintln!("warning: failed to close command_execution record: {e}");
     }
-    // Command timing intelligence — warn if command is unusually slow (INT-194)
-    {
-        let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
-        let cmd_key_owned = crate::commands::command_word(&base_cmd);
-        let cmd_key = cmd_key_owned.as_str();
-        if elapsed_ms > 500 {
-            let _ = engine.db().conn.execute(
-                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-                rusqlite::params![
-                    format!("TIMING:{}:{}", cmd_key, elapsed_ms),
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or(0)
-                ],
-            );
-            let avg_ms: Option<f64> = engine.db().conn.query_row(
-                "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
-                 FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
-                rusqlite::params![format!("TIMING:{}:%", cmd_key)],
-                |r| r.get(0)
-            ).ok().flatten();
-            if let Some(avg) = avg_ms {
-                if avg > 100.0 && elapsed_ms as f64 > avg * 2.0 {
-                    println!(
-                        "  {} {} took {}ms — {:.0}x slower than usual ({:.0}ms avg)",
-                        "⚠️ ".normal(),
-                        cmd_key.bright_yellow(),
-                        elapsed_ms,
-                        elapsed_ms as f64 / avg,
-                        avg
-                    );
-                }
-            }
-            // Long command notification -- >30s fires notify-send
-            if elapsed_ms > 30_000 {
-                let secs = elapsed_ms / 1000;
-                let msg = format!("{} finished in {}s", cmd_key, secs);
-                // INT-299: reap child in thread to prevent zombie process
-                if let Ok(mut child) = std::process::Command::new("notify-send")
-                    .arg("Long command finished")
-                    .arg(&msg)
-                    .spawn()
-                {
-                    std::thread::spawn(move || {
-                        let _ = child.wait();
-                    });
-                }
-            }
-        }
-    }
+    // Command timing intelligence (INT-194): one owner, record_timing, shared with the
+    // spine path in main.rs.
+    record_timing(
+        engine,
+        &base_cmd,
+        _cmd_timer_start.elapsed().as_millis() as i64,
+    );
     // Store last output for `last` command (INT-194)
     if let Some(ref out) = cmd_output {
         if !out.is_empty() {

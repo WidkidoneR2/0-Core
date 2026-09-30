@@ -400,11 +400,6 @@ pub enum GitCommand {
 
 #[derive(Debug)]
 pub enum WorkspaceCommand {
-    View {
-        active: bool,
-        summary: bool,
-        json: bool,
-    },
     Recent {
         range: String,
         limit: u32,

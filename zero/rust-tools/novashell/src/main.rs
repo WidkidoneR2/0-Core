@@ -1616,6 +1616,7 @@ fn run_input(
         // the line, which is what INT-191's own rule demands: postexec cannot own this,
         // because it never runs for a blocked command. One owner, above the fork.
         let lifecycle_exec_id = crate::exec::next_execution_id();
+        let spine_timer = std::time::Instant::now();
         {
             let started_at = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1717,12 +1718,18 @@ fn run_input(
                             executed_text: Some(line),
                             state: st,
                             exit_code: engine.last_exit(),
-                            duration_ms: None,
+                            duration_ms: Some(spine_timer.elapsed().as_millis() as u64),
                             finished_at,
                         })
                 {
                     eprintln!("warning: failed to close command_execution record: {e}");
                 }
+                // INT-247: the timing intelligence execute_and_record owned, on the path commands take
+                crate::engine::record_timing(
+                    &engine,
+                    line,
+                    spine_timer.elapsed().as_millis() as i64,
+                );
 
                 // INT-251: WRITE THE CARET STATUS HERE TOO, for exactly the reason the lifecycle
                 // close above sits here rather than in execute_and_record.

@@ -7,28 +7,7 @@ use colored::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use walkdir::WalkDir;
-
-// ── view: delegates to workspace-view (swaymsg TUI) ──────────────────────────
-pub fn view(_ctx: &AppContext, active: bool, summary: bool, json: bool) -> CoreResult<()> {
-    _ctx.capabilities.require(
-        "workspace",
-        &[Capability::FilesystemReadHome, Capability::SpawnProcess],
-    )?;
-    let mut args = vec![];
-    if active {
-        args.push("--active");
-    }
-    if summary {
-        args.push("--summary");
-    }
-    if json {
-        args.push("--json");
-    }
-    Command::new("workspace-view").args(&args).status()?;
-    Ok(())
-}
 
 // ── recent: native walkdir implementation ────────────────────────────────────
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

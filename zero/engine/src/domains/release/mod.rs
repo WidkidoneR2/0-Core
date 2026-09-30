@@ -2,7 +2,6 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::CoreResult;
-use colored::*;
 use std::fs;
 
 pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {

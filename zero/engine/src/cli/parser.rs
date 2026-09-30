@@ -808,14 +808,6 @@ pub enum GitCommands {
 
 #[derive(Subcommand)]
 pub enum WorkspaceCommands {
-    View {
-        #[arg(long)]
-        active: bool,
-        #[arg(long)]
-        summary: bool,
-        #[arg(long)]
-        json: bool,
-    },
     Recent {
         #[arg(default_value = "today")]
         range: String,

@@ -95,12 +95,6 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
             "HIGH".to_string(),
         ));
     }
-    proposed.push((
-        "Retire redundant tools absorbed by core/shell".to_string(),
-        "workspace-view replaced by shell pipelines".to_string(),
-        "Run: core evolution tools — review dormant tools".to_string(),
-        "LOW".to_string(),
-    ));
     println!("  {} goal(s) proposed from evidence:", proposed.len());
     println!();
     let now = chrono::Utc::now().timestamp();

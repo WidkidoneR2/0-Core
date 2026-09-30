@@ -257,11 +257,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ctx.capabilities
                 .require("workspace", &[Capability::FilesystemReadHome])?;
             match c {
-                WorkspaceCommand::View {
-                    active,
-                    summary,
-                    json,
-                } => crate::domains::workspace::view(ctx, active, summary, json),
                 WorkspaceCommand::Recent {
                     range,
                     limit,
