@@ -2441,7 +2441,61 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-29 NIGHT, STATEDB, PACE, NIXOS-ERA CRATES AND NO NIXOS A-C1 -- START HERE
+## 2026-09-30 LATE NIGHT, NO ZOMBIE, /ETC/FAELIGHT, ZERO-RELEASE, 5E PARTS 1-2A -- START HERE
+
+READ THIS FIRST. It supersedes the NIGHT record below; its rulings and method stand unless this says
+otherwise. Written only if HEAD was 4ee4309c, pushed, clean, with /ETC/FAELIGHT and NO ZOMBIE ticked.
+
+### Done -- all pushed, every commit through its doors
+
+```text
+    a8c82a88 a1e9aae6   generated READMEs: link CHANGELOG.md, never copy git subjects
+    6fa86814            nsh: command -v defers to POSIX command
+    3bc41fd0 d3201691   zero-release and core release bump-system retired
+    b627f4d4 .. 2e7c6ebf  pass 4 (4A-4E): zombies, reaping class, bump-tool and workspace view retired,
+                        zero-gate retired-spawns gate (seen red first), record_timing on the spine
+    bc20fdb8            /ETC/FAELIGHT TICKED        efac04ac   NO ZOMBIE TICKED
+    76c302bf e1f74501   5E parts 1 and 2a: user-facing text and nsh:: codes, /tmp/nsh-* files
+    4ee4309c            forest-stats, fstats, fsh-gaps gone; dead pkg-search completion gone
+```
+
+### Gates -- 11 of 18 ticked
+
+```text
+    open   inventory, COUNT, path audit; UNREADABLE; NO NIXOS (PHILOSOPHY + Friday NixOS rows);
+           exemptions and FINISH LINE (pass 10)
+```
+
+### Rulings 2026-09-29/30
+
+```text
+    bump-tool retired (its binary never existed; cicomplete never called it) -- Christian shows how
+    tools are bumped after 247. forest-stats/fstats/fsh-gaps removed now. Zero compiler warnings is a door.
+```
+
+### Next, in order
+
+```text
+    1  5E remainder: fsh in comments -- ask Christian now or pass 9; nsh-test names stay for pass 10
+    2  pass 6 schema with a rehearsed rollback
+    3  UNREADABLE: open_state_db() in zero-core
+    4  passes 7-10; PHILOSOPHY is Christian's
+    5  inventory, COUNT, path audit; cicomplete 247 and 252
+```
+
+### Failures this session, and the rule each earned
+
+```text
+    traceback   hand-copied 5,000-char payload damaged -> small payloads, byte-check the reply text,
+                installer guarded so damage prints REFUSE, never a traceback
+    refuses     missed caller (goals/mod.rs) -> sweep the whole tree before retiring a name;
+                5E counts from a comment-blind census -> count every fragment in the real tree first;
+                d inside bash -c -> doors run in nsh; unused imports -> warnings checked every removal
+```
+
+### ~/.cache/zero: keep census, gaterecon, nixrecon2, pass5c, passreload; this session's one-offs go.
+
+## 2026-09-29 NIGHT, STATEDB, PACE, NIXOS-ERA CRATES AND NO NIXOS A-C1 -- SUPERSEDED 2026-09-30
 
 READ THIS FIRST WHEN PICKING UP. It supersedes the EVENING record below, whose rulings, held lines and
 method still stand except where this section says otherwise. The script that wrote this refused unless
