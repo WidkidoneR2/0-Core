@@ -9,5 +9,4 @@
 - [Philosophy](PHILOSOPHY.md)
 - [Shell Philosophy](NSH-PHILOSOPHY.md)
 - [Design System](design-system.md)
-- [Resilience Guide](forest-resilience.md)
 - [Shell Reference](NOVASHELL.md)

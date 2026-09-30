@@ -145,7 +145,6 @@ fn cmd_public(dry_run: bool) {
         ("PHILOSOPHY.md", "Philosophy"),
         ("NSH-PHILOSOPHY.md", "Shell Philosophy"),
         ("design-system.md", "Design System"),
-        ("forest-resilience.md", "Resilience Guide"),
         ("NOVASHELL.md", "Shell Reference"),
     ];
 
