@@ -14,6 +14,8 @@ pub mod error;
 #[cfg(feature = "ui")]
 pub mod glyph;
 pub mod paths;
+#[cfg(feature = "db")]
+pub mod state_db;
 pub mod theme;
 #[cfg(feature = "ui")]
 pub mod wayland;

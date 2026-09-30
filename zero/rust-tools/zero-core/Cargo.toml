@@ -12,11 +12,15 @@ edition = "2021"
 [features]
 default = []
 ui = ["dep:fontdue", "dep:wayland-client"]
+# INT-247: the ledger opener (src/state_db.rs). Off by default; a crate that opens
+# state.db enables it, and nothing else pays for rusqlite.
+db = ["dep:rusqlite"]
 
 [dependencies]
 libc = { workspace = true }
 fontdue = { version = "0.9", optional = true }
 thiserror = "1.0"
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
 wayland-client = { version = "0.31", optional = true }
 
 [dev-dependencies]
