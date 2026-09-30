@@ -275,7 +275,7 @@ fn strip_int_prefix(subject: &str) -> String {
 }
 
 // INT-111/037: the Changelog SECTION embedded in a tool's README.
-// Curated source: {tool}/CHANGELOG.md (hand-written, version-grouped, emoji'd) -- embedded verbatim.
+// Curated source: {tool}/CHANGELOG.md (hand-written, version-grouped, emoji'd) -- linked from the README, never copied into it.
 // Fallback: auto-seed from git history with INT-numbers stripped (presentable until curated).
 fn render_changelog_section(m: &ToolMeta) -> String {
     let mut out = String::new();
@@ -287,16 +287,10 @@ fn render_changelog_section(m: &ToolMeta) -> String {
         format!("zero/rust-tools/{}/CHANGELOG.md", m.name)
     };
     let curated_path = core_root().join(&rel);
-    if let Ok(curated) = std::fs::read_to_string(&curated_path) {
-        // Embed the curated body (skip a leading top-level "# ..." title if present;
-        // the README already titles the tool).
-        let body: String = curated
-            .lines()
-            .skip_while(|l| l.trim_start().starts_with("# "))
-            .collect::<Vec<_>>()
-            .join("\n");
-        out.push_str(body.trim());
-        out.push_str("\n\n");
+    if curated_path.is_file() {
+        // INT-247: the README links the curated CHANGELOG.md instead of embedding it,
+        // so the history it carries lives in one place and is never copied.
+        out.push_str("See [CHANGELOG.md](./CHANGELOG.md).\n\n");
         return out;
     }
     // Fallback: auto-seed from git, INT-numbers stripped.

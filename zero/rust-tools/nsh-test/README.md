@@ -10,43 +10,7 @@ nsh permanent regression suite
 
 ## 📝 Changelog
 
-### 🌲 2.0.0 -- the number means something
-
-The suite decides when the shell is safe to deploy. Before this, it printed a number that moved
-between runs on identical code. Three faults, all measured, all fixed.
-
-**The capture takes a window, not a tail.** Output was read as everything after the last
-bracketed-paste marker, which swept up the next prompt redraw -- so three conformance cases recorded
-the shell's own prompt, powerline glyphs and all, and compared it against bash's empty string. Those
-were never language divergences. The capture is now bounded between two markers.
-
-**It waits instead of sleeping.** Every delay was a guess about machine speed: settle for two and a
-half seconds, then more than a second per line, then drain, then sleep again. Run the suite while
-cargo is compiling and the guesses stop holding. It now waits for the shell to say it is ready, and
-pastes input rather than typing it a character at a time. **299 seconds became roughly 50.**
-
-**A case can choose which door it knocks on.** Every case went through `fsh -c`, which hands the
-whole string to `sh` -- so the suite was partly measuring `sh` and calling it fsh. Cases now run
-against the real interactive shell, and a case may set its own environment, which makes it possible
-to pin legacy behaviour and spine behaviour in the same run.
-
-**Conformance compares exit status, not just output.** Agreement now means stdout AND status match
-bash, with three verdicts rather than pass/fail: agrees, differs for a recorded reason, differs and
-nobody wrote down why. The last is the only one that fails.
-
-**And it guards every push.** A push touching shell or harness sources builds and runs the suite
-against the code being pushed. Red means the push does not happen.
-
-⚠️ **One trap worth knowing.** The suite's isolation between cases is not designed -- it is a side
-effect of each shell pruning aliases that are absent from `config.fsh`. A stray `NSH_CONFIG` in your
-environment pointing at a small config disables that pruning, and one case's alias will leak into
-later ones. If several unrelated cases fail at once, check your environment before your change.
-
-### 🌱 1.0.0
-
-The original regression suite: 82 cases run through `fsh -c`, covering tilde expansion, pipes,
-redirects, heredocs, the forest vocabulary, and a growing set of regressions. It proved the shell
-kept working. Making it prove that reliably took 2.0.
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
