@@ -2441,7 +2441,68 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30, PASS 6 -- THE SCHEMA AND FRIDAY'S KNOWLEDGE -- START HERE
+## 2026-09-30, 6B3 DONE -- PASS 7 NEXT -- START HERE
+
+READ THIS FIRST. It supersedes the PASS 6 section below; that section's rulings, findings and method
+stand unless this says otherwise. Written only if HEAD was 2bccddf0, clean and pushed, the three
+commits below carry the subjects named, the five compatibility links were links on disk, the
+Success Criteria read 11 ticked and 7 open, and the NixOS count below matched.
+
+### Done since the PASS 6 record -- pushed
+
+```text
+    d6d7adb2   the PASS 6 record; it named 6B3 next
+    692ed5ac   AGENTS.md trimmed to the working rules; tables restored, four facts corrected
+    2bccddf0   6B3 DONE: ship runs nsh --refresh-cheatsheet after it ships nsh. The 6B3 run
+               reported 245 aliases and 105 builtins in the registry
+```
+
+### Gates -- 11 of 18 ticked, unchanged
+
+```text
+    open   inventory, COUNT, path audit; UNREADABLE; NO NIXOS; exemptions and FINISH LINE
+```
+
+### NO NIXOS at 2bccddf0 -- 23 lines in 6 files, intents and CHANGELOGs excluded
+
+```text
+    docs/PHILOSOPHY.md          7   Christian's rewrite
+    docs/public/PHILOSOPHY.md   7   generated from docs/ -- regenerated, never hand-edited
+    friday/mod.rs               3   :142 a doc comment naming the nixos and forest domains;
+                                    :1007 and :1009, the comment the PASS 6 record placed at :1011
+    registry/tools.toml         3   :29 and :103 descriptions, :93 a comment -- whether each
+                                    sits in a retired = true entry (exempt) is read before editing
+    AGENTS.md                   1   :40, the missing Omarchy recovery runbook
+    HackNerdFont-Regular.ttf    2   the font's own glyph names (dev-nixos, linux-nixos):
+                                    third-party data. Exempt or not -- NOT YET RULED
+```
+
+### Next, in order
+
+```text
+    1  PASS 7 -- the compatibility links:
+         ~/.local/state/faelight -> zero      ~/.config/faelight -> zero
+         ~/.cache/faelight -> zero            ~/.local/share/faelight -> zero
+         ~/.config/faelight-shell -> nsh
+       Recon first: every caller outside the Rust code (config.nsh, Hyprland, ~/.local/bin,
+       systemd user units, rc files, crontab -- guard for its absence), and zero-doctor's
+       Zero Alias probe read before it is changed. The probe changes in the SAME step as the
+       removal, so d stays green
+    2  UNREADABLE: open_state_db() in zero-core
+    3  pass 8: INT-267 tree and INT-252
+    4  pass 9: docs; the fsh comments, the nsh builtin description with them; the NixOS lines
+       above; nl.rs's 12 context "forest" lines (recon first); PHILOSOPHY is Christian's
+    5  pass 10: the guard, the kept aliases, nsh-test case names
+    6  inventory, COUNT, path audit; cicomplete 247 and 252
+```
+
+### Found, not fixed
+
+```text
+    carried   the three lines of the PASS 6 section: friday/mod.rs:258, events/mod.rs:221, d trend
+```
+
+## 2026-09-30, PASS 6 -- THE SCHEMA AND FRIDAY'S KNOWLEDGE -- SUPERSEDED 2026-09-30 by the 6B3 DONE section above
 
 READ THIS FIRST. It supersedes the LATE NIGHT section below; its rulings and method stand unless this
 says otherwise. Written only if HEAD was 15492582, clean and pushed, the four pass-6 commits carry
