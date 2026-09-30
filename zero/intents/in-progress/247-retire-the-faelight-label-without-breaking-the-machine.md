@@ -2441,7 +2441,83 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30 LATE NIGHT, NO ZOMBIE, /ETC/FAELIGHT, ZERO-RELEASE, 5E PARTS 1-2A -- START HERE
+## 2026-09-30, PASS 6 -- THE SCHEMA AND FRIDAY'S KNOWLEDGE -- START HERE
+
+READ THIS FIRST. It supersedes the LATE NIGHT section below; its rulings and method stand unless this
+says otherwise. Written only if HEAD was 15492582, clean and pushed, the four pass-6 commits carry
+Intent INT-247, and state.db holds no forest table and no Friday row naming forest, faelight, nixos or fsh.
+
+### Done -- all pushed, every commit through its doors
+
+```text
+    18e1f3d8   6A    nine forest_* tables renamed in one transaction: zero_events (events was taken),
+                     events_v2, goals, insights, mandates, plans, predictions, strategies, tradeoffs;
+                     143 SQL, name and label sites in 26 files. Backup state.db.pre-pass6-20260930T045915
+    (data)           forest_memory dropped -- 4 rows, no code named it; the pass-6 backup holds them
+    0000eac5   6B1   goal title; nsh::delete; knowledge source 'lesson'; the NixOS knowledge entry and
+                     release_triad removed
+    97bddede   6B2a  Friday's project domain is zero; seven seeds rewritten true; NixOS translations and
+                     seeds gone; Arch facts restored and systemd facts moved to domain linux;
+                     intelligence_name is Ground State
+    15492582   6B2b  27 Friday rows about retired tools or untrue facts deleted; zero-git, zero-daemon,
+                     events_v2 and vocabulary rows reworded; two duplicate seeds removed
+```
+
+### Gates -- 11 of 18 ticked, unchanged this session
+
+```text
+    open   inventory, COUNT, path audit; UNREADABLE; NO NIXOS (comments, docs, PHILOSOPHY);
+           exemptions and FINISH LINE (pass 10)
+```
+
+### Rulings 2026-09-30
+
+```text
+    tables   plain words; zero_* only on a collision (zero_events). Log tables are history
+    Friday   intelligence_name is Ground State. Project facts live in domain zero, Linux facts in
+             linux. cistart starts an intent; cicomplete closes it once every gate is proven
+    fsh      the name is nsh. The 260 fsh comment lines (37 files) are recommended for pass 9, with
+             the 223 string and code lines as their own pass -- the timing is not ruled
+```
+
+### Next, in order
+
+```text
+    1  6B3 command_registry: 285 alias rows say config.fsh and 13 command rows say faelight-shell.
+       Recon what rebuilds the table (novashell cheatsheet_tui.rs:185-290) before any plan
+    2  pass 7: the compatibility links and zero-doctor's link probe
+    3  UNREADABLE: open_state_db() in zero-core
+    4  pass 8: INT-267 tree and INT-252
+    5  pass 9: docs; the fsh comments; the NixOS comments (friday/mod.rs:1011); nl.rs's 12
+       context "forest" lines (recon first); PHILOSOPHY is Christian's
+    6  pass 10: the guard, the kept aliases, nsh-test case names
+    7  inventory, COUNT, path audit; cicomplete 247 and 252
+```
+
+### Found, not fixed
+
+```text
+    friday/mod.rs:258   seed "fg commit after changes" -- stale, INT-265
+    events/mod.rs:221   doc comment names `core events status`, which prints the JSONL event log;
+                        StatusV2 is the events_v2 verb -- INT-265
+    d trend             "Declining health with no active work" follows door runs on a dirty tree
+```
+
+### Failures this session, and the rule each earned
+
+```text
+    transport   a 7.4k one-line payload arrived damaged -> over ~2.5k, install in sha-checked chunks
+                to ~/.cache/zero/<name>-<sha>.py and run it by name; fix an installed script with a
+                small checked in-place line, never a resend
+    formatter   6A committed +158/-160: the hook reformatted after the tests ran -> rustfmt the
+                touched files inside the apply, before the build
+    patterns    a seed regex assumed the line shape -> read the real bytes with repr first
+    doors       a door named a verb from its doc comment -> read the dispatch before naming a door
+```
+
+### ~/.cache/zero: this session's b62 and b63 scripts were deleted by the script that wrote this.
+
+## 2026-09-30 LATE NIGHT, NO ZOMBIE, /ETC/FAELIGHT, ZERO-RELEASE, 5E PARTS 1-2A -- SUPERSEDED 2026-09-30 by the PASS 6 section above
 
 READ THIS FIRST. It supersedes the NIGHT record below; its rulings and method stand unless this says
 otherwise. Written only if HEAD was 4ee4309c, pushed, clean, with /ETC/FAELIGHT and NO ZOMBIE ticked.
