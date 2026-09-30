@@ -1212,7 +1212,7 @@ fn execute_dispatch(
         // INT-177 — Shell Observability
         "observe" => observe_cmd(db, args),
         "memory" => memory_cmd(db, args),
-        "zero-stats" | "zstats" | "forest-stats" | "fstats" => zero_stats_cmd(db, core_root, args),
+        "zero-stats" | "zstats" => zero_stats_cmd(db, core_root, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "explain" => explain_cmd(db, core_root, args),
@@ -6637,7 +6637,7 @@ fn fsh_gaps(db: &StateDb) -> CommandResult {
             "  {} {} x python patch  ->  try: {}\n",
             "⚡".yellow(),
             py_patch.to_string().bright_yellow(),
-            "fsh-patch target old.rs new.rs  (no unicode escape issues)".bright_cyan()
+            "patch <file> --old <text> --new <text>".bright_cyan()
         ));
         any_gaps = true;
     }
@@ -11264,10 +11264,7 @@ fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
         "quit",
         "zero-stats",
         "zstats",
-        "forest-stats",
-        "fstats",
         "memory",
-        "fsh-gaps",
     ];
     if builtins.contains(&cmd) {
         out.push_str(&format!(
