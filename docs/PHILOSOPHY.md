@@ -56,11 +56,11 @@ Automation without consent is indistinguishable from loss of control.
 systemd: "The system knows best when to act."
 Project 0: "Nothing acts unless a human explicitly authorizes it."
 
-Omarchy still runs systemd. That is accepted infrastructure. It is not a license for the forest to start work on its own.
+Omarchy still runs systemd. That is accepted infrastructure. It is not a license for Project 0 to start work on its own.
 
-3. NixOS (The Neighbor We Left)
+3. Declarative Linux (The Neighbor We Left)
 
-NixOS is the closest philosophical neighbor — and the system this machine used to be.
+Declarative Linux is the closest philosophical neighbor — and the kind of system this machine used to be.
 
 Core Belief: "If the system is purely declarative, it becomes safe."
 
@@ -74,10 +74,10 @@ Relationship to the User: Treats the user as a programmer, not necessarily a sys
 
 Project 0 Divergence:
 
-- NixOS believes: "If the model is correct, the system is safe."
+- A declarative system believes: "If the model is correct, the system is safe."
 - Project 0 believes: "If the human understands the system, it is safe."
 
-| NixOS | Project 0 |
+| Declarative Linux | Project 0 |
 |---|---|
 | Declarative purity | Intentional stewardship |
 | Reproducibility | Recoverability |
@@ -85,9 +85,9 @@ Project 0 Divergence:
 | Trust the system | Trust the human |
 | Correctness | Comprehension |
 
-NixOS eliminates classes of mistakes. Project 0 assumes mistakes are inevitable and designs around them.
+Declarative Linux eliminates classes of mistakes. Project 0 assumes mistakes are inevitable and designs around them.
 
-The move off NixOS was not a rejection of those strengths. It was an admission that understanding has a budget, and that a system which claims to understand itself has to be small enough for one person to keep honest.
+The move to Omarchy was not a rejection of those strengths. It was an admission that understanding has a budget, and that a system which claims to understand itself has to be small enough for one person to keep honest.
 
 4. The Core Insight
 
@@ -95,7 +95,7 @@ All systems choose who they trust:
 
 Windows/macOS → Trust the vendor
 systemd Linux → Trust the automation
-NixOS → Trust the model
+Declarative Linux → Trust the model
 Traditional Linux → Trust the user (without support)
 
 Project 0 Makes a New Choice: Trust the user — and support them when they fail.
@@ -108,7 +108,7 @@ Project 0 is not a distro. Project 0 is not a framework. Project 0 is not a set 
 
 Project 0 is a position on how computers should behave when used by real humans.
 
-The public name is Project 0. The repository stays 0-Core. The shell is NovaShell (nsh). Historical Faelight names survive only where renaming them would lie about compatibility.
+The public name is Project 0. The repository stays 0-Core. The shell is NovaShell (nsh).
 
 I. We Reject Invisible Complexity
 
@@ -245,7 +245,7 @@ Human Vocabulary
 
 nsh speaks human first. UNIX is the fallback. delete before rm. The human should not have to translate intent into machine syntax before the machine will listen.
 
-XI. The Forest Speaks Human First
+XI. The Shell Speaks Human First
 
 Human language is the primary interface. UNIX is the fallback. The shell learns the human. Not the other way around.
 XII. Trust Is Earned, Not Granted
