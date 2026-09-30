@@ -6,7 +6,7 @@ license = "MIT"
 authors = ["Christian <christian@faelight.forest>"]
 
 [dependencies]
-zero-core = { path = "../zero-core" }
+zero-core = { path = "../zero-core", features = ["db"] }
 ratatui = "0.28"
 crossterm = "0.28"
 portable-pty = "0.8"

@@ -263,15 +263,18 @@ pub async fn run_bus() {
     let mut last_intent = read_intent();
     let mut last_deploy_id: i64 = {
         let db = zero_core::paths::state_db();
-        rusqlite::Connection::open(&db)
-            .ok()
-            .and_then(|c| {
-                c.query_row("SELECT COALESCE(MAX(id),0) FROM deploy_patterns", [], |r| {
-                    r.get(0)
-                })
-                .ok()
+        zero_core::state_db::open_at(
+            std::path::Path::new(&db),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        )
+        .ok()
+        .and_then(|c| {
+            c.query_row("SELECT COALESCE(MAX(id),0) FROM deploy_patterns", [], |r| {
+                r.get(0)
             })
-            .unwrap_or(0)
+            .ok()
+        })
+        .unwrap_or(0)
     };
     let (friday_tx, mut friday_rx) = tokio::sync::mpsc::unbounded_channel::<(String, f64)>();
     let _ = FRIDAY_TX.set(friday_tx);
@@ -304,7 +307,10 @@ pub async fn run_bus() {
                     eprintln!("bus: system suspending");
                     // Write suspend event to state.db
                     let db = zero_core::paths::state_db();
-                    if let Ok(c) = rusqlite::Connection::open(&db) {
+                    if let Ok(c) = zero_core::state_db::open_at(
+                        std::path::Path::new(&db),
+                        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+                    ) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .map(|d| d.as_secs() as i64)
@@ -317,7 +323,10 @@ pub async fn run_bus() {
                 } else {
                     eprintln!("bus: system waking");
                     let db = zero_core::paths::state_db();
-                    if let Ok(c) = rusqlite::Connection::open(&db) {
+                    if let Ok(c) = zero_core::state_db::open_at(
+                        std::path::Path::new(&db),
+                        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+                    ) {
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .map(|d| d.as_secs() as i64)
@@ -409,7 +418,10 @@ pub async fn run_bus() {
         // ── Deploy check ──────────────────────────────────────────────────────
         {
             let db = zero_core::paths::state_db();
-            if let Ok(conn_db) = rusqlite::Connection::open(&db) {
+            if let Ok(conn_db) = zero_core::state_db::open_at(
+                std::path::Path::new(&db),
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+            ) {
                 let rows: Vec<(i64, String, String, i64)> = conn_db
                     .prepare(
                         "SELECT id, tool, version, COALESCE(duration_ms,0) FROM deploy_patterns

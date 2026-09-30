@@ -33,7 +33,10 @@ pub fn run_history_search(initial_query: &str) -> Option<String> {
         Some(p) => p,
         None => return None,
     };
-    let conn = match Connection::open(&db_path) {
+    let conn = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return None,
     };

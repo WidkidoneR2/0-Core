@@ -988,7 +988,10 @@ fn is_known_alias(cmd: &str) -> bool {
         let mut s = std::collections::HashSet::new();
         if let Some(_home) = std::env::var_os("HOME") {
             let db_path = zero_core::paths::state_db();
-            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            if let Ok(conn) = zero_core::state_db::open_at(
+                std::path::Path::new(&db_path),
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+            ) {
                 if let Ok(mut stmt) = conn.prepare("SELECT name FROM shell_aliases") {
                     if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
                         for name in rows.flatten() {

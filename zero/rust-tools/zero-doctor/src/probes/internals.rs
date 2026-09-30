@@ -60,7 +60,10 @@ pub fn intent_ledger() -> Measurement {
 /// open is not a stalled Friday, it is a check that did not run.
 pub fn friday() -> Measurement {
     let db_path = zero_core::paths::state_db();
-    let db = match rusqlite::Connection::open(&db_path) {
+    let db = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(d) => d,
         Err(e) => {
             return Measurement::unknown(format!("could not open {} -- {}", db_path.display(), e))

@@ -41,7 +41,10 @@ impl Daemon {
 
         // INT-235 Gate 3: ensure friday_daemon_messages table exists
         let _init_db = zero_core::paths::state_db().to_string_lossy().to_string();
-        if let Ok(conn) = rusqlite::Connection::open(&_init_db) {
+        if let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&_init_db),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        ) {
             let _ = conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS friday_daemon_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,8 +160,8 @@ async fn poll_events(tx: Arc<broadcast::Sender<EventBroadcast>>, db_path: String
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-        let Ok(conn) = rusqlite::Connection::open_with_flags(
-            &db_path,
+        let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
         ) else {
             continue;
@@ -428,7 +431,10 @@ async fn health_watchdog(db_path: String) {
                 health, last_health
             );
             // Write alert to state.db
-            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            if let Ok(conn) = zero_core::state_db::open_at(
+                std::path::Path::new(&db_path),
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+            ) {
                 let now = chrono::Utc::now().timestamp();
                 let _ = conn.execute(
                     "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
@@ -484,7 +490,10 @@ async fn health_watchdog(db_path: String) {
 async fn wal_checkpoint_loop(db_path: String) {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        if let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        ) {
             let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE)");
         }
     }
@@ -510,7 +519,10 @@ async fn wal_checkpoint_loop(db_path: String) {
 async fn signal_aggregation(db_path: String) {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-        let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        ) else {
             continue;
         };
         let now = chrono::Utc::now().timestamp();
@@ -543,7 +555,10 @@ fn read_health_cache() -> u32 {
 }
 async fn get_context() -> crate::protocol::Response {
     let db_path = get_db_path();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return crate::protocol::Response::Error {
             message: "Cannot open state.db".to_string(),
         };
@@ -614,7 +629,10 @@ async fn get_prediction() -> crate::protocol::Response {
 }
 async fn get_watchdog_status() -> crate::protocol::Response {
     let db_path = get_db_path();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return crate::protocol::Response::Watchdog {
             last_check: 0,
             last_health: 0,
@@ -637,7 +655,10 @@ async fn get_watchdog_status() -> crate::protocol::Response {
 }
 async fn get_engine_signals(limit: u32) -> crate::protocol::Response {
     let db_path = get_db_path();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return crate::protocol::Response::EngineSignals { signals: vec![] };
     };
     let mut stmt = match conn.prepare(
@@ -729,7 +750,10 @@ async fn friday_record_event(
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
     let db_path = zero_core::paths::state_db();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return Response::FridaySpeak {
             message: None,
             priority: "silent".to_string(),
@@ -829,7 +853,10 @@ async fn friday_answer_query(
 ) -> crate::protocol::Response {
     use crate::protocol::Response;
     let db_path = zero_core::paths::state_db();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return Response::FridayAnswer {
             answer: "Friday cannot access state.db right now.".to_string(),
             confidence: 0.0,
@@ -951,23 +978,25 @@ async fn friday_answer_query(
 // INT-235 Gate 2 -- Contradiction detection loop
 async fn contradiction_detection_loop(db_path: String) {
     // Start from current max id -- do not notify old contradictions on startup
-    let last_id: i64 =
-        rusqlite::Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .ok()
-            .and_then(|c| {
-                c.query_row(
-                    "SELECT COALESCE(MAX(id), 0) FROM friday_contradictions",
-                    [],
-                    |r| r.get(0),
-                )
-                .ok()
-            })
-            .unwrap_or(0);
+    let last_id: i64 = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .ok()
+    .and_then(|c| {
+        c.query_row(
+            "SELECT COALESCE(MAX(id), 0) FROM friday_contradictions",
+            [],
+            |r| r.get(0),
+        )
+        .ok()
+    })
+    .unwrap_or(0);
     let mut last_seen_id = last_id;
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-        let Ok(conn) = rusqlite::Connection::open_with_flags(
-            &db_path,
+        let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
         ) else {
             continue;
@@ -1051,7 +1080,10 @@ async fn friday_learning_loop() {
 async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Response {
     use crate::protocol::Response;
     let db_path = zero_core::paths::state_db();
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return Response::FridaySpeak {
             message: None,
             priority: "silent".to_string(),

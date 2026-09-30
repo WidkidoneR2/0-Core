@@ -38,7 +38,10 @@ pub fn core_root() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join("0-core")
 }
 pub fn ensure_tables() {
-    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) {
+    let conn: rusqlite::Connection = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -88,7 +91,10 @@ pub fn last_modified(path: &Path) -> i64 {
 }
 pub fn record_update(name: &str, action: &str, by: &str, note: &str) {
     ensure_tables();
-    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) {
+    let conn: rusqlite::Connection = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return,
     };

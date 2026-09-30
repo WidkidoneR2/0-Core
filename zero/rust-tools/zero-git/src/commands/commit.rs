@@ -11,7 +11,10 @@ fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pu
     if !db_path.exists() {
         return;
     }
-    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+    if let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS commit_patterns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +60,10 @@ fn emit_git_event(action: &str, detail: &str) {
     if !db_path.exists() {
         return;
     }
-    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+    if let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -200,7 +206,10 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     // ── v4 Risk Assessment ─────────────────────────────────
     {
         let db_path = zero_core::paths::state_db();
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        if let Ok(conn) = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        ) {
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()

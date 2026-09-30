@@ -183,7 +183,10 @@ fn guard_list_contains(kind: &str, word: &str) -> Option<bool> {
         return Some(false);
     }
     let db_path = zero_core::paths::state_db();
-    let conn = match rusqlite::Connection::open(&db_path) {
+    let conn = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return None,
     };

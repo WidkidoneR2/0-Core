@@ -505,7 +505,10 @@ fn emit_to_ledger_with_policy(
     if !db_path.exists() {
         return;
     }
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return;
     };
     let ts = std::time::SystemTime::now()
@@ -538,7 +541,10 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
     if !db_path.exists() {
         return;
     }
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         return;
     };
     let ts = SystemTime::now()
@@ -1508,7 +1514,10 @@ fn main() -> Result<()> {
                 println!("  {} state.db not found — no audit data yet", "○".dimmed());
                 return Ok(());
             }
-            let conn = rusqlite::Connection::open(&db_path)?;
+            let conn = zero_core::state_db::open_at(
+                std::path::Path::new(&db_path),
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+            )?;
             let query = if let Some(tool_name) = &tool {
                 format!(
                     "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' AND payload LIKE '%{}%' ORDER BY timestamp DESC LIMIT {}",

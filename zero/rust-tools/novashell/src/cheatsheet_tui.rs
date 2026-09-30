@@ -350,7 +350,10 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
 
 pub fn run_cheatsheet_tui(_core_root: &str) {
     let db_path = zero_core::paths::state_db();
-    let conn = match Connection::open(&db_path) {
+    let conn = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return,
     };

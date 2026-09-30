@@ -6,7 +6,7 @@ edition = "2021"
 description = "Project 0's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization."
 
 [dependencies]
-zero-core = { path = "../zero-core" }
+zero-core = { path = "../zero-core", features = ["db"] }
 clap = { version = "4", features = ["derive"] }
 colored = "2"
 anyhow = "1"

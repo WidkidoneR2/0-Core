@@ -57,7 +57,10 @@ pub(crate) fn get_active_intent() -> Option<(String, String)> {
 /// gate_hint deferred to Phase 3; intent_status honest (in-progress when an intent is active, else none).
 pub(crate) fn record_commit(hash: &str, message: &str) {
     let db_path = zero_core::paths::state_db();
-    let conn = match rusqlite::Connection::open(&db_path) {
+    let conn = match zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         Ok(c) => c,
         Err(_) => return,
     };

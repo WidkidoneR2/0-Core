@@ -165,7 +165,10 @@ fn get_drift_score() -> (String, String) {
 /// Log update run to state.db
 fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: i64, drift: &str) {
     let db_path = zero_core::paths::state_db();
-    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+    if let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&db_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         let _ = conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS update_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -346,7 +349,10 @@ fn print_system_identity() {
     }
     // INT-207 L1 — Show alignment score
     let state_db = zero_core::paths::state_db();
-    if let Ok(conn) = rusqlite::Connection::open(&state_db) {
+    if let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&state_db),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) {
         let align: Option<f64> = conn.query_row(
             "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
             [], |r| r.get(0)

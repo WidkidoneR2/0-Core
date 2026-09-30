@@ -50,7 +50,10 @@ struct App {
 impl App {
     fn new() -> anyhow::Result<Self> {
         let db_path = zero_core::paths::state_db();
-        let db = Connection::open(&db_path)?;
+        let db = zero_core::state_db::open_at(
+            std::path::Path::new(&db_path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        )?;
 
         // Get context
         let intent_hint = get_active_intent(&db);
@@ -723,7 +726,7 @@ fn main() -> anyhow::Result<()> {
     // Support: friday chat why [term] -- direct query mode
     if args.len() > 2 && args.get(1).map(|s| s == "chat").unwrap_or(false) {
         let query = args[2..].join(" ");
-        let db = Connection::open(zero_core::paths::state_db())?;
+        let db = zero_core::state_db::open_state_db()?;
         println!("{}", friday_respond(&db, &query));
         return Ok(());
     }

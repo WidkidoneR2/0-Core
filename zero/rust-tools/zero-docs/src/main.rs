@@ -807,7 +807,10 @@ fn cmd_record(doc: &str, note: &str) {
 }
 fn cmd_log() {
     registry::ensure_tables();
-    let Ok(conn) = rusqlite::Connection::open(registry::db_path()) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&registry::db_path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         println!("  {} Cannot open state.db", "✗".bright_red());
         return;
     };
@@ -913,7 +916,10 @@ fn cmd_diff() {
     println!();
     println!("  {} Document Drift Check", "🔍".normal());
     println!("  {}", "─".repeat(55).dimmed());
-    let Ok(conn) = rusqlite::Connection::open(registry::db_path()) else {
+    let Ok(conn) = zero_core::state_db::open_at(
+        std::path::Path::new(&registry::db_path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+    ) else {
         println!("  {} Cannot open state.db", "✗".bright_red());
         return;
     };
