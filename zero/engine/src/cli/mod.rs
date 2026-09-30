@@ -332,7 +332,6 @@ pub fn parse() -> Command {
         Commands::Release { command } => Command::Release(match command {
             ReleaseCommands::Get { package } => ReleaseCommand::Get { package },
             ReleaseCommands::BumpTool { args } => ReleaseCommand::BumpTool { args },
-            ReleaseCommands::BumpSystem { dry_run } => ReleaseCommand::BumpSystem { dry_run },
         }),
         Commands::Notify { command } => Command::Notify(match command {
             NotifyCommands::Send {

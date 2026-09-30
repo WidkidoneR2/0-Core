@@ -835,10 +835,6 @@ pub enum ReleaseCommands {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
-    BumpSystem {
-        #[arg(long)]
-        dry_run: bool,
-    },
 }
 
 #[derive(Subcommand)]

@@ -53,10 +53,3 @@ pub fn bump_tool(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
     }
     Ok(())
 }
-
-pub fn bump_system(_ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
-    // bump-system-version replaced by zero-release (INT-311)
-    let sub = if dry_run { "plan" } else { "publish" };
-    println!("  {} use: zero-release {}", "→".bright_cyan(), sub);
-    Ok(())
-}
