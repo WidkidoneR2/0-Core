@@ -195,10 +195,10 @@ fn fixture_home() -> Result<String, String> {
     mkdir(&format!("{}/docs", core))?;
     write(&format!("{}/docs/PHILOSOPHY.md", core), "fixture")?;
 
-    // `ls ~/0-core/zero/packages/faelight/scripts` contains deploy
-    mkdir(&format!("{}/zero/packages/faelight/scripts", core))?;
+    // `ls ~/0-core/zero/packages/zero/scripts` contains deploy
+    mkdir(&format!("{}/zero/packages/zero/scripts", core))?;
     write(
-        &format!("{}/zero/packages/faelight/scripts/deploy.sh", core),
+        &format!("{}/zero/packages/zero/scripts/deploy.sh", core),
         "fixture",
     )?;
 
@@ -574,7 +574,7 @@ fn all_tests() -> Vec<TestResult> {
             let core = format!("{}/0-core", root);
             let needed = [
                 format!("{}/docs/PHILOSOPHY.md", core),
-                format!("{}/zero/packages/faelight/scripts/deploy.sh", core),
+                format!("{}/zero/packages/zero/scripts/deploy.sh", core),
                 format!("{}/zero/intents/future/placeholder.md", core),
                 format!("{}/zero/rust-tools/zero-core", core),
                 format!("{}/zero/rust-tools/novashell/Cargo.toml", core),
@@ -673,7 +673,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "ls ~/0-core/zero/packages/faelight/scripts",
+                "ls ~/0-core/zero/packages/zero/scripts",
                 &[("HOME", home.as_str())],
             )?,
             "deploy",

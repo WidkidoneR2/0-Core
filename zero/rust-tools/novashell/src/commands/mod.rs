@@ -1917,7 +1917,6 @@ fn execute_dispatch(
                             k == "PATH"
                                 || k.starts_with("ZERO_")
                                 || k.starts_with("NSH_")
-                                || k.starts_with("FOREST_")
                         })
                         .collect();
                     let env_json = serde_json::to_string(&env_map).unwrap_or_else(|_| "{}".to_string());

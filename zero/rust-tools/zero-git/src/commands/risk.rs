@@ -45,7 +45,6 @@ pub fn run() -> Result<()> {
     if risk.total > 50 {
         println!("{}", "⚠️  High Risk - Recommendations:".yellow().bold());
         println!("  • Run {} before pushing", "update".cyan());
-        println!("  • Create snapshot: {}", "faelight snapshot".cyan());
         println!("  • Review changes carefully");
     } else if risk.total > 20 {
         println!("{}", "💡 Moderate Risk - Suggestions:".yellow());
