@@ -254,9 +254,7 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let seeds = vec![
         ("philosophy", "Manual control over automation. Understanding over convenience. Recovery over perfection.".to_string(), 1.0),
         ("tools", "All tools are written in Rust. Every tool is understood completely. Nothing runs without human authorization.".to_string(), 1.0),
-        ("shell", "fsh is the daily driver. query, fsearch, patch, edit, run are native builtins. Native pipes work without sh fallback.".to_string(), 1.0),
         ("workflow", "cistart before intent work. cicomplete after. fg commit after changes. d before and after everything.".to_string(), 1.0),
-        ("health", "Forest health is tracked at every d run. 100% means all 22 checks pass. The forest never ships below 95%.".to_string(), 1.0),
         ("friday", "I am Friday. I am Phase 0 -- observing, not yet speaking. I watch everything. I remember everything. I learn.".to_string(), 1.0),
     ];
     for (domain, fact, confidence) in seeds {
