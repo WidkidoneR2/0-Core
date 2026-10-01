@@ -143,6 +143,10 @@ pub fn parse() -> Command {
             FridayArchCommands::Reject { id } => FridayArchCommand::Reject { id },
         }),
         Commands::Version => Command::Version,
+        Commands::Fingerprint { command } => Command::Fingerprint(match command {
+            parser::FingerprintCommands::Show => commands::FingerprintCommand::Show,
+            parser::FingerprintCommands::Record => commands::FingerprintCommand::Record,
+        }),
         Commands::Plugin { command } => Command::Plugin(match command {
             PluginCommands::List => PluginCommand::List,
             PluginCommands::Add { name } => PluginCommand::Add { name },

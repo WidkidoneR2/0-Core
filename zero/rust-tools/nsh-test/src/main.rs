@@ -1636,6 +1636,88 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "core_fingerprint_lifecycle",
+        Category::Regression,
+        "needs a real 0-Core: core starts on the real ledger",
+        || {
+            // INT-269 step 2: core fingerprint show and record, on the deployed core. The record
+            // goes to a temp ZERO_STATE_DIR so the real one is never touched; ZERO_STATE_DB keeps
+            // core on the real ledger so it can start. Show must never write; record is the one
+            // writer; the outcomes are UNDETERMINED (2), PASS (0) and FAIL (1), in that order.
+            let dir =
+                std::env::temp_dir().join(format!("nsh-test-fingerprint-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| format!("cannot make {}: {}", dir.display(), e))?;
+            let db = std::path::Path::new(&home()).join(".local/state/zero/state.db");
+            let record = dir.join("fingerprint");
+            let run = |verb: &str| -> Result<(i32, String), String> {
+                let o = Command::new("core")
+                    .args(["fingerprint", verb])
+                    .env("ZERO_STATE_DIR", &dir)
+                    .env("ZERO_STATE_DB", &db)
+                    .output()
+                    .map_err(|e| format!("cannot run core: {}", e))?;
+                Ok((
+                    o.status.code().unwrap_or(-1),
+                    format!(
+                        "{}{}",
+                        String::from_utf8_lossy(&o.stdout),
+                        String::from_utf8_lossy(&o.stderr)
+                    ),
+                ))
+            };
+            let result = (|| -> Result<(), String> {
+                let (c, out) = run("show")?;
+                if c != 2 || !out.contains("not recorded yet") {
+                    return Err(format!(
+                        "before any record, show must be UNDETERMINED (exit 2): exit {} {}",
+                        c,
+                        out.trim()
+                    ));
+                }
+                if record.exists() {
+                    return Err("show wrote the record -- only record may write it".to_string());
+                }
+                let (c, out) = run("record")?;
+                if c != 0 || !record.exists() {
+                    return Err(format!("record did not write: exit {} {}", c, out.trim()));
+                }
+                let (c, out) = run("show")?;
+                if c != 0 || !out.contains("PASS") {
+                    return Err(format!(
+                        "after record, show must PASS (exit 0): exit {} {}",
+                        c,
+                        out.trim()
+                    ));
+                }
+                let text = std::fs::read_to_string(&record).map_err(|e| e.to_string())?;
+                let changed: Vec<String> = text
+                    .lines()
+                    .map(|l| {
+                        if l.starts_with("identity.hostname=") {
+                            "identity.hostname=not-this-machine".to_string()
+                        } else {
+                            l.to_string()
+                        }
+                    })
+                    .collect();
+                std::fs::write(&record, changed.join("\n") + "\n").map_err(|e| e.to_string())?;
+                let (c, out) = run("show")?;
+                if c != 1 || !out.contains("FAIL") || !out.contains("identity.hostname") {
+                    return Err(format!(
+                        "a changed record must FAIL naming identity.hostname (exit 1): exit {} {}",
+                        c,
+                        out.trim()
+                    ));
+                }
+                Ok(())
+            })();
+            let _ = std::fs::remove_dir_all(&dir);
+            result
+        },
+    ));
+    results.push(repo_test(
         "readme_index_count_matches_its_file",
         Category::Regression,
         "needs a real 0-Core: it reads rust-tools/README.md",

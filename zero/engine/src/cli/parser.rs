@@ -40,6 +40,11 @@ pub enum Commands {
         command: FridayArchCommands,
     },
     Version,
+    /// INT-269 -- is this the machine and tree Project 0 thinks it is?
+    Fingerprint {
+        #[command(subcommand)]
+        command: FingerprintCommands,
+    },
     Doctor {
         #[command(subcommand)]
         command: DoctorCommands,
@@ -1719,4 +1724,13 @@ pub enum DbCommands {
         /// Jump directly to this table
         table: Option<String>,
     },
+}
+
+/// INT-269 -- the fingerprint verbs. show never writes; record is the one writer.
+#[derive(Debug, Subcommand)]
+pub enum FingerprintCommands {
+    /// Show the live fingerprint and compare it with the recorded one (writes nothing)
+    Show,
+    /// Record the live fingerprint as the expected one -- refuses if any input is missing
+    Record,
 }

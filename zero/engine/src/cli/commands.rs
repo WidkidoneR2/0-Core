@@ -135,6 +135,7 @@ pub enum Command {
     Deps(DepsCommand),
     Audit(AuditCommand),
     Version,
+    Fingerprint(FingerprintCommand),
     Doctor(DoctorCommand),
     Plugin(PluginCommand),
     Zone {
@@ -865,4 +866,10 @@ pub enum DbCommand {
     Compact,
     // INT-342: state.db TUI Browser
     Browse { table: Option<String> },
+}
+
+#[derive(Debug)]
+pub enum FingerprintCommand {
+    Show,
+    Record,
 }

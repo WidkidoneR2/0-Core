@@ -555,6 +555,12 @@ pub fn zero_state_dir() -> PathBuf {
     state_home().join("0-core")
 }
 
+/// INT-269: the expected fingerprint record. ONE writer -- `core fingerprint record`; every
+/// other consumer only reads it. It lives in runtime_dir(), so ZERO_STATE_DIR moves it too.
+pub fn fingerprint_file() -> PathBuf {
+    runtime_dir().join("fingerprint")
+}
+
 /// The focused intent -- `core intent focus` writes it, and it is the ONLY source that is
 /// actually correct.
 ///
