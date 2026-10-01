@@ -63,7 +63,7 @@ A fingerprint is the declared identity of this machine and this tree. It is comp
 * Outcomes are tri-state. A mismatch is FAIL. A missing capability is UNDETERMINED, not a guessed match. Clean is only clean when every declared input was actually read. Doctor already distinguishes these; do not collapse them.
 * Law 0 consumes it, it does not invent it. `devshell` launch probes (identity / machine / process / filesystem, INT-257) read the fingerprint. They do not grow a private copy.
 
-Full flow belongs in `docs/FINGERPRINT.md` when that file exists — invariants stay here; the walkthrough does not.
+The full flow is in `docs/FINGERPRINT.md` — invariants stay here; the walkthrough does not.
 Devshell
 
 devshell is where a dangerous operation is done for real. Credentials are not inside. Packages may install as root. Leaving undoes what was not promoted.
