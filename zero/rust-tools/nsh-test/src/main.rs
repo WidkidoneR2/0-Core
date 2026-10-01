@@ -3690,6 +3690,12 @@ print('CLASS-DONE')"##;
             let _ = std::fs::remove_dir_all(&dir);
             let out = out?;
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            if stderr.contains(&token) {
+                return Err(
+                    "zero-gate printed the secret itself: a scanner's finding repeats the token"
+                        .to_string(),
+                );
+            }
             let line = stderr
                 .lines()
                 .find(|l| l.contains("gitleaks"))

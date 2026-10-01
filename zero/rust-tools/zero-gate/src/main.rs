@@ -182,6 +182,26 @@ fn run_repo_script(root: &Path, rel: &str, args: &[String]) -> Verdict {
     }
 }
 
+/// ripsecrets prints each finding as `file:line:content`. Keep `file:line` and drop the
+/// content: a secrets gate must not print the secret into scrollback. A line whose location
+/// cannot be read is withheld whole, never echoed.
+fn redact_findings(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let mut parts = l.splitn(3, ':');
+            match (parts.next(), parts.next()) {
+                (Some(f), Some(n)) if !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) => {
+                    format!("{f}:{n}")
+                }
+                _ => "(a finding whose location could not be read -- content withheld)".to_string(),
+            }
+        })
+        .collect()
+}
+
 fn gate_ripsecrets(root: &Path, staged: &[String]) -> Verdict {
     if !has("ripsecrets") {
         return Verdict::Unknown(
@@ -199,7 +219,15 @@ fn gate_ripsecrets(root: &Path, staged: &[String]) -> Verdict {
     {
         Err(e) => Verdict::Unknown(format!("could not run ripsecrets: {e}")),
         Ok(o) if o.status.success() => Verdict::Pass,
-        Ok(o) => Verdict::Fail(String::from_utf8_lossy(&o.stdout).trim().to_string()),
+        Ok(o) => {
+            let found = redact_findings(&String::from_utf8_lossy(&o.stdout));
+            if found.is_empty() {
+                let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                Verdict::Unknown(format!("ripsecrets could not scan: {err}"))
+            } else {
+                Verdict::Fail(format!("{} (content withheld)", found.join("  ")))
+            }
+        }
     }
 }
 
@@ -476,4 +504,34 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_finding_keeps_its_place_and_loses_its_content() {
+        let out = redact_findings("leak.txt:1:token = ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\n");
+        assert_eq!(out, vec!["leak.txt:1".to_string()]);
+        assert!(!out.concat().contains("ghp_"));
+    }
+
+    #[test]
+    fn content_with_colons_is_still_withheld() {
+        let out = redact_findings("a/b.toml:12:url = https://user:pass@host:5432/db\n");
+        assert_eq!(out, vec!["a/b.toml:12".to_string()]);
+    }
+
+    #[test]
+    fn an_unreadable_line_is_withheld_not_echoed() {
+        let out = redact_findings("secret-without-a-location\n");
+        assert_eq!(out.len(), 1);
+        assert!(!out[0].contains("secret-without-a-location"));
+    }
+
+    #[test]
+    fn nothing_found_is_nothing_reported() {
+        assert!(redact_findings("\n  \n").is_empty());
+    }
 }
