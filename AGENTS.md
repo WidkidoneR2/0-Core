@@ -52,6 +52,18 @@ Security
 Secure Boot is not enforcing. MEASURED 2026-09-05: sbctl is not installed; /var/lib/sbctl does not exist. Do not describe the boot chain as signed until that has been demonstrated.
 Secrets are never committed. gitleaks scans before commits. Configs reference secrets; they do not embed them.
 Before rebooting after a boot-chain change, verify signature state first.
+Fingerprint
+
+A fingerprint is the declared identity of this machine and this tree. It is computed once, in one place, and asked about — not re-derived in every crate.
+
+* One collector. Do not add a second hash, probe set, or "good enough" identity check. Doctor, integrity, DevBox verify, and `devshell` Law 0 probes ask the same adapter. Same class of rule as INT-230: one place the system asks about 0-Core.
+* Inputs are declared. Machine facts the kernel already publishes (identity / machine probes) and tree facts the repo already owns (process / filesystem probes). No silent extras. A field that is not on the declared list is not part of the fingerprint.
+* Must not include: secrets, home contents outside the declared paths, network reachability, timestamps, or anything that changes because a session started. A fingerprint that moves when you blink is not a fingerprint.
+* Rename is not a new machine. INT-247 path and display-name changes must not flip the fingerprint by themselves. If a rename moves a probe input, the adapter is updated in the same change or the gate stays red.
+* Outcomes are tri-state. A mismatch is FAIL. A missing capability is UNDETERMINED, not a guessed match. Clean is only clean when every declared input was actually read. Doctor already distinguishes these; do not collapse them.
+* Law 0 consumes it, it does not invent it. `devshell` launch probes (identity / machine / process / filesystem, INT-257) read the fingerprint. They do not grow a private copy.
+
+Full flow belongs in `docs/FINGERPRINT.md` when that file exists — invariants stay here; the walkthrough does not.
 Devshell
 
 devshell is where a dangerous operation is done for real. Credentials are not inside. Packages may install as root. Leaving undoes what was not promoted.
