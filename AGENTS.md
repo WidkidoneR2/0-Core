@@ -54,7 +54,7 @@ Promote a directory to critical the moment it carries boot, login, or disk setti
 ### Security
 
 - Secure Boot is not enforcing. MEASURED 2026-09-05: sbctl is not installed; /var/lib/sbctl does not exist. Do not describe the boot chain as signed until that has been demonstrated.
-- Secrets are never committed. gitleaks scans before commits. Configs reference secrets; they do not embed them.
+- Secrets are never committed. Configs reference secrets; they do not embed them. gitleaks runs only through zg (zero-git), before its commit; the commit hooks do not run it, so a commit made with git or gc is not scanned.
 - Before rebooting after a boot-chain change, verify signature state first.
 
 ### Fingerprint
@@ -105,7 +105,7 @@ Home inside starts empty. Five paths are declared: the repository, ~/.local/bin,
 
 The declared list lives in devshell-lib. That file is the authority; this is a summary.
 
-Scripts today: zero/scripts/devshell and zero/scripts/devshell-lib (check the tree; devshell-lib is the authority for the exact names). INT-252 moves these. When it does, update this paragraph and the two nsh-test paths that reach them. Do not invent a destination.
+Scripts: zero/scripts/devshell and zero/scripts/devshell-lib. devshell-lib is the authority for the exact names, and two nsh-test cases reach these paths.
 
 ## 1. This host / this tree
 
@@ -115,7 +115,7 @@ Project 0 is the public name. Not eventual. Decided 2026-09-14:
 |---|---|
 | Spoken | Project 0 |
 | Root and repo | 0-core / 0-Core — unchanged |
-| CLI | 0 |
+| CLI | 0 (decided; not built yet) |
 | Crates | zero-* |
 | Env vars | ZERO_* |
 
@@ -144,7 +144,7 @@ Do not perform repository-wide search-and-replace. Classify first:
 | Existing scripts | Test before changing |
 | Git history, old commit subjects, old intent titles | Leave alone |
 
-~/.faelight/ → ~/.zero/ is a data migration, not a rename.
+Moving a data directory is a data migration, not a rename.
 
 Moving a directory that holds data: alias, flip, swap — never rm, mv, ln. New name is a relative link to the old one, proven by inode. Code flips in one commit, red first. Then renameat2(RENAME_EXCHANGE) swaps the names on the same filesystem; the old name is repointed at the new one. The name the code uses exists at every instant. rm/mv/ln leaves a window where a tool creates an empty directory — a silent empty ledger. (INT-247 Layer 3b.)
 
@@ -160,7 +160,7 @@ Real directories: ~/.local/state/zero, ~/.config/zero, ~/.cache/zero, ~/.local/s
 
 The intent ledger lives at zero/intents/; INT-252 moved it there. Do not add files under a faelight/ name.
 
-Hardcoded readers still to classify, not blindly replace: zero-core/src/paths.rs, zero-deadwood/src/main.rs, integrity/mod.rs, doctor/checks.rs, cheatsheet_tui.rs. UNVERIFIED since the crate renames: whether each still needs classifying has not been measured.
+Hardcoded readers still to classify, not blindly replace: zero-core/src/paths.rs, zero-deadwood/src/main.rs, integrity/mod.rs, cheatsheet_tui.rs. UNVERIFIED since the crate renames: whether each still needs classifying has not been measured.
 
 ### This machine
 
@@ -343,7 +343,7 @@ Put the exception on the case that needs it. Keep the default at what the ordina
 A green build is not the claim. The claim is the thing running.
 
 - After deploying a service, ps for the process.
-- Exercise shell behaviour through the real REPL, not only -c. nsh -c executes nsh, not sh (INT-201, main.rs:905). The safety guard is on that door (main.rs:946).
+- Exercise shell behaviour through the real REPL, not only -c. nsh -c executes nsh, not sh (INT-201; the -c branch in novashell main.rs). The safety guard is on that door.
 - Test with NSH_SPINE on and off. The executors do not always agree; disagreements are not all defects. nsh -c "echo test > 0.5" writes a file; the same line under NSH_SPINE=0 is refused — spine narrowed the digit guard to the query language so where cpu > 0.5 still works.
 - spine migrate cannot tell a ruled improvement from a defect. It diffs rendered IoPlans. Read the parser before treating a row as a bug.
 - VM first for compositor, greeter, or login. Never on bare metal blind.
@@ -368,18 +368,19 @@ A safe abort and a crash must not look the same. Lead with what did not happen. 
 
 Dated work list. If the date is stale, distrust this section before the rest of the file. Standing rules are §0–§3.
 
-September 2026. Picking up the Faelight → Project 0 rename? Open INT-247 and search for START HERE. The newest section with that heading is the live one; it supersedes earlier “where this stopped” notes in that intent.
+October 2026. The Faelight → Project 0 rename is complete: INT-247 and INT-252 closed 2026-10-01, and nsh-test keeps the old names out of every live file.
 
 Open, in an order that is an order because the safety guard is not yet on every door:
 
 - Digit guard disagrees across doors. MEASURED 2026-09-05: nsh -c "echo test > 0.5" creates 0.5; the interactive shell refuses the same line. First move is recon: where the REPL applies the guard and the -c branch does not. Delete the stale delegates-to-sh comment in the same change.
-- One git policy. git is in the safe set and there is a git reset --hard arm. The arm is dead while git is safe. Remove git from safe, or delete the arm. Name the discarded half in the commit.
 - INT-197 remainder — verify before implementing. Claim: check(cmd, first_word) gets the alias-expanded first word but the typed line as cmd, so alias zap='rm -rf /tmp/x' then zap never sees -rf. INT-196 and INT-197 are marked complete. One reproduction settles it. Do that first.
 - Honesty pass, deletions only. Help text vs behaviour; .fsh vs .nsh in plugin help; cmdguard vs guard; zero-gate --help still offering risk tiers after risk-gate.sh died. Fix or delete. Do not add documentation.
 
 CLOSED by measurement, do not reopen: the -c boot tax (2026-09-02). 13ms vs bash 1ms. The 305ms figure predates work already in tree. Suite time is pty sessions, not boot.
 
 CLOSED, do not reopen: the crate renames faelight-* → zero-*. All fifteen crates are zero-*; the last, zero-core, landed in c4634250 (2026-09-26).
+
+CLOSED, do not reopen: one git policy. The git reset --hard rule was deleted, not disabled; safety_guard.rs records why.
 
 Deferred, because of ordering rather than objection:
 
