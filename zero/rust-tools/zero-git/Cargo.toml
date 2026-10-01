@@ -1,7 +1,7 @@
 [package]
 name = "zero-git"
 license = "MIT"
-version = "4.4.2"
+version = "5.1.0"
 edition = "2021"
 description = "Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy."
 
