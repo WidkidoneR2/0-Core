@@ -4,7 +4,7 @@
 
 ## 📖 Description
 
-Background awareness daemon — the nervous system of Faelight Forest
+Background awareness daemon — the nervous system of Project 0
 
 ---
 

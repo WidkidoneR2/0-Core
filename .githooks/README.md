@@ -26,7 +26,7 @@ success and reports anything it could not run rather than passing quietly.
 
 ## ⚠️ THIS IS THE THIRD ATTEMPT. THE FIRST TWO DIED THE SAME WAY.
 
-> THE SAME BUG TWICE: INT-113 retired faelight-hooks on 2026-07-10 for being "dead weight: never
+> THE SAME BUG TWICE: INT-113 retired the old hooks tool on 2026-07-10 for being "dead weight: never
 > installed into .git/hooks". INT-119 replaced it with a mechanism that is ALSO never installed
 > into .git/hooks -- the identical defect, re-shipped under a new number, with "unskippable"
 > written in the comment.

@@ -1,6 +1,6 @@
 # Conventions
 
-Small rules that keep the forest honest. Each one is here because something broke without it.
+Small rules that keep Project 0 honest. Each one is here because something broke without it.
 
 ---
 
@@ -131,7 +131,7 @@ and no source reading. That is the whole intent working: the message alone was e
 
 ### Exemplars
 
-`faelight/scripts/dev/fpatch.py` — its `_refuse` is the reference implementation. INT-192 is the
+`zero/scripts/dev/fpatch.py` — its `_refuse` is the reference implementation. INT-192 is the
 sibling from the opposite direction: tools that cannot express an UNDETERMINED outcome, so a failed
 check reports clean. That one is about silence; this one is about noise.
 

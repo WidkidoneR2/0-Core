@@ -24,7 +24,7 @@ For a shell with one operator, "the public interface" is concrete rather than
 hypothetical:
 
 - the commands typed at the prompt, and their history
-- `~/.config/faelight-shell/config.nsh` -- aliases, settings, and the file itself
+- `~/.config/nsh/config.nsh` -- aliases, settings, and the file itself
 - `.nsh` scripts run through `run`
 - anything invoking `nsh -c`
 - exit codes and stream behaviour that a script branches on

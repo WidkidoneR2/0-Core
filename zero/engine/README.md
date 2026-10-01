@@ -4,7 +4,7 @@
 
 ## 📖 Description
 
-The single Rust engine at the forest's heart -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary.
+The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary.
 
 ---
 

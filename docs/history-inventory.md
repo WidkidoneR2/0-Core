@@ -1,7 +1,7 @@
 # shell_history inventory (INT-191 G1)
 
 GENERATED. Do not edit by hand -- run
-`python3 faelight/rust-tools/novashell/generate-history-inventory.py`.
+`python3 zero/rust-tools/novashell/generate-history-inventory.py`.
 
 - writers: **4**
 - readers: **80**

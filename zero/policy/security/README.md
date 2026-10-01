@@ -1,4 +1,4 @@
-# 🔒 Faelight Forest - Security Configuration
+# 🔒 Project 0 - Security Configuration
 
 These files are **system-level** security configurations (not stowed).
 
