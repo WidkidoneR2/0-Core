@@ -1504,6 +1504,137 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    results.push(repo_test(
+        "no_live_retired_name_in_any_tracked_file",
+        Category::Regression,
+        "needs a real 0-Core: it reads every tracked file, which only a checkout has",
+        || {
+            // INT-247 FINISH LINE: no live tracked file, of ANY type, says either retired word.
+            // The display-name case above reads only .rs string literals; this one reads every
+            // file git tracks, line by line, any case. History is exempt by ruling, and the
+            // exemptions below are the whole list -- a new one is a ruling, not an edit.
+            //
+            // The words are built from PIECES so this file does not flag itself.
+            fn has(hay: &[u8], needle: &[u8]) -> bool {
+                hay.windows(needle.len()).any(|w| w == needle)
+            }
+            let words: Vec<String> = vec![["fae", "light"].concat(), ["for", "est"].concat()];
+            // Ruled history by Christian 2026-10-01: a release record and the incident log.
+            let history: Vec<&str> = vec!["zero/meta/releases/", "zero/meta/INCIDENTS.md"];
+            let root = std::path::Path::new(&home()).join("0-core");
+            let out = Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["ls-files", "-z"])
+                .output()
+                .map_err(|e| format!("cannot run git ls-files: {}", e))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "git ls-files failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            let mut files = 0usize;
+            let mut hits: Vec<String> = Vec::new();
+            let mut unreadable: Vec<String> = Vec::new();
+            for raw in out.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()) {
+                let path = String::from_utf8_lossy(raw).to_string();
+                let base = path.rsplit('/').next().unwrap_or("").to_string();
+                let low_base = base.to_lowercase();
+                let exempt = path.starts_with("zero/intents/")
+                    || base.starts_with("CHANGELOG")
+                    || path == "AGENTS.md"
+                    || [".ttf", ".otf", ".woff", ".woff2"]
+                        .iter()
+                        .any(|x| low_base.ends_with(*x))
+                    || history.iter().any(|h| path.starts_with(*h));
+                if exempt {
+                    continue;
+                }
+                if words
+                    .iter()
+                    .any(|w| path.to_lowercase().contains(w.as_str()))
+                {
+                    hits.push(format!("{}  (the path itself)", path));
+                }
+                let full = root.join(&path);
+                let meta = std::fs::symlink_metadata(&full)
+                    .map_err(|e| format!("cannot stat {}: {}", path, e))?;
+                if !meta.is_file() {
+                    continue;
+                }
+                let bytes =
+                    std::fs::read(&full).map_err(|e| format!("cannot read {}: {}", path, e))?;
+                files += 1;
+                let lower = bytes.to_ascii_lowercase();
+                if !words.iter().any(|w| has(&lower, w.as_bytes())) {
+                    continue;
+                }
+                let text = match String::from_utf8(bytes) {
+                    Ok(t) => t,
+                    Err(_) => {
+                        unreadable.push(path);
+                        continue;
+                    }
+                };
+                // Registry entries with retired = true are the registry's own history.
+                let mut retired_lines: Vec<usize> = Vec::new();
+                if path == "zero/registry/tools.toml" {
+                    let mut block: Vec<usize> = Vec::new();
+                    let mut retired = false;
+                    for (n, line) in text.lines().enumerate() {
+                        if line.trim() == "[[tool]]" {
+                            if retired {
+                                retired_lines.extend(block.drain(..));
+                            }
+                            block.clear();
+                            retired = false;
+                        }
+                        block.push(n);
+                        if line.split_whitespace().collect::<String>() == "retired=true" {
+                            retired = true;
+                        }
+                    }
+                    if retired {
+                        retired_lines.extend(block.drain(..));
+                    }
+                }
+                // zero-gen's wordlist uses the second word as a word, not the brand (ruling E).
+                let dictionary = format!("\"{}\"", words[1]);
+                for (n, line) in text.lines().enumerate() {
+                    if retired_lines.contains(&n) {
+                        continue;
+                    }
+                    let mut low = line.to_lowercase();
+                    if path.ends_with("zero-gen/src/main.rs") {
+                        low = low.replace(&dictionary, "");
+                    }
+                    if words.iter().any(|w| low.contains(w.as_str())) {
+                        hits.push(format!("{}:{}  {}", path, n + 1, line.trim()));
+                    }
+                }
+            }
+            // AN EMPTY TREE IS NOT A CLEAN ONE, and an undecodable file is not a clean one either.
+            if files == 0 {
+                return Err("read no tracked files at all -- that is not a clean tree".to_string());
+            }
+            if !unreadable.is_empty() {
+                return Err(format!(
+                    "could not decode, so could not check: {}",
+                    unreadable.join(", ")
+                ));
+            }
+            if hits.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} live line(s) say a retired name:\n  {}",
+                    hits.len(),
+                    hits.join("\n  ")
+                ))
+            }
+        },
+    ));
     results.push(test(
         "deadwood_strict_gate_passes",
         Category::Regression,
