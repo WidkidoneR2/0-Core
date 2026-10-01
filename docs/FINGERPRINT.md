@@ -48,7 +48,7 @@ A field that is not on the declared list is not part of the fingerprint. Adding 
 Look first (historical names still in tree during INT-247):
 
 - integrity code next to zero-core / zero-* (`integrity/mod.rs` is the name AGENTS already cites)
-- `doctor/checks.rs`
+- `zero-doctor/src/probes/` (where checks run) and `registry/doctor/checks.toml` (where they are declared)
 - devshell Law 0 launch probes (`zero/scripts/devshell` and `devshell-lib` — INT-252 moves the directory; the adapter moves with it)
 
 If two of those compute a hash independently, that is a defect. One writes the record. The others ask.

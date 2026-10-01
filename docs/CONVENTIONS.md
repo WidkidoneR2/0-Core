@@ -44,7 +44,7 @@ complete found gates ticked green that were not true:
   day alone with zero complaints. **INT-113 had been retired for the identical bug six days
   earlier.** The same defect, shipped twice, with "unskippable" in the comment both times.
 - **INT-061** claimed the tree was *"still in the CURRENT layout"* long after it wasn't, and
-  claimed Phase 1 was *"substantially complete"* while `nix/profiles/` had never existed. Wrong
+  claimed Phase 1 was *"substantially complete"* while the profiles directory it described had never existed. Wrong
   in both directions at once.
 - Three separate comments said a file *"mirrors framework16"*. All three were false, and one had
   the VM testing a different greeter than the laptop actually runs.

@@ -1635,6 +1635,107 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    results.push(repo_test(
+        "every_backticked_repo_path_in_the_docs_exists",
+        Category::Regression,
+        "needs a real 0-Core: it reads the docs and the tracked tree, which only a checkout has",
+        || {
+            // A DOC MUST NOT CITE A PATH THAT IS NOT THERE. Every backticked repo path in docs/
+            // and AGENTS.md must name a tracked file or directory. A token is a path claim when
+            // it holds a slash, or is a bare file name ending .rs .py .toml .sh or .md; it is
+            // valid when some tracked path ends with it, so `paths.rs` and `integrity/mod.rs`
+            // resolve the way a reader resolves them. Home and absolute paths, .git internals,
+            // globs and placeholders are not repo claims. There is no exemption list: a doc that
+            // cites a dead path is fixed, not excused. docs/public/ is generated from docs/.
+            let root = std::path::Path::new(&home()).join("0-core");
+            let out = Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["ls-files", "-z"])
+                .output()
+                .map_err(|e| format!("cannot run git ls-files: {}", e))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "git ls-files failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            let tracked: Vec<String> = out
+                .stdout
+                .split(|b| *b == 0)
+                .filter(|p| !p.is_empty())
+                .map(|p| String::from_utf8_lossy(p).to_string())
+                .collect();
+            let mut known: Vec<String> = tracked.clone();
+            for f in &tracked {
+                let parts: Vec<&str> = f.split('/').collect();
+                for i in 1..parts.len() {
+                    known.push(format!("{}/", parts[..i].join("/")));
+                }
+            }
+            known.sort();
+            known.dedup();
+            let docs: Vec<&String> = tracked
+                .iter()
+                .filter(|f| {
+                    f.ends_with(".md")
+                        && ((f.starts_with("docs/") && !f.starts_with("docs/public/"))
+                            || f.as_str() == "AGENTS.md")
+                })
+                .collect();
+            let exts = [".rs", ".py", ".toml", ".sh", ".md"];
+            let mut claims = 0usize;
+            let mut dead: Vec<String> = Vec::new();
+            for doc in &docs {
+                let text = std::fs::read_to_string(root.join(doc.as_str()))
+                    .map_err(|e| format!("cannot read {}: {}", doc, e))?;
+                for (n, line) in text.lines().enumerate() {
+                    for (i, seg) in line.split('`').enumerate() {
+                        if i % 2 == 0 {
+                            continue;
+                        }
+                        let t = seg.trim_end_matches(|c| ".,:;)".contains(c));
+                        if t.is_empty()
+                            || t.contains(char::is_whitespace)
+                            || ["~", "/", "http", "$", "-", ".git/"]
+                                .iter()
+                                .any(|p| t.starts_with(*p))
+                            || t.contains(|c| "*<{|=".contains(c))
+                        {
+                            continue;
+                        }
+                        let p = t.split(':').next().unwrap_or("");
+                        let p = p.strip_prefix("./").unwrap_or(p);
+                        if !p.contains('/') && !exts.iter().any(|x| p.ends_with(*x)) {
+                            continue;
+                        }
+                        claims += 1;
+                        let tail = format!("/{}", p);
+                        if !known.iter().any(|k| k.as_str() == p || k.ends_with(&tail)) {
+                            dead.push(format!("{}:{}  `{}`", doc, n + 1, t));
+                        }
+                    }
+                }
+            }
+            // READING NOTHING IS NOT A CLEAN RESULT.
+            if docs.is_empty() || claims == 0 {
+                return Err(format!(
+                    "read {} docs and found {} path claims -- that is not a clean tree",
+                    docs.len(),
+                    claims
+                ));
+            }
+            if dead.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} backticked path(s) in the docs name nothing tracked:\n  {}",
+                    dead.len(),
+                    dead.join("\n  ")
+                ))
+            }
+        },
+    ));
     results.push(test(
         "deadwood_strict_gate_passes",
         Category::Regression,
