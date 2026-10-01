@@ -236,9 +236,10 @@ INT-247's finish line is met.
       <!-- evidence: d after the move, before and after the commit: Zero Alias 'both names resolve to one directory -- real: state=zero, config=zero', unchanged since Layer 3b. The move touched tracked files under ~/0-core only. -->
 - [x] Historical intents still say `faelight/` and that is recorded as correct, not as debt.
       <!-- evidence: 7b79c725 renames every intent at 100% similarity; the move excluded zero/intents/ by rule. Correct, not debt: INT-247 rule 1, history is never rewritten. -->
-- [ ] THE ENTIRE FLIP, ruled by Christian 2026-09-25: this intent completes only when INT-247's
+- [x] THE ENTIRE FLIP, ruled by Christian 2026-09-25: this intent completes only when INT-247's
       finish line is met -- no live faelight or forest in the code. Recorded as a gate 2026-09-28
       so cicomplete cannot pass on the other gates alone
+    <!-- evidence: 2026-10-01. INT-247's finish line is met: its FINISH LINE gate ticked with the guard in 12772479 -- no live tracked file of any type says either retired name, exemptions as ruled; red 24 before the history exemption, green 203/203 after. -->
 
 ## Not in scope
 

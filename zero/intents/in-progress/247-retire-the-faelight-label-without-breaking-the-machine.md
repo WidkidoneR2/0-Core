@@ -2441,7 +2441,57 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30, 16 OF 18, LATE -- START HERE
+## 2026-10-01, 18 OF 18 -- THE FINISH LINE IS MET. START HERE
+
+READ THIS FIRST. It supersedes the 16 OF 18, LATE section below. Written only if HEAD was 12772479,
+clean and pushed, and the finish census read work 0 and sayings 0.
+
+### Done this session -- pushed
+
+```text
+    500ed12f   the finish-census docs: 17 edits in 10 files -- false paths fixed (fpatch, the
+               history-inventory script, ~/.config/nsh, zero-core, zero-git), the old words gone
+               from the READMEs and docs; the catalog and docs/public regenerated, not hand-edited.
+               Plan ecffb179aee3
+    e12d6dd5   the sayings speak as Project 0: 13 edits in 7 files, wording approved by Christian.
+               Plan 4c24f9f4b2d3
+    12772479   the guard: nsh-test no_live_retired_name_in_any_tracked_file reads every tracked
+               file of every type. RED at 24 lines before the ruled history exemption -- the 5
+               pending lines and the 19 release-manifest lines, matching the census exactly --
+               then GREEN, 203/203. Plans 8e9aca47ec9e and ef0b7076faac
+    (disk)     the two pre-fz backups deleted, as ruled, after the guard was green
+```
+
+### Rulings, Christian 2026-10-01
+
+```text
+    history        zero/meta/INCIDENTS.md and all of zero/meta/releases/ are history, exempt
+    old names      a live doc that names an old name as history is reworded without the name
+    sayings        the drafted wording approved as written
+    backups        the two pre-fz backups deleted once the guard was green
+```
+
+### The finish census at e12d6dd5
+
+Before the guard: 5 lines in 2 files, all in the two files ruled history the same day. Work 0,
+sayings 0, 0 paths, 0 unread. The guard now holds the line; the census script is retired.
+
+### Found, not fixed -- for INT-265
+
+```text
+    readme-index        prints "21 tools": it counts crates; the file it writes is the record
+    CORE-COUPLING.md:3  names census-core-coupling.py, deleted in 92f9093b
+    NSH-PHILOSOPHY.md   line 8 is a principle sitting in a list of bullets without a bullet
+```
+
+### Next
+
+```text
+    cicomplete 247, then cicomplete 252. Then INT-265 (its first plan is the f- to z- alias
+    work already done -- check it against disk first), then INT-266
+```
+
+## 2026-09-30, 16 OF 18, LATE -- SUPERSEDED 2026-10-01 by the 18 OF 18 section above
 
 READ THIS FIRST. It supersedes the 16 OF 18 section below; that section's rulings, findings and method
 stand unless this says otherwise. Written only if HEAD was the NOVASHELL commit da1ec23f, clean and pushed,
@@ -3489,10 +3539,11 @@ and the apply's own proof that the comment-stripped files are identical before a
       pace rule is a gate and breaking it is a thing to record, not hide
       <!-- evidence: 2026-09-29. BROKEN, AND RECORDED. Layers 0, 1 and 2 all landed 2026-09-15; layer 3 began 2026-09-17 with the state alias, inside the same week; passes 2 through 5D, the reload fix, STATEDB and NO NIXOS A, B1 and B2 all landed 2026-09-29. Why: broken on purpose to finish the rename, as the 2026-09-29 START HERE records. What held: every pass went through its own plan, fingerprint, doors and pushed commit. -->
 
-- [ ] THE FINISH LINE, ruled by Christian 2026-09-24: no LIVE file, path, identifier, table or
+- [x] THE FINISH LINE, ruled by Christian 2026-09-24: no LIVE file, path, identifier, table or
       command says faelight or forest. History is exempt by the standing rule -- completed intents,
       CHANGELOGs and git history are never rewritten. Each name is held out by a guard once its pass
       is finished, and the guard reads every file type the name lives in, not only .rs
+    <!-- evidence: 2026-10-01. 12772479: nsh-test no_live_retired_name_in_any_tracked_file reads every file git tracks, every type, any case, and fails naming each file:line. Seen RED at 24 lines before the history exemption was added (the 5 lines of the two files ruled history, and the 19 release-manifest lines -- the census's own count), then GREEN, 203/203. The finish census before it: work 0, sayings 0, 0 paths, 0 unread (500ed12f docs, e12d6dd5 sayings). -->
 
 - [x] STATEDB, ruled 2026-09-28: ForestDb is StateDb everywhere, and no live Rust identifier
       contains Forest or Faelight in any case
@@ -3508,10 +3559,11 @@ and the apply's own proof that the comment-stripped files are identical before a
 - [x] /ETC/FAELIGHT: no live file names /etc/faelight. What /etc/zero holds, and the system-run
       writer that writes it, is INT-268's
     <!-- evidence: 2026-09-29, over every tracked file with history (the five history intent dirs, CHANGELOGs) and live intents (ruling B) excluded: 0 lines name /etc/faelight; AGENTS.md's was the last -->
-- [ ] THE GUARD'S EXEMPTIONS, ruled 2026-09-28, and nothing else: history (completed, decision,
+- [x] THE GUARD'S EXEMPTIONS, ruled 2026-09-28, and nothing else: history (completed, decision,
       philosophy, cancelled and incident intents; CHANGELOGs; git), live intents (ruling B),
       registry entries with retired = true, zero-gen's dictionary word forest (ruling E), and --
       ruled by Christian 2026-09-30 -- font files (third-party glyph names) and AGENTS.md (his file)
+    <!-- evidence: 2026-10-01. Ruled by Christian the same day: zero/meta/INCIDENTS.md and all of zero/meta/releases/ (the manifests of ruling A and 10.4.0/intents-shipped.md) are history. The guard in 12772479 holds exactly this list and nothing else: zero/intents/, CHANGELOG*, AGENTS.md, font files, zero/meta/releases/, zero/meta/INCIDENTS.md, [[tool]] blocks with retired = true, and zero-gen's quoted dictionary word. Red 24 without the history entries, green with them. -->
 
 ## Relationship
 
