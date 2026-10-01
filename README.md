@@ -1,45 +1,36 @@
-<!-- DYNAMIC SECTION - Updated by bump-system-version -->
+<!-- HEADER - hand-written; zero-docs never touches above the END marker -->
 
-# 🌲 Faelight Forest 1.0.0
+# Project 0
 
-![Version](https://img.shields.io/badge/version-1.0.0-green?style=flat-square)
-![Rust](https://img.shields.io/badge/Rust-96.5%25-dea584?style=flat-square)
-![Lines](https://img.shields.io/badge/lines-125k-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
-> **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**
+> **Omarchy is the base. Project 0 is only what is needed on top of it.**
 
-## 🍂 Migrating to Omarchy (Arch), August 2026
+## Where it stands
 
+On 2026-08-26 the machine was wiped and reinstalled on Omarchy. What the move found, in the
+open: checks that could not fail, counts that disagreed with each other, tools whose purpose
+left with the old platform, and a project name that no longer fit. Tools were retired with
+recorded reasons, the old name is being removed from every live file, and the commit history
+is the record.
 
-On 2026-08-26 the machine was wiped and reinstalled on Omarchy, and the forest moved
-with it. What that migration is finding, in the open: checks that could not fail,
-counts that disagreed with each other, tools whose purpose left with the platform, and
-a test suite that reported a 2% shell because its harness had lost the binary it was
-meant to test.
+The attention goes to the shell.
 
-Ten tools retired, seventeen intents cancelled with recorded reasons, and the health
-panel stopped measuring a distribution it does not own. The work is ongoing and the
-commit history is the record.
+_Release notes and everything since live in the [changelog](zero/meta/CHANGELOG.md)._
 
-The next chapter is the shell. Forty-one binaries built at the migration; thirty do
-now, and that is the number one person can keep honest. The shell is where the
-attention goes.
-
-_Release notes for 1.0.0 and everything since live in the [changelog](faelight/meta/CHANGELOG.md)._
-
-## 🌲 Forest DNA
+## Project 0 DNA
 
 | | |
 |---|---|
-| 🛠 **Tools** | 18 Rust tools |
-| 📋 **Codebase** | ~125k lines of Rust |
-| ⚡ **Stack** | Rust · Wayland · ratatui · SQLite |
+| 🧱 **Base** | Omarchy -- Arch, Hyprland, systemd |
+| 🐚 **Shell** | NovaShell (`nsh`), with `bash` as the login shell |
+| 🛠 **Tools** | each one listed in [docs/inventory.md](docs/inventory.md) |
+| ⚡ **Stack** | Rust · SQLite · ratatui |
 | 🌍 **Philosophy** | Understanding over convenience · No mystery packages |
 
 > Every tool written or fully understood. Nothing runs blindly.
 
-[Full Changelog →](faelight/meta/CHANGELOG.md)
+[Full Changelog →](zero/meta/CHANGELOG.md)
 
 ---
 
@@ -99,12 +90,13 @@ Omarchy is the base -- someone else's good work, kept. Project 0 is the layer on
 being made good, a sandbox that tests it, and the tools that survived asking "what breaks
 tomorrow if I delete this?"
 
-**Twenty-six crates**, and honestly: most have not been touched since the Omarchy migration in
-August 2026. The shell needed the attention, so the shell got it. That is a statement of where
-the work went, not a claim that the rest is finished.
+The tools are counted in [docs/inventory.md](docs/inventory.md), not here: a count written into
+a README is wrong the day after, and this one once said thirty, then thirty-eight, while the
+tree held twenty-six. Most have had little attention since the Omarchy move. The shell needed
+it, so the shell got it -- a statement of where the work went, not a claim that the rest is
+finished.
 
-**~141,000 lines of Rust across 284 files**, with small amounts of Lua and shell where they
-serve best. Rust not for its own sake -- Rust because understanding every line is the point.
+Rust not for its own sake -- Rust because understanding every line is the point.
 
     POSIX shells   text  -> text   -> text
     Nu shell       table -> filter -> transform
@@ -119,7 +111,7 @@ out to be what to carry over.
 
 The answer was: less than expected.
 
-**Faelight Forest was not a failure.** It was more projects than one person could keep honest at
+**What came before was not a failure.** It was more projects than one person could keep honest at
 the pace they were arriving -- eight or nine months of ideas, each worth building, none with
 enough attention left over. Nothing was broken. Everything was half-tended, which is a different
 problem and a harder one to see.
@@ -137,9 +129,9 @@ Four principles govern everything:
 1. **Understanding over convenience** -- if you don't understand it, it doesn't run.
 2. **Manual control over automation** -- nothing happens without explicit authorization.
 3. **Intentional design** -- every tool has a purpose; every decision has a record.
-4. **The forest remembers** -- every commit, decision, and intent is documented and learned from.
+4. **Project 0 remembers** -- every commit, decision, and intent is documented and learned from.
 
-This is stewardship, not consumption: the forest is tended intentionally, every part known.
+This is stewardship, not consumption: every part is known and tended on purpose.
 
 ## The thesis
 
@@ -176,39 +168,37 @@ The last one matters more than it looks. `?` translates and shows you the pipeli
 confidence level; it does not run anything until you say yes. When it has no pattern, it says so
 instead of guessing.
 
-Around these sit the remaining crates -- git governance, a release manager, a credential vault,
-the sandbox. `docs/inventory.md` says which are used, which are kept for a stated reason, and
-which are neither.
+Around these sit the remaining tools -- git governance, the sandbox, the doc engine.
+`docs/inventory.md` says which are used, which are kept for a stated reason, and which are
+neither.
 
-**See the full, always-current tool catalog:** [rust-tools/](faelight/rust-tools/)
+**See the full, always-current tool catalog:** [rust-tools/](zero/rust-tools/)
 
 ## Going deeper
 
 This README is the front door. The depth lives here:
 
-- [Theory of Operation](docs/THEORY_OF_OPERATION.md) -- how the forest thinks
+- [Theory of Operation](docs/THEORY_OF_OPERATION.md) -- how the system thinks
 - [Architecture](docs/ARCHITECTURE.md) -- how the pieces fit
 - [Philosophy](docs/PHILOSOPHY.md) -- why it is built this way
 - [Shell Philosophy](docs/NSH-PHILOSOPHY.md) -- the case for a human-first shell
-- [Release Process](docs/RELEASE.md) -- how the forest publishes itself
-- [Tool Catalog](faelight/rust-tools/) -- every active tool, generated from source
+- [Tool Catalog](zero/rust-tools/) -- every active tool, generated from source
 - [Inventory](docs/inventory.md) -- what is used, what is kept, and what the numbers say
-- [Changelog](faelight/meta/CHANGELOG.md) -- the full history, Arch era to Omarchy
+- [Changelog](zero/meta/CHANGELOG.md) -- the full history, Arch era to Omarchy
 
 ## Security
 
 Nothing runs without explicit authorization.
 
-- UFW firewall + fail2ban active
-- faelight-vault -- encrypted credential manager
-- faelight-sandbox -- policy engine with namespace isolation
-- Health + integrity monitoring -- continuous verification
-- cargo-audit on every deploy -- findings surfaced, triaged, and documented, never silent
+- Firewall on and sshd key-only -- both checked on every `d` run
+- zero-sandbox -- policy engine with namespace isolation
+- Health and integrity monitoring -- `d` names what it could not determine rather than passing it
+- cargo-audit -- findings surfaced, triaged, and documented, never silent
 
 ## The decision record
 
 Every intent is documented -- not just what was built, but why, when, what the health score
-was, what risk was accepted, and what happened next. The forest does not forget.
+was, what risk was accepted, and what happened next. Project 0 remembers. The human decides.
 
 ## License
 
@@ -217,5 +207,4 @@ MIT -- see [LICENSE](LICENSE). Use it, learn from it, build on it.
 ---
 
 *Every tool written or fully understood. Nothing runs blindly.*
-🌲
 *Auto-generated by zero-docs v2.0.0 — last sync: 2026-09-15 18:55*
