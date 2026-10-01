@@ -89,12 +89,17 @@ intent once this collector is proven.
 - [ ] ONE COLLECTOR: zero_core::fingerprint::collect() reads the nine declared inputs, and a
       census shows no other crate reads them for identity
 - [ ] RED FIRST: every proof test below is seen failing before the code that makes it pass
-- [ ] MISSING IS NOT ZERO: an unreadable input (injected path) lands in the missing-set and the
+      <!-- progress 2026-10-01: step 1 seen red -- 8 of 8 collector tests failed at todo!() before 98d6657b made them pass. Stays open until steps 2 and 3 are seen red too. -->
+- [x] MISSING IS NOT ZERO: an unreadable input (injected path) lands in the missing-set and the
       outcome is UNDETERMINED, never PASS
-- [ ] A CHANGED INPUT IS FAIL: one differing input, all others read, gives FAIL naming its axis
-- [ ] RENAME IS NOT A NEW MACHINE: a display-name change leaves the digest unchanged
+      <!-- evidence: 98d6657b, zero-core fingerprint::tests::an_unreadable_input_is_missing_and_the_outcome_undetermined -- machine-id removed from a fake machine: missing-set names it, digest None, compare UNDETERMINED. Red at todo!() first. -->
+- [x] A CHANGED INPUT IS FAIL: one differing input, all others read, gives FAIL naming its axis
+      <!-- evidence: 98d6657b, fingerprint::tests::one_changed_input_is_fail_naming_it (hostname -> FAIL [identity.hostname]) and a_link_where_a_real_directory_belongs_is_fail_on_the_tree (-> FAIL [tree.dirs]). Red at todo!() first. -->
+- [x] RENAME IS NOT A NEW MACHINE: a display-name change leaves the digest unchanged
+      <!-- evidence: 98d6657b, fingerprint::tests::a_field_outside_the_declared_list_does_not_move_the_digest -- a display.name field added: same digest, compare PASS. The digest reads DECLARED only. Red at todo!() first. -->
 - [ ] TWO CONSUMERS, ONE RECORD: core and the doctor produce identical records in one session
-- [ ] STABLE DIGEST: the digest function is pinned by a test vector in the code
+- [x] STABLE DIGEST: the digest function is pinned by a test vector in the code
+      <!-- evidence: 98d6657b, fingerprint::tests::the_digest_function_is_pinned -- FNV-1a written in zero-core, fnv1a64("project 0") == 0x2501e42b18699b7e. Red at todo!() first. -->
 - [ ] ONE WRITER: only core fingerprint record writes the expected record; the doctor never does
 - [ ] DOCTOR: a Fingerprint check shows PASS, FAIL and UNDETERMINED, each demonstrated on the
       deployed binary
