@@ -38,7 +38,7 @@ stale at deploy time.
 - Every alias must be used regularly or it gets removed
 - Aliases document intent, not just shortcuts
 - Project 0 tools get short aliases (`d`, `nt`). The `z` prefix replaces the
-  older `f` prefix -- ruled 2026-09-25, applied in one pass after INT-247 closes
+  older `f` prefix -- ruled 2026-09-25, applied 2026-09-30
 
 `zero-deadwood` flags any alias whose target no longer resolves. It caught
 two during the nsh rename: `ft` and `fs`, each pointing at a binary deleted

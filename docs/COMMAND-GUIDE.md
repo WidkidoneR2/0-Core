@@ -1,10 +1,9 @@
-# Faelight Forest -- Command Reference
+# Project 0 -- Command Reference
 
-**Version:** 14.1.0
-**Last Updated:** 2026-06-05
 **System:** Omarchy (Arch) + Hyprland + Project 0
 
-> The forest understands your intent. These are the commands you reach for daily.
+> The commands you reach for daily. Every line was checked against `core --help` and
+> `~/.config/nsh/config.nsh`. For the full list of a domain, run `core <domain> --help`.
 
 ---
 
@@ -12,42 +11,40 @@
 
 ### Health & Status
 ```bash
-d                          # health check -- health, integrity, and a verdict
-core doctor run            # same as d
-core status                # forest state narrative
-core doctor run --json     # machine-readable health output
+d                          # core doctor run -- health, integrity, and a verdict
+core status                # state in one coherent narrative
+core doctor trend          # also: quick, forecast, history, entropy, bins, aliases
 ```
 
 ### Intent Ledger
 ```bash
-intent list                # show active + upcoming intents
-intent show <id>           # show specific intent details
-intent next                # recommendation on what to work on
-intent stats               # velocity and completion metrics
-core intent start <id>     # start an intent (cistart alias)
-core intent complete <id>  # complete an intent (cicomplete alias)
-core intent defer <id> "reason"    # defer a gate with reason
-core intent override <id> "reason" # override a gate with audit log
+intl                       # core intent list
+ints <id>                  # core intent show -- one intent in full
+inta                       # core intent add -- file a new intent
+cistart <id>               # core intent start
+cicomplete <id>            # core intent complete -- refuses while a gate is open (intc does the same)
+core intent next           # recommendation on what to work on
+core intent stats          # velocity and completion metrics
 core intent brief          # session brief
-core intent velocity       # completion velocity metrics
-core intent next           # next intent recommendation
+core intent defer <id> "reason"     # defer a gate with a reason
+core intent override <id> "reason"  # override a gate, with an audit log entry
 ```
 
-### Friday Intelligence
+### Friday
 ```bash
-friday                     # show Friday patterns
-friday chat                # interactive Friday session
+friday-chat                # interactive Friday session
 core friday status         # Friday system status
-core knowledge show <key>  # show a specific knowledge entry
+core knowledge show <key>  # one knowledge entry; also: search, patterns, add
 ```
 
-### Forest Tools
+### Tools
 ```bash
-fm                         # faelight-fm tree navigator
-fmd                        # faelight-fm dual panel
-core git status            # git status with forest context
-core security scan         # security audit
-core security report       # security report
+yazi                       # file manager (the retired fm's replacement)
+zdocs                      # zero-docs -- the documentation engine
+zg                         # zero-git -- git workflow governance
+core security scan         # security audit; also: report, debt, trend, history
+cheat                      # cheatsheet TUI -- every alias, read live from config.nsh
+reload                     # restart into the newly deployed nsh
 ```
 
 ---
@@ -56,37 +53,20 @@ core security report       # security report
 
 ```bash
 g                          # git
-gc                         # git commit --no-verify
-gp                         # git push
 gs                         # git status
+gc "message"               # git commit -m
+gp                         # git push
 lg                         # lazygit -- interactive git TUI
-core git status            # forest-aware git status
+core git status            # core's git view; also: risk, log, verify
 ```
 
 ---
 
 ## Core Engine Commands
 
-### Doctor
-```bash
-core doctor run            # full health check
-core doctor run --json     # JSON output
-core doctor check <name>   # run specific check
-```
-
-### Security
-```bash
-core security scan         # full security audit
-core security report       # formatted report
-core security debt         # how long findings have been present
-core security trend        # finding count over time
-```
-
 ### Sandbox
 ```bash
-core sandbox create <name> # create isolated experiment
-core sandbox list          # list active sandboxes
-core sandbox graduate <n>  # promote to labs/graduated/
+core sandbox status        # sandbox state; also: run, diff, snapshot, snapshots, restore, clear
 ```
 
 ### Profile
@@ -98,68 +78,31 @@ core profile switch <name> # switch profile
 
 ### Events & History
 ```bash
-core events                # event ledger
-core journal               # forest journal
-core why                   # causality engine -- why is system in this state
-core trace                 # trace event history
+core events list           # the event ledger
+core journal today         # the system's own journal; also: yesterday, week, search
+core why summary           # causality -- why the system is in this state
+core trace last            # trace event history; also: domain
 ```
 
 ### Prediction & Intelligence
 ```bash
-core predict               # prediction engine
-core react                 # reaction engine
-core goals                 # goal engine
-core friday status         # Friday intelligence status
+core predict next          # prediction engine
+core react list            # reaction engine
+core goals list            # goal engine
 ```
 
 ---
 
-## Forest File Manager (faelight-fm)
+## Key Bindings
 
-### Single Panel (`fm`)
-| Key | Action |
-|-----|--------|
-| `j/k` | Navigate up/down |
-| `Enter` | Expand directory / open file in helix |
-| `h` | Go up to parent |
-| `g/G` | Top / bottom |
-| `/` | Filter (fuzzy search) |
-| `:` | Command mode (`:cd`, `:cp`, `:mv`) |
-| `s` | Stage/unstage git file |
-| `n` | Nix store info |
-| `r` | Show GC roots |
-| `.` | Toggle hidden files |
-| `y` | Yank path to clipboard |
-| `d` | Delete (moves to trash) |
-| `q` | Quit |
-
-### Dual Panel (`fmd`)
-| Key | Action |
-|-----|--------|
-| `Tab` | Switch active panel |
-| `:cp` | Copy selected to other panel |
-| `:mv` | Move selected to other panel |
-| `:cd <path>` | Navigate to path |
-
----
-
-## Key Bindings (MangoWM)
-
-| Binding | Action |
-|---------|--------|
-| `Mod+Return` | Alacritty terminal |
-| `Mod+Alt+Return` | faelight-ade |
-| `Mod+Escape` | faelight-menu |
-| `Mod+Ctrl+Escape` | hyprlock (lock screen) |
-| `Mod+D` | App launcher |
-| `Mod+H/J/K/L` | Focus window |
-| `Mod+1-9` | Switch workspace |
+Omarchy owns the Hyprland key bindings and lists them in its own menu. This guide does not
+copy them: a copy goes stale the day Omarchy changes a bind.
 
 ---
 
 ## Related Documentation
 
 - [PHILOSOPHY.md](PHILOSOPHY.md) -- Core principles
-- [ALIASES.md](ALIASES.md) -- All 50 aliases
+- [ALIASES.md](ALIASES.md) -- where the aliases live and how to read them
 - [NOVASHELL.md](NOVASHELL.md) -- NovaShell documentation
-- [ARCHITECTURE.md](ARCHITECTURE.md) -- System architecture
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- how the pieces fit

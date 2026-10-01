@@ -38,13 +38,13 @@ and then the ruling is written here beside it.
 | `nsh-test` | keep | 211 | 211 | 2026-09-30 | `nt` | passed |
 | `nsh` | keep | 94 | 94 | 2026-09-26 | -- (the shell itself) | passed |
 | `zero-deadwood` | keep | 68 | 117 | 2026-09-25 | `dw` | passed |
-| `zero-docs` | keep | 30 | 102 | 2026-09-30 | `docs-check`, `docs-status`, `docs-sync`, `fdocs` | passed |
+| `zero-docs` | keep | 30 | 102 | 2026-09-30 | `docs-check`, `docs-status`, `docs-sync`, `zdocs` | passed |
 | `zero-gate` | keep | 30 | 33 | 2026-09-30 | -- (the pre-commit hook) | passed |
-| `zero-daemon` | keep, for Friday | 23 | 36 | 2026-09-25 | `f-daemon` | passed |
+| `zero-daemon` | keep, for Friday | 23 | 36 | 2026-09-25 | `z-daemon` | passed |
 | `teach` | keep | 19 | 24 | 2026-09-20 | `t` | passed |
-| `zero-git` | keep | 18 | 1,170 | 2026-09-30 | `fg`, `fga`, `fgc`, `fgp`, `fgs` | passed |
+| `zero-git` | keep | 18 | 1,170 | 2026-09-30 | `zg`, `zga`, `zgc`, `zgp`, `zgs` | passed |
 | `zero-sandbox` | keep | 18 | 19 | 2026-09-25 | `sb`, `sb-clear`, `sb-diff`, `sb-restore`, `sb-snap`, `sb-snaps`, `sb-status` | passed |
-| `zero-update` | keep for now | 9 | 118 | 2026-09-30 | `fu`, `fudr`, `fui`, `fuup`, `update` | passed |
+| `zero-update` | keep for now | 9 | 118 | 2026-09-30 | `zu`, `zudr`, `zui`, `zuup`, `update` | passed |
 | `zero-ade` | keep, for Friday | 5 | 47 | 2026-09-25 | `ade` | undetermined |
 | `zero-gen` | keep | 3 | 3 | 2026-09-25 | `gen` | passed |
 | `db-browse` | keep for now | 2 | 29 | 2026-09-15 | `db` | undetermined |
@@ -106,9 +106,9 @@ this file says so.
     three tools cannot answer      db-browse, friday-chat, zero-ade wait for input; unchanged
     in a clean room                since 2026-09-15
     zero-update vs omarchy-update  question 3 is unanswered for it
-    the f-prefix aliases           fg fga fgc fgp fgs, fu fudr fui fuup, fdocs, f-daemon become
-                                   z-: INT-265's first plan after INT-247 closes. About 30 code
-                                   sites in 8 crates and 2 Friday rows key on fg
+    the z-prefix aliases           zg zga zgc zgp zgs, zu zudr zui zuup, zdocs, z-daemon --
+                                   renamed from the f- prefix 2026-09-30; the counts above were measured
+                                   under the old names. fg is job control only
     zero/registry/aliases.toml     read by ship (ship/src/main.rs:309) and stale: it lists tools
                                    that no longer exist and maps core to a cd. INT-265
     docs/NOVASHELL.md:216          says fg is not job control; nsh main.rs:250 already treats a
