@@ -212,7 +212,7 @@ fn fuzzy_select(items: &str, prompt: &str, ansi: bool) -> Result<String, Command
     // read in a long list.
     //
     // ⚠️ HARDCODED, AND THAT IS THE POINT OF THIS COMMENT: the Hakker Green palette
-    // exists only as PROSE -- ROADMAP.md and a decisions file -- so there is nothing to
+    // exists only as PROSE -- in a decisions file -- so there is nothing to
     // import. When the single token source lands, this is one of the places that should
     // read from it rather than carry its own hex.
     args.push(
