@@ -802,8 +802,6 @@ pub enum GitCommands {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
-    InstallHooks,
-    RemoveHooks,
 }
 
 #[derive(Subcommand)]

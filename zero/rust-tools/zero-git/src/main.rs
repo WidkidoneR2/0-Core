@@ -3,8 +3,6 @@
 
 use clap::{Parser, Subcommand};
 use colored::*;
-use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::process::{exit, Command};
 
 // Import our library modules
@@ -61,26 +59,8 @@ enum Commands {
         count: Option<usize>,
     },
 
-    /// Install git hooks
-    InstallHooks,
-
-    /// Remove git hooks
-    RemoveHooks,
-
     /// Verify commit/push readiness
     Verify,
-
-    /// Pre-commit hook (called by git)
-    #[command(hide = true)]
-    HookPreCommit,
-
-    /// Commit-msg hook (called by git)
-    #[command(hide = true)]
-    HookCommitMsg { file: String },
-
-    /// Pre-push hook (called by git)
-    #[command(hide = true)]
-    HookPrePush,
 
     /// Rollback to a previous commit (interactive or by commit hash)
     Rollback {
@@ -166,12 +146,7 @@ fn main() {
         },
 
         // v0.1 commands (preserved)
-        Commands::InstallHooks => install_hooks(),
-        Commands::RemoveHooks => remove_hooks(),
         Commands::Verify => verify(),
-        Commands::HookPreCommit => hook_pre_commit(),
-        Commands::HookCommitMsg { file } => hook_commit_msg(&file),
-        Commands::HookPrePush => hook_pre_push(),
         Commands::Rollback {
             hash,
             dry_run,
@@ -186,98 +161,6 @@ fn main() {
     };
 
     exit(exit_code);
-}
-
-// ═══════════════════════════════════════════════════════════
-fn install_hooks() -> i32 {
-    println!("{}", "🔧 Installing git hooks...".cyan());
-
-    let hooks_dir = paths::git_hooks_dir();
-    if !hooks_dir.exists() {
-        eprintln!("{} .git/hooks directory not found", "Error:".red());
-        return 1;
-    }
-
-    let hooks = [
-        ("pre-commit", PRE_COMMIT_HOOK),
-        ("commit-msg", COMMIT_MSG_HOOK),
-        ("pre-push", PRE_PUSH_HOOK),
-    ];
-
-    for (name, content) in hooks {
-        let path = hooks_dir.join(name);
-
-        // Backup existing
-        if path.exists() {
-            let backup = hooks_dir.join(format!("{}.backup", name));
-            fs::rename(&path, &backup).ok();
-            println!("   {} Backed up existing {}", "📦".yellow(), name);
-        }
-
-        // Write new hook
-        if let Err(e) = fs::write(&path, content) {
-            eprintln!("{} Failed to write {}: {}", "Error:".red(), name, e);
-            return 1;
-        }
-
-        // Make executable
-        let mut perms = fs::metadata(&path).unwrap().permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&path, perms).ok();
-
-        println!("   {} Installed {}", "✅".green(), name);
-    }
-
-    println!();
-    println!("{}", "Git hooks installed!".green());
-    println!();
-    println!("Hooks will:");
-    println!(
-        "  • {} Block commits when core is locked",
-        "pre-commit:".cyan()
-    );
-    println!("  • {} Suggest intent references", "commit-msg:".cyan());
-    println!("  • {} Final verification before push", "pre-push:".cyan());
-
-    0
-}
-
-fn remove_hooks() -> i32 {
-    println!("{}", "🔧 Removing git hooks...".cyan());
-
-    let hooks_dir = paths::git_hooks_dir();
-    let hooks = ["pre-commit", "commit-msg", "pre-push"];
-
-    for name in hooks {
-        let path = hooks_dir.join(name);
-        if path.exists() {
-            // Check if it's ours
-            if let Ok(content) = fs::read_to_string(&path) {
-                if content.contains("zero-git") {
-                    fs::remove_file(&path).ok();
-                    println!("   {} Removed {}", "✅".green(), name);
-
-                    // Restore backup if exists
-                    let backup = hooks_dir.join(format!("{}.backup", name));
-                    if backup.exists() {
-                        fs::rename(&backup, &path).ok();
-                        println!("   {} Restored {}.backup", "📦".yellow(), name);
-                    }
-                } else {
-                    println!(
-                        "   {} {} is not a zero-git hook, skipping",
-                        "⚠️".yellow(),
-                        name
-                    );
-                }
-            }
-        }
-    }
-
-    println!();
-    println!("{}", "Git hooks removed.".green());
-
-    0
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -332,27 +215,6 @@ fn verify() -> i32 {
         }
     }
 
-    // Check hooks installed
-    let hooks_dir = paths::git_hooks_dir();
-    let hooks_installed = ["pre-commit", "commit-msg", "pre-push"]
-        .iter()
-        .filter(|h| {
-            let path = hooks_dir.join(h);
-            if let Ok(content) = fs::read_to_string(&path) {
-                content.contains("zero-git")
-            } else {
-                false
-            }
-        })
-        .count();
-
-    if hooks_installed == 3 {
-        println!("  {} All hooks installed", "✅".green());
-    } else {
-        println!("  {} {}/3 hooks installed", "⚠️".yellow(), hooks_installed);
-        println!("     Run: {} to install", "zero-git install-hooks".cyan());
-    }
-
     println!();
     if issues > 0 {
         println!("{}", "Some issues found. Fix before committing.".red());
@@ -362,113 +224,3 @@ fn verify() -> i32 {
         0
     }
 }
-
-// ═══════════════════════════════════════════════════════════
-// 🪝 HOOK IMPLEMENTATIONS
-// ═══════════════════════════════════════════════════════════
-
-fn hook_pre_commit() -> i32 {
-    // Run gitleaks to scan for secrets
-    println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
-    let gitleaks = Command::new("gitleaks")
-        .args(["protect", "--verbose", "--staged"])
-        .current_dir(paths::core_dir())
-        .status();
-
-    match gitleaks {
-        Ok(status) => {
-            if status.success() {
-                println!("{}", "✅ No secrets detected".green());
-                0
-            } else {
-                eprintln!();
-                eprintln!("{}", "═══════════════════════════════════════════".red());
-                eprintln!("{}", "🔒 COMMIT BLOCKED - Secrets detected!".red().bold());
-                eprintln!("{}", "═══════════════════════════════════════════".red());
-                eprintln!();
-                eprintln!("Gitleaks found potential secrets in your staged changes.");
-                eprintln!("Remove them before committing.");
-                eprintln!();
-                1
-            }
-        }
-        Err(e) => {
-            eprintln!("{} Failed to run gitleaks: {}", "Error:".red(), e);
-            eprintln!("Blocking commit for safety.");
-            1
-        }
-    }
-}
-
-fn hook_commit_msg(file: &str) -> i32 {
-    let msg = match fs::read_to_string(file) {
-        Ok(m) => m,
-        Err(_) => return 0,
-    };
-
-    let first_line = msg.lines().next().unwrap_or("");
-
-    // Check for very short messages
-    if first_line.len() < 10 {
-        eprintln!();
-        eprintln!("{}", "⚠️  Commit message is very short".yellow());
-        eprintln!("   Consider being more descriptive.");
-        eprintln!();
-    }
-
-    // Suggest intent reference for significant changes
-    let has_intent = msg.contains("Intent:") || msg.contains("intent:");
-
-    let staged = Command::new("git")
-        .args(["diff", "--cached", "--name-only"])
-        .output();
-
-    if let Ok(output) = staged {
-        let files = String::from_utf8_lossy(&output.stdout);
-        let significant = files.lines().any(|f| {
-            f.starts_with("rust-tools/")
-                || f.starts_with("INTENT/")
-                || f.ends_with("main.rs")
-                || f == "VERSION"
-                || f == "CHANGELOG.md"
-        });
-
-        if significant && !has_intent {
-            eprintln!();
-            eprintln!("{}", "💡 This looks like a significant change.".cyan());
-            eprintln!("   Consider adding an intent reference:");
-            eprintln!("   {}", "Intent: INT-0XX".yellow());
-            eprintln!();
-        }
-    }
-
-    0
-}
-
-fn hook_pre_push() -> i32 {
-    println!("{}", "🔍 Pre-push verification...".cyan());
-
-    0
-}
-
-// ═══════════════════════════════════════════════════════════
-// 📜 HOOK SCRIPTS
-// ═══════════════════════════════════════════════════════════
-
-const PRE_COMMIT_HOOK: &str = r#"#!/bin/bash
-# Project 0 Git Hook - Pre-Commit
-# Managed by zero-git
-exec zero-git hook-pre-commit
-"#;
-
-const COMMIT_MSG_HOOK: &str = r#"#!/bin/bash
-# Project 0 Git Hook - Commit Message
-# Managed by zero-git
-exec zero-git hook-commit-msg "$1"
-"#;
-
-const PRE_PUSH_HOOK: &str = r#"#!/bin/bash
-# Project 0 Git Hook - Pre-Push
-# Managed by zero-git
-exec zero-git hook-pre-push
-"#;

@@ -632,11 +632,6 @@ pub fn git_dir() -> PathBuf {
     core_dir().join(".git")
 }
 
-/// Git hooks directory (for zero-git governance)
-pub fn git_hooks_dir() -> PathBuf {
-    git_dir().join("hooks")
-}
-
 /// Git config directory
 pub fn git_config_dir() -> PathBuf {
     config_dir().join("git")

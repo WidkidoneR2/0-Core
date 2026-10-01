@@ -300,14 +300,6 @@ pub fn parse() -> Command {
                 subcmd: "branch".to_string(),
                 args,
             },
-            GitCommands::InstallHooks => GitCommand::Delegate {
-                subcmd: "install-hooks".to_string(),
-                args: vec![],
-            },
-            GitCommands::RemoveHooks => GitCommand::Delegate {
-                subcmd: "remove-hooks".to_string(),
-                args: vec![],
-            },
         }),
         Commands::Workspace { command } => Command::Workspace(match command {
             WorkspaceCommands::Recent {
