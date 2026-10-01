@@ -58,7 +58,6 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 
 **Evidence:** `bump-system-version v4.0.0` - 8 phases, interactive prompts at each decision point. Automates tedious work while human maintains control.
 
-**Enforcement:** See `docs/POLICIES.md` (Automation Policy)
 
 ---
 
