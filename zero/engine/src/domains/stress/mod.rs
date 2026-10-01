@@ -1,6 +1,6 @@
 // INT-152 Core v11 Stress Test
 // Verifies prediction, reaction, and health systems under load.
-// The forest that has been tested is the forest that can be trusted.
+// What has been tested is what can be trusted.
 
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;

@@ -291,7 +291,7 @@ fn build_tool_registry() -> Vec<ToolInfo> {
         ToolInfo {
             name: "intent".to_string(),
             version: "3.0.0".to_string(),
-            description: "Intent Ledger manager. Every architectural decision gets a numbered entry with rationale. Commits link to intents. The forest remembers why.".to_string(),
+            description: "Intent Ledger manager. Every architectural decision gets a numbered entry with rationale. Commits link to intents. Project 0 remembers why.".to_string(),
             commands: vec![
                 "intent list              # all intents with status".to_string(),
                 "intent show INT-042      # specific intent detail".to_string(),
@@ -807,7 +807,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
     println!();
 
     let lessons: Vec<(&str, &str, fn(&SystemSnapshot))> = vec![
-        ("philosophy", "The Forest Philosophy", lesson_philosophy),
+        ("philosophy", "The Project 0 Philosophy", lesson_philosophy),
         ("structure", "Directory Structure", lesson_structure),
         ("tools", "Core Tools", lesson_tools),
         ("workflow", "Daily Workflow", lesson_workflow),
@@ -887,7 +887,7 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
 
 fn lesson_philosophy(snap: &SystemSnapshot) {
     clear();
-    println!("{}", "The Forest Philosophy".cyan().bold());
+    println!("{}", "The Project 0 Philosophy".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
     println!(

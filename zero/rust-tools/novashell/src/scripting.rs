@@ -1,6 +1,6 @@
 // NovaShell Phase 6 — .fsh scripting language
 // Variables, control flow, script execution
-// "Not for automating tasks. For expressing forest behavior."
+// "Not for automating tasks. For expressing how Project 0 behaves."
 
 use crate::commands::{execute, CommandResult};
 use crate::db::StateDb;

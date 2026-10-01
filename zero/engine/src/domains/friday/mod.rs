@@ -1206,7 +1206,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
             "friday, vocabulary, abstraction, language, patterns",
             format!(
                 "Friday has observed {} patterns and named {} abstractions. \
-                The forest repeats behaviors that deserve names. \
+                Project 0 repeats behaviors that deserve names. \
                 Naming them gives Friday vocabulary to reason with.",
                 pattern_count, vocab_count
             ),
@@ -1216,7 +1216,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
                 This intent establishes the vocabulary expansion practice: \
                 weekly review of abstraction candidates, confirmation of names, \
                 and recording in friday_language. \
-                A language built from what the forest actually does.",
+                A language built from what Project 0 actually does.",
                 pattern_count,
                 obs_count,
                 top_pattern.as_ref().map(|p| p.3).unwrap_or(0)
@@ -1228,7 +1228,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
             "fsh, shell, workflow, scripting, friction",
             "Friday has observed hundreds of python3 /tmp/ invocations. \
                 Every one is friction. The run builtin exists but the habit persists. \
-                The forest needs a first-class script mode that makes python3 /tmp/ obsolete."
+                Project 0 needs a first-class script mode that makes python3 /tmp/ obsolete."
                 .to_string(),
             "Friday observes that the single largest workflow friction point is the \
                 python3 /tmp/script.py pattern. The run builtin handles .py files but \
@@ -1244,7 +1244,7 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
             "Friday Session Intelligence -- Know the Session Before It Starts",
             "friday, intelligence, session, context, awareness",
             "Friday has observed patterns across sessions but cannot yet orient itself \
-                at session start. The forest deserves a morning briefing."
+                at session start. Project 0 deserves a morning briefing."
                 .to_string(),
             format!(
                 "Friday has {} facts and {} patterns. \

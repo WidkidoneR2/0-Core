@@ -14,7 +14,7 @@ JSON schemas for all 01-registry/ files.
 ## Philosophy
 
 Errors are caught at write time, not runtime.
-The forest validates what it declares.
+Project 0 validates what it declares.
 
 ## Validation
 ```bash
@@ -28,4 +28,4 @@ core registry validate  # validate all registry files manually
 2. Create matching .schema.json in 04-schema/
 3. Add validation to engine/src/domains/doctor/mod.rs
 
-*"Structure is not constraint. Structure is the forest knowing where its roots are."*
+*"Structure is not constraint. Structure is knowing where the roots are."*

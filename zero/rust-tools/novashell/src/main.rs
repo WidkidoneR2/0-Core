@@ -3,7 +3,7 @@
 // Structured shell environment for Project 0
 // INT-120 Phase 1 — REPL skeleton
 //
-// "A forest deserves a shell that knows it is a forest."
+// "Project 0 deserves a shell that knows what it is running on."
 // "Not text streams. Not configuration. Structured wisdom."
 
 mod cheatsheet_tui;

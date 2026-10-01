@@ -5,7 +5,7 @@ NovaShell is a shell that remembers, reasons, and refuses to lie.
 - It remembers: every command, every failure, every pattern, in a real database with a real schema. Not a ~/.history file. Queryable structured data.
 - It reasons: it watches what I do, learns my patterns, and tells me what comes next -- but only when confidence and frequency are both high enough to earn the interruption.
 - It refuses to lie: when something fails, it says so. When confidence is low, it stays silent. When data shows a pattern is weak, NovaShell does not pretend it is strong.
-Every decision in NovaShell is either documented in an intent, recorded in a commit, or written into this file. Nothing happens because it "seemed like a good idea." The forest remembers.
+Every decision in NovaShell is either documented in an intent, recorded in a commit, or written into this file. Nothing happens because it "seemed like a good idea." The ledger remembers.
 - It is not a wrapper around bash. It does not translate my commands into bash and run them. When NovaShell handles a command, NovaShell owns it.
 - It is not configurable into something else. There is no plugin system that can change what the shell is. There are builtins, and there is sh fallback for what builtins do not yet cover. That is all.
 - It is not magic. Every suggestion has a citation. Every prediction has a confidence score. Every pattern has a frequency count I can read in the database with a SELECT.
