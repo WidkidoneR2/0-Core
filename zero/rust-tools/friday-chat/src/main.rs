@@ -16,7 +16,7 @@ use ratatui::{
 use rusqlite::Connection;
 use std::io;
 
-// Palette (design-system.md)
+// Palette -- hardcoded here; no design document owns these colours
 const BG: Color = Color::Rgb(10, 15, 10);
 const FG: Color = Color::Rgb(168, 197, 176);
 const GREEN: Color = Color::Rgb(42, 255, 213);

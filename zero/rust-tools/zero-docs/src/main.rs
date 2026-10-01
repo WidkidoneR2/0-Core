@@ -34,7 +34,6 @@ fn cmd_public(dry_run: bool) {
         ("ARCHITECTURE.md", "Architecture"),
         ("PHILOSOPHY.md", "Philosophy"),
         ("NSH-PHILOSOPHY.md", "Shell Philosophy"),
-        ("design-system.md", "Design System"),
         ("NOVASHELL.md", "Shell Reference"),
     ];
 

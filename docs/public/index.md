@@ -8,5 +8,4 @@
 - [Architecture](ARCHITECTURE.md)
 - [Philosophy](PHILOSOPHY.md)
 - [Shell Philosophy](NSH-PHILOSOPHY.md)
-- [Design System](design-system.md)
 - [Shell Reference](NOVASHELL.md)
