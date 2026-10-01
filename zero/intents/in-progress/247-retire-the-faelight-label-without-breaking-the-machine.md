@@ -2441,7 +2441,98 @@ KIND across the whole tree, in one plan.
     scripts    ~/.cache/zero/<name>-<sha prefix>.py, deleted with the commit
 ```
 
-## 2026-09-30, 16 OF 18 -- START HERE
+## 2026-09-30, 16 OF 18, LATE -- START HERE
+
+READ THIS FIRST. It supersedes the 16 OF 18 section below; that section's rulings, findings and method
+stand unless this says otherwise. Written only if HEAD was the NOVASHELL commit da1ec23f, clean and pushed,
+every commit below exists, and both pre-fz backups were on disk.
+
+### Done this session -- pushed
+
+```text
+    cdefa1bb   zero-docs command-guide retired; COMMAND-GUIDE.md is hand-written (since 2026-06-04)
+    d1abb5e8   POLICIES.md deleted; its two pointers (PHILOSOPHY, THEORY) with it
+    77668957   ALIASES.md kept: Project 0, ~/.config/nsh, zero-deadwood
+    91adefef   README says Project 0; its six dead links fixed; no counts, no retired tools
+    82982b6e   ROADMAP.md deleted -- and 72088e45 carries the comment edit 82982b6e missed
+    635c21fb   WORKFLOWS.md deleted
+    b12bec39   THEORY_OF_OPERATION.md deleted; its README and PHILOSOPHY links with it
+    c5148681   design-system.md deleted, both copies; public-list entry; palette comments
+    8eaeb0c3   ARCHITECTURE.md rewritten from measurement
+    9a40a2ef   f->z step A: zero-git is zg in code; fg is job control only
+    39589d06   f->z step D: COMMAND-GUIDE, inventory and ALIASES name zg and zdocs
+    da1ec23f   NOVASHELL.md rewritten: every name checked against the dispatch code; job control as it
+               works; the five aliases that shadow builtins named
+    (disk)     step B: 11 aliases in ~/.config/nsh/config.nsh renamed f -> z
+    (data)     step C: 13 Friday teaching values say zg commit; session summaries untouched
+```
+
+Backups kept until nothing needs rolling back: ~/.cache/zero/config.nsh.pre-fz-20260930T212310 and
+~/.local/state/zero/state.db.pre-fz-20260930T212701.
+
+### Rulings, Christian 2026-09-30
+
+```text
+    docs           COMMAND-GUIDE hand-written and its generator verb retired. Deleted: POLICIES,
+                   ROADMAP, WORKFLOWS, THEORY_OF_OPERATION, design-system. Kept: ALIASES, and
+                   rfc-169 as the spine design record (its fsh title goes in the word pass)
+    the desktop    Mango is dead. Omarchy and Project 0 are the now and the future; Omarchy owns
+                   the key bindings and no doc copies them
+    aliases        f->z pulled forward from INT-265 and done: all 11 f-aliases are z-.
+                   fm and fmd stay gone; yazi is typed directly
+    shadowing      NOVASHELL teaches gc, gf, ports, decisions and audit as the aliases they are;
+                   whether those aliases change is INT-265's, later
+    versions       numbers generated from volume of change -- an idea for INT-102, not filed
+```
+
+### Gates -- 16 of 18, unchanged. FINISH LINE and EXEMPTIONS close with the guard.
+
+### Next, in order
+
+The nine-document set is done: README, ARCHITECTURE, COMMAND-GUIDE, NOVASHELL and ALIASES
+rewritten; ROADMAP, WORKFLOWS, THEORY_OF_OPERATION, design-system and POLICIES deleted.
+
+```text
+    1  re-run the finish census -- smaller files still named the old words at the start of this
+       session (CONVENTIONS, NSH-PHILOSOPHY, NSH-COMPATIBILITY, crate READMEs, CORE-COUPLING,
+       zero/schema and .githooks READMEs); then the sayings in Christian's voice (stress/mod.rs:3,
+       novashell main.rs:6, scripting.rs:3, Friday's four proposal texts, teach's lesson)
+    2  rulings needed: zero/meta/releases/10.4.0/intents-shipped.md and zero/meta/INCIDENTS.md --
+       history (exempt) or live
+    3  the guard, red first; then cicomplete 247 and 252
+    4  remove the two pre-fz backups
+```
+
+### Found, not fixed -- for INT-265
+
+```text
+    zero-docs public    skips a missing source silently and never removes a stale public copy
+    doc_steward         Rule 2 files proposals against docs/TOOLS.md, which does not exist
+    zero-docs registry  names meta/CHANGELOG.md; the file is zero/meta/CHANGELOG.md
+    shadowed builtins   gc, gf, ports, decisions and audit: the alias wins, the builtin is unreachable
+    command_registry    lists 103 builtins but not jobs, fg, bg, cd or export; type reads a
+                        hand-kept list. Only the dispatch code says what exists
+```
+
+### What this session added to the method
+
+```text
+    patch_between   replaces from the start marker (inclusive) to the end marker (exclusive)
+                    and adds the newline to each new line itself
+    anchors         a whole unique ASCII line first, else the smallest unique ASCII window
+                    around the edit
+    git rm          stages only the deletion: every commit names its paths after --
+    test filters    match ^error and ^warning, never "error" anywhere -- test names contain it
+    path sweeps     git ls-files -z, always
+```
+
+### A new chat starts with
+
+```text
+    ints 247, and this section pasted
+```
+
+## 2026-09-30, 16 OF 18 -- SUPERSEDED 2026-09-30 by the 16 OF 18, LATE section above
 
 READ THIS FIRST. It supersedes the 14 OF 18 section below; its rulings and findings stand unless this
 says otherwise. Written only if HEAD was 01d43738, clean and pushed, the six commits below exist, and the
