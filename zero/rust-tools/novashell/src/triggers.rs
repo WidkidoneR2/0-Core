@@ -140,7 +140,7 @@ fn match_trigger(trigger: &str, ctx: &TriggerContext, db: &StateDb) -> bool {
         }
         ["git_commit"] => {
             // Check if last command was a git commit
-            ctx.last_command.contains("commit") || ctx.last_command.contains("fg commit")
+            ctx.last_command.contains("commit") || ctx.last_command.contains("zg commit")
         }
         ["event", domain] => {
             // Check if a recent event from this domain exists

@@ -173,7 +173,7 @@ impl ExecContext {
     ///   `cmd`  -- argv[0] NOT lowercased. from_line lowercases because its `cmd` doubles as a
     ///             dispatch LOOKUP key; here `cmd` is the EXECUTION IDENTITY. Those were
     ///             accidentally coupled. Consequence to expect, not a regression: postexec sites
-    ///             that compare `ctx.cmd` directly against "fg" / "d" / "deploy" will not match a
+    ///             that compare `ctx.cmd` directly against "zg" / "d" / "deploy" will not match a
     ///             capitalised invocation on this path. Where that breaks is exactly where the
     ///             old lookup identity and execution identity were conflated.
     ///   `cwd`   -- honours `plan.cwd` when the plan specifies one; otherwise the current dir,
@@ -694,7 +694,7 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &StateDb) {
         // INT-169 blocker 8: local comparison key. ctx.cmd stays what the user invoked.
         let cmd_key = ctx.cmd.to_lowercase();
         let suggestion = match cmd_key.as_str() {
-            "fg" if ctx.args.first().map(|s| s.as_str()) == Some("commit") => {
+            "zg" if ctx.args.first().map(|s| s.as_str()) == Some("commit") => {
                 Some("💡 Suggestion: run d — verify health after committing")
             }
             "ship" => Some("💡 Suggestion: run d to verify health after shipping"),

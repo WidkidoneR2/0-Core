@@ -671,7 +671,7 @@ fn cmd_status() {
 fn cmd_record(doc: &str, note: &str) {
     if doc.is_empty() {
         println!(
-            "  {} usage: fdocs record <doc-name> [note]",
+            "  {} usage: zdocs record <doc-name> [note]",
             "✗".bright_red()
         );
         return;
@@ -718,7 +718,7 @@ fn cmd_log() {
         .unwrap_or_default();
     if rows.is_empty() {
         println!(
-            "  {} No doc history yet -- run fdocs record to start tracking",
+            "  {} No doc history yet -- run zdocs record to start tracking",
             "○".dimmed()
         );
         return;
@@ -743,7 +743,7 @@ fn cmd_log() {
 }
 fn cmd_why(doc: &str) {
     if doc.is_empty() {
-        println!("  {} usage: fdocs why <doc-name>", "✗".bright_red());
+        println!("  {} usage: zdocs why <doc-name>", "✗".bright_red());
         return;
     }
     let entry = registry::REGISTRY
@@ -768,7 +768,7 @@ fn cmd_why(doc: &str) {
                 "  {} Auto:    {}",
                 "→".dimmed(),
                 if e.auto_update {
-                    "yes -- fdocs sync will update".bright_green().to_string()
+                    "yes -- zdocs sync will update".bright_green().to_string()
                 } else {
                     "no -- manual updates required".yellow().to_string()
                 }

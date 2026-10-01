@@ -899,7 +899,7 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
     } else if let Some((id, ref title)) = active_intent {
         (
             format!("Checkpoint -- commit progress on INT-{}", id),
-            "fg done \"progress checkpoint\"".to_string(),
+            "zg done \"progress checkpoint\"".to_string(),
             0.75f64,
             format!("Working on: {} -- regular commits improve recovery", title),
         )
@@ -982,7 +982,7 @@ pub fn simulate(ctx: &AppContext, command: &str) -> CoreResult<()> {
         "cargo" if second == "build" => {
             simulate_build(db, cmd)?;
         }
-        "fg" if second == "done" || second == "commit" => {
+        "zg" if second == "done" || second == "commit" => {
             simulate_commit(db)?;
         }
         "cistart" | "cicomplete" => {

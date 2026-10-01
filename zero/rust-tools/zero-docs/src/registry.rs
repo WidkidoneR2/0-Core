@@ -6,7 +6,7 @@ pub struct DocEntry {
     pub path: &'static str,
     pub owner_intent: &'static str,
     pub description: &'static str,
-    pub auto_update: bool, // can fdocs sync touch this?
+    pub auto_update: bool, // can zdocs sync touch this?
 }
 pub const REGISTRY: &[DocEntry] = &[
     DocEntry {

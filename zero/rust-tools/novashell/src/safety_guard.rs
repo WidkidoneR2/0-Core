@@ -66,6 +66,7 @@ pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     // resurrected -- see the note where it used to be.
     let safe = [
         "fg",
+        "zg",
         "core",
         "python3",
         "python",

@@ -2736,7 +2736,7 @@ fn repl_main() -> Result<()> {
                 if line.starts_with("deploy") {
                     _session_deploys += 1;
                 }
-                if line.starts_with("fg commit") {
+                if line.starts_with("zg commit") {
                     _session_commits += 1;
                 }
                 if line.contains(" | ") {
@@ -2785,7 +2785,7 @@ fn repl_main() -> Result<()> {
                 let line = match line.trim() {
                     "gc" => {
                         println!("  {} fg commit", "→".bright_cyan());
-                        "fg commit".to_string()
+                        "zg commit".to_string()
                     }
                     "gp" => {
                         println!("  {} git push", "→".bright_cyan());
@@ -3806,8 +3806,8 @@ mod repl_state_command_tests {
     #[test]
     fn fg_commit_is_not_repl_state() {
         assert!(
-            !is_repl_state_command("fg commit"),
-            "fg commit must reach the alias"
+            !is_repl_state_command("zg commit"),
+            "zg commit must reach the alias"
         );
     }
 

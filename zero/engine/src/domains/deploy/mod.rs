@@ -449,7 +449,7 @@ fn tool_dependencies(tool: &str) -> Vec<&'static str> {
     match tool {
         "novashell" => vec![],
         "core" => vec!["all tools using core commands"],
-        "zero-git" => vec!["fg alias", "cistart/cicomplete hooks"],
+        "zero-git" => vec!["zg alias", "cistart/cicomplete hooks"],
         _ => vec![],
     }
 }

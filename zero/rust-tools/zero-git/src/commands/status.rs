@@ -126,7 +126,7 @@ pub fn run() -> Result<()> {
         println!(
             "  {} {}",
             "hint:".dimmed(),
-            "fg sync to stage and commit".dimmed()
+            "zg sync to stage and commit".dimmed()
         );
     } else if status.staged > 0 {
         println!(

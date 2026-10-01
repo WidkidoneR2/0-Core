@@ -17,13 +17,13 @@ category = "monitoring"
 
 [[alias]]
 command = "zero-git"
-aliases = ["fg"]
+aliases = ["zg"]
 category = "development"
 
 
 [[alias]]
 command = "zero-update"
-aliases = ["fu", "update"]
+aliases = ["zu", "update"]
 category = "automation"
 
 

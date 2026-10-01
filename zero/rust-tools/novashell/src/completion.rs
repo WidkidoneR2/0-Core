@@ -543,7 +543,7 @@ impl<'a> ShellHelper<'a> {
             || line.starts_with("git rebase ")
             || line.starts_with("git branch ")
             || line.starts_with("git diff ")
-            || line.starts_with("fg checkout ")
+            || line.starts_with("zg checkout ")
         {
             // If line ends with space, partial is empty (show all branches)
             // Otherwise take the last token
@@ -723,7 +723,7 @@ fn cmd_description(cmd: &str) -> &'static str {
         "d" => "health check",
         "delete" | "del" => "safely delete a file",
         "find" => "search the repo",
-        "fg" => "zero-git helper",
+        "zg" => "zero-git helper",
         "patch" => "apply a patch to a file",
         "rspatch" => "anchor-based Rust patch",
         "edit" => "edit a file",
@@ -868,7 +868,7 @@ fn is_known_command(cmd: &str) -> bool {
         "experiment",
         "gc",
         "gp",
-        "fg",
+        "zg",
         "core",
         "nsh",
         "fsh",

@@ -264,7 +264,7 @@ const BUILTINS: &[&str] = &[
     "experiment",
     "gc",
     "gp",
-    "fg",
+    "zg",
     "core",
     "fsh",
     "snapshot",

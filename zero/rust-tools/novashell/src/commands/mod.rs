@@ -10195,7 +10195,7 @@ fn run_external(line: &str, db: &StateDb) -> CommandResult {
             "gc",
             "gp",
             "core",
-            "fg",
+            "zg",
             "git",
             "cargo",
             "python3",
@@ -10335,7 +10335,7 @@ fn run_external(line: &str, db: &StateDb) -> CommandResult {
                             "gp",
                             "core",
                             "zero-git",
-                            "fg",
+                            "zg",
                             "zero-daemon",
                             "git",
                             "cargo",
@@ -11059,7 +11059,7 @@ fn last_command_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
                         ("Verify registry", "core registry show <tool>"),
                         ("Check disk space", "df -h ~/0-core/target"),
                     ]
-                } else if cmd_lower.starts_with("fg")
+                } else if cmd_lower.starts_with("zg")
                     || cmd_lower.contains("git")
                     || cmd_lower.starts_with("gp")
                 {
