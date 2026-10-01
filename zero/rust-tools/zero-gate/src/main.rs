@@ -203,6 +203,71 @@ fn gate_ripsecrets(root: &Path, staged: &[String]) -> Verdict {
     }
 }
 
+/// The second secrets scanner, beside ripsecrets. gitleaks reads the repository's own
+/// .gitleaks.toml when there is one (it extends gitleaks' defaults), scans only what is staged,
+/// and REDACTS what it finds -- a secrets gate must not print the secret into scrollback.
+///
+/// ⚠️ EXIT 1 MEANS TWO THINGS TO GITLEAKS: leaks found, or gitleaks itself failed (a bad config,
+/// a flag this version lacks). Only "leaks found" in its own output is a FAIL; anything else is
+/// UNKNOWN, because a scanner that errored has not established that the commit is clean.
+fn gate_gitleaks(root: &Path, staged: &[String]) -> Verdict {
+    if !has("gitleaks") {
+        return Verdict::Unknown(
+            "gitleaks not installed -- secrets are NOT being checked by gitleaks".into(),
+        );
+    }
+    if staged.is_empty() {
+        return Verdict::Skipped;
+    }
+    let mut cmd = Command::new("gitleaks");
+    cmd.args([
+        "git",
+        "--staged",
+        "--redact",
+        "--verbose",
+        "--no-banner",
+        "--exit-code",
+        "1",
+    ]);
+    let config = root.join(".gitleaks.toml");
+    if config.is_file() {
+        cmd.arg("--config").arg(&config);
+    }
+    cmd.arg(root).current_dir(root);
+    match cmd.output() {
+        Err(e) => Verdict::Unknown(format!("could not run gitleaks: {e}")),
+        Ok(o) if o.status.success() => Verdict::Pass,
+        Ok(o) => {
+            let out = format!(
+                "{}\n{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            );
+            if !out.contains("leaks found") {
+                let last = out
+                    .lines()
+                    .rev()
+                    .find(|l| !l.trim().is_empty())
+                    .unwrap_or("");
+                return Verdict::Unknown(format!("gitleaks could not scan: {}", last.trim()));
+            }
+            let findings: Vec<String> = out
+                .lines()
+                .map(str::trim)
+                .filter(|l| {
+                    l.starts_with("RuleID:") || l.starts_with("File:") || l.starts_with("Line:")
+                })
+                .map(str::to_string)
+                .collect();
+            if findings.is_empty() {
+                Verdict::Fail("leaks found (redacted)".into())
+            } else {
+                Verdict::Fail(findings.join("  "))
+            }
+        }
+    }
+}
+
 /// Format, then RE-STAGE what was formatted.
 ///
 /// ⭐ THE RE-STAGE IS THE WHOLE FEATURE (INT-184). A formatter that rewrites a staged file and then
@@ -363,6 +428,10 @@ fn main() -> ExitCode {
         gates.push(Gate {
             name: "secrets",
             verdict: gate_ripsecrets(&root, &staged),
+        });
+        gates.push(Gate {
+            name: "gitleaks",
+            verdict: gate_gitleaks(&root, &staged),
         });
         gates.push(Gate {
             name: "formatting",

@@ -3643,6 +3643,73 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "zero_gate_runs_gitleaks_redacted",
+        Category::Regression,
+        || {
+            // AGENTS.md, Security: every commit is scanned by zero-gate's pre-commit hook. A
+            // throwaway repository stages a RANDOM fake token in GitHub's ghp_ format, and the
+            // deployed zero-gate must report a gitleaks finding that does NOT repeat the token --
+            // a secrets gate must not print the secret into a terminal's scrollback.
+            let dir =
+                std::env::temp_dir().join(format!("nsh-test-gitleaks-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| format!("cannot make {}: {}", dir.display(), e))?;
+            let seed = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(7);
+            let alphabet = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let mut state = seed;
+            let tail: String = (0..36)
+                .map(|_| {
+                    state = state
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    alphabet[((state >> 33) % alphabet.len() as u128) as usize] as char
+                })
+                .collect();
+            let token = format!("ghp_{}", tail);
+            let git = |args: &[&str]| Command::new("git").args(args).current_dir(&dir).output();
+            let ready = git(&["init", "-q"])
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+                && std::fs::write(dir.join("leak.txt"), format!("token = {}\n", token)).is_ok()
+                && git(&["add", "leak.txt"])
+                    .map(|o| o.status.success())
+                    .unwrap_or(false);
+            if !ready {
+                let _ = std::fs::remove_dir_all(&dir);
+                return Err("could not build the throwaway repository".to_string());
+            }
+            let out = Command::new("zero-gate")
+                .arg("pre-commit")
+                .current_dir(&dir)
+                .output()
+                .map_err(|e| format!("cannot run zero-gate: {}", e));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            let line = stderr
+                .lines()
+                .find(|l| l.contains("gitleaks"))
+                .map(str::to_string);
+            match line {
+                None => Err(format!(
+                    "zero-gate reported no gitleaks finding:\n{}",
+                    stderr.trim()
+                )),
+                Some(l) if l.contains(&token) => Err(
+                    "the gitleaks finding repeats the secret instead of redacting it".to_string(),
+                ),
+                Some(l) if !l.contains('\u{2717}') => {
+                    Err(format!("the gitleaks line is not a failure: {}", l))
+                }
+                Some(_) => Ok(()),
+            }
+        },
+    ));
+    results.push(test(
         "dashc_never_reaches_sudo",
         Category::Regression,
         || {

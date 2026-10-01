@@ -54,7 +54,7 @@ Promote a directory to critical the moment it carries boot, login, or disk setti
 ### Security
 
 - Secure Boot is not enforcing. MEASURED 2026-09-05: sbctl is not installed; /var/lib/sbctl does not exist. Do not describe the boot chain as signed until that has been demonstrated.
-- Secrets are never committed. Configs reference secrets; they do not embed them. gitleaks runs only through zg (zero-git), before its commit; the commit hooks do not run it, so a commit made with git or gc is not scanned.
+- Secrets are never committed. Configs reference secrets; they do not embed them. Every commit is scanned by zero-gate's pre-commit hook: ripsecrets, then gitleaks with the repo's .gitleaks.toml, redacted. A scanner that is missing fails the commit.
 - Before rebooting after a boot-chain change, verify signature state first.
 
 ### Fingerprint
