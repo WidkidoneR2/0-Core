@@ -3643,6 +3643,80 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "dashc_never_reaches_sudo",
+        Category::Regression,
+        || {
+            // AGENTS.md, Sudo: never sudo rm, and nothing non-interactive elevates through nsh.
+            // A FAKE sudo stands first on PATH and only writes a marker, so this case never runs
+            // the real one. Before any sudo line is sent, the case asks nsh which sudo it would
+            // run and refuses to continue unless the answer is the fake.
+            //
+            // NSH_CONFIG points at an EMPTY file, so this tests the CODE. A before_run rule in a
+            // user's config.nsh (`contains "sudo rm"`) blocks the plain form on one machine; it
+            // is untracked, untested, and misses `sudo -u root rm` and `sudo /usr/bin/rm`.
+            let dir =
+                std::env::temp_dir().join(format!("nsh-test-fake-sudo-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| format!("cannot make {}: {}", dir.display(), e))?;
+            let marker = dir.join("reached");
+            let fake = dir.join("sudo");
+            std::fs::write(
+                &fake,
+                format!("#!/bin/sh\ntouch '{}'\nexit 0\n", marker.display()),
+            )
+            .map_err(|e| format!("cannot write the fake sudo: {}", e))?;
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
+                    .map_err(|e| format!("cannot chmod the fake sudo: {}", e))?;
+            }
+            let config = dir.join("empty-config.nsh");
+            std::fs::write(&config, "")
+                .map_err(|e| format!("cannot write the empty config: {}", e))?;
+            let config = config.display().to_string();
+            let path = format!(
+                "{}:{}",
+                dir.display(),
+                std::env::var("PATH").unwrap_or_default()
+            );
+            let resolved = run_fsh_env(
+                "command -v sudo",
+                &[("PATH", path.as_str()), ("NSH_CONFIG", config.as_str())],
+            )
+            .unwrap_or_default();
+            if resolved.trim() != fake.display().to_string() {
+                let _ = std::fs::remove_dir_all(&dir);
+                return Err(format!(
+                    "nsh would not run the fake sudo (it resolved {:?}), so nothing was sent",
+                    resolved.trim()
+                ));
+            }
+            let mut reached: Vec<&str> = Vec::new();
+            for line in [
+                "sudo rm /nonexistent-nsh-sudo-probe",
+                "sudo -u root rm /nonexistent-nsh-sudo-probe",
+                "sudo /usr/bin/rm /nonexistent-nsh-sudo-probe",
+                "sudo true",
+            ] {
+                let _ = std::fs::remove_file(&marker);
+                let _ = run_fsh_env(
+                    line,
+                    &[("PATH", path.as_str()), ("NSH_CONFIG", config.as_str())],
+                );
+                if marker.exists() {
+                    reached.push(line);
+                }
+            }
+            let _ = std::fs::remove_dir_all(&dir);
+            if reached.is_empty() {
+                Ok(())
+            } else {
+                Err(format!("nsh -c reached sudo for: {}", reached.join(" | ")))
+            }
+        },
+    ));
+    results.push(test(
         "dashc_guard_refusal_stays_off_stdout",
         Category::Regression,
         || {

@@ -5,9 +5,45 @@
 
 /// Check if a command is dangerous enough to require explicit human confirmation.
 /// Returns Some(warning) if CHALLENGE level applies, None if safe to proceed.
+/// Marks a warning the gate refuses on every door, without asking.
+pub const FORBIDDEN: &str = "FORBIDDEN -- ";
+
+/// AGENTS.md, Sudo. Runs before the deny, allow and safe lists, so no configured entry unlocks
+/// it. `sudo rm` in any form is FORBIDDEN on every door; any other sudo is refused on `-c`,
+/// where no human can be asked, and left alone at an interactive prompt. It errs toward
+/// refusing: a false refusal costs one bash command, a false pass can cost the machine.
+fn sudo_rule(cmd: &str, first_word: &str, dash_c: bool) -> Option<String> {
+    if first_word != "sudo" && !first_word.ends_with("/sudo") {
+        return None;
+    }
+    let shown: String = cmd.trim().chars().take(60).collect();
+    let runs_rm = cmd
+        .split(|c: char| c.is_whitespace() || "'\";&|()".contains(c))
+        .filter(|t| !t.is_empty())
+        .skip(1)
+        .any(|t| t == "rm" || t.ends_with("/rm"));
+    if runs_rm {
+        return Some(format!(
+            "{}sudo rm is never run through nsh: {}",
+            FORBIDDEN, shown
+        ));
+    }
+    if dash_c {
+        return Some(format!("sudo through nsh -c: {}", shown));
+    }
+    None
+}
+
 pub fn check(cmd: &str, first_word: &str) -> Option<String> {
     let lower = cmd.to_lowercase();
     let trimmed = cmd.trim();
+    if let Some(w) = sudo_rule(
+        cmd,
+        first_word,
+        crate::IS_DASH_C.load(std::sync::atomic::Ordering::SeqCst),
+    ) {
+        return Some(w);
+    }
     // Check first word only -- never match on arguments or paths.
     // INT-195: derive it through the CANONICAL quote-aware command_word(), never
     // split_whitespace().next(). The old derivation read `"rm" -rf /` as `"rm`, which
@@ -211,6 +247,21 @@ fn guard_list_contains(kind: &str, word: &str) -> Option<bool> {
 /// Display the CHALLENGE gate and wait for explicit confirmation.
 /// Returns true if the human approved, false if blocked.
 pub fn challenge_gate(warning: &str) -> bool {
+    if warning.starts_with(FORBIDDEN) {
+        eprintln!();
+        eprintln!(
+            "  REFUSED -- nothing was run. nsh never runs this, on any door, and does not ask."
+        );
+        eprintln!("  -> {}", warning);
+        eprintln!("  Never sudo rm (AGENTS.md, Sudo).");
+        crate::observe::emit(crate::observe::Event {
+            level: crate::observe::Level::Info,
+            target: crate::observe::Target::Guard,
+            message: "refused-forbidden",
+            fields: &[("warning", warning.to_string())],
+        });
+        return false;
+    }
     // ⭐ `-c` REFUSES RATHER THAN ASKS, and the alternative is worse than it looks.
     //
     // This reads stdin for the word yes. Through `-c`, stdin belongs to the CALLER -- a pipe, a
@@ -284,4 +335,49 @@ pub fn challenge_gate(warning: &str) -> bool {
     }
     println!();
     approved
+}
+
+#[cfg(test)]
+mod sudo_rule_tests {
+    use super::*;
+
+    #[test]
+    fn sudo_rm_is_forbidden_on_both_doors_in_every_form() {
+        let lines = [
+            "sudo rm /x",
+            "sudo rm -rf /",
+            "sudo  rm /x",
+            "sudo -u root rm /x",
+            "sudo -- rm /x",
+            "sudo /usr/bin/rm /x",
+            "sudo sh -c 'rm -rf /x'",
+            "sudo true; rm /x",
+        ];
+        for line in lines {
+            for dash_c in [false, true] {
+                let w = sudo_rule(line, "sudo", dash_c);
+                assert!(
+                    w.as_deref().is_some_and(|w| w.starts_with(FORBIDDEN)),
+                    "{line:?} dash_c={dash_c}: {w:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn any_sudo_is_refused_on_dash_c_and_left_alone_interactively() {
+        let w = sudo_rule("sudo pacman -Syu", "sudo", true);
+        assert!(
+            w.as_deref().is_some_and(|w| !w.starts_with(FORBIDDEN)),
+            "{w:?}"
+        );
+        assert_eq!(sudo_rule("sudo pacman -Syu", "sudo", false), None);
+    }
+
+    #[test]
+    fn a_line_that_is_not_sudo_is_not_a_sudo_matter() {
+        assert_eq!(sudo_rule("rm file.txt", "rm", true), None);
+        assert_eq!(sudo_rule("echo sudo rm", "echo", false), None);
+        assert_eq!(sudo_rule("sudoku rm", "sudoku", true), None);
+    }
 }

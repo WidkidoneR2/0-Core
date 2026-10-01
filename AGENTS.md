@@ -29,7 +29,7 @@ Never change, touch, or work around sudo.
 - Do not add NOPASSWD entries.
 - Do not add sudo to a command that was not already privileged.
 - Do not cache, script around, or skip a password prompt.
-- Never sudo rm. nsh blocks it deliberately.
+- Never sudo rm. nsh refuses it on every door, without asking, and refuses any sudo through nsh -c, so scripts and agents get no sudo through nsh. An agent that runs bash directly never meets that guard; the password prompt is the wall there.
 - No automation runs privileged: no boot timers, no scheduled updates, no cron with sudo. Automation is opt-in and hand-triggered.
 
 Why (2025-12-14): a systemd user timer at boot attempted sudo with no credentials, tripped faillock, locked the account. Hand the exact elevated command to a human and say why it needs privilege.
