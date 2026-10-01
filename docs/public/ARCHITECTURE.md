@@ -1,171 +1,119 @@
-# 0-Core Architecture
-> **Philosophy:** Understanding over convenience. Manual control over automation.
-> **Version:** 0-Core v2 — single orchestrator, five layers, zero ambiguity.
+# Project 0 Architecture
 
-This document explains the complete structure of Faelight Forest and how each component interacts.
+> Understanding over convenience. Manual control over automation.
+
+This document explains how Project 0 is laid out and how its pieces meet. It names no counts:
+`core --help` lists the domains, `docs/inventory.md` lists the tools, and both
+are measured rather than remembered.
 
 ---
 
 ## Layer Model
+
 ```
-LAYER 0 — Substrate (Untouched)
-  Kernel, systemd, Wayland, MangoWM, Network, Filesystem
-  Treated as external environment. Never owned. Never modified directly.
+LAYER 0 -- The base (not owned)
+  Omarchy: Arch, systemd, Hyprland, the kernel, the network.
+  Someone else's good work, kept. Project 0 builds on top of it.
 
-LAYER 1 — Core Engine (Single Binary)
-  engine/               ← Rust source
-  Binary: core
-  Interface: core <domain> <command> [flags]
-  56+ domains: intent, profile, security, doctor, friday, friday_arch,
-              genealogy, knowledge, predict, deploy, git, release, and more.
-              Run: core --help for full domain list
+LAYER 1 -- The engine
+  zero/engine/        one Rust binary: core
+  Interface:          core <domain> <command> [flags]
+  Domains:            run core --help for the list
 
-LAYER 2 — Declarative Registry (Zero Logic)
-  registry/
-    packages.toml       ← system packages under management
-    profiles.toml       ← profile definitions
-    zones.toml          ← zone boundaries and permissions
-    aliases.toml        ← shell alias declarations
-  Rule: If it contains an if statement, it does not belong here.
+LAYER 2 -- Declarations
+  zero/registry/      TOML only: tools, aliases, profiles, zones, sandbox policies,
+                      shell patterns, and the doctor's checks
+  zero/policy/        constraints, never execution
+  zero/schema/        the schemas the registry is checked against
 
-LAYER 3 — Policy (What Is Allowed)
-  policy/               ← constraints only, no execution
-  docs/                 ← human-readable documentation
-  Rule: Policy defines constraints. It never executes.
+LAYER 3 -- The tools
+  zero/rust-tools/    NovaShell (nsh), the zero-* tools, and the shared library zero-core
+                      that owns every path and the state database opener
 
-LAYER 4 — Runtime (All Mutable State)
-  runtime/              ← gitignored entirely
-    logs/               ← structured JSONL logs by domain
-    cache/              ← precomputed indices
-    snapshots/          ← sandbox and rollback state
-    state.db            ← single SQLite state database
-    locks/              ← operation locks
-  Rule: rm -rf runtime/ is always safe. Full reset, no data loss.
-
-LAYER 5 — Adapters (Thin Translation Only)
-  config/stow/   ← dotfile packages (GNU Stow managed)
-  adapters/             ← systemd, mango config generation
-  Rule: No business logic. Only translation between core and external systems.
+LAYER 4 -- State (outside the repo)
+  ~/.local/state/zero/state.db     the ledger: history, intents, events, Friday
+  ~/.config/zero/                  configuration
+  ~/.config/nsh/config.nsh         the shell's aliases and settings
+  ~/.cache/zero/                   regenerable: the health cache, prompt state
+  ~/.local/share/zero/             data: the delete builtin's trash, teach progress
 ```
 
 ---
 
 ## Directory Structure
+
 ```
 0-core/
-  engine/               ← Core v2 Rust source → binary: core
-    src/
-      domains/          ← 15 domains, strict layer boundaries
-      cli/              ← command grammar + clap parser
-      app/              ← dispatcher + AppContext
-      registry/         ← TOML loader + schema validation
-      policy/           ← constraint enforcement
-      runtime/          ← state, locks, migrations
-      adapters/         ← I/O translation only
-      capabilities/     ← capability model
-      errors/
-      logging/
-      utils/
-    Cargo.toml
-  rust-tools/           ← Specialist TUI tools (not replaceable by CLI)
-    faelight-bar/       ← Custom Wayland status bar
-    faelight-fm/        ← File manager with zone awareness
-    faelight-git/       ← Git workflow governance TUI
-    faelight-update/    ← Interactive update manager TUI
-    faelight-term/      ← Terminal emulator (WIP)
-    faelight-browser/   ← TUI browser (WIP)
-    faelight-core/      ← Shared library (config, paths, health)
-    [51 total tools]
-  config/
-    stow/               ← ALL dotfile packages (GNU Stow managed)
-      mango/            ← MangoWM compositor config
-      shell-zsh/        ← Zsh + 318+ aliases
-      editor-nvim/      ← Neovim + Faelight theme
-      term-foot/        ← Foot terminal emulator
-      config-faelight/  ← Typed TOML configs for Rust tools
-      [6 more packages]
-  registry/             ← Zero-logic TOML declarations
-  policy/               ← Security rules, health check definitions
-  runtime/              ← Gitignored. All mutable state lives here.
-  scripts/              ← Compiled binaries + thin shell wrappers
-  intents/              ← Intent ledger (markdown files)
-  docs/                 ← Human documentation
-  meta/              ← Version, changelog, philosophy
-  VERSION               ← 0-Core v2 engine version
-  Cargo.toml            ← Workspace root
-  README.md             ← GitHub readme
+  zero/
+    engine/           core: app/, cli/, domains/, runtime/, capabilities/, errors/, logging/
+    rust-tools/       every other crate; catalog in zero/rust-tools/README.md
+    registry/         Layer 2 declarations
+    policy/  schema/  constraints and registry schemas
+    intents/          the intent ledger, one markdown file per intent
+    meta/             VERSION, CHANGELOG, release manifests
+    scripts/          developer scripts (scripts/dev/fpatch.py)
+  docs/               human documentation; docs/public/ is generated by zero-docs public
+  devbox/             DevBox clean-room census cases
+  bin/                retired binaries, kept by ship --retire
+  Cargo.toml          the workspace root
+  README.md  AGENTS.md  LICENSE
 ```
 
 ---
 
-## Core Engine Domains
+## Paths and State
 
-| Domain    | Owns                              | Replaces                          |
-|-----------|-----------------------------------|-----------------------------------|
-| intent    | ledger, files, status             | intent, intent-guard (partially)  |
-| profile   | switching, env vars               | profile                           |
-| security  | CVE scanning, permissions, SSH    | security-audit                    |
-| sandbox   | isolation, snapshots, diffs       | faelight-sandbox                  |
-| link      | stow verification, symlinks       | faelight-link                     |
-| zone      | boundaries, write policy          | faelight-zone                     |
-| update    | safe updates, cargo               | faelight-update (delegates TUI)   |
-| doctor    | health checks (OrchestratorAccess)| dot-doctor, alias-audit           |
-| fetch     | system info display               | faelight-fetch                    |
-| git       | workflow, risk scoring            | faelight-git (delegates TUI)      |
-| workspace | file nav, recent files            | faelight-fm (delegates TUI)       |
-| release   | versioning, changelog             | bump-system-version, get-version  |
-| notify    | notifications                     | faelight-notify                   |
-| lock      | screen locking                    | faelight-lock                     |
-| friday    | intelligence layer                | cross-domain intelligence         |
-| genealogy | intent family tree                | core genealogy tree/show/roots    |
-| predict   | prediction engine                 | pattern-based anticipation        |
-| ...       | 56+ domains total                 | run: core --help for full list    |
+Every path is named once, in `zero-core`'s `paths.rs`. Nothing builds its own state path.
+
+```
+ZERO_STATE_DIR    overrides the state directory
+ZERO_STATE_DB     overrides the ledger file
+NSH_CONFIG        overrides the shell config
+XDG_*_HOME        honoured for state, config, cache and data
+```
+
+`state.db` has one creator: NovaShell's `StateDb::open`, which writes the schema. Every other
+reader and writer opens it through `zero_core::state_db`, which never creates a file and
+names the three ways an open fails -- absent, unreadable, no schema -- instead of answering
+with an empty ledger.
+
+---
+
+## Health
+
+```
+d  (core doctor run)  -> writes ~/.cache/zero/health-status
+                         read through zero_core::paths::read_health()
+                         by the nsh prompt and banner, zero-daemon, zero-git and the engine
+```
+
+`read_health()` returns nothing when the cache cannot be read. A missing score is reported as
+unknown, never as a number nobody measured.
 
 ---
 
 ## Key Design Principles
 
-**Single binary surface** — one `core` binary, subcommands for domains.
-All user-facing operations: `core <domain> <command> [flags]`
+**One binary surface** -- `core <domain> <command>` for engine work; the specialist tools
+stand beside it.
 
-**Strict layer boundaries** — domains never call each other directly.
-All cross-domain communication goes through `app/dispatcher`.
+**State lives outside the repo** -- the tree holds source and declarations; everything that
+changes at runtime is under the XDG directories named `zero`.
 
-**All mutable state isolated** — nothing outside `runtime/` changes at runtime.
-`rm -rf runtime/` is always a safe full reset.
+**Unknown is not success** -- a check that cannot read its source says so.
 
-**Declarative over imperative** — registry contains zero logic, only truth.
-
-**TUI tools stay separate** — faelight-fm, faelight-bar, etc.
-are specialist tools too rich to wrap in a CLI. They delegate through `core` where possible.
+**Declarations hold no logic** -- if it needs an `if`, it is not registry material.
 
 ---
 
-## Health System
+## Build and Deploy
 
-Health is a single source of truth across all tools:
-```
-core doctor run → writes ~/.cache/faelight/health-status
-                ↓
-    faelight-bar reads cache (fast, no subprocess)
-    prompt-health-dot reads cache (shell prompt dot)
-```
-
-Run `d` (alias for `doctor`) to update health across all tools.
-
----
-
-## Build System
 ```bash
-# Build entire workspace
-cd ~/0-core && cargo build --release --workspace
-
-# Build specific tool
-cargo build --release -p faelight-fm
-
-# Binaries land in
-~/0-core/target/release/<binary>
-~/0-core/scripts/<binary>   ← deployed copies
+ship                    # build the release profile and deploy changed binaries to ~/.local/bin
+ship --retire <name>    # take a binary off PATH; a copy is kept in ~/0-core/bin
+reload                  # restart into the newly deployed nsh
+nsh-test                # the shell's test suite
+d                       # health, after every ship
 ```
 
-Cold start: **3ms** (core binary, measured 2026-02-22)
+Commits pass zero-gate, the pre-commit hook in `.githooks`.
