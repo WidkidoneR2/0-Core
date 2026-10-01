@@ -178,7 +178,6 @@ neither.
 
 This README is the front door. The depth lives here:
 
-- [Theory of Operation](docs/THEORY_OF_OPERATION.md) -- how the system thinks
 - [Architecture](docs/ARCHITECTURE.md) -- how the pieces fit
 - [Philosophy](docs/PHILOSOPHY.md) -- why it is built this way
 - [Shell Philosophy](docs/NSH-PHILOSOPHY.md) -- the case for a human-first shell

@@ -279,7 +279,6 @@ Not because it must be. But because it can be.
 
 Related Documentation
 
-Theory of Operation: docs/THEORY_OF_OPERATION.md
 Intent Ledger: intents/
 Architecture: docs/ARCHITECTURE.md
 Shell Philosophy: docs/NSH-PHILOSOPHY.md
