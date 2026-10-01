@@ -105,7 +105,7 @@ Home inside starts empty. Five paths are declared: the repository, ~/.local/bin,
 
 The declared list lives in devshell-lib. That file is the authority; this is a summary.
 
-Scripts: zero/scripts/devshell and zero/scripts/devshell-lib. devshell-lib is the authority for the exact names, and two nsh-test cases reach these paths.
+Scripts: zero/scripts/devshell and zero/scripts/devshell-lib. devshell-lib is the authority for the exact names, and two nsh-test cases reach these paths. devshell, devshell-diff, devshell-promote and devshell-checkpoint are on PATH as links in ~/.local/bin to these scripts; ship does not deploy scripts, and nsh-test checks that each link resolves.
 
 ## 1. This host / this tree
 

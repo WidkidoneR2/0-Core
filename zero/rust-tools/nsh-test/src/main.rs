@@ -1636,6 +1636,53 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "devshell_commands_are_on_path",
+        Category::Regression,
+        "needs a real 0-Core: the links resolve into the checkout's zero/scripts",
+        || {
+            // AGENTS.md, Devshell: devshell is typed by name. ship deploys Rust binaries only, so
+            // the four devshell commands reach PATH as links in ~/.local/bin to the repo's
+            // scripts -- a script has no build step, so the repo copy is what runs. Each link must
+            // exist, resolve into zero/scripts, and be executable; a broken or stale link is red.
+            let home = home();
+            let scripts = std::path::Path::new(&home).join("0-core/zero/scripts");
+            let bin = std::path::Path::new(&home).join(".local/bin");
+            let mut wrong: Vec<String> = Vec::new();
+            for name in [
+                "devshell",
+                "devshell-diff",
+                "devshell-promote",
+                "devshell-checkpoint",
+            ] {
+                let link = bin.join(name);
+                let want = std::fs::canonicalize(scripts.join(name))
+                    .map_err(|e| format!("the repo script {} is unreadable: {}", name, e))?;
+                match std::fs::canonicalize(&link) {
+                    Err(_) => wrong.push(format!("{}: not on PATH at {}", name, link.display())),
+                    Ok(got) if got != want => wrong.push(format!(
+                        "{}: resolves to {}, not the repo script",
+                        name,
+                        got.display()
+                    )),
+                    Ok(got) => {
+                        use std::os::unix::fs::PermissionsExt;
+                        let mode = std::fs::metadata(&got)
+                            .map(|m| m.permissions().mode())
+                            .unwrap_or(0);
+                        if mode & 0o111 == 0 {
+                            wrong.push(format!("{}: resolves, but is not executable", name));
+                        }
+                    }
+                }
+            }
+            if wrong.is_empty() {
+                Ok(())
+            } else {
+                Err(wrong.join("\n  "))
+            }
+        },
+    ));
+    results.push(repo_test(
         "every_backticked_repo_path_in_the_docs_exists",
         Category::Regression,
         "needs a real 0-Core: it reads the docs and the tracked tree, which only a checkout has",
