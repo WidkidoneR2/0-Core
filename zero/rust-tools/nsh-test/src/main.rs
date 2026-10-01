@@ -1636,6 +1636,44 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "readme_index_count_matches_its_file",
+        Category::Regression,
+        "needs a real 0-Core: it reads rust-tools/README.md",
+        || {
+            // zero-docs readme-index once printed "21 tools" while the file it wrote said 18: it
+            // counted every crate read, not the active tools the file lists. The number a tool
+            // reports must be the number it writes. --dry-run writes nothing.
+            let readme = std::path::Path::new(&home()).join("0-core/zero/rust-tools/README.md");
+            let text = std::fs::read_to_string(&readme)
+                .map_err(|e| format!("cannot read {}: {}", readme.display(), e))?;
+            let file_count = text
+                .split(" active tools")
+                .next()
+                .and_then(|head| head.rsplit(' ').next())
+                .and_then(|n| n.parse::<usize>().ok())
+                .ok_or("rust-tools/README.md states no active-tools count")?;
+            let out = Command::new("zero-docs")
+                .args(["readme-index", "--dry-run"])
+                .output()
+                .map_err(|e| format!("cannot run zero-docs: {}", e))?;
+            let said = format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let want = format!("{} active tools", file_count);
+            if said.contains(&want) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "readme-index reports {:?}, but the file it writes says {}",
+                    said.trim(),
+                    want
+                ))
+            }
+        },
+    ));
+    results.push(repo_test(
         "devshell_commands_are_on_path",
         Category::Regression,
         "needs a real 0-Core: the links resolve into the checkout's zero/scripts",

@@ -411,10 +411,16 @@ mod count_tests {
     }
 }
 
+/// The tools the index lists: binaries that are not retired. The ONE place that is decided --
+/// the header and readme-index's own report both count this, so they cannot disagree.
+pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
+    metas.iter().filter(|m| !m.retired && m.binary).collect()
+}
+
 /// PIECE 2c: render the top-level rust-tools/README.md index (catalog by category).
 pub fn render_index(metas: &[ToolMeta]) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let active: Vec<&ToolMeta> = metas.iter().filter(|m| !m.retired && m.binary).collect();
+    let active = active_tools(metas);
     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
 
     let mut out = String::new();
@@ -508,15 +514,17 @@ pub fn cmd_index(dry_run: bool) {
     let path = rt.join("README.md");
     if dry_run {
         println!(
-            "  would write: rust-tools/README.md (index, {} bytes, {} tools)",
+            "  would write: rust-tools/README.md (index, {} bytes, {} active tools, {} crates read)",
             index.len(),
+            active_tools(&metas).len(),
             metas.len()
         );
         return;
     }
     match std::fs::write(&path, &index) {
         Ok(_) => println!(
-            "  wrote: rust-tools/README.md (index, {} tools)",
+            "  wrote: rust-tools/README.md (index, {} active tools, {} crates read)",
+            active_tools(&metas).len(),
             metas.len()
         ),
         Err(e) => {
