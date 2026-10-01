@@ -1,38 +1,142 @@
-# 🌲 NovaShell -- The Forest-Native Shell
+# NovaShell
 
-> *"A forest deserves a shell that knows it is a forest."*
+**Binary:** `nsh` -- the interactive shell of Project 0. `bash` stays the login shell.
 
-**Version:** nsh 3.9.0 (Faelight Forest 1.0.0) | Last verified: 2026-09-02  
-**Status:** Interactive shell, not the login shell. Daily driver since 2026-04-03.  
-**Last updated:** 2026-09-01
-
-> ⚠️ **NOT THE LOGIN SHELL, DELIBERATELY.** /etc/passwd says bash, and ~/.bashrc
-> login shell via chsh, niri-session tried to run its own startup logic through
-> it with POSIX -c syntax nsh did not implement, and the desktop never started.
-> A broken shell build costs a prompt, not a session.
+> **Not the login shell, deliberately.** `/etc/passwd` names bash, and `~/.bashrc` starts nsh
+> for interactive sessions. A broken nsh build costs a prompt, not a session.
 
 ---
 
-## What is NovaShell?
+## What NovaShell is
 
-NovaShell is not a POSIX shell. It is not bash. It is not fish. It is not Nu.
+Not POSIX, not bash. Builtins return tables, and pipelines filter values instead of
+re-parsing text. Where nsh has not modelled a construct, it hands the line to `sh` rather
+than guessing.
 
-It is a **forest-native structured shell** — every command returns structured data,
-every pipeline is composable, and the shell knows it is running inside a living system
-that tracks its own health, goals, decisions, and history.
-
-### The Model
 ```
-Unix shells:       text | text | text
-Nushell:           table | filter | transform
-NovaShell:         forest_data | judgment | wisdom | anticipation | alignment
+POSIX shells   text  -> text   -> text
+Nu shell       table -> filter -> transform
+nsh            table -> filter -> judgment, and a refusal when it cannot answer
 ```
 
-### The Compatibility Contract
+---
 
-NovaShell is **NOT POSIX**. It does not run bash or zsh scripts.
-For POSIX compatibility when needed, use the escape hatch:
+## Getting Started
+
+```bash
+nsh            # start the shell
+nsh --help     # what it takes
+```
+
 ```nsh
+help           # what the shell knows
+cheat          # every alias, read live from config.nsh
+reload         # restart into the newly deployed nsh
+exit           # or q
+```
+
+---
+
+## Pipelines
+
+Builtins return tables. These verbs work on them:
+
+| Verb | Does | Example |
+|------|------|---------|
+| `where field op value` | keep matching rows | `ps \| where cpu > 5` |
+| `select field1 field2` | keep columns | `ps \| select name pid` |
+| `sort field` / `sort field desc` | order rows | `ps \| sort memory desc` |
+| `first N` / `last N` | take rows | `et \| first 10` |
+| `count` | count rows | `pkgs \| count` |
+| `get field` | one field's values | `ps \| first 1 \| get name` |
+| `group field` | group rows | `et \| group domain` |
+
+Tables also pipe into ordinary tools and redirect to files:
+
+```nsh
+et | first 20 | grep doctor
+ps | sort cpu desc | first 10 > top-processes.txt
+```
+
+Typed on their own, `where` and `select` are different builtins: `where <name>` locates a
+command or file, and `select ...` runs a SQL query against state.db.
+
+---
+
+## Builtins That Return Tables
+
+```nsh
+ps              # processes
+services        # systemd services
+files [path]    # filesystem entries
+net             # network interfaces
+pkgs            # installed packages
+logs            # system logs
+et              # events
+tt              # tools with audit scores
+at              # audit scores
+dt              # decisions
+ht              # shell history
+ct              # checkpoints
+```
+
+## Project 0 State
+
+```nsh
+health          # health summary from the last d
+intents         # active intents
+events          # recent events
+tools           # tool deployment status
+sandbox         # recent sandbox runs
+checkpoint      # recent checkpoints
+commits         # commit count and the last commit
+version         # versions
+histogram <f>   # frequency of a field
+domains         # event domains
+watch <cmd>     # re-run a command live
+```
+
+---
+
+## Names Your Aliases Own
+
+Aliases expand before builtins, so an alias with a builtin's name wins. Five do today:
+
+| Name | Runs | Builtin it hides |
+|------|------|------------------|
+| `gc` | `git commit -m` | git commits table |
+| `gf` | `git fetch` | git files changed |
+| `ports` | `sudo ss -tulanp` | open ports table |
+| `decisions` | `core decision list` | decisions table |
+| `audit` | `core audit scan` | audit scores |
+
+`d`, `forecast`, `story` and `advise` are aliases too, each for the matching `core` command.
+
+---
+
+## Job Control
+
+nsh owns process groups and the terminal.
+
+```nsh
+sleep 300 &     # run in the background
+jobs            # list jobs
+fg 1            # resume job 1 in the foreground
+bg 1            # continue job 1 in the background
+```
+
+Ctrl+Z suspends the foreground job, not the shell. A pipeline is one job in one process
+group. Bare `fg` with no job number prints its usage.
+
+---
+
+## Sequences, Variables, and the Escape Hatch
+
+```nsh
+cd ~/0-core; d; et | first 3
+let NAME = "value"
+echo $NAME
+export EDITOR = nvim
 sh {
   awk '{print $1}' /etc/passwd | sort
 }
@@ -40,305 +144,43 @@ sh {
 
 ---
 
-## Getting Started
+## Natural Language
 
-### Launch
-```bash
-nsh         # the shell
-nsh --help  # what it takes
-```
+Prefix a question with `?`:
 
-### Exit
 ```nsh
-q
-exit
+? show health
+? memory hogs
 ```
 
-### Help
-```nsh
-help        # show all commands
-```
+nsh translates it into a pipeline, shows it with a confidence level, and runs nothing until
+you say yes. When it has no pattern, it says so instead of guessing.
 
 ---
 
-## Core Concepts
+## Configuration
 
-### 1. Structured Data
-Every command returns a **table** — not text. Tables are pipeable,
-filterable, sortable, and composable with unix tools.
+`~/.config/nsh/config.nsh` is read at every start, and runtime aliases absent from it are
+pruned. Edit it, then `reload`.
+
 ```nsh
-ps                          # processes as table
-ps | sort cpu desc          # sorted by CPU
-ps | sort cpu desc | first 5 # top 5
-ps | where name contains mango # filtered
+alias ll = "ls"
+set prompt_style = zero
 ```
-
-### 2. The Pipeline System
-Pipe operators work on structured data:
-
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `| first N` | Take first N rows | `gc | first 10` |
-| `| last N` | Take last N rows | `et | last 5` |
-| `| where field op value` | Filter rows | `ps | where cpu > 5` |
-| `| sort field` | Sort ascending | `tt | sort score` |
-| `| sort field desc` | Sort descending | `ps | sort memory desc` |
-| `| select field1 field2` | Select columns | `gc | select hash message` |
-| `| count` | Count rows | `pkgs | count` |
-| `| get field` | Extract a field value | `gc | first 1 | get hash` |
-| `| group field` | Group by field | `et | group domain` |
-
-### 3. Forest Awareness
-The shell knows your system state at all times:
-- Current health score
-- Active intents
-- Recent commits
-- Session history
-- Forest goals
-
----
-
-## Command Reference
-
-### Forest Commands
-```nsh
-health          # system health summary
-d               # full doctor run (core doctor run)
-forecast        # health trend and 24h/7d forecast
-story           # 30-day forest narrative
-advise          # judgment advisory from decision history
-version         # system version
-commits         # commit count and last commit
-```
-
-### Data Commands (return pipeable tables)
-```nsh
-gc              # git commits
-gf              # git files changed
-et [today|domain] # events
-tt              # tools with audit scores
-at              # audit scores
-dt              # decisions
-ht              # shell command history
-ct              # checkpoints
-ps              # processes
-ports           # open ports
-services        # systemd services
-files [path]    # filesystem entries
-net             # network interfaces
-pkgs            # installed packages
-logs [--follow] [--errors] # system logs
-```
-
-### Forest State Commands
-```nsh
-intents         # active intents
-decisions       # open decisions
-events [today]  # recent events
-audit           # tool intelligence scores
-tools           # tool deployment status
-sandbox         # recent sandbox runs
-checkpoint      # recent checkpoints
-git             # git status and recent commits
-```
-
-### Analysis Commands
-```nsh
-histogram <field>   # frequency histogram of any field
-domains             # event domain summary
-watch <cmd>         # live-updating command
-ps | watch          # live process monitor
-ps | watch 5        # refresh every 5 seconds
-```
-
-### Shell Management
-```nsh
-alias name=command  # create alias
-unalias name        # remove alias
-plugins             # list loaded plugins
-search <query>      # search command history
-clear / c           # clear screen
-cd ~/path           # change directory
-```
-
----
-
-## Pipelines to External Commands
-
-Forest data flows directly into unix tools:
-```nsh
-gc | first 20 | grep feat       # filter commits by content
-ps | sort cpu desc | first 5 | less  # paginate process table
-gc | first 10 > commits.txt     # redirect to file
-gc | first 10 >> commits.txt    # append to file
-```
-
----
-
-## Multi-Command Execution
-
-Run multiple commands in sequence with `;`:
-```nsh
-health; d; git status
-cd ~/0-core; gc | first 5; health
-cargo --version; ls
-```
-
----
-
-## Shell Variables
-```nsh
-let NAME = "Faelight"       # define variable
-let VERSION = "11.2.0"
-let MSG = "Forest v$VERSION" # interpolation at assignment
-echo $NAME                  # use variable
-echo $MSG                   # Forest v11.2.0
-export EDITOR = nvim        # set environment variable
-echo $EDITOR                # nvim
-```
-
----
-
-## Background Jobs
-```nsh
-sleep 30 &          # run in background
-cargo build &       # background build
-jobs                # list running jobs
-kill %1             # kill job 1
-```
-
-When a background job completes, the forest announces it automatically:
-```
-✅ [1] cargo build -- done (8.3s)
-```
-
-> ⚠️ **`fg` IS NOT JOB CONTROL HERE.** It is an alias for faelight-git, so typing
-> `fg` prints git's help rather than resuming a job. Two reasons it stays that way:
-> the alias is used constantly, and there is nothing to resume TO -- see Signals.
 
 ---
 
 ## Signals
 
-- **Ctrl+C** -- kills the foreground process, shell survives
-- **Ctrl+D** -- exit shell
-- **Ctrl+L** -- clear screen (or use `c`)
-
-> ⚠️ **Ctrl+Z SUSPENDS THE SHELL ITSELF, not the running command.** nsh has no
-> process groups and never calls tcsetpgrp, so it does not own the terminal
-> foreground the way bash does. A suspended nsh is recovered with `fg` from the
-
----
-
-## Configuration File
-
-Location: `~/.config/faelight-shell/config.nsh`
-```nsh
-# Aliases
-alias ll = "ls"
-alias gs = "git status"
-alias gc5 = "gc | first 5"
-
-# Settings
-set history_limit = 10000
-set prompt_style = forest
-```
-
-Loaded automatically on every startup. Edit and restart to apply.
-
----
-
-## Natural Language Queries
-
-Prefix any query with `?` to use natural language:
-```nsh
-?biggest files in this directory
-?show me failing health checks
-?memory hogs
-?recent git commits
-?what am I working on
-```
-
-The shell translates to a structured pipeline, shows you what it will run,
-and asks for confirmation before executing.
-
----
-
-## Interactive Features
-
-- **↑/↓ arrows** — navigate command history
-- **Ctrl+R** — reverse history search
-- **Home/End** — jump to line start/end
-- **Alt+Backspace** — delete word backwards
-- History deduplication — no repeated consecutive entries
-- Max history: 10,000 entries
-
----
-
-## Real Examples
-```nsh
-# Find the 5 processes using most memory
-ps | sort memory desc | first 5
-
-# Show today's git activity
-gc | where date contains "today"
-
-# Find all feat commits this week
-gc | first 50 | where message contains "feat"
-
-# Check tool audit scores below 70
-tt | where score < 70 | sort score
-
-# Watch health live
-health | watch 10
-
-# Multi-step workflow
-cd ~/0-core; d; gc | first 3
-
-# Export results
-ps | sort cpu desc | first 10 > top-processes.txt
-
-# Pipe to unix tools
-gc | first 100 | wc -l
-
-# Background job workflow
-cargo build & jobs
-
-# Variable workflow
-let TOOL = "faelight-shell"
-let VERSION = "0.6.0"
-echo "Building $TOOL v$VERSION"
-cargo build -p $TOOL
-```
-
----
-
-## What's Coming
-
-| Phase | Feature | Impact |
-|-------|---------|--------|
-| Phase 17 | Prompt v2 — two-line, flow mode, error intelligence | Addictive daily driver feel |
-| Phase 17b | Completion v1 — forest-aware tab completion | Stickiness |
-| Phase 12 | Package helpers — `pkg install/remove/search/undo` | Composable package management |
-| Phase 18 | Script ergonomics — `sh{}` escape hatch, typed lists | Full scripting capability |
-| Phase 18b | Flow mode — intent continuity display | The unfair advantage |
+- **Ctrl+C** -- stops the foreground job; the shell survives
+- **Ctrl+D** -- exits the shell
+- **Ctrl+L** -- clears the screen (or `c`)
+- `signals` shows what the shell does with each signal
 
 ---
 
 ## The Philosophy
-```
-NovaShell is NOT trying to replace bash.
-It is trying to replace the NEED for bash.
-```
 
-Every workflow you currently do in zsh, the forest can do better —
-with structure, observability, and context that zsh will never have.
+NovaShell is not trying to replace bash. It is trying to replace the need for bash.
 
-The shell is not a command runner. It is the forest's voice.
-
----
-
-*"The shell that knows itself needs no other shell to complete it.
-It grows until it becomes the ground you walk on."* 🌲
-
-*This document grows with the shell. Last updated: 2026-03-25*
+A tool that cannot answer must say so, rather than reporting an answer it never established.
