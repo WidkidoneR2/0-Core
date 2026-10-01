@@ -11,6 +11,7 @@
 pub mod canvas;
 pub mod check;
 pub mod error;
+pub mod fingerprint;
 #[cfg(feature = "ui")]
 pub mod glyph;
 pub mod paths;
