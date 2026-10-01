@@ -160,7 +160,6 @@ core friday status         # Friday intelligence status
 ## Related Documentation
 
 - [PHILOSOPHY.md](PHILOSOPHY.md) -- Core principles
-- [WORKFLOWS.md](WORKFLOWS.md) -- Day-to-day workflows
 - [ALIASES.md](ALIASES.md) -- All 50 aliases
 - [NOVASHELL.md](NOVASHELL.md) -- NovaShell documentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- System architecture
