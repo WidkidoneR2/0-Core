@@ -3,7 +3,7 @@ id: 115
 date: 2026-07-02
 type: future
 title: "fifty sites build the binary path themselves and six execute a directory that was deleted"
-status: planned
+status: cancelled
 tags: [paths, faelight-core, refactor]
 priority: high
 ---
@@ -78,3 +78,6 @@ Takeaway: 115's "~40 files" is real and LIVE. Start a focused pass with the grep
 charter PLUS `grep -rn "PathBuf::from(&ctx.core_root)" faelight/engine/src`. And per this
 charter's own note, 115 should precede INT-112 (restructure) so the v2 move is a one-line
 paths.rs change, not another multi-file drift like 061 caused.
+
+## Gate Check
+🚫 115 -- cancelled: written against the NixOS tree and overtaken by it. Measured 2026-10-01: no Arch-era 0X- names remain in code (four section comments in paths.rs only); the title figure of fifty has no recorded census; ctx.fpath already routes intents and registry paths correctly. The live remainder is silent misses: six sites read ~/0-core/scripts, which no longer exists (nsh commands 1603, 3681, 11271, 11368, nsh completion 438, zero-update 1406); deps 473 reads core_root/scripts; intent 2293/2408/2527, partner 351 and self_transform 784 loop over core_root plus intents/future and intents/complete, missing both the move under zero/ and in-progress/; decisions 152 and friday/planning 459/1014 join ~/0-core/intents/future, so count_active_intents always reports 0. Not refiled as a new intent; kept for the existing list. -- approved by: christian 2026-10-01
