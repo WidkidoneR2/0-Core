@@ -162,5 +162,6 @@ A new chat opens with `ints 269` and this section.
 - [x] DOCTOR: a Fingerprint check shows PASS, FAIL and UNDETERMINED, each demonstrated on the
       deployed binary
       <!-- evidence: ecde113a -- nsh-test core_doctor_check_fingerprint on the deployed core, in a temp ZERO_STATE_DIR: no record UNDETERMINED (exit 2), then record and PASS (exit 0), then a changed hostname FAIL (exit 1) naming identity.hostname. By hand: core doctor check fingerprint PASS, digest 09c7905f4daea150; with an empty ZERO_STATE_DIR, Safe abort, not recorded yet, exit 2. -->
-- [ ] DOCS TRUE: AGENTS.md (wording approved by Christian) and docs/FINGERPRINT.md name the
+- [x] DOCS TRUE: AGENTS.md (wording approved by Christian) and docs/FINGERPRINT.md name the
       collector's real path and mark each consumer built or planned
+      <!-- evidence: 87216662, 2026-10-01 -- docs/FINGERPRINT.md names zero/rust-tools/zero-core/src/fingerprint.rs as the one collector, lists the nine declared inputs and the excluded ones, gives the compare table and exit codes as built, and marks core and the doctor built; integrity, DevBox verify and devshell Law 0 planned. AGENTS.md lines 62, 64 and 69, wording approved by Christian 2026-10-01, name zero_core::fingerprint and the same built/planned split. Sweep: no live file names integrity/mod.rs as the fingerprint home. -->
