@@ -217,6 +217,54 @@ RULINGS -- Christian, 2026-10-01
                       an unreadable directory answering as an empty one (the INT-250 class)
 ```
 
+## Design addendum 2026-10-02 -- ruled by Christian
+
+```text
+    THE CENSUS AT 3de890ff (re-measured; the Recon above is at a519b7d7)
+      693 tracked, 342 history exempt. 144 live lines in 37 files name a path the design moves.
+      CENSUS FINGERPRINT dbb51c79ebf2 (int267-census-3de13dda82b5.py, list written to
+      ~/.cache/zero/int267-census.txt). Split by why each line changes:
+        A  60  names novashell, nsh-test or devbox/      ruling 1, the branch
+        C  28  scans every tool, generic                 ruling 1 too, or it goes blind
+        B  56  names rust-tools alone                    ruling 2, the rename
+    CORRECTION TO THE RECON -- "path owner: paths.rs:392, one owner" was wrong. rust_tools_dir()
+      (paths.rs:391) is the owner and 19 sites ask it; 28 generic sites hardcode the path
+      instead, and integrity/mod.rs:875 joins it by hand. The 19 follow a rename by themselves
+      but scan one directory, so the branch would hide novashell and nsh-test from them.
+      Every crate with a C site already depends on zero-core; zero-gate and zero-gen stay off
+      it by INT-256 and hold no C site
+    THE FINGERPRINT -- tree.repo is ~/0-core's inode plus the origin url (fingerprint.rs:294-318);
+      tree.dirs is the five home directories (fingerprint.rs:35-41). A move inside the repo
+      changes neither. Before: d reads digest a56683c54812378b
+
+    RULINGS -- Christian, 2026-10-02
+    L1  engine is core. The shell is NovaShell (nsh), with what exists only to prove or run it.
+        Every other binary is a tool. A new crate goes in tools/ unless it exists only to serve
+        the shell. This rule goes into docs/TREE.md with the move
+    L2  one owner: zero_core::paths answers where every crate directory is (crate_dirs()), and
+        no other live code names it
+    L3  three commits, each one concern, each buildable; the census re-run and fingerprinted
+        before each:
+          0  ONE OWNER   the guard, red first; crate_dirs() checked against the Cargo.toml
+                         members; the C sites ask the owner. Behaviour unchanged
+          1  THE RENAME  zero/rust-tools/ -> zero/tools/: the owner, the Cargo paths, the B
+                         lines, doc paths, zero/RISK.toml, AGENTS.md:62 (shown to Christian
+                         before it is written)
+          2  THE BRANCH  novashell, nsh-test and devbox/ -> zero/shell/: the A lines; the
+                         owner learns shell/ in one place
+        Doc PATHS change in the move commit, because every_backticked_repo_path_in_the_docs_exists
+        goes red otherwise. Doc prose waits for INT-247's docs rewrite
+```
+
+### Found, not fixed -- 2026-10-02
+
+```text
+    scripts_dir()     paths.rs:395 joins scripts onto core_dir(), which is ~/0-core (paths.rs:24);
+                      the scripts live at zero/scripts/. An owner naming a missing directory,
+                      the INT-240 class. Not step 0: one concern per change
+    completion.rs:420 offers cd ~/0-core/rust-tools, a path gone since the tree moved under zero/
+```
+
 ## START HERE -- 2026-10-02
 
 Written only if HEAD was cb676191, clean and pushed; the commits below exist; docs/TREE.md is
@@ -290,6 +338,15 @@ section.
 - [ ] AGENTS.md names the new paths, in the move commit
 - [ ] SIMPLE, measured: the repo root and zero/ hold only entries the map names, each with its
       one line, and no single-file directory or one-off script remains without a ruling
+- [ ] ONE OWNER (L2, commit 0): every live Rust site that locates a crate directory asks
+      zero_core::paths. A guard fails on any string literal outside paths.rs that names the crate
+      directory (its exemptions a written list), and a test fails when crate_dirs() and the
+      Cargo.toml members disagree. Both seen RED first; behaviour unchanged, its own commit
+- [ ] SAFETY LISTS MOVE WITH THE TREE: the novashell protected lists (commands/mod.rs 2599, 3551,
+      3631, 3866, 3983) and zero/RISK.toml name directories that exist after each move commit,
+      proven by a test that goes red on a protected entry naming a missing directory
+- [ ] FINGERPRINT UNCHANGED: d's Fingerprint check reads digest a56683c54812378b before and after
+      each move commit
 
 ## Relationship
 
