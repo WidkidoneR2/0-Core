@@ -2174,6 +2174,84 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    results.push(repo_test(
+        "the_tree_map_names_every_entry",
+        Category::Regression,
+        "needs a real 0-Core: it reads docs/TREE.md and the tree, which only a checkout has",
+        || {
+            // INT-267: WHERE A FILE GOES. docs/TREE.md names every entry at the repo root and in
+            // zero/, one line of purpose each. This case fails on an entry the map does not name;
+            // every_backticked_repo_path_in_the_docs_exists fails on a name the map holds that does
+            // not exist. Untracked entries count (--others --exclude-standard), so a new directory
+            // is caught before it is committed; ignored ones such as target/ do not.
+            let root = std::path::Path::new(&home()).join("0-core");
+            let out = Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+                .output()
+                .map_err(|e| format!("cannot run git ls-files: {}", e))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "git ls-files failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            let mut entries: Vec<String> = Vec::new();
+            for raw in out.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()) {
+                let p = String::from_utf8_lossy(raw).to_string();
+                let parts: Vec<&str> = p.split('/').collect();
+                if parts.len() == 1 {
+                    entries.push(parts[0].to_string());
+                    continue;
+                }
+                entries.push(format!("{}/", parts[0]));
+                if parts[0] == "zero" {
+                    if parts.len() == 2 {
+                        entries.push(format!("zero/{}", parts[1]));
+                    } else {
+                        entries.push(format!("zero/{}/", parts[1]));
+                    }
+                }
+            }
+            entries.sort();
+            entries.dedup();
+            let map = std::fs::read_to_string(root.join("docs/TREE.md"))
+                .map_err(|e| format!("cannot read docs/TREE.md -- the map is missing: {}", e))?;
+            let named: Vec<&str> = map
+                .split('`')
+                .enumerate()
+                .filter(|(i, _)| i % 2 == 1)
+                .map(|(_, s)| s.trim())
+                .collect();
+            // READING NOTHING IS NOT A CLEAN RESULT.
+            if entries.is_empty() || named.is_empty() {
+                return Err(format!(
+                    "read {} entries and {} names in the map -- that is not a clean tree",
+                    entries.len(),
+                    named.len()
+                ));
+            }
+            let unnamed: Vec<&String> = entries
+                .iter()
+                .filter(|e| !named.contains(&e.as_str()))
+                .collect();
+            if unnamed.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} entr{} the map does not name -- add each to docs/TREE.md with one line of purpose, or move it:\n  {}",
+                    unnamed.len(),
+                    if unnamed.len() == 1 { "y" } else { "ies" },
+                    unnamed
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n  ")
+                ))
+            }
+        },
+    ));
     results.push(test(
         "deadwood_strict_gate_passes",
         Category::Regression,

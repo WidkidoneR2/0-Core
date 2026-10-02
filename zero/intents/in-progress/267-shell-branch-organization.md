@@ -3,7 +3,7 @@ id: 267
 date: 2026-09-28
 type: future
 title: "Shell Branch organization"
-status: planned
+status: in-progress
 tags: [novashell, nsh, zero]
 ---
 
@@ -122,16 +122,114 @@ The directories outside the repo (INT-247 Layer 3, done). Renaming, rewriting or
 (INT-247's decision test). Documentation content, except AGENTS.md paths (INT-247's docs
 rewrite). ~/0-core and WidkidoneR2/0-Core, which do not move.
 
+## Recon 2026-10-01 (read-only, at a519b7d7, 692 tracked files)
+
+```text
+    THE ROOT -- 16 entries
+      zero/ 634, devbox/ 20, docs/ 19, .githooks/ 4, assets/ 3, labs/ 1, .cargo/ 1, and
+      AGENTS.md, README.md, LICENSE, Cargo.toml, Cargo.lock, deny.toml, .envrc, .gitignore,
+      .gitleaks.toml
+      gone since a464bb8f, by INT-247: ROADMAP.md (82982b6e), MIGRATION-RUNBOOK.md and
+      census-core-coupling.py (948040e5, 92f9093b)
+    zero/ -- 9 entries
+      intents 311, rust-tools 184, engine 88, meta 27, registry 8, scripts 6, schema 5,
+      policy 4, RISK.toml
+    THE LEDGER -- 9 directories: cancelled complete decisions experiments future in-progress
+      incidents philosophy planned; and README.md, migration-log.md
+    devbox/ -- DATA, NOT CODE: cases/ 3 and census/ 17, all TOML. Read by zero-sandbox verify
+      <dir> (zero-sandbox main.rs:82 Verify, :1691 run_verify), run by hand: 2026-09-30 on
+      devbox/census, 14 passed, 0 failed, 3 undetermined (docs/inventory.md:15). Outside the
+      workspace because it holds no crate. Three things share the name: the devbox sandbox
+      policy and its nsh builtin (novashell commands/mod.rs:5295-5497), this directory, and
+      devshell (zero/scripts, INT-257)
+    WHAT A MOVE BREAKS, by kind
+      path owner   zero-core paths.rs:392 source_dir().join("rust-tools") -- one owner
+      workspace    Cargo.toml members zero/rust-tools/* plus a duplicate zero/rust-tools/zero-docs
+      cargo deps   18 crates path = "../zero-core" (novashell also "../zero-git"); engine
+                   "../rust-tools/zero-core", "../rust-tools/zero-doctor", "../rust-tools/zero-zone"
+      nsh-test     fake-tree fixtures 212-227 and 579-598; command strings 698-970; scanners
+                   1459 (base.join("rust-tools")), 1999 (rust-tools/README.md), 4565
+      untouched    ship (target/release only, main.rs:372); registry (devbox policy paths are
+                   /tmp); .githooks (target/ only)
+    OUTSIDE THE REPO -- 74 text files read: Hyprland, systemd user units, ~/.local/bin scripts,
+      the nsh config, autostart, desktop entries, rc files. 1 hit: config.nsh:218
+      alias loch = tokei ~/0-core/rust-tools -- already broken today, that path does not
+      exist. crontab is not installed
+    ONE-OFFS -- labs/ holds only RISK.toml; .cargo/ holds audit.toml (cargo-audit, read there by
+      Cargo convention); assets/ two branding images and a font
+    A NON-ASCII NAME -- zero/intents/incidents/190-... carries an em dash (U+2014). History; it
+      keeps its name, and the map test must walk past it
+    THE ORDER GATE -- INT-263 and INT-264 are planned, so THE MOVE waits (ruling 2026-09-28).
+      Recon, design and the map do not
+```
+
+## Design 2026-10-01 -- ruled by Christian
+
+THE TARGET TREE -- lands after INT-263 and INT-264 (ruling 2026-09-28). One line of purpose for
+every directory the move creates or touches; the unchanged directories get theirs in THE MAP,
+read from their own files rather than written from memory.
+
+```text
+    ~/0-core/
+      zero/
+        shell/              the shell and what proves it
+          novashell/        NovaShell, the shell
+          nsh-test/         its suite
+          devbox/           DevBox cases and census -- what zero-sandbox verify reads
+        tools/              the other crates (rust-tools/, renamed in the same move)
+        engine/             core's engine
+        intents/            the ledger
+        meta/ registry/ schema/ policy/ scripts/ RISK.toml      unchanged by the move
+      docs/                 Project 0's documents; docs/TREE.md is the map
+      labs/                 experiments, listed by nsh's experiment command
+      assets/ .githooks/ .cargo/                                unchanged by the move
+      AGENTS.md README.md LICENSE Cargo.toml Cargo.lock deny.toml .envrc .gitignore .gitleaks.toml
+```
+
+RULINGS -- Christian, 2026-10-01
+
+```text
+    1  the branch    zero/shell/ holds novashell, nsh-test and devbox/                    yes
+    2  tools/        rust-tools/ becomes tools/ in the same move, so it moves once       yes
+    3  labs/         kept for now: nsh's experiment command reads it                     keep
+                     (novashell commands/mod.rs:12039-12095)
+    4  .cargo/       kept: cargo-audit reads audit.toml there                            yes
+    5  workspace     drop the duplicate member zero/rust-tools/zero-docs (Cargo.toml:4)  yes
+                     now, as its own change: zero/rust-tools/* already matches it
+    6  loch          delete the broken alias, config.nsh:218 (outside the repo)          delete
+    7  documents     docs/, zero/meta/ and assets/ stay; their content is INT-247's      yes
+                     docs rewrite
+    8  the map       docs/TREE.md describes the tree AS IT IS, so it is green today. A   yes
+                     test fails on any root or zero/ entry it does not name, and is seen
+                     red on a planted directory first. The other direction -- a name in
+                     the map that does not exist -- is already guarded by
+                     every_backticked_repo_path_in_the_docs_exists. The move commit
+                     changes tree and map together
+    AGENTS.md        the move commit rewrites line 62, the one AGENTS.md path the move
+                     changes (zero/rust-tools/zero-core/src/fingerprint.rs). With the map,
+                     one "where a file goes" sentence -- wording Christian's
+```
+
+### Found, not fixed -- each for its own intent
+
+```text
+    experiment_list   reads labs/ and, when read_dir fails, prints "No active experiments":
+                      an unreadable directory answering as an empty one (the INT-250 class)
+```
+
 ## Success Criteria
 
-- [ ] RECON recorded here: every top-level entry and zero/ subdirectory with its file count and
+- [x] RECON recorded here: every top-level entry and zero/ subdirectory with its file count and
       purpose; what devbox/ holds and what reads it; every live path string naming a directory
       the design moves, by kind; callers outside the repo. Measured, not assumed
-- [ ] THE DESIGN is ruled by Christian and recorded here before anything moves: the target tree,
+<!-- evidence: measured 2026-10-01 at a519b7d7. git ls-files census by entry; fsearch devbox; numbered reads of ship, zero-core paths.rs, zero-sandbox and nsh-test; every crate Cargo.toml; the registry, scripts, .githooks, .cargo and labs; a home sweep of 74 text files; crontab absent. Recorded in Recon 2026-10-01 above. -->
+- [x] THE DESIGN is ruled by Christian and recorded here before anything moves: the target tree,
       one line of purpose per directory, where NovaShell, nsh-test and DevBox live, and a ruling
       on each root one-off
-- [ ] THE MAP exists and is guarded: a test fails when a directory exists that the map does not
+<!-- evidence: ruled by Christian 2026-10-01 in this session -- yes to items 1 to 8, the loch alias deleted, labs/ kept for now after its reader was read. Recorded in Design 2026-10-01 above. -->
+- [x] THE MAP exists and is guarded: a test fails when a directory exists that the map does not
       name, or the map names one that does not exist. Seen red on a planted directory first
+<!-- evidence: 2026-10-01, the debug nsh-test with docs/TREE.md (25 entries): 213 of 213. With zz-planted/note planted: 212 of 213, the_tree_map_names_every_entry naming zz-planted/ and its fix. Removed: 213 of 213. The other direction, a name in the map that does not exist, is every_backticked_repo_path_in_the_docs_exists. -->
 - [ ] THE ORDER holds: the move lands after INT-247's sayings, identifiers, INT-263 and INT-264,
       and before its docs rewrite. Evidence: the commit hashes, in order
 - [ ] THE MOVE: git mv and every live path rewrite in ONE commit per branch, against a

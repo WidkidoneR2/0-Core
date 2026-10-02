@@ -160,6 +160,8 @@ Real directories: ~/.local/state/zero, ~/.config/zero, ~/.cache/zero, ~/.local/s
 
 The intent ledger lives at zero/intents/; INT-252 moved it there. Do not add files under a faelight/ name.
 
+Where a file goes: docs/TREE.md. It names every entry at the repo root and in zero/, each with one line of purpose. A new file goes inside an entry the map already names. A new entry gets its own line in the map in the same commit, or nsh-test goes red (the_tree_map_names_every_entry). Do not restructure the tree to make a file fit: moves are INT-267's.
+
 Hardcoded readers still to classify, not blindly replace: zero-core/src/paths.rs, zero-deadwood/src/main.rs, integrity/mod.rs, cheatsheet_tui.rs. UNVERIFIED since the crate renames: whether each still needs classifying has not been measured.
 
 ### This machine
