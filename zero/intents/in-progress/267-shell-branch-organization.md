@@ -217,6 +217,50 @@ RULINGS -- Christian, 2026-10-01
                       an unreadable directory answering as an empty one (the INT-250 class)
 ```
 
+## START HERE -- 2026-10-02
+
+Written only if HEAD was cb676191, clean and pushed; the commits below exist; docs/TREE.md is
+tracked; and config.nsh no longer holds the loch alias. A new chat opens with ints 267 and this
+section.
+
+### Done -- pushed
+
+```text
+    0e9a92a2  the tree map: docs/TREE.md (25 entries), nsh-test the_tree_map_names_every_entry
+              (red on a planted zz-planted/, then green), the AGENTS.md where-a-file-goes rule.
+              RECON, THE DESIGN and THE MAP ticked with evidence
+    cb676191  workspace: the duplicate zero-docs member dropped (ruling 5)
+    (home)    ~/.config/nsh/config.nsh: the broken loch alias deleted (ruling 6); 244 aliases load
+```
+
+### Blocked -- and on what
+
+```text
+    THE MOVE waits for INT-263 and INT-264, both planned, per the ruling of 2026-09-28. Every gate
+    after THE MAP depends on the move. Check them first: ints 263, ints 264
+```
+
+### Next -- when 263 and 264 are complete
+
+```text
+    1  re-measure: the Recon numbers above are at a519b7d7; run the census again at the new HEAD
+    2  the move census: every live string naming zero/rust-tools/, novashell/, nsh-test/ or
+       devbox/ -- the kinds under Recon, WHAT A MOVE BREAKS -- fingerprinted, INT-252's method
+    3  rehearse git mv plus every rewrite on a clean clone, byte-identical to the live result;
+       rehearse the rollback before it runs
+    4  one commit per branch: the tree, the Cargo paths, paths.rs:392, the nsh-test fixtures,
+       docs/TREE.md and AGENTS.md line 62 together. Doors: cargo test --workspace, ship,
+       nsh-test, d, exec nsh, the home sweep
+```
+
+### Found, not fixed -- recorded, each for its own intent
+
+```text
+    experiment_list   a labs/ read error answers as "No active experiments" (under Design)
+    fsearch           ignores > file (INT-270's list)
+    globs             an absolute-path glob reached cat with its asterisks intact (INT-270's list)
+```
+
 ## Success Criteria
 
 - [x] RECON recorded here: every top-level entry and zero/ subdirectory with its file count and
