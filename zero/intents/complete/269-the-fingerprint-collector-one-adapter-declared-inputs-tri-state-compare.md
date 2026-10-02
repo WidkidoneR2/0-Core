@@ -84,7 +84,53 @@ DevBox and Law 0 as consumers. Law 0's natural use is the inverse check -- the s
 fingerprint must DIFFER from the host's on the identity and machine axes. Each gets its own
 intent once this collector is proven.
 
-## START HERE -- 2026-10-01
+## CLOSED -- 2026-10-01
+
+Complete at a3f67844 (cicomplete: checkpoint auto-intent-269-complete, core 4.1.1). All ten gates
+ticked with evidence. Nothing below is open work for this intent; each item names where it goes.
+
+### What was built
+
+```text
+    98d6657b  step 1    zero-core/src/fingerprint.rs: collect, compare, Record, FNV-1a
+    63228be9  step 2    core fingerprint show / record
+    f7b567f8  step 3a   core doctor check <id>: one check, read-only (0 pass, 1 fail,
+                        2 unknown or blocked, 3 warn, 64 undeclared id)
+    ecde113a  step 3    the doctor's Fingerprint check: probes/identity.rs, system tier, pass|fail
+    d09f3d13            core fingerprint show: PASS in green, anything else in red
+    87216662  step 4    docs/FINGERPRINT.md and AGENTS.md say what was built
+    record              digest 09c7905f4daea150 at ~/.local/state/zero/fingerprint
+```
+
+### Found, not fixed -- each for its own intent
+
+```text
+    REAL_DIRS          fingerprint.rs hand-types the five directories home-relative; the doctor's
+                       zero_alias builds them through paths.rs, which honours XDG_*. Two owners
+                       of one list: they disagree the day an XDG variable is set. A fix must keep
+                       the fingerprint tests' injected home
+    hostname           the collector reads /proc/sys/kernel/hostname; zero-update's header and
+                       the nsh prompt read /etc/hostname. Display only, but two sources
+    exit codes         nsh labels an external program's exit 2 "misuse of shell builtin", and
+                       Friday counts meaningful exits (64, 2) as "core failed N times today".
+                       For INT-265
+    zero_state_dir()   ~/.local/state/0-core beside runtime_dir()'s zero -- a second state tree
+    friday probe       zero-doctor probes/internals.rs:65 opens state.db READ_WRITE and only
+                       reads. One line to READ_ONLY; awaiting Christian's ruling
+```
+
+### Next consumers, each its own intent
+
+DevBox verify. devshell Law 0 -- the inverse check: the sandbox must DIFFER from the host on the
+identity and machine axes. Integrity.
+
+### Method that held this session
+
+fpatch.patch refuses a non-ASCII anchor (an em dash), so a span holding one is replaced with
+patch_between between heading markers. Rehearse against fpatch's real guards, not a stub. The copy
+decoded in the sandbox is the exact copy in the reply.
+
+## START HERE -- 2026-10-01 -- SUPERSEDED by CLOSED above
 
 Written only if HEAD was 63228be9, clean and pushed; the commits below exist; and the recorded
 fingerprint read back as digest 09c7905f4daea150 with `core fingerprint show` answering PASS.
