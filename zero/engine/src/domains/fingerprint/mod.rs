@@ -9,6 +9,7 @@
 
 use crate::cli::commands::FingerprintCommand;
 use crate::errors::CoreResult;
+use colored::Colorize;
 use zero_core::fingerprint::{collect, compare, Outcome, Record, DECLARED};
 
 pub fn run(cmd: FingerprintCommand) -> CoreResult<()> {
@@ -43,29 +44,45 @@ fn show() -> i32 {
     let expected = match std::fs::read_to_string(&path) {
         Ok(t) => Record::from_text(&t),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            println!("UNDETERMINED -- not recorded yet. Run: core fingerprint record");
+            println!(
+                "{}",
+                "UNDETERMINED -- not recorded yet. Run: core fingerprint record".red()
+            );
             return 2;
         }
         Err(e) => {
             println!(
-                "UNDETERMINED -- could not read the record at {}: {}",
-                path.display(),
-                e
+                "{}",
+                format!(
+                    "UNDETERMINED -- could not read the record at {}: {}",
+                    path.display(),
+                    e
+                )
+                .red()
             );
             return 2;
         }
     };
     match compare(&live, &expected) {
         Outcome::Pass => {
-            println!("PASS -- this is the recorded machine and tree");
+            println!(
+                "{}",
+                "PASS -- this is the recorded machine and tree".green()
+            );
             0
         }
         Outcome::Fail(axes) => {
-            println!("FAIL -- these differ from the record: {}", axes.join(", "));
+            println!(
+                "{}",
+                format!("FAIL -- these differ from the record: {}", axes.join(", ")).red()
+            );
             1
         }
         Outcome::Undetermined(missing) => {
-            println!("UNDETERMINED -- not read: {}", missing.join(", "));
+            println!(
+                "{}",
+                format!("UNDETERMINED -- not read: {}", missing.join(", ")).red()
+            );
             2
         }
     }
