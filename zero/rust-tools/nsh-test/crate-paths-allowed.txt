@@ -1,0 +1,75 @@
+# INT-267 L2 ratchet. Each line is file<TAB>literal: a live Rust string literal that still names
+# the crate directory outside zero_core::paths. nsh-test crate_directory_has_one_owner reads it.
+# A line leaves when its site asks the owner. No entries left means the migration is done.
+zero/engine/src/domains/anomaly/mod.rs	rust-tools/
+zero/engine/src/domains/audit/mod.rs	rust-tools/{}/
+zero/engine/src/domains/audit/mod.rs	zero/rust-tools/{}/
+zero/engine/src/domains/audit/mod.rs	rust-tools/{}/Cargo.toml
+zero/engine/src/domains/audit/mod.rs	zero/rust-tools/{}/Cargo.toml
+zero/engine/src/domains/evolution/mod.rs	rust-tools/
+zero/engine/src/domains/integrity/mod.rs	rust-tools
+zero/engine/src/domains/intent/mod.rs	rust-tools/novashell
+zero/engine/src/domains/intent/mod.rs	zero/rust-tools/novashell/Cargo.toml
+zero/engine/src/domains/intent/mod.rs	zero/rust-tools/zero-git/Cargo.toml
+zero/engine/src/domains/intent/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
+zero/engine/src/domains/intent/mod.rs	zero/rust-tools/db-browse/Cargo.toml
+zero/engine/src/domains/planning/mod.rs	Remove binary from PATH and rust-tools/ directory
+zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
+zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
+zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
+zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
+zero/rust-tools/novashell/src/commands/mod.rs	rust-tools
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/db-browse/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
+zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/db-browse/Cargo.toml
+zero/rust-tools/novashell/src/completion.rs	cd ~/0-core/rust-tools
+zero/rust-tools/novashell/src/prompt.rs	/rust-tools
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/zero-core
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src/main.rs
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/zero-core
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src/main.rs
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src/main.rs
+zero/rust-tools/nsh-test/src/main.rs	cat ~/0-core/zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/nsh-test/src/main.rs	cat ~/0-core/zero/rust-tools/novashell/Cargo.toml | grep name
+zero/rust-tools/nsh-test/src/main.rs	grep -r 'expand_braces' ~/0-core/zero/rust-tools/novashell/src/ | head -1
+zero/rust-tools/nsh-test/src/main.rs	ls ~/0-core/zero/rust-tools | grep novashell | wc -l
+zero/rust-tools/nsh-test/src/main.rs	grep -r expand_braces ~/0-core/zero/rust-tools/novashell/src/ | head -1
+zero/rust-tools/nsh-test/src/main.rs	echo ok && grep 'expand_braces' ~/0-core/zero/rust-tools/novashell/src/main.rs | head -1
+zero/rust-tools/nsh-test/src/main.rs	ls ~/0-core/zero/rust-tools
+zero/rust-tools/nsh-test/src/main.rs	ls ~/0-core/zero/rust-tools/novashell/src
+zero/rust-tools/nsh-test/src/main.rs	rust-tools
+zero/rust-tools/nsh-test/src/main.rs	needs a real 0-Core: it reads rust-tools/README.md
+zero/rust-tools/nsh-test/src/main.rs	0-core/zero/rust-tools/README.md
+zero/rust-tools/nsh-test/src/main.rs	rust-tools/README.md states no active-tools count
+zero/rust-tools/nsh-test/src/main.rs	zero/rust-tools/novashell/Cargo.toml
+zero/rust-tools/teach/src/main.rs	rust-tools/
+zero/rust-tools/zero-context/src/main.rs	rust-tools/
+zero/rust-tools/zero-context/src/main.rs	rust-tools/
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
+zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
+zero/rust-tools/zero-docs/src/toolgen.rs	  Parsed {} tools from rust-tools/*/Cargo.toml:\n
+zero/rust-tools/zero-docs/src/toolgen.rs	zero/rust-tools/{}/CHANGELOG.md
+zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/README.md (index, {} bytes, {} active tools, {} crates read)
+zero/rust-tools/zero-docs/src/toolgen.rs	  wrote: rust-tools/README.md (index, {} active tools, {} crates read)
+zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/{}/README.md ({} bytes)
+zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/README.md (index, {} bytes)
+zero/rust-tools/zero-docs/src/toolgen.rs	  wrote: rust-tools/README.md (index)
+zero/rust-tools/zero-docs/src/toolgen.rs	rust-tools/{}/
+zero/rust-tools/zero-docs/src/toolgen.rs	zero/rust-tools/{}/
+zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/{}/CHANGELOG.md ({} bytes)
+zero/rust-tools/zero-update/src/cargo_checker.rs	rust-tools/
+zero/rust-tools/zero-zone/src/detect.rs	0-core/rust-tools

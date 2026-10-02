@@ -1408,6 +1408,132 @@ print('CLASS-DONE')"##;
         expect_contains(&run_fsh("which core")?, "core")
     }));
     results.push(repo_test(
+        "crate_directory_has_one_owner",
+        Category::Regression,
+        "needs a real 0-Core: it reads every tracked .rs file, which only a checkout has",
+        || {
+            // INT-267 L2: ONE OWNER. zero_core::paths says where the crates live; no other live
+            // Rust string literal names the crate directory. Each place that did was a place a
+            // move had to find by hand, and three had already gone dead without a sound
+            // (anomaly, integrity, zero-zone).
+            //
+            // A RATCHET while the sites migrate: crate-paths-allowed.txt lists each file and
+            // literal still waiting. A literal not on the list fails -- a new hardcoded path. An
+            // entry no longer found fails too -- the list only shrinks, and says so. The list is
+            // empty when the migration is done. It is a data file so this file does not flag
+            // itself, and the word below is built from PIECES for the same reason.
+            fn literals(line: &str) -> Vec<String> {
+                let c: Vec<char> = line.chars().collect();
+                let mut out = Vec::new();
+                let mut i = 0;
+                while i < c.len() {
+                    let char_literal = i > 0
+                        && (c[i - 1] == '\\' || (c[i - 1] == '\'' && c.get(i + 1) == Some(&'\'')));
+                    if c[i] == '"' && !char_literal {
+                        let mut s = String::new();
+                        i += 1;
+                        while i < c.len() && c[i] != '"' {
+                            if c[i] == '\\' && i + 1 < c.len() {
+                                s.push(c[i]);
+                                i += 1;
+                            }
+                            s.push(c[i]);
+                            i += 1;
+                        }
+                        out.push(s);
+                    }
+                    i += 1;
+                }
+                out
+            }
+            let word = ["rust", "-tools"].concat();
+            let owner = "zero-core/src/paths.rs";
+            let allowed: Vec<(String, String)> = include_str!("../crate-paths-allowed.txt")
+                .lines()
+                .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                .filter_map(|l| l.split_once('\t'))
+                .map(|(f, s)| (f.to_string(), s.to_string()))
+                .collect();
+            let root = std::path::Path::new(&home()).join("0-core");
+            let out = Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(["ls-files", "-z", "--", "*.rs"])
+                .output()
+                .map_err(|e| format!("cannot run git ls-files: {}", e))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "git ls-files failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            let mut files = 0usize;
+            let mut found: Vec<(String, String, usize)> = Vec::new();
+            for raw in out.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()) {
+                let path = String::from_utf8_lossy(raw).to_string();
+                if path.ends_with(owner) {
+                    continue;
+                }
+                let text = std::fs::read_to_string(root.join(&path))
+                    .map_err(|e| format!("cannot read {}: {}", path, e))?;
+                files += 1;
+                for (n, line) in text.lines().enumerate() {
+                    if line.trim_start().starts_with("//") {
+                        continue;
+                    }
+                    for lit in literals(line) {
+                        if lit.contains(word.as_str()) {
+                            found.push((path.clone(), lit, n + 1));
+                        }
+                    }
+                }
+            }
+            // AN EMPTY TREE IS NOT A CLEAN ONE. Reading nothing must not pass as finding nothing.
+            if files == 0 {
+                return Err("read no .rs files at all -- that is not a clean tree".to_string());
+            }
+            // Counted, not just present: two sites with the same literal in one file need two lines,
+            // so a third copy cannot hide behind an entry the first two already earned.
+            let pairs: Vec<(String, String)> = found
+                .iter()
+                .map(|(f, l, _)| (f.clone(), l.clone()))
+                .collect();
+            let count = |v: &[(String, String)], f: &str, l: &str| {
+                v.iter().filter(|(a, b)| a == f && b == l).count()
+            };
+            let mut problems: Vec<String> = Vec::new();
+            for (f, l, n) in &found {
+                if count(&pairs, f, l) > count(&allowed, f, l) {
+                    problems.push(format!("{}:{}\t{}", f, n, l));
+                }
+            }
+            let mut seen: Vec<(String, String)> = Vec::new();
+            for (af, al) in &allowed {
+                if seen.iter().any(|(a, b)| a == af && b == al) {
+                    continue;
+                }
+                seen.push((af.clone(), al.clone()));
+                let (want, have) = (count(&allowed, af, al), count(&pairs, af, al));
+                if have < want {
+                    problems.push(format!(
+                        "allowed {} but found {}, remove the extra: {}\t{}",
+                        want, have, af, al
+                    ));
+                }
+            }
+            if problems.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} crate-directory literal(s) outside zero_core::paths ({} read):\n  {}",
+                    problems.len(),
+                    files,
+                    problems.join("\n  ")
+                ))
+            }
+        },
+    ));
+    results.push(repo_test(
         "no_retired_display_name_in_printed_strings",
         Category::Regression,
         "needs a real 0-Core: it reads the source tree, which only a checkout has",
