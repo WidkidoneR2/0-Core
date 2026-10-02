@@ -84,12 +84,67 @@ DevBox and Law 0 as consumers. Law 0's natural use is the inverse check -- the s
 fingerprint must DIFFER from the host's on the identity and machine axes. Each gets its own
 intent once this collector is proven.
 
+## START HERE -- 2026-10-01
+
+Written only if HEAD was 63228be9, clean and pushed; the commits below exist; and the recorded
+fingerprint read back as digest 09c7905f4daea150 with `core fingerprint show` answering PASS.
+A new chat opens with `ints 269` and this section.
+
+### Done -- pushed
+
+```text
+    8f9db2d1   INT-269 filed and started: the design and ten gates
+    98d6657b   step 1: zero-core/src/fingerprint.rs -- collect, compare, Record, FNV-1a. Eight
+               tests on a fake machine, red at todo!() first, then green
+    5f19ecb5   four gates ticked with evidence
+    63228be9   step 2: core fingerprint show / record, and paths::fingerprint_file(). nsh-test
+               core_fingerprint_lifecycle: red (unrecognized subcommand), then green -- the full
+               UNDETERMINED, record, PASS, FAIL cycle on the deployed core in a temp state dir
+    (disk)     Christian ran core fingerprint record: digest 09c7905f4daea150 at
+               ~/.local/state/zero/fingerprint. show answers PASS
+```
+
+### Ruled, Christian 2026-10-01
+
+```text
+    no record, no move   record refuses any missing input; show without a record is UNDETERMINED
+    exit codes           show 0 PASS, 1 FAIL, 2 UNDETERMINED; record 0 written, 1 refused
+    step 3 is (a)        the doctor gains a read-only way to run ONE check, so FAIL and
+                         UNDETERMINED are demonstrated on the deployed binary without writing a
+                         test result into health history or the health cache
+```
+
+### Next -- step 3, in order
+
+```text
+    1  recon: how core doctor run writes -- the health history rows in state.db, the
+       health-status cache, the trend and forecast inputs -- and every caller of the runner
+    2  design (a): the read-only single-check mode; it writes nothing; Christian approves its
+       name and shape before any code
+    3  red first: the Fingerprint check -- a registry/doctor/checks.toml entry, Probe::Fingerprint,
+       a probe mapping Pass, Fail, Undetermined to pass, fail, unknown. The count tests
+       (27 checks, 25 judging) move to 28 and 26 on purpose
+    4  demonstrate on the deployed binary through the read-only mode: PASS on the real record;
+       UNDETERMINED and FAIL with ZERO_STATE_DIR pointing at a temp copy of the record
+    5  tick DOCTOR, ONE WRITER, TWO CONSUMERS; the census for ONE COLLECTOR; then step 4, the
+       docs, in Christian's wording
+```
+
+### Found, not fixed
+
+```text
+    nsh labels an external program's exit 2 as "misuse of shell builtin" -- seen on
+    core fingerprint show, whose 2 means UNDETERMINED. For INT-265
+    zero_state_dir() is ~/.local/state/0-core, a second state tree beside runtime_dir()'s
+    zero -- noticed in step 2 recon. The fingerprint uses runtime_dir()
+```
+
 ## Success Criteria
 
 - [ ] ONE COLLECTOR: zero_core::fingerprint::collect() reads the nine declared inputs, and a
       census shows no other crate reads them for identity
 - [ ] RED FIRST: every proof test below is seen failing before the code that makes it pass
-      <!-- progress 2026-10-01: step 1 seen red -- 8 of 8 collector tests failed at todo!() before 98d6657b made them pass. Stays open until steps 2 and 3 are seen red too. -->
+      <!-- progress 2026-10-01: step 1 seen red -- 8 of 8 collector tests failed at todo!() before 98d6657b made them pass. Step 2 seen red -- core_fingerprint_lifecycle failed on unrecognized subcommand before 63228be9. Stays open until step 3 is seen red too. -->
 - [x] MISSING IS NOT ZERO: an unreadable input (injected path) lands in the missing-set and the
       outcome is UNDETERMINED, never PASS
       <!-- evidence: 98d6657b, zero-core fingerprint::tests::an_unreadable_input_is_missing_and_the_outcome_undetermined -- machine-id removed from a fake machine: missing-set names it, digest None, compare UNDETERMINED. Red at todo!() first. -->
@@ -101,6 +156,7 @@ intent once this collector is proven.
 - [x] STABLE DIGEST: the digest function is pinned by a test vector in the code
       <!-- evidence: 98d6657b, fingerprint::tests::the_digest_function_is_pinned -- FNV-1a written in zero-core, fnv1a64("project 0") == 0x2501e42b18699b7e. Red at todo!() first. -->
 - [ ] ONE WRITER: only core fingerprint record writes the expected record; the doctor never does
+      <!-- progress 2026-10-01: show never writes and record is the one writer -- proven on the deployed core by nsh-test core_fingerprint_lifecycle (63228be9). The doctor half waits for step 3. -->
 - [ ] DOCTOR: a Fingerprint check shows PASS, FAIL and UNDETERMINED, each demonstrated on the
       deployed binary
 - [ ] DOCS TRUE: AGENTS.md (wording approved by Christian) and docs/FINGERPRINT.md name the
