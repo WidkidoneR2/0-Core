@@ -59,14 +59,14 @@ Promote a directory to critical the moment it carries boot, login, or disk setti
 
 ### Fingerprint
 
-A fingerprint is the declared identity of this machine and this tree. It is computed once, in one place, and asked about — not re-derived in every crate.
+A fingerprint is the declared identity of this machine and this tree. It is computed once, in one place -- zero_core::fingerprint, at zero/rust-tools/zero-core/src/fingerprint.rs -- and asked about, not re-derived in every crate. Only `core fingerprint record` writes the expected record; the doctor never does.
 
-* One collector. Do not add a second hash, probe set, or "good enough" identity check. Doctor, integrity, DevBox verify, and `devshell` Law 0 probes ask the same adapter. Same class of rule as INT-230: one place the system asks about 0-Core.
+* One collector. Do not add a second hash, probe set, or "good enough" identity check. Every consumer asks zero_core::fingerprint: `core fingerprint` and the doctor do today; integrity, DevBox verify and `devshell` Law 0 probes will when each is built. Same class of rule as INT-230: one place the system asks about 0-Core.
 * Inputs are declared. Machine facts the kernel already publishes (identity / machine probes) and tree facts the repo already owns (process / filesystem probes). No silent extras. A field that is not on the declared list is not part of the fingerprint.
 * Must not include: secrets, home contents outside the declared paths, network reachability, timestamps, or anything that changes because a session started. A fingerprint that moves when you blink is not a fingerprint.
 * Rename is not a new machine. INT-247 path and display-name changes must not flip the fingerprint by themselves. If a rename moves a probe input, the adapter is updated in the same change or the gate stays red.
 * Outcomes are tri-state. A mismatch is FAIL. A missing capability is UNDETERMINED, not a guessed match. Clean is only clean when every declared input was actually read. Doctor already distinguishes these; do not collapse them.
-* Law 0 consumes it, it does not invent it. `devshell` launch probes (identity / machine / process / filesystem, INT-257) read the fingerprint. They do not grow a private copy.
+* Law 0 consumes it, it does not invent it. Built consumers today: `core fingerprint show` and the doctor's Fingerprint check. `devshell` launch probes (INT-257), DevBox verify and integrity are planned, each its own intent; until then they do not read the fingerprint, and they must not grow a private copy when they do.
 
 The full flow is in `docs/FINGERPRINT.md` — invariants stay here; the walkthrough does not.
 

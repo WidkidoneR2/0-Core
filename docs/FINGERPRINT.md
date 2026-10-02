@@ -4,7 +4,7 @@ How Project 0 decides that this machine and this tree are the ones it thinks the
 
 The rules agents must not break live in AGENTS.md under Fingerprint. This file is the flow those rules describe. Do not copy the rules back into AGENTS.
 
-Written 2026-09-30. Collector paths below are the declared sites to look first. If the adapter has moved and this list is stale, fix this file in the same change that finds the new site. Do not add a second collector to paper over a stale path.
+Written 2026-09-30; corrected 2026-10-01 to what INT-269 built. Collector paths below are the declared sites to look first. If the adapter has moved and this list is stale, fix this file in the same change that finds the new site. Do not add a second collector to paper over a stale path.
 
 ## What it is
 
@@ -32,24 +32,34 @@ Nothing in that chain invents a field. If a probe cannot read an input, the reco
 
 ### 1. Declared inputs
 
-Four probe families, named by INT-257's launch checks:
+Nine, approved 2026-10-01 (INT-269). Each is readable without privileges.
 
-| Family | Asks | Typical sources |
+| Family | Input | Source |
 |---|---|---|
-| identity | who this installation claims to be | hostname, machine-id the kernel exposes |
-| machine | what hardware and substrate this is | arch, kernel, the Omarchy host facts |
-| process | what is running this check | uid, the binary path actually exec'd |
-| filesystem | what tree and state dirs are real | `~/0-core`, `~/.local/state/zero`, `~/.config/nsh` |
+| identity | `identity.machine_id` | `/etc/machine-id` |
+| identity | `identity.hostname` | `/proc/sys/kernel/hostname` |
+| machine | `machine.arch` | the build target (`std::env::consts::ARCH`) |
+| machine | `machine.os_id` | `ID=` in `/etc/os-release` |
+| machine | `machine.board` | `/sys/class/dmi/id/board_vendor` and `product_name` |
+| machine | `machine.cpu` | `model name` in `/proc/cpuinfo` |
+| process | `process.uid` | `Uid` in `/proc/self/status` |
+| tree | `tree.repo` | device and inode of `~/0-core`, and the origin URL from its `.git/config` |
+| tree | `tree.dirs` | the five real directories are directories, not links |
+
+Excluded on purpose: boot-id (changes every boot), the kernel version (changes every update; `d` reports it), repo HEAD (the tip, not the identity), the product serial (needs root, and is close to a secret), the Omarchy version (absent on this machine, and per-update anyway), and the running binary (differs between nsh and core, which would give two consumers two records).
 
 A field that is not on the declared list is not part of the fingerprint. Adding a field is a contract change. It needs an intent, a red-first test, and an update to this table.
 
 ### 2. One collector
 
-Look first (historical names still in tree during INT-247):
+`zero/rust-tools/zero-core/src/fingerprint.rs` -- `collect()` reads the nine inputs, `compare()` judges, `Record` holds them. Every tool links zero-core, so every consumer calls the same function and gets the same record. The digest is FNV-1a over the declared tuple only, written in that file and pinned by a test vector.
 
-- integrity code next to zero-core / zero-* (`integrity/mod.rs` is the name AGENTS already cites)
-- `zero-doctor/src/probes/` (where checks run) and `registry/doctor/checks.toml` (where they are declared)
-- devshell Law 0 launch probes (`zero/scripts/devshell` and `devshell-lib` — INT-252 moves the directory; the adapter moves with it)
+Two front doors use it today:
+
+- `core fingerprint show` / `record` -- `zero/engine/src/domains/fingerprint/mod.rs`
+- the doctor's Fingerprint check -- `zero/rust-tools/zero-doctor/src/probes/identity.rs`, declared in `registry/doctor/checks.toml`
+
+The expected record lives at `~/.local/state/zero/fingerprint` (`zero_core::paths::fingerprint_file()`). Only `core fingerprint record` writes it.
 
 If two of those compute a hash independently, that is a defect. One writes the record. The others ask.
 
@@ -64,14 +74,16 @@ The record is facts plus a missing-set, not a single opaque digest pretending ev
 
 ### 4. Compare
 
-Compare live record to last known / expected.
+Compare the live record to the expected one.
 
 | Live | Expected | Result |
 |---|---|---|
 | all declared inputs read, equal | present | PASS |
-| all declared inputs read, differ | present | FAIL |
-| any declared input unread | anything | UNDETERMINED |
-| expected missing and that was the claim | expected missing | PASS on that axis only if the missing-set matches |
+| all declared inputs read, some differ | present | FAIL, naming the inputs that differ |
+| any declared input unread | anything | UNDETERMINED, naming what was not read |
+| anything | no record | UNDETERMINED -- not recorded yet |
+
+`core fingerprint record` refuses to write a record with a missing input, so an expected record never carries a gap. Exit codes, so scripts can ask: `show` 0 PASS, 1 FAIL, 2 UNDETERMINED; `record` 0 written, 1 refused. `core doctor check fingerprint` answers with the same three.
 
 Doctor already distinguishes clean from UNDETERMINED (INT-192). Do not collapse the two so a dashboard looks greener.
 
@@ -79,12 +91,13 @@ FAIL is a mismatch. UNDETERMINED is "we did not establish the answer." A tool th
 
 ### 5. Consumers
 
-They read. They do not grow a private copy.
+They read. They do not grow a private copy. Status as of 2026-10-01:
 
-- **doctor** — health surface. Prints PASS / FAIL / UNDETERMINED. Does not repair the fingerprint as a side effect of printing it.
-- **integrity** — the adapter's home. Owns the record format.
-- **DevBox verify** — case files, crate census. A case that needs identity asks the adapter; it does not hash the fixture tree itself and call that a fingerprint.
-- **devshell Law 0** — ten checks at launch (INT-257). Identity / machine / process / filesystem probes consume the fingerprint. Any one failing means the session refuses to start rather than starting degraded. Each check was proven by breaking it on its own.
+- **core** -- built. `core fingerprint show` compares and never writes; `core fingerprint record` is the one writer.
+- **doctor** -- built. The Fingerprint check, system tier, severities pass and fail. No record or an unread input is unknown, never a pass. It never writes the record. `core doctor check fingerprint` runs it alone, read-only, with no health history written.
+- **integrity** -- planned, not a consumer yet. The record format is owned by zero-core, not by integrity.
+- **DevBox verify** -- planned, its own intent. A case that needs identity asks the collector; it does not hash the fixture tree itself and call that a fingerprint.
+- **devshell Law 0** -- planned, its own intent. Its natural use is the inverse check: the sandbox's fingerprint must DIFFER from the host's on the identity and machine axes. Today its ten launch checks (INT-257) ask that question themselves and do not read the fingerprint.
 
 Law 0 consumes the fingerprint. It does not invent it.
 
