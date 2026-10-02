@@ -265,7 +265,7 @@ RULINGS -- Christian, 2026-10-01
     completion.rs:420 offers cd ~/0-core/rust-tools, a path gone since the tree moved under zero/
 ```
 
-## START HERE -- 2026-10-02
+## START HERE -- 2026-10-02 morning -- SUPERSEDED by START HERE -- 2026-10-02 evening, below
 
 Written only if HEAD was cb676191, clean and pushed; the commits below exist; docs/TREE.md is
 tracked; and config.nsh no longer holds the loch alias. A new chat opens with ints 267 and this
@@ -307,6 +307,207 @@ section.
     experiment_list   a labs/ read error answers as "No active experiments" (under Design)
     fsearch           ignores > file (INT-270's list)
     globs             an absolute-path glob reached cat with its asterisks intact (INT-270's list)
+```
+
+## START HERE -- 2026-10-02 evening
+
+Written only if HEAD was 52a0cc57 and equal to origin/main, the tree was clean, every commit named
+below exists, nsh-test/crate-paths-allowed.txt held 72 entries, paths.rs declared CRATE_PARENTS, and
+the census script was cached. The morning START HERE above is superseded by this one.
+
+### For the next chat -- read this first
+
+Christian opens a new chat by pasting the output of `ints 267`. That chat continues from exactly
+here, with no further instruction:
+
+```text
+    1  Read this whole intent: Vision, Recon 2026-10-01, Design 2026-10-01, Design addendum
+       2026-10-02, this START HERE, and the Success Criteria
+    2  Do NOT re-ask anything under RULINGS IN FORCE below. They are settled
+    3  Work by METHOD below. It is binding, and it is how every step today was done
+    4  Begin with NEXT, step 1: the read-only recon block, pasted verbatim. Say in two or three
+       lines what it will show, then wait for the output
+    5  Replies are short (two to three minutes of work), give ONE direction, never narrate a
+       hypothesis that a lookup can settle, and never change Christian's AGENTS.md -- propose only
+```
+
+### Done -- pushed
+
+```text
+    3de890ff  INT-263 and INT-264 closed on evidence. Their work had landed under INT-247; every
+              gate ticked with the INT-247 commit that did it, or declined with numbered reasons
+              (rulings R1-R4, recorded in those two intents). INT-267's order gate is unblocked
+    2776a7df  INT-267 Design addendum: rulings L1 L2 L3, the census at 3de890ff (144 lines in 37
+              files, CENSUS FINGERPRINT dbb51c79ebf2), three new gates
+    abe2adab  nsh-test crate_directory_has_one_owner -- THE GUARD. Fails on any live Rust string
+              literal naming the crate directory outside zero_core::paths, unless listed in
+              zero/rust-tools/nsh-test/crate-paths-allowed.txt (THE RATCHET, 72 entries). Seen RED
+              with an empty list (72 named, 220 .rs files read), GREEN with the list, RED on one
+              planted literal, GREEN after it was removed
+    52a0cc57  zero-core THE OWNER (paths.rs, right after rust_tools_dir) and nsh-test
+              crate_dirs_match_the_workspace. 7 unit tests pass. The case compares crate_dirs()
+              with the Cargo.toml members both ways; seen RED on a planted member, GREEN after
+```
+
+State at 52a0cc57, measured: ship 16 shipped 0 failed; deployed nsh-test 215 of 215; d 0 failed;
+Fingerprint PASS, schema 2, digest a56683c54812378b (tree.repo is the inode of ~/0-core plus the
+origin url, so moves inside the repo do not change it).
+
+### Rulings in force -- do not re-ask
+
+```text
+    L1  engine is core. The shell is NovaShell (nsh), with what exists only to prove or run it.
+        Every other binary is a tool. A new crate goes in tools/ unless it only serves the shell
+    L2  ONE owner: zero_core::paths says where every crate directory is; no other live code
+        names it
+    L3  three steps, each buildable: 0 ONE OWNER, 1 THE RENAME (zero/rust-tools -> zero/tools),
+        2 THE BRANCH (novashell, nsh-test, devbox -> zero/shell). Census re-run and fingerprinted
+        before 1 and before 2
+    L3a step 0 lands as SEVERAL green commits, each shrinking the ratchet (proposed 2026-10-02,
+        Christian proceeded with it). The guard proves each batch
+    L3b the three DEAD sites (anomaly, integrity, zero-zone) are fixed by asking the owner in
+        step 0. It is a declared behaviour change: read their output before and after
+    L3c these stay in the ratchet on purpose: nsh-test fake-tree fixtures and tilde command
+        strings (they test the shell with real paths; they change in step 1), and teach
+        main.rs:956-962 (the whole tour is stale; its own fix)
+    R5  every rehearsal runs rustfmt on the payload Rust before the plan is shown, so the plan
+        is the text zero-gate commits. Staged stat must equal committed stat
+```
+
+### The owner -- zero_core::paths (paths.rs, after rust_tools_dir)
+
+```text
+    CRATE_PARENTS          ["zero/rust-tools"]   each child holding a Cargo.toml is a crate
+    SINGLE_CRATES          ["zero/engine"]       a crate that is its own directory
+    CRATE_PARENTS_HISTORY  ["rust-tools", "zero/rust-tools"]   oldest first, never shrinks
+    crate_dirs_in(root) / crate_dirs()      io::Result<Vec<PathBuf>>; unreadable = Err, never empty
+    crate_rel_dir_in(root, name) / crate_rel_dir(name)   Option<String>, "zero/rust-tools/<name>"
+    crate_of(path)                          Option<String>: the crate a path string is inside
+    crate_history_pathspecs(name)           git log pathspecs across every parent
+    rust_tools_dir()                        now core_dir().join(CRATE_PARENTS[0]), same value
+```
+
+CRATE_PARENTS_HISTORY lists every parent a crate has ever lived in, the current ones included, so
+git log follows a crate across moves. Step 1: CRATE_PARENTS becomes ["zero/tools"] and "zero/tools"
+is appended to HISTORY. Step 2: "zero/shell" joins CRATE_PARENTS and is appended to HISTORY. The
+Cargo.toml members change in the same commit; crate_dirs_match_the_workspace keeps the two in step.
+
+### The ratchet -- how a batch moves
+
+```text
+    file    zero/rust-tools/nsh-test/crate-paths-allowed.txt, one line per occurrence:
+            file<TAB>literal. Comment lines start with #
+    rule    a found literal beyond its listed count FAILS (a new hardcoded path); a listed entry
+            beyond what is found FAILS (remove it). Counted, not just present
+    a batch rewrites its sites to ask the owner AND deletes exactly their lines in the same
+            commit. Before the change the guard is green; after the rewrite but before the list
+            edit it fails naming the removed literals as "allowed N but found M" -- that is the
+            batch proving itself. Then the list edit makes it green
+    done    the list has no entries: L2 holds
+```
+
+Today the list holds 72: anomaly 1, audit 4, evolution 1, integrity 1, intent 5, planning 1,
+novashell commands/mod.rs 13, completion 1, prompt 1, nsh-test 22, teach 1, zero-context 2,
+zero-deadwood 7, zero-docs toolgen 10, zero-update cargo_checker 1, zero-zone detect 1.
+
+### Next -- batch 1: the three dead sites
+
+```text
+    anomaly    zero/engine/src/domains/anomaly/mod.rs:208-217  git log --since=30 days -- engine/
+               rust-tools/  run from ctx.core_root (~/0-core). Both moved under zero/ on
+               2026-09-25, so the scan reads nothing and reports nothing
+    integrity  zero/engine/src/domains/integrity/mod.rs:872-905  core_root.join("rust-tools") and
+               (:900) core_root.join("engine/Cargo.toml"). core_root is ~/0-core (context.rs:17-24,
+               core_root_string()), so every registry-vs-Cargo version check hits !exists ->
+               continue and passes having read nothing. Registry name "core" means the engine
+    zero-zone  zero/rust-tools/zero-zone/src/detect.rs:11  home.join("0-core/rust-tools") never
+               exists, so the Workspace zone never fires. detect_zone(path, home) takes home for
+               tests: the fix must keep that, e.g. the owner's names joined onto home/0-core
+```
+
+Step 1 -- recon, read-only. Paste exactly:
+
+```text
+python3 -c 'import sys,glob,os
+a=sys.argv[1:]
+for g,s,e in zip(a[0::3],a[1::3],a[2::3]):
+  ps=[p for p in sorted(glob.glob(g)) if os.path.isfile(p)]
+  if not ps: print("== NO MATCH",g)
+  for p in ps:
+    print("==",p,s,e)
+    for i,l in enumerate(open(p),1):
+      if int(s)<=i<=int(e): print(str(i).rjust(5),l,end="")' /home/christian/0-core/zero/engine/src/domains/anomaly/mod.rs 190 240 /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs 850 935 /home/christian/0-core/zero/rust-tools/zero-zone/src/detect.rs 1 60
+fsearch anomaly --file parser.rs
+fsearch integrity --file parser.rs
+fsearch detect_zone --type rs --live
+```
+
+It shows each dead site whole, and how each is run (the core subcommands and zone's callers), so
+step 2 can capture BEFORE output. Then:
+
+```text
+    2  capture BEFORE: run the anomaly scan, the integrity check and a zone detection inside a
+       crate directory, each to a /tmp file (commands from step 1's recon)
+    3  plan the batch: the three sites ask the owner (anomaly: pathspecs from SINGLE_CRATES,
+       CRATE_PARENTS and CRATE_PARENTS_HISTORY; integrity: crate_rel_dir / the engine for "core";
+       zone: the owner's parents under home/0-core), their 3 ratchet lines deleted. A unit or
+       nsh-test check per site that fails on today's code first (red), then passes
+    4  apply, build, cargo check --workspace, unit tests, suite (expect 215 of 215 with the list
+       at 69), AFTER output captured and compared with BEFORE. Anything new that anomaly or
+       integrity now report is a FINDING to read, not noise to silence
+    5  ship, doors, commit (Method). Then batch 2: MATCH and SAFETY through crate_of
+```
+
+### Method -- binding, as practised today
+
+```text
+    RECON     read-only first. Search with fsearch (not grep or awk); read exact text with the
+              numbered python reader above. Never claim how a command behaves without reading it
+    PAYLOAD   a python script in ONE argv word: base64 of zlib. Installed under its own hash with
+                python3 -c 'import base64,zlib,sys,hashlib,os; b=zlib.decompress(base64.b64decode(sys.argv[1])); h=hashlib.sha256(b).hexdigest()[:12]; p=os.path.expanduser("~/.cache/zero/<name>-"+h+".py"); os.makedirs(os.path.dirname(p),exist_ok=True); open(p,"wb").write(b); print("installed",p)' <b64>
+              The reply names the expected file; any other name means a damaged copy: stop
+    REHEARSE  in Claude's sandbox on a stand-in tree: refuse paths, wrong fingerprint, apply,
+              second run refused. Rust compile-checked with rustc in a stub harness, formatted by
+              rustfmt (R5). The copy in the reply decoded and compared byte for byte
+    PLAN      `plan` prints every edit and a FINGERPRINT and writes nothing. Christian reviews.
+              Claude then sends `apply <real fingerprint>`, never a placeholder. Every check runs
+              before the first write; a REFUSE line means stop and paste
+    EDIT      through fpatch: sys.path zero/scripts/dev, patch(abs_path, old, new). One concern
+              per edit. Anchors byte-exact; em dash and double dash are not interchangeable
+    RED FIRST a new check is seen failing (empty list, or a plant/unplant mode in the payload
+              that adds one stray thing and then proves the file identical to git again)
+    TEST      cargo build -p <crate> > /tmp/build.txt 2>&1 ; cargo check --workspace when zero-core
+              changes ; unit tests ; the suite to a file, never a filter:
+                env NSH_BIN=/home/christian/.local/bin/nsh /home/christian/0-core/target/debug/nsh-test > /tmp/suite.txt 2>&1
+    SHIP      ship > /tmp/ship.txt 2>&1 ; tail -8 /tmp/ship.txt ; nsh-test > /tmp/suite.txt 2>&1 ;
+              d (0 failed, Fingerprint digest a56683c54812378b) ; git status --short ;
+              exec /home/christian/.local/bin/nsh as the LAST line of the block
+    COMMIT    only after the doors are green, as its own block: git add exact paths ; git diff
+              --cached --stat ; git commit -m subject -m what-was-false -m watched --trailer
+              "Intent: INT-267" --trailer "Fingerprint: <plan fingerprint>" ; git push ; delete the
+              finished cached script. If the committed stat differs from the staged stat, stop and
+              read what zero-gate changed
+    PASTE     no apostrophes except the single quotes around python -c, no heredocs, no bare
+              --help, no $ in double quotes. NEVER sudo
+    KEEP      ~/.cache/zero/int267-census-3de13dda82b5.py -- the move census, re-run before step 1
+              and before step 2 (it writes ~/.cache/zero/int267-census.txt and prints a CENSUS
+              FINGERPRINT). Delete it when INT-267 closes
+```
+
+### Found, not fixed -- recorded 2026-10-02, each for its own owner
+
+```text
+    zero-gate    gate_rustfmt (zero-gate main.rs:305-328) runs cargo fmt on staged files and
+                 git-adds the result, so committed text can differ from reviewed text
+                 (abe2adab: nsh-test lines 88-91, formatting only). Its decision: refuse with
+                 --check, or keep rewriting. R5 covers this side meanwhile
+    nsh labels   an external command's exit 2 is printed as "misuse of shell builtin" (seen on
+                 ls of a missing file): a category guessed where a fact belongs (AGENTS.md s3)
+    flea/        fsearch matched flea/src/paths.rs, which 0-core does not track. Unexplained
+    Friday       for INT-039 (friday-daemon) or a new Friday intent Christian will file: the
+                 missing-table-reads-empty collapse at friday reasoning.rs:201 and planning.rs:899
+                 (R2), and zero-daemon -- no unit, not running, org.zero.Core unserved (R4)
+    and above    scripts_dir(), completion.rs:420, experiment_list -- in the Design sections
 ```
 
 ## Success Criteria
