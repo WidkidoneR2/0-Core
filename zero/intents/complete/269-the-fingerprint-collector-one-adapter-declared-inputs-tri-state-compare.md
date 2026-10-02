@@ -3,7 +3,7 @@ id: 269
 date: 2026-10-01
 type: future
 title: "the fingerprint collector: one adapter, declared inputs, tri-state compare"
-status: in-progress
+status: complete
 tags: [fingerprint, novashell, nsh, agents]
 ---
 

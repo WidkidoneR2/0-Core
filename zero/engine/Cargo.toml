@@ -1,7 +1,7 @@
 [package]
 name = "core"
 license = "MIT"
-version = "4.1.0"
+version = "4.1.1"
 edition = "2021"
 description = "The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary."
 
