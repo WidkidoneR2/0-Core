@@ -43,10 +43,10 @@ Nine, approved 2026-10-01 (INT-269). Each is readable without privileges.
 | machine | `machine.board` | `/sys/class/dmi/id/board_vendor` and `product_name` |
 | machine | `machine.cpu` | `model name` in `/proc/cpuinfo` |
 | process | `process.uid` | `Uid` in `/proc/self/status` |
-| tree | `tree.repo` | device and inode of `~/0-core`, and the origin URL from its `.git/config` |
+| tree | `tree.repo` | inode of `~/0-core`, and the origin URL from its `.git/config` -- not its device number (INT-270) |
 | tree | `tree.dirs` | the five real directories are directories, not links |
 
-Excluded on purpose: boot-id (changes every boot), the kernel version (changes every update; `d` reports it), repo HEAD (the tip, not the identity), the product serial (needs root, and is close to a secret), the Omarchy version (absent on this machine, and per-update anyway), and the running binary (differs between nsh and core, which would give two consumers two records).
+Excluded on purpose: boot-id (changes every boot), the kernel version (changes every update; `d` reports it), repo HEAD (the tip, not the identity), the product serial (needs root, and is close to a secret), the Omarchy version (absent on this machine, and per-update anyway), the running binary (differs between nsh and core, which would give two consumers two records), and the device number of `~/0-core` (btrfs hands a subvolume a new one at every mount: 58, then 59, across one boot on 2026-10-01). A test in fingerprint.rs scans the collector's own source and refuses device numbers, boot ids, clocks and uptime, so this list is enforced, not only written (INT-270).
 
 A field that is not on the declared list is not part of the fingerprint. Adding a field is a contract change. It needs an intent, a red-first test, and an update to this table.
 
@@ -72,6 +72,8 @@ The record is facts plus a missing-set, not a single opaque digest pretending ev
 - The digest, if one exists, is over the declared tuple only.
 - Secrets, undeclared home paths, network reachability, and timestamps are not inputs. A fingerprint that moves because a session started is not a fingerprint.
 
+The record carries `schema=2`, a line outside the declared list, so it never moves the digest. A record from another schema answers a different question, so compare is UNDETERMINED naming `schema` and says to run `core fingerprint record` -- never FAIL. A record with no schema line is schema 1, the INT-269 shape. Whoever changes what a declared input means raises `SCHEMA` in the same change (INT-270).
+
 ### 4. Compare
 
 Compare the live record to the expected one.
@@ -79,7 +81,8 @@ Compare the live record to the expected one.
 | Live | Expected | Result |
 |---|---|---|
 | all declared inputs read, equal | present | PASS |
-| all declared inputs read, some differ | present | FAIL, naming the inputs that differ |
+| all declared inputs read, some differ | present | FAIL, naming each input that differs with its recorded and live value |
+| anything | from another schema, or none | UNDETERMINED -- re-record with `core fingerprint record` |
 | any declared input unread | anything | UNDETERMINED, naming what was not read |
 | anything | no record | UNDETERMINED -- not recorded yet |
 
@@ -102,6 +105,8 @@ They read. They do not grow a private copy. Status as of 2026-10-01:
 Law 0 consumes the fingerprint. It does not invent it.
 
 ## Stability
+
+A reboot is not a new machine. No input may read a number the kernel hands out per mount or per boot; a btrfs subvolume gets a new device number at every mount (INT-270).
 
 Rename is not a new machine. INT-247 path and display-name changes must not flip the fingerprint by themselves. If a rename moves a probe input (for example a state directory moving to `~/.local/state/zero`), the adapter is updated in the same change or the gate stays red.
 

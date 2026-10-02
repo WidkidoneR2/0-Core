@@ -8,7 +8,7 @@
 //! answer is unknown -- "not recorded yet" -- never a pass, and never a default filled in.
 
 use crate::measurement::Measurement;
-use zero_core::fingerprint::{collect, compare, Outcome, Record};
+use zero_core::fingerprint::{collect, compare, explain, Outcome, Record};
 
 /// PASS: every input read and equal to the record. FAIL: all read, some differ -- named.
 /// Unknown: no record, an unreadable record, or an input that could not be read.
@@ -33,11 +33,18 @@ pub fn fingerprint() -> Measurement {
             Some(d) => format!("this is the recorded machine and tree -- digest {}", d),
             None => "this is the recorded machine and tree".to_string(),
         }),
-        Outcome::Fail(axes) => {
-            Measurement::fail(format!("differs from the record: {}", axes.join(", ")))
-        }
-        Outcome::Undetermined(missing) => {
-            Measurement::unknown(format!("could not read: {}", missing.join(", ")))
-        }
+        Outcome::Fail(axes) => Measurement::fail(format!(
+            "differs from the record: {} -- {}",
+            axes.join(", "),
+            explain(&live, &expected).join("; ")
+        )),
+        Outcome::Undetermined(missing) => Measurement::unknown({
+            let why = explain(&live, &expected);
+            if why.is_empty() {
+                format!("could not read: {}", missing.join(", "))
+            } else {
+                why.join("; ")
+            }
+        }),
     }
 }

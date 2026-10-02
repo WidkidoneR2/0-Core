@@ -10,7 +10,7 @@
 use crate::cli::commands::FingerprintCommand;
 use crate::errors::CoreResult;
 use colored::Colorize;
-use zero_core::fingerprint::{collect, compare, Outcome, Record, DECLARED};
+use zero_core::fingerprint::{collect, compare, explain, Outcome, Record, DECLARED, SCHEMA};
 
 pub fn run(cmd: FingerprintCommand) -> CoreResult<()> {
     let code = match cmd {
@@ -32,6 +32,32 @@ fn print_record(r: &Record) {
     }
 }
 
+/// INT-270: every line explain() gives, coloured -- the input bold, what was recorded red, what
+/// is read now green, anything else yellow. What moved is visible before it is read.
+fn print_why(live: &Record, expected: &Record) {
+    for line in explain(live, expected) {
+        let moved = line
+            .split_once(": record ")
+            .and_then(|(k, rest)| rest.rsplit_once(", now ").map(|(was, now)| (k, was, now)));
+        match moved {
+            Some((k, was, now)) => println!(
+                "    {}  {} {}  {} {}",
+                k.bold(),
+                "record".dimmed(),
+                was.red(),
+                "now".dimmed(),
+                now.green()
+            ),
+            None => match line.split_once(": ") {
+                Some((k, rest)) if DECLARED.contains(&k) => {
+                    println!("    {}  {}", k.bold(), rest.yellow())
+                }
+                _ => println!("    {}", line.yellow()),
+            },
+        }
+    }
+}
+
 fn show() -> i32 {
     let live = collect();
     let path = zero_core::paths::fingerprint_file();
@@ -41,12 +67,13 @@ fn show() -> i32 {
         Some(d) => println!("  digest               {d}"),
         None => println!("  digest               none -- an input could not be read"),
     }
+    println!("  schema               {SCHEMA}");
     let expected = match std::fs::read_to_string(&path) {
         Ok(t) => Record::from_text(&t),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             println!(
                 "{}",
-                "UNDETERMINED -- not recorded yet. Run: core fingerprint record".red()
+                "UNDETERMINED -- not recorded yet. Run: core fingerprint record".yellow()
             );
             return 2;
         }
@@ -58,7 +85,7 @@ fn show() -> i32 {
                     path.display(),
                     e
                 )
-                .red()
+                .yellow()
             );
             return 2;
         }
@@ -76,13 +103,15 @@ fn show() -> i32 {
                 "{}",
                 format!("FAIL -- these differ from the record: {}", axes.join(", ")).red()
             );
+            print_why(&live, &expected);
             1
         }
         Outcome::Undetermined(missing) => {
             println!(
                 "{}",
-                format!("UNDETERMINED -- not read: {}", missing.join(", ")).red()
+                format!("UNDETERMINED -- not established: {}", missing.join(", ")).yellow()
             );
+            print_why(&live, &expected);
             2
         }
     }
@@ -99,8 +128,7 @@ fn record() -> i32 {
     let path = zero_core::paths::fingerprint_file();
     let previous = std::fs::read_to_string(&path)
         .ok()
-        .map(|t| Record::from_text(&t))
-        .and_then(|r| r.digest());
+        .map(|t| Record::from_text(&t));
     let tmp = path.with_extension("tmp");
     let parent = path
         .parent()
@@ -116,10 +144,17 @@ fn record() -> i32 {
     }
     let digest = live.digest().unwrap_or_default();
     match previous {
-        Some(p) if p == digest => {
+        Some(p) if p.schema() != SCHEMA => println!(
+            "recorded {digest} -- REPLACED a schema {} record; this one is schema {SCHEMA}",
+            p.schema()
+        ),
+        Some(p) if p.digest().as_deref() == Some(digest.as_str()) => {
             println!("recorded {digest} -- unchanged from the previous record")
         }
-        Some(p) => println!("recorded {digest} -- REPLACED the previous record {p}"),
+        Some(p) => println!(
+            "recorded {digest} -- REPLACED the previous record {}",
+            p.digest().unwrap_or_default()
+        ),
         None => println!("recorded {digest} to {}", path.display()),
     }
     0

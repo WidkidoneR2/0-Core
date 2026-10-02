@@ -1805,12 +1805,15 @@ print('CLASS-DONE')"##;
         Category::Regression,
         "needs a real 0-Core: core starts on the real ledger",
         || {
-            // INT-269: core fingerprint show prints PASS in green and anything else in red.
+            // INT-269, INT-270: core fingerprint show prints PASS green, FAIL red, UNDETERMINED
+            // yellow, and under a FAIL each input bold, its recorded value red, its live value green.
             // CLICOLOR_FORCE=1 because nsh-test reads through a pipe, and colored 2.2.0 colours a
             // pipe only when forced -- control.rs: CLICOLOR_FORCE outranks NO_COLOR and the tty
             // check. The record lives in a temp ZERO_STATE_DIR, so the real one is never touched.
             const GREEN: &str = "\u{1b}[32m";
             const RED: &str = "\u{1b}[31m";
+            const YELLOW: &str = "\u{1b}[33m";
+            const BOLD: &str = "\u{1b}[1m";
             let dir = std::env::temp_dir().join(format!(
                 "nsh-test-fingerprint-colour-{}",
                 std::process::id()
@@ -1839,9 +1842,9 @@ print('CLASS-DONE')"##;
             };
             let result = (|| -> Result<(), String> {
                 let (c, out) = core("show")?;
-                if c != 2 || !out.contains(&format!("{}UNDETERMINED", RED)) {
+                if c != 2 || !out.contains(&format!("{}UNDETERMINED", YELLOW)) {
                     return Err(format!(
-                        "with no record, UNDETERMINED must print in red (exit 2): exit {} {:?}",
+                        "with no record, UNDETERMINED must print in yellow (exit 2): exit {} {:?}",
                         c,
                         out.trim()
                     ));
@@ -1877,6 +1880,25 @@ print('CLASS-DONE')"##;
                         c,
                         out.trim()
                     ));
+                }
+                // INT-270: the explain line under the FAIL -- what moved is visible before it is
+                // read. The record says not-this-machine; the machine says its real hostname.
+                let host = std::fs::read_to_string("/proc/sys/kernel/hostname")
+                    .map(|h| h.trim().to_string())
+                    .map_err(|e| format!("cannot read the hostname: {}", e))?;
+                for (what, want) in [
+                    ("the input in bold", format!("{}identity.hostname", BOLD)),
+                    ("the recorded value in red", format!("{}not-this-machine", RED)),
+                    ("the live value in green", format!("{}{}", GREEN, host)),
+                ] {
+                    if !out.contains(&want) {
+                        return Err(format!(
+                            "INT-270: under a FAIL the explain line must show {} -- {:?} is missing: {:?}",
+                            what,
+                            want,
+                            out.trim()
+                        ));
+                    }
                 }
                 Ok(())
             })();

@@ -1378,7 +1378,8 @@ pub fn check(_ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Colour is DERIVED from zero_doctor::is_red, not a second rule: green when it passes, red
+/// Colour is DERIVED from zero_doctor::is_red and the status, not a second rule: green when it
+/// passes, yellow for a safe abort (Unknown or Blocked: not enough to judge -- INT-270), red
 /// otherwise. The rendered Status line still says "Safe abort" or "Failure", so red never hides
 /// which one it is. The match below has no catch-all -- a new status fails to compile here.
 fn check_one(id: &str) -> i32 {
@@ -1404,7 +1405,11 @@ fn check_one(id: &str) -> i32 {
     };
     let o = zero_doctor::run_one(d);
     if zero_doctor::is_red(o.status) {
-        print!("{}", zero_doctor::render(&o).red());
+        let text = zero_doctor::render(&o);
+        match o.status {
+            ES::Unknown | ES::Blocked => print!("{}", text.yellow()),
+            ES::Fail | ES::Warn | ES::Pass => print!("{}", text.red()),
+        }
     } else {
         println!("{}", format!("PASS -- {} -- {}", o.name, o.message).green());
     }

@@ -24,6 +24,13 @@ pub const DECLARED: [&str; 9] = [
     "tree.dirs",
 ];
 
+/// The record's schema. A record written under another schema answers a different question:
+/// compare is UNDETERMINED naming `schema`, never FAIL (INT-270). Raise it in the same change
+/// that alters what a declared input means. A record with no schema line is schema 1, the
+/// INT-269 shape.
+pub const SCHEMA: &str = "2";
+pub const SCHEMA_KEY: &str = "schema";
+
 /// The five directories that must be real directories, relative to home.
 pub const REAL_DIRS: [&str; 5] = [
     ".local/state/zero",
@@ -99,6 +106,14 @@ impl Record {
         Some(format!("{:016x}", fnv1a64(text.as_bytes())))
     }
 
+    /// The schema this record was written under. No schema line is schema 1, the INT-269 shape.
+    pub fn schema(&self) -> String {
+        match self.facts.get(SCHEMA_KEY) {
+            Some(Some(v)) => v.clone(),
+            _ => "1".to_string(),
+        }
+    }
+
     /// One line per fact: `key=value`, or the bare key for a missing one.
     pub fn to_text(&self) -> String {
         let mut out = String::new();
@@ -135,7 +150,11 @@ pub fn fnv1a64(bytes: &[u8]) -> u64 {
 
 /// Missing on either side is UNDETERMINED -- a gap is never filled with a default. Otherwise
 /// every declared input is compared, and the ones that differ are named.
+/// A record from another schema answers a different question: UNDETERMINED naming `schema`.
 pub fn compare(live: &Record, expected: &Record) -> Outcome {
+    if expected.schema() != SCHEMA {
+        return Outcome::Undetermined(vec![SCHEMA_KEY.to_string()]);
+    }
     let mut missing = live.missing();
     for k in expected.missing() {
         if !missing.contains(&k) {
@@ -156,6 +175,31 @@ pub fn compare(live: &Record, expected: &Record) -> Outcome {
     } else {
         Outcome::Fail(differ)
     }
+}
+
+/// One line per input that keeps the answer from PASS: its record and live value, what could not
+/// be read, or why the record answers a different question. Empty on PASS.
+pub fn explain(live: &Record, expected: &Record) -> Vec<String> {
+    let schema = expected.schema();
+    if schema != SCHEMA {
+        return vec![format!(
+            "the record was written by fingerprint schema {schema}; this collector is schema {SCHEMA}, so its fields answer a different question -- run: core fingerprint record"
+        )];
+    }
+    let mut out = Vec::new();
+    for k in DECLARED {
+        let was = expected.facts.get(k).cloned().flatten();
+        let now = live.facts.get(k).cloned().flatten();
+        match (was, now) {
+            (_, None) => out.push(format!("{k}: could not be read now")),
+            (None, Some(_)) => out.push(format!("{k}: not in the record")),
+            (Some(was), Some(now)) if was != now => {
+                out.push(format!("{k}: record {was}, now {now}"))
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 pub fn collect() -> Record {
@@ -190,6 +234,10 @@ pub fn collect_from(s: &Sources) -> Record {
         facts: entries
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
+            .chain(std::iter::once((
+                SCHEMA_KEY.to_string(),
+                Some(SCHEMA.to_string()),
+            )))
             .collect(),
     }
 }
@@ -239,7 +287,9 @@ fn board(sys: &Path) -> Option<String> {
     Some(format!("{vendor} / {product}"))
 }
 
-/// The repository's identity: the device and inode of ~/0-core and its origin URL, read from
+/// The repository's identity: the inode of ~/0-core and its origin URL. Not its device number:
+/// btrfs hands a subvolume a new one at every mount (58, then 59, across one boot on
+/// 2026-10-01), and the fingerprint moved with nothing changed (INT-270). The URL is read from
 /// .git/config. A home that is not an absolute path is unread, never the current directory.
 fn repo(home: &Path) -> Option<String> {
     use std::os::unix::fs::MetadataExt;
@@ -259,7 +309,7 @@ fn repo(home: &Path) -> Option<String> {
         if in_origin {
             if let Some((k, v)) = t.split_once('=') {
                 if k.trim() == "url" && !v.trim().is_empty() {
-                    return Some(format!("{}:{} {}", meta.dev(), meta.ino(), v.trim()));
+                    return Some(format!("{} {}", meta.ino(), v.trim()));
                 }
             }
         }
@@ -322,6 +372,80 @@ mod tests {
             sys: root.join("sys"),
             home: root.join("home"),
         }
+    }
+
+    /// INT-270: no input may read a number the kernel hands out per mount or per boot. btrfs gave
+    /// ~/0-core device 58, then 59, across one boot on 2026-10-01, and tree.repo went red.
+    #[test]
+    fn no_input_reads_a_number_the_kernel_assigns_per_mount_or_boot() {
+        let src = include_str!("fingerprint.rs");
+        let collector = src.split("#[cfg(test)]").next().unwrap_or(src);
+        for banned in [
+            ".dev()",
+            ".rdev()",
+            "st_dev",
+            "boot_id",
+            "SystemTime",
+            "Instant",
+            "/proc/uptime",
+            "btime",
+        ] {
+            assert!(
+                !collector.contains(banned),
+                "the collector reads `{banned}` -- a value that moves across a boot or a mount is not identity"
+            );
+        }
+    }
+
+    #[test]
+    fn the_repo_is_its_inode_and_origin_url() {
+        use std::os::unix::fs::MetadataExt;
+        let s = fake("repo");
+        let ino = std::fs::metadata(s.home.join("0-core")).unwrap().ino();
+        assert_eq!(
+            fact(&collect_from(&s), "tree.repo"),
+            Some(format!("{ino} git@github.com:WidkidoneR2/0-Core.git"))
+        );
+    }
+
+    #[test]
+    fn a_record_from_another_schema_is_undetermined_never_fail() {
+        let s = fake("schema");
+        let live = collect_from(&s);
+        assert_eq!(fact(&live, SCHEMA_KEY).as_deref(), Some(SCHEMA));
+        let mut old = live.clone();
+        old.facts.remove(SCHEMA_KEY);
+        old.facts.insert(
+            "tree.repo".to_string(),
+            Some("58:1 git@github.com:WidkidoneR2/0-Core.git".to_string()),
+        );
+        let old = Record::from_text(&old.to_text());
+        assert_eq!(
+            compare(&live, &old),
+            Outcome::Undetermined(vec![SCHEMA_KEY.to_string()])
+        );
+        let why = explain(&live, &old).join("\n");
+        assert!(
+            why.contains("schema 1") && why.contains("core fingerprint record"),
+            "{why}"
+        );
+    }
+
+    #[test]
+    fn a_fail_shows_the_record_and_the_live_value() {
+        let s = fake("explain");
+        let expected = collect_from(&s);
+        assert!(explain(&expected, &expected).is_empty());
+        std::fs::write(s.proc_root.join("sys/kernel/hostname"), "otherhost\n").unwrap();
+        let live = collect_from(&s);
+        assert_eq!(
+            explain(&live, &expected),
+            vec!["identity.hostname: record testhost, now otherhost".to_string()]
+        );
+        std::fs::remove_file(s.etc.join("machine-id")).unwrap();
+        let gap = collect_from(&s);
+        assert!(explain(&gap, &expected)
+            .contains(&"identity.machine_id: could not be read now".to_string()));
     }
 
     fn fact(r: &Record, k: &str) -> Option<String> {
