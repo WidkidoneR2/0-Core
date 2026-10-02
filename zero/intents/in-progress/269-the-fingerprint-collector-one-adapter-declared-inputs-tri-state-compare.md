@@ -141,10 +141,11 @@ A new chat opens with `ints 269` and this section.
 
 ## Success Criteria
 
-- [ ] ONE COLLECTOR: zero_core::fingerprint::collect() reads the nine declared inputs, and a
+- [x] ONE COLLECTOR: zero_core::fingerprint::collect() reads the nine declared inputs, and a
       census shows no other crate reads them for identity
-- [ ] RED FIRST: every proof test below is seen failing before the code that makes it pass
-      <!-- progress 2026-10-01: step 1 seen red -- 8 of 8 collector tests failed at todo!() before 98d6657b made them pass. Step 2 seen red -- core_fingerprint_lifecycle failed on unrecognized subcommand before 63228be9. Stays open until step 3 is seen red too. -->
+      <!-- evidence: census 2026-10-01, every Rust source under zero/. machine-id, dmi board, cpuinfo and .git/config are read only by zero_core::fingerprint. Other readers display or record and never compare: bootstrap and teach os_name (PRETTY_NAME, not ID), fetch and the nsh prompt (/etc/hostname), zero-update print_system_identity (/etc/hostname, a header), bootstrap get_git_remote (a clone line), snapshot git_remote (stored, never compared). Functional or a different object: zero-sandbox seccomp_filter (consts::ARCH picks the syscall table), zero-sandbox get_memory_kb (VmRSS, not Uid), nsh reload_nsh (dev+ino of the nsh binary, not ~/0-core). Scripts were not in scope: the gate says crate. -->
+- [x] RED FIRST: every proof test below is seen failing before the code that makes it pass
+      <!-- evidence: step 1 -- 8 of 8 collector tests failed at todo!() before 98d6657b. Step 2 -- core_fingerprint_lifecycle failed on unrecognized subcommand before 63228be9. Step 3a -- core_doctor_check_reads_only failed on unrecognized subcommand check (exit 2) before f7b567f8. Step 3 -- the zero-doctor count tests (probes 27->28, checks 27->28, judging 25->26) failed 3 of 60 and core_doctor_check_fingerprint failed with exit 64 before ecde113a. -->
 - [x] MISSING IS NOT ZERO: an unreadable input (injected path) lands in the missing-set and the
       outcome is UNDETERMINED, never PASS
       <!-- evidence: 98d6657b, zero-core fingerprint::tests::an_unreadable_input_is_missing_and_the_outcome_undetermined -- machine-id removed from a fake machine: missing-set names it, digest None, compare UNDETERMINED. Red at todo!() first. -->
@@ -152,12 +153,14 @@ A new chat opens with `ints 269` and this section.
       <!-- evidence: 98d6657b, fingerprint::tests::one_changed_input_is_fail_naming_it (hostname -> FAIL [identity.hostname]) and a_link_where_a_real_directory_belongs_is_fail_on_the_tree (-> FAIL [tree.dirs]). Red at todo!() first. -->
 - [x] RENAME IS NOT A NEW MACHINE: a display-name change leaves the digest unchanged
       <!-- evidence: 98d6657b, fingerprint::tests::a_field_outside_the_declared_list_does_not_move_the_digest -- a display.name field added: same digest, compare PASS. The digest reads DECLARED only. Red at todo!() first. -->
-- [ ] TWO CONSUMERS, ONE RECORD: core and the doctor produce identical records in one session
+- [x] TWO CONSUMERS, ONE RECORD: core and the doctor produce identical records in one session
+      <!-- evidence: ecde113a, 2026-10-01 -- core fingerprint show, core doctor check fingerprint and the d panel all read digest 09c7905f4daea150 in one session. probes/identity.rs calls zero_core::fingerprint::collect() and compare(), the same functions core calls, and reads nothing itself. -->
 - [x] STABLE DIGEST: the digest function is pinned by a test vector in the code
       <!-- evidence: 98d6657b, fingerprint::tests::the_digest_function_is_pinned -- FNV-1a written in zero-core, fnv1a64("project 0") == 0x2501e42b18699b7e. Red at todo!() first. -->
-- [ ] ONE WRITER: only core fingerprint record writes the expected record; the doctor never does
-      <!-- progress 2026-10-01: show never writes and record is the one writer -- proven on the deployed core by nsh-test core_fingerprint_lifecycle (63228be9). The doctor half waits for step 3. -->
-- [ ] DOCTOR: a Fingerprint check shows PASS, FAIL and UNDETERMINED, each demonstrated on the
+- [x] ONE WRITER: only core fingerprint record writes the expected record; the doctor never does
+      <!-- evidence: core half -- nsh-test core_fingerprint_lifecycle (63228be9): show never writes, record is the one writer. Doctor half -- nsh-test core_doctor_check_fingerprint (ecde113a) runs the check with no record and asserts none exists afterwards; probes/identity.rs only reads paths::fingerprint_file(). -->
+- [x] DOCTOR: a Fingerprint check shows PASS, FAIL and UNDETERMINED, each demonstrated on the
       deployed binary
+      <!-- evidence: ecde113a -- nsh-test core_doctor_check_fingerprint on the deployed core, in a temp ZERO_STATE_DIR: no record UNDETERMINED (exit 2), then record and PASS (exit 0), then a changed hostname FAIL (exit 1) naming identity.hostname. By hand: core doctor check fingerprint PASS, digest 09c7905f4daea150; with an empty ZERO_STATE_DIR, Safe abort, not recorded yet, exit 2. -->
 - [ ] DOCS TRUE: AGENTS.md (wording approved by Christian) and docs/FINGERPRINT.md name the
       collector's real path and mark each consumer built or planned
