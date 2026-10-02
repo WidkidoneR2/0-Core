@@ -389,7 +389,217 @@ pub fn docs_dir() -> PathBuf {
 }
 
 pub fn rust_tools_dir() -> PathBuf {
-    source_dir().join("rust-tools")
+    core_dir().join(CRATE_PARENTS[0])
+}
+
+// ═══════════════════════════════════════════════════════════
+// CRATES -- INT-267 L2: the ONE owner of where the crates live
+// ═══════════════════════════════════════════════════════════
+
+/// Directories, relative to the repo root, whose every child holding a Cargo.toml is a crate.
+/// A move changes this array and the workspace members, nothing else; nsh-test
+/// crate_dirs_match_the_workspace keeps the two in step.
+pub const CRATE_PARENTS: [&str; 1] = ["zero/rust-tools"];
+
+/// Crates that are their own directory, relative to the repo root.
+pub const SINGLE_CRATES: [&str; 1] = ["zero/engine"];
+
+/// Every parent the crates have lived in, oldest first. `git log` needs all of them to follow a
+/// crate's history across a move; a parent is added here when a move retires it, never removed.
+pub const CRATE_PARENTS_HISTORY: [&str; 2] = ["rust-tools", "zero/rust-tools"];
+
+/// Every crate directory under the repo root `root`, sorted. A parent that cannot be read is an
+/// ERROR, never zero crates: an unreadable directory must not answer as an empty one (INT-250).
+pub fn crate_dirs_in(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    for parent in CRATE_PARENTS {
+        for entry in std::fs::read_dir(root.join(parent))? {
+            let path = entry?.path();
+            if path.join("Cargo.toml").is_file() {
+                out.push(path);
+            }
+        }
+    }
+    for single in SINGLE_CRATES {
+        let dir = root.join(single);
+        if !dir.join("Cargo.toml").is_file() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("declared crate {} has no Cargo.toml", dir.display()),
+            ));
+        }
+        out.push(dir);
+    }
+    out.sort();
+    Ok(out)
+}
+
+/// Every crate directory of this checkout.
+pub fn crate_dirs() -> std::io::Result<Vec<PathBuf>> {
+    crate_dirs_in(&core_dir())
+}
+
+/// The repo-relative directory of the crate whose directory is `name`, if the repo at `root` has
+/// one. A name with a slash is not a crate name.
+pub fn crate_rel_dir_in(root: &Path, name: &str) -> Option<String> {
+    if name.is_empty() || name.contains('/') {
+        return None;
+    }
+    for parent in CRATE_PARENTS {
+        if root.join(parent).join(name).join("Cargo.toml").is_file() {
+            return Some(format!("{}/{}", parent, name));
+        }
+    }
+    SINGLE_CRATES
+        .iter()
+        .find(|s| s.rsplit('/').next() == Some(name) && root.join(s).join("Cargo.toml").is_file())
+        .map(|s| s.to_string())
+}
+
+/// `crate_rel_dir_in` for this checkout: `crate_rel_dir("novashell")` names its directory.
+pub fn crate_rel_dir(name: &str) -> Option<String> {
+    crate_rel_dir_in(&core_dir(), name)
+}
+
+/// The crate a path is inside, by its directory name -- repo-relative or absolute, file or
+/// directory -- or None. Pure text, so it answers for paths that do not exist on disk: a git
+/// listing, a typed argument, a cwd string.
+pub fn crate_of(path: &str) -> Option<String> {
+    for parent in CRATE_PARENTS {
+        let key = format!("{}/", parent);
+        let at = if path.starts_with(&key) {
+            Some(0)
+        } else {
+            path.find(&format!("/{}", key)).map(|i| i + 1)
+        };
+        if let Some(i) = at {
+            let name = path[i + key.len()..].split('/').next().unwrap_or("");
+            if !name.is_empty() {
+                return Some(name.to_string());
+            }
+        }
+    }
+    for single in SINGLE_CRATES {
+        let inside = path == single
+            || path.starts_with(&format!("{}/", single))
+            || path.ends_with(&format!("/{}", single))
+            || path.contains(&format!("/{}/", single));
+        if inside {
+            return single.rsplit('/').next().map(str::to_string);
+        }
+    }
+    None
+}
+
+/// `git log` pathspecs for a crate's directory in every parent it has lived in, oldest first.
+pub fn crate_history_pathspecs(name: &str) -> Vec<String> {
+    CRATE_PARENTS_HISTORY
+        .iter()
+        .map(|p| format!("{}/{}/", p, name))
+        .collect()
+}
+
+#[cfg(test)]
+mod crate_tests {
+    use super::*;
+
+    fn tree(tag: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("zero-crate-tests-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for d in [
+            "zero/rust-tools/alpha",
+            "zero/rust-tools/beta",
+            "zero/engine",
+        ] {
+            std::fs::create_dir_all(root.join(d)).unwrap();
+            std::fs::write(root.join(d).join("Cargo.toml"), "[package]\n").unwrap();
+        }
+        std::fs::create_dir_all(root.join("zero/rust-tools/not-a-crate")).unwrap();
+        root
+    }
+
+    #[test]
+    fn crate_dirs_lists_every_crate_and_only_crates() {
+        let root = tree("list");
+        let got = crate_dirs_in(&root).unwrap();
+        let want: Vec<PathBuf> = [
+            "zero/engine",
+            "zero/rust-tools/alpha",
+            "zero/rust-tools/beta",
+        ]
+        .iter()
+        .map(|d| root.join(d))
+        .collect();
+        assert_eq!(got, want);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_unreadable_parent_is_an_error_not_an_empty_list() {
+        let root = tree("absent");
+        std::fs::remove_dir_all(root.join("zero/rust-tools")).unwrap();
+        assert!(crate_dirs_in(&root).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_declared_crate_without_its_cargo_toml_is_an_error() {
+        let root = tree("single");
+        std::fs::remove_file(root.join("zero/engine/Cargo.toml")).unwrap();
+        assert!(crate_dirs_in(&root).is_err());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn crate_rel_dir_names_a_crate_and_refuses_what_is_not_one() {
+        let root = tree("rel");
+        assert_eq!(
+            crate_rel_dir_in(&root, "alpha"),
+            Some("zero/rust-tools/alpha".into())
+        );
+        assert_eq!(
+            crate_rel_dir_in(&root, "engine"),
+            Some("zero/engine".into())
+        );
+        assert_eq!(crate_rel_dir_in(&root, "not-a-crate"), None);
+        assert_eq!(crate_rel_dir_in(&root, "missing"), None);
+        assert_eq!(crate_rel_dir_in(&root, "zero/engine"), None);
+        assert_eq!(crate_rel_dir_in(&root, ""), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn crate_of_reads_the_crate_from_any_spelling_of_a_path() {
+        let cases = [
+            ("zero/rust-tools/novashell/src/main.rs", Some("novashell")),
+            ("/home/x/0-core/zero/rust-tools/zero-git", Some("zero-git")),
+            ("zero/rust-tools/teach/", Some("teach")),
+            ("zero/engine/src/app/context.rs", Some("engine")),
+            ("/home/x/0-core/zero/engine", Some("engine")),
+            ("zero/rust-tools/", None),
+            ("docs/TREE.md", None),
+            ("notzero/rust-tools/x", None),
+            ("zero/engineering/x", None),
+        ];
+        for (path, want) in cases {
+            assert_eq!(crate_of(path).as_deref(), want, "crate_of({path:?})");
+        }
+    }
+
+    #[test]
+    fn history_pathspecs_follow_a_crate_through_every_parent() {
+        assert_eq!(
+            crate_history_pathspecs("novashell"),
+            vec!["rust-tools/novashell/", "zero/rust-tools/novashell/"]
+        );
+    }
+
+    #[test]
+    fn rust_tools_dir_is_the_first_crate_parent() {
+        assert_eq!(rust_tools_dir(), core_dir().join(CRATE_PARENTS[0]));
+        assert!(rust_tools_dir().ends_with("zero/rust-tools"));
+    }
 }
 
 pub fn scripts_dir() -> PathBuf {

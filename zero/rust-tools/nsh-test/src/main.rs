@@ -1408,6 +1408,72 @@ print('CLASS-DONE')"##;
         expect_contains(&run_fsh("which core")?, "core")
     }));
     results.push(repo_test(
+        "crate_dirs_match_the_workspace",
+        Category::Regression,
+        "needs a real 0-Core: it reads the workspace Cargo.toml, which only a checkout has",
+        || {
+            // INT-267 L2: zero_core::paths owns where the crates live, and the workspace members
+            // in Cargo.toml say the same thing in Cargo's words. Two spellings of one fact drift
+            // unless something compares them. This does, in both directions, globs expanded.
+            let root = std::path::Path::new(&home()).join("0-core");
+            let text = std::fs::read_to_string(root.join("Cargo.toml"))
+                .map_err(|e| format!("cannot read the workspace Cargo.toml: {}", e))?;
+            let start = text
+                .find("members = [")
+                .ok_or("no `members = [` in the workspace Cargo.toml")?;
+            let body = &text[start + "members = [".len()..];
+            let end = body.find(']').ok_or("`members = [` is never closed")?;
+            let mut members: Vec<std::path::PathBuf> = Vec::new();
+            for item in body[..end].split(',') {
+                let m = item.trim().trim_matches('"');
+                if m.is_empty() {
+                    continue;
+                }
+                if let Some(parent) = m.strip_suffix("/*") {
+                    let dir = root.join(parent);
+                    let entries = std::fs::read_dir(&dir).map_err(|e| {
+                        format!("cannot read member glob {}: {}", dir.display(), e)
+                    })?;
+                    for e in entries {
+                        let p = e.map_err(|e| e.to_string())?.path();
+                        if p.join("Cargo.toml").is_file() {
+                            members.push(p);
+                        }
+                    }
+                } else {
+                    members.push(root.join(m));
+                }
+            }
+            members.sort();
+            members.dedup();
+            // AN EMPTY LIST IS NOT AN AGREEMENT. Two empty answers would compare equal.
+            if members.is_empty() {
+                return Err("the workspace declares no members -- that is not a clean tree".into());
+            }
+            let owned = zero_core::paths::crate_dirs().map_err(|e| {
+                format!("zero_core::paths::crate_dirs() could not read the tree: {}", e)
+            })?;
+            let only_cargo: Vec<String> = members
+                .iter()
+                .filter(|m| !owned.contains(m))
+                .map(|m| m.display().to_string())
+                .collect();
+            let only_owner: Vec<String> = owned
+                .iter()
+                .filter(|o| !members.contains(o))
+                .map(|o| o.display().to_string())
+                .collect();
+            if only_cargo.is_empty() && only_owner.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Cargo.toml and zero_core::paths disagree about the crates.\n  in Cargo.toml only: {:?}\n  in zero_core::paths only: {:?}",
+                    only_cargo, only_owner
+                ))
+            }
+        },
+    ));
+    results.push(repo_test(
         "crate_directory_has_one_owner",
         Category::Regression,
         "needs a real 0-Core: it reads every tracked .rs file, which only a checkout has",
