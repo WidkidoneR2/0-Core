@@ -10,6 +10,7 @@
 pub mod files;
 pub mod git;
 pub mod hardening;
+pub mod identity;
 pub mod internals;
 pub mod runtime;
 pub mod security;
@@ -55,6 +56,7 @@ pub fn run(p: Probe) -> Measurement {
         Probe::RustDocs => internals::rust_docs(),
         Probe::DeadwoodScan => internals::deadwood_scan(),
         Probe::OrphanPackages => internals::orphan_packages(),
+        Probe::Fingerprint => identity::fingerprint(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::SecurityHardening => hardening::security_hardening(),

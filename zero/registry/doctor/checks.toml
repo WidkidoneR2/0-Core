@@ -180,6 +180,18 @@ severities = ["pass", "warn"]
 recovery = "Free space on the filesystem"
 
 [[check]]
+# INT-269: is this the machine and tree Project 0 recorded? zero_core::fingerprint is the ONE
+# collector; the probe only compares. No record, or an input it could not read, is unknown --
+# never a pass. The doctor never writes the record: only `core fingerprint record` does.
+id = "fingerprint"
+name = "Fingerprint"
+section = "\U0001F5A5  System"
+tier = "system"
+probe = "fingerprint"
+severities = ["pass", "fail"]
+recovery = "No record yet: run core fingerprint record. A difference: if this machine or tree changed on purpose, run core fingerprint record again; if not, the inputs named in the Reason are what moved."
+
+[[check]]
 id = "tool_installation"
 name = "Tool Installation"
 section = "\U0001F6E0  Tools"

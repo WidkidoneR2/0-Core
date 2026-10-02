@@ -84,6 +84,8 @@ pub enum Probe {
     Network,
     /// Running QEMU VMs.
     VmState,
+    /// This machine and tree against the recorded fingerprint (INT-269).
+    Fingerprint,
 }
 
 impl Probe {
@@ -117,6 +119,7 @@ impl Probe {
             Probe::Friday => "friday",
             Probe::Network => "network",
             Probe::VmState => "vm_state",
+            Probe::Fingerprint => "fingerprint",
         }
     }
 
@@ -150,6 +153,7 @@ impl Probe {
             Probe::Friday,
             Probe::Network,
             Probe::VmState,
+            Probe::Fingerprint,
         ]
     }
 }
