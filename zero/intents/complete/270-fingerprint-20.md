@@ -3,7 +3,7 @@ id: 270
 date: 2026-10-01
 type: future
 title: "Fingerprint 2.0"
-status: in-progress
+status: complete
 tags: [fingerprint, novashell, shell]
 ---
 
@@ -130,8 +130,8 @@ zero_state_dir, the friday probe). Each stays where 269 put it.
 - [x] DEPLOYED: shipped; the old record answers UNDETERMINED schema 1; re-recorded by Christian;
       show PASS; d 0 failed; nsh-test all passing
 <!-- evidence: ship 2026-10-01, 0 failed; Christian ran core fingerprint record, digest a56683c54812378b; core fingerprint show PASS; d 0 failed with Fingerprint passing (25 of 28); nsh-test 212 of 212. -->
-- [ ] SURVIVES A REBOOT: after a reboot, d Fingerprint PASS with no new record
-<!-- open: closes at the next boot. Run d before any core fingerprint record: Fingerprint must PASS on digest a56683c54812378b. Then tick this, and cicomplete 270. -->
+- [x] SURVIVES A REBOOT: after a reboot, d Fingerprint PASS with no new record
+<!-- evidence: the first commands after the reboot that followed 7a90e018. ~/0-core device 59 before, 57 after (major 0 both; inode 19901 both): btrfs handed out a new number, the exact condition that broke INT-269. d Fingerprint PASS and core fingerprint show PASS on digest a56683c54812378b, schema 2, with no core fingerprint record in between. -->
 
 ## Relationship
 
