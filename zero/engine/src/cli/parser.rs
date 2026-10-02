@@ -600,6 +600,11 @@ pub enum DoctorCommands {
     Quick,
     /// Show health score history over time
     History,
+    /// Run ONE check by id, read-only -- no history row, cache or event (INT-269)
+    Check {
+        /// The check id, as declared in registry/doctor/checks.toml
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]

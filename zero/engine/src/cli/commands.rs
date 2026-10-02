@@ -277,6 +277,9 @@ pub enum DoctorCommand {
     Rebuild,
     Quick,
     History,
+    Check {
+        id: String,
+    },
 }
 
 #[derive(Debug)]

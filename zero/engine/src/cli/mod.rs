@@ -171,6 +171,7 @@ pub fn parse() -> Command {
             DoctorCommands::Rebuild => DoctorCommand::Rebuild,
             DoctorCommands::Quick => DoctorCommand::Quick,
             DoctorCommands::History => DoctorCommand::History,
+            DoctorCommands::Check { id } => DoctorCommand::Check { id },
         }),
         Commands::Zone {
             icon,

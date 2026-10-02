@@ -1636,6 +1636,82 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "core_doctor_check_reads_only",
+        Category::Regression,
+        "needs a real 0-Core: core starts on the real ledger",
+        || {
+            // INT-269 step 3: core doctor check <id> runs ONE check and writes nothing. core
+            // runs on a COPY of state.db and an empty XDG_CACHE_HOME, so the real ledger and
+            // cache are never touched. An undeclared id refuses with 64 and lists the declared
+            // ids; a real check exits 0-3; neither adds a health_patterns or prediction_outcomes
+            // row, and neither writes the health-status cache.
+            let dir = std::env::temp_dir()
+                .join(format!("nsh-test-doctor-check-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(dir.join("cache"))
+                .map_err(|e| format!("cannot make {}: {}", dir.display(), e))?;
+            let real = std::path::Path::new(&home()).join(".local/state/zero/state.db");
+            let db = dir.join("state.db");
+            std::fs::copy(&real, &db)
+                .map_err(|e| format!("cannot copy {}: {}", real.display(), e))?;
+            let cache = dir.join("cache");
+            let count = |table: &str| -> Option<i64> {
+                let c = rusqlite::Connection::open(&db).ok()?;
+                c.query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |r| r.get(0))
+                    .ok()
+            };
+            let run = |id: &str| -> Result<(i32, String), String> {
+                let o = Command::new("core")
+                    .args(["doctor", "check", id])
+                    .env("ZERO_STATE_DB", &db)
+                    .env("XDG_CACHE_HOME", &cache)
+                    .output()
+                    .map_err(|e| format!("cannot run core: {}", e))?;
+                Ok((
+                    o.status.code().unwrap_or(-1),
+                    format!(
+                        "{}{}",
+                        String::from_utf8_lossy(&o.stdout),
+                        String::from_utf8_lossy(&o.stderr)
+                    ),
+                ))
+            };
+            let result = (|| -> Result<(), String> {
+                let before = (count("health_patterns"), count("prediction_outcomes"));
+                let (c, out) = run("no_such_check")?;
+                if c != 64 || !out.contains("declared:") || !out.contains("disk_space") {
+                    return Err(format!(
+                        "an undeclared id must refuse with 64 and list the declared ids: exit {} {}",
+                        c,
+                        out.trim()
+                    ));
+                }
+                let (c, out) = run("disk_space")?;
+                if !(0..=3).contains(&c) || !out.to_lowercase().contains("disk") {
+                    return Err(format!(
+                        "a declared check must exit 0-3 and name itself: exit {} {}",
+                        c,
+                        out.trim()
+                    ));
+                }
+                let after = (count("health_patterns"), count("prediction_outcomes"));
+                if before != after {
+                    return Err(format!(
+                        "check wrote to state.db -- (health_patterns, prediction_outcomes) {:?} -> {:?}",
+                        before, after
+                    ));
+                }
+                let hs = cache.join("zero/health-status");
+                if hs.exists() {
+                    return Err(format!("check wrote the health cache at {}", hs.display()));
+                }
+                Ok(())
+            })();
+            let _ = std::fs::remove_dir_all(&dir);
+            result
+        },
+    ));
+    results.push(repo_test(
         "core_fingerprint_lifecycle",
         Category::Regression,
         "needs a real 0-Core: core starts on the real ledger",

@@ -92,6 +92,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DoctorCommand::Rebuild => crate::domains::doctor::rebuild(ctx),
                 DoctorCommand::Quick => crate::domains::doctor::run_quick(ctx),
                 DoctorCommand::History => crate::domains::doctor::run_history(ctx),
+                DoctorCommand::Check { id } => crate::domains::doctor::check(ctx, &id),
             }
         }
 

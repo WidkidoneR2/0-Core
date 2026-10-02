@@ -1360,6 +1360,62 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 /// registry is a list of DECLARATIONS, not of closures to call lazily.
 /// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
 ///
+/// INT-269: the check set's path, built in ONE place. from_engine() and check_one() both ask here.
+fn check_set_path() -> std::path::PathBuf {
+    zero_core::paths::registry_dir().join("doctor/checks.toml")
+}
+
+/// INT-269 step 3 (a): `core doctor check <id>` -- run ONE check, read-only.
+///
+/// It never enters the full run, so no health_patterns row, prediction outcome, health-status
+/// cache, event or notification can be written from here: the read-only property is the CALL
+/// PATH, not a flag. Exits: 0 Pass, 1 Fail, 2 Unknown or Blocked, 3 Warn, 64 an undeclared id.
+pub fn check(_ctx: &AppContext, id: &str) -> CoreResult<()> {
+    let code = check_one(id);
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+/// Colour is DERIVED from zero_doctor::is_red, not a second rule: green when it passes, red
+/// otherwise. The rendered Status line still says "Safe abort" or "Failure", so red never hides
+/// which one it is. The match below has no catch-all -- a new status fails to compile here.
+fn check_one(id: &str) -> i32 {
+    use zero_doctor::Status as ES;
+    let path = check_set_path();
+    let reg = match zero_doctor::Registry::load(&path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!(
+                "UNDETERMINED -- could not load the check set at {}: {}",
+                path.display(),
+                e
+            );
+            return 2;
+        }
+    };
+    let Some(d) = reg.checks.iter().find(|d| d.id == id) else {
+        let mut ids: Vec<&str> = reg.checks.iter().map(|d| d.id.as_str()).collect();
+        ids.sort();
+        eprintln!("REFUSED -- no check named '{}'. Nothing was run.", id);
+        eprintln!("  declared: {}", ids.join(", "));
+        return 64;
+    };
+    let o = zero_doctor::run_one(d);
+    if zero_doctor::is_red(o.status) {
+        print!("{}", zero_doctor::render(&o).red());
+    } else {
+        println!("{}", format!("PASS -- {} -- {}", o.name, o.message).green());
+    }
+    match o.status {
+        ES::Pass => 0,
+        ES::Fail => 1,
+        ES::Unknown | ES::Blocked => 2,
+        ES::Warn => 3,
+    }
+}
+
 /// The check set is DECLARED in registry/doctor/checks.toml and measured by probes in that
 /// crate. This function is the seam: it loads the declarations, runs them, and maps each
 /// Outcome to the CheckResult the panel already consumes. Everything downstream is untouched.
@@ -1368,7 +1424,7 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
 /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
 fn from_engine() -> Vec<CheckResult> {
     use zero_doctor::{Status as ES, Tier as ET};
-    let path = zero_core::paths::registry_dir().join("doctor/checks.toml");
+    let path = check_set_path();
     let reg = match zero_doctor::Registry::load(&path) {
         Ok(r) => r,
         Err(e) => {
