@@ -2,20 +2,7 @@
 # the crate directory outside zero_core::paths. nsh-test crate_directory_has_one_owner reads it.
 # A line leaves when its site asks the owner. No entries left means the migration is done.
 zero/engine/src/domains/evolution/mod.rs	rust-tools/
-zero/engine/src/domains/intent/mod.rs	rust-tools/novashell
-zero/engine/src/domains/intent/mod.rs	zero/rust-tools/novashell/Cargo.toml
-zero/engine/src/domains/intent/mod.rs	zero/rust-tools/zero-git/Cargo.toml
-zero/engine/src/domains/intent/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
-zero/engine/src/domains/intent/mod.rs	zero/rust-tools/db-browse/Cargo.toml
 zero/engine/src/domains/planning/mod.rs	Remove binary from PATH and rust-tools/ directory
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/novashell/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/db-browse/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/novashell/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
-zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/db-browse/Cargo.toml
 zero/rust-tools/novashell/src/completion.rs	cd ~/0-core/rust-tools
 zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/zero-core
 zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src

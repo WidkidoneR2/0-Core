@@ -16694,15 +16694,14 @@ fn memory_distill(db: &StateDb) -> CommandResult {
 // INT-111: the version WRITE path. Reads a tool's Cargo.toml, finds the single
 // `version = "x.y.z"` line, computes the bumped version, writes it back in place.
 // Count-asserted: exactly one version line, or it errors (never a partial/wrong write).
-fn tool_cargo_path(name: &str) -> Option<&'static str> {
-    match name {
-        "novashell" => Some("zero/rust-tools/novashell/Cargo.toml"),
-        "core" | "engine" => Some("zero/engine/Cargo.toml"),
-        "zero-git" => Some("zero/rust-tools/zero-git/Cargo.toml"),
-        "friday-chat" => Some("zero/rust-tools/friday-chat/Cargo.toml"),
-        "db-browse" => Some("zero/rust-tools/db-browse/Cargo.toml"),
-        _ => None,
-    }
+fn tool_cargo_path(name: &str) -> Option<String> {
+    // The same five tools as before; their Cargo.toml comes from the owner (INT-267 L2).
+    let dir = match name {
+        "novashell" | "zero-git" | "friday-chat" | "db-browse" => name,
+        "core" | "engine" => "engine",
+        _ => return None,
+    };
+    zero_core::paths::crate_rel_dir(dir).map(|d| format!("{}/Cargo.toml", d))
 }
 
 fn bump_semver(ver: &str, level: &str) -> Result<String, String> {
@@ -16792,13 +16791,10 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         }
     }
 
-    let tools = [
-        ("novashell", "zero/rust-tools/novashell/Cargo.toml"),
-        ("core", "zero/engine/Cargo.toml"),
-        ("zero-git", "zero/rust-tools/zero-git/Cargo.toml"),
-        ("friday-chat", "zero/rust-tools/friday-chat/Cargo.toml"),
-        ("db-browse", "zero/rust-tools/db-browse/Cargo.toml"),
-    ];
+    let tools: Vec<(&str, String)> = ["novashell", "core", "zero-git", "friday-chat", "db-browse"]
+        .iter()
+        .filter_map(|n| tool_cargo_path(n).map(|p| (*n, p)))
+        .collect();
     let mut out = String::new();
     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
     out.push_str(&format!("  {}\n", "━".repeat(50).dimmed()));

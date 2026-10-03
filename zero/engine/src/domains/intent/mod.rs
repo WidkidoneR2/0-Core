@@ -1373,21 +1373,30 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
             .unwrap_or_default();
 
-        let mut tools: Vec<(&str, &str)> = vec![];
-        if touched.contains("rust-tools/novashell") {
-            tools.push(("novashell", "zero/rust-tools/novashell/Cargo.toml"));
+        // Each crate's Cargo.toml comes from the owner (INT-267 L2); a crate missing from the
+        // tree is skipped, never guessed.
+        let crate_toml =
+            |name: &str| zero_core::paths::crate_rel_dir(name).map(|d| format!("{}/Cargo.toml", d));
+        let in_crate_tree = |name: &str| {
+            zero_core::paths::crate_parent_markers()
+                .iter()
+                .any(|m| touched.contains(&format!("{}{}", m, name)))
+        };
+        let mut tools: Vec<(&str, String)> = vec![];
+        if in_crate_tree("novashell") {
+            tools.extend(crate_toml("novashell").map(|p| ("novashell", p)));
         }
         if touched.contains("engine/src") || touched.contains("engine/Cargo") {
-            tools.push(("core (engine)", "zero/engine/Cargo.toml"));
+            tools.extend(crate_toml("engine").map(|p| ("core (engine)", p)));
         }
         if touched.contains("zero-git") {
-            tools.push(("zero-git", "zero/rust-tools/zero-git/Cargo.toml"));
+            tools.extend(crate_toml("zero-git").map(|p| ("zero-git", p)));
         }
         if touched.contains("friday-chat") {
-            tools.push(("friday-chat", "zero/rust-tools/friday-chat/Cargo.toml"));
+            tools.extend(crate_toml("friday-chat").map(|p| ("friday-chat", p)));
         }
         if touched.contains("db-browse") {
-            tools.push(("db-browse", "zero/rust-tools/db-browse/Cargo.toml"));
+            tools.extend(crate_toml("db-browse").map(|p| ("db-browse", p)));
         }
 
         if !tools.is_empty() {
