@@ -11,6 +11,27 @@ pub fn protected_markers(extra: &[&str]) -> Vec<String> {
     out
 }
 
+/// Whether `path` is protected: read from `cwd` when relative, so a path typed inside the repo
+/// is judged where it really is, then matched against the markers (INT-267 step 2e).
+pub fn is_protected_from(path: &str, extra: &[&str], cwd: &std::path::Path) -> bool {
+    let p = std::path::Path::new(path);
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        cwd.join(p)
+    };
+    let abs = abs.to_string_lossy();
+    protected_markers(extra)
+        .iter()
+        .any(|m| abs.contains(m.as_str()))
+}
+
+/// Whether `path` is protected, read from the shell's current directory.
+pub fn is_protected(path: &str, extra: &[&str]) -> bool {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    is_protected_from(path, extra, &cwd)
+}
+
 /// The directories delete asks about before it removes anything: every crate, and the source
 /// directories the owners name. Absolute, so they hold whatever the working directory is.
 /// zero/scripts is joined by hand because paths::scripts_dir() names a directory that does
@@ -123,5 +144,26 @@ mod tests {
             "novashell reads as not deployed although nsh is on PATH"
         );
         assert!(!lib, "a library reads as deployed");
+    }
+
+    /// INT-267 step 2e: the guard refuses the crate trees and nothing else. A relative path is
+    /// read from where it was typed; a tools/ elsewhere on the machine is not the repo's. Seen red
+    /// while the marker was a parent's last segment, which refused any path containing it.
+    #[test]
+    fn the_guard_protects_the_crate_trees_and_nothing_else() {
+        let zero = zero_core::paths::source_dir();
+        let parent = zero_core::paths::CRATE_PARENTS[0].trim_start_matches("zero/");
+        let inside = format!("{}/zero-core/src/lib.rs", parent);
+        let elsewhere = std::path::Path::new("/home/someone");
+        assert!(
+            is_protected_from(&inside, &[], &zero),
+            "a crate path typed inside zero/ is open"
+        );
+        assert!(!is_protected_from(
+            "/home/someone/notes/tools/a.txt",
+            &[],
+            &zero
+        ));
+        assert!(!is_protected_from("notes/tools/a.txt", &[], elsewhere));
     }
 }

@@ -545,14 +545,11 @@ pub fn crate_history_pathspecs(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// The last segment of each crate parent with a trailing slash ("tools/" today): the
-/// marker a substring guard looks for. It follows CRATE_PARENTS, so a guard keeps matching what
-/// it matched when the tree moves.
+/// Each crate parent with a trailing slash ("zero/tools/" today): the marker a guard looks for in
+/// an absolute path. The whole parent, not its last segment, so a guard refuses the crate trees
+/// and nothing else named tools/ or shell/ (Christian's ruling, INT-267 step 2e).
 pub fn crate_parent_markers() -> Vec<String> {
-    CRATE_PARENTS
-        .iter()
-        .map(|p| format!("{}/", p.rsplit('/').next().unwrap_or(p)))
-        .collect()
+    CRATE_PARENTS.iter().map(|p| format!("{}/", p)).collect()
 }
 
 /// The absolute directory of the crate called `name`, wherever the owner says it lives; `None`

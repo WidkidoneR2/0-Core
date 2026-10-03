@@ -1377,10 +1377,11 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         // tree is skipped, never guessed.
         let crate_toml =
             |name: &str| zero_core::paths::crate_rel_dir(name).map(|d| format!("{}/Cargo.toml", d));
+        // Every parent the crates have lived in, so an intent's older commits still count.
         let in_crate_tree = |name: &str| {
-            zero_core::paths::crate_parent_markers()
+            zero_core::paths::CRATE_PARENTS_HISTORY
                 .iter()
-                .any(|m| touched.contains(&format!("{}{}", m, name)))
+                .any(|p| touched.contains(&format!("{}/{}", p, name)))
         };
         let mut tools: Vec<(&str, String)> = vec![];
         if in_crate_tree("novashell") {

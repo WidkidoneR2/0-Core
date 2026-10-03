@@ -2598,11 +2598,8 @@ fn execute_dispatch(
             };
             let is_same_dir = std::path::Path::new(&dst_path).parent() == src.parent();
             // Protected path check
-            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
-            if protected
-                .iter()
-                .any(|p| src_path.contains(p) || dst_path.contains(p))
-            {
+            let extra = ["intents/", "scripts/", "docs/"];
+            if guards::is_protected(&src_path, &extra) || guards::is_protected(&dst_path, &extra) {
                 return CommandResult::Error(
                     "rename: protected path involved. Use mv directly if you are sure."
                         .to_string()
@@ -3550,9 +3547,8 @@ fn execute_dispatch(
             };
             let src_path = expand(&src_arg);
             let dst_path = expand(&dst_arg);
-            let protected =
-                guards::protected_markers(&["intents/", "scripts/", "docs/", "engine/"]);
-            let is_protected = protected.iter().any(|p| dst_path.contains(p));
+            let is_protected =
+                guards::is_protected(&dst_path, &["intents/", "scripts/", "docs/", "engine/"]);
             if is_protected {
                 return CommandResult::Error(
                     format!(
@@ -3631,10 +3627,9 @@ fn execute_dispatch(
             };
             let src_path = expand(&src_arg);
             let dst_path = expand(&dst_arg);
-            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
-            let is_protected = protected
-                .iter()
-                .any(|p| src_path.contains(p) || dst_path.contains(p));
+            let extra = ["intents/", "scripts/", "docs/"];
+            let is_protected =
+                guards::is_protected(&src_path, &extra) || guards::is_protected(&dst_path, &extra);
             if is_protected {
                 return CommandResult::Error(
                     format!("move: protected path involved. Use mv directly if you are sure.")
@@ -3869,8 +3864,7 @@ fn execute_dispatch(
             } else {
                 dst.clone()
             };
-            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
-            if protected.iter().any(|p| dst_path.contains(p)) {
+            if guards::is_protected(&dst_path, &["intents/", "scripts/", "docs/"]) {
                 return CommandResult::Error(
                     format!("write: {} is a protected path.", dst_path).into(),
                     1,
