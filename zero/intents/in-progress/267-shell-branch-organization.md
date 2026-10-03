@@ -948,6 +948,12 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       because NATIVE_COMMANDS and is_known_command's BUILTINS (completion.rs 799, 853) are kept
       by hand
 <!-- evidence: 7c765757 commit A: commands::builtin_names::BUILTINS (211 names: the dispatcher arms, the REPL catches, the job-control words), kept equal to those sources by a test both ways; the highlighter asks it, then zero_core::paths::on_path, then shell_aliases. 4e52ee42 commit B: completion and the cheatsheet read it, COMMANDS removed; hist, flow, fs and intent left first-word completion by ruling 2026-10-03. Read at 4e52ee42: is_native_command, is_known_command, is_known_alias and command_class keep no word list; the only list left is DANGEROUS, 14 words, every one runs. Seen 2026-10-03: intent reads red; Tab on bump offers bump-versions; cheatsheet 147 builtins (was 105). Doors: build 0 warnings, novashell 231 passed, nsh-test 215 of 215, ship 0 failed, d 0 failed, Fingerprint a56683c54812378b. -->
+- [ ] FSH IS RETIRED (added 2026-10-03 by Christian; done before close): fsh joins RETIRED in
+      nsh-test no_retired_display_name_in_printed_strings, seen RED first on the 64 string literals
+      in 16 files that carry it (measured 2026-10-03 at b5617d0b). nsh stops answering to fsh: the
+      nsh arm, BUILTINS, the cheatsheet, the semantic table and the natural-language table name nsh
+      only. Script files are .nsh (no .fsh file exists on this machine). Every printed message and
+      fixture says nsh. Comments keep fsh as history (N3). The guard reads green, with the doors.
 
 ## Relationship
 
