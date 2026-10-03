@@ -446,10 +446,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             CheckpointCommand::List => crate::domains::checkpoint::list(ctx),
             CheckpointCommand::Diff { name } => crate::domains::checkpoint::diff(ctx, &name),
             CheckpointCommand::LastGood => crate::domains::checkpoint::last_good(ctx),
-            CheckpointCommand::Snapshot { label } => {
-                crate::domains::checkpoint::btrfs_snapshot(ctx, &label)
-            }
-            CheckpointCommand::Snapshots => crate::domains::checkpoint::btrfs_snapshots(ctx),
         },
         Command::Simulate(c) => match c {
             SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),

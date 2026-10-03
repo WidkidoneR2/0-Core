@@ -645,8 +645,6 @@ pub fn parse() -> Command {
             CheckpointCommands::List => CheckpointCommand::List,
             CheckpointCommands::Diff { name } => CheckpointCommand::Diff { name },
             CheckpointCommands::LastGood => CheckpointCommand::LastGood,
-            CheckpointCommands::Snapshot { label } => CheckpointCommand::Snapshot { label },
-            CheckpointCommands::Snapshots => CheckpointCommand::Snapshots,
         }),
         Commands::Decision { command } => Command::Decision(match command {
             DecisionCommands::Record {

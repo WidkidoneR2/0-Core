@@ -1136,13 +1136,6 @@ pub enum PluginCommands {
 pub enum CheckpointCommands {
     /// Report the last checkpoint with 95%+ health. Writes nothing.
     LastGood,
-    /// Create a btrfs snapshot of @home
-    Snapshot {
-        /// Snapshot label
-        label: String,
-    },
-    /// List btrfs snapshots
-    Snapshots,
     /// Create a named checkpoint of current system state
     Create {
         /// Checkpoint name (e.g. pre-update, pre-release)
