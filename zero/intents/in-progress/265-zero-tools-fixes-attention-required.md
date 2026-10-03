@@ -154,12 +154,14 @@ LIVE:
 <!-- evidence: both are retired, so neither builds a path: zero-update in c90c9b23 (crate removed, binary off PATH, ruled by Christian 2026-10-03), zero-vm on 2026-09-28 (zero/tools/zero-vm does not exist). -->
 - [x] The dead code and dead files above are deleted, and the two stale lists are true
 <!-- evidence: ba56dd01: zero-sandbox emit_to_ledger deleted with its allow(dead_code) and the SystemTime import only it used (no callers; emit_to_ledger_with_policy does the work). The dead files were already gone at the 2026-10-03 re-measure (f0bcb6ca): zero-git/Cargo.lock, teach main.rs.v2.0.0, the devbox census zero-zone.toml. The two stale lists are true: novashell commands/mod.rs names core-diff nowhere, and AGENTS.md (429 lines) names only current zero/ paths. Recorded, not changed: zero-ade ignores its arguments, so zero-ade --version opens the ADE (a Hygiene item no gate names). -->
-- [ ] Aliases: the f family is renamed to z as ruled, in config.nsh and aliases.toml, each new
+- [x] Aliases: the f family is renamed to z as ruled, in config.nsh and aliases.toml, each new
       name checked first against every command on PATH and every builtin; zg reaches zero-git;
       the dead aliases are gone; qc is fixed; ship and zero-gate have aliases -- d's Alias
       Coverage is green and deadwood reports 0 dead aliases
-- [ ] Each fix is its own commit, red first where a test can hold it; at the end nsh-test is all
+<!-- evidence: 29655d04: the f family was renamed to z before the 2026-10-03 re-measure (f0bcb6ca); zg reaches zero-git, proven live through nsh alias expansion (zg --version answers zero-git 5.1.1); bar, bar-restart, daemon-log and daemon-status were already gone. qc and ten more aliases were broken by novashell reading values with trim_matches, which stripped a closing quote; 29655d04 fixes the reader red first (config::tests), and config.nsh got its eleven closing quotes back (backup config.nsh.int265-backup); psg, whose search pattern was missing, was removed as ruled. zship = ship and zgate = zero-gate were checked first against PATH, every builtin and config.nsh (all clear). After a reload: d Alias Coverage all 13 tools have aliases, zero-deadwood Dead aliases: clean, and now, nowdate and timestamp print real values. -->
+- [x] Each fix is its own commit, red first where a test can hold it; at the end nsh-test is all
       passing and d shows 0 failed
+<!-- evidence: 29655d04: 25 commits carry the Intent: INT-265 trailer, one concern each; red first wherever a test could hold it (ship verdict, observe.rs lock, sandbox audit binding, the config.nsh reader), and by the compiler wherever a type changed (the untrue-values batches). At the end, 2026-10-03: nsh-test 215 of 215; cargo test --workspace 367 passed; build 0 warnings; d 28 passed, 0 warnings, 0 failed, health 100% (28 of 28 determinable). -->
 
 ## Relationship
 
