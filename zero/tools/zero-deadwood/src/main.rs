@@ -349,10 +349,7 @@ const BUILTINS: &[&str] = &[
 ];
 
 fn on_path(cmd: &str) -> bool {
-    std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|dir| Path::new(&format!("{dir}/{cmd}")).exists())
+    zero_core::paths::on_path(cmd)
 }
 
 /// INT-231: an `INT-NNN` in source that resolves to no intent in the ledger.

@@ -46,7 +46,7 @@ fn read_registry() -> Result<Registry, String> {
 }
 
 fn on_path(name: &str) -> bool {
-    which::which(name).is_ok()
+    zero_core::paths::on_path(name)
 }
 
 /// Every tool the registry expects is installed.

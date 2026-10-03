@@ -1250,7 +1250,7 @@ fn execute_dispatch(
         "intents" => intents(core_root),
         "project" | "projects" => project_list(core_root),
         "experiment" | "experiments" => experiment_list(core_root),
-        "tools" => tools_table(db, core_root),
+        "tools" => tools_table(db),
         "version" => version(core_root),
         "schema" => schema(args),
         "commits" => commits(core_root),
@@ -1398,7 +1398,7 @@ fn execute_dispatch(
             "use with pipe: tools | where score < 70".to_string().into(),
             1,
         ),
-        "tools-table" | "tt" => tools_table(db, core_root),
+        "tools-table" | "tt" => tools_table(db),
         "events-table" | "et" => events_table(db, args),
         "audit-table" | "at" => audit_table(db, core_root),
         "decisions-table" | "dt" => decisions_table(db),
@@ -5819,7 +5819,41 @@ fn to_cmd(args: &[&str]) -> CommandResult {
         ),
     }
 }
-fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
+/// The binary a crate builds: its [[bin]] name when it declares one, its package name when it
+/// has a src/main.rs, none for a library (INT-267 step 2c).
+fn crate_binary(dir: &std::path::Path, name: &str, cargo: &str) -> Option<String> {
+    let mut lines = cargo.lines().skip_while(|l| l.trim() != "[[bin]]");
+    if lines.next().is_some() {
+        let bin = lines
+            .take_while(|l| !l.trim_start().starts_with('['))
+            .find_map(|l| {
+                l.trim()
+                    .strip_prefix("name = \"")
+                    .map(|r| r.trim_end_matches('"').to_string())
+            });
+        if bin.is_some() {
+            return bin;
+        }
+    }
+    if dir.join("src/main.rs").is_file() {
+        Some(name.to_string())
+    } else {
+        None
+    }
+}
+
+/// Whether a crate is deployed: the binary it builds is runnable from `path`, answered by the one
+/// owner, zero_core::paths (INT-267 step 2c). A library builds no binary and is not deployed.
+fn crate_deployed(
+    dir: &std::path::Path,
+    name: &str,
+    cargo: &str,
+    path: Option<&std::ffi::OsStr>,
+) -> bool {
+    crate_binary(dir, name, cargo).is_some_and(|b| zero_core::paths::on_path_in(&b, path))
+}
+
+fn tools_table(db: &StateDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
@@ -5847,13 +5881,12 @@ fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
             }
 
             // Get version from Cargo.toml
-            let version = std::fs::read_to_string(entry.path().join("Cargo.toml"))
-                .ok()
-                .and_then(|t| {
-                    t.lines()
-                        .find(|l| l.starts_with("version = "))
-                        .map(|l| l.split('"').nth(1).unwrap_or("?").to_string())
-                })
+            let cargo =
+                std::fs::read_to_string(entry.path().join("Cargo.toml")).unwrap_or_default();
+            let version = cargo
+                .lines()
+                .find(|l| l.starts_with("version = "))
+                .map(|l| l.split('"').nth(1).unwrap_or("?").to_string())
                 .unwrap_or_else(|| "?".to_string());
 
             // Get score from audit_scores
@@ -5863,11 +5896,9 @@ fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
                 |r| r.get(0),
             ).unwrap_or(0);
 
-            // Check if deployed
-            let deployed = std::path::PathBuf::from(core_root)
-                .join("scripts")
-                .join(&name)
-                .exists();
+            // Deployed: its binary runs from PATH, answered by the owner (INT-267 step 2c).
+            let path = std::env::var_os("PATH");
+            let deployed = crate_deployed(&entry.path(), &name, &cargo, path.as_deref());
 
             let mut row = HashMap::new();
             row.insert("name".to_string(), Value::Text(name));
@@ -9283,13 +9314,7 @@ fn record_failure(db: &StateDb, cmd_word: &str, exit_code: i32) {
 /// to ask "is there a real command behind this name?" without side effects is to look at the
 /// filesystem ourselves.
 fn program_on_path(program: &str) -> bool {
-    let direct = std::path::Path::new(program);
-    if program.contains('/') {
-        return direct.is_file();
-    }
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(program).is_file()))
-        .unwrap_or(false)
+    zero_core::paths::on_path(program)
 }
 
 pub fn execute_plan_dispatch(

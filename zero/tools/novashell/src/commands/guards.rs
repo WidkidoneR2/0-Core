@@ -97,4 +97,31 @@ mod tests {
             "rm -rf guards what does not exist: {gone:?}"
         );
     }
+
+    /// INT-267 step 2c: a crate is deployed when the binary it builds runs from PATH -- novashell
+    /// builds nsh. Seen red while deployed meant ~/0-core/scripts/<name>, a NixOS-era layout.
+    #[test]
+    fn deployed_means_its_binary_runs_from_path() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = std::env::temp_dir().join(format!("deployed-int267-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("bin")).unwrap();
+        std::fs::create_dir_all(d.join("crate/src")).unwrap();
+        std::fs::write(d.join("crate/src/main.rs"), "").unwrap();
+        std::fs::write(d.join("bin/nsh"), "").unwrap();
+        std::fs::set_permissions(d.join("bin/nsh"), std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+        let cargo =
+            "[package]\nname = \"novashell\"\n\n[[bin]]\nname = \"nsh\"\npath = \"src/main.rs\"\n";
+        let path = d.join("bin").into_os_string();
+        let p = Some(path.as_os_str());
+        let shell = super::super::crate_deployed(&d.join("crate"), "novashell", cargo, p);
+        let lib = super::super::crate_deployed(&d.join("lib"), "zero-core", "[package]\n", p);
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            shell,
+            "novashell reads as not deployed although nsh is on PATH"
+        );
+        assert!(!lib, "a library reads as deployed");
+    }
 }

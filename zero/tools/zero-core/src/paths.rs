@@ -182,6 +182,39 @@ pub fn bin_dir() -> PathBuf {
     }
 }
 
+/// Whether `name` is a program this machine can run. A name containing `/` names a file
+/// directly; a bare name is looked up in every PATH entry, empty entries skipped. Runnable means
+/// a regular file with an execute bit -- what `which` means.
+///
+/// THE ONLY OWNER of this question (INT-267 step 2c). The doctor, deadwood and the shell each
+/// kept a private copy, and they disagreed: on the execute bit, and on an empty PATH entry,
+/// which one of them read as the filesystem root.
+pub fn on_path(name: &str) -> bool {
+    on_path_in(name, env::var_os("PATH").as_deref())
+}
+
+/// `on_path` against a given PATH value, so a test never changes the process environment.
+pub fn on_path_in(name: &str, path: Option<&std::ffi::OsStr>) -> bool {
+    fn runnable(p: &std::path::Path) -> bool {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(p)
+            .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+    if name.is_empty() {
+        return false;
+    }
+    if name.contains('/') {
+        return runnable(std::path::Path::new(name));
+    }
+    path.map(|p| {
+        env::split_paths(p)
+            .filter(|d| !d.as_os_str().is_empty())
+            .any(|d| runnable(&d.join(name)))
+    })
+    .unwrap_or(false)
+}
+
 /// Machine-local state: state.db, logs, cache, snapshots, locks, backups,
 /// journal, events.
 ///
@@ -647,6 +680,31 @@ mod crate_tests {
                     == n
             );
         }
+    }
+
+    /// INT-267 step 2c: runnable means a regular file with an execute bit, found on a given
+    /// PATH or named by a path; an empty PATH entry is not the filesystem root.
+    #[test]
+    fn on_path_finds_only_runnable_files() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = std::env::temp_dir().join(format!("on-path-int267-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        for (f, mode) in [("runnable", 0o755), ("plain", 0o644)] {
+            std::fs::write(d.join(f), "").unwrap();
+            std::fs::set_permissions(d.join(f), std::fs::Permissions::from_mode(mode)).unwrap();
+        }
+        let path = std::ffi::OsString::from(format!(":{}", d.display()));
+        let p = Some(path.as_os_str());
+        let direct = d.join("runnable").display().to_string();
+        let found = (
+            on_path_in("runnable", p),
+            on_path_in("plain", p),
+            on_path_in("absent", p),
+            on_path_in(&direct, None),
+        );
+        let _ = std::fs::remove_dir_all(&d);
+        assert_eq!(found, (true, false, false, true));
     }
 }
 
