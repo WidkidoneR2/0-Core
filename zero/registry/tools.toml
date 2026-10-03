@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "4.1.2"
+version = "4.1.3"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -110,7 +110,7 @@ deployable = false
 retired = true
 [[tool]]
 name = "zero-git"
-version = "5.1.0"
+version = "5.1.1"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
@@ -416,7 +416,7 @@ retired = false
 # --- Added by INT-098 Phase 2 (registry reconciliation, 2026-06-28) ---
 [[tool]]
 name = "db-browse"
-version = "2.1.0"
+version = "2.1.1"
 category = "development"
 description = "TUI SQLite browser for state.db -- list, query, filter"
 expected_usage = "medium"
@@ -452,7 +452,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "friday-chat"
-version = "2.1.0"
+version = "2.1.1"
 category = "intelligence"
 description = "Friday Chat TUI -- reads state.db, never invents"
 expected_usage = "medium"
