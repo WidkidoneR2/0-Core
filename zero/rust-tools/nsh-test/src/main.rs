@@ -1487,7 +1487,8 @@ print('CLASS-DONE')"##;
             // literal still waiting. A literal not on the list fails -- a new hardcoded path. An
             // entry no longer found fails too -- the list only shrinks, and says so. The list is
             // empty when the migration is done. It is a data file so this file does not flag
-            // itself, and the word below is built from PIECES for the same reason.
+            // itself. The names it looks for come from the owner too: every parent the crates live
+            // in or have lived in, so a move is seen the moment the owner records it.
             fn literals(line: &str) -> Vec<String> {
                 let c: Vec<char> = line.chars().collect();
                 let mut out = Vec::new();
@@ -1512,7 +1513,11 @@ print('CLASS-DONE')"##;
                 }
                 out
             }
-            let word = ["rust", "-tools"].concat();
+            let words: Vec<&str> = zero_core::paths::CRATE_PARENTS_HISTORY
+                .iter()
+                .chain(zero_core::paths::CRATE_PARENTS.iter())
+                .copied()
+                .collect();
             let owner = "zero-core/src/paths.rs";
             let allowed: Vec<(String, String)> = include_str!("../crate-paths-allowed.txt")
                 .lines()
@@ -1548,7 +1553,7 @@ print('CLASS-DONE')"##;
                         continue;
                     }
                     for lit in literals(line) {
-                        if lit.contains(word.as_str()) {
+                        if words.iter().any(|w| lit.contains(w)) {
                             found.push((path.clone(), lit, n + 1));
                         }
                     }
