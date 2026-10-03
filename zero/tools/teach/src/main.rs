@@ -218,8 +218,7 @@ fn gather_intent_counts(_core: &str) -> (usize, usize) {
 }
 
 fn count_tools(_core: &str) -> usize {
-    let tools_dir = zero_core::paths::tools_dir().to_string_lossy().to_string();
-    std::fs::read_dir(&tools_dir)
+    zero_core::paths::tool_parent_entries()
         .map(|entries| entries.flatten().filter(|e| e.path().is_dir()).count())
         .unwrap_or(43)
 }

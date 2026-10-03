@@ -24,7 +24,9 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
         }
         Some(pkg) => {
             // Read version from Cargo.toml
-            let cargo_toml = tools_dir.join(pkg).join("Cargo.toml");
+            let cargo_toml = zero_core::paths::crate_dir(&pkg)
+                .unwrap_or_else(|| tools_dir.join(&pkg))
+                .join("Cargo.toml");
             if !cargo_toml.exists() {
                 println!("unknown");
                 return Ok(());

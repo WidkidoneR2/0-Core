@@ -18,6 +18,22 @@ fn shown(p: &std::path::Path) -> String {
         .to_string()
 }
 
+/// The catalog's link to a tool, relative to the catalog itself (the tools directory): ./name/
+/// for a crate there, up and across for one under another parent. Registry name core is the
+/// engine (INT-267 step 2a).
+fn index_link(name: &str) -> String {
+    let index_dir = zero_core::paths::tools_dir();
+    let dir_name = if name == "core" { "engine" } else { name };
+    match zero_core::paths::crate_dir(dir_name) {
+        Some(dir) if dir.parent() == Some(index_dir.as_path()) => format!("./{}/", dir_name),
+        Some(dir) => match index_dir.parent().and_then(|z| dir.strip_prefix(z).ok()) {
+            Some(rel) => format!("../{}/", rel.display()),
+            None => format!("./{}/", name),
+        },
+        None => format!("./{}/", name),
+    }
+}
+
 /// Combined metadata for one tool: Cargo.toml fields + registry status.
 #[derive(Debug, Clone, Default)]
 pub struct ToolMeta {
@@ -209,10 +225,9 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
 
 /// Gather metadata for ALL tools on disk (tools/*/Cargo.toml).
 pub fn gather_all() -> Vec<ToolMeta> {
-    let rt = zero_core::paths::tools_dir();
     let registry = parse_registry();
     let mut metas = vec![];
-    if let Ok(entries) = std::fs::read_dir(&rt) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for e in entries.flatten() {
             let p = e.path();
             if !p.is_dir() {
@@ -468,9 +483,9 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
                 desc
             };
             out.push_str(&format!(
-                "| [`{}`](./{}/) | {} | {} |\n",
+                "| [`{}`]({}) | {} | {} |\n",
                 m.name,
-                m.name,
+                index_link(&m.name),
                 if m.version.is_empty() {
                     "-"
                 } else {
@@ -557,7 +572,9 @@ pub fn cmd_generate(dry_run: bool) {
         let readme_path = if m.name == "core" {
             core_root().join("zero/engine/README.md")
         } else {
-            rt.join(&m.name).join("README.md")
+            zero_core::paths::crate_dir(&m.name)
+                .unwrap_or_else(|| rt.join(&m.name))
+                .join("README.md")
         };
         let content = render_readme(m);
         if dry_run {
@@ -730,7 +747,9 @@ pub fn cmd_changelog_generate(dry_run: bool) {
     let rt = zero_core::paths::tools_dir();
     let mut written = 0usize;
     for m in &metas {
-        let path = rt.join(&m.name).join("CHANGELOG.md");
+        let path = zero_core::paths::crate_dir(&m.name)
+            .unwrap_or_else(|| rt.join(&m.name))
+            .join("CHANGELOG.md");
         let content = render_changelog(m);
         if dry_run {
             println!("  would write: {} ({} bytes)", shown(&path), content.len());

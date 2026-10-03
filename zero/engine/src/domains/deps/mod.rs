@@ -263,9 +263,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
 
 fn gather_deps(_core_root: &str) -> HashMap<String, Vec<String>> {
     let mut result = HashMap::new();
-    let tools_dir = zero_core::paths::tools_dir();
-
-    if let Ok(entries) = std::fs::read_dir(&tools_dir) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             let cargo_toml = entry.path().join("Cargo.toml");
             if !cargo_toml.exists() {

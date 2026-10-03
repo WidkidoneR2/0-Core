@@ -52,11 +52,11 @@ fn save_manifest(manifest: &Manifest) -> CoreResult<()> {
 
 fn find_tool_source(tool: &str) -> PathBuf {
     let rust_tools = zero_core::paths::tools_dir();
-    let exact = rust_tools.join(tool);
+    let exact = zero_core::paths::crate_dir(tool).unwrap_or_else(|| rust_tools.join(tool));
     if exact.join("Cargo.toml").exists() {
         return exact;
     }
-    if let Ok(entries) = fs::read_dir(&rust_tools) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {

@@ -121,8 +121,6 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
 /// Pure observation. Reads tools, buckets by age, shows lifecycle stage.
 /// No suggestions. No interpretations. Data only.
 pub fn tools(_ctx: &AppContext) -> CoreResult<()> {
-    let tools_path = zero_core::paths::tools_dir();
-
     println!();
     println!("{}", "🔧  Tools Usage Analysis".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
@@ -140,7 +138,7 @@ pub fn tools(_ctx: &AppContext) -> CoreResult<()> {
 
     let mut tool_data: Vec<(String, u64)> = vec![];
 
-    if let Ok(entries) = fs::read_dir(&tools_path) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
         entries.sort_by_key(|e| e.file_name());
 
@@ -400,14 +398,13 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── Signal 3: Dormant tools ───────────────────────────────────────────────
-    let tools_path = zero_core::paths::tools_dir();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
     let mut dormant: Vec<String> = vec![];
-    if let Ok(entries) = std::fs::read_dir(&tools_path) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             if !entry.path().is_dir() {
                 continue;
@@ -856,9 +853,8 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Check tools directory
-    let tools_path = zero_core::paths::tools_dir();
     let mut affected_tools: Vec<String> = vec![];
-    if let Ok(entries) = std::fs::read_dir(&tools_path) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             if !entry.path().is_dir() {
                 continue;

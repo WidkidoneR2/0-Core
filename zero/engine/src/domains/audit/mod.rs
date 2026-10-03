@@ -70,7 +70,8 @@ fn expected_usage(_core_root: &str, tool_name: &str) -> &'static str {
 }
 
 fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
-    let tool_path = zero_core::paths::tools_dir().join(name);
+    let tool_path = zero_core::paths::crate_dir(name)
+        .unwrap_or_else(|| zero_core::paths::tools_dir().join(name));
     let mut issues = Vec::new();
 
     // ── Usage score (25%) — calibrated by expected_usage ─────────────────
@@ -258,9 +259,8 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
 }
 
 fn get_all_tools(_core_root: &str) -> Vec<String> {
-    let tools_dir = zero_core::paths::tools_dir();
     let mut tools = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&tools_dir) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.contains("archived") {
@@ -500,7 +500,8 @@ pub fn coverage(ctx: &AppContext) -> CoreResult<()> {
     let mut no_description = Vec::new();
 
     for tool in &tools {
-        let tool_path = zero_core::paths::tools_dir().join(tool);
+        let tool_path = zero_core::paths::crate_dir(tool)
+            .unwrap_or_else(|| zero_core::paths::tools_dir().join(tool));
         if !tool_path.join("README.md").exists() {
             no_readme.push(tool.clone());
         }

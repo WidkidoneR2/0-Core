@@ -509,6 +509,24 @@ pub fn crate_parent_markers() -> Vec<String> {
         .collect()
 }
 
+/// The absolute directory of the crate called `name`, wherever the owner says it lives; `None`
+/// when no crate by that name exists (INT-267 step 2a).
+pub fn crate_dir(name: &str) -> Option<PathBuf> {
+    crate_rel_dir(name).map(|rel| core_dir().join(rel))
+}
+
+/// Every entry directly under every CRATE_PARENTS directory: what a scan of "the tools
+/// directory" read when there was one parent, read from all of them (INT-267 step 2a). Yields
+/// what `std::fs::read_dir` yields, so a caller keeps its loop. Err if a parent cannot be read.
+pub fn tool_parent_entries(
+) -> std::io::Result<std::vec::IntoIter<std::io::Result<std::fs::DirEntry>>> {
+    let mut out = Vec::new();
+    for parent in CRATE_PARENTS {
+        out.extend(std::fs::read_dir(core_dir().join(parent))?);
+    }
+    Ok(out.into_iter())
+}
+
 #[cfg(test)]
 mod crate_tests {
     use super::*;
@@ -605,6 +623,30 @@ mod crate_tests {
     fn tools_dir_is_the_first_crate_parent() {
         assert_eq!(tools_dir(), core_dir().join(CRATE_PARENTS[0]));
         assert!(tools_dir().ends_with("zero/tools"));
+    }
+
+    /// INT-267 step 2a: a named crate is found wherever it lives, and the tool scan reads every
+    /// parent. On the real tree, so it fails if the owner and the disk disagree.
+    #[test]
+    fn crate_dir_and_tool_parent_entries_answer_from_every_parent() {
+        let zc = core_dir().join(CRATE_PARENTS[0]).join("zero-core");
+        assert_eq!(crate_dir("zero-core"), Some(zc.clone()));
+        assert_eq!(crate_dir("no-such-crate-int267"), None);
+        let seen: Vec<PathBuf> = tool_parent_entries()
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .collect();
+        assert!(seen.contains(&zc), "zero-core not among the tool entries");
+        for parent in CRATE_PARENTS {
+            let n = std::fs::read_dir(core_dir().join(parent)).unwrap().count();
+            assert!(
+                seen.iter()
+                    .filter(|p| p.starts_with(core_dir().join(parent)))
+                    .count()
+                    == n
+            );
+        }
     }
 }
 
