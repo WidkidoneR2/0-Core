@@ -137,8 +137,9 @@ LIVE:
 - [x] ship never copies a binary whose registry entry says deployable = false -- proven red
       first, and zero-zone is off PATH
 <!-- evidence: 7634b5cb: ship reads zero/registry/tools.toml through verdict(); a binary ships only when its entry says deployable = true and not retired = true; deployable = false, retired = true or no entry is held and printed with its reason; an unreadable registry ships nothing. Red first: five unit tests, four failing against a stub that shipped everything, all five passing after. zero-zone is not on PATH (2026-10-03). zero-update, retired in c90c9b23, is marked deployable = false, retired = true. -->
-- [ ] The observe.rs tests cannot race: 200 runs of `cargo test -p novashell --bin nsh observe`
+- [x] The observe.rs tests cannot race: 200 runs of `cargo test -p novashell --bin nsh observe`
       with 0 failures, and the fix covers every test that sets a process-wide variable
+<!-- evidence: 7533f809: one lock for every test that writes a process-wide variable (novashell src/test_env.rs, cfg(test) only), held by the five such tests -- the four observe.rs tests and exec.rs execution_ids_are_unique_and_increasing, whose next_execution_id writes NSH_EXECUTION_ID. Found by reading every set_var and remove_var in novashell and every test that reaches one. RED: 161 of 200 runs of cargo test -p novashell --bin nsh observe failed before the fix; GREEN: 0 of 200 after. Doors: build 0 warnings, cargo test --workspace 361 passed, ship 0 failed, nsh-test 215 of 215, d 0 failed. -->
 - [ ] The sandbox audit query binds --tool and --limit as parameters; a test with a quote in
       --tool proves it
 - [x] No Project 0 tool runs sudo on its own; zero-update's journal step follows its ruling
