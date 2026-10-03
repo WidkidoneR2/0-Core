@@ -1573,8 +1573,10 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push(("Shell Intelligence".to_string(), shell_score, shell_note));
     total += shell_score;
     // Factor 8: Nervous System (+5) — zero-insightd operational
-    let insightd_running = std::process::Command::new("systemctl")
-        .args(["--user", "is-active", "zero-insightd"])
+    // INT-265: zero-insightd is a binary, not a systemd unit (INT-237: no user services), so
+    // systemctl --user is-active could never succeed. Ask whether the process is running.
+    let insightd_running = std::process::Command::new("pgrep")
+        .args(["-x", "zero-insightd"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
