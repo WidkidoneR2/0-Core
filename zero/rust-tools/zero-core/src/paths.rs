@@ -499,6 +499,16 @@ pub fn crate_history_pathspecs(name: &str) -> Vec<String> {
         .collect()
 }
 
+/// The last segment of each crate parent with a trailing slash ("rust-tools/" today): the
+/// marker a substring guard looks for. It follows CRATE_PARENTS, so a guard keeps matching what
+/// it matched when the tree moves.
+pub fn crate_parent_markers() -> Vec<String> {
+    CRATE_PARENTS
+        .iter()
+        .map(|p| format!("{}/", p.rsplit('/').next().unwrap_or(p)))
+        .collect()
+}
+
 #[cfg(test)]
 mod crate_tests {
     use super::*;

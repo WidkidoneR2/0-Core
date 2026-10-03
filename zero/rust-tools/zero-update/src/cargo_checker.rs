@@ -126,9 +126,11 @@ pub fn check_workspace_updates() -> Checked<Vec<crate::UpdateItem>> {
             let text = String::from_utf8_lossy(&out.stdout);
 
             // Check if any Rust source files were modified
+            // A changed path inside any crate the owner knows, the engine included (INT-267 L2).
             let has_rust_changes = text.lines().any(|line| {
-                line.contains("rust-tools/")
-                    && (line.contains(".rs") || line.contains("Cargo.toml"))
+                let path = line.get(3..).unwrap_or("");
+                zero_core::paths::crate_of(path).is_some()
+                    && (path.contains(".rs") || path.contains("Cargo.toml"))
             });
 
             if has_rust_changes {

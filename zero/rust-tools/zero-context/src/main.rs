@@ -92,9 +92,8 @@ fn detect_domain(path: &str) -> String {
             return domain.to_string();
         }
     }
-    if path.contains("rust-tools/") {
-        let parts: Vec<&str> = path.split("rust-tools/").collect();
-        if let Some(rest) = parts.get(1) {
+    for marker in zero_core::paths::crate_parent_markers() {
+        if let Some(rest) = path.split(marker.as_str()).nth(1) {
             let tool = rest.split('/').next().unwrap_or("unknown");
             return format!("tool:{}", tool);
         }

@@ -144,7 +144,10 @@ fn cwd_color() -> (u8, u8, u8) {
     // Zone precedence: repo sub-zones win first (so the workspace root reads
     // as the repo, not "rust" just because a workspace Cargo.toml sits there).
     if in_repo {
-        if cwd.contains("/rust-tools") {
+        let in_crates = zero_core::paths::crate_parent_markers()
+            .iter()
+            .any(|m| cwd.contains(&format!("/{}", m.trim_end_matches('/'))));
+        if in_crates {
             return C_DIR_RUST; // Rust territory inside the repo
         }
         if cwd.contains("/intents") {

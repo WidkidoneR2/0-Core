@@ -7,6 +7,8 @@ extern crate libc;
 use colored::*;
 use std::os::unix::process::CommandExt;
 
+mod guards;
+
 // ── Time formatting helper ───────────────────────────────────────────────────
 fn fmt_time(ts: i64, fmt: &str) -> String {
     chrono::DateTime::from_timestamp(ts, 0)
@@ -2596,7 +2598,7 @@ fn execute_dispatch(
             };
             let is_same_dir = std::path::Path::new(&dst_path).parent() == src.parent();
             // Protected path check
-            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
             if protected
                 .iter()
                 .any(|p| src_path.contains(p) || dst_path.contains(p))
@@ -3548,7 +3550,8 @@ fn execute_dispatch(
             };
             let src_path = expand(&src_arg);
             let dst_path = expand(&dst_arg);
-            let protected = ["rust-tools/", "intents/", "scripts/", "docs/", "engine/"];
+            let protected =
+                guards::protected_markers(&["intents/", "scripts/", "docs/", "engine/"]);
             let is_protected = protected.iter().any(|p| dst_path.contains(p));
             if is_protected {
                 return CommandResult::Error(
@@ -3628,7 +3631,7 @@ fn execute_dispatch(
             };
             let src_path = expand(&src_arg);
             let dst_path = expand(&dst_arg);
-            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
             let is_protected = protected
                 .iter()
                 .any(|p| src_path.contains(p) || dst_path.contains(p));
@@ -3863,7 +3866,7 @@ fn execute_dispatch(
             } else {
                 dst.clone()
             };
-            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            let protected = guards::protected_markers(&["intents/", "scripts/", "docs/"]);
             if protected.iter().any(|p| dst_path.contains(p)) {
                 return CommandResult::Error(
                     format!("write: {} is a protected path.", dst_path).into(),
@@ -3980,10 +3983,9 @@ fn execute_dispatch(
                 );
             }
             // Source-tree warning
-            let source_dirs = ["rust-tools", "intents", "scripts", "docs", "engine", "meta"];
-            let in_source = source_dirs
+            let in_source = guards::delete_guard_dirs()
                 .iter()
-                .any(|d| target.starts_with(format!("{}/{}", core_root, d)));
+                .any(|d| target.starts_with(d));
             if in_source && !force {
                 eprintln!(
                     "  ⚠️  delete: {} is inside a source-controlled directory",

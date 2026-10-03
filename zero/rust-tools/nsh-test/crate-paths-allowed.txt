@@ -12,11 +12,6 @@ zero/engine/src/domains/intent/mod.rs	zero/rust-tools/zero-git/Cargo.toml
 zero/engine/src/domains/intent/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
 zero/engine/src/domains/intent/mod.rs	zero/rust-tools/db-browse/Cargo.toml
 zero/engine/src/domains/planning/mod.rs	Remove binary from PATH and rust-tools/ directory
-zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
-zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
-zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
-zero/rust-tools/novashell/src/commands/mod.rs	rust-tools/
-zero/rust-tools/novashell/src/commands/mod.rs	rust-tools
 zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/novashell/Cargo.toml
 zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.toml
 zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
@@ -26,7 +21,6 @@ zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/zero-git/Cargo.tom
 zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/friday-chat/Cargo.toml
 zero/rust-tools/novashell/src/commands/mod.rs	zero/rust-tools/db-browse/Cargo.toml
 zero/rust-tools/novashell/src/completion.rs	cd ~/0-core/rust-tools
-zero/rust-tools/novashell/src/prompt.rs	/rust-tools
 zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/zero-core
 zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/src
 zero/rust-tools/nsh-test/src/main.rs	{}/zero/rust-tools/novashell/Cargo.toml
@@ -50,8 +44,6 @@ zero/rust-tools/nsh-test/src/main.rs	0-core/zero/rust-tools/README.md
 zero/rust-tools/nsh-test/src/main.rs	rust-tools/README.md states no active-tools count
 zero/rust-tools/nsh-test/src/main.rs	zero/rust-tools/novashell/Cargo.toml
 zero/rust-tools/teach/src/main.rs	rust-tools/
-zero/rust-tools/zero-context/src/main.rs	rust-tools/
-zero/rust-tools/zero-context/src/main.rs	rust-tools/
 zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools
 zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools
 zero/rust-tools/zero-deadwood/src/main.rs	zero/rust-tools/novashell/src
@@ -69,4 +61,3 @@ zero/rust-tools/zero-docs/src/toolgen.rs	  wrote: rust-tools/README.md (index)
 zero/rust-tools/zero-docs/src/toolgen.rs	rust-tools/{}/
 zero/rust-tools/zero-docs/src/toolgen.rs	zero/rust-tools/{}/
 zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/{}/CHANGELOG.md ({} bytes)
-zero/rust-tools/zero-update/src/cargo_checker.rs	rust-tools/
