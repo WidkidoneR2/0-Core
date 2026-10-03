@@ -922,7 +922,7 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       db-browse 1.0.0 to 2.1.0, friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0) are applied
       through core integrity apply, d reads Integrity 100 percent, and the only change in
       zero/registry/tools.toml is those four version lines, in a commit of its own
-- [ ] COMMAND COLOUR TELLS THE TRUTH (added 2026-10-03 by Christian; done after THE BRANCH, before
+- [x] COMMAND COLOUR TELLS THE TRUTH (added 2026-10-03 by Christian; done after THE BRANCH, before
       REGISTRY DRIFT RESOLVED): every builtin the dispatcher runs is coloured as native, a program
       on PATH or an alias as valid, and only what will not run as red. One list of builtins in
       novashell commands, checked against the dispatcher's arms by a test both ways; the
@@ -930,6 +930,7 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       zero_core::paths::on_path, not by a hand list. Found 2026-10-03: tools runs and reads red,
       because NATIVE_COMMANDS and is_known_command's BUILTINS (completion.rs 799, 853) are kept
       by hand
+<!-- evidence: 7c765757 commit A: commands::builtin_names::BUILTINS (211 names: the dispatcher arms, the REPL catches, the job-control words), kept equal to those sources by a test both ways; the highlighter asks it, then zero_core::paths::on_path, then shell_aliases. 4e52ee42 commit B: completion and the cheatsheet read it, COMMANDS removed; hist, flow, fs and intent left first-word completion by ruling 2026-10-03. Read at 4e52ee42: is_native_command, is_known_command, is_known_alias and command_class keep no word list; the only list left is DANGEROUS, 14 words, every one runs. Seen 2026-10-03: intent reads red; Tab on bump offers bump-versions; cheatsheet 147 builtins (was 105). Doors: build 0 warnings, novashell 231 passed, nsh-test 215 of 215, ship 0 failed, d 0 failed, Fingerprint a56683c54812378b. -->
 
 ## Relationship
 
