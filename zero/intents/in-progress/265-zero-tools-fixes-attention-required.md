@@ -141,7 +141,8 @@ LIVE:
       with 0 failures, and the fix covers every test that sets a process-wide variable
 - [ ] The sandbox audit query binds --tool and --limit as parameters; a test with a quote in
       --tool proves it
-- [ ] No Project 0 tool runs sudo on its own; zero-update's journal step follows its ruling
+- [x] No Project 0 tool runs sudo on its own; zero-update's journal step follows its ruling
+<!-- evidence: no Command::new(sudo) remains anywhere under zero/ (sweep 2026-10-03 at 1665c41e). The two tools that ran sudo themselves are gone: the engine checkpoint snapshot and snapshots commands (sudo btrfs), removed in 1665c41e by ruling of Christian (Omarchy owns system snapshots: snapper for root, limine-snapper-sync), and zero-update with its journal step, retired in c90c9b23 by ruling of Christian. The sudo words left in nsh are lists and guards that name sudo, not calls. -->
 - [ ] Every dead NixOS-era path above is removed or rewritten, each by its ruling
 - [ ] Every untrue or invented value above reads the real value or says it could not -- never a
       made-up one
