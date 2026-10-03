@@ -548,6 +548,11 @@ step 2 can capture BEFORE output. Then:
       proven by a test that goes red on a protected entry naming a missing directory
 - [ ] FINGERPRINT UNCHANGED: d's Fingerprint check reads digest a56683c54812378b before and after
       each move commit
+- [ ] REGISTRY DRIFT RESOLVED (added 2026-10-02 by Christian; completed after the original gates):
+      the four drift proposals the woken check recorded (pending_fixes 9-12: core 3.1.0 to 4.1.2,
+      db-browse 1.0.0 to 2.1.0, friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0) are applied
+      through core integrity apply, d reads Integrity 100 percent, and the only change in
+      zero/registry/tools.toml is those four version lines, in a commit of its own
 
 ## Relationship
 
