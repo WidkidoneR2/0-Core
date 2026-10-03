@@ -309,7 +309,7 @@ section.
     globs             an absolute-path glob reached cat with its asterisks intact (INT-270's list)
 ```
 
-## START HERE -- 2026-10-02 evening
+## START HERE -- 2026-10-02 evening -- SUPERSEDED by START HERE -- 2026-10-02 night, below
 
 Written only if HEAD was 52a0cc57 and equal to origin/main, the tree was clean, every commit named
 below exists, nsh-test/crate-paths-allowed.txt held 72 entries, paths.rs declared CRATE_PARENTS, and
@@ -509,6 +509,154 @@ step 2 can capture BEFORE output. Then:
                  (R2), and zero-daemon -- no unit, not running, org.zero.Core unserved (R4)
     and above    scripts_dir(), completion.rs:420, experiment_list -- in the Design sections
 ```
+
+## START HERE -- 2026-10-02 night
+
+Written at the end of the 2026-10-02 night session, at 6df319fd. Step 0 (ONE OWNER) and step 1 (THE
+RENAME) are done and pushed. Step 2 (THE BRANCH) is next and gets its own chat. The evening START
+HERE above is superseded by this one.
+
+### For the next chat -- read this first
+
+Open with `ints 267` and paste this section. With the Design addendum 2026-10-02 (rulings L1-L3c,
+R5) and the Success Criteria below, it is everything needed: do not ask Christian to explain where
+the work stands, and do not re-ask a ruling listed here.
+
+### Done -- pushed, 2026-10-02 night
+
+```
+df771d1d  batch 1   anomaly and zero-zone ask the owner; both were dead sites      ratchet 72 -> 70
+6aa11b70  batch 1b  integrity drift check: reads through the owner, PROPOSES       ratchet 70 -> 69
+                    instead of auto-fixing, records every drift (dedup by
+                    finding), stores tool<TAB>version, core integrity apply can
+                    apply it. Its 3 tests seen RED then GREEN
+1eae2a3f  gate      REGISTRY DRIFT RESOLVED added (Christian's ruling)
+288fb6d4  batch 2   nsh guards: delete warns inside zero/ again (it was dead --   ratchet 69 -> 60
+                    every guarded dir had moved), protected lists use
+                    crate_parent_markers, cargo_checker counts engine changes
+a8fbc189  batch 3   audit, deadwood, zero-docs, nsh-test: locating crates and     ratchet 60 -> 45
+                    their git history ask the owner
+07b642d2  batch 4   cicomplete bump suggestions and nsh version maps use          ratchet 45 -> 32
+                    crate_rel_dir (same five tools)
+68623b38  batch 5   displayed paths from the owner; cd completion offers the      ratchet 32 -> 22
+                    real dirs. STEP 0 DONE -- 22 left, all L3c
+b3783d96  step 1a   crate_directory_has_one_owner takes its words from
+                    CRATE_PARENTS_HISTORY + CRATE_PARENTS, so it follows a move
+bbce22a1  step 1    git mv zero/rust-tools zero/tools -- INCOMPLETE ALONE: only
+                    the renames and six moved .rs files (zero-gate re-staged
+                    them); the git add named zero/rust-tools, gone after the
+                    move, so git refused it. Does not build by itself.
+6df319fd  step 1    completed: the 20 files bbce22a1 left out                     ratchet 22 -> 20
+```
+
+State at 6df319fd: ship 18 shipped 0 failed; nsh-test 215/215 deployed; d 0 failed; Path
+Resilience 18/18; Fingerprint PASS digest a56683c54812378b, unchanged across the move; Integrity
+67% -- the four pending drift proposals (pending_fixes 9-12), expected until the drift gate.
+
+### The owner now -- zero_core::paths (zero/tools/zero-core/src/paths.rs)
+
+```
+CRATE_PARENTS          ["zero/tools"]
+SINGLE_CRATES          ["zero/engine"]
+CRATE_PARENTS_HISTORY  ["rust-tools", "zero/rust-tools", "zero/tools"]  oldest first, never shrinks
+tools_dir()            renamed from rust_tools_dir() in step 1 = core_dir().join(CRATE_PARENTS[0])
+crate_dirs_in / crate_dirs, crate_rel_dir_in / crate_rel_dir, crate_of, crate_history_pathspecs
+crate_parent_markers() last segment of each parent + "/" -- "tools/" now; the substring guards'
+                       marker (rename, copy, move, write, prompt zone, zero-context, intent)
+```
+
+Step 2: "zero/shell" joins CRATE_PARENTS and is appended to CRATE_PARENTS_HISTORY; the workspace
+members gain "zero/shell/*". crate_dirs_match_the_workspace keeps the two in step.
+
+### The ratchet -- 20 entries, all L3c
+
+zero/tools/nsh-test/crate-paths-allowed.txt: 19 nsh-test fixtures and tilde strings (they build a
+fake tree and run `ls ~/0-core/zero/tools/novashell/...` through nsh) and teach's "zero/tools/".
+The guard flags a live literal containing any CRATE_PARENTS_HISTORY or CRATE_PARENTS entry. In
+step 2 the novashell fixtures become zero/shell/novashell/... and their entries change with them.
+
+### Rulings in force -- do not re-ask
+
+L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night:
+- N1 (Christian) No new intents: what INT-267 uncovers is fixed inside it, as a gate if needed.
+- N2 (Christian) REGISTRY DRIFT RESOLVED is its own commit, after step 2, before close.
+- N3 History stays history: absorbed-from and ported-from comments, the intent ledger and
+  CHANGELOGs keep old paths. Docs that say where code IS follow the move -- including
+  docs/history-inventory.md, whose paths every_backticked_repo_path_in_the_docs_exists guards.
+- N4 crate_parent_markers is the last path segment: the guards err on protecting more.
+- N5 (Christian) Claude words the AGENTS.md path lines; they go in the move commit, shown in the plan.
+- N6 cd completion offers the crate dirs from the owner plus zero/intents (all three dead ones fixed).
+
+### Next -- step 2: THE BRANCH, its own chat
+
+1. RECON. Re-run the census: `python3 ~/.cache/zero/int267-census-3de13dda82b5.py` (last run
+   89f59ab17730 at 68623b38, stale now). Paste its tail and `cat ~/.cache/zero/int267-census.txt`.
+   Step 2's lines are the ones naming novashell, nsh-test or devbox.
+2. HOME SWEEP for novashell, nsh-test and devbox outside the repo (Hyprland, .desktop, systemd
+   user units, ~/.local/bin, rc files, ~/.config/nsh) -- step 1's sweep found none for rust-tools.
+3. READ, do not ask: devbox is repo-root devbox/ (docs/TREE.md:23 "read by zero-sandbox verify";
+   docs/inventory.md:15 runs `zero-sandbox verify devbox/census`). It is not a crate: find how
+   zero-sandbox locates it before moving it to zero/shell/devbox.
+4. DECIDE with Christian before building: crate_parent_markers would gain "shell/", a broad
+   substring for the rename/copy/move/write guards (any path containing shell/ becomes protected).
+   Options: accept (errs safe), or markers become the full parent path for "zero/shell".
+5. PLAN with the step 1 planner pattern: one planner computes every rewrite on his machine from the
+   files as they are, rustfmt-checks changed .rs, prints each changed line, binds the apply to a
+   FINGERPRINT; apply does git mv (zero/tools/novashell, zero/tools/nsh-test -> zero/shell/;
+   devbox -> zero/shell/devbox) then whole-file writes verified on disk. Owner: CRATE_PARENTS
+   ["zero/tools", "zero/shell"], HISTORY gains "zero/shell". Cargo members gain "zero/shell/*".
+   Watch: deadwood fixtures and fallback use CRATE_PARENTS[0].join("novashell/src") -- after step 2
+   novashell lives under the SECOND parent; fixtures still agree with each other, but move them to
+   the shell parent so they say what is true.
+6. Regenerate docs/history-inventory.md with its own script after the move -- READ its CLI first.
+7. DOORS: cargo build --workspace; cargo test -p zero-core crate; nsh-test all; ship 0 failed; d 0
+   failed with Fingerprint digest a56683c54812378b; home sweep 0; census shows only history + L3c.
+8. Then the drift gate (apply pending_fixes 9-12 with `core integrity apply <id>`, Integrity back
+   to 100%, tools.toml changes only those four version lines, own commit). Then close: tick each
+   gate with its evidence, cicomplete 267.
+
+### Gates -- where each stands (tick only when the whole gate is demonstrated)
+
+- THE ORDER: the move landed after 263/264 closed (3de890ff) -- read the full gate, then tick.
+- THE MOVE ("ONE commit per branch"): step 1 landed in TWO commits (bbce22a1 + 6df319fd) because of
+  the refused git add. Christian rules whether that meets the gate or is recorded as a deviation.
+- THE DOORS, NOTHING OUTSIDE THE REPO BROKE, FINGERPRINT UNCHANGED, AGENTS.md: met for step 1
+  (doors above; sweep 0; digest unchanged; AGENTS.md:62 in 6df319fd); open until step 2 meets them.
+- HISTORY UNTOUCHED: met for step 1 (N3). STATE UNTOUCHED: Zero Alias probe not yet read -- read
+  it before and after step 2.
+- ONE OWNER: every live locating site asks the owner (step 0); the ratchet holds only L3c. Read
+  the gate's own words for whether L3c entries count before ticking.
+- SAFETY LISTS MOVE WITH THE TREE: proven by every_delete_guard_dir_exists (288fb6d4) and the
+  markers; open until step 2's move commit keeps it green.
+- SIMPLE, measured: after step 2.
+- REGISTRY DRIFT RESOLVED: after step 2 (N2).
+
+### Method -- binding (the evening section's method, plus what tonight taught)
+
+- MOVE COMMITS: never name a pathspec the move removed. `git add` only paths that exist, then show
+  `git diff --cached --name-status -M` counts AND `git status --short` must list nothing unstaged
+  BEFORE committing -- add and commit in separate blocks for move commits. zero-gate's rustfmt
+  re-stages staged .rs files at commit, and nothing else.
+- Read a tool's flag parsing before calling it: `zero-docs readme-index --dry` wrote (the flag is
+  --dry-run). Builtin doors (bump-versions, cd completion) run only after exec of the new nsh.
+- fpatch refuses non-ASCII anchors and counts substrings: widen anchors with neighbour lines.
+- Bulk move edits: whole-file writes bound to the plan's FINGERPRINT, each verified on disk.
+- Replies stay within 2-3 minutes: one step per reply, rehearse only what that step needs.
+
+### Found, not fixed -- recorded 2026-10-02 night
+
+- anomaly: the classifier reads only the subject, so commits carrying an Intent trailer are flagged
+  (11 Low); its registry/ pathspec is dead the same way (anomaly mod.rs near 260).
+- integrity: the figure is 100 minus a third for any set of unresolved issues, whatever their
+  weight. pending_fixes 7 (intent 308 placement) and 8 (keyscan in niri autostart, NixOS era) are
+  stale proposals from before INT-267.
+- deadwood: the command-word check walks nothing, silently, if novashell is absent.
+- teach: the "Inside ~/0-core/" tour lists INTENT/, 01-configs/ and root scripts/, none of which
+  exist, and "43 custom Rust tools".
+- zero-docs readme-index ignores an unknown flag and writes instead of refusing.
+- paths::scripts_dir() names ~/0-core/scripts; the scripts are at zero/scripts.
+- CRATE_PARENTS_HISTORY lacks the era before 7b79c725 (a name the retired-name guard forbids).
+- Friday R2/R4: reasoning.rs:201 and planning.rs:899 read a missing table as empty -- for INT-039.
 
 ## Success Criteria
 
