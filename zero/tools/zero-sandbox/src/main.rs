@@ -1518,22 +1518,7 @@ fn main() -> Result<()> {
                 std::path::Path::new(&db_path),
                 rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
             )?;
-            let query = if let Some(tool_name) = &tool {
-                format!(
-                    "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' AND payload LIKE '%{}%' ORDER BY timestamp DESC LIMIT {}",
-                    tool_name, limit
-                )
-            } else {
-                format!(
-                    "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' ORDER BY timestamp DESC LIMIT {}",
-                    limit
-                )
-            };
-            let mut stmt = conn.prepare(&query)?;
-            let rows: Vec<(String, i64)> = stmt
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .filter_map(|r| r.ok())
-                .collect();
+            let rows = audit_rows(&conn, tool.as_deref(), limit)?;
             println!();
             println!(
                 "{}",
@@ -1895,4 +1880,81 @@ fn run_one_case(file: &std::path::Path) -> Outcome {
     }
 
     Outcome::Pass
+}
+
+/// The sandbox audit trail from state.db, newest first. INT-265: --tool and --limit are BOUND
+/// as parameters, never spliced into the SQL. This was format!, so a quote in a tool name broke
+/// the query, and a crafted one could have changed what it did.
+fn audit_rows(
+    conn: &rusqlite::Connection,
+    tool: Option<&str>,
+    limit: usize,
+) -> rusqlite::Result<Vec<(String, i64)>> {
+    let limit = limit as i64;
+    let rows: Vec<(String, i64)> = match tool {
+        Some(tool_name) => {
+            let mut stmt = conn.prepare(
+                "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' \
+                 AND payload LIKE ?1 ORDER BY timestamp DESC LIMIT ?2",
+            )?;
+            let pattern = format!("%{}%", tool_name);
+            let rows = stmt
+                .query_map(rusqlite::params![pattern, limit], |r| {
+                    Ok((r.get(0)?, r.get(1)?))
+                })?
+                .filter_map(|r| r.ok())
+                .collect::<Vec<_>>();
+            rows
+        }
+        None => {
+            let mut stmt = conn.prepare(
+                "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' \
+                 ORDER BY timestamp DESC LIMIT ?1",
+            )?;
+            let rows = stmt
+                .query_map(rusqlite::params![limit], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .filter_map(|r| r.ok())
+                .collect::<Vec<_>>();
+            rows
+        }
+    };
+    Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn seeded() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE events (domain TEXT, action TEXT, payload TEXT, timestamp INTEGER);
+             INSERT INTO events VALUES ('sandbox', 'run', '{\"tool\":\"it''s\"}', 3);
+             INSERT INTO events VALUES ('sandbox', 'run', '{\"tool\":\"cargo\"}', 2);
+             INSERT INTO events VALUES ('sandbox', 'run', '{\"tool\":\"git\"}', 1);
+             INSERT INTO events VALUES ('git', 'commit', '{\"tool\":\"cargo\"}', 4);",
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn a_quote_in_the_tool_name_is_data_not_sql() {
+        let rows =
+            audit_rows(&seeded(), Some("it's"), 10).expect("a quote must not break the query");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].1, 3);
+    }
+
+    #[test]
+    fn a_tool_filter_keeps_only_matching_sandbox_runs() {
+        let rows = audit_rows(&seeded(), Some("cargo"), 10).unwrap();
+        assert_eq!(rows, vec![("{\"tool\":\"cargo\"}".to_string(), 2)]);
+    }
+
+    #[test]
+    fn the_limit_is_honoured_newest_first() {
+        let rows = audit_rows(&seeded(), None, 2).unwrap();
+        assert_eq!(rows.iter().map(|r| r.1).collect::<Vec<_>>(), vec![3, 2]);
+    }
 }
