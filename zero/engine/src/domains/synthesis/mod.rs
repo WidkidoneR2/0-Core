@@ -5,6 +5,11 @@ use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 use rusqlite::params;
+/// INT-265: a health value for display -- "89%", or "unknown".
+fn health_text(h: Option<u32>) -> String {
+    h.map(|v| format!("{}%", v))
+        .unwrap_or_else(|| "unknown".to_string())
+}
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -15,7 +20,7 @@ static CREATE_TABLES: &str = "
 CREATE TABLE IF NOT EXISTS synthesis_snapshots (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp       INTEGER NOT NULL,
-    health          INTEGER NOT NULL DEFAULT 100,
+    health          INTEGER,
     alignment       REAL NOT NULL DEFAULT 1.0,
     active_intent   TEXT NOT NULL DEFAULT '',
     session_commits INTEGER NOT NULL DEFAULT 0,
@@ -36,9 +41,8 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // 1. Health
-    let health: u32 = zero_core::paths::read_health()
-        .map(|h| h as u32)
-        .unwrap_or(100);
+    // INT-265: an unreadable health is unknown; it is stored as NULL, never as 100.
+    let health: Option<u32> = zero_core::paths::read_health().map(|h| h as u32);
     // 2. Alignment
     let alignment: f64 = db.query_row(
         "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
@@ -123,10 +127,11 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
         ));
     }
     // Health vs momentum
-    if health < 95 && session_commits > 10 {
+    if health.map_or(true, |h| h < 95) && session_commits > 10 {
         contradictions.push(format!(
-            "High commit velocity ({} today) while health is at {}%",
-            session_commits, health
+            "High commit velocity ({} today) while health is at {}",
+            session_commits,
+            health_text(health)
         ));
     }
     // 8. Generate brief
@@ -174,7 +179,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     })
 }
 pub struct SynthesisResult {
-    pub health: u32,
+    pub health: Option<u32>,
     pub alignment: f64,
     pub active_intent: String,
     pub session_commits: i64,
@@ -184,7 +189,7 @@ pub struct SynthesisResult {
     pub contradictions: Vec<String>,
 }
 fn generate_brief(
-    health: u32,
+    health: Option<u32>,
     alignment: f64,
     active_intent: &str,
     session_commits: i64,
@@ -216,12 +221,12 @@ fn generate_brief(
         confidence += 0.1;
     }
     // Health and alignment
-    if health == 100 && alignment >= 0.99 {
+    if health == Some(100) && alignment >= 0.99 {
         parts.push("Project 0 is healthy and aligned. No concerns.".to_string());
-    } else if health < 95 {
+    } else if health.map_or(true, |h| h < 95) {
         parts.push(format!(
-            "Health at {}% -- investigate before continuing.",
-            health
+            "Health at {} -- investigate before continuing.",
+            health_text(health)
         ));
         confidence -= 0.1;
     }
@@ -256,12 +261,12 @@ pub fn cmd_now(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
     println!(
-        "  {:<24} {}%",
+        "  {:<24} {}",
         "Health:".dimmed(),
-        if result.health == 100 {
-            result.health.to_string().bright_green()
+        if result.health == Some(100) {
+            health_text(result.health).bright_green()
         } else {
-            result.health.to_string().bright_yellow()
+            health_text(result.health).bright_yellow()
         }
     );
     let align_str = format!("{:.0}%", result.alignment * 100.0);
@@ -332,12 +337,12 @@ pub fn cmd_brief(ctx: &AppContext) -> CoreResult<()> {
 /// core synthesize history -- past snapshots
 pub fn cmd_history(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    let rows: Vec<(i64, u32, String, i64, String)> = {
+    let rows: Vec<(i64, Option<u32>, String, i64, String)> = {
         let mut s = ctx.runtime.db.prepare(
             "SELECT timestamp, health, active_intent, session_commits, friday_brief
              FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 10",
         )?;
-        let x: Vec<(i64, u32, String, i64, String)> = s
+        let x: Vec<(i64, Option<u32>, String, i64, String)> = s
             .query_map([], |r| {
                 Ok((
                     r.get(0)?,
@@ -361,9 +366,9 @@ pub fn cmd_history(ctx: &AppContext) -> CoreResult<()> {
         let short_intent = intent.chars().take(30).collect::<String>();
         let short_brief = brief.chars().take(60).collect::<String>();
         println!(
-            "  {} {}% {} {}c  {}",
+            "  {} {} {} {}c  {}",
             time.dimmed(),
-            health.to_string().bright_green(),
+            health_text(*health).bright_green(),
             short_intent.bright_cyan(),
             commits.to_string().dimmed(),
             short_brief.white()

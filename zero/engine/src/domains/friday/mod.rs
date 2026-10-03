@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS friday_map (
     role         TEXT NOT NULL DEFAULT '',
     status       TEXT NOT NULL DEFAULT 'active',
     depends_on   TEXT NOT NULL DEFAULT '[]',
-    health       REAL NOT NULL DEFAULT 100.0,
+    health       REAL,
     last_commit  TEXT NOT NULL DEFAULT '',
     last_deploy  INTEGER NOT NULL DEFAULT 0,
     updated_at   INTEGER NOT NULL,

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS deploy_patterns (
     version         TEXT NOT NULL DEFAULT '',
     outcome         TEXT NOT NULL DEFAULT 'success',
     duration_ms     INTEGER NOT NULL DEFAULT 0,
-    health_before   INTEGER NOT NULL DEFAULT 100,
+    health_before   INTEGER,
     active_intents  TEXT NOT NULL DEFAULT '',
     git_commit      TEXT NOT NULL DEFAULT ''
 );";
@@ -117,10 +117,8 @@ pub fn record(
     let db = &ctx.runtime.db;
     db.execute_batch(CREATE_TABLE)?;
     let now = chrono::Utc::now().timestamp();
-    // Read health
-    let health: i64 = zero_core::paths::read_health()
-        .map(|h| h as i64)
-        .unwrap_or(100);
+    // Read health. INT-265: an unreadable health is stored as NULL and written as null, not 100.
+    let health: Option<i64> = zero_core::paths::read_health().map(|h| h as i64);
     // Read active intents from db
     let active_intents: String = db
         .query_row(
@@ -153,7 +151,12 @@ pub fn record(
     };
     let payload = format!(
         r#"{{"tool":"{}","version":"{}","outcome":"{}","health":{}}}"#,
-        tool, version, outcome, health
+        tool,
+        version,
+        outcome,
+        health
+            .map(|h| h.to_string())
+            .unwrap_or_else(|| "null".to_string())
     );
     let _ = db.execute(
         "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('deploy', 'deploy', ?1, ?2, ?3)",

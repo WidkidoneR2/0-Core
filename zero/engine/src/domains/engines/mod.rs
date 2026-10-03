@@ -516,8 +516,8 @@ fn route_signal(
         }
         // Health drop → surface as insight
         ("doctor", "health") => {
-            let health: f64 = extract_json_f64(payload, "health").unwrap_or(100.0);
-            if health < 95.0 {
+            // INT-265: a doctor event without health raises nothing; it was read as 100.
+            if let Some(health) = extract_json_f64(payload, "health").filter(|h| *h < 95.0) {
                 reactions.push(format!(
                     "health below peak: {:.0}% -- check for uncommitted changes or failed checks",
                     health
