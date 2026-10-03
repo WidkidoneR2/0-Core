@@ -9,6 +9,15 @@ pub fn core_root() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join("0-core")
 }
 
+/// A path as the messages show it: relative to the repo, so the message names the file the
+/// write actually touches (INT-267 L2).
+fn shown(p: &std::path::Path) -> String {
+    p.strip_prefix(core_root())
+        .unwrap_or(p)
+        .display()
+        .to_string()
+}
+
 /// Combined metadata for one tool: Cargo.toml fields + registry status.
 #[derive(Debug, Clone, Default)]
 pub struct ToolMeta {
@@ -236,8 +245,9 @@ pub fn gather_all() -> Vec<ToolMeta> {
 pub fn cmd_readme_tools_dryprint() {
     let metas = gather_all();
     println!(
-        "  Parsed {} tools from rust-tools/*/Cargo.toml:\n",
-        metas.len()
+        "  Parsed {} tools from {}/*/Cargo.toml:\n",
+        metas.len(),
+        zero_core::paths::CRATE_PARENTS.join(", ")
     );
     for m in &metas {
         let intent = m.intent.clone().unwrap_or_else(|| "-".into());
@@ -513,7 +523,8 @@ pub fn cmd_index(dry_run: bool) {
     let path = rt.join("README.md");
     if dry_run {
         println!(
-            "  would write: rust-tools/README.md (index, {} bytes, {} active tools, {} crates read)",
+            "  would write: {} (index, {} bytes, {} active tools, {} crates read)",
+            shown(&path),
             index.len(),
             active_tools(&metas).len(),
             metas.len()
@@ -522,7 +533,8 @@ pub fn cmd_index(dry_run: bool) {
     }
     match std::fs::write(&path, &index) {
         Ok(_) => println!(
-            "  wrote: rust-tools/README.md (index, {} active tools, {} crates read)",
+            "  wrote: {} (index, {} active tools, {} crates read)",
+            shown(&path),
             active_tools(&metas).len(),
             metas.len()
         ),
@@ -550,8 +562,8 @@ pub fn cmd_generate(dry_run: bool) {
         let content = render_readme(m);
         if dry_run {
             println!(
-                "  would write: rust-tools/{}/README.md ({} bytes)",
-                m.name,
+                "  would write: {} ({} bytes)",
+                shown(&readme_path),
                 content.len()
             );
             written += 1;
@@ -573,12 +585,13 @@ pub fn cmd_generate(dry_run: bool) {
     let index_path = rt.join("README.md");
     if dry_run {
         println!(
-            "  would write: rust-tools/README.md (index, {} bytes)",
+            "  would write: {} (index, {} bytes)",
+            shown(&index_path),
             index.len()
         );
     } else {
         match std::fs::write(&index_path, &index) {
-            Ok(_) => println!("  wrote: rust-tools/README.md (index)"),
+            Ok(_) => println!("  wrote: {} (index)", shown(&index_path)),
             Err(e) => eprintln!("  failed: index -- {}", e),
         }
     }
@@ -720,11 +733,7 @@ pub fn cmd_changelog_generate(dry_run: bool) {
         let path = rt.join(&m.name).join("CHANGELOG.md");
         let content = render_changelog(m);
         if dry_run {
-            println!(
-                "  would write: rust-tools/{}/CHANGELOG.md ({} bytes)",
-                m.name,
-                content.len()
-            );
+            println!("  would write: {} ({} bytes)", shown(&path), content.len());
             written += 1;
             continue;
         }

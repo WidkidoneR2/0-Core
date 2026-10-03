@@ -417,15 +417,20 @@ impl<'a> ShellHelper<'a> {
                 // ── cd shortcuts ──────────────────────────────────────────
                 "cd ~/",
                 "cd ~/0-core",
-                "cd ~/0-core/rust-tools",
-                "cd ~/0-core/engine",
-                "cd ~/0-core/intents",
+                "cd ~/0-core/zero/intents",
                 "cd ~/0-core/runtime",
             ];
+            // The crate directories come from the owner (INT-267 L2), so cd completion offers
+            // directories that exist wherever the tree puts them.
+            let crate_cds = zero_core::paths::CRATE_PARENTS
+                .iter()
+                .chain(zero_core::paths::SINGLE_CRATES.iter())
+                .map(|p| format!("cd ~/0-core/{}", p));
             let cands: Vec<String> = MULTI_CMDS
                 .iter()
-                .filter(|c| c.starts_with(line))
                 .map(|s| s.to_string())
+                .chain(crate_cds)
+                .filter(|c| c.starts_with(line))
                 .collect();
             if !cands.is_empty() {
                 return (0, cands);

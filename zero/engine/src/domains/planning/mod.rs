@@ -36,7 +36,10 @@ fn generate_steps(title: &str, plan_hint: &str) -> Vec<String> {
         vec![
             "Run: core evolution tools — identify all dormant/redundant candidates".into(),
             "Review each candidate: confirm shell or core replacement exists".into(),
-            "Remove binary from PATH and rust-tools/ directory".into(),
+            format!(
+                "Remove binary from PATH and its crate directory under {}",
+                zero_core::paths::CRATE_PARENTS.join(", ")
+            ),
             "Update aliases.zsh — remove related aliases".into(),
             "Run: d — verify 100% health after each removal".into(),
             "Commit with intent reference".into(),

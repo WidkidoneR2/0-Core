@@ -126,7 +126,11 @@ pub fn tools(_ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("{}", "🔧  Tools Usage Analysis".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}  {}", "Source:".dimmed(), "rust-tools/".bright_white());
+    println!(
+        "  {}  {}",
+        "Source:".dimmed(),
+        zero_core::paths::CRATE_PARENTS.join(", ").bright_white()
+    );
     println!();
 
     let now = std::time::SystemTime::now()
