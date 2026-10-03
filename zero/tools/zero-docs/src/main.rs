@@ -19,7 +19,8 @@ use colored::*;
 use std::path::PathBuf;
 
 const BOUNDARY_MARKER: &str = "<!-- END DYNAMIC SECTION -->";
-const VERSION: &str = "2.0.0";
+// INT-265: read from Cargo, so --version cannot drift from the package as zero-git did.
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// INT-315 Phase 3: generate public docs set -- curated, no internal content
 fn cmd_public(dry_run: bool) {
@@ -98,6 +99,8 @@ fn main() {
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
 
     match cmd {
+        // INT-265: --version prints the version. It fell through to the banner.
+        "--version" | "-V" => println!("zero-docs {}", VERSION),
         "--health" | "health" => {
             println!("zero-docs v{} — healthy", VERSION);
         }

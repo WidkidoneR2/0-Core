@@ -12,7 +12,7 @@ use zero_git::commands;
 #[derive(Parser)]
 #[command(name = "zero-git")]
 #[command(about = "Git Governance for Project 0")]
-#[command(version = "4.0.0")]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

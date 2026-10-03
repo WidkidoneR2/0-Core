@@ -305,9 +305,14 @@ pub fn daily_summary(ctx: &AppContext) -> CoreResult<()> {
             |r| r.get(0),
         )
         .unwrap_or(0);
+    // INT-265: health is READ, not typed. This line always said 100%.
+    let health = match zero_core::paths::read_health() {
+        Some(h) => format!("Health: {}%.", h),
+        None => "Health could not be read.".to_string(),
+    };
     let message = format!(
-        "Session ended. {} commits, {} deploys today. Health: 100%.",
-        commits, deploys
+        "Session ended. {} commits, {} deploys today. {}",
+        commits, deploys, health
     );
     write_entry(ctx, "summary", &message)
 }

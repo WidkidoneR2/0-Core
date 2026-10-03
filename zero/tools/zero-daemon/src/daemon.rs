@@ -889,10 +889,11 @@ async fn friday_answer_query(
                 |r| r.get(0),
             )
             .ok();
-        Some(format!(
-            "Health: {}%. All systems nominal.",
-            health.unwrap_or(100)
-        ))
+        // INT-265: an unreadable health says so. This answered 100% and All systems nominal.
+        Some(match health {
+            Some(h) => format!("Health: {}%.", h),
+            None => "Health could not be read: no doctor_history row.".to_string(),
+        })
     } else if q_lower.contains("pattern") || q_lower.contains("learn") {
         let pats: i64 = conn
             .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
