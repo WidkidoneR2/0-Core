@@ -48,7 +48,11 @@ pub fn run() -> Result<()> {
         println!("  • Review changes carefully");
     } else if risk.total > 20 {
         println!("{}", "💡 Moderate Risk - Suggestions:".yellow());
-        println!("  • Consider creating a snapshot");
+        // INT-265: Omarchy owns snapshots (snapper); the advice names a command Project 0 owns.
+        println!(
+            "  • Consider a checkpoint: {}",
+            "core checkpoint create <name>".cyan()
+        );
         println!("  • Verify changes with: {}", "git diff --cached".cyan());
     } else {
         println!("{}", "✅ Low Risk - Good to proceed".green());
