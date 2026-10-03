@@ -570,6 +570,123 @@ continues from NEXT, step 1. Every block Claude sends follows the METHOD at the 
      the match, so 44 builtins never reached it; the refresh says 105 builtins) with a walk over
      BUILTINS, keeping SKIP and the INSERT statement byte for byte; completion.rs iterates BUILTINS
      at both candidate sites (about lines 594 and 611) and const COMMANDS is removed.
+   - FOUND at the end of the session by Christian's Tab tests, before anything was applied:
+     (a) completion has more sources than the two COMMANDS sites -- Tab on fs listed fsearch with
+     a description ("search repo files") and Tab on friday listed "friday dismiss" with one, so a
+     description-carrying source (probably command_registry, which the cheatsheet fills) feeds it
+     too. Read the whole completer in completion.rs, every candidate source, BEFORE rebuilding
+     commit B's planner. (b) intent is probably run by nsh: Tab offers intent list, show, search,
+     new and edit, and Christian has used intent add. It is no dispatcher arm, REPL catch, alias
+     or program, so nsh routes it by a path commit A's list does not read (a prefix router or a
+     core pass-through). FIRST: Christian types intent and reports its colour; then find the
+     route. If nsh runs it, that route becomes the list's fourth source, read by
+     the_list_is_the_dispatcher_and_the_repl as well, RED first (the colour test must fail on
+     intent before the fix), in its own commit before commit B.
+   - RULED (Christian, 2026-10-03), to apply after (a) and (b) are re-measured: a word nothing
+     runs leaves first-word completion (the first report named hist, flow, fs and intent); "friday
+     dismiss" is a subcommand of the friday builtin and belongs to a subcommand completer outside
+     this gate. Any word the re-measure finds runnable stays. Record the ruling in commit B's
+     message.
+   - Proof is before and after (no new red test; this is wiring): BEFORE, Christian typed bump and
+     Tab offered nothing (2026-10-03). AFTER ship and exec, Tab on bump offers bump-versions, and
+     the cheatsheet refresh line reads more than 105 builtins.
+   - Then tick COMMAND COLOUR TELLS THE TRUTH with evidence 7c765757 and commit B.
+2. REGISTRY DRIFT RESOLVED: the four pending version proposals (db-browse 1.0.0 to 2.1.0,
+   friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0, and the fourth named in the gate) go
+   through core integrity apply; d must read Integrity 100 percent; the only change in
+   zero/registry/tools.toml is those version lines, in a commit of its own. Read the gate text and
+   core integrity's CLI before running anything.
+3. Close INT-267: rule on THE MOVE gate (step 1 landed in two commits, bbce22a1 and 6df319fd);
+   run the final census; tick each gate with its evidence commit; cicomplete 267.
+
+### Findings recorded, not fixed (outside this intent unless Christian rules otherwise)
+
+- docs/ARCHITECTURE.md lists a root bin/ that docs/TREE.md does not name; it probably does not exist.
+- make is nsh's own mkdir -p (commands/mod.rs, INT-270); typing make never reaches GNU make. It now
+  shows cyan, which is the truth; whether the word should stay taken is Christian's call.
+- export is caught nowhere in nsh and now reads red.
+- nsh-test's case tilde_ls_rust_tools now lists zero/shell; its name kept for state.db continuity.
+- The ratchet's move shows as add plus delete (over half its lines changed), so git log --follow
+  does not follow it.
+- ~/.config/nsh/config.nsh line 141 became alias diff = difft --exit-code (outside the repo), so
+  diff exits 1 on differences.
+
+### METHOD (every block)
+
+- RECON first; read before claiming. One concern per commit.
+- PLAN -> REVIEW -> APPLY: payloads base64 plus zlib, installed at ~/.cache/zero/<name>-<sha>.py,
+  rehearsed on a stand-in shaped like the real file; planners read the base from git HEAD and
+  refuse on a wrong HEAD, a dirty tree or an anchor found other than once.
+- RED first for every new check; the RED stage must fail on Christian's machine before FIX.
+- Before staging Rust: rustfmt --edition 2021 --check on the touched files (exit 0), so the staged
+  stat equals the committed stat (R5). Compare files with cmp, never diff (it is difftastic).
+- DOORS before every commit: workspace build with zero warnings; tests; nsh-test 215 of 215; ship;
+  deployed suite; d 0 failed and Fingerprint unchanged; the door specific to the change; exec
+  /home/christian/.local/bin/nsh last in its block.
+- Move commits: name only paths that exist; show unstaged count 0 before committing; add and
+  commit in separate blocks.
+- Never touch sudo. Propose AGENTS.md changes; never edit it unasked.
+
+## SUPERSEDED START HERE (2026-10-03, end of the long session; it replaces the START HERE below) (superseded 2026-10-03 by the START HERE above)
+
+Paste this whole section into a new chat. Christian opens with `ints 267`; Claude reads this and
+continues from NEXT, step 1. Every block Claude sends follows the METHOD at the end.
+
+### Where the tree is
+
+- HEAD: the commit that wrote this record (parent 7c765757). Tree clean, pushed.
+- zero/shell/ holds novashell, nsh-test and devbox (THE BRANCH, 183d2f26). zero/tools/ holds every
+  other crate. zero_core::paths names its parents: TOOLS_PARENT = "zero/tools",
+  SHELL_PARENT = "zero/shell"; CRATE_PARENTS = [TOOLS_PARENT, SHELL_PARENT];
+  CRATE_PARENTS_HISTORY = ["rust-tools", "zero/rust-tools", "zero/tools", "zero/shell"].
+- Cargo.toml: members zero/tools/*, zero/shell/*, zero/engine; exclude = ["zero/shell/devbox"]
+  (devbox holds cases, not a crate; cargo refuses a glob member without a Cargo.toml).
+- Doors at 7c765757: nsh-test 215 of 215; novashell 231 tests; d 0 failed, Path Resilience 18/18,
+  Fingerprint digest a56683c54812378b (unchanged across every move); Integrity 67 percent (expected
+  until REGISTRY DRIFT RESOLVED).
+- Census (for the final census at close): script ~/.cache/zero/int267-census-3de13dda82b5.py,
+  writes ~/.cache/zero/int267-census.txt; last fingerprint 7b233342c899 at b92f6cf2 (before the
+  branch). After the branch only history lines should name zero/tools/novashell or nsh-test.
+
+### Commits this session (oldest first)
+
+- 605a0222 step 2a: zero_core::paths::crate_dir(name) and tool_parent_entries(); 17 tools_dir()
+  callers ask for one crate or every parent; catalog links from index_link (core -> ../engine/).
+- 1671ca4e step 2b: nsh's source_root() is zero/ (@rust, ruling A); rm -rf guard from the owner
+  (rm_guarded_dirs; it had guarded ~/0-core/engine, which did not exist); @scripts, fsearch --all
+  and --scripts fixed; preexec lost its unused core_root.
+- aa679574 step 2c: one owner of "is this runnable": zero_core::paths::on_path / on_path_in; the
+  tools builtin's deployed column asks it (it checked the NixOS-era ~/0-core/scripts/<name>).
+- cd23f537 step 2d: find_on_path / find_on_path_in; nine which:: calls ask the owner; the which
+  crate left the engine and the doctor (Cargo.lock dropped which and winsafe).
+- b92f6cf2 gate added: COMMAND COLOUR TELLS THE TRUTH.
+- 2de63b5c step 2e: guard markers are whole parents (zero/tools/, zero/shell/) and a relative path
+  is read from the current directory (ruling b); cicomplete reads CRATE_PARENTS_HISTORY.
+- 183d2f26 step 2, THE BRANCH: git mv into zero/shell/ (85 files), the owner's named parents,
+  fixtures and ratchet (21 entries), TREE.md with rule L1, ARCHITECTURE, RISK.toml, two AGENTS.md
+  rules Christian ruled in (owner tested on the real tree; exit codes and cmp).
+- 7c765757 command colour, commit A: commands::builtin_names::BUILTINS (160 groups, 211 names)
+  generated from the dispatcher's 154 top-level arms, the REPL's exact catches (cheat, it, gt) and
+  is_repl_state_command's job-control words (jobs, fg, bg, kill); a test reads those three sources
+  and compares both ways; command_class() colours the prompt (dangerous magenta, builtin cyan,
+  on_path or alias green, else red). Christian saw it work on the live shell.
+
+### Rulings in force (new this session)
+
+- A: @rust means zero/, the Rust source of every crate.
+- b: guard markers are whole crate parents; relative paths are read from the current directory.
+- (a): a word the dispatcher catches is cyan, because nsh's own code runs.
+- Order: THE BRANCH, then COMMAND COLOUR TELLS THE TRUTH, then REGISTRY DRIFT RESOLVED, then close.
+- Earlier rulings L1-L3c, R5, N1-N6 stand.
+
+### NEXT (do these in order)
+
+1. COMMAND COLOUR, commit B: the cheatsheet and completion read BUILTINS.
+   - Rebuild the planner (the old one was pinned to HEAD 7c765757 and was deleted). Same edits:
+     cheatsheet_tui.rs replaces its parse of commands/mod.rs on disk (which read only 700 lines of
+     the match, so 44 builtins never reached it; the refresh says 105 builtins) with a walk over
+     BUILTINS, keeping SKIP and the INSERT statement byte for byte; completion.rs iterates BUILTINS
+     at both candidate sites (about lines 594 and 611) and const COMMANDS is removed.
    - RULING NEEDED FIRST: five COMMANDS words would leave completion because nothing runs them --
      hist, flow, fs, intent, and the two-word "friday dismiss". Claude recommends letting the
      first four go; "friday dismiss" is a subcommand of the friday builtin and belongs to a
