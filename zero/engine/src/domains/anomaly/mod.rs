@@ -202,6 +202,17 @@ fn detect_anomalies(core_root: &str) -> Vec<Anomaly> {
     anomalies
 }
 
+/// The pathspecs the unintended-commit scan asks git about: every crate directory the owner
+/// knows (INT-267 L2), in each parent CRATE_PARENTS_HISTORY lists, so a window that spans a move
+/// still sees the commits on both sides of it.
+fn unintended_pathspecs() -> Vec<String> {
+    zero_core::paths::SINGLE_CRATES
+        .iter()
+        .chain(zero_core::paths::CRATE_PARENTS_HISTORY.iter())
+        .map(|p| format!("{}/", p))
+        .collect()
+}
+
 fn detect_unintented_commits(core_root: &str) -> Vec<Anomaly> {
     let mut anomalies = Vec::new();
     let output = Command::new("git")
@@ -212,9 +223,8 @@ fn detect_unintented_commits(core_root: &str) -> Vec<Anomaly> {
             "--format=%H|%s|%ai",
             "--since=30 days ago",
             "--",
-            "engine/",
-            "rust-tools/",
         ])
+        .args(unintended_pathspecs())
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -275,4 +285,40 @@ fn detect_registry_anomalies(core_root: &str) -> Vec<Anomaly> {
         });
     }
     anomalies
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// INT-267 L2: the scan asks git about the crate directories that exist. Seen red while it
+    /// named the pre-move paths, which no crate has lived in since the tree moved under zero/.
+    #[test]
+    fn unintended_scan_covers_every_crate_directory() {
+        let root = std::env::temp_dir().join(format!("anomaly-int267-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for d in zero_core::paths::CRATE_PARENTS
+            .iter()
+            .map(|p| format!("{}/alpha", p))
+            .chain(
+                zero_core::paths::SINGLE_CRATES
+                    .iter()
+                    .map(|s| s.to_string()),
+            )
+        {
+            std::fs::create_dir_all(root.join(&d)).unwrap();
+            std::fs::write(root.join(&d).join("Cargo.toml"), "[package]\n").unwrap();
+        }
+        let specs = unintended_pathspecs();
+        let dirs = zero_core::paths::crate_dirs_in(&root).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(!dirs.is_empty(), "the stand-in tree holds no crate");
+        for dir in dirs {
+            let rel = format!("{}/", dir.strip_prefix(&root).unwrap().display());
+            assert!(
+                specs.iter().any(|s| rel.starts_with(s.as_str())),
+                "no pathspec covers {rel}: {specs:?}"
+            );
+        }
+    }
 }

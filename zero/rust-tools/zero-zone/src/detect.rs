@@ -7,8 +7,13 @@ pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
         Err(_) => path.to_path_buf(),
     };
 
-    // Most specific first (workspace before core)
-    if path.starts_with(home.join("0-core/rust-tools")) {
+    // Most specific first (workspace before core). The crate tree is wherever the owner says
+    // the crates live (INT-267 L2), joined onto this home's repo.
+    let core = home.join("0-core");
+    let in_crates = zero_core::paths::CRATE_PARENTS
+        .iter()
+        .any(|p| path.starts_with(core.join(p)));
+    if in_crates {
         let rel = path
             .strip_prefix(home.join("0-core"))
             .unwrap_or(path.as_path());
@@ -38,5 +43,28 @@ pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
             path.display().to_string()
         };
         (Zone::Scratch, display_path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// INT-267 L2: a directory inside the crate tree is the Workspace zone. Seen red while the
+    /// check named a path the crates left when the tree moved under zero/.
+    #[test]
+    fn a_crate_directory_is_the_workspace_zone() {
+        let home = Path::new("/nonexistent-int267-home");
+        let inside = home
+            .join("0-core")
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("alpha/src");
+        assert_eq!(detect_zone(&inside, home).0, Zone::Workspace);
+    }
+
+    #[test]
+    fn the_rest_of_the_repo_is_the_core_zone() {
+        let home = Path::new("/nonexistent-int267-home");
+        assert_eq!(detect_zone(&home.join("0-core/docs"), home).0, Zone::Core);
     }
 }

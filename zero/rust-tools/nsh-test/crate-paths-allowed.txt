@@ -1,7 +1,6 @@
 # INT-267 L2 ratchet. Each line is file<TAB>literal: a live Rust string literal that still names
 # the crate directory outside zero_core::paths. nsh-test crate_directory_has_one_owner reads it.
 # A line leaves when its site asks the owner. No entries left means the migration is done.
-zero/engine/src/domains/anomaly/mod.rs	rust-tools/
 zero/engine/src/domains/audit/mod.rs	rust-tools/{}/
 zero/engine/src/domains/audit/mod.rs	zero/rust-tools/{}/
 zero/engine/src/domains/audit/mod.rs	rust-tools/{}/Cargo.toml
@@ -72,4 +71,3 @@ zero/rust-tools/zero-docs/src/toolgen.rs	rust-tools/{}/
 zero/rust-tools/zero-docs/src/toolgen.rs	zero/rust-tools/{}/
 zero/rust-tools/zero-docs/src/toolgen.rs	  would write: rust-tools/{}/CHANGELOG.md ({} bytes)
 zero/rust-tools/zero-update/src/cargo_checker.rs	rust-tools/
-zero/rust-tools/zero-zone/src/detect.rs	0-core/rust-tools
