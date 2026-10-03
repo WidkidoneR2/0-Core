@@ -442,17 +442,24 @@ pub fn tools_dir() -> PathBuf {
 // CRATES -- INT-267 L2: the ONE owner of where the crates live
 // ═══════════════════════════════════════════════════════════
 
+/// The parent of every crate that is neither the engine nor the shell (INT-267 L1).
+pub const TOOLS_PARENT: &str = "zero/tools";
+
+/// The shell and what exists only to prove or run it: NovaShell and nsh-test (INT-267 L1, step 2).
+pub const SHELL_PARENT: &str = "zero/shell";
+
 /// Directories, relative to the repo root, whose every child holding a Cargo.toml is a crate.
 /// A move changes this array and the workspace members, nothing else; nsh-test
 /// crate_dirs_match_the_workspace keeps the two in step.
-pub const CRATE_PARENTS: [&str; 1] = ["zero/tools"];
+pub const CRATE_PARENTS: [&str; 2] = [TOOLS_PARENT, SHELL_PARENT];
 
 /// Crates that are their own directory, relative to the repo root.
 pub const SINGLE_CRATES: [&str; 1] = ["zero/engine"];
 
 /// Every parent the crates have lived in, oldest first. `git log` needs all of them to follow a
 /// crate's history across a move; a parent is added here when a move retires it, never removed.
-pub const CRATE_PARENTS_HISTORY: [&str; 3] = ["rust-tools", "zero/rust-tools", "zero/tools"];
+pub const CRATE_PARENTS_HISTORY: [&str; 4] =
+    ["rust-tools", "zero/rust-tools", "zero/tools", "zero/shell"];
 
 /// Every crate directory under the repo root `root`, sorted. A parent that cannot be read is an
 /// ERROR, never zero crates: an unreadable directory must not answer as an empty one (INT-250).
@@ -578,7 +585,12 @@ mod crate_tests {
         let root =
             std::env::temp_dir().join(format!("zero-crate-tests-{}-{}", tag, std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        for d in ["zero/tools/alpha", "zero/tools/beta", "zero/engine"] {
+        for d in [
+            "zero/tools/alpha",
+            "zero/tools/beta",
+            "zero/shell/gamma",
+            "zero/engine",
+        ] {
             std::fs::create_dir_all(root.join(d)).unwrap();
             std::fs::write(root.join(d).join("Cargo.toml"), "[package]\n").unwrap();
         }
@@ -590,10 +602,15 @@ mod crate_tests {
     fn crate_dirs_lists_every_crate_and_only_crates() {
         let root = tree("list");
         let got = crate_dirs_in(&root).unwrap();
-        let want: Vec<PathBuf> = ["zero/engine", "zero/tools/alpha", "zero/tools/beta"]
-            .iter()
-            .map(|d| root.join(d))
-            .collect();
+        let want: Vec<PathBuf> = [
+            "zero/engine",
+            "zero/shell/gamma",
+            "zero/tools/alpha",
+            "zero/tools/beta",
+        ]
+        .iter()
+        .map(|d| root.join(d))
+        .collect();
         assert_eq!(got, want);
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -635,7 +652,7 @@ mod crate_tests {
     #[test]
     fn crate_of_reads_the_crate_from_any_spelling_of_a_path() {
         let cases = [
-            ("zero/tools/novashell/src/main.rs", Some("novashell")),
+            ("zero/shell/novashell/src/main.rs", Some("novashell")),
             ("/home/x/0-core/zero/tools/zero-git", Some("zero-git")),
             ("zero/tools/teach/", Some("teach")),
             ("zero/engine/src/app/context.rs", Some("engine")),
@@ -657,7 +674,8 @@ mod crate_tests {
             vec![
                 "rust-tools/novashell/",
                 "zero/rust-tools/novashell/",
-                "zero/tools/novashell/"
+                "zero/tools/novashell/",
+                "zero/shell/novashell/"
             ]
         );
     }

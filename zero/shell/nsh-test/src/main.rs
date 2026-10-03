@@ -209,22 +209,23 @@ fn fixture_home() -> Result<String, String> {
         "fixture",
     )?;
 
-    // `ls ~/0-core/zero/tools` contains novashell and zero-core, as the real tree does.
-    // tilde_nested_pipe greps for novashell alone, so the second entry is what shows the
+    // `ls ~/0-core/zero/shell` holds novashell and nsh-test, and zero/tools holds zero-core, as the
+    // real tree does. tilde_nested_pipe greps for novashell alone, so nsh-test is what shows the
     // filter ran: without it, grep keeping everything and grep keeping one look the same.
     mkdir(&format!("{}/zero/tools/zero-core", core))?;
-    mkdir(&format!("{}/zero/tools/novashell/src", core))?;
+    mkdir(&format!("{}/zero/shell/novashell/src", core))?;
+    mkdir(&format!("{}/zero/shell/nsh-test", core))?;
 
-    // `cat ~/0-core/zero/tools/novashell/Cargo.toml` contains novashell, and piped
+    // `cat ~/0-core/zero/shell/novashell/Cargo.toml` contains novashell, and piped
     // through `grep name` contains name.
     write(
-        &format!("{}/zero/tools/novashell/Cargo.toml", core),
+        &format!("{}/zero/shell/novashell/Cargo.toml", core),
         "[package]\nname = \"novashell\"\n",
     )?;
 
     // `grep -r expand_braces .../novashell/src/` and the same against src/main.rs
     write(
-        &format!("{}/zero/tools/novashell/src/main.rs", core),
+        &format!("{}/zero/shell/novashell/src/main.rs", core),
         "fn expand_braces() {}\n",
     )?;
 
@@ -577,8 +578,8 @@ fn all_tests() -> Vec<TestResult> {
                 format!("{}/zero/packages/zero/scripts/deploy.sh", core),
                 format!("{}/zero/intents/future/placeholder.md", core),
                 format!("{}/zero/tools/zero-core", core),
-                format!("{}/zero/tools/novashell/Cargo.toml", core),
-                format!("{}/zero/tools/novashell/src/main.rs", core),
+                format!("{}/zero/shell/novashell/Cargo.toml", core),
+                format!("{}/zero/shell/novashell/src/main.rs", core),
                 format!("{}/.local/state/zero/state.db", root),
             ];
             for p in &needed {
@@ -589,13 +590,13 @@ fn all_tests() -> Vec<TestResult> {
             // The two content assertions the cases rely on, checked here so a later batch cannot
             // fail for a reason that has nothing to do with the shell.
             let cargo =
-                std::fs::read_to_string(format!("{}/zero/tools/novashell/Cargo.toml", core))
+                std::fs::read_to_string(format!("{}/zero/shell/novashell/Cargo.toml", core))
                     .map_err(|e| e.to_string())?;
             if !cargo.contains("novashell") || !cargo.contains("name") {
                 return Err("fixture Cargo.toml lost its novashell/name strings".to_string());
             }
             let main_rs =
-                std::fs::read_to_string(format!("{}/zero/tools/novashell/src/main.rs", core))
+                std::fs::read_to_string(format!("{}/zero/shell/novashell/src/main.rs", core))
                     .map_err(|e| e.to_string())?;
             if !main_rs.contains("expand_braces") {
                 return Err("fixture main.rs lost expand_braces".to_string());
@@ -695,7 +696,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "cat ~/0-core/zero/tools/novashell/Cargo.toml",
+                "cat ~/0-core/zero/shell/novashell/Cargo.toml",
                 &[("HOME", home.as_str())],
             )?,
             "novashell",
@@ -712,7 +713,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "cat ~/0-core/zero/tools/novashell/Cargo.toml | grep name",
+                "cat ~/0-core/zero/shell/novashell/Cargo.toml | grep name",
                 &[("HOME", home.as_str())],
             )?,
             "name",
@@ -836,7 +837,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "grep -r 'expand_braces' ~/0-core/zero/tools/novashell/src/ | head -1",
+                "grep -r 'expand_braces' ~/0-core/zero/shell/novashell/src/ | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -880,13 +881,13 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         }
     }));
-    // A tilde path through a nested pipe. The fixture puts more than one entry under tools
+    // A tilde path through a nested pipe. The fixture puts more than one entry under the shell
     // and grep keeps exactly one, so a count of 1 shows all three stages ran: 0 means the tilde
     // or the listing failed, more than 1 means grep kept everything. It needs no brand name.
     results.push(test("tilde_nested_pipe", Category::Tilde, || {
         let home = fixture_home()?;
         let out = run_fsh_env(
-            "ls ~/0-core/zero/tools | grep novashell | wc -l",
+            "ls ~/0-core/zero/shell | grep novashell | wc -l",
             &[("HOME", home.as_str())],
         )?;
         match out.trim() {
@@ -907,7 +908,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "grep -r expand_braces ~/0-core/zero/tools/novashell/src/ | head -1",
+                "grep -r expand_braces ~/0-core/zero/shell/novashell/src/ | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -917,7 +918,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "echo ok && grep 'expand_braces' ~/0-core/zero/tools/novashell/src/main.rs | head -1",
+                "echo ok && grep 'expand_braces' ~/0-core/zero/shell/novashell/src/main.rs | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -938,7 +939,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
         let home = fixture_home()?;
         expect_contains(
-            &run_fsh_env("ls ~/0-core/zero/tools", &[("HOME", home.as_str())])?,
+            &run_fsh_env("ls ~/0-core/zero/shell", &[("HOME", home.as_str())])?,
             "novashell",
         )
     }));
@@ -967,7 +968,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "ls ~/0-core/zero/tools/novashell/src",
+                "ls ~/0-core/zero/shell/novashell/src",
                 &[("HOME", home.as_str())],
             )?,
             "main.rs",
@@ -4838,7 +4839,7 @@ fn main() {
         // ⭐ THE RIGHT EXPECTATION IS THE SHELL'S VERSION IN THIS WORKSPACE, read from its
         // Cargo.toml at RUNTIME rather than baked in: the suite and the shell are separate crates
         // that version independently, so a compile-time constant would go stale silently.
-        let expected = std::fs::read_to_string("zero/tools/novashell/Cargo.toml")
+        let expected = std::fs::read_to_string("zero/shell/novashell/Cargo.toml")
             .ok()
             .and_then(|t| {
                 t.lines()

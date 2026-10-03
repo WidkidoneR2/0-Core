@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn markers_refuse_a_path_inside_a_crate() {
         let p = zero_core::paths::core_dir()
-            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join(zero_core::paths::SHELL_PARENT)
             .join("novashell/src/main.rs")
             .display()
             .to_string();

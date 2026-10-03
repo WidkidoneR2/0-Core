@@ -1110,7 +1110,7 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
     let src = zero_core::paths::crate_rel_dir_in(&root, "novashell")
         .map(|rel| root.join(rel).join("src"))
         .unwrap_or_else(|| {
-            root.join(zero_core::paths::CRATE_PARENTS[0])
+            root.join(zero_core::paths::SHELL_PARENT)
                 .join("novashell/src")
         });
     for entry in walkdir::WalkDir::new(&src)
@@ -1421,7 +1421,7 @@ mod cmdword_check_tests {
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
         let src = root
-            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join(zero_core::paths::SHELL_PARENT)
             .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
@@ -1438,7 +1438,7 @@ mod cmdword_check_tests {
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
         let src = root
-            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join(zero_core::paths::SHELL_PARENT)
             .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join(file), body).expect("fixture file");
@@ -1555,7 +1555,7 @@ mod citation_check_tests {
             std::fs::write(intents.join(f), "---\nid: x\n---\n").expect("fixture intent");
         }
         let src = root
-            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join(zero_core::paths::SHELL_PARENT)
             .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
@@ -1605,7 +1605,7 @@ mod citation_check_tests {
         let root = std::env::temp_dir().join("deadwood_cite_noledger");
         let _ = std::fs::remove_dir_all(&root);
         let src = root
-            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join(zero_core::paths::SHELL_PARENT)
             .join("novashell/src");
         std::fs::create_dir_all(&src).expect("dir");
         std::fs::write(src.join("main.rs"), "// INT-100 INT-200 INT-300\n").expect("file");

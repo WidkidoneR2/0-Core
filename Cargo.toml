@@ -2,8 +2,11 @@
 resolver = "2"
 members = [
     "zero/tools/*",
+    "zero/shell/*",
     "zero/engine",
 ]
+# devbox lives with the shell but holds cases, not a crate (INT-267 L1).
+exclude = ["zero/shell/devbox"]
 
 [workspace.package]
 version = "9.1.0"

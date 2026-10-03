@@ -1,0 +1,24 @@
+# INT-267 L2 ratchet. Each line is file<TAB>literal: a live Rust string literal that still names
+# the crate directory outside zero_core::paths. nsh-test crate_directory_has_one_owner reads it.
+# A line leaves when its site asks the owner. No entries left means the migration is done.
+zero/shell/nsh-test/src/main.rs	{}/zero/tools/zero-core
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/src
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/nsh-test
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/Cargo.toml
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/src/main.rs
+zero/shell/nsh-test/src/main.rs	{}/zero/tools/zero-core
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/Cargo.toml
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/src/main.rs
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/Cargo.toml
+zero/shell/nsh-test/src/main.rs	{}/zero/shell/novashell/src/main.rs
+zero/shell/nsh-test/src/main.rs	cat ~/0-core/zero/shell/novashell/Cargo.toml
+zero/shell/nsh-test/src/main.rs	cat ~/0-core/zero/shell/novashell/Cargo.toml | grep name
+zero/shell/nsh-test/src/main.rs	grep -r 'expand_braces' ~/0-core/zero/shell/novashell/src/ | head -1
+zero/shell/nsh-test/src/main.rs	ls ~/0-core/zero/shell | grep novashell | wc -l
+zero/shell/nsh-test/src/main.rs	grep -r expand_braces ~/0-core/zero/shell/novashell/src/ | head -1
+zero/shell/nsh-test/src/main.rs	echo ok && grep 'expand_braces' ~/0-core/zero/shell/novashell/src/main.rs | head -1
+zero/shell/nsh-test/src/main.rs	ls ~/0-core/zero/shell
+zero/shell/nsh-test/src/main.rs	ls ~/0-core/zero/shell/novashell/src
+zero/shell/nsh-test/src/main.rs	0-core/zero/tools/README.md
+zero/shell/nsh-test/src/main.rs	zero/shell/novashell/Cargo.toml
+zero/tools/teach/src/main.rs	zero/tools/

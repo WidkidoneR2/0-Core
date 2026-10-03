@@ -208,6 +208,8 @@ Hard: recon and cistart before code. Evidence on any gate that could pass by doi
 
 Light: “file created” needs no artifact. “The VM boots” does.
 
+An exit code is evidence only from a command that sets one on purpose. diff on this machine is a structural viewer that exits 0 with or without changes; compare files with cmp.
+
 Forward-only: never retrofit old intents.
 
 A gate can be closed by declining the thing, with numbered reasons. That is still proof.
@@ -351,6 +353,7 @@ A green build is not the claim. The claim is the thing running.
 - VM first for compositor, greeter, or login. Never on bare metal blind.
 - Test the class, not the example. Quoting, $, &&, Unicode, multiline, pipes, redirection, substitution — cover the family.
 - Red first. A test that has only ever passed has not been shown to test anything.
+- Test an owner against the real tree, not only a stand-in. Beside the fixture tests, one test asks the owner and checks the disk itself -- the crate it names exists, the directories it scans hold what it returns -- so the owner and the tree cannot disagree without a red test.
 - After a visual change, take a screenshot. Do not call a visual change done from the config diff.
 - Check ps before any broad process kill. Never pkill -f on a loose pattern.
 
