@@ -892,31 +892,47 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
 - [x] THE MAP exists and is guarded: a test fails when a directory exists that the map does not
       name, or the map names one that does not exist. Seen red on a planted directory first
 <!-- evidence: 2026-10-01, the debug nsh-test with docs/TREE.md (25 entries): 213 of 213. With zz-planted/note planted: 212 of 213, the_tree_map_names_every_entry naming zz-planted/ and its fix. Removed: 213 of 213. The other direction, a name in the map that does not exist, is every_backticked_repo_path_in_the_docs_exists. -->
-- [ ] THE ORDER holds: the move lands after INT-247's sayings, identifiers, INT-263 and INT-264,
+- [x] THE ORDER holds: the move lands after INT-247's sayings, identifiers, INT-263 and INT-264,
       and before its docs rewrite. Evidence: the commit hashes, in order
-- [ ] THE MOVE: git mv and every live path rewrite in ONE commit per branch, against a
+<!-- evidence: git merge-base --is-ancestor, 2026-10-03: 3de890ff (INT-263 and INT-264 closed on evidence) before bbce22a1, bbce22a1 before 6df319fd, 6df319fd before 183d2f26 -- all true. -->
+- [x] THE MOVE: git mv and every live path rewrite in ONE commit per branch, against a
       fingerprinted census; rehearsed on a clean clone and byte-identical to the live tree;
       rollback rehearsed before it runs
-- [ ] THE DOORS on the moved tree: cargo test --workspace all ok, ship 0 failed, nsh-test all
+<!-- evidence: ruled complete by Christian 2026-10-03. The rename landed as bbce22a1 plus 6df319fd (its git add named a path the move had removed, so 20 files followed in a second commit -- a recorded deviation from one commit per branch); the branch landed as 183d2f26, one commit. Census fingerprinted before each: 89f59ab17730 at 68623b38 before the rename, 7b233342c899 at b92f6cf2 before the branch; the final census c68c564ad9db at 0ad1f9a9 shows only history lines and the owner naming an old path. Each move was planned, reviewed and applied against a fingerprint; a separate clean-clone and rollback rehearsal is not evidenced here. -->
+- [x] THE DOORS on the moved tree: cargo test --workspace all ok, ship 0 failed, nsh-test all
       passing, d 0 failed, exec nsh loads the aliases, and each moved crate builds by name
-- [ ] NOTHING OUTSIDE THE REPO BROKE: the home sweep after the move finds no caller of an old
+<!-- evidence: 2026-10-03 at 0ad1f9a9: cargo test --workspace 357 passed over 26 result lines, 0 failed; cargo build -p novashell -p nsh-test finished; ship 0 failed; nsh-test 215 of 215; d 0 failed; the cheatsheet refresh of the new nsh read 244 aliases. -->
+- [x] NOTHING OUTSIDE THE REPO BROKE: the home sweep after the move finds no caller of an old
       path
-- [ ] STATE UNTOUCHED: the Zero Alias probe reads the same before and after; nothing under
-      ~/.local/state, ~/.config, ~/.cache or ~/.local/share changed
-- [ ] HISTORY UNTOUCHED: completed intents and CHANGELOGs still name the old paths, and
+<!-- evidence: home sweep 2026-10-03 at 0ad1f9a9: 54 text files read (rc files, Hyprland, systemd user units, ~/.local/bin, ~/.config/nsh, autostart, desktop entries) for rust-tools, zero/tools/novashell, zero/tools/nsh-test and 0-core/devbox -- 0 hits. crontab is not installed (Recon 2026-10-01). -->
+- [x] STATE UNTOUCHED (re-worded by Christian 2026-10-03: the original named the probe by its old
+      name, asked for a reading of it that was never taken before the move, and asked that nothing
+      change in directories that change on every command): the move commits name only paths inside
+      the repo (bbce22a1, 6df319fd, 183d2f26); d's Zero Paths check -- the zero_alias probe, whose
+      inputs are five directories outside the repo -- reads PASS after the move; and d's
+      Fingerprint, whose tree.dirs are the five home directories, reads digest a56683c54812378b
+      before and after each move commit
+<!-- evidence: git show --name-only: bbce22a1 186 paths, 6df319fd 20, 183d2f26 96, none absolute or under the home directory. one_name_pairs (zero-doctor probes/files.rs:88-99) reads the zero state, config, cache and data directories and ~/.config/nsh. d 2026-10-03: Zero Paths PASS, 5 directories, one name each; Fingerprint digest a56683c54812378b, as recorded before the move (Design addendum, 3de890ff), at 6df319fd, at 7c765757 and today. -->
+- [x] HISTORY UNTOUCHED: completed intents and CHANGELOGs still name the old paths, and
       git log --follow finds a moved file's history
-- [ ] AGENTS.md names the new paths, in the move commit
-- [ ] SIMPLE, measured: the repo root and zero/ hold only entries the map names, each with its
+<!-- evidence: git show -M --name-status: every CHANGELOG in a move commit is R100 (bbce22a1: novashell, nsh-test, zero-git, zero-sandbox; 183d2f26: novashell, nsh-test); no completed intent or decision is in any move commit. git log --follow zero/shell/novashell/src/main.rs reaches 381 commits, back to 96f6e861 (INT-120 Phase 1). Exception recorded: the ratchet file moved as add plus delete, so --follow does not follow it. -->
+- [x] AGENTS.md names the new paths, in the move commit
+<!-- evidence: AGENTS.md changed in 6df319fd (line 62, the rename) and 183d2f26 (the branch); read 2026-10-03, no line names rust-tools, zero/tools/novashell, zero/tools/nsh-test or a root devbox/. -->
+- [x] SIMPLE, measured: the repo root and zero/ hold only entries the map names, each with its
       one line, and no single-file directory or one-off script remains without a ruling
-- [ ] ONE OWNER (L2, commit 0): every live Rust site that locates a crate directory asks
+<!-- evidence: git ls-files 2026-10-03: the root holds 15 entries and zero/ 10, each named in docs/TREE.md (the_tree_map_names_every_entry passes in nsh-test 215 of 215). Single-file directories: labs/ and .cargo/ only, both kept by ruling (Design 2026-10-01, rulings 3 and 4). -->
+- [x] ONE OWNER (L2, commit 0): every live Rust site that locates a crate directory asks
       zero_core::paths. A guard fails on any string literal outside paths.rs that names the crate
       directory (its exemptions a written list), and a test fails when crate_dirs() and the
       Cargo.toml members disagree. Both seen RED first; behaviour unchanged, its own commit
-- [ ] SAFETY LISTS MOVE WITH THE TREE: the novashell protected lists (commands/mod.rs 2599, 3551,
+<!-- evidence: nsh-test crate_directory_has_one_owner (the guard; its written exemption list zero/shell/nsh-test/crate-paths-allowed.txt holds 21 entries, all L3c: 20 nsh-test fixtures, tilde strings and scanners, and teach zero/tools/) and crate_dirs_match_the_workspace, both seen RED first (abe2adab, 52a0cc57) and passing in nsh-test 215 of 215 on 2026-10-03. Step 0 commits df771d1d to 68623b38 moved every other site to zero_core::paths. -->
+- [x] SAFETY LISTS MOVE WITH THE TREE: the novashell protected lists (commands/mod.rs 2599, 3551,
       3631, 3866, 3983) and zero/RISK.toml name directories that exist after each move commit,
       proven by a test that goes red on a protected entry naming a missing directory
-- [ ] FINGERPRINT UNCHANGED: d's Fingerprint check reads digest a56683c54812378b before and after
+<!-- evidence: novashell commands/guards.rs:67 every_delete_guard_dir_exists (288fb6d4) fails on a protected entry naming a missing directory; it passed in cargo test --workspace, 357 passed, 2026-10-03. zero/RISK.toml holds no path list; the one directory it names, zero/shell/novashell/ (line 18), exists. -->
+- [x] FINGERPRINT UNCHANGED: d's Fingerprint check reads digest a56683c54812378b before and after
       each move commit
+<!-- evidence: d Fingerprint digest a56683c54812378b before the move (Design addendum, 3de890ff), after the rename (6df319fd night record), after the branch (7c765757 doors) and on 2026-10-03 at 0ad1f9a9. -->
 - [x] REGISTRY DRIFT RESOLVED (added 2026-10-02 by Christian; completed after the original gates):
       the four drift proposals the woken check recorded (pending_fixes 9-12: core 3.1.0 to 4.1.2,
       db-browse 1.0.0 to 2.1.0, friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0) are applied
