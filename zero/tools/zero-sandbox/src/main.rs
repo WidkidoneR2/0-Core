@@ -15,7 +15,7 @@ use std::fs;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 #[derive(Parser)]
 #[command(name = "zero-sandbox")]
@@ -527,40 +527,6 @@ fn emit_to_ledger_with_policy(
         files_changed,
         session.network_isolated,
         policy_str,
-    );
-    conn.execute(
-        "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
-        rusqlite::params!["sandbox", "run", payload, ts],
-    )
-    .ok();
-}
-
-#[allow(dead_code)]
-fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
-    let db_path = zero_core::paths::state_db();
-    if !db_path.exists() {
-        return;
-    }
-    let Ok(conn) = zero_core::state_db::open_at(
-        std::path::Path::new(&db_path),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
-    ) else {
-        return;
-    };
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    let exit_code = session.exit_code.unwrap_or(-1);
-    let result = if exit_code == 0 { "ok" } else { "fail" };
-    let payload = format!(
-        r#"{{"actor":"zero-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{}}}}}"#,
-        result,
-        session.command.replace('"', "'"),
-        exit_code,
-        duration_secs,
-        files_changed,
-        session.network_isolated,
     );
     conn.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
