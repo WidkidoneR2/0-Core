@@ -300,7 +300,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
     // Check shell intelligence gate
     proposals.push((
         "Shell Intelligence Gate — May 3".to_string(),
-        "fsh daily driver clock running since 2026-04-03. 28 days remain. Continue using fsh exclusively to strengthen the gate.".to_string()
+        "nsh daily driver clock running since 2026-04-03. 28 days remain. Continue using nsh exclusively to strengthen the gate.".to_string()
     ));
     // Deduplicate — don't store if same title exists in last 7 days
     let week_ago = now - 604800;
@@ -745,7 +745,7 @@ fn roadmap(ctx: &AppContext) -> CoreResult<()> {
         ),
         (
             "NOW",
-            "INT-179 fsh daily driver",
+            "INT-179 nsh daily driver",
             "30-day clock running -- May 3 gate",
         ),
         (
@@ -755,7 +755,7 @@ fn roadmap(ctx: &AppContext) -> CoreResult<()> {
         ),
         (
             "SOON",
-            "INT-194 fsh v4",
+            "INT-194 nsh v4",
             "shell intelligence -- prediction-aware suggestions",
         ),
         ("SOON", "INT-195 Journal", "system writes its own story"),
@@ -805,7 +805,7 @@ fn roadmap_why(ctx: &AppContext) -> CoreResult<()> {
         "3.".bright_white()
     );
     println!(
-        "  {} fsh v4 — prediction-aware shell closes the intelligence feedback loop",
+        "  {} nsh v4 — prediction-aware shell closes the intelligence feedback loop",
         "4.".bright_white()
     );
     println!(
@@ -827,7 +827,7 @@ fn roadmap_diff(ctx: &AppContext) -> CoreResult<()> {
     println!("  Where Project 0's view diverges from ledger order:");
     println!();
     println!(
-        "  {} Project 0 prioritizes INT-195 (journal) before fsh v4",
+        "  {} Project 0 prioritizes INT-195 (journal) before nsh v4",
         "→".bright_yellow()
     );
     println!("    Reason: longitudinal memory is a v14 prerequisite, not optional");

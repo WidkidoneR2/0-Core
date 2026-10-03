@@ -245,10 +245,10 @@ pub fn interpret(input: &str) -> SemanticIntent {
             layer2_description: format!("Snapshot(System) -- capture current state"),
             layer3_commands: vec![format!("snapshot {}", rest)],
         },
-        "fsh" if rest.starts_with("doctor") => SemanticIntent {
+        "nsh" if rest.starts_with("doctor") => SemanticIntent {
             raw_input: input.to_string(),
             action: Action::Doctor,
-            target: Target::System("fsh".to_string()),
+            target: Target::System("nsh".to_string()),
             category: VerbCategory::Observation,
             confidence: 1.0,
             reversible: true,

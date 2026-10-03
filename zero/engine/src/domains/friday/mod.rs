@@ -516,7 +516,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             .iter()
             .any(|w| q_lower.contains(w))
             .then_some("dbus"))
-        .or(["deploy", "intent", "fsh", "state.db"]
+        .or(["deploy", "intent", "nsh", "state.db"]
             .iter()
             .any(|w| q_lower.contains(w))
             .then_some("zero"))
@@ -1224,8 +1224,8 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
         )
     } else if top_gap.is_some() {
         (
-            "fsh Script Mode -- Eliminate python3 /tmp/ Workflow Completely",
-            "fsh, shell, workflow, scripting, friction",
+            "nsh Script Mode -- Eliminate python3 /tmp/ Workflow Completely",
+            "nsh, shell, workflow, scripting, friction",
             "Friday has observed hundreds of python3 /tmp/ invocations. \
                 Every one is friction. The run builtin exists but the habit persists. \
                 Project 0 needs a first-class script mode that makes python3 /tmp/ obsolete."

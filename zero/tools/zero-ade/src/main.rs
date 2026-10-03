@@ -118,7 +118,7 @@ impl App {
             pty_output,
             pty_writer,
             terminal_lines: vec![vec![(
-                "fsh starting...".to_string(),
+                "nsh starting...".to_string(),
                 Style::default().fg(GREEN),
             )]],
 
@@ -529,7 +529,7 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(term_border))
             .title(Span::styled(
-                " fsh ",
+                " nsh ",
                 Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
             ))
             .style(Style::default().bg(BG)),

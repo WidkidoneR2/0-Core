@@ -535,8 +535,8 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
         (&["security", "scan"], "core security scan", 0.92),
         (&["audit"], "cargo audit", 0.88),
         // Misc
-        (&["shell", "info"], "fsh", 0.90),
-        (&["fsh", "info"], "fsh", 0.90),
+        (&["shell", "info"], "nsh", 0.90),
+        (&["nsh", "info"], "nsh", 0.90),
         (&["cheatsheet"], "cheat", 0.95),
         (&["help"], "cheat", 0.88),
         (&["parallel", "deploy"], "ship", 0.85),

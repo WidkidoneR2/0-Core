@@ -778,7 +778,7 @@ async fn friday_record_event(
     );
     let _ = conn.execute(
         "INSERT INTO friday_observations (timestamp, source, kind, content) VALUES (?1, ?2, ?3, ?4)",
-        rusqlite::params![timestamp, "fsh", "command", &obs_content],
+        rusqlite::params![timestamp, "nsh", "command", &obs_content],
     );
     // Gate 7 -- speak when command matches a known pattern trigger
     let speak_msg: Option<String> = {

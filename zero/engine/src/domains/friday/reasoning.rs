@@ -140,7 +140,7 @@ pub fn starter_rules() -> Vec<Rule> {
                 if events > 0 {
                     Some(Observation {
                         conclusion: format!(
-                            "fsh emitting {} events today -- shell intelligence active",
+                            "nsh emitting {} events today -- shell intelligence active",
                             events
                         ),
                         confidence: 0.9,

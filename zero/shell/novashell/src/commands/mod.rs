@@ -1262,7 +1262,7 @@ fn execute_dispatch(
         // have always accepted fsh and shell for one concept. nsh joins
         // them rather than replacing fsh, because muscle memory is real and a verb that
         // stops working is a worse greeting than one that has two spellings.
-        "nsh" | "fsh" => match args.first().copied() {
+        "nsh" => match args.first().copied() {
             Some("doctor") => fsh_doctor_cmd(db, args.get(1..).unwrap_or(&[])),
             Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
             Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
@@ -11263,7 +11263,6 @@ fn explain_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
         "reload",
         "source",
         "nsh",
-        "fsh",
         "explain",
         "where",
         "hs",
@@ -11413,8 +11412,8 @@ fn where_cmd(db: &StateDb, _core_root: &str, args: &[&str]) -> CommandResult {
     // Builtin
     let builtins = [
         "cd", "pwd", "ls", "echo", "env", "type", "which", "grep", "find", "tree", "fstat", "peek",
-        "realpath", "time", "exec", "reload", "source", "nsh", "fsh", "explain", "where", "hs",
-        "alias", "unalias", "export", "unset", "let", "run",
+        "realpath", "time", "exec", "reload", "source", "nsh", "explain", "where", "hs", "alias",
+        "unalias", "export", "unset", "let", "run",
     ];
     if builtins.contains(&cmd) {
         out.push_str(&format!(
@@ -12636,7 +12635,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
         Some(c) => c,
         None => return CommandResult::Error("exec: missing command".to_string().into(), 1),
     };
-    let is_self = matches!(*cmd, "nsh" | "fsh" | "shell");
+    let is_self = matches!(*cmd, "nsh" | "shell");
     let resolved = if is_self {
         resolve_nsh_binary() // INT-081: current-system-first, not current_exe()
     } else if cmd.starts_with("~/") {
@@ -12652,7 +12651,7 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
             Some(p) => p,
             None => {
                 // Last resort: try current_exe for any shell-like name
-                if matches!(*cmd, "nsh" | "fsh" | "shell") {
+                if matches!(*cmd, "nsh" | "shell") {
                     std::env::current_exe()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or_else(|_| cmd.to_string())
@@ -14685,12 +14684,12 @@ fn fsh_doctor_cmd(db: &StateDb, args: &[&str]) -> CommandResult {
 
     // 4. shell history writable (can insert a test row)
     let hist_ok = db.conn.execute(
-        "INSERT INTO shell_history (command, timestamp, cwd) VALUES ('__fsh_doctor_test__', 0, '/')",
+        "INSERT INTO shell_history (command, timestamp, cwd) VALUES ('__nsh_doctor_test__', 0, '/')",
         []
     ).is_ok();
     if hist_ok {
         let _ = db.conn.execute(
-            "DELETE FROM shell_history WHERE command = '__fsh_doctor_test__'",
+            "DELETE FROM shell_history WHERE command = '__nsh_doctor_test__'",
             [],
         );
     }
@@ -15807,7 +15806,7 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
         // REPL and always should have been -- it is a pass-through now, so this message is
         // finally TRUE. The old one pointed at `python3 -i`, which this same function broke.
         return CommandResult::Error(
-            "py: no script argument.\n  \u{2192} run a file:    py <file.py>\n  \u{2192} run a snippet: py \"print(1+1)\"\n  \u{2192} a real REPL:   python3   (fsh passes python3 straight through)".to_string()
+            "py: no script argument.\n  \u{2192} run a file:    py <file.py>\n  \u{2192} run a snippet: py \"print(1+1)\"\n  \u{2192} a real REPL:   python3   (nsh passes python3 straight through)".to_string()
         .into(), 1);
     }
     // run python <code> or run python <file.py>
@@ -16090,10 +16089,10 @@ fn scripting_run_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandRes
                 _ => {}
             }
             // Fall through to .fsh handling
-            let resolved = if path.ends_with(".fsh") {
+            let resolved = if path.ends_with(".nsh") {
                 path.to_string()
             } else {
-                format!("{}.fsh", path)
+                format!("{}.nsh", path)
             };
             let candidates = vec![
                 resolved.clone(),

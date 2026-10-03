@@ -1076,7 +1076,7 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
     }
     let mut overlap_found = false;
     for (tag, ids) in &tag_counts {
-        if ids.len() > 1 && !["shell", "fsh", "core"].contains(&tag.as_str()) {
+        if ids.len() > 1 && !["shell", "nsh", "core"].contains(&tag.as_str()) {
             println!(
                 "    {} [{}] touched by: {}",
                 "⚠".bright_yellow(),

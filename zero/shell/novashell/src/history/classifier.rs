@@ -38,7 +38,7 @@ pub struct HistoryRow {
 fn excluded(row: &HistoryRow) -> Option<ExcludedReason> {
     if row.command.starts_with("TIMING:") || row.command.starts_with("SUGGEST:") {
         Some(ExcludedReason::Bookkeeping)
-    } else if row.command == "__fsh_doctor_test__" {
+    } else if row.command == "__nsh_doctor_test__" {
         Some(ExcludedReason::SelfTest)
     } else {
         None

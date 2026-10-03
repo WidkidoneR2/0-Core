@@ -43,7 +43,7 @@ pub const BUILTINS: &[&[&str]] = &[
     &["story"],
     &["advise"],
     &["audit"],
-    &["nsh", "fsh"],
+    &["nsh"],
     &["plan"],
     &["why"],
     &["dry-run"],

@@ -162,7 +162,7 @@ fn curate_builtin_desc(name: &str) -> Option<&'static str> {
         "watch" => "Watch/repeat a command",
         "why" => "Explain why a value or decision won",
         "z" => "Jump to a directory (zoxide-style)",
-        "fsh" => "NovaShell meta-command (roadmap, version, etc.)",
+        "nsh" => "NovaShell meta-command (roadmap, version, etc.)",
         "command" => "Inspect a command's registry entry",
         _ => return None,
     })

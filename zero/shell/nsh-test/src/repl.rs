@@ -396,7 +396,7 @@ fn run_session(
         .stdout(Stdio::from(s_out))
         .stderr(Stdio::from(s_err))
         .spawn()
-        .map_err(|e| format!("spawn fsh: {}", e))?;
+        .map_err(|e| format!("spawn nsh: {}", e))?;
     drop(pty.slave);
 
     let mut master = std::fs::File::from(pty.master);
@@ -429,7 +429,7 @@ fn run_session(
     const READY: &[u8] = b"\x1b[?2004h";
     let mut raw: Vec<u8> = Vec::new();
     wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20))
-        .ok_or_else(|| "fsh never reached its first prompt".to_string())?;
+        .ok_or_else(|| "nsh never reached its first prompt".to_string())?;
     raw.clear(); // the banner belongs to no command
 
     // Each line waits for the prompt to return before the next is sent, because a later command

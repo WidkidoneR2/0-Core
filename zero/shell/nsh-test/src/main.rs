@@ -638,7 +638,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("and_operator", Category::Regression, || {
         expect_contains(&run_fsh("echo a && echo b")?, "b")
     }));
-    results.push(test("and_chain_fsh_builtin", Category::Regression, || {
+    results.push(test("and_chain_nsh_builtin", Category::Regression, || {
         // The chain must run BOTH sides, in order. This expected "3.0.0" -- core's version when it
         // was written -- and kept passing after core moved on only because core version printed an
         // invented "13.0.0" that happened to contain it. INT-247 removed the invention and
@@ -855,10 +855,10 @@ fn all_tests() -> Vec<TestResult> {
             "1",
         )
     }));
-    results.push(test("fsh_c_echo", Category::Regression, || {
+    results.push(test("nsh_c_echo", Category::Regression, || {
         expect_eq(&run_fsh("echo hello")?, "hello")
     }));
-    results.push(test("fsh_c_pipeline", Category::Regression, || {
+    results.push(test("nsh_c_pipeline", Category::Regression, || {
         expect_eq(&run_fsh("echo zero | tr a-z A-Z")?, "ZERO")
     }));
     results.push(test("semicolons_pipeline", Category::Regression, || {
@@ -869,8 +869,8 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("ls_pipe_grep_tmp", Category::Pipes, || {
         // create fsh_t file first
-        std::fs::write("/tmp/fsh_t1.txt", "zero writes").ok();
-        expect_contains(&run_fsh("ls /tmp | grep fsh")?, "fsh")
+        std::fs::write("/tmp/nsh_t1.txt", "zero writes").ok();
+        expect_contains(&run_fsh("ls /tmp | grep nsh")?, "nsh")
     }));
     results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
         let home = fixture_home()?;
@@ -975,8 +975,8 @@ fn all_tests() -> Vec<TestResult> {
         )
     }));
     results.push(test("cat_reads_file", Category::Regression, || {
-        std::fs::write("/tmp/fsh_t1.txt", "zero writes").map_err(|e| e.to_string())?;
-        expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "zero writes")
+        std::fs::write("/tmp/nsh_t1.txt", "zero writes").map_err(|e| e.to_string())?;
+        expect_contains(&run_fsh("cat /tmp/nsh_t1.txt")?, "zero writes")
     }));
     results.push(test("tilde_in_subshell", Category::Tilde, || {
         let home = fixture_home()?;
@@ -1652,6 +1652,7 @@ print('CLASS-DONE')"##;
                 ["Project 0", " {}"].concat(),
                 ["fae", "light-shell"].concat(),
                 ["Fae", "light Shell"].concat(),
+                ["f", "sh"].concat(),
             ];
             let base = std::path::Path::new(&home()).join("0-core/zero");
             let mut stack = zero_core::paths::crate_dirs()
@@ -2481,7 +2482,7 @@ print('CLASS-DONE')"##;
             ))
         },
     ));
-    results.push(test("fsh_binary_exists", Category::Regression, || {
+    results.push(test("nsh_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which nsh")?, "nsh")
     }));
     results.push(test("intents_future_exists", Category::Regression, || {
@@ -2814,7 +2815,7 @@ print('CLASS-DONE')"##;
 
     // --- PHASE 2: INT-298/299 specific regression tests ---
     results.push(test(
-        "regression_fsh_c_inside_fsh",
+        "regression_nsh_c_inside_nsh",
         Category::Regression,
         || {
             // INT-299: fsh -c works inside fsh
@@ -2963,7 +2964,7 @@ print('CLASS-DONE')"##;
             Ok(())
         } else {
             Err(format!(
-                "fsh builtin dispatch not seen (expected 'shell builtin'): {joined:?}"
+                "nsh builtin dispatch not seen (expected 'shell builtin'): {joined:?}"
             ))
         }
     }));
@@ -3358,7 +3359,7 @@ print('CLASS-DONE')"##;
                 fn is_shell_ui(line: &str) -> bool {
                     let t = line.trim();
                     t.is_empty()
-                        || t.contains("fsh❯")
+                        || t.contains("nsh❯")
                         || t.starts_with('🔧')
                         || t.starts_with('○')
                         || t.starts_with('[')
@@ -3388,7 +3389,7 @@ print('CLASS-DONE')"##;
                 // silent weakening as growing is_shell_ui to make a case pass.
                 let fsh_code = fsh_status.ok_or_else(|| {
                     format!(
-                        "fsh emitted no 133;D status marker, so conformance cannot be judged on \
+                        "nsh emitted no 133;D status marker, so conformance cannot be judged on \
                          status: {fsh_out:?}"
                     )
                 })?;
@@ -3408,7 +3409,7 @@ print('CLASS-DONE')"##;
                     (None, true) => Ok(()),
                     (Some(_), false) => Ok(()),
                     (None, false) => Err(format!(
-                        "fsh disagrees with bash on {detail} and nobody wrote down why -- \
+                        "nsh disagrees with bash on {detail} and nobody wrote down why -- \
                          bash: {bash_out:?} (exit {bash_status:?}), \
                          fsh: {fsh_out:?} (exit {fsh_code})"
                     )),
@@ -3990,7 +3991,7 @@ print('CLASS-DONE')"##;
         "hostile_filename_with_space",
         Category::Hostile,
         || {
-            let d = "/tmp/fsh-hostile-space";
+            let d = "/tmp/nsh-hostile-space";
             let _ = std::fs::remove_dir_all(d);
             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
             std::fs::write(format!("{}/two words.txt", d), "x").map_err(|e| e.to_string())?;
@@ -4004,7 +4005,7 @@ print('CLASS-DONE')"##;
         "hostile_filename_with_quote",
         Category::Hostile,
         || {
-            let d = "/tmp/fsh-hostile-quote";
+            let d = "/tmp/nsh-hostile-quote";
             let _ = std::fs::remove_dir_all(d);
             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
             std::fs::write(format!("{}/it\u{27}s.txt", d), "x").map_err(|e| e.to_string())?;
@@ -4018,7 +4019,7 @@ print('CLASS-DONE')"##;
         "hostile_filename_with_glob_chars",
         Category::Hostile,
         || {
-            let d = "/tmp/fsh-hostile-glob";
+            let d = "/tmp/nsh-hostile-glob";
             let _ = std::fs::remove_dir_all(d);
             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
             std::fs::write(format!("{}/star*name.txt", d), "x").map_err(|e| e.to_string())?;
@@ -4034,7 +4035,7 @@ print('CLASS-DONE')"##;
         "hostile_filename_with_newline",
         Category::Hostile,
         || {
-            let d = "/tmp/fsh-hostile-newline";
+            let d = "/tmp/nsh-hostile-newline";
             let _ = std::fs::remove_dir_all(d);
             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
             std::fs::write(format!("{}/line\nbreak.txt", d), "x").map_err(|e| e.to_string())?;
@@ -4674,10 +4675,10 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     ("false | true", None),
     ("true | false", None),
     // --- redirects ---
-    ("echo written > /tmp/fsh_conform_a.txt; sed -n 1p /tmp/fsh_conform_a.txt", None),
-    ("echo one > /tmp/fsh_conform_b.txt; echo two >> /tmp/fsh_conform_b.txt; sed -n 1,2p /tmp/fsh_conform_b.txt", None),
+    ("echo written > /tmp/nsh_conform_a.txt; sed -n 1p /tmp/nsh_conform_a.txt", None),
+    ("echo one > /tmp/nsh_conform_b.txt; echo two >> /tmp/nsh_conform_b.txt; sed -n 1,2p /tmp/nsh_conform_b.txt", None),
     // Truncation: the second write must REPLACE, not append.
-    ("echo one > /tmp/fsh_conform_c.txt; echo two > /tmp/fsh_conform_c.txt; sed -n 1p /tmp/fsh_conform_c.txt", None),
+    ("echo one > /tmp/nsh_conform_c.txt; echo two > /tmp/nsh_conform_c.txt; sed -n 1p /tmp/nsh_conform_c.txt", None),
     // --- file descriptors ---
     // ★ THIS ONE SURVIVES `ls`->`eza` because the semantic under test is "stderr is suppressed":
     // both shells print NOTHING on stdout whichever program the name resolves to.
@@ -4686,9 +4687,9 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     // its error text against bash's compares eza against ls -- the behaviour of a different program,
     // not a shell semantic. The case is about whether `2>&1` sends stderr to the same file as
     // stdout, so it uses a command both shells resolve identically.
-    ("sed -n 1p /nonexistent > /tmp/fsh_conform_d.txt 2>&1; sed -n 1p /tmp/fsh_conform_d.txt", None),
+    ("sed -n 1p /nonexistent > /tmp/nsh_conform_d.txt 2>&1; sed -n 1p /tmp/nsh_conform_d.txt", None),
     // ⚠️ ADJACENCY: a SPACED numeral is an argument, not a descriptor.
-    ("echo 2 > /tmp/fsh_conform_e.txt; sed -n 1p /tmp/fsh_conform_e.txt", None),
+    ("echo 2 > /tmp/nsh_conform_e.txt; sed -n 1p /tmp/nsh_conform_e.txt", None),
     // --- quoting ---
     ("echo \"a > b\"", None),
     ("echo \"a|b\"", None),
