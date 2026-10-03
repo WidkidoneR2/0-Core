@@ -917,11 +917,12 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       proven by a test that goes red on a protected entry naming a missing directory
 - [ ] FINGERPRINT UNCHANGED: d's Fingerprint check reads digest a56683c54812378b before and after
       each move commit
-- [ ] REGISTRY DRIFT RESOLVED (added 2026-10-02 by Christian; completed after the original gates):
+- [x] REGISTRY DRIFT RESOLVED (added 2026-10-02 by Christian; completed after the original gates):
       the four drift proposals the woken check recorded (pending_fixes 9-12: core 3.1.0 to 4.1.2,
       db-browse 1.0.0 to 2.1.0, friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0) are applied
       through core integrity apply, d reads Integrity 100 percent, and the only change in
       zero/registry/tools.toml is those four version lines, in a commit of its own
+<!-- evidence: 7040ed1c: core integrity apply 9, 10, 11 and 12 (friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0, core 3.1.0 to 4.1.2, db-browse 1.0.0 to 2.1.0), each reported Fix applied successfully. tools.toml compared with HEAD line by line: 499 lines before and after, only lines 8, 113, 419 and 455 changed, each to its Cargo.toml version; the commit holds tools.toml alone. d 2026-10-03: Integrity 100 percent (was 67), 0 failed, Fingerprint a56683c54812378b. -->
 - [x] COMMAND COLOUR TELLS THE TRUTH (added 2026-10-03 by Christian; done after THE BRANCH, before
       REGISTRY DRIFT RESOLVED): every builtin the dispatcher runs is coloured as native, a program
       on PATH or an alias as valid, and only what will not run as red. One list of builtins in
