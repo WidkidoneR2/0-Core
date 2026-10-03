@@ -510,7 +510,38 @@ step 2 can capture BEFORE output. Then:
     and above    scripts_dir(), completion.rs:420, experiment_list -- in the Design sections
 ```
 
-## START HERE (2026-10-03, end of the long session; it replaces the START HERE below)
+## CLOSED (2026-10-03) -- INT-267 complete; this replaces the START HERE below
+
+All 17 gates ticked on evidence; cicomplete 267 run the same day. HEAD at close is the commit that
+wrote this section.
+
+### Commits after the START HERE below (oldest first)
+
+- 4e52ee42 command colour, commit B: completion and the cheatsheet read BUILTINS
+- ad924e3c gate ticked: COMMAND COLOUR TELLS THE TRUTH
+- 7040ed1c registry drift resolved: four tool versions follow their Cargo.toml
+- 0ad1f9a9 gate ticked: REGISTRY DRIFT RESOLVED
+- b5617d0b the remaining gates ticked; STATE UNTOUCHED re-worded by Christian
+- 1be43cb3 gate added: FSH IS RETIRED
+- cff66b90 fsh retired: nsh is the only name
+
+### Findings recorded, not fixed
+
+- run_external keeps two hand lists of not-found suggestions (commands/mod.rs near 10202 and
+  10341); both still name intent, which nothing runs. cmd_description in completion.rs is a hand
+  list of descriptions.
+- The partner domain still prints a stale daily-driver clock (28 days remain, since 2026-04-03),
+  now naming nsh.
+- Rows already in state.db keep the old fsh names (knowledge ids, nsh-test results under fsh_*
+  names): history.
+- The comment above the nsh arm (commands/mod.rs near 1262) still explains keeping fsh for muscle
+  memory.
+- d warns Alias Coverage: ship and zero-gate have no aliases.
+- Carried from below: docs/ARCHITECTURE.md lists a root bin/; make is nsh mkdir -p and reads cyan;
+  export reads red; tilde_ls_rust_tools keeps its name; the ratchet file does not follow with git
+  log --follow; the config.nsh diff alias exits 1 on differences.
+
+## SUPERSEDED START HERE (2026-10-03, end of the long session; it replaces the START HERE below) (superseded 2026-10-03 by CLOSED above)
 
 Paste this whole section into a new chat. Christian opens with `ints 267`; Claude reads this and
 continues from NEXT, step 1. Every block Claude sends follows the METHOD at the end.
@@ -948,12 +979,13 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       because NATIVE_COMMANDS and is_known_command's BUILTINS (completion.rs 799, 853) are kept
       by hand
 <!-- evidence: 7c765757 commit A: commands::builtin_names::BUILTINS (211 names: the dispatcher arms, the REPL catches, the job-control words), kept equal to those sources by a test both ways; the highlighter asks it, then zero_core::paths::on_path, then shell_aliases. 4e52ee42 commit B: completion and the cheatsheet read it, COMMANDS removed; hist, flow, fs and intent left first-word completion by ruling 2026-10-03. Read at 4e52ee42: is_native_command, is_known_command, is_known_alias and command_class keep no word list; the only list left is DANGEROUS, 14 words, every one runs. Seen 2026-10-03: intent reads red; Tab on bump offers bump-versions; cheatsheet 147 builtins (was 105). Doors: build 0 warnings, novashell 231 passed, nsh-test 215 of 215, ship 0 failed, d 0 failed, Fingerprint a56683c54812378b. -->
-- [ ] FSH IS RETIRED (added 2026-10-03 by Christian; done before close): fsh joins RETIRED in
+- [x] FSH IS RETIRED (added 2026-10-03 by Christian; done before close): fsh joins RETIRED in
       nsh-test no_retired_display_name_in_printed_strings, seen RED first on the 64 string literals
       in 16 files that carry it (measured 2026-10-03 at b5617d0b). nsh stops answering to fsh: the
       nsh arm, BUILTINS, the cheatsheet, the semantic table and the natural-language table name nsh
       only. Script files are .nsh (no .fsh file exists on this machine). Every printed message and
       fixture says nsh. Comments keep fsh as history (N3). The guard reads green, with the doors.
+<!-- evidence: cff66b90: fsh joined RETIRED in no_retired_display_name_in_printed_strings; seen RED 2026-10-03 with 66 printed sites (214 of 215), GREEN after the fix (215 of 215, debug and deployed). The nsh arm, BUILTINS, the cheatsheet, the semantic table and the natural-language table answer to nsh only; run resolves .nsh scripts. Seen live: fsh reads red, Tab on fs no longer offers fsh, nsh reads cyan. Doors: build 0 warnings, cargo test --workspace 357 passed, ship 0 failed, d 0 failed, Integrity 100 percent, Fingerprint a56683c54812378b. -->
 
 ## Relationship
 
