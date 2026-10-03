@@ -140,9 +140,8 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "-1",
                 "--format=%ct",
                 "--",
-                &format!("rust-tools/{}/", name),
-                &format!("zero/rust-tools/{}/", name),
             ])
+            .args(zero_core::paths::crate_history_pathspecs(name.as_ref()))
             .output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok());
@@ -209,9 +208,12 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "-1",
                 "--format=%ct",
                 "--",
-                &format!("rust-tools/{}/Cargo.toml", name),
-                &format!("zero/rust-tools/{}/Cargo.toml", name),
             ])
+            .args(
+                zero_core::paths::crate_history_pathspecs(name.as_ref())
+                    .iter()
+                    .map(|p| format!("{}Cargo.toml", p)),
+            )
             .output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok());

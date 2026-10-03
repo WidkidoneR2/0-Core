@@ -273,11 +273,10 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     let mut out = String::new();
     out.push_str("## \u{1f4dd} Changelog\n\n");
     // Curated source of truth, if present.
-    let rel = if m.name == "core" {
-        "zero/engine/CHANGELOG.md".to_string()
-    } else {
-        format!("zero/rust-tools/{}/CHANGELOG.md", m.name)
-    };
+    let dir: &str = if m.name == "core" { "engine" } else { &m.name };
+    let rel = zero_core::paths::crate_rel_dir(dir)
+        .map(|d| format!("{}/CHANGELOG.md", d))
+        .unwrap_or_default();
     let curated_path = core_root().join(&rel);
     if curated_path.is_file() {
         // INT-247: the README links the curated CHANGELOG.md instead of embedding it,
@@ -615,12 +614,11 @@ fn truncate_words(s: &str, max: usize) -> String {
 /// PIECE 3: pull recent SUBSTANTIVE commits touching a tool's dir.
 /// Subject-line only, noise-filtered, capped. Returns Vec<(short_hash, subject)>.
 fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
-    let path = format!("rust-tools/{}/", name);
-    let new_path = format!("zero/rust-tools/{}/", name);
     let out = std::process::Command::new("git")
         .arg("-C")
         .arg(core_root())
-        .args(["log", "--pretty=format:%h\x1f%s", "--", &path, &new_path])
+        .args(["log", "--pretty=format:%h\x1f%s", "--"])
+        .args(zero_core::paths::crate_history_pathspecs(name))
         .output();
     let text = match out {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),

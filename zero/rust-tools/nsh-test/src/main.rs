@@ -1648,7 +1648,8 @@ print('CLASS-DONE')"##;
                 ["Fae", "light Shell"].concat(),
             ];
             let base = std::path::Path::new(&home()).join("0-core/zero");
-            let mut stack = vec![base.join("rust-tools"), base.join("engine")];
+            let mut stack = zero_core::paths::crate_dirs()
+                .map_err(|e| format!("cannot list the crates: {}", e))?;
             let mut hits: Vec<String> = Vec::new();
             let mut files = 0usize;
             while let Some(dir) = stack.pop() {

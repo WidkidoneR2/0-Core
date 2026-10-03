@@ -506,7 +506,10 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
 
     // Where each unfiled number is cited. BTreeMap keeps the report stable between runs.
     let mut cites: BTreeMap<u32, Vec<String>> = BTreeMap::new();
-    for sub in ["zero/rust-tools", "zero/engine"] {
+    let crate_trees = zero_core::paths::CRATE_PARENTS
+        .iter()
+        .chain(zero_core::paths::SINGLE_CRATES.iter());
+    for sub in crate_trees {
         collect_citations(&root.join(sub), &filed, &mut cites);
     }
 
@@ -668,15 +671,9 @@ const BAK_PROTECT: &[&str] = &["regreet"];
 fn check_sigpipe_adoption(root: &Path) -> Checked<Vec<Finding>> {
     let mut out = Vec::new();
     let mut dirs: Vec<PathBuf> = Vec::new();
-    let tools = root.join("zero/rust-tools");
-    let entries =
-        std::fs::read_dir(&tools).map_err(|e| Skipped::new(tools.display().to_string(), e))?;
-    for e in entries.flatten() {
-        if e.path().is_dir() {
-            dirs.push(e.path());
-        }
-    }
-    dirs.push(root.join("zero/engine"));
+    let crates = zero_core::paths::crate_dirs_in(root)
+        .map_err(|e| Skipped::new(root.display().to_string(), e))?;
+    dirs.extend(crates);
     dirs.sort();
     for d in dirs {
         let main_rs = d.join("src/main.rs");
@@ -1113,7 +1110,12 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
     ];
     let mut findings = Vec::new();
     let mut exempted = 0usize;
-    let src = root.join("zero/rust-tools/novashell/src");
+    let src = zero_core::paths::crate_rel_dir_in(&root, "novashell")
+        .map(|rel| root.join(rel).join("src"))
+        .unwrap_or_else(|| {
+            root.join(zero_core::paths::CRATE_PARENTS[0])
+                .join("novashell/src")
+        });
     for entry in walkdir::WalkDir::new(&src)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -1421,7 +1423,9 @@ mod cmdword_check_tests {
         );
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("zero/rust-tools/novashell/src");
+        let src = root
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
         root
@@ -1436,7 +1440,9 @@ mod cmdword_check_tests {
         );
         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("zero/rust-tools/novashell/src");
+        let src = root
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join(file), body).expect("fixture file");
         root
@@ -1551,7 +1557,9 @@ mod citation_check_tests {
         for f in filed {
             std::fs::write(intents.join(f), "---\nid: x\n---\n").expect("fixture intent");
         }
-        let src = root.join("zero/rust-tools/novashell/src");
+        let src = root
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("novashell/src");
         std::fs::create_dir_all(&src).expect("fixture dir");
         std::fs::write(src.join("main.rs"), body).expect("fixture file");
         root
@@ -1599,7 +1607,9 @@ mod citation_check_tests {
     fn an_unreadable_ledger_says_so_rather_than_flagging_everything() {
         let root = std::env::temp_dir().join("deadwood_cite_noledger");
         let _ = std::fs::remove_dir_all(&root);
-        let src = root.join("zero/rust-tools/novashell/src");
+        let src = root
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("novashell/src");
         std::fs::create_dir_all(&src).expect("dir");
         std::fs::write(src.join("main.rs"), "// INT-100 INT-200 INT-300\n").expect("file");
         let found = check_dangling_intent_citations(&root);
