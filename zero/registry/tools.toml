@@ -164,14 +164,15 @@ type = "rust"
 deployable = false
 retired = true
 [[tool]]
+# retired 2026-10-03 (INT-265): Omarchy updates the system; the crate is removed
 name = "zero-update"
 version = "1.0.0"
 category = "system"
 description = "System update manager with rollback"
 expected_usage = "medium"
 type = "rust"
-deployable = true
-retired = false
+deployable = false
+retired = true
 [[tool]]
 # binary retired 2026-09-23; the CRATE STAYS -- engine dispatcher, fetch and the
 # doctor import zero_zone as a LIBRARY. Retiring the command is not deleting it.

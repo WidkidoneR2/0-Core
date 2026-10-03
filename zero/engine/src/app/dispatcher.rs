@@ -9,7 +9,7 @@ use crate::cli::commands::{
     LedgerCommand, NotifyCommand, PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand,
     ProfileCommand, ReactCommand, RegistryCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     SelfCommand, SimulateCommand, StrategyCommand, StressCommand, SynthesizeCommand, TraceCommand,
-    TradeoffCommand, UpdateCommand, ValuesCommand, WeightCommand, WhyCommand, WorkspaceCommand,
+    TradeoffCommand, ValuesCommand, WeightCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -305,13 +305,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
-        Command::Update(c) => {
-            ctx.capabilities
-                .require("update", &[Capability::SpawnProcess])?;
-            match c {
-                UpdateCommand::Run { args } => crate::domains::update::update(ctx, &args),
-            }
-        }
         Command::Weight(c) => match c {
             WeightCommand::List => crate::domains::weight_engine::list(ctx),
             WeightCommand::Top => crate::domains::weight_engine::top(ctx),

@@ -104,10 +104,6 @@ pub enum Commands {
         #[arg(long)]
         health_check: bool,
     },
-    Update {
-        #[command(subcommand)]
-        command: UpdateCommands,
-    },
     /// Core v17 — Pattern Weight Engine
     Weight {
         #[command(subcommand)]
@@ -840,14 +836,6 @@ pub enum NotifyCommands {
         urgency: String,
     },
     Status,
-}
-
-#[derive(Subcommand)]
-pub enum UpdateCommands {
-    Run {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
 }
 
 #[derive(Debug, Clone, Subcommand)]

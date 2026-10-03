@@ -87,8 +87,8 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     let rejected = goals.iter().filter(|g| g.5 == "rejected").count();
     let pending = total - accepted - rejected;
     // INT-250: git, not the old commit-count file.
-    // "?" rather than "" or 0 when git cannot answer: the same convention zero-update uses
-    // for health. It says COULD NOT DETERMINE, which is different from zero and different from
+    // "?" rather than "" or 0 when git cannot answer: an unknown says so instead of passing for a value.
+    // It says COULD NOT DETERMINE, which is different from zero and different from
     // a line that was never printed.
     let total_commits: String = std::process::Command::new("git")
         .args([

@@ -445,20 +445,14 @@ pub fn process(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
     // Step 2: read unconsumed, non-expired signals
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT id, source, signal_type, payload, weight
+        "SELECT id, source, signal_type, payload
          FROM engine_signals
          WHERE consumed_by IS NULL AND created_at >= ?1
          ORDER BY created_at ASC LIMIT 50",
     )?;
-    let signals: Vec<(i64, String, String, String, f64)> = stmt
+    let signals: Vec<(i64, String, String, String)> = stmt
         .query_map(params![expire_cutoff], |r| {
-            Ok((
-                r.get(0)?,
-                r.get(1)?,
-                r.get(2)?,
-                r.get(3)?,
-                r.get::<_, Option<f64>>(4)?.unwrap_or(0.0),
-            ))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         })?
         .filter_map(|r| r.ok())
         .collect();
@@ -468,9 +462,9 @@ pub fn process(ctx: &AppContext) -> CoreResult<()> {
     }
     let mut processed = 0usize;
     let mut reactions: Vec<String> = Vec::new();
-    for (id, source, sig_type, payload, weight) in &signals {
+    for (id, source, sig_type, payload) in &signals {
         // No-loop rule: skip if source would consume its own signal
-        let consumer = route_signal(source, sig_type, payload, *weight, &mut reactions);
+        let consumer = route_signal(source, sig_type, payload, &mut reactions);
         // Mark consumed
         let _ = ctx.runtime.db.execute(
             "UPDATE engine_signals SET consumed_by = ?1 WHERE id = ?2",
@@ -507,7 +501,6 @@ fn route_signal(
     source: &str,
     sig_type: &str,
     payload: &str,
-    weight: f64,
     reactions: &mut Vec<String>,
 ) -> String {
     match (source, sig_type) {
@@ -529,16 +522,6 @@ fn route_signal(
                     "health below peak: {:.0}% -- check for uncommitted changes or failed checks",
                     health
                 ));
-            }
-            "engines-coordinator".to_string()
-        }
-        // Critical update → suggest engine sync
-        ("zero-update", "update") => {
-            if weight < 0.8 {
-                reactions.push(
-                    "update completed with reduced health -- verify no breaking changes"
-                        .to_string(),
-                );
             }
             "engines-coordinator".to_string()
         }

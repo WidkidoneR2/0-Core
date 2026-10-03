@@ -44,7 +44,7 @@ and then the ruling is written here beside it.
 | `teach` | keep | 19 | 24 | 2026-09-20 | `t` | passed |
 | `zero-git` | keep | 18 | 1,170 | 2026-09-30 | `zg`, `zga`, `zgc`, `zgp`, `zgs` | passed |
 | `zero-sandbox` | keep | 18 | 19 | 2026-09-25 | `sb`, `sb-clear`, `sb-diff`, `sb-restore`, `sb-snap`, `sb-snaps`, `sb-status` | passed |
-| `zero-update` | keep for now | 9 | 118 | 2026-09-30 | `zu`, `zudr`, `zui`, `zuup`, `update` | passed |
+| `zero-update` | retired 2026-10-03 (INT-265) | 9 | 118 | 2026-09-30 | `zu`, `zudr`, `zui`, `zuup`, `update` | passed |
 | `zero-ade` | keep, for Friday | 5 | 47 | 2026-09-25 | `ade` | undetermined |
 | `zero-gen` | keep | 3 | 3 | 2026-09-25 | `gen` | passed |
 | `db-browse` | keep for now | 2 | 29 | 2026-09-15 | `db` | undetermined |
@@ -70,7 +70,7 @@ No tool is marked replace or retire today. Twenty-three registry entries are alr
 | `teach` | yes | no | no -- Christian's own learning tool | `t` |
 | `zero-git` | yes | no | no -- it wraps git | core's git domain spawns it (git/mod.rs:262); five aliases |
 | `zero-sandbox` | yes | yes -- it IS the DevBox census runner | no | the census; core's sandbox domain spawns it (sandbox/mod.rs:214, 225) |
-| `zero-update` | yes | no | UNANSWERED -- omarchy-update overlaps; not compared | five aliases; nothing spawns it |
+| `zero-update` | yes | no | answered 2026-10-03: Omarchy updates the system, so it retired | five aliases; nothing spawns it |
 | `zero-ade` | yes | yes -- nsh spawns it (commands/mod.rs:16851) | no -- Friday's terminal | `ade` and that spawn |
 | `zero-gen` | yes | no | no -- a generator Christian built | `gen` |
 | `db-browse` | yes | yes -- nsh spawns it (engine.rs:179) | no | `db`; core dispatcher.rs:767 and nsh engine.rs:179 |
@@ -105,7 +105,7 @@ this file says so.
     core has no census case        the most-used tool is the one the clean room does not check
     three tools cannot answer      db-browse, friday-chat, zero-ade wait for input; unchanged
     in a clean room                since 2026-09-15
-    zero-update vs omarchy-update  question 3 is unanswered for it
+    zero-update vs omarchy-update  answered 2026-10-03: retired (INT-265)
     the z-prefix aliases           zg zga zgc zgp zgs, zu zudr zui zuup, zdocs, z-daemon --
                                    renamed from the f- prefix 2026-09-30; the counts above were measured
                                    under the old names. fg is job control only

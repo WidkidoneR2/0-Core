@@ -22,12 +22,6 @@ category = "development"
 
 
 [[alias]]
-command = "zero-update"
-aliases = ["zu", "update"]
-category = "automation"
-
-
-[[alias]]
 command = "intent"
 aliases = ["int"]
 category = "development"

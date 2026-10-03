@@ -4,10 +4,3 @@ description = "Git operations with Risk Score engine"
 binary = "zero-git"
 event_domains = ["git"]
 enabled = true
-
-[[plugins]]
-name = "zero-update"
-description = "System update manager with rollback"
-binary = "zero-update"
-event_domains = ["update"]
-enabled = true

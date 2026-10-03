@@ -158,7 +158,6 @@ pub enum Command {
     Lock {
         health_check: bool,
     },
-    Update(UpdateCommand),
     Weight(WeightCommand),
     Daemon(DaemonCommand),
     Self_(SelfCommand),
@@ -424,11 +423,6 @@ pub enum NotifyCommand {
         urgency: String,
     },
     Status,
-}
-
-#[derive(Debug)]
-pub enum UpdateCommand {
-    Run { args: Vec<String> },
 }
 
 #[derive(Debug)]

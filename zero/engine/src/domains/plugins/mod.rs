@@ -279,14 +279,6 @@ fn known_plugin(name: &str) -> Option<Plugin> {
             event_domains: vec!["git".to_string()],
             enabled: true,
         }),
-        "zero-update" => Some(Plugin {
-            name: "zero-update".to_string(),
-            description: "System update manager with rollback".to_string(),
-            binary: "zero-update".to_string(),
-            version: None,
-            event_domains: vec!["update".to_string()],
-            enabled: true,
-        }),
         _ => None,
     }
 }

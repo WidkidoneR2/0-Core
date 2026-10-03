@@ -422,13 +422,7 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
         }
     }
     // Reverse -- what does this tool depend on?
-    let all_tools = [
-        "novashell",
-        "core",
-        "zero-git",
-        "zero-update",
-        "zero-daemon",
-    ];
+    let all_tools = ["novashell", "core", "zero-git", "zero-daemon"];
     let mut upstream: Vec<&str> = Vec::new();
     for t in &all_tools {
         if tool_dependencies(t).contains(&tool) {

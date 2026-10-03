@@ -14117,9 +14117,6 @@ fn dev_cmd(_db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
                 "dev audit-deps",
                 "cargo-udeps -- find unused deps"
             ));
-            out.push_str(&format!(
-                "\n  tools with tests: novashell, zero-core, zero-update, core-diff\n"
-            ));
             CommandResult::Output(out)
         }
     }

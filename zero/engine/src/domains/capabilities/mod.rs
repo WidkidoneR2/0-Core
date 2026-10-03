@@ -94,11 +94,6 @@ const DOMAIN_MAP: &[DomainCaps] = &[
         description: "Application launcher",
     },
     DomainCaps {
-        name: "update",
-        caps: &["process.spawn", "privilege.elevated"],
-        description: "System updates",
-    },
-    DomainCaps {
         name: "capabilities",
         caps: &[],
         description: "Capability introspection (this command)",

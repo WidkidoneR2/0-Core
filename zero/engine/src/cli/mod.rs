@@ -10,8 +10,8 @@ use commands::{
     JournalCommand, LedgerCommand, NotifyCommand, PartnerCommand, PlanCommand, PluginCommand,
     PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand,
     ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand,
-    StressCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand, WeightCommand,
-    WhyCommand, WorkspaceCommand,
+    StressCommand, TraceCommand, TradeoffCommand, ValuesCommand, WeightCommand, WhyCommand,
+    WorkspaceCommand,
 };
 use parser::{
     AlignCommands, AnomalyCommands, AuditCommands, AutobiographyCommands, AutonomyCommands,
@@ -22,8 +22,8 @@ use parser::{
     NotifyCommands, PartnerCommands, PlanCommands, PluginCommands, PredictCommands,
     PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands, ReleaseCommands,
     SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands, StrategyCommands,
-    StressCommands, TraceCommands, TradeoffCommands, UpdateCommands, ValuesCommands,
-    WeightCommands, WhyCommands, WorkspaceCommands,
+    StressCommands, TraceCommands, TradeoffCommands, ValuesCommands, WeightCommands, WhyCommands,
+    WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -333,9 +333,6 @@ pub fn parse() -> Command {
             NotifyCommands::Status => NotifyCommand::Status,
         }),
         Commands::Lock { health_check } => Command::Lock { health_check },
-        Commands::Update { command } => Command::Update(match command {
-            UpdateCommands::Run { args } => UpdateCommand::Run { args },
-        }),
         Commands::Weight { command } => Command::Weight(match command {
             WeightCommands::List => WeightCommand::List,
             WeightCommands::Top => WeightCommand::Top,

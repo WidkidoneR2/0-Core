@@ -262,18 +262,6 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             replaces: Some("lazygit".to_string()),
         },
         ToolInfo {
-            name: "zero-update".to_string(),
-            version: "1.0.0".to_string(),
-            description: "Update dashboard. Scans cargo tools, neovim, workspace, git, firmware, flatpak; runs a health gate before applying.".to_string(),
-            commands: vec![
-                "zero-update             # interactive TUI with category selection".to_string(),
-                "zero-update --dry-run   # preview all updates".to_string(),
-                "zero-update --only cargo,npm  # targeted categories".to_string(),
-            ],
-            philosophy: "Updates are not automatic. You see what changes before it changes. The health gate ensures you never update a broken system.".to_string(),
-            replaces: None,
-        },
-        ToolInfo {
             name: "dot-doctor".to_string(),
             version: "2.0.0".to_string(),
             description: "22-check system health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
@@ -561,7 +549,6 @@ fn slide_live_demo(snap: &SystemSnapshot) {
     println!("  {}", "Try these live:".yellow().bold());
     println!("  {} zero-git status", "→".dimmed());
     println!("  {} doctor", "→".dimmed());
-    println!("  {} zero-update --dry-run", "→".dimmed());
 }
 
 fn slide_numbers(snap: &SystemSnapshot) {
@@ -810,7 +797,6 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
         ("workflow", "Daily Workflow", lesson_workflow),
         ("intent", "Intent Ledger", lesson_intent),
         ("git", "zero-git", lesson_git),
-        ("update", "zero-update", lesson_update),
     ];
 
     loop {
@@ -1043,10 +1029,6 @@ fn lesson_workflow(snap: &SystemSnapshot) {
     );
     println!();
     println!("  {}", "Weekly:".white().bold());
-    println!(
-        "  {} zero-update          # everything in one TUI",
-        "→".dimmed()
-    );
     println!();
     println!(
         "  {} commits have followed this workflow.",
@@ -1096,11 +1078,6 @@ fn lesson_intent(snap: &SystemSnapshot) {
 fn lesson_git(snap: &SystemSnapshot) {
     let tool = snap.tools.iter().find(|t| t.name == "zero-git");
     show_tool_lesson(tool, "zero-git");
-}
-
-fn lesson_update(snap: &SystemSnapshot) {
-    let tool = snap.tools.iter().find(|t| t.name == "zero-update");
-    show_tool_lesson(tool, "zero-update");
 }
 
 fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {

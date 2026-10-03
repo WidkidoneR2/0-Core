@@ -36,7 +36,6 @@ pub mod simulate;
 pub mod snapshot;
 pub mod status;
 pub mod synthesis;
-pub mod update;
 pub mod weight_engine;
 pub mod workspace;
 pub mod zone;
