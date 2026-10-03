@@ -3673,7 +3673,7 @@ fn execute_dispatch(
                     // INT-230: an absent 0-Core expanded this to the EMPTY
                     // string, silently. Returning the shortcut unexpanded at
                     // least shows what happened.
-                    "@rust" => crate::core_integration::tools_root()
+                    "@rust" => crate::core_integration::source_root()
                         .map(|d| d.to_string_lossy().to_string())
                         .unwrap_or_else(|| "@rust".to_string()),
                     // INT-230: same treatment as @rust -- an absent 0-Core
@@ -3681,7 +3681,10 @@ fn execute_dispatch(
                     "@intents" => crate::core_integration::intents_root()
                         .map(|d| d.to_string_lossy().to_string())
                         .unwrap_or_else(|| "@intents".to_string()),
-                    "@scripts" => format!("{}/0-core/scripts", home),
+                    "@scripts" => zero_core::paths::source_dir()
+                        .join("scripts")
+                        .to_string_lossy()
+                        .to_string(),
                     "@docs" => format!("{}/0-core/docs", home),
                     p if p.starts_with("~/") => format!("{}/{}", home, &p[2..]),
                     p => p.to_string(),
@@ -4192,7 +4195,7 @@ fn execute_dispatch(
                         // INT-230: was unwrap_or_default(), which REPLACED the
                         // core_root default with an EMPTY path and handed that
                         // to fd. Refuses now.
-                        match crate::core_integration::tools_root() {
+                        match crate::core_integration::source_root() {
                             Some(d) => search_root = d,
                             None => {
                                 return CommandResult::Error(
@@ -4425,11 +4428,8 @@ fn execute_dispatch(
                     // It returned an empty table, which this builtin defines as "the files were
                     // read, the pattern did not appear" -- a real answer to a search never run.
                     "--all" => {
-                        match crate::core_integration::tools_root() {
-                            Some(d) => {
-                                search_root =
-                                    d.parent().and_then(|p| p.parent()).map(|p| p.to_path_buf())
-                            }
+                        match crate::core_integration::source_root() {
+                            Some(d) => search_root = d.parent().map(|p| p.to_path_buf()),
                             None => {
                                 return CommandResult::Error(
                                     "  fsearch: --all needs 0-Core, which is not present"
@@ -4442,8 +4442,8 @@ fn execute_dispatch(
                         i += 1;
                     }
                     "--scripts" => {
-                        match crate::core_integration::tools_root() {
-                            Some(d) => search_root = d.parent().map(|p| p.join("scripts")),
+                        match crate::core_integration::source_root() {
+                            Some(d) => search_root = Some(d.join("scripts")),
                             None => {
                                 return CommandResult::Error(
                                     "  fsearch: --scripts needs 0-Core, which is not present"
@@ -5826,7 +5826,7 @@ fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
     // INT-230 G4: an absent 0-Core is REFUSED, not rendered as an empty
     // table. Empty output with exit 0 is the successful-looking empty result
     // INT-227 forbids. Same shape as the find @rust arm.
-    let tools_dir = match crate::core_integration::tools_root() {
+    let _zero = match crate::core_integration::source_root() {
         Some(d) => d,
         None => {
             return CommandResult::Error(
@@ -5839,7 +5839,7 @@ fn tools_table(db: &StateDb, core_root: &str) -> CommandResult {
     };
     let mut rows = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(&tools_dir) {
+    if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if !entry.path().join("Cargo.toml").exists() {

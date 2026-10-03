@@ -268,7 +268,7 @@ impl ExecContext {
 
 /// Preexec hook — runs before every command
 /// Returns None to allow execution, Some(message) to block
-fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Option<String> {
+fn preexec(ctx: &ExecContext, rules: &[BeforeRunRule]) -> Option<String> {
     // INT-169 blocker 8: `ctx.cmd` preserves the CASE it was invoked with, so protection
     // predicates normalize HERE, where the policy is chosen, rather than relying on stored
     // normalization. (That was a statement about case, not about lifecycle stage.)
@@ -288,8 +288,8 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
     }
     // ── Safety Rule 1b: repo source protection ────────────────────────────────
     // The precondition is REPEATED rather than shared, deliberately. This is a separate policy
-    // that happens to apply under the same condition, and it depends on core_root and the paths::
-    // helpers -- folding it into the predicate above would make that predicate impure and
+    // that happens to apply under the same condition, and it depends on zero_core::paths and the
+    // filesystem -- folding it into the predicate above would make that predicate impure and
     // environment-dependent, which is the wrong trade for the thing it protects.
     if cmd == "rm" {
         let expanded_lower = expanded.to_lowercase();
@@ -300,21 +300,8 @@ fn preexec(ctx: &ExecContext, core_root: &str, rules: &[BeforeRunRule]) -> Optio
             // contains the empty string, so this guard BLOCKED EVERY rm -rf and
             // named '' as the thing it was protecting. A protected list must
             // hold paths that EXIST; an absent one is not an entry.
-            let core_src = crate::core_integration::tools_root()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let core_engine = format!("{}/engine", core_root);
-            let core_intents = zero_core::paths::intents_dir()
-                .to_string_lossy()
-                .to_string();
-            for protected in [
-                core_src.as_str(),
-                core_engine.as_str(),
-                core_intents.as_str(),
-            ]
-            .iter()
-            .filter(|p| !p.is_empty())
-            {
+            let guarded = crate::core_integration::rm_guarded_dirs();
+            for protected in guarded.iter().map(|s| s.as_str()) {
                 if expanded.contains(protected) {
                     return Some(format!(
                         "🛡  Blocked: rm -rf on repo source '{}' — use git to manage removals",
@@ -782,7 +769,7 @@ pub fn execute_spine(
 ) -> CommandResult {
     let ctx = ExecContext::from_plan(plan, source, db);
     crate::mark("  execute_spine: ctx built");
-    if let Some(block_reason) = preexec(&ctx, core_root, rules) {
+    if let Some(block_reason) = preexec(&ctx, rules) {
         return CommandResult::Error(block_reason.into(), 1);
     }
     crate::mark("  execute_spine: preexec done");
@@ -1033,7 +1020,7 @@ impl crate::spine::plan::CommandRunner for SpineCommandRunner<'_> {
         // than a user command, so it must not create a `command_execution` row. Blocking is a
         // decision about whether to evaluate an expression; it is not a shell lifecycle event.
         let ctx = crate::exec::ExecContext::from_plan(plan, "", self.db);
-        if let Some(reason) = preexec(&ctx, self.core_root, self.rules) {
+        if let Some(reason) = preexec(&ctx, self.rules) {
             // FAILED, NOT UNSUPPORTED, and the distinction is the whole point of the enum.
             // A blocked substitution must SURFACE: declining here would hand the line to legacy,
             // which would run the very thing the guard refused.
@@ -1527,7 +1514,7 @@ mod preexec_boundary_tests {
     #[test]
     fn blocks_aliased_catastrophic_rm() {
         let ctx = aliased("nuke", &["rm", "-rf", "/home"]);
-        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+        assert!(preexec(&ctx, &[]).is_some());
     }
 
     /// Repo-source protection. Still inline in preexec and therefore untested until now: a
@@ -1538,7 +1525,7 @@ mod preexec_boundary_tests {
             .to_string_lossy()
             .to_string();
         let ctx = aliased("cleanup", &["rm", "-rf", intents.as_str()]);
-        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_some());
+        assert!(preexec(&ctx, &[]).is_some());
     }
 
     /// Rule 3 became ADVISORY on 2026-08-27. It used to BLOCK a cp onto a core
@@ -1552,7 +1539,7 @@ mod preexec_boundary_tests {
             "install",
             &["cp", "/tmp/thing", "/home/christian/.cargo/bin/core"],
         );
-        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_none());
+        assert!(preexec(&ctx, &[]).is_none());
     }
 
     /// The negative direction matters as much: a harmless execution must not be blocked just
@@ -1560,7 +1547,7 @@ mod preexec_boundary_tests {
     #[test]
     fn allows_harmless_execution_with_alarming_typed_form() {
         let ctx = aliased("rm -rf /home", &["echo", "pretend"]);
-        assert!(preexec(&ctx, "/home/christian/0-core", &[]).is_none());
+        assert!(preexec(&ctx, &[]).is_none());
     }
 }
 #[cfg(test)]
@@ -1795,7 +1782,7 @@ pub fn execute_with_context(
     // complete_command_execution with `result.execution_id`, which is the same id.
 
     // Preexec — can block execution
-    if let Some(block_reason) = preexec(&ctx, core_root, rules) {
+    if let Some(block_reason) = preexec(&ctx, rules) {
         // A block is a lifecycle OUTCOME, not an absence: no executed text because the command
         // never reached expansion, no exit code because no process ran.
         if let Err(e) = db.complete_command_execution(&crate::db::ExecutionCompletion {

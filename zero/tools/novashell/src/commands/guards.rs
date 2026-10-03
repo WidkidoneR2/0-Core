@@ -31,6 +31,7 @@ pub fn delete_guard_dirs() -> Vec<PathBuf> {
 }
 
 /// The entries of a guard list that name no directory: a guard that protects nothing.
+#[cfg(test)]
 pub fn missing(dirs: &[PathBuf]) -> Vec<PathBuf> {
     dirs.iter().filter(|d| !d.is_dir()).cloned().collect()
 }
@@ -68,5 +69,32 @@ mod tests {
         assert!(protected_markers(&[])
             .iter()
             .any(|m| p.contains(m.as_str())));
+    }
+
+    /// INT-267 step 2b: rm -rf guards every crate home and the ledger, and each entry exists --
+    /// a guard naming a missing directory protects nothing. Seen red while the engine entry
+    /// named ~/0-core/engine, which the tree left when it moved under zero/.
+    #[test]
+    fn rm_guard_names_every_crate_home_and_each_exists() {
+        let guarded = crate::core_integration::rm_guarded_dirs();
+        let core = zero_core::paths::core_dir();
+        let homes = zero_core::paths::CRATE_PARENTS
+            .iter()
+            .chain(zero_core::paths::SINGLE_CRATES.iter());
+        for home in homes {
+            let want = core.join(home).to_string_lossy().to_string();
+            assert!(
+                guarded.contains(&want),
+                "rm -rf does not guard {want}: {guarded:?}"
+            );
+        }
+        let gone: Vec<&String> = guarded
+            .iter()
+            .filter(|d| !std::path::Path::new(d.as_str()).is_dir())
+            .collect();
+        assert!(
+            gone.is_empty(),
+            "rm -rf guards what does not exist: {gone:?}"
+        );
     }
 }

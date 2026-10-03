@@ -44,16 +44,31 @@ pub fn present() -> bool {
     intents_root().is_some()
 }
 
-/// The 0-Core tools source tree, when 0-Core is present.
-///
-/// `None` on a machine without 0-Core -- which is every packaged install.
-pub fn tools_root() -> Option<PathBuf> {
-    let dir = zero_core::paths::tools_dir();
+/// The 0-Core source tree (zero/), when 0-Core is present: the home of every Rust crate --
+/// engine, tools and shell (INT-267 step 2b; @rust names it). `None` on a machine without
+/// 0-Core -- which is every packaged install.
+pub fn source_root() -> Option<PathBuf> {
+    let dir = zero_core::paths::source_dir();
     if dir.is_dir() {
         Some(dir)
     } else {
         None
     }
+}
+
+/// What `rm -rf` refuses to touch: every crate parent, every single crate and the intent
+/// ledger, from the owner (INT-267 step 2b). Only directories that exist are entries -- an
+/// absent one guards nothing, or, as an empty string, everything (INT-230).
+pub fn rm_guarded_dirs() -> Vec<String> {
+    let core = zero_core::paths::core_dir();
+    zero_core::paths::CRATE_PARENTS
+        .iter()
+        .chain(zero_core::paths::SINGLE_CRATES.iter())
+        .map(|p| core.join(p))
+        .chain(std::iter::once(zero_core::paths::intents_dir()))
+        .filter(|d| d.is_dir())
+        .map(|d| d.to_string_lossy().to_string())
+        .collect()
 }
 
 /// The Cargo.toml for one tool, or for novashell when `tool` is empty.
@@ -66,12 +81,8 @@ pub fn tools_root() -> Option<PathBuf> {
 /// whether it was real. One owner now, and an arm cannot skip a check that is
 /// not the arm's to skip.
 pub fn tool_manifest(tool: &str) -> Option<PathBuf> {
-    let root = tools_root()?;
-    let manifest = if tool.is_empty() {
-        root.join("novashell/Cargo.toml")
-    } else {
-        root.join(tool).join("Cargo.toml")
-    };
+    let name = if tool.is_empty() { "novashell" } else { tool };
+    let manifest = zero_core::paths::crate_dir(name)?.join("Cargo.toml");
     if manifest.is_file() {
         Some(manifest)
     } else {
