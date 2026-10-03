@@ -280,6 +280,7 @@ mod tests {
     /// The gate that matters most: nothing is chattier by default.
     #[test]
     fn silent_without_the_variable() {
+        let _env = crate::test_env::lock();
         std::env::remove_var("NSH_OBSERVE");
         assert!(!enabled(Target::Router, Level::Warn));
         assert!(!enabled(Target::Jobs, Level::Trace));
@@ -287,6 +288,7 @@ mod tests {
 
     #[test]
     fn targets_select_independently() {
+        let _env = crate::test_env::lock();
         std::env::set_var("NSH_OBSERVE", "router,jobs");
         assert!(enabled(Target::Router, Level::Info));
         assert!(enabled(Target::Jobs, Level::Info));
@@ -296,6 +298,7 @@ mod tests {
 
     #[test]
     fn level_is_a_floor() {
+        let _env = crate::test_env::lock();
         std::env::set_var("NSH_OBSERVE", "all");
         std::env::set_var("NSH_OBSERVE_LEVEL", "warn");
         assert!(enabled(Target::Router, Level::Warn));
@@ -306,6 +309,7 @@ mod tests {
 
     #[test]
     fn unknown_target_names_are_ignored_not_matched() {
+        let _env = crate::test_env::lock();
         std::env::set_var("NSH_OBSERVE", "nonsense");
         assert!(!enabled(Target::Router, Level::Warn));
         std::env::remove_var("NSH_OBSERVE");

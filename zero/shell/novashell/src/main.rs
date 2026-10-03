@@ -31,6 +31,8 @@ mod pty_exec;
 mod registry;
 mod safety_guard;
 #[cfg(test)]
+mod test_env;
+#[cfg(test)]
 mod tests;
 use colored::Colorize;
 mod completion;

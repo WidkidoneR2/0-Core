@@ -1822,6 +1822,7 @@ mod execution_id_tests {
     /// downstream is observing a different execution than it believes it is.
     #[test]
     fn execution_ids_are_unique_and_increasing() {
+        let _env = crate::test_env::lock();
         let a = next_execution_id();
         let b = next_execution_id();
         assert_ne!(a, b, "two executions shared an id");
