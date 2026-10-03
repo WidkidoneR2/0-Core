@@ -13,7 +13,7 @@ that commit changes the tree and this map together.
 | `zero/` | Project 0's platform: the engine, the tools, the ledger, the registry |
 | `zero/RISK.toml` | the risk tier for zero/ (user) |
 | `zero/engine/` | core, the engine binary |
-| `zero/rust-tools/` | every other crate: NovaShell, nsh-test, ship, zero-core and the rest |
+| `zero/tools/` | every other crate: NovaShell, nsh-test, ship, zero-core and the rest |
 | `zero/intents/` | the intent ledger: future, in-progress, complete and the other states |
 | `zero/meta/` | CHANGELOG, INCIDENTS, VERSION, plugins.toml and the release records |
 | `zero/registry/` | declared tools, aliases, profiles, zones, sandbox policies, shell patterns, doctor checks, packages |

@@ -17,9 +17,9 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 flate2 = "1"
-zero-core = { path = "../rust-tools/zero-core", features = ["db"] }
-zero-doctor = { path = "../rust-tools/zero-doctor" }
-zero-zone = { path = "../rust-tools/zero-zone" }
+zero-core = { path = "../tools/zero-core", features = ["db"] }
+zero-doctor = { path = "../tools/zero-doctor" }
+zero-zone = { path = "../tools/zero-zone" }
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 tracing = "0.1"

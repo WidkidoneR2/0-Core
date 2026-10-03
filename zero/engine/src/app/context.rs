@@ -34,7 +34,7 @@ impl AppContext {
     }
 
     /// Resolve a path in the zero/ platform domain (registry, meta, schema,
-    /// runtime, intents, policy). Root-staying dirs (scripts, rust-tools, engine,
+    /// runtime, intents, policy). Root-staying dirs (scripts, tools, engine,
     /// target, flake) use core_root directly, NOT this.
     pub fn fpath(&self, rel: &str) -> std::path::PathBuf {
         std::path::PathBuf::from(&self.source_root).join(rel)

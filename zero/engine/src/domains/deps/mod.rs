@@ -263,7 +263,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
 
 fn gather_deps(_core_root: &str) -> HashMap<String, Vec<String>> {
     let mut result = HashMap::new();
-    let tools_dir = zero_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::tools_dir();
 
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {

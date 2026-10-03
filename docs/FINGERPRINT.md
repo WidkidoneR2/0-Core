@@ -52,12 +52,12 @@ A field that is not on the declared list is not part of the fingerprint. Adding 
 
 ### 2. One collector
 
-`zero/rust-tools/zero-core/src/fingerprint.rs` -- `collect()` reads the nine inputs, `compare()` judges, `Record` holds them. Every tool links zero-core, so every consumer calls the same function and gets the same record. The digest is FNV-1a over the declared tuple only, written in that file and pinned by a test vector.
+`zero/tools/zero-core/src/fingerprint.rs` -- `collect()` reads the nine inputs, `compare()` judges, `Record` holds them. Every tool links zero-core, so every consumer calls the same function and gets the same record. The digest is FNV-1a over the declared tuple only, written in that file and pinned by a test vector.
 
 Two front doors use it today:
 
 - `core fingerprint show` / `record` -- `zero/engine/src/domains/fingerprint/mod.rs`
-- the doctor's Fingerprint check -- `zero/rust-tools/zero-doctor/src/probes/identity.rs`, declared in `registry/doctor/checks.toml`
+- the doctor's Fingerprint check -- `zero/tools/zero-doctor/src/probes/identity.rs`, declared in `registry/doctor/checks.toml`
 
 The expected record lives at `~/.local/state/zero/fingerprint` (`zero_core::paths::fingerprint_file()`). Only `core fingerprint record` writes it.
 

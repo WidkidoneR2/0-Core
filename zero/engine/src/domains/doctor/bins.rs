@@ -51,7 +51,7 @@ fn save_manifest(manifest: &Manifest) -> CoreResult<()> {
 }
 
 fn find_tool_source(tool: &str) -> PathBuf {
-    let rust_tools = zero_core::paths::rust_tools_dir();
+    let rust_tools = zero_core::paths::tools_dir();
     let exact = rust_tools.join(tool);
     if exact.join("Cargo.toml").exists() {
         return exact;

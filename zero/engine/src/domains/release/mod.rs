@@ -12,7 +12,7 @@ pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
             Capability::FilesystemWriteHome,
         ],
     )?;
-    let tools_dir = zero_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::tools_dir();
 
     match package {
         None => {

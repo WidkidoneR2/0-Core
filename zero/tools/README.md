@@ -2,7 +2,7 @@
 
 Project 0's tool ecosystem: 18 active tools (plus 1 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-10-01 by `zero-docs readme-index`
+**Generated:** 2026-10-02 by `zero-docs readme-index`
 
 ---
 
@@ -10,20 +10,20 @@ Project 0's tool ecosystem: 18 active tools (plus 1 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](./core/) | 3.2.17 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](./core/) | 4.1.2 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`zero-daemon`](./zero-daemon/) | 4.0.0 | Background daemon for Project 0 operations |
 
 ## Development
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`db-browse`](./db-browse/) | 1.0.1 | - |
+| [`db-browse`](./db-browse/) | 2.1.0 | - |
 | [`nsh-test`](./nsh-test/) | 2.0.0 | nsh permanent regression suite |
 | [`ship`](./ship/) | 1.0.0 | Build the workspace and place binaries where PATH can see them |
 | [`teach`](./teach/) | 4.0.0 | Live system narrator — adapts to newcomer or expert |
 | [`zero-deadwood`](./zero-deadwood/) | 1.0.0 | - |
 | [`zero-gate`](./zero-gate/) | 0.1.0 | - |
-| [`zero-git`](./zero-git/) | 4.4.2 | Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy. |
+| [`zero-git`](./zero-git/) | 5.1.0 | Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy. |
 | [`zero-sandbox`](./zero-sandbox/) | 3.0.0 | Project 0's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization. |
 
 ## Documentation
@@ -36,7 +36,7 @@ Project 0's tool ecosystem: 18 active tools (plus 1 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`friday-chat`](./friday-chat/) | 1.0.2 | - |
+| [`friday-chat`](./friday-chat/) | 2.1.0 | - |
 | [`zero-ade`](./zero-ade/) | 1.0.0 | - |
 | [`zero-context`](./zero-context/) | 1.0.0 | - |
 | [`zero-insightd`](./zero-insightd/) | 0.1.0 | Background awareness daemon — the nervous system of Project 0 |
@@ -57,7 +57,7 @@ Project 0's tool ecosystem: 18 active tools (plus 1 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`novashell`](./novashell/) | 3.9.0 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+| [`novashell`](./novashell/) | 5.0.0 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
 
 ## Retired
 

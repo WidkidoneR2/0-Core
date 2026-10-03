@@ -59,7 +59,7 @@ Promote a directory to critical the moment it carries boot, login, or disk setti
 
 ### Fingerprint
 
-A fingerprint is the declared identity of this machine and this tree. It is computed once, in one place -- zero_core::fingerprint, at zero/rust-tools/zero-core/src/fingerprint.rs -- and asked about, not re-derived in every crate. Only `core fingerprint record` writes the expected record; the doctor never does.
+A fingerprint is the declared identity of this machine and this tree. It is computed once, in one place -- zero_core::fingerprint, at zero/tools/zero-core/src/fingerprint.rs -- and asked about, not re-derived in every crate. Only `core fingerprint record` writes the expected record; the doctor never does.
 
 * One collector. Do not add a second hash, probe set, or "good enough" identity check. Every consumer asks zero_core::fingerprint: `core fingerprint` and the doctor do today; integrity, DevBox verify and `devshell` Law 0 probes will when each is built. Same class of rule as INT-230: one place the system asks about 0-Core.
 * Inputs are declared. Machine facts the kernel already publishes (identity / machine probes) and tree facts the repo already owns (process / filesystem probes). No silent extras. A field that is not on the declared list is not part of the fingerprint.

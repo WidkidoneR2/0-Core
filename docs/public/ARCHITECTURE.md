@@ -27,7 +27,7 @@ LAYER 2 -- Declarations
   zero/schema/        the schemas the registry is checked against
 
 LAYER 3 -- The tools
-  zero/rust-tools/    NovaShell (nsh), the zero-* tools, and the shared library zero-core
+  zero/tools/         NovaShell (nsh), the zero-* tools, and the shared library zero-core
                       that owns every path and the state database opener
 
 LAYER 4 -- State (outside the repo)
@@ -46,7 +46,7 @@ LAYER 4 -- State (outside the repo)
 0-core/
   zero/
     engine/           core: app/, cli/, domains/, runtime/, capabilities/, errors/, logging/
-    rust-tools/       every other crate; catalog in zero/rust-tools/README.md
+    tools/            every other crate; catalog in zero/tools/README.md
     registry/         Layer 2 declarations
     policy/  schema/  constraints and registry schemas
     intents/          the intent ledger, one markdown file per intent

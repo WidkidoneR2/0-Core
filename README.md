@@ -172,7 +172,7 @@ Around these sit the remaining tools -- git governance, the sandbox, the doc eng
 `docs/inventory.md` says which are used, which are kept for a stated reason, and which are
 neither.
 
-**See the full, always-current tool catalog:** [rust-tools/](zero/rust-tools/)
+**See the full, always-current tool catalog:** [tools/](zero/tools/)
 
 ## Going deeper
 
@@ -181,7 +181,7 @@ This README is the front door. The depth lives here:
 - [Architecture](docs/ARCHITECTURE.md) -- how the pieces fit
 - [Philosophy](docs/PHILOSOPHY.md) -- why it is built this way
 - [Shell Philosophy](docs/NSH-PHILOSOPHY.md) -- the case for a human-first shell
-- [Tool Catalog](zero/rust-tools/) -- every active tool, generated from source
+- [Tool Catalog](zero/tools/) -- every active tool, generated from source
 - [Inventory](docs/inventory.md) -- what is used, what is kept, and what the numbers say
 - [Changelog](zero/meta/CHANGELOG.md) -- the full history, Arch era to Omarchy
 

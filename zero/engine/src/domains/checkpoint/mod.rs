@@ -66,7 +66,7 @@ fn read_git_head() -> String {
 
 fn read_tool_versions() -> HashMap<String, String> {
     let mut versions = HashMap::new();
-    let tools_dir = zero_core::paths::rust_tools_dir();
+    let tools_dir = zero_core::paths::tools_dir();
     if let Ok(entries) = fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let cargo_toml = entry.path().join("Cargo.toml");
