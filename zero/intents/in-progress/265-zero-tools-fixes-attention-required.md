@@ -134,8 +134,9 @@ LIVE:
 
 ## Success Criteria
 
-- [ ] ship never copies a binary whose registry entry says deployable = false -- proven red
+- [x] ship never copies a binary whose registry entry says deployable = false -- proven red
       first, and zero-zone is off PATH
+<!-- evidence: 7634b5cb: ship reads zero/registry/tools.toml through verdict(); a binary ships only when its entry says deployable = true and not retired = true; deployable = false, retired = true or no entry is held and printed with its reason; an unreadable registry ships nothing. Red first: five unit tests, four failing against a stub that shipped everything, all five passing after. zero-zone is not on PATH (2026-10-03). zero-update, retired in c90c9b23, is marked deployable = false, retired = true. -->
 - [ ] The observe.rs tests cannot race: 200 runs of `cargo test -p novashell --bin nsh observe`
       with 0 failures, and the fix covers every test that sets a process-wide variable
 - [ ] The sandbox audit query binds --tool and --limit as parameters; a test with a quote in
@@ -144,7 +145,8 @@ LIVE:
 - [ ] Every dead NixOS-era path above is removed or rewritten, each by its ruling
 - [ ] Every untrue or invented value above reads the real value or says it could not -- never a
       made-up one
-- [ ] zero-update and zero-vm take their paths from paths.rs
+- [x] zero-update and zero-vm take their paths from paths.rs
+<!-- evidence: both are retired, so neither builds a path: zero-update in c90c9b23 (crate removed, binary off PATH, ruled by Christian 2026-10-03), zero-vm on 2026-09-28 (zero/tools/zero-vm does not exist). -->
 - [ ] The dead code and dead files above are deleted, and the two stale lists are true
 - [ ] Aliases: the f family is renamed to z as ruled, in config.nsh and aliases.toml, each new
       name checked first against every command on PATH and every builtin; zg reaches zero-git;
