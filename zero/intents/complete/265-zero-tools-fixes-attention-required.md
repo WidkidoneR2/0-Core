@@ -3,7 +3,7 @@ id: 265
 date: 2026-09-25
 type: future
 title: "Zero Tools fixes ATTENTION REQUIRED"
-status: in-progress
+status: complete
 tags: [zero, nsh, novashell, tools]
 ---
 
