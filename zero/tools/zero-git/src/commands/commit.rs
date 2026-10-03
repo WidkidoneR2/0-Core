@@ -230,16 +230,19 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
                 );
             }
             // Health warning
-            // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-            let health: i64 = zero_core::paths::read_health()
-                .map(|h| h as i64)
-                .unwrap_or(100);
-            if health < 95 {
-                println!(
+            // INT-247 Layer 3a: one owner for the path.
+            // INT-265: an unreadable health is said, not passed as 100%.
+            match zero_core::paths::read_health() {
+                Some(h) if h >= 95 => {}
+                Some(h) => println!(
                     "  {} health: {}% -- below peak, review before committing",
                     "⚠️ ".yellow(),
-                    health.to_string().bright_red()
-                );
+                    h.to_string().bright_red()
+                ),
+                None => println!(
+                    "  {} health: unknown -- could not be read, review before committing",
+                    "⚠️ ".yellow()
+                ),
             }
         }
         // Large change warning -- count staged lines

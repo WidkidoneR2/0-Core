@@ -30,9 +30,8 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     // caller states what absence means for itself; `unwrap_or(100)` says "treat a machine that
     // has never run the doctor as healthy", which is what this line did before. It is now said
     // here, where it can be argued with, rather than inside a read_to_string chain.
-    let health: i64 = zero_core::paths::read_health()
-        .map(|h| h as i64)
-        .unwrap_or(100);
+    // INT-265: an unreadable health is reported as unknown and does not pass the gate.
+    let health: Option<i64> = zero_core::paths::read_health().map(|h| h as i64);
     println!();
     println!(
         "  {} pre-deploy check: {}",
@@ -40,19 +39,26 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
         tool.bright_cyan()
     );
     // Health gate
-    if health < 95 {
-        println!(
-            "  {} health: {}% -- below 95% threshold",
-            "⚠️ ".yellow(),
-            health.to_string().bright_red()
-        );
-        println!("  {} run d to check before deploying", "→".dimmed());
-    } else {
-        println!(
-            "  {} health: {}%",
-            "✅".normal(),
-            health.to_string().bright_green()
-        );
+    match health {
+        Some(h) if h >= 95 => {
+            println!(
+                "  {} health: {}%",
+                "✅".normal(),
+                h.to_string().bright_green()
+            );
+        }
+        Some(h) => {
+            println!(
+                "  {} health: {}% -- below 95% threshold",
+                "⚠️ ".yellow(),
+                h.to_string().bright_red()
+            );
+            println!("  {} run d to check before deploying", "→".dimmed());
+        }
+        None => {
+            println!("  {} health: unknown -- could not be read", "⚠️ ".yellow());
+            println!("  {} run d to check before deploying", "→".dimmed());
+        }
     }
     // Check for uncommitted changes
     let git_status = std::process::Command::new("git")
