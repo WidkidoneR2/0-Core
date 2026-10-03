@@ -12,111 +12,6 @@ use std::borrow::Cow;
 
 use crate::schema::SchemaRegistry;
 
-const COMMANDS: &[&str] = &[
-    "core",
-    "health",
-    "events",
-    "decisions",
-    "intents",
-    "tools",
-    "version",
-    "schema",
-    "commits",
-    "story",
-    "advise",
-    "audit",
-    "forecast",
-    "sandbox",
-    "checkpoint",
-    "cpc",
-    "git",
-    "search",
-    "s",
-    "tt",
-    "tools-table",
-    "et",
-    "events-table",
-    "at",
-    "audit-table",
-    "dt",
-    "decisions-table",
-    "ht",
-    "history-table",
-    "ct",
-    "checkpoints-table",
-    "domains",
-    "histogram",
-    "hist",
-    "logs",
-    "ps",
-    "processes",
-    "ports",
-    "services",
-    "svc",
-    "files",
-    "ls",
-    "net",
-    "network",
-    "pkgs",
-    "packages",
-    "pwd",
-    "which",
-    "env",
-    "clear",
-    "echo",
-    "cat",
-    "type",
-    "theme",
-    "z",
-    "zi",
-    "ya",
-    "yazi",
-    "flow",
-    "usage",
-    "debug",
-    "since",
-    "d",
-    "v",
-    "c",
-    "q",
-    "fs",
-    "ll",
-    "gc",
-    "git-commits",
-    "gf",
-    "git-files",
-    "watch",
-    "alias",
-    "unalias",
-    "plugins",
-    "help",
-    "h",
-    "?",
-    "exit",
-    "quit",
-    // Core
-    "ship",
-    "cistart",
-    "cicomplete",
-    "intent",
-    "friday",
-    "friday dismiss",
-    // Human vocabulary (INT-261)
-    "delete",
-    "del",
-    "find",
-    // fsh builtins
-    "patch",
-    "patch-multi",
-    "rspatch",
-    "edit",
-    "run",
-    "query",
-    "fsearch",
-    "source",
-    "fg",
-];
-
 const PIPE_OPS: &[&str] = &[
     "where", "sort", "select", "first", "last", "count", "get", "watch", "join", "group",
 ];
@@ -219,11 +114,6 @@ impl<'a> ShellHelper<'a> {
             // All multi-word completions — prefix match from start=0
             const MULTI_CMDS: &[&str] = &[
                 // -- INT-040: bare domain verbs (shell-native) --
-                "intent list",
-                "intent show",
-                "intent search",
-                "intent new",
-                "intent edit",
                 "project list",
                 "project status",
                 "project health",
@@ -591,8 +481,9 @@ impl<'a> ShellHelper<'a> {
                     }
                 }
             }
-            let mut cands: Vec<String> = COMMANDS
+            let mut cands: Vec<String> = crate::commands::builtin_names::BUILTINS
                 .iter()
+                .flat_map(|group| group.iter())
                 .filter(|c| c.starts_with(line))
                 .map(|s| s.to_string())
                 .collect();
@@ -608,8 +499,9 @@ impl<'a> ShellHelper<'a> {
 
         // ── Case 3: first word — static list + PATH binaries ─────────────────
         if !line.contains(' ') {
-            let mut cands: Vec<String> = COMMANDS
+            let mut cands: Vec<String> = crate::commands::builtin_names::BUILTINS
                 .iter()
+                .flat_map(|group| group.iter())
                 .filter(|c| c.starts_with(line))
                 .map(|s| s.to_string())
                 .collect();
@@ -722,9 +614,7 @@ fn cmd_description(cmd: &str) -> &'static str {
         "ship" => "build the release and deploy Project 0 tools",
         "cistart" => "start an intent",
         "cicomplete" => "complete an intent",
-        "intent" => "manage the intent ledger",
         "friday" => "talk to Friday AI",
-        "friday dismiss" => "dismiss Friday suggestion",
         "d" => "health check",
         "delete" | "del" => "safely delete a file",
         "find" => "search the repo",

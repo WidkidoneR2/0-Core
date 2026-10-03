@@ -251,20 +251,14 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
     // them and shows them on SUPER+K.
     let keybinds = 0usize;
 
-    // --- Builtins: parse the dispatcher match arms in commands/mod.rs (live source) ---
-    // INT-092 Phase 1b: the match cmd.as_str() block IS the source of truth for builtins.
-    // Parse it at refresh so the cheatsheet never drifts. First name in each `"a" | "b" =>`
-    // arm is canonical; the rest are aliases. Descriptions from curate_builtin_desc; else stub.
+    // --- Builtins: commands::builtin_names::BUILTINS, the one list a test keeps equal to ---
+    // the dispatcher's arms, the REPL's catches and its job-control words (INT-267). The old
+    // parse of commands/mod.rs read only 700 lines of the match, so 44 builtins never reached
+    // the cheatsheet. First name in each group is canonical; the rest are its aliases.
+    // Descriptions from curate_builtin_desc; else stub.
     let mut builtins = 0usize;
     {
         tx.execute("DELETE FROM command_registry WHERE kind = 'builtin'", [])?;
-        let mod_path = zero_core::paths::crate_dir("novashell")
-            .unwrap_or_else(|| {
-                zero_core::paths::core_dir()
-                    .join(zero_core::paths::SHELL_PARENT)
-                    .join("novashell")
-            })
-            .join("src/commands/mod.rs");
         const SKIP: &[&str] = &[
             "bash",
             "zsh",
@@ -285,64 +279,39 @@ pub fn refresh_registry(conn: &Connection) -> Result<RefreshStats, rusqlite::Err
             "preexec",
             "exec",
         ];
-        if let Ok(text) = std::fs::read_to_string(&mod_path) {
-            let lines: Vec<&str> = text.lines().collect();
-            if let Some(start) = lines.iter().position(|l| l.contains("match cmd.as_str()")) {
-                let mut ins = tx.prepare(
+        let mut ins = tx.prepare(
                     "INSERT INTO command_registry
                        (kind, name, source, category, description, expansion, example, added_at, last_seen, deprecated)
                      VALUES ('builtin', ?1, 'commands/mod.rs', 'builtin', ?2, ?3, NULL, ?4, ?4, 0)",
-                )?;
-                for line in lines.iter().skip(start + 1).take(700) {
-                    if line.starts_with("        _ =>") {
-                        break;
-                    }
-                    if !line.starts_with("        \"") {
-                        continue;
-                    }
-                    let head = match line.trim_start().split("=>").next() {
-                        Some(h) => h,
-                        None => continue,
-                    };
-                    let names: Vec<String> = head
-                        .split('|')
-                        .filter_map(|seg| {
-                            let seg = seg.trim();
-                            if seg.starts_with('"') {
-                                seg.split('"').nth(1).map(|s| s.to_string())
-                            } else {
-                                None
-                            }
+        )?;
+        for group in crate::commands::builtin_names::BUILTINS {
+            let names: Vec<String> = group
+                .iter()
+                .filter(|s| {
+                    !s.is_empty()
+                        && s.chars().all(|c| {
+                            c.is_ascii_lowercase() || c == '-' || c == '_' || c.is_ascii_digit()
                         })
-                        .filter(|s| {
-                            !s.is_empty()
-                                && s.chars().all(|c| {
-                                    c.is_ascii_lowercase()
-                                        || c == '-'
-                                        || c == '_'
-                                        || c.is_ascii_digit()
-                                })
-                        })
-                        .collect();
-                    if names.is_empty() {
-                        continue;
-                    }
-                    let canon = names[0].clone();
-                    if SKIP.contains(&canon.as_str()) {
-                        continue;
-                    }
-                    let expansion = if names.len() > 1 {
-                        Some(format!("aliases: {}", names[1..].join(", ")))
-                    } else {
-                        None
-                    };
-                    let desc = curate_builtin_desc(&canon)
-                        .unwrap_or("builtin (description pending)")
-                        .to_string();
-                    ins.execute(rusqlite::params![canon, desc, expansion, now])?;
-                    builtins += 1;
-                }
+                })
+                .map(|s| s.to_string())
+                .collect();
+            if names.is_empty() {
+                continue;
             }
+            let canon = names[0].clone();
+            if SKIP.contains(&canon.as_str()) {
+                continue;
+            }
+            let expansion = if names.len() > 1 {
+                Some(format!("aliases: {}", names[1..].join(", ")))
+            } else {
+                None
+            };
+            let desc = curate_builtin_desc(&canon)
+                .unwrap_or("builtin (description pending)")
+                .to_string();
+            ins.execute(rusqlite::params![canon, desc, expansion, now])?;
+            builtins += 1;
         }
     }
 
