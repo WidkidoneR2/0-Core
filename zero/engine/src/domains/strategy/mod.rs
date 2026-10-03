@@ -46,12 +46,23 @@ fn now_ts() -> i64 {
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
-fn get_health(_ctx: &AppContext) -> u32 {
-    // INT-247 Layer 3a. The `%`-stripping this used to do by hand lives in read_health() already
-    // -- it trims the suffix before parsing -- so nothing is lost by adopting it.
-    zero_core::paths::read_health()
-        .map(|h| h as u32)
-        .unwrap_or(100)
+/// INT-265: None when health could not be read -- this answered 100. Unknown is never
+/// healthy: a `<` threshold counts it as low, a `>=` threshold never passes it, and it
+/// prints as unknown.
+fn get_health(_ctx: &AppContext) -> Option<u32> {
+    zero_core::paths::read_health().map(|h| h as u32)
+}
+
+/// A health value for display: "89%", or "unknown" when it could not be read.
+fn health_pct(h: Option<u32>) -> String {
+    h.map(|v| format!("{}%", v))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// A health value for key=value lines: "89", or "unknown".
+fn health_num(h: Option<u32>) -> String {
+    h.map(|v| v.to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 fn get_in_progress_intents(ctx: &AppContext) -> Vec<String> {
@@ -149,19 +160,19 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Health signal
-    if health < 80 {
+    if health.map_or(true, |h| h < 80) {
         println!(
-            "  {} {} Health is at {}% — address before new work",
+            "  {} {} Health is at {} — address before new work",
             "⚠".bright_yellow(),
             "URGENT:".bright_yellow().bold(),
-            health
+            health_pct(health)
         );
         println!();
-    } else if health < 95 {
+    } else if health.map_or(true, |h| h < 95) {
         println!(
-            "  {} Health at {}% — run d to investigate warnings",
+            "  {} Health at {} — run d to investigate warnings",
             "·".dimmed(),
-            health
+            health_pct(health)
         );
         println!();
     }
@@ -225,7 +236,7 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
         "▶".bright_cyan(),
         "Session context:".bright_white().bold()
     );
-    println!("    {} Health:  {}%", "·".dimmed(), health);
+    println!("    {} Health:  {}", "·".dimmed(), health_pct(health));
     println!("    {} Commits: {}", "·".dimmed(), commits);
     println!("    {} Active:  {}", "·".dimmed(), in_progress.len());
     println!();
@@ -233,7 +244,7 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     // Save snapshot
     let snapshot = format!(
         "health={} in_progress={} commits={}",
-        health,
+        health_num(health),
         in_progress.len(),
         commits
     );
@@ -331,7 +342,7 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     // Save snapshot
     let snapshot = format!(
         "health={} in_progress={} planned={} commits={}",
-        health,
+        health_num(health),
         in_progress.len(),
         planned.len(),
         commits
@@ -674,10 +685,10 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     let mut blockers: Vec<(u8, String, String)> = Vec::new(); // (priority, blocker, action)
 
     // Health blocker
-    if health < 80 {
+    if health.map_or(true, |h| h < 80) {
         blockers.push((
             10,
-            format!("Health at {}% — system needs attention", health),
+            format!("Health at {} — system needs attention", health_pct(health)),
             "Run: d — investigate and fix warnings".to_string(),
         ));
     }
@@ -761,7 +772,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
             "▶".bright_cyan(),
             "Current state:".bright_white().bold()
         );
-        println!("    {} Health:  {}%", "·".dimmed(), health);
+        println!("    {} Health:  {}", "·".dimmed(), health_pct(health));
         println!(
             "    {} Active:  {} intents",
             "·".dimmed(),
@@ -843,17 +854,17 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
         "▶".bright_cyan(),
         "Risk assessment:".bright_white().bold()
     );
-    if health < 95 {
+    if health.map_or(true, |h| h < 95) {
         println!(
-            "    {} Health at {}% — adding work increases risk",
+            "    {} Health at {} — adding work increases risk",
             "⚠".bright_yellow(),
-            health
+            health_pct(health)
         );
     } else {
         println!(
-            "    {} Health at {}% — safe to take on new work",
+            "    {} Health at {} — safe to take on new work",
             "✅".bright_green(),
-            health
+            health_pct(health)
         );
     }
 
@@ -1159,9 +1170,9 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     let mut issues: Vec<String> = Vec::new();
 
     // Factor 1: Health
-    if health < 95 {
+    if health.map_or(true, |h| h < 95) {
         score -= 10;
-        issues.push(format!("Health at {}% (target ≥ 95%)", health));
+        issues.push(format!("Health at {} (target ≥ 95%)", health_pct(health)));
     }
 
     // Factor 2: Focus
@@ -1460,9 +1471,9 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
 
     // Factor 2: Health stability (max 10)
     let health = get_health(ctx);
-    let health_score = if health >= 95 {
+    let health_score = if health.is_some_and(|h| h >= 95) {
         10
-    } else if health >= 80 {
+    } else if health.is_some_and(|h| h >= 80) {
         5
     } else {
         0
@@ -1470,7 +1481,7 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push((
         "System Health".to_string(),
         health_score,
-        format!("{}% health (target ≥ 95%)", health),
+        format!("{} health (target ≥ 95%)", health_pct(health)),
     ));
     total += health_score;
 
@@ -2481,7 +2492,11 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
             .to_string();
         let is_infra =
             tags.contains("security") || tags.contains("health") || tags.contains("integrity");
-        let health_score = if health < 90 && is_infra { 1.0 } else { 0.5 };
+        let health_score = if health.map_or(true, |h| h < 90) && is_infra {
+            1.0
+        } else {
+            0.5
+        };
 
         // Factor 3: Velocity alignment (0.20) — matches current in-progress domain
         let in_progress_tags: Vec<String> = in_progress
@@ -2538,8 +2553,11 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
                 dep_refs.join(", ")
             ));
         }
-        if is_infra && health < 90 {
-            reasons.push(format!("Health at {}% — infra work needed", health));
+        if is_infra && health.map_or(true, |h| h < 90) {
+            reasons.push(format!(
+                "Health at {} — infra work needed",
+                health_pct(health)
+            ));
         }
         if velocity_score > 0.5 {
             reasons.push("Matches current work momentum".to_string());
