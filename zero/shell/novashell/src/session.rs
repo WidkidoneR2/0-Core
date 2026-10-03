@@ -180,7 +180,8 @@ pub fn detect_mode(
     db: &crate::db::StateDb,
 ) -> ShellMode {
     let _ = core_root;
-    let health: u32 = db
+    // INT-265: no doctor event is unknown, not 100 -- unknown is not a healthy session.
+    let health: Option<u32> = db
         .conn
         .query_row(
             "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
@@ -190,10 +191,10 @@ pub fn detect_mode(
         .ok()
         .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
         .and_then(|v| v["detail"]["health"].as_i64())
-        .unwrap_or(100) as u32;
+        .map(|h| h as u32);
 
     // Recovery — health degraded
-    if health < 95 {
+    if health.map_or(true, |h| h < 95) {
         return ShellMode::Recovery;
     }
 

@@ -244,15 +244,15 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     }
     open_intents.sort_by(|a, b| a.0.cmp(&b.0));
     // Current health
-    let health: i64 = db
+    // INT-265: an absent last_health row is unknown; this COALESCEd it to 100.
+    let health: Option<i64> = db
         .query_row(
-            "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
+            "SELECT value FROM domain_state WHERE key = 'last_health' LIMIT 1",
             [],
             |r| r.get::<_, String>(0),
         )
         .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(100);
+        .and_then(|s| s.parse().ok());
     // Commit velocity (last 7 days)
     let seven_days_ago = now - 604800;
     let velocity: i64 = db
@@ -282,9 +282,9 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
         .ok();
     // Plan confidence from current state
     let open_count = open_intents.len();
-    let plan_conf: f64 = if health == 100 && open_count <= 3 {
+    let plan_conf: f64 = if health == Some(100) && open_count <= 3 {
         0.84
-    } else if health >= 95 && open_count <= 5 {
+    } else if health.is_some_and(|h| h >= 95) && open_count <= 5 {
         0.74
     } else {
         0.58
@@ -292,9 +292,12 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     // Print state snapshot
     println!("  {} State:", "→".bright_cyan());
     println!(
-        "    {} Health: {}%  ·  Open intents: {}  ·  Velocity: {}/7d",
+        "    {} Health: {}  ·  Open intents: {}  ·  Velocity: {}/7d",
         "·".dimmed(),
-        health.to_string().bright_green(),
+        health
+            .map(|h| format!("{}%", h))
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_green(),
         open_count.to_string().bright_white(),
         velocity.to_string().bright_white()
     );
@@ -375,9 +378,11 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     println!();
     // Persist plan
     let summary = format!(
-        "Plan: {} open intents, health {}%, {}/7d commits, conf {:.0}%",
+        "Plan: {} open intents, health {}, {}/7d commits, conf {:.0}%",
         open_count,
-        health,
+        health
+            .map(|h| format!("{}%", h))
+            .unwrap_or_else(|| "unknown".to_string()),
         velocity,
         plan_conf * 100.0
     );
@@ -406,15 +411,15 @@ pub fn init(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     seed_temporal_models(ctx)?;
-    let health: i64 = db
+    // INT-265: an absent last_health row is unknown; this COALESCEd it to 100.
+    let health: Option<i64> = db
         .query_row(
-            "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
+            "SELECT value FROM domain_state WHERE key = 'last_health' LIMIT 1",
             [],
             |r| r.get::<_, String>(0),
         )
         .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(100);
+        .and_then(|s| s.parse().ok());
     let patterns: i64 = db
         .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
         .unwrap_or(0);
@@ -422,7 +427,9 @@ pub fn init(ctx: &AppContext) -> CoreResult<()> {
         .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
         .unwrap_or(0);
     let now_str = now.to_string();
-    let health_str = health.to_string();
+    let health_str = health
+        .map(|h| h.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     let pattern_str = patterns.to_string();
     let obs_str = observations.to_string();
     let entries: &[(&str, &str)] = &[
@@ -444,9 +451,11 @@ pub fn init(ctx: &AppContext) -> CoreResult<()> {
         "✅".green()
     );
     println!(
-        "  {} State: health {}%, {} patterns, {} observations",
+        "  {} State: health {}, {} patterns, {} observations",
         "✅".green(),
-        health,
+        health
+            .map(|h| format!("{}%", h))
+            .unwrap_or_else(|| "unknown".to_string()),
         patterns,
         observations
     );

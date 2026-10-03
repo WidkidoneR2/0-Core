@@ -973,7 +973,8 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Check health — low health increases risk
-    let health: u32 = ctx
+    // INT-265: no doctor event is unknown, not 100.
+    let health: Option<u32> = ctx
         .runtime
         .db
         .query_row(
@@ -984,11 +985,16 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
         .ok()
         .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
         .and_then(|v| v["detail"]["health"].as_i64())
-        .unwrap_or(100) as u32;
+        .map(|h| h as u32);
 
-    if health < 95 {
+    if health.map_or(true, |h| h < 95) {
         factors.push((
-            format!("Health at {}% — elevated baseline risk", health),
+            format!(
+                "Health at {} — elevated baseline risk",
+                health
+                    .map(|h| format!("{}%", h))
+                    .unwrap_or_else(|| "unknown".to_string())
+            ),
             10,
         ));
     }

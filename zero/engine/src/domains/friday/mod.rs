@@ -873,20 +873,22 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
             ?.filter_map(|r| r.ok()).collect(); x
     }.into_iter().next();
     // Get recent health
-    let health: i64 = db
+    // INT-265: an absent last_health row is unknown; this COALESCEd it to 100.
+    let health: Option<i64> = db
         .query_row(
-            "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
+            "SELECT value FROM domain_state WHERE key = 'last_health' LIMIT 1",
             [],
             |r| r.get::<_, String>(0),
         )
         .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(100);
+        .and_then(|s| s.parse().ok());
     let mut suggestions: Vec<String> = Vec::new();
-    if health < 95 {
+    if health.map_or(true, |h| h < 95) {
         suggestions.push(format!(
-            "Health is at {}% -- run d and investigate before continuing.",
+            "Health is at {} -- run d and investigate before continuing.",
             health
+                .map(|h| format!("{}%", h))
+                .unwrap_or_else(|| "unknown".to_string())
         ));
     }
     if let Some((trigger, action, conf)) = top_pattern {

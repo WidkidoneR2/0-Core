@@ -3717,7 +3717,9 @@ fn friday_daemon_event(
     let event_json = format!(
         "{{\"id\":1,\"payload\":{{\"FridayEvent\":{{\"command\":\"{}\",\"exit_code\":{},\"duration_ms\":0,\"intent\":null,\"health\":{},\"timestamp\":{}}}}}}}",
         cmd_escaped,
-        exit_code, health.unwrap_or(100), now_ts
+        exit_code,
+        health.map(|h| h.to_string()).unwrap_or_else(|| "null".to_string()),
+        now_ts
     );
     if std::path::Path::new(sock_path).exists() {
         use std::io::{BufRead, BufReader, Write};

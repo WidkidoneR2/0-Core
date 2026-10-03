@@ -130,7 +130,8 @@ fn get_health(db: &Connection) -> String {
         [],
         |r| r.get::<_, String>(0),
     )
-    .unwrap_or_else(|_| "100%".to_string())
+    // INT-265: a missing health is unknown, not 100%.
+    .unwrap_or_else(|_| "unknown".to_string())
 }
 
 fn log_conversation(db: &Connection, message: &str) {

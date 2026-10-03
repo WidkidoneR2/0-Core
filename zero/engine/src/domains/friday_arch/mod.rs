@@ -858,13 +858,16 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
     ensure_usefulness_table(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let health: i64 = db
+    // INT-265: no health_history rows is unknown; this COALESCEd it to 100. AVG is REAL.
+    let health: Option<i64> = db
         .query_row(
-            "SELECT COALESCE(AVG(score), 100) FROM health_history ORDER BY checked_at DESC LIMIT 5",
+            "SELECT AVG(score) FROM health_history ORDER BY checked_at DESC LIMIT 5",
             [],
-            |r| r.get(0),
+            |r| r.get::<_, Option<f64>>(0),
         )
-        .unwrap_or(100);
+        .ok()
+        .flatten()
+        .map(|v| v.round() as i64);
     let active_intent: Option<(i64, String)> = db
         .query_row(
             "SELECT id, title FROM intents WHERE status = 'in-progress' LIMIT 1",
@@ -886,41 +889,45 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
             |r| r.get(0),
         )
         .unwrap_or(0);
-    let (description, action, confidence, rationale) = if recent_deploys > 0 && health < 95 {
-        (
-            "Health check after recent deploys -- verify nothing degraded".to_string(),
-            "core doctor run".to_string(),
-            0.88f64,
-            format!(
-                "{} deploy(s) in last hour, health at {}%",
-                recent_deploys, health
-            ),
-        )
-    } else if let Some((id, ref title)) = active_intent {
-        (
-            format!("Checkpoint -- commit progress on INT-{}", id),
-            "zg done \"progress checkpoint\"".to_string(),
-            0.75f64,
-            format!("Working on: {} -- regular commits improve recovery", title),
-        )
-    } else if pattern_count > 10 {
-        (
-            "Review Friday patterns -- high-confidence patterns ready".to_string(),
-            "core friday-arch models".to_string(),
-            0.72f64,
-            format!(
-                "{} patterns above 0.7 confidence ready for review",
-                pattern_count
-            ),
-        )
-    } else {
-        (
-            "Health check -- routine verification".to_string(),
-            "core doctor run".to_string(),
-            0.65f64,
-            "Regular verification keeps Project 0 coherent".to_string(),
-        )
-    };
+    let (description, action, confidence, rationale) =
+        if recent_deploys > 0 && health.map_or(true, |h| h < 95) {
+            (
+                "Health check after recent deploys -- verify nothing degraded".to_string(),
+                "core doctor run".to_string(),
+                0.88f64,
+                format!(
+                    "{} deploy(s) in last hour, health at {}",
+                    recent_deploys,
+                    health
+                        .map(|h| format!("{}%", h))
+                        .unwrap_or_else(|| "unknown".to_string())
+                ),
+            )
+        } else if let Some((id, ref title)) = active_intent {
+            (
+                format!("Checkpoint -- commit progress on INT-{}", id),
+                "zg done \"progress checkpoint\"".to_string(),
+                0.75f64,
+                format!("Working on: {} -- regular commits improve recovery", title),
+            )
+        } else if pattern_count > 10 {
+            (
+                "Review Friday patterns -- high-confidence patterns ready".to_string(),
+                "core friday-arch models".to_string(),
+                0.72f64,
+                format!(
+                    "{} patterns above 0.7 confidence ready for review",
+                    pattern_count
+                ),
+            )
+        } else {
+            (
+                "Health check -- routine verification".to_string(),
+                "core doctor run".to_string(),
+                0.65f64,
+                "Regular verification keeps Project 0 coherent".to_string(),
+            )
+        };
     db.execute(
         "INSERT INTO friday_proposals (signal_type, description, action, confidence, status, created_at)
          VALUES ('context', ?1, ?2, ?3, 'pending', ?4)",
