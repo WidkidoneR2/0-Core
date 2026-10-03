@@ -364,6 +364,50 @@ fn alias_report(tool: &str) {
     println!("     config.nsh is your live shell, and no commit will record a change to it.");
 }
 
+/// INT-265: what the registry says about one binary. Ship deploys a binary only when its
+/// entry in zero/registry/tools.toml says deployable = true and not retired = true. A binary
+/// with no entry is held, not guessed: the registry is the one place that answers.
+#[derive(Debug, PartialEq)]
+enum Verdict {
+    Deploy,
+    NotDeployable,
+    Retired,
+    NotInRegistry,
+}
+
+impl Verdict {
+    fn reason(&self) -> &'static str {
+        match self {
+            Verdict::Deploy => "deployable",
+            Verdict::NotDeployable => "registry: deployable = false",
+            Verdict::Retired => "registry: retired = true",
+            Verdict::NotInRegistry => "not in the registry",
+        }
+    }
+}
+
+/// True when a `key = true` line sits in this registry block. A trailing # comment is ignored;
+/// a missing line is false, so a block without `retired` is not retired.
+fn flag(block: &str, key: &str) -> bool {
+    block.lines().any(|l| match l.trim().split_once('=') {
+        Some((k, v)) => k.trim() == key && v.split('#').next().unwrap_or("").trim() == "true",
+        None => false,
+    })
+}
+
+fn verdict(registry: &str, bin: &str) -> Verdict {
+    let needle = format!("name = \"{}\"", bin);
+    match registry
+        .split("[[tool]]")
+        .find(|b| b.lines().any(|l| l.trim() == needle))
+    {
+        None => Verdict::NotInRegistry,
+        Some(b) if flag(b, "retired") => Verdict::Retired,
+        Some(b) if !flag(b, "deployable") => Verdict::NotDeployable,
+        Some(_) => Verdict::Deploy,
+    }
+}
+
 fn main() {
     zero_core::restore_sigpipe();
     let args = Args::parse();
@@ -446,6 +490,44 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    // INT-265: THE REGISTRY DECIDES WHAT SHIPS. This used to install every binary target cargo
+    // listed, so a tool its registry entry marked deployable = false -- or retired -- came back
+    // on the next run (the zone tool came back after three retirements). An unreadable registry ships
+    // nothing: it cannot say what is deployable, and silence must not read as "all of it".
+    let registry_path = zero_core::paths::core_dir().join("zero/registry/tools.toml");
+    let registry = match std::fs::read_to_string(&registry_path) {
+        Ok(text) => text,
+        Err(e) => {
+            eprintln!("  could not read {} -- {}", registry_path.display(), e);
+            eprintln!("  so nothing is shipped: the registry decides what is deployable.");
+            std::process::exit(1);
+        }
+    };
+    let mut held: Vec<(String, Verdict)> = Vec::new();
+    let targets: Vec<Target> = targets
+        .into_iter()
+        .filter(|t| match verdict(&registry, &t.name) {
+            Verdict::Deploy => true,
+            v => {
+                held.push((t.name.clone(), v));
+                false
+            }
+        })
+        .collect();
+    for (name, v) in &held {
+        println!("     held  {}  ({})", name, v.reason());
+    }
+    if let Some(name) = &args.tool {
+        if let Some((_, v)) = held.iter().find(|(n, _)| n == name) {
+            eprintln!(
+                "  {} is held by the registry ({}), so it is not shipped",
+                name,
+                v.reason()
+            );
+            std::process::exit(1);
+        }
+    }
 
     let selected: Vec<&Target> = match &args.tool {
         Some(name) => targets.iter().filter(|t| &t.name == name).collect(),
@@ -579,5 +661,41 @@ fn main() {
     println!();
     if !failed.is_empty() {
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const REG: &str = "[[tool]]\nname = \"fine\"\ndeployable = true\nretired = false\n\n\
+                       [[tool]]\nname = \"held\"\ndeployable = false\n\n\
+                       [[tool]]\nname = \"gone\"\ndeployable = true\nretired = true\n\n\
+                       [[tool]]\nname = \"bare\"\ndeployable = true # no retired line\n";
+
+    #[test]
+    fn deployable_true_ships() {
+        assert_eq!(verdict(REG, "fine"), Verdict::Deploy);
+        assert_eq!(verdict(REG, "bare"), Verdict::Deploy);
+    }
+
+    #[test]
+    fn deployable_false_is_held() {
+        assert_eq!(verdict(REG, "held"), Verdict::NotDeployable);
+    }
+
+    #[test]
+    fn retired_is_held() {
+        assert_eq!(verdict(REG, "gone"), Verdict::Retired);
+    }
+
+    #[test]
+    fn absent_is_held() {
+        assert_eq!(verdict(REG, "missing"), Verdict::NotInRegistry);
+    }
+
+    #[test]
+    fn a_shorter_name_does_not_match_a_longer_entry() {
+        assert_eq!(verdict(REG, "fin"), Verdict::NotInRegistry);
     }
 }
