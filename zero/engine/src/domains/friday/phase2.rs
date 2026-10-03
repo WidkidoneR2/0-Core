@@ -850,13 +850,14 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "━".repeat(55).dimmed());
     println!();
     // Current health
-    let current_health: i64 = db
+    // INT-265: no health_patterns row is unknown; this answered 100.
+    let current_health: Option<i64> = db
         .query_row(
             "SELECT health_pct FROM health_patterns ORDER BY timestamp DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
-        .unwrap_or(100);
+        .ok();
     // Health trend: last 10 checks
     let trend: Vec<i64> = {
         let mut s =
@@ -867,10 +868,11 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
             .collect();
         x
     };
-    let avg_health: f64 = if trend.is_empty() {
-        100.0
+    // INT-265: no trend is unknown; this answered 100.0.
+    let avg_health: Option<f64> = if trend.is_empty() {
+        None
     } else {
-        trend.iter().sum::<i64>() as f64 / trend.len() as f64
+        Some(trend.iter().sum::<i64>() as f64 / trend.len() as f64)
     };
     // Count active intents
     let active_intents: i64 = {
@@ -909,19 +911,29 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         0.1
     } else {
         0.0
-    }) + (if avg_health < 98.0 { 0.2 } else { 0.0 })
-        + (if days_since_deploy > 7 { 0.15 } else { 0.0 });
-    let forecast_24h = (current_health as f64 - (risk_score * 5.0)).max(90.0) as i64;
-    let forecast_72h = (current_health as f64 - (risk_score * 10.0)).max(85.0) as i64;
+    }) + (if avg_health.map_or(true, |a| a < 98.0) {
+        0.2
+    } else {
+        0.0
+    }) + (if days_since_deploy > 7 { 0.15 } else { 0.0 });
+    // INT-265: an unknown current health gives an unknown forecast, not one projected from 100.
+    let forecast_24h = current_health.map(|c| (c as f64 - (risk_score * 5.0)).max(90.0) as i64);
+    let forecast_72h = current_health.map(|c| (c as f64 - (risk_score * 10.0)).max(85.0) as i64);
     println!(
-        "  {:<30} {}%",
+        "  {:<30} {}",
         "Current health:".dimmed(),
-        current_health.to_string().bright_green()
+        current_health
+            .map(|c| format!("{}%", c))
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_green()
     );
     println!(
-        "  {:<30} {}%  ({}h avg)",
+        "  {:<30} {}  ({}h avg)",
         "Health trend:".dimmed(),
-        format!("{:.1}", avg_health).bright_white(),
+        avg_health
+            .map(|a| format!("{:.1}%", a))
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_white(),
         trend.len()
     );
     println!(
@@ -930,20 +942,14 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         active_intents.to_string().bright_white()
     );
     println!();
-    let h24_color = if forecast_24h >= 98 {
-        format!("{}%", forecast_24h).bright_green()
-    } else if forecast_24h >= 95 {
-        format!("{}%", forecast_24h).bright_yellow()
-    } else {
-        format!("{}%", forecast_24h).bright_red()
+    let forecast_color = |f: Option<i64>| match f {
+        Some(v) if v >= 98 => format!("{}%", v).bright_green(),
+        Some(v) if v >= 95 => format!("{}%", v).bright_yellow(),
+        Some(v) => format!("{}%", v).bright_red(),
+        None => "unknown".to_string().dimmed(),
     };
-    let h72_color = if forecast_72h >= 98 {
-        format!("{}%", forecast_72h).bright_green()
-    } else if forecast_72h >= 95 {
-        format!("{}%", forecast_72h).bright_yellow()
-    } else {
-        format!("{}%", forecast_72h).bright_red()
-    };
+    let h24_color = forecast_color(forecast_24h);
+    let h72_color = forecast_color(forecast_72h);
     println!("  {} Health forecast:", "→".bright_cyan());
     println!("    {} 24h: {}", "·".dimmed(), h24_color);
     println!("    {} 72h: {}", "·".dimmed(), h72_color);
@@ -957,10 +963,15 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
                 active_intents
             );
         }
-        if avg_health < 98.0 {
+        if avg_health.map_or(true, |a| a < 98.0) {
             println!(
-                "    {} Health trending below 98% -- watch for degradation",
-                "·".dimmed()
+                "    {} {}",
+                "·".dimmed(),
+                if avg_health.is_some() {
+                    "Health trending below 98% -- watch for degradation"
+                } else {
+                    "Health trend unknown -- no health_patterns history"
+                }
             );
         }
         if days_since_deploy > 7 {
@@ -980,12 +991,22 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
     let _ = db.execute(
         "INSERT OR REPLACE INTO friday_state (key, value, updated_at)
          VALUES ('forecast_24h', ?1, ?2)",
-        params![forecast_24h.to_string(), now],
+        params![
+            forecast_24h
+                .map(|f| f.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            now
+        ],
     );
     let _ = db.execute(
         "INSERT OR REPLACE INTO friday_state (key, value, updated_at)
          VALUES ('forecast_72h', ?1, ?2)",
-        params![forecast_72h.to_string(), now],
+        params![
+            forecast_72h
+                .map(|f| f.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            now
+        ],
     );
     println!();
     println!("  Forecast recorded to friday_state.");

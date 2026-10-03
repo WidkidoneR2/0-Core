@@ -496,11 +496,11 @@ pub fn scenario1(ctx: &AppContext) -> CoreResult<()> {
                 let h = p
                     .as_deref()
                     .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
-                    .and_then(|v| v["detail"]["health"].as_i64())
-                    .unwrap_or(100);
+                    .and_then(|v| v["detail"]["health"].as_i64());
                 Ok(h)
             })?
-            .filter_map(|r| r.ok())
+            // INT-265: a reading without health is skipped, not counted as 100.
+            .filter_map(|r| r.ok().flatten())
             .collect();
         rows
     };
@@ -510,11 +510,18 @@ pub fn scenario1(ctx: &AppContext) -> CoreResult<()> {
         "▶".bright_cyan(),
         scores
     );
-    let min = scores.iter().min().unwrap_or(&100);
-    let detected = *min < 80;
+    // INT-265: no readings is not a judgement; this was min().unwrap_or(&100).
+    let min = scores.iter().min().copied();
+    let detected = min.is_some_and(|m| m < 80);
 
     if detected {
-        println!("  {} PASS — sudden drop detected ({}%)", "✅".normal(), min);
+        println!(
+            "  {} PASS — sudden drop detected ({}%)",
+            "✅".normal(),
+            min.map(|m| m.to_string()).unwrap_or_default()
+        );
+    } else if min.is_none() {
+        println!("  {} NO DATA — no health readings to judge", "⚠️ ".normal());
     } else {
         println!(
             "  {} NOTE — drop injected but may need more doctor runs to surface",
@@ -603,25 +610,28 @@ pub fn scenario3(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Check current health is 100%
-    let current: i64 = ctx.runtime.db.query_row(
+    // INT-265: no doctor reading is unknown, not 100.
+    let current: Option<i64> = ctx.runtime.db.query_row(
         "SELECT payload FROM events WHERE domain='doctor' AND action='run' ORDER BY timestamp DESC LIMIT 1",
         [], |r| {
             let p: Option<String> = r.get(0)?;
             let h = p.as_deref()
                 .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
-                .and_then(|v| v["detail"]["health"].as_i64())
-                .unwrap_or(100);
+                .and_then(|v| v["detail"]["health"].as_i64());
             Ok(h)
         }
-    ).unwrap_or(100);
+    ).ok().flatten();
 
     println!(
-        "  {} Current health: {}%",
+        "  {} Current health: {}",
         "▶".bright_cyan(),
-        current.to_string().bright_white()
+        current
+            .map(|c| format!("{}%", c))
+            .unwrap_or_else(|| "unknown".to_string())
+            .bright_white()
     );
 
-    if current >= 95 {
+    if current.is_some_and(|c| c >= 95) {
         println!(
             "  {} PASS — Project 0 is healthy, recovery baseline confirmed",
             "✅".normal()
@@ -632,9 +642,11 @@ pub fn scenario3(ctx: &AppContext) -> CoreResult<()> {
         );
     } else {
         println!(
-            "  {} Health is at {}% — run d to recover",
+            "  {} Health is at {} — run d to recover",
             "⚠️ ".normal(),
             current
+                .map(|c| format!("{}%", c))
+                .unwrap_or_else(|| "unknown".to_string())
         );
     }
 

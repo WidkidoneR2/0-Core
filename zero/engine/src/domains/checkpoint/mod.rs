@@ -17,7 +17,9 @@ struct CheckpointManifest {
     name: String,
     created: String,
     version: String,
-    health: u32,
+    // INT-265: absent when health could not be read; old checkpoints with a number still load.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    health: Option<u32>,
     git_head: String,
     tool_versions: HashMap<String, String>,
     config_hashes: HashMap<String, String>,
@@ -124,10 +126,11 @@ fn read_config_hashes() -> HashMap<String, String> {
     hashes
 }
 
-fn read_last_health() -> u32 {
+/// INT-265: None when health could not be read -- this answered 0, which every checkpoint stored.
+fn read_last_health() -> Option<u32> {
     let state_db = zero_core::paths::state_db();
     if !state_db.exists() {
-        return 0;
+        return None;
     }
     let output = std::process::Command::new("sqlite3")
         .arg(&state_db)
@@ -142,11 +145,17 @@ fn read_last_health() -> u32 {
                 .and_then(|d| d.get("health"))
                 .and_then(|h| h.as_u64())
             {
-                return h as u32;
+                return Some(h as u32);
             }
         }
     }
-    0
+    None
+}
+
+/// INT-265: a checkpoint health for display -- "89%", or "unknown".
+fn health_text(h: Option<u32>) -> String {
+    h.map(|v| format!("{}%", v))
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<()> {
@@ -192,9 +201,9 @@ pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<(
         manifest.version.bright_white()
     );
     println!(
-        "  {} {}%",
+        "  {} {}",
         "Health: ".dimmed(),
-        manifest.health.to_string().bright_green()
+        health_text(manifest.health).bright_green()
     );
     println!(
         "  {} {}",
@@ -245,15 +254,14 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     for entry in &entries {
         let content = fs::read_to_string(entry.path()).unwrap_or_default();
         if let Ok(manifest) = toml::from_str::<CheckpointManifest>(&content) {
-            let health_color = if manifest.health >= 95 {
-                manifest.health.to_string().bright_green()
-            } else if manifest.health >= 80 {
-                manifest.health.to_string().bright_yellow()
-            } else {
-                manifest.health.to_string().bright_red()
+            let health_color = match manifest.health {
+                Some(h) if h >= 95 => health_text(manifest.health).bright_green(),
+                Some(h) if h >= 80 => health_text(manifest.health).bright_yellow(),
+                Some(_) => health_text(manifest.health).bright_red(),
+                None => health_text(manifest.health).dimmed(),
             };
             println!(
-                "  {} {}  {}  {}%  {}",
+                "  {} {}  {}  {}  {}",
                 "●".bright_cyan(),
                 manifest.name.bright_white(),
                 manifest.created.dimmed(),
@@ -343,23 +351,23 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
     // Health diff
     let current_health = read_last_health();
     if current_health != manifest.health {
-        let symbol = if current_health > manifest.health {
-            "↑".bright_green()
-        } else {
-            "↓".bright_red()
+        let symbol = match (manifest.health, current_health) {
+            (Some(was), Some(now)) if now > was => "↑".bright_green(),
+            (Some(_), Some(_)) => "↓".bright_red(),
+            _ => "?".bright_yellow(),
         };
         println!(
-            "  {} Health: {}% → {}% {}",
+            "  {} Health: {} → {} {}",
             "~".bright_yellow(),
-            manifest.health,
-            current_health,
+            health_text(manifest.health),
+            health_text(current_health),
             symbol
         );
     } else {
         println!(
-            "  {} Health: {}% (unchanged)",
+            "  {} Health: {} (unchanged)",
             "✓".bright_green(),
-            current_health
+            health_text(current_health)
         );
     }
 
@@ -455,7 +463,7 @@ pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
     for entry in &entries {
         let content = fs::read_to_string(entry.path()).unwrap_or_default();
         if let Ok(manifest) = toml::from_str::<CheckpointManifest>(&content) {
-            if manifest.health >= 95 {
+            if manifest.health.is_some_and(|h| h >= 95) {
                 println!("  {} Last good checkpoint found:", "✅".green());
                 println!(
                     "  {} {}",
@@ -464,9 +472,9 @@ pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
                 );
                 println!("  {} {}", "Created: ".dimmed(), manifest.created.dimmed());
                 println!(
-                    "  {} {}%",
+                    "  {} {}",
                     "Health:  ".dimmed(),
-                    manifest.health.to_string().bright_green()
+                    health_text(manifest.health).bright_green()
                 );
                 println!(
                     "  {} {}",
