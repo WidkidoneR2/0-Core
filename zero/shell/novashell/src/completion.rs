@@ -797,31 +797,7 @@ fn is_dangerous_command(cmd: &str) -> bool {
 }
 
 fn is_native_command(cmd: &str) -> bool {
-    const NATIVE_COMMANDS: &[&str] = &[
-        "cistart",
-        "cicomplete",
-        "ds",
-        "dc",
-        "friday",
-        "intent",
-        "intents",
-        "project",
-        "experiment",
-        "d",
-        "gc",
-        "gp",
-        "core",
-        "nsh",
-        "fsh",
-        "snapshot",
-        "where",
-        "fsearch",
-        "patch",
-        "edit",
-        "run",
-        "query",
-    ];
-    NATIVE_COMMANDS.contains(&cmd)
+    crate::commands::builtin_names::is_builtin(cmd)
 }
 
 fn is_natural_language(line: &str) -> bool {
@@ -851,137 +827,32 @@ fn is_natural_language(line: &str) -> bool {
 }
 
 fn is_known_command(cmd: &str) -> bool {
-    const BUILTINS: &[&str] = &[
-        // Navigation
-        "cd",
-        "ls",
-        "ll",
-        "la",
-        "pwd",
-        "which",
-        "find",
-        // Project 0 tools
-        "cistart",
-        "cicomplete",
-        "dc",
-        "ds",
-        "d",
-        "friday",
-        "intent",
-        "intents",
-        "project",
-        "experiment",
-        "gc",
-        "gp",
-        "zg",
-        "core",
-        "nsh",
-        "fsh",
-        "snapshot",
-        "where",
-        "fsearch",
-        "patch",
-        "edit",
-        "run",
-        "query",
-        "history",
-        "rewind",
-        // Git
-        "git",
-        "lazygit",
-        "lg",
-        // Build
-        "cargo",
-        "rustc",
-        "make",
-        // Shell
-        "echo",
-        "cat",
-        "grep",
-        "sed",
-        "awk",
-        "head",
-        "tail",
-        "sort",
-        "uniq",
-        "wc",
-        "tr",
-        "cut",
-        "xargs",
-        "tee",
-        "export",
-        "source",
-        "exit",
-        "clear",
-        "c",
-        // System
-        "sudo",
-        "rm",
-        "mv",
-        "cp",
-        "mkdir",
-        "touch",
-        "chmod",
-        "chown",
-        "kill",
-        "ps",
-        "top",
-        "htop",
-        "systemctl",
-        "journalctl",
-        "env",
-        // Network
-        "ssh",
-        "curl",
-        "wget",
-        // Files
-        "tar",
-        "zip",
-        "unzip",
-        "nvim",
-        "vim",
-        "hx",
-        "bat",
-        "less",
-        "more",
-        "man",
-        "date",
-        "uname",
-        // Python
-        "python3",
-        "python",
-        // Other
-        "dev",
-        "delete",
-        "del",
-        "diff",
-        "list",
-        // TUI launchers (REPL special-cases -- INT-092)
-        "cheat",
-        "it",
-        "gt",
-        "db",
-        "ade",
-        "rewind",
-        // Aliases/commands resolved at runtime
-        "reload",
-        "help",
-        "h",
-    ];
-    if BUILTINS.contains(&cmd) {
-        return true;
+    // A program this machine can run, answered by the one owner, or a defined alias (INT-092).
+    // Words nsh runs itself are answered before this, by the one list (INT-267).
+    zero_core::paths::on_path(cmd) || is_known_alias(cmd)
+}
+
+/// What the first word of a line is, as the prompt colours it: dangerous (magenta), a word nsh
+/// runs itself (cyan), a program or alias that runs (green), or nothing that runs (red).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandClass {
+    Dangerous,
+    Native,
+    Known,
+    Unknown,
+}
+
+/// The class of a command word. Pure: it looks, it never runs anything.
+pub fn command_class(word: &str) -> CommandClass {
+    if is_dangerous_command(word) {
+        CommandClass::Dangerous
+    } else if is_native_command(word) {
+        CommandClass::Native
+    } else if is_known_command(word) {
+        CommandClass::Known
+    } else {
+        CommandClass::Unknown
     }
-    // PATH check
-    let path_env = std::env::var("PATH").unwrap_or_default();
-    if path_env
-        .split(':')
-        .any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
-    {
-        return true;
-    }
-    // INT-092: alias check -- a command that is a defined alias is valid (green).
-    // The 299 shell_aliases were previously all red unless coincidentally on PATH.
-    is_known_alias(cmd)
 }
 
 /// INT-092: is `cmd` a defined alias in state.db? Cached per-process to avoid
@@ -1091,14 +962,11 @@ impl<'a> Highlighter for ShellHelper<'a> {
         let shown = &line[leading..word_end];
         let rest = &line[word_end..];
 
-        let cmd_color = if is_dangerous_command(first_word) {
-            NEON_MAGENTA // hot magenta -- dangerous
-        } else if is_native_command(first_word) {
-            NEON_CYAN // electric cyan -- nsh-native
-        } else if is_known_command(first_word) {
-            NEON_GREEN // electric green -- valid
-        } else {
-            NEON_RED // neon red -- unknown
+        let cmd_color = match command_class(first_word) {
+            CommandClass::Dangerous => NEON_MAGENTA, // hot magenta -- dangerous
+            CommandClass::Native => NEON_CYAN,       // electric cyan -- nsh runs it
+            CommandClass::Known => NEON_GREEN,       // electric green -- a program or an alias
+            CommandClass::Unknown => NEON_RED,       // neon red -- will not run
         };
 
         // Color args amber if dangerous command
@@ -1172,3 +1040,22 @@ impl<'a> Validator for ShellHelper<'a> {
 }
 
 impl<'a> Helper for ShellHelper<'a> {}
+
+#[cfg(test)]
+mod colour_tests {
+    use super::*;
+
+    /// INT-267 gate COMMAND COLOUR TELLS THE TRUTH: every word nsh runs itself is coloured as
+    /// native, or dangerous, which is checked first. Seen red while tools, a builtin that runs,
+    /// read red because the highlighter kept its own hand lists.
+    #[test]
+    fn every_builtin_is_coloured_native() {
+        let wrong: Vec<(&str, CommandClass)> = crate::commands::builtin_names::BUILTINS
+            .iter()
+            .flat_map(|g| g.iter())
+            .map(|n| (*n, command_class(n)))
+            .filter(|(_, c)| !matches!(c, CommandClass::Native | CommandClass::Dangerous))
+            .collect();
+        assert!(wrong.is_empty(), "builtins not coloured native: {wrong:?}");
+    }
+}

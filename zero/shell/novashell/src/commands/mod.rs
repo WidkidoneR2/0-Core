@@ -7,6 +7,7 @@ extern crate libc;
 use colored::*;
 use std::os::unix::process::CommandExt;
 
+pub mod builtin_names;
 mod guards;
 
 // ── Time formatting helper ───────────────────────────────────────────────────
