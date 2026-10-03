@@ -209,22 +209,22 @@ fn fixture_home() -> Result<String, String> {
         "fixture",
     )?;
 
-    // `ls ~/0-core/zero/rust-tools` contains novashell and zero-core, as the real tree does.
+    // `ls ~/0-core/zero/tools` contains novashell and zero-core, as the real tree does.
     // tilde_nested_pipe greps for novashell alone, so the second entry is what shows the
     // filter ran: without it, grep keeping everything and grep keeping one look the same.
-    mkdir(&format!("{}/zero/rust-tools/zero-core", core))?;
-    mkdir(&format!("{}/zero/rust-tools/novashell/src", core))?;
+    mkdir(&format!("{}/zero/tools/zero-core", core))?;
+    mkdir(&format!("{}/zero/tools/novashell/src", core))?;
 
-    // `cat ~/0-core/zero/rust-tools/novashell/Cargo.toml` contains novashell, and piped
+    // `cat ~/0-core/zero/tools/novashell/Cargo.toml` contains novashell, and piped
     // through `grep name` contains name.
     write(
-        &format!("{}/zero/rust-tools/novashell/Cargo.toml", core),
+        &format!("{}/zero/tools/novashell/Cargo.toml", core),
         "[package]\nname = \"novashell\"\n",
     )?;
 
     // `grep -r expand_braces .../novashell/src/` and the same against src/main.rs
     write(
-        &format!("{}/zero/rust-tools/novashell/src/main.rs", core),
+        &format!("{}/zero/tools/novashell/src/main.rs", core),
         "fn expand_braces() {}\n",
     )?;
 
@@ -576,9 +576,9 @@ fn all_tests() -> Vec<TestResult> {
                 format!("{}/docs/PHILOSOPHY.md", core),
                 format!("{}/zero/packages/zero/scripts/deploy.sh", core),
                 format!("{}/zero/intents/future/placeholder.md", core),
-                format!("{}/zero/rust-tools/zero-core", core),
-                format!("{}/zero/rust-tools/novashell/Cargo.toml", core),
-                format!("{}/zero/rust-tools/novashell/src/main.rs", core),
+                format!("{}/zero/tools/zero-core", core),
+                format!("{}/zero/tools/novashell/Cargo.toml", core),
+                format!("{}/zero/tools/novashell/src/main.rs", core),
                 format!("{}/.local/state/zero/state.db", root),
             ];
             for p in &needed {
@@ -589,13 +589,13 @@ fn all_tests() -> Vec<TestResult> {
             // The two content assertions the cases rely on, checked here so a later batch cannot
             // fail for a reason that has nothing to do with the shell.
             let cargo =
-                std::fs::read_to_string(format!("{}/zero/rust-tools/novashell/Cargo.toml", core))
+                std::fs::read_to_string(format!("{}/zero/tools/novashell/Cargo.toml", core))
                     .map_err(|e| e.to_string())?;
             if !cargo.contains("novashell") || !cargo.contains("name") {
                 return Err("fixture Cargo.toml lost its novashell/name strings".to_string());
             }
             let main_rs =
-                std::fs::read_to_string(format!("{}/zero/rust-tools/novashell/src/main.rs", core))
+                std::fs::read_to_string(format!("{}/zero/tools/novashell/src/main.rs", core))
                     .map_err(|e| e.to_string())?;
             if !main_rs.contains("expand_braces") {
                 return Err("fixture main.rs lost expand_braces".to_string());
@@ -695,7 +695,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "cat ~/0-core/zero/rust-tools/novashell/Cargo.toml",
+                "cat ~/0-core/zero/tools/novashell/Cargo.toml",
                 &[("HOME", home.as_str())],
             )?,
             "novashell",
@@ -712,7 +712,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "cat ~/0-core/zero/rust-tools/novashell/Cargo.toml | grep name",
+                "cat ~/0-core/zero/tools/novashell/Cargo.toml | grep name",
                 &[("HOME", home.as_str())],
             )?,
             "name",
@@ -836,7 +836,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "grep -r 'expand_braces' ~/0-core/zero/rust-tools/novashell/src/ | head -1",
+                "grep -r 'expand_braces' ~/0-core/zero/tools/novashell/src/ | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -880,13 +880,13 @@ fn all_tests() -> Vec<TestResult> {
             Ok(())
         }
     }));
-    // A tilde path through a nested pipe. The fixture puts more than one entry under rust-tools
+    // A tilde path through a nested pipe. The fixture puts more than one entry under tools
     // and grep keeps exactly one, so a count of 1 shows all three stages ran: 0 means the tilde
     // or the listing failed, more than 1 means grep kept everything. It needs no brand name.
     results.push(test("tilde_nested_pipe", Category::Tilde, || {
         let home = fixture_home()?;
         let out = run_fsh_env(
-            "ls ~/0-core/zero/rust-tools | grep novashell | wc -l",
+            "ls ~/0-core/zero/tools | grep novashell | wc -l",
             &[("HOME", home.as_str())],
         )?;
         match out.trim() {
@@ -907,7 +907,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "grep -r expand_braces ~/0-core/zero/rust-tools/novashell/src/ | head -1",
+                "grep -r expand_braces ~/0-core/zero/tools/novashell/src/ | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -917,7 +917,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "echo ok && grep 'expand_braces' ~/0-core/zero/rust-tools/novashell/src/main.rs | head -1",
+                "echo ok && grep 'expand_braces' ~/0-core/zero/tools/novashell/src/main.rs | head -1",
                 &[("HOME", home.as_str())],
             )?,
             "expand_braces",
@@ -938,7 +938,7 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
         let home = fixture_home()?;
         expect_contains(
-            &run_fsh_env("ls ~/0-core/zero/rust-tools", &[("HOME", home.as_str())])?,
+            &run_fsh_env("ls ~/0-core/zero/tools", &[("HOME", home.as_str())])?,
             "novashell",
         )
     }));
@@ -967,7 +967,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env(
-                "ls ~/0-core/zero/rust-tools/novashell/src",
+                "ls ~/0-core/zero/tools/novashell/src",
                 &[("HOME", home.as_str())],
             )?,
             "main.rs",
@@ -1613,7 +1613,7 @@ print('CLASS-DONE')"##;
             // and those old names lived on in banners, headers and messages
             // long after the decision -- written by CODE, so no document edit could remove them.
             //
-            // Reads every ordinary string literal under rust-tools/ and engine/ and fails naming
+            // Reads every ordinary string literal under tools/ and engine/ and fails naming
             // each file:line that still carries a retired name. Comment lines are skipped:
             // history and reasoning may say the old names. A name joins RETIRED only when its
             // pass is finished, so this case is green at every commit and red the moment one
@@ -2189,12 +2189,12 @@ print('CLASS-DONE')"##;
     results.push(repo_test(
         "readme_index_count_matches_its_file",
         Category::Regression,
-        "needs a real 0-Core: it reads rust-tools/README.md",
+        "needs a real 0-Core: it reads tools/README.md",
         || {
             // zero-docs readme-index once printed "21 tools" while the file it wrote said 18: it
             // counted every crate read, not the active tools the file lists. The number a tool
             // reports must be the number it writes. --dry-run writes nothing.
-            let readme = std::path::Path::new(&home()).join("0-core/zero/rust-tools/README.md");
+            let readme = std::path::Path::new(&home()).join("0-core/zero/tools/README.md");
             let text = std::fs::read_to_string(&readme)
                 .map_err(|e| format!("cannot read {}: {}", readme.display(), e))?;
             let file_count = text
@@ -2202,7 +2202,7 @@ print('CLASS-DONE')"##;
                 .next()
                 .and_then(|head| head.rsplit(' ').next())
                 .and_then(|n| n.parse::<usize>().ok())
-                .ok_or("rust-tools/README.md states no active-tools count")?;
+                .ok_or("tools/README.md states no active-tools count")?;
             let out = Command::new("zero-docs")
                 .args(["readme-index", "--dry-run"])
                 .output()
@@ -4838,7 +4838,7 @@ fn main() {
         // ⭐ THE RIGHT EXPECTATION IS THE SHELL'S VERSION IN THIS WORKSPACE, read from its
         // Cargo.toml at RUNTIME rather than baked in: the suite and the shell are separate crates
         // that version independently, so a compile-time constant would go stale silently.
-        let expected = std::fs::read_to_string("zero/rust-tools/novashell/Cargo.toml")
+        let expected = std::fs::read_to_string("zero/tools/novashell/Cargo.toml")
             .ok()
             .and_then(|t| {
                 t.lines()

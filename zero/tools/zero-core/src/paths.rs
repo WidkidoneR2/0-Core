@@ -388,7 +388,7 @@ pub fn docs_dir() -> PathBuf {
     core_dir().join("docs")
 }
 
-pub fn rust_tools_dir() -> PathBuf {
+pub fn tools_dir() -> PathBuf {
     core_dir().join(CRATE_PARENTS[0])
 }
 
@@ -399,14 +399,14 @@ pub fn rust_tools_dir() -> PathBuf {
 /// Directories, relative to the repo root, whose every child holding a Cargo.toml is a crate.
 /// A move changes this array and the workspace members, nothing else; nsh-test
 /// crate_dirs_match_the_workspace keeps the two in step.
-pub const CRATE_PARENTS: [&str; 1] = ["zero/rust-tools"];
+pub const CRATE_PARENTS: [&str; 1] = ["zero/tools"];
 
 /// Crates that are their own directory, relative to the repo root.
 pub const SINGLE_CRATES: [&str; 1] = ["zero/engine"];
 
 /// Every parent the crates have lived in, oldest first. `git log` needs all of them to follow a
 /// crate's history across a move; a parent is added here when a move retires it, never removed.
-pub const CRATE_PARENTS_HISTORY: [&str; 2] = ["rust-tools", "zero/rust-tools"];
+pub const CRATE_PARENTS_HISTORY: [&str; 3] = ["rust-tools", "zero/rust-tools", "zero/tools"];
 
 /// Every crate directory under the repo root `root`, sorted. A parent that cannot be read is an
 /// ERROR, never zero crates: an unreadable directory must not answer as an empty one (INT-250).
@@ -499,7 +499,7 @@ pub fn crate_history_pathspecs(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// The last segment of each crate parent with a trailing slash ("rust-tools/" today): the
+/// The last segment of each crate parent with a trailing slash ("tools/" today): the
 /// marker a substring guard looks for. It follows CRATE_PARENTS, so a guard keeps matching what
 /// it matched when the tree moves.
 pub fn crate_parent_markers() -> Vec<String> {
@@ -517,15 +517,11 @@ mod crate_tests {
         let root =
             std::env::temp_dir().join(format!("zero-crate-tests-{}-{}", tag, std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        for d in [
-            "zero/rust-tools/alpha",
-            "zero/rust-tools/beta",
-            "zero/engine",
-        ] {
+        for d in ["zero/tools/alpha", "zero/tools/beta", "zero/engine"] {
             std::fs::create_dir_all(root.join(d)).unwrap();
             std::fs::write(root.join(d).join("Cargo.toml"), "[package]\n").unwrap();
         }
-        std::fs::create_dir_all(root.join("zero/rust-tools/not-a-crate")).unwrap();
+        std::fs::create_dir_all(root.join("zero/tools/not-a-crate")).unwrap();
         root
     }
 
@@ -533,14 +529,10 @@ mod crate_tests {
     fn crate_dirs_lists_every_crate_and_only_crates() {
         let root = tree("list");
         let got = crate_dirs_in(&root).unwrap();
-        let want: Vec<PathBuf> = [
-            "zero/engine",
-            "zero/rust-tools/alpha",
-            "zero/rust-tools/beta",
-        ]
-        .iter()
-        .map(|d| root.join(d))
-        .collect();
+        let want: Vec<PathBuf> = ["zero/engine", "zero/tools/alpha", "zero/tools/beta"]
+            .iter()
+            .map(|d| root.join(d))
+            .collect();
         assert_eq!(got, want);
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -548,7 +540,7 @@ mod crate_tests {
     #[test]
     fn an_unreadable_parent_is_an_error_not_an_empty_list() {
         let root = tree("absent");
-        std::fs::remove_dir_all(root.join("zero/rust-tools")).unwrap();
+        std::fs::remove_dir_all(root.join("zero/tools")).unwrap();
         assert!(crate_dirs_in(&root).is_err());
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -566,7 +558,7 @@ mod crate_tests {
         let root = tree("rel");
         assert_eq!(
             crate_rel_dir_in(&root, "alpha"),
-            Some("zero/rust-tools/alpha".into())
+            Some("zero/tools/alpha".into())
         );
         assert_eq!(
             crate_rel_dir_in(&root, "engine"),
@@ -582,14 +574,14 @@ mod crate_tests {
     #[test]
     fn crate_of_reads_the_crate_from_any_spelling_of_a_path() {
         let cases = [
-            ("zero/rust-tools/novashell/src/main.rs", Some("novashell")),
-            ("/home/x/0-core/zero/rust-tools/zero-git", Some("zero-git")),
-            ("zero/rust-tools/teach/", Some("teach")),
+            ("zero/tools/novashell/src/main.rs", Some("novashell")),
+            ("/home/x/0-core/zero/tools/zero-git", Some("zero-git")),
+            ("zero/tools/teach/", Some("teach")),
             ("zero/engine/src/app/context.rs", Some("engine")),
             ("/home/x/0-core/zero/engine", Some("engine")),
-            ("zero/rust-tools/", None),
+            ("zero/tools/", None),
             ("docs/TREE.md", None),
-            ("notzero/rust-tools/x", None),
+            ("notzero/tools/x", None),
             ("zero/engineering/x", None),
         ];
         for (path, want) in cases {
@@ -601,14 +593,18 @@ mod crate_tests {
     fn history_pathspecs_follow_a_crate_through_every_parent() {
         assert_eq!(
             crate_history_pathspecs("novashell"),
-            vec!["rust-tools/novashell/", "zero/rust-tools/novashell/"]
+            vec![
+                "rust-tools/novashell/",
+                "zero/rust-tools/novashell/",
+                "zero/tools/novashell/"
+            ]
         );
     }
 
     #[test]
-    fn rust_tools_dir_is_the_first_crate_parent() {
-        assert_eq!(rust_tools_dir(), core_dir().join(CRATE_PARENTS[0]));
-        assert!(rust_tools_dir().ends_with("zero/rust-tools"));
+    fn tools_dir_is_the_first_crate_parent() {
+        assert_eq!(tools_dir(), core_dir().join(CRATE_PARENTS[0]));
+        assert!(tools_dir().ends_with("zero/tools"));
     }
 }
 

@@ -218,9 +218,7 @@ fn gather_intent_counts(_core: &str) -> (usize, usize) {
 }
 
 fn count_tools(_core: &str) -> usize {
-    let tools_dir = zero_core::paths::rust_tools_dir()
-        .to_string_lossy()
-        .to_string();
+    let tools_dir = zero_core::paths::tools_dir().to_string_lossy().to_string();
     std::fs::read_dir(&tools_dir)
         .map(|entries| entries.flatten().filter(|e| e.path().is_dir()).count())
         .unwrap_or(43)
@@ -955,7 +953,7 @@ fn lesson_structure(_snap: &SystemSnapshot) {
 
     let subdirs = [
         (
-            "rust-tools/",
+            "zero/tools/",
             "43 custom Rust tools — the core of everything",
         ),
         ("INTENT/", "Decision ledger — every architectural choice"),

@@ -1,5 +1,5 @@
 //! INT-037: per-tool README generator + index.
-//! Reads each rust-tools/<tool>/Cargo.toml (ground truth) and enriches with
+//! Reads each tools/<tool>/Cargo.toml (ground truth) and enriches with
 //! registry/tools.toml status, then emits rich READMEs + a top-level index.
 //! Self-maintaining: re-run any time tools change; docs never drift stale.
 
@@ -207,9 +207,9 @@ fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> 
     out
 }
 
-/// Gather metadata for ALL tools on disk (rust-tools/*/Cargo.toml).
+/// Gather metadata for ALL tools on disk (tools/*/Cargo.toml).
 pub fn gather_all() -> Vec<ToolMeta> {
-    let rt = zero_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::tools_dir();
     let registry = parse_registry();
     let mut metas = vec![];
     if let Ok(entries) = std::fs::read_dir(&rt) {
@@ -228,7 +228,7 @@ pub fn gather_all() -> Vec<ToolMeta> {
             }
         }
     }
-    // INT-111/037: the engine (core) lives at zero/engine, not rust-tools/.
+    // INT-111/037: the engine (core) lives at zero/engine, not tools/.
     // Include it explicitly so it joins the self-maintaining README pipeline.
     let engine_cargo = core_root().join("zero/engine/Cargo.toml");
     if engine_cargo.exists() {
@@ -426,7 +426,7 @@ pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
     metas.iter().filter(|m| !m.retired && m.binary).collect()
 }
 
-/// PIECE 2c: render the top-level rust-tools/README.md index (catalog by category).
+/// PIECE 2c: render the top-level tools/README.md index (catalog by category).
 pub fn render_index(metas: &[ToolMeta]) -> String {
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let active = active_tools(metas);
@@ -518,7 +518,7 @@ fn cap_first(s: &str) -> String {
 /// in it. That is why the two are separable and why only this one is safe to run.
 pub fn cmd_index(dry_run: bool) {
     let metas = gather_all();
-    let rt = zero_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::tools_dir();
     let index = render_index(&metas);
     let path = rt.join("README.md");
     if dry_run {
@@ -547,13 +547,13 @@ pub fn cmd_index(dry_run: bool) {
 
 pub fn cmd_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = zero_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::tools_dir();
     let mut written = 0usize;
     let mut skipped = 0usize;
 
     for m in &metas {
         // Generate READMEs for all tools (active + retired get a stub via the same template).
-        // INT-111/037: core (engine) writes to zero/engine/, not rust-tools/core/.
+        // INT-111/037: core (engine) writes to zero/engine/, not tools/core/.
         let readme_path = if m.name == "core" {
             core_root().join("zero/engine/README.md")
         } else {
@@ -727,7 +727,7 @@ pub fn cmd_changelog_preview(name: &str) {
 /// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
 pub fn cmd_changelog_generate(dry_run: bool) {
     let metas = gather_all();
-    let rt = zero_core::paths::rust_tools_dir();
+    let rt = zero_core::paths::tools_dir();
     let mut written = 0usize;
     for m in &metas {
         let path = rt.join(&m.name).join("CHANGELOG.md");

@@ -44,11 +44,11 @@ pub fn present() -> bool {
     intents_root().is_some()
 }
 
-/// The 0-Core rust-tools source tree, when 0-Core is present.
+/// The 0-Core tools source tree, when 0-Core is present.
 ///
 /// `None` on a machine without 0-Core -- which is every packaged install.
 pub fn tools_root() -> Option<PathBuf> {
-    let dir = zero_core::paths::rust_tools_dir();
+    let dir = zero_core::paths::tools_dir();
     if dir.is_dir() {
         Some(dir)
     } else {
