@@ -15,7 +15,7 @@ use std::process::Command;
 /// is correct -- nobody could look -- and it is the same answer `which` gives everywhere else in
 /// this crate.
 pub fn intent_ledger() -> Measurement {
-    if which::which("core").is_err() {
+    if !zero_core::paths::on_path("core") {
         return Measurement::unknown("core is not on PATH -- cannot validate the ledger");
     }
     let out = match Command::new("core").args(["intent", "validate"]).output() {
@@ -249,7 +249,7 @@ mod tests {
     fn intent_ledger_says_unknown_when_it_cannot_ask() {
         let m = intent_ledger();
         assert!(!m.message.is_empty());
-        if which::which("core").is_err() {
+        if !zero_core::paths::on_path("core") {
             assert_eq!(m.status, Status::Unknown);
         }
     }

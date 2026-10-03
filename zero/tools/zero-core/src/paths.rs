@@ -195,6 +195,18 @@ pub fn on_path(name: &str) -> bool {
 
 /// `on_path` against a given PATH value, so a test never changes the process environment.
 pub fn on_path_in(name: &str, path: Option<&std::ffi::OsStr>) -> bool {
+    find_on_path_in(name, path).is_some()
+}
+
+/// Where `name` runs from: a `/` path as given, or the first PATH entry holding a runnable file
+/// by that name; `None` when it does not run here. on_path is built on this, so the yes/no and
+/// the where are one answer (INT-267 step 2d).
+pub fn find_on_path(name: &str) -> Option<PathBuf> {
+    find_on_path_in(name, env::var_os("PATH").as_deref())
+}
+
+/// `find_on_path` against a given PATH value.
+pub fn find_on_path_in(name: &str, path: Option<&std::ffi::OsStr>) -> Option<PathBuf> {
     fn runnable(p: &std::path::Path) -> bool {
         use std::os::unix::fs::PermissionsExt;
         std::fs::metadata(p)
@@ -202,17 +214,18 @@ pub fn on_path_in(name: &str, path: Option<&std::ffi::OsStr>) -> bool {
             .unwrap_or(false)
     }
     if name.is_empty() {
-        return false;
+        return None;
     }
     if name.contains('/') {
-        return runnable(std::path::Path::new(name));
+        let p = PathBuf::from(name);
+        return if runnable(&p) { Some(p) } else { None };
     }
-    path.map(|p| {
+    path.and_then(|p| {
         env::split_paths(p)
             .filter(|d| !d.as_os_str().is_empty())
-            .any(|d| runnable(&d.join(name)))
+            .map(|d| d.join(name))
+            .find(|c| runnable(c))
     })
-    .unwrap_or(false)
 }
 
 /// Machine-local state: state.db, logs, cache, snapshots, locks, backups,
@@ -705,6 +718,26 @@ mod crate_tests {
         );
         let _ = std::fs::remove_dir_all(&d);
         assert_eq!(found, (true, false, false, true));
+    }
+
+    /// INT-267 step 2d: find_on_path returns the first runnable match, skipping a non-runnable
+    /// file of the same name in an earlier PATH entry.
+    #[test]
+    fn find_on_path_returns_the_first_runnable_match() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = std::env::temp_dir().join(format!("find-on-path-int267-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        for (dir, mode) in [("a", 0o644), ("b", 0o755), ("c", 0o755)] {
+            std::fs::create_dir_all(d.join(dir)).unwrap();
+            std::fs::write(d.join(dir).join("tool"), "").unwrap();
+            let perm = std::fs::Permissions::from_mode(mode);
+            std::fs::set_permissions(d.join(dir).join("tool"), perm).unwrap();
+        }
+        let path = std::env::join_paths(["a", "b", "c"].iter().map(|x| d.join(x))).unwrap();
+        let found = find_on_path_in("tool", Some(path.as_os_str()));
+        let want = d.join("b").join("tool");
+        let _ = std::fs::remove_dir_all(&d);
+        assert_eq!(found, Some(want));
     }
 }
 

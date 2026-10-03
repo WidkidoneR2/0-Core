@@ -122,7 +122,7 @@ pub fn binaries() -> Measurement {
     let missing: Vec<&str> = BINS
         .iter()
         .copied()
-        .filter(|b| which::which(b).is_err())
+        .filter(|b| !zero_core::paths::on_path(b))
         .collect();
     if missing.is_empty() {
         Measurement::pass(format!("all {} binaries found", BINS.len()))

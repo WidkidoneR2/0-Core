@@ -12,7 +12,7 @@ use crate::measurement::Measurement;
 /// checks each answered "is this tool installed" their own way, and each was right about exactly
 /// one machine. In this crate they all ask `which`, once, in one helper.
 pub fn sandbox() -> Measurement {
-    if which::which("zero-sandbox").is_err() {
+    if !zero_core::paths::on_path("zero-sandbox") {
         return Measurement::fail("zero-sandbox not deployed");
     }
     let policies = zero_core::paths::registry_dir().join("sandbox-policies.toml");
@@ -146,7 +146,7 @@ mod tests {
         ));
         // ⭐ The old check reported "not deployed" for a binary sitting on PATH. If the tool
         // resolves, this must not claim it is missing.
-        if which::which("zero-sandbox").is_ok() {
+        if zero_core::paths::on_path("zero-sandbox") {
             assert!(
                 !m.message.contains("not deployed"),
                 "the binary resolves on PATH: {}",

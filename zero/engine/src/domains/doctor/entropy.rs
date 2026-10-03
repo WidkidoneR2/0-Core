@@ -187,7 +187,7 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
 /// Returns None when the binary is absent or the path cannot be resolved -- ABSENCE, not an
 /// empty string, so callers state for themselves what missing means.
 fn resolve_binary_path(pkg: &str) -> Option<String> {
-    let found = which::which(pkg).ok()?;
+    let found = zero_core::paths::find_on_path(pkg)?;
     let real = std::fs::canonicalize(&found).unwrap_or(found);
     let s = real.to_string_lossy().to_string();
     if s.is_empty() {

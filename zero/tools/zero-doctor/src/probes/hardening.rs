@@ -141,7 +141,7 @@ pub fn security_hardening() -> Measurement {
 /// finding is real and the fix is fiction. This asks which firewall is actually installed.
 pub fn firewall_recovery() -> String {
     for unit in ["ufw", "firewalld", "nftables"] {
-        if which::which(unit).is_ok() {
+        if zero_core::paths::on_path(unit) {
             return format!("Start it: sudo systemctl enable --now {}", unit);
         }
     }
@@ -226,7 +226,7 @@ mod tests {
         // not a configuration syntax from a system that was wiped.
         let r = firewall_recovery();
         assert!(!r.contains("networking.firewall"));
-        if which::which("ufw").is_ok() {
+        if zero_core::paths::on_path("ufw") {
             assert!(
                 r.contains("ufw"),
                 "ufw is installed but the advice says: {}",

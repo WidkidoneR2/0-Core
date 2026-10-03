@@ -93,7 +93,7 @@ fn binary_version(binary: &str) -> Option<String> {
 }
 
 fn binary_installed(binary: &str) -> bool {
-    which::which(binary).is_ok()
+    zero_core::paths::on_path(binary)
 }
 
 pub fn list(_ctx: &AppContext) -> CoreResult<()> {
