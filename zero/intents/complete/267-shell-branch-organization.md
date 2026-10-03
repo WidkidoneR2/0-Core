@@ -3,7 +3,7 @@ id: 267
 date: 2026-09-28
 type: future
 title: "Shell Branch organization"
-status: in-progress
+status: complete
 tags: [novashell, nsh, zero]
 ---
 
