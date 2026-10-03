@@ -13,7 +13,7 @@ use zbus::{connection, interface, SignalContext};
 
 #[derive(Clone)]
 pub struct BusState {
-    pub health: Arc<Mutex<u32>>,
+    pub health: Arc<Mutex<Option<u32>>>,
     pub intent_title: Arc<Mutex<String>>,
     pub intent_id: Arc<Mutex<u32>>,
 }
@@ -40,15 +40,17 @@ impl BusState {
 // ── Health interface -- org.zero.Core.Health ──────────────────────────────────
 
 pub struct HealthIface {
-    pub health: Arc<Mutex<u32>>,
+    pub health: Arc<Mutex<Option<u32>>>,
 }
 
 #[interface(name = "org.zero.Core.Health")]
 impl HealthIface {
-    /// Current health percentage (0-100)
+    /// Current health percentage (0-100). INT-265: when health could not be read this is a
+    /// D-Bus error saying so, never a number -- it answered 100.
     #[zbus(property)]
-    async fn health_percent(&self) -> u32 {
-        *self.health.lock().await
+    async fn health_percent(&self) -> zbus::fdo::Result<u32> {
+        (*self.health.lock().await)
+            .ok_or_else(|| zbus::fdo::Error::Failed("health could not be read".to_string()))
     }
 
     /// Emitted when health changes
@@ -177,7 +179,7 @@ pub fn emit_friday_signal(message: String, confidence: f64) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-pub fn read_health() -> u32 {
+pub fn read_health() -> Option<u32> {
     // INT-250: the old /etc HEALTH read that stood here is DELETED, not repointed.
     //
     // It was tried FIRST and always failed, so every call fell through to the cache -- which
@@ -186,10 +188,14 @@ pub fn read_health() -> u32 {
     //
     // With the second source gone, the Layer 3a note that sat here -- explaining why
     // read_health() could not be adopted -- is no longer true either, so this now uses the
-    // shared accessor like every other reader. The fallback of 100 is unchanged.
-    zero_core::paths::read_health()
-        .map(|h| h as u32)
-        .unwrap_or(100)
+    // shared accessor like every other reader. INT-265: an unreadable health is None, not 100.
+    zero_core::paths::read_health().map(|h| h as u32)
+}
+
+/// INT-265: a health value for logs -- "89%" or "unknown".
+fn show_health(h: Option<u32>) -> String {
+    h.map(|v| format!("{}%", v))
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 pub fn read_intent() -> String {
@@ -385,14 +391,17 @@ pub async fn run_bus() {
             let old = last_health;
             *state.health.lock().await = h;
             last_health = h;
-            eprintln!("bus: health {} -> {}", old, h);
+            eprintln!("bus: health {} -> {}", show_health(old), show_health(h));
             if let Ok(iface_ref) = conn
                 .object_server()
                 .interface::<_, HealthIface>("/org/zero/Core/Health")
                 .await
             {
                 let ctx = iface_ref.signal_context();
-                let _ = HealthIface::health_changed(ctx, old, h).await;
+                // INT-265: the signal carries numbers, so it fires only between two known values.
+                if let (Some(o), Some(n)) = (old, h) {
+                    let _ = HealthIface::health_changed(ctx, o, n).await;
+                }
             }
         }
 

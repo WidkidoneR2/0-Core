@@ -99,7 +99,7 @@ pub enum Response {
     Subscribed { domains: Vec<String> },
     /// Context snapshot
     Context {
-        health: u32,
+        health: Option<u32>,
         alignment: f64,
         active_intent: Option<String>,
         commits_today: i64,
@@ -115,7 +115,7 @@ pub enum Response {
     /// Watchdog status
     Watchdog {
         last_check: i64,
-        last_health: u32,
+        last_health: Option<u32>,
         alerts_today: i64,
     },
     /// Engine signals

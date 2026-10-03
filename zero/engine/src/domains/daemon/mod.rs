@@ -94,13 +94,17 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
         if let Some(payload) = resp.get("payload") {
             if let Some(wd) = payload.get("Watchdog") {
                 let alerts = wd["alerts_today"].as_i64().unwrap_or(0);
-                let last_health = wd["last_health"].as_u64().unwrap_or(0);
+                // INT-265: an absent or null last_health is unknown, not 0.
+                let last_health = wd["last_health"].as_u64();
+                let last_health_text = last_health
+                    .map(|h| format!("{}%", h))
+                    .unwrap_or_else(|| "unknown".to_string());
                 if alerts > 0 {
                     println!(
-                        "  {} Watchdog: {} alerts today, last health {}%",
+                        "  {} Watchdog: {} alerts today, last health {}",
                         "⚠️ ".yellow(),
                         alerts.to_string().bright_red(),
-                        last_health
+                        last_health_text
                     );
                 } else {
                     println!(
@@ -213,19 +217,23 @@ pub fn watchdog(_ctx: &AppContext) -> CoreResult<()> {
         Ok(resp) => {
             if let Some(payload) = resp.get("payload") {
                 if let Some(wd) = payload.get("Watchdog") {
-                    let last_health = wd["last_health"].as_u64().unwrap_or(0);
+                    // INT-265: an absent or null last_health is unknown, not 0.
+                    let last_health = wd["last_health"].as_u64();
+                    let last_health_text = last_health
+                        .map(|h| format!("{}%", h))
+                        .unwrap_or_else(|| "unknown".to_string());
                     let alerts = wd["alerts_today"].as_i64().unwrap_or(0);
                     let last_check = wd["last_check"].as_i64().unwrap_or(0);
                     let time = chrono::DateTime::from_timestamp(last_check, 0)
                         .map(|t| t.format("%H:%M:%S").to_string())
                         .unwrap_or_default();
                     println!(
-                        "  {} Last health: {}%",
+                        "  {} Last health: {}",
                         "→".dimmed(),
-                        if last_health >= 100 {
-                            last_health.to_string().bright_green()
+                        if last_health.is_some_and(|h| h >= 100) {
+                            last_health_text.bright_green()
                         } else {
-                            last_health.to_string().bright_yellow()
+                            last_health_text.bright_yellow()
                         }
                     );
                     println!("  {} Last check: {}", "→".dimmed(), time.dimmed());

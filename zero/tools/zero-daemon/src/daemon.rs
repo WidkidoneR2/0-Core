@@ -421,14 +421,18 @@ async fn read_directory(path: &str) -> Result<Vec<Entry>, std::io::Error> {
 // ── INT-196 v2 Background Tasks ───────────────────────────────────────────────
 /// Health watchdog — checks every 60 seconds, alerts on drops
 async fn health_watchdog(db_path: String) {
-    let mut last_health: u32 = 100;
+    // INT-265: start from the first real reading, not an invented 100. Unknown is never healthy:
+    // a fall from 95% or more to unknown is a drop, and only a real 100% is restored.
+    let mut last_health: Option<u32> = read_health_cache();
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
         let health = read_health_cache();
-        if health < 95 && last_health >= 95 {
+        let was_healthy = last_health.is_some_and(|h| h >= 95);
+        if was_healthy && !health.is_some_and(|h| h >= 95) {
             println!(
-                "⚠️  WATCHDOG: Health dropped to {}% — was {}%",
-                health, last_health
+                "⚠️  WATCHDOG: Health dropped to {} — was {}",
+                health_text(health),
+                health_text(last_health)
             );
             // Write alert to state.db
             if let Ok(conn) = zero_core::state_db::open_at(
@@ -440,8 +444,12 @@ async fn health_watchdog(db_path: String) {
                     "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
                      VALUES ('watchdog', 'health_alert', ?1, ?2, ?3)",
                     rusqlite::params![
-                        format!("{{\"health\":{},\"previous\":{}}}", health, last_health),
-                        health as f64 / 100.0,
+                        format!(
+                            "{{\"health\":{},\"previous\":{}}}",
+                            health_json(health),
+                            health_json(last_health)
+                        ),
+                        health.map(|h| h as f64 / 100.0).unwrap_or(0.0),
                         now
                     ],
                 );
@@ -453,8 +461,9 @@ async fn health_watchdog(db_path: String) {
                     "--app-name=Friday",
                     "[Friday] Health Alert",
                     &format!(
-                        "Health dropped to {}% (was {}%). Run: d",
-                        health, last_health
+                        "Health dropped to {} (was {}). Run: d",
+                        health_text(health),
+                        health_text(last_health)
                     ),
                 ])
                 .spawn()
@@ -464,15 +473,18 @@ async fn health_watchdog(db_path: String) {
                     let _ = child.wait();
                 });
             }
-        } else if health >= 100 && last_health < 95 {
-            println!("✅ WATCHDOG: Health restored to {}%", health);
+        } else if health.is_some_and(|h| h >= 100) && !was_healthy {
+            println!("✅ WATCHDOG: Health restored to {}", health_text(health));
             // INT-235: notify health restored
             if let Ok(mut child) = std::process::Command::new("notify-send")
                 .args([
                     "--urgency=normal",
                     "--app-name=Friday",
                     "[Friday] Health Restored",
-                    &format!("Health back to {}%. All systems nominal.", health),
+                    &format!(
+                        "Health back to {}. All systems nominal.",
+                        health_text(health)
+                    ),
                 ])
                 .spawn()
             {
@@ -547,11 +559,19 @@ async fn signal_aggregation(db_path: String) {
 fn get_db_path() -> String {
     zero_core::paths::state_db().to_string_lossy().to_string()
 }
-fn read_health_cache() -> u32 {
-    // INT-247 Layer 3a: one owner for the path. Same fallback, stated here.
-    zero_core::paths::read_health()
-        .map(|h| h as u32)
-        .unwrap_or(100)
+fn read_health_cache() -> Option<u32> {
+    // INT-247 Layer 3a: one owner for the path. INT-265: an unreadable health is None, not 100.
+    zero_core::paths::read_health().map(|h| h as u32)
+}
+/// INT-265: health for messages -- "89%" or "unknown".
+fn health_text(h: Option<u32>) -> String {
+    h.map(|v| format!("{}%", v))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+/// INT-265: health for JSON -- a number or null.
+fn health_json(h: Option<u32>) -> String {
+    h.map(|v| v.to_string())
+        .unwrap_or_else(|| "null".to_string())
 }
 async fn get_context() -> crate::protocol::Response {
     let db_path = get_db_path();
@@ -635,7 +655,8 @@ async fn get_watchdog_status() -> crate::protocol::Response {
     ) else {
         return crate::protocol::Response::Watchdog {
             last_check: 0,
-            last_health: 0,
+            // INT-265: health was not read on this path, so it is unknown, not 0.
+            last_health: None,
             alerts_today: 0,
         };
     };
