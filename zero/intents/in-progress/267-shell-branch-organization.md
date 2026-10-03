@@ -701,6 +701,14 @@ L1, L2, L3, L3a, L3b, L3c and R5 (Design addendum above), plus, 2026-10-02 night
       db-browse 1.0.0 to 2.1.0, friday-chat 1.0.0 to 2.1.0, zero-git 4.4.1 to 5.1.0) are applied
       through core integrity apply, d reads Integrity 100 percent, and the only change in
       zero/registry/tools.toml is those four version lines, in a commit of its own
+- [ ] COMMAND COLOUR TELLS THE TRUTH (added 2026-10-03 by Christian; done after THE BRANCH, before
+      REGISTRY DRIFT RESOLVED): every builtin the dispatcher runs is coloured as native, a program
+      on PATH or an alias as valid, and only what will not run as red. One list of builtins in
+      novashell commands, checked against the dispatcher's arms by a test both ways; the
+      highlighter, the cheatsheet and completion read it; external programs are answered by
+      zero_core::paths::on_path, not by a hand list. Found 2026-10-03: tools runs and reads red,
+      because NATIVE_COMMANDS and is_known_command's BUILTINS (completion.rs 799, 853) are kept
+      by hand
 
 ## Relationship
 
