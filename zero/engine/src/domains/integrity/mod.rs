@@ -283,14 +283,22 @@ fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
         Some(FixAction::UpdateFile { .. }) => "UpdateFile",
         _ => "Unknown",
     };
-    // Check if already pending
+    // The fix as data, so apply can carry it out (INT-267 batch 1b); other fixes keep their text.
+    let action_data = match &issue.fix {
+        Some(FixAction::UpdateRegistryVersion { tool, version }) => {
+            format!("{}\t{}", tool, version)
+        }
+        _ => issue.description.clone(),
+    };
+    // Already pending means the same check AND the same finding, so each drift is its own row.
     let exists: i64 = ctx
         .ctx
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM pending_fixes WHERE check_name=?1 AND applied_at IS NULL",
-            rusqlite::params![issue.check],
+            "SELECT COUNT(*) FROM pending_fixes
+             WHERE check_name=?1 AND description=?2 AND applied_at IS NULL",
+            rusqlite::params![issue.check, &issue.description],
             |r| r.get(0),
         )
         .unwrap_or(0);
@@ -303,7 +311,7 @@ fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
                 issue.category.as_str(),
                 issue.check,
                 action_type,
-                &issue.description,
+                &action_data,
                 &issue.description,
                 now_ts()
             ],
@@ -872,7 +880,6 @@ pub mod checks {
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
             let registry_path = ctx.ctx.fpath("registry/tools.toml");
-            let rust_tools_dir = ctx.core_root.join("rust-tools");
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
                 Err(_) => return issues,
@@ -894,23 +901,25 @@ pub mod checks {
                 }
             }
 
-            // Check each rust-tool's Cargo.toml
+            // Each registered crate's Cargo.toml, found through the owner (INT-267 L2).
+            // Registry name "core" is the engine, whose directory is named for its role.
             for (name, reg_ver) in &reg_versions {
-                let cargo_path = if name == "core" {
-                    ctx.core_root.join("engine/Cargo.toml")
+                let dir = if name == "core" {
+                    "engine"
                 } else {
-                    rust_tools_dir.join(name).join("Cargo.toml")
+                    name.as_str()
                 };
-                if !cargo_path.exists() {
-                    continue;
-                }
+                let cargo_path = match zero_core::paths::crate_rel_dir_in(&ctx.core_root, dir) {
+                    Some(rel) => ctx.core_root.join(rel).join("Cargo.toml"),
+                    None => continue,
+                };
                 if let Ok(cargo) = std::fs::read_to_string(&cargo_path) {
                     if let Some(line) = cargo.lines().find(|l| l.starts_with("version = \"")) {
                         let cargo_ver = line
                             .trim_start_matches("version = \"")
                             .trim_end_matches('"');
                         if cargo_ver != reg_ver {
-                            issues.push(IntegrityIssue::auto_fix(
+                            issues.push(IntegrityIssue::propose(
                                 Category::Registry,
                                 "registry_version_drift",
                                 &format!("{}: registry={} cargo={}", name, reg_ver, cargo_ver),
@@ -1343,6 +1352,28 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
             }
             moved
         }
+        "registry_version_drift" => {
+            // INT-267 batch 1b: the proposal holds the tool and version as data.
+            let data: String = ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT action_data FROM pending_fixes WHERE id = ?1",
+                    rusqlite::params![pid],
+                    |r| r.get(0),
+                )
+                .unwrap_or_default();
+            match data.split_once('\t') {
+                Some((tool, version)) => apply_safe_fix(
+                    &FixAction::UpdateRegistryVersion {
+                        tool: tool.to_string(),
+                        version: version.to_string(),
+                    },
+                    &IntegrityContext::new(ctx),
+                ),
+                None => false,
+            }
+        }
         _ => {
             println!(
                 "  {} Fix type '{}' requires manual application",
@@ -1508,6 +1539,123 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
     }
     println!();
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A stand-in repo, laid out where the owner says crates live (INT-267 L2): one tool crate
+    /// and the engine, each a version ahead of the registry, over an in-memory database.
+    fn stand_in(tag: &str) -> (AppContext, PathBuf) {
+        let root =
+            std::env::temp_dir().join(format!("integrity-int267-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let tool = root.join(zero_core::paths::CRATE_PARENTS[0]).join("alpha");
+        let engine = root.join(zero_core::paths::SINGLE_CRATES[0]);
+        for (dir, ver) in [(&tool, "2.0.0"), (&engine, "4.0.0")] {
+            std::fs::create_dir_all(dir).unwrap();
+            let cargo = format!("[package]\nversion = \"{}\"\n", ver);
+            std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+        }
+        let registry = root.join("zero/registry");
+        std::fs::create_dir_all(&registry).unwrap();
+        let tools = "[[tool]]\nname = \"alpha\"\nversion = \"1.0.0\"\n\n[[tool]]\nname = \"core\"\nversion = \"3.0.0\"\n";
+        std::fs::write(registry.join("tools.toml"), tools).unwrap();
+        let ctx = AppContext {
+            runtime: crate::runtime::Runtime {
+                root: root.clone(),
+                logs: root.join("logs"),
+                cache: root.join("cache"),
+                snapshots: root.join("snapshots"),
+                locks: root.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: root.display().to_string(),
+            core_root: root.display().to_string(),
+            source_root: root.join("zero").display().to_string(),
+        };
+        assert!(ensure_tables(&ctx).is_ok());
+        (ctx, root)
+    }
+
+    fn drift_only() -> Vec<Box<dyn IntegrityCheck>> {
+        vec![Box::new(checks::RegistryVersionDriftCheck)]
+    }
+
+    /// INT-267 L2: the check finds Cargo.toml where the owner says crates live. Seen red while
+    /// it joined paths no crate has lived in since the tree moved under zero/.
+    #[test]
+    fn drift_check_reads_every_crate_through_the_owner() {
+        let (ctx, root) = stand_in("reads");
+        let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+        let _ = std::fs::remove_dir_all(&root);
+        let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+        assert_eq!(found.len(), 2, "both drifts found: {names:?}");
+    }
+
+    /// INT-267 batch 1b: a scan proposes drift and records every one; it never edits the registry.
+    #[test]
+    fn a_scan_records_every_drift_and_writes_nothing() {
+        let (ctx, root) = stand_in("consent");
+        let path = root.join("zero/registry/tools.toml");
+        let before = std::fs::read_to_string(&path).unwrap();
+        let result = run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let after = std::fs::read_to_string(&path).unwrap();
+        let pending: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(before, after, "a scan rewrote the registry");
+        assert_eq!(result.auto_fixed, 0, "a scan applied a fix");
+        assert_eq!(pending, 2, "every drift is recorded, not only the first");
+    }
+
+    /// INT-267 batch 1b: applying one drift proposal writes exactly that tool's version.
+    #[test]
+    fn applying_a_drift_writes_exactly_its_version() {
+        let (ctx, root) = stand_in("apply");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let id: Option<i64> = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT id FROM pending_fixes WHERE description LIKE ?1 AND applied_at IS NULL",
+                ["alpha:%"],
+                |r| r.get(0),
+            )
+            .ok();
+        let applied = id.map(|id| cmd_apply(&ctx, &id.to_string()).is_ok());
+        let registry = std::fs::read_to_string(root.join("zero/registry/tools.toml")).unwrap();
+        let done: Option<i64> = id.and_then(|id| {
+            ctx.runtime
+                .db
+                .query_row(
+                    "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+                    [id],
+                    |r| r.get(0),
+                )
+                .ok()
+                .flatten()
+        });
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(applied, Some(true), "no drift proposal for alpha to apply");
+        assert!(
+            registry.contains("name = \"alpha\"\nversion = \"2.0.0\""),
+            "alpha not updated:\n{registry}"
+        );
+        assert!(
+            registry.contains("name = \"core\"\nversion = \"3.0.0\""),
+            "another tool changed:\n{registry}"
+        );
+        assert!(done.is_some(), "the proposal is not marked applied");
+    }
 }
 pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
     use colored::*;

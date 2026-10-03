@@ -6,7 +6,6 @@ zero/engine/src/domains/audit/mod.rs	zero/rust-tools/{}/
 zero/engine/src/domains/audit/mod.rs	rust-tools/{}/Cargo.toml
 zero/engine/src/domains/audit/mod.rs	zero/rust-tools/{}/Cargo.toml
 zero/engine/src/domains/evolution/mod.rs	rust-tools/
-zero/engine/src/domains/integrity/mod.rs	rust-tools
 zero/engine/src/domains/intent/mod.rs	rust-tools/novashell
 zero/engine/src/domains/intent/mod.rs	zero/rust-tools/novashell/Cargo.toml
 zero/engine/src/domains/intent/mod.rs	zero/rust-tools/zero-git/Cargo.toml
