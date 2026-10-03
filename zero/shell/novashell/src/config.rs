@@ -79,6 +79,21 @@ pub fn config_path() -> std::path::PathBuf {
 
 /// Parse config.fsh and return structured config.
 /// Silent on missing file — config is optional.
+/// INT-265: unquote a config value only when the whole value is one quoted string -- it starts
+/// and ends with the same quote and holds no other copy of it. The trim_matches this replaces
+/// stripped each end on its own, so a value ending in an inner quote (git commit -m "...")
+/// lost its closing quote, which broke eleven aliases in config.nsh.
+fn unquote_value(raw: &str) -> String {
+    let b = raw.as_bytes();
+    if b.len() >= 2 && (b[0] == b'"' || b[0] == b'\'') && b[b.len() - 1] == b[0] {
+        let inner = &raw[1..raw.len() - 1];
+        if !inner.contains(b[0] as char) {
+            return inner.to_string();
+        }
+    }
+    raw.to_string()
+}
+
 pub fn load() -> ShellConfig {
     let path = config_path();
     let text = match std::fs::read_to_string(&path) {
@@ -177,10 +192,7 @@ pub fn load() -> ShellConfig {
                 } else {
                     raw_val
                 };
-                let val = raw_val
-                    .trim_matches('"')
-                    .trim_matches("'".chars().next().unwrap())
-                    .to_string();
+                let val = unquote_value(raw_val);
                 if !name.is_empty() && !val.is_empty() {
                     aliases.push((name, val));
                 }
@@ -189,11 +201,7 @@ pub fn load() -> ShellConfig {
             // set prompt_style = minimal
             if let Some(eq_pos) = rest.find(" = ") {
                 let key = rest[..eq_pos].trim().to_string();
-                let val = rest[eq_pos + 3..]
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .to_string();
+                let val = unquote_value(rest[eq_pos + 3..].trim());
                 if !key.is_empty() && !val.is_empty() {
                     settings.push((key, val));
                 }
@@ -377,4 +385,30 @@ set prompt_style = zero
 "#;
 
     std::fs::write(&path, default).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unquote_value;
+
+    #[test]
+    fn a_value_quoted_whole_loses_its_quotes() {
+        assert_eq!(unquote_value("\"ls -la\""), "ls -la");
+        assert_eq!(unquote_value("'ls -la'"), "ls -la");
+    }
+
+    #[test]
+    fn a_value_ending_in_an_inner_quote_keeps_it() {
+        // INT-265: trim_matches stripped each end on its own, so these lost their closing quote.
+        let qc = "git commit -m \"Quick update: $(date +%Y-%m-%d)\"";
+        assert_eq!(unquote_value(qc), qc);
+        assert_eq!(unquote_value("date +\"%T\""), "date +\"%T\"");
+    }
+
+    #[test]
+    fn a_value_that_is_not_one_quoted_string_is_unchanged() {
+        assert_eq!(unquote_value("\"a\" && \"b\""), "\"a\" && \"b\"");
+        assert_eq!(unquote_value("ls -la"), "ls -la");
+        assert_eq!(unquote_value("\""), "\"");
+    }
 }
