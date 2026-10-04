@@ -1,0 +1,32 @@
+INT-266 F-0010 -- the finding name rule in one place -- plan
+  E1 zero/engine/src/domains/intent/findings.rs: record_number before highest_number: the one owner of the name rule
+     - /// The highest F-number on disk. An absent folder truly holds none, so it answers 0; a folder
+     + /// The number in a finding's file name, F-NNNN.md, or None for any other name. The one place
+     + /// the name rule lives: the allocator and the reader both ask it (F-0010).
+     + fn record_number(name: &str) -> Option<u32> {
+     +     name.strip_prefix("F-")
+     +         .and_then(|r| r.strip_suffix(".md"))
+     +         .and_then(|d| d.parse::<u32>().ok())
+     + }
+     + 
+     + /// The highest F-number on disk. An absent folder truly holds none, so it answers 0; a folder
+  E2 zero/engine/src/domains/intent/findings.rs: highest_number asks record_number
+     -         let n = name
+     -             .strip_prefix("F-")
+     -             .and_then(|r| r.strip_suffix(".md"))
+     -             .and_then(|d| d.parse::<u32>().ok());
+     -         if let Some(n) = n {
+     +         if let Some(n) = record_number(&name) {
+  E3 zero/engine/src/domains/intent/findings.rs: read_records asks record_number
+     -         let is_record = name
+     -             .strip_prefix("F-")
+     -             .and_then(|r| r.strip_suffix(".md"))
+     -             .and_then(|d| d.parse::<u32>().ok())
+     -             .is_some();
+     -         if !is_record {
+     +         if record_number(&name).is_none() {
+no red stage: a pure de-duplication cannot be shown failing first. The proof is that the
+tests already covering both callers stay green (the_highest_number_counts_only_finding_names,
+a_record_reads_back_as_it_was_written, a_folder_that_cannot_be_read_is_an_error_never_none),
+and that trace INT-266 on the real tree still lists the same ten findings.
+commit trailers: Intent: INT-266, Fixes: F-0010, Seal: this seal
