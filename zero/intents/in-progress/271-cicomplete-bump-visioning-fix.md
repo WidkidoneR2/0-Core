@@ -3,7 +3,7 @@ id: 271
 date: 2026-10-03
 type: future
 title: "Cicomplete Bump visioning fix"
-status: planned
+status: in-progress
 tags: [nsh, novashell, cicomplete, bum-version]
 ---
 
@@ -18,15 +18,20 @@ unattended close either receives an explicit decision or refuses, and no level i
 from intent type. The human picks the digit (INT-102 D4); the tool records it and applies it.
 
 ## Why Now
-- 2026-10-03: the close handed `bump-versions novashell patch` seven times. bump_versions_cmd
+- 2026-10-03: `bump-versions novashell patch` was handed over seven times. bump_versions_cmd
   enters its write branch only when the first token is a level, so each paste printed the table,
-  wrote nothing, and raised no error.
+  wrote nothing, and exited 0. That command did not come from the close: on this tree the close's
+  no-TTY line prints level first (intent/mod.rs:1432-1438), which the writer accepts. The defect is
+  the writer turning any non-level first word into a silent table.
 - The same day a close was interrupted after two answers. The file had already been moved to
   complete/; the rerun hit the already-complete early return and the remaining crates had no door.
 - The questions are print! to stdout, so a redirect swallowed them.
 - semver_level_for_type maps `type: feature` to minor and everything else to patch. INT-102 D5
   rejected exactly that mapping, and G5 was ticked on 2026-08-14 because the close asked rather
-  than inferred. A type-derived default is that mapping back.
+  than inferred. The default was never removed: it arrived in 5c124d92 (INT-111 Phase 5,
+  2026-07-06), five days after D5, and has sat in the prompt's brackets since. Its input is the
+  folder name or a `type:` line (intent/mod.rs:143, 159-160), and inta writes `type: future`, so
+  it is patch for almost every intent and minor only for a hand-written `type: feature`.
 - `bump-versions apply` and the label `core (engine)` are both offered as things to type. Neither
   works.
 
@@ -82,9 +87,49 @@ Phase 3 -- unattended flags.
 Phase 4 -- type-derived default removed.
 Phase 5 -- the intent interrupted 2026-10-03 settled through the new door; ship; doors.
 
+## Phase 0 Record (2026-10-03, HEAD 5ec9d198)
+Writer -- zero/shell/novashell/src/commands/mod.rs:
+- Dispatch 1232. tool_cargo_path 16713-16721: novashell, zero-git, friday-chat, db-browse; core
+  and engine both map to engine. bump_semver 16723-16735. apply_version_bump 16738-16779.
+  bump_versions_cmd 16781-16852.
+- The write branch runs only when args[0] is a level (16786-16808). Any other first word,
+  `apply` included, falls through to the table and returns Output, exit 0 (16810-16851). The
+  `apply` flag only changes the footer (16840-16844). CommandResult::Error(msg.into(), code)
+  (16789-16793); the enum is at 39.
+Close -- zero/engine/src/domains/intent/mod.rs:
+- semver_level_for_type 1068-1075: feature -> minor, anything else -> patch.
+  engine_apply_bump 1077-1125.
+- complete_intent 1127. Status early return 1142-1145. Move to complete/ 1280-1296: status
+  rewritten, file written into complete/, source removed.
+- INT-326 block from 1358: touched crates from git log --grep=INT-<id> --since=60 days ago
+  (1362-1374); Cargo.toml paths through zero_core::paths::crate_rel_dir and
+  CRATE_PARENTS_HISTORY (1378-1385); label `core (engine)` (1391); proposed level from type
+  (1405); the no-TTY line prints `run: bump-versions <level> <label>` (1429-1440); prompt and
+  flush on stdout (1442-1450); Enter takes the proposal (1457); an unrecognized answer prints
+  "skipped" and moves on (1463-1466), after the file has already moved; engine_apply_bump call
+  1468; Cargo.lock sync by cargo update -p <pkg> --precise (1490-1494).
+- intent_type is the folder name (143), replaced by a `type:` line (159-160).
+Wiring:
+- app/dispatcher.rs:130 passes only `id`. cicomplete is ~/.config/nsh/config.nsh:46,
+  `alias cicomplete = "core intent complete"`; `dc` expands to cicomplete (novashell
+  main.rs:2806-2810). Trailing words reach core: `cicomplete 999 --bump novashell=patch` was
+  refused by clap, "unexpected argument '--bump'", exit 2, before any logic ran.
+- zero_core::paths::crate_rel_dir (zero-core paths.rs:513) and CRATE_PARENTS_HISTORY
+  (paths.rs:461) exist.
+Findings:
+- Two writers, full copies. engine_apply_bump and apply_version_bump each read the file, assert one
+  version line, compute the bump, replace it and write. The engine copy exists to avoid depending
+  on NovaShell (1077). Both crates already use zero_core, so zero-core is the one owner.
+- The type default arrived in 5c124d92 (INT-111 Phase 5, 2026-07-06), five days after INT-102 D5,
+  and was never removed.
+- Deployed at baseline: core built 2026-10-03 18:27:30, nsh 18:29:28.
+
 ## Gates
-- [ ] Phase 0: every seam listed under Phases recorded here with file:line; the cicomplete forwarding path recorded; whether the two writers share one semver step recorded (one owner made in this intent if not); the commit that introduced semver_level_for_type named
-- [ ] Red baseline on the deployed binary before any edit: `bump-versions novashell patch` prints the table, exits 0, and the novashell Cargo.toml is unchanged (cmp against a copy)
+- [x] Phase 0: every seam listed under Phases recorded here with file:line; the cicomplete forwarding path recorded; whether the two writers share one semver step recorded (owning it is its own gate below); the commit that introduced semver_level_for_type named
+<!-- evidence: Phase 0 Record above, read 2026-10-03 at HEAD 5ec9d198 with numbered-line reads and fsearch. Forwarding demonstrated: cicomplete 999 --bump novashell=patch reached core and clap refused --bump, exit 2. Copies found: engine_apply_bump 1077-1125 and apply_version_bump 16738-16779. Introduced: 5c124d92. -->
+- [x] Red baseline on the deployed binary before any edit: `bump-versions novashell patch` prints the table, exits 0, and the novashell Cargo.toml is unchanged (cmp against a copy)
+<!-- evidence: demonstrated 2026-10-03 on deployed nsh (built 18:29:28): bump-versions novashell patch printed the Version Registry table, echo $? gave exit 0, and cmp against /tmp/int271-ns-before.toml, copied immediately before, reported no difference. -->
+- [ ] One owner for the version write: zero-core holds the read, the one-line assert, the arithmetic and the write; engine_apply_bump and apply_version_bump become callers; fsearch finds the patch/minor/major arithmetic in one place
 - [ ] Writer contract on the debug binary against a scratch tree: `<tool> <level>` and `<level> <tool>` write the same new version; `bump-versions novashell`, `bump-versions apply` and `bump-versions frob patch` exit non-zero with usage and leave every Cargo.toml byte-identical (cmp); no args prints the table and writes nothing
 - [ ] Every command cicomplete prints is accepted by bump-versions: a test feeds each suggested line through the writer parser; the engine crate is suggested as `engine`, never `core (engine)`
 - [ ] One version-row parser, class-tested red first against the draft parse: an open row, a settled bump row, a settled skip row, and a gate line that merely contains a dotted number (draft defect: on an open row the whitespace split puts the tool at index 3, so nth(2) returns the closing bracket)
@@ -127,6 +172,8 @@ Phase 5 -- the intent interrupted 2026-10-03 settled through the new door; ship;
   `cargo update -p <member> --precise` behaves as intended on a workspace member is UNVERIFIED;
   the no-double-bump gate checks Cargo.lock as well.
 - Related: INT-102 (version architecture).
+- Found, not fixed here: nsh labelled core's exit 2 "misuse of shell builtin" (seen 2026-10-03
+  on the forwarding check). core is an external binary, so the category is a guess.
 
 ## The Rule
 "A command the tool prints is a promise the tool keeps. A digit the tool guesses is a promise nobody made."
