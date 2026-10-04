@@ -8,6 +8,66 @@ tags: [intent, fingerprint, organization, bug report]
 depends_on: [247, 252, 265]
 ---
 
+## START HERE -- 2026-10-04, end of session 1
+
+State: in-progress and focused. Gates 1-5 ticked, each with its receipt. Gates 6-11 open.
+Next move: recon for trace, then build it. Nothing is half-done; the tree is clean at the
+commit that carries this section.
+
+### Next, in order
+
+    1  Recon: does the engine already run git? Search zero/engine/src for Command::new and
+       git. trace reuses one caller; it does not add a second.
+    2  Rule placement: trace in findings.rs, or a sibling trace.rs under domains/intent.
+    3  Build core intent trace <INT-x | F-x | commit | seal>, red first. It answers
+       questions a, b and c from the finding records, the Intent / Seal / Fixes trailers
+       and the seal notes. Every read of git or the store answers "could not read" when it
+       cannot -- gate 9, with a class test, from the first line.
+    4  Gates 10-11: the convention into docs/CONVENTIONS.md, the method proposed for
+       AGENTS.md (Christian edits AGENTS.md; Claude proposes text only).
+
+### What exists
+
+    find      core intent find "<what>" [--at file:line] [--by INT-x]. --by defaults to the
+              focused intent and is checked against the ledger. Shipped in core 4.1.5.
+    code      zero/engine/src/domains/intent/findings.rs: write_record (create_new),
+              finding_id, highest_number, render, find. Tests: collision_tests, record_tests.
+    wiring    a new intent verb touches four sites, after Override: cli/parser.rs
+              (IntentCommands), cli/commands.rs (IntentCommand), cli/mod.rs (mapping),
+              app/dispatcher.rs (call). The module line is in intent/mod.rs after the uses.
+    records   zero/intents/findings/F-NNNN.md: id, what, at, found_by, found_on,
+              closed_without_fix. Fixed is derived from Fixes: trailers, never stored.
+    crate     core, binary only. cargo test -p core findings. intent/mod.rs line 1 is
+              #![allow(dead_code)]. Private parent items (read_focus, load_all,
+              intents_dir) are reachable from findings.rs through super::.
+
+### Findings filed
+
+    F-0001  INT-249 lost in ledger testing; one copy in planned/, which load_all does not read
+    F-0002  311 md files in the folders load_all reads; validate counts 310 (mod.rs:117)
+    F-0003  intent/mod.rs:1 silences dead code for the whole module
+    F-0004  read_focus answers None for both no focus and an unreadable focus file
+    F-0005  genealogy keeps a second loader of the ledger over four folders
+
+Seen, not verified: a test comment says validate_issues reads paths::intents_dir() (HOME)
+while load_all reads ctx.fpath. Read the code before filing it.
+
+### Commits this session -- Intent and Seal trailers, plan text as a note, all intact
+
+    298d8afa  2327275975ab0b36  rulings before code
+    d5a65703  096037958c223ac3  starting line, two findings in prose
+    cb1dbe90  29b2bf352cef9291  a finding id cannot collide, red then green
+    3492c26f  a938510047aa5245  core intent find; F-0001 and F-0002
+
+### The Seal method, as practised
+
+    plan    prints every edit; SEAL is the first 16 hex of sha256 over the plan text.
+            apply refuses unless the seal matches. Rehearsed in a sandbox first.
+    commit  git commit ... --trailer "Intent: INT-266" --trailer "Seal: <seal>"
+    note    git notes --ref=seals add --no-stripspace -F ~/.cache/zero/seal-<seal>.txt HEAD
+    check   re-hash git notes --ref=seals show HEAD against the Seal trailer; push only on
+            SEAL INTACT, then git push origin refs/notes/seals. Delete the cache files after.
+
 ## Vision
 
 A finding, the intent that found it, and the commit that fixed it point at each other by name.
@@ -182,8 +242,9 @@ The three questions -- the test of whether this worked:
       <!-- evidence: commit 298d8afa, 2026-10-04. Rulings section dated and attributed to Christian; that commit changes only this file (the future -> in-progress rename plus the section); no INT-266 code commit precedes it. Seal 2327275975ab0b36 checked intact against refs/notes/seals. -->
 - [x] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
       <!-- evidence: commit cb1dbe90, 2026-10-04. cargo test -p core findings: red under File::create (panicked at findings.rs:51 -- a second write of F-0001 must be refused, got Ok), green under create_new (1 passed). Seal 29b2bf352cef9291 intact against refs/notes/seals. -->
-- [ ] A finding record states what, where, found by and when, and its state; a field that is not
+- [x] A finding record states what, where, found by and when, and its state; a field that is not
       known says so rather than reading as empty (INT-192)
+      <!-- evidence: commit 3492c26f, 2026-10-04. findings.rs record_tests: red with an empty default (at is empty), green with unknown (3 passed). Real records F-0001 and F-0002 carry every field. Seal a938510047aa5245 intact. -->
 - [ ] Question a is answered by one command, on real data
 - [ ] Question b is answered by one command, on real data, naming the fixing commit and the
       fingerprint of the plan that produced it
