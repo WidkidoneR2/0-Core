@@ -1,0 +1,320 @@
+INT-266 core intent find -- gate 4 ticked, gate 5 red then green -- plan
+
+== stage a.1  266: tick gate 4 with its receipt
+file    /home/christian/0-core/zero/intents/in-progress/266-bug-report-or-catalog-report-of-connecting-the-intent-finding-with-fingerprint.md
+-- replace (matches once):
+- [ ] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
+-- with:
+- [x] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
+      <!-- evidence: commit cb1dbe90, 2026-10-04. cargo test -p core findings: red under File::create (panicked at findings.rs:51 -- a second write of F-0001 must be refused, got Ok), green under create_new (1 passed). Seal 29b2bf352cef9291 intact against refs/notes/seals. -->
+
+== stage a.2  cli/parser.rs: the Find verb the user types
+file    /home/christian/0-core/zero/engine/src/cli/parser.rs
+-- replace (matches once):
+        /// Reason for override
+        reason: String,
+    },
+}
+-- with:
+        /// Reason for override
+        reason: String,
+    },
+    /// File a finding: something found and not fixed (INT-266)
+    Find {
+        /// What was found, in one line
+        what: String,
+        /// Where it is, as file:line; recorded as unknown when omitted
+        #[arg(long)]
+        at: Option<String>,
+        /// The intent that found it; defaults to the focused intent
+        #[arg(long)]
+        by: Option<String>,
+    },
+}
+
+== stage a.3  cli/commands.rs: the Find command the engine runs
+file    /home/christian/0-core/zero/engine/src/cli/commands.rs
+-- replace (matches once):
+    Override {
+        id: String,
+        reason: String,
+    },
+}
+-- with:
+    Override {
+        id: String,
+        reason: String,
+    },
+    Find {
+        what: String,
+        at: Option<String>,
+        by: Option<String>,
+    },
+}
+
+== stage a.4  cli/mod.rs: map one to the other
+file    /home/christian/0-core/zero/engine/src/cli/mod.rs
+-- replace (matches once):
+            IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
+-- with:
+            IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
+            IntentCommands::Find { what, at, by } => IntentCommand::Find { what, at, by },
+
+== stage a.5  app/dispatcher.rs: call findings::find
+file    /home/christian/0-core/zero/engine/src/app/dispatcher.rs
+-- replace (matches once):
+                IntentCommand::Override { id, reason } => {
+                    crate::domains::intent::override_intent(ctx, &id, &reason)
+                }
+-- with:
+                IntentCommand::Override { id, reason } => {
+                    crate::domains::intent::override_intent(ctx, &id, &reason)
+                }
+                IntentCommand::Find { what, at, by } => {
+                    crate::domains::intent::findings::find(ctx, &what, at.as_deref(), by.as_deref())
+                }
+
+== stage a.6  findings.rs: allocator, render, find, tests -- render has the NAIVE empty default, so gate 5 can go red
+file    /home/christian/0-core/zero/engine/src/domains/intent/findings.rs
+-- replace the whole file (sha256 029b837e04be322f, the cb1dbe90 version) with:
+//! INT-266: findings -- something found and not fixed, one record per file under
+//! zero/intents/findings/, named F-NNNN.md (ruled by Christian, 2026-10-04).
+//!
+//! A record holds only facts from the moment it was filed. Whether a finding is fixed is never
+//! stored here: it is derived from Fixes: trailers in git. Records are never deleted, because a
+//! Fixes: trailer must always point at a real record, and an id is never reused.
+
+use crate::app::context::AppContext;
+use crate::capabilities::Capability;
+use crate::errors::{CoreError, CoreResult};
+use colored::*;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+/// Why a record was not written. Either way, nothing on disk changed.
+#[derive(Debug, PartialEq)]
+pub enum WriteError {
+    /// A record with this id already exists. It was left exactly as it was.
+    Exists(PathBuf),
+    /// The record could not be written, for the reason given.
+    Io(PathBuf, String),
+}
+
+/// Write one finding record as `<dir>/<id>.md`. Refuses rather than overwrite.
+pub fn write_record(dir: &Path, id: &str, body: &str) -> Result<PathBuf, WriteError> {
+    let path = dir.join(format!("{}.md", id));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::AlreadyExists => WriteError::Exists(path.clone()),
+            _ => WriteError::Io(path.clone(), e.to_string()),
+        })?;
+    file.write_all(body.as_bytes())
+        .map_err(|e| WriteError::Io(path.clone(), e.to_string()))?;
+    Ok(path)
+}
+
+/// The id form ruled 2026-10-04: F- and four digits.
+pub fn finding_id(n: u32) -> String {
+    format!("F-{:04}", n)
+}
+
+/// The highest F-number on disk. An absent folder truly holds none, so it answers 0; a folder
+/// that exists but cannot be read is an error, never 0 (INT-192). Names that are not F-NNNN.md
+/// are not counted.
+pub fn highest_number(dir: &Path) -> Result<u32, WriteError> {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(WriteError::Io(dir.to_path_buf(), e.to_string())),
+    };
+    let mut max = 0;
+    for entry in entries {
+        let entry = entry.map_err(|e| WriteError::Io(dir.to_path_buf(), e.to_string()))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let n = name
+            .strip_prefix("F-")
+            .and_then(|r| r.strip_suffix(".md"))
+            .and_then(|d| d.parse::<u32>().ok());
+        if let Some(n) = n {
+            max = max.max(n);
+        }
+    }
+    Ok(max)
+}
+
+/// The record body. Every field is written: a field nobody gave reads `unknown`, never empty
+/// (INT-192). Fixed is not a field -- it is derived from Fixes: trailers. The one stored part
+/// of a finding's state is the closure decision, and at filing no decision has been made.
+pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str) -> String {
+    format!(
+        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\n---\n",
+        id,
+        what,
+        at.unwrap_or(""),
+        by.unwrap_or(""),
+        on
+    )
+}
+
+fn refuse(message: String) -> CoreError {
+    CoreError::Domain {
+        domain: "intent".to_string(),
+        message: format!("nothing was filed -- {}", message),
+    }
+}
+
+/// `core intent find "<what>" [--at <file:line>] [--by <intent>]` -- file one finding.
+/// `--by` defaults to the focused intent, read the way `core intent status` reads it.
+pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
+    let what = what.split_whitespace().collect::<Vec<_>>().join(" ");
+    if what.is_empty() {
+        return Err(refuse("a finding must say what was found".to_string()));
+    }
+    let at = at.map(str::trim).filter(|s| !s.is_empty());
+    let (by_id, from_focus) = match by.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(b) => (Some(b.trim_start_matches("INT-").to_string()), false),
+        None => (super::read_focus().map(|f| f.id), true),
+    };
+    if let Some(id) = &by_id {
+        if !super::load_all(ctx).iter().any(|i| &i.id == id) {
+            return Err(refuse(format!("INT-{} names no intent in the ledger", id)));
+        }
+    }
+    let by_label = by_id.as_ref().map(|id| format!("INT-{}", id));
+    let dir = super::intents_dir(ctx).join("findings");
+    fs::create_dir_all(&dir)
+        .map_err(|e| refuse(format!("could not create {}: {}", dir.display(), e)))?;
+    let on = chrono::Local::now().format("%Y-%m-%d").to_string();
+    for _ in 0..5 {
+        let n = highest_number(&dir).map_err(|e| refuse(format!("{:?}", e)))? + 1;
+        let id = finding_id(n);
+        let body = render(&id, &what, at, by_label.as_deref(), &on);
+        match write_record(&dir, &id, &body) {
+            Ok(path) => {
+                println!("  {} {} filed", "✅".green(), id.bright_white());
+                match &by_label {
+                    Some(b) if from_focus => println!("     found by {} (focused)", b),
+                    Some(b) => println!("     found by {}", b),
+                    None => println!(
+                        "     found by unknown -- no --by given and no focused intent could be read"
+                    ),
+                }
+                println!("     at {}", at.unwrap_or("unknown"));
+                println!("     {}", path.display().to_string().dimmed());
+                return Ok(());
+            }
+            Err(WriteError::Exists(_)) => continue,
+            Err(e) => return Err(refuse(format!("{:?}", e))),
+        }
+    }
+    Err(refuse(
+        "five ids in a row were taken while filing; run it again".to_string(),
+    ))
+}
+
+#[cfg(test)]
+mod collision_tests {
+    /// INT-266 gate 4: A FINDING ID CANNOT COLLIDE. The id is the whole point of a record: a
+    /// Fixes: trailer in git names it, and trace follows it. If a second filing could reuse an
+    /// id, the first record would be overwritten and every commit that named it would silently
+    /// point at someone else's finding.
+    ///
+    /// Proven red first, the honest way: the first writer used File::create, which overwrites,
+    /// and this test caught it. The fix is the filesystem's own refusal -- create_new -- so two
+    /// filings that race cannot both win.
+    #[test]
+    fn a_second_write_of_the_same_id_is_refused_and_the_first_survives() {
+        let dir = std::env::temp_dir().join("core_finding_collision_test");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let first = super::write_record(&dir, "F-0001", "first\n");
+        let second = super::write_record(&dir, "F-0001", "second\n");
+        let on_disk = std::fs::read(dir.join("F-0001.md")).expect("read back");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(first.is_ok(), "the first write must succeed: {:?}", first);
+        assert!(
+            matches!(second, Err(super::WriteError::Exists(_))),
+            "a second write of F-0001 must be refused, got {:?}",
+            second
+        );
+        assert_eq!(
+            on_disk, b"first\n",
+            "and the first record must survive byte for byte"
+        );
+    }
+}
+
+#[cfg(test)]
+mod record_tests {
+    /// INT-266 gate 5: A FIELD THAT IS NOT KNOWN SAYS SO. A record filed without --at or --by
+    /// must read `unknown` in that field, never an empty value that looks like a parse error or
+    /// a blank someone forgot (INT-192). Proven red first: the first render used an empty
+    /// default, and this test caught it.
+    #[test]
+    fn a_missing_field_reads_unknown_never_empty() {
+        let body = super::render("F-0001", "something broke", None, None, "2026-10-04");
+        for field in [
+            "id",
+            "what",
+            "at",
+            "found_by",
+            "found_on",
+            "closed_without_fix",
+        ] {
+            let line = body
+                .lines()
+                .find(|l| l.starts_with(&format!("{}:", field)))
+                .unwrap_or_else(|| panic!("the record has no {} field:\n{}", field, body));
+            let value = line[field.len() + 1..].trim();
+            assert!(!value.is_empty(), "{} is empty:\n{}", field, body);
+        }
+        assert!(body.contains("\nat: unknown\n"), "{}", body);
+        assert!(body.contains("\nfound_by: unknown\n"), "{}", body);
+    }
+
+    /// The allocator counts F-NNNN.md and nothing else, and an absent folder holds none.
+    #[test]
+    fn the_highest_number_counts_only_finding_names() {
+        let dir = std::env::temp_dir().join("core_finding_highest_test");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            super::highest_number(&dir),
+            Ok(0),
+            "an absent folder holds none"
+        );
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        for name in [
+            "F-0001.md",
+            "F-0007.md",
+            "F-abc.md",
+            "notes.md",
+            "F-0009.txt",
+        ] {
+            std::fs::write(dir.join(name), "x").expect("seed");
+        }
+        let got = super::highest_number(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(got, Ok(7));
+    }
+}
+
+== stage b    findings.rs: a missing field reads unknown, so the test goes green
+file    /home/christian/0-core/zero/engine/src/domains/intent/findings.rs
+-- replace (matches once):
+        at.unwrap_or(""),
+        by.unwrap_or(""),
+-- with:
+        at.unwrap_or("unknown"),
+        by.unwrap_or("unknown"),
+
