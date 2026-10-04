@@ -3,7 +3,7 @@ id: 266
 date: 2026-09-26
 type: future
 title: "Bug Report or Catalog Report of connecting the intent, finding with fingerprint"
-status: planned
+status: in-progress
 tags: [intent, fingerprint, organization, bug report]
 depends_on: [247, 252, 265]
 ---
@@ -75,6 +75,42 @@ Candidate mechanisms -- recorded, NOT decided:
     scripts     plan scripts are deleted when their work ends. Keeping them is what would let a
                 recorded fingerprint be re-derived later; deleting them keeps ~/.cache clean
     owner       the command surface: which verbs, under which existing tool
+
+## Rulings -- made 2026-10-04 by Christian
+
+Made in conversation on 2026-10-04, after recon and before any code.
+
+Measured first (2026-10-04): 213 commits from 8c4c4c15 to HEAD; 157 carry an
+Intent trailer, 126 carry Fingerprint. Fingerprint values are 12 or 16 hex,
+and ten commits carry two of them. No Rust in the tree reads trailers. Every
+"Found, not fixed" hit is in an intent under complete/.
+
+    name        A reviewed plan is identified by its Seal. New commits carry
+                "Seal: <16 hex>". "Fingerprint:" is read as legacy and never
+                written again, so fingerprint means only the machine identity
+                of AGENTS.md section 0 (INT-269, INT-270).
+    seal        The first 16 hex of sha256 over the plan text the plan step
+                printed. The plan text is kept as a git note under
+                refs/notes/seals on the commit it produced, so a seal can be
+                re-checked later: intact, broken, or no seal recorded.
+    scripts     Plan scripts are still deleted when their work ends; the note
+                keeps the plan text, so ~/.cache stays clean.
+    storage     One markdown file per finding in zero/intents/findings/.
+    id          F-0001 form, one allocator, each file created with create_new
+                so the filesystem refuses a duplicate. Never reused.
+    migration   No live intent holds a finding. Completed intents are never
+                edited. An old finding may be filed as a new record that cites
+                its source line.
+    trailers    "Finding: F-x" means the commit touches F-x; "Fixes: F-x" means
+                it closes F-x. Fixed is derived from Fixes:, never stored in
+                the finding file. Only "closed without a fix, and why" is
+                written into it.
+    verbs       core intent trace <intent | finding | commit | seal> and core
+                intent find (files a finding), both under core intent.
+    edges       trace on an intent also prints what it depends on and what it
+                unblocks, asked of dep_state, the existing single owner.
+    legacy      A commit or value that predates a rule answers as predating
+                it, never as empty (INT-192).
 
 ## The Solution
 
