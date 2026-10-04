@@ -1,0 +1,41 @@
+INT-266 trace display -- trailer lists read with a space after each comma -- plan
+stage red:
+  E1 zero/engine/src/domains/intent/trace.rs: spaced, before seal_line (red body)
+     - /// One line saying what a commit's seal is, re-checked.
+     + /// A trailer list as a reader writes it: one space after each comma. git joins values with a bare
+     + /// comma.
+     + fn spaced(list: &str) -> String {
+     +     list.to_string()
+     + }
+     + 
+     + /// One line saying what a commit's seal is, re-checked.
+  E2 zero/engine/src/domains/intent/trace.rs: the intent line asks spaced
+     -         Some(i) => println!("     intent   {}", i),
+     +         Some(i) => println!("     intent   {}", spaced(i)),
+  E3 zero/engine/src/domains/intent/trace.rs: the legacy Fingerprint line asks spaced
+     -             format!("predates the Seal rule: Fingerprint {}, not re-checkable", f)
+     +             format!("predates the Seal rule: Fingerprint {}, not re-checkable", spaced(&f))
+  E4 zero/engine/src/domains/intent/trace.rs: display_tests at the end
+     -         assert_eq!(target_kind("not-a-thing"), Target::Unknown);
+     -     }
+     - }
+     +         assert_eq!(target_kind("not-a-thing"), Target::Unknown);
+     +     }
+     + }
+     + 
+     + /// Trailer lists print with a space after each comma, the way a reader writes them.
+     + #[cfg(test)]
+     + mod display_tests {
+     +     use super::spaced;
+     + 
+     +     #[test]
+     +     fn a_trailer_list_reads_with_a_space_after_each_comma() {
+     +         assert_eq!(spaced("INT-272,INT-273"), "INT-272, INT-273");
+     +         assert_eq!(spaced("INT-266"), "INT-266");
+     +     }
+     + }
+stage green:
+  E5 zero/engine/src/domains/intent/trace.rs: replace
+     -     list.to_string()
+     +     list.split(',').map(str::trim).collect::<Vec<_>>().join(", ")
+test: cargo test -p core -- intent::findings:: intent::trace:: -- red fails 1 (the display test), green passes 24
