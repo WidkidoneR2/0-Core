@@ -734,9 +734,9 @@ pub enum IntentCommands {
         /// Reason for override
         reason: String,
     },
-    /// Trace an intent: every finding it found, and whether each is still open (INT-266)
+    /// Trace an intent (what it found, what is still open) or a finding (what fixed it, and its seal) (INT-266)
     Trace {
-        /// The intent, as INT-x or x
+        /// INT-x (or x) for an intent, F-x for a finding
         target: String,
     },
     /// File a finding: something found and not fixed (INT-266)
