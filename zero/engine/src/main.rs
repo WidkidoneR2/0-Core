@@ -67,6 +67,10 @@ fn main() {
                 &domain,
                 &format!("{}: {}", cmd_name, e),
             );
+            // INT-272: an error the domain already printed in full is not printed again.
+            let Some(e) = errors::top_level_line(&e) else {
+                std::process::exit(1);
+            };
             eprintln!("{} {}", "✗".bright_red(), e);
             std::process::exit(1);
         }

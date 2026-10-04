@@ -1314,7 +1314,7 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
                     rest.join("; "),
                     id
                 );
-                return Err(crate::errors::CoreError::Runtime(format!(
+                return Err(crate::errors::CoreError::Reported(format!(
                     "bump failed for {}",
                     p.tool
                 )));
@@ -1522,7 +1522,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
         Err(msg) => {
             eprintln!("  refused: {}", msg);
             eprintln!("  nothing was written and the intent was not moved");
-            return Err(crate::errors::CoreError::Runtime(msg));
+            return Err(crate::errors::CoreError::Reported(msg));
         }
     };
 
