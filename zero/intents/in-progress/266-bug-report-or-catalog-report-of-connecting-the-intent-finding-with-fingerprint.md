@@ -112,6 +112,40 @@ and ten commits carry two of them. No Rust in the tree reads trailers. Every
     legacy      A commit or value that predates a rule answers as predating
                 it, never as empty (INT-192).
 
+## Starting line -- measured 2026-10-04
+
+Read-only count over zero/intents at 298d8afa. 266 itself is excluded because it
+quotes the phrase. No file was unreadable.
+
+    headings     26 "Found, not fixed" headings in 3 files, all complete:
+                 247 (19), 267 (5), 269 (2)
+    inline       8 "Found, not fixed" lines in 5 files, all complete:
+                 247 (3: lines 1309, 1547, 1757), 263, 271, 272 (2), 273
+    resolutions  15 lines in 12 files match resolve wording. Two are confirmed
+                 finding resolutions, 247:1309 and 247:1547, both also counted
+                 inline. The other 13 matched on wording and were not read.
+    INT-265      23 entries in five sections of complete/265, each a label and a
+                 file:line, none with an ID: proven defects 4, dead NixOS-era 6,
+                 untrue or invented values 4, hygiene 5, aliases 4
+    live         0 -- no intent in future/ or in-progress/ holds a finding
+
+    total        57 lines that hold or name a finding: 26 + 8 + 23
+
+### Found by INT-266, not fixed -- to be filed first when core intent find exists
+
+    first       INT-249 is not in the ledger: ints 249 answers "Intent 249 not
+                found". Christian, 2026-10-04: it was deleted by accident while
+                testing the intent ledger. One copy remains, at
+                zero/intents/planned/249-devbox-verify-a-bug-report-..., a folder
+                load_all (zero/engine/src/domains/intent/mod.rs:88-98) does not
+                read. Whether to restore the copy to a ledger folder is its own
+                work, not decided here.
+    second      The folders load_all reads hold 311 .md files; core intent validate
+                reports 310 valid. parse_intent returns None for an unreadable file
+                or one without --- frontmatter (mod.rs:125, 133-135), and load_all
+                drops a None without a word (mod.rs:114). Which file goes uncounted
+                is not identified yet.
+
 ## The Solution
 
     1  Wait for INT-247, INT-252 and INT-265 to complete. depends_on enforces it.
@@ -134,9 +168,11 @@ The three questions -- the test of whether this worked:
 - [x] depends_on: [247, 252, 265] is in the frontmatter, and core intent blocked names 266 as
       waiting on all three
       <!-- evidence: b01efe38, 2026-09-26. core intent blocked: INT-266 waiting on INT-247 (in-progress), INT-252 (in-progress), INT-265 (planned); core intent validate: all 303 intents valid. -->
-- [ ] The starting line is recorded: every place findings live today, counted by kind
-- [ ] Every ruling above is written into this file, with the date and who ruled, before any code
+- [x] The starting line is recorded: every place findings live today, counted by kind
+      <!-- evidence: demonstrated 2026-10-04 at 298d8afa. Read-only counter over zero/intents, 0 unreadable; counts by kind in the Starting line section of this file. -->
+- [x] Every ruling above is written into this file, with the date and who ruled, before any code
       is written
+      <!-- evidence: commit 298d8afa, 2026-10-04. Rulings section dated and attributed to Christian; that commit changes only this file (the future -> in-progress rename plus the section); no INT-266 code commit precedes it. Seal 2327275975ab0b36 checked intact against refs/notes/seals. -->
 - [ ] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
 - [ ] A finding record states what, where, found by and when, and its state; a field that is not
       known says so rather than reading as empty (INT-192)
