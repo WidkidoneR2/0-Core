@@ -9007,14 +9007,50 @@ fn explain_exit_code(code: i32) -> &'static str {
     match code {
         // NO "general error" ARM. 1 without a command is undiagnosed, and saying so is
         // the only true option. explain_exit_code_for is the one that can do better.
-        2 => "misuse of shell builtin",
+        // INT-272: NO 2 OR 128 ARM. "misuse of shell builtin" and "invalid exit argument" are
+        // bash describing its OWN builtins, and every caller of this table ran an external
+        // program; a builtin prints its own message. Measured 2026-10-04 on deployed nsh:
+        // /usr/bin/ls exiting 2 and git exiting 128 were each given a category nobody saw.
         126 => "permission denied -- command exists but not executable. Try: chmod +x <file>",
         127 => "command not found",
-        128 => "invalid exit argument",
         130 => "interrupted by Ctrl+C",
         137 => "killed (OOM or SIGKILL)",
         139 => "segmentation fault",
         _ => "non-zero exit",
+    }
+}
+
+#[cfg(test)]
+mod exit_label_tests {
+    use super::{explain_exit_code, explain_exit_code_for};
+
+    // INT-272: the class, not the example. Every status the table knows, bare and for an
+    // external command. 2 and 128 carry no category; every other label is unchanged.
+    #[test]
+    fn exit_labels_name_only_what_the_shell_saw() {
+        for code in [2, 128] {
+            assert_eq!(explain_exit_code(code), "non-zero exit", "bare {}", code);
+            for cmd in ["/usr/bin/ls", "git"] {
+                let got = explain_exit_code_for(code, cmd);
+                assert_eq!(got, "non-zero exit", "{} {}", cmd, code);
+            }
+        }
+        let kept: [(i32, &str); 5] = [
+            (1, "non-zero exit"),
+            (127, "command not found"),
+            (130, "interrupted by Ctrl+C"),
+            (137, "killed (OOM or SIGKILL)"),
+            (139, "segmentation fault"),
+        ];
+        for (code, label) in kept {
+            assert_eq!(explain_exit_code(code), label, "bare {}", code);
+            let got = explain_exit_code_for(code, "/usr/bin/frob");
+            assert_eq!(got, label, "frob {}", code);
+        }
+        assert!(explain_exit_code(126).starts_with("permission denied"));
+        let denied = explain_exit_code_for(126, "/usr/bin/frob");
+        assert!(denied.starts_with("permission denied"));
+        assert_eq!(explain_exit_code_for(1, "grep"), "no matches");
     }
 }
 
