@@ -18,6 +18,7 @@ pub mod paths;
 #[cfg(feature = "db")]
 pub mod state_db;
 pub mod theme;
+pub mod version;
 #[cfg(feature = "ui")]
 pub mod wayland;
 

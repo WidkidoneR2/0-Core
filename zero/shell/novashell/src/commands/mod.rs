@@ -16707,9 +16707,8 @@ fn memory_distill(db: &StateDb) -> CommandResult {
 }
 
 /// INT-326: bump-versions -- suggest or apply version bumps for modified tools
-// INT-111: the version WRITE path. Reads a tool's Cargo.toml, finds the single
-// `version = "x.y.z"` line, computes the bumped version, writes it back in place.
-// Count-asserted: exactly one version line, or it errors (never a partial/wrong write).
+// INT-111/INT-271: tool name -> Cargo.toml path for bump-versions. The write itself is
+// zero_core::version::apply_bump.
 fn tool_cargo_path(name: &str) -> Option<String> {
     // The same five tools as before; their Cargo.toml comes from the owner (INT-267 L2).
     let dir = match name {
@@ -16720,62 +16719,18 @@ fn tool_cargo_path(name: &str) -> Option<String> {
     zero_core::paths::crate_rel_dir(dir).map(|d| format!("{}/Cargo.toml", d))
 }
 
-fn bump_semver(ver: &str, level: &str) -> Result<String, String> {
-    let parts: Vec<u32> = ver.split('.').filter_map(|p| p.parse().ok()).collect();
-    if parts.len() != 3 {
-        return Err(format!("version '{}' is not x.y.z semver", ver));
-    }
-    let (maj, min, pat) = (parts[0], parts[1], parts[2]);
-    match level {
-        "patch" => Ok(format!("{}.{}.{}", maj, min, pat + 1)),
-        "minor" => Ok(format!("{}.{}.0", maj, min + 1)),
-        "major" => Ok(format!("{}.0.0", maj + 1)),
-        other => Err(format!("unknown level '{}' (use patch|minor|major)", other)),
-    }
-}
-
 /// Apply a version bump to a tool's Cargo.toml. Returns (old, new) on success.
+/// INT-271: the read, the one-line assert, the arithmetic and the write live in
+/// zero_core::version; this maps the tool name to its Cargo.toml and the word to a level.
 pub fn apply_version_bump(
     core_root: &str,
     tool: &str,
     level: &str,
 ) -> Result<(String, String), String> {
     let rel = tool_cargo_path(tool).ok_or_else(|| format!("unknown tool '{}'", tool))?;
-    let full = format!("{}/{}", core_root, rel);
-    let content =
-        std::fs::read_to_string(&full).map_err(|e| format!("cannot read {}: {}", full, e))?;
-
-    // Find the version line(s). Count-assert exactly one at the top level.
-    let ver_lines: Vec<&str> = content
-        .lines()
-        .filter(|l| l.trim_start().starts_with("version = "))
-        .collect();
-    if ver_lines.len() != 1 {
-        return Err(format!(
-            "expected exactly 1 `version = ` line in {}, found {} -- aborting (no write)",
-            full,
-            ver_lines.len()
-        ));
-    }
-    let old_line = ver_lines[0];
-    let old_ver = old_line
-        .trim()
-        .trim_start_matches("version = ")
-        .trim_matches('"')
-        .to_string();
-    let new_ver = bump_semver(&old_ver, level)?;
-    let new_line = old_line.replace(&old_ver, &new_ver);
-
-    // Replace only that one line, verify the replacement is unique + applied.
-    if content.matches(old_line).count() != 1 {
-        return Err(format!(
-            "version line not uniquely matchable in {} -- aborting (no write)",
-            full
-        ));
-    }
-    let updated = content.replacen(old_line, &new_line, 1);
-    std::fs::write(&full, updated).map_err(|e| format!("cannot write {}: {}", full, e))?;
-    Ok((old_ver, new_ver))
+    let level = zero_core::version::Level::parse(level)
+        .ok_or_else(|| format!("unknown level '{}' (use patch|minor|major)", level))?;
+    zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel), level)
 }
 
 fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
@@ -16819,11 +16774,11 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         if let Ok(cargo) = std::fs::read_to_string(&full) {
             if let Some(ver_line) = cargo.lines().find(|l| l.starts_with("version = ")) {
                 let ver = ver_line.trim_start_matches("version = ").trim_matches('"');
-                // Parse semver
-                let parts: Vec<u32> = ver.split('.').filter_map(|p| p.parse().ok()).collect();
-                if parts.len() == 3 {
-                    let patch_bump = format!("{}.{}.{}", parts[0], parts[1], parts[2] + 1);
-                    let minor_bump = format!("{}.{}.0", parts[0], parts[1] + 1);
+                // INT-271: the arithmetic lives in zero_core::version.
+                if let (Ok(patch_bump), Ok(minor_bump)) = (
+                    zero_core::version::bump(ver, zero_core::version::Level::Patch),
+                    zero_core::version::bump(ver, zero_core::version::Level::Minor),
+                ) {
                     out.push_str(&format!(
                         "  {} {:<20} {}  patch→{}  minor→{}\n",
                         "◦".bright_cyan(),

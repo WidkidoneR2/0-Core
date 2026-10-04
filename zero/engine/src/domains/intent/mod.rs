@@ -1074,54 +1074,16 @@ fn semver_level_for_type(intent_type: &str) -> &'static str {
     }
 }
 
-// INT-111: engine-side version writer (self-contained; no dependency on NovaShell).
-// Reads a tool's Cargo.toml, count-asserts exactly one package `version = ` line,
-// writes the bumped version back in place. Returns (old, new).
+// INT-111 wrote this; INT-271 moved the write to zero_core::version, its one owner. This stays
+// as the engine's door so the close's call site does not change in this step.
 fn engine_apply_bump(
     core_root: &str,
     rel_path: &str,
     level: &str,
 ) -> Result<(String, String), String> {
-    let full = format!("{}/{}", core_root, rel_path);
-    let content =
-        std::fs::read_to_string(&full).map_err(|e| format!("cannot read {}: {}", full, e))?;
-    let ver_lines: Vec<&str> = content
-        .lines()
-        .filter(|l| l.trim_start().starts_with("version = "))
-        .collect();
-    if ver_lines.len() != 1 {
-        return Err(format!(
-            "expected exactly 1 `version = ` line in {}, found {} -- aborting (no write)",
-            full,
-            ver_lines.len()
-        ));
-    }
-    let old_line = ver_lines[0];
-    let old_ver = old_line
-        .trim()
-        .trim_start_matches("version = ")
-        .trim_matches('"')
-        .to_string();
-    let parts: Vec<u32> = old_ver.split('.').filter_map(|p| p.parse().ok()).collect();
-    if parts.len() != 3 {
-        return Err(format!("version '{}' is not x.y.z semver", old_ver));
-    }
-    let new_ver = match level {
-        "patch" => format!("{}.{}.{}", parts[0], parts[1], parts[2] + 1),
-        "minor" => format!("{}.{}.0", parts[0], parts[1] + 1),
-        "major" => format!("{}.0.0", parts[0] + 1),
-        other => return Err(format!("unknown level '{}'", other)),
-    };
-    let new_line = old_line.replace(&old_ver, &new_ver);
-    if content.matches(old_line).count() != 1 {
-        return Err(format!(
-            "version line not uniquely matchable in {} -- aborting",
-            full
-        ));
-    }
-    let updated = content.replacen(old_line, &new_line, 1);
-    std::fs::write(&full, updated).map_err(|e| format!("cannot write {}: {}", full, e))?;
-    Ok((old_ver, new_ver))
+    let level = zero_core::version::Level::parse(level)
+        .ok_or_else(|| format!("unknown level '{}'", level))?;
+    zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel_path), level)
 }
 
 pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
