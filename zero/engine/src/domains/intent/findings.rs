@@ -5,6 +5,10 @@
 //! stored here: it is derived from Fixes: trailers in git. Records are never deleted, because a
 //! Fixes: trailer must always point at a real record, and an id is never reused.
 
+use crate::app::context::AppContext;
+use crate::capabilities::Capability;
+use crate::errors::{CoreError, CoreResult};
+use colored::*;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -32,6 +36,112 @@ pub fn write_record(dir: &Path, id: &str, body: &str) -> Result<PathBuf, WriteEr
     file.write_all(body.as_bytes())
         .map_err(|e| WriteError::Io(path.clone(), e.to_string()))?;
     Ok(path)
+}
+
+/// The id form ruled 2026-10-04: F- and four digits.
+pub fn finding_id(n: u32) -> String {
+    format!("F-{:04}", n)
+}
+
+/// The highest F-number on disk. An absent folder truly holds none, so it answers 0; a folder
+/// that exists but cannot be read is an error, never 0 (INT-192). Names that are not F-NNNN.md
+/// are not counted.
+pub fn highest_number(dir: &Path) -> Result<u32, WriteError> {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(WriteError::Io(dir.to_path_buf(), e.to_string())),
+    };
+    let mut max = 0;
+    for entry in entries {
+        let entry = entry.map_err(|e| WriteError::Io(dir.to_path_buf(), e.to_string()))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let n = name
+            .strip_prefix("F-")
+            .and_then(|r| r.strip_suffix(".md"))
+            .and_then(|d| d.parse::<u32>().ok());
+        if let Some(n) = n {
+            max = max.max(n);
+        }
+    }
+    Ok(max)
+}
+
+/// The record body. Every field is written: a field nobody gave reads `unknown`, never empty
+/// (INT-192). Fixed is not a field -- it is derived from Fixes: trailers. The one stored part
+/// of a finding's state is the closure decision, and at filing no decision has been made.
+pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str) -> String {
+    format!(
+        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\n---\n",
+        id,
+        what,
+        at.unwrap_or("unknown"),
+        by.unwrap_or("unknown"),
+        on
+    )
+}
+
+fn refuse(message: String) -> CoreError {
+    CoreError::Domain {
+        domain: "intent".to_string(),
+        message: format!("nothing was filed -- {}", message),
+    }
+}
+
+/// `core intent find "<what>" [--at <file:line>] [--by <intent>]` -- file one finding.
+/// `--by` defaults to the focused intent, read the way `core intent status` reads it.
+pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
+    let what = what.split_whitespace().collect::<Vec<_>>().join(" ");
+    if what.is_empty() {
+        return Err(refuse("a finding must say what was found".to_string()));
+    }
+    let at = at.map(str::trim).filter(|s| !s.is_empty());
+    let (by_id, from_focus) = match by.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(b) => (Some(b.trim_start_matches("INT-").to_string()), false),
+        None => (super::read_focus().map(|f| f.id), true),
+    };
+    if let Some(id) = &by_id {
+        if !super::load_all(ctx).iter().any(|i| &i.id == id) {
+            return Err(refuse(format!("INT-{} names no intent in the ledger", id)));
+        }
+    }
+    let by_label = by_id.as_ref().map(|id| format!("INT-{}", id));
+    let dir = super::intents_dir(ctx).join("findings");
+    fs::create_dir_all(&dir)
+        .map_err(|e| refuse(format!("could not create {}: {}", dir.display(), e)))?;
+    let on = chrono::Local::now().format("%Y-%m-%d").to_string();
+    for _ in 0..5 {
+        let n = highest_number(&dir).map_err(|e| refuse(format!("{:?}", e)))? + 1;
+        let id = finding_id(n);
+        let body = render(&id, &what, at, by_label.as_deref(), &on);
+        match write_record(&dir, &id, &body) {
+            Ok(path) => {
+                println!("  {} {} filed", "✅".green(), id.bright_white());
+                match &by_label {
+                    Some(b) if from_focus => println!("     found by {} (focused)", b),
+                    Some(b) => println!("     found by {}", b),
+                    None => println!(
+                        "     found by unknown -- no --by given and no focused intent could be read"
+                    ),
+                }
+                println!("     at {}", at.unwrap_or("unknown"));
+                println!("     {}", path.display().to_string().dimmed());
+                return Ok(());
+            }
+            Err(WriteError::Exists(_)) => continue,
+            Err(e) => return Err(refuse(format!("{:?}", e))),
+        }
+    }
+    Err(refuse(
+        "five ids in a row were taken while filing; run it again".to_string(),
+    ))
 }
 
 #[cfg(test)]
@@ -63,5 +173,59 @@ mod collision_tests {
             on_disk, b"first\n",
             "and the first record must survive byte for byte"
         );
+    }
+}
+
+#[cfg(test)]
+mod record_tests {
+    /// INT-266 gate 5: A FIELD THAT IS NOT KNOWN SAYS SO. A record filed without --at or --by
+    /// must read `unknown` in that field, never an empty value that looks like a parse error or
+    /// a blank someone forgot (INT-192). Proven red first: the first render used an empty
+    /// default, and this test caught it.
+    #[test]
+    fn a_missing_field_reads_unknown_never_empty() {
+        let body = super::render("F-0001", "something broke", None, None, "2026-10-04");
+        for field in [
+            "id",
+            "what",
+            "at",
+            "found_by",
+            "found_on",
+            "closed_without_fix",
+        ] {
+            let line = body
+                .lines()
+                .find(|l| l.starts_with(&format!("{}:", field)))
+                .unwrap_or_else(|| panic!("the record has no {} field:\n{}", field, body));
+            let value = line[field.len() + 1..].trim();
+            assert!(!value.is_empty(), "{} is empty:\n{}", field, body);
+        }
+        assert!(body.contains("\nat: unknown\n"), "{}", body);
+        assert!(body.contains("\nfound_by: unknown\n"), "{}", body);
+    }
+
+    /// The allocator counts F-NNNN.md and nothing else, and an absent folder holds none.
+    #[test]
+    fn the_highest_number_counts_only_finding_names() {
+        let dir = std::env::temp_dir().join("core_finding_highest_test");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            super::highest_number(&dir),
+            Ok(0),
+            "an absent folder holds none"
+        );
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        for name in [
+            "F-0001.md",
+            "F-0007.md",
+            "F-abc.md",
+            "notes.md",
+            "F-0009.txt",
+        ] {
+            std::fs::write(dir.join(name), "x").expect("seed");
+        }
+        let got = super::highest_number(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(got, Ok(7));
     }
 }

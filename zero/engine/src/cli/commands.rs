@@ -361,6 +361,11 @@ pub enum IntentCommand {
         id: String,
         reason: String,
     },
+    Find {
+        what: String,
+        at: Option<String>,
+        by: Option<String>,
+    },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {

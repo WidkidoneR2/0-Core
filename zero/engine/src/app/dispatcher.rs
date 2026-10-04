@@ -177,6 +177,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Override { id, reason } => {
                     crate::domains::intent::override_intent(ctx, &id, &reason)
                 }
+                IntentCommand::Find { what, at, by } => {
+                    crate::domains::intent::findings::find(ctx, &what, at.as_deref(), by.as_deref())
+                }
             }
         }
 

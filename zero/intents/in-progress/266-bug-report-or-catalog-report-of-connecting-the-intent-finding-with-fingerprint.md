@@ -180,7 +180,8 @@ The three questions -- the test of whether this worked:
 - [x] Every ruling above is written into this file, with the date and who ruled, before any code
       is written
       <!-- evidence: commit 298d8afa, 2026-10-04. Rulings section dated and attributed to Christian; that commit changes only this file (the future -> in-progress rename plus the section); no INT-266 code commit precedes it. Seal 2327275975ab0b36 checked intact against refs/notes/seals. -->
-- [ ] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
+- [x] A finding ID cannot collide: an attempt to create a duplicate is refused, proven red first
+      <!-- evidence: commit cb1dbe90, 2026-10-04. cargo test -p core findings: red under File::create (panicked at findings.rs:51 -- a second write of F-0001 must be refused, got Ok), green under create_new (1 passed). Seal 29b2bf352cef9291 intact against refs/notes/seals. -->
 - [ ] A finding record states what, where, found by and when, and its state; a field that is not
       known says so rather than reading as empty (INT-192)
 - [ ] Question a is answered by one command, on real data

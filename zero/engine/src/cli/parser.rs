@@ -734,6 +734,17 @@ pub enum IntentCommands {
         /// Reason for override
         reason: String,
     },
+    /// File a finding: something found and not fixed (INT-266)
+    Find {
+        /// What was found, in one line
+        what: String,
+        /// Where it is, as file:line; recorded as unknown when omitted
+        #[arg(long)]
+        at: Option<String>,
+        /// The intent that found it; defaults to the focused intent
+        #[arg(long)]
+        by: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
