@@ -3,7 +3,7 @@ id: 272
 date: 2026-10-03
 type: future
 title: "Messages: exit 2 from an external is not a builtin misuse, and a refusal prints once"
-status: planned
+status: in-progress
 tags: [nsh, core, messages]
 ---
 
@@ -49,9 +49,12 @@ Phase 2 -- core: a refusal prints once.
 Phase 3 -- ship; doors.
 
 ## Gates
-- [ ] Phase 0: the nsh category table and its caller recorded with file:line, the builtin-or-external signal named, and the close refusal path plus core's error printer recorded
-- [ ] Red baseline on deployed nsh: an external exiting 2 (`/usr/bin/ls --int272-bogus`) is labelled "misuse of shell builtin", captured verbatim
-- [ ] After, on the debug then deployed nsh: the same external exiting 2 carries no builtin label; `bump-versions novashell` (a builtin exiting 2) keeps it; the other categorised statuses for externals and builtins are unchanged, checked as a class in a test
+- [x] Phase 0: the nsh category table and its caller recorded with file:line, the builtin-or-external signal named, and the close refusal path plus core's error printer recorded
+<!-- evidence: read 2026-10-04 at HEAD 62f9e40b with numbered-line reads. nsh: explain_exit_code commands/mod.rs:9006-9019 (2 arm 9010, 128 arm 9013), reached from explain_exit_code_for 8980-9003 for every code but 1; callers 9851 (pipeline), 10084, 10125, 10174 (direct spawn) and 10419 (run_external), all external paths. The signal is the call site: a builtin returns CommandResult::Error(msg, code) and prints only msg. core: complete_intent intent/mod.rs:1520-1527 prints refused: and nothing was written, then returns CoreError::Runtime(msg); main.rs:63-71 prints it again as Runtime error: and exits 1 (Runtime at errors/mod.rs:12-13). write_versions 1297-1322 has the same shape for a write failure. -->
+- [x] Red baseline on deployed nsh: an external exiting 2 (`/usr/bin/ls --int272-bogus`) is labelled "misuse of shell builtin", captured verbatim
+<!-- evidence: demonstrated 2026-10-04 on deployed nsh (built 2026-10-03 22:08:40) in the REPL: /usr/bin/ls --int272-bogus printed exited 2 -- misuse of shell builtin. Same class in the same session: git -C on a missing directory printed exited 128 -- invalid exit argument. bump-versions novashell printed only its usage, exit 2, no category. -->
+- [x] After, on the debug then deployed nsh: the same external exiting 2 carries no builtin label; `bump-versions novashell` (a builtin exiting 2) keeps it; the other categorised statuses for externals and builtins are unchanged, checked as a class in a test
+<!-- evidence: commit ca900401, 2026-10-04. The 2 and 128 arms removed from explain_exit_code. Red first: cargo test -p novashell exit_label failed on bare 2 (left misuse of shell builtin, right non-zero exit), then 1 passed; exit_label_tests covers 2 and 128 bare and for /usr/bin/ls, git and an unknown external, with 1, 126, 127, 130, 137, 139 and grep exit 1 unchanged. rustfmt --check silent. Debug nsh, then deployed nsh (built 01:07:44), in the REPL: ls exiting 2 and git exiting 128 each read non-zero exit. The builtin clause rested on a false premise: no builtin path reaches this table, so bump-versions novashell had no label to keep; it printed its own usage, exit 2, no category, identical before and after. nsh-test 215 of 215 on debug and deployed. -->
 - [ ] Red baseline on deployed core: a close refusal on a scratch HOME prints its reason twice, captured verbatim
 - [ ] After, on the debug then deployed core: the refusal prints its reason once, still states that nothing was written and the intent was not moved, exits non-zero, and the scratch intent and Cargo.toml files are unchanged
 - [ ] Doors per commit: the result on PATH after ship, nsh-test all passing, d 0 failed, plus that commit's own door above
@@ -61,6 +64,7 @@ Phase 3 -- ship; doors.
 - The scratch-HOME method from INT-271 (HOME pointing at a throwaway 0-core with an INT-999 commit)
   reproduces a close refusal without touching the real ledger.
 - Related: INT-271 (where both were seen), AGENTS.md section 3 Messages and tool output.
+- Found, not fixed (2026-10-04, INT-272 probes): after git -C on a missing directory (cannot change to ..., No such file or directory), Friday printed a 95% confidence hint to use python3 to write files (core knowledge fsh_echo_redirect). The hint does not match the failure, and the confidence claims a certainty nobody measured.
 
 ## The Rule
 "A message that names a cause it did not see is a guess wearing a uniform."
