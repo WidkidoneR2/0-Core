@@ -1,0 +1,241 @@
+INT-266 question b -- core intent trace F-x -- plan
+stage red:
+  E1 zero/engine/src/domains/intent/trace.rs: trace doc line names F-x
+     - /// A finding, a commit or a seal as the target comes next (INT-266 questions b and c).
+     + /// F-x goes to trace_finding (question b). A commit or a seal as the target comes next (question c).
+  E2 zero/engine/src/domains/intent/trace.rs: F-x goes to trace_finding; the refusal names what trace answers
+     -     let t = target.trim();
+     -     let id = t.strip_prefix("INT-").unwrap_or(t);
+     -     if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+     -         return Err(could_not(format!(
+     -             "{} is not an intent; trace answers INT-x today, and findings, commits and seals come next",
+     +     let t = target.trim();
+     +     if t.starts_with("F-") {
+     +         return trace_finding(ctx, t);
+     +     }
+     +     let id = t.strip_prefix("INT-").unwrap_or(t);
+     +     if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+     +         return Err(could_not(format!(
+     +             "{} is neither an intent nor a finding; trace answers INT-x and F-x today, and commits and seals come next",
+  E3 zero/engine/src/domains/intent/trace.rs: seal_digest, SealCheck, check_seal (red bodies), trailer, note_for, trace_finding
+     - /// Gate 9's class: did not start, started and refused, answered nothing. Each is its own test.
+     + /// The first 16 hex of sha256 over the plan text -- the Seal rule (Christian, 2026-10-04).
+     + pub fn seal_digest(text: &[u8]) -> String {
+     +     use sha2::{Digest, Sha256};
+     +     Sha256::digest(text).iter().take(8).map(|b| format!("{:02x}", b)).collect()
+     + }
+     + 
+     + /// What the seal on one commit says, re-checked. A commit from before the Seal rule answers as
+     + /// predating it, never as empty (INT-192).
+     + #[derive(Debug, PartialEq)]
+     + pub enum SealCheck {
+     +     /// The plan text kept in refs/notes/seals hashes to the Seal trailer.
+     +     Intact(String),
+     +     /// The kept plan text hashes to something else.
+     +     Broken { seal: String, got: String },
+     +     /// A Seal trailer, but no plan text kept for this commit.
+     +     NoNote(String),
+     +     /// No Seal trailer; a Fingerprint trailer from before the Seal rule. Not re-checkable.
+     +     Legacy(String),
+     +     /// Neither trailer.
+     +     NoSeal,
+     + }
+     + 
+     + /// Decide the seal from the commit's trailers and the note kept for it.
+     + pub fn check_seal(seal: Option<&str>, fingerprint: Option<&str>, note: Option<&[u8]>) -> SealCheck {
+     +     match seal {
+     +         Some(s) => match note {
+     +             Some(_) => SealCheck::Intact(s.to_string()),
+     +             None => SealCheck::NoNote(s.to_string()),
+     +         },
+     +         None => SealCheck::NoSeal,
+     +     }
+     + }
+     + 
+     + /// One trailer's values on one commit, comma-joined. None when the commit has no such trailer.
+     + fn trailer(core_root: &str, hash: &str, key: &str) -> Result<Option<String>, String> {
+     +     let format = format!("--format=%(trailers:key={},valueonly,separator=%x2C)", key);
+     +     let text = git_read(core_root, &["log", "-1", &format, hash])?;
+     +     let value = text.trim();
+     +     Ok(if value.is_empty() { None } else { Some(value.to_string()) })
+     + }
+     + 
+     + /// The note blob kept for a commit, from git notes --ref=seals list: the blob, a space, the full
+     + /// commit hash. `hash` may be abbreviated.
+     + fn note_for<'a>(list: &'a str, hash: &str) -> Option<&'a str> {
+     +     list.lines().find_map(|line| {
+     +         let (blob, commit) = line.split_once(' ')?;
+     +         if commit.trim().starts_with(hash) {
+     +             Some(blob)
+     +         } else {
+     +             None
+     +         }
+     +     })
+     + }
+     + 
+     + /// `core intent trace F-x` -- the finding, and for each commit whose Fixes: names it, that commit
+     + /// and the seal of the plan that produced it, re-checked against refs/notes/seals.
+     + fn trace_finding(ctx: &AppContext, id: &str) -> CoreResult<()> {
+     +     let dir = super::intents_dir(ctx).join("findings");
+     +     let records = super::findings::read_records(&dir).map_err(could_not)?;
+     +     let record = match records.iter().find(|r| r.id == id) {
+     +         Some(r) => r,
+     +         None => {
+     +             return Err(could_not(format!("{} names no finding in {}", id, dir.display())));
+     +         }
+     +     };
+     +     println!("  {}  {}", record.id.bright_white(), record.what);
+     +     println!("          at {}", record.at.dimmed());
+     +     println!("          found by {} on {}", record.found_by, record.found_on);
+     +     let core: &str = &ctx.core_root;
+     +     let fixed_by = fixes(core);
+     +     match state_of(record, &fixed_by) {
+     +         State::Open => {
+     +             println!("     {} -- no commit on HEAD carries Fixes: {}", "open".yellow(), id);
+     +             Ok(())
+     +         }
+     +         State::Closed(why) => {
+     +             println!("     {}: {}", "closed without a fix".dimmed(), why);
+     +             Ok(())
+     +         }
+     +         State::Unread(e) => Err(could_not(format!(
+     +             "git could not be read, so whether {} is fixed is not known: {}",
+     +             id, e
+     +         ))),
+     +         State::Fixed(hashes) => {
+     +             let notes = git_read(core, &["notes", "--ref=seals", "list"])
+     +                 .map_err(|e| could_not(format!("the seal notes could not be read: {}", e)))?;
+     +             for hash in &hashes {
+     +                 let subject =
+     +                     git_read(core, &["log", "-1", "--format=%s", hash.as_str()]).map_err(could_not)?;
+     +                 let seal = trailer(core, hash, "Seal").map_err(could_not)?;
+     +                 let fingerprint = trailer(core, hash, "Fingerprint").map_err(could_not)?;
+     +                 let note = match note_for(&notes, hash) {
+     +                     Some(blob) => Some(git_read(core, &["cat-file", "-p", blob]).map_err(could_not)?),
+     +                     None => None,
+     +                 };
+     +                 let check = check_seal(
+     +                     seal.as_deref(),
+     +                     fingerprint.as_deref(),
+     +                     note.as_deref().map(str::as_bytes),
+     +                 );
+     +                 println!("     {} {}  {}", "fixed by".green(), hash.bright_white(), subject.trim());
+     +                 let line = match check {
+     +                     SealCheck::Intact(s) => format!(
+     +                         "seal {} intact -- the plan text kept in refs/notes/seals hashes to it",
+     +                         s
+     +                     )
+     +                     .green()
+     +                     .to_string(),
+     +                     SealCheck::Broken { seal, got } => format!(
+     +                         "seal {} BROKEN -- the plan text kept in refs/notes/seals hashes to {}",
+     +                         seal, got
+     +                     )
+     +                     .red()
+     +                     .to_string(),
+     +                     SealCheck::NoNote(s) => format!(
+     +                         "seal {} recorded, but no plan text is kept in refs/notes/seals, so it cannot be re-checked",
+     +                         s
+     +                     )
+     +                     .yellow()
+     +                     .to_string(),
+     +                     SealCheck::Legacy(f) => {
+     +                         format!("predates the Seal rule: Fingerprint {}, not re-checkable", f)
+     +                             .dimmed()
+     +                             .to_string()
+     +                     }
+     +                     SealCheck::NoSeal => "no seal recorded on this commit".yellow().to_string(),
+     +                 };
+     +                 println!("          {}", line);
+     +             }
+     +             Ok(())
+     +         }
+     +     }
+     + }
+     + 
+     + /// Gate 9's class: did not start, started and refused, answered nothing. Each is its own test.
+  E4 zero/engine/src/domains/intent/trace.rs: seal_tests at the end
+     -                 ("F-0002".to_string(), "abc1234".to_string()),
+     -             ]
+     -         );
+     -     }
+     - }
+     +                 ("F-0002".to_string(), "abc1234".to_string()),
+     +             ]
+     +         );
+     +     }
+     + }
+     + 
+     + /// INT-266 question b. A seal is re-checked, never assumed: a note that hashes to something
+     + /// else is broken, and a commit from before the Seal rule answers legacy, never empty.
+     + #[cfg(test)]
+     + mod seal_tests {
+     +     use super::{check_seal, note_for, seal_digest, SealCheck};
+     + 
+     +     #[test]
+     +     fn the_digest_is_the_first_16_hex_of_sha256() {
+     +         assert_eq!(seal_digest(b"abc"), "ba7816bf8f01cfea");
+     +     }
+     + 
+     +     #[test]
+     +     fn a_note_that_hashes_to_the_seal_is_intact() {
+     +         let seal = seal_digest(b"plan\n");
+     +         assert_eq!(check_seal(Some(seal.as_str()), None, Some(&b"plan\n"[..])), SealCheck::Intact(seal.clone()));
+     +     }
+     + 
+     +     #[test]
+     +     fn a_note_that_does_not_hash_to_the_seal_is_broken() {
+     +         assert_eq!(
+     +             check_seal(Some("0000000000000000"), None, Some(&b"plan\n"[..])),
+     +             SealCheck::Broken {
+     +                 seal: "0000000000000000".to_string(),
+     +                 got: seal_digest(b"plan\n"),
+     +             }
+     +         );
+     +     }
+     + 
+     +     #[test]
+     +     fn a_commit_before_the_seal_rule_answers_legacy_never_empty() {
+     +         assert_eq!(
+     +             check_seal(None, Some("ce3dd6c2176c585a"), None),
+     +             SealCheck::Legacy("ce3dd6c2176c585a".to_string())
+     +         );
+     +     }
+     + 
+     +     #[test]
+     +     fn a_seal_with_no_kept_plan_says_so() {
+     +         assert_eq!(check_seal(Some("abc"), None, None), SealCheck::NoNote("abc".to_string()));
+     +         assert_eq!(check_seal(None, None, None), SealCheck::NoSeal);
+     +     }
+     + 
+     +     #[test]
+     +     fn a_note_is_found_by_an_abbreviated_hash() {
+     +         let list = "blob1 abcdef0123456789\nblob2 1234567890abcdef\n";
+     +         assert_eq!(note_for(list, "1234567"), Some("blob2"));
+     +         assert_eq!(note_for(list, "fffffff"), None);
+     +     }
+     + }
+  E5 zero/engine/src/cli/parser.rs: help line for Trace
+     -     /// Trace an intent: every finding it found, and whether each is still open (INT-266)
+     +     /// Trace an intent (what it found, what is still open) or a finding (what fixed it, and its seal) (INT-266)
+  E6 zero/engine/src/cli/parser.rs: help line for its target
+     -         /// The intent, as INT-x or x
+     +         /// INT-x (or x) for an intent, F-x for a finding
+stage green:
+  E7 zero/engine/src/domains/intent/trace.rs: replace
+     -             Some(_) => SealCheck::Intact(s.to_string()),
+     +             Some(text) => {
+     +                 let got = seal_digest(text);
+     +                 if got == s {
+     +                     SealCheck::Intact(s.to_string())
+     +                 } else {
+     +                     SealCheck::Broken { seal: s.to_string(), got }
+     +                 }
+     +             }
+  E8 zero/engine/src/domains/intent/trace.rs: replace
+     -         None => SealCheck::NoSeal,
+     +         None => match fingerprint {
+     +             Some(f) => SealCheck::Legacy(f.to_string()),
+     +             None => SealCheck::NoSeal,
+     +         },
+test: cargo test -p core -- intent::findings:: intent::trace:: -- red fails 2, green passes 20
