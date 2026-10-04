@@ -1,0 +1,93 @@
+INT-266 trace reader -- plan
+stage red:
+  E1 zero/intents/in-progress/266-*.md (Rulings): add the trace placement ruling after the placement entry
+     +     trace       core intent trace lives in zero/engine/src/domains/intent/trace.rs,
+     +                 beside findings.rs and declared by one line in intent/mod.rs
+     +                 (Christian, 2026-10-04). findings.rs owns the records; trace.rs
+     +                 owns the questions asked of them and of git. Every git read in
+     +                 trace goes through one reader, git_read: git did not start, git
+     +                 exited N with its stderr, or git's text. A failure never reads
+     +                 as an empty answer.
+  E2 create zero/engine/src/domains/intent/trace.rs (refused if it exists), red body:
+     | //! INT-266: trace -- the questions asked of finding records and of git. Ruled by Christian,
+     | //! 2026-10-04: findings.rs owns the records; this file owns the queries over them.
+     | //!
+     | //! Every git read here goes through git_read. It answers one of three things: git did not
+     | //! start, git started and refused (its exit and stderr), or git's text. A failure never reads
+     | //! as an empty answer (INT-192), so Ok("") is a true none.
+     | 
+     | use std::process::Command;
+     | 
+     | /// Read from git in `core_root`. Err when git could not run or exited non-zero; Ok is git's
+     | /// stdout, untrimmed.
+     | pub fn git_read(core_root: &str, args: &[&str]) -> Result<String, String> {
+     |     run("git", core_root, args)
+     | }
+     | 
+     | /// The one place trace spawns a process. The program is a parameter so a test can prove the
+     | /// could-not-run answer without touching the real git.
+     | fn run(program: &str, core_root: &str, args: &[&str]) -> Result<String, String> {
+     |     Ok(Command::new(program)
+     |         .arg("-C")
+     |         .arg(core_root)
+     |         .args(args)
+     |         .output()
+     |         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+     |         .unwrap_or_default())
+     | }
+     | 
+     | /// Gate 9's class: did not start, started and refused, answered nothing. Each is its own test.
+     | #[cfg(test)]
+     | mod reader_tests {
+     |     use super::run;
+     | 
+     |     fn repo() -> String {
+     |         env!("CARGO_MANIFEST_DIR").to_string()
+     |     }
+     | 
+     |     #[test]
+     |     fn a_program_that_cannot_start_answers_could_not_run() {
+     |         match run("zero-int266-no-such-program", &repo(), &["log", "-1"]) {
+     |             Err(e) => assert!(e.contains("could not run"), "wrong refusal: {}", e),
+     |             Ok(text) => panic!("a program that cannot start must answer Err, got Ok({:?})", text),
+     |         }
+     |     }
+     | 
+     |     #[test]
+     |     fn git_that_refuses_answers_its_exit() {
+     |         match run("git", &repo(), &["log", "-1", "zero-int266-no-such-revision"]) {
+     |             Err(e) => assert!(e.contains("exited"), "wrong refusal: {}", e),
+     |             Ok(text) => panic!("git refusing a revision must answer Err, got Ok({:?})", text),
+     |         }
+     |     }
+     | 
+     |     #[test]
+     |     fn git_that_answers_nothing_is_a_true_none() {
+     |         let got = run("git", &repo(), &["log", "-1", "--format="]);
+     |         assert_eq!(got.map(|t| t.trim().to_string()), Ok(String::new()));
+     |     }
+     | }
+  E3 zero/engine/src/domains/intent/mod.rs: after pub mod findings; add pub mod trace;
+stage green:
+  E4 zero/engine/src/domains/intent/trace.rs: replace the red body of run with:
+     |     let out = Command::new(program)
+     |         .arg("-C")
+     |         .arg(core_root)
+     |         .args(args)
+     |         .output()
+     |         .map_err(|e| format!("{} could not run: {}", program, e))?;
+     |     if !out.status.success() {
+     |         let exit = match out.status.code() {
+     |             Some(code) => format!("exited {}", code),
+     |             None => "was stopped by a signal".to_string(),
+     |         };
+     |         return Err(format!(
+     |             "{} {} {}: {}",
+     |             program,
+     |             args.first().copied().unwrap_or(""),
+     |             exit,
+     |             String::from_utf8_lossy(&out.stderr).trim()
+     |         ));
+     |     }
+     |     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+test: cargo test -p core intent::trace:: -- red fails 2 of 3, green passes 3 of 3
