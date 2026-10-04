@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;
+pub mod trace;
 
 #[derive(Debug, Clone)]
 pub struct Intent {
