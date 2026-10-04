@@ -258,8 +258,13 @@ The three questions -- the test of whether this worked:
       9 open -- no Fixes: trailer on HEAD. With no git on PATH all 9 read not known, exit 1.
       Red first: 4 of 13 failed (unreadable git read open among them), then 13 of 13.
       Seal b2684f76540370f7 intact against refs/notes/seals. -->
-- [ ] Question b is answered by one command, on real data, naming the fixing commit and the
+- [x] Question b is answered by one command, on real data, naming the fixing commit and the
       fingerprint of the plan that produced it
+      <!-- evidence: commit 87e17913, 2026-10-04, the first Fixes: trailer (Fixes: F-0010). Deployed
+      ~/.local/bin/core (core 4.1.5, 18:13:55, built from 87e17913 committed 18:11:22): core intent
+      trace F-0010 -> fixed by 87e17913, seal 369dd33f83163a00 intact against refs/notes/seals; trace
+      INT-266 -> F-0010 fixed by 87e17913, 9 open. Trace b built in 9e5a7667, red first (2 of 19
+      failed, then 19 of 19), seal 6a2aa128e47f29ad intact. -->
 - [ ] Question c is answered by one command, on real data
 - [ ] When git or the store cannot be read, every query says it could not read -- never "no
       findings" or "no commits". A class test covers it
