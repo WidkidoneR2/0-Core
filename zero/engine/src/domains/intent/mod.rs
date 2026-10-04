@@ -7,6 +7,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// INT-266: findings -- one record per file under intents/findings/.
+pub mod findings;
+
 #[derive(Debug, Clone)]
 pub struct Intent {
     pub id: String,

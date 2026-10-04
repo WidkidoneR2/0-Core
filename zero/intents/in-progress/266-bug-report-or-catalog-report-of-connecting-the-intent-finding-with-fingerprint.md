@@ -111,6 +111,13 @@ and ten commits carry two of them. No Rust in the tree reads trailers. Every
                 unblocks, asked of dep_state, the existing single owner.
     legacy      A commit or value that predates a rule answers as predating
                 it, never as empty (INT-192).
+    placement   Findings code lives in zero/engine/src/domains/intent/findings.rs,
+                declared by one line in intent/mod.rs. The verbs stay under core
+                intent.
+    no fall-off Records are never deleted, so a Fixes: trailer always names a real
+                record and an id is never reused. Measured 2026-10-04: the whole
+                ledger is 3.1M on btrfs with compress=zstd:3, and a record is a few
+                hundred bytes.
 
 ## Starting line -- measured 2026-10-04
 
