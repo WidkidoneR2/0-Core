@@ -265,9 +265,20 @@ The three questions -- the test of whether this worked:
       trace F-0010 -> fixed by 87e17913, seal 369dd33f83163a00 intact against refs/notes/seals; trace
       INT-266 -> F-0010 fixed by 87e17913, 9 open. Trace b built in 9e5a7667, red first (2 of 19
       failed, then 19 of 19), seal 6a2aa128e47f29ad intact. -->
-- [ ] Question c is answered by one command, on real data
-- [ ] When git or the store cannot be read, every query says it could not read -- never "no
+- [x] Question c is answered by one command, on real data
+      <!-- evidence: commit a68d346c, 2026-10-04, display fix 8b2549fb. Deployed ~/.local/bin/core
+      (core 4.1.5, 18:42:32, built from 8b2549fb committed 18:39:31): trace 87e17913 and trace
+      369dd33f83163a00 both answer INT-266, fixes F-0010, seal 369dd33f83163a00 intact; 62f9e40b
+      answers INT-272, INT-273 and a legacy Fingerprint; c4634250 (debug) answers no Intent trailer.
+      Red first: 2 of 23 failed, then 23 of 23. Seals b61f1e8727e05a74 and 9a40041e7321b1a5 intact. -->
+- [x] When git or the store cannot be read, every query says it could not read -- never "no
       findings" or "no commits". A class test covers it
+      <!-- evidence: class test unreadable_tests in trace.rs (a68d346c): every git reader the queries
+      use -- fixes, trailer, seal notes, commit_header, seal_commits -- pointed at a path git cannot
+      enter answers Err; red first, the two new readers swallowed errors (2 failed), then green. The
+      store: read_tests a_folder_that_cannot_be_read_is_an_error_never_none (3f510f01). Deployed core
+      with no git on PATH, exit 1 for each: trace INT-266, F-0010, 87e17913 and 369dd33f83163a00 all
+      say could not answer, and none calls a finding open. -->
 - [ ] The convention is in docs/CONVENTIONS.md and the method in AGENTS.md
 - [ ] Each gate carries its evidence on the line after it (INT-158)
 
