@@ -3,7 +3,7 @@ id: 272
 date: 2026-10-03
 type: future
 title: "Messages: exit 2 from an external is not a builtin misuse, and a refusal prints once"
-status: in-progress
+status: complete
 tags: [nsh, core, messages]
 ---
 
@@ -72,3 +72,7 @@ Phase 3 -- ship; doors.
 
 ## The Rule
 "A message that names a cause it did not see is a guess wearing a uniform."
+
+## Versions
+- novashell 5.0.2 -> 5.0.3 (patch)
+- engine 4.1.4 -> 4.1.5 (patch)
