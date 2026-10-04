@@ -1,0 +1,335 @@
+INT-266 question a -- core intent trace INT-x -- plan
+stage red:
+  E1 zero/engine/src/domains/intent/findings.rs: Record, parse_record, read_records after render (red bodies)
+     | 
+     | /// One finding, read back from its record. A field the file does not hold reads `unknown`, the
+     | /// same word render writes for a field nobody gave (INT-192).
+     | #[derive(Debug, PartialEq)]
+     | pub struct Record {
+     |     pub id: String,
+     |     pub what: String,
+     |     pub at: String,
+     |     pub found_by: String,
+     |     pub found_on: String,
+     |     pub closed_without_fix: String,
+     | }
+     | 
+     | /// Parse a record body as render writes it. Only the frontmatter is read.
+     | pub fn parse_record(body: &str) -> Record {
+     |     let mut fields: Vec<(String, String)> = Vec::new();
+     |     let mut lines = body.lines();
+     |     if lines.next().map(str::trim) == Some("---") {
+     |         for line in lines {
+     |             if line.trim() == "---" {
+     |                 break;
+     |             }
+     |             if let Some((key, value)) = line.split_once(':') {
+     |                 fields.push((key.trim().to_string(), value.trim().to_string()));
+     |             }
+     |         }
+     |     }
+     |     let get = |name: &str| -> String {
+     |         fields
+     |             .iter()
+     |             .find(|(key, _)| key.as_str() == name)
+     |             .map(|(_, value)| value.clone())
+     |             .filter(|value| !value.is_empty())
+     |             .unwrap_or_default()
+     |     };
+     |     Record {
+     |         id: get("id"),
+     |         what: get("what"),
+     |         at: get("at"),
+     |         found_by: get("found_by"),
+     |         found_on: get("found_on"),
+     |         closed_without_fix: get("closed_without_fix"),
+     |     }
+     | }
+     | 
+     | /// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
+     | /// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
+     | pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
+     |     let entries = match fs::read_dir(dir) {
+     |         Ok(e) => e,
+     |         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+     |         Err(_) => return Ok(Vec::new()),
+     |     };
+     |     let mut records = Vec::new();
+     |     for entry in entries {
+     |         let entry = entry.map_err(|e| format!("could not read {}: {}", dir.display(), e))?;
+     |         let name = entry.file_name().to_string_lossy().to_string();
+     |         let is_record = name
+     |             .strip_prefix("F-")
+     |             .and_then(|r| r.strip_suffix(".md"))
+     |             .and_then(|d| d.parse::<u32>().ok())
+     |             .is_some();
+     |         if !is_record {
+     |             continue;
+     |         }
+     |         let path = entry.path();
+     |         let body = fs::read_to_string(&path)
+     |             .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+     |         records.push(parse_record(&body));
+     |     }
+     |     records.sort_by(|a, b| a.id.cmp(&b.id));
+     |     Ok(records)
+     | }
+  E2 zero/engine/src/domains/intent/findings.rs: read_tests before record_tests
+     | /// INT-266 question a: records read back. A missing field reads unknown, and a folder that
+     | /// cannot be read is an error, never an empty list (INT-192).
+     | #[cfg(test)]
+     | mod read_tests {
+     |     use super::{parse_record, read_records, render, Record};
+     | 
+     |     #[test]
+     |     fn a_record_reads_back_as_it_was_written() {
+     |         let body = render("F-0001", "something broke: here", None, Some("INT-266"), "2026-10-04");
+     |         assert_eq!(
+     |             parse_record(&body),
+     |             Record {
+     |                 id: "F-0001".to_string(),
+     |                 what: "something broke: here".to_string(),
+     |                 at: "unknown".to_string(),
+     |                 found_by: "INT-266".to_string(),
+     |                 found_on: "2026-10-04".to_string(),
+     |                 closed_without_fix: "no".to_string(),
+     |             }
+     |         );
+     |     }
+     | 
+     |     #[test]
+     |     fn a_field_missing_from_the_file_reads_unknown() {
+     |         let got = parse_record("---\nid: F-0003\n---\n");
+     |         assert_eq!(got.id, "F-0003");
+     |         assert_eq!(got.what, "unknown", "a missing what must read unknown");
+     |         assert_eq!(got.closed_without_fix, "unknown");
+     |     }
+     | 
+     |     #[test]
+     |     fn a_folder_that_cannot_be_read_is_an_error_never_none() {
+     |         let base = std::env::temp_dir();
+     |         let absent = base.join(format!("core_finding_absent_{}", std::process::id()));
+     |         assert_eq!(read_records(&absent), Ok(Vec::new()), "an absent folder holds none");
+     |         let file = base.join(format!("core_finding_not_a_dir_{}", std::process::id()));
+     |         std::fs::write(&file, "x").expect("seed");
+     |         let got = read_records(&file);
+     |         let _ = std::fs::remove_file(&file);
+     |         assert!(got.is_err(), "a file where the folder should be must answer Err, got {:?}", got);
+     |     }
+     | }
+     | 
+  E3 zero/engine/src/domains/intent/trace.rs: uses
+     | use super::findings::Record;
+     | use crate::app::context::AppContext;
+     | use crate::capabilities::Capability;
+     | use crate::errors::{CoreError, CoreResult};
+     | use colored::*;
+  E4 zero/engine/src/domains/intent/trace.rs: fixes, parse_fixes, State, state_of, trace (red bodies)
+     | /// Every finding id a Fixes: trailer names on the current branch, with the commit that named it.
+     | /// Err when git could not be read.
+     | pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
+     |     let text = git_read(
+     |         core_root,
+     |         &[
+     |             "log",
+     |             "--format=%h%x09%(trailers:key=Fixes,valueonly,separator=%x2C)",
+     |             "HEAD",
+     |         ],
+     |     )?;
+     |     Ok(parse_fixes(&text))
+     | }
+     | 
+     | /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
+     | fn parse_fixes(text: &str) -> Vec<(String, String)> {
+     |     let mut named = Vec::new();
+     |     for line in text.lines() {
+     |         if let Some((hash, ids)) = line.split_once('\t') {
+     |             if !ids.trim().is_empty() {
+     |                 named.push((ids.trim().to_string(), hash.to_string()));
+     |             }
+     |         }
+     |     }
+     |     named
+     | }
+     | 
+     | /// A finding's state, derived when asked and never stored (decision 142).
+     | #[derive(Debug, PartialEq)]
+     | pub enum State {
+     |     /// A Fixes: trailer names it; the commits that do.
+     |     Fixed(Vec<String>),
+     |     /// The record says it was closed without a fix, and why.
+     |     Closed(String),
+     |     /// Git was read and nothing fixes it.
+     |     Open,
+     |     /// Git could not be read, so whether it is open is not known.
+     |     Unread(String),
+     | }
+     | 
+     | /// Closed is a stored fact and needs no git. Open and Fixed need git to have answered.
+     | pub fn state_of(record: &Record, fixes: &Result<Vec<(String, String)>, String>) -> State {
+     |     let closed = record.closed_without_fix.as_str();
+     |     if closed != "no" && closed != "unknown" {
+     |         return State::Closed(closed.to_string());
+     |     }
+     |     let empty = Vec::new();
+     |     let named = fixes.as_ref().unwrap_or(&empty);
+     |     let by: Vec<String> = named
+     |         .iter()
+     |         .filter(|(id, _)| id == &record.id)
+     |         .map(|(_, hash)| hash.clone())
+     |         .collect();
+     |     if by.is_empty() {
+     |         State::Open
+     |     } else {
+     |         State::Fixed(by)
+     |     }
+     | }
+     | 
+     | fn could_not(message: String) -> CoreError {
+     |     CoreError::Domain {
+     |         domain: "intent".to_string(),
+     |         message: format!("trace could not answer -- {}", message),
+     |     }
+     | }
+     | 
+     | /// `core intent trace INT-x` -- every finding INT-x found, and whether each is still open.
+     | /// A finding, a commit or a seal as the target comes next (INT-266 questions b and c).
+     | pub fn trace(ctx: &AppContext, target: &str) -> CoreResult<()> {
+     |     ctx.capabilities.require(
+     |         "intent",
+     |         &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+     |     )?;
+     |     let t = target.trim();
+     |     let id = t.strip_prefix("INT-").unwrap_or(t);
+     |     if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+     |         return Err(could_not(format!(
+     |             "{} is not an intent; trace answers INT-x today, and findings, commits and seals come next",
+     |             t
+     |         )));
+     |     }
+     |     if !super::load_all(ctx).iter().any(|i| i.id == id) {
+     |         return Err(could_not(format!("INT-{} names no intent in the ledger", id)));
+     |     }
+     |     let label = format!("INT-{}", id);
+     |     let dir = super::intents_dir(ctx).join("findings");
+     |     let records = super::findings::read_records(&dir).map_err(could_not)?;
+     |     let found: Vec<&Record> = records.iter().filter(|r| r.found_by == label).collect();
+     |     let fixed_by = fixes(&ctx.core_root);
+     |     let states: Vec<State> = found.iter().map(|r| state_of(r, &fixed_by)).collect();
+     |     println!(
+     |         "  {} found {} finding{}",
+     |         label.bright_white(),
+     |         found.len(),
+     |         if found.len() == 1 { "" } else { "s" }
+     |     );
+     |     for (r, s) in found.iter().zip(&states) {
+     |         let state = match s {
+     |             State::Open => "open".yellow().to_string(),
+     |             State::Fixed(by) => format!("fixed by {}", by.join(", ")).green().to_string(),
+     |             State::Closed(why) => format!("closed without a fix: {}", why).dimmed().to_string(),
+     |             State::Unread(_) => "not known".red().to_string(),
+     |         };
+     |         println!("     {}  {}  {}", r.id.bright_white(), state, r.what);
+     |         println!("             at {}", r.at.dimmed());
+     |     }
+     |     match &fixed_by {
+     |         Ok(_) => {
+     |             let open = states.iter().filter(|s| **s == State::Open).count();
+     |             println!("     {} open", open);
+     |             Ok(())
+     |         }
+     |         Err(e) => Err(could_not(format!(
+     |             "git could not be read, so no finding above is called open: {}",
+     |             e
+     |         ))),
+     |     }
+     | }
+     | 
+  E5 zero/engine/src/domains/intent/trace.rs: state_tests at the end
+     | 
+     | /// INT-266 question a. Gate 9 at the query: git that cannot be read never makes a finding open.
+     | #[cfg(test)]
+     | mod state_tests {
+     |     use super::{parse_fixes, state_of, State};
+     |     use crate::domains::intent::findings::parse_record;
+     | 
+     |     fn record(closed: &str) -> super::Record {
+     |         parse_record(&format!(
+     |             "---\nid: F-0001\nwhat: x\nat: a.rs:1\nfound_by: INT-266\nfound_on: 2026-10-04\nclosed_without_fix: {}\n---\n",
+     |             closed
+     |         ))
+     |     }
+     | 
+     |     #[test]
+     |     fn git_that_cannot_be_read_never_reads_open() {
+     |         let got = state_of(&record("no"), &Err("git log could not run".to_string()));
+     |         assert_eq!(got, State::Unread("git log could not run".to_string()));
+     |     }
+     | 
+     |     #[test]
+     |     fn a_fixes_trailer_marks_it_fixed_by_that_commit() {
+     |         let named = Ok(vec![("F-0001".to_string(), "abc1234".to_string())]);
+     |         assert_eq!(state_of(&record("no"), &named), State::Fixed(vec!["abc1234".to_string()]));
+     |         assert_eq!(state_of(&record("no"), &Ok(Vec::new())), State::Open);
+     |     }
+     | 
+     |     #[test]
+     |     fn a_closed_record_reads_closed_with_its_reason() {
+     |         assert_eq!(
+     |             state_of(&record("duplicate of F-0002"), &Ok(Vec::new())),
+     |             State::Closed("duplicate of F-0002".to_string())
+     |         );
+     |     }
+     | 
+     |     #[test]
+     |     fn a_fixes_line_names_every_id_it_lists() {
+     |         let got = parse_fixes("abc1234\tF-0001,F-0002\ndef5678\t\n");
+     |         assert_eq!(
+     |             got,
+     |             vec![
+     |                 ("F-0001".to_string(), "abc1234".to_string()),
+     |                 ("F-0002".to_string(), "abc1234".to_string()),
+     |             ]
+     |         );
+     |     }
+     | }
+  E6 zero/engine/src/cli/parser.rs: Trace variant before Find
+     |     /// Trace an intent: every finding it found, and whether each is still open (INT-266)
+     |     Trace {
+     |         /// The intent, as INT-x or x
+     |         target: String,
+     |     },
+  E7 zero/engine/src/cli/commands.rs: Trace variant before Find
+     |     Trace {
+     |         target: String,
+     |     },
+  E8 zero/engine/src/cli/mod.rs: Trace mapping after Find
+     |             IntentCommands::Trace { target } => IntentCommand::Trace { target },
+  E9 zero/engine/src/app/dispatcher.rs: Trace call after Find
+     |                 IntentCommand::Trace { target } => {
+     |                     crate::domains::intent::trace::trace(ctx, &target)
+     |                 }
+stage green:
+  E10 zero/engine/src/domains/intent/findings.rs: replace
+     -             .filter(|value| !value.is_empty())
+     -             .unwrap_or_default()
+     +             .filter(|value| !value.is_empty())
+     +             .unwrap_or_else(|| "unknown".to_string())
+  E11 zero/engine/src/domains/intent/findings.rs: replace
+     -         Err(_) => return Ok(Vec::new()),
+     +         Err(e) => return Err(format!("could not read {}: {}", dir.display(), e)),
+  E12 zero/engine/src/domains/intent/trace.rs: replace
+     -             if !ids.trim().is_empty() {
+     -                 named.push((ids.trim().to_string(), hash.to_string()));
+     -             }
+     +             for id in ids.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+     +                 named.push((id.to_string(), hash.to_string()));
+     +             }
+  E13 zero/engine/src/domains/intent/trace.rs: replace
+     -     let empty = Vec::new();
+     -     let named = fixes.as_ref().unwrap_or(&empty);
+     +     let named = match fixes {
+     +         Ok(named) => named,
+     +         Err(e) => return State::Unread(e.clone()),
+     +     };
+test: cargo test -p core -- intent::findings:: intent::trace:: -- red fails 4, green passes 13
