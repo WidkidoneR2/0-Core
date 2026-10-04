@@ -619,9 +619,15 @@ pub enum IntentCommands {
     Start {
         id: String,
     },
-    /// Mark intent as complete and move to complete/
+    /// Mark intent as complete and move to complete/. Versions are decided first.
     Complete {
         id: String,
+        /// Decide one touched crate: tool=patch, minor, major or skip. Repeatable.
+        #[arg(long = "bump", value_name = "TOOL=LEVEL")]
+        bump: Vec<String>,
+        /// Record every touched crate that no --bump names as skipped.
+        #[arg(long)]
+        skip_bumps: bool,
     },
     /// Interactive wizard -- prompts for category, title, status, tags
     Add {

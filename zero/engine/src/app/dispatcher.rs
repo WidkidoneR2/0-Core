@@ -127,7 +127,18 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::FocusStatus => crate::domains::intent::focus_status(ctx),
                 IntentCommand::Drift => crate::domains::intent::drift(ctx),
                 IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
-                IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
+                IntentCommand::Complete {
+                    id,
+                    bump,
+                    skip_bumps,
+                } => crate::domains::intent::complete_intent(
+                    ctx,
+                    &id,
+                    &crate::domains::intent::BumpFlags {
+                        bumps: bump,
+                        skip_rest: skip_bumps,
+                    },
+                ),
                 IntentCommand::Add { smart } => crate::domains::intent::add(ctx, smart),
                 IntentCommand::New {
                     category,

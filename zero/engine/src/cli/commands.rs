@@ -294,6 +294,8 @@ pub enum IntentCommand {
     },
     Complete {
         id: String,
+        bump: Vec<String>,
+        skip_bumps: bool,
     },
     Add {
         smart: bool,

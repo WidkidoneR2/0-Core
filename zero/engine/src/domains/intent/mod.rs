@@ -1065,28 +1065,347 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
-// INT-111: map an intent's `type:` to a proposed semver level.
-// feature -> minor; everything else -> patch. major only via human override at prompt.
-fn semver_level_for_type(intent_type: &str) -> &'static str {
-    match intent_type {
-        "feature" => "minor",
-        _ => "patch",
+/// INT-271: how the close settles versions. Empty: ask in a terminal, refuse anywhere else.
+#[derive(Debug, Default, Clone)]
+pub struct BumpFlags {
+    /// One `tool=patch|minor|major|skip` per --bump.
+    pub bumps: Vec<String>,
+    /// Every touched crate that no --bump names is recorded as skipped.
+    pub skip_rest: bool,
+}
+
+/// A crate this intent's commits touched: the id bump-versions accepts, and its Cargo.toml
+/// relative to the 0-core root.
+struct TouchedCrate {
+    tool: &'static str,
+    rel: String,
+}
+
+/// One settled crate. `level` None means skipped.
+struct VersionPlan {
+    tool: &'static str,
+    rel: String,
+    level: Option<zero_core::version::Level>,
+}
+
+/// INT-326 found the touched crates this way. INT-271 keeps the detection and names each crate
+/// by the id bump-versions accepts: `engine`, never the label `core (engine)`.
+fn touched_crates(ctx: &AppContext, id: &str) -> Vec<TouchedCrate> {
+    let touched = std::process::Command::new("git")
+        .args([
+            "-C",
+            &ctx.core_root,
+            "log",
+            "--name-only",
+            "--format=",
+            &format!("--grep=INT-{}", id),
+            "--since=60 days ago",
+        ])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let in_crate_tree = |name: &str| {
+        zero_core::paths::CRATE_PARENTS_HISTORY
+            .iter()
+            .any(|p| touched.contains(&format!("{}/{}", p, name)))
+    };
+    let hits: [(&'static str, bool); 5] = [
+        ("novashell", in_crate_tree("novashell")),
+        (
+            "engine",
+            touched.contains("engine/src") || touched.contains("engine/Cargo"),
+        ),
+        ("zero-git", touched.contains("zero-git")),
+        ("friday-chat", touched.contains("friday-chat")),
+        ("db-browse", touched.contains("db-browse")),
+    ];
+    hits.iter()
+        .filter(|(_, hit)| *hit)
+        .filter_map(|(tool, _)| {
+            zero_core::paths::crate_rel_dir(tool).map(|d| TouchedCrate {
+                tool: *tool,
+                rel: format!("{}/Cargo.toml", d),
+            })
+        })
+        .collect()
+}
+
+/// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
+/// intent touched, a known level, no crate named twice. `core` is accepted for `engine`.
+fn parse_bump_flags(
+    raw: &[String],
+    touched: &[&'static str],
+) -> Result<Vec<(&'static str, Option<zero_core::version::Level>)>, String> {
+    let mut out: Vec<(&'static str, Option<zero_core::version::Level>)> = Vec::new();
+    for r in raw {
+        let (name, word) = r
+            .split_once('=')
+            .ok_or_else(|| format!("--bump {} is not tool=level", r))?;
+        let name = if name == "core" { "engine" } else { name };
+        let tool = touched
+            .iter()
+            .copied()
+            .find(|t| *t == name)
+            .ok_or_else(|| {
+                let seen = if touched.is_empty() {
+                    "none".to_string()
+                } else {
+                    touched.join(", ")
+                };
+                format!(
+                    "--bump {}: this intent's commits did not touch {} (touched: {})",
+                    r, name, seen
+                )
+            })?;
+        let level = if word == "skip" {
+            None
+        } else {
+            Some(zero_core::version::Level::parse(word).ok_or_else(|| {
+                format!("--bump {}: {} is not patch, minor, major or skip", r, word)
+            })?)
+        };
+        if out.iter().any(|(t, _)| *t == tool) {
+            return Err(format!("--bump names {} twice", tool));
+        }
+        out.push((tool, level));
+    }
+    Ok(out)
+}
+
+/// Ask on stderr until the answer is a level or skip. No default: the digit is a judgement about
+/// the contract (INT-102 D4 and D5), so an empty or mistyped answer asks again.
+fn ask_level(tool: &str, current: &str) -> Result<Option<zero_core::version::Level>, String> {
+    use std::io::{BufRead, Write};
+    loop {
+        eprint!("    bump {} {}? [patch/minor/major/skip] > ", tool, current);
+        let _ = std::io::stderr().flush();
+        let mut line = String::new();
+        let n = std::io::stdin()
+            .lock()
+            .read_line(&mut line)
+            .map_err(|e| format!("reading the answer for {}: {}", tool, e))?;
+        if n == 0 {
+            return Err(format!("no answer for {}: input closed", tool));
+        }
+        let word = line.trim();
+        if matches!(word, "skip" | "s" | "n") {
+            return Ok(None);
+        }
+        match zero_core::version::Level::parse(word) {
+            Some(level) => return Ok(Some(level)),
+            None => eprintln!("      '{}' is not patch, minor, major or skip", word),
+        }
     }
 }
 
-// INT-111 wrote this; INT-271 moved the write to zero_core::version, its one owner. This stays
-// as the engine's door so the close's call site does not change in this step.
-fn engine_apply_bump(
-    core_root: &str,
-    rel_path: &str,
-    level: &str,
-) -> Result<(String, String), String> {
-    let level = zero_core::version::Level::parse(level)
-        .ok_or_else(|| format!("unknown level '{}'", level))?;
-    zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel_path), level)
+/// INT-271: every version decision, made and checked before the first write. A --bump decides
+/// first, --skip-bumps fills the rest, a terminal asks for what is left, and anywhere else an
+/// undecided crate refuses the close. Each Cargo.toml passes plan_bump here, so a manifest the
+/// writer would refuse stops the close before anything changes.
+fn decide_versions(
+    ctx: &AppContext,
+    id: &str,
+    flags: &BumpFlags,
+) -> Result<Vec<VersionPlan>, String> {
+    use std::io::IsTerminal;
+    let touched = touched_crates(ctx, id);
+    let ids: Vec<&'static str> = touched.iter().map(|t| t.tool).collect();
+    let explicit = parse_bump_flags(&flags.bumps, &ids)?;
+    let interactive = std::io::stdin().is_terminal();
+    let mut plans = Vec::new();
+    let mut undecided: Vec<&'static str> = Vec::new();
+    for t in &touched {
+        let full = std::path::Path::new(&ctx.core_root).join(&t.rel);
+        let content = std::fs::read_to_string(&full)
+            .map_err(|e| format!("cannot read {}: {}", full.display(), e))?;
+        let current = zero_core::version::plan_bump(&content, zero_core::version::Level::Patch)
+            .map_err(|e| format!("{}: {}", full.display(), e))?
+            .old;
+        let level = if let Some((_, l)) = explicit.iter().find(|(tool, _)| *tool == t.tool) {
+            *l
+        } else if flags.skip_rest {
+            None
+        } else if interactive {
+            ask_level(t.tool, &current)?
+        } else {
+            undecided.push(t.tool);
+            continue;
+        };
+        if let Some(l) = level {
+            zero_core::version::plan_bump(&content, l)
+                .map_err(|e| format!("{}: {}", full.display(), e))?;
+        }
+        plans.push(VersionPlan {
+            tool: t.tool,
+            rel: t.rel.clone(),
+            level,
+        });
+    }
+    if !undecided.is_empty() {
+        let decide: Vec<String> = undecided
+            .iter()
+            .map(|t| format!("--bump {}=<patch|minor|major|skip>", t))
+            .collect();
+        return Err(format!(
+            "no terminal to ask and no decision for {}. Decide with: cicomplete {} {} (or --skip-bumps)",
+            undecided.join(", "),
+            id,
+            decide.join(" ")
+        ));
+    }
+    Ok(plans)
 }
 
-pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
+/// INT-271: write every planned bump through the one owner, then sync Cargo.lock for it. Returns
+/// the Versions receipt for the intent. A write that fails stops the close: the caller does not
+/// move the intent, and the message names what was written and how to finish.
+fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResult<String> {
+    if plans.is_empty() {
+        return Ok(String::new());
+    }
+    let mut receipt = String::from("\n## Versions\n");
+    let mut written: Vec<String> = Vec::new();
+    println!();
+    println!("  {} Versions", "\u{1f4e6}".normal());
+    for (i, p) in plans.iter().enumerate() {
+        let Some(level) = p.level else {
+            println!("    {} {} skipped", "\u{25e6}".dimmed(), p.tool);
+            receipt.push_str(&format!("- {} skipped\n", p.tool));
+            continue;
+        };
+        let full = std::path::Path::new(&ctx.core_root).join(&p.rel);
+        match zero_core::version::apply_bump(&full, level) {
+            Ok((old, new)) => {
+                println!(
+                    "    {} {} {} -> {} ({})",
+                    "\u{2713}".green(),
+                    p.tool,
+                    old,
+                    new,
+                    level.as_str()
+                );
+                receipt.push_str(&format!(
+                    "- {} {} -> {} ({})\n",
+                    p.tool,
+                    old,
+                    new,
+                    level.as_str()
+                ));
+                written.push(format!("{} {}", p.tool, new));
+                sync_lock(ctx, &full, &new);
+            }
+            Err(e) => {
+                let rest: Vec<String> = plans[i..]
+                    .iter()
+                    .filter_map(|q| {
+                        q.level
+                            .map(|l| format!("bump-versions {} {}", q.tool, l.as_str()))
+                    })
+                    .collect();
+                let before = if written.is_empty() {
+                    "nothing".to_string()
+                } else {
+                    written.join(", ")
+                };
+                eprintln!("  bump failed for {}: {}", p.tool, e);
+                eprintln!("  written before it: {}", before);
+                eprintln!(
+                    "  the intent was not moved. Finish with: {}; then rerun cicomplete {} and answer skip for crates already bumped",
+                    rest.join("; "),
+                    id
+                );
+                return Err(crate::errors::CoreError::Runtime(format!(
+                    "bump failed for {}",
+                    p.tool
+                )));
+            }
+        }
+    }
+    Ok(receipt)
+}
+
+/// INT-125: keep Cargo.lock in step with a bump. The cargo package name comes from the crate's
+/// own Cargo.toml, not the tool id.
+fn sync_lock(ctx: &AppContext, toml: &std::path::Path, new: &str) {
+    let pkg = std::fs::read_to_string(toml).ok().and_then(|c| {
+        c.lines()
+            .find(|l| l.trim_start().starts_with("name = "))
+            .map(|l| {
+                l.trim()
+                    .trim_start_matches("name = ")
+                    .trim_matches('"')
+                    .to_string()
+            })
+    });
+    let Some(pkg) = pkg else {
+        return;
+    };
+    let lock = std::process::Command::new("cargo")
+        .args(["update", "-p", &pkg, "--precise", new])
+        .current_dir(&ctx.core_root)
+        .output();
+    match lock {
+        Ok(o) if o.status.success() => println!(
+            "      {} Cargo.lock synced ({} {})",
+            "\u{2713}".green(),
+            pkg.dimmed(),
+            new.dimmed()
+        ),
+        Ok(o) => println!(
+            "      {} Cargo.lock sync skipped: {}",
+            "\u{26a0}".yellow(),
+            String::from_utf8_lossy(&o.stderr).trim().dimmed()
+        ),
+        Err(e) => println!(
+            "      {} cargo not available for lock sync: {}",
+            "\u{26a0}".yellow(),
+            e.to_string().dimmed()
+        ),
+    }
+}
+
+#[cfg(test)]
+mod int271_close_tests {
+    use super::parse_bump_flags;
+    use zero_core::version::Level;
+
+    const TOUCHED: &[&str] = &["novashell", "engine"];
+
+    fn flags(raw: &[&str]) -> Vec<String> {
+        raw.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn a_bump_names_a_touched_crate_and_a_level() {
+        let got = parse_bump_flags(&flags(&["novashell=minor", "core=skip"]), TOUCHED).unwrap();
+        assert_eq!(
+            got,
+            vec![("novashell", Some(Level::Minor)), ("engine", None)]
+        );
+    }
+
+    #[test]
+    fn every_bad_bump_is_refused_before_anything_is_asked() {
+        for bad in [
+            "novashell",
+            "novashell=ptach",
+            "frob=patch",
+            "db-browse=patch",
+            "novashell=",
+        ] {
+            assert!(
+                parse_bump_flags(&flags(&[bad]), TOUCHED).is_err(),
+                "{} should be refused",
+                bad
+            );
+        }
+        assert!(
+            parse_bump_flags(&flags(&["novashell=patch", "novashell=minor"]), TOUCHED).is_err()
+        );
+    }
+}
+
+pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -1197,18 +1516,21 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         }
     }
 
+    // INT-271: every version decision is made and checked here, before anything is written.
+    let planned = match decide_versions(ctx, id, flags) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("  refused: {}", msg);
+            eprintln!("  nothing was written and the intent was not moved");
+            return Err(crate::errors::CoreError::Runtime(msg));
+        }
+    };
+
     // Auto-checkpoint before completion
     println!("  {} Auto-checkpointing before completion...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
-    // INT-251 v23: emit to unified event bus
-    let _ = crate::domains::friday::events::emit(
-        ctx,
-        "intent",
-        "intent_completed",
-        &format!(r#"{{\"id\":\"{}\"}}"#, id),
-        "core",
-        None,
-    );
+    // INT-271: write every planned bump. A failure stops here and the intent is not moved.
+    let receipt = write_versions(ctx, id, &planned)?;
 
     // Find and move the file to complete/
     let base = ctx.fpath("intents");
@@ -1247,6 +1569,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .replace("status: future", "status: complete")
             .replace("status: in-progress", "status: complete")
             .replace("status: deferred", "status: complete");
+        // INT-271: the Versions receipt rides in the same write as the move.
+        let updated = updated + &receipt;
 
         // Move to complete/
         let complete_dir = base.join("complete");
@@ -1256,6 +1580,17 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         fs::write(&dest_path, updated).map_err(crate::errors::CoreError::Io)?;
         fs::remove_file(&src_path).map_err(crate::errors::CoreError::Io)?;
     }
+
+    // INT-251 v23: emit to unified event bus. INT-271: after the move, so a close that stopped
+    // on a failed bump never announces a completion.
+    let _ = crate::domains::friday::events::emit(
+        ctx,
+        "intent",
+        "intent_completed",
+        &format!(r#"{{\"id\":\"{}\"}}"#, id),
+        "core",
+        None,
+    );
 
     // Clear focus if this was the focused intent
     if let Some(f) = read_focus() {
@@ -1316,168 +1651,6 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
             );
         }
         println!("    {} Run: core intent next", "◦".dimmed());
-    }
-    // INT-326: version bump suggestions after cicomplete
-    {
-        use colored::Colorize;
-        // Find which Rust tools were touched in this intent's commits
-        let touched = std::process::Command::new("git")
-            .args([
-                "-C",
-                &ctx.core_root,
-                "log",
-                "--name-only",
-                "--format=",
-                &format!("--grep=INT-{}", id),
-                "--since=60 days ago",
-            ])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-            .unwrap_or_default();
-
-        // Each crate's Cargo.toml comes from the owner (INT-267 L2); a crate missing from the
-        // tree is skipped, never guessed.
-        let crate_toml =
-            |name: &str| zero_core::paths::crate_rel_dir(name).map(|d| format!("{}/Cargo.toml", d));
-        // Every parent the crates have lived in, so an intent's older commits still count.
-        let in_crate_tree = |name: &str| {
-            zero_core::paths::CRATE_PARENTS_HISTORY
-                .iter()
-                .any(|p| touched.contains(&format!("{}/{}", p, name)))
-        };
-        let mut tools: Vec<(&str, String)> = vec![];
-        if in_crate_tree("novashell") {
-            tools.extend(crate_toml("novashell").map(|p| ("novashell", p)));
-        }
-        if touched.contains("engine/src") || touched.contains("engine/Cargo") {
-            tools.extend(crate_toml("engine").map(|p| ("core (engine)", p)));
-        }
-        if touched.contains("zero-git") {
-            tools.extend(crate_toml("zero-git").map(|p| ("zero-git", p)));
-        }
-        if touched.contains("friday-chat") {
-            tools.extend(crate_toml("friday-chat").map(|p| ("friday-chat", p)));
-        }
-        if touched.contains("db-browse") {
-            tools.extend(crate_toml("db-browse").map(|p| ("db-browse", p)));
-        }
-
-        if !tools.is_empty() {
-            use std::io::{IsTerminal, Write};
-            let proposed = semver_level_for_type(&intent.intent_type);
-            let interactive = std::io::stdin().is_terminal();
-            println!();
-            println!(
-                "  {} Version bumps ({} proposed from type: {}):",
-                "📦".normal(),
-                proposed.bright_yellow(),
-                intent.intent_type.dimmed()
-            );
-            for (name, cargo_path) in &tools {
-                let full_path = format!("{}/{}", ctx.core_root, cargo_path);
-                let cur = std::fs::read_to_string(&full_path).ok().and_then(|c| {
-                    c.lines()
-                        .find(|l| l.trim_start().starts_with("version = "))
-                        .map(|l| {
-                            l.trim()
-                                .trim_start_matches("version = ")
-                                .trim_matches('"')
-                                .to_string()
-                        })
-                });
-                let Some(cur) = cur else {
-                    continue;
-                };
-                if !interactive {
-                    // No TTY -- never block a scripted completion. Suggest only.
-                    println!(
-                        "    {} {}  {} (would bump {}; run: bump-versions {} {})",
-                        "◦".dimmed(),
-                        name.bright_white(),
-                        cur.dimmed(),
-                        proposed.dimmed(),
-                        proposed,
-                        name
-                    );
-                    continue;
-                }
-                print!(
-                    "    {} bump {} {} ({})? [{}/skip] > ",
-                    "◦".bright_cyan(),
-                    name.bright_white(),
-                    cur.dimmed(),
-                    proposed.bright_yellow(),
-                    "patch/minor/major".dimmed()
-                );
-                let _ = std::io::stdout().flush();
-                let mut line = String::new();
-                if std::io::stdin().read_line(&mut line).is_err() {
-                    continue;
-                }
-                let choice = line.trim();
-                let level = match choice {
-                    "" => proposed, // Enter accepts the proposal
-                    "patch" | "minor" | "major" => choice,
-                    "skip" | "s" | "n" => {
-                        println!("      skipped");
-                        continue;
-                    }
-                    other => {
-                        println!("      unrecognized '{}', skipped", other);
-                        continue;
-                    }
-                };
-                match engine_apply_bump(&ctx.core_root, cargo_path, level) {
-                    Ok((old, new)) => {
-                        println!(
-                            "      {} {} -> {} ({})",
-                            "✓".green(),
-                            old.dimmed(),
-                            new.bright_green(),
-                            level.dimmed()
-                        );
-                        // INT-125: sync Cargo.lock so it never lags a version bump.
-                        // Derive the cargo package name from the crate's Cargo.toml
-                        // [package] name (display `name` may differ, e.g. "core (engine)").
-                        let pkg = std::fs::read_to_string(&full_path).ok().and_then(|c| {
-                            c.lines()
-                                .find(|l| l.trim_start().starts_with("name = "))
-                                .map(|l| {
-                                    l.trim()
-                                        .trim_start_matches("name = ")
-                                        .trim_matches('"')
-                                        .to_string()
-                                })
-                        });
-                        if let Some(pkg) = pkg {
-                            let lock = std::process::Command::new("cargo")
-                                .args(["update", "-p", &pkg, "--precise", &new])
-                                .current_dir(&ctx.core_root)
-                                .output();
-                            match lock {
-                                Ok(o) if o.status.success() => println!(
-                                    "        {} Cargo.lock synced ({} {})",
-                                    "✓".green(),
-                                    pkg.dimmed(),
-                                    new.dimmed()
-                                ),
-                                Ok(o) => println!(
-                                    "        {} Cargo.lock sync skipped: {}",
-                                    "⚠".yellow(),
-                                    String::from_utf8_lossy(&o.stderr).trim().dimmed()
-                                ),
-                                Err(e) => println!(
-                                    "        {} cargo not available for lock sync: {}",
-                                    "⚠".yellow(),
-                                    e.to_string().dimmed()
-                                ),
-                            }
-                        }
-                    }
-                    Err(e) => println!("      {} bump failed: {}", "✗".red(), e),
-                }
-            }
-        }
     }
     // INT-217 -- Friday speaks on cicomplete
     let _ = crate::domains::friday::speak_on_complete(ctx, &intent.title);

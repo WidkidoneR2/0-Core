@@ -207,7 +207,15 @@ pub fn parse() -> Command {
             IntentCommands::Status => IntentCommand::FocusStatus,
             IntentCommands::Drift => IntentCommand::Drift,
             IntentCommands::Start { id } => IntentCommand::Start { id },
-            IntentCommands::Complete { id } => IntentCommand::Complete { id },
+            IntentCommands::Complete {
+                id,
+                bump,
+                skip_bumps,
+            } => IntentCommand::Complete {
+                id,
+                bump,
+                skip_bumps,
+            },
             IntentCommands::Add { smart } => IntentCommand::Add { smart },
             IntentCommands::New {
                 category,
